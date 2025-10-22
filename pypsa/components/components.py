@@ -746,11 +746,11 @@ class Components(
 
         Examples
         --------
-        >>> n.c.generators.unique_carriers
-        {'wind', 'solar', 'gas'}
+        >>> sorted(n.c.generators.unique_carriers)
+        ['gas', 'wind']
 
-        >>> n.c.buses.unique_carriers
-        {'AC', 'DC'}
+        >>> sorted(n.c.buses.unique_carriers)
+        ['AC', 'DC']
 
         See Also
         --------

@@ -97,7 +97,7 @@ class Carriers(Components):
 
         Assign colors to specific carriers:
 
-        >>> n.c.carriers.assign_colors(["wind", "solar"], palette="tab20")
+        >>> n.c.carriers.assign_colors(["wind", "gas"], palette="tab20")
 
         Overwrite existing colors:
 
@@ -194,33 +194,36 @@ class Carriers(Components):
         --------
         Add missing carriers with default tab10 colors:
 
-        >>> n.c.carriers.add_missing_carriers()
-        Index(['AC', 'gas', 'solar', 'wind'], dtype='object', name='name')
+        >>> n_test = pypsa.Network()
+        >>> n_test.add("Bus", "bus1")
+        >>> n_test.add("Generator", "gen1", bus="bus1", carrier="wind")
+        >>> n_test.add("Generator", "gen2", bus="bus1", carrier="solar")
+        >>> n_test.add("Generator", "gen3", bus="bus1", carrier="gas")
+        >>> n_test.c.carriers.add_missing_carriers()
+        Index(['gas', 'solar', 'wind'], dtype='object', name='name')
 
         Add missing carriers without automatic color assignment:
 
-        >>> n.c.carriers.add_missing_carriers(palette=None)
-        Index(['AC', 'gas', 'solar', 'wind'], dtype='object', name='name')
-
-        Add missing carriers with a custom palette:
-
-        >>> n.c.carriers.add_missing_carriers(palette="Set3")
-        Index(['AC', 'gas', 'solar', 'wind'], dtype='object', name='name')
+        >>> n_test = pypsa.Network()
+        >>> n_test.add("Bus", "bus1", carrier="AC")
+        >>> n_test.add("Generator", "gen1", bus="bus1", carrier="wind")
+        >>> n_test.c.carriers.add_missing_carriers(palette=None)
+        Index(['AC', 'wind'], dtype='object', name='name')
 
         Add missing carriers with additional attributes:
 
-        >>> n.c.carriers.add_missing_carriers(
+        >>> n_test = pypsa.Network()
+        >>> n_test.add("Bus", "bus1", carrier="AC")
+        >>> n_test.add("Generator", "gen1", bus="bus1", carrier="wind")
+        >>> n_test.add("Generator", "gen2", bus="bus1", carrier="gas")
+        >>> added = n_test.c.carriers.add_missing_carriers(
         ...     palette="tab20",
         ...     co2_emissions=0.0
         ... )
-        Index(['AC', 'solar', 'wind'], dtype='object', name='name')
-
-        Add missing carriers with explicit colors:
-
-        >>> n.c.carriers.add_missing_carriers(
-        ...     color=["red", "blue", "green"]
-        ... )
-        Index(['AC', 'gas', 'solar'], dtype='object', name='name')
+        >>> sorted(added)
+        ['AC', 'gas', 'wind']
+        >>> n_test.carriers.loc[added, "co2_emissions"].unique()
+        array([0.])
 
         Notes
         -----
