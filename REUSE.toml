@@ -40,7 +40,7 @@ path = [
 SPDX-FileCopyrightText = "PyPSA Contributors"
 SPDX-License-Identifier = "CC-BY-4.0"
 
-    
+
 [[annotations]]
 # TODO find correct information for this external image
 path = [

@@ -27,7 +27,7 @@ SPDX-License-Identifier: MIT
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
 PyPSA stands for **Python for Power System Analysis**. It is pronounced
-**pipes-ah**. 
+**pipes-ah**.
 
 PyPSA is an open-source Python framework for optimising and simulating modern
 power and energy systems that include features such as conventional generators

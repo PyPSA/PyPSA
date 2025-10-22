@@ -8,10 +8,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ## Network Object
 
-The [`pypsa.Network`][] is an overall container for all network <!-- md:guide 
-components.md -->. Components cannot exist without a network and are always 
-attached to one. A network also holds functions to run different types of 
-optimisation problems, compute power flows, read or write networks to files, 
+The [`pypsa.Network`][] is an overall container for all network <!-- md:guide
+components.md -->. Components cannot exist without a network and are always
+attached to one. A network also holds functions to run different types of
+optimisation problems, compute power flows, read or write networks to files,
 retrieve statistics and plot the network.
 
 ``` py
@@ -237,7 +237,7 @@ For more details, see <!-- md:guide optimization/stochastic.md -->.
 ## Data Storage
 
 For each class of components, the data describing the components is stored in
-memory in `pandas.DataFrame` objects. 
+memory in `pandas.DataFrame` objects.
 
 **Static data** is stored in a `pandas.DataFrame`, which is an attribute of the
 [`pypsa.Network`][], with names that follow the component names. For instance,
@@ -358,7 +358,7 @@ network calculations. It is assumed that the base power is
 
 ## Variable Conventions
 
-All nominal capacities and dispatch variables refer to `bus` for one-port components and `bus0` for branch components. 
+All nominal capacities and dispatch variables refer to `bus` for one-port components and `bus0` for branch components.
 
 ## Sign Conventions
 
@@ -375,4 +375,3 @@ All nominal capacities and dispatch variables refer to `bus` for one-port compon
   injecting into `bus1`.
 * If `p0>0` and `p1<0` for a branch then power flows from `bus0`
   to `bus1`; `p0+p1 > 0` is the loss for this direction of flow.
-

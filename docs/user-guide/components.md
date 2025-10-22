@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Components Object
 
-[`pypsa.Components`][] are the store for all component specific data. While a [`pypsa.Network`][] bundles together functionality across components, the `Components` class is the interface for all data and processing for a specific component type. 
+[`pypsa.Components`][] are the store for all component specific data. While a [`pypsa.Network`][] bundles together functionality across components, the `Components` class is the interface for all data and processing for a specific component type.
 
 ``` py
 >>> import pypsa
@@ -98,7 +98,7 @@ For a list of features, checkout the API documentation. [pypsa.Components][] lis
 
 !!! info
 
-    More features will be added in future releases. If you have any suggestions or requests, please open an issue on [GitHub](https://github.com/PyPSA/PyPSA/issues).   
+    More features will be added in future releases. If you have any suggestions or requests, please open an issue on [GitHub](https://github.com/PyPSA/PyPSA/issues).
 
 ## New Components Class API
 Prior to version  <!-- md:badge-version v0.33.0 --> components data was only available in the two data stores `n.generators` and `n.generators_t`, which were directly attached to the network and not linked. With <!-- md:badge-version v1.0.0 --> they are still available in the same way, but now also via the newly introduced class. A new **optional** breaking API is introduced to make the usage of components more intuitive.
@@ -189,6 +189,6 @@ PyPSA `v1.0` will support full functionality for both APIs. The example above ju
 
 !!! info
 
-    With `v2.0` of PyPSA, there are ongoing discussions to enable the new API by default with an opt-out option to still support old implementations. 
+    With `v2.0` of PyPSA, there are ongoing discussions to enable the new API by default with an opt-out option to still support old implementations.
 
     We are happy to receive feedback on this planned change of the API. Please open an issue on [GitHub](https://github.com/PyPSA/PyPSA/issues) or join the shared [Discord server](https://discord.gg/AnuJBk23FU).

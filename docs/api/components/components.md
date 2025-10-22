@@ -22,4 +22,3 @@ SPDX-License-Identifier: CC-BY-4.0
 ::: pypsa.components.components.ComponentsData
     options:
         heading_level: 2
-

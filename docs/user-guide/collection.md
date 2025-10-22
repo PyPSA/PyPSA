@@ -4,8 +4,8 @@ SPDX-FileCopyrightText: PyPSA Contributors
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-As the name suggests, a [NetworkCollection][pypsa.NetworkCollection] is a collection of 
-multiple networks. It provides a convenient way to manage and analyse multiple networks 
+As the name suggests, a [NetworkCollection][pypsa.NetworkCollection] is a collection of
+multiple networks. It provides a convenient way to manage and analyse multiple networks
 simultaneously, access their combined data, and generate combined statistics and plots.
 
 !!! example "Under Active Development"
@@ -13,8 +13,8 @@ simultaneously, access their combined data, and generate combined statistics and
     NetworkCollections have been introduced in <!-- md:badge-version v0.35.0 --> and will be further extended in future releases.
 
 ## Create a collection
-A network collection is simply a container that references multiple networks and wraps 
-around them. 
+A network collection is simply a container that references multiple networks and wraps
+around them.
 
 Let's take two example networks and put them into a collection:
 
@@ -47,10 +47,10 @@ Index name: 'network'
 Entries: ['AC-DC-Meshed', 'AC-DC-Meshed-Shuffled-Load']
 ```
 
-If no index is passed, the collection will automatically assign names based on the 
-network's [`name`][pypsa.Network.name] attribute or a default name if that is not set. 
-But it is also possible to assign a custom index. Or even a MultiIndex can be used, which 
-allows for custom grouping (see [below](#functionality)). 
+If no index is passed, the collection will automatically assign names based on the
+network's [`name`][pypsa.Network.name] attribute or a default name if that is not set.
+But it is also possible to assign a custom index. Or even a MultiIndex can be used, which
+allows for custom grouping (see [below](#functionality)).
 
 ``` py
 >>> nc = pypsa.NetworkCollection(
@@ -72,32 +72,32 @@ dtype: object
 
 !!! warning
 
-    It is important to note that the collection contains **a reference to the networks**, 
-    not a copy. Therefore, any changes made to the individual networks will be reflected 
+    It is important to note that the collection contains **a reference to the networks**,
+    not a copy. Therefore, any changes made to the individual networks will be reflected
     in the collection and vice versa.
 
 ### Network dimension compatibility
-Currently networks with the same dimensions should be used in a collection. E.g. for 
-comparing different scenarios of the same system. That means all dimensions should align: 
-[`n.snapshots`][pypsa.Network.snapshots] with [`n.periods`][pypsa.Network.periods] and 
-[`n.timesteps`][pypsa.Network.timesteps], [`c.names`][pypsa.Components.names] 
-across all components as well as [`n.scenarios`][pypsa.Network.scenarios] for stochastic 
-networks. If dimensions do not align, some functionality may not work as expected. 
-Future releases will add more flexibility here and better error messages. It is 
-plausible and planned to safly compare stochastic networks with non-stochastic networks, 
-different clustered networks with each other as well as having single node reference 
+Currently networks with the same dimensions should be used in a collection. E.g. for
+comparing different scenarios of the same system. That means all dimensions should align:
+[`n.snapshots`][pypsa.Network.snapshots] with [`n.periods`][pypsa.Network.periods] and
+[`n.timesteps`][pypsa.Network.timesteps], [`c.names`][pypsa.Components.names]
+across all components as well as [`n.scenarios`][pypsa.Network.scenarios] for stochastic
+networks. If dimensions do not align, some functionality may not work as expected.
+Future releases will add more flexibility here and better error messages. It is
+plausible and planned to safly compare stochastic networks with non-stochastic networks,
+different clustered networks with each other as well as having single node reference
 scenarios.
 
 ## Functionality
-Once created, a NetworkCollection behaves similarly to a single [Network][pypsa.Network]. 
-While it it is not a Subclass of Network, it "duck-types" as one. This means that 
-many methods and properties of a Network can be accessed directly on the collection, 
-with the results being aggregated or concatenated across all networks in the collection. 
-Currently mainly the data accessors and statistics module are supported (see below). 
+Once created, a NetworkCollection behaves similarly to a single [Network][pypsa.Network].
+While it it is not a Subclass of Network, it "duck-types" as one. This means that
+many methods and properties of a Network can be accessed directly on the collection,
+with the results being aggregated or concatenated across all networks in the collection.
+Currently mainly the data accessors and statistics module are supported (see below).
 More functionality will be added in future releases.
 
 ### Data Access
-You can access all components data (static and dynamic) in the same way as for a single 
+You can access all components data (static and dynamic) in the same way as for a single
 network. They will just be concatenated across all networks in the collection.
 
 Accessing static data:
@@ -140,13 +140,13 @@ snapshot
 
 !!! info
 
-    If a pd.MultiIndex is used for the collection, the different levels will be 
+    If a pd.MultiIndex is used for the collection, the different levels will be
     preserved in the concatenated dataframes.
 
 ### Statistics Module
 
-The [statistics module][pypsa.Network.statistics] is fully supported for 
-NetworkCollections. All statistics expressions can be accessed in the same way as for 
+The [statistics module][pypsa.Network.statistics] is fully supported for
+NetworkCollections. All statistics expressions can be accessed in the same way as for
 a single network. This includes dataframes and plots. How plots are combined might
 change in future releases.
 
@@ -168,12 +168,11 @@ the same for both networks.
 Create a plot for the same energy balance:
 ``` py
 >>> fig = nc.statistics.energy_balance.iplot()
->>> fig.write_html("docs/assets/interactive/ac_dc_collection_energy_balance_iplot.html") # docs-hide    
+>>> fig.write_html("docs/assets/interactive/ac_dc_collection_energy_balance_iplot.html") # docs-hide
 ```
 <div style="width: 100%; height: 500px;">
-    <iframe src="../../assets/interactive/ac_dc_collection_energy_balance_iplot.html" 
+    <iframe src="../../assets/interactive/ac_dc_collection_energy_balance_iplot.html"
             width="100%" height="100%" frameborder="0" style="border: 0px solid #ccc;">
     </iframe>
 </div>
 For the full range of plotting options, see <!-- md:guide plotting/charts.md -->.
-

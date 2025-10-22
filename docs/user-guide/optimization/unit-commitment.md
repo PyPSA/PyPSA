@@ -36,7 +36,7 @@ i.e. $u_{*,t} = 1$:
     | $f_{l,t} \leq u_{l,t} \cdot \bar{f}_{l,t} \cdot \hat{f}_{l}$ | `Link-com-p-upper` |
 
 !!! warning
-    
+
     Note that components cannot be both extendable (`p_nom_extendable=True`) and committable (`committable=True`) because of the non-linear coupling of status and capacity.
 
 If the **minimum up time** $T_{\textrm{min_up}}$ is set, status switches are constrained to ensure
@@ -53,7 +53,7 @@ that the component is running for at least $T_{\textrm{min_up}}$ snapshots after
     Constraint `Link-com-up-time`:
 
     $$\sum_{t'=t}^{t+T_\textrm{min_up}} u_{l,t'}\geq T_\textrm{min_up} (u_{l,t} - u_{l,t-1})$$
-    
+
 The component may have been up for some periods before the optimisation period (`n.optimize(snapshots=snapshots)`). If the up-time before `snapshots` starts is less than the minimum up-time, the component is forced remain up for the difference at the start of `snapshots`. If the start of `snapshots` is the start of `n.snapshots`, the up-time before the simulation is read from the input attribute `up_time_before`. If `snapshots` falls in the middle of `n.snapshots`, then the statuses before `snapshots` are assumed to be set by previous runs. If the start of `snapshots` is very close to the start of `n.snapshots`, it will also take account of `up_time_before` as well as the statuses in between.
 
 At the end of `snapshots` the minimum up-time in the constraint is only enforced for the remaining snapshots, if the number of remaining snapshots is less than $T_{\textrm{min_up}}$.
@@ -194,7 +194,7 @@ These constraints are defined in the function `define_ramp_limit_constraints()`.
 
     === "Generator"
 
-        | Symbol | Attribute | Type | 
+        | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
         | $G_{n,s}$         | `n.generators.p_nom_opt` | Decision variable |
@@ -209,8 +209,8 @@ These constraints are defined in the function `define_ramp_limit_constraints()`.
 
     === "Link"
 
-        
-        | Symbol | Attribute | Type | 
+
+        | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $f_{l,t}$         | `n.links_t.p` | Decision variable |
         | $F_{l}$           | `n.links.p_nom_opt` | Decision variable |
