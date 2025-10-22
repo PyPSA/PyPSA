@@ -804,6 +804,33 @@ class Components(
 
         return idx
 
+    @property
+    def modulars(self) -> pd.Index:
+        """Get the index of modular elements of this component.
+
+        Modular components have a positive module size (e.g., p_nom_mod > 0)
+        which introduces integer variables for capacity expansion.
+
+        <!-- md:badge-version v1.0.1 -->
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of modular elements.
+
+        """
+        mod_col = self._operational_attrs["nom_mod"]
+        if mod_col not in self.static.columns:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static[mod_col] > 0].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
 
 class SubNetworkComponents:
     """Wrapper class to allow for custom attribute handling of components.

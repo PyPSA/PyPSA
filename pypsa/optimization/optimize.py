@@ -25,6 +25,8 @@ from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
 from pypsa.optimization.constraints import (
+    define_committability_variables_constraints_with_fixed_upper_limit,
+    define_committability_variables_constraints_with_variable_upper_limit,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
@@ -571,6 +573,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_operational_constraints_for_committables(n, sns, c)
             define_ramp_limit_constraints(n, sns, c, attr)
             define_fixed_operation_constraints(n, sns, c, attr)
+
+        # Define upper limit constraints for committable modular components
+        # These must be called after status variables are created
+        for c, attr in lookup.query("nominal").index:
+            # Define upper limit of committable variables with fixed upper limit
+            # (1 for non-modular or n_modules for modular non-extendable)
+            define_committability_variables_constraints_with_fixed_upper_limit(
+                n, sns, c, attr
+            )
+            # Define upper limit of committable variables for modular extendables
+            # (upper limit = n_mod variable)
+            define_committability_variables_constraints_with_variable_upper_limit(
+                n, sns, c, attr
+            )
 
         meshed_threshold = kwargs.get("meshed_threshold", 45)
         meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)

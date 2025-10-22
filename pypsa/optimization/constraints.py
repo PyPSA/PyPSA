@@ -318,7 +318,9 @@ def define_operational_constraints_for_committables(
     active = c.da.active.sel(name=com_i, snapshot=sns)
 
     ext_i: pd.Index = c.extendables.difference(c.inactive_assets)
-    com_ext_i: pd.Index = com_i.intersection(ext_i)
+    # Exclude modular components from big-M formulation
+    # (modular components use separate constraints)
+    com_ext_i: pd.Index = com_i.intersection(ext_i).difference(c.modulars)
     com_fix_i: pd.Index = com_i.difference(ext_i)
 
     # parameters
@@ -461,6 +463,46 @@ def define_operational_constraints_for_committables(
             0,
             name=f"{c.name}-com-p-upper",
             mask=active_fix,
+        )
+
+    # Operational constraints for modular committable components
+    # For modular components, use p_nom_mod * status instead of p_nom * status
+    com_mod_i: pd.Index = com_i.intersection(c.modulars)
+    if not com_mod_i.empty:
+        p_mod = p.sel(name=com_mod_i)
+        status_mod = status.sel(name=com_mod_i)
+        active_mod = active.sel(name=com_mod_i)
+
+        # Get module size (p_nom_mod, s_nom_mod, e_nom_mod)
+        mod_attr = c._operational_attrs["nom_mod"]
+        nominal_mod = c.da[mod_attr].sel(name=com_mod_i)
+
+        # Get min/max_pu for modular components
+        min_pu_mod = min_pu.sel(name=com_mod_i)
+        max_pu_mod = max_pu.sel(name=com_mod_i)
+
+        # Calculate bounds using module size
+        lower_p_mod = min_pu_mod * nominal_mod
+        upper_p_mod = max_pu_mod * nominal_mod
+
+        # Lower constraint: p >= min_pu * p_nom_mod * status
+        lhs_lower_mod = (1, p_mod), (-lower_p_mod, status_mod)
+        n.model.add_constraints(
+            lhs_lower_mod,
+            ">=",
+            0,
+            name=f"{c.name}-com-mod-p-lower",
+            mask=active_mod,
+        )
+
+        # Upper constraint: p <= max_pu * p_nom_mod * status
+        lhs_upper_mod = (1, p_mod), (-upper_p_mod, status_mod)
+        n.model.add_constraints(
+            lhs_upper_mod,
+            "<=",
+            0,
+            name=f"{c.name}-com-mod-p-upper",
+            mask=active_mod,
         )
 
     # state-transition constraint
@@ -1300,17 +1342,14 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     m = n.model
     c = as_components(n, component)
 
-    ext_attr = f"{attr}_extendable"
-    mod_attr = f"{attr}_mod"
-
-    # Mask components that are both extendable and have a positive modular capacity
-    mask = c.static[ext_attr] & (c.static[mod_attr] > 0)
-    mod_i = c.static.index[mask]
+    # Get components that are both extendable and modular
+    mod_i = c.extendables.intersection(c.modulars)
 
     if (mod_i).empty:
         return
 
     # Get modular capacity values
+    mod_attr = c._operational_attrs["nom_mod"]
     modular_capacity = c.da[mod_attr].sel(name=mod_i)
 
     # Get variables
@@ -1319,6 +1358,213 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
 
     con = capacity - modularity * modular_capacity.values == 0
     n.model.add_constraints(con, name=f"{c.name}-{attr}_modularity", mask=None)
+
+
+def define_committability_variables_constraints_with_fixed_upper_limit(
+    n: Network, sns: pd.Index, component: str, attr: str
+) -> None:
+    """Define upper limit constraints for committable unit status variables with fixed limits.
+
+    This function sets the upper limit of committable variables (status, start-up, shut-down)
+    for components with fixed upper limits. The upper limit corresponds to:
+
+    a) The installed number of modules for committable, non-extendable components with modularity.
+       The number of modules is calculated as: nominal_capacity / module_size (e.g., p_nom / p_nom_mod)
+
+    b) The value 1 for all committable components without modularity, regardless of whether
+       they are extendable or not.
+
+    For case a), if the number of modules is not an integer, the function raises a ValueError.
+
+    Applies to Components
+    ---------------------
+    Generator, Link
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component (e.g. "Generator", "Link")
+    attr : str
+        Name of the capacity attribute (e.g. "p_nom" for nominal power)
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        If non-extendable modular components have nominal capacity that is not
+        an integer multiple of their module size
+
+    Notes
+    -----
+    This function is part of the modular unit commitment formulation that allows
+    committable components to have discrete capacity expansion.
+
+    """
+    c = as_components(n, component)
+    m = n.model
+
+    # Get committable, modular, and non-extendable component indices
+    com_i = c.committables
+    mod_i = c.modulars
+    fix_i = c.fixed
+
+    if com_i.empty:
+        return
+
+    ##############################################################
+    # rhs is initially filled for committable, modular, non-extendable components
+    # rhs = p_nom / p_nom_mod (number of installed modules)
+
+    inter_i = com_i.intersection(mod_i).intersection(fix_i)
+
+    if not inter_i.empty:
+        # Get nominal capacity and module size
+        nom_attr = c._operational_attrs["nom"]
+        mod_attr = c._operational_attrs["nom_mod"]
+
+        nom_values = c.static[nom_attr].loc[inter_i]
+        mod_values = c.static[mod_attr].loc[inter_i]
+
+        n_mod = nom_values / mod_values
+        diff_n_mod = abs(n_mod - round(n_mod))
+        non_integers_n_mod_i = diff_n_mod[diff_n_mod > 10**-6].index
+
+        if not non_integers_n_mod_i.empty:
+            msg = (
+                f"For non-extendable but committable assets, if both {nom_attr} and {mod_attr} are declared, "
+                f"{nom_attr} must be a multiple of {mod_attr}. Found assets in component {component} "
+                f"that do not respect this criterion:\n\n\t{', '.join(non_integers_n_mod_i)}"
+            )
+            raise ValueError(msg)
+
+        rhs = pd.DataFrame(0, sns, inter_i)
+        rhs.loc[sns, inter_i] = n_mod.loc[inter_i].values
+
+    ##############################################################
+    # rhs is completed with element "1" for committable, non-modular components
+    # rhs = 1
+
+    inter_i2 = com_i.difference(mod_i)
+
+    if not inter_i2.empty:
+        if not inter_i.empty:
+            rhs = rhs.reindex(columns=rhs.columns.union(inter_i2))
+            rhs.loc[:, inter_i2] = 1
+            inter_i = inter_i.union(inter_i2)
+        else:
+            rhs = pd.DataFrame(0, sns, inter_i2)
+            rhs.loc[sns, inter_i2] = 1
+            inter_i = inter_i2
+
+    #################################################################
+
+    if inter_i.empty:
+        return
+
+    active = c.da.active.sel(snapshot=sns, name=inter_i) if n._multi_invest else None
+
+    status = m.variables[f"{component}-status"].loc[sns, inter_i]
+    m.add_constraints(
+        status, "<=", rhs, name=f"{component}-status-{attr}-fixed-upper", mask=active
+    )
+
+    start_up = m.variables[f"{component}-start_up"].loc[sns, inter_i]
+    m.add_constraints(
+        start_up,
+        "<=",
+        rhs,
+        name=f"{component}-start_up-{attr}-fixed-upper",
+        mask=active,
+    )
+
+    shut_down = m.variables[f"{component}-shut_down"].loc[sns, inter_i]
+    m.add_constraints(
+        shut_down,
+        "<=",
+        rhs,
+        name=f"{component}-shut_down-{attr}-fixed-upper",
+        mask=active,
+    )
+
+
+def define_committability_variables_constraints_with_variable_upper_limit(
+    n: Network, sns: pd.Index, component: str, attr: str
+) -> None:
+    """Define upper limit constraints for committable unit status variables with variable limits.
+
+    This function sets the upper limit of committable variables (status, start-up, shut-down)
+    to the variable n_mod for all committable, extendable, and modular components.
+
+    The constraint enforces that the number of committed units cannot exceed the total
+    number of installed modules, which is itself a decision variable in the optimization.
+
+    Applies to Components
+    ---------------------
+    Generator, Link
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component (e.g. "Generator", "Link")
+    attr : str
+        Name of the capacity attribute (e.g. "p_nom" for nominal power)
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    This function is part of the modular unit commitment formulation that allows
+    committable and extendable components to have discrete capacity expansion.
+    The number of committed units is constrained by the optimized number of modules.
+
+    """
+    c = as_components(n, component)
+    m = n.model
+
+    # Get committable, extendable, and modular component indices
+    com_i = c.committables
+    ext_i = c.extendables
+    mod_i = c.modulars
+
+    inter_i = com_i.intersection(mod_i).intersection(ext_i)
+
+    if inter_i.empty:
+        return
+
+    active = c.da.active.sel(snapshot=sns, name=inter_i) if n._multi_invest else None
+
+    n_mod = m[f"{component}-n_mod"].loc[inter_i]
+
+    status = m.variables[f"{component}-status"].loc[sns, inter_i]
+    lhs = ((1, status), (-1, n_mod))
+    m.add_constraints(
+        lhs, "<=", 0, name=f"{component}-status-{attr}-variable-upper", mask=active
+    )
+
+    start_up = m.variables[f"{component}-start_up"].loc[sns, inter_i]
+    lhs = ((1, start_up), (-1, n_mod))
+    m.add_constraints(
+        lhs, "<=", 0, name=f"{component}-start_up-{attr}-variable-upper", mask=active
+    )
+
+    shut_down = m.variables[f"{component}-shut_down"].loc[sns, inter_i]
+    lhs = ((1, shut_down), (-1, n_mod))
+    m.add_constraints(
+        lhs, "<=", 0, name=f"{component}-shut_down-{attr}-variable-upper", mask=active
+    )
 
 
 def define_fixed_operation_constraints(

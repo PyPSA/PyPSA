@@ -444,7 +444,7 @@ def check_assets(n: NetworkType, component: Components, strict: bool = False) ->
     if component.name in {"Generator", "Link"}:
         committables = component.committables
         extendables = component.extendables
-        modulars = component.static.query("p_nom_mod>0").index
+        modulars = component.modulars
         intersection = committables.intersection(extendables).difference(modulars)
         if not intersection.empty:
             logger.info(

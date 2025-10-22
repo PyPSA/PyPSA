@@ -72,6 +72,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             "nom_min": f"{base}_nom_min",
             "nom_max": f"{base}_nom_max",
             "nom_set": f"{base}_nom_set",
+            "nom_mod": f"{base}_nom_mod",
             "min_pu": f"{base}_min_pu",
             "max_pu": f"{base}_max_pu",
             "set": f"{base}_set",
@@ -164,7 +165,12 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         """
         active_assets = self.get_active_assets()
-        return active_assets[active_assets].index.get_level_values("name").unique()
+        active = active_assets[active_assets]
+        # Handle both simple Index and MultiIndex (with scenarios)
+        if isinstance(active.index, pd.MultiIndex):
+            return active.index.get_level_values("name").unique()
+        else:
+            return active.index
 
     @property
     def inactive_assets(self) -> pd.Series:
@@ -212,7 +218,12 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         """
         active_assets = self.get_active_assets()
-        return active_assets[~active_assets].index.get_level_values("name").unique()
+        inactive = active_assets[~active_assets]
+        # Handle both simple Index and MultiIndex (with scenarios)
+        if isinstance(inactive.index, pd.MultiIndex):
+            return inactive.index.get_level_values("name").unique()
+        else:
+            return inactive.index
 
     def get_activity_mask(
         self,
