@@ -9,8 +9,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 !!! info "Upcoming Release"
 
-    The features listed below have not yet been released, but will be included in the 
-    next update! If you would like to use these features in the meantime, you will need 
+    The features listed below have not yet been released, but will be included in the
+    next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
 ## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> 🎉 { id="v1.0.1" }
@@ -25,7 +25,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix dimension name consistency when adding investment period weightings. (<!-- md:pr 1416 -->)
 
-## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14 October 2025</small> 🎉 { id="v1.0.0" } 
+## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14 October 2025</small> 🎉 { id="v1.0.0" }
 
 ### **PyPSA 1.0** is here!
 
@@ -35,37 +35,37 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
 
 - New optimization mode: **Stochastic optimization problems** (<!-- md:pr 1154 -->)
 
-    - Two-stage stochastic optimization: stage 1 investment "here-and-now"; stage 2 
-      operations "wait-and-see". Uncertainty via user-defined scenarios. Supports 
+    - Two-stage stochastic optimization: stage 1 investment "here-and-now"; stage 2
+      operations "wait-and-see". Uncertainty via user-defined scenarios. Supports
       uncertain model parameters in both static and time-series format.
 
-    - New API: [`n.set_scenarios({name: weight, ...})`][pypsa.Network.set_scenarios] to 
-      enable scenarios and probabilities (defaults to uniform if weights are not given). 
-      Component tables and time series gain a new `scenario` level (MultiIndex) for 
-      scenario-specific data. Inspect via methods [`n.has_scenarios`][pypsa.Network.has_scenarios], 
-      [`n.scenarios`][pypsa.Network.scenarios] and 
+    - New API: [`n.set_scenarios({name: weight, ...})`][pypsa.Network.set_scenarios] to
+      enable scenarios and probabilities (defaults to uniform if weights are not given).
+      Component tables and time series gain a new `scenario` level (MultiIndex) for
+      scenario-specific data. Inspect via methods [`n.has_scenarios`][pypsa.Network.has_scenarios],
+      [`n.scenarios`][pypsa.Network.scenarios] and
       [`n.scenario_weightings`][pypsa.Network.scenario_weightings].
 
-- New feature for stochastic optimization: **CVaR-based risk-averse optimization** 
+- New feature for stochastic optimization: **CVaR-based risk-averse optimization**
   (<!-- md:pr 1345 -->)
 
-    - Risk-averse optimization mode augments expected operational costs with a Conditional 
-      Value at Risk (CVaR) penalty, controlled by `omega` (trade-off between expectation 
+    - Risk-averse optimization mode augments expected operational costs with a Conditional
+      Value at Risk (CVaR) penalty, controlled by `omega` (trade-off between expectation
       and risk) and `alpha` (tail level).
 
-    - New API to enable risk preference: 
-      [`n.set_risk_preference(alpha=..., omega=...)`][pypsa.Network.set_risk_preference]. 
-      Inspect via [`n.has_risk_preference`][pypsa.Network.has_risk_preference] 
+    - New API to enable risk preference:
+      [`n.set_risk_preference(alpha=..., omega=...)`][pypsa.Network.set_risk_preference].
+      Inspect via [`n.has_risk_preference`][pypsa.Network.has_risk_preference]
       and [`n.risk_preference`][pypsa.Network.risk_preference].
 
 - New feature for **interactive map plotting**: PyDeck-based interactive maps (<!-- md:pr 1312 -->)
 
-    - New API: [`n.explore(...)`][pypsa.Network.explore] returns a 
-      [`pydeck.Deck`](https://deckgl.readthedocs.io/en/latest/deck.html) object: 
-      Extending the previous folium/geopandas-based interactive html map by all static 
+    - New API: [`n.explore(...)`][pypsa.Network.explore] returns a
+      [`pydeck.Deck`](https://deckgl.readthedocs.io/en/latest/deck.html) object:
+      Extending the previous folium/geopandas-based interactive html map by all static
       map plotting parameters.
 
-    - Interactive maps can be exported to self-contained HTML files by 
+    - Interactive maps can be exported to self-contained HTML files by
       `n.explore(...).to_html("file.html", offline=True)`.
 
 - Introduces additional **MGA functionality**. Allows for solving a network in a direction
@@ -77,9 +77,9 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
 
 - The **optimization module was heavily refactored**. While the underlying `pandas`-based
   data structure remains the same, the optimization module now uses an `xarray` view via
-  [pypsa.Components][] to write the optimization model. It allows for easier problem 
-  formulation with a single object which contains all components data across 
-  all dimensions and coordinates (e.g. `name`, `snapshots` with `timesteps` and 
+  [pypsa.Components][] to write the optimization model. It allows for easier problem
+  formulation with a single object which contains all components data across
+  all dimensions and coordinates (e.g. `name`, `snapshots` with `timesteps` and
   `periods` and `scenarios`). Access it via [`c.da`][pypsa.Components.da].
   (<!-- md:pr 1154 -->)
 
@@ -88,7 +88,7 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
   reduce the memory footprint when solving the model.
   (<!-- md:pr 1310 -->)
 
-- New example networks: [pypsa.examples.carbon_management][] and 
+- New example networks: [pypsa.examples.carbon_management][] and
   [pypsa.examples.stochastic_network][]
   (<!-- md:pr 1314 -->)
 
@@ -101,20 +101,20 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
 
 - Added utility function [pypsa.common.annuity][] to calculate the annuity
   factor for a given discount rate and lifetime. Also known as capital recovery
-  factor, it is used to convert a capital cost into an annualized cost. 
+  factor, it is used to convert a capital cost into an annualized cost.
   (<!-- md:pr 1295 -->)
 
 - Add additional standard line types from pandapower. (<!-- md:pr 1342 -->)
 
 - New network indexing methods: [`n.get_network`][pypsa.NetworkCollection.get_network],
   [`n.get_scenario`][pypsa.Network.get_scenario], [`n.slice_network`][pypsa.Network.slice_network]
-  and enhanced [`n[...]`][pypsa.Network.__getitem__] for accessing networks. 
+  and enhanced [`n[...]`][pypsa.Network.__getitem__] for accessing networks.
   (<!-- md:pr 1363 -->)
 
-- When using certain ambiguous attribute names or typos in the [pypsa.Network.add][] method, a 
+- When using certain ambiguous attribute names or typos in the [pypsa.Network.add][] method, a
   warning is now raised. (<!-- md:pr 1259 -->)
 
-- [pypsa.Network.add][] now returns `None` by default. Use `return_names=True` 
+- [pypsa.Network.add][] now returns `None` by default. Use `return_names=True`
   to get the previous behavior of returning component names which have been added.
   (<!-- md:pr 1347 -->)
 
@@ -127,47 +127,47 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
   and `aggregate_time` → `groupby_time` for consistency. Old argument names
   are deprecated and will be removed in v2.0.0. (<!-- md:pr 1358 -->)
 
-- Improve performance of loading networks by avoiding re-ordering dataframe columns 
-  and indices where unnecessary; especially impactful for networks with large numbers 
+- Improve performance of loading networks by avoiding re-ordering dataframe columns
+  and indices where unnecessary; especially impactful for networks with large numbers
   of components. (<!-- md:pr 1362 -->)
 
 ### Bug Fixes
 
-- Fixed inconsistent period weighting application in primary energy and operational limit 
-  global constraints for non-cyclic storage units and stores. Previously, generators correctly 
-  applied period weightings to account for yearly repetition within investment periods, while 
-  storage components did not. This caused inconsistent constraint behavior between generators 
-  and storage in multi-investment period optimization. Non-cyclic storage units and stores now 
-  require the `state_of_charge_initial_per_period` and `e_initial_per_period` flags respectively 
+- Fixed inconsistent period weighting application in primary energy and operational limit
+  global constraints for non-cyclic storage units and stores. Previously, generators correctly
+  applied period weightings to account for yearly repetition within investment periods, while
+  storage components did not. This caused inconsistent constraint behavior between generators
+  and storage in multi-investment period optimization. Non-cyclic storage units and stores now
+  require the `state_of_charge_initial_per_period` and `e_initial_per_period` flags respectively
   to be set to `True` when using primary energy or operational limit constraints. (<!-- md: pr 1361 -->)
-  
+
 - The default values for `cyclic_state_of_charge_per_period` (StorageUnit)
-  and `e_cyclic_per_period` (Store) have been changed from `True` to `False`. This 
-  is to be more consistent with single investment period optimization where cycling behavior 
-  defaults to `False`. Users who work with multi-investment period optimization 
-  and want per-period cycling behavior must now explicitly set these attributes to 
+  and `e_cyclic_per_period` (Store) have been changed from `True` to `False`. This
+  is to be more consistent with single investment period optimization where cycling behavior
+  defaults to `False`. Users who work with multi-investment period optimization
+  and want per-period cycling behavior must now explicitly set these attributes to
   `True`.  (<!-- md: pr 1361 -->)
 
-- Fix storage state-of-charge handling in multi-investment period optimizations. The constraint 
-  logic incorrectly determined when to apply per-period cycling vs. continuous storage state 
-  tracking, causing storage to behave unexpectedly regardless of flag settings. The fix 
-  ensures storage units and stores correctly preserve or reset their state across investment 
-  periods based on the `cyclic_state_of_charge_per_period`/`e_cyclic_per_period` and 
-  `state_of_charge_initial_per_period`/`e_initial_per_period` flags. 
+- Fix storage state-of-charge handling in multi-investment period optimizations. The constraint
+  logic incorrectly determined when to apply per-period cycling vs. continuous storage state
+  tracking, causing storage to behave unexpectedly regardless of flag settings. The fix
+  ensures storage units and stores correctly preserve or reset their state across investment
+  periods based on the `cyclic_state_of_charge_per_period`/`e_cyclic_per_period` and
+  `state_of_charge_initial_per_period`/`e_initial_per_period` flags.
   (<!-- md: pr 1360 -->, <!-- md: pr 1371 -->)
 
 - Fixed issue when copying a solved network after setting `n.model.solver_model` to `None`.
   (<!-- md:pr 1325 -->)
-  
+
 - Correct use of snapshot weighting columns in statistics module. The
   doscstring for [pypsa.Network.snapshot_weightings][] was clarified.
   (<!-- md:pr 1326 -->)
 
-- Resolved an issue where the network version was not correctly identified during I/O, 
+- Resolved an issue where the network version was not correctly identified during I/O,
   resulting in false update information being logged.
   (<!-- md:pr 1300 -->)
 
-- Fix `get_transmission_carriers()` to handle components without carrier attribute 
+- Fix `get_transmission_carriers()` to handle components without carrier attribute
   (e.g., Transformer). (<!-- md:pr 1321 -->)
 
 ### Breaking Changes
@@ -200,9 +200,9 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 - New **interactive** plotting library (<!-- md:pr 1189 -->)
 
-    - [`pypsa.Network.statistics.energy_balance.iplot()`][pypsa.plot.StatisticInteractivePlotter.__call__] 
+    - [`pypsa.Network.statistics.energy_balance.iplot()`][pypsa.plot.StatisticInteractivePlotter.__call__]
       to get the pre defined default plot
-    - [`pypsa.Network.statistics.energy_balance.iplot.bar()`][pypsa.plot.StatisticInteractivePlotter.bar] 
+    - [`pypsa.Network.statistics.energy_balance.iplot.bar()`][pypsa.plot.StatisticInteractivePlotter.bar]
       to get a bar plot. replace `bar` with `line`, `area`, `map` or `scatter` to get the respective plot.
 
 - The function `n.statistics.opex()` now includes all operational cost
@@ -211,7 +211,7 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
   marginal costs were considered. A new parameter `cost_types` allows selecting
   which cost components to include. (<!-- md:pr 1195 -->)
 
-- New method `n.equals() <pypsa.Network.equals>` to compare two networks for equality. 
+- New method `n.equals() <pypsa.Network.equals>` to compare two networks for equality.
   This is similar to the equality operator `==` but allows for more flexibility in the
   comparison which is useful for testing and debugging. (<!-- md:pr 1194 -->, <!-- md:pr 1205 -->)
 
@@ -232,7 +232,7 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 - Bugfix: The function `n.statistics.opex()` now considers the correct
   snapshot weightings `n.snapshot_weightings.objective`.
   (<!-- md:pr 1247 -->)
-  
+
 - Fixed unaligned statistics index names when `groupby=False`
   (<!-- md:pr 1205 -->)
 
@@ -248,10 +248,10 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 ### Bug Fixes
 
-- The static map plots for statistics are fixed, e.g. `n.statistics.energy_balance.map()`. 
+- The static map plots for statistics are fixed, e.g. `n.statistics.energy_balance.map()`.
   (<!-- md:pr 1201 -->)
 
-- The previous maps module under `pypsa/plot` is now modularized. Instead of a 
+- The previous maps module under `pypsa/plot` is now modularized. Instead of a
   monolithic module, the maps module is now split into several submodules. The
   submodules are: `.maps.common`, `.maps.interactive`, and `.maps.static`.
   (<!-- md:pr 1190 -->)
@@ -270,7 +270,7 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 - New supported file formats for import and export: **Excel**
 
-      - Use [`n.import_from_excel`][pypsa.Network.import_from_excel] and 
+      - Use [`n.import_from_excel`][pypsa.Network.import_from_excel] and
         [`n.export_to_excel`][pypsa.Network.export_to_excel] to import and export Networks
         from and to Excel files.
 
@@ -294,8 +294,8 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 - Statistics module
 
-    - All statistics functions now interpret the bus_carrier argument as a regular 
-      expression (regex), enabling more flexible filtering options. 
+    - All statistics functions now interpret the bus_carrier argument as a regular
+      expression (regex), enabling more flexible filtering options.
       (<!-- md:pr 1155 -->)
 
     - All statistics functions have a new argument `carrier` to filter by carriers.
@@ -305,17 +305,17 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
       control the output. `drop_zero` drops all rows with zero values and `round`
       rounds the output to the specified number of decimal places. Those settings have been
       used before already via the statistics parameters, but are deprecated now. Use the
-      new arguments or the module level settings instead (to set them globally). E.g. 
-      `pypsa.options.params.statistics.nice_names = False`. List all available parameter 
-      settings via `pypsa.options.params.describe()`. 
+      new arguments or the module level settings instead (to set them globally). E.g.
+      `pypsa.options.params.statistics.nice_names = False`. List all available parameter
+      settings via `pypsa.options.params.describe()`.
       (<!-- md:pr 1173 -->)
 
 ### Minor improvements
 
-- Ensuring that the created lp/mps file is deterministic by sorting the strongly meshed 
+- Ensuring that the created lp/mps file is deterministic by sorting the strongly meshed
   buses. (<!-- md:pr 1174 -->)
 
-- Added warning for consistent legend circle and semicirle sizes when combining plots 
+- Added warning for consistent legend circle and semicirle sizes when combining plots
   on a geographical axis.
 
 - Add new statistic `n.statistics.system_cost()` to calculate the total system cost from capital and operational expenditures.
@@ -329,26 +329,26 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 ### Bug fixes
 
-- Fixed `pypsa.plot.add_legend_semicircles()` circle sizing to be consistent with 
-  `n.plot(bus_size=..., bus_split_circle=True)` argument. 
+- Fixed `pypsa.plot.add_legend_semicircles()` circle sizing to be consistent with
+  `n.plot(bus_size=..., bus_split_circle=True)` argument.
   (<!-- md:pr 1179 -->)
 
 ## [**v0.33.2**](https://github.com/PyPSA/PyPSA/releases/tag/v0.33.2) <small>12th March 2025</small> { id="v0.33.2" }
 
 ### Bug fixes
 
-- **Regression hotfix**: Fixed a critical bug in statistics functions for 
-  multi-investment networks where built years and lifetimes were not being correctly 
+- **Regression hotfix**: Fixed a critical bug in statistics functions for
+  multi-investment networks where built years and lifetimes were not being correctly
   considered. In version `v0.32.0`, only components active in the first time period were
   being included in statistics calculations. The fix ensures all components are properly
-  represented according to their respective built years and lifetimes across all 
-  investment periods. This issue was patched in version `0.33.2`. We also backported the 
+  represented according to their respective built years and lifetimes across all
+  investment periods. This issue was patched in version `0.33.2`. We also backported the
   fix to version `0.32.2`. (<!-- md:pr 1172 -->)
 
-- The expressions function `n.optimize.expressions.capacity` now uses the absolute 
+- The expressions function `n.optimize.expressions.capacity` now uses the absolute
   efficiency to calculate the capacity at link ports, unless a `bus_carrier` is defined
-  or `at_port` is set to True. This is in line with the behavior of the statistics 
-  functions (`statistics.installed_capacity`, `statistics.optimal_capacity`). 
+  or `at_port` is set to True. This is in line with the behavior of the statistics
+  functions (`statistics.installed_capacity`, `statistics.optimal_capacity`).
   Before, the efficiency was allowed to be negative, which lead to inconsistent results.
 
 ## [**v0.33.1**](https://github.com/PyPSA/PyPSA/releases/tag/v0.33.1) <small>3rd March 2025</small> { id="v0.33.1" }
@@ -362,8 +362,8 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 ### Bug fixes
 
-- `pypsa[cloudpath]` optional dependency will now only install `cloudpathlib` without 
-  extra cloud storage provider client libraries, these will be left to the user to 
+- `pypsa[cloudpath]` optional dependency will now only install `cloudpathlib` without
+  extra cloud storage provider client libraries, these will be left to the user to
   install. (<!-- md:pr 1139 -->)
 
 - [`n.import_from_netcdf`][pypsa.Network.import_from_netcdf] and [`n.import_from_hdf5`][pypsa.Network.import_from_hdf5] now work when a URI is
@@ -381,48 +381,48 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 - New component class structure (<!-- md:pr 1075 -->, <!-- md:pr 1130 -->)
 
-    - Major structural refactoring of how component data is stored and accessed. The new 
-      structure adds an extra layer to move all component-specific data from the network 
+    - Major structural refactoring of how component data is stored and accessed. The new
+      structure adds an extra layer to move all component-specific data from the network
       class to a new component class.
 
-    - This is an experimental feature, will be developed further and is not yet 
-      recommended for general use. More features, documentation and examples will 
+    - This is an experimental feature, will be developed further and is not yet
+      recommended for general use. More features, documentation and examples will
       follow. Most users will not notice any changes.
 
     - The new additional layer makes it easy to add new features. If you wanna play around
-      with the new components class, see the 
-      [Components class example](https://docs.pypsa.org/en/latest/examples/experimental-components-class.html) 
-      in the documentation. You will find an short introduction and some simple examples 
-      to show which other features could be added in the future. If you have any ideas, 
-      wishes, feedback or suggestions, please let us know via the 
+      with the new components class, see the
+      [Components class example](https://docs.pypsa.org/en/latest/examples/experimental-components-class.html)
+      in the documentation. You will find an short introduction and some simple examples
+      to show which other features could be added in the future. If you have any ideas,
+      wishes, feedback or suggestions, please let us know via the
       [issue tracker](https://www.github.com/PyPSA/PyPSA/issues).
 
 - Breaking: Deprecation of custom components (<!-- md:pr 1130 -->)
 
-    - This version of PyPSA deprecates custom components. While we don't see many use 
-      cases for them, they might be added in an improved way in future again. For a 
-      potential reimplementation we would be happy to hear your use case and 
+    - This version of PyPSA deprecates custom components. While we don't see many use
+      cases for them, they might be added in an improved way in future again. For a
+      potential reimplementation we would be happy to hear your use case and
       requirements via the [issue tracker](https://www.github.com/PyPSA/PyPSA/issues).
-    
+
     - If you don't know what this is or have never used the `override_components`
       and `override_component_attrs` arguments during Network initialisation, you can
       safely ignore this deprecation.
 
 - Breaking: Behavior of `n.components`
 
-    - Iterating over `n.components` now yields the values instead of keys. Use 
+    - Iterating over `n.components` now yields the values instead of keys. Use
       `n.components.keys()` to keep iterating over keys.
 
-    - Checking if a component is in `n.components` using the 'in' operator is deprecated. 
+    - Checking if a component is in `n.components` using the 'in' operator is deprecated.
       With the deprecation of custom components keys in `n.components` also ever change.
-            
-- PyPSA `0.33` provides support for the recent Python 3.13 release and drops support 
+
+- PyPSA `0.33` provides support for the recent Python 3.13 release and drops support
   for Python 3.9. While Python 3.9 still gets security updates until October 2025,
   core dependencies of PyPSA are dropping support for Python 3.9 (e.g. `numpy`) and
-  active support is only provided for the most recent versions 
-  (see [endoflife.date](https://endoflife.date/python)). It is recommended to upgrade 
+  active support is only provided for the most recent versions
+  (see [endoflife.date](https://endoflife.date/python)). It is recommended to upgrade
   to the latest Python version if possible. Note that there might be some issues with
-  Windows and Python 3.13, which are not yet resolved. 
+  Windows and Python 3.13, which are not yet resolved.
   (<!-- md:pr 1099 -->)
 
 - Added PyPSA options architecture via [`pypsa.get_option`][pypsa.get_option], [`pypsa.set_option`][pypsa.set_option],
@@ -446,8 +446,8 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 - New example in the documentation showing how to implement reserve power constraints.
   (<!-- md:pr 1133 -->)
 
-- Doctests are now run with the unit tests. They allow to test the documentation 
-  examples, which will improve the quality of docstrings and documentation in future 
+- Doctests are now run with the unit tests. They allow to test the documentation
+  examples, which will improve the quality of docstrings and documentation in future
   releases. (<!-- md:pr 1114 -->)
 
 ### Bug fixes
@@ -461,11 +461,11 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 ### Bug fixes
 
-- Backported from version `v0.33.2`: Fixed a critical bug in statistics functions for 
-  multi-investment networks where built years and lifetimes were not being correctly 
+- Backported from version `v0.33.2`: Fixed a critical bug in statistics functions for
+  multi-investment networks where built years and lifetimes were not being correctly
   considered. In version `v0.32.0`, only components active in the first time period were
   being included in statistics calculations. The fix ensures all components are properly
-  represented according to their respective built years and lifetimes across all 
+  represented according to their respective built years and lifetimes across all
   investment periods. (<!-- md:pr 1172 -->)
 
 ## [**v0.32.1**](https://github.com/PyPSA/PyPSA/releases/tag/v0.32.1) <small>23th January 2025</small> { id="v0.32.1" }
@@ -476,8 +476,8 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
   energy balance calculation. Before the fix, the "Load" component was not
   considered. (<!-- md:pr 1110 -->)
 
-- The optimize/expression module now correctly assigns contributions from branch 
-  components in the `withdrawal` and `supply` functions. Before, there was a wrong 
+- The optimize/expression module now correctly assigns contributions from branch
+  components in the `withdrawal` and `supply` functions. Before, there was a wrong
   multiplication by -1 for branch components. (<!-- md:pr 1123 -->)
 
 ## [**v0.32.0**](https://github.com/PyPSA/PyPSA/releases/tag/v0.32.0) <small>5th December 2024</small> { id="v0.32.0" }
@@ -486,7 +486,7 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 - Improvements to groupers in the statistics module (<!-- md:pr 1093 -->, <!-- md:pr 1078 -->)
 
-    - The `groupby` argument now accepts keys to allow for more granular and flexible 
+    - The `groupby` argument now accepts keys to allow for more granular and flexible
       grouping.
       For example,
       [`n.statistics.energy_balance(groupby=["bus_carrier", "carrier"])`][pypsa.statistics.StatisticsAccessor.energy_balance]
@@ -522,8 +522,8 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
   [`n.optimize.expressions.energy_balance()`][pypsa.optimization.expressions.StatisticExpressionsAccessor.energy_balance].
   (<!-- md:pr 1044 -->)
 
-- `pytables` is now an optional dependency for using the HDF5 format. Install 
-  it via `pip install pypsa[hdf5]`. Otherwise it is not installed by default 
+- `pytables` is now an optional dependency for using the HDF5 format. Install
+  it via `pip install pypsa[hdf5]`. Otherwise it is not installed by default
   anymore. (<!-- md:pr 1100 -->)
 
 ## [**v0.31.2**](https://github.com/PyPSA/PyPSA/releases/tag/v0.31.2) <small>27th November 2024</small> { id="v0.31.2" }
@@ -537,8 +537,8 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 ### Bug fixes
 
-- Abolishing `min_units` in the post discretization. If the maximum capacity of a 
-  component is smaller than the specified unit size, the maximum capacity is built as 
+- Abolishing `min_units` in the post discretization. If the maximum capacity of a
+  component is smaller than the specified unit size, the maximum capacity is built as
   soon as the threshold is passed (<!-- md:pr 1052 -->)
 
 - Less verbose logging when using [`n.add`][pypsa.Network.add]
@@ -550,14 +550,14 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 - New `active` attribute (<!-- md:pr 1038 -->)
 
-    - A new attribute for one-port and branch components `active` was added. If set to 
-        true (default), the asset is considered active for all functionality, including 
-        optimization and power flow calculation. If set to false, the asset is considered 
-        inactive and is excluded from the optimization, power flow and statistics modules. 
+    - A new attribute for one-port and branch components `active` was added. If set to
+        true (default), the asset is considered active for all functionality, including
+        optimization and power flow calculation. If set to false, the asset is considered
+        inactive and is excluded from the optimization, power flow and statistics modules.
 
-    - The active attribute can be thought of as a global filter on the components. When 
-        running a multi-horizon optimization, the active attribute is considered a global 
-        condition for each horizon. Then assets are considered active only if `active` is 
+    - The active attribute can be thought of as a global filter on the components. When
+        running a multi-horizon optimization, the active attribute is considered a global
+        condition for each horizon. Then assets are considered active only if `active` is
         true and the investment period falls within the lifetime of the asset.
 
 - New attributes for the [generator](user-guide/components/generators.md) component
@@ -565,7 +565,7 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
     - `e_sum_min` and `e_sum_max` add a new constraint and allow to set the minimum
         and maximum total energy that can be generated by the generator over one
-        optimization horizon. 
+        optimization horizon.
 
 - New [`n.add`][pypsa.Network.add] method (<!-- md:pr 896 -->)
 
@@ -573,8 +573,8 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
         components, has more robust index alignment checks allows to overwrite existing
         components using the new argument `overwrite`. Because of the more strict
         alignment checks, this might be a **breaking change** for some users.
-    
-    - Therefore the methods `n.madd` and 
+
+    - Therefore the methods `n.madd` and
         `n.mremove` are now deprecated and will point to
         their generalised counterparts.
 
@@ -685,7 +685,7 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
         (<!-- md:pr 902 -->)
 
 - Bugfixes:
-  
+
     - The security-constrained optimization via
         `n.optimize.optimize_security_constrained()` was fixed to correctly handle
         multiple subnetworks. (<!-- md:pr 946 -->)
@@ -2499,16 +2499,16 @@ main component pandas.DataFrame.
 - Add tag: ``git tag vx.x.x``
 - Direct push on master: ``git push upstream master``
 - Push tag: ``git push upstream vx.x.x``
-- The upload to [PyPI](https://pypi.org/) is automated in the Github Action 
+- The upload to [PyPI](https://pypi.org/) is automated in the Github Action
   ``deploy.yml``, which is triggered by pushing a tag.
   To upload manually, run ``python setup.py sdist``,
   then ``twine check dist/pypsa-0.x.0.tar.gz`` and
   ``twine upload dist/pypsa-0.x.0.tar.gz``
-- The [GitHub release](https://github.com/PyPSA/PyPSA/releases) is also automated in 
-  the Github Action. Making a GitHub release will also trigger 
+- The [GitHub release](https://github.com/PyPSA/PyPSA/releases) is also automated in
+  the Github Action. Making a GitHub release will also trigger
   [zenodo](https://zenodo.org/) to archive the release with its own DOI.
-- To update to conda-forge, check the pull request generated at the 
+- To update to conda-forge, check the pull request generated at the
   [feedstock repository](https://github.com/conda-forge/pypsa-feedstock). A PR will be
-  generated automatically after a couple of hours by the 
+  generated automatically after a couple of hours by the
   [conda-forge bot](https://github.com/conda-forge/conda-forge.github.io),
   and needs to be merged by a maintainer.

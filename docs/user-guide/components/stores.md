@@ -44,4 +44,4 @@ bought or sold at fixed market prices.
     The [`StorageUnit`][pypsa.components.StorageUnits] also has attributes for hydro-electric `inflow` and `spillage`.
     See [this example](../../examples/replace-generator-storage-units-with-store.ipynb) for implementation differences.
 
-{{ read_csv('../../../pypsa/data/component_attrs/stores.csv', disable_numparse=True) }} 
+{{ read_csv('../../../pypsa/data/component_attrs/stores.csv', disable_numparse=True) }}

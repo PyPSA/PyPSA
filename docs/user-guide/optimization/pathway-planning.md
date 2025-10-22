@@ -80,7 +80,7 @@ period, $b_s$ is the build year of component $s$ with lifetime $L_s$, $c_{s,a}$
 the *annualised* investment costs (**Type II**), $o_{s,a,t}$ the operational costs
 and $w_t^o$ the snapshot objective weightings.
 
-!!! warning 
+!!! warning
 
     Note that the `build_year` and `lifetime` attributes are only used to determined whether a component is active
     in a particular investment period. They are **not** used to annualise the costs to get the `capital_cost` attribute. This must be done by by the user, because there are use cases where
