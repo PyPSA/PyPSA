@@ -26,6 +26,13 @@ SPDX-License-Identifier: CC-BY-4.0
   The implementation automatically detects when both attributes are set and applies
   the appropriate big-M constraints to ensure correct operation.
 
+- Fix storage state-of-charge handling in multi-investment period optimizations. The constraint
+  logic incorrectly determined when to apply per-period cycling vs. continuous storage state
+  tracking, causing storage to behave unexpectedly regardless of flag settings. The fix
+  ensures storage units and stores correctly preserve or reset their state across investment
+  periods based on the `cyclic_state_of_charge_per_period`/`e_cyclic_per_period` and
+  `state_of_charge_initial_per_period`/`e_initial_per_period` flags.
+  (<!-- md: pr 1360 -->, <!-- md: pr 1371 -->)
 
 ## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> 🎉 { id="v1.0.1" }
 
@@ -645,11 +652,7 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
 
 - Updated documentation. (<!-- md:pr 1004 -->)
 
-<<<<<<< HEAD:doc/references/release-notes.rst
-`v0.29.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.29.0>`__ (31st July 2024)
-=======
 ## [**v0.29.0**](https://github.com/PyPSA/PyPSA/releases/tag/v0.29.0) <small>31st July 2024</small> { id="v0.29.0" }
->>>>>>> committable-extendable:docs/release-notes.md
 
 - Removed `n.lopf()` pyomo-based and nomopyomo-based optimisation modules. Use
   linopy-based optimization with `n.optimize()` instead.

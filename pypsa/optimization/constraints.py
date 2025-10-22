@@ -251,21 +251,25 @@ def define_operational_constraints_for_committables(
     4. Ramp rate constraints for committed units
 
     For committable-only components (fixed capacity):
-    .. math::
-        p_{i,t}^{min} u_{i,t} \\leq p_{i,t} \\leq p_{i,t}^{max} u_{i,t}
+    $$
+    p_{i,t}^{min} u_{i,t} \\leq p_{i,t} \\leq p_{i,t}^{max} u_{i,t}
+    $$
 
     For committable+extendable components (big-M formulation):
-    .. math::
-        p_{i,t} \\geq p_{i,t}^{min,pu} \\cdot p_{i}^{nom} - M \\cdot (1 - u_{i,t})
+    $$
+    p_{i,t} \\geq p_{i,t}^{min,pu} \\cdot p_{i}^{nom} - M \\cdot (1 - u_{i,t})
+    $$
 
-    .. math::
-        p_{i,t} \\leq M \\cdot u_{i,t}
+    $$
+    p_{i,t} \\leq M \\cdot u_{i,t}
+    $$
 
-    .. math::
-        p_{i,t} \\leq p_{i,t}^{max,pu} \\cdot p_{i}^{nom}
+    $$
+    p_{i,t} \\leq p_{i,t}^{max,pu} \\cdot p_{i}^{nom}
+    $$
 
-    where :math:`M` is a sufficiently large constant (big-M), :math:`u_{i,t}`
-    is the binary commitment status, and :math:`p_{i}^{nom}` is the optimized
+    where $M$ is a sufficiently large constant (big-M), $u_{i,t}$
+    is the binary commitment status, and $p_{i}^{nom}$ is the optimized
     capacity variable.
 
     Applies to Components
@@ -318,8 +322,6 @@ def define_operational_constraints_for_committables(
     active = c.da.active.sel(name=com_i, snapshot=sns)
 
     ext_i: pd.Index = c.extendables.difference(c.inactive_assets)
-    # Exclude modular components from big-M formulation
-    # (modular components use separate constraints)
     com_ext_i: pd.Index = com_i.intersection(ext_i).difference(c.modulars)
     com_fix_i: pd.Index = com_i.difference(ext_i)
 
@@ -372,12 +374,15 @@ def define_operational_constraints_for_committables(
         max_pu_vals = max_pu.sel(name=com_ext_i).max("snapshot")
 
         big_m_default = options.params.optimize.committable_big_m
-        if (
-            big_m_default is None
-            or not np.isfinite(big_m_default)
-            or big_m_default <= 0
-        ):
+        if big_m_default is None:
             big_m_default = _infer_big_m_scale(n, component)
+        else:
+            if not np.isfinite(big_m_default):
+                msg = f"options.params.optimize.committable_big_m must be finite, got {big_m_default}."
+                raise ValueError(msg)
+            if big_m_default <= 0:
+                msg = f"options.params.optimize.committable_big_m must be positive, got {big_m_default}."
+                raise ValueError(msg)
 
         fallback_values = big_m_default * max_pu_vals.fillna(1)
         M_values = xr.where(
@@ -568,7 +573,7 @@ def define_operational_constraints_for_committables(
     timesteps = xr.DataArray(
         [range(1, len(sns) + 1)] * len(com_i),
         coords=[com_i, sns],
-        dims=[com_i.name, "snapshot"],
+        dims=["name", "snapshot"],
     )
     if initially_up.any():
         must_stay_up = (min_up_time_set - up_time_before_set).clip(min=0)

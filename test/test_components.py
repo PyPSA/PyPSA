@@ -58,7 +58,7 @@ def test_active_assets(legacy_component):
 
 
 def test_components_iteration_equivalence():
-    """Test to ensure the old iterate_components and new n.components yield equivalent results."""
+    """Test that self.components and self.iterate_components yield the same results."""
     n = Network()
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=10)
