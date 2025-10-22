@@ -249,21 +249,25 @@ def define_operational_constraints_for_committables(
     4. Ramp rate constraints for committed units
 
     For committable-only components (fixed capacity):
-    .. math::
-        p_{i,t}^{min} u_{i,t} \\leq p_{i,t} \\leq p_{i,t}^{max} u_{i,t}
+    $$
+    p_{i,t}^{min} u_{i,t} \\leq p_{i,t} \\leq p_{i,t}^{max} u_{i,t}
+    $$
 
     For committable+extendable components (big-M formulation):
-    .. math::
-        p_{i,t} \\geq p_{i,t}^{min,pu} \\cdot p_{i}^{nom} - M \\cdot (1 - u_{i,t})
+    $$
+    p_{i,t} \\geq p_{i,t}^{min,pu} \\cdot p_{i}^{nom} - M \\cdot (1 - u_{i,t})
+    $$
 
-    .. math::
-        p_{i,t} \\leq M \\cdot u_{i,t}
+    $$
+    p_{i,t} \\leq M \\cdot u_{i,t}
+    $$
 
-    .. math::
-        p_{i,t} \\leq p_{i,t}^{max,pu} \\cdot p_{i}^{nom}
+    $$
+    p_{i,t} \\leq p_{i,t}^{max,pu} \\cdot p_{i}^{nom}
+    $$
 
-    where :math:`M` is a sufficiently large constant (big-M), :math:`u_{i,t}`
-    is the binary commitment status, and :math:`p_{i}^{nom}` is the optimized
+    where $M$ is a sufficiently large constant (big-M), $u_{i,t}$
+    is the binary commitment status, and $p_{i}^{nom}$ is the optimized
     capacity variable.
 
     Applies to Components
