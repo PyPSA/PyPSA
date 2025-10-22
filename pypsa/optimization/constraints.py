@@ -204,8 +204,6 @@ def define_operational_constraints_for_extendables(
 
     if ext_i.empty:
         return
-    if isinstance(ext_i, pd.MultiIndex):
-        ext_i = ext_i.unique(level="name")
 
     min_pu, max_pu = c.get_bounds_pu(attr=attr)
     min_pu = min_pu.sel(name=ext_i)
@@ -370,12 +368,15 @@ def define_operational_constraints_for_committables(
         max_pu_vals = max_pu.sel(name=com_ext_i).max("snapshot")
 
         big_m_default = options.params.optimize.committable_big_m
-        if (
-            big_m_default is None
-            or not np.isfinite(big_m_default)
-            or big_m_default <= 0
-        ):
+        if big_m_default is None:
             big_m_default = _infer_big_m_scale(n, component)
+        else:
+            if not np.isfinite(big_m_default):
+                msg = f"options.params.optimize.committable_big_m must be finite, got {big_m_default}."
+                raise ValueError(msg)
+            if big_m_default <= 0:
+                msg = f"options.params.optimize.committable_big_m must be positive, got {big_m_default}."
+                raise ValueError(msg)
 
         fallback_values = big_m_default * max_pu_vals.fillna(1)
         M_values = xr.where(
@@ -526,7 +527,7 @@ def define_operational_constraints_for_committables(
     timesteps = xr.DataArray(
         [range(1, len(sns) + 1)] * len(com_i),
         coords=[com_i, sns],
-        dims=[com_i.name, "snapshot"],
+        dims=["name", "snapshot"],
     )
     if initially_up.any():
         must_stay_up = (min_up_time_set - up_time_before_set).clip(min=0)

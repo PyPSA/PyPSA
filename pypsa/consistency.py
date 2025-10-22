@@ -421,39 +421,6 @@ def check_time_series_power_attributes(
                 )
 
 
-def check_assets(n: NetworkType, component: Components, strict: bool = False) -> None:
-    """Check if assets are only committable or extendable, but not both.
-
-    Activate strict mode in general consistency check by passing `['assets']` to the
-    `strict` argument.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        The network to check.
-    component : pypsa.Component
-        The component to check.
-    strict : bool, optional
-        If True, raise an error instead of logging a warning.
-
-    See Also
-    --------
-    [pypsa.Network.consistency_check][]
-
-    """
-    if component.name in {"Generator", "Link"}:
-        committables = component.committables
-        extendables = component.extendables
-        intersection = committables.intersection(extendables)
-        if not intersection.empty:
-            logger.info(
-                "Components in %s are both committable and extendable: %s. "
-                "This is supported using a big-M formulation for mixed-integer optimization.",
-                component.name,
-                ", ".join(intersection),
-            )
-
-
 def check_generators(component: Components, strict: bool = False) -> None:
     """Check the consistency of generator attributes before the simulation.
 
@@ -811,8 +778,6 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_impedances(self, c, "zero_impedances" in strict)
             # Checks transformers
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
-            # Checks generators and links
-            check_assets(self, c, "assets" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
 

@@ -390,6 +390,43 @@ def test_big_m_scale_fallback_without_load():
     assert inferred_scale == pytest.approx(1e6)
 
 
+def test_big_m_validation():
+    """Test validation of custom big-M values."""
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=100)
+    n.add(
+        "Generator",
+        "uc_gen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_max=500,
+        marginal_cost=50,
+        capital_cost=1000,
+    )
+
+    with pypsa.option_context("params.optimize.committable_big_m", 1000):
+        n.optimize.create_model()
+
+    with pypsa.option_context("params.optimize.committable_big_m", np.inf):
+        with pytest.raises(ValueError, match="must be finite"):
+            n.optimize.create_model()
+
+    with pypsa.option_context("params.optimize.committable_big_m", np.nan):
+        with pytest.raises(ValueError, match="must be finite"):
+            n.optimize.create_model()
+
+    with pypsa.option_context("params.optimize.committable_big_m", 0):
+        with pytest.raises(ValueError, match="must be positive"):
+            n.optimize.create_model()
+
+    with pypsa.option_context("params.optimize.committable_big_m", -100):
+        with pytest.raises(ValueError, match="must be positive"):
+            n.optimize.create_model()
+
+
 def test_non_negative_constraint_added():
     """Ensure non-negative dispatch constraint is added when min_pu >= 0."""
     n = pypsa.Network()

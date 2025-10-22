@@ -13,6 +13,13 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need 
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+- Components (Generators and Links) can now be both committable and extendable
+  simultaneously. This enables unit commitment with capacity expansion optimization
+  using a big-M formulation that maintains the linear programming structure.
+  Previously, components could only be either committable or extendable, but not both.
+  The implementation automatically detects when both attributes are set and applies
+  the appropriate big-M constraints to ensure correct operation.
+
 ## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> 🎉 { id="v1.0.1" }
 
 ### Bug Fixes
@@ -131,22 +138,6 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
   and indices where unnecessary; especially impactful for networks with large numbers 
   of components. (<!-- md:pr 1362 -->)
 
-<<<<<<< HEAD:doc/references/release-notes.rst
-* Components (Generators and Links) can now be both committable and extendable
-  simultaneously. This enables unit commitment with capacity expansion optimization
-  using a big-M formulation that maintains the linear programming structure.
-  Previously, components could only be either committable or extendable, but not both.
-  The implementation automatically detects when both attributes are set and applies
-  the appropriate big-M constraints to ensure correct operation.
-
-* Improve performance of loading networks by avoiding re-ordering dataframe columns and indices where unnecessary; especially impactful for networks with large numbers of components.
-
-Bug Fixes
----------
-
-* Fixed issue when copying a solved network after setting ``solver_model`` to ``None``.
-  (https://github.com/PyPSA/PyPSA/issues/1325)
-=======
 ### Bug Fixes
 
 - Fixed inconsistent period weighting application in primary energy and operational limit 
@@ -156,7 +147,6 @@ Bug Fixes
   and storage in multi-investment period optimization. Non-cyclic storage units and stores now 
   require the `state_of_charge_initial_per_period` and `e_initial_per_period` flags respectively 
   to be set to `True` when using primary energy or operational limit constraints. (<!-- md: pr 1361 -->)
->>>>>>> master:docs/release-notes.md
   
 - The default values for `cyclic_state_of_charge_per_period` (StorageUnit)
   and `e_cyclic_per_period` (Store) have been changed from `True` to `False`. This 
