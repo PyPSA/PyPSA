@@ -13,6 +13,8 @@ repos:
   hooks:
   - id: check-added-large-files
     args: ['--maxkb=2000']
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
 
 # Run ruff to lint and format
 - repo: https://github.com/astral-sh/ruff-pre-commit
