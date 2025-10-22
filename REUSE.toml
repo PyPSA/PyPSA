@@ -6,6 +6,7 @@ SPDX-PackageDownloadLocation = "https://github.com/pypsa/pypsa"
 [[annotations]]
 # As an essential part of PyPSA package, these parts are licensed under the same MIT license as the code itself
 path = [
+    ".github/**/*.md",
     "pypsa/data/component_attrs/*.csv",
     "pypsa/data/standard_types/*.csv",
     "pypsa/data/*.csv",
@@ -39,7 +40,7 @@ path = [
 SPDX-FileCopyrightText = "PyPSA Contributors"
 SPDX-License-Identifier = "CC-BY-4.0"
 
-    
+
 [[annotations]]
 # TODO find correct information for this external image
 path = [

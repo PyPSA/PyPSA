@@ -28,6 +28,7 @@ def test_snapshot_weightings_with_timedelta(time_index):
     )
 
     df_true = pd.DataFrame(dict.fromkeys(n.snapshot_weightings.columns, hours_per_step))
+    df_true.index.name = "snapshot"
 
     n.set_snapshots(time_index, weightings_from_timedelta=True)
     df_actual = n.snapshot_weightings

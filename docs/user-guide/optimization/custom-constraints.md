@@ -11,7 +11,7 @@ requirements or scenarios. Users can model more complex limits and interactions
 that are not captured by the default optimization formulations provided by
 [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. To build custom constraints, users can access, modify and
 amend the [Linopy](https://linopy.readthedocs.io) model instance associated with
-a network object, `n.model`. 
+a network object, `n.model`.
 
 Some key functions used in the code for working with custom constraints include:
 
@@ -30,7 +30,7 @@ A typical workflow starts with creating a Linopy model instance for a network
 using
 [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model].
 This model instance contains all variables, constraints, and the objective
-function of the optimization problem. 
+function of the optimization problem.
 
 ``` py
 >>> m = n.optimize.create_model()
@@ -140,7 +140,7 @@ the optimised values will be stored for the network component (e.g. `n.generator
     ...     m = n.model
     ...     # Define and add custom constraints here
     ...     ...
-    >>> n.optimize(extra_functionality=custom_constraints)  
+    >>> n.optimize(extra_functionality=custom_constraints)
     ```
 
 !!! warning "Persistence of Linopy model instances"

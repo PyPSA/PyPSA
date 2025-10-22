@@ -79,9 +79,9 @@ To upgrade PyPSA, run:
     ```
 
 === "uv"
-    
+
     ``` bash
-    uv add --upgrade pypsa 
+    uv add --upgrade pypsa
     # Or upgrade to a specific version:
     uv add pypsa==0.35.2
     ```

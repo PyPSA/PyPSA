@@ -17,7 +17,7 @@ import pandas as pd
 
 from pypsa._options import options
 from pypsa.constants import RE_PORTS_FILTER
-from pypsa.guards import _consistency_check_guard
+from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
@@ -831,7 +831,7 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         # Optional runtime verification
         if options.debug.runtime_verification:
-            _consistency_check_guard(self)
+            _assert_data_integrity(self)
 
     def consistency_check_plots(self, strict: Sequence | None = None) -> None:
         """Check network for consistency for plotting functions.

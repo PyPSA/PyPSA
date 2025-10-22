@@ -28,6 +28,7 @@ from pyproj import CRS
 
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
+from pypsa.consistency import check_for_unknown_buses
 from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_base__
@@ -950,7 +951,7 @@ class _ExporterNetCDF(_Exporter):
 
     def __init__(
         self,
-        path: str | None,
+        path: Path | str | None,
         compression: dict | None = None,
         float32: bool = False,
     ) -> None:
@@ -1461,7 +1462,7 @@ class NetworkIOMixin(_NetworkABC):
 
     def export_to_csv_folder(
         self,
-        path: str,
+        path: Path | str,
         encoding: str | None = None,
         quotechar: str = '"',
         export_standard_types: bool = False,
@@ -1483,7 +1484,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        path : string
+        path : Path | str
             Name of folder to which to export.
         encoding : str, default None
             Encoding to use for UTF when reading (ex. 'utf-8'). See [List of Python
@@ -1663,7 +1664,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        path : string|xr.Dataset
+        path : string | Path | xr.Dataset
             Path to netCDF dataset or instance of xarray Dataset.
             The string could be a URL.
         skip_time : bool, default False
@@ -1681,7 +1682,7 @@ class NetworkIOMixin(_NetworkABC):
 
     def export_to_netcdf(
         self,
-        path: str | None = None,
+        path: Path | str | None = None,
         export_standard_types: bool = False,
         compression: dict | None = None,
         float32: bool = False,
@@ -1701,7 +1702,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        path : string | None
+        path : Path | string | None
             Name of netCDF file to which to export (if it exists, it is overwritten);
             if None is passed, no file is exported and only the xarray.Dataset is returned.
         export_standard_types : boolean, default False
@@ -1797,23 +1798,6 @@ class NetworkIOMixin(_NetworkABC):
                     else:
                         df[k] = df[k].astype(static_attrs.at[k, "typ"])
 
-        # check all the buses are well-defined
-        # TODO use func from consistency checks
-        for attr in [attr for attr in df if attr.startswith("bus")]:
-            # allow empty buses for multi-ports
-            port = int(attr[-1]) if attr[-1].isdigit() else 0
-            buses = self.c.buses.names
-            mask = ~df[attr].isin(buses)
-            if port > 1:
-                mask &= df[attr].ne("")
-            missing = df.index[mask]
-            if len(missing) > 0:
-                logger.warning(
-                    "The following %s have buses which are not defined:\n%s",
-                    cls_name,
-                    missing,
-                )
-
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
         old_static = self.c[cls_name].static
         new_static = df.drop(non_static_attrs_in_df, axis=1)
@@ -1874,6 +1858,9 @@ class NetworkIOMixin(_NetworkABC):
                 dynamic[k].loc[:, new_components] = df.loc[new_components, k].values
 
         self.components[cls_name].dynamic = dynamic
+
+        # Run consistency checks
+        check_for_unknown_buses(self, self.c[cls_name])
 
     def _import_series_from_df(
         self,

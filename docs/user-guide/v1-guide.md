@@ -45,7 +45,7 @@ Any **network metric** like `n.statistics.energy_balance()` or `n.statistics.opt
 
 <div style="width: 100%; height: 540px; overflow: hidden;">
     <iframe src="../../assets/interactive/ac_dc_meshed-energy_balance-area_iplot.html"
-            width="100%" height="100%" frameborder="0" 
+            width="100%" height="100%" frameborder="0"
             style="border: 0px solid #ccc; transform: scale(1); transform-origin: 0 0;">
     </iframe>
 </div>
@@ -59,7 +59,7 @@ Next to static map plotting with `n.plot()`, networks can now be rendered on a m
 
 <div style="width: 100%; height: 800px; overflow: hidden;">
     <iframe src="https://bxio.ng/assets/html/scigrid-interactive-map"
-            width="100%" height="100%" frameborder="0" 
+            width="100%" height="100%" frameborder="0"
             style="border: 0px solid #ccc; transform: scale(1); transform-origin: 0 0;">
     </iframe>
 </div>

@@ -92,7 +92,7 @@ jobs:
         updated_cff_content = re.sub(r"(?<=version: ).+(?= #)",version,cff_content,flags=re.MULTILINE)
 
         with open('CITATION.cff', 'w') as file:
-          file.write(updated_cff_content)      
+          file.write(updated_cff_content)
       shell: python
 
     - name: Update example notebooks
@@ -127,12 +127,13 @@ jobs:
         git push origin --delete ${{ github.ref_name }}
 
     - name: Commit changes
-      uses: stefanzweifel/git-auto-commit-action@v6
+      uses: stefanzweifel/git-auto-commit-action@v7
       with:
         branch: ${{ env.BRANCH_NAME }}
         commit_message: '${{ env.PREPARATION_COMMIT }}'
         tagging_message: '${{ github.ref_name }}' # add tag again
         push_options: '${{ github.ref_name }}'
+        add_options: '-u' # Never add untracked files
 
   build:
     name: Build and verify package
