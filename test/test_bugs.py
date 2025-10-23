@@ -4,7 +4,6 @@
 
 import pickle
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 import numpy as np
 import pandas as pd
@@ -241,23 +240,24 @@ def test_1411():
     assert n2._investment_periods_data.index.tolist() == [0, 2040]
 
 
-def test_1420():
+def test_1420(tmp_path):
     """
     Network pickling should not cause RecursionError in xarray accessor.
     See https://github.com/PyPSA/PyPSA/issues/1420.
     """
-
     n = pypsa.Network()
     n.add("Bus", "bus")
     n.add("Generator", "gen", bus="bus", p_nom=100)
 
-    with NamedTemporaryFile(delete_on_close=False) as out:
-        pickle.dump(n, out)
-        out.close()
+    pickle_file = tmp_path / "network.pkl"
 
-        with Path(out.name).open("rb") as inp:
-            n_loaded = pickle.load(inp)
+    with Path(pickle_file).open("wb") as out:
+        pickle.dump(n, out)
+
+    with Path(pickle_file).open("rb") as inp:
+        n_loaded = pickle.load(inp)
 
     # Verify network was loaded correctly
     assert len(n_loaded.c.buses.static) == 1
     assert len(n_loaded.c.generators.static) == 1
+    # tmp_path is automatically cleaned up by pytest
