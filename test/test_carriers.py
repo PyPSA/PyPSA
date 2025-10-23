@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+import pytest
+
 from pypsa import Network
 
 
@@ -427,3 +429,218 @@ def test_add_missing_carriers_stochastic_no_missing():
     assert ("scenario_a", "AC") in n.c.carriers.static.index
     assert ("scenario_b", "AC") in n.c.carriers.static.index
     assert ("scenario_c", "AC") in n.c.carriers.static.index
+
+
+def test_assign_colors_basic():
+    """Test basic functionality of assign_colors."""
+    n = Network()
+    n.add("Bus", "bus1")
+
+    # Add carriers without colors
+    n.add("Carrier", "wind")
+    n.add("Carrier", "solar")
+    n.add("Carrier", "gas")
+
+    # Initially no colors
+    assert all(n.c.carriers.static["color"] == "")
+
+    # Assign colors
+    n.c.carriers.assign_colors()
+
+    # All carriers should now have colors
+    assert all(n.c.carriers.static["color"].notna())
+    assert all(n.c.carriers.static["color"] != "")
+    # Colors should be different
+    colors = n.c.carriers.static["color"].values
+    assert len(set(colors)) == 3
+
+
+def test_assign_colors_specific_carriers():
+    """Test assign_colors on specific carriers only."""
+    n = Network()
+    n.add("Bus", "bus1")
+
+    # Add carriers
+    n.add("Carrier", "wind")
+    n.add("Carrier", "solar")
+    n.add("Carrier", "gas")
+
+    # Assign colors only to wind and solar
+    n.c.carriers.assign_colors(["wind", "solar"])
+
+    # Wind and solar should have colors, gas should not
+    assert n.c.carriers.static.loc["wind", "color"] != ""
+    assert n.c.carriers.static.loc["solar", "color"] != ""
+    assert n.c.carriers.static.loc["gas", "color"] == ""
+
+
+def test_assign_colors_different_palette():
+    """Test assign_colors with different palettes."""
+    n = Network()
+    n.add("Bus", "bus1")
+
+    # Add carriers
+    n.add("Carrier", "wind")
+    n.add("Carrier", "solar")
+
+    # Assign colors with tab20 palette
+    n.c.carriers.assign_colors(palette="tab20")
+
+    # Both carriers should have colors
+    assert all(n.c.carriers.static["color"].notna())
+    assert all(n.c.carriers.static["color"] != "")
+
+
+def test_assign_colors_overwrite():
+    """Test assign_colors with overwrite=True."""
+    n = Network()
+    n.add("Bus", "bus1")
+
+    # Add carriers with existing colors
+    n.add("Carrier", "wind", color="blue")
+    n.add("Carrier", "solar", color="yellow")
+
+    # Store original colors
+    original_wind = n.c.carriers.static.loc["wind", "color"]
+    original_solar = n.c.carriers.static.loc["solar", "color"]
+
+    # Assign colors without overwrite (default)
+    n.c.carriers.assign_colors(overwrite=False)
+
+    # Colors should not have changed
+    assert n.c.carriers.static.loc["wind", "color"] == original_wind
+    assert n.c.carriers.static.loc["solar", "color"] == original_solar
+
+    # Assign colors with overwrite
+    n.c.carriers.assign_colors(overwrite=True)
+
+    # Colors should have changed
+    assert n.c.carriers.static.loc["wind", "color"] != original_wind
+    assert n.c.carriers.static.loc["solar", "color"] != original_solar
+
+
+def test_assign_colors_partial_colors():
+    """Test assign_colors when some carriers have colors and some don't."""
+    n = Network()
+    n.add("Bus", "bus1")
+
+    # Add carriers, some with colors
+    n.add("Carrier", "wind", color="blue")
+    n.add("Carrier", "solar")  # no color
+    n.add("Carrier", "gas")  # no color
+
+    # Assign colors (should only assign to solar and gas)
+    n.c.carriers.assign_colors()
+
+    # Wind should keep its color
+    assert n.c.carriers.static.loc["wind", "color"] == "blue"
+
+    # Solar and gas should have new colors
+    assert n.c.carriers.static.loc["solar", "color"] != ""
+    assert n.c.carriers.static.loc["gas", "color"] != ""
+
+
+def test_assign_colors_stochastic():
+    """Test assign_colors with stochastic networks."""
+    n = Network()
+    n.add("Bus", "bus1")
+
+    # Add carriers before scenarios
+    n.add("Carrier", "wind")
+    n.add("Carrier", "solar")
+
+    # Convert to stochastic network
+    n.set_scenarios(["low", "high"])
+
+    # Assign colors
+    n.c.carriers.assign_colors()
+
+    # Colors should be assigned for both scenarios
+    assert n.c.carriers.static.loc[("low", "wind"), "color"] != ""
+    assert n.c.carriers.static.loc[("high", "wind"), "color"] != ""
+    assert n.c.carriers.static.loc[("low", "solar"), "color"] != ""
+    assert n.c.carriers.static.loc[("high", "solar"), "color"] != ""
+
+    # Colors should be the same across scenarios for same carrier
+    assert (
+        n.c.carriers.static.loc[("low", "wind"), "color"]
+        == n.c.carriers.static.loc[("high", "wind"), "color"]
+    )
+    assert (
+        n.c.carriers.static.loc[("low", "solar"), "color"]
+        == n.c.carriers.static.loc[("high", "solar"), "color"]
+    )
+
+
+def test_unique_carriers_property():
+    """Test unique_carriers property on components."""
+    n = Network()
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+
+    # Add generators with different carriers
+    n.add("Generator", "gen1", bus="bus1", carrier="wind")
+    n.add("Generator", "gen2", bus="bus1", carrier="wind")
+    n.add("Generator", "gen3", bus="bus2", carrier="solar")
+    n.add("Generator", "gen4", bus="bus2", carrier="gas")
+
+    # Get unique carriers from generators
+    carriers = n.c.generators.unique_carriers
+
+    assert isinstance(carriers, set)
+    assert len(carriers) == 3
+    assert carriers == {"wind", "solar", "gas"}
+
+
+def test_unique_carriers_empty_component():
+    """Test unique_carriers on empty component."""
+    n = Network()
+
+    # Generators is empty
+    carriers = n.c.generators.unique_carriers
+
+    assert isinstance(carriers, set)
+    assert len(carriers) == 0
+
+
+def test_unique_carriers_no_carrier_attribute():
+    """Test unique_carriers on component without carrier attribute."""
+    n = Network()
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add("Bus", "bus3", carrier="DC")
+
+    # Buses have carrier attribute
+    carriers = n.c.buses.unique_carriers
+
+    assert isinstance(carriers, set)
+    assert len(carriers) == 2
+    assert carriers == {"AC", "DC"}
+
+
+def test_unique_carriers_with_empty_strings():
+    """Test unique_carriers ignores empty strings and NaN."""
+    n = Network()
+    n.add("Bus", "bus1")
+
+    # Add generators with various carrier values
+    n.add("Generator", "gen1", bus="bus1", carrier="wind")
+    n.add("Generator", "gen2", bus="bus1", carrier="")  # empty string
+    n.add("Generator", "gen3", bus="bus1")  # defaults to empty
+
+    # Get unique carriers
+    carriers = n.c.generators.unique_carriers
+
+    # Only wind should be in the set (empty strings filtered out)
+    assert carriers == {"wind"}
+
+
+def test_add_missing_carriers_color_palette_conflict():
+    """Test that add_missing_carriers raises error when both palette and color provided."""
+    n = Network()
+    n.add("Bus", "bus1")
+    n.add("Generator", "gen1", bus="bus1", carrier="wind")
+
+    # Should raise ValueError when both palette and color are provided
+    with pytest.raises(ValueError, match="Cannot specify both 'palette' and 'color'"):
+        n.c.carriers.add_missing_carriers(palette="tab10", color="red")
