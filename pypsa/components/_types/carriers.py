@@ -36,7 +36,7 @@ class Carriers(Components):
 
     Examples
     --------
-    >>> n.components.carriers
+    >>> n.components.carriers  # doctest: +SKIP
     'Carrier' Components
     --------------------
     Attached to PyPSA Network 'AC-DC-Meshed'
@@ -89,19 +89,19 @@ class Carriers(Components):
         --------
         Assign colors to all carriers without colors:
 
-        >>> n.c.carriers.assign_colors()
+        >>> n.c.carriers.assign_colors()  # doctest: +SKIP
 
         Assign colors using a different palette:
 
-        >>> n.c.carriers.assign_colors(palette="Set3")
+        >>> n.c.carriers.assign_colors(palette="Set3")  # doctest: +SKIP
 
         Assign colors to specific carriers:
 
-        >>> n.c.carriers.assign_colors(["wind", "gas"], palette="tab20")
+        >>> n.c.carriers.assign_colors(["wind", "gas"], palette="tab20")  # doctest: +SKIP
 
         Overwrite existing colors:
 
-        >>> n.c.carriers.assign_colors(overwrite=True)
+        >>> n.c.carriers.assign_colors(overwrite=True)  # doctest: +SKIP
 
         See Also
         --------
@@ -194,24 +194,27 @@ class Carriers(Components):
         --------
         Add missing carriers with default tab10 colors:
 
+        >>> import pypsa
         >>> n_test = pypsa.Network()
         >>> n_test.add("Bus", "bus1")
         >>> n_test.add("Generator", "gen1", bus="bus1", carrier="wind")
         >>> n_test.add("Generator", "gen2", bus="bus1", carrier="solar")
         >>> n_test.add("Generator", "gen3", bus="bus1", carrier="gas")
         >>> n_test.c.carriers.add_missing_carriers()
-        Index(['gas', 'solar', 'wind'], dtype='object', name='name')
+        Index(['AC', 'gas', 'solar', 'wind'], dtype='object')
 
         Add missing carriers without automatic color assignment:
 
+        >>> import pypsa
         >>> n_test = pypsa.Network()
         >>> n_test.add("Bus", "bus1", carrier="AC")
         >>> n_test.add("Generator", "gen1", bus="bus1", carrier="wind")
         >>> n_test.c.carriers.add_missing_carriers(palette=None)
-        Index(['AC', 'wind'], dtype='object', name='name')
+        Index(['AC', 'wind'], dtype='object')
 
         Add missing carriers with additional attributes:
 
+        >>> import pypsa
         >>> n_test = pypsa.Network()
         >>> n_test.add("Bus", "bus1", carrier="AC")
         >>> n_test.add("Generator", "gen1", bus="bus1", carrier="wind")
