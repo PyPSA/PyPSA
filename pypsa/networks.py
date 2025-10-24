@@ -352,18 +352,20 @@ class Network(
         Stochastic PyPSA Network 'Stochastic-Network'
         ---------------------------------------------
         Components:
-        - Bus: 3
-        - Generator: 12
-        - Load: 3
+         - Bus: 3
+         - Carrier: 18
+         - Generator: 12
+         - Load: 3
         Snapshots: 2920
         Scenarios: 3
         >>> n_stochastic["high"]
         PyPSA Network 'Stochastic-Network - Scenario 'high''
         ----------------------------------------------------
         Components:
-        - Bus: 1
-        - Generator: 4
-        - Load: 1
+         - Bus: 1
+         - Carrier: 6
+         - Generator: 4
+         - Load: 1
         Snapshots: 2920
 
         Select single collection from a network collection:

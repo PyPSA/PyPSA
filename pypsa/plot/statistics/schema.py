@@ -267,18 +267,47 @@ def apply_parameter_schema(
         kwargs.pop(param)
 
     # Auto-faceting logic
-    if (
-        context
-        and context.get("index_names")
-        and not kwargs.get("facet_col")
-        and not kwargs.get("facet_row")
-    ):
-        index_names = context["index_names"]
-        if len(index_names) == 1:
-            kwargs["facet_col"] = index_names[0]
-        elif len(index_names) >= 2:
+    if context and not kwargs.get("facet_col") and not kwargs.get("facet_row"):
+        index_names = context.get("index_names", [])
+        # Ignore unnamed index levels to avoid creating empty facets
+        index_names = [name for name in index_names if name is not None]
+
+        # Check if we have stochastic scenarios by seeing if 'has_scenarios' flag is set
+        # (This flag is set by the plotting code when member networks have scenarios)
+        has_scenarios = context.get("has_scenarios", False)
+        period_name = context.get("period_name")
+
+        # For area plots, we want to facet by period if multi-invest or scenario if stochastic
+        if plot_name != "bar" and period_name and not index_names and not has_scenarios:
+            # Multi-invest network without collection: facet by period
+            kwargs["facet_col"] = period_name
+        elif (
+            plot_name != "bar" and has_scenarios and not index_names and not period_name
+        ):
+            # Stochastic network without collection or multi-invest: facet by scenario
+            kwargs["facet_col"] = "scenario"
+        elif plot_name != "bar" and len(index_names) == 1 and has_scenarios:
+            # Collection of stochastic networks: 2D faceting (collection index + scenario)
             kwargs["facet_row"] = index_names[0]
-            kwargs["facet_col"] = index_names[1]
+            kwargs["facet_col"] = "scenario"
+        elif len(index_names) >= 2:
+            # When scenarios present: use 2D faceting for bar plots (so scenarios can be aggregated)
+            # When no scenarios: use 1D faceting + color for bar plots (original behavior)
+            if plot_name == "bar" and has_scenarios:
+                # Use both indices for faceting when scenarios present
+                kwargs["facet_row"] = index_names[0]
+                kwargs["facet_col"] = index_names[1]
+            elif plot_name == "bar":
+                # No scenarios: use 1D faceting (color set by adjust_collection_bar_defaults)
+                kwargs["facet_col"] = index_names[0]
+            else:
+                # Other plots: always use 2D faceting
+                kwargs["facet_row"] = index_names[0]
+                kwargs["facet_col"] = index_names[1]
+        elif len(index_names) == 1 and (has_scenarios or plot_name != "bar"):
+            # When scenarios present: always facet (so scenarios can be aggregated)
+            # When no scenarios: only non-bar plots facet (bar uses color)
+            kwargs["facet_col"] = index_names[0]
 
     return kwargs
 
@@ -300,10 +329,13 @@ def get_relevant_plot_values(plot_kwargs: dict, context: dict | None = None) -> 
 
     """
     index_names = context.get("index_names", []) if context else []
+    period_name = context.get("period_name") if context else None
     relevant_keys = {"x", "y", "color", "facet_col", "facet_row"}
     values = [
         v
         for k, v in plot_kwargs.items()
         if k in relevant_keys and v not in index_names and v is not None
     ]
+    if period_name is not None:
+        values = [value for value in values if value != period_name]
     return list(set(values))
