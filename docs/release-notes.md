@@ -13,8 +13,6 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
-### Features
-
 - New carrier management features (<!-- md:pr 1401 -->)
 
     - `c.unique_carriers` property: Get all unique carrier values for a component (e.g., `n.c.generators.unique_carriers`)
@@ -32,7 +30,13 @@ SPDX-License-Identifier: CC-BY-4.0
     - Better support for multi-period investment data visualization
     - Automatic color coding by collection index or investment period
 
-## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> 🎉 { id="v1.0.1" }
+## [**v1.0.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.2) <small>24 October 2025</small> { id="v1.0.2" }
+
+### Bug Fixes
+
+- Fix infinite recursion error when pickling networks. (<!-- md:pr 1421 -->)
+
+## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> { id="v1.0.1" }
 
 ### Bug Fixes
 
