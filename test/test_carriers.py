@@ -644,3 +644,49 @@ def test_add_missing_carriers_color_palette_conflict():
     # Should raise ValueError when both palette and color are provided
     with pytest.raises(ValueError, match="Cannot specify both 'palette' and 'color'"):
         n.c.carriers.add_missing_carriers(palette="tab10", color="red")
+
+
+def test_assign_colors_single_string():
+    """Test assign_colors with a single carrier name as string."""
+    n = Network()
+    n.add("Bus", "bus1")
+
+    # Add carriers
+    n.add("Carrier", "wind")
+    n.add("Carrier", "solar")
+    n.add("Carrier", "gas")
+
+    # Assign color to only "wind" using a string instead of list
+    n.c.carriers.assign_colors("wind")
+
+    # Only wind should have a color
+    assert n.c.carriers.static.loc["wind", "color"] != ""
+    assert n.c.carriers.static.loc["solar", "color"] == ""
+    assert n.c.carriers.static.loc["gas", "color"] == ""
+
+
+def test_add_missing_carriers_stochastic_no_colors():
+    """Test add_missing_carriers on stochastic network without automatic color assignment."""
+    n = Network()
+    n.add("Bus", "bus1")
+
+    # Add components before scenarios
+    n.add("Generator", "gen1", bus="bus1", carrier="wind")
+    n.add("Generator", "gen2", bus="bus1", carrier="solar")
+
+    # Convert to stochastic network
+    n.set_scenarios(["low", "high"])
+
+    # Add missing carriers without colors
+    added = n.c.carriers.add_missing_carriers(palette=None)
+
+    # Check carriers were added
+    assert len(added) == 3
+    assert set(added) == {"AC", "solar", "wind"}
+
+    # Check that carriers exist in both scenarios
+    for scenario in ["low", "high"]:
+        for carrier in ["AC", "solar", "wind"]:
+            assert (scenario, carrier) in n.c.carriers.static.index
+            # Check no colors were assigned
+            assert n.c.carriers.static.loc[(scenario, carrier), "color"] == ""
