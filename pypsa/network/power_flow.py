@@ -413,7 +413,14 @@ def sub_network_pf_singlebus(
 
 
 def apply_line_types(n: Network) -> None:
-    """Calculate line electrical parameters x, r, b, g from standard types."""
+    """Calculate line electrical parameters x, r, b, g from standard types.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to apply the line types to.
+
+    """
     lines_with_types_b = n.c.lines.static.type != ""
     if lines_with_types_b.zsum() == 0:
         return
@@ -461,7 +468,14 @@ def apply_line_types(n: Network) -> None:
 
 
 def apply_transformer_types(n: Network) -> None:
-    """Calculate transformer electrical parameters x, r, b, g from standard types."""
+    """Calculate transformer electrical parameters x, r, b, g from standard types.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to apply the transformer types to.
+
+    """
     trafos_with_types_b = n.c.transformers.static.type != ""
     if trafos_with_types_b.zsum() == 0:
         return
@@ -541,6 +555,11 @@ def wye_to_delta(
 def apply_transformer_t_model(n: Network) -> None:
     """Convert given T-model parameters to PI-model parameters.
 
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to apply the T-model conversion to.
+
     Notes
     -----
     Uses wye-delta transformation.
@@ -569,6 +588,12 @@ def aggregate_multi_graph(sub_network: SubNetwork) -> None:
 
     Instead a single branch with aggregated properties (e.g. s_nom is
     summed, length is averaged) is created.
+
+    Parameters
+    ----------
+    sub_network : pypsa.SubNetwork
+        The sub-network to aggregate the multi-graph for.
+
     """
     n = sub_network.n
 
@@ -612,11 +637,21 @@ def aggregate_multi_graph(sub_network: SubNetwork) -> None:
     )
 
 
-def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
+def find_tree(sub_network: SubNetwork, weight: str | None = "x_pu") -> None:
     """Get the spanning tree of the graph.
 
     Choose the node with the highest degree as a central "tree slack" and then see for
     each branch which paths from the slack to each node go through the branch.
+
+    Parameters
+    ----------
+    sub_network : pypsa.SubNetwork
+        The sub-network to find the spanning tree for.
+    weight : str | None, optional
+        Attribute of branches to use as graph weight.
+        If None, unweighted graph is used.
+        Default is "x_pu".
+
     """
     branches_bus0 = sub_network.branches()["bus0"]
     branches_i = branches_bus0.index
@@ -643,14 +678,38 @@ def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
             sub_network.T[branch_i, j] = sign
 
 
-def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
-    """Find all cycles in the sub_network and record them in sub_network.C.
+def find_cycles(
+    sub_network: SubNetwork,
+    weight: str | None = None,
+    inf_weight: bool | float = False,
+    include_inactive: bool = False,
+    minimum_cycle_basis: bool = False,
+) -> None:
+    """Find the minimum cycle basis in the sub_network and record it in sub_network.C.
 
     networkx collects the cycles with more than 2 edges; then the 2-edge
     cycles from the MultiGraph must be collected separately (for cases
     where there are multiple lines between the same pairs of buses).
 
     Cycles with infinite impedance are skipped.
+
+    Parameters
+    ----------
+    sub_network : pypsa.SubNetwork
+        The sub-network to find cycle basis for.
+    weight : str | None, optional
+        Attribute of branches to use as graph weight.
+        If None, unweighted graph is used.
+    inf_weight : bool | float, default False
+        How to treat infinite weights. If True, edges with infinite weight are
+        assigned infinite weights. If False, they are ignored in the cycle search.
+        If assigned a float, it is used as the weight for infinite edges.
+    include_inactive : bool, default False
+        Whether to include inactive branches in cycle search.
+    minimum_cycle_basis : bool, default False
+        Whether to use minimum cycle basis algorithm. If False, a fundamental cycle
+        basis is used instead, which is generally not minimal but faster to compute.
+
     """
     branches_bus0 = sub_network.branches()["bus0"]
 
@@ -661,10 +720,15 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     branches_i = branches_bus0.index
 
     # reduce to a non-multi-graph for cycles with > 2 edges
-    mgraph = sub_network.graph(weight=weight, inf_weight=False)
+    mgraph = sub_network.graph(
+        weight=weight, inf_weight=inf_weight, include_inactive=include_inactive
+    )
     graph = nx.Graph(mgraph)
 
-    cycles = nx.cycle_basis(graph)
+    if minimum_cycle_basis:
+        cycles = nx.minimum_cycle_basis(graph, weight=weight)
+    else:
+        cycles = nx.cycle_basis(graph)
 
     # number of 2-edge cycles
     num_multi = len(mgraph.edges()) - len(graph.edges())
