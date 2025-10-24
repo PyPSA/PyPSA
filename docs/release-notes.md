@@ -5,19 +5,21 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-## Upcoming Release
+<!--## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+
+## [**v1.0.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.2) <small>24 October 2025</small> { id="v1.0.2" }
 
 ### Bug Fixes
 
-- Fix infinite recursion error when pickling networks.
+- Fix infinite recursion error when pickling networks. (<!-- md:pr 1421 -->)
 
-## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> 🎉 { id="v1.0.1" }
+## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> { id="v1.0.1" }
 
 ### Bug Fixes
 
