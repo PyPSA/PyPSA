@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-exclude: docs/hooks
+exclude: ^(docs/hooks|examples)
 
 ci:
   autoupdate_schedule: quarterly
