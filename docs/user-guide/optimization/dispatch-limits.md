@@ -26,7 +26,7 @@ For non-extendable components (`{p,s}_nom_extendable=False`), the dispatch is li
 | $p_{l,t} \geq - \bar{p}_{l,t} \cdot \hat{p}_{l}$ | $w_t^o \underline{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_lower` | `Line-fix-p-lower` |
 | $p_{l,t} \leq \bar{p}_{l,t} \cdot \hat{p}_{l}$ | $w_t^o \bar{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_upper` | `Line-fix-p-upper` |
 
-where $\hat{g}_{n,s}$, $\hat{f}_{l}$, and $\hat{p}_{l}$ are the nominal capacities; $\underline{g}_{n,s,t}$, $\underline{f}_{l,t}$, $\bar{g}_{n,s,t}$, and $\bar{f}_{l,t}$ and $\bar{p}_{l,t}$ are time-dependent restrictions on the dispatch given per unit of nominal capacity (e.g. due to wind availability for generators or dynamic line rating and security margins for lines). 
+where $\hat{g}_{n,s}$, $\hat{f}_{l}$, and $\hat{p}_{l}$ are the nominal capacities; $\underline{g}_{n,s,t}$, $\underline{f}_{l,t}$, $\bar{g}_{n,s,t}$, and $\bar{f}_{l,t}$ and $\bar{p}_{l,t}$ are time-dependent restrictions on the dispatch given per unit of nominal capacity (e.g. due to wind availability for generators or dynamic line rating and security margins for lines).
 
 These constraints are set in the function `define_operational_constraints_for_non_extendables()`.
 
@@ -43,7 +43,7 @@ Constraint | Dual Variable | | Name |
 | $p_{l,t} \geq - \bar{p}_{l,t} \cdot P_{l}$ | $w_t^o \underline{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_lower` | `Line-ext-p-lower` |
 | $p_{l,t} \leq \bar{p}_{l,t} \cdot P_{l}$ | $w_t^o \bar{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_upper` | `Line-ext-p-upper` |
 
-where $G_{n,s}$, $F_{l}$, and $P_{l}$ are the nominal capacities to be optimised. 
+where $G_{n,s}$, $F_{l}$, and $P_{l}$ are the nominal capacities to be optimised.
 
 These constraints are set in the function `define_operational_constraints_for_extendables()`.
 
@@ -77,7 +77,7 @@ These constraints are set in the function `define_total_supply_constraints()`.
 
     === "Generator"
 
-        | Symbol | Attribute | Type | 
+        | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
         | $G_{n,s}$         | `n.generators.p_nom_opt` | Decision variable |
@@ -92,8 +92,8 @@ These constraints are set in the function `define_total_supply_constraints()`.
 
     === "Link"
 
-        
-        | Symbol | Attribute | Type | 
+
+        | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $f_{l,t}$         | `n.links_t.p` | Decision variable |
         | $F_{l}$           | `n.links.p_nom_opt` | Decision variable |
@@ -108,7 +108,7 @@ These constraints are set in the function `define_total_supply_constraints()`.
 
     === "Line"
 
-        | Symbol | Attribute | Type | 
+        | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $p_{l,t}$         | `n.{lines,transformers}_t.p0` | Decision variable |
         | $P_{l}$           | `n.{lines,transformers}.s_nom_opt` | Decision variable |
@@ -116,5 +116,3 @@ These constraints are set in the function `define_total_supply_constraints()`.
         | $\bar{p}_{l,t}$   | `n.{lines,transformers}_t.s_max_pu` | Parameter |
         | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
         | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
-
-

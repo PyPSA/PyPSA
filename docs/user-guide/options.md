@@ -29,7 +29,7 @@ Instead of setting the value and getting the value via attribute access, you can
 
 
 ## List of available options
-Options are grouped into categories and sub-categories. You can run the [`describe()`][pypsa.options.describe] function on any category or sub-category to get a list of available options and their current values. To list all options just run 
+Options are grouped into categories and sub-categories. You can run the [`describe()`][pypsa.options.describe] function on any category or sub-category to get a list of available options and their current values. To list all options just run
 ``` py
 >>> pypsa.options.describe() # doctest: +ELLIPSIS
 PyPSA Options
@@ -49,10 +49,10 @@ PyPSA Options
 =============
 allow_network_requests:
     Default: True
-    Description: Allow PyPSA to make network requests. When False, all network requests 
-    (such as checking for version updates) are disabled. This may be needed 
-    in restricted environments, offline usage, or for security/privacy reasons. 
-    This only controls PyPSA's own network requests, dependencies may still 
+    Description: Allow PyPSA to make network requests. When False, all network requests
+    (such as checking for version updates) are disabled. This may be needed
+    in restricted environments, offline usage, or for security/privacy reasons.
+    This only controls PyPSA's own network requests, dependencies may still
     make network requests independently.
 ```
 
@@ -76,8 +76,8 @@ statistics.round:
     Description: Default value for the 'round' parameter in statistics module.
 add.return_names:
     Default: False
-    Description: Default value for the 'return_names' parameter in Network.add method. 
-    If True, the add method returns the names of added components. 
+    Description: Default value for the 'return_names' parameter in Network.add method.
+    If True, the add method returns the names of added components.
     If False, it returns None.
 optimize.model_kwargs:
     Default: {}
@@ -136,9 +136,7 @@ PyPSA Options
 =============
 runtime_verification:
     Default: False
-    Description: Enable runtime verification of PyPSA's internal state. This is useful 
-        for debugging and development purposes. This will lead to overhead in 
+    Description: Enable runtime verification of PyPSA's internal state. This is useful
+        for debugging and development purposes. This will lead to overhead in
         performance and should not be used in production.
 ```
-
-

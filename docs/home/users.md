@@ -18,7 +18,7 @@ The following universities, research institutes, companies, governmental and non
 
 ## Universities
 
-- **[:flag_de: Technische Universität Berlin (TUB)](https://www.ensys.tu-berlin.de/)**, where PyPSA development continues since 2021, published multiple research papers, for example: 
+- **[:flag_de: Technische Universität Berlin (TUB)](https://www.ensys.tu-berlin.de/)**, where PyPSA development continues since 2021, published multiple research papers, for example:
 [doi:10.1038/s41467-025-60652-1](https://doi.org/10.1038/s41467-025-60652-1), [doi:10.1016/j.eneco.2025.108483](https://doi.org/10.1016/j.eneco.2025.108483), [doi:10.1038/s41560-025-01752-6](https://doi.org/10.1038/s41560-025-01752-6), [doi:10.1038/s41597-025-04550-7](https://doi.org/10.1038/s41597-025-04550-7), [doi:10.1016/j.adapen.2024.100202](https://doi.org/10.1016/j.adapen.2024.100202), [doi:10.1088/1748-9326/ad2239](https://doi.org/10.1088/1748-9326/ad2239), [doi:10.1016/j.joule.2023.10.001](https://doi.org/10.1016/j.joule.2023.10.001), [doi:10.1016/j.joule.2023.06.016](https://doi.org/10.1016/j.joule.2023.06.016).
 
 - **[:flag_de: Karlsruhe Institute of Technology (KIT)](https://www.kit.edu/)**, where PyPSA development took place between 2018 and 2021, published multiple research papers, for example: [doi:10.1016/j.energy.2018.06.222](https://doi.org/10.1016/j.energy.2018.06.222), [doi:10.1109/EEM.2019.8916411](https://www.doi.org/10.1109/EEM.2019.8916411), [doi:10.1016/j.esr.2018.08.012](https://doi.org/10.1016/j.esr.2018.08.012), [doi:10.1016/j.epsr.2020.106690](https://doi.org/10.1016/j.epsr.2020.106690), [doi:10.1145/3396851.3397688](https://doi.org/10.1145/3396851.3397688), [doi:10.1016/j.apenergy.2021.116726](https://doi.org/10.1016/j.apenergy.2021.116726), [doi:10.1186/s42162-022-00187-7](https://doi.org/10.1186/s42162-022-00187-7)
@@ -103,6 +103,8 @@ The following universities, research institutes, companies, governmental and non
 * **[:flag_at: Austrian Power Grid (APG)](https://www.apg.at/)**, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in [this talk](https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf) and [this project description](https://www.apg.at/projekte/zusammen-2040/).
 
 - **[:flag_at: Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/)** develops and maintains a high-resolution, sector-coupled energy system model based on PyPSA-DE and PyPSA-EUR. The model is used to analyse long-term energy system projections up to 2050 and serves as a supplementary tool for AGGM’s bi-annual report, the Langfristige Integrierte Planung (LFiP).
+
+- **[:flag_nl: TenneT](https://www.tennet.eu/)**, the Dutch TSO, used PyPSA for [research](https://arxiv.org/abs/2104.13047) on ancillary services acquisition using agent-based modelling.
 
 * **[:flag_za: Meridian Economics](https://meridianeconomics.co.za/)**, a consultancy based in South Africa, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa. Studies published in June 2022 were on [load shedding in 2021](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf) and [a plan to resolve load shedding](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-B-The-Game-Plan-01.pdf)
 

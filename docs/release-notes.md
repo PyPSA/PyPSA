@@ -5,7 +5,7 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-## Upcoming Release
+<!--## Upcoming Release
 
 !!! info "Upcoming Release"
 
@@ -34,7 +34,13 @@ SPDX-License-Identifier: CC-BY-4.0
   `state_of_charge_initial_per_period`/`e_initial_per_period` flags.
   (<!-- md: pr 1360 -->, <!-- md: pr 1371 -->)
 
-## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> 🎉 { id="v1.0.1" }
+## [**v1.0.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.2) <small>24 October 2025</small> { id="v1.0.2" }
+
+### Bug Fixes
+
+- Fix infinite recursion error when pickling networks. (<!-- md:pr 1421 -->)
+
+## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> { id="v1.0.1" }
 
 ### Bug Fixes
 

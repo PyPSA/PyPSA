@@ -14,7 +14,7 @@ providers.
 
 ## Adding, Removing & Merging
 
-Networks can be built step-by-step for each component by calling 
+Networks can be built step-by-step for each component by calling
 [`n.add()`][pypsa.network.transform.NetworkTransformMixin.remove] to **add** a single or multiple components.
 
 ``` py
@@ -67,7 +67,7 @@ For static component data, name each worksheet using the exact component name as
 
 The I/O functionality will automatically ignore any worksheets that do not follow this naming pattern, allowing you to include documentation, notes, or auxiliary data in separate tabs without interfering with the import/export process.
 
-The snapshots worksheet must contain the time-series index using an appropriate datetime format. Other time-series worksheets should have the same number of rows, with the index column either numbered sequentially (e.g., 1-8760 for hourly annual data) or using the same datetime format as the snapshots. 
+The snapshots worksheet must contain the time-series index using an appropriate datetime format. Other time-series worksheets should have the same number of rows, with the index column either numbered sequentially (e.g., 1-8760 for hourly annual data) or using the same datetime format as the snapshots.
 
 !!! note
 
@@ -76,7 +76,7 @@ The snapshots worksheet must contain the time-series index using an appropriate 
     2. It is not necessary to add every single column, only those where values differ from the defaults. All empty values and columns are filled with the defaults.
 
 !!! warning
-    
+
     Excel is resource-intensive and only appropriate for smaller networks. For larger datasets or production workflows, consider using netCDF files.
 
 
@@ -129,7 +129,7 @@ To **import** a network from [pandapower](http://www.pandapower.org/), run the f
 
 **Exporting** to [pandapower](http://www.pandapower.org/) is not currently supported.
 
-!!! warning 
+!!! warning
 
     Not all pandapower data fields are supported. For instance,
     three-winding transformers, switches, `in_service` status and tap positions

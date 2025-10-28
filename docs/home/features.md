@@ -118,10 +118,10 @@ storage water values, scarcity and CO~2~ prices.
 - **:simple-googlesheets: Statistics:** Built-in tools for summarising and visualising results, such
   as energy balances, capacities, costs, market values, curtailment, component
   revenues.
-  
+
 - **:octicons-paintbrush-16: Visualisations:** Built-in tools for plotting statistics, time series data
   and spatial distributions of line loadings and nodal dispatch decisions.
-  
+
 - **:material-notebook: Documentation:** Comprehensive user guide, API reference, and plenty of
 examples are available.
 
@@ -138,7 +138,7 @@ Interactive **network visualization** of SciGRID example network clustered by fe
 
 <div style="width: 100%; height: 800px; overflow: hidden;">
     <iframe src="https://bxio.ng/assets/html/scigrid-interactive-map"
-            width="100%" height="100%" frameborder="0" 
+            width="100%" height="100%" frameborder="0"
             style="border: 0px solid #ccc; transform: scale(1); transform-origin: 0 0;">
     </iframe>
 </div>
@@ -146,7 +146,7 @@ Interactive **network visualization** of SciGRID example network clustered by fe
 Interactive area plot of **electricity balance time series** in a highly-renewable sector-coupled example network, showing temporal generation (positive values) and consumption (negative values) of different technologies:
 
 <div style="width: 100%; height: 550px;">
-    <iframe src="../../../assets/interactive/carbon_management-energy_balance-area_iplot-AC-bus_carrier.html" 
+    <iframe src="../../../assets/interactive/carbon_management-energy_balance-area_iplot-AC-bus_carrier.html"
             width="100%" height="100%" frameborder="0" style="border: 0px solid #ccc;">
     </iframe>
 </div>

@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Instructions for Contributing
 
-First of all, thank you for thinking about contributing to PyPSA! 
+First of all, thank you for thinking about contributing to PyPSA!
 
 We strongly welcome anyone interested in PyPSA and all its related projects, be it
 with new ideas, suggestions, submitting bug reports or contributing code changes.
@@ -42,9 +42,9 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 
 **pre-commit**
 
-We run a couple of tools via [pre-commit](https://pre-commit.com) to ensure a 
+We run a couple of tools via [pre-commit](https://pre-commit.com) to ensure a
 consistent code style and to catch common programming errors or bad practices before
-they are committed. Don't worry, you can just start coding and the pre-commit will 
+they are committed. Don't worry, you can just start coding and the pre-commit will
 tell you if something is not right.
 
 It is already installed with the development dependencies, but you can also install it
@@ -69,8 +69,8 @@ This will check all files in the repository.
 **Ruff**
 
 One of the tools that is run by pre-commit is [Ruff](https://docs.astral.sh/ruff),
-which is our linter and formatter. It combines common tools like Flake8, Black, etc. 
-Besides pre-commit, you can also run it via your CLI (see [Ruff installation](https://docs.astral.sh/ruff/installation/)) 
+which is our linter and formatter. It combines common tools like Flake8, Black, etc.
+Besides pre-commit, you can also run it via your CLI (see [Ruff installation](https://docs.astral.sh/ruff/installation/))
 or IDE (e.g. VSCode [plugin](https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff)).
 This will help you to keep your code clean and consistent already during development.
 
@@ -83,8 +83,8 @@ To use the linter in your CLI, run:
 ruff check . --fix
 ```
 
-This will check all files in the repository and gives you hints on what to improve. The 
-`--fix` flag will also automatically fix some of the issues, if possible. Some 
+This will check all files in the repository and gives you hints on what to improve. The
+`--fix` flag will also automatically fix some of the issues, if possible. Some
 issues need to be fixed manually.
 
 And to run the formatter, use:
@@ -93,9 +93,9 @@ And to run the formatter, use:
 ruff format .
 ```
 
-This will format all the files in the repository and immediately apply the changes to 
+This will format all the files in the repository and immediately apply the changes to
 them. It is basically [the same](https://docs.astral.sh/ruff/faq/#how-does-ruffs-formatter-compare-to-black)
-as Black. 
+as Black.
 
 !!! note
 
@@ -135,17 +135,17 @@ very much welcome your contribution.
 
     If you are not familiar with Markdown, consult the following [quick guide](https://www.markdownguide.org/basic-syntax/).
 
-For bigger changes, we recommend to draft them locally. Just follow the steps in 
+For bigger changes, we recommend to draft them locally. Just follow the steps in
 [Code Contributions](#code) to set up your local environment. In addition you can:
 
 1. Also install the documentation dependencies via `pip install -e .[docs]`.
 2. Make your changes in the corresponding `.md` file in the `docs` directory.
 3. Compile your changes by running the following command in your terminal in the `doc` folder: `mkdocs serve`
-   
+
 !!! info
 
-    If you are not editing example notebooks (`.ipynb` files), you may wanna comment out 
-    the `mkdocs-jupyter` plugin in the `mkdocs.yml` file, to make the build faster. 
+    If you are not editing example notebooks (`.ipynb` files), you may wanna comment out
+    the `mkdocs-jupyter` plugin in the `mkdocs.yml` file, to make the build faster.
     In any case, you will end up with a link to a local server (e.g. `http://127.0.0.1:8000`).
 
 For simple changes, you can also edit the documentation directly on GitHub:

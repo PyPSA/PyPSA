@@ -12,7 +12,7 @@ It is accessed via the [`n.statistics`][pypsa.Network.statistics] property of an
 
 
 Currently supported metrics are:
-    
+
 - [Capital expenditure][pypsa.statistics.StatisticsAccessor.capex]: The capital expenditure of all components.
 - [Installed capital expenditure][pypsa.statistics.StatisticsAccessor.installed_capex]: The capital expenditure of all components before optimization.
 - [Expanded capital expenditure][pypsa.statistics.StatisticsAccessor.expanded_capex]: The capital expenditure of all components added during optimization.
@@ -136,7 +136,7 @@ Series([], dtype: float64)
 >>> # Get full time series (NaN until dispatch is solved)
 >>> n.statistics.supply(groupby_time=False).head()  # doctest: +NORMALIZE_WHITESPACE
 snapshot           2015-01-01 00:00:00  ...  2015-01-01 09:00:00
-component carrier                       ...                     
+component carrier                       ...
 Generator gas                      NaN  ...                  NaN
           wind                     NaN  ...                  NaN
 Load      load                     NaN  ...                  NaN
@@ -149,7 +149,7 @@ Load      load                     NaN  ...                  NaN
 
 ### Output Formatting
 
-- **`nice_names`**: Use nice names for carriers 
+- **`nice_names`**: Use nice names for carriers
 - **`drop_zero`**: Remove zero-value rows
 - **`round`**: Round to decimal places
 
