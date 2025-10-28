@@ -1,0 +1,564 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+"""Network transform module.
+
+Contains single mixin class which is used to inherit to [pypsa.Networks] class.
+Should not be used directly.
+
+Transform methods are methods which modify, restructure data and add or remove data.
+
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
+import pandas as pd
+from Levenshtein import distance
+
+from pypsa._options import options
+from pypsa.components.common import as_components
+from pypsa.components.types import all_standard_attrs_set
+from pypsa.network.abstract import _NetworkABC
+from pypsa.type_utils import is_1d_list_like
+
+if TYPE_CHECKING:
+    from collections.abc import Collection, Sequence
+
+    from pypsa.components.components import Components
+    from pypsa.networks import Network
+
+logger = logging.getLogger(__name__)
+
+
+def _get_potential_typos(
+    custom_attrs: set[str], standard_attrs: set[str]
+) -> set[tuple[str, str]]:
+    def is_typo(custom_attr: str, default_attr: str) -> bool:
+        """Check if custom_attr could be a typo of default_attr.
+
+        See according test in `test_transform.py` for detailed examples.
+
+        Parameters
+        ----------
+        custom_attr : str
+            Custom attribute name
+        default_attr : str
+            Default attribute name
+
+        Returns
+        -------
+        bool
+            True if custom_attr could be a typo of default_attr, False otherwise
+
+        """
+        dist = distance(custom_attr, default_attr)
+        # Basic condition
+        if (
+            dist != 1
+            or len(custom_attr) <= 1
+            or len(default_attr) <= 1
+            or default_attr in ["type"]
+        ):
+            return False
+
+        # Don't catch different base_attrs (p_nom vs e_nom etc.)
+        if dist == 1 and custom_attr[0] != default_attr[0] and custom_attr[1] == "_":
+            return False
+
+        # Don't catch different suffix (efficiency vs efficiency2, bus0 vs bus1 etc.)
+        if dist == 1 and (custom_attr[-1].isdigit() or default_attr[-1].isdigit()):  # noqa: SIM103
+            return False
+
+        return True
+
+    return {
+        (custom_attr, default_attr)
+        for custom_attr in custom_attrs
+        for default_attr in standard_attrs
+        if is_typo(custom_attr, default_attr)
+    }
+
+
+class NetworkTransformMixin(_NetworkABC):
+    """Mixin class for network transform methods.
+
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
+    """
+
+    def add(
+        self,
+        class_name: str,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        return_names: bool | None = None,
+        **kwargs: Any,
+    ) -> pd.Index | None:
+        """Add components to the network.
+
+        Handles addition of single and multiple components along with their attributes.
+        Pass a list of names to add multiple components at once or pass a single name
+        to add a single component.
+
+        When a single component is added, all non-scalar attributes are assumed to be
+        time-varying and indexed by snapshots.
+        When multiple components are added, all non-scalar attributes are assumed to be
+        static and indexed by names. A single value sequence is treated as scalar and
+        broadcasted to all components. It is recommended to explicitly pass a scalar
+        instead.
+        If you want to add time-varying attributes to multiple components, you can pass
+        a 2D array/ DataFrame where the first dimension is snapshots and the second
+        dimension is names.
+
+        Any attributes which are not specified will be given the default
+        value from <!-- md:guide components.md -->.
+
+        Parameters
+        ----------
+        class_name : str
+            Component class name in ("Bus", "Generator", "Load", "StorageUnit",
+            "Store", "ShuntImpedance", "Line", "Transformer", "Link").
+        name : str or int or list of str or list of int
+            Component name(s)
+        suffix : str, default ""
+            All components are named after name with this added suffix.
+        overwrite : bool, default False
+            If True, existing components with the same names as in `name` will be
+            overwritten. Otherwise only new components will be added and others will be
+            ignored.
+        return_names : bool | None, default=None
+            Whether to return the names of the components added. Defaults to module wide
+            option (default: False). See `https://go.pypsa.org/options-params` for more
+            information.
+        kwargs : Any
+            Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
+            or pandas.DataFrame for time-varying
+
+        Returns
+        -------
+        new_names : pandas.index or None
+            Names of new components (including suffix) if return_names is True,
+            otherwise None
+
+        Examples
+        --------
+        Add a single component:
+
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "my_bus_0")
+        >>> n.add("Bus", "my_bus_1", v_nom=380)
+        >>> n.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
+
+        Add multiple components with static attributes:
+
+        >>> n.add("Load", ["load 1", "load 2"],
+        ...       bus=["1", "2"],
+        ...       p_set=np.random.rand(len(n.snapshots), 2))
+
+        Add multiple components with time-varying attributes:
+
+        >>> import pandas as pd, numpy as np
+        >>> buses = range(13)
+        >>> snapshots = range(7)
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(snapshots)
+        >>> n.add("Bus", buses)
+        >>> # add load as numpy array
+        >>> n.add("Load",
+        ...       n.buses.index + " load",
+        ...       bus=buses,
+        ...       p_set=np.random.rand(len(snapshots), len(buses)))
+        >>> # add wind availability as pandas DataFrame
+        >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
+        ...        index=n.snapshots,
+        ...        columns=buses)
+        >>> # use a suffix to avoid boilerplate to rename everything
+        >>> n.add("Generator",
+        ...       buses,
+        ...       suffix=' wind',
+        ...       bus=buses,
+        ...       p_nom_extendable=True,
+        ...       capital_cost=1e5,
+        ...       p_max_pu=wind)
+
+
+        """
+        # Handle default parameters from options
+        if return_names is None:
+            return_names = options.params.add.return_names
+
+        c = as_components(self, class_name)
+        # Process name/names to pandas.Index of strings and add suffix
+        single_component = np.isscalar(name)
+
+        # Check if multi-index names are passed
+        if isinstance(name, pd.MultiIndex):
+            msg = "Component names must be a one-dimensional."
+            if self.has_scenarios:
+                msg += " For stochastic networks, they will be casted to all dimensions and data per scenario can be changed after adding them."
+            raise TypeError(msg)
+
+        names = pd.Index([name]) if single_component else pd.Index(name)
+        names = names.astype(str) + suffix
+
+        names_str = "name" if single_component else "names"
+        # Read kwargs into static and time-varying attributes
+        series = {}
+        static = {}
+
+        # Check if names are unique
+        if not names.is_unique:
+            msg = f"Names for {c.name} must be unique."
+            raise ValueError(msg)
+
+        # Check custom attributes
+        standard_attrs = set(c.defaults.index)
+        custom_attrs = set(kwargs.keys()) - standard_attrs
+        if custom_attrs:
+            # Raise warning if user adds a custom attribute which is a standard attribute
+            # for other components
+            unintended_attr_names = custom_attrs & all_standard_attrs_set
+            for unintended_attr_name in unintended_attr_names:
+                logger.warning(
+                    "The attribute '%s' is a standard attribute for other components but not for %s. "
+                    "This could cause confusion and it should be renamed. "
+                    "See also: https://go.pypsa.org/warning-attr-misleading.",
+                    unintended_attr_name,
+                    c.list_name,
+                )
+        # Check if levenshtein distance to standard attributes is small (<= 1) which
+        # indicates a typo in the attribute name
+        if options.warnings.attribute_typos:
+            potential_typos = _get_potential_typos(custom_attrs, standard_attrs)
+            for custom_attr, standard_attr in potential_typos:
+                logger.warning(
+                    "The attribute '%s' is not a standard attribute for %s. "
+                    "Did you mean '%s'? "
+                    "See also: https://go.pypsa.org/warning-attr-typo.",
+                    custom_attr,
+                    c.list_name,
+                    standard_attr,
+                )
+
+        for k, v in kwargs.items():
+            # If index/ columnes are passed (pd.DataFrame or pd.Series)
+            # - cast names index to string and add suffix
+            # - check if passed index/ columns align
+            msg = "{} has an index which does not align with the passed {}."
+            if isinstance(v, pd.Series) and single_component:
+                if not v.index.equals(self.snapshots):
+                    raise ValueError(msg.format(f"Series {k}", "network snapshots"))
+            elif isinstance(v, pd.Series):
+                # Cast names index to string + suffix
+                v = v.rename(
+                    index=lambda s: str(s)
+                    if str(s).endswith(suffix)
+                    else str(s) + suffix
+                )
+                if not v.index.equals(names):
+                    raise ValueError(msg.format(f"Series {k}", names_str))
+            if isinstance(v, pd.DataFrame):
+                # Cast names columns to string + suffix
+                v = v.rename(
+                    columns=lambda s: str(s)
+                    if str(s).endswith(suffix)
+                    else str(s) + suffix
+                )
+                if not v.index.equals(self.snapshots):
+                    raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
+                if not v.columns.equals(names):
+                    raise ValueError(msg.format(f"DataFrame {k}", names_str))
+
+            # Convert list-like and 1-dim array to pandas.Series
+            if is_1d_list_like(v):
+                try:
+                    if single_component:
+                        v = pd.Series(v, index=self.snapshots)
+                    else:
+                        v = pd.Series(v)
+                        if len(v) == 1:
+                            v = v.iloc[0]
+                            logger.debug(
+                                "Single value sequence for %s is treated as a scalar "
+                                "and broadcasted to all components. It is recommended "
+                                "to explicitly pass a scalar instead.",
+                                k,
+                            )
+                        else:
+                            v.index = names
+                except ValueError as e:
+                    expec_str = (
+                        f"{len(self.snapshots)} for each snapshot."
+                        if single_component
+                        else f"{len(names)} for each component name."
+                    )
+                    msg = f"Data for {k} has length {len(v)} but expected {expec_str}"
+                    raise ValueError(msg) from e
+            # Convert 2-dim array to pandas.DataFrame
+            if isinstance(v, np.ndarray):
+                if v.shape == (len(self.snapshots), len(names)):
+                    v = pd.DataFrame(v, index=self.snapshots, columns=names)
+                else:
+                    msg = (
+                        f"Array {k} has shape {v.shape} but expected "
+                        f"({len(self.snapshots)}, {len(names)})."
+                    )
+                    raise ValueError(msg)
+
+            if isinstance(v, dict):
+                msg = (
+                    "Dictionaries are not supported as attribute values. Please use "
+                    "pandas.Series or pandas.DataFrame instead."
+                )
+                raise NotImplementedError(msg)
+
+            # Handle addition of single component
+            if single_component:
+                # Read 1-dim data as time-varying attribute
+                if isinstance(v, pd.Series):
+                    series[k] = pd.DataFrame(
+                        v.values, index=self.snapshots, columns=names
+                    )
+                # Read 0-dim data as static attribute
+                else:
+                    static[k] = v
+
+            # Handle addition of multiple components
+            elif not single_component:
+                # Read 2-dim data as time-varying attribute
+                if isinstance(v, pd.DataFrame):
+                    series[k] = v
+                # Read 1-dim data as static attribute
+                elif isinstance(v, pd.Series):
+                    static[k] = v.values
+                # Read scalar data as static attribute
+                else:
+                    static[k] = v
+
+        # Load static attributes as components
+        if static:
+            static_df = pd.DataFrame(static, index=names)
+        else:
+            static_df = pd.DataFrame(index=names)
+        self._import_components_from_df(static_df, c.name, overwrite=overwrite)
+
+        # Load time-varying attributes as components
+        for k, v in series.items():
+            self._import_series_from_df(v, c.name, k, overwrite=overwrite)
+
+        if return_names:
+            return names
+        return None
+
+    def remove(
+        self,
+        class_name: str,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+    ) -> None:
+        """Remove a single component or a list of components from the network.
+
+        Removes it from component DataFrames.
+
+        Parameters
+        ----------
+        class_name : str
+            Component class name
+        name : str, int, list-like or pandas.Index
+            Component name(s)
+        suffix : str, default=''
+            Suffix to be added to the component name(s)
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.snapshots = pd.date_range("2015-01-01", freq="h", periods=2)
+        >>> n.add("Bus", ["bus0", "bus1"])
+        >>> n.add("Bus", "bus2", p_min_pu=[1, 1])
+        >>> n.components.buses.static
+               v_nom type    x    y  ... v_mag_pu_max control generator  sub_network
+        name                             ...
+        bus0         1.0       0.0  0.0  ...          inf      PQ
+        bus1         1.0       0.0  0.0  ...          inf      PQ
+        bus2         1.0       0.0  0.0  ...          inf      PQ
+        <BLANKLINE>
+        [3 rows x 13 columns]
+
+        Remove a single component:
+        >>> n.remove("Bus", "bus2")
+
+
+        Any component data is dropped from the component DataFrames.
+        >>> n.components.buses.static
+               v_nom type    x    y  ... v_mag_pu_max control generator  sub_network
+        name                             ...
+        bus0         1.0       0.0  0.0  ...          inf      PQ
+        bus1         1.0       0.0  0.0  ...          inf      PQ
+        <BLANKLINE>
+        [2 rows x 13 columns]
+        >>> n.components.buses.dynamic.p_min_pu
+        Empty DataFrame
+        Columns: []
+        Index: [2015-01-01 00:00:00, 2015-01-01 01:00:00]
+
+        Remove multiple components:
+        >>> n.remove("Bus", ["bus0", "bus1"])
+
+        >>> n.components.buses.static
+        Empty DataFrame
+        Columns: [v_nom, type, x, y, carrier, unit, location, v_mag_pu_set, v_mag_pu_min, v_mag_pu_max, control, generator, sub_network]
+        Index: []
+
+        """
+        c = as_components(self, class_name)
+
+        # Process name/names to pandas.Index of strings and add suffix
+        names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
+        names = names.astype(str) + suffix
+
+        # Drop from static components
+        cls_static = c.static
+        cls_static.drop(names, inplace=True)
+
+        # Drop from time-varying components
+        for df in c.dynamic.values():
+            df.drop(df.columns.intersection(names), axis=1, inplace=True)
+
+    def merge(
+        self,
+        other: Network,
+        components_to_skip: Collection[str] | None = None,
+        inplace: bool = False,
+        with_time: bool = True,
+    ) -> Any:
+        """Merge the components of two networks.
+
+        Requires disjunct sets of component indices and, if time-dependent data is
+        merged, identical snapshots and snapshot weightings.
+
+        If a component in `ther` does not have values for attributes present in
+        `n`, default values are set.
+
+        If a component in `other` has attributes which are not present in
+        `n` these attributes are ignored.
+
+        Parameters
+        ----------
+        other : pypsa.Network
+            Network to add from.
+        components_to_skip : list-like, default None
+            List of names of components which are not to be merged e.g. "Bus"
+        inplace : bool, default False
+            If True, merge into `n` in-place, otherwise a copy is made.
+        with_time : bool, default True
+            If False, only static data is merged.
+
+        Returns
+        -------
+        receiving_n : pypsa.Network
+            Merged network, or None if inplace=True
+
+        """
+        to_skip = {"Network", "SubNetwork", "LineType", "TransformerType"}
+        if components_to_skip:
+            to_skip.update(components_to_skip)
+        to_iterate = other.all_components - to_skip
+        # ensure buses are merged first
+        to_iterate_list = ["Bus"] + sorted(to_iterate - {"Bus"})
+        for c in other.components:
+            if c.name not in to_iterate_list:
+                continue
+            # for c in other.iterate_components(to_iterate_list):
+            if not c.static.index.intersection(self.c[c.name].static.index).empty:
+                msg = f"Component {c.name} has overlapping indices, cannot merge networks."
+                raise ValueError(msg)
+        if with_time:
+            snapshots_aligned = self.snapshots.equals(other.snapshots)
+            if not snapshots_aligned:
+                msg = "Snapshots do not agree, cannot merge networks."
+                raise ValueError(msg)
+            weightings_aligned = self.snapshot_weightings.equals(
+                other.snapshot_weightings
+            )
+            if not weightings_aligned:
+                # Check if only index order is different
+                # TODO fix with #1128
+                if self.snapshot_weightings.reindex(
+                    sorted(self.snapshot_weightings.columns), axis=1
+                ).equals(
+                    other.snapshot_weightings.reindex(
+                        sorted(other.snapshot_weightings.columns), axis=1
+                    )
+                ):
+                    weightings_aligned = True
+                else:
+                    msg = "Snapshot weightings do not agree, cannot merge networks."
+                    raise ValueError(msg)
+        new = self if inplace else self.copy()
+        if other.srid != new.srid:
+            logger.warning(
+                "Spatial Reference System Indentifier of networks do not agree: "
+                "%s, %s. Assuming %s.",
+                new.srid,
+                other.srid,
+                new.srid,
+            )
+        for c in other.components:
+            if c.name not in to_iterate_list:
+                continue
+            new.add(c.name, c.static.index, **c.static)
+            if with_time:
+                for k, v in c.dynamic.items():
+                    new._import_series_from_df(v, c.name, k)
+
+        return None if inplace else new
+
+    def rename_component_names(
+        self, component: str | Components, **kwargs: str
+    ) -> None:
+        """Rename component names.
+
+        Rename components of component type and also update all cross-references of
+        the component in network.
+
+        Parameters
+        ----------
+        component : str or pypsa.Components
+            Component type or instance of pypsa.Components.
+        **kwargs
+            Mapping of old names to new names.
+
+
+        Examples
+        --------
+        Define some network
+
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", ["bus1"])
+        >>> n.add("Generator", ["gen1"], bus="bus1")
+
+        Now rename the bus component
+
+        >>> n.rename_component_names("Bus", bus1="bus2")
+
+        Which updates the bus components
+
+        >>> n.buses.index
+        Index(['bus2'], dtype='object', name='name')
+
+        and all references in the network
+
+        >>> n.generators.bus
+        name
+        gen1    bus2
+        Name: bus, dtype: object
+
+        """
+        c = as_components(self, component)
+        c.rename_component_names(**kwargs)

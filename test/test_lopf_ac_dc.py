@@ -1,22 +1,8 @@
-import os
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
-import pytest
 from numpy.testing import assert_array_almost_equal as equal
-
-import pypsa
-
-
-@pytest.fixture
-def ac_dc_network_r():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "ac-dc-meshed",
-        "ac-dc-data",
-        "results-lopf",
-    )
-    return pypsa.Network(csv_folder)
 
 
 def test_optimize(ac_dc_network, ac_dc_network_r):
@@ -28,19 +14,19 @@ def test_optimize(ac_dc_network, ac_dc_network_r):
     assert status == "ok"
 
     equal(
-        n.generators_t.p.loc[:, n.generators.index],
-        n_r.generators_t.p.loc[:, n.generators.index],
+        n.c.generators.dynamic.p.loc[:, n.c.generators.static.index],
+        n_r.c.generators.dynamic.p.loc[:, n.c.generators.static.index],
         decimal=2,
     )
 
     equal(
-        n.lines_t.p0.loc[:, n.lines.index],
-        n_r.lines_t.p0.loc[:, n.lines.index],
+        n.c.lines.dynamic.p0.loc[:, n.c.lines.static.index],
+        n_r.c.lines.dynamic.p0.loc[:, n.c.lines.static.index],
         decimal=2,
     )
 
     equal(
-        n.links_t.p0.loc[:, n.links.index],
-        n_r.links_t.p0.loc[:, n.links.index],
+        n.c.links.dynamic.p0.loc[:, n.c.links.static.index],
+        n_r.c.links.dynamic.p0.loc[:, n.c.links.static.index],
         decimal=2,
     )

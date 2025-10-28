@@ -1,75 +1,83 @@
-"""
-Schema for plotting statistics in PyPSA.
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
-Statistics can be plotted in any statistics/ plotting combination. E.g.
-n.plot.supply.line() or n.plot.transmission.area(). Different combinations require
-different default parameters. This schema defines default parameters if they are
-different based on the plot type. If they do not differ, the signature's default
-is used and no entry is made in the schema.
+"""Schema for plotting statistics in PyPSA.
 
-The module defines two dictionaries:
-1. SCHEMA_DEFAULTS:
-    {"<parameter_name>": <default_value>}
-    General default values for all statistics/ plot combinations. Will be used if
-    no specific overwrite value is defined in the SCHEMA dictionary.
-2. SCHEMA_ADDITIONAL_PARAMETERS:
-    {"<statistics_name>": <allowed_boolean>}
-    Different statistics functions can have different signatures, therefore not all
-    parameters are allowed for all statistics functions. When a statistics function
-    is set to False here, all methods will raise an error if the parameter is
-    provided. It can be used only if also defined in the SCHEMA dictionary.
-    For arguments of the plotting functions, the allowed values do not need to be
-    defined, since they are already defined in the function signature.
-    {"<parameter_name>": <allowed_value_list>}
-2. SCHEMA:
-    {"<statistics_name>": {"<plot_type>": {"<parameter_name>": <default_value>}}}
-    The schema for each statistics function and plot type. The default values are
-    defined in the SCHEMA_DEFAULTS dictionary and overwritten here if they are
-    different for the specific statistics/ plot combination.
+This module defines default parameters for different statistics/plot combinations.
+The schema system allows different default values based on the specific combination
+of statistic function and plot type being used.
 
-Both dictionaries are combined to create a final schema which has a default and optional
-allowed value list for each statistics/ plot combination.
+The module contains the following configuration dictionaries:
+
+1. DEFAULTS:
+   General default values for all statistics/plot combinations.
+
+2. METHOD_OVERRIDES:
+   Plot-type-specific defaults that override the general defaults.
+
+3. ALLOWED_PARAMS:
+   Additional parameters that are allowed for specific statistics functions.
+   Parameters listed here are restricted by default and only enabled for the
+   specified statistics.
+
+4. EXCLUDED_PARAMS:
+   Parameters that should be excluded for specific statistics functions
+   across all plot types.
+
+5. STAT_OVERRIDES:
+   Statistic and plot-type specific overrides for parameter defaults.
 """
 
 from pypsa.plot.statistics.charts import CHART_TYPES
 
-SCHEMA_DEFAULTS: dict = {
-    # Defaults for required parameters
+# Base defaults for all parameters
+DEFAULTS = {
     "x": "carrier",
     "y": "value",
     "color": "carrier",
     "height": 4,
     "aspect": 1,
-    "bus_split_circles": False,
+    "bus_split_circle": False,
     "transmission_flow": False,
     "draw_legend_arrows": False,
     "draw_legend_lines": True,
     # general plot method
     "kind": "bar",
-    # Only allow default for parameters which can only be used for specific
-    # statistics/ plots
     # Optional parameters
     "storage": None,
     "direction": None,
 }
 
-SCHEMA_METHOD_DEFAULTS: dict = {
-    "area": {"x": "carrier", "y": "value", "color": None, "height": 3, "aspect": 2},
+# Method-specific overrides
+METHOD_OVERRIDES: dict = {
+    "area": {
+        "x": "carrier",
+        "y": "value",
+        "color": None,
+        "height": 3,
+        "aspect": 2,
+        "linewidth": 0,
+    },
     "line": {"x": "carrier", "y": "value", "color": None, "height": 3, "aspect": 2},
     "bar": {"x": "value", "y": "carrier", "color": "carrier"},
 }
 
-SCHEMA_ADDITIONAL_PARAMETERS: dict = {
+# Additional allowed params per statistic
+ALLOWED_PARAMS = {
     "optimal_capacity": ["storage"],
     "installed_capacity": ["storage"],
     "energy_balance": ["direction"],
     "revenue": ["direction"],
 }
 
-SCHEMA: dict = {
-    "capex": {},
-    "installed_capex": {},
-    "expanded_capex": {},
+# Excluded params per statistic
+EXCLUDED_PARAMS = {
+    "prices": ["carrier", "nice_names"],
+}
+
+# Statistic-specific overrides per plot type
+STAT_OVERRIDES: dict = {
     "optimal_capacity": {
         "line": {"storage": False},
         "area": {"storage": False},
@@ -80,11 +88,7 @@ SCHEMA: dict = {
         "area": {"storage": False},
         "plot": {"storage": False},
     },
-    "expanded_capacity": {},
-    "opex": {
-        "line": {"x": "snapshot"},
-        "area": {"x": "snapshot", "color": "carrier"},
-    },
+    "opex": {"line": {"x": "snapshot"}, "area": {"x": "snapshot", "color": "carrier"}},
     "supply": {
         "line": {"x": "snapshot"},
         "area": {"x": "snapshot", "color": "carrier"},
@@ -114,7 +118,7 @@ SCHEMA: dict = {
         "line": {"x": "snapshot"},
         "area": {"x": "snapshot", "color": "carrier"},
         "map": {
-            "bus_split_circles": True,
+            "bus_split_circle": True,
             "transmission_flow": True,
             "draw_legend_arrows": True,
             "draw_legend_lines": False,
@@ -136,75 +140,91 @@ SCHEMA: dict = {
         "line": {"x": "snapshot"},
         "area": {"x": "snapshot", "color": "carrier"},
     },
+    # Statistics with no special overrides
+    "capex": {},
+    "installed_capex": {},
+    "expanded_capex": {},
+    "expanded_capacity": {},
+    "system_cost": {},
+    "prices": {
+        "area": {"x": "snapshot", "y": "value", "color": None},
+        "line": {"x": "snapshot", "y": "value", "color": "name"},
+        "bar": {"y": "name", "color": None},
+        "box": {"x": "value", "y": "name", "color": None},
+        "violin": {"x": "value", "y": "name", "color": None},
+        "histogram": {"x": "value", "color": None},
+        "scatter": {"x": "name", "color": None},
+    },
 }
 
 
 def _combine_schemas() -> dict:
-    """
-    Combine the default schema with the specific schema for statistics and plot types.
+    """Build the complete schema by combining all configuration dictionaries.
 
     Returns
     -------
     dict
         Combined schema with defaults and allowed values for all combinations
+        of statistics and plot types.
 
     """
-    combined_schema: dict = {}
+    schema: dict = {}
     plot_types = ["map", "plot"] + CHART_TYPES
+    all_stats = list(STAT_OVERRIDES.keys())
 
-    additional_parameters = {
-        value
-        for param_list in SCHEMA_ADDITIONAL_PARAMETERS.values()
-        for value in param_list
-    }
+    # Gather all additional params to determine which are restricted by default
+    restricted_params = {p for params in ALLOWED_PARAMS.values() for p in params}
 
-    for stat_name in SCHEMA.keys():
-        combined_schema[stat_name] = {}
+    for stat in all_stats:
+        schema[stat] = {}
 
         for plot_type in plot_types:
-            combined_schema[stat_name][plot_type] = {}
+            schema[stat][plot_type] = {}
 
-            # Add global defaults first
-            for param, default_value in SCHEMA_DEFAULTS.items():
-                allowed_by_default = param not in additional_parameters
-                combined_schema[stat_name][plot_type][param] = {
-                    "default": default_value,
-                    "allowed": allowed_by_default,
+            # Start with global defaults
+            for param, default in DEFAULTS.items():
+                schema[stat][plot_type][param] = {
+                    "default": default,
+                    "allowed": param not in restricted_params,
                 }
 
-                # Allow if additional parameters selection again
-                if param in SCHEMA_ADDITIONAL_PARAMETERS.get(stat_name, []):
-                    combined_schema[stat_name][plot_type][param]["allowed"] = True
-
-            if plot_type in SCHEMA_METHOD_DEFAULTS:
-                # Add method defaults
-                for param, default_value in SCHEMA_METHOD_DEFAULTS[plot_type].items():
-                    combined_schema[stat_name][plot_type][param] = {
-                        "default": default_value,
+            # Apply method-specific defaults
+            if plot_type in METHOD_OVERRIDES:
+                for param, default in METHOD_OVERRIDES[plot_type].items():
+                    schema[stat][plot_type][param] = {
+                        "default": default,
                         "allowed": True,
                     }
 
-            # Override with specific values from SCHEMA
-            sub_schema = SCHEMA[stat_name].get(plot_type, {})
-            for param, value in sub_schema.items():
-                combined_schema[stat_name][plot_type][param] = {
-                    "default": value,
-                    "allowed": True,
-                }
+            # Enable additional params for this stat
+            for param in ALLOWED_PARAMS.get(stat, []):
+                if param in schema[stat][plot_type]:
+                    schema[stat][plot_type][param]["allowed"] = True
 
-    return combined_schema
+            # Apply stat-specific overrides
+            if stat in STAT_OVERRIDES and plot_type in STAT_OVERRIDES[stat]:
+                for param, value in STAT_OVERRIDES[stat][plot_type].items():
+                    schema[stat][plot_type][param] = {"default": value, "allowed": True}
+
+            # Apply exclusions
+            for param in EXCLUDED_PARAMS.get(stat, []):
+                if param in schema[stat][plot_type]:
+                    schema[stat][plot_type][param]["allowed"] = False
+
+    return schema
 
 
+# Generate the schema
 schema = _combine_schemas()
 
 
-def apply_parameter_schema(stats_name: str, plot_name: str, kwargs: dict) -> dict:
-    """
-    Apply parameter schema to kwargs.
+def apply_parameter_schema(
+    stats_name: str, plot_name: str, kwargs: dict, context: dict | None = None
+) -> dict:
+    """Apply parameter schema to kwargs.
 
-    The schema is used to for different statistics functions signatures based on
-    plot type/ choosed statistics function. The schema is defined in
-    :mod:`pypsa.plot.statistics.schema`.
+    Filters and sets default values for parameters based on the schema
+    for the given statistics function and plot type combination.
 
     Parameters
     ----------
@@ -214,28 +234,76 @@ def apply_parameter_schema(stats_name: str, plot_name: str, kwargs: dict) -> dic
         Name of the plot type.
     kwargs : dict
         Dictionary of keyword arguments to be filtered based on the schema.
+    context : dict | None, optional
+        Additional context for parameter processing (e.g., {"index_names": [...]})
 
     Returns
     -------
     dict
-        Filtered dictionary of keyword arguments.
+        Filtered dictionary of keyword arguments with defaults applied.
 
     """
     to_remove = []
-    # Filter kwargs based on different statistics functions signatures
+
     for param, value in kwargs.items():
+        # Check if parameter is explicitly excluded for this statistic
+        if param in EXCLUDED_PARAMS.get(stats_name, []):
+            to_remove.append(param)
+            continue
+
         if param not in schema[stats_name][plot_name]:
             continue
+
+        # Check if parameter is not allowed and remove it
+        if not schema[stats_name][plot_name][param]["allowed"]:
+            to_remove.append(param)
+            continue
+
+        # Apply default if value is None
         if value is None:
             kwargs[param] = schema[stats_name][plot_name][param]["default"]
-            if not schema[stats_name][plot_name][param]["allowed"]:
-                to_remove.append(param)
-        else:
-            if not schema[stats_name][plot_name][param]["allowed"]:
-                msg = f"Parameter {param} can not be used for {stats_name} {plot_name}."
-                raise ValueError(msg)
 
     for param in to_remove:
         kwargs.pop(param)
 
+    # Auto-faceting logic
+    if (
+        context
+        and context.get("index_names")
+        and not kwargs.get("facet_col")
+        and not kwargs.get("facet_row")
+    ):
+        index_names = context["index_names"]
+        if len(index_names) == 1:
+            kwargs["facet_col"] = index_names[0]
+        elif len(index_names) >= 2:
+            kwargs["facet_row"] = index_names[0]
+            kwargs["facet_col"] = index_names[1]
+
     return kwargs
+
+
+def get_relevant_plot_values(plot_kwargs: dict, context: dict | None = None) -> list:
+    """Extract values relevant for statistics, excluding index names.
+
+    Parameters
+    ----------
+    plot_kwargs : dict
+        Plot keyword arguments
+    context : dict | None
+        Context containing index_names
+
+    Returns
+    -------
+    list
+        Values that should be passed to derive_statistic_parameters
+
+    """
+    index_names = context.get("index_names", []) if context else []
+    relevant_keys = {"x", "y", "color", "facet_col", "facet_row"}
+    values = [
+        v
+        for k, v in plot_kwargs.items()
+        if k in relevant_keys and v not in index_names and v is not None
+    ]
+    return list(set(values))

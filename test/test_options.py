@@ -1,181 +1,284 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pytest
+from linopy import available_solvers
 
 import pypsa
 
-# Add options for testing
-pypsa.options._add_option("test.test_option", True, "Test option")
-pypsa.options._add_option("test.nested.test_option", False, "Another test option")
+
+def _can_use_gurobi():
+    """Check if gurobi is available and usable (not just installed)."""
+    if "gurobi" not in available_solvers:
+        return False
+    try:
+        import gurobipy
+
+        # Try to create an environment to check if license is available
+        with gurobipy.Env():
+            pass
+        return True
+    except Exception:
+        return False
 
 
-def test_getter():
+@pytest.fixture
+def mocked_pypsa():
+    import pypsa
+
+    # Add options for testing
+    pypsa.options._add_option("test.test_option", True, "Test option")
+    pypsa.options._add_option("test.nested.test_option", False, "Another test option")
+
+    return pypsa
+
+
+def test_getter(mocked_pypsa):
     # Default init and get
-    pypsa.options.test.test_option = True
-    assert pypsa.options.test.test_option is True
+    mocked_pypsa.options.test.test_option = True
+    assert mocked_pypsa.options.test.test_option is True
     with pytest.raises(AttributeError):
-        pypsa.options.test.invalid_option
+        mocked_pypsa.options.test.invalid_option
     with pytest.raises(AttributeError):
-        pypsa.options.invalid_category.invalid_option
+        mocked_pypsa.options.invalid_category.invalid_option
 
     # Nested
-    pypsa.options.test.nested.test_option = False
-    assert pypsa.options.test.nested.test_option is False
+    mocked_pypsa.options.test.nested.test_option = False
+    assert mocked_pypsa.options.test.nested.test_option is False
     with pytest.raises(AttributeError):
-        pypsa.options.test.nested.invalid_option
+        mocked_pypsa.options.test.nested.invalid_option
     with pytest.raises(AttributeError):
-        pypsa.options.invalid_category.test.nested.invalid_option
+        mocked_pypsa.options.invalid_category.test.nested.invalid_option
 
 
-def test_setter():
-    pypsa.options.test.test_option = False
-    assert pypsa.options.test.test_option is False
+def test_setter(mocked_pypsa):
+    mocked_pypsa.options.test.test_option = False
+    assert mocked_pypsa.options.test.test_option is False
     with pytest.raises(AttributeError):
-        pypsa.options.test.invalid_option = False
+        mocked_pypsa.options.test.invalid_option = False
     with pytest.raises(AttributeError):
-        pypsa.options.invalid_category.invalid_option = False
+        mocked_pypsa.options.invalid_category.invalid_option = False
 
     # Nested
-    pypsa.options.test.nested.test_option = False
-    assert pypsa.options.test.nested.test_option is False
+    mocked_pypsa.options.test.nested.test_option = False
+    assert mocked_pypsa.options.test.nested.test_option is False
     with pytest.raises(AttributeError):
-        pypsa.options.test.test_options.invalid_option = False
+        mocked_pypsa.options.test.test_options.invalid_option = False
     with pytest.raises(AttributeError):
-        pypsa.options.invalid_category.some_stuff.invalid_option = False
+        mocked_pypsa.options.invalid_category.some_stuff.invalid_option = False
 
 
-def test_getter_method():
-    pypsa.options.test.test_option = True
-    assert pypsa.get_option("test.test_option") is True
-    pypsa.options.test.test_option = False
-    assert pypsa.get_option("test.test_option") is False
+def test_getter_method(mocked_pypsa):
+    mocked_pypsa.options.test.test_option = True
+    assert mocked_pypsa.get_option("test.test_option") is True
+    mocked_pypsa.options.test.test_option = False
+    assert mocked_pypsa.get_option("test.test_option") is False
 
     with pytest.raises(AttributeError, match="Invalid option"):
-        pypsa.get_option("test.invalid_option")
+        mocked_pypsa.get_option("test.invalid_option")
     with pytest.raises(AttributeError, match="Invalid option"):
-        pypsa.get_option("test.invalid_option")
+        mocked_pypsa.get_option("test.invalid_option")
 
     # Nested
-    pypsa.options.test.nested.test_option = True
-    assert pypsa.get_option("test.nested.test_option") is True
-    pypsa.options.test.nested.test_option = False
-    assert pypsa.get_option("test.nested.test_option") is False
+    mocked_pypsa.options.test.nested.test_option = True
+    assert mocked_pypsa.get_option("test.nested.test_option") is True
+    mocked_pypsa.options.test.nested.test_option = False
+    assert mocked_pypsa.get_option("test.nested.test_option") is False
     with pytest.raises(AttributeError, match="Invalid option"):
-        pypsa.get_option("test.test_options.invalid_option")
+        mocked_pypsa.get_option("test.test_options.invalid_option")
     with pytest.raises(AttributeError, match="Invalid option"):
-        pypsa.get_option("invalid_warning.some_stuff.invalid_option")
+        mocked_pypsa.get_option("invalid_warning.some_stuff.invalid_option")
 
 
-def test_setter_method():
-    pypsa.set_option("test.test_option", False)
-    assert pypsa.options.test.test_option is False
-    assert pypsa.get_option("test.test_option") is False
+def test_setter_method(mocked_pypsa):
+    mocked_pypsa.set_option("test.test_option", False)
+    assert mocked_pypsa.options.test.test_option is False
+    assert mocked_pypsa.get_option("test.test_option") is False
 
     with pytest.raises(AttributeError, match="Invalid option"):
-        pypsa.set_option("test.invalid_option", False)
+        mocked_pypsa.set_option("test.invalid_option", False)
 
     with pytest.raises(AttributeError, match="Invalid option"):
-        pypsa.set_option("test.invalid_option", False)
+        mocked_pypsa.set_option("test.invalid_option", False)
 
     # Nested
-    pypsa.set_option("test.nested.test_option", False)
-    assert pypsa.options.test.nested.test_option is False
-    assert pypsa.get_option("test.nested.test_option") is False
+    mocked_pypsa.set_option("test.nested.test_option", False)
+    assert mocked_pypsa.options.test.nested.test_option is False
+    assert mocked_pypsa.get_option("test.nested.test_option") is False
     with pytest.raises(AttributeError, match="Invalid option"):
-        pypsa.set_option("test.test_options.invalid_option", False)
+        mocked_pypsa.set_option("test.test_options.invalid_option", False)
 
 
-def test_describe_method(capsys):
-    pypsa.describe_options()
+def test_describe_method(capsys, mocked_pypsa):
+    mocked_pypsa.options._describe_options()
     all_options = capsys.readouterr().out
 
     assert all_options.startswith("PyPSA Options")
     assert "test.test_option" in all_options
     assert "test.nested.test_option" in all_options
 
-    pypsa.options.describe_options()
+    mocked_pypsa.options._describe_options()
     all_options_module = capsys.readouterr().out
     assert all_options == all_options_module
 
     # Test options with no description
-    pypsa.options.test.nested.describe_options()
+    mocked_pypsa.options.test.nested.describe()
     nested_options = capsys.readouterr().out
     assert "test.nested.test_option" not in nested_options
     assert "test.test_option" not in nested_options
     assert "test_option" in nested_options
 
 
-def test_option_context():
+def test_option_context(mocked_pypsa):
     """Test option_context functionality."""
     # Basic usage
-    pypsa.options.test.test_option = True
-    assert pypsa.options.test.test_option is True
-    with pypsa.option_context("test.test_option", False):
-        assert pypsa.options.test.test_option is False
-    assert pypsa.options.test.test_option is True
+    mocked_pypsa.options.test.test_option = True
+    assert mocked_pypsa.options.test.test_option is True
+    with mocked_pypsa.option_context("test.test_option", False):
+        assert mocked_pypsa.options.test.test_option is False
+    assert mocked_pypsa.options.test.test_option is True
 
     # Nested contexts
-    with pypsa.option_context("test.test_option", False):
-        assert pypsa.options.test.test_option is False
-        with pypsa.option_context("test.test_option", True):
-            assert pypsa.options.test.test_option is True
-        assert pypsa.options.test.test_option is False
+    with mocked_pypsa.option_context("test.test_option", False):
+        assert mocked_pypsa.options.test.test_option is False
+        with mocked_pypsa.option_context("test.test_option", True):
+            assert mocked_pypsa.options.test.test_option is True
+        assert mocked_pypsa.options.test.test_option is False
 
     # Exception handling
     with pytest.raises(ValueError):
-        with pypsa.option_context("test.test_option", False):
+        with mocked_pypsa.option_context("test.test_option", False):
             raise ValueError()
-    assert pypsa.options.test.test_option is True
+    assert mocked_pypsa.options.test.test_option is True
 
     # Invalid arguments
     with pytest.raises(ValueError, match="Arguments must be paired"):
-        with pypsa.option_context("test.test_option"):
+        with mocked_pypsa.option_context("test.test_option"):
             pass
 
     with pytest.raises(AttributeError):
-        with pypsa.option_context("invalid.option", True):
+        with mocked_pypsa.option_context("invalid.option", True):
             pass
 
     # Different value types
     test_values = [1, "test", None, 3.14, [1, 2, 3]]
     for val in test_values:
-        with pypsa.option_context("test.test_option", val):
-            assert pypsa.options.test.test_option == val
-        assert pypsa.options.test.test_option is True
+        with mocked_pypsa.option_context("test.test_option", val):
+            assert mocked_pypsa.options.test.test_option == val
+        assert mocked_pypsa.options.test.test_option is True
 
 
-def test_nested_option_context():
+def test_nested_option_context(mocked_pypsa):
     """Test nested option_context functionality."""
     # Basic usage
-    pypsa.options.test.nested.test_option = True
-    assert pypsa.options.test.nested.test_option is True
-    with pypsa.option_context("test.nested.test_option", False):
-        assert pypsa.options.test.nested.test_option is False
-    assert pypsa.options.test.nested.test_option is True
+    mocked_pypsa.options.test.nested.test_option = True
+    assert mocked_pypsa.options.test.nested.test_option is True
+    with mocked_pypsa.option_context("test.nested.test_option", False):
+        assert mocked_pypsa.options.test.nested.test_option is False
+    assert mocked_pypsa.options.test.nested.test_option is True
 
     # Nested contexts
-    with pypsa.option_context("test.nested.test_option", False):
-        assert pypsa.options.test.nested.test_option is False
-        with pypsa.option_context("test.nested.test_option", True):
-            assert pypsa.options.test.nested.test_option is True
-        assert pypsa.options.test.nested.test_option is False
+    with mocked_pypsa.option_context("test.nested.test_option", False):
+        assert mocked_pypsa.options.test.nested.test_option is False
+        with mocked_pypsa.option_context("test.nested.test_option", True):
+            assert mocked_pypsa.options.test.nested.test_option is True
+        assert mocked_pypsa.options.test.nested.test_option is False
 
     # Exception handling
     with pytest.raises(ValueError):
-        with pypsa.option_context("test.nested.test_option", False):
+        with mocked_pypsa.option_context("test.nested.test_option", False):
             raise ValueError()
-    assert pypsa.options.test.nested.test_option is True
+    assert mocked_pypsa.options.test.nested.test_option is True
 
     # Invalid arguments
     with pytest.raises(ValueError, match="Arguments must be paired"):
-        with pypsa.option_context("test.nested.test_option"):
+        with mocked_pypsa.option_context("test.nested.test_option"):
             pass
 
     with pytest.raises(AttributeError):
-        with pypsa.option_context("invalid.option", True):
+        with mocked_pypsa.option_context("invalid.option", True):
             pass
 
     # Different value types
     test_values = [1, "test", None, 3.14, [1, 2, 3]]
     for val in test_values:
-        with pypsa.option_context("test.nested.test_option", val):
-            assert pypsa.options.test.nested.test_option == val
-        assert pypsa.options.test.nested.test_option is True
+        with mocked_pypsa.option_context("test.nested.test_option", val):
+            assert mocked_pypsa.options.test.nested.test_option == val
+        assert mocked_pypsa.options.test.nested.test_option is True
+
+
+def test_general_allow_network_requests():
+    """Test the general.allow_network_requests option."""
+    import pypsa
+
+    # Test default value
+    assert pypsa.get_option("general.allow_network_requests") is True
+
+    # Test setting to False
+    pypsa.set_option("general.allow_network_requests", False)
+    assert pypsa.get_option("general.allow_network_requests") is False
+
+    # Test setting back to True
+    pypsa.set_option("general.allow_network_requests", True)
+    assert pypsa.get_option("general.allow_network_requests") is True
+
+    # Test using option_context
+    with pypsa.option_context("general.allow_network_requests", False):
+        assert pypsa.get_option("general.allow_network_requests") is False
+    assert pypsa.get_option("general.allow_network_requests") is True
+
+
+def test_add_return_names_option():
+    """Test the params.add.return_names option."""
+    import pandas as pd
+
+    import pypsa
+
+    n = pypsa.Network()
+
+    # Default: option is False, returns None
+    assert pypsa.get_option("params.add.return_names") is False
+    assert n.add("Bus", "bus1") is None
+
+    # Set option to True, now returns Index
+    pypsa.set_option("params.add.return_names", True)
+    result = n.add("Bus", "bus2")
+    assert isinstance(result, pd.Index)
+    assert result[0] == "bus2"
+
+    # Explicit parameter overrides option
+    assert n.add("Bus", "bus3", return_names=False) is None
+    pypsa.set_option("params.add.return_names", False)
+    result = n.add("Bus", "bus4", return_names=True)
+    assert isinstance(result, pd.Index)
+    assert result[0] == "bus4"
+
+    # Test with option_context
+    with pypsa.option_context("params.add.return_names", True):
+        result = n.add("Bus", "bus5")
+        assert isinstance(result, pd.Index)
+        assert result[0] == "bus5"
+    assert n.add("Bus", "bus6") is None  # Back to False
+
+
+@pytest.mark.skipif(
+    not _can_use_gurobi(), reason="Gurobi not available or license issue"
+)
+def test_params_optimize():
+    n = pypsa.examples.ac_dc_meshed()
+
+    n.optimize()
+    assert n.model.solver_name == "highs"
+
+    n.optimize.create_model()
+    n.optimize.solve_model()
+    assert n.model.solver_name == "highs"
+
+    with pypsa.option_context("params.optimize.solver_name", "gurobi"):
+        n.optimize()
+        assert n.model.solver_name == "gurobi"
+
+        n.optimize.create_model()
+        n.optimize.solve_model()
+        assert n.model.solver_name == "gurobi"

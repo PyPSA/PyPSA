@@ -1,6 +1,8 @@
-"""
-Functionality to help with georeferencing and calculate distances/areas.
-"""
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+"""Functionality to help with georeferencing and calculate distances/areas."""
 
 from __future__ import annotations
 
@@ -22,8 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
-    """
-    Determine crow-flies distance between points in a and b.
+    """Determine crow-flies distance between points in a and b.
 
     ie. distance[i] = crow-fly-distance between a[i] and b[i]
 
@@ -37,9 +38,6 @@ def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     c : N - array of dtype float
         Distance in km
 
-    See Also
-    --------
-    haversine : Matrix of distances between all pairs in a and b
 
     Examples
     --------
@@ -47,6 +45,7 @@ def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     >>> b = np.array([[10.8, 52.1], [-34, 56.]])
     >>> haversine_pts(a, b)
     array([  73.15416698, 2903.73511621])
+
     """
     lon0, lat0 = np.deg2rad(np.asarray(a, dtype=float)).T
     lon1, lat1 = np.deg2rad(np.asarray(b, dtype=float)).T
@@ -59,8 +58,7 @@ def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
 
 
 def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
-    """
-    Compute the distance in km between two sets of points in long/lat.
+    """Compute the distance in km between two sets of points in long/lat.
 
     One dimension of a* should be 2; longitude then latitude. Uses haversine
     formula.
@@ -82,19 +80,14 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     >>> haversine([10.1, 52.6], [[10.8, 52.1], [-34, 56.]])
     array([[  73.15416698, 2836.6707696 ]])
 
-    See Also
-    --------
-    haversine_pts : Determine pointwise crow-fly distance
     """
 
-    #
     def ensure_dimensions(a: np.ndarray | ArrayLike) -> np.ndarray:
-        """
-        Ensure correct shape for haversine calculation.
+        """Ensure correct shape for haversine calculation.
 
         Parameters
         ----------
-        arr : array-like
+        a : array-like
             Array to check
 
         Returns
@@ -123,8 +116,7 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
 def compute_bbox(
     x: ArrayLike, y: ArrayLike, margin: float = 0
 ) -> tuple[tuple[float, float], tuple[float, float]]:
-    """
-    Compute bounding box for given x, y coordinates.
+    """Compute bounding box for given x, y coordinates.
 
     Also adds a margin around the bounding box, if desired. Defaults to 0.
 
@@ -145,8 +137,12 @@ def compute_bbox(
     --------
     >>> x = np.array([1, 2, 3])
     >>> y = np.array([4, 5, 6])
-    >>> compute_bbox(x, y)
+    >>> compute_bbox(x, y)  # doctest: +ELLIPSIS
     ((np.int64(1), np.int64(4)), (np.int64(3), np.int64(6)))
+
+    >>> # With margin to expand the bounding box
+    >>> compute_bbox(x, y, margin=0.1)  # doctest: +ELLIPSIS
+    ((..., ...), (..., ...))
 
     """
     # set margins
@@ -158,8 +154,7 @@ def compute_bbox(
 
 
 def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
-    """
-    Get cartopy projection from EPSG code or proj4 string.
+    """Get cartopy projection from EPSG code or proj4 string.
 
     If the projection is not found, a warning is issued and the default
     PlateCarree projection is returned.
@@ -194,7 +189,7 @@ def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
     <BLANKLINE>
 
     """
-    import cartopy.crs as ccrs
+    import cartopy.crs as ccrs  # noqa: PLC0415
 
     try:
         return ccrs.epsg(crs)
@@ -212,8 +207,7 @@ def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
 def get_projected_area_factor(
     ax: GeoAxes, original_crs: int | str = DEFAULT_EPSG
 ) -> float:
-    """
-    Get scale of current vs original projection in terms of area.
+    """Get scale of current vs original projection in terms of area.
 
     The default 'original crs' is assumed to be 4326, which translates
     to the cartopy default cartopy.crs.PlateCarree()
