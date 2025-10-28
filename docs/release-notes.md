@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
 
 * PyPSA now supports committability and extendability, on
   the same components, if modularity is used. The new feature
@@ -25,14 +25,6 @@ SPDX-License-Identifier: CC-BY-4.0
   Previously, components could only be either committable or extendable, but not both.
   The implementation automatically detects when both attributes are set and applies
   the appropriate big-M constraints to ensure correct operation.
-
-- Fix storage state-of-charge handling in multi-investment period optimizations. The constraint
-  logic incorrectly determined when to apply per-period cycling vs. continuous storage state
-  tracking, causing storage to behave unexpectedly regardless of flag settings. The fix
-  ensures storage units and stores correctly preserve or reset their state across investment
-  periods based on the `cyclic_state_of_charge_per_period`/`e_cyclic_per_period` and
-  `state_of_charge_initial_per_period`/`e_initial_per_period` flags.
-  (<!-- md: pr 1360 -->, <!-- md: pr 1371 -->)
 
 ## [**v1.0.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.2) <small>24 October 2025</small> { id="v1.0.2" }
 
