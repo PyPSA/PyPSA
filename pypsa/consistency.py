@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Consistency check functions for PyPSA networks.
 
 Mainly used in the `Network.consistency_check()` method.
@@ -13,7 +17,7 @@ import pandas as pd
 
 from pypsa._options import options
 from pypsa.constants import RE_PORTS_FILTER
-from pypsa.guards import _consistency_check_guard
+from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
@@ -60,8 +64,7 @@ def check_for_unknown_buses(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
     """
     for attr in _bus_columns(component.static):
@@ -96,8 +99,7 @@ def check_for_disconnected_buses(n: NetworkType, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
     """
     connected_buses = set()
@@ -133,8 +135,7 @@ def check_for_unknown_carriers(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
 
     """
@@ -173,8 +174,7 @@ def check_for_zero_impedances(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
 
     """
@@ -206,8 +206,7 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
     """
     if component.name in {"Transformer"}:
@@ -241,12 +240,13 @@ def check_time_series(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
 
     """
-    for attr in component.attrs.index[component.attrs.varying & component.attrs.static]:
+    for attr in component.defaults.index[
+        component.defaults.varying & component.defaults.static
+    ]:
         attr_df = component.dynamic[attr]
 
         diff = attr_df.columns.difference(component.static.index)
@@ -291,14 +291,15 @@ def check_static_power_attributes(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
 
     """
     static_attrs = ["p_nom", "s_nom", "e_nom"]
     if component.name in n.all_components - {"TransformerType"}:
-        static_attr = component.attrs.query("static").index.intersection(static_attrs)
+        static_attr = component.defaults.query("static").index.intersection(
+            static_attrs
+        )
         if len(static_attr):
             attr = static_attr[0]
             bad = component.static[attr + "_max"] < component.static[attr + "_min"]
@@ -345,13 +346,12 @@ def check_time_series_power_attributes(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
     """
     varying_attrs = ["p_max_pu", "e_max_pu"]
     if component.name in n.all_components - {"TransformerType"}:
-        varying_attr = component.attrs.query("varying").index.intersection(
+        varying_attr = component.defaults.query("varying").index.intersection(
             varying_attrs
         )
 
@@ -438,9 +438,7 @@ def check_assets(n: NetworkType, component: Components, strict: bool = False) ->
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
-
+    [pypsa.Network.consistency_check][]
 
     """
     if component.name in {"Generator", "Link"}:
@@ -478,9 +476,7 @@ def check_generators(component: Components, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
-
+    [pypsa.Network.consistency_check][]
 
     """
     if component.name in {"Generator"}:
@@ -524,12 +520,12 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
-
+    [pypsa.Network.consistency_check][]
 
     """
-    dtypes_soll = component.attrs.loc[component.attrs["static"], "dtype"].drop("name")
+    dtypes_soll = component.defaults.loc[component.defaults["static"], "dtype"].drop(
+        "name"
+    )
     unmatched = component.static.dtypes[dtypes_soll.index] != dtypes_soll
 
     if unmatched.any():
@@ -545,7 +541,7 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
 
     # now check varying attributes
 
-    types_soll = component.attrs.loc[component.attrs["varying"], ["typ", "dtype"]]
+    types_soll = component.defaults.loc[component.defaults["varying"], ["typ", "dtype"]]
 
     for attr, typ, dtype in types_soll.itertuples():
         if component.dynamic[attr].empty:
@@ -581,9 +577,7 @@ def check_investment_periods(n: NetworkType, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
-
+    [pypsa.Network.consistency_check][]
 
     """
     constraint_periods = set(
@@ -623,9 +617,7 @@ def check_shapes(n: NetworkType, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
-
+    [pypsa.Network.consistency_check][]
 
     """
     shape_components = n.c.shapes.static.component.unique()
@@ -665,13 +657,14 @@ def check_nans_for_component_default_attrs(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
     """
     # Get non-NA and not-empty default attributes for the current component
-    default = component.attrs["default"]
-    not_null_component_attrs = component.attrs[default.notna() & default.ne("")].index
+    default = component.defaults["default"]
+    not_null_component_attrs = component.defaults[
+        default.notna() & default.ne("")
+    ].index
 
     # Remove attributes that are not in the component's static data
     relevant_static_df = component.static[
@@ -734,14 +727,16 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
 class NetworkConsistencyMixin(_NetworkABC):
     """Mixin class for network consistency checks.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     def consistency_check(
         self, check_dtypes: bool = False, strict: Sequence | None = None
     ) -> None:
         """Check network for consistency.
+
+        <!-- md:badge-version v0.7.0 -->
 
         Runs a series of checks on the network to ensure that it is consistent, e.g. that
         all components are connected to existing buses and that no impedances are singular.
@@ -757,39 +752,8 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         Raises
         ------
-        ConsistencyError : If any of the checks fail and strict mode is activated.
-
-        See Also
-        --------
-        [pypsa.consistency.check_for_unknown_buses][] : Check if buses are attached to component but are not defined in the network.
-        [pypsa.consistency.check_for_disconnected_buses][] : Check if network has buses that are not connected to any component.
-        [pypsa.consistency.check_for_unknown_carriers][] : Check if carriers are attached to
-            component but are not defined in the network.
-        [pypsa.consistency.check_for_zero_impedances][] : Check if component has zero
-            impedances. Only checks passive branch components.
-        [pypsa.consistency.check_for_zero_s_nom][] : Check if component has zero s_nom. Only
-            checks transformers.
-        [pypsa.consistency.check_time_series][] : Check if time series of component are
-            aligned with network snapshots.
-        [pypsa.consistency.check_static_power_attributes][] : Check static attrs p_now, s_nom,
-            e_nom in any component.
-        [pypsa.consistency.check_time_series_power_attributes][] : Check `p_max_pu` and
-            `e_max_pu` nan and infinite values in time series.
-        [pypsa.consistency.check_assets][] : Check if assets are only committable or
-            extendable, but not both.
-        [pypsa.consistency.check_generators][] : Check the consistency of generator attributes
-            before the simulation.
-        [pypsa.consistency.check_dtypes_][] : Check if the dtypes of the attributes in the
-            component are as expected.
-        [pypsa.consistency.check_investment_periods][] : Check if investment periods are aligned
-            with snapshots.
-        [pypsa.consistency.check_shapes][] : Check if shapes are aligned with related components.
-        [pypsa.consistency.check_nans_for_component_default_attrs][] : Check for missing values
-            in component attributes.
-        [pypsa.consistency.check_scenarios_sum_to_one][] : Check if scenarios probabilities sum to 1.
-        [pypsa.consistency.check_scenario_invariant_attributes][] : Check if certain component attributes are invariant across scenarios.
-        [pypsa.consistency.check_line_types_consistency][] : Check if line_types are identical across scenarios.
-        [pypsa.consistency.check_stochastic_slack_bus_consistency][] : Check if same slack bus is chosen across scenarios.
+        ConsistencyError
+            If any of the checks fail and strict mode is activated.
 
         """
         if strict is None:
@@ -867,10 +831,12 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         # Optional runtime verification
         if options.debug.runtime_verification:
-            _consistency_check_guard(self)
+            _assert_data_integrity(self)
 
     def consistency_check_plots(self, strict: Sequence | None = None) -> None:
         """Check network for consistency for plotting functions.
+
+        <!-- md:badge-version v0.34.0 -->
 
         Parameters
         ----------
@@ -879,15 +845,15 @@ class NetworkConsistencyMixin(_NetworkABC):
             of strings with the names of the checks to be strict about. If 'all' is passed,
             all checks will be strict. The default is no strict checks.
 
+        Raises
+        ------
+        ConsistencyError
+            If any of the checks fail and strict mode is activated.
 
         See Also
         --------
-        [pypsa.Network.consistency_check][] : General consistency check method, which can be
-            runs all consistency checks.
-        [pypsa.consistency.check_for_unknown_buses][] : Check if buses are attached to
-            component but are not defined in the network.
-        [pypsa.consistency.check_for_unknown_carriers][] : Check if carriers are attached to
-            component but are not defined in the network.
+        [pypsa.Network.consistency_check][], [pypsa.consistency.check_for_unknown_buses][],
+        [pypsa.consistency.check_for_unknown_carriers][]
 
         """
         if strict is None:
@@ -932,8 +898,7 @@ def check_scenarios_sum_to_one(n: NetworkType, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
     """
     if n.has_scenarios:
@@ -965,8 +930,7 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
     """
     # This test is for stochastic networks only
@@ -1045,8 +1009,7 @@ def check_line_types_consistency(n: NetworkType, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
     """
     if not n.has_scenarios:
@@ -1093,8 +1056,7 @@ def check_stochastic_slack_bus_consistency(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which runs
-    all consistency checks.
+    [pypsa.Network.consistency_check][]
 
     """
     # This test is for stochastic networks only

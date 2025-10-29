@@ -1,11 +1,15 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Statistics Accessor."""
 
 from __future__ import annotations
 
 import warnings
-from functools import partial, update_wrapper
 from typing import TYPE_CHECKING, Any, Literal
 
+from pypsa.common import deprecated_kwargs
 from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
 from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.schema import (
@@ -47,12 +51,6 @@ class StatisticPlotter:
         self._bound_method = bound_method
         self._n = n
 
-        for chart_type in CHART_TYPES:
-            func = partial(self._chart, chart_type=chart_type)
-            func = update_wrapper(func, self._chart)  # type: ignore
-            func.__doc__ = func.__doc__.replace("chart_type", chart_type)  # type: ignore
-            setattr(self, chart_type, func)
-
     def __call__(
         self, kind: str | None = None
     ) -> (
@@ -92,7 +90,37 @@ class StatisticPlotter:
         plot_func = getattr(self, kind_)
         return plot_func()
 
-    def _chart(  # noqa: D417
+    def area(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="area", **kwargs)
+
+    def bar(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="bar", **kwargs)
+
+    def scatter(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="scatter", **kwargs)
+
+    def line(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="line", **kwargs)
+
+    def box(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="box", **kwargs)
+
+    def violin(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="violin", **kwargs)
+
+    def histogram(
+        self, **kwargs: Any
+    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="histogram", **kwargs)
+
+    def chart(  # noqa: D417
         self,
         chart_type: str,
         x: str | None = None,
@@ -138,17 +166,17 @@ class StatisticPlotter:
             Data to show as color. Pass None to disable color mapping.
         facet_col : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
-            :class:`seaborn.objects.Plot.facet` for more information.
+            `seaborn.objects.Plot.facet` for more information.
         facet_row : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
-            :class:`seaborn.objects.Plot.facet` for more information.
+            `seaborn.objects.Plot.facet` for more information.
         stacked : bool, default: False
-            Whether to stack the bars. See :class:`seaborn.objects.Stack` for more
+            Whether to stack the bars. See `seaborn.objects.Stack` for more
         query : str | None, default: None
             Pandas query string to filter the data before plotting. E.g. "value > 0".
         nice_names : bool, default: True
             Whether to use nice names for components, as defined in
-            ``c.static.nice_names.``
+            `c.static.nice_names.`
         carrier: Sequence[str] | str | None, default: None
             Filter by carrier of components. If specified, only considers assets with
             the given carrier(s). More information can be found in the
@@ -197,7 +225,7 @@ class StatisticPlotter:
             the grid for the figure.
         **kwargs: Any
             Additional keyword arguments for the plot function. These are passed to
-            the seaborn plot object (:class:`seaborn.objects.Plot`).
+            the seaborn plot object (`seaborn.objects.Plot`).
 
         Returns
         -------
@@ -292,13 +320,30 @@ class StatisticPlotter:
             raise ValueError(msg)
         return plotter.plot(data, chart_type, **plot_kwargs, **kwargs)  # type: ignore
 
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        bus_sizes="bus_size",
+        bus_colors="bus_color",
+        bus_split_circles="bus_split_circle",
+        branch_colors="branch_color",
+        branch_widths="branch_width",
+        arrow_colors="arrow_color",
+        geomap_colors="geomap_color",
+        line_colors="line_color",
+        line_widths="line_width",
+        link_colors="link_color",
+        link_widths="link_width",
+        transformer_colors="transformer_color",
+        transformer_widths="transformer_width",
+    )
     def map(
         self,
         ax: Axes | None = None,
         projection: Any = None,
         geomap: bool = True,
         geomap_resolution: Literal["10m", "50m", "110m"] = "50m",
-        geomap_colors: dict | bool | None = None,
+        geomap_color: dict | bool | None = None,
         boundaries: tuple[float, float, float, float] | None = None,
         title: str = "",
         bus_carrier: str | None = None,
@@ -315,7 +360,7 @@ class StatisticPlotter:
         legend_lines_kw: dict | None = None,
         legend_arrows_kw: dict | None = None,
         legend_patches_kw: dict | None = None,
-        bus_split_circles: bool | None = None,
+        bus_split_circle: bool | None = None,
         storage: bool | None = None,
         **kwargs: Any,
     ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
@@ -335,7 +380,7 @@ class StatisticPlotter:
             Whether to add geographic features with cartopy.
         geomap_resolution : {'10m', '50m', '110m'}, default '50m'
             Resolution of geographic features.
-        geomap_colors : dict or bool, optional
+        geomap_color : dict or bool, optional
             Colors for geographic features. If True, uses defaults. If a dict, keys
             can include 'ocean', 'land', 'border', 'coastline'.
         boundaries : tuple(float, float, float, float), optional
@@ -370,7 +415,7 @@ class StatisticPlotter:
             Additional keyword arguments for the arrows legend.
         legend_patches_kw : dict, optional
             Additional keyword arguments for the patches legend.
-        bus_split_circles : bool, optional
+        bus_split_circle : bool, optional
             Whether to draw half circles for positive/negative values.
         storage : bool, optional
             Whether to show storage capacity in capacity plots. Only valid when
@@ -396,7 +441,7 @@ class StatisticPlotter:
             "projection": projection,
             "geomap": geomap,
             "geomap_resolution": geomap_resolution,
-            "geomap_colors": geomap_colors,
+            "geomap_color": geomap_color,
             "boundaries": boundaries,
             "title": title,
             "bus_carrier": bus_carrier,
@@ -413,7 +458,7 @@ class StatisticPlotter:
             "legend_lines_kw": legend_lines_kw,
             "legend_arrows_kw": legend_arrows_kw,
             "legend_patches_kw": legend_patches_kw,
-            "bus_split_circles": bus_split_circles,
+            "bus_split_circle": bus_split_circle,
         }
 
         plotter = MapPlotGenerator(self._n)
@@ -455,12 +500,6 @@ class StatisticInteractivePlotter:
         self._bound_method = bound_method
         self._n = n
 
-        for chart_type in CHART_TYPES:
-            func = partial(self._chart, chart_type=chart_type)
-            func = update_wrapper(func, self._chart)  # type: ignore
-            func.__doc__ = func.__doc__.replace("chart_type", chart_type)  # type: ignore
-            setattr(self, chart_type, func)
-
     def __call__(
         self, kind: str | None = None
     ) -> tuple[go.Figure, go.Figure | np.ndarray]:
@@ -497,7 +536,35 @@ class StatisticInteractivePlotter:
         plot_func = getattr(self, kind_)
         return plot_func()
 
-    def _chart(  # noqa: D417
+    def area(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="area", **kwargs)
+
+    def bar(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="bar", **kwargs)
+
+    def scatter(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="scatter", **kwargs)
+
+    def line(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="line", **kwargs)
+
+    def box(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="box", **kwargs)
+
+    def violin(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="violin", **kwargs)
+
+    def histogram(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="histogram", **kwargs)
+
+    def chart(  # noqa: D417
         self,
         chart_type: str,
         x: str | None = None,
@@ -549,7 +616,7 @@ class StatisticInteractivePlotter:
             Pandas query string to filter the data before plotting. E.g. "value > 0".
         nice_names : bool, default: True
             Whether to use nice names for components, as defined in
-            ``c.static.nice_names.``
+            `c.static.nice_names.`
         carrier: Sequence[str] | str | None, default: None
             Filter by carrier of components. If specified, only considers assets with
             the given carrier(s). More information can be found in the

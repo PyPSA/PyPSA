@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 from pypsa.plot.statistics.schema import apply_parameter_schema
 
 

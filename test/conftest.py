@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 from pathlib import Path
 
 import geopandas as gpd
@@ -28,6 +32,18 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Activate the new components API (options.api.new_components_api)",
+    )
+    parser.addoption(
+        "--test-docs",
+        action="store_true",
+        default=False,
+        help="Run documentation tests (doctest tests)",
+    )
+    parser.addoption(
+        "--fix-notebooks",
+        action="store_true",
+        default=False,
+        help="Auto-fix notebook issues found during validation (self-healing mode)",
     )
 
 
@@ -305,11 +321,8 @@ def stochastic_benchmark_network():
     }
     FOM, DR, LIFE = 3.0, 0.03, 25
 
-    def annuity(life, rate):
-        return rate / (1 - (1 + rate) ** -life) if rate else 1 / life
-
     for cfg in TECH.values():
-        cfg["fixed_cost"] = (annuity(LIFE, DR) + FOM / 100) * cfg["inv"]
+        cfg["fixed_cost"] = (pypsa.common.annuity(DR, LIFE) + FOM / 100) * cfg["inv"]
 
     # Load time series data from URL - same as in the original script
     ts = pd.read_csv(TS_URL, index_col=0, parse_dates=True).resample(FREQ).asfreq()

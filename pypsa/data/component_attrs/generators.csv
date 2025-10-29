@@ -8,6 +8,7 @@ p_nom_mod,float,MW,0,Nominal power of the generator module (e.g. fixed unit size
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity `p_nom` to be extended in optimization.,Input (optional)
 p_nom_min,float,MW,0,"If `p_nom` is extendable in optimization, set its minimum value.",Input (optional)
 p_nom_max,float,MW,inf,"If `p_nom` is extendable in optimization, set its maximum value (e.g. limited by technical potential).",Input (optional)
+p_nom_set,float,MW,n/a,"If `p_nom` is extendable in optimization, set its value.",Input (optional)
 p_min_pu,static or series,per unit,0.,"The minimum output for each snapshot per unit of `p_nom` for the optimization (e.g. a minimal dispatch level for conventional power plants). Note that if `committable=False` and `p_min_pu>0`, this represents a must-run condition.",Input (optional)
 p_max_pu,static or series,per unit,1,The maximum output for each snapshot per unit of `p_nom` for the optimization (e.g. changing availability of renewable generators due to weather conditions or a de-rating of conventional power plants).,Input (optional)
 p_set,static or series,MW,n/a,Active power set point (for optimisation and power flow),Input (optional)

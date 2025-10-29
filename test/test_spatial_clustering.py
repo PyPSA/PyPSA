@@ -1,8 +1,6 @@
-"""
-Created on Mon Jan 31 18:11:09 2022.
-
-@author: fabian
-"""
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
 import numpy as np
 import pandas as pd
@@ -138,11 +136,11 @@ def test_aggregate_storage_units_consent_error(ac_dc_network):
 
 def prepare_network_for_aggregation(n):
     n.c.lines.static = n.c.lines.static.reindex(
-        columns=n.components["Line"]["attrs"].index[1:]
+        columns=n.components["Line"]["defaults"].index[1:]
     )
     n.c.lines.static["type"] = np.nan
     n.c.buses.static = n.c.buses.static.reindex(
-        columns=n.components["Bus"]["attrs"].index[1:]
+        columns=n.components["Bus"]["defaults"].index[1:]
     )
     n.c.buses.static["frequency"] = 50
 

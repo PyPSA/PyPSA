@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Define common functions for plotting maps in PyPSA."""
 
 import importlib
@@ -77,7 +81,7 @@ def apply_layouter(
 ) -> Any:
     """Automatically generate bus coordinates for the network graph.
 
-    Layouting function from `networkx <https://networkx.github.io/>`_ is used to
+    Layouting function from [networkx](https://networkx.github.io/) is used to
     determine the coordinates of the buses in the network.
 
     Parameters
@@ -85,15 +89,15 @@ def apply_layouter(
     n : pypsa.Network
         Network to generate coordinates for.
     layouter : networkx.drawing.layout function, default None
-        Layouting function from `networkx <https://networkx.github.io/>`_. See
-        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+        Layouting function from [networkx](https://networkx.github.io/). See
+        [list](https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout)
         of available options. By default, coordinates are determined for a
-        `planar layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.planar_layout.html#networkx.drawing.layout.planar_layout>`_
+        [planar layout](https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.planar_layout.html#networkx.drawing.layout.planar_layout)
         if the network graph is planar, otherwise for a
-        `Kamada-Kawai layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout>`_.
+        [Kamada-Kawai layout](https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout).
     inplace : bool, default False
         Assign generated coordinates to the network bus coordinates
-        at ``n.buses[['x', 'y']]`` if True, otherwise return them.
+        at `n.buses[['x', 'y']]` if True, otherwise return them.
 
     Returns
     -------
@@ -419,8 +423,10 @@ def wkt_to_linestring(wkt_str: str) -> LineString:
 
     Raises
     ------
-        TypeError: if the WKT does not represent a LineString.
-        ValueError: if the string cannot be parsed.
+    TypeError
+        If the WKT does not represent a LineString.
+    ValueError
+        If the string cannot be parsed.
 
     Parameters
     ----------
@@ -442,8 +448,6 @@ def wkt_to_linestring(wkt_str: str) -> LineString:
 
 def linestring_to_pdk_path(line: LineString) -> list[list[float]]:
     """Convert a single LineString to a pydeck list of [lon, lat] coordinates for PathLayer.
-
-    Raises TypeError if input is not a LineString.
 
     Parameters
     ----------

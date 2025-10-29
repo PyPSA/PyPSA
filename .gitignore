@@ -1,39 +1,23 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
 *~
-
+.~*
 *.py[cod]
-
 .ipynb_checkpoints/
-
 *.log
-
 old/
 
-# Ignore all jupyter notebooks, except those in the examples folder
+# Ignore all jupyter notebooks, except those for the docs
 *.ipynb
-!/examples/notebooks/*.ipynb
+!/docs/**/*.ipynb
 
 
 test/.cache/
-
 .cache/
 
-.~*
-
 test/results/*
-
-
-doc/_build/
-doc/_build_html
-doc/api/_source/
-doc/examples/*.nc
-sphinx_build_stderr.txt
-sphinx_build_stderr_filtered.txt
-# doc/img/
-
-build/
-
-dist/
 
 pypsa.egg-info/
 
@@ -48,8 +32,6 @@ tom_notes.org
 website/examples/*.py
 
 *.zip
-
-*.html
 
 .vscode
 .devcontainer
@@ -68,4 +50,5 @@ uv.lock
 CLAUDE.md
 .claude
 .github/copilot-instructions.md
-uv.lock
+site/
+doc/_build/

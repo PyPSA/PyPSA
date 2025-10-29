@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Define optimisation constraints from PyPSA networks with Linopy."""
 
 from __future__ import annotations
@@ -79,9 +83,9 @@ def define_operational_constraints_for_non_extendables(
 
     References
     ----------
-    .. [1] F. Neumann, T. Brown, "Transmission losses in power system
-       optimization models: A comparison of heuristic and exact solution methods,"
-       Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
+    [1] F. Neumann, T. Brown, "Transmission losses in power system
+        optimization models: A comparison of heuristic and exact solution methods,"
+        Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
 
     """
     c = as_components(n, component)
@@ -235,10 +239,10 @@ def define_operational_constraints_for_committables(
 
     References
     ----------
-    .. [2] Y. Hua, C. Liu, J. Zhang, "Representing Operational
-       Flexibility in Generation Expansion Planning Through Convex Relaxation
-       of Unit Commitment," IEEE Transactions on Power Systems, vol. 32,
-       no. 5, pp. 3854-3865, 2017, https://doi.org/10.1109/TPWRS.2017.2735026
+    [2] Y. Hua, C. Liu, J. Zhang, "Representing Operational
+        Flexibility in Generation Expansion Planning Through Convex Relaxation
+        of Unit Commitment," IEEE Transactions on Power Systems, vol. 32,
+        no. 5, pp. 3854-3865, 2017, https://doi.org/10.1109/TPWRS.2017.2735026
 
     """
     c = as_components(n, component)
@@ -1033,9 +1037,9 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
 
     References
     ----------
-    .. [3] J. Hörsch et al., "Linear optimal power flow using cycle flows,"
-       Electric Power Systems Research, vol. 158, pp. 126-135, 2018,
-       https://doi.org/10.1016/j.epsr.2020.106908
+    [3] J. Hörsch et al., "Linear optimal power flow using cycle flows,"
+        Electric Power Systems Research, vol. 158, pp. 126-135, 2018,
+        https://doi.org/10.1016/j.epsr.2020.106908
 
     """
     m = n.model
@@ -1098,11 +1102,13 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     if attr + "_set" not in c.static:
         return
 
-    dim = f"{component}-{attr}_set_i"
-    fix = c.static[attr + "_set"].dropna().rename_axis(dim)
+    fix = c.static[attr + "_set"].dropna()
 
     if fix.empty:
         return
+
+    dim = f"{component}-{attr}_set_i"
+    fix = fix.rename_axis(dim)
 
     var = n.model[f"{component}-{attr}"]
     var = reindex(var, var.dims[0], fix.index)
@@ -1642,9 +1648,9 @@ def define_loss_constraints(
 
     References
     ----------
-    .. [1] F. Neumann, T. Brown, "Transmission losses in power system
-       optimization models: A comparison of heuristic and exact solution methods,"
-       Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
+    [1] F. Neumann, T. Brown, "Transmission losses in power system
+        optimization models: A comparison of heuristic and exact solution methods,"
+        Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
 
     """
     c = as_components(n, component)

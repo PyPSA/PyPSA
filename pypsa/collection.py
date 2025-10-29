@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """NetworkCollection class for handling multiple PyPSA networks."""
 
 import logging
@@ -18,17 +22,7 @@ logger = logging.getLogger(__name__)
 class NetworkCollection:
     """A collection of networks that can be accessed like a single network.
 
-    **Supported Methods and Properties**
-    The following Network methods and properties are supported for NetworkCollections:
-
-    Components Data:
-        All components data (static and dynamic) can be accessed and is returned as a
-        concatenated pandas DataFrame (e.g. `nc.buses`, `nc.buses_t`, `nc.generators`)
-
-    Statistics:
-        All statistics expressions can be accessed in the same way as for a single
-        network. This includes dataframes and plots. E.g. `nc.statistics.energy_balance()`,
-        `nc.statistics.energy_balance.plot()`, `nc.statistics.energy_balance.plot.bar()`.
+    <!-- md:badge-version v0.35.0 --> | <!-- md:guide collection.md -->
 
     Examples
     --------
@@ -38,50 +32,78 @@ class NetworkCollection:
 
     Create a collection from Network objects:
 
-    >>> n1 = pypsa.examples.ac_dc_meshed()
-    >>> n1.name = "network1"
-    >>> n2 = pypsa.examples.model_energy()
-    >>> n2.name = "network2"
-    >>> nc = pypsa.NetworkCollection([n1, n2])
+    >>> n
+    PyPSA Network 'AC-DC-Meshed'
+    ----------------------------
+    Components:
+     - Bus: 9
+     - Carrier: 6
+     - Generator: 6
+     - GlobalConstraint: 1
+     - Line: 7
+     - Link: 4
+     - Load: 6
+     - SubNetwork: 3
+    Snapshots: 10
+    <BLANKLINE>
+    >>> n_shuffled_load
+    PyPSA Network 'AC-DC-Meshed-Shuffled-Load'
+    ------------------------------------------
+    Components:
+     - Bus: 9
+     - Carrier: 6
+     - Generator: 6
+     - GlobalConstraint: 1
+     - Line: 7
+     - Link: 4
+     - Load: 6
+     - SubNetwork: 3
+    Snapshots: 10
+    <BLANKLINE>
+    >>> nc = pypsa.NetworkCollection([n, n_shuffled_load])
     >>> nc
     NetworkCollection
     -----------------
     Networks: 2
     Index name: 'network'
-    Entries: ['network1', 'network2']
+    Entries: ['AC-DC-Meshed', 'AC-DC-Meshed-Shuffled-Load']
 
     Access component data across all networks:
 
-    >>> nc.generators
-                                      bus control  ... weight  p_nom_opt
-    network  name                                  ...
-    network1 Manchester Wind   Manchester      PQ  ...    1.0        0.0
-             Manchester Gas    Manchester      PQ  ...    1.0        0.0
-             Norway Wind           Norway      PQ  ...    1.0        0.0
-             Norway Gas            Norway      PQ  ...    1.0        0.0
-             Frankfurt Wind     Frankfurt      PQ  ...    1.0        0.0
-             Frankfurt Gas      Frankfurt      PQ  ...    1.0        0.0
-    network2 load shedding    electricity      PQ  ...    1.0        0.0
-             wind             electricity      PQ  ...    1.0        0.0
-             solar            electricity      PQ  ...    1.0        0.0
+    >>> nc.generators  # doctest: +ELLIPSIS
+                                                   bus  ...    p_nom_opt
+    network                    name                         ...
+    AC-DC-Meshed               Manchester Wind  Manchester  ...  ...
+                               Manchester Gas   Manchester  ...  ...
+                               Norway Wind          Norway  ...  ...
+                               Norway Gas           Norway  ...  ...
+                               Frankfurt Wind    Frankfurt  ...  ...
+                               Frankfurt Gas     Frankfurt  ...  ...
+    AC-DC-Meshed-Shuffled-Load Manchester Wind  Manchester  ...  ...
+                               Manchester Gas   Manchester  ...  ...
+                               Norway Wind          Norway  ...  ...
+                               Norway Gas           Norway  ...  ...
+                               Frankfurt Wind    Frankfurt  ...  ...
+                               Frankfurt Gas     Frankfurt  ...  ...
     <BLANKLINE>
-    [9 rows x 37 columns]
+    [12 rows x 38 columns]
 
 
-    >>> nc.statistics.installed_capacity()
-    component  network   carrier
-    Generator  network1  gas              150000.00
-                         wind                290.00
-               network2  load shedding     10901.16
-    Line       network1  AC               280000.00
-    Link       network1  DC                 4000.00
+    >>> nc.statistics.energy_balance()  # doctest: +ELLIPSIS
+    component  network                     carrier  bus_carrier
+    Generator  AC-DC-Meshed                gas      AC              1465.27439
+                                           wind     AC             31082.35370
+               AC-DC-Meshed-Shuffled-Load  gas      AC              ...
+                                           wind     AC             ...
+    Load       AC-DC-Meshed                load     AC            -32547.62808
+               AC-DC-Meshed-Shuffled-Load  load     AC            -32547.62808
     dtype: float64
 
     Use custom index:
 
     >>> import pandas as pd
     >>> index = pd.Index(["scenario_A", "scenario_B"])
-    >>> nc = pypsa.NetworkCollection([n1, n2], index=index)
+    >>> nc = pypsa.NetworkCollection([n, n_shuffled_load], index=index)
     >>> nc
     NetworkCollection
     -----------------
@@ -92,15 +114,16 @@ class NetworkCollection:
     Notes
     -----
     A single network is mirrored in two ways:
-        1. For each nested method or property of a network, the collection will
+
+    1. For each nested method or property of a network, the collection will
         dynamically create a new MemberProxy object that wraps around it and allows for
         custom processing. The '_method_patterns' dictionary in the MemberProxy class
         defines which processor is used for which method or property. If no processor
         is defined, a NotImplementedError is raised.
-        2. Some accessors of the Network class already support Networks and
-            NetworkCollections, since via the step above the NetworkCollection can
-            already duck-type to a Network. If this is the case, the accessor is
-            directly initialised with a NetworkCollection instead.
+    2. Some accessors of the Network class already support Networks and
+        NetworkCollections, since via the step above the NetworkCollection can
+        already duck-type to a Network. If this is the case, the accessor is
+        directly initialised with a NetworkCollection instead.
 
     """
 
@@ -215,7 +238,26 @@ class NetworkCollection:
             raise AttributeError(msg) from e
 
     def __getitem__(self, key: Any) -> Any:
-        """Get a subset of networks using pandas Series indexing."""
+        """Get a subset of networks using pandas Series indexing.
+
+        Examples
+        --------
+        >>> nc["AC-DC-Meshed"]
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+         - Bus: 9
+         - Carrier: 6
+         - Generator: 6
+         - GlobalConstraint: 1
+         - Line: 7
+         - Link: 4
+         - Load: 6
+         - SubNetwork: 3
+        Snapshots: 10
+        <BLANKLINE>
+
+        """
         try:
             if isinstance(key, slice | pd.Series):
                 selected = self.networks[key]
@@ -229,7 +271,20 @@ class NetworkCollection:
             raise KeyError(msg) from e
 
     def __len__(self) -> int:
-        """Get the number of networks in the collection."""
+        """Get the number of networks in the collection.
+
+        Examples
+        --------
+        >>> nc
+        NetworkCollection
+        -----------------
+        Networks: 2
+        Index name: 'network'
+        Entries: ['AC-DC-Meshed', 'AC-DC-Meshed-Shuffled-Load']
+        >>> len(nc)
+        2
+
+        """
         return len(self.networks)
 
     def __iter__(self) -> Iterator[Network]:
@@ -245,10 +300,31 @@ class NetworkCollection:
         bool
             True, since this is a NetworkCollection.
 
+        Examples
+        --------
+        >>> nc
+        NetworkCollection
+        -----------------
+        Networks: 2
+        Index name: 'network'
+        Entries: ['AC-DC-Meshed', 'AC-DC-Meshed-Shuffled-Load']
+        >>> nc.is_collection
+        True
+
+        >>> n  # doctest: +ELLIPSIS
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+         - Bus: 9
+         ...
+        Snapshots: 10
+        <BLANKLINE>
+        >>> n.is_collection
+        False
+
         See Also
         --------
-        [pypsa.Network][]
-        [pypsa.Collection][]
+        [pypsa.Network][], [pypsa.NetworkCollection][]
 
         """
         return True
@@ -265,6 +341,23 @@ class NetworkCollection:
         -------
         Network
             The requested network from the collection.
+
+        Examples
+        --------
+        >>> nc.get_network("AC-DC-Meshed")
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+         - Bus: 9
+         - Carrier: 6
+         - Generator: 6
+         - GlobalConstraint: 1
+         - Line: 7
+         - Link: 4
+         - Load: 6
+         - SubNetwork: 3
+        Snapshots: 10
+        <BLANKLINE>
 
         Raises
         ------
@@ -303,12 +396,16 @@ class NetworkCollection:
         return self.index.names or [self.index.name]
 
     def __repr__(self) -> str:
-        """Return a string representation of the NetworkCollection.
+        """Get representation of NetworkCollection.
 
-        Returns
-        -------
-        str
-            A string representation showing the number of networks and index information.
+        Examples
+        --------
+        >>> nc
+        NetworkCollection
+        -----------------
+        Networks: 2
+        Index name: 'network'
+        Entries: ['AC-DC-Meshed', 'AC-DC-Meshed-Shuffled-Load']
 
         """
         n_networks = len(self.networks)

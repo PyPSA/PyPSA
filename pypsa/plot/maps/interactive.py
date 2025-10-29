@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Plot the network interactively using plotly or pydeck."""
 
 import logging
@@ -13,7 +17,7 @@ import plotly.offline as pltly
 import pydeck as pdk
 import pyproj
 
-from pypsa.common import _convert_to_series
+from pypsa.common import _convert_to_series, deprecated_kwargs
 from pypsa.components.common import as_components
 from pypsa.plot.maps.common import (
     _is_cartopy_available,
@@ -66,21 +70,38 @@ _open__mb_styles = [
 ]
 
 
+@deprecated_kwargs(
+    deprecated_in="1.0",
+    removed_in="2.0",
+    bus_sizes="bus_size",
+    bus_colors="bus_color",
+    bus_split_circles="bus_split_circle",
+    branch_colors="branch_color",
+    branch_widths="branch_width",
+    arrow_colors="arrow_color",
+    geomap_colors="geomap_color",
+    line_colors="line_color",
+    line_widths="line_width",
+    link_colors="link_color",
+    link_widths="link_width",
+    transformer_colors="transformer_color",
+    transformer_widths="transformer_width",
+)
 def iplot(
     n: "Network",
     fig: dict | None = None,
-    bus_colors: str | dict | pd.Series = "cadetblue",
+    bus_color: str | dict | pd.Series = "cadetblue",
     bus_alpha: float = 1,
-    bus_sizes: float | pd.Series = 10,
+    bus_size: float | pd.Series = 10,
     bus_cmap: str | mcolors.Colormap | None = None,
     bus_colorbar: dict | None = None,
     bus_text: pd.Series | None = None,
-    line_colors: str | pd.Series = "rosybrown",
-    link_colors: str | pd.Series = "darkseagreen",
-    transformer_colors: str | pd.Series = "orange",
-    line_widths: float | pd.Series = 3,
-    link_widths: float | pd.Series = 3,
-    transformer_widths: float | pd.Series = 3,
+    line_color: str | pd.Series = "rosybrown",
+    link_color: str | pd.Series = "darkseagreen",
+    transformer_color: str | pd.Series = "orange",
+    line_width: float | pd.Series = 3,
+    link_width: float | pd.Series = 3,
+    transformer_width: float | pd.Series = 3,
     line_text: pd.Series | None = None,
     link_text: pd.Series | None = None,
     transformer_text: pd.Series | None = None,
@@ -103,31 +124,31 @@ def iplot(
         The network to plot.
     fig : dict, default None
         If not None, figure is built upon this fig.
-    bus_colors : dict/pandas.Series
-        Colors for the buses, defaults to "cadetblue". If bus_sizes is a
-        pandas.Series with a Multiindex, bus_colors defaults to the
+    bus_color : dict/pandas.Series
+        Colors for the buses, defaults to "cadetblue". If bus_size is a
+        pandas.Series with a Multiindex, bus_color defaults to the
         n.c.carriers.static['color'] column.
     bus_alpha : float
         Add alpha channel to buses, defaults to 1.
-    bus_sizes : float/pandas.Series
+    bus_size : float/pandas.Series
         Sizes of bus points, defaults to 10.
     bus_cmap : mcolors.Colormap/str
-        If bus_colors are floats, this color map will assign the colors
+        If bus_color are floats, this color map will assign the colors
     bus_colorbar : dict
         Plotly colorbar, e.g. {'title' : 'my colorbar'}
     bus_text : pandas.Series
         Text for each bus, defaults to bus names
-    line_colors : str/pandas.Series
+    line_color : str/pandas.Series
         Colors for the lines, defaults to 'rosybrown'.
-    link_colors : str/pandas.Series
+    link_color : str/pandas.Series
         Colors for the links, defaults to 'darkseagreen'.
-    transformer_colors : str/pandas.Series
+    transformer_color : str/pandas.Series
         Colors for the transfomer, defaults to 'orange'.
-    line_widths : dict/pandas.Series
+    line_width : dict/pandas.Series
         Widths of lines, defaults to 1.5
-    link_widths : dict/pandas.Series
+    link_width : dict/pandas.Series
         Widths of links, defaults to 1.5
-    transformer_widths : dict/pandas.Series
+    transformer_width : dict/pandas.Series
         Widths of transformer, defaults to 1.5
     line_text : pandas.Series
         Text for lines, defaults to line names.
@@ -136,9 +157,9 @@ def iplot(
     transformer_text : pandas.Series
         Text for transformers, defaults to transformer names.
     layouter : networkx.drawing.layout function, default None
-        Layouting function from `networkx <https://networkx.github.io/>`_ which
-        overrules coordinates given in ``n.buses[['x', 'y']]``. See
-        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+        Layouting function from [networkx](https://networkx.github.io/) which
+        overrules coordinates given in `n.buses[['x', 'y']]`. See
+        [list](https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout)
         of available options.
     title : string
         Graph title
@@ -155,7 +176,7 @@ def iplot(
         Switch to use Mapbox.
     mapbox_style : str, default 'open-street-map'
         Define the mapbox layout style of the interactive plot. If this is set
-        to a mapbox layout, the argument ``mapbox_token`` must be a valid Mapbox
+        to a mapbox layout, the argument `mapbox_token` must be a valid Mapbox
         API access token.
 
         Valid open layouts are:
@@ -166,7 +187,7 @@ def iplot(
             basic, streets, outdoors, light, dark, satellite, satellite-streets
 
     mapbox_token : string
-        Mapbox API access token. Obtain from https://www.mapbox.com.
+        Mapbox API access token. Obtain from `https://www.mapbox.com`.
         Can also be included in mapbox_parameters as `accesstoken=mapbox_token`.
     mapbox_parameters : dict
         Configuration parameters of the Mapbox layout.
@@ -200,7 +221,7 @@ def iplot(
         "mode": "markers",
         "hoverinfo": "text",
         "opacity": bus_alpha,
-        "marker": {"color": bus_colors, "size": bus_sizes},
+        "marker": {"color": bus_color, "size": bus_size},
     }
 
     if bus_cmap is not None:
@@ -212,15 +233,15 @@ def iplot(
     if branch_components is None:
         branch_components = n.branch_components
 
-    branch_colors = {
-        "Line": line_colors,
-        "Link": link_colors,
-        "Transformer": transformer_colors,
+    branch_color = {
+        "Line": line_color,
+        "Link": link_color,
+        "Transformer": transformer_color,
     }
-    branch_widths = {
-        "Line": line_widths,
-        "Link": link_widths,
-        "Transformer": transformer_widths,
+    branch_width = {
+        "Line": line_width,
+        "Link": link_width,
+        "Transformer": transformer_width,
     }
     branch_text = {
         "Line": line_text,
@@ -234,8 +255,8 @@ def iplot(
     for c in n.components:
         if c.name not in branch_components:
             continue
-        b_widths = as_branch_series(branch_widths[c.name], "width", c.name, n)
-        b_colors = as_branch_series(branch_colors[c.name], "color", c.name, n)
+        b_widths = as_branch_series(branch_width[c.name], "width", c.name, n)
+        b_colors = as_branch_series(branch_color[c.name], "color", c.name, n)
         b_text = branch_text[c.name]
 
         if b_text is None:
@@ -316,7 +337,7 @@ def iplot(
         ):
             msg = (
                 "Using Mapbox layout styles requires a valid access token from "
-                "https://www.mapbox.com/, style which do not require a token "
+                "[https://www.mapbox.com/](https://www.mapbox.com/), style which do not require a token "
                 "are:\n{', '.join(_open__mb_styles)}."
             )
             raise ValueError(msg)
@@ -383,9 +404,9 @@ class PydeckPlotter:
             Initial view state for the map. If None, a default view state is created.
             If a dict is provided, it should contain keys like 'longitude', 'latitude', 'zoom', 'pitch', and 'bearing'.
         layouter : Callable | None, optional
-            Layouting function from `networkx <https://networkx.github.io/>`_ which
-            overrules coordinates given in ``n.buses[['x', 'y']]``. See
-            `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`
+            Layouting function from [networkx](https://networkx.github.io/) which
+            overrules coordinates given in `n.buses[['x', 'y']]`. See
+            [list](https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout)
             of available options.
         jitter : float, optional
             Amount of random noise to add to node positions
@@ -1119,7 +1140,7 @@ class PydeckPlotter:
             ]
         c_data["path"] = branch_paths
 
-    def create_branch_colors(
+    def create_branch_color(
         self,
         c_name: str,
         branch_color: str | dict | pd.Series = "rosybrown",
@@ -1268,7 +1289,7 @@ class PydeckPlotter:
             axis=1,
         )
 
-    def create_arrow_colors(
+    def create_arrow_color(
         self,
         c_name: str,
         arrow_color: str | dict | pd.Series | None = None,
@@ -1618,7 +1639,7 @@ class PydeckPlotter:
                 c,
                 geometry=geometry,
             )
-            self.create_branch_colors(
+            self.create_branch_color(
                 c_name=c,
                 branch_color=branch_color,
                 branch_cmap=branch_cmap,
@@ -1663,7 +1684,7 @@ class PydeckPlotter:
                 c_name=c,
                 arrow_size_factor=arrow_size_factor,
             )
-            self.create_arrow_colors(
+            self.create_arrow_color(
                 c_name=c,
                 arrow_color=arrow_color,
                 arrow_cmap=arrow_cmap,
@@ -2052,6 +2073,8 @@ def explore(  # noqa: D103
     **kwargs: Any,
 ) -> pdk.Deck:
     """Create an interactive map of the PyPSA network using Pydeck.
+
+    <!-- md:badge-version v1.0.0 -->
 
     Returns
     -------

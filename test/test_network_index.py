@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pandas as pd
 import pytest
 
@@ -142,6 +146,60 @@ def test_get_scenario():
         KeyError, match="Scenario 'nonexistent' not found in network scenarios"
     ):
         n.get_scenario("nonexistent")
+
+
+def test_get_scenario_empty_components_bug_1402():
+    """
+    Test that get_scenario() and __getitem__ properly reset MultiIndex for empty components.
+
+    See https://github.com/PyPSA/PyPSA/issues/1402:
+    When extracting a scenario from a stochastic network, empty components (like Links)
+    should have their MultiIndex reset to a simple Index, not retain the scenario level.
+    This ensures the extracted network can be optimized without MultiIndex conflicts.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(3))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=100)
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        capital_cost=1000,
+        marginal_cost=10,
+    )
+
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+
+    # Verify Links component is empty but has MultiIndex after set_scenarios
+    assert n.c.links.static.empty
+    assert isinstance(n.c.links.static.index, pd.MultiIndex)
+    assert n.c.links.static.index.names == ["scenario", "name"]
+
+    # Test get_scenario() method
+    n_low = n.get_scenario("low")
+
+    # After extraction, Links should have simple Index, not MultiIndex
+    assert n_low.c.links.static.empty
+    assert not isinstance(n_low.c.links.static.index, pd.MultiIndex)
+    assert n_low.c.links.static.index.name == "name"
+
+    # Verify network can be optimized without errors
+    status, _ = n_low.optimize(solver_name="highs", log_to_console=False)
+    assert status == "ok"
+
+    # Test __getitem__ method (n['scenario'])
+    n_high = n["high"]
+
+    # After extraction via __getitem__, Links should also have simple Index
+    assert n_high.c.links.static.empty
+    assert not isinstance(n_high.c.links.static.index, pd.MultiIndex)
+    assert n_high.c.links.static.index.name == "name"
+
+    # Verify this network can also be optimized
+    status, _ = n_high.optimize(solver_name="highs", log_to_console=False)
+    assert status == "ok"
 
 
 def test_get_network_from_collection():

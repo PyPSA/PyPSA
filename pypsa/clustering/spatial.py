@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Functions for computing network clusters."""
 
 from __future__ import annotations
@@ -238,7 +242,7 @@ def aggregateoneport(
         custom_strategies = {}
     c = component
     static = n.c[c].static
-    attrs = n.components[c]["attrs"]
+    attrs = n.components[c]["defaults"]
     if "carrier" in static.columns:
         if carriers is None:
             carriers = static.carrier.unique()
@@ -348,7 +352,7 @@ def aggregatebuses(
     if custom_strategies is None:
         custom_strategies = {}
     c = "Bus"
-    attrs = n.components[c]["attrs"]
+    attrs = n.components[c]["defaults"]
 
     output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
     columns = [c for c in n.c.buses.static.columns if c not in output_columns]
@@ -402,7 +406,7 @@ def aggregatelines(
         custom_strategies = {}
     if bus_strategies is None:
         bus_strategies = {}
-    attrs = n.components["Line"]["attrs"]
+    attrs = n.components["Line"]["defaults"]
     static = n.c["Line"].static
     idx = static.index[static.bus0.map(busmap) != static.bus1.map(busmap)]
     static = static.loc[idx]
@@ -843,7 +847,7 @@ def busmap_by_hac(
     return pd.Series(labels, index=buses_i, dtype=str)
 
 
-def hac_clustering(
+def hac_clustering(  # noqa: D417
     n: Network,
     n_clusters: int,
     buses_i: pd.Index | None = None,
@@ -858,8 +862,6 @@ def hac_clustering(
 
     Parameters
     ----------
-    n : pypsa.Network
-        The buses must have coordinates x, y.
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -909,7 +911,7 @@ def hac_clustering(
     return get_clustering_from_busmap(n, busmap, line_length_factor=line_length_factor)
 
 
-def busmap_by_greedy_modularity(
+def busmap_by_greedy_modularity(  # noqa: D417
     n: Network, n_clusters: int, buses_i: pd.Index | None = None
 ) -> pd.Series:
     """Create a busmap according to Clauset-Newman-Moore greedy modularity maximization.
@@ -918,8 +920,6 @@ def busmap_by_greedy_modularity(
 
     Parameters
     ----------
-    n : pypsa.Network
-        Network instance.
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -933,9 +933,9 @@ def busmap_by_greedy_modularity(
 
     References
     ----------
-    .. [CNM2004_1] Clauset, A., Newman, M. E., & Moore, C.
-       "Finding community structure in very large networks."
-       Physical Review E 70(6), 2004.
+    [CNM2004_1] Clauset, A., Newman, M. E., & Moore, C.
+        "Finding community structure in very large networks."
+        Physical Review E 70(6), 2004.
 
     """
     if parse(nx.__version__) < Version("2.8"):
@@ -972,7 +972,7 @@ def busmap_by_greedy_modularity(
     return busmap
 
 
-def greedy_modularity_clustering(
+def greedy_modularity_clustering(  # noqa: D417
     n: Network,
     n_clusters: int,
     buses_i: pd.Index | None = None,
@@ -984,8 +984,6 @@ def greedy_modularity_clustering(
 
     Parameters
     ----------
-    n : pypsa.Network
-        Network instance.
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -1000,9 +998,9 @@ def greedy_modularity_clustering(
 
     References
     ----------
-    .. [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
-       "Finding community structure in very large networks."
-       Physical Review E 70(6), 2004.
+    [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
+        "Finding community structure in very large networks."
+        Physical Review E 70(6), 2004.
 
     """
     busmap = busmap_by_greedy_modularity(n, n_clusters, buses_i)
