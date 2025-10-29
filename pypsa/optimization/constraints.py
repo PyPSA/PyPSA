@@ -391,7 +391,18 @@ def define_operational_constraints_for_committables(
     # linearized approximation because committable can partly start up and shut down
     start_up_cost = c.da.start_up_cost.sel(name=com_i)
     shut_down_cost = c.da.shut_down_cost.sel(name=com_i)
-    cost_equal = (start_up_cost == shut_down_cost).values
+
+    if "snapshot" in start_up_cost.dims:
+        start_up_cost = start_up_cost.sel(snapshot=sns)
+    if "snapshot" in shut_down_cost.dims:
+        shut_down_cost = shut_down_cost.sel(snapshot=sns)
+
+    # add _xa suffix to clarify this is an xarray dataarray
+    cost_equal_xa = start_up_cost == shut_down_cost
+    for dim in tuple(cost_equal_xa.dims):
+        if dim != "name":
+            cost_equal_xa = cost_equal_xa.all(dim=str(dim))
+    cost_equal = cost_equal_xa.values
 
     # only valid additional constraints if start up costs equal to shut down costs
     if n._linearized_uc and not cost_equal.all():

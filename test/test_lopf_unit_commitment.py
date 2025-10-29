@@ -558,3 +558,61 @@ def test_dynamic_start_up_rates_for_commitables():
         assert gen1_p[snapshot] <= expected_max_startup, (
             f"Startup ramp limit violated at snapshot {snapshot}: {gen1_p[snapshot]} > {expected_max_startup}"
         )
+
+
+def test_time_varying_start_and_shut_costs_affect_commitment():
+    """
+    Time-varying start/shut costs can make a committable generator run longer
+    than strictly needed for demand.
+
+    We model five snapshots with peak demand only in the middle snapshot.
+    A low-MC, committable generator faces a low start-up cost one period
+    before the demand peak and a low shut-down cost two periods after
+    the peak. These incentives outweigh its high stand-by cost, so it
+    commits one step early and remains online one step late. A second,
+    high-MC generator can meet all demand, guaranteeing feasibility
+    regardless of what the low-MC generator does
+    """
+
+    snapshots = range(5)
+    load = pd.Series([0.0, 0.1, 10.0, 0.1, 0.1], index=snapshots)
+    start_up_costs = pd.Series([0.0, 0.0, 100.0, 100.0, 100.0], index=snapshots)
+    shut_down_costs = pd.Series([100.0, 100.0, 100.0, 100.0, 0.0], index=snapshots)
+
+    n = pypsa.Network()
+    n.set_snapshots(snapshots)
+    n.add("Bus", "bus")
+
+    committed = "cheap-committable"
+    n.add(
+        "Generator",
+        committed,
+        bus="bus",
+        committable=True,
+        p_nom=10,
+        marginal_cost=0,
+        stand_by_cost=10,
+        p_min_pu=0.01,
+        up_time_before=0,
+        down_time_before=0,
+        start_up_cost=start_up_costs,
+        shut_down_cost=shut_down_costs,
+    )
+
+    n.add(
+        "Generator",
+        "expensive-fallback",
+        bus="bus",
+        committable=False,
+        p_nom=10,
+        marginal_cost=100,
+    )
+
+    n.add("Load", "load", bus="bus", p_set=load)
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    dyn = n.c.generators.dynamic
+    status = dyn.status[committed].to_numpy()
+    np.testing.assert_array_equal(status, np.array([0.0, 1.0, 1.0, 1.0, 0.0]))
