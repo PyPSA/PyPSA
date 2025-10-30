@@ -1,4 +1,10 @@
-# PyPSA Weightings Guide
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
+# Weightings
 
 A practical guide to understanding and using weightings in PyPSA optimization.
 
