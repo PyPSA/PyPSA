@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+# Testing CI doctest failures - this is a no-op change
+
 import copy
 import warnings
 from unittest.mock import patch
