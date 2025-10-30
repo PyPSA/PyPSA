@@ -121,7 +121,7 @@ Total OPEX = sum_over_periods(
 
 **How to calculate:**
 
-**Note:** By suming the discount factor across the period years we are effectively weighting by period length. 
+**Note:** By suming the discount factor across the period years we are effectively weighting by period length.
 
 ```python
 # Setup investment periods
@@ -284,4 +284,3 @@ n.investment_period_weightings.years = period_duration
 # Result:
 # - Costs: annual_cost × NPV_factor = properly discounted ✓
 # - Emissions: annual_emissions × 10 = period_emissions ✓
-
