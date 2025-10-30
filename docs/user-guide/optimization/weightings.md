@@ -132,7 +132,7 @@ discounts = [1 / (1 + discount_rate)**t
 # You could also average and multipy by the period length.
 npv_factor = sum(discounts)  # e.g., 8.11 for years 0-9 at 5%
 
-# npv_factor then 
+# npv_factor then
 
 # For subsequent periods:
 # Period 2040: years_from_start = 10, gives years 10-19
