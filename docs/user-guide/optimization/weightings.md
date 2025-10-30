@@ -114,29 +114,35 @@ Total OPEX = sum_over_periods(
 ```
 
 **How to calculate:**
+
+**Note:** By suming the discount factor across the period years we are effectively weighting by period length. 
+
 ```python
-# Sum of discount factors for NPV calculation
+# Setup investment periods
+investment_periods = [2030, 2040, 2050]
 discount_rate = 0.05
-period_duration = 10  # years
-model_start_year = 2030  # base year for discounting
-period_start_year = 2030  # year this period begins
+period_duration = 10  # Each period represents 10 years
+model_start_year = 2030  # Base year for discounting
 
-# Calculate years from model start
-years_from_start = period_start_year - model_start_year  # 0 for first period
+# Calculate and assign NPV factors for each period
+for period in investment_periods:
+    # Calculate years from model start
+    years_from_start = period - model_start_year  # 0 for 2030, 10 for 2040, 20 for 2050
 
-# Discount factors from model start to end of period
-discounts = [1 / (1 + discount_rate)**t
-             for t in range(years_from_start, years_from_start + period_duration)]
+    # Discount factors for each year in the period
+    discounts = [1 / (1 + discount_rate)**t
+                 for t in range(years_from_start, years_from_start + period_duration)]
 
-# Summing across years scale weighting factor by the number of years in the period.
-# You could also average and multipy by the period length.
-npv_factor = sum(discounts)  # e.g., 8.11 for years 0-9 at 5%
+    # Sum of discount factors = NPV weighting for this period
+    npv_factor = sum(discounts)
 
-# npv_factor then 
+    # Assign as the investment period objective weighting
+    n.investment_period_weightings.loc[period, 'objective'] = npv_factor
 
-# For subsequent periods:
-# Period 2040: years_from_start = 10, gives years 10-19
-# Period 2050: years_from_start = 20, gives years 20-29
+# Results:
+# Period 2030 (years 0-9):  objective = 8.11
+# Period 2040 (years 10-19): objective = 4.98
+# Period 2050 (years 20-29): objective = 3.06
 ```
 
 ### 2. Years (`investment_period_weightings.years`)
@@ -210,11 +216,14 @@ n.snapshot_weightings.generators = 1.0
 # Investment period weightings
 discount_rate = 0.05
 period_duration = 10  # Each period represents 10 years
+model_start_year = 2030  # Base year for discounting
 
-for i, period in enumerate(periods):
+for period in periods:
+    # Calculate years from model start
+    years_from_start = period - model_start_year  # 0 for 2030, 10 for 2040, 20 for 2050
+
     # NPV factor: sum of discount factors
-    years_offset = i * period_duration
-    discounts = [1/(1+discount_rate)**(years_offset+t) for t in range(period_duration)]
+    discounts = [1/(1+discount_rate)**(years_from_start+t) for t in range(period_duration)]
     n.investment_period_weightings.loc[period, 'objective'] = sum(discounts)
     n.investment_period_weightings.loc[period, 'years'] = period_duration
 
@@ -253,9 +262,14 @@ n.snapshot_weightings.generators = scaling_factor    # ~0.33 (SAME!)
 
 # STEP 2: Set NPV factors (sum of discount factors)
 discount_rate = 0.05
-for i, period in enumerate(periods):
-    years_offset = i * period_duration
-    discounts = [1/(1+discount_rate)**(years_offset+t) for t in range(period_duration)]
+model_start_year = 2030  # Base year for discounting
+
+for period in periods:
+    # Calculate years from model start
+    years_from_start = period - model_start_year  # 0 for 2030, 10 for 2040
+
+    # NPV factor: sum of discount factors
+    discounts = [1/(1+discount_rate)**(years_from_start+t) for t in range(period_duration)]
     n.investment_period_weightings.loc[period, 'objective'] = sum(discounts)
 
 # STEP 3: Set period duration
@@ -265,23 +279,3 @@ n.investment_period_weightings.years = period_duration
 # - Costs: annual_cost × NPV_factor = properly discounted ✓
 # - Emissions: annual_emissions × 10 = period_emissions ✓
 ```
-
-**Key points:**
-- Snapshot weightings scale to **one year** (uniform for objective and generators)
-- Investment period objective is **sum** of discount factors (not average!)
-- Investment period years is the **period duration** (not years of data)
-
-## How Weightings Are Combined
-
-### Investment Costs (CAPEX)
-```
-# Single investment period
-Total CAPEX = sum_over_years(capital_cost × capacity)
-
-# Multi-investment periods
-Total CAPEX = sum_over_periods(
-    capital_cost × capacity × investment_period_weightings.objective[period]
-)
-```
-
-**Note:** Snapshot weightings do NOT affect CAPEX - it's capacity-based, not time-based.
