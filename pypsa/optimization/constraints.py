@@ -555,7 +555,7 @@ def define_ramp_limit_constraints(
 
     Applies to Components
     ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+    Generator (p), Link (p)
 
     Parameters
     ----------
