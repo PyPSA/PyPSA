@@ -469,6 +469,121 @@ def test_link_unit_commitment():
     assert round(n.objective, 1) == 267333.0
 
 
+def test_link_ramp_limits():
+    """
+    Test that ramp limits work for Links.
+    """
+    n = pypsa.Network()
+
+    snapshots = range(6)
+    n.set_snapshots(snapshots)
+
+    n.add("Bus", ["gas", "electricity"])
+
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        p_min_pu=0.1,
+        efficiency=0.5,
+        p_nom=10000,
+        ramp_limit_up=0.3,  # 30% of p_nom per timestep = 3000 MW
+        ramp_limit_down=0.4,  # 40% of p_nom per timestep = 4000 MW
+        marginal_cost=20,
+    )
+
+    n.add("Generator", "backup", bus="electricity", marginal_cost=100, p_nom=10000)
+
+    # Varying load to induce ramping
+    n.add("Load", "load", bus="electricity", p_set=[2000, 7000, 1500, 5500, 5000, 2500])
+
+    n.optimize()
+
+    # Check that ramp limits are respected
+    # For Links, use p0 (the power at bus0) which is the optimization variable
+    p_diff = n.c.links.dynamic.p0["OCGT"].diff()
+    max_ramp_up = 0.3 * 10000  # 3000 MW
+    max_ramp_down = 0.4 * 10000  # 4000 MW
+
+    # Check ramp up (positive changes)
+    ramp_ups = p_diff[p_diff > 0]
+    if not ramp_ups.empty:
+        assert ramp_ups.max() <= max_ramp_up + 1e-4, (
+            f"Ramp up limit violated: {ramp_ups.max()} > {max_ramp_up}"
+        )
+
+    # Check ramp down (negative changes)
+    ramp_downs = p_diff[p_diff < 0].abs()
+    if not ramp_downs.empty:
+        assert ramp_downs.max() <= max_ramp_down + 1e-4, (
+            f"Ramp down limit violated: {ramp_downs.max()} > {max_ramp_down}"
+        )
+
+
+def test_link_ramp_limits_rolling_horizon():
+    """
+    Test that ramp limits work for Links in rolling horizon optimization.
+    This specifically tests the historical data retrieval for p0 in Links
+    when sns[0] != n.snapshots[0].
+    """
+    n = pypsa.Network()
+
+    snapshots = range(12)
+    n.set_snapshots(snapshots)
+
+    n.add("Bus", ["gas", "electricity"])
+
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        p_min_pu=0.1,
+        efficiency=0.5,
+        p_nom=10000,
+        ramp_limit_up=0.3,  # 30% of p_nom per timestep = 3000 MW
+        ramp_limit_down=0.4,  # 40% of p_nom per timestep = 4000 MW
+        marginal_cost=20,
+    )
+
+    n.add("Generator", "backup", bus="electricity", marginal_cost=100, p_nom=10000)
+
+    # Varying load to induce ramping with jumps > ramp limits (3000 up, 4000 down)
+    n.add(
+        "Load",
+        "load",
+        bus="electricity",
+        p_set=[2000, 6000, 1000, 5500, 9000, 3000, 7500, 2500, 7000, 1500, 6000, 2000],
+    )
+
+    n.optimize.optimize_with_rolling_horizon(horizon=4, overlap=1)
+
+    # Check that ramp limits are respected across all snapshots
+    # For Links, use p0 (the power at bus0)
+    p_diff = n.c.links.dynamic.p0["OCGT"].diff()
+    max_ramp_up = 0.3 * 10000  # 3000 MW
+    max_ramp_down = 0.4 * 10000  # 4000 MW
+
+    # Check ramp up (positive changes)
+    ramp_ups = p_diff[p_diff > 0]
+    if not ramp_ups.empty:
+        assert ramp_ups.max() <= max_ramp_up + 1e-4, (
+            f"Ramp up limit violated: {ramp_ups.max()} > {max_ramp_up}"
+        )
+
+    # Check ramp down (negative changes)
+    ramp_downs = p_diff[p_diff < 0].abs()
+    if not ramp_downs.empty:
+        assert ramp_downs.max() <= max_ramp_down + 1e-4, (
+            f"Ramp down limit violated: {ramp_downs.max()} > {max_ramp_down}"
+        )
+
+
 def test_dynamic_ramp_rates():
     """
     This test checks that dynamic ramp rates are correctly applied when
