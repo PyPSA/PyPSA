@@ -32,6 +32,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix infinite recursion error when pickling networks. (<!-- md:pr 1421 -->)
 
+- Fix ramp_limit_up/down constraints: correctly detect components with ramp limits, handle rolling-horizon windows by using previous-window dispatch, and add unit tests for Link ramp limits and ramping constraints in rolling horizon mode. (<!-- md:pr: 1428 -->)
+
 ## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> { id="v1.0.1" }
 
 ### Bug Fixes
