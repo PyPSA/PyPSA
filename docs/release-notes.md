@@ -19,7 +19,7 @@ SPDX-License-Identifier: CC-BY-4.0
   shut-down limit. The feature is not still compatible with
   min-up and min-down time, up and down time before.
 
-* Components (Generators and Links) can now be both committable and extendable
+- Components (Generators and Links) can now be both committable and extendable
   simultaneously. This enables unit commitment with capacity expansion optimization
   using a big-M formulation that maintains the linear programming structure.
   Previously, components could only be either committable or extendable, but not both.
