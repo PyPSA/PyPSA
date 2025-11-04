@@ -911,6 +911,7 @@ class NetworkIndexMixin(_NetworkABC):
         ---------------------------------------------
         Components:
          - Bus: 3
+         - Carrier: 18
          - Generator: 12
          - Load: 3
         Snapshots: 2920
@@ -921,6 +922,7 @@ class NetworkIndexMixin(_NetworkABC):
         ----------------------------------------------------
         Components:
          - Bus: 1
+         - Carrier: 6
          - Generator: 4
          - Load: 1
         Snapshots: 2920

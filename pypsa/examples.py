@@ -201,9 +201,10 @@ def stochastic_network() -> Network:
     Stochastic PyPSA Network 'Stochastic-Network'
     ---------------------------------------------
     Components:
-        - Bus: 3
-        - Generator: 12
-        - Load: 3
+     - Bus: 3
+     - Carrier: 18
+     - Generator: 12
+     - Load: 3
     Snapshots: 2920
     Scenarios: 3
 
@@ -211,7 +212,6 @@ def stochastic_network() -> Network:
     n = _retrieve_if_not_local(
         "examples/networks/stochastic-network/stochastic-network.nc"
     )
-
     return n
 
 

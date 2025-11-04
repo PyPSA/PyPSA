@@ -97,6 +97,7 @@ class ComponentsTransformMixin:
         The example is shown for Generator component, but the same applies to all
         component types.
 
+        >>> import pypsa
         >>> n = pypsa.Network()
         >>> c = n.components.generators
         >>> c
@@ -114,7 +115,7 @@ class ComponentsTransformMixin:
         Components: 1
 
         With static data (and default values for all attributes):
-        >>> c.static[["carrier", "p_nom"]]
+        >>> c.static[["carrier", "p_nom"]]  # doctest: +NORMALIZE_WHITESPACE
                        carrier  p_nom
         name
         my-generator-1      AC    0.0
@@ -133,7 +134,7 @@ class ComponentsTransformMixin:
         Components: 3
 
         With static data:
-        >>> c.static[["carrier", "p_nom"]]
+        >>> c.static[["carrier", "p_nom"]]  # doctest: +NORMALIZE_WHITESPACE
                    carrier  p_nom
         name
         my-generator-1      AC    0.0
