@@ -19,7 +19,7 @@ SPDX-License-Identifier: CC-BY-4.0
   Previously, components could only be either committable or extendable, but not both.
   The implementation automatically detects when both attributes are set and applies
   the appropriate big-M constraints to ensure correct operation.
- 
+
 ## [**v1.0.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.2) <small>24 October 2025</small> { id="v1.0.2" }
 
 ### Bug Fixes
