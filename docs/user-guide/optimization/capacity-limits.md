@@ -145,4 +145,3 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
     [:octicons-arrow-right-24: Go to example](../../examples/modular-expansion.ipynb)
 
 </div>
-

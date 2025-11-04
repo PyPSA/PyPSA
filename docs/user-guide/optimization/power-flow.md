@@ -109,7 +109,7 @@ The transmission loss approximation is not activated by default, but must be
 enabled by providing a number of tangents in [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
 ``` py
-n.optimize(transmission_losses=3)  
+n.optimize(transmission_losses=3)
 ```
 
 The higher the number of tangents, the more accurate the approximation, but also
@@ -125,7 +125,7 @@ tangents are sufficient for a reasonably accurate approximation.
 
     | Symbol | Attribute | Type |
     |-------------------|-----------|-------------|
-    | $p_{l,t}$     | `n.lines_t.p0` or `n.transformers_t.p0` | Decision variable | 
+    | $p_{l,t}$     | `n.lines_t.p0` or `n.transformers_t.p0` | Decision variable |
     | $\psi_{l,t}$ | `n.lines_t.losses` or `n.transformers_t.losses` | Decision variable |
     | $\bar{p}_{l,t}$ | `n.lines_t.s_max_pu` or `n.transformers_t.s_max_pu` | Parameter |#
     | $\bar{P}_{l}$ | `n.lines.s_nom_opt` and `n.transformers.s_nom_opt` (if extendable) or `n.lines.s_nom` or `n.transformers.s_nom` (if non-extendable) | Decision variable / Parameter |

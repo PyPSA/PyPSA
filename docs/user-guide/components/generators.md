@@ -19,4 +19,4 @@ linear demand curve.
     Use the [`Link`][pypsa.components.Links] component if you have the fuel of the generator represented by a [`Bus`][pypsa.components.Buses] and you want to model the conversion of that fuel to electricity, e.g. a gas-fired power plant with a gas bus.
 
 
-{{ read_csv('../../../pypsa/data/component_attrs/generators.csv') }} 
+{{ read_csv('../../../pypsa/data/component_attrs/generators.csv') }}

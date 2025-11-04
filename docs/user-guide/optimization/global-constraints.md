@@ -177,4 +177,3 @@ This global constraint is added in the function `define_growth_limit()` and carr
     | $P_l$  | `n.{lines,transformers}.s_nom_opt` | Decision Variable |#
     | $\gamma_s$ | `n.carriers.max_relative_growth` | Parameter |
     | $\Gamma_s$ | `n.carriers.max_growth` | Parameter |
-

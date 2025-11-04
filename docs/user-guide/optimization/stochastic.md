@@ -68,7 +68,7 @@ The scenario tree in PyPSA splits into **here-and-now** investment decisions (t=
 
 !!! note "Consideration of risk preferences and robust optimisation"
 
-    The default stochastic programming implementation in PyPSA minimizes expected costs across scenarios weighted by their probabilities. This approach considers risk-neutral decision making. 
+    The default stochastic programming implementation in PyPSA minimizes expected costs across scenarios weighted by their probabilities. This approach considers risk-neutral decision making.
     PyPSA also supports changing risk preference through Conditional Value at Risk (CVaR)-based risk-averse optimization, allowing users to account for extreme outcomes and tail risks in their optimization.
 
 For a comprehensive treatment of two-stage stochastic programming theory and methods, see Birge and Louveaux (2011).[^1]
@@ -135,7 +135,7 @@ Index(['volcano', 'no_volcano'], dtype='object', name='scenario')
 ``` py
 >>> n.scenario_weightings
             weight
-scenario          
+scenario
 volcano        0.1
 no_volcano     0.9
 ```
@@ -156,9 +156,9 @@ no_volcano load shedding  electricity         2000.0         1.0
 
 ``` py
 >>> n.generators_t.p_max_pu.head(3)
-scenario            volcano         no_volcano        
+scenario            volcano         no_volcano
 name                  solar    wind      solar    wind
-snapshot                                              
+snapshot
 2019-01-01 00:00:00     0.0  0.1846        0.0  0.1846
 2019-01-01 03:00:00     0.0  0.3146        0.0  0.3146
 2019-01-01 06:00:00     0.0  0.4957        0.0  0.4957
@@ -171,15 +171,15 @@ snapshot
 
 ### Parameter Updates
 
-So far, all data is the same across scenarios. Now that we have a separate index level for 
+So far, all data is the same across scenarios. Now that we have a separate index level for
 the scenarios, we can modify scenario-specific parameters. In our case, we want to reduce the solar capacity factor in the "volcano" scenario by 70%:
 
 ``` py
 >>> n.generators_t.p_max_pu.loc[:, ("volcano", "solar")] *= 0.3
 >>> n.generators_t.p_max_pu.loc["2019-06-21"]
-scenario            volcano         no_volcano        
+scenario            volcano         no_volcano
 name                  solar    wind      solar    wind
-snapshot                                              
+snapshot
 2019-06-21 00:00:00  0.0000  0.1240      0.000  0.1240
 2019-06-21 03:00:00  0.0051  0.0843      0.017  0.0843
 2019-06-21 06:00:00  0.0864  0.0441      0.288  0.0441
@@ -268,7 +268,7 @@ After solving the stochastic optimization problem, we can evaluate the results. 
 ... )
 >>> cap_stochastic
 scenario                      no_volcano  volcano
-component   carrier                              
+component   carrier
 Generator   gas                      5.0      5.0
             load shedding           10.9     10.9
             solar                   21.1     21.1
@@ -283,7 +283,7 @@ Note that the optimal capacities are the same across scenarios for investment va
 
 ``` py
 >>> cap_stochastic.iloc[:, 0].div(cap_deterministic).round(2)
-component    carrier         
+component    carrier
 Generator    gas                 1.00
              load shedding       1.00
              solar               0.93
@@ -322,7 +322,7 @@ When working with stochastic optimization, it can be useful to quantify the valu
 
 $$\text{EVPI} = \mathbb{E}[\text{WS}] - \text{SP}$$
 
-The EVPI measures the maximum value of perfect information about uncertain parameters. It compares the expected cost of the wait-and-see (WS) solutions—where the decision maker knows which scenario will occur before making any decisions—against the stochastic programming (SP) solution. The EVPI represents an upper bound on what should be paid for improved forecasting or information gathering systems. By definition, EVPI is always non-negative, since perfect information cannot increase expected costs. 
+The EVPI measures the maximum value of perfect information about uncertain parameters. It compares the expected cost of the wait-and-see (WS) solutions—where the decision maker knows which scenario will occur before making any decisions—against the stochastic programming (SP) solution. The EVPI represents an upper bound on what should be paid for improved forecasting or information gathering systems. By definition, EVPI is always non-negative, since perfect information cannot increase expected costs.
 
 **Expected Cost of Ignoring Uncertainty (ECIU) / Value of Stochastic Solution (VSS)**:
 
@@ -359,13 +359,13 @@ Where:
 
 - $\omega \in [0,1]$ is the tail weighting. It balances expected cost and tail cost by controlling how strongly the identified worst-case scenarios are weighted in a convex combination. The closed interval includes meaningful endpoints: $\omega=0$ corresponds to risk-neutral optimization, while $\omega=1$ corresponds to pure CVaR minimization.
 
-The CVaR at confidence level $\alpha$ is defined as the expected loss conditional on being in the worst $1-\alpha$ of outcomes:  
+The CVaR at confidence level $\alpha$ is defined as the expected loss conditional on being in the worst $1-\alpha$ of outcomes:
 
 $$
 \mathrm{CVaR}_\alpha(Q) = \mathbb{E}[\,Q(x,\xi_s)\;|\;Q(x,\xi_s)\geq \,\textrm{VaR}_\alpha(Q)].
 $$
 
-It can equivalently be written as an optimization problem, see Rockafellar & Uryasev (2002)[^2]:  
+It can equivalently be written as an optimization problem, see Rockafellar & Uryasev (2002)[^2]:
 
 $$
 \mathrm{CVaR}_\alpha(Q) = \min_{\theta \in \mathbb{R}} \Big[ \theta + \frac{1}{1-\alpha} \sum_{s \in S} p_s \max\{Q(x,\xi_s)-\theta,0\} \Big].
@@ -377,7 +377,7 @@ Variables:
 
 - $\theta$ (free): the Value-at-Risk cutoff at level $\alpha$.
 - $\mathrm{CVaR}_\alpha$ (free): the CVaR at level $\alpha$.
-- $a_s \geq 0$: excess loss of scenario $s$ above $\theta$.  
+- $a_s \geq 0$: excess loss of scenario $s$ above $\theta$.
 
 Constraints:
 
@@ -416,7 +416,7 @@ Continuing the volcano example from above, risk preferences can be explored usin
 >>> n.set_risk_preference(alpha=0.9, omega=0.0)
 >>> n.optimize()
 
-# Edge case: CVaR capturing the results of the worst-case scenario 
+# Edge case: CVaR capturing the results of the worst-case scenario
 # (omega=1, alpha so only worst scenario is in tail)
 >>> p_worst = float(n.scenario_weightings.loc["volcano", "weight"])  # 0.1
 >>> n.set_risk_preference(alpha=1 - p_worst, omega=1.0)
@@ -436,7 +436,7 @@ With moderate risk aversion (`alpha=0.9, omega=0.5`), the optimization shifts in
 >>> cap_diff = cap_cvar.iloc[:, 0] - cap_stochastic.iloc[:, 0]
 >>> print("Capacity diff (omega=0.5 - neutral) [GW]:")
 >>> print(cap_diff.round(2))
-component    carrier         
+component    carrier
 Generator    load shedding          0.00
              solar                 10.88
              wind                   4.64

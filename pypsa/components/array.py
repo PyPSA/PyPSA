@@ -109,30 +109,53 @@ class _XarrayAccessor:
     """Accessor class that provides property-like xarray access to all attributes.
 
     Attributes are lazy evaluated via _as_xarray method of the component.
+    Supports both attribute access (c.da.p_max_pu) and item access (c.da['p_max_pu']).
     """
 
+    # Use __slots__ to reduce memory footprint (no __dict__ and no dynamic attributes)
+    __slots__ = ("_component",)
+
     def __init__(self, component: ComponentsArrayMixin) -> None:
-        self._component = component
+        object.__setattr__(self, "_component", component)
+
+    def _get_component(self) -> ComponentsArrayMixin:
+        """Safely get the component reference to avoid recursion during unpickling."""
+        return object.__getattribute__(self, "_component")
+
+    def _get_array(self, attr: str) -> xarray.DataArray:
+        """Get an xarray DataArray for the specified attribute."""
+        component = self._get_component()
+        try:
+            return component._as_xarray(attr=attr)
+        except AttributeError as e:
+            msg = f"'{component.__class__.__name__}' components has no attribute '{attr}'."
+            raise AttributeError(msg) from e
 
     def __getattr__(self, attr: str) -> xarray.DataArray:
-        try:
-            return self._component._as_xarray(attr=attr)
-        except AttributeError as e:
-            msg = (
-                f"'{self._component.__class__.__name__}' components has no "
-                "attribute '{attr}'"
-            )
-            raise AttributeError(msg) from e
+        """Access component attributes as xarray DataArrays via dot notation."""
+        return self._get_array(attr)
 
     def __getitem__(self, attr: str) -> xarray.DataArray:
-        try:
-            return self._component._as_xarray(attr=attr)
-        except AttributeError as e:
-            msg = (
-                f"'{self._component.__class__.__name__}' components has no "
-                "attribute '{attr}'"
-            )
-            raise AttributeError(msg) from e
+        """Access component attributes as xarray DataArrays via bracket notation."""
+        return self._get_array(attr)
+
+    def __dir__(self) -> list[str]:
+        """List available attributes for tab-completion."""
+        component = self._get_component()
+        # Include all static and dynamic attributes
+        attrs = set(component.static.columns)
+        attrs.update(component.dynamic.keys())
+        return sorted(attrs)
+
+    def __str__(self) -> str:
+        """Get string representation of the xarray accessor."""
+        component = self._get_component()
+        return f"'{component.ctype.name}' XarrayAccessor"
+
+    def __repr__(self) -> str:
+        """Get representation of the xarray accessor."""
+        component = self._get_component()
+        return f"'{component.ctype.name}' XarrayAccessor"
 
 
 class ComponentsArrayMixin(_ComponentsABC):
@@ -150,12 +173,31 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         Examples
         --------
-        c = n.components.generators
-        c.da.p_max_pu
+        >>> c = n.components.generators
+        >>> c.da.p_max_pu
+        xarray.DataArray 'p_max_pu' (snapshot: 10, name: 6)> Size: 480B
+        array([[0.93001988, 1.        , 0.9745832 , 1.        , 0.5590784 ,
+              ...
+                1.        ]])
+        Coordinates:
+        * snapshot  (snapshot) datetime64[ns] 80B 2015-01-01 ... 2015-01-01T09:00:00
+        * name      (name) object 48B 'Manchester Wind' ... 'Frankfurt Gas'
 
         For stochastic networks the scenarios are unstacked automatically:
-        c = n_stoch.components.generators
-        c.da.p_max_pu
+        >>> c = n_stoch.components.generators
+        >>> c.da.p_max_pu
+        <xarray.DataArray 'p_max_pu' (snapshot: 2920, scenario: 3, name: 4)> Size: 280kB
+        array([[[0.    , 0.1566, 1.    , 1.    ],
+              ...
+                [0.    , 0.1082, 1.    , 1.    ]]], shape=(2920, 3, 4))
+        Coordinates:
+        * snapshot  (snapshot) datetime64[ns] 23kB 2015-01-01 ... 2015-12-31T21:00:00
+        * scenario  (scenario) object 24B 'low' 'med' 'high'
+        * name      (name) object 32B 'solar' 'wind' 'gas' 'lignite'
+
+        String representation:
+        >>> c.da
+        <XarrayAccessor for Generators>
         """
 
     def __deepcopy__(

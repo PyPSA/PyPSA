@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC-BY-4.0
     Please also refer the [optimization section](optimization/overview.md) above, which offers more information on the mathematical formulations PyPSA uses when running [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
 PyPSA uses [Linopy](https://linopy.readthedocs.io/en/latest/) as the optimization backend. Linopy is a stand-alone package and works similar to [Pyomo](https://www.pyomo.org/), but without the memory overhead and much faster. However, it has a reduced set of optimization problem types it can support (LP, MILP, QP). The core optimization functions can be called with [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. This call unifies creating the problem, solving it and retrieving the optimized results.
-The accessor [n.optimize][pypsa.optimization.OptimizationAccessor] additionally offers a range of different functionalities. 
+The accessor [n.optimize][pypsa.optimization.OptimizationAccessor] additionally offers a range of different functionalities.
 
 ## Initialize Network
 
@@ -204,7 +204,7 @@ Again, we **first build** the optimization model, then **add our constraints** a
 
 ### Minimum for state of charge
 
-Assume we want to set a minimum state of charge of 50 MWh for our storage unit. This is done by: 
+Assume we want to set a minimum state of charge of 50 MWh for our storage unit. This is done by:
 
 ``` py
 >>> sus = m.variables["StorageUnit-state_of_charge"]
@@ -228,7 +228,7 @@ and inspected via its attributes like `lhs`, `sign` and `rhs`, e.g.
 
 ### Fix the ratio between incoming and outgoing capacity of the `Store`
 
-The battery in our system is modelled with two links and a store. We should make sure that its charging and discharging capacities, i.e. the links representing the inverter, are coupled. 
+The battery in our system is modelled with two links and a store. We should make sure that its charging and discharging capacities, i.e. the links representing the inverter, are coupled.
 
 ``` py
 >>> capacity = m.variables["Link-p_nom"]

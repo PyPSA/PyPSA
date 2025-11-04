@@ -34,7 +34,7 @@ dependencies = [
     "pandas>=0.24",
     "xarray<=2025.9.0",
     "netcdf4",
-    "linopy>=0.5.5",
+    "linopy>=0.5.5,<=0.5.7",
     "matplotlib",
     "plotly",
     "pydeck",
@@ -74,7 +74,7 @@ dev = [
     "typing-extensions>=4.14.0",
     "reuse>=5.1.1",
 ]
-docs = [    
+docs = [
     "mkdocs-material",
     "mkdocs-ezlinks-plugin",
     "mkdocs-autolinks-plugin",
@@ -93,7 +93,7 @@ docs = [
 ]
 
 # setuptools_scm settings
- 
+
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
 
@@ -145,7 +145,7 @@ no_implicit_optional = true
 warn_unused_ignores = true
 show_error_code_links = true
 # Maybe activate at later stage
-# disallow_any_generics = true 
+# disallow_any_generics = true
 # warn_return_any = true
 
 [[tool.mypy.overrides]]
@@ -211,7 +211,7 @@ ignore = [
     'D213', # Multi-line docstring summary should start at the second line
     'D400', # First line should end with a period
     'D415', # First line should end with a period, question mark, or exclamation point
-    'SIM105', 
+    'SIM105',
     'SIM108',
     'SIM118',
     'PLR0911',

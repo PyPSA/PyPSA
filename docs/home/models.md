@@ -51,7 +51,7 @@ open source and actively maintained. Below is a list of some known models.
 - Build your own global zero emission scenario [model.energy](https://model.energy), maintained by [pypsa.org](https://pypsa.org)
     - Define your own sector-coupled European scenarios [scenarios](https://model.energy/scenarios/)
     - Build your own green energy import supply chain [supply chain](https://model.energy/green-energy-imports/)
-    - See how the [future](https://model.energy/future/) German energy system might operate with today's weather 
+    - See how the [future](https://model.energy/future/) German energy system might operate with today's weather
 - Transport of chemical energy carriers to Germany [TRACE](https://github.com/euronion/trace)
 - Transmission grid optimisation [eTraGo](https://github.com/openego/eTraGo)
 - Distribution grid optimisation [dDisGo](https://github.com/openego/eDisGo)

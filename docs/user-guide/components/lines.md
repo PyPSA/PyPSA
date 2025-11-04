@@ -14,4 +14,4 @@ The [`Line`][pypsa.components.Lines] components represent power transmission and
     - Use the [`Link`][pypsa.components.Links] for any connection between buses with different carrier.
 
 
-{{ read_csv('../../../pypsa/data/component_attrs/lines.csv', disable_numparse=True) }} 
+{{ read_csv('../../../pypsa/data/component_attrs/lines.csv', disable_numparse=True) }}

@@ -711,7 +711,7 @@ def define_ramp_limit_constraints(
 
     Applies to Components
     ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+    Generator (p), Link (p)
 
     Parameters
     ----------
@@ -743,11 +743,11 @@ def define_ramp_limit_constraints(
     m = n.model
     c = as_components(n, component)
 
-    # Fix for as_dynamic function breaking with scenarios. TODO fix it OR leave this if clause
-    if c.static.size == 0:
+    if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(c.static.columns):
         return
 
-    if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(c.static.columns):
+    # Fix for as_dynamic function breaking with scenarios. TODO fix it OR leave this if clause
+    if c.static.size == 0:
         return
 
     ramp_limit_up = c.da.ramp_limit_up.sel(snapshot=sns)
@@ -761,13 +761,23 @@ def define_ramp_limit_constraints(
 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
 
-    attr = {"p", "p0"}.intersection(c.dynamic.keys()).pop()
-    start_i = n.snapshots.get_loc(sns[0]) - 1
-    p_start = c.dynamic[attr].iloc[start_i]
+    # Both Generator and Link use "p" as their dispatch variable
+    var_attr = "p"
 
-    # Get the dispatch value from previous snapshot if not at beginning
-    is_rolling_horizon = sns[0] != n.snapshots[0] and not p_start.empty
-    p = m[f"{c.name}-{attr}"]
+    # Check if we're in rolling horizon optimization (not starting from first snapshot)
+    # If so, retrieve historical data from the previous snapshot
+    p_start = pd.Series(dtype=float)
+    if sns[0] != n.snapshots[0]:
+        # Historical data: "p0" for Links, "p" for Generators
+        historical_attrs = {"p", "p0"}.intersection(c.dynamic.keys())
+        if historical_attrs:
+            hist_attr = historical_attrs.pop()
+            start_i = n.snapshots.get_loc(sns[0]) - 1
+            p_start = c.dynamic[hist_attr].iloc[start_i]
+
+    is_rolling_horizon = not p_start.empty
+
+    p = m[f"{c.name}-{var_attr}"]
 
     # Get different component groups for constraint application
     com_i = c.committables.difference(c.inactive_assets)

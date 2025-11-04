@@ -15,7 +15,7 @@ specific functions and components.
     ---
 
     Description of design choices, conventions and components of PyPSA.
-    
+
     [:material-notebook: Core Design](../user-guide/design.md)
 
     ---
@@ -25,7 +25,7 @@ specific functions and components.
     ---
 
     Description of optimisation problems that can be solved with PyPSA.
-    
+
     [:material-notebook: Optimisation](../user-guide/optimization/overview.md)
 
     ---
@@ -35,7 +35,7 @@ specific functions and components.
     ---
 
     Description of power flow calculations PyPSA can run on solved networks.
-    
+
     [:material-notebook: Simulation](../user-guide/power-flow.md)
 
     ---

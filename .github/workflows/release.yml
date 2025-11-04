@@ -92,7 +92,7 @@ jobs:
         updated_cff_content = re.sub(r"(?<=version: ).+(?= #)",version,cff_content,flags=re.MULTILINE)
 
         with open('CITATION.cff', 'w') as file:
-          file.write(updated_cff_content)      
+          file.write(updated_cff_content)
       shell: python
 
     - name: Update example notebooks
@@ -167,7 +167,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-    - uses: actions/download-artifact@v5
+    - uses: actions/download-artifact@v6
       with:
         name: Packages
         path: dist

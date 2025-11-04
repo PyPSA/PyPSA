@@ -76,7 +76,7 @@ jobs:
         brew install hdf5
 
     - name: Download package
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: Packages
         path: dist
@@ -105,7 +105,7 @@ jobs:
 
     - name: Upload artifacts
       if: matrix.api == 'default' && matrix.os == 'macos-latest' && matrix.python-version == '3.13'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: results-plotting
         path: |
@@ -151,7 +151,7 @@ jobs:
         python-version: 3.13
 
     - name: Download package
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: Packages
         path: dist
@@ -207,7 +207,7 @@ jobs:
         python-version: 3.13
 
     - name: Download package
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: Packages
         path: dist
