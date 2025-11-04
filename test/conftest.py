@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
+from linopy import available_solvers
 from shapely.geometry import Polygon
 
 import pypsa
@@ -362,3 +363,25 @@ def stochastic_benchmark_network():
     n.set_scenarios({"low": 0.4, "medium": 0.3, "high": 0.3})
 
     return n
+
+
+def can_use_gurobi():
+    """Check if gurobi is available and usable (not just installed)."""
+    if "gurobi" not in available_solvers:
+        return False
+    try:
+        import gurobipy
+
+        # Try to create an environment to check if license is available
+        with gurobipy.Env():
+            pass
+        return True
+    except Exception:
+        return False
+
+
+# Make can_use_gurobi available as a pytest fixture as well for runtime use
+@pytest.fixture
+def gurobi_available():
+    """Fixture that returns whether Gurobi is available and usable."""
+    return can_use_gurobi()

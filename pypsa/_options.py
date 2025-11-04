@@ -424,6 +424,13 @@ options._add_option(
     "Default value for the 'solver_options' parameter in optimization module.",
 )
 
+options._add_option(
+    "params.optimize.committable_big_m",
+    None,
+    "Fallback big-M value for committable+extendable constraints. If None,"
+    " PyPSA infers a scale from the network (e.g. peak load); otherwise this"
+    " numeric bound is used when no component-specific limit is available.",
+)
 # Warnings category
 options._add_option(
     "warnings.components_store_iter",

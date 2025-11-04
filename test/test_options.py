@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import pytest
+from conftest import can_use_gurobi
 
 import pypsa
 
@@ -246,6 +247,9 @@ def test_add_return_names_option():
     assert n.add("Bus", "bus6") is None  # Back to False
 
 
+@pytest.mark.skipif(
+    not can_use_gurobi(), reason="Gurobi not available or license issue"
+)
 def test_params_optimize():
     n = pypsa.examples.ac_dc_meshed()
 
