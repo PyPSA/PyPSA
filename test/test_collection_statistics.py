@@ -532,3 +532,33 @@ def test_network_collection_revenue(
         assert (scenario_revenue == network_revenue).all(), (
             f"Revenue mismatch for scenario {scenario}"
         )
+
+
+def test_network_collection_bus_carrier_filter(
+    optimized_network_collection_from_ac_dc,
+):
+    """Test bus_carrier parameter as filter with NetworkCollection.
+
+    This test specifically checks that the bus_carrier parameter works correctly
+    for NetworkCollection, which was a bug previously.
+    """
+    nc = optimized_network_collection_from_ac_dc
+
+    result = nc.statistics.energy_balance(bus_carrier="AC")
+    assert not result.empty
+
+    assert "bus_carrier" in result.index.names
+    bus_carriers = result.index.get_level_values("bus_carrier").unique()
+    assert "AC" in bus_carriers
+
+    # Compare with single network
+    single_result = nc.networks.iloc[0].statistics.energy_balance(bus_carrier="AC")
+    collection_result_first = result.xs(
+        nc.networks.index[0], level=nc.networks.index.name
+    )
+
+    pd.testing.assert_series_equal(
+        single_result.sort_index(),
+        collection_result_first.sort_index(),
+        check_names=False,
+    )
