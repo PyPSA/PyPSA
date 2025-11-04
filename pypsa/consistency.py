@@ -444,12 +444,20 @@ def check_assets(n: NetworkType, component: Components, strict: bool = False) ->
     if component.name in {"Generator", "Link"}:
         committables = component.committables
         extendables = component.extendables
-        intersection = committables.intersection(extendables)
+        modulars = component.modulars
+        intersection = committables.intersection(extendables).difference(modulars)
         if not intersection.empty:
-            _log_or_raise(
-                strict,
-                "Assets can only be committable or extendable."
-                " Found assets in component %s which are both:\n\n\t%s",
+            logger.info(
+                "Components in %s are both committable and extendable: %s. "
+                "This is supported using a big-M formulation for mixed-integer optimization.",
+                component.name,
+                ", ".join(intersection),
+            )
+        intersection = committables.intersection(extendables).intersection(modulars)
+        if not intersection.empty:
+            logger.info(
+                "Components in %s are both committable, extendable, and modular: %s. "
+                "This is supported using unit-committment formulation on modular levels.",
                 component.name,
                 ", ".join(intersection),
             )

@@ -13,6 +13,19 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
 
+* PyPSA now supports committability and extendability, on
+  the same components, if modularity is used. The new feature
+  is compatible with start-up and shut-down costs, ramp-up and
+  shut-down limit. The feature is not still compatible with
+  min-up and min-down time, up and down time before.
+
+- Components (Generators and Links) can now be both committable and extendable
+  simultaneously. This enables unit commitment with capacity expansion optimization
+  using a big-M formulation that maintains the linear programming structure.
+  Previously, components could only be either committable or extendable, but not both.
+  The implementation automatically detects when both attributes are set and applies
+  the appropriate big-M constraints to ensure correct operation.
+
 ## [**v1.0.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.2) <small>24 October 2025</small> { id="v1.0.2" }
 
 ### Bug Fixes
