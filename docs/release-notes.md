@@ -13,15 +13,17 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
 
-## [**v1.0.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.2) <small>24 October 2025</small> { id="v1.0.2" }
+## [**v1.0.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.3) <small>6th November 2025</small> { id="v1.0.3" }
+
+- Fix ramp_limit_up/down constraints: correctly detect components with ramp limits, handle rolling-horizon windows by using previous-window dispatch, and add unit tests for Link ramp limits and ramping constraints in rolling horizon mode. (<!-- md:pr 1428 -->)
+
+## [**v1.0.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.2) <small>24th October 2025</small> { id="v1.0.2" }
 
 ### Bug Fixes
 
 - Fix infinite recursion error when pickling networks. (<!-- md:pr 1421 -->)
 
-- Fix ramp_limit_up/down constraints: correctly detect components with ramp limits, handle rolling-horizon windows by using previous-window dispatch, and add unit tests for Link ramp limits and ramping constraints in rolling horizon mode. (<!-- md:pr: 1428 -->)
-
-## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> { id="v1.0.1" }
+## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20th October 2025</small> { id="v1.0.1" }
 
 ### Bug Fixes
 
@@ -33,7 +35,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix dimension name consistency when adding investment period weightings. (<!-- md:pr 1416 -->)
 
-## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14 October 2025</small> 🎉 { id="v1.0.0" }
+## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14th October 2025</small> 🎉 { id="v1.0.0" }
 
 ### **PyPSA 1.0** is here!
 
