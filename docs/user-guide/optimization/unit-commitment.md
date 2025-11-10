@@ -309,6 +309,14 @@ These constraints are defined in the function `define_operational_constraints_fo
 
     [:octicons-arrow-right-24: Go to example](../../examples/unit-commitment.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Negative Prices in Linearized Unit Commitment**
+
+    ---
+
+    Demonstrates how negative electricity prices emerge in linearized unit commitment when generators face high cycling costs and prefer to stay online at negative prices.
+
+    [:octicons-arrow-right-24: Go to example](../../examples/uc-prices.ipynb)
+
 </div>
 
 [^1]: J.A. Taylor (2015), [Convex Optimization of Power Systems](http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems), Cambridge University Press, Chapter 4.3.

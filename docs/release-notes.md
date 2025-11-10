@@ -13,6 +13,10 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
 
+### Documentation
+
+- Added new example notebook demonstrating negative electricity prices in linearized unit commitment problem.
+
 ## [**v1.0.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.3) <small>6th November 2025</small> { id="v1.0.3" }
 
 - Fix ramp_limit_up/down constraints: correctly detect components with ramp limits, handle rolling-horizon windows by using previous-window dispatch, and add unit tests for Link ramp limits and ramping constraints in rolling horizon mode. (<!-- md:pr 1428 -->)
