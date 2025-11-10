@@ -13,6 +13,10 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
 
+### Bug Fixes
+
+- Fix snapshot selection in operational limit global constraint with investment period.
+
 ### Documentation
 
 - Added new example notebook demonstrating negative electricity prices in linearized unit commitment problem.

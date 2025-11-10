@@ -493,16 +493,6 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
     weightings = n.snapshot_weightings.loc[sns]
     glcs = n.c.global_constraints.static.query('type == "operational_limit"')
 
-    if n._multi_invest:
-        period_weighting = n.investment_period_weightings.years[sns.unique("period")]
-        weightings = weightings.mul(period_weighting, level=0, axis=0)
-        period_last_sns = pd.MultiIndex.from_frame(
-            sns.to_frame(index=False).groupby("period").timestep.last().reset_index()
-        )
-        storage_weightings = (
-            pd.Series(1, n.snapshots).mul(period_weighting).loc[period_last_sns]
-        )
-
     unique_names = glcs.index.unique("name")
 
     for name in unique_names:
@@ -523,6 +513,22 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 sns_sel = sns.get_loc(glc.investment_period)
             else:
                 continue
+
+            if n._multi_invest:
+                period_weighting = n.investment_period_weightings.years[
+                    sns[sns_sel].unique("period")
+                ]
+                weightings = weightings.mul(period_weighting, level=0, axis=0)
+                period_last_sns = pd.MultiIndex.from_frame(
+                    sns[sns_sel]
+                    .to_frame(index=False)
+                    .groupby("period")
+                    .timestep.last()
+                    .reset_index()
+                )
+                storage_weightings = (
+                    pd.Series(1, n.snapshots).mul(period_weighting).loc[period_last_sns]
+                )
 
             lhs = []
 
