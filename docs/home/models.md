@@ -32,6 +32,7 @@ open source and actively maintained. Below is a list of some known models.
 - **[:flag_jp: PyPSA-Japan](https://github.com/smdumlao/demandfingerprint/tree/main/papers/coaldecommissioning)**: Japanese power system model, developed by Samuel Matthew Dumlao
 - **[:flag_kz: PyPSA-Kazakhstan](https://github.com/pypsa-meets-earth/pypsa-kz-data)**: Kazakhstan power system model, developed by [Open Energy Transition ](https://www.openenergytransition.org/)
 - **[:earth_asia: TZ-APG](https://www.transitionzero.org/products/tz-asean-power-grid-model)**: ASEAN power system model, maintained by [TransitionZero](https://www.transitionzero.org/)
+- **[:earth_asia: PyPSA-ASEAN](https://github.com/pypsa-meets-earth/pypsa-asean)**: ASEAN power system model, developed by [pypsa-meets-earth](https://pypsa-meets-earth.github.io/)
 
 ### Americas
 - **[:flag_us: PyPSA-USA](https://github.com/pypsa/pypsa-usa)**: United States energy system model, maintained by Stanford University
