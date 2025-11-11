@@ -514,11 +514,15 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             else:
                 continue
 
+            # Filter weightings and calculate period-specific values
+            weightings_filtered = weightings.loc[sns[sns_sel]]
             if n._multi_invest:
                 period_weighting = n.investment_period_weightings.years[
                     sns[sns_sel].unique("period")
                 ]
-                weightings = weightings.mul(period_weighting, level=0, axis=0)
+                weightings_filtered = weightings_filtered.mul(
+                    period_weighting, level=0, axis=0
+                )
                 period_last_sns = pd.MultiIndex.from_frame(
                     sns[sns_sel]
                     .to_frame(index=False)
@@ -542,7 +546,11 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 if n.has_scenarios:
                     p = p.sel(scenario=scenario, drop=True)
 
-                w = DataArray(weightings.generators[sns_sel])
+                w = DataArray(
+                    weightings_filtered.generators.values,
+                    coords={"snapshot": weightings_filtered.index},
+                    dims=["snapshot"],
+                )
                 expr = (p * w).sum()
                 lhs.append(expr)
 
