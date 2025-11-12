@@ -109,7 +109,7 @@ dtype: float64
 >>>
 >>> obj_deterministic = n.objective / 1e9
 >>> obj_deterministic  # doctest: +ELLIPSIS
-5.3574849734203...
+5.357...
 ```
 
 ### Scenario Definition

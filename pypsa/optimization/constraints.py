@@ -1064,7 +1064,9 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
 
     if lhs:
         lhs = merge(lhs, dim="snapshot")
-        m.add_constraints(lhs == 0, name="Kirchhoff-Voltage-Law")
+        con = lhs == 0
+        mask = con.rhs.notnull()
+        m.add_constraints(con, name="Kirchhoff-Voltage-Law", mask=mask)
 
 
 def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:
