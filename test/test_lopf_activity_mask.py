@@ -492,3 +492,25 @@ def test_inactive_stores_with_global_operational_limit():
     # Test inactive store is not in model constraints related to energy
     assert "store_inactive" not in n.model.variables["Store-e"].coords["name"]
     assert "store_active" in n.model.variables["Store-e"].coords["name"]
+
+
+def test_all_storage_units_inactive():
+    """Test that optimization works when all storage units are inactive."""
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2023-01-01", periods=2, freq="h"))
+
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=5)
+    n.add("StorageUnit", "storage1", bus="bus", p_nom=50, active=False)
+    n.add("StorageUnit", "storage2", bus="bus", p_nom=50, active=False)
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+
+    # Test that no spillage variables were created for inactive storage units
+    assert "StorageUnit-spill" not in n.model.variables
+
+    # Test that inactive storage units have zero dispatch
+    assert (n.c.storage_units.dynamic.p["storage1"] == 0).all()
+    assert (n.c.storage_units.dynamic.p["storage2"] == 0).all()
