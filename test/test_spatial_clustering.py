@@ -229,20 +229,22 @@ def test_clustering_multiport_links():
 
     # Apply clustering
     C = get_clustering_from_busmap(n, busmap)
-    nc = C.n
+    n = C.n
 
     # Assert that bus2 is correctly remapped to "power"
-    assert nc.links.loc["CHP", "bus2"] == "power", (
-        f"bus2 should be remapped to 'power', got {nc.links.loc['CHP', 'bus2']}"
+    assert n.c.links.static.loc["CHP", "bus2"] == "power", (
+        f"bus2 should be remapped to 'power', got {n.c.links.static.loc['CHP', 'bus2']}"
     )
 
     # Assert that the old bus "power A" no longer exists
-    assert "power A" not in nc.buses.index, "Old bus 'power A' should not exist"
+    assert "power A" not in n.c.buses.static.index, "Old bus 'power A' should not exist"
 
     # Assert all buses referenced by the link exist in the clustered network
     for col in ["bus0", "bus1", "bus2"]:
-        bus_name = nc.links.loc["CHP", col]
-        assert bus_name in nc.buses.index, f"{col}={bus_name} not found in buses"
+        bus_name = n.c.links.static.loc["CHP", col]
+        assert bus_name in n.c.buses.static.index, (
+            f"{col}={bus_name} not found in buses"
+        )
 
     # Assert total number of buses is correct
-    assert len(nc.buses) == 3, f"Expected 3 buses, got {len(nc.buses)}"
+    assert len(n.c.static.buses) == 3, f"Expected 3 buses, got {len(n.c.static.buses)}"
