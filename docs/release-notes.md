@@ -19,7 +19,9 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Documentation
 
-- Added new example notebook demonstrating negative electricity prices in linearized unit commitment problem. (<!-- md:pr 1434 -->)
+- New example notebooks:
+  - Demonstrating negative electricity prices in linearized unit commitment problem. See [:material-notebook-multiple: notebook](./examples/unit-commitment.ipynb). (<!-- md:pr 1434 -->)
+  - Combining PyPSA with Global Sensitivity Analysis (GSA) methods. See [:material-notebook-multiple: notebook](./examples/gsa.ipynb). (<!-- md:pr 1318 -->)
 
 ## [**v1.0.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.3) <small>6th November 2025</small> { id="v1.0.3" }
 
