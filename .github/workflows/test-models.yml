@@ -80,7 +80,7 @@ jobs:
     - name: Install package from ref
       if: env.pinned == 'false'
       run: |
-        pixi add --pypi "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"@ git+https://github.com/PyPSA/${{ github.repository }}.git
+        pixi add --pypi ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}@git+https://github.com/PyPSA/${{ github.repository }}.git
 
     - name: Run snakemake test workflows
       if: env.pinned == 'false'
