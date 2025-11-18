@@ -247,4 +247,4 @@ def test_clustering_multiport_links():
         )
 
     # Assert total number of buses is correct
-    assert len(n.c.static.buses) == 3, f"Expected 3 buses, got {len(n.c.static.buses)}"
+    assert len(n.c.buses.static) == 3, f"Expected 3 buses, got {len(n.c.buses.static)}"
