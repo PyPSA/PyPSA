@@ -85,6 +85,7 @@ jobs:
       run: |
         pixi remove pypsa
         pixi add -f test --pypi pypsa --git "https://github.com/${{ github.repository }}" --rev ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        pixi install -e test
         pixi list -e test pypsa
 
     - name: Check pypsa version
