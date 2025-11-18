@@ -13,6 +13,10 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Features
+
+- Add support for time-varying start-up and shutdown costs for committable generators and links. Costs can now be provided as time series (varying per snapshot) in addition to static values. The linearized unit commitment tightening constraints are only applied when costs are static (constant over time) and equal. (<!-- md:pr 1425 -->)
+
 ### Bug Fixes
 
 - Fix busmap clustering to correctly remap all bus ports in multi-port links. (<!-- md:pr 1441 -->)

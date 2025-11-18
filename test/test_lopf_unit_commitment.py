@@ -690,7 +690,7 @@ def test_time_varying_start_and_shut_costs_affect_commitment():
     the peak. These incentives outweigh its high stand-by cost, so it
     commits one step early and remains online one step late. A second,
     high-MC generator can meet all demand, guaranteeing feasibility
-    regardless of what the low-MC generator does
+    regardless of what the low-MC generator does.
     """
 
     snapshots = range(5)
@@ -735,3 +735,73 @@ def test_time_varying_start_and_shut_costs_affect_commitment():
     dyn = n.c.generators.dynamic
     status = dyn.status[committed].to_numpy()
     np.testing.assert_array_equal(status, np.array([0.0, 1.0, 1.0, 1.0, 0.0]))
+    # Verify generator starts up and shuts down
+    assert dyn.start_up[committed].sum() >= 1.0, "Generator should start up"
+    assert dyn.shut_down[committed].sum() >= 1.0, "Generator should shut down"
+
+
+def test_static_costs_applied_with_time_varying_present():
+    """Static start/shut costs still apply when another unit has time-series costs."""
+
+    snapshots = range(2)
+    n = pypsa.Network()
+    n.set_snapshots(snapshots)
+    n.add("Bus", "bus")
+
+    # Discourage the time-varying unit from committing by making its start/shut
+    # costs huge. It should never turn on, ensuring the static unit must serve.
+    expensive_costs = pd.Series([1000.0, 990.0], index=snapshots)
+    n.add(
+        "Generator",
+        "time-varying-expensive",
+        bus="bus",
+        committable=True,
+        p_nom=100,
+        marginal_cost=500,
+        start_up_cost=expensive_costs,
+        shut_down_cost=expensive_costs,
+        initial_status=0,
+        down_time_before=5,
+        up_time_before=0,
+    )
+
+    # Static-cost unit that should cover the short load spike and incur exactly
+    # one start-up event with the given fixed cost.
+    n.add(
+        "Generator",
+        "static-cheap",
+        bus="bus",
+        committable=True,
+        p_nom=100,
+        marginal_cost=10,
+        start_up_cost=50.0,
+        shut_down_cost=0.0,
+        initial_status=0,
+        down_time_before=5,
+        up_time_before=0,
+    )
+
+    # Load only in the second snapshot so the static unit starts once.
+    n.add("Load", "load", bus="bus", p_set=[0.0, 100.0])
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    dyn = n.c.generators.dynamic
+
+    # Time-varying unit must never start or dispatch because its start/shut
+    # costs dominate. It may remain nominally "available", but it should not be
+    # scheduled.
+    assert dyn.start_up["time-varying-expensive"].sum() == 0.0
+    assert np.isclose(dyn.p["time-varying-expensive"].sum(), 0.0)
+
+    # Static unit should start exactly once to meet the load.
+    assert np.isclose(dyn.start_up["static-cheap"].sum(), 1.0)
+
+    # Objective should include both the energy cost (10*100) and the static
+    # start-up cost (50). If static costs were ignored, result would be 1000.
+    expected_objective = 10.0 * 100.0 + 50.0
+    assert np.isclose(n.objective, expected_objective, atol=1e-6), (
+        f"Static start-up cost not applied correctly; expected {expected_objective}, "
+        f"got {n.objective}."
+    )

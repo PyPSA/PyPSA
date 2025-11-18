@@ -74,7 +74,7 @@ If the **minimum down time** $T_{\textrm{min_down}}$ is set, status switches are
 
 The component may have been down for some periods before the optimisation period (`n.optimize(snapshots=snapshots)`). If the down-time before `snapshots` starts is less than the minimum down-time, the component is forced to remain down for the difference at the start of `snapshots`. If the start of `snapshots` is the start of `n.snapshots`, the down-time before the simulation is read from the input attribute `down_time_before`. If `snapshots` falls in the middle of `n.snapshots`, then the statuses before `snapshots` are assumed to be set by previous runs. If the start of `snapshots` is very close to the start of `n.snapshots`, it will also take account of `down_time_before` as well as the statuses in between.
 
-Furthermore, two **state transition variables** for start-up ($su_{*,t} \in \{0,1\}$) and shut-down ($sd_{*,t} \in$ \{0,1\}) are introduced to associate them with start-up and shut-down cost terms in the objective function. The constraints are set so that the start-up variable is only non-zero if the component has just started up, i.e. $u_{n,s,t} - u_{n,s,t-1} = 1$, and the shut-down variable is only non-zero if the component has just shut down, i.e. $u_{n,s,t-1} - u_{n,s,t} = 1$:
+Furthermore, two **state transition variables** for start-up ($su_{*,t} \in \{0,1\}$) and shut-down ($sd_{*,t} \in$ \{0,1\}) are introduced to associate them with start-up and shut-down cost terms in the objective function. Start-up and shut-down costs can be provided as static values (constant for all snapshots) or as time series (varying per snapshot), allowing costs to reflect time-dependent factors such as fuel prices or market conditions. The constraints are set so that the start-up variable is only non-zero if the component has just started up, i.e. $u_{n,s,t} - u_{n,s,t-1} = 1$, and the shut-down variable is only non-zero if the component has just shut down, i.e. $u_{n,s,t-1} - u_{n,s,t} = 1$:
 
 === "Generator"
 
@@ -235,7 +235,7 @@ This allows for partial commitment states (generators can be partially on/off), 
 n.optimize(linearized_unit_commitment=True)
 ```
 
-To tighten the relaxation, additional constraints are introduced that improve capturing the relationship between commitment status, ramping, and dispatch. This requires start up and shut down costs need to be equal. Otherwise the unit commitment variables are purely relaxed. The added constraints limit the dispatch during partial start-up and shut-down, as well as ramping during partial commitment:
+To tighten the relaxation, additional constraints are introduced that improve capturing the relationship between commitment status, ramping, and dispatch. These tightening constraints are applied only when costs are static (constant over time, not time-varying) and only to committable units for which the start-up and shut-down costs are equal. While costs can be provided as static values or time series, if any unit has time-varying costs, the tightening is not applied to any units. When costs are static, units with unequal costs remain purely relaxed (no tightening). A warning is logged when tightening cannot be applied. The added constraints limit the dispatch during partial start-up and shut-down, as well as ramping during partial commitment:
 
 === "Generator"
 
