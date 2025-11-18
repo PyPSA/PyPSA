@@ -90,6 +90,7 @@ jobs:
     - name: Run unit tests
       if: env.pinned == 'false'
       run: |
+        pixi remove PyPSA || true
         pixi run unit-tests
 
     - name: Upload artifacts
