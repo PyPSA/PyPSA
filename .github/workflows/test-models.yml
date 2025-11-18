@@ -80,7 +80,8 @@ jobs:
     - name: Install package from ref
       if: env.pinned == 'false'
       run: |
-        pixi add --pypi --git https://github.com/${{ github.repository }}.git PyPSA --rev ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        pixi remove ${{ github.event.repository.name }} || true
+        pixi add --pypi --git https://github.com/${{ github.repository }}.git ${{ github.event.repository.name }} --rev ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
     - name: Run snakemake test workflows
       if: env.pinned == 'false'
@@ -90,7 +91,6 @@ jobs:
     - name: Run unit tests
       if: env.pinned == 'false'
       run: |
-        pixi remove PyPSA || true
         pixi run unit-tests
 
     - name: Upload artifacts
