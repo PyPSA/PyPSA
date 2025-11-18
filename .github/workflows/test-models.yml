@@ -70,45 +70,35 @@ jobs:
           cutouts
         key: data-cutouts-pypsa-eur-${{ env.WEEK }}
 
-    - uses: conda-incubator/setup-miniconda@v3
-      if: env.pinned == 'false'
+    - name: Setup Pixi
+      uses: prefix-dev/setup-pixi@v0.9.3
       with:
-        miniforge-version: latest
-        activate-environment: pypsa-eur
-        channel-priority: strict
-
-    - name: Cache Conda env
-      if: env.pinned == 'false'
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.CONDA }}/envs
-        key: conda-pypsa-eur-${{ env.WEEK }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
-      id: cache-env
-
-    - name: Update environment
-      if: env.pinned == 'false' && steps.cache-env.outputs.cache-hit != 'true'
-      run: |
-        conda env update -n pypsa-eur -f envs/linux-64.lock.yaml --quiet
-        conda list
+        pixi-version: latest
+        cache: true
+        cache-key: pixi-pypsa-eur-${{ env.WEEK }}-${{ hashFiles('pixi.lock') }}
+        # Do not cache in branches
+        cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+        environments: test
 
     - name: Install package from ref
       if: env.pinned == 'false'
       run: |
-        python -m pip install git+https://github.com/${{ github.repository }}@${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-        conda list
+        pixi remove pypsa
+        pixi add -f test --pypi pypsa --git "https://github.com/${{ github.repository }}" --rev ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        pixi list pypsa
 
     - name: Check pypsa version
       run: |
-        python -c "import pypsa; print(pypsa.__version__)"
+        pixi run -e test python -c "import pypsa; print(pypsa.__version__)"
 
     - name: Run snakemake test workflows
       if: env.pinned == 'false'
       run: |
-        make test
+        pixi run integration-tests
 
     - name: Run unit tests
       run: |
-        make unit-test
+        pixi run unit-tests
 
     - name: Upload artifacts
       if: env.pinned == 'false'
