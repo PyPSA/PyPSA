@@ -5,17 +5,23 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-<!--## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Bug Fixes
+
+- Fix busmap clustering to correctly remap all bus ports in multi-port links. (<!-- md:pr 1441 -->)
+- Fix handling of inactive `StorageUnit` or `Store` components (<!-- md:pr 1442 -->)
+- Fix snapshot selection in operational limit global constraint with investment period. (<!-- md:pr 1437 -->)
 
 ### Documentation
 
-- Added new example notebook demonstrating negative electricity prices in linearized unit commitment problem.
+- Added new example notebook demonstrating negative electricity prices in linearized unit commitment problem. (<!-- md:pr 1434 -->)
 
 ## [**v1.0.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.3) <small>6th November 2025</small> { id="v1.0.3" }
 
