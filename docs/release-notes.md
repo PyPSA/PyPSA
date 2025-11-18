@@ -15,8 +15,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix busmap clustering to correctly remap all bus ports in multi-port links. (<!-- md:pr 1441 -->)
 - Fix handling of inactive `StorageUnit` or `Store` components (<!-- md:pr 1442 -->)
-
 - Fix snapshot selection in operational limit global constraint with investment period. (<!-- md:pr 1437 -->)
 
 ### Documentation

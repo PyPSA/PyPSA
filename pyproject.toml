@@ -40,7 +40,7 @@ dependencies = [
     "pydeck",
     "seaborn",
     "geopandas>=0.9",
-    "shapely<2.1",
+    "shapely",
     "networkx>=2",
     "deprecation",
     "validators",
