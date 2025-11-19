@@ -14,6 +14,9 @@ on:
   schedule:
   - cron: "0 5 * * *"
 
+env:
+  PACKAGE_NAME: 'pypsa'
+
 # Cancel any in-progress runs when a new run is triggered
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -80,7 +83,7 @@ jobs:
     - name: Install package from ref
       if: env.pinned == 'false'
       run: |
-        pixi remove ${{ lower(github.event.repository.name) }}
+        pixi remove ${{ env.PACKAGE_NAME }}
         pixi add --pypi --git https://github.com/${{ github.repository }}.git ${{ github.event.repository.name }} --rev ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
     - name: Run snakemake test workflows
