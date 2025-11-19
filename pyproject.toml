@@ -90,6 +90,7 @@ docs = [
     "gurobipy",
     "openpyxl",
     "python-calamine",
+    "salib",
 ]
 
 # setuptools_scm settings
