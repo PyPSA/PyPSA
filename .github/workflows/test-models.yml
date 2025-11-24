@@ -118,6 +118,10 @@ jobs:
           results
         retention-days: 3
 
+    - name: Show remaining disk space
+      if: always()
+      run: df -h
+
 # Temporarily disabled until PyPSA-DE issues are resolved. This is not a problem of PyPSA.
   # test-pypsa-de:
   #   name: PyPSA-DE
