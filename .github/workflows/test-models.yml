@@ -38,6 +38,17 @@ jobs:
         shell: bash -l {0}
 
     steps:
+    - name: Free up disk space
+      run: |
+        echo "Initial disk space"
+        df -h
+        echo "Free up disk space"
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        sudo docker builder prune -a --force
+        echo "Final disk space"
+        df -h
+
     - uses: actions/checkout@v5
       with:
         repository: PyPSA/pypsa-eur
