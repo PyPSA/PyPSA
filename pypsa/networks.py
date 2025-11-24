@@ -177,6 +177,10 @@ class Network(
         """
         Network [statistics functionality][pypsa.statistics.StatisticsAccessor] accessor.
         """
+        self.stats: StatisticsAccessor = self.statistics
+        """
+        Network [statistics functionality][pypsa.statistics.StatisticsAccessor] accessor (alias for `statistics`).
+        """
         self.plot: PlotAccessor = PlotAccessor(self)
         """
         Network [plotting functionality][pypsa.plot.PlotAccessor] accessor.

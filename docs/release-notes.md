@@ -13,6 +13,10 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Features
+
+- Add `stats` as a shorthand alias for the `statistics` accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr TBD -->)
+
 ### Bug Fixes
 
 - Fix snapshot selection in operational limit global constraint with investment period. (<!-- md:pr 1437 -->)
