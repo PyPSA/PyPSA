@@ -51,3 +51,7 @@ plant).
     Suppose a link representing a methanation process takes as inputs one unit of hydrogen and 0.5 units of carbon dioxide, and gives as outputs 0.8 units of methane and 0.2 units of heat. Then `bus0` connects to hydrogen, `bus1` connects to carbon dioxide with `efficiency=-0.5` (since 0.5 units of carbon dioxide is taken for each unit of hydrogen), `bus2` connects to methane with `efficiency2=0.8` and `bus3` to heat with `efficiency3=0.2`. [This example](../../examples/biomass-synthetic-fuels-carbon-management.ipynb) illustrates many modelling processes with multiple inputs and outputs using links.
 
 {{ read_csv('../../../pypsa/data/component_attrs/links.csv', disable_numparse=True) }}
+
+!!! note "Time-varying unit commitment costs"
+
+    For committable links, `start_up_cost` and `shut_down_cost` can be provided as time series, allowing costs to vary per snapshot. See the [Unit Commitment](../optimization/unit-commitment.md#start-up-and-shut-down) documentation for details.

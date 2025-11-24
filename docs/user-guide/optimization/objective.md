@@ -122,13 +122,15 @@ For generators and links with unit commitment (`committable=True`), stand-by cos
 
 === "Generator"
 
-    $$+ \sum_{n,s,t} w_t^o sbc_{n,s,t} u_{n,s,t} + \sum_{n,s} suc_{n,s} su_{n,s,t} + \sum_{n,s} sdc_{n,s} sd_{n,s,t}$$
+    $$+ \sum_{n,s,t} w_t^o sbc_{n,s,t} u_{n,s,t} + \sum_{n,s,t} suc_{n,s,t} su_{n,s,t} + \sum_{n,s,t} sdc_{n,s,t} sd_{n,s,t}$$
 
 === "Link"
 
     $$+ \sum_{l,t} w_t^o sbc_{l,t} u_{l,t} + \sum_{l,t} suc_{l,t} su_{l,t} + \sum_{l,t} sdc_{l,t} sd_{l,t}$$
 
 where $sbc_{*,t}$, $suc_{*,t}$, and $sdc_{*,t}$ are the stand-by, start-up, and shut-down costs linked to the status ($u_{*,t} \in \mathbb{B}$), start-up ($su_{*,t} \in \mathbb{B}$), and shut-down ($sd_{*,t} \in \mathbb{B}$) unit commitment variables. Only the stand-by costs are weighted by the objective snapshot weightings $w_t^o$. Components with unit commitment constraints turn the problem into a mixed-integer linear program (MILP).
+
+Start-up and shut-down costs can be provided as static values (per unit) or as time series. If time-varying series are provided, the costs vary by snapshot $t$ (as in $suc_{*,t}$ and $sdc_{*,t}$). Static values are applied uniformly across all snapshots. The stand-by cost also supports static or time-series input; in the objective only the stand-by term is multiplied by $w_t^o$.
 
 ??? note "Mapping of symbols to attributes"
 
@@ -140,8 +142,8 @@ where $sbc_{*,t}$, $suc_{*,t}$, and $sdc_{*,t}$ are the stand-by, start-up, and 
         | $su_{n,s,t}$      | `n.generators_t.start_up` | Decision variable |
         | $sd_{n,s,t}$      | `n.generators_t.shut_down` | Decision variable |
         | $sbc_{n,s,t}$     | `n.generators_t.stand_by_cost` | Parameter |
-        | $suc_{n,s}$       | `n.generators.start_up_cost` | Parameter |
-        | $sdc_{n,s}$       | `n.generators.shut_down_cost` | Parameter |
+        | $suc_{n,s,t}$     | `n.generators.start_up_cost` (static) or `n.generators_t.start_up_cost` | Parameter |
+        | $sdc_{n,s,t}$     | `n.generators.shut_down_cost` (static) or `n.generators_t.shut_down_cost` | Parameter |
         | $w_t^o$           | `n.snapshots.weightings.objective` | Parameter |
 
     === "Link"
@@ -152,8 +154,8 @@ where $sbc_{*,t}$, $suc_{*,t}$, and $sdc_{*,t}$ are the stand-by, start-up, and 
         | $su_{l,t}$        | `n.links_t.start_up` | Decision variable |
         | $sd_{l,t}$        | `n.links_t.shut_down` | Decision variable |
         | $sbc_{l,t}$       | `n.links_t.stand_by_cost` | Parameter |
-        | $suc_{l,t}$       | `n.links.start_up_cost` | Parameter |
-        | $sdc_{l,t}$       | `n.links.shut_down_cost` | Parameter |
+        | $suc_{l,t}$       | `n.links.start_up_cost` (static) or `n.links_t.start_up_cost` | Parameter |
+        | $sdc_{l,t}$       | `n.links.shut_down_cost` (static) or `n.links_t.shut_down_cost` | Parameter |
         | $w_t^o$           | `n.snapshots.weightings.objective` | Parameter |
 
 Some decision variables do not show up in the objective function, such as the power flow on lines and transformers ($p_{l,t} \in \mathbb{R}$) and the storage unit charging ($h_{n,s,t}^+ \in \mathbb{R}$). They are only used to enforce constraints, e.g. the power flow on lines and transformers.

@@ -397,17 +397,25 @@ def define_operational_constraints_for_committables(
     shut_down_cost = c.da.shut_down_cost.sel(name=com_i)
     cost_equal = (start_up_cost == shut_down_cost).values
 
+    # check if costs are time-varying
+    # Note: linearization only applied when costs are time-invariant and equal
+    # See https://github.com/PyPSA/PyPSA/pull/1425
+    # and https://github.com/PyPSA/PyPSA/issues/689
+    time_varying = ("snapshot" in start_up_cost.dims) or (
+        "snapshot" in shut_down_cost.dims
+    )
+
     # only valid additional constraints if start up costs equal to shut down costs
-    if n._linearized_uc and not cost_equal.all():
+    if n._linearized_uc and (not cost_equal.all() or time_varying):
         logger.warning(
             "The linear relaxation of the unit commitment cannot be "
             "tightened for all generators since the start up costs "
-            "are not equal to the shut down costs. Proceed with the "
-            "linear relaxation without the tightening by additional "
-            "constraints for these. This might result in a longer "
+            "are not equal to the shut down costs or are time-varying. "
+            "Proceed with the linear relaxation without the tightening by "
+            "additional constraints for these. This might result in a longer "
             "solving time."
         )
-    if n._linearized_uc and cost_equal.any():
+    if n._linearized_uc and cost_equal.any() and not time_varying:
         # dispatch limit for partly start up/shut down for t-1
         p_ce = p.loc[:, cost_equal]
         start_up_ce = start_up.loc[:, cost_equal]
