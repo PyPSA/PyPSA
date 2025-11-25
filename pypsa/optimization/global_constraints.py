@@ -327,9 +327,11 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
                 continue
 
             # generators
-            emission_carriers = emissions.index
             gens = n.c.generators.static[
-                n.c.generators.static.carrier.isin(emission_carriers)
+                n.c.generators.static.carrier.isin(emissions.index)
+            ]
+            gens = gens[
+                gens.index.get_level_values("name").isin(n.c.generators.active_assets)
             ]
 
             if not gens.empty:
@@ -353,6 +355,9 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             # storage units
             cond = "carrier in @emissions.index and not cyclic_state_of_charge"
             sus = n.c.storage_units.static.query(cond)
+            sus = sus[
+                sus.index.get_level_values("name").isin(n.c.storage_units.active_assets)
+            ]
             if not sus.empty:
                 sus = sus.loc[scenario]
                 em_pu = sus.carrier.map(emissions)
