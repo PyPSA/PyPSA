@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Lines components module."""
 
 from __future__ import annotations
@@ -29,7 +33,7 @@ class Lines(Components):
 
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     Examples
     --------
@@ -49,14 +53,12 @@ class Lines(Components):
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for lines.
 
+        <!-- md:badge-version v1.0.0 -->
+
         For passive branch components, min_pu is the negative of max_pu.
 
         Parameters
         ----------
-        sns : pandas.Index/pandas.DateTimeIndex
-            Set of snapshots for the bounds
-        index : pd.Index, optional
-            Subset of the component elements
         attr : string, optional
             Attribute name for the bounds, e.g. "s"
 
@@ -106,7 +108,7 @@ class Lines(Components):
 
         See Also
         --------
-        [pypsa.geo.haversine][] : Function to calculate distance between two points.
+        [pypsa.geo.haversine][]
 
         Examples
         --------

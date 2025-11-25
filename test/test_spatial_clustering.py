@@ -1,13 +1,12 @@
-"""
-Created on Mon Jan 31 18:11:09 2022.
-
-@author: fabian
-"""
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
 import numpy as np
 import pandas as pd
 import pytest
 
+import pypsa
 from pypsa.clustering.spatial import (
     aggregateoneport,
     busmap_by_hac,
@@ -138,11 +137,11 @@ def test_aggregate_storage_units_consent_error(ac_dc_network):
 
 def prepare_network_for_aggregation(n):
     n.c.lines.static = n.c.lines.static.reindex(
-        columns=n.components["Line"]["attrs"].index[1:]
+        columns=n.components["Line"]["defaults"].index[1:]
     )
     n.c.lines.static["type"] = np.nan
     n.c.buses.static = n.c.buses.static.reindex(
-        columns=n.components["Bus"]["attrs"].index[1:]
+        columns=n.components["Bus"]["defaults"].index[1:]
     )
     n.c.buses.static["frequency"] = 50
 
@@ -197,3 +196,55 @@ def test_custom_line_groupers(scipy_network):
     nc = C.n
     assert len(nc.buses) == 20
     assert (n.c.lines.static.groupby(linemap).build_year.nunique() == 1).all()
+
+
+def test_clustering_multiport_links():
+    """Test that clustering correctly remaps all bus ports in multi-port links.
+
+    See https://github.com/PyPSA/PyPSA/issues/1439
+    """
+
+    # Create network with multilink
+    n = pypsa.Network()
+    n.add("Bus", "gas")
+    n.add("Bus", "heat")
+    n.add("Bus", "power A")
+    n.add("Bus", "power B")
+    n.add("Bus", "power C")
+    n.add(
+        "Link",
+        "CHP",
+        bus0="gas",
+        bus1="heat",
+        bus2="power A",
+        efficiency=0.6,
+        efficiency2=0.3,
+    )
+
+    # Create busmap that clusters power buses together
+    busmap = pd.Series(
+        ["gas", "heat", "power", "power", "power"],
+        index=["gas", "heat", "power A", "power B", "power C"],
+    )
+
+    # Apply clustering
+    C = get_clustering_from_busmap(n, busmap)
+    n = C.n
+
+    # Assert that bus2 is correctly remapped to "power"
+    assert n.c.links.static.loc["CHP", "bus2"] == "power", (
+        f"bus2 should be remapped to 'power', got {n.c.links.static.loc['CHP', 'bus2']}"
+    )
+
+    # Assert that the old bus "power A" no longer exists
+    assert "power A" not in n.c.buses.static.index, "Old bus 'power A' should not exist"
+
+    # Assert all buses referenced by the link exist in the clustered network
+    for col in ["bus0", "bus1", "bus2"]:
+        bus_name = n.c.links.static.loc["CHP", col]
+        assert bus_name in n.c.buses.static.index, (
+            f"{col}={bus_name} not found in buses"
+        )
+
+    # Assert total number of buses is correct
+    assert len(n.c.buses.static) == 3, f"Expected 3 buses, got {len(n.c.buses.static)}"

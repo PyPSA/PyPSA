@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components module.
 
 Contains classes and properties relevant to all component types in PyPSA. Also imports
@@ -24,7 +28,7 @@ import pandas as pd
 import xarray
 from pyproj import CRS
 
-from pypsa.common import equals
+from pypsa.common import deprecated_in_next_major, equals
 from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
@@ -49,19 +53,17 @@ if TYPE_CHECKING:
 class ComponentsData:
     """Dataclass for Components.
 
+    <!-- md:guide components.md -->
+
     This class is used to store all data of a Components object. Other classes inherit
     from this class to implement logic and methods, but do not store any data next
     to the data in here.
 
     All attributes can therefore also be accessed directly from
-    any [`Components`][pypsa.components.Components] object (which defines all
+    any [`Components`][pypsa.Components] object (which defines all
     attributes and properties which are available for all component types) as well as
     in specific type classes as [`Generators`][pypsa.components.Generators] (which
     define logic and methods specific to the component type).
-
-    User Guide
-    ----------
-    Check out the corresponding user guide: [:material-bookshelf: Components](/user-guide/components)
 
     Attributes
     ----------
@@ -82,7 +84,31 @@ class ComponentsData:
     ctype: ComponentType
     n: Network | None
     static: pd.DataFrame
+    """
+    Dataframe with static data for all components of this type.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Static data of the component.
+
+    Examples
+    --------
+    >>> c.static
+    """
     dynamic: Dict
+    """
+    Dataframe with dynamic data for all components of this type.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Dynamic data of the component.
+
+    Examples
+    --------
+    >>> c.dynamic
+    """
 
 
 class Components(
@@ -94,10 +120,12 @@ class Components(
 ):
     """Components base class.
 
+    <!-- md:badge-version v0.33.0 --> | <!-- md:guide components.md -->
+
     Base class for container of energy system related assets, such as
     generators or transmission lines. Use the specific subclasses for concrete or
     a generic component type.
-    All data is stored in the dataclass [pypsa.components.components.ComponentsData][].
+    All data is stored in the dataclass [ComponentsData][pypsa.components.components.ComponentsData].
     Components inherits from it, adds logic and methods, but does not store any data
     itself.
 
@@ -140,10 +168,7 @@ class Components(
     def __str__(self) -> str:
         """Get string representation of component.
 
-        Returns
-        -------
-        str
-            String representation of component.
+        <!-- md:badge-version v0.33.0 -->
 
         Examples
         --------
@@ -156,10 +181,7 @@ class Components(
     def __repr__(self) -> str:
         """Get representation of component.
 
-        Returns
-        -------
-        str
-            Representation of component.
+        <!-- md:badge-version v0.33.0 -->
 
         Examples
         --------
@@ -187,6 +209,8 @@ class Components(
     def __getitem__(self, key: str) -> Any:
         """Get attribute of component.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Parameters
         ----------
         key : str
@@ -202,6 +226,8 @@ class Components(
 
     def __setitem__(self, key: str, value: Any) -> None:
         """Set attribute of component.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Parameters
         ----------
@@ -225,6 +251,8 @@ class Components(
     def __eq__(self, other: object) -> bool:
         """Check if two Components are equal.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Does not check the attached Network, but only component specific data. Therefore
         two components can be equal even if they are attached to different networks.
 
@@ -240,8 +268,7 @@ class Components(
 
         See Also
         --------
-        [pypsa.Components.equals][] :
-            Check for equality of two networks.
+        [pypsa.Components.equals][]
 
         """
         return self.equals(other)
@@ -249,16 +276,29 @@ class Components(
     def __len__(self) -> int:
         """Get the number of components.
 
+        <!-- md:badge-version v1.0.0 -->
+
         Returns
         -------
         int
             Number of components.
+
+        Examples
+        --------
+        >>> len(n.components.generators)
+        6
+
+        Which is the same as:
+        >>> n.components.generators.static.shape[0]
+        6
 
         """
         return len(self.static)
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check if two Components are equal.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Does not check the attached Network, but only component specific data. Therefore
         two components can be equal even if they are attached to different networks.
@@ -336,6 +376,8 @@ class Components(
     def standard_types(self) -> pd.DataFrame | None:
         """Get standard types of component.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Returns
         -------
         pd.DataFrame
@@ -351,6 +393,8 @@ class Components(
     @property
     def name(self) -> str:
         """Name of component type.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Returns
         -------
@@ -369,6 +413,8 @@ class Components(
     def list_name(self) -> str:
         """List name of component type.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Returns
         -------
         str
@@ -385,6 +431,8 @@ class Components(
     @property
     def description(self) -> str:
         """Description of component.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Returns
         -------
@@ -403,6 +451,8 @@ class Components(
     def category(self) -> str:
         """Category of component.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Returns
         -------
         str
@@ -420,8 +470,10 @@ class Components(
     def type(self) -> str:
         """Get category of component.
 
-        .. note ::
-            While not actively deprecated yet, :meth:`category` is the preferred method
+        <!-- md:badge-version v0.33.0 -->
+
+        !!! note
+            While not actively deprecated yet, [`category`][pypsa.Components.category] is the preferred method
             to access component type.
 
         Returns
@@ -433,12 +485,13 @@ class Components(
         return self.ctype.category
 
     @property
+    @deprecated_in_next_major(details="Use `c.defaults` instead.")
     def attrs(self) -> pd.DataFrame:
         """Default values of corresponding component type.
 
-        .. note::
-            While not actively deprecated yet, :meth:`defaults` is the preferred method
-            to access component attributes.
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
+            Use [`c.defaults`][pypsa.Components.defaults] instead.
 
         Returns
         -------
@@ -453,9 +506,7 @@ class Components(
     def defaults(self) -> pd.DataFrame:
         """Default values of corresponding component type.
 
-        .. note::
-            While not actively deprecated yet, :meth:`defaults` is the preferred method
-            to access component attributes.
+        <!-- md:badge-version v0.33.0 -->
 
         Returns
         -------
@@ -481,6 +532,8 @@ class Components(
     def empty(self) -> bool:
         """Check if component is empty.
 
+        <!-- md:badge-version v1.0.0 -->
+
         Returns
         -------
         bool
@@ -499,30 +552,11 @@ class Components(
         """
         return self.static.empty
 
-    def get(self, attribute_name: str, default: Any = None) -> Any:
-        """Get attribute of component.
-
-        Just an alias for built-in getattr and allows for default values.
-        #TODO change to handle data access instead
-
-        Parameters
-        ----------
-        attribute_name : str
-            Name of the attribute to get.
-        default : Any, optional
-            Default value to return if attribute is not found.
-
-        Returns
-        -------
-        Any
-            Value of the attribute if found, otherwise the default value.
-
-        """
-        return getattr(self, attribute_name, default)
-
     @property
     def attached(self) -> bool:
         """Check if component is attached to a Network.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Some functionality of the component is only available when attached to a
         Network.
@@ -544,6 +578,8 @@ class Components(
     def n_save(self) -> Any:
         """A save property to access the network (component must be attached).
 
+        <!-- md:badge-version v0.33.0 -->
+
         Returns
         -------
         Network
@@ -561,12 +597,12 @@ class Components(
         return self.n
 
     @property
+    @deprecated_in_next_major(details="Use `c.static` instead.")
     def df(self) -> pd.DataFrame:
         """Get static data of all components as pandas DataFrame.
 
-        .. note::
-            While not actively deprecated yet, :meth:`static` is the preferred method
-            to access static components data.
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+            Use [`c.static`][pypsa.Components.static] instead.
 
         Returns
         -------
@@ -577,12 +613,12 @@ class Components(
         return self.static
 
     @property
+    @deprecated_in_next_major(details="Use `c.dynamic` instead.")
     def pnl(self) -> dict:
         """Get dynamic data of all components as a dictionary of pandas DataFrames.
 
-        .. note::
-            While not actively deprecated yet, :meth:`dynamic` is the preferred method
-            to access dynamic components data.
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+            Use [`c.dynamic`][pypsa.Components.dynamic] instead.
 
         Returns
         -------
@@ -598,6 +634,8 @@ class Components(
     def ds(self) -> xarray.Dataset:
         """Create a xarray data array view of the component.
 
+        <!-- md:badge-version v1.0.0 -->
+
         !!! note
 
             Note that this will create a full copy of the component data. For large networks
@@ -611,8 +649,7 @@ class Components(
 
         See Also
         --------
-        [pypsa.Components.da][] :
-            Accessor for a specific attribute of the component.
+        [pypsa.Components.da][]
 
         Examples
         --------
@@ -623,7 +660,7 @@ class Components(
         Coordinates:
           * name                     (name) object ... 'Manchester Wind' ... 'Frankfu...
           * snapshot                 (snapshot) datetime64[ns] ... 2015-01-01 ... 201...
-        Data variables: (12/38)
+        Data variables: (12/39)
             bus                      (name) object ... 'Manchester' ... 'Frankfurt'
             control                  (name) object ... 'Slack' 'PQ' ... 'Slack' 'PQ'
             type                     (name) object ... '' '' '' '' '' ''
@@ -647,6 +684,8 @@ class Components(
     @property
     def units(self) -> pd.Series:
         """Get units of all attributes of components.
+
+        <!-- md:badge-version v0.34.0 -->
 
         Returns
         -------
@@ -672,6 +711,8 @@ class Components(
     def ports(self) -> list:
         """Get ports of all components.
 
+        <!-- md:badge-version v0.34.0 -->
+
         Returns
         -------
         pd.Series
@@ -685,8 +726,7 @@ class Components(
 
         See Also
         --------
-        [pypsa.components.Links.additional_ports][] :
-            Additional ports of components.
+        [pypsa.components.Links.additional_ports][]
 
         """
         return [
@@ -696,6 +736,8 @@ class Components(
     @property
     def extendables(self) -> pd.Index:
         """Get the index of extendable elements of this component.
+
+        <!-- md:badge-version v1.0.0 -->
 
         Returns
         -------
@@ -719,6 +761,8 @@ class Components(
     def fixed(self) -> pd.Index:
         """Get the index of non-extendable elements of this component.
 
+        <!-- md:badge-version v1.0.0 -->
+
         Returns
         -------
         pd.Index
@@ -740,6 +784,8 @@ class Components(
     @property
     def committables(self) -> pd.Index:
         """Get the index of committable elements of this component.
+
+        <!-- md:badge-version v1.0.0 -->
 
         Returns
         -------
@@ -846,11 +892,6 @@ class SubNetworkComponents:
     def __str__(self) -> str:
         """Get string representation of sub-network components.
 
-        Returns
-        -------
-        str
-            String representation of sub-network components.
-
         Examples
         --------
         >>> str(sub_network.components.generators)
@@ -861,11 +902,6 @@ class SubNetworkComponents:
 
     def __repr__(self) -> str:
         """Get representation of sub-network components.
-
-        Returns
-        -------
-        str
-            Representation of sub-network components.
 
         Examples
         --------

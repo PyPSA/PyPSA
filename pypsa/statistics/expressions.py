@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Statistics Accessor."""
 
 from __future__ import annotations
@@ -195,6 +199,8 @@ def get_transmission_carriers(
         carriers = {}
         for c in branches.unique(0):
             idx = branches[branches.get_loc(c)].get_level_values(1)
+            if "carrier" not in n.c[c].static:
+                continue
             carriers[c] = n.c[c].static.carrier[idx].unique()
         return pd.MultiIndex.from_tuples(
             [(c, i) for c, idx in carriers.items() for i in idx],
@@ -243,12 +249,7 @@ class StatisticHandler:
         return self._bound_method(*args, **kwargs)
 
     def __repr__(self) -> str:
-        """Return the string representation of the statistic handler.
-
-        Returns
-        -------
-        str
-            String representation of the statistic handler
+        """Get representation of the statistic handler.
 
         Examples
         --------
@@ -263,16 +264,14 @@ class StatisticHandler:
 class StatisticsAccessor(AbstractStatisticsAccessor):
     """Accessor to calculate different metrics from the network.
 
+    <!-- md:guide statistics.md -->
+
     All methods and attributes of the accessor can be used with any [pypsa.Network][]
     instance via `n.statistics`, which is the main facade to the statistics module.
 
     The statistics methods are another level of accessors, which means that they can
     yield statistics as pandas DataFrames or plots based on them. See the examples for
     more details.
-
-    User Guide
-    ----------
-    Check out the corresponding user guide: [:material-bookshelf: Statistics](/user-guide/statistics)
 
     Examples
     --------
@@ -344,6 +343,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         "capacity_factor",
         "revenue",
         "market_value",
+        "prices",
     ]
 
     def _get_component_index(self, df: pd.DataFrame | pd.Series, c: str) -> pd.Index:
@@ -452,7 +452,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self, df: pd.Series | pd.DataFrame, agg: Callable | str
     ) -> pd.Series | pd.DataFrame:
         warnings.warn(
-            "Passing `aggregate_across_components` was deprecated in v1.0.0 and "
+            "Passing `aggregate_across_components` was Deprecated in <!-- md:badge-version v1.0.0 -->.0 and "
             "will be removed with v2.0.0. Use e.g. "
             "`n.statistics.installed_capacity.groupby(<col_name>).sum() instead.",
             DeprecationWarning,
@@ -506,7 +506,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -522,13 +523,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Returns
         -------
@@ -621,7 +622,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -637,13 +639,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -724,7 +726,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -740,13 +743,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -832,7 +835,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -848,13 +852,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -950,7 +954,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -966,13 +971,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -1070,7 +1075,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -1086,13 +1092,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -1189,7 +1195,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -1205,13 +1212,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Returns
         -------
@@ -1297,7 +1304,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -1313,13 +1321,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -1465,7 +1473,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -1481,13 +1490,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -1585,7 +1594,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -1601,13 +1611,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -1688,7 +1698,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -1704,13 +1715,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -1791,7 +1802,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -1807,13 +1819,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -1910,7 +1922,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -1926,13 +1939,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -2048,7 +2061,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -2064,13 +2078,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -2158,7 +2172,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -2174,13 +2189,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -2271,7 +2286,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -2287,13 +2303,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -2405,7 +2421,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             which would be grouped together due to the same index, this is avoided.
         groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
             How to group components:
-            - str or list of str: Column names from component static DataFrames
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
         at_port : bool | str | Sequence[str], default=True
             Which ports to consider:
@@ -2421,13 +2438,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See https://go.pypsa.org/options-params for more information.
+            See `https://go.pypsa.org/options-params` for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See https://go.pypsa.org/options-params for more information.
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See https://go.pypsa.org/options-params for more information.
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
         Other Parameters
         ----------------
@@ -2466,4 +2483,122 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df = self.revenue(**kwargs) / self.supply(**kwargs)
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
+        return df
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    def prices(  # noqa: D417
+        self,
+        groupby: bool = False,
+        weighting: str = "load",
+        groupby_time: bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+    ) -> pd.Series:
+        """Calculate the average marginal prices in the network per bus.
+
+        Currency is currency/MWh or currency/unit_{bus_carrier} where
+        unit_{bus_carrier} is the unit of the bus carrier.
+
+        !!! note
+
+            The functions signature of [n.statistics.prices][pypsa.statistics.StatisticsAccessor.prices]
+            is different from other statistics functions as it does not take the same
+            parameters, since prices are only defined for buses.
+
+        Parameters
+        ----------
+        groupby : bool | str, optional
+            How to group components:
+            - `False`: No grouping, return all buses individually
+            - `"bus_carrier"`: Prices are aggregated to each bus carrier with weights
+              applied.
+            Other grouping options are not supported and the groupby method can not be
+            set. See `weighting` for different weighting options. Defaults to False.
+        weighting : str, optional
+            Type of weighting to use. If 'load' the prices are weighted by the
+            load of the buses and if time they are weighted by snapshot
+            weightings. Defaults to 'load'.
+        groupby_time : bool, default: True
+            Whether to group the time series by time or return the full time series.
+            No aggregation method can be set. Defaults to True.
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of buses. If specified, only considers buses with
+            the given carrier(s).
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
+
+        Returns
+        -------
+        pd.DataFrame
+            Time-averaged or load-weighted prices per bus or bus carrier.
+
+        Examples
+        --------
+        >>> n.statistics.prices()
+        Series([], dtype: float64)
+
+        """
+        n = self._n
+        sns_weights = n.snapshot_weightings.objective
+
+        prices = n.c.buses.dynamic.marginal_price
+
+        if bus_carrier is not None:
+            if isinstance(bus_carrier, str):
+                bus_carrier = [bus_carrier]
+            mask = n.c.buses.static.carrier.isin(bus_carrier)
+            prices = prices.loc[:, mask]
+
+        if not groupby_time:
+            return prices.T
+
+        if weighting == "load":
+            weights = (
+                n.statistics.withdrawal(
+                    groupby="bus",
+                    bus_carrier=bus_carrier,
+                    nice_names=False,
+                    groupby_time=False,
+                )
+                .groupby("bus")
+                .sum()
+                .T
+            )
+            weights = weights.reindex(prices.columns, axis=1, fill_value=1)
+        elif weighting == "time":
+            weights = pd.DataFrame(1, index=prices.index, columns=prices.columns)
+        else:
+            msg = f"Weighting '{weighting}' is not supported. Use 'load' or 'time'."
+            raise ValueError(msg)
+
+        a = sns_weights @ (weights * prices)
+        b = sns_weights @ weights
+        df = a / b
+
+        if groupby == "bus_carrier":
+            df = df.groupby(n.c.buses.static.carrier).apply(
+                lambda g: (g * b.loc[g.index]).sum() / b.loc[g.index].sum()
+            )
+            df.index.name = "bus_carrier"
+        elif groupby is not False:
+            msg = "Only groupby=False and groupby='bus_carrier' are supported."
+            raise ValueError(msg)
+
+        df.attrs["name"] = "Prices"
+        df.attrs["unit"] = "currency / MWh"
+
+        df = self._apply_option_kwargs(
+            df,
+            drop_zero=drop_zero,
+            round=round,
+            nice_names=False,  # Add once integrated in function
+        )
+
         return df

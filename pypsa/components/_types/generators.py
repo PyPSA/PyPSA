@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Generators components module."""
 
 from __future__ import annotations
@@ -28,7 +32,7 @@ class Generators(Components):
 
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     Examples
     --------
@@ -47,6 +51,8 @@ class Generators(Components):
         attr: str = "p",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for generators.
+
+        <!-- md:badge-version v1.0.0 -->
 
         Parameters
         ----------

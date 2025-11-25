@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -320,3 +324,24 @@ def test_system_cost(ac_dc_network_r):
     opex = n.statistics.opex().sum()
     system_cost = n.statistics.system_cost().sum()
     assert system_cost == capex + opex
+
+
+def test_prices(ac_dc_network_r):
+    n = ac_dc_network_r
+
+    # Test basic prices (load-weighted by default)
+    prices = n.statistics.prices()
+    assert isinstance(prices, pd.Series)
+    assert len(prices) == len(n.buses)
+
+    time_weighted = n.statistics.prices(weighting="time")
+    load_weighted = n.statistics.prices(weighting="load")
+    assert not time_weighted.equals(load_weighted)
+
+    # Test bus carrier filtering
+    ac_prices = n.statistics.prices(bus_carrier="AC")
+    assert len(ac_prices) == sum(n.c.buses.static.carrier == "AC")
+
+    # Test groupby bus_carrier
+    grouped = n.statistics.prices(groupby="bus_carrier")
+    assert set(grouped.index) == set(n.c.buses.static.carrier.unique())
