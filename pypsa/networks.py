@@ -177,10 +177,6 @@ class Network(
         """
         Network [statistics functionality][pypsa.statistics.StatisticsAccessor] accessor.
         """
-        self.stats: StatisticsAccessor = self.statistics
-        """
-        Network [statistics functionality][pypsa.statistics.StatisticsAccessor] accessor (alias for `statistics`).
-        """
         self.plot: PlotAccessor = PlotAccessor(self)
         """
         Network [plotting functionality][pypsa.plot.PlotAccessor] accessor.
@@ -484,6 +480,11 @@ class Network(
                 raise NotImplementedError(msg)
 
             return self.slice_network(key)
+
+    @property
+    def stats(self) -> StatisticsAccessor:
+        """Network [statistics functionality][pypsa.statistics.StatisticsAccessor] accessor (alias for [pypsa.Network.statistics][])."""
+        return self.statistics
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check for equality of two networks.
