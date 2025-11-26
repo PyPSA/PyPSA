@@ -295,7 +295,7 @@ Store        hydrogen storage    0.90
 dtype: float64
 ```
 
-For example, we see less solar and batteries and more wind and hydrogen storage.
+For example, we see less solar, storages (batteries and hydrogen) and more wind and electrolysis.
 The system costs are also 3% larger because the model has to hedge against uncertainty to remain feasible.
 
 ``` py
