@@ -60,10 +60,10 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
             if "carrier" not in static:
                 continue
 
-            ext_i = n.components[c].extendables.difference(n.c[c].inactive_assets)
-            ext_i = ext_i.intersection(static.index[static.carrier == carrier])
-            if period is not None:
-                ext_i = ext_i[n.components[c].get_active_assets(period)[ext_i]]
+            ext_i = n.c[c].extendables.intersection(
+                static.index[static.carrier == carrier]
+            )
+            ext_i = n.c[c].filter_active(ext_i, period)
 
             if ext_i.empty:
                 continue
@@ -160,10 +160,10 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
             if c not in n.one_port_components or "carrier" not in static:
                 continue
 
-            ext_i = n.c[c].extendables.difference(n.c[c].inactive_assets)
-            ext_i = ext_i.intersection(static.index[static.carrier == carrier])
-            if period is not None:
-                ext_i = ext_i[n.components[c].get_active_assets(period)[ext_i]]
+            ext_i = n.c[c].extendables.intersection(
+                static.index[static.carrier == carrier]
+            )
+            ext_i = n.c[c].filter_active(ext_i, period)
 
             if ext_i.empty:
                 continue
@@ -234,7 +234,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
 
         carriers_match = unique_component_names[carrier_map.isin(carrier_i)]
         limited_names = carriers_match.intersection(
-            n.c[c].extendables.difference(n.c[c].inactive_assets)
+            n.c[c].filter_active(n.c[c].extendables)
         )
 
         if limited_names.empty:
@@ -326,13 +326,14 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             if emissions.empty:
                 continue
 
+            # Determine investment period for active asset filtering
+            period = glc.investment_period if n._multi_invest else None
+
             # generators
             gens = n.c.generators.static[
                 n.c.generators.static.carrier.isin(emissions.index)
             ]
-            gens = gens[
-                gens.index.get_level_values("name").isin(n.c.generators.active_assets)
-            ]
+            gens = n.c.generators.filter_active(gens, period)
 
             if not gens.empty:
                 gens = gens.loc[scenario]
@@ -355,9 +356,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             # storage units
             cond = "carrier in @emissions.index and not cyclic_state_of_charge"
             sus = n.c.storage_units.static.query(cond)
-            sus = sus[
-                sus.index.get_level_values("name").isin(n.c.storage_units.active_assets)
-            ]
+            sus = n.c.storage_units.filter_active(sus, period)
             if not sus.empty:
                 sus = sus.loc[scenario]
                 em_pu = sus.carrier.map(emissions)
@@ -411,6 +410,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             stores = n.c.stores.static.query(
                 "carrier in @emissions.index and not e_cyclic"
             )
+            stores = n.c.stores.filter_active(stores, period)
             if not stores.empty:
                 stores = stores.loc[scenario]
                 em_pu = stores.carrier.map(emissions)
@@ -728,13 +728,16 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
             # fmt: on
             period = glc.investment_period
 
+            # Determine periods for active asset filtering
+            if not isnan(period):
+                period_filter = period
+            elif isinstance(sns, pd.MultiIndex):
+                period_filter = list(sns.unique("period"))
+            else:
+                period_filter = None
+
             for c in n.components[["Line", "Link"]]:
                 attr = nominal_attrs[c.name]
-
-                # Start from extendable components by name
-                ext_all = c.extendables.difference(c.inactive_assets)
-                if ext_all.empty:
-                    continue
 
                 # Filter by carrier, handling scenarios (MultiIndex) if present
                 if n.has_scenarios and isinstance(c.static.index, pd.MultiIndex):
@@ -747,26 +750,8 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
                 else:
                     eligible_by_carrier = c.static.query("carrier in @car").index
 
-                ext_i = ext_all.intersection(eligible_by_carrier).rename(ext_all.name)
-                if ext_i.empty:
-                    continue
-
-                # Filter by investment period activity
-                if not isnan(period):
-                    active = c.get_active_assets(investment_period=int(period))
-                    ext_i = ext_i[active.loc[ext_i]].rename(ext_i.name)
-                elif isinstance(sns, pd.MultiIndex):
-                    # Active in any of the periods present in sns
-                    periods = sns.unique("period")
-                    active_df = pd.concat(
-                        {
-                            p: c.get_active_assets(investment_period=int(p))
-                            for p in periods
-                        },
-                        axis=1,
-                    )
-                    active_any = active_df.any(axis=1)
-                    ext_i = ext_i[active_any.loc[ext_i]].rename(ext_i.name)
+                ext_i = c.extendables.intersection(eligible_by_carrier)
+                ext_i = c.filter_active(ext_i, period_filter)
 
                 if ext_i.empty:
                     continue
@@ -837,39 +822,40 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         # fmt: on
         period = glc.investment_period
 
+        # Determine periods for active asset filtering and cost weighting
+        if not isnan(period):
+            period_filter = period
+            weights = 1
+        elif isinstance(sns, pd.MultiIndex):
+            period_filter = list(sns.unique("period"))
+            weights = None  # computed per component below
+        else:
+            period_filter = None
+            weights = 1
+
         for c in n.components[["Line", "Link"]]:
             attr = nominal_attrs[c.name]
 
-            ext_i = c.extendables.difference(c.inactive_assets)
+            ext_i = c.extendables.intersection(c.static.query("carrier in @car").index)
+            ext_i = c.filter_active(ext_i, period_filter)
+
             if ext_i.empty:
                 continue
 
-            ext_i = ext_i.intersection(c.static.query("carrier in @car").index).rename(
-                ext_i.name
-            )
-
-            if not isnan(period):
-                ext_i = ext_i[
-                    c.get_active_assets(investment_period=period)[ext_i]
-                ].rename(ext_i.name)
-                weights = 1
-
-            elif isinstance(sns, pd.MultiIndex):
-                ext_i = ext_i[
-                    c.get_active_assets(investment_period=sns.unique("period"))[ext_i]
-                ].rename(ext_i.name)
+            # For multi-period, weight costs by active periods
+            if weights is None:
                 active = pd.concat(
                     {
-                        period: c.get_active_assets(investment_period=period)[ext_i]
-                        for period in sns.unique("period")
+                        p: c.get_active_assets(investment_period=p)[ext_i]
+                        for p in period_filter
                     },
                     axis=1,
                 )
-                weights = active @ period_weighting
+                comp_weights = active @ period_weighting
             else:
-                weights = 1
+                comp_weights = weights
 
-            cost = c.static.capital_cost.reindex(ext_i) * weights
+            cost = c.static.capital_cost.reindex(ext_i) * comp_weights
             vars = m[f"{c.name}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((cost, vars)).sum())
 
