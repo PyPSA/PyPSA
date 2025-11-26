@@ -17,7 +17,6 @@ from packaging import version
 from xarray import DataArray
 
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
-from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
     get_transmission_branches,
     port_efficiency,
@@ -198,11 +197,26 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
             m = n.model
-            capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            if include_non_extendable:
-                query = f"~{nominal_attrs[c]}_extendable"
-                capacity = capacity + n.c[c].static.query(query)["p_nom"]
-            costs = n.c[c].static[cost_attribute][capacity.indexes["name"]]
+            comp = n.c[c]
+            nom_attr = comp._operational_attrs["nom"]
+            var_name = f"{c}-{nom_attr}"
+
+            # Get non-extendable capacity using component's fixed property
+            non_ext_capacity = (
+                comp.static.loc[comp.fixed, nom_attr]
+                if include_non_extendable
+                else pd.Series(dtype=float)
+            )
+
+            # Build capacity expression handling both extendable and non-extendable
+            if var_name in m.variables:
+                capacity = m.variables[var_name] + non_ext_capacity
+            elif not non_ext_capacity.empty:
+                capacity = LinearExpression(non_ext_capacity, m)
+            else:
+                return None
+
+            costs = comp.static[cost_attribute][capacity.indexes["name"]]
             return capacity * costs
 
         return self._aggregate_components(
@@ -256,11 +270,25 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
             m = n.model
-            attr = nominal_attrs[c]
-            capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            if include_non_extendable:
-                query = f"~{attr}_extendable"
-                capacity = capacity + n.c[c].static.query(query)[attr]
+            comp = n.c[c]
+            nom_attr = comp._operational_attrs["nom"]
+            var_name = f"{c}-{nom_attr}"
+
+            # Get non-extendable capacity using component's fixed property
+            non_ext_capacity = (
+                comp.static.loc[comp.fixed, nom_attr]
+                if include_non_extendable
+                else pd.Series(dtype=float)
+            )
+
+            # Build capacity expression handling both extendable and non-extendable
+            if var_name in m.variables:
+                capacity = m.variables[var_name] + non_ext_capacity
+            elif not non_ext_capacity.empty:
+                capacity = LinearExpression(non_ext_capacity, m)
+            else:
+                return None
+
             efficiency = port_efficiency(n, c, port=port)[capacity.indexes["name"]]
             if not at_port:
                 efficiency = abs(efficiency)
@@ -621,11 +649,22 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            attr = nominal_attrs[c]
-            capacity = (
-                n.model.variables[f"{c}-{attr}"]
-                + n.c[c].static.query(f"~{attr}_extendable")[attr]
-            )
+            m = n.model
+            comp = n.c[c]
+            nom_attr = comp._operational_attrs["nom"]
+            var_name = f"{c}-{nom_attr}"
+
+            # Get non-extendable capacity using component's fixed property
+            non_ext_capacity = comp.static.loc[comp.fixed, nom_attr]
+
+            # Build capacity expression handling both extendable and non-extendable
+            if var_name in m.variables:
+                capacity = m.variables[var_name] + non_ext_capacity
+            elif not non_ext_capacity.empty:
+                capacity = LinearExpression(non_ext_capacity, m)
+            else:
+                return None
+
             idx = capacity.indexes["name"]
             operation = self._get_operational_variable(c).loc[:, idx]
             sns = operation.indexes["snapshot"]
