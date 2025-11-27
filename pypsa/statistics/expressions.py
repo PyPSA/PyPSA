@@ -2271,15 +2271,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            if c != "Generator":
-                return pd.Series(dtype=float)
-
             efficiency = n.get_switchable_as_dense(c, "efficiency")
-            if not at_port:
-                efficiency = abs(efficiency)
             weights = get_weightings(n, c)
             p = (
-                get_operation(n, c).abs()
+                get_operation(n, c)
                 / efficiency
                 * n.static(c).carrier.map(n.carriers.co2_emissions).fillna(0)
             )
