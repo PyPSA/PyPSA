@@ -5,13 +5,17 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-<!--## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Bug Fixes
+
+- Fix curtailment, capacity, and capex expressions returning zero for non-extendable generators (<!-- md:pr 1451 -->)
 
 ## [**v1.0.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.4) <small>21st November 2025</small> { id="v1.0.4" }
 
