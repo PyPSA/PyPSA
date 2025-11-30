@@ -122,6 +122,7 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_us: spire](https://www.spireenergy.com/)**
 
+* **[:flag_in: Serentica](https://www.serentica.com/)**
 
 ## Governmental Organisation
 
