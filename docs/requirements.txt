@@ -11,9 +11,9 @@ argon2-cffi==25.1.0
     # via jupyter-server
 argon2-cffi-bindings==25.1.0
     # via argon2-cffi
-arrow==1.3.0
+arrow==1.4.0
     # via isoduration
-asttokens==3.0.0
+asttokens==3.0.1
     # via stack-data
 async-lru==2.0.5
     # via jupyterlab
@@ -27,19 +27,19 @@ babel==2.17.0
     #   jupyterlab-server
     #   mkdocs-git-revision-date-localized-plugin
     #   mkdocs-material
-backrefs==5.9
+backrefs==6.1
     # via mkdocs-material
 beautifulsoup4==4.14.2
     # via nbconvert
-bleach==6.2.0
+bleach==6.3.0
     # via nbconvert
-blosc2==3.10.0
+blosc2==3.11.1
     # via tables
 boolean-py==5.0
     # via license-expression
 bottleneck==1.6.0
     # via linopy
-cachetools==6.2.0
+cachetools==6.2.2
     # via google-auth
 cairocffi==1.7.1
     # via cairosvg
@@ -47,7 +47,7 @@ cairosvg==2.8.2
     # via pypsa
 cartopy==0.25.0
     # via pypsa
-certifi==2025.10.5
+certifi==2025.11.12
     # via
     #   httpcore
     #   httpx
@@ -62,20 +62,20 @@ cffi==2.0.0
     #   pyzmq
 cfgv==3.4.0
     # via pre-commit
-cftime==1.6.4.post1
+cftime==1.6.5
     # via netcdf4
-charset-normalizer==3.4.3
+charset-normalizer==3.4.4
     # via
     #   python-debian
     #   requests
-click==8.3.0
+click==8.3.1
     # via
     #   dask
     #   mkdocs
     #   reuse
 cloudpathlib==0.23.0
     # via pypsa
-cloudpickle==3.1.1
+cloudpickle==3.1.2
     # via dask
 colorama==0.4.6
     # via
@@ -90,11 +90,9 @@ comm==0.2.3
     # via
     #   ipykernel
     #   ipywidgets
-contourpy==1.3.2 ; python_full_version < '3.11'
+contourpy==1.3.3
     # via matplotlib
-contourpy==1.3.3 ; python_full_version >= '3.11'
-    # via matplotlib
-coverage==7.10.7
+coverage==7.11.3
     # via
     #   pypsa
     #   pytest-cov
@@ -102,7 +100,7 @@ cssselect2==0.8.0
     # via cairosvg
 cycler==0.12.1
     # via matplotlib
-dask==2025.9.1
+dask==2025.11.0
     # via linopy
 debugpy==1.8.17
     # via ipykernel
@@ -118,15 +116,12 @@ deprecation==2.1.0
     # via
     #   linopy
     #   pypsa
+dill==0.4.0
+    # via multiprocess
 distlib==0.4.0
     # via virtualenv
 et-xmlfile==2.0.0
     # via openpyxl
-exceptiongroup==1.3.0 ; python_full_version < '3.11'
-    # via
-    #   anyio
-    #   ipython
-    #   pytest
 executing==2.2.1
     # via stack-data
 fastjsonschema==2.21.2
@@ -137,7 +132,7 @@ fonttools==4.60.1
     # via matplotlib
 fqdn==1.5.1
     # via jsonschema
-fsspec==2025.9.0
+fsspec==2025.10.0
     # via dask
 geojson==3.2.0
     # via pandapower
@@ -149,34 +144,34 @@ gitdb==4.0.12
     # via gitpython
 gitpython==3.1.45
     # via mkdocs-git-revision-date-localized-plugin
-google-api-core==2.26.0
+google-api-core==2.28.1
     # via
     #   google-cloud-core
     #   google-cloud-storage
-google-auth==2.41.1
+google-auth==2.43.0
     # via
     #   google-api-core
     #   google-cloud-core
     #   google-cloud-storage
-google-cloud-core==2.4.3
+google-cloud-core==2.5.0
     # via google-cloud-storage
-google-cloud-storage==3.4.1
+google-cloud-storage==3.6.0
     # via linopy
 google-crc32c==1.7.1
     # via
     #   google-cloud-storage
     #   google-resumable-media
-google-resumable-media==2.7.2
+google-resumable-media==2.8.0
     # via google-cloud-storage
-googleapis-common-protos==1.70.0
+googleapis-common-protos==1.72.0
     # via google-api-core
-griffe==1.14.0
+griffe==1.15.0
     # via mkdocstrings-python
-gurobipy==12.0.3
+gurobipy==13.0.0
     # via pypsa
 h11==0.16.0
     # via httpcore
-highspy==1.11.0
+highspy==1.12.0
     # via
     #   pypsa
     #   tsam
@@ -186,7 +181,7 @@ httpx==0.28.1
     # via jupyterlab
 identify==2.6.15
     # via pre-commit
-idna==3.10
+idna==3.11
     # via
     #   anyio
     #   httpx
@@ -194,27 +189,22 @@ idna==3.10
     #   requests
 importlib-metadata==8.7.0 ; python_full_version < '3.12'
     # via dask
-iniconfig==2.1.0
+iniconfig==2.3.0
     # via pytest
-ipykernel==6.30.1
+ipykernel==6.31.0
     # via
     #   jupyter
     #   jupyter-console
     #   jupyterlab
     #   mkdocs-jupyter
-ipython==8.37.0 ; python_full_version < '3.11'
+ipython==9.7.0
     # via
     #   ipykernel
     #   ipywidgets
     #   jupyter-console
-ipython==9.6.0 ; python_full_version >= '3.11'
-    # via
-    #   ipykernel
-    #   ipywidgets
-    #   jupyter-console
-ipython-pygments-lexers==1.1.1 ; python_full_version >= '3.11'
+ipython-pygments-lexers==1.1.1
     # via ipython
-ipywidgets==8.1.7
+ipywidgets==8.1.8
     # via jupyter
 isoduration==20.11.0
     # via jsonschema
@@ -255,7 +245,7 @@ jupyter-client==8.6.3
     #   nbclient
 jupyter-console==6.6.3
     # via jupyter
-jupyter-core==5.8.1
+jupyter-core==5.9.1
     # via
     #   ipykernel
     #   jupyter-client
@@ -278,29 +268,29 @@ jupyter-server==2.17.0
     #   notebook-shim
 jupyter-server-terminals==0.5.3
     # via jupyter-server
-jupyterlab==4.4.9
+jupyterlab==4.4.10
     # via
     #   jupyter
     #   notebook
 jupyterlab-pygments==0.3.0
     # via nbconvert
-jupyterlab-server==2.27.3
+jupyterlab-server==2.28.0
     # via
     #   jupyterlab
     #   notebook
-jupyterlab-widgets==3.0.15
+jupyterlab-widgets==3.0.16
     # via ipywidgets
-jupytext==1.17.3
+jupytext==1.18.1
     # via mkdocs-jupyter
 kiwisolver==1.4.9
     # via matplotlib
-lark==1.3.0
+lark==1.3.1
     # via rfc3987-syntax
-levenshtein==0.27.1
+levenshtein==0.27.3
     # via pypsa
 license-expression==30.4.4
     # via reuse
-linopy==0.5.7
+linopy==0.5.8
     # via pypsa
 locket==1.0.0
     # via partd
@@ -308,7 +298,7 @@ lxml==6.0.2
     # via
     #   mkdocs-video
     #   pandapower
-markdown==3.9
+markdown==3.10
     # via
     #   mkdocs
     #   mkdocs-autorefs
@@ -331,8 +321,9 @@ matplotlib==3.10.7
     #   cartopy
     #   pypsa
     #   pytest-mpl
+    #   salib
     #   seaborn
-matplotlib-inline==0.1.7
+matplotlib-inline==0.2.1
     # via
     #   ipykernel
     #   ipython
@@ -368,11 +359,11 @@ mkdocs-ezlinks-plugin==0.1.14
     # via pypsa
 mkdocs-get-deps==0.2.0
     # via mkdocs
-mkdocs-git-revision-date-localized-plugin==1.4.7
+mkdocs-git-revision-date-localized-plugin==1.5.0
     # via pypsa
 mkdocs-jupyter==0.25.1
     # via pypsa
-mkdocs-material==9.6.21
+mkdocs-material==9.7.0
     # via
     #   mkdocs-jupyter
     #   pypsa
@@ -386,15 +377,17 @@ mkdocs-video==1.5.0
     # via pypsa
 mkdocstrings==0.30.1
     # via mkdocstrings-python
-mkdocstrings-python==1.18.2
+mkdocstrings-python==1.19.0
     # via pypsa
 msgpack==1.1.2
     # via blosc2
+multiprocess==0.70.18
+    # via salib
 mypy==1.18.2
     # via pypsa
 mypy-extensions==1.1.0
     # via mypy
-narwhals==2.7.0
+narwhals==2.12.0
     # via plotly
 nbclient==0.10.2
     # via nbconvert
@@ -413,14 +406,9 @@ ndindex==1.10.0
     # via blosc2
 nest-asyncio==1.6.0
     # via ipykernel
-netcdf4==1.7.2
+netcdf4==1.7.3
     # via pypsa
-networkx==3.4.2 ; python_full_version < '3.11'
-    # via
-    #   pandapower
-    #   pypsa
-    #   tsam
-networkx==3.5 ; python_full_version >= '3.11'
+networkx==3.5
     # via
     #   pandapower
     #   pypsa
@@ -433,12 +421,12 @@ notebook-shim==0.2.4
     # via
     #   jupyterlab
     #   notebook
-numexpr==2.13.1
+numexpr==2.14.1
     # via
     #   blosc2
     #   linopy
     #   tables
-numpy==1.26.4 ; python_full_version < '3.11'
+numpy==2.3.5
     # via
     #   blosc2
     #   bottleneck
@@ -456,31 +444,7 @@ numpy==1.26.4 ; python_full_version < '3.11'
     #   pydeck
     #   pyogrio
     #   pypsa
-    #   scikit-learn
-    #   scipy
-    #   seaborn
-    #   shapely
-    #   tables
-    #   tsam
-    #   xarray
-numpy==2.3.3 ; python_full_version >= '3.11'
-    # via
-    #   blosc2
-    #   bottleneck
-    #   cartopy
-    #   cftime
-    #   contourpy
-    #   geopandas
-    #   highspy
-    #   linopy
-    #   matplotlib
-    #   netcdf4
-    #   numexpr
-    #   pandapower
-    #   pandas
-    #   pydeck
-    #   pyogrio
-    #   pypsa
+    #   salib
     #   scikit-learn
     #   scipy
     #   seaborn
@@ -518,9 +482,7 @@ packaging==25.0
     #   xarray
 paginate==0.5.7
     # via mkdocs-material
-pandapower==3.1.2 ; python_full_version < '3.11'
-    # via pypsa
-pandapower==3.2.0 ; python_full_version >= '3.11'
+pandapower==3.2.1
     # via pypsa
 pandas==2.3.3
     # via
@@ -528,6 +490,7 @@ pandas==2.3.3
     #   mkdocs-table-reader-plugin
     #   pandapower
     #   pypsa
+    #   salib
     #   seaborn
     #   tsam
     #   xarray
@@ -543,7 +506,7 @@ pathspec==0.12.1
     #   mypy
 pexpect==4.9.0 ; sys_platform != 'emscripten' and sys_platform != 'win32'
     # via ipython
-pillow==11.3.0
+pillow==12.0.0
     # via
     #   cairosvg
     #   matplotlib
@@ -555,7 +518,7 @@ platformdirs==4.5.0
     #   jupyter-core
     #   mkdocs-get-deps
     #   virtualenv
-plotly==6.3.1
+plotly==6.5.0
     # via pypsa
 pluggy==1.6.0
     # via
@@ -563,11 +526,11 @@ pluggy==1.6.0
     #   pytest-cov
 ply==3.11
     # via pyomo
-polars==1.34.0
+polars==1.35.2
     # via linopy
-polars-runtime-32==1.34.0
+polars-runtime-32==1.35.2
     # via polars
-pre-commit==4.3.0
+pre-commit==4.4.0
     # via pypsa
 prometheus-client==0.23.1
     # via jupyter-server
@@ -577,12 +540,12 @@ prompt-toolkit==3.0.52
     #   jupyter-console
 proto-plus==1.26.1
     # via google-api-core
-protobuf==6.32.1
+protobuf==6.33.1
     # via
     #   google-api-core
     #   googleapis-common-protos
     #   proto-plus
-psutil==7.1.0
+psutil==7.1.3
     # via ipykernel
 ptyprocess==0.7.0 ; os_name != 'nt' or (sys_platform != 'emscripten' and sys_platform != 'win32')
     # via
@@ -615,38 +578,34 @@ pygments==2.19.2
     #   pytest
 pygtrie==2.5.0
     # via mkdocs-ezlinks-plugin
-pymdown-extensions==10.16.1
+pymdown-extensions==10.17.1
     # via
     #   mkdocs-material
     #   mkdocstrings
 pyogrio==0.11.1
     # via geopandas
-pyomo==6.9.4
+pyomo==6.9.5
     # via tsam
 pyparsing==3.2.5
     # via matplotlib
 pypower==5.1.19
     # via pypsa
-pyproj==3.7.1 ; python_full_version < '3.11'
+pyproj==3.7.2
     # via
     #   cartopy
     #   geopandas
-pyproj==3.7.2 ; python_full_version >= '3.11'
-    # via
-    #   cartopy
-    #   geopandas
-pyshp==2.3.1
+pyshp==3.0.2.post1
     # via cartopy
-pytest==8.4.2
+pytest==9.0.1
     # via
     #   pypsa
     #   pytest-cov
     #   pytest-mpl
 pytest-cov==7.0.0
     # via pypsa
-pytest-mpl==0.17.0
+pytest-mpl==0.18.0
     # via pypsa
-python-calamine==0.5.3
+python-calamine==0.5.4
     # via pypsa
 python-dateutil==2.9.0.post0
     # via
@@ -662,11 +621,7 @@ python-json-logger==4.0.0
 python-magic==0.4.27
     # via reuse
 pytz==2025.2
-    # via
-    #   mkdocs-git-revision-date-localized-plugin
-    #   pandas
-pywin32==311 ; platform_python_implementation != 'PyPy' and sys_platform == 'win32'
-    # via jupyter-core
+    # via pandas
 pywinpty==3.0.2 ; os_name == 'nt'
     # via
     #   jupyter-server
@@ -691,9 +646,9 @@ pyzmq==27.1.0
     #   jupyter-client
     #   jupyter-console
     #   jupyter-server
-rapidfuzz==3.14.1
+rapidfuzz==3.14.3
     # via levenshtein
-referencing==0.36.2
+referencing==0.37.0
     # via
     #   jsonschema
     #   jsonschema-specifications
@@ -706,7 +661,7 @@ requests==2.32.5
     #   jupyterlab-server
     #   linopy
     #   mkdocs-material
-reuse==6.1.2
+reuse==6.2.0
     # via pypsa
 rfc3339-validator==0.1.4
     # via
@@ -718,29 +673,26 @@ rfc3986-validator==0.1.1
     #   jupyter-events
 rfc3987-syntax==1.1.0
     # via jsonschema
-rpds-py==0.27.1
+rpds-py==0.29.0
     # via
     #   jsonschema
     #   referencing
 rsa==4.9.1
     # via google-auth
-ruff==0.14.0
+ruff==0.14.5
+    # via pypsa
+salib==1.5.2
     # via pypsa
 scikit-learn==1.7.2
     # via
     #   pypsa
     #   tsam
-scipy==1.15.3 ; python_full_version < '3.11'
+scipy==1.16.3
     # via
     #   linopy
     #   pandapower
     #   pypsa
-    #   scikit-learn
-scipy==1.16.2 ; python_full_version >= '3.11'
-    # via
-    #   linopy
-    #   pandapower
-    #   pypsa
+    #   salib
     #   scikit-learn
 seaborn==0.13.2
     # via pypsa
@@ -765,9 +717,7 @@ soupsieve==2.8
     # via beautifulsoup4
 stack-data==0.6.3
     # via ipython
-tables==3.10.1 ; python_full_version < '3.11'
-    # via pypsa
-tables==3.10.2 ; python_full_version >= '3.11'
+tables==3.10.2
     # via pypsa
 tabulate==0.9.0
     # via mkdocs-table-reader-plugin
@@ -783,15 +733,10 @@ tinycss2==1.4.0
     #   cairosvg
     #   cssselect2
 tomli==2.3.0 ; python_full_version <= '3.11'
-    # via
-    #   coverage
-    #   jupyterlab
-    #   jupytext
-    #   mypy
-    #   pytest
+    # via coverage
 tomlkit==0.13.3
     # via reuse
-toolz==1.0.0
+toolz==1.1.0
     # via
     #   dask
     #   linopy
@@ -826,39 +771,34 @@ traitlets==5.14.3
     #   nbformat
 tsam==2.3.9
     # via pypsa
-types-python-dateutil==2.9.0.20251008
-    # via arrow
 typing-extensions==4.15.0
     # via
     #   anyio
-    #   async-lru
     #   beautifulsoup4
-    #   cloudpathlib
-    #   exceptiongroup
     #   ipython
-    #   mistune
-    #   mkdocstrings-python
     #   mypy
     #   pandapower
     #   pypsa
     #   referencing
     #   tables
-    #   virtualenv
 tzdata==2025.2
-    # via pandas
+    # via
+    #   arrow
+    #   mkdocs-git-revision-date-localized-plugin
+    #   pandas
 uri-template==1.3.0
     # via jsonschema
 urllib3==2.5.0
     # via requests
 validators==0.35.0
     # via pypsa
-virtualenv==20.35.1
+virtualenv==20.35.4
     # via pre-commit
 watchdog==6.0.0
     # via mkdocs
 wcwidth==0.2.14
     # via prompt-toolkit
-webcolors==24.11.1
+webcolors==25.10.0
     # via jsonschema
 webencodings==0.5.1
     # via
@@ -867,13 +807,9 @@ webencodings==0.5.1
     #   tinycss2
 websocket-client==1.9.0
     # via jupyter-server
-widgetsnbextension==4.0.14
+widgetsnbextension==4.0.15
     # via ipywidgets
-xarray==2025.6.1 ; python_full_version < '3.11'
-    # via
-    #   linopy
-    #   pypsa
-xarray==2025.9.0 ; python_full_version >= '3.11'
+xarray==2025.11.0
     # via
     #   linopy
     #   pypsa
