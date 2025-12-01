@@ -335,7 +335,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             scen_selected = [e.sel(scenario=s) for e in opex_terms]
             scen_opex_exprs[s] = (
                 (sum(scen_selected) if is_quadratic else merge(scen_selected))
-                if scen_selected
+                if opex_terms
                 else 0
             )
 
