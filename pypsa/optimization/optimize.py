@@ -335,7 +335,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             scen_selected = [e.sel(scenario=s) for e in opex_terms]
             scen_opex_exprs[s] = (
                 (sum(scen_selected) if is_quadratic else merge(scen_selected))
-                if opex_terms
+                if scen_selected
                 else 0
             )
 
@@ -360,8 +360,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
         # Final objective: CAPEX + (1-omega) * E[OPEX] + omega * CVaR
         obj_expr = expected_capex + (1 - omega) * expected_opex + omega * cvar
-    # Deterministic or no risk: CAPEX + OPEX
-    obj_expr = expected_capex + expected_opex
+    else:
+        # Deterministic or no risk: CAPEX + OPEX
+        obj_expr = expected_capex + expected_opex
 
     # Set objective
     m.objective = obj_expr
