@@ -214,18 +214,17 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         active_assets = self.get_active_assets()
         return active_assets[~active_assets].index.get_level_values("name").unique()
 
-    def filter_active(
+    def filter_by_active_assets(
         self,
-        data: pd.DataFrame | pd.Index | None = None,
+        data: pd.DataFrame | pd.Index,
         investment_period: int | float | Sequence | None = None,  # noqa: PYI041
     ) -> pd.DataFrame | pd.Index:
         """Filter DataFrame or Index to only include active assets.
 
         Parameters
         ----------
-        data : pd.DataFrame | pd.Index, optional
+        data : pd.DataFrame | pd.Index
             DataFrame or Index to filter. Must have a "name" level in its index.
-            If None, uses self.static.
         investment_period : int | float | Sequence, optional
             If provided, additionally filter by assets active in this
             specific investment period(s). If a sequence is given, assets
@@ -238,9 +237,6 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             Filtered DataFrame or Index with only active assets.
 
         """
-        if data is None:
-            data = self.static
-
         # Normalize investment_period: NaN -> None, float -> int
         if investment_period is not None and isinstance(investment_period, float):
             if np.isnan(investment_period):

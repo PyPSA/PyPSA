@@ -63,7 +63,7 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
             ext_i = n.c[c].extendables.intersection(
                 static.index[static.carrier == carrier]
             )
-            ext_i = n.c[c].filter_active(ext_i, period)
+            ext_i = n.c[c].filter_by_active_assets(ext_i, period)
 
             if ext_i.empty:
                 continue
@@ -163,7 +163,7 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
             ext_i = n.c[c].extendables.intersection(
                 static.index[static.carrier == carrier]
             )
-            ext_i = n.c[c].filter_active(ext_i, period)
+            ext_i = n.c[c].filter_by_active_assets(ext_i, period)
 
             if ext_i.empty:
                 continue
@@ -234,7 +234,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
 
         carriers_match = unique_component_names[carrier_map.isin(carrier_i)]
         limited_names = carriers_match.intersection(
-            n.c[c].filter_active(n.c[c].extendables)
+            n.c[c].filter_by_active_assets(n.c[c].extendables)
         )
 
         if limited_names.empty:
@@ -333,7 +333,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             gens = n.c.generators.static[
                 n.c.generators.static.carrier.isin(emissions.index)
             ]
-            gens = n.c.generators.filter_active(gens, period)
+            gens = n.c.generators.filter_by_active_assets(gens, period)
 
             if not gens.empty:
                 gens = gens.loc[scenario]
@@ -356,7 +356,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             # storage units
             cond = "carrier in @emissions.index and not cyclic_state_of_charge"
             sus = n.c.storage_units.static.query(cond)
-            sus = n.c.storage_units.filter_active(sus, period)
+            sus = n.c.storage_units.filter_by_active_assets(sus, period)
             if not sus.empty:
                 sus = sus.loc[scenario]
                 em_pu = sus.carrier.map(emissions)
@@ -410,7 +410,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             stores = n.c.stores.static.query(
                 "carrier in @emissions.index and not e_cyclic"
             )
-            stores = n.c.stores.filter_active(stores, period)
+            stores = n.c.stores.filter_by_active_assets(stores, period)
             if not stores.empty:
                 stores = stores.loc[scenario]
                 em_pu = stores.carrier.map(emissions)
@@ -751,7 +751,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
                     eligible_by_carrier = c.static.query("carrier in @car").index
 
                 ext_i = c.extendables.intersection(eligible_by_carrier)
-                ext_i = c.filter_active(ext_i, period_filter)
+                ext_i = c.filter_by_active_assets(ext_i, period_filter)
 
                 if ext_i.empty:
                     continue
@@ -837,7 +837,7 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
             attr = nominal_attrs[c.name]
 
             ext_i = c.extendables.intersection(c.static.query("carrier in @car").index)
-            ext_i = c.filter_active(ext_i, period_filter)
+            ext_i = c.filter_by_active_assets(ext_i, period_filter)
 
             if ext_i.empty:
                 continue
