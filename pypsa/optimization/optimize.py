@@ -331,11 +331,15 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
         # Create per-scenario OPEX expressions to use in constraints
         scen_opex_exprs: dict[Any, Any] = {}
-        for s in n.scenarios:
-            scen_selected = [e.sel(scenario=s) for e in opex_terms]
-            scen_opex_exprs[s] = (
-                sum(scen_selected) if is_quadratic else merge(scen_selected)
-            )
+        if opex_terms:
+            for s in n.scenarios:
+                scen_selected = [e.sel(scenario=s) for e in opex_terms]
+                scen_opex_exprs[s] = (
+                    sum(scen_selected) if is_quadratic else merge(scen_selected)
+                )
+        else:
+            for s in n.scenarios:
+                scen_opex_exprs[s] = 0
 
         # Retrieve CVaR auxiliary variables
         a = m["CVaR-a"]
