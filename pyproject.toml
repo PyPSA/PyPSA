@@ -119,7 +119,6 @@ filterwarnings = [
 
     # Ignore linopy warnings
     "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
-    "ignore:In a future version of xarray the default value for join will change:FutureWarning",
 ]
 markers = [
     "mpl_image_compare",
