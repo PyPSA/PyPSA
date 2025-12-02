@@ -236,6 +236,18 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         pd.DataFrame | pd.Index
             Filtered DataFrame or Index with only active assets.
 
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus")
+        >>> n.add("Generator", "g1", bus="bus")
+        >>> n.add("Generator", "g2", bus="bus", active=False)
+        >>> df = n.generators[['p_nom', 'bus']]
+        >>> n.components.generators.filter_by_active_assets(df)
+           p_nom  bus
+        name
+        g1     0.0  bus
+
         """
         # Normalize investment_period: NaN -> None, float -> int
         if investment_period is not None and isinstance(investment_period, float):
