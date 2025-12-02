@@ -17,6 +17,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix using inactive generators in global carrier constraint. (<!-- md:pr 1450 -->)
 
+### Bug Fixes
+
+- Fix CVaR optimization to handle networks with zero operational costs. (<!-- md:pr 1457 -->)
+
 ## [**v1.0.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.4) <small>21st November 2025</small> { id="v1.0.4" }
 
 ### Bug Fixes
