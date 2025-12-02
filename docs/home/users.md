@@ -124,6 +124,8 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_in: Serentica](https://www.serentica.com/)**
 
+* **[:flag_jp: Tokyo Electric Power Services Company (TEPSCO)](https://www.tepsco.co.jp/english/)**, provides wide-ranging engineering services; planning, study, design, construction supervision and after care. See [Linkedin.com](https://www.linkedin.com/posts/takashi-yanase-850462a0_i-built-and-ran-a-preliminary-model-of-japan-activity-7401253510639648768-F3EB?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAp_3N8BMuXs2_8w1fGMmfRzJESnpY7vzI4).
+
 ## Governmental Organisation
 
 * **[:globe_with_meridians: International Energy Agency (IEA)](https://www.iea.org/)** uses PyPSA within their [Global Energy and Climate Model](https://www.iea.org/reports/global-energy-and-climate-model). A 2024 report [Managing the Seasonal Variability of Electricity Demand and Supply](https://www.iea.org/reports/managing-the-seasonal-variability-of-electricity-demand-and-supply) used PyPSA to explore how seasonal variations in both demand and supply affect electricity system operations in various world regions in 2050.
