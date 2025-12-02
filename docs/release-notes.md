@@ -19,6 +19,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ## [**v1.0.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.4) <small>21st November 2025</small> { id="v1.0.4" }
 
+### Features
+
+- Add support for time-varying start-up and shutdown costs for committable generators and links. Costs can now be provided as time series (varying per snapshot) in addition to static values. The linearized unit commitment tightening constraints are only applied when costs are static (constant over time) and equal. (<!-- md:pr 1425 -->)
+
 ### Bug Fixes
 
 - Fix busmap clustering to correctly remap all bus ports in multi-port links. (<!-- md:pr 1441 -->)
