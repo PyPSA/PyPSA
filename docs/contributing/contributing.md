@@ -30,7 +30,7 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 1. Fork the repository on GitHub
 2. Clone your fork: `git clone https://github.com/<your-username>/PyPSA.git`
 3. Fetch the upstream tags `git fetch --tags https://github.com/PyPSA/PyPSA.git`
-4. Install with dependencies in editable mode: `pip install -e .[dev]`
+4. Install with dependencies in editable mode: `pip install -e '.[dev]'`
 5. Setup linter and formatter, e.g `pre-commit install` (see [Code Style](#style))
 6. Write your code (preferably on a new branch)
 7. Run tests: `pytest` (see [Testing](#testing))
