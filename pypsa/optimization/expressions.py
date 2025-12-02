@@ -197,13 +197,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
             m = n.model
-            comp = n.c[c]
-            nom_attr = comp._operational_attrs["nom"]
+            c = n.c[c]
+            nom_attr = c._operational_attrs["nom"]
             var_name = f"{c}-{nom_attr}"
 
             # Get non-extendable capacity using component's fixed property
             non_ext_capacity = (
-                comp.static.loc[comp.fixed, nom_attr]
+                c.static.loc[c.fixed, nom_attr]
                 if include_non_extendable
                 else pd.Series(dtype=float)
             )
@@ -216,7 +216,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             else:
                 return None
 
-            costs = comp.static[cost_attribute][capacity.indexes["name"]]
+            costs = c.static[cost_attribute][capacity.indexes["name"]]
             return capacity * costs
 
         return self._aggregate_components(
@@ -270,13 +270,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
             m = n.model
-            comp = n.c[c]
-            nom_attr = comp._operational_attrs["nom"]
+            c = n.c[c]
+            nom_attr = c._operational_attrs["nom"]
             var_name = f"{c}-{nom_attr}"
 
             # Get non-extendable capacity using component's fixed property
             non_ext_capacity = (
-                comp.static.loc[comp.fixed, nom_attr]
+                c.static.loc[c.fixed, nom_attr]
                 if include_non_extendable
                 else pd.Series(dtype=float)
             )
@@ -650,12 +650,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             m = n.model
-            comp = n.c[c]
-            nom_attr = comp._operational_attrs["nom"]
+            c = n.c[c]
+            nom_attr = c._operational_attrs["nom"]
             var_name = f"{c}-{nom_attr}"
 
             # Get non-extendable capacity using component's fixed property
-            non_ext_capacity = comp.static.loc[comp.fixed, nom_attr]
+            non_ext_capacity = c.static.loc[c.fixed, nom_attr]
 
             # Build capacity expression handling both extendable and non-extendable
             if var_name in m.variables:
