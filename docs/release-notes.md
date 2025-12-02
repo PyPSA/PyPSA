@@ -14,8 +14,11 @@ SPDX-License-Identifier: CC-BY-4.0
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
 ### Bug Fixes
-
 - Fix curtailment, capacity, and capex expressions returning zero for non-extendable generators (<!-- md:pr 1451 -->)
+
+- Fix using inactive generators in global carrier constraint. (<!-- md:pr 1450 -->)
+
+- Fix CVaR optimization to handle networks with zero operational costs. (<!-- md:pr 1457 -->)
 
 ## [**v1.0.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.4) <small>21st November 2025</small> { id="v1.0.4" }
 
