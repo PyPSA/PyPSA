@@ -195,11 +195,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series | None:
+        def func(n: Network, component: str, port: str) -> pd.Series | None:
             m = n.model
-            c = n.c[c]
+            c = n.c[component]
             nom_attr = c._operational_attrs["nom"]
-            var_name = f"{c}-{nom_attr}"
+            var_name = f"{component}-{nom_attr}"
 
             # Get non-extendable capacity using component's fixed property
             non_ext_capacity = (
@@ -268,11 +268,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             at_port = True
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series | None:
+        def func(n: Network, component: str, port: str) -> pd.Series | None:
             m = n.model
-            c = n.c[c]
+            c = n.c[component]
             nom_attr = c._operational_attrs["nom"]
-            var_name = f"{c}-{nom_attr}"
+            var_name = f"{component}-{nom_attr}"
 
             # Get non-extendable capacity using component's fixed property
             non_ext_capacity = (
@@ -289,12 +289,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             else:
                 return None
 
-            efficiency = port_efficiency(n, c, port=port)[capacity.indexes["name"]]
+            efficiency = port_efficiency(n, component, port=port)[
+                capacity.indexes["name"]
+            ]
             if not at_port:
                 efficiency = abs(efficiency)
             res = capacity * efficiency
-            if storage and (c == "StorageUnit"):
-                res = res * n.components[c].static.max_hours
+            if storage and (component == "StorageUnit"):
+                res = res * c.static.max_hours
             return res
 
         return self._aggregate_components(
@@ -648,11 +650,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
+        def func(n: Network, component: str, port: str) -> pd.Series:
             m = n.model
-            c = n.c[c]
+            c = n.c[component]
             nom_attr = c._operational_attrs["nom"]
-            var_name = f"{c}-{nom_attr}"
+            var_name = f"{component}-{nom_attr}"
 
             # Get non-extendable capacity using component's fixed property
             non_ext_capacity = c.static.loc[c.fixed, nom_attr]
@@ -666,9 +668,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 return None
 
             idx = capacity.indexes["name"]
-            operation = self._get_operational_variable(c).loc[:, idx]
+            operation = self._get_operational_variable(component).loc[:, idx]
             sns = operation.indexes["snapshot"]
-            p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx]).loc[sns]
+            p_max_pu = DataArray(
+                n.get_switchable_as_dense(component, "p_max_pu")[idx]
+            ).loc[sns]
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
             # TODO curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
