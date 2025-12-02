@@ -5,15 +5,17 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-<!--## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
 ### Bug Fixes
+
+- Fix using inactive generators in global carrier constraint. (<!-- md:pr 1450 -->)
 
 - Fix CVaR optimization to handle networks with zero operational costs. (<!-- md:pr 1457 -->)
 
