@@ -14,6 +14,7 @@ SPDX-License-Identifier: CC-BY-4.0
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
 ### Bug Fixes
+- Fix curtailment, capacity, and capex expressions returning zero for non-extendable generators (<!-- md:pr 1451 -->)
 
 - Fix using inactive generators in global carrier constraint. (<!-- md:pr 1450 -->)
 
