@@ -109,3 +109,47 @@ def test_rolling_horizon_integrated_overlap():
         .all()
         .all()
     )
+
+
+def test_rolling_horizon_committable_ramp_limits():
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+
+    n.add("Bus", "bus")
+
+    n.add(
+        "Generator",
+        "coal",
+        bus="bus",
+        committable=True,
+        p_min_pu=0.3,
+        marginal_cost=20,
+        p_nom=10000,
+        ramp_limit_up=0.5,
+        ramp_limit_start_up=0.1,
+    )
+
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        committable=False,
+        marginal_cost=70,
+        p_nom=1000,
+    )
+
+    n.add("Load", "load", bus="bus", p_set=[1500, 5000, 5000, 800])
+
+    n.optimize.optimize_with_rolling_horizon(
+        linearized_unit_commitment=True,
+        horizon=2,
+    )
+
+    # Check dispatch for the first two snapshots against expected values
+    assert n.generators_t.p.loc[0, "coal"] == 1500.0
+    assert (
+        n.generators_t.p.loc[0, "gas"] == 0.0 or n.generators_t.p.loc[0, "gas"] == -0.0
+    )
+
+    assert n.generators_t.p.loc[1, "coal"] == 4500.0
+    assert n.generators_t.p.loc[1, "gas"] == 500.0
