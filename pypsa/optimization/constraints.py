@@ -781,7 +781,7 @@ def define_ramp_limit_constraints(
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                status_start = c.dynamic["status"].iloc[start_i]
+                status_start = c.dynamic["status"].iloc[start_i].loc[original_com_i]
                 limit_diff = (limit_up - limit_start).isel(snapshot=0)
                 rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
                     limit_diff * status_start
