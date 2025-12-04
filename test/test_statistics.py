@@ -11,6 +11,20 @@ from pypsa.statistics import groupers
 from pypsa.statistics.expressions import StatisticsAccessor
 
 
+def test_stats_alias(ac_dc_network):
+    """Test that n.stats works as an alias for n.statistics."""
+    n = ac_dc_network
+    assert n.stats is n.statistics
+    df_stats = n.stats()
+    df_statistics = n.statistics()
+    pd.testing.assert_frame_equal(df_stats, df_statistics)
+    stats_installed_capacity = n.stats.installed_capacity()
+    statistics_installed_capacity = n.statistics.installed_capacity()
+    pd.testing.assert_series_equal(
+        stats_installed_capacity, statistics_installed_capacity
+    )
+
+
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 def test_all_methods(ac_dc_network_r, stat_func):
     df = getattr(ac_dc_network_r.statistics, stat_func)
