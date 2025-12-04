@@ -7,17 +7,17 @@ SPDX-License-Identifier: CC-BY-4.0
 # Release Notes
 ## Upcoming Release
 
-<!--!!! info "Upcoming Release"
+!!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
-
-## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
 ### Features
 
 - Add `stats` as a shorthand alias for the `statistics` accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
+
+## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }
 
 ### Bug Fixes
 
