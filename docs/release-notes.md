@@ -7,19 +7,19 @@ SPDX-License-Identifier: CC-BY-4.0
 # Release Notes
 ## Upcoming Release
 
-!!! info "Upcoming Release"
+<!--!!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+
+## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }
 
 ### Bug Fixes
-- Fix curtailment, capacity, and capex expressions returning zero for non-extendable generators (<!-- md:pr 1451 -->)
 
+- Fix curtailment, capacity, and capex expressions returning zero for non-extendable generators. (<!-- md:pr 1451 -->)
 - Fix using inactive generators in global carrier constraint. (<!-- md:pr 1450 -->)
-
 - Fix CVaR optimization to handle networks with zero operational costs. (<!-- md:pr 1457 -->)
-
 - Fix xarray broadcasting for rolling-horizon with linearized unit commitment optimization. (<!-- md:pr 1464 -->)
 
 ## [**v1.0.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.4) <small>21st November 2025</small> { id="v1.0.4" }
