@@ -109,3 +109,114 @@ def test_rolling_horizon_integrated_overlap():
         .all()
         .all()
     )
+
+
+def test_rolling_horizon_committable_ramp_limits():
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+
+    n.add("Bus", "bus")
+
+    n.add(
+        "Generator",
+        "coal",
+        bus="bus",
+        committable=True,
+        p_min_pu=0.3,
+        marginal_cost=20,
+        p_nom=10000,
+        ramp_limit_up=0.5,
+        ramp_limit_start_up=0.1,
+    )
+
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        committable=False,
+        marginal_cost=70,
+        p_nom=1000,
+    )
+
+    n.add("Load", "load", bus="bus", p_set=[1500, 5000, 5000, 800])
+
+    n.optimize.optimize_with_rolling_horizon(
+        linearized_unit_commitment=True,
+        horizon=2,
+    )
+
+    # Check dispatch for the first two snapshots against expected values
+    assert n.generators_t.p.loc[0, "coal"] == 1500.0
+    assert (
+        n.generators_t.p.loc[0, "gas"] == 0.0 or n.generators_t.p.loc[0, "gas"] == -0.0
+    )
+
+    assert n.generators_t.p.loc[1, "coal"] == 4500.0
+    assert n.generators_t.p.loc[1, "gas"] == 500.0
+
+
+def test_rolling_horizon_committable_overlap_matches_full_run():
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+
+    n.add("Bus", "bus")
+
+    n.add(
+        "Generator",
+        "coal",
+        bus="bus",
+        committable=True,
+        p_min_pu=0.3,
+        marginal_cost=20,
+        p_nom=10000,
+        ramp_limit_up=0.5,
+        ramp_limit_down=0.5,
+        ramp_limit_start_up=0.1,
+    )
+
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        committable=True,
+        p_min_pu=0.0,
+        marginal_cost=70,
+        p_nom=2000,
+        ramp_limit_up=0.8,
+        ramp_limit_down=0.8,
+        ramp_limit_start_up=0.2,
+    )
+
+    n.add("Load", "load", bus="bus", p_set=[1500, 5000, 5000, 800])
+
+    # Full-horizon reference solution
+    status_full, cond_full = n.optimize(
+        snapshots=n.snapshots,
+        linearized_unit_commitment=True,
+    )
+    assert status_full == "ok", (
+        f"Full-horizon optimization failed with status {status_full}, "
+        f"condition {cond_full}"
+    )
+    p_full = n.generators_t.p.copy()
+
+    # Rebuild the same network for rolling horizon
+    n.model.solver_model = None
+    n_rh = n.copy()
+
+    n_rh.optimize.optimize_with_rolling_horizon(
+        linearized_unit_commitment=True,
+        horizon=2,
+        overlap=1,
+    )
+
+    p_rh = n_rh.generators_t.p
+
+    # Dispatch trajectory should match full-horizon run for all snapshots
+    assert p_rh.equals(p_full)
+
+    # Check ramping limits are respected
+    ramping = n_rh.c.generators.dynamic.p.diff().fillna(0)
+    static = n_rh.c.generators.static
+    assert (ramping <= static.eval("ramp_limit_up * p_nom_opt")).all().all()
+    assert (ramping >= -static.eval("ramp_limit_down * p_nom_opt")).all().all()

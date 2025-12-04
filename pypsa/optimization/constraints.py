@@ -781,7 +781,7 @@ def define_ramp_limit_constraints(
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                status_start = c.dynamic["status"].iloc[start_i]
+                status_start = c.dynamic["status"].iloc[start_i].loc[original_com_i]
                 limit_diff = (limit_up - limit_start).isel(snapshot=0)
                 rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
                     limit_diff * status_start
@@ -1064,7 +1064,9 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
 
     if lhs:
         lhs = merge(lhs, dim="snapshot")
-        m.add_constraints(lhs == 0, name="Kirchhoff-Voltage-Law")
+        con = lhs == 0
+        mask = con.rhs.notnull()
+        m.add_constraints(con, name="Kirchhoff-Voltage-Law", mask=mask)
 
 
 def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:
@@ -1305,9 +1307,9 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         pass
 
     # efficiencies as xarray DataArrays
-    eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns)) ** eh
-    eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns)
-    eff_store = c.da.efficiency_store.sel(snapshot=sns)
+    eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
+    eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=c.active_assets)
+    eff_store = c.da.efficiency_store.sel(snapshot=sns, name=c.active_assets)
 
     soc = m[f"{component}-state_of_charge"]
 
@@ -1322,7 +1324,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     # We create a mask `include_previous_soc` which excludes the first snapshot
     # for non-cyclic assets
-    noncyclic_b = ~c.da.cyclic_state_of_charge
+    noncyclic_b = ~c.da.cyclic_state_of_charge.sel(name=c.active_assets)
     include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     previous_soc = (
@@ -1334,8 +1336,8 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     )
 
     # We add inflow and initial soc for noncyclic assets to rhs
-    soc_init = c.da.state_of_charge_initial
-    rhs = -c.da.inflow.sel(snapshot=sns) * eh
+    soc_init = c.da.state_of_charge_initial.sel(name=c.active_assets)
+    rhs = -c.da.inflow.sel(snapshot=sns, name=c.active_assets) * eh
 
     if n._multi_invest:
         # If multi-horizon optimizing, we update the previous_soc and the rhs
@@ -1344,10 +1346,9 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         # An asset is treated as per-period if:
         # 1. It cycles per period (CP=cyclic_state_of_charge_per_period=True), OR
         # 2. It uses initial state per period (IP=state_of_charge_initial_per_period=True)
-        per_period = (
-            c.da.cyclic_state_of_charge_per_period
-            | c.da.state_of_charge_initial_per_period
-        )
+        per_period = c.da.cyclic_state_of_charge_per_period.sel(
+            name=c.active_assets
+        ) | c.da.state_of_charge_initial_per_period.sel(name=c.active_assets)
 
         # We calculate the previous soc per period while cycling within a period
         # Normally, we should use groupby, but is broken for multi-index
@@ -1368,7 +1369,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
         include_previous_soc_pp = active & (
             (periods == periods.shift(snapshot=1))
-            | c.da.cyclic_state_of_charge_per_period
+            | c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
         )
 
         # Ensure that dimension order is consistent for stochastic networks
@@ -1389,12 +1390,14 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         )
 
     # Warn if cyclic overrides initial values (both global and per-period)
-    has_initial = c.da.state_of_charge_initial != 0
-    global_conflict = c.da.cyclic_state_of_charge & has_initial
+    has_initial = c.da.state_of_charge_initial.sel(name=c.active_assets) != 0
+    global_conflict = (
+        c.da.cyclic_state_of_charge.sel(name=c.active_assets) & has_initial
+    )
     period_conflict = (
         (
-            c.da.cyclic_state_of_charge_per_period
-            & c.da.state_of_charge_initial_per_period
+            c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
+            & c.da.state_of_charge_initial_per_period.sel(name=c.active_assets)
             & has_initial
         )
         if n._multi_invest
@@ -1403,7 +1406,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     ignored = global_conflict | period_conflict
     if ignored.any():
-        affected = c.static.index[ignored.values].tolist()
+        affected = c.active_assets[ignored.values].tolist()
         logger.warning(
             "StorageUnits %s: Cyclic state of charge constraint overrules initial storage level setting. "
             "User-defined state_of_charge_initial will be ignored.",
@@ -1412,11 +1415,11 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     # Warn if per-period cyclic overrides global cyclic
     if n._multi_invest:
-        cp_overrides_c = (
-            c.da.cyclic_state_of_charge & c.da.cyclic_state_of_charge_per_period
-        )
+        cp_overrides_c = c.da.cyclic_state_of_charge.sel(
+            name=c.active_assets
+        ) & c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
         if cp_overrides_c.any():
-            affected = c.static.index[cp_overrides_c.values].tolist()
+            affected = c.active_assets[cp_overrides_c.values].tolist()
             logger.warning(
                 "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
                 "overrides global cyclic (cyclic_state_of_charge=True). "
@@ -1554,7 +1557,8 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         #   * If IP=True: use initial value instead (no wrap, handled via rhs)
         #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
         include_previous_e_pp = active & (
-            (periods == periods.shift(snapshot=1)) | c.da.e_cyclic_per_period
+            (periods == periods.shift(snapshot=1))
+            | c.da.e_cyclic_per_period.sel(name=c.active_assets)
         )
 
         # We take values still to handle internal xarray multi-index difficulties
@@ -1567,11 +1571,13 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
     # Warn if cyclic overrides initial values (both global and per-period)
-    has_initial = c.da.e_initial != 0
+    has_initial = c.da.e_initial.sel(name=c.active_assets) != 0
     global_conflict = c.da.e_cyclic.sel(name=c.active_assets) & has_initial
     period_conflict = (
-        (c.da.e_cyclic_per_period & c.da.e_initial_per_period & has_initial).sel(
-            name=c.active_assets
+        (
+            c.da.e_cyclic_per_period.sel(name=c.active_assets)
+            & c.da.e_initial_per_period.sel(name=c.active_assets)
+            & has_initial
         )
         if n._multi_invest
         else False
@@ -1579,7 +1585,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     ignored = global_conflict | period_conflict
     if ignored.any():
-        affected = c.static.index[ignored.values].tolist()
+        affected = c.active_assets[ignored.values].tolist()
         logger.warning(
             "Stores %s: Cyclic energy level constraint overrules initial value setting. "
             "User-defined e_initial will be ignored.",
@@ -1588,11 +1594,11 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     # Warn if per-period cyclic overrides global cyclic
     if n._multi_invest:
-        cp_overrides_c = (
-            c.da.e_cyclic.sel(name=c.active_assets) & c.da.e_cyclic_per_period
-        )
+        cp_overrides_c = c.da.e_cyclic.sel(
+            name=c.active_assets
+        ) & c.da.e_cyclic_per_period.sel(name=c.active_assets)
         if cp_overrides_c.any():
-            affected = c.static.index[cp_overrides_c.values].tolist()
+            affected = c.active_assets[cp_overrides_c.values].tolist()
             logger.warning(
                 "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
                 "overrides global cyclic (e_cyclic=True). "
