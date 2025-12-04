@@ -19,7 +19,7 @@ jobs:
     outputs:
       prepared: ${{ steps.validate.outputs.prepared }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Validate commit message
       id: validate
@@ -49,7 +49,7 @@ jobs:
         app-id: ${{ vars.PYPSA_BOT_ID }}
         private-key: ${{ secrets.PYPSA_BOT_PRIVATE_KEY }}
 
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
@@ -59,7 +59,7 @@ jobs:
         echo "Branch found: $branch"
         echo "BRANCH_NAME=$branch" >> $GITHUB_ENV
 
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
         ref: ${{ env.BRANCH_NAME }}
@@ -141,7 +141,7 @@ jobs:
     if: ${{ needs.check-preparation.outputs.prepared == 'true' }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: hynek/build-and-inspect-python-package@v2
 
   release:
@@ -149,11 +149,11 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: softprops/action-gh-release@v2
       with:
         body: |
-          Revised release notes are available in the [documentation](https://${{ github.event.repository.name }}.readthedocs.io/en/latest/release-notes.html).
+          Revised release notes are available in the [documentation](https://docs.pypsa.org/latest/release-notes/).
         append_body: true
         generate_release_notes: true
 
@@ -167,7 +167,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-    - uses: actions/download-artifact@v5
+    - uses: actions/download-artifact@v6
       with:
         name: Packages
         path: dist

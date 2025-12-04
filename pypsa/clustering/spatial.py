@@ -614,12 +614,20 @@ def get_clustering_from_busmap(
                 if not df.empty:
                     clustered._import_series_from_df(df, c.name, attr)
 
+    bus_mappings = {
+        "bus0": n.c.links.static.bus0.map(busmap),
+        "bus1": n.c.links.static.bus1.map(busmap),
+    }
+
+    # Also add additional ports if they exist
+    for port in n.c.links.additional_ports:
+        col = f"bus{port}"
+        if col in n.c.links.static.columns:
+            bus_mappings[col] = n.c.links.static[col].map(busmap)
+
     new_links = (
-        n.c.links.static.assign(
-            bus0=n.c.links.static.bus0.map(busmap),
-            bus1=n.c.links.static.bus1.map(busmap),
-        )
-        .dropna(subset=["bus0", "bus1"])
+        n.c.links.static.assign(**bus_mappings)
+        .dropna(subset=["bus0", "bus1"])  # Only require bus0 and bus1 to be non-NaN
         .loc[lambda df: df.bus0 != df.bus1]
     )
 

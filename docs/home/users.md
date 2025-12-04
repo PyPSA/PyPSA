@@ -106,7 +106,7 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_nl: TenneT](https://www.tennet.eu/)**, the Dutch TSO, used PyPSA for [research](https://arxiv.org/abs/2104.13047) on ancillary services acquisition using agent-based modelling.
 
-* **[:flag_za: Meridian Economics](https://meridianeconomics.co.za/)**, a consultancy based in South Africa, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa. Studies published in June 2022 were on [load shedding in 2021](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf) and [a plan to resolve load shedding](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-B-The-Game-Plan-01.pdf)
+* **[:flag_za: Meridian Economics](https://meridianeconomics.co.za/)**, a consultancy based in South Africa, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa. Studies published in June 2022 were on [load shedding in 2021](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf) and [a plan to resolve load shedding](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-B-The-Game-Plan-01.pdf). [Updated study in 2025](https://meridianeconomics.co.za/publications/re-thinking-the-future-of-south-africas-coal-fleet-the-value-of-flexibility/) including different types of flexibility of coal plant operation and retirement.
 
 * **[:flag_de: Energynautics GmbH](https://energynautics.com/)**, a grid integration consultancy in Germany, used PyPSA for a study of decentral electricity and heat integration in power grids in a study for the Rhineland-Palatinate state government in 2021: [Pilotprojekt Dezentralisierung: Stärkere Dezentralisierung des bundesdeutschen Strom-Wärme-Systems: Rechtliche und organisatorische Rahmenbedingungen sowie infrastrukturelle Folgen](https://mkuem.rlp.de/fileadmin/mulewf/Themen/Energie_und_Strahlenschutz/Energie/Endbericht_Pilotprojekt_Dezentralisierung_2021_v2.pdf) ([summary in English](https://energynautics.com/en/decentrality-study-for-rhineland-palatinate-completed/))
 
@@ -122,6 +122,9 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_us: spire](https://www.spireenergy.com/)**
 
+* **[:flag_in: Serentica](https://www.serentica.com/)**
+
+* **[:flag_jp: Tokyo Electric Power Services Company (TEPSCO)](https://www.tepsco.co.jp/english/)**, provides wide-ranging engineering services; planning, study, design, construction supervision and after care. See [Linkedin.com](https://www.linkedin.com/posts/takashi-yanase-850462a0_i-built-and-ran-a-preliminary-model-of-japan-activity-7401253510639648768-F3EB?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAp_3N8BMuXs2_8w1fGMmfRzJESnpY7vzI4).
 
 ## Governmental Organisation
 

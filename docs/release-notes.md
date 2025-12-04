@@ -13,6 +13,8 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Features
+
 - New carrier management features (<!-- md:pr 1401 -->)
 
     - `c.unique_carriers` property: Get all unique carrier values for a component (e.g., `n.c.generators.unique_carriers`)
@@ -30,15 +32,40 @@ SPDX-License-Identifier: CC-BY-4.0
     - Better support for multi-period investment data visualization
     - Automatic color coding by collection index or investment period
 
-## [**v1.0.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.2) <small>24 October 2025</small> { id="v1.0.2" }
+- Add `stats` as a shorthand alias for the `statistics` accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
+
+## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }
+
+### Bug Fixes
+
+- Fix curtailment, capacity, and capex expressions returning zero for non-extendable generators. (<!-- md:pr 1451 -->)
+- Fix using inactive generators in global carrier constraint. (<!-- md:pr 1450 -->)
+- Fix CVaR optimization to handle networks with zero operational costs. (<!-- md:pr 1457 -->)
+- Fix xarray broadcasting for rolling-horizon with linearized unit commitment optimization. (<!-- md:pr 1464 -->)
+
+## [**v1.0.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.4) <small>21st November 2025</small> { id="v1.0.4" }
+
+### Bug Fixes
+
+- Fix busmap clustering to correctly remap all bus ports in multi-port links. (<!-- md:pr 1441 -->)
+- Fix handling of inactive `StorageUnit` or `Store` components (<!-- md:pr 1442 -->)
+- Fix snapshot selection in operational limit global constraint with investment period. (<!-- md:pr 1437 -->)
+
+### Documentation
+
+- Added new example notebook demonstrating negative electricity prices in linearized unit commitment problem. (<!-- md:pr 1434 -->)
+
+## [**v1.0.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.3) <small>6th November 2025</small> { id="v1.0.3" }
+
+- Fix ramp_limit_up/down constraints: correctly detect components with ramp limits, handle rolling-horizon windows by using previous-window dispatch, and add unit tests for Link ramp limits and ramping constraints in rolling horizon mode. (<!-- md:pr 1428 -->)
+
+## [**v1.0.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.2) <small>24th October 2025</small> { id="v1.0.2" }
 
 ### Bug Fixes
 
 - Fix infinite recursion error when pickling networks. (<!-- md:pr 1421 -->)
 
-- Fix ramp_limit_up/down constraints: correctly detect components with ramp limits, handle rolling-horizon windows by using previous-window dispatch, and add unit tests for Link ramp limits and ramping constraints in rolling horizon mode. (<!-- md:pr: 1428 -->)
-
-## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> { id="v1.0.1" }
+## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20th October 2025</small> { id="v1.0.1" }
 
 ### Bug Fixes
 
@@ -50,7 +77,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix dimension name consistency when adding investment period weightings. (<!-- md:pr 1416 -->)
 
-## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14 October 2025</small> 🎉 { id="v1.0.0" }
+## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14th October 2025</small> 🎉 { id="v1.0.0" }
 
 ### **PyPSA 1.0** is here!
 

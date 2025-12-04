@@ -91,6 +91,7 @@ nav:
   - Operational Problems:
     - examples/simple-electricity-market-examples.ipynb
     - examples/unit-commitment.ipynb
+    - examples/uc-prices.ipynb
     - examples/ac-dc-lopf.ipynb
     - examples/scigrid-lopf-then-pf.ipynb
     - examples/scigrid-sclopf.ipynb

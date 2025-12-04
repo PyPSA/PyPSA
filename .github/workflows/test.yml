@@ -25,7 +25,7 @@ jobs:
     name: Build and verify package
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0   # Needed for setuptools_scm
     - uses: hynek/build-and-inspect-python-package@v2
@@ -57,7 +57,7 @@ jobs:
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0   # Needed for setuptools_scm
 
@@ -76,7 +76,7 @@ jobs:
         brew install hdf5
 
     - name: Download package
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: Packages
         path: dist
@@ -105,7 +105,7 @@ jobs:
 
     - name: Upload artifacts
       if: matrix.api == 'default' && matrix.os == 'macos-latest' && matrix.python-version == '3.13'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: results-plotting
         path: |
@@ -141,7 +141,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0   # Needed for setuptools_scm
 
@@ -151,7 +151,7 @@ jobs:
         python-version: 3.13
 
     - name: Download package
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: Packages
         path: dist
@@ -197,7 +197,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0   # Needed for setuptools_scm
 
@@ -207,7 +207,7 @@ jobs:
         python-version: 3.13
 
     - name: Download package
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: Packages
         path: dist

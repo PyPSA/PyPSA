@@ -207,7 +207,7 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
         return
 
     upper = c.da.inflow.sel(name=c.active_assets, snapshot=sns)
-    if (upper.max() <= 0).all():
+    if upper.size == 0 or (upper.max() <= 0).all():
         return
 
     active = c.da.active.sel(snapshot=sns, name=c.active_assets)
