@@ -14,6 +14,8 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 from urllib import parse, request
 
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pandas.testing as pd_testing
@@ -882,6 +884,54 @@ def _scenarios_not_implemented(func: Callable) -> Callable:
         return func(self, *args, **kwargs)
 
     return wrapper
+
+
+def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
+    """Generate a list of colors from a matplotlib palette.
+
+    <!-- md:badge-version v1.0.0 -->
+
+    Parameters
+    ----------
+    n_colors : int
+        Number of colors to generate.
+    palette : str, default "tab10"
+        Matplotlib color palette name.
+
+    Returns
+    -------
+    list of str
+        List of hex color strings.
+
+    Examples
+    --------
+    >>> pypsa.common.generate_colors(3, "tab10")
+    ['#1f77b4', '#ff7f0e', '#2ca02c']
+
+    """
+    cmap = plt.get_cmap(palette)
+
+    if hasattr(cmap, "N"):
+        n_palette_colors = cmap.N
+    else:
+        # For continuous colormaps, use a reasonable number
+        n_palette_colors = 256
+
+    # Generate colors
+    colors = []
+    for i in range(n_colors):
+        # Cycle through palette if we have more carriers than colors
+        idx = i % n_palette_colors
+        if n_palette_colors <= 20:
+            # For discrete palettes, use integer indices
+            rgba = cmap(idx)
+        else:
+            # For continuous palettes, normalize to [0, 1]
+            rgba = cmap(idx / n_palette_colors)
+        # Convert RGBA to hex
+        colors.append(mcolors.to_hex(rgba))
+
+    return colors
 
 
 def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:

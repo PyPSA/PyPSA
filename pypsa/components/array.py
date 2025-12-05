@@ -242,8 +242,6 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators._as_dynamic('p_max_pu', n.snapshots[:2])
         name                 Manchester Wind  ...  Frankfurt Gas
         snapshot                              ...

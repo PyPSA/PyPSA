@@ -15,7 +15,18 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
-- Add `stats` as a shorthand alias for the `statistics` accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
+- New network sanitization and data integrity features (<!-- md:pr 1401 -->):
+    - [`n.sanitize()`][pypsa.Network.sanitize]: Run the following methods to fix consistency issues.
+    - [`n.c.buses.add_missing_buses()`][pypsa.Buses.add_missing_buses]: Add buses referenced by components but not yet defined.
+    - [`n.c.carriers.add_missing_carriers()`][pypsa.Carriers.add_missing_carriers]: Add carriers used by components but not yet defined.
+    - [`n.c.carriers.assign_colors()`][pypsa.Carriers.assign_colors]: Assign colors to carriers using matplotlib palettes.
+    - [`c.unique_carriers`][pypsa.Components.unique_carriers]: Get all unique carrier values for a component.
+
+- Enhanced statistics plotting for stochastic networks and network collections (<!-- md:pr 1401 -->):
+    - Interactive bar plots (`iplot.bar`) aggregate scenarios with standard deviation error bars
+    - Improved multi-level index handling with automatic grouping/faceting
+
+- Add [`n.stats`][pypsa.Network.stats] as shorthand alias for [`n.statistics`][pypsa.Network.statistics] (<!-- md:pr 1448 -->)
 
 ## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }
 

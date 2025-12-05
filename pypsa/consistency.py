@@ -64,7 +64,7 @@ def check_for_unknown_buses(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][]
+    [pypsa.Network.consistency_check][], [pypsa.Network.sanitize][]
 
     """
     for attr in _bus_columns(component.static):
@@ -78,7 +78,8 @@ def check_for_unknown_buses(
         if missing.any():
             _log_or_raise(
                 strict,
-                "The following %s have buses which are not defined:\n%s",
+                "The following %s have buses which are not defined. Run n.sanitize()"
+                " to add them. Components with undefined buses:\n%s",
                 component.list_name,
                 component.static.index[missing],
             )
@@ -135,7 +136,7 @@ def check_for_unknown_carriers(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][]
+    [pypsa.Network.consistency_check][], [pypsa.Network.sanitize][]
 
 
     """
@@ -148,7 +149,8 @@ def check_for_unknown_carriers(
         if missing.any():
             _log_or_raise(
                 strict,
-                "The following %s have carriers which are not defined:\n%s",
+                "The following %s have carriers which are not defined. Run n.sanitize()"
+                " to add them. Components with undefined carriers:\n%s",
                 component.list_name,
                 component.static.index[missing],
             )
@@ -712,6 +714,10 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
     strict : bool, optional
         If True, raise an error instead of logging a warning.
 
+    See Also
+    --------
+    [pypsa.Network.consistency_check][], [pypsa.Network.sanitize][]
+
     """
     missing_colors = n.c.carriers.static[
         n.c.carriers.static.color.isna() | n.c.carriers.static.color.eq("")
@@ -719,7 +725,8 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
     if not missing_colors.empty:
         _log_or_raise(
             strict,
-            "The following carriers are missing colors:\n%s",
+            "The following carriers are missing colors. Run n.sanitize()"
+            " to assign them. Carriers missing colors:\n%s",
             missing_colors.index,
         )
 
@@ -878,6 +885,42 @@ class NetworkConsistencyMixin(_NetworkABC):
             self,  # type: ignore
             strict="missing_carrier_colors" in strict,
         )
+
+    def sanitize(self) -> None:
+        """Sanitize the network to ensure data integrity.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        This method performs a set of operations to heal the networks data integrity.
+        For a full list of operations which are done, check the See Also section below.
+
+        See Also
+        --------
+        [pypsa.Carriers.add_missing_carriers][], [pypsa.Carriers.assign_colors][]
+
+        """
+        logger.info("Sanitizing network...")
+
+        # Add missing buses
+        added_buses = self.c.buses.add_missing_buses()
+        if len(added_buses) > 0:
+            logger.info(
+                "Added %d missing buses: %s", len(added_buses), list(added_buses)
+            )
+
+        # Add missing carriers
+        added_carriers = self.c.carriers.add_missing_carriers()
+        if len(added_carriers) > 0:
+            logger.info(
+                "Added %d missing carriers: %s",
+                len(added_carriers),
+                list(added_carriers),
+            )
+
+        # Assign colors to carriers without colors
+        self.c.carriers.assign_colors()
+
+        logger.info("Network sanitization complete.")
 
 
 def check_scenarios_sum_to_one(n: NetworkType, strict: bool = False) -> None:
