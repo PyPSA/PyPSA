@@ -115,7 +115,7 @@ class ComponentsTransformMixin:
         Components: 1
 
         With static data (and default values for all attributes):
-        >>> c.static[["carrier", "p_nom"]]  # doctest: +NORMALIZE_WHITESPACE
+        >>> c.static[["carrier", "p_nom"]]
                        carrier  p_nom
         name
         my-generator-1      AC    0.0
@@ -134,7 +134,7 @@ class ComponentsTransformMixin:
         Components: 3
 
         With static data:
-        >>> c.static[["carrier", "p_nom"]]  # doctest: +NORMALIZE_WHITESPACE
+        >>> c.static[["carrier", "p_nom"]]
                    carrier  p_nom
         name
         my-generator-1      AC    0.0

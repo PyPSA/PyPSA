@@ -307,27 +307,54 @@ def test_add_overwrite_varying(n_5bus_7sn, caplog):
 
 
 def test_add_stochastic():
-    n = pypsa.Network()
+    """Test adding components to stochastic networks."""
+    n = pypsa.Network(snapshots=range(5))
     n.add("Bus", "bus_1", v_mag_pu_set=0.1)
     n.add("Bus", "bus_2", v_mag_pu_set=0.1)
 
+    # Test 1: Reject MultiIndex names before scenarios
     multi_indexed = pd.MultiIndex.from_product(
         [["bus_3", "bus_4"], ["scenario_1", "scenario_2"]]
     )
-
-    with pytest.raises(TypeError, match="Component names must be a one-dimensional."):
+    with pytest.raises(TypeError, match="Component names must be one-dimensional"):
         n.add("Bus", multi_indexed, v_mag_pu_set=0.1)
 
+    # Set scenarios
     n.set_scenarios(["scenario_1", "scenario_2"])
 
+    # Test 2: Reject MultiIndex names after scenarios
     with pytest.raises(
         TypeError,
-        match=(
-            "Component names must be a one-dimensional. For stochastic networks, they "
-            "will be casted to all dimensions and data per scenario can be changed after adding them."
-        ),
+        match="Component names must be one-dimensional.*broadcast",
     ):
         n.add("Bus", multi_indexed, v_mag_pu_set=0.1)
+
+    # Test 3: Add single component with static attributes - should broadcast
+    n.add("Load", "load1", bus="bus_1", p_set=50)
+    assert isinstance(n.c.loads.static.index, pd.MultiIndex)
+    assert n.c.loads.static.index.names == ["scenario", "name"]
+    assert len(n.c.loads.static.index) == 2  # One per scenario
+    assert ("scenario_1", "load1") in n.c.loads.static.index
+    assert ("scenario_2", "load1") in n.c.loads.static.index
+    assert n.c.loads.static.loc[("scenario_1", "load1"), "p_set"] == 50.0
+
+    # Test 4: Add multiple components - should broadcast
+    n.add("Load", ["load2", "load3"], bus=["bus_1", "bus_2"], p_set=[75, 100])
+    assert len(n.c.loads.static.index) == 6  # 3 loads × 2 scenarios
+
+    # Test 5: Add with time-varying attributes - should broadcast
+    load_profile = [100, 120, 110, 130, 115]
+    n.add("Load", "load4", bus="bus_2", p_set=load_profile)
+    assert isinstance(n.c.loads.dynamic.p_set.columns, pd.MultiIndex)
+    assert n.c.loads.dynamic.p_set.columns.names == ["scenario", "name"]
+    for scenario in n.scenarios:
+        assert list(n.c.loads.dynamic.p_set.loc[:, (scenario, "load4")]) == load_profile
+
+    # Test 6: Verify can modify per scenario after adding
+    n.c.loads.static.loc[("scenario_1", "load1"), "p_set"] = 80
+    n.c.loads.static.loc[("scenario_2", "load1"), "p_set"] = 120
+    assert n.c.loads.static.loc[("scenario_1", "load1"), "p_set"] == 80.0
+    assert n.c.loads.static.loc[("scenario_2", "load1"), "p_set"] == 120.0
 
 
 def test_multiple_add_defaults(n_5bus):

@@ -147,8 +147,6 @@ def apply_layouter(
 
     Examples
     --------
-    >>> import pypsa
-    >>> n = pypsa.examples.ac_dc_meshed()
     >>> x, y = apply_layouter(n, layouter=nx.circular_layout)
     >>> x
     London        1.000000

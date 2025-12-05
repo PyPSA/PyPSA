@@ -36,7 +36,7 @@ class Carriers(Components):
 
     Examples
     --------
-    >>> n.components.carriers  # doctest: +SKIP
+    >>> n.components.carriers
     'Carrier' Components
     --------------------
     Attached to PyPSA Network 'AC-DC-Meshed'
@@ -154,158 +154,56 @@ class Carriers(Components):
 
     def add_missing_carriers(
         self,
-        palette: str | None = "tab10",
         **kwargs: Any,
     ) -> pd.Index:
         """Add carriers that are used in the network but not yet defined.
 
         This function iterates over all components that have a carrier attribute,
         collects all unique carrier values, and adds any carriers that are not yet
-        defined in the network. Colors are automatically assigned to the new
-        carriers using the specified color palette unless disabled.
+        defined in the network.
 
         Parameters
         ----------
-        palette : str or None, default "tab10"
-            Matplotlib color palette to use for assigning colors to carriers.
-            If None, no colors are assigned automatically. Options include:
-            - "tab10" (10 colors, default)
-            - "tab20" (20 colors)
-            - "Set1", "Set2", "Set3" (qualitative palettes)
-            - "Pastel1", "Pastel2" (soft colors)
-            - Any other matplotlib colormap name
-            - None (no automatic color assignment)
         **kwargs : Any
             Additional keyword arguments to pass to the add() method for the new
-            carriers (e.g., co2_emissions, nice_name). If 'color' is provided,
-            it will override the automatic color assignment from the palette.
+            carriers (e.g., color, co2_emissions, nice_name).
 
         Returns
         -------
         pd.Index
             Index of newly added carrier names.
 
-        Raises
-        ------
-        ValueError
-            If both palette and color are provided in kwargs.
-
         Examples
         --------
-        Add missing carriers with default tab10 colors:
+        >>> n = pypsa.Network()
+        >>> n.components.buses.add('my_bus', carrier='my_carrier')
+        >>> n.c.carriers.add_missing_carriers()
+        Index(['my_carrier'], dtype='object')
 
-        >>> import pypsa
-        >>> n_test = pypsa.Network()
-        >>> n_test.add("Bus", "bus1")
-        >>> n_test.add("Generator", "gen1", bus="bus1", carrier="wind")
-        >>> n_test.add("Generator", "gen2", bus="bus1", carrier="solar")
-        >>> n_test.add("Generator", "gen3", bus="bus1", carrier="gas")
-        >>> n_test.c.carriers.add_missing_carriers()
-        Index(['AC', 'gas', 'solar', 'wind'], dtype='object')
+        Carriers are added without the need to extra call `n.add`:
 
-        Add missing carriers without automatic color assignment:
-
-        >>> import pypsa
-        >>> n_test = pypsa.Network()
-        >>> n_test.add("Bus", "bus1", carrier="AC")
-        >>> n_test.add("Generator", "gen1", bus="bus1", carrier="wind")
-        >>> n_test.c.carriers.add_missing_carriers(palette=None)
-        Index(['AC', 'wind'], dtype='object')
-
-        Add missing carriers with additional attributes:
-
-        >>> import pypsa
-        >>> n_test = pypsa.Network()
-        >>> n_test.add("Bus", "bus1", carrier="AC")
-        >>> n_test.add("Generator", "gen1", bus="bus1", carrier="wind")
-        >>> n_test.add("Generator", "gen2", bus="bus1", carrier="gas")
-        >>> added = n_test.c.carriers.add_missing_carriers(
-        ...     palette="tab20",
-        ...     co2_emissions=0.0
-        ... )
-        >>> sorted(added)
-        ['AC', 'gas', 'wind']
-        >>> n_test.carriers.loc[added, "co2_emissions"].unique()
-        array([0.])
-
-        Notes
-        -----
-        - Components checked for carrier attributes: generators, loads, storage_units,
-          stores, links, lines, sub_networks
-        - Empty strings, None, and NaN values are ignored
-        - Colors are assigned deterministically based on alphabetically sorted carrier
-          names
-        - If more carriers exist than colors in the palette, colors will be cycled
-        - If you provide explicit colors via kwargs, they will override palette colors
-
-        See Also
-        --------
-        add : Add carriers manually to the network
-        assign_colors : Assign colors to existing carriers
+        >>> n.components.carriers.static  # doctest: +ELLIPSIS
+                    co2_emissions color nice_name  max_growth  max_relative_growth
+        name
+        my_carrier            0.0                         inf                  0.0
 
         """
-        # Check for conflicting arguments
-        if palette is not None and "color" in kwargs:
-            msg = "Cannot specify both 'palette' and 'color' in kwargs. Use either palette for automatic assignment or color for explicit values."
-            raise ValueError(msg)
-
-        # Collect all unique carrier values from components
+        # Get all unique carrier values
         all_carriers = set()
         for c in self.n_save.c.values():
             all_carriers.update(c.unique_carriers)
 
-        # Get existing carriers
         existing_carriers = set(self.names)
-
-        # Find missing carriers
         missing_carriers = sorted(all_carriers - existing_carriers)
 
         if not missing_carriers:
             logger.debug("No missing carriers found. All carriers are already defined.")
             return pd.Index([], name="name")
 
-        # Add missing carriers
         logger.info(
             "Adding %d missing carriers: %s", len(missing_carriers), missing_carriers
         )
 
-        # For stochastic networks, add carriers with scenario wrapping
-        if self.n_save.has_scenarios:
-            # Create a temporary network to leverage the standard add() method
-            temp_static = self.static.copy()
-            self.static = self.static.iloc[:0]  # Temporarily clear for clean add
-
-            # Add carriers normally to get proper defaults
-            self.add(missing_carriers, **kwargs)
-            new_carriers_df = self.static.copy()
-
-            # Restore original static
-            self.static = temp_static
-
-            # Wrap new carriers across all scenarios
-            wrapped_df = pd.concat(
-                dict.fromkeys(self.n_save.scenarios, new_carriers_df),
-                names=["scenario"],
-            )
-
-            # Append to existing carriers
-            self.static = pd.concat([self.static, wrapped_df], axis=0)
-
-            # Assign colors if palette is specified and colors not explicitly provided
-            if palette is not None and "color" not in kwargs:
-                self.assign_colors(
-                    carriers=missing_carriers, palette=palette, overwrite=False
-                )
-
-            return pd.Index(missing_carriers, name="name")
-
-        # For non-stochastic networks, add carriers
         result = self.add(missing_carriers, return_names=True, **kwargs)
-
-        # Assign colors if palette is specified and colors not explicitly provided
-        if palette is not None and "color" not in kwargs:
-            self.assign_colors(
-                carriers=missing_carriers, palette=palette, overwrite=False
-            )
 
         return result

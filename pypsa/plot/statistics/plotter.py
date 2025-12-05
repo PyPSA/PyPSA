@@ -344,8 +344,6 @@ class StatisticPlotter(_StatisticPlotterBase):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> fig, ax, g = n.statistics.installed_capacity.plot.bar(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
 
         """
@@ -501,8 +499,6 @@ class StatisticPlotter(_StatisticPlotterBase):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> fig, ax = n.statistics.installed_capacity.plot.map(geomap=True, title="Installed Capacity")
 
         """
@@ -737,8 +733,6 @@ class StatisticInteractivePlotter(_StatisticPlotterBase):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> fig = n.statistics.installed_capacity.iplot.bar(x="carrier", y="value", color="carrier") # doctest: +ELLIPSIS
 
         """

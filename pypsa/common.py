@@ -14,6 +14,8 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 from urllib import parse, request
 
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pandas.testing as pd_testing
@@ -903,25 +905,12 @@ def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
 
     Examples
     --------
-    >>> colors = pypsa.common.generate_colors(3, "tab10")
-    >>> len(colors)
-    3
-    >>> all(c.startswith("#") for c in colors)
-    True
+    >>> pypsa.common.generate_colors(3, "tab10")
+    ['#1f77b4', '#ff7f0e', '#2ca02c']
 
     """
-    import matplotlib.colors as mcolors  # noqa: PLC0415
-    import matplotlib.pyplot as plt  # noqa: PLC0415
+    cmap = plt.get_cmap(palette)
 
-    try:
-        cmap = plt.get_cmap(palette)
-    except ValueError:
-        logger.warning(
-            "Color palette '%s' not found. Using 'tab10' as fallback.", palette
-        )
-        cmap = plt.get_cmap("tab10")
-
-    # Get the number of colors in the palette
     if hasattr(cmap, "N"):
         n_palette_colors = cmap.N
     else:

@@ -47,10 +47,7 @@ class PlotsGenerator(ABC):
         """Handle default statistics kwargs based on provided plot kwargs."""
 
     def get_unique_carriers(self) -> pd.DataFrame:
-        """Get unique carriers from the network.
-
-        For stochastic networks with MultiIndex, returns deduplicated carriers
-        across scenarios.
+        """Get unique carriers from the network across all dimensions.
 
         Returns
         -------
@@ -60,7 +57,6 @@ class PlotsGenerator(ABC):
         """
         carriers = self._n.c.carriers.static
         if isinstance(carriers.index, pd.MultiIndex):
-            # For stochastic networks, deduplicate across scenarios
             for level in carriers.index.names:
                 if level != "name":
                     carriers = carriers.droplevel(level)
