@@ -102,7 +102,7 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_at: Austrian Power Grid (APG)](https://www.apg.at/)**, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in [this talk](https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf) and [this project description](https://www.apg.at/projekte/zusammen-2040/).
 
-- **[:flag_at: Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/)** develops and maintains a high-resolution, sector-coupled energy system model based on PyPSA-DE and PyPSA-EUR. The model is used to analyse long-term energy system projections up to 2050 and serves as a supplementary tool for AGGM’s bi-annual report, the Langfristige Integrierte Planung (LFiP).
+- **[:flag_at: Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/)** develops and maintains a high-resolution, sector-coupled energy system model for [Austria}(https://github.com/AGGM-AG/pypsa-at) based on PyPSA-DE and PyPSA-EUR. The model is used to analyse long-term energy system projections up to 2050 and serves as a supplementary tool for AGGM’s bi-annual report, the Langfristige Integrierte Planung (LFiP).
 
 - **[:flag_nl: TenneT](https://www.tennet.eu/)**, the Dutch TSO, used PyPSA for [research](https://arxiv.org/abs/2104.13047) on ancillary services acquisition using agent-based modelling.
 
