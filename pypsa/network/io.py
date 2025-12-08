@@ -908,6 +908,7 @@ class _ImporterNetCDF(_Importer):
             return None
         df = pd.DataFrame()
         for attr in self.ds.data_vars.keys():
+            attr = str(attr)
             if attr.startswith(t) and attr[i : i + 2] != "t_":
                 loaded_df = self.ds[attr].to_pandas()
                 if isinstance(loaded_df, pd.DataFrame):
@@ -926,6 +927,7 @@ class _ImporterNetCDF(_Importer):
         """Get dynamic components data."""
         t = list_name + "_t_"
         for attr in self.ds.data_vars.keys():
+            attr = str(attr)
             if attr.startswith(t):
                 try:
                     df = self.ds[attr].to_pandas()
