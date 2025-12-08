@@ -1701,7 +1701,11 @@ def define_loss_constraints(
     delta_p = sqrt(eps / r_pu_eff) 
 
     n_tangents = (s_max_pu * s_nom_max) // (2 * delta_p)
-
+    if n_tangents.max().item() > 10:
+        logger.warning(
+            f"High number of tangents ({n_tangents.max().item()}) for line loss "
+            f"approximation. Consider increasing 'eps' to reduce model size."
+        )
     for k in range(1, int(n_tangents.max().item()) + 1): # starting at 1 here is important, else we get nans for the lines with 0 tangents
         mask = n_tangents >= k
         # The commented lines are equivalent to the lines below, but numerically ill conditioned
