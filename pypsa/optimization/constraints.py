@@ -1692,13 +1692,11 @@ def define_loss_constraints(
         loss <= upper_limit, name=f"{c.name}-loss_upper", mask=active
     )
     # Add lower limit constraint
-    n.model.add_constraints(
-        loss >= 0, name=f"{c.name}-loss_lower", mask=active
-    )
+    n.model.add_constraints(loss >= 0, name=f"{c.name}-loss_lower", mask=active)
 
     eps = transmission_losses
 
-    delta_p = sqrt(eps / r_pu_eff) 
+    delta_p = sqrt(eps / r_pu_eff)
 
     n_tangents = (s_max_pu * s_nom_max) // (2 * delta_p)
     if n_tangents.max().item() > 10:
@@ -1706,14 +1704,16 @@ def define_loss_constraints(
             f"High number of tangents ({n_tangents.max().item()}) for line loss "
             f"approximation. Consider increasing 'eps' to reduce model size."
         )
-    for k in range(1, int(n_tangents.max().item()) + 1): # starting at 1 here is important, else we get nans for the lines with 0 tangents
+    for k in range(
+        1, int(n_tangents.max().item()) + 1
+    ):  # starting at 1 here is important, else we get nans for the lines with 0 tangents
         mask = n_tangents >= k
         # The commented lines are equivalent to the lines below, but numerically ill conditioned
-        # p_k = k * 2  * delta_p.where(mask, 0) 
+        # p_k = k * 2  * delta_p.where(mask, 0)
         # slope_k = 2 * r_pu_eff * p_k
         # offset_k = -r_pu_eff * p_k**2
         slope_k = 4 * k * sqrt(eps * r_pu_eff).where(mask, 0)
-        offset_k = - 4 * k**2 * eps * mask
+        offset_k = -4 * k**2 * eps * mask
 
         # Add constraints for both positive and negative flow
         for sign in [-1, 1]:
