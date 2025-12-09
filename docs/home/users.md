@@ -69,6 +69,7 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_th: Asian Institute of Technology](https://ait.ac.th/)** in the [South and South-East Asia Multidisciplinary Applied Research Network on Transforming Societies of Global South (SMARTS)](https://ait.ac.th/centre/smartscenter/) and the **[:flag_bd: International University of Business Agriculture and Technology (IUBAT), Dhaka](https://eee.iubat.edu/)** developed an adaptation of PyPSA-Earth, called PyPSA-BD to support the energy transition in Bangladesh [<https://doi.org/10.1016/j.ref.2024.100655>](https://doi.org/10.1016/j.ref.2024.100655)
 
+- **[:flag_us: Simon Fraser University](https://www.sfu.ca/)** at the [ΔE+ (Delta-E-plus)](https://www.sfu.ca/fas/research/fas-research-labs/delta-e/) uses PyPSA to explores the synergies and trade-offs at the nexus of energy+ to support effective policy development.
 
 ## Research Institutes
 
