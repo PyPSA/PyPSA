@@ -15,7 +15,6 @@ open source and actively maintained. Below is a list of some known models.
 ### Global
 - **[:earth_africa: PyPSA-Earth](https://github.com/pypsa-meets-earth/pypsa-earth)**: Global energy system model, maintained by [pypsa-meets-earth](https://pypsa-meets-earth.github.io/)
 
-
 ### Europe
 - **[:flag_eu: PyPSA-Eur](https://github.com/PyPSA/pypsa-eur)**: European energy system model, maintained by [TU Berlin](https://www.tu.berlin/en/ensys)
 - **[:flag_de: PyPSA-DE](https://github.com/PyPSA/pypsa-de)**: German energy system model, maintained by [TU Berlin](https://www.tu.berlin/en/ensys)
