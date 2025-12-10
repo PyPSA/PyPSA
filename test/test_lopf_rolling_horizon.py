@@ -220,3 +220,36 @@ def test_rolling_horizon_committable_overlap_matches_full_run():
     static = n_rh.c.generators.static
     assert (ramping <= static.eval("ramp_limit_up * p_nom_opt")).all().all()
     assert (ramping >= -static.eval("ramp_limit_down * p_nom_opt")).all().all()
+
+
+def test_rolling_horizon_linearized_uc_with_ramp_limits():
+    """
+    Test rolling horizon with linearized UC and ramp limits on committables.
+
+    Regression test for bug in issue #1454 where coordinate indexing in ramp limit constraints caused KeyError when using rolling horizon optimization with linearized unit commitment and ramp limits defined for committable generators.
+    """
+    n = pypsa.examples.scigrid_de()
+
+    # Only first 4 snapshots for fast testing
+    n.set_snapshots(n.snapshots[:4])
+
+    # Set up a subset of committable generators with ramp limits
+    disp = ["Gas", "Hard Coal", "Brown Coal", "Nuclear"]
+    committable_mask = n.generators.carrier.isin(disp)
+    n.generators.loc[committable_mask, "committable"] = True
+    n.generators.loc[committable_mask, "ramp_limit_up"] = 0.5
+    n.generators.loc[committable_mask, "ramp_limit_down"] = 0.5
+    n.generators.loc[committable_mask, "ramp_limit_start_up"] = 0.5
+
+    # This should complete without KeyError
+    n.optimize.optimize_with_rolling_horizon(linearized_unit_commitment=True, horizon=2)
+
+    # Lazy check for optimization going through
+    assert n.objective > 0
+
+    # Check ramping limits are respected for committable generators
+    committable_gens = n.generators.index[committable_mask]
+    ramping = n.c.generators.dynamic.p[committable_gens].diff().fillna(0)
+    static = n.c.generators.static.loc[committable_gens]
+    ramp_limits = static.eval("ramp_limit_up * p_nom_opt")
+    assert (ramping.values <= ramp_limits.values[None, :] + 1e-5).all()
