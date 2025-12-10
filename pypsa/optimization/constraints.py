@@ -783,9 +783,9 @@ def define_ramp_limit_constraints(
             if is_rolling_horizon:
                 status_start = c.dynamic["status"].iloc[start_i].loc[original_com_i]
                 limit_diff = (limit_up - limit_start).isel(snapshot=0)
-                rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
-                    limit_diff * status_start
-                )
+                rhs_first = rhs.isel(snapshot=0)
+                rhs_first = rhs_first + (limit_diff * status_start)
+                rhs[{"snapshot": 0}] = rhs_first
 
             mask = active_com & non_null_up
             m.add_constraints(
@@ -817,9 +817,9 @@ def define_ramp_limit_constraints(
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
                 status_start = c.dynamic["status"].iloc[start_i]
-                rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
-                    -limit_shut * status_start
-                )
+                rhs_first = rhs.isel(snapshot=0)
+                rhs_first = rhs_first + (-limit_shut * status_start)
+                rhs[{"snapshot": 0}] = rhs_first
 
             mask = active_com & non_null_down
             m.add_constraints(
