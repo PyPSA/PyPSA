@@ -816,7 +816,7 @@ def define_ramp_limit_constraints(
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                status_start = c.dynamic["status"].iloc[start_i]
+                status_start = c.dynamic["status"].iloc[start_i].loc[original_com_i]
                 rhs_first = rhs.isel(snapshot=0)
                 rhs_first = rhs_first + (-limit_shut * status_start)
                 rhs[{"snapshot": 0}] = rhs_first
