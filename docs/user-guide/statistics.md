@@ -8,6 +8,10 @@ The `statistics` module is used to extract and calculate common metrics from a [
 
 It is accessed via the [`n.statistics`][pypsa.Network.statistics] property of any [pypsa.Network][] object.
 
+!!! info "Shorthand Alias"
+
+    For convenience, `n.stats` is available as a shorthand alias for `n.statistics`. Both can be used interchangeably throughout your code.
+
 ## Metrics
 
 

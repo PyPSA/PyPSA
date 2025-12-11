@@ -481,6 +481,11 @@ class Network(
 
             return self.slice_network(key)
 
+    @property
+    def stats(self) -> StatisticsAccessor:
+        """Network [statistics functionality][pypsa.statistics.StatisticsAccessor] accessor (alias for [pypsa.Network.statistics][])."""
+        return self.statistics
+
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check for equality of two networks.
 

@@ -75,7 +75,7 @@ For a comprehensive treatment of two-stage stochastic programming theory and met
 
 ### Implementation
 
-Let us consider a single-node capacity expansion model in the style of [model.energy](https://model.energy). This stylized model calculates the cost of meeting an hourly electricity demand time series from a combination of wind power, solar power, battery and hydrogen storage as well as load shedding. See this [example](../../examples/capacity-expansion-planning-single-node.ipynb). We add a gas power plant as additional technology option and solve the model with given load and renewable availability profiles as a deterministic problem. Afterwards, we inspect the optimal objective value and expanded capacities.
+Let us consider a single-node capacity expansion model in the style of [model.energy](https://model.energy). This stylized model calculates the cost of meeting an hourly electricity demand time series from a combination of wind power, solar power, battery and hydrogen storage as well as load shedding. See this [example](../../examples/capacity-expansion-planning-single-node.ipynb). We add a backup power plant as additional technology option and solve the model with given load and renewable availability profiles as a deterministic problem. Afterwards, we inspect the optimal objective value and expanded capacities.
 
 ``` py
 >>> import pypsa
@@ -83,41 +83,39 @@ Let us consider a single-node capacity expansion model in the style of [model.en
 >>> n = pypsa.examples.model_energy()
 >>> n.add(
 ...     "Generator",
-...     "gas",
-...     carrier="gas",
+...     "backup_generator",
+...     carrier="fossil backup",
 ...     bus="electricity",
-...     p_nom=5000,
+...     p_nom_extendable=True,
 ...     efficiency=0.5,
-...     marginal_cost=100,
+...     marginal_cost=150,
+...     capital_cost=46000,
 ... )
 >>>
 >>> n.optimize(log_to_console=False)
 ('ok', 'optimal')
 >>>
->>> cap_deterministic = n.statistics.optimal_capacity().div(1e3).round(1)
+>>> cap_deterministic = n.statistics.optimal_capacity().round(1)
 >>> cap_deterministic
 component    carrier
-Generator    gas                   5.0
-             load shedding        10.9
-             solar                22.8
-             wind                 20.2
-Link         electrolysis          0.1
-             turbine               1.4
-StorageUnit  battery storage      11.0
-Store        hydrogen storage    245.4
+Generator    fossil backup       6271.2
+             load shedding      10901.2
+             solar              22071.0
+             wind               21467.3
+StorageUnit  battery storage     9305.5
 dtype: float64
 >>>
 >>> obj_deterministic = n.objective / 1e9
 >>> obj_deterministic  # doctest: +ELLIPSIS
-5.357...
+5.845...
 ```
 
 ### Scenario Definition
 
-Now suppose we want to consider the case that with a 10% probability, a volcano erupts which reduces the solar capacity factor time series uniformly by 70%. For such a scenario, we can use PyPSA's stochastic optimization functionality. First, we need to define the scenarios with probabilities that must sum to 1:
+Now suppose we want to consider the case that with a 20% probability, a volcano erupts which reduces the solar capacity factor time series uniformly by 90%. For such a scenario, we can use PyPSA's stochastic optimization functionality. First, we need to define the scenarios with probabilities that must sum to 1:
 
 ``` py
->>> n.set_scenarios({"volcano": 0.1, "no_volcano": 0.9})
+>>> n.set_scenarios({"volcano": 0.2, "no_volcano": 0.8})
 ```
 
 We can check that the scenarios have been set correctly:
@@ -136,21 +134,21 @@ Index(['volcano', 'no_volcano'], dtype='object', name='scenario')
 >>> n.scenario_weightings
             weight
 scenario
-volcano        0.1
-no_volcano     0.9
+volcano        0.2
+no_volcano     0.8
 ```
 
 The key change after calling `n.set_scenarios()` is that all component data is broadcasted across all scenarios. All component `pandas.DataFrame` objects gain a "scenario" dimension as outermost index level.
 
 ``` py
 >>> n.generators[["bus", "marginal_cost", "efficiency"]]  # doctest: +ELLIPSIS
-                                  bus  marginal_cost  efficiency
+                                     bus  marginal_cost  efficiency
 scenario   name
-volcano    load shedding  electricity         2000.0         1.0
-           wind           electricity            0.0         1.0
-           solar          electricity            0.0         1.0
-           gas            electricity          100.0         0.5
-no_volcano load shedding  electricity         2000.0         1.0
+volcano    load shedding     electricity         2000.0         1.0
+           wind              electricity            0.0         1.0
+           solar             electricity            0.0         1.0
+           backup_generator  electricity          150.0         0.5
+no_volcano load shedding     electricity         2000.0         1.0
            wi...
 ```
 
@@ -172,22 +170,25 @@ snapshot
 ### Parameter Updates
 
 So far, all data is the same across scenarios. Now that we have a separate index level for
-the scenarios, we can modify scenario-specific parameters. In our case, we want to reduce the solar capacity factor in the "volcano" scenario by 70%:
+the scenarios, we can modify scenario-specific parameters. In our case, we want to reduce the solar capacity factor in the "volcano" scenario by 90%:
 
 ``` py
->>> n.generators_t.p_max_pu.loc[:, ("volcano", "solar")] *= 0.3
->>> n.generators_t.p_max_pu.loc["2019-06-21"]
+>>> # Apply volcano impact by reducing solar capacity factor by 90%
+>>> n.generators_t.p_max_pu.loc[:, ("volcano", "solar")] *= 0.1
+>>>
+>>> # Check the impact on a summer day (July 21)
+>>> n.generators_t.p_max_pu.loc["2019-07-21"]  # doctest: +ELLIPSIS
 scenario            volcano         no_volcano
 name                  solar    wind      solar    wind
 snapshot
-2019-06-21 00:00:00  0.0000  0.1240      0.000  0.1240
-2019-06-21 03:00:00  0.0051  0.0843      0.017  0.0843
-2019-06-21 06:00:00  0.0864  0.0441      0.288  0.0441
-2019-06-21 09:00:00  0.1710  0.0405      0.570  0.0405
-2019-06-21 12:00:00  0.1482  0.0432      0.494  0.0432
-2019-06-21 15:00:00  0.0720  0.0347      0.240  0.0347
-2019-06-21 18:00:00  0.0030  0.0775      0.010  0.0775
-2019-06-21 21:00:00  0.0000  0.1455      0.000  0.1455
+2019-07-21 00:00:00  0.0000  0.2201      0.000  0.2201
+2019-07-21 03:00:00  0.0004  0.1682      0.004  0.1682
+2019-07-21 06:00:00  0.0268  0.0715      0.268  0.0715
+2019-07-21 09:00:00  0.0263  0.1164      0.263  0.1164
+2019-07-21 12:00:00  0.0301  0.1646      0.301  0.1646
+2019-07-21 15:00:00  0.0228  0.1181      0.228  0.1181
+2019-07-21 18:00:00  0.0004  0.0702      0.004  0.0702
+2019-07-21 21:00:00  0.0000  0.0896      0.000  0.0896
 ```
 
 ### Optimization
@@ -264,19 +265,16 @@ After solving the stochastic optimization problem, we can evaluate the results. 
 
 ``` py
 >>> cap_stochastic = (
-...     n.statistics.optimal_capacity().div(1e3).round(1).unstack(level="scenario")
+...     n.statistics.optimal_capacity().round(1).unstack(level="scenario")
 ... )
 >>> cap_stochastic
 scenario                      no_volcano  volcano
 component   carrier
-Generator   gas                      5.0      5.0
-            load shedding           10.9     10.9
-            solar                   21.1     21.1
-            wind                    22.0     22.0
-Link        electrolysis             0.3      0.3
-            turbine                  1.5      1.5
-StorageUnit battery storage         10.2     10.2
-Store       hydrogen storage       221.0    221.0
+Generator   fossil backup          7159.2   7159.2
+            load shedding         10901.2  10901.2
+            solar                 16359.1  16359.1
+            wind                  25326.7  25326.7
+StorageUnit battery storage        5075.2   5075.2
 ```
 
 Note that the optimal capacities are the same across scenarios for investment variables, reflecting the non-anticipativity constraint. However, compared to the previous deterministic model, the optimal capacities are different:
@@ -284,34 +282,34 @@ Note that the optimal capacities are the same across scenarios for investment va
 ``` py
 >>> cap_stochastic.iloc[:, 0].div(cap_deterministic).round(2)
 component    carrier
-Generator    gas                 1.00
-             load shedding       1.00
-             solar               0.93
-             wind                1.09
-Link         electrolysis        3.00
-             turbine             1.07
-StorageUnit  battery storage     0.93
-Store        hydrogen storage    0.90
+Generator    fossil backup      1.14
+             load shedding      1.00
+             solar              0.74
+             wind               1.18
+StorageUnit  battery storage    0.55
 dtype: float64
 ```
 
-For example, we see less solar and batteries and more wind and hydrogen storage.
-The system costs are also 3% larger because the model has to hedge against uncertainty to remain feasible.
+For example, we see less solar and battery storage, but more wind and fossil backup generation.
+The system costs are also 7% larger because the model has to rely more on backup generation to remain feasible.
 
 ``` py
 >>> n.objective / 1e9 / obj_deterministic  # doctest: +ELLIPSIS
-1.03...
+1.067...
 ```
 
-Finally, we can also see in the energy balance that more gas is used in case the volcano erupts to compensate for the reduced solar generation. Additionally, wind curtailment is reduced:
+Finally, we can also see in the energy balance that more fossil backup generation is used in case the volcano erupts to compensate for the reduced solar generation:
 
 ``` py
->>> n.statistics.energy_balance().div(1e6).round(2).unstack(level="scenario")  # doctest: +ELLIPSIS
-scenario                                 no_volcano  volcano
-component   carrier         bus_carrier
-Generator   gas             electricity       10.14    21.20
-            load shedding   electricity        0.06     0.28
-...
+>>> n.statistics.energy_balance().div(1e6).round(2).unstack(level="scenario").xs("electricity", level="bus_carrier")  # doctest: +ELLIPSIS
+scenario                      no_volcano  volcano
+component   carrier
+Generator   fossil backup          12.15    22.91
+            load shedding           0.01     0.04
+            solar                  17.01     1.67
+            wind                   37.35    41.75
+Load        -                     -66.27   -66.27
+StorageUnit battery storage        -0.26    -0.10
 ```
 
 ### Metrics
@@ -409,16 +407,16 @@ Continuing the volcano example from above, risk preferences can be explored usin
 >>> n.optimize()
 
 # CVaR with moderate risk aversion
->>> n.set_risk_preference(alpha=0.9, omega=0.5)
+>>> n.set_risk_preference(alpha=0.8, omega=0.5)
 >>> n.optimize()
 
 # Edge case: CVaR with omega=0 equals risk-neutral
->>> n.set_risk_preference(alpha=0.9, omega=0.0)
+>>> n.set_risk_preference(alpha=0.8, omega=0.0)
 >>> n.optimize()
 
 # Edge case: CVaR capturing the results of the worst-case scenario
 # (omega=1, alpha so only worst scenario is in tail)
->>> p_worst = float(n.scenario_weightings.loc["volcano", "weight"])  # 0.1
+>>> p_worst = float(n.scenario_weightings.loc["volcano", "weight"])  # 0.2
 >>> n.set_risk_preference(alpha=1 - p_worst, omega=1.0)
 >>> n.optimize()
 ```
@@ -427,27 +425,24 @@ If no risk preference is set, the model reverts to risk-neutral stochastic optim
 
 #### Results and Interpretation
 
-With moderate risk aversion (`alpha=0.9, omega=0.5`), the optimization shifts investments to hedge against expensive tail scenarios:
+With moderate risk aversion (`alpha=0.8, omega=0.5`), the optimization shifts investments to hedge against expensive tail scenarios:
 
 ```py
 >>> cap_cvar = (
-...     n.statistics.optimal_capacity().div(1e3).round(1).unstack(level="scenario")
+...     n.statistics.optimal_capacity().round(1).unstack(level="scenario")
 ... )
 >>> cap_diff = cap_cvar.iloc[:, 0] - cap_stochastic.iloc[:, 0]
->>> print("Capacity diff (omega=0.5 - neutral) [GW]:")
+>>> print("Capacity diff (omega=0.5 - neutral) [MW]:")
 >>> print(cap_diff.round(2))
 component    carrier
-Generator    load shedding          0.00
-             solar                 10.88
-             wind                   4.64
-Link         electrolysis           0.59
-             turbine                0.36
-StorageUnit  battery storage       -1.31
-Store        hydrogen storage    1579.99
+Generator    fossil backup       910.6
+             load shedding         0.0
+             solar             -9233.3
+             wind               3534.0
+StorageUnit  battery storage   -3884.4
 ```
 
-Economic interpretation: CVaR penalizes costly tail operations (worst-scenario OPEX, such as load shedding or expensive peakers). The model invests more upfront to reduce exposure to these rare but severe outcomes. In this case, the cheapest hedge is to overbuild solar and complement it with long-duration hydrogen storage, even though solar itself is affected in the "volcano" scenario. This combination minimizes worst-case costs.
-In other words: *risk aversion hedges against the risky scenario by shifting costs from tail OPEX to upfront CAPEX.*
+Economic interpretation: CVaR penalizes costly tail operations (worst-scenario OPEX, such as load shedding or expensive peakers). The model invests more upfront to reduce exposure to these rare but severe outcomes. In this case, the economic hedge is to reduce solar (which is potentially affected by the volcano scenario) and instead increase wind capacity paired with more backup generation. Battery storage needs are also substantially reduced due to less solar and economics of battery storage cycle. Put short, *risk aversion hedges against the risky scenario by shifting costs from tail OPEX to upfront CAPEX.*
 
 ### Metrics
 
@@ -473,7 +468,21 @@ $$
 	\mathrm{RHC}(\alpha, \omega) = \frac{\text{Premium}(\alpha, \omega)}{\Delta \,\mathrm{CVaR}_\alpha}
 $$
 
+For the volcano example with `alpha=0.8, omega=0.5`, we can calculate the insurance premium:
 
+```py
+>>> n.set_risk_preference(alpha=0.8, omega=0.5)
+>>> n.optimize()
+>>> obj_cvar = n.objective / 1e9
+>>> n.set_risk_preference(alpha=0.8, omega=0.0)
+>>> n.optimize()
+>>> obj_risk_neutral = n.objective / 1e9
+>>> premium = obj_cvar - obj_risk_neutral
+>>> print(f"Insurance Premium: {premium:.4f} billion EUR ({premium / obj_risk_neutral * 100:.2f}%)")
+Insurance Premium: 0.5062 billion EUR (8.11%)
+```
+
+Here the decision maker pays an 8% increase in expected system costs to achieve a more robust portfolio that hedges against low-probability, high-impact tail risks such as the volcano scenario with severe solar output reduction.
 
 
 ## Examples

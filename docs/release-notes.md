@@ -17,6 +17,23 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add support for time-varying start-up and shutdown costs for committable generators and links. Costs can now be provided as time series (varying per snapshot) in addition to static values. The linearized unit commitment tightening constraints are only applied when costs are static (constant over time) and equal. (<!-- md:pr 1425 -->)
 
+- Add `stats` as a shorthand alias for the `statistics` accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
+
+### Bug Fixes
+
+- Fix rolling horizon optimization with linearized unit commitment and ramp limits. (<!-- md:pr 1489 -->)
+
+## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }
+
+### Bug Fixes
+
+- Fix curtailment, capacity, and capex expressions returning zero for non-extendable generators. (<!-- md:pr 1451 -->)
+- Fix using inactive generators in global carrier constraint. (<!-- md:pr 1450 -->)
+- Fix CVaR optimization to handle networks with zero operational costs. (<!-- md:pr 1457 -->)
+- Fix xarray broadcasting for rolling-horizon with linearized unit commitment optimization. (<!-- md:pr 1464 -->)
+
+## [**v1.0.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.4) <small>21st November 2025</small> { id="v1.0.4" }
+
 ### Bug Fixes
 
 - Fix busmap clustering to correctly remap all bus ports in multi-port links. (<!-- md:pr 1441 -->)

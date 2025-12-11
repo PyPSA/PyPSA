@@ -336,7 +336,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         for s in n.scenarios:
             scen_selected = [e.sel(scenario=s) for e in opex_terms]
             scen_opex_exprs[s] = (
-                sum(scen_selected) if is_quadratic else merge(scen_selected)
+                (sum(scen_selected) if is_quadratic else merge(scen_selected))
+                if scen_selected
+                else 0
             )
 
         # Retrieve CVaR auxiliary variables
