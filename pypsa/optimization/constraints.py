@@ -399,8 +399,6 @@ def define_operational_constraints_for_committables(
 
     # check if costs are time-varying
     # Note: linearization only applied when costs are time-invariant and equal
-    # See https://github.com/PyPSA/PyPSA/pull/1425
-    # and https://github.com/PyPSA/PyPSA/issues/689
     time_varying = ("snapshot" in start_up_cost.dims) or (
         "snapshot" in shut_down_cost.dims
     )

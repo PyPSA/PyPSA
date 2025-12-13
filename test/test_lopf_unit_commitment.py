@@ -739,6 +739,10 @@ def test_time_varying_start_and_shut_costs_affect_commitment():
     assert dyn.start_up[committed].sum() >= 1.0, "Generator should start up"
     assert dyn.shut_down[committed].sum() >= 1.0, "Generator should shut down"
 
+    # Also test with linearized UC (covers time-varying cost branch)
+    status, _ = n.optimize(solver_name="highs", linearized_unit_commitment=True)
+    assert status == "ok"
+
 
 def test_static_costs_applied_with_time_varying_present():
     """Static start/shut costs still apply when another unit has time-series costs."""
@@ -805,3 +809,7 @@ def test_static_costs_applied_with_time_varying_present():
         f"Static start-up cost not applied correctly; expected {expected_objective}, "
         f"got {n.objective}."
     )
+
+    # Also test with linearized UC (covers static equal cost tightening branch)
+    status, _ = n.optimize(solver_name="highs", linearized_unit_commitment=True)
+    assert status == "ok"
