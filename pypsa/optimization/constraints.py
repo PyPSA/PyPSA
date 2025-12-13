@@ -395,13 +395,27 @@ def define_operational_constraints_for_committables(
     # linearized approximation because committable can partly start up and shut down
     start_up_cost = c.da.start_up_cost.sel(name=com_i)
     shut_down_cost = c.da.shut_down_cost.sel(name=com_i)
-    cost_equal = (start_up_cost == shut_down_cost).values
 
-    # check if costs are time-varying
-    # Note: linearization only applied when costs are time-invariant and equal
-    time_varying = ("snapshot" in start_up_cost.dims) or (
-        "snapshot" in shut_down_cost.dims
+    # Check if costs vary across snapshots
+    start_up_varies = (
+        "snapshot" in start_up_cost.dims
+        and (start_up_cost.max("snapshot") != start_up_cost.min("snapshot"))
+        .any()
+        .item()
     )
+    shut_down_varies = (
+        "snapshot" in shut_down_cost.dims
+        and (shut_down_cost.max("snapshot") != shut_down_cost.min("snapshot"))
+        .any()
+        .item()
+    )
+    time_varying = start_up_varies or shut_down_varies
+
+    # Compare costs: if snapshot dimension exists, check equality across all snapshots
+    if "snapshot" in start_up_cost.dims:
+        cost_equal = (start_up_cost == shut_down_cost).all("snapshot").values
+    else:
+        cost_equal = (start_up_cost == shut_down_cost).values
 
     # only valid additional constraints if start up costs equal to shut down costs
     if n._linearized_uc and (not cost_equal.all() or time_varying):
