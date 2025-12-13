@@ -26,7 +26,7 @@ capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 M
 efficiency,static or series,per unit,1,"Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.",Input (optional)
 committable,boolean,n/a,False,Apply unit commitment constraints. This is only possible with `p_nom_extendable=False`.,Input (optional)
 start_up_cost,static or series,currency,0,Cost to start up the generator. Only used if `committable=True`.,Input (optional)
-shut_down_cost,static or series,currency,0,Cost to shut down the generator (can be time-dependent). Only used if `committable=True`.,Input (optional)
+shut_down_cost,static or series,currency,0,Cost to shut down the generator. Only used if `committable=True`.,Input (optional)
 stand_by_cost,static or series,currency/h,0.,Stand-by cost for running the generator. This cost is incurred whenever the status is 1 (including when the dispatch decision is zero).,Input (optional)
 min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
 min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
