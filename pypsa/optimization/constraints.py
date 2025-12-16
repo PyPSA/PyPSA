@@ -14,8 +14,9 @@ from typing import TYPE_CHECKING, Any
 import linopy
 import pandas as pd
 from linopy import merge
-from numpy import inf, isfinite
-from xarray import DataArray, concat
+from numpy import inf, isfinite, sqrt, maximum
+from xarray import DataArray, concat, where, zeros_like
+
 
 from pypsa.common import as_index, expand_series
 from pypsa.components.common import as_components
@@ -1616,7 +1617,8 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
 
 def define_loss_constraints(
-    n: Network, sns: pd.Index, component: str, transmission_losses: int
+    n: Network, sns: pd.Index, component: str, transmission_losses: int,
+    mode: str = "secants",
 ) -> None:
     """Define power loss constraints for passive branches.
 
@@ -1642,6 +1644,8 @@ def define_loss_constraints(
         Number of tangent segments to use in the piecewise linearization
         of the quadratic loss function; higher values increase accuracy
         but also computational complexity
+    mode : str, default "secants"
+        Method for linearizing losses; options are: "tangents" or "secants"
 
     Returns
     -------
@@ -1688,25 +1692,74 @@ def define_loss_constraints(
     loss = n.model[f"{c.name}-loss"]
     flow = n.model[f"{c.name}-s"]
 
-    # Add upper limit constraint
-    n.model.add_constraints(
-        loss <= upper_limit, name=f"{c.name}-loss_upper", mask=active
-    )
+    if mode == "secants":
 
-    # Add linearization constraints for each tangent segment
-    for k in range(1, tangents + 1):
-        # Calculate linearization parameters for segment k
-        p_k = k / tangents * s_max_pu * s_nom_max
-        loss_k = r_pu_eff * p_k**2
-        slope_k = 2 * r_pu_eff * p_k
-        offset_k = loss_k - slope_k * p_k
+        atol = 1
+        rtol = 0.1
 
+        lossy = r_pu_eff > 0 # only for lines with losses
+        target = (s_nom_max * s_max_pu).where(lossy, 0)
+
+        factor_rtol = 2 * (rtol +  sqrt(rtol + rtol**2)) # + 1
+        step_atol = where(lossy, 2 * sqrt(atol / r_pu_eff), 0)
+
+        # start at 0 everywhere
+        p_k = zeros_like(r_pu_eff)
+        p_k.name = "p_k"
+        breakpoints = [p_k.copy()]
+        max_iter = 50
+        it = 0
+        while ((p_k < target) & lossy).any():
+            step_rtol = where(lossy, p_k * factor_rtol, 0)
+            step_k = maximum(step_atol, step_rtol)
+            p_k = p_k + step_k
+            breakpoints.append(p_k.copy())
+            it += 1
+            if it >= max_iter:
+                raise RuntimeError("secant loop hit max_iter; check atol/rtol or inputs; current inputs would result in more than 100 additional constraints")
+
+        # The final step can be made smaller by setting it to the target
+        # This improves the approximation, however may introduce a dependency on s_nom_max:
+        # breakpoints[-1] = target.max("snapshot").where(lossy, 0)
+        # Therefore we do it only for lines that are non-extendable:
+        breakpoints[-1] = target.max("snapshot").where(lossy & ~is_extendable, breakpoints[-1])
+
+        breakpoints = concat(breakpoints, dim="secants")  # k=0..K
+
+        a = breakpoints.isel(secants=slice(None, -1))   # k segments: 0..K-1
+        b = breakpoints.isel(secants=slice(1, None))    # k segments: 1..K
+
+        slope = r_pu_eff * (a + b)
+        offset = -r_pu_eff * a * b
+        
         # Add constraints for both positive and negative flow
-        for sign in [-1, 1]:
-            lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
+        for sign, s in [(-1, "neg"), (1, "pos")]:
+            lhs = n.model.linexpr((1, loss), (sign * slope, flow))
             n.model.add_constraints(
-                lhs >= offset_k, name=f"{c.name}-loss_tangents-{k}-{sign}", mask=active
+                lhs >= offset,
+                name=f"{c.name}-loss_secants-{s}",
+                mask=active,
             )
+    else:
+        # Add upper limit constraint
+        n.model.add_constraints(
+            loss <= upper_limit, name=f"{c.name}-loss_upper", mask=active
+        )
+
+        # Add linearization constraints for each tangent segment
+        for k in range(1, tangents + 1):
+            # Calculate linearization parameters for segment k
+            p_k = k / tangents * s_max_pu * s_nom_max
+            loss_k = r_pu_eff * p_k**2
+            slope_k = 2 * r_pu_eff * p_k
+            offset_k = loss_k - slope_k * p_k
+
+            # Add constraints for both positive and negative flow
+            for sign in [-1, 1]:
+                lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
+                n.model.add_constraints(
+                    lhs >= offset_k, name=f"{c.name}-loss_tangents-{k}-{sign}", mask=active
+                )
 
 
 def define_total_supply_constraints(
