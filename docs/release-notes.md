@@ -19,6 +19,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix incorrect application of ramp limit constraints to fixed components without defined ramp limits. (<!-- md:pr 1494 -->)
 - Fix rolling horizon optimization with linearized unit commitment and ramp limits. (<!-- md:pr 1489 -->)
 
 ## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }

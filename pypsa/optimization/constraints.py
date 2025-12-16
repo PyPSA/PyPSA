@@ -666,7 +666,7 @@ def define_ramp_limit_constraints(
         p_nom = c.da[c._operational_attrs["nom"]].sel(name=fix_i)
 
         # Ramp up constraints for fixed components
-        non_null_up = ~ramp_limit_up_fix.isnull().all()
+        non_null_up = ~ramp_limit_up_fix.isnull()
         if non_null_up.any():
             lhs = p_actual(fix_i) - p_previous(fix_i)
             rhs = (ramp_limit_up_fix * p_nom) + rhs_start_fix
@@ -676,7 +676,7 @@ def define_ramp_limit_constraints(
             )
 
         # Ramp down constraints for fixed components
-        non_null_down = ~ramp_limit_down_fix.isnull().all()
+        non_null_down = ~ramp_limit_down_fix.isnull()
         if non_null_down.any():
             lhs = p_actual(fix_i) - p_previous(fix_i)
             rhs = (-ramp_limit_down_fix * p_nom) + rhs_start
