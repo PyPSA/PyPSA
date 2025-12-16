@@ -14,9 +14,8 @@ from typing import TYPE_CHECKING, Any
 import linopy
 import pandas as pd
 from linopy import merge
-from numpy import inf, isfinite, sqrt, maximum
+from numpy import inf, isfinite, maximum, sqrt
 from xarray import DataArray, concat, where, zeros_like
-
 
 from pypsa.common import as_index, expand_series
 from pypsa.components.common import as_components
@@ -1617,7 +1616,10 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
 
 def define_loss_constraints(
-    n: Network, sns: pd.Index, component: str, transmission_losses: int,
+    n: Network,
+    sns: pd.Index,
+    component: str,
+    transmission_losses: int,
     mode: str = "secants",
 ) -> None:
     """Define power loss constraints for passive branches.
@@ -1693,14 +1695,13 @@ def define_loss_constraints(
     flow = n.model[f"{c.name}-s"]
 
     if mode == "secants":
-
         atol = 1
         rtol = 0.1
 
-        lossy = r_pu_eff > 0 # only for lines with losses
+        lossy = r_pu_eff > 0  # only for lines with losses
         target = (s_nom_max * s_max_pu).where(lossy, 0)
 
-        factor_rtol = 2 * (rtol +  sqrt(rtol + rtol**2)) # + 1
+        factor_rtol = 2 * (rtol + sqrt(rtol + rtol**2))  # + 1
         step_atol = where(lossy, 2 * sqrt(atol / r_pu_eff), 0)
 
         # start at 0 everywhere
@@ -1716,22 +1717,26 @@ def define_loss_constraints(
             breakpoints.append(p_k.copy())
             it += 1
             if it >= max_iter:
-                raise RuntimeError("secant loop hit max_iter; check atol/rtol or inputs; current inputs would result in more than 100 additional constraints")
+                raise RuntimeError(
+                    "secant loop hit max_iter; check atol/rtol or inputs; current inputs would result in more than 100 additional constraints"
+                )
 
         # The final step can be made smaller by setting it to the target
         # This improves the approximation, however may introduce a dependency on s_nom_max:
         # breakpoints[-1] = target.max("snapshot").where(lossy, 0)
         # Therefore we do it only for lines that are non-extendable:
-        breakpoints[-1] = target.max("snapshot").where(lossy & ~is_extendable, breakpoints[-1])
+        breakpoints[-1] = target.max("snapshot").where(
+            lossy & ~is_extendable, breakpoints[-1]
+        )
 
         breakpoints = concat(breakpoints, dim="secants")  # k=0..K
 
-        a = breakpoints.isel(secants=slice(None, -1))   # k segments: 0..K-1
-        b = breakpoints.isel(secants=slice(1, None))    # k segments: 1..K
+        a = breakpoints.isel(secants=slice(None, -1))  # k segments: 0..K-1
+        b = breakpoints.isel(secants=slice(1, None))  # k segments: 1..K
 
         slope = r_pu_eff * (a + b)
         offset = -r_pu_eff * a * b
-        
+
         # Add constraints for both positive and negative flow
         for sign, s in [(-1, "neg"), (1, "pos")]:
             lhs = n.model.linexpr((1, loss), (sign * slope, flow))
@@ -1758,7 +1763,9 @@ def define_loss_constraints(
             for sign in [-1, 1]:
                 lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
                 n.model.add_constraints(
-                    lhs >= offset_k, name=f"{c.name}-loss_tangents-{k}-{sign}", mask=active
+                    lhs >= offset_k,
+                    name=f"{c.name}-loss_tangents-{k}-{sign}",
+                    mask=active,
                 )
 
 
