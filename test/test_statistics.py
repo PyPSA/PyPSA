@@ -305,15 +305,6 @@ def test_system_cost(ac_dc_network_r):
 def test_emissions_calculation(ac_dc_network_r):
     n = ac_dc_network_r
     #
-    # add some co2 details
-    n.add("Carrier", "co2", co2_emissions=1)
-    n.add("Bus", "co2bus", carrier="co2", color="darkblue")
-    n.add("Load", "co2", bus="co2bus", carrier="co2")
-    n.dynamic('Load').p_set["co2"] = 0.0
-    n.loads_t.p_set.at[n.loads_t.p_set.index[-1], 'co2'] = 10
-    n.add("Generator", "co2purchase", bus="co2bus", carrier="co2", p_nom_extendable=True, capital_cost=10000, marginal_price=1, p_nom_max=2, efficiency=-1)
-    n.add("StorageUnit", "CO2storage", bus="co2bus", carrier="co2", p_nom_extendable=True, capital_cost=10000, standing_loss=0.1)
-    #
     n.optimize(n.snapshots)
     assert (
         n.statistics.carbon_emissions().sum()
