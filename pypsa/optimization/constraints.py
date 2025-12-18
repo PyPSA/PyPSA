@@ -41,7 +41,7 @@ lookup = pd.read_csv(
 
 
 def define_operational_constraints_for_non_extendables(
-    n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int
+    n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int | dict
 ) -> None:
     """Define operational constraints (lower-/upper bound).
 
@@ -68,8 +68,8 @@ def define_operational_constraints_for_non_extendables(
         Name of the network component (e.g. "Generator", "Link")
     attr : str
         Name of the attribute to constrain (e.g. "p" for active power)
-    transmission_losses : int
-        Number of segments for transmission loss linearization; if non-zero,
+    transmission_losses : int | dict
+        parameters for transmission losses; if non-zero,
         losses are considered in the constraints for passive branches
 
     Returns
@@ -125,7 +125,7 @@ def define_operational_constraints_for_non_extendables(
 
 
 def define_operational_constraints_for_extendables(
-    n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int
+    n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int | dict = 0
 ) -> None:
     """Define operational constraints (lower-/upper bound) for extendable components.
 
@@ -151,8 +151,8 @@ def define_operational_constraints_for_extendables(
         Name of the network component (e.g. "Generator", "Link")
     attr : str
         Name of the attribute to constrain (e.g. "p" for active power)
-    transmission_losses : int
-        Number of segments for transmission loss linearization; if non-zero,
+    transmission_losses : int | dict
+        parameters for transmission losses; if non-zero,
         losses are considered in the constraints for passive branches
 
     Returns
@@ -830,7 +830,7 @@ def define_ramp_limit_constraints(
 def define_nodal_balance_constraints(
     n: Network,
     sns: pd.Index,
-    transmission_losses: int = 0,
+    transmission_losses: int | dict = 0,
     buses: Sequence | None = None,
     suffix: str = "",
 ) -> None:
@@ -863,8 +863,8 @@ def define_nodal_balance_constraints(
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    transmission_losses : int, default 0
-        Number of segments for transmission loss linearization; if non-zero,
+    transmission_losses : int | dict, default 0
+        Parameters for transmission losses; if non-zero,
         losses are included in the power balance
     buses : Sequence | None, default None
         Subset of buses for which to define constraints; if None, all buses are used
@@ -1636,7 +1636,7 @@ def define_loss_constraints(
 
     Applies to Components
     ---------------------
-    Line, Transformer (passive branch components when transmission_losses > 0)
+    Line, Transformer (passive branch components when transmission_losses are used)
 
     Parameters
     ----------
@@ -1682,7 +1682,6 @@ def define_loss_constraints(
     if c.static.empty or component not in n.passive_branch_components:
         return
 
-    tangents = transmission_losses
     active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     s_max_pu = c.da.s_max_pu.sel(snapshot=sns)
@@ -1779,7 +1778,7 @@ def define_loss_constraints(
                 mask=active,
             )
     elif mode == "tangents":
-
+        tangents = transmission_losses
         # Add linearization constraints for each tangent segment
         for k in range(1, tangents + 1):
             # Calculate linearization parameters for segment k

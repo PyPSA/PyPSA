@@ -383,7 +383,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         self,
         snapshots: Sequence | None = None,
         multi_investment_periods: bool = False,
-        transmission_losses: int = 0,
+        transmission_losses: int | dict = 0,
         linearized_unit_commitment: bool = False,
         model_kwargs: dict | None = None,
         extra_functionality: Callable | None = None,
@@ -403,11 +403,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
             investment periods. Then, snapshots should be a `pd.MultiIndex`.
-        transmission_losses : int, default 0
+        transmission_losses : int | dict, default 0
             Whether an approximation of transmission losses should be included
             in the linearised power flow formulation. A passed number will denote
             the number of tangents used for the piecewise linear approximation.
-            Defaults to 0, which ignores losses.
+            Defaults to 0, which ignores losses. A passed dict allows more fine grained control 
+            of the losses.
         linearized_unit_commitment : bool, default False
             Whether to optimise using the linearised unit commitment formulation or not.
         model_kwargs : dict, optional
@@ -493,7 +494,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         self,
         snapshots: Sequence | None = None,
         multi_investment_periods: bool = False,
-        transmission_losses: int = 0,
+        transmission_losses: int | dict = 0,
         linearized_unit_commitment: bool = False,
         consistency_check: bool = True,
         **kwargs: Any,
@@ -612,8 +613,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_total_supply_constraints(n, sns)
 
         if transmission_losses:
+            if type(transmission_losses) is int:
+                _transmission_losses = {
+                    "mode": "tangents",
+                    "transmission_losses": transmission_losses,
+                }
             for c in n.passive_branch_components:
-                define_loss_constraints(n, sns, c, transmission_losses)
+                define_loss_constraints(n, sns, c, **_transmission_losses)
 
         # Define global constraints
         define_primary_energy_limit(n, sns)
