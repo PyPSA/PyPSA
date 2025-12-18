@@ -1627,7 +1627,7 @@ def define_loss_constraints(
     n: Network,
     sns: pd.Index,
     component: str,
-    transmission_losses: int,
+    transmission_losses: int = 0,
     mode: str = "secants",
     atol: float = 1,
     rtol: float = 0.1,

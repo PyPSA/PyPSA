@@ -618,6 +618,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     "mode": "tangents",
                     "transmission_losses": transmission_losses,
                 }
+            else:
+                _transmission_losses = transmission_losses
             for c in n.passive_branch_components:
                 define_loss_constraints(n, sns, c, **_transmission_losses)
 
