@@ -263,6 +263,43 @@ def test_1420(tmp_path):
     # tmp_path is automatically cleaned up by pytest
 
 
+def test_1472():
+    """
+    Stochastic optimization with scenarios and meshed buses should not fail.
+    The bug was that weakly_meshed_buses had duplicate names when scenarios
+    were used, which wasn't catched with current tests and only with a strongly and
+    weakly meshed network/ PyPSA-Eur.
+    """
+    # Create network with hub bus having >45 component references (50 gens + 50 lines)
+    # and peripheral buses having <45 references (1 load + 1 line each).
+    n = pypsa.Network(snapshots=range(3))
+
+    n.add("Bus", "hub")
+    for i in range(50):
+        n.add("Bus", f"peripheral_{i}")
+
+    for i in range(50):
+        n.add("Generator", f"gen_{i}", bus="hub", p_nom=10, marginal_cost=i)
+
+    for i in range(50):
+        n.add("Load", f"load_{i}", bus=f"peripheral_{i}", p_set=1)
+
+    for i in range(50):
+        n.add(
+            "Line",
+            f"line_{i}",
+            bus0="hub",
+            bus1=f"peripheral_{i}",
+            s_nom=100,
+            x=0.1,
+            r=0.01,
+        )
+
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+    status, _ = n.optimize()
+    assert status == "ok"
+
+
 def test_1449():
     """
     Inactive components with global carrier constraint should not break.
