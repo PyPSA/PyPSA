@@ -407,7 +407,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Whether an approximation of transmission losses should be included
             in the linearised power flow formulation. A passed number will denote
             the number of tangents used for the piecewise linear approximation.
-            Defaults to 0, which ignores losses. A passed dict allows more fine grained control 
+            Defaults to 0, which ignores losses. A passed dict allows more fine grained control
             of the losses.
         linearized_unit_commitment : bool, default False
             Whether to optimise using the linearised unit commitment formulation or not.
