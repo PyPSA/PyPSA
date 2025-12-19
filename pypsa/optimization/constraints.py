@@ -1171,6 +1171,11 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     if (mod_i).empty:
         return
 
+    # Unique component names for modular components (in absence of c.modulars helper)
+    if isinstance(mod_i, pd.MultiIndex):
+        mod_i = mod_i.unique(level=1)
+        mod_i.name = "name"
+
     # Get modular capacity values
     modular_capacity = c.da[mod_attr].sel(name=mod_i)
 
@@ -1178,7 +1183,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     modularity = m[f"{c.name}-n_mod"]
     capacity = m.variables[f"{c.name}-{attr}"].loc[mod_i]
 
-    con = capacity - modularity * modular_capacity.values == 0
+    con = capacity - modularity * modular_capacity == 0
     n.model.add_constraints(con, name=f"{c.name}-{attr}_modularity", mask=None)
 
 

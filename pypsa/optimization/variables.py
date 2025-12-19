@@ -195,6 +195,12 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     if mod_i.empty:
         return
 
+    # Unlike handled with c.extendables, modular vars's index is lost with difference() method.
+    # Can be handled with a helper "c.modulars" that would preserve level names.
+    if isinstance(mod_i, pd.MultiIndex):
+        mod_i = mod_i.unique(level=1)
+        mod_i.name = "name"
+
     n.model.add_variables(lower=0, coords=[mod_i], name=f"{c.name}-n_mod", integer=True)
 
 
