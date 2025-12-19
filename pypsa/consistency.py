@@ -945,12 +945,18 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
         # but we ensure consistent slack bus selection separately
         "type",
         "p_nom_extendable",  # changes mathematical problem
+        "s_nom_extendable",
+        "e_nom_extendable",
         "p_nom_mod",  # modular investment is first-stage decision
+        "s_nom_mod",
+        "e_nom_mod",
         "committable",  # changes mathematical problem
         "sign",
         "carrier",
         "weight",
         "p_nom_opt",  # optimization result
+        "s_nom_opt",
+        "e_nom_opt",
         "build_year",
         "lifetime",
         "active",  # theoretically can be different, but problematic with "Line"
