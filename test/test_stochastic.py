@@ -85,6 +85,31 @@ def test_calculate_dependent_values(ac_dc_stochastic: pypsa.Network):
     assert n.c.lines.static.x_pu_eff.notnull().all()
 
 
+def test_apply_transformer_types_with_scenarios():
+    """
+    Test that apply_transformer_types works correctly with broadcasted transformer
+    types in stochastic networks.
+
+    @TODO update test once properties are implemented and types are no longer broadcasted.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220, carrier="AC")
+    n.add("Bus", "bus2", v_nom=110, carrier="AC")
+    n.add("Transformer", "trafo", bus0="bus1", bus1="bus2", type="100 MVA 220/110 kV")
+
+    # Set up scenarios - this broadcasts transformer_types with scenario index
+    n.set_scenarios(["low", "high"])
+
+    # This should not raise "type does not exist in n.transformer_types"
+    n.calculate_dependent_values()
+
+    # Verify transformer parameters were correctly computed from type
+    trafo = n.c.transformers.static
+    assert trafo.s_nom.notnull().all()
+    assert trafo.x.notnull().all()
+    assert trafo.r.notnull().all()
+
+
 def test_determine_network_topology(ac_dc_stochastic: pypsa.Network):
     """
     Test the determination of network topology in a stochastic network.
