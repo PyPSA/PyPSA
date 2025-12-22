@@ -1110,7 +1110,9 @@ class SubNetworkPowerFlowMixin:
                 if c.name in n.passive_branch_components
             ]
         )
-        self.p_branch_shift = np.multiply(-b, phase_shift, where=b != np.inf)
+        self.p_branch_shift = np.multiply(
+            -b, phase_shift, where=b != np.inf, out=np.zeros_like(b)
+        )
 
         self.p_bus_shift = self.K * self.p_branch_shift
 
