@@ -16,6 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Features
 
 - Add `stats` as a shorthand alias for the `statistics` accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
+- Enable modular expansion option in stochastic optimization problems. (<!-- md:pr 1500 -->)
 
 ### Bug Fixes
 

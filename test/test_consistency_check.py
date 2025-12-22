@@ -309,6 +309,34 @@ def test_scenario_invariant_attributes_comprehensive():
     n_non_stoch.consistency_check()  # Should pass
 
 
+def test_p_nom_mod_invariant():
+    """Test that p_nom_mod is enforced as invariant across scenarios."""
+    n = pypsa.Network()
+    n.add("Bus", "bus1")
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus1",
+        p_nom_extendable=True,
+        p_nom_mod=0.7,
+    )
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Should pass with same p_nom_mod across scenarios
+    n.consistency_check()
+
+    n.c.generators.static.loc[("s1", "gen1"), "p_nom_mod"] = 0.7
+    n.c.generators.static.loc[("s2", "gen1"), "p_nom_mod"] = 1.0
+
+    # Should raise error
+    with pytest.raises(
+        pypsa.consistency.ConsistencyError,
+        match="Component 'gen1' .* has attribute 'p_nom_mod' that varies across scenarios",
+    ):
+        n.consistency_check()
+
+
 @pytest.mark.parametrize("strict", [[], ["line_types"]])
 def test_line_types_consistency(caplog, strict):
     """
