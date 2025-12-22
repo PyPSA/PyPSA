@@ -5,6 +5,7 @@
 import os
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
@@ -427,6 +428,80 @@ def test_line_types_consistency_non_stochastic():
 
     # This should pass because it's not a stochastic network
     pypsa.consistency.check_line_types_consistency(n, strict=True)
+
+
+@pytest.mark.parametrize("strict", [[], ["transformer_types"]])
+def test_transformer_types_consistency_fail(caplog, strict):
+    """
+    Test that the consistency check fails when transformer_types differ across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    transformer_types_data = {
+        ("s1", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+        ("s2", "type1"): {"s_nom": 150, "vsc": 15.0, "vscr": 0.30, "pfe": 65},
+    }
+
+    transformer_types_df = pd.DataFrame.from_dict(
+        transformer_types_data, orient="index"
+    )
+    transformer_types_df.index = pd.MultiIndex.from_tuples(
+        transformer_types_df.index, names=["scenario", "type"]
+    )
+
+    n.c.transformer_types.static = transformer_types_df
+
+    if strict and "transformer_types" in strict:
+        with pytest.raises(pypsa.consistency.ConsistencyError):
+            pypsa.consistency.check_transformer_types_consistency(n, strict=True)
+    else:
+        pypsa.consistency.check_transformer_types_consistency(n, strict=False)
+        assert caplog.records[-1].levelname == "WARNING"
+
+
+def test_transformer_types_consistency_pass():
+    """
+    Test that the consistency check passes when transformer_types are identical across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    transformer_types_data = {
+        ("s1", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+        ("s2", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+    }
+
+    transformer_types_df = pd.DataFrame.from_dict(
+        transformer_types_data, orient="index"
+    )
+    transformer_types_df.index = pd.MultiIndex.from_tuples(
+        transformer_types_df.index, names=["scenario", "type"]
+    )
+
+    n.c.transformer_types.static = transformer_types_df
+
+    pypsa.consistency.check_transformer_types_consistency(n, strict=True)
+
+
+def test_transformer_types_consistency_non_stochastic():
+    """
+    Test that the consistency check is skipped for non-stochastic networks.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.add("TransformerType", "type1", s_nom=100, vsc=12.0, vscr=0.26, pfe=55)
+    n.add("TransformerType", "type2", s_nom=160, vsc=12.2, vscr=0.25, pfe=60)
+
+    pypsa.consistency.check_transformer_types_consistency(n, strict=True)
 
 
 @pytest.mark.parametrize("strict", [[], ["unknown_buses"]])

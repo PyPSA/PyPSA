@@ -466,9 +466,13 @@ def apply_transformer_types(n: Network) -> None:
     if trafos_with_types_b.zsum() == 0:
         return
 
-    missing_types = pd.Index(
-        n.c.transformers.static.loc[trafos_with_types_b, "type"].unique()
-    ).difference(n.c.transformer_types.static.index)
+    transformer_types_used = n.c.transformers.static.loc[
+        trafos_with_types_b, "type"
+    ].unique()
+    missing_types = pd.Index(transformer_types_used).difference(
+        n.c.transformer_types.names
+    )
+
     if not missing_types.empty:
         msg = (
             f"The type(s) {', '.join(missing_types)} do(es) not exist in "
@@ -477,10 +481,24 @@ def apply_transformer_types(n: Network) -> None:
         raise ValueError(msg)
 
     # Get a copy of the transformers data
-    # (joining pulls in "phase_shift", "s_nom", "tap_side" from TransformerType)
+    # Select columns that are NOT in transformer_types
     t = n.c.transformers.static.loc[
-        trafos_with_types_b, ["type", "tap_position", "num_parallel"]
-    ].join(n.c.transformer_types.static, on="type")
+        trafos_with_types_b,
+        [
+            "type",
+            "tap_position",
+            "num_parallel",
+        ],
+    ].copy()
+
+    if n.has_scenarios:
+        # For stochastic network, use the first scenario's transformer types
+        # User changes across type data are caught by the consistency check
+        # TODO we should not broadcast types. This will be handled with properties in the coming releases.
+        types_to_use = n.c.transformer_types.static.xs(n.scenarios[0], level="scenario")
+        t = t.join(types_to_use, on="type")
+    else:
+        t = t.join(n.c.transformer_types.static, on="type")
 
     t["r"] = t["vscr"] / 100.0
     t["x"] = np.sqrt((t["vsc"] / 100.0) ** 2 - t["r"] ** 2)
