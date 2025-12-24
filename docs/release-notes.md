@@ -17,6 +17,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
+- Add support for time-varying start-up and shutdown costs for committable generators and links. Costs can now be provided as time series (varying per snapshot) in addition to static values. The linearized unit commitment tightening constraints are only applied when costs are static (constant over time) and equal. (<!-- md:pr 1425 -->)
+
 - Add `stats` as a shorthand alias for the `statistics` accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
 - Enable modular expansion option in stochastic optimization problems. (<!-- md:pr 1500 -->)
 

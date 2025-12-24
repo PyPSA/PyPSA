@@ -20,3 +20,7 @@ linear demand curve.
 
 
 {{ read_csv('../../../pypsa/data/component_attrs/generators.csv') }}
+
+!!! note "Time-varying unit commitment costs"
+
+    For committable generators, `start_up_cost` and `shut_down_cost` can be provided as time series, allowing costs to vary per snapshot. See the [Unit Commitment](../optimization/unit-commitment.md#start-up-and-shut-down) documentation for details.

@@ -395,19 +395,39 @@ def define_operational_constraints_for_committables(
     # linearized approximation because committable can partly start up and shut down
     start_up_cost = c.da.start_up_cost.sel(name=com_i)
     shut_down_cost = c.da.shut_down_cost.sel(name=com_i)
-    cost_equal = (start_up_cost == shut_down_cost).values
+
+    # Check if costs vary across snapshots
+    start_up_varies = (
+        "snapshot" in start_up_cost.dims
+        and (start_up_cost.max("snapshot") != start_up_cost.min("snapshot"))
+        .any()
+        .item()
+    )
+    shut_down_varies = (
+        "snapshot" in shut_down_cost.dims
+        and (shut_down_cost.max("snapshot") != shut_down_cost.min("snapshot"))
+        .any()
+        .item()
+    )
+    time_varying = start_up_varies or shut_down_varies
+
+    # Compare costs: if snapshot dimension exists, check equality across all snapshots
+    if "snapshot" in start_up_cost.dims:
+        cost_equal = (start_up_cost == shut_down_cost).all("snapshot").values
+    else:
+        cost_equal = (start_up_cost == shut_down_cost).values
 
     # only valid additional constraints if start up costs equal to shut down costs
-    if n._linearized_uc and not cost_equal.all():
+    if n._linearized_uc and (not cost_equal.all() or time_varying):
         logger.warning(
             "The linear relaxation of the unit commitment cannot be "
             "tightened for all generators since the start up costs "
-            "are not equal to the shut down costs. Proceed with the "
-            "linear relaxation without the tightening by additional "
-            "constraints for these. This might result in a longer "
+            "are not equal to the shut down costs or are time-varying. "
+            "Proceed with the linear relaxation without the tightening by "
+            "additional constraints for these. This might result in a longer "
             "solving time."
         )
-    if n._linearized_uc and cost_equal.any():
+    if n._linearized_uc and cost_equal.any() and not time_varying:
         # dispatch limit for partly start up/shut down for t-1
         p_ce = p.loc[:, cost_equal]
         start_up_ce = start_up.loc[:, cost_equal]
