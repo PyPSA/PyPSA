@@ -104,7 +104,7 @@ jobs:
             echo "pinned=false" >> $GITHUB_ENV
         fi
 
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
       with:
         path: |
@@ -130,7 +130,7 @@ jobs:
 
     - name: Upload artifacts
       if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: results-pypsa-eur-${{ matrix.version }}
         path: |
@@ -185,7 +185,7 @@ jobs:
   #           echo "pinned=false" >> $GITHUB_ENV
   #       fi
 
-  #   - uses: actions/cache@v4
+  #   - uses: actions/cache@v5
   #     if: env.pinned == 'false'
   #     with:
   #       path: |
@@ -203,7 +203,7 @@ jobs:
 
   #   - name: Cache Conda env
   #     if: env.pinned == 'false'
-  #     uses: actions/cache@v4
+  #     uses: actions/cache@v5
   #     with:
   #       path: ${{ env.CONDA }}/envs
   #       key: conda-pypsa-de-${{ env.WEEK }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
@@ -232,7 +232,7 @@ jobs:
 
   #   - name: Upload artifacts
   #     if: env.pinned == 'false'
-  #     uses: actions/upload-artifact@v5
+  #     uses: actions/upload-artifact@v6
   #     with:
   #       name: results-pypsa-de-${{ matrix.version }}
   #       path: |
