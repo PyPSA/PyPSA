@@ -5,21 +5,27 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-## Upcoming Release
+<!--## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
 
-### Features
+## [**v1.0.6**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.6) <small>22nd December 2025</small> { id="v1.0.6" }
+
+### Enhancements
 
 - Add `stats` as a shorthand alias for the `statistics` accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
+- Enable modular expansion option in stochastic optimization problems. (<!-- md:pr 1500 -->)
 
 ### Bug Fixes
 
+- Fix issue when assigning duals back to stochastic networks with global constraints. (<!-- md:pr 1498 -->)
+- Fix incorrect application of ramp limit constraints to fixed components without defined ramp limits. (<!-- md:pr 1494 -->)
 - Fix rolling horizon optimization with linearized unit commitment and ramp limits. (<!-- md:pr 1489 -->)
+- Fix `apply_transformer_types` failing in stochastic optimization due to types broadcasting. (<!-- md:pr 1499 -->)
 
 ## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }
 
