@@ -911,29 +911,6 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     float | pd.Series
         The annuity factor.
 
-    Examples
-    --------
-    >>> pypsa.common.annuity(0.05, 10)  # 5% discount rate over 10 years
-    0.12950457496545661
-
-    >>> pypsa.common.annuity(0, 20)  # 0% discount rate over 20 years
-    0.05
-
-    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), pd.Series([10, 20]))
-    0    0.129505
-    1    0.067216
-    dtype: float64
-
-    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), 20)
-    0    0.080243
-    1    0.067216
-    dtype: float64
-
-    >>> pypsa.common.annuity(pd.Series([0.05, 0]), 20)
-    0    0.080243
-    1    0.050000
-    dtype: float64
-
     """
     from pypsa.costs import annuity as costs_annuity  # noqa: PLC0415
 
