@@ -15,6 +15,81 @@ from pypsa.common import _scenarios_not_implemented
 if TYPE_CHECKING:
     from pypsa import Network
     from pypsa.clustering.spatial import Clustering
+    from pypsa.clustering.temporal import TemporalClustering
+
+
+class TemporalClusteringAccessor:
+    """Temporal clustering accessor for clustering a network temporally.
+
+    Provides methods to reduce temporal resolution of networks while preserving
+    total modeled hours through snapshot weighting adjustments.
+
+    Examples
+    --------
+    >>> n.cluster.temporal.resample("3h")
+    >>> n.cluster.temporal.downsample(4)
+    >>> n.cluster.temporal.segment(100)
+
+    """
+
+    def __init__(self, n: "Network") -> None:
+        """Initialize the TemporalClusteringAccessor."""
+        self.n = n
+
+    @wraps(temporal.resample)
+    def resample(self, *args: Any, **kwargs: Any) -> "Network":
+        """Wrap [`pypsa.clustering.temporal.resample`][]."""
+        return temporal.resample(self.n, *args, **kwargs).n
+
+    @wraps(temporal.downsample)
+    def downsample(self, *args: Any, **kwargs: Any) -> "Network":
+        """Wrap [`pypsa.clustering.temporal.downsample`][]."""
+        return temporal.downsample(self.n, *args, **kwargs).n
+
+    @wraps(temporal.segment)
+    def segment(self, *args: Any, **kwargs: Any) -> "Network":
+        """Wrap [`pypsa.clustering.temporal.segment`][]."""
+        return temporal.segment(self.n, *args, **kwargs).n
+
+    @wraps(temporal.from_snapshot_map)
+    def from_snapshot_map(self, *args: Any, **kwargs: Any) -> "Network":
+        """Wrap [`pypsa.clustering.temporal.from_snapshot_map`][]."""
+        return temporal.from_snapshot_map(self.n, *args, **kwargs).n
+
+    def get_resample_result(self, *args: Any, **kwargs: Any) -> "TemporalClustering":
+        """Get full TemporalClustering result from resample.
+
+        Returns the full result including both the clustered network and the
+        snapshot mapping. Use this when you need the snapshot_map for
+        disaggregation or debugging.
+        """
+        return temporal.resample(self.n, *args, **kwargs)
+
+    def get_downsample_result(self, *args: Any, **kwargs: Any) -> "TemporalClustering":
+        """Get full TemporalClustering result from downsample.
+
+        Returns the full result including both the clustered network and the
+        snapshot mapping.
+        """
+        return temporal.downsample(self.n, *args, **kwargs)
+
+    def get_segment_result(self, *args: Any, **kwargs: Any) -> "TemporalClustering":
+        """Get full TemporalClustering result from segment.
+
+        Returns the full result including both the clustered network and the
+        snapshot mapping.
+        """
+        return temporal.segment(self.n, *args, **kwargs)
+
+    def get_from_snapshot_map_result(
+        self, *args: Any, **kwargs: Any
+    ) -> "TemporalClustering":
+        """Get full TemporalClustering result from from_snapshot_map.
+
+        Returns the full result including both the clustered network and the
+        snapshot mapping.
+        """
+        return temporal.from_snapshot_map(self.n, *args, **kwargs)
 
 
 class ClusteringAccessor:
@@ -26,6 +101,27 @@ class ClusteringAccessor:
     def __init__(self, n: "Network") -> None:
         """Initialize the ClusteringAccessor."""
         self.n = n
+        self._temporal: TemporalClusteringAccessor | None = None
+
+    @property
+    def temporal(self) -> TemporalClusteringAccessor:
+        """Access temporal clustering methods.
+
+        Returns
+        -------
+        TemporalClusteringAccessor
+            Accessor for temporal clustering operations.
+
+        Examples
+        --------
+        >>> n.cluster.temporal.resample("3h")
+        >>> n.cluster.temporal.downsample(4)
+        >>> n.cluster.temporal.segment(100)
+
+        """
+        if self._temporal is None:
+            self._temporal = TemporalClusteringAccessor(self.n)
+        return self._temporal
 
     @_scenarios_not_implemented
     @wraps(spatial.busmap_by_hac)

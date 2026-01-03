@@ -623,6 +623,28 @@ class NetworkIndexMixin(_NetworkABC):
             _assert_data_integrity(self)
 
     @property
+    def nyears(self) -> float:
+        """Number of modeled years based on snapshot weightings.
+
+        Returns
+        -------
+        float
+            Total hours in snapshot_weightings['objective'] / 8760.
+
+        Examples
+        --------
+        >>> n.nyears  # Full year at hourly resolution
+        1.0
+        >>> n.cluster.temporal.resample("3h")
+        >>> n.nyears  # Still 1.0, weights are summed
+        1.0
+
+        """
+        from pypsa.clustering.temporal import HOURS_PER_YEAR  # noqa: PLC0415
+
+        return self.snapshot_weightings["objective"].sum() / HOURS_PER_YEAR
+
+    @property
     def investment_period_weightings(self) -> pd.DataFrame:
         """Weightings applied to each investment period during the optimization (LOPF).
 
