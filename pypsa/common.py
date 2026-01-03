@@ -886,8 +886,16 @@ def _scenarios_not_implemented(func: Callable) -> Callable:
     return wrapper
 
 
+@deprecated(
+    deprecated_in="0.35.0",
+    removed_in="1.0.0",
+    details="Use pypsa.costs.annuity() instead.",
+)
 def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     """Calculate the annuity factor for a given discount rate and lifetime.
+
+    .. deprecated:: 0.35.0
+        Use :func:`pypsa.costs.annuity` instead.
 
     According to formula $r / (1 - (1 + r)^{-n})$ or $1 / n$ for $r = 0$.
 
@@ -927,11 +935,6 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     dtype: float64
 
     """
-    if isinstance(r, pd.Series):
-        return pd.Series(1 / n, index=r.index).where(
-            r == 0, r / (1.0 - 1.0 / (1.0 + r) ** n)
-        )
-    elif r > 0:
-        return r / (1.0 - 1.0 / (1.0 + r) ** n)
-    else:
-        return 1 / n
+    from pypsa.costs import annuity as costs_annuity  # noqa: PLC0415
+
+    return costs_annuity(r, n)

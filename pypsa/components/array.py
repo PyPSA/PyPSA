@@ -15,11 +15,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
-import xarray
+import xarray as xr
 
 from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index, list_as_string
 from pypsa.components.abstract import _ComponentsABC
+from pypsa.costs import effective_annual_cost
 from pypsa.guards import _assert_xarray_integrity
 
 if TYPE_CHECKING:
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
     from pypsa import Components
 
 
-def _from_xarray(da: xarray.DataArray, c: Components) -> pd.DataFrame | pd.Series:
+def _from_xarray(da: xr.DataArray, c: Components) -> pd.DataFrame | pd.Series:
     """Convert component attribute xarray view back to pandas dataframe or series.
 
     Based on the dimensions the method returns the pandas format as stored in Network:
@@ -122,7 +123,7 @@ class _XarrayAccessor:
         """Safely get the component reference to avoid recursion during unpickling."""
         return object.__getattribute__(self, "_component")
 
-    def _get_array(self, attr: str) -> xarray.DataArray:
+    def _get_array(self, attr: str) -> xr.DataArray:
         """Get an xarray DataArray for the specified attribute."""
         component = self._get_component()
         try:
@@ -131,11 +132,11 @@ class _XarrayAccessor:
             msg = f"'{component.__class__.__name__}' components has no attribute '{attr}'."
             raise AttributeError(msg) from e
 
-    def __getattr__(self, attr: str) -> xarray.DataArray:
+    def __getattr__(self, attr: str) -> xr.DataArray:
         """Access component attributes as xarray DataArrays via dot notation."""
         return self._get_array(attr)
 
-    def __getitem__(self, attr: str) -> xarray.DataArray:
+    def __getitem__(self, attr: str) -> xr.DataArray:
         """Access component attributes as xarray DataArrays via bracket notation."""
         return self._get_array(attr)
 
@@ -175,7 +176,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         --------
         >>> c = n.components.generators
         >>> c.da.p_max_pu
-        xarray.DataArray 'p_max_pu' (snapshot: 10, name: 6)> Size: 480B
+        <xarray.DataArray 'p_max_pu' (snapshot: 10, name: 6)> Size: 480B
         array([[0.93001988, 1.        , 0.9745832 , 1.        , 0.5590784 ,
               ...
                 1.        ]])
@@ -301,7 +302,7 @@ class ComponentsArrayMixin(_ComponentsABC):
             res.columns.name = "name"
         return res
 
-    def _as_xarray(self, attr: str) -> xarray.DataArray:
+    def _as_xarray(self, attr: str) -> xr.DataArray:
         """Get an attribute as a xarray DataArray.
 
         Converts component data to a flexible xarray DataArray format, which is
@@ -322,16 +323,16 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         Returns
         -------
-        xarray.DataArray
+        xr.DataArray
             The requested attribute data as an xarray DataArray with appropriate dimensions
 
         """
         if attr == "active":
-            res = xarray.DataArray(self.get_activity_mask())
+            res = xr.DataArray(self.get_activity_mask())
         elif attr in self.dynamic.keys():
-            res = xarray.DataArray(self._as_dynamic(attr))
+            res = xr.DataArray(self._as_dynamic(attr))
         else:
-            res = xarray.DataArray(self.static[attr])
+            res = xr.DataArray(self.static[attr])
 
         # Unstack the dimension that contains the scenarios
         if self.has_scenarios:
@@ -349,3 +350,28 @@ class ComponentsArrayMixin(_ComponentsABC):
             _assert_xarray_integrity(self, res)
 
         return res
+
+    def get_effective_annual_cost(self, idx: pd.Index) -> xr.DataArray:
+        """Calculate effective annual cost from component attributes.
+
+        If discount_rate > 0, calculates annuity from capital_cost (overnight) and
+        lifetime. If discount_rate = 0, uses capital_cost directly (already annuitized).
+        Adds fom_cost (fixed O&M) to the result.
+
+        Parameters
+        ----------
+        idx : pd.Index
+            Index of assets to calculate costs for.
+
+        Returns
+        -------
+        xr.DataArray
+            Effective annual cost per unit of capacity.
+
+        """
+        return effective_annual_cost(
+            self.da.capital_cost.sel(name=idx),
+            self.da.discount_rate.sel(name=idx),
+            self.da.lifetime.sel(name=idx),
+            self.da.fom_cost.sel(name=idx),
+        )

@@ -42,6 +42,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix rolling horizon optimization with linearized unit commitment and ramp limits. (<!-- md:pr 1489 -->)
 - Fix `apply_transformer_types` failing in stochastic optimization due to types broadcasting. (<!-- md:pr 1499 -->)
 
+- Add support for splitting `capital_cost` into overnight investment cost and fixed O&M. New component attributes `discount_rate`, `lifetime`, and `fom_cost` allow specifying overnight costs that are automatically annuitized during optimization. When `discount_rate=0` (default), `capital_cost` is treated as pre-annuitized for backward compatibility. New `pypsa.costs` module with `annuity()`, `annuity_factor()`, and `effective_annual_cost()` functions. New statistics methods `n.statistics.investment()` and `n.statistics.fom()` for reporting. (<!-- md:issue 371 -->)
+
 ## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }
 
 ### Bug Fixes

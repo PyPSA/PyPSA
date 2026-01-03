@@ -136,8 +136,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if ext_i.empty:
             continue
 
-        capital_cost = c.da.capital_cost.sel(name=ext_i)
-        if capital_cost.size == 0:
+        annual_cost = c.get_effective_annual_cost(ext_i)
+        if annual_cost.size == 0:
             continue
 
         nominal = c.da[attr].sel(name=ext_i)
@@ -148,11 +148,11 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             for period in periods:
                 # collapse time axis via any() so capex value isn't broadcasted
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += capital_cost * active * period_weighting.loc[period]
+                weighted_cost += annual_cost * active * period_weighting.loc[period]
         else:
-            # collapse time axis via any() so capex value isn’t broadcasted
+            # collapse time axis via any() so capex value isn't broadcasted
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            weighted_cost = capital_cost * active
+            weighted_cost = annual_cost * active
 
         terms.append((weighted_cost * nominal).sum(dim=["name"]))
 
@@ -250,21 +250,21 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if ext_i.empty:
             continue
 
-        capital_cost = c.da.capital_cost.sel(name=ext_i)
-        if capital_cost.size == 0 or (capital_cost == 0).all():
+        annual_cost = c.get_effective_annual_cost(ext_i)
+        if annual_cost.size == 0 or (annual_cost == 0).all():
             continue
 
-        # only charge capex for already-existing assets
+        # charge capex for new investment
         if n._multi_invest:
             weighted_cost = 0
             for period in periods:
                 # collapse time axis via any() so capex value isn't broadcasted
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += capital_cost * active * period_weighting.loc[period]
+                weighted_cost += annual_cost * active * period_weighting.loc[period]
         else:
             # collapse time axis via any() so capex value isn't broadcasted
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            weighted_cost = capital_cost * active
+            weighted_cost = annual_cost * active
 
         caps = m[f"{c.name}-{attr}"].sel(name=ext_i)
         capex_terms.append((caps * weighted_cost).sum(dim=["name"]))

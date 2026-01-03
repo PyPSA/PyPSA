@@ -18,6 +18,7 @@ from pypsa.common import (
     deprecated_kwargs,
     pass_empty_series_if_keyerror,
 )
+from pypsa.costs import annuity_factor
 from pypsa.descriptors import nominal_attrs
 from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
@@ -910,6 +911,182 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             fill_value=0,
         )
         df.attrs["name"] = "Capital Expenditure Expanded"
+        df.attrs["unit"] = "currency"
+        return df
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
+    def investment(  # noqa: D417
+        self,
+        components: str | Sequence[str] | None = None,
+        groupby_method: Callable | str = "sum",
+        aggregate_across_components: bool = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+    ) -> pd.DataFrame:
+        """Calculate the **annuitized investment costs** (excluding fom).
+
+        If ``discount_rate > 0``, returns ``capital_cost * annuity(discount_rate, lifetime) * capacity``.
+        If ``discount_rate == 0``, returns ``capital_cost * capacity`` (pre-annuitized).
+
+        Parameters
+        ----------
+        components : str | Sequence[str] | None, default=None
+            Components to include in the calculation. If None, includes all one-port
+            and branch components.
+        groupby_method : Callable | str, default="sum"
+            Function to aggregate groups when using the groupby parameter.
+        aggregate_across_components : bool, default=False
+            Whether to aggregate across components.
+        groupby : str | Sequence[str] | Callable, default="carrier"
+            How to group components.
+        at_port : bool | str | Sequence[str], default=False
+            Which ports to consider.
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier.
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of connected buses.
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result.
+        round : int | None, default=None
+            Number of decimal places to round the result to.
+
+        Returns
+        -------
+        pd.DataFrame
+            Annuitized investment costs with components as rows and a single column
+            of aggregated values.
+
+        See Also
+        --------
+        capex : Returns total fixed costs (investment + fom_cost).
+        fom_cost : Returns fixed operation and maintenance costs.
+
+        """
+
+        @pass_empty_series_if_keyerror
+        def func(n: Network, c: str, port: str) -> pd.Series:
+            static = n.c[c].static
+            capacity = static[f"{nominal_attrs[c]}_opt"]
+            capital_cost = static["capital_cost"]
+            discount_rate = static.get("discount_rate", 0)
+            lifetime = static.get("lifetime", float("inf"))
+            ann_factor = annuity_factor(discount_rate, lifetime)
+            return capacity * capital_cost * ann_factor
+
+        df = self._aggregate_components(
+            func,
+            components=components,
+            agg=groupby_method,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port=at_port,
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
+        )
+        df.attrs["name"] = "Investment Cost"
+        df.attrs["unit"] = "currency"
+        return df
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
+    def fom(  # noqa: D417
+        self,
+        components: str | Sequence[str] | None = None,
+        groupby_method: Callable | str = "sum",
+        aggregate_across_components: bool = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+    ) -> pd.DataFrame:
+        """Calculate the **fixed operation and maintenance costs**.
+
+        Returns ``fom * capacity`` for each component.
+
+        Parameters
+        ----------
+        components : str | Sequence[str] | None, default=None
+            Components to include in the calculation. If None, includes all one-port
+            and branch components.
+        groupby_method : Callable | str, default="sum"
+            Function to aggregate groups when using the groupby parameter.
+        aggregate_across_components : bool, default=False
+            Whether to aggregate across components.
+        groupby : str | Sequence[str] | Callable, default="carrier"
+            How to group components.
+        at_port : bool | str | Sequence[str], default=False
+            Which ports to consider.
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier.
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of connected buses.
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result.
+        round : int | None, default=None
+            Number of decimal places to round the result to.
+
+        Returns
+        -------
+        pd.DataFrame
+            Fixed O&M costs with components as rows and a single column
+            of aggregated values.
+
+        See Also
+        --------
+        capex : Returns total fixed costs (investment + fom_cost).
+        investment : Returns annuitized investment costs.
+
+        """
+
+        @pass_empty_series_if_keyerror
+        def func(n: Network, c: str, port: str) -> pd.Series:
+            static = n.c[c].static
+            capacity = static[f"{nominal_attrs[c]}_opt"]
+            fom_cost = static.get("fom_cost", 0)
+            return capacity * fom_cost
+
+        df = self._aggregate_components(
+            func,
+            components=components,
+            agg=groupby_method,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port=at_port,
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
+        )
+        df.attrs["name"] = "Fixed O&M Cost"
         df.attrs["unit"] = "currency"
         return df
 
