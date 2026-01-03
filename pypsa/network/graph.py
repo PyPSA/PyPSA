@@ -276,17 +276,17 @@ class NetworkGraphMixin:
 
         no_buses = len(busorder)
         no_branches = 0
-        bus0_inds = []
-        bus1_inds = []
+        bus0_inds_list = []
+        bus1_inds_list = []
         for c in self.components:
             if c.name not in branch_components:
                 continue
             sel = c.static.query("active").index
             no_branches += len(c.static.loc[sel])
-            bus0_inds.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
-            bus1_inds.append(busorder.get_indexer(c.static.loc[sel, "bus1"]))
-        bus0_inds = np.concatenate(bus0_inds)
-        bus1_inds = np.concatenate(bus1_inds)
+            bus0_inds_list.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
+            bus1_inds_list.append(busorder.get_indexer(c.static.loc[sel, "bus1"]))
+        bus0_inds = np.concatenate(bus0_inds_list)
+        bus1_inds = np.concatenate(bus1_inds_list)
 
         return sp.sparse.csr_matrix(
             (

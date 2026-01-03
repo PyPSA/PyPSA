@@ -69,6 +69,7 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_th: Asian Institute of Technology](https://ait.ac.th/)** in the [South and South-East Asia Multidisciplinary Applied Research Network on Transforming Societies of Global South (SMARTS)](https://ait.ac.th/centre/smartscenter/) and the **[:flag_bd: International University of Business Agriculture and Technology (IUBAT), Dhaka](https://eee.iubat.edu/)** developed an adaptation of PyPSA-Earth, called PyPSA-BD to support the energy transition in Bangladesh [<https://doi.org/10.1016/j.ref.2024.100655>](https://doi.org/10.1016/j.ref.2024.100655)
 
+- **[:flag_ca: Simon Fraser University](https://www.sfu.ca/)** at the [ΔE+ (Delta-E-plus)](https://www.sfu.ca/fas/research/fas-research-labs/delta-e/) uses PyPSA to explores the synergies and trade-offs at the nexus of energy+ to support effective policy development.
 
 ## Research Institutes
 
@@ -157,3 +158,5 @@ The following universities, research institutes, companies, governmental and non
 * **[:flag_eu:/:flag_us: RAND Europe](https://www.rand.org/randeurope.html)** used PyPSA in a 2024 report [The use of AI for improving energy security](https://www.rand.org/pubs/research_reports/RRA2907-2.html) to explore the extent to which different AI applications can improve energy security in Europe.
 
 * **[:flag_gb: ClimateXChange](https://www.climatexchange.org.uk/)** commissioned a report for the Scottish Government on [Electricity system security of supply in Scotland](https://www.climatexchange.org.uk/projects/electricity-system-security-of-supply-in-scotland/) using PyPSA-GB.
+
+- **[:flag_kr: PLANiT Institute](https://planit.institute)** A non-profit research institute based in Seoul developed [PyPSA_KR](https://github.com/PLANiT-Institute/PyPSA_KR), a comprehensive power system analysis toolkit for modeling and optimizing electricity networks in South Korea with multi-node network modeling at different granularities, and [pyPPA](https://github.com/PLANiT-Institute/pyPPA), a Power Purchase Agreement modeling and optimization framework for evaluating renewable energy procurement strategies.

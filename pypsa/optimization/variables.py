@@ -190,6 +190,12 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     """
     c = n.components[c_name]
     mod_i = c.static.query(f"{attr}_extendable and ({attr}_mod>0)").index
+
+    # Unlike handled with c.extendables, modular vars's index is lost with difference() method.
+    # Can be handled with a helper "c.modulars" that would preserve level names.
+    if isinstance(mod_i, pd.MultiIndex):
+        mod_i = mod_i.unique(level="name")
+
     mod_i = mod_i.difference(c.inactive_assets)
 
     if mod_i.empty:
