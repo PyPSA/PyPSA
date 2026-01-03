@@ -116,8 +116,8 @@ class TestBackwardCompatibility:
         )
 
         # discount_rate and fom_cost should default to 0
-        assert n.generators.discount_rate.iloc[0] == 0
-        assert n.generators.fom_cost.iloc[0] == 0
+        assert n.c.generators.static.discount_rate.iloc[0] == 0
+        assert n.c.generators.static.fom_cost.iloc[0] == 0
 
     def test_optimization_with_defaults(self, simple_network):
         """Test that optimization works with default discount_rate=0."""
@@ -135,7 +135,7 @@ class TestBackwardCompatibility:
         n.optimize(solver_name=SOLVER_NAME)
 
         # Should run without errors
-        assert n.generators.p_nom_opt.iloc[0] >= 0
+        assert n.c.generators.static.p_nom_opt.iloc[0] >= 0
 
 
 class TestOvernightCostWithDiscountRate:
@@ -163,14 +163,14 @@ class TestOvernightCostWithDiscountRate:
         n.optimize(solver_name=SOLVER_NAME)
 
         # Verify generator is built
-        assert n.generators.p_nom_opt.iloc[0] > 0
+        assert n.c.generators.static.p_nom_opt.iloc[0] > 0
 
         # The objective should use annuitized cost
         ann_factor = annuity(discount_rate, lifetime)
         expected_annual_cost = overnight_cost * ann_factor
         # Verify via statistics
         investment = n.statistics.investment(groupby=False)
-        capacity = n.generators.p_nom_opt.iloc[0]
+        capacity = n.c.generators.static.p_nom_opt.iloc[0]
         actual = investment.values.sum()
         assert abs(actual - capacity * expected_annual_cost) < TOLERANCE
 
@@ -198,7 +198,7 @@ class TestOvernightCostWithDiscountRate:
         n.optimize(solver_name=SOLVER_NAME)
 
         # Verify generator is built
-        assert n.generators.p_nom_opt.iloc[0] > 0
+        assert n.c.generators.static.p_nom_opt.iloc[0] > 0
 
 
 class TestStatisticsFunctions:
@@ -261,7 +261,7 @@ class TestStatisticsFunctions:
         n.optimize(solver_name=SOLVER_NAME)
 
         investment = n.statistics.investment(groupby=False)
-        capacity = n.generators.p_nom_opt.iloc[0]
+        capacity = n.c.generators.static.p_nom_opt.iloc[0]
         expected = capacity * overnight_cost * annuity(discount_rate, lifetime)
 
         # Check the investment cost is calculated correctly
@@ -287,7 +287,7 @@ class TestStatisticsFunctions:
         n.optimize(solver_name=SOLVER_NAME)
 
         fom_result = n.statistics.fom(groupby=False)
-        capacity = n.generators.p_nom_opt.iloc[0]
+        capacity = n.c.generators.static.p_nom_opt.iloc[0]
         expected = capacity * fom_cost_val
 
         # Check the fom cost is calculated correctly
@@ -330,7 +330,7 @@ class TestMultiComponentScenarios:
         n.optimize(solver_name=SOLVER_NAME)
 
         # Both generators should be considered
-        assert n.generators.p_nom_opt.sum() > 0
+        assert n.c.generators.static.p_nom_opt.sum() > 0
 
     def test_links_with_cost_split(self, simple_network):
         """Test cost split works for Links."""
@@ -350,9 +350,9 @@ class TestMultiComponentScenarios:
         )
 
         # Verify attributes exist
-        assert n.links.discount_rate.iloc[0] == 0.05
-        assert n.links.fom_cost.iloc[0] == 10
-        assert n.links.lifetime.iloc[0] == 40
+        assert n.c.links.static.discount_rate.iloc[0] == 0.05
+        assert n.c.links.static.fom_cost.iloc[0] == 10
+        assert n.c.links.static.lifetime.iloc[0] == 40
 
 
 class TestDeprecation:
