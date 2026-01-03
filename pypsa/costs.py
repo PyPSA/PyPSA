@@ -140,7 +140,7 @@ def effective_annual_cost(
     capital_cost: T,
     discount_rate: T,
     lifetime: T,
-    fom_cost: T = 0.0,
+    fom_cost: T | None = None,
 ) -> T:
     """Calculate effective annual cost from overnight cost, discount rate, and fom_cost.
 
@@ -160,7 +160,7 @@ def effective_annual_cost(
     lifetime : float | pd.Series | xr.DataArray
         Asset lifetime in years.
     fom_cost : float | pd.Series | xr.DataArray, optional
-        Fixed operation and maintenance cost (currency/MW/year). Default 0.
+        Fixed operation and maintenance cost (currency/MW/year). Default 0 (None).
 
     Returns
     -------
@@ -175,4 +175,7 @@ def effective_annual_cost(
     105.8...
 
     """
-    return capital_cost * annuity_factor(discount_rate, lifetime) + fom_cost
+    annuitized = capital_cost * annuity_factor(discount_rate, lifetime)
+    if fom_cost is None:
+        return annuitized
+    return annuitized + fom_cost
