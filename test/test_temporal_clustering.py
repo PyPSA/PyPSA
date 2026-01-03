@@ -330,3 +330,137 @@ class TestEdgeCases:
 
         assert len(result.n.snapshots) == 1
         assert np.isclose(result.n.snapshot_weightings["objective"].iloc[0], 168)
+
+    def test_downsample_multiperiod_raises(self, multiperiod_network):
+        n = multiperiod_network
+        with pytest.raises(NotImplementedError, match="does not yet support"):
+            downsample(n, 4)
+
+    def test_from_snapshot_map_dataframe_input(self, simple_network):
+        n = simple_network
+        snapshot_map_series = pd.Series(
+            np.repeat(n.snapshots[::24], 24)[: len(n.snapshots)], index=n.snapshots
+        )
+        snapshot_map_df = pd.DataFrame({"map": snapshot_map_series})
+
+        result = from_snapshot_map(n, snapshot_map_df)
+
+        assert isinstance(result, TemporalClustering)
+        assert len(result.n.snapshots) == 7
+
+
+class TestAggregationRulesDetailed:
+    def test_e_min_pu_uses_max(self, simple_network):
+        n = simple_network
+        n.add(
+            "StorageUnit",
+            "storage0",
+            bus="bus0",
+            p_nom=10,
+            e_min_pu=np.random.default_rng(42).uniform(0.1, 0.3, 168),
+        )
+
+        result = resample(n, "24h")
+
+        assert "e_min_pu" in result.n.c.storage_units.dynamic
+
+    def test_e_max_pu_uses_min(self, simple_network):
+        n = simple_network
+        n.add(
+            "StorageUnit",
+            "storage0",
+            bus="bus0",
+            p_nom=10,
+            e_max_pu=np.random.default_rng(42).uniform(0.7, 1.0, 168),
+        )
+
+        result = resample(n, "24h")
+
+        assert "e_max_pu" in result.n.c.storage_units.dynamic
+
+
+class TestAccessorFullResultsExtended:
+    def test_get_from_snapshot_map_result(self, simple_network):
+        n = simple_network
+        snapshot_map = pd.Series(
+            np.repeat(n.snapshots[::24], 24)[: len(n.snapshots)], index=n.snapshots
+        )
+
+        result = n.cluster.temporal.get_from_snapshot_map_result(snapshot_map)
+
+        assert isinstance(result, TemporalClustering)
+        assert isinstance(result.n, pypsa.Network)
+        assert isinstance(result.snapshot_map, pd.Series)
+
+
+class TestSegmentErrors:
+    def test_segment_invalid_num_segments(self, simple_network):
+        from pypsa.clustering.temporal import segment
+
+        n = simple_network
+        with pytest.raises(ValueError, match="num_segments must be >= 1"):
+            segment(n, 0)
+
+    def test_segment_multiperiod_raises(self, multiperiod_network):
+        pytest.importorskip("tsam")
+        n = multiperiod_network
+        n.add(
+            "Generator",
+            "gen_vary",
+            bus="bus0",
+            p_nom=50,
+            p_max_pu=np.random.default_rng(42).uniform(0.5, 1.0, 48),
+        )
+
+        from pypsa.clustering.temporal import segment
+
+        with pytest.raises(NotImplementedError, match="does not yet support"):
+            segment(n, 5)
+
+    def test_segment_no_dynamic_data(self):
+        pytest.importorskip("tsam")
+        n = pypsa.Network()
+        n.set_snapshots(pd.date_range("2020-01-01", periods=24, freq="h"))
+        n.add("Bus", "bus0")
+        n.add("Generator", "gen0", bus="bus0", p_nom=100)
+
+        from pypsa.clustering.temporal import segment
+
+        with pytest.raises(ValueError, match="No time-varying data"):
+            segment(n, 5)
+
+
+class TestSegmentFunctionality:
+    def test_segment_basic(self, simple_network):
+        pytest.importorskip("tsam")
+        n = simple_network
+
+        from pypsa.clustering.temporal import segment
+
+        result = segment(n, 10)
+
+        assert isinstance(result, TemporalClustering)
+        assert len(result.n.snapshots) == 10
+        assert np.isclose(
+            result.n.snapshot_weightings["objective"].sum(),
+            n.snapshot_weightings["objective"].sum(),
+        )
+
+    def test_segment_accessor(self, simple_network):
+        pytest.importorskip("tsam")
+        n = simple_network
+
+        m = n.cluster.temporal.segment(10)
+
+        assert isinstance(m, pypsa.Network)
+        assert len(m.snapshots) == 10
+
+    def test_get_segment_result(self, simple_network):
+        pytest.importorskip("tsam")
+        n = simple_network
+
+        result = n.cluster.temporal.get_segment_result(10)
+
+        assert isinstance(result, TemporalClustering)
+        assert isinstance(result.n, pypsa.Network)
+        assert isinstance(result.snapshot_map, pd.Series)
