@@ -55,7 +55,7 @@ def annuity(
     Examples
     --------
     >>> import pypsa
-    >>> pypsa.costs.annuity(0.07, 25)  # 7% discount, 25 year lifetime
+    >>> pypsa.costs.annuity(0.07, 25)  # doctest: +ELLIPSIS
     0.0858...
 
     """
@@ -113,7 +113,7 @@ def annuity_factor(
     Examples
     --------
     >>> import pypsa
-    >>> pypsa.costs.annuity_factor(0.07, 25)
+    >>> pypsa.costs.annuity_factor(0.07, 25)  # doctest: +ELLIPSIS
     0.0858...
     >>> pypsa.costs.annuity_factor(0, 25)  # Zero discount = already annuitized
     1.0
@@ -170,8 +170,7 @@ def effective_annual_cost(
     Examples
     --------
     >>> import pypsa
-    >>> # Overnight cost 1000 EUR/kW, 7% discount, 25 years, 20 EUR/kW/year FOM
-    >>> pypsa.costs.effective_annual_cost(1000, 0.07, 25, 20)
+    >>> pypsa.costs.effective_annual_cost(1000, 0.07, 25, 20)  # doctest: +ELLIPSIS
     105.8...
 
     """
