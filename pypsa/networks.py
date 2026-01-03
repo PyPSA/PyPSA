@@ -1050,7 +1050,7 @@ class Network(
                   Bremen Converter     True  NaN   NaN  ...       NaN       NaN      NaN
                   DC link              True  NaN   NaN  ...       NaN       NaN      NaN
         <BLANKLINE>
-        [11 rows x 61 columns]
+        [11 rows x 64 columns]
 
         See Also
         --------
@@ -1096,7 +1096,7 @@ class Network(
         5            True  0.0   0.0  ...  0.238800  0.000002  0.000002
         6            True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 38 columns]
+        [7 rows x 40 columns]
 
         """
         comps = sorted(
@@ -1139,7 +1139,7 @@ class Network(
                 5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
                 6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 38 columns]
+        [7 rows x 40 columns]
 
         See Also
         --------
