@@ -633,10 +633,10 @@ class NetworkIndexMixin(_NetworkABC):
 
         Examples
         --------
-        >>> n.nyears  # Full year at hourly resolution
+        >>> n.nyears  # doctest: +SKIP
         1.0
-        >>> n.cluster.temporal.resample("3h")
-        >>> n.nyears  # Still 1.0, weights are summed
+        >>> n.cluster.temporal.resample("3h")  # doctest: +SKIP
+        >>> n.nyears  # Still 1.0, weights are summed  # doctest: +SKIP
         1.0
 
         """

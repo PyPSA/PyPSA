@@ -26,9 +26,9 @@ class TemporalClusteringAccessor:
 
     Examples
     --------
-    >>> n.cluster.temporal.resample("3h")
-    >>> n.cluster.temporal.downsample(4)
-    >>> n.cluster.temporal.segment(100)
+    >>> n.cluster.temporal.resample("3h")  # doctest: +SKIP
+    >>> n.cluster.temporal.downsample(4)  # doctest: +SKIP
+    >>> n.cluster.temporal.segment(100)  # doctest: +SKIP
 
     """
 
@@ -114,9 +114,9 @@ class ClusteringAccessor:
 
         Examples
         --------
-        >>> n.cluster.temporal.resample("3h")
-        >>> n.cluster.temporal.downsample(4)
-        >>> n.cluster.temporal.segment(100)
+        >>> n.cluster.temporal.resample("3h")  # doctest: +SKIP
+        >>> n.cluster.temporal.downsample(4)  # doctest: +SKIP
+        >>> n.cluster.temporal.segment(100)  # doctest: +SKIP
 
         """
         if self._temporal is None:

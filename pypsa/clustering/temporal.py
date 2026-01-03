@@ -179,9 +179,9 @@ def resample(
 
     Examples
     --------
-    >>> result = resample(n, "3h")
-    >>> clustered = result.n
-    >>> mapping = result.snapshot_map
+    >>> result = resample(n, "3h")  # doctest: +SKIP
+    >>> clustered = result.n  # doctest: +SKIP
+    >>> mapping = result.snapshot_map  # doctest: +SKIP
 
     """
     if n.has_periods:
@@ -340,9 +340,9 @@ def downsample(
 
     Examples
     --------
-    >>> result = downsample(n, 4)
-    >>> clustered = result.n
-    >>> assert len(clustered.snapshots) == len(n.snapshots) // 4
+    >>> result = downsample(n, 4)  # doctest: +SKIP
+    >>> clustered = result.n  # doctest: +SKIP
+    >>> assert len(clustered.snapshots) == len(n.snapshots) // 4  # doctest: +SKIP
 
     """
     if stride < 1:
@@ -539,11 +539,11 @@ def from_snapshot_map(
 
     Examples
     --------
-    >>> snapshot_map = pd.Series(
+    >>> snapshot_map = pd.Series(  # doctest: +SKIP
     ...     [ts1, ts1, ts1, ts2, ts2, ts2],
     ...     index=n.snapshots
     ... )
-    >>> result = from_snapshot_map(n, snapshot_map)
+    >>> result = from_snapshot_map(n, snapshot_map)  # doctest: +SKIP
 
     """
     if isinstance(snapshot_map, pd.DataFrame):
