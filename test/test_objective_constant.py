@@ -126,6 +126,8 @@ def test_objective_value_consistency(
     n1.optimize(include_objective_constant=True, log_to_console=False)
     # When included, n.objective = model_obj_value = CAPEX_new + OPEX - constant
     # Total cost = n.objective + n.objective_constant = CAPEX_new + OPEX
+    assert n1.objective is not None
+    assert n1.objective_constant is not None
     total_cost_with = n1.objective + n1.objective_constant
 
     # Run with constant excluded
@@ -133,6 +135,8 @@ def test_objective_value_consistency(
     n2.optimize(include_objective_constant=False, log_to_console=False)
     # When excluded, n.objective = model_obj_value = CAPEX_new + OPEX
     # Total cost = n.objective (no need to add constant, it's simply not in the objective)
+    assert n2.objective is not None
+    assert n2.objective_constant is not None
     total_cost_without = n2.objective
 
     # Both should represent the same system costs (without the fixed infrastructure costs)
