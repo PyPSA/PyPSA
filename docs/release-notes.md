@@ -5,13 +5,18 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-<!--## Upcoming Release
+
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Enhancements
+
+- Add `include_objective_constant` parameter to `n.optimize()` and `n.optimize.create_model()` to control whether the objective constant (capital costs of existing infrastructure) is included as a variable in the objective function. Setting to `False` improves LP numerical conditioning. The default will change from `True` to `False` in a future version. (<!-- md:pr 503 -->)
 
 ## [**v1.0.6**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.6) <small>22nd December 2025</small> { id="v1.0.6" }
 

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -75,7 +76,9 @@ lookup = pd.read_csv(
 )
 
 
-def define_objective(n: Network, sns: pd.Index) -> None:
+def define_objective(
+    n: Network, sns: pd.Index, include_objective_constant: bool
+) -> None:
     """Define and write the optimization objective function.
 
     Builds the (linear or quadratic) objective by assembling the following terms:
@@ -101,6 +104,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         Network instance containing the Linopy model and component data.
     sns : pandas.Index
         Snapshots (and, for multi-investment, periods) over which to build the objective.
+    include_objective_constant : bool
+        Whether to include the objective constant as a variable in the objective function.
 
     Returns
     -------
@@ -170,7 +175,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     else:
         n._objective_constant = float(constant)
         has_const = constant != 0
-    if has_const:
+    if has_const and include_objective_constant:
         object_const = m.add_variables(constant, constant, name="objective_constant")
         # Treat constant as part of CAPEX block
         capex_terms.append(-1 * object_const)
@@ -391,6 +396,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         solver_name: str | None = None,
         solver_options: dict | None = None,
         compute_infeasibilities: bool = False,
+        include_objective_constant: bool | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -434,6 +440,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         compute_infeasibilities : bool, default False
             Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
             of an infeasible solution. Requires Gurobi.
+        include_objective_constant : bool | None, default None
+            Whether to include the objective constant (capital costs of existing
+            infrastructure) as a variable in the objective function. If None (default),
+            a FutureWarning is raised indicating that the default behavior will change
+            to False in a future version. Set to True to keep the current behavior
+            (include constant), or False to exclude it (improves LP numerical conditioning).
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -457,6 +469,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if solver_options is None:
             solver_options = options.params.optimize.solver_options.copy()
 
+        # Handle include_objective_constant deprecation
+        if include_objective_constant is None:
+            warnings.warn(
+                "The default value of `include_objective_constant` will change from "
+                "True to False in a future version. Set `include_objective_constant` "
+                "explicitly to suppress this warning. Using False improves LP numerical "
+                "conditioning by not including the objective constant as a variable.",
+                FutureWarning,
+                stacklevel=2,
+            )
+            include_objective_constant = True
+
         n = self._n
         sns = as_index(n, snapshots, "snapshots")
         n._multi_invest = int(multi_investment_periods)
@@ -469,6 +493,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             transmission_losses,
             linearized_unit_commitment,
             consistency_check=False,
+            include_objective_constant=include_objective_constant,
             **model_kwargs,
         )
         if extra_functionality:
@@ -496,6 +521,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         transmission_losses: int = 0,
         linearized_unit_commitment: bool = False,
         consistency_check: bool = True,
+        include_objective_constant: bool = True,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -517,6 +543,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Whether to optimise using the linearised unit commitment formulation or not.
         consistency_check : bool, default: True
             Whether to run the consistency check before building the model.
+        include_objective_constant : bool, default: True
+            Whether to include the objective constant (capital costs of existing
+            infrastructure) as a variable in the objective function. Setting to False
+            improves LP numerical conditioning.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -617,7 +647,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
 
-        define_objective(n, sns)
+        define_objective(n, sns, include_objective_constant)
 
         return n.model
 
