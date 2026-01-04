@@ -225,7 +225,7 @@ def resample(
                 resampled_list.append(resampled_year)
             resampled = pd.concat(resampled_list)
             resampled = resampled[resampled.index.isin(m.snapshots)]
-            m._import_series_from_df(resampled, c.name, attr)
+            m._import_series_from_df(resampled, c.name, attr, overwrite=True)
 
     snapshot_map = _build_resample_map(original_snapshots, m.snapshots, offset)
 
@@ -294,7 +294,7 @@ def _resample_with_periods(
                 resampled.index.name = "snapshot"
                 resampled_list.append(resampled)
             resampled_all = pd.concat(resampled_list)
-            m._import_series_from_df(resampled_all, c.name, attr)
+            m._import_series_from_df(resampled_all, c.name, attr, overwrite=True)
 
     snapshot_map = pd.Series(index=original_snapshots, dtype=object)
     for period in n.periods:
@@ -369,7 +369,7 @@ def downsample(
         for attr, df in c.dynamic.items():
             if df.empty:
                 continue
-            m._import_series_from_df(df.loc[selected], c.name, attr)
+            m._import_series_from_df(df.loc[selected], c.name, attr, overwrite=True)
 
     num_orig = len(original_snapshots)
     snapshot_map = pd.Series(index=original_snapshots, dtype=object)
@@ -500,7 +500,7 @@ def segment(
         if attr in m.c[comp].dynamic and not m.c[comp].dynamic[attr].empty:
             m.c[comp].dynamic[attr][col_name] = data_col[col_name]
         else:
-            m._import_series_from_df(data_col, comp, attr)
+            m._import_series_from_df(data_col, comp, attr, overwrite=True)
 
     snapshot_map = pd.Series(index=original_snapshots, dtype=object)
     for i, new_ts in enumerate(new_snapshots):
@@ -574,6 +574,6 @@ def from_snapshot_map(
             agg = _get_aggregation_rule(attr, aggregation_rules)
             aggregated = df.groupby(snapshot_map_series).agg(agg)
             aggregated = aggregated.reindex(aggregated_snapshots)
-            m._import_series_from_df(aggregated, c.name, attr)
+            m._import_series_from_df(aggregated, c.name, attr, overwrite=True)
 
     return TemporalClustering(m, snapshot_map_series)
