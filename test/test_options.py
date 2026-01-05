@@ -6,6 +6,13 @@ import pytest
 
 import pypsa
 
+try:
+    import gurobipy  # noqa: F401
+
+    gurobi_installed = True
+except ImportError:
+    gurobi_installed = False
+
 
 @pytest.fixture
 def mocked_pypsa():
@@ -246,6 +253,7 @@ def test_add_return_names_option():
     assert n.add("Bus", "bus6") is None  # Back to False
 
 
+@pytest.mark.skipif(not gurobi_installed, reason="Gurobi not installed")
 def test_params_optimize():
     n = pypsa.examples.ac_dc_meshed()
 
