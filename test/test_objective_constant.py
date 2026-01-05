@@ -58,14 +58,13 @@ def test_include_objective_constant_true(
 def test_include_objective_constant_false(
     network_with_extendable_assets: pypsa.Network,
 ) -> None:
-    """Test that include_objective_constant=False excludes the constant variable."""
+    """Test that include_objective_constant=False skips constant calculation."""
     n = network_with_extendable_assets
     n.optimize(include_objective_constant=False, log_to_console=False)
 
-    # The objective constant should still be calculated and stored
-    assert n.objective_constant is not None
-    assert n.objective_constant > 0
-    # But it should NOT be included as a variable in the model
+    # The objective constant should not be calculated
+    assert n.objective_constant == 0.0
+    # And should NOT be included as a variable in the model
     assert "objective_constant" not in n.model.variables
 
 
@@ -109,41 +108,37 @@ def test_include_objective_constant_false_suppresses_warning(
 def test_objective_value_consistency(
     network_with_extendable_assets: pypsa.Network,
 ) -> None:
-    """Test that total system cost is consistent regardless of include_objective_constant.
+    """Test that optimization results are consistent regardless of include_objective_constant.
 
     When include_objective_constant=True, the objective function subtracts the constant,
-    so total cost = n.objective + n.objective_constant.
+    so: n.objective = CAPEX_new + OPEX - constant
 
-    When include_objective_constant=False, the objective function does NOT include the
-    constant (neither as an addition nor subtraction), so total cost = n.objective + n.objective_constant.
+    When include_objective_constant=False, no constant is calculated or subtracted,
+    so: n.objective = CAPEX_new + OPEX
 
-    Both cases should give the same total system cost.
+    Both should yield the same operational result (n.objective + n.objective_constant).
     """
     n = network_with_extendable_assets
 
     # Run with constant included (subtracts constant from objective function)
     n1 = n.copy()
     n1.optimize(include_objective_constant=True, log_to_console=False)
-    # When included, n.objective = model_obj_value = CAPEX_new + OPEX - constant
-    # Total cost = n.objective + n.objective_constant = CAPEX_new + OPEX
     assert n1.objective is not None
     assert n1.objective_constant is not None
-    total_cost_with = n1.objective + n1.objective_constant
+    assert n1.objective_constant > 0  # Should be calculated
 
     # Run with constant excluded
     n2 = n.copy()
     n2.optimize(include_objective_constant=False, log_to_console=False)
-    # When excluded, n.objective = model_obj_value = CAPEX_new + OPEX
-    # Total cost = n.objective (no need to add constant, it's simply not in the objective)
     assert n2.objective is not None
-    assert n2.objective_constant is not None
-    total_cost_without = n2.objective
+    assert n2.objective_constant == 0.0  # Not calculated
 
-    # Both should represent the same system costs (without the fixed infrastructure costs)
+    # Total cost (objective + constant) should be the same
+    # With True: objective already has constant subtracted, so add it back
+    # With False: objective is raw, constant is 0
+    total_cost_with = n1.objective + n1.objective_constant
+    total_cost_without = n2.objective + n2.objective_constant
     assert abs(total_cost_with - total_cost_without) < 1e-6
-
-    # The objective_constant should be the same regardless of whether it was included
-    assert abs(n1.objective_constant - n2.objective_constant) < 1e-6
 
 
 def test_create_model_with_include_objective_constant(

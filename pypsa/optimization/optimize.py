@@ -130,55 +130,63 @@ def define_objective(
         period_weighting = n.investment_period_weightings.objective[periods]
 
     # constant for already done investment
-    nom_attr = nominal_attrs.items()
-    constant: xr.DataArray | float = 0
-    terms = []
+    if include_objective_constant:
+        nom_attr = nominal_attrs.items()
+        constant: xr.DataArray | float = 0
+        terms = []
 
-    for c_name, attr in nom_attr:
-        c = as_components(n, c_name)
-        ext_i = c.extendables.difference(c.inactive_assets)
+        for c_name, attr in nom_attr:
+            c = as_components(n, c_name)
+            ext_i = c.extendables.difference(c.inactive_assets)
 
-        if ext_i.empty:
-            continue
+            if ext_i.empty:
+                continue
 
-        capital_cost = c.da.capital_cost.sel(name=ext_i)
-        if capital_cost.size == 0:
-            continue
+            capital_cost = c.da.capital_cost.sel(name=ext_i)
+            if capital_cost.size == 0:
+                continue
 
-        nominal = c.da[attr].sel(name=ext_i)
+            nominal = c.da[attr].sel(name=ext_i)
 
-        # only charge capex for already-existing assets
-        if n._multi_invest:
-            weighted_cost = 0
-            for period in periods:
+            # only charge capex for already-existing assets
+            if n._multi_invest:
+                weighted_cost = 0
+                for period in periods:
+                    # collapse time axis via any() so capex value isn't broadcasted
+                    active = c.da.active.sel(period=period, name=ext_i).any(
+                        dim="timestep"
+                    )
+                    weighted_cost += (
+                        capital_cost * active * period_weighting.loc[period]
+                    )
+            else:
                 # collapse time axis via any() so capex value isn't broadcasted
-                active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += capital_cost * active * period_weighting.loc[period]
+                active = c.da.active.sel(name=ext_i).any(dim="snapshot")
+                weighted_cost = capital_cost * active
+
+            terms.append((weighted_cost * nominal).sum(dim=["name"]))
+
+        constant += sum(terms)
+
+        # Handle constant for stochastic vs deterministic networks
+        if n.has_scenarios and isinstance(constant, xr.DataArray):
+            # For stochastic networks, weight constant by scenario probabilities
+            weighted_constant = sum(
+                constant.sel(scenario=s) * n.scenario_weightings.loc[s, "weight"]
+                for s in n.scenarios
+            )
+            n._objective_constant = float(weighted_constant)
+            has_const = (constant != 0).any().item()
         else:
-            # collapse time axis via any() so capex value isn’t broadcasted
-            active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            weighted_cost = capital_cost * active
-
-        terms.append((weighted_cost * nominal).sum(dim=["name"]))
-
-    constant += sum(terms)
-
-    # Handle constant for stochastic vs deterministic networks
-    if n.has_scenarios and isinstance(constant, xr.DataArray):
-        # For stochastic networks, weight constant by scenario probabilities
-        weighted_constant = sum(
-            constant.sel(scenario=s) * n.scenario_weightings.loc[s, "weight"]
-            for s in n.scenarios
-        )
-        n._objective_constant = float(weighted_constant)
-        has_const = (constant != 0).any().item()
+            n._objective_constant = float(constant)
+            has_const = constant != 0
+        if has_const:
+            object_const = m.add_variables(
+                constant, constant, name="objective_constant"
+            )
+            capex_terms.append(-1 * object_const)
     else:
-        n._objective_constant = float(constant)
-        has_const = constant != 0
-    if has_const and include_objective_constant:
-        object_const = m.add_variables(constant, constant, name="objective_constant")
-        # Treat constant as part of CAPEX block
-        capex_terms.append(-1 * object_const)
+        n._objective_constant = 0.0
 
     # Weightings
     weighting = n.snapshot_weightings.objective
