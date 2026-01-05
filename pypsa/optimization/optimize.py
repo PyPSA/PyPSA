@@ -453,7 +453,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             infrastructure) as a variable in the objective function. If None (default),
             a FutureWarning is raised indicating that the default behavior will change
             to False in a future version. Set to True to keep the current behavior
-            (include constant), or False to exclude it (improves LP numerical conditioning).
+            Whether to include the objective constant (capital costs of existing
+            infrastructure) as a variable in the objective function. Setting to False
+            improves LP numerical conditioning. Defaults to True.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
