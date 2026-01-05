@@ -5,13 +5,30 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-<!--## Upcoming Release
+
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Enhancements
+
+- Add temporal clustering functionality via `n.cluster.temporal.*` accessor. (<!-- md:pr 1508 -->)
+
+    - `resample(offset)` - Aggregate snapshots at regular intervals (e.g., "3h", "24h")
+    - `downsample(stride)` - Select every Nth snapshot as representative
+    - `segment(num_segments)` - TSAM k-means clustering for variable-duration segments
+    - `from_snapshot_map(snapshot_map)` - Apply pre-computed temporal aggregation
+
+    All methods preserve the snapshot weighting invariant and return the clustered network.
+    Use `get_*_result()` methods to also get the snapshot mapping for disaggregation.
+
+- Add `n.nyears` property to get total modeled years based on snapshot weightings. (<!-- md:pr 1508 -->)
+
+- Add `tsam` as optional dependency for temporal segmentation (`pip install pypsa[tsam]`). (<!-- md:pr 1508 -->)
 
 ## [**v1.0.6**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.6) <small>22nd December 2025</small> { id="v1.0.6" }
 
