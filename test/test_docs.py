@@ -38,7 +38,7 @@ def test_docs_flag(pytestconfig):
 sub_network_parent = pypsa.examples.ac_dc_meshed().determine_network_topology()
 # Warning: Keep in sync with settings in doc/conf.py
 n = pypsa.examples.ac_dc_meshed()
-n.optimize()
+n.optimize(include_objective_constant=True)
 
 # Create another network with shuffled load time series for collection comparisons
 n_shuffled_load = pypsa.examples.ac_dc_meshed()
@@ -50,7 +50,7 @@ df_shuffled = pd.DataFrame(
 )
 n_shuffled_load.loads_t.p_set = df_shuffled
 n_shuffled_load.name = "AC-DC-Meshed-Shuffled-Load"
-n_shuffled_load.optimize()
+n_shuffled_load.optimize(include_objective_constant=True)
 
 # Remove solver model to allow copying
 n.model.solver_model = None
