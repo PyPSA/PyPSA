@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: MIT
 
+import ast
 import logging
+import os
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
@@ -290,6 +292,44 @@ class OptionsNode:
             else:
                 child.reset_all()
 
+    def _load_from_env(self) -> None:
+        """Load options from PYPSA_* environment variables."""
+        prefix = "PYPSA_"
+
+        for env_var, env_value in os.environ.items():
+            if not env_var.startswith(prefix):
+                continue
+
+            # PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS -> general.allow_network_requests
+            option_path = env_var[len(prefix) :].replace("__", ".").lower()
+
+            lower_value = env_value.lower()
+            # Handle common booleans
+            if lower_value in ("true", "1"):
+                parsed_value: Any = True
+            elif lower_value in ("false", "0"):
+                parsed_value = False
+            # Otherwise use literal_eval for Python literals
+            else:
+                try:
+                    parsed_value = ast.literal_eval(env_value)
+                except (ValueError, SyntaxError):
+                    parsed_value = env_value
+                    logger.debug(
+                        "Could not parse '%s' as literal, using string", env_var
+                    )
+
+            try:
+                self.set_option(option_path, parsed_value)
+                logger.debug("Set option '%s' from env var '%s'", option_path, env_var)
+            except InvalidOptionError:
+                logger.warning(
+                    "Unknown option '%s' from env var '%s'. "
+                    "Use pypsa.options.describe() to see valid options.",
+                    option_path,
+                    env_var,
+                )
+
     def _describe_options(self, prefix: str = "") -> None:
         """Print documentation for options via path.
 
@@ -457,3 +497,6 @@ options._add_option(
     "debugging and development purposes. This will lead to overhead in\n\t"
     "performance and should not be used in production.",
 )
+
+# Load options from environment variables
+options._load_from_env()
