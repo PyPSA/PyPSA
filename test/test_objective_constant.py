@@ -168,3 +168,58 @@ def test_no_objective_constant_when_no_extendables(
     assert n.objective_constant == 0.0
     # The variable should not be created when constant is 0
     assert "objective_constant" not in n.model.variables
+
+
+def test_create_model_raises_future_warning(
+    network_with_extendable_assets: pypsa.Network,
+) -> None:
+    """Test that create_model raises FutureWarning when parameter not set."""
+    n = network_with_extendable_assets
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        n.optimize.create_model()
+        future_warnings = [x for x in w if issubclass(x.category, FutureWarning)]
+        assert len(future_warnings) == 1
+        assert "include_objective_constant" in str(future_warnings[0].message)
+
+
+def test_options_include_objective_constant(
+    network_with_extendable_assets: pypsa.Network,
+) -> None:
+    """Test that pypsa.options.params.optimize.include_objective_constant works."""
+    n = network_with_extendable_assets
+
+    # Set the option to False
+    pypsa.options.params.optimize.include_objective_constant = False
+    try:
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            n.optimize(log_to_console=False)
+            # No FutureWarning since option is set
+            future_warnings = [x for x in w if issubclass(x.category, FutureWarning)]
+            assert len(future_warnings) == 0
+        # Constant should not be calculated
+        assert n.objective_constant == 0.0
+        assert "objective_constant" not in n.model.variables
+    finally:
+        # Reset to default
+        pypsa.options.reset_option("params.optimize.include_objective_constant")
+
+
+def test_options_include_objective_constant_create_model(
+    network_with_extendable_assets: pypsa.Network,
+) -> None:
+    """Test that options work with create_model."""
+    n = network_with_extendable_assets
+
+    # Set the option to True
+    pypsa.options.params.optimize.include_objective_constant = True
+    try:
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            n.optimize.create_model()
+            future_warnings = [x for x in w if issubclass(x.category, FutureWarning)]
+            assert len(future_warnings) == 0
+        assert "objective_constant" in n.model.variables
+    finally:
+        pypsa.options.reset_option("params.optimize.include_objective_constant")

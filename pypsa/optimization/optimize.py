@@ -76,6 +76,28 @@ lookup = pd.read_csv(
 )
 
 
+def _resolve_include_objective_constant(
+    value: bool | None, stacklevel: int = 3
+) -> bool:
+    """Resolve include_objective_constant from explicit value or options.
+
+    Raises FutureWarning if neither is set.
+    """
+    if value is None:
+        value = options.params.optimize.include_objective_constant
+    if value is None:
+        warnings.warn(
+            "The default value of `include_objective_constant` will change from "
+            "True to False in version 2.0. Set `include_objective_constant` "
+            "explicitly to suppress this warning. Using False improves LP numerical "
+            "conditioning by not including the objective constant as a variable.",
+            FutureWarning,
+            stacklevel=stacklevel,
+        )
+        value = True
+    return value
+
+
 def define_objective(
     n: Network, sns: pd.Index, include_objective_constant: bool
 ) -> None:
@@ -450,12 +472,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             of an infeasible solution. Requires Gurobi.
         include_objective_constant : bool | None, default None
             Whether to include the objective constant (capital costs of existing
-            infrastructure) as a variable in the objective function. If None (default),
-            a FutureWarning is raised indicating that the default behavior will change
-            to False in a future version. Set to True to keep the current behavior
-            Whether to include the objective constant (capital costs of existing
             infrastructure) as a variable in the objective function. Setting to False
-            improves LP numerical conditioning. Defaults to True.
+            improves LP numerical conditioning. If None, uses the value from
+            `pypsa.options.params.optimize.include_objective_constant`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -479,17 +498,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if solver_options is None:
             solver_options = options.params.optimize.solver_options.copy()
 
-        # Handle include_objective_constant deprecation
-        if include_objective_constant is None:
-            warnings.warn(
-                "The default value of `include_objective_constant` will change from "
-                "True to False in version 2.0. Set `include_objective_constant` "
-                "explicitly to suppress this warning. Using False improves LP numerical "
-                "conditioning by not including the objective constant as a variable.",
-                FutureWarning,
-                stacklevel=2,
-            )
-            include_objective_constant = True
+        include_objective_constant = _resolve_include_objective_constant(
+            include_objective_constant
+        )
 
         n = self._n
         sns = as_index(n, snapshots, "snapshots")
@@ -531,7 +542,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         transmission_losses: int = 0,
         linearized_unit_commitment: bool = False,
         consistency_check: bool = True,
-        include_objective_constant: bool = True,
+        include_objective_constant: bool | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -553,10 +564,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Whether to optimise using the linearised unit commitment formulation or not.
         consistency_check : bool, default: True
             Whether to run the consistency check before building the model.
-        include_objective_constant : bool, default: True
+        include_objective_constant : bool | None, default: None
             Whether to include the objective constant (capital costs of existing
             infrastructure) as a variable in the objective function. Setting to False
-            improves LP numerical conditioning.
+            improves LP numerical conditioning. If None, uses the value from
+            `pypsa.options.params.optimize.include_objective_constant`.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -571,6 +583,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._multi_invest = int(multi_investment_periods)
         if consistency_check:
             n.consistency_check()
+
+        include_objective_constant = _resolve_include_objective_constant(
+            include_objective_constant
+        )
 
         kwargs.setdefault("force_dim_names", True)
         n._model = Model(**kwargs)

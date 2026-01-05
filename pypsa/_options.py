@@ -423,6 +423,14 @@ options._add_option(
     {},
     "Default value for the 'solver_options' parameter in optimization module.",
 )
+options._add_option(
+    "params.optimize.include_objective_constant",
+    None,
+    "Whether to include the objective constant (capital costs of existing\n\t"
+    "infrastructure) as a variable in the objective function. Setting to False\n\t"
+    "improves LP numerical conditioning. If None, a FutureWarning is raised\n\t"
+    "indicating that the default will change from True to False in version 2.0.",
+)
 
 # Warnings category
 options._add_option(
