@@ -13,6 +13,13 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+
+### Features
+
+- Add support for Python 3.14. Note that not all optional dependencies and solvers
+  are available for Python 3.14 yet. (<!-- md:pr 1511 -->)
+
+
 ### Bug Fixes
 
 - Fix `pypsa.common.annuity` function to correctly handle discount rate of 0. (<!-- md:pr 1512 -->)
