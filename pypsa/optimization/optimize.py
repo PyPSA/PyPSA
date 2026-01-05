@@ -483,7 +483,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if include_objective_constant is None:
             warnings.warn(
                 "The default value of `include_objective_constant` will change from "
-                "True to False in a future version. Set `include_objective_constant` "
+                "True to False in version 2.0. Set `include_objective_constant` "
                 "explicitly to suppress this warning. Using False improves LP numerical "
                 "conditioning by not including the objective constant as a variable.",
                 FutureWarning,
