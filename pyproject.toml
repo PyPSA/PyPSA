@@ -34,7 +34,7 @@ dependencies = [
     "scipy",
     "pandas>=0.24",
     "xarray",
-    "netcdf4",
+    "netcdf4!=1.7.4",  # See https://github.com/PyPSA/PyPSA/issues/1510
     "linopy>=0.5.5",
     "matplotlib",
     "plotly",
