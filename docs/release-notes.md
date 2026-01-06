@@ -24,6 +24,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix `pypsa.common.annuity` function to correctly handle discount rate of 0. (<!-- md:pr 1512 -->)
 
+### Minor improvements
+
+- Speed up OptimizationAccessor.create_model() by avoiding some redundant checks. (<!-- md:pr 1515 -->)
+
 ## [**v1.0.6**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.6) <small>22nd December 2025</small> { id="v1.0.6" }
 
 ### Enhancements
