@@ -258,6 +258,8 @@ def as_index(
 
     if values is None:
         values_ = n_attr
+        # Skip the subset check, because we know the values are equal
+        force_subset = False
     elif isinstance(values, pd.MultiIndex):
         values_ = values
         values_.names = n_attr.names
