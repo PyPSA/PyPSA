@@ -38,7 +38,7 @@ dependencies = [
     "linopy>=0.5.5",
     "matplotlib",
     "plotly",
-    "pydeck",
+    "pydeck>=0.6",
     "seaborn",
     "geopandas>=0.9",
     "shapely",
