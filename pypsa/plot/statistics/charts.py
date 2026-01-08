@@ -151,7 +151,7 @@ def prepare_bar_data(
         return data
 
     if period_name in getattr(stacked.index, "names", []):
-        stacked = stacked.rename(lambda value: str(value), level=period_name)
+        stacked = stacked.rename(str, level=period_name)
 
     stacked.attrs = data.attrs
     return stacked
