@@ -178,7 +178,6 @@ class ComponentsTransformMixin:
         Examples
         --------
         Define some network
-        >>> import pypsa
         >>> n = pypsa.Network()
         >>> n.add("Bus", ["bus1"])
         >>> n.add("Generator", ["gen1"], bus="bus1")

@@ -199,9 +199,9 @@ class NetworkTransformMixin(_NetworkABC):
 
         # Check if multi-index names are passed
         if isinstance(name, pd.MultiIndex):
-            msg = "Component names must be a one-dimensional."
+            msg = "Component names must be one-dimensional."
             if self.has_scenarios:
-                msg += " For stochastic networks, they will be casted to all dimensions and data per scenario can be changed after adding them."
+                msg += " For stochastic networks, pass simple names. They will be automatically broadcast to all scenarios."
             raise TypeError(msg)
 
         names = pd.Index([name]) if single_component else pd.Index(name)
@@ -346,6 +346,20 @@ class NetworkTransformMixin(_NetworkABC):
             static_df = pd.DataFrame(static, index=names)
         else:
             static_df = pd.DataFrame(index=names)
+
+        # Broadcast to scenarios if network has scenario structure
+        # Skip SubNetwork components, they are handled internally in determine_topology
+        if self.has_scenarios and c.name != "SubNetwork":
+            static_df = pd.concat(
+                dict.fromkeys(self.scenarios, static_df), names=["scenario"]
+            )
+            series = {
+                k: pd.concat(
+                    dict.fromkeys(self.scenarios, v), names=["scenario"], axis=1
+                )
+                for k, v in series.items()
+            }
+
         self._import_components_from_df(static_df, c.name, overwrite=overwrite)
 
         # Load time-varying attributes as components

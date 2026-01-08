@@ -21,6 +21,7 @@ from pypsa.plot.maps.common import (
     calculate_angle,
     calculate_midpoint,
     clip_lat,
+    convert_matplotlib_color_to_plotly,
     df_to_html_table,
     feature_to_geojson,
     flip_polygon,
@@ -717,3 +718,34 @@ def test_df_to_html_table_rounding_and_max_length():
 
         # Ellipsis should appear if header or value truncated
         assert "..." not in s or True  # Optional, just ensure no errors
+
+
+# convert_matplotlib_color_to_plotly
+def test_convert_matplotlib_color_to_plotly():
+    # Matplotlib abbreviations are converted to hex
+    assert convert_matplotlib_color_to_plotly("k") == "#000000"
+    assert convert_matplotlib_color_to_plotly("r") == "#ff0000"
+
+    # CSS color names are preserved
+    assert convert_matplotlib_color_to_plotly("cadetblue") == "cadetblue"
+    assert convert_matplotlib_color_to_plotly("orange") == "orange"
+
+    # Hex colors are preserved
+    assert convert_matplotlib_color_to_plotly("#FF5733") == "#FF5733"
+
+    # RGB strings are preserved
+    assert convert_matplotlib_color_to_plotly("rgb(255, 0, 0)") == "rgb(255, 0, 0)"
+
+    # Series conversion
+    colors = pd.Series(["k", "cadetblue", "#FF0000"])
+    result = convert_matplotlib_color_to_plotly(colors)
+    assert result[0] == "#000000"
+    assert result[1] == "cadetblue"
+    assert result[2] == "#FF0000"
+
+    # Dict conversion
+    color_dict = {"a": "k", "b": "cadetblue", "c": "#FF0000"}
+    result = convert_matplotlib_color_to_plotly(color_dict)
+    assert result["a"] == "#000000"
+    assert result["b"] == "cadetblue"
+    assert result["c"] == "#FF0000"

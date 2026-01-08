@@ -13,12 +13,21 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
-
 ### Features
+
+- New network sanitization and data integrity features (<!-- md:pr 1401 -->):
+    - [`n.sanitize()`][pypsa.Network.sanitize]: Run the following methods to fix consistency issues.
+    - [`n.components.buses.add_missing_buses()`][pypsa.components.Buses.add_missing_buses]: Add buses referenced by components but not yet defined.
+    - [`n.components.carriers.add_missing_carriers()`][pypsa.components.Carriers.add_missing_carriers]: Add carriers used by components but not yet defined.
+    - [`n.components.carriers.assign_colors()`][pypsa.components.Carriers.assign_colors]: Assign colors to carriers using matplotlib palettes.
+    - [`c.unique_carriers`][pypsa.Components.unique_carriers]: Get all unique carrier values for a component.
+
+- Enhanced statistics plotting for stochastic networks and network collections (<!-- md:pr 1401 -->):
+    - Interactive bar plots (`iplot.bar`) aggregate scenarios with standard deviation error bars
+    - Improved multi-level index handling with automatic grouping/faceting
 
 - Add support for Python 3.14. Note that not all optional dependencies and solvers
   are available for Python 3.14 yet. (<!-- md:pr 1511 -->)
-
 
 ### Bug Fixes
 
@@ -32,7 +41,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
-- Add `stats` as a shorthand alias for the `statistics` accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
+- Add [`n.stats`][pypsa.Network.stats] as a shorthand alias for the [`n.statistics`][pypsa.Network.statistics] accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
 - Enable modular expansion option in stochastic optimization problems. (<!-- md:pr 1500 -->)
 
 ### Bug Fixes

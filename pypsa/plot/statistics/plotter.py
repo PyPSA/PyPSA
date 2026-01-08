@@ -10,7 +10,13 @@ import warnings
 from typing import TYPE_CHECKING, Any, Literal
 
 from pypsa.common import deprecated_kwargs
-from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
+from pypsa.plot.statistics.charts import (
+    CHART_TYPES,
+    ChartGenerator,
+    _get_periods,
+    adjust_collection_bar_defaults,
+    prepare_bar_data,
+)
 from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.schema import (
     apply_parameter_schema,
@@ -21,6 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     import numpy as np
+    import pandas as pd
     import plotly.graph_objects as go
     import seaborn as sns
     from matplotlib.axes import Axes
@@ -29,7 +36,110 @@ if TYPE_CHECKING:
     from pypsa.networks import Network
 
 
-class StatisticPlotter:
+class _StatisticPlotterBase:
+    """Base class with shared logic for statistic plotters."""
+
+    _bound_method: Callable
+    _n: Network
+
+    def _prepare_chart_data(
+        self,
+        chart_type: str,
+        plot_kwargs: dict[str, Any],
+        stats_kwargs: dict[str, Any],
+        extra_kwargs: dict[str, Any],
+    ) -> tuple[ChartGenerator, dict[str, Any], pd.DataFrame | pd.Series]:
+        """Prepare data and parameters for chart plotting.
+
+        This method contains the shared logic between StatisticPlotter and
+        StatisticInteractivePlotter to avoid code duplication.
+
+        Parameters
+        ----------
+        chart_type : str
+            Type of chart being created (e.g., "bar", "line", "area").
+        plot_kwargs : dict[str, Any]
+            Plotting keyword arguments.
+        stats_kwargs : dict[str, Any]
+            Statistics function keyword arguments.
+        extra_kwargs : dict[str, Any]
+            Additional keyword arguments from the caller.
+
+        Returns
+        -------
+        tuple[ChartGenerator, dict[str, Any], pd.DataFrame | pd.Series]
+            Plotter instance, processed plot_kwargs, and prepared data.
+
+        Raises
+        ------
+        ValueError
+            If reserved kwargs are passed or if data is empty.
+
+        """
+        # Validate reserved kwargs
+        if any(
+            key in extra_kwargs
+            for key in ["groupby_time", "aggregate_across_components", "groupby"]
+        ):
+            msg = (
+                "'groupby_time', 'aggregate_across_components', and 'groupby' "
+                "can not be set and are automatically derived from the plot kwargs."
+            )
+            raise ValueError(msg)
+
+        plotter = ChartGenerator(self._n)
+
+        # Create context for schema application
+        periods = _get_periods(self._n)
+        has_scenarios = self._n.has_scenarios
+
+        context = {
+            "index_names": self._n._index_names,
+            "period_name": (periods.name or "period") if periods is not None else None,
+            "has_scenarios": has_scenarios,
+        }
+
+        # Apply schema to plotting kwargs
+        stats_name = self._bound_method.__name__
+        plot_kwargs = apply_parameter_schema(
+            stats_name, chart_type, plot_kwargs, context
+        )
+
+        # Use helper for filtering
+        relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
+        # Derive base statistics kwargs
+        base_stats_kwargs = plotter.derive_statistic_parameters(
+            *relevant_plot_kwargs,
+            method_name=stats_name,
+        )
+
+        # Add provided kwargs
+        stats_kwargs.update(base_stats_kwargs)
+
+        # Apply schema to statistics kwargs
+        stats_kwargs = apply_parameter_schema(stats_name, chart_type, stats_kwargs)
+
+        # Get statistics data
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=".*Passing `aggregate_across_components` was deprecated.*",
+                category=DeprecationWarning,
+            )
+            data = self._bound_method(**stats_kwargs)
+
+        data = prepare_bar_data(self._n, chart_type, data)
+
+        if data.empty:
+            msg = (
+                f"The statistics function '{stats_name}' returned an empty DataFrame. "
+            )
+            raise ValueError(msg)
+
+        return plotter, plot_kwargs, data
+
+
+class StatisticPlotter(_StatisticPlotterBase):
     """Create plots based on output of statistics functions.
 
     Passed arguments and the specified statistics function are stored and called
@@ -234,11 +344,13 @@ class StatisticPlotter:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> fig, ax, g = n.statistics.installed_capacity.plot.bar(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
 
         """
+        color, stacked, hue_order = adjust_collection_bar_defaults(
+            self._n, chart_type, color, stacked, hue_order
+        )
+
         plot_kwargs = {
             "x": x,
             "y": y,
@@ -270,54 +382,10 @@ class StatisticPlotter:
             "nice_names": nice_names,
         }
 
-        if any(
-            key in kwargs
-            for key in ["groupby_time", "aggregate_across_components", "groupby"]
-        ):
-            msg = (
-                "'groupby_time', 'aggregate_across_components', and 'groupby' "
-                "can not be set and are automatically derived from the plot kwargs."
-            )
-            raise ValueError(msg)
-
-        plotter = ChartGenerator(self._n)
-
-        # Create context for schema application
-        context = {"index_names": self._n._index_names}
-
-        # Apply schema to plotting kwargs
-        stats_name = self._bound_method.__name__
-        plot_kwargs = apply_parameter_schema(
-            stats_name, chart_type, plot_kwargs, context
+        plotter, plot_kwargs, data = self._prepare_chart_data(
+            chart_type, plot_kwargs, stats_kwargs, kwargs
         )
 
-        # Use helper for filtering
-        relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
-        # Derive base statistics kwargs
-        base_stats_kwargs = plotter.derive_statistic_parameters(
-            *relevant_plot_kwargs,
-            method_name=stats_name,
-        )
-
-        # Add provided kwargs
-        stats_kwargs.update(base_stats_kwargs)
-
-        # Apply schema to statistics kwargs
-        stats_kwargs = apply_parameter_schema(stats_name, chart_type, stats_kwargs)
-
-        # Get statistics data and return plot
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message=".*Passing `aggregate_across_components` was deprecated.*",
-                category=DeprecationWarning,
-            )
-            data = self._bound_method(**stats_kwargs)
-        if data.empty:
-            msg = (
-                f"The statistics function '{stats_name}' returned an empty DataFrame. "
-            )
-            raise ValueError(msg)
         return plotter.plot(data, chart_type, **plot_kwargs, **kwargs)  # type: ignore
 
     @deprecated_kwargs(
@@ -431,8 +499,6 @@ class StatisticPlotter:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> fig, ax = n.statistics.installed_capacity.plot.map(geomap=True, title="Installed Capacity")
 
         """
@@ -478,7 +544,7 @@ class StatisticPlotter:
         )
 
 
-class StatisticInteractivePlotter:
+class StatisticInteractivePlotter(_StatisticPlotterBase):
     """Create interactive plots based on output of statistics functions.
 
     Passed arguments and the specified statistics function are stored and called
@@ -667,11 +733,13 @@ class StatisticInteractivePlotter:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> fig = n.statistics.installed_capacity.iplot.bar(x="carrier", y="value", color="carrier") # doctest: +ELLIPSIS
 
         """
+        color, stacked, color_order = adjust_collection_bar_defaults(
+            self._n, chart_type, color, stacked, color_order
+        )
+
         plot_kwargs = {
             "x": x,
             "y": y,
@@ -701,51 +769,8 @@ class StatisticInteractivePlotter:
             "nice_names": nice_names,
         }
 
-        if any(
-            key in kwargs
-            for key in ["groupby_time", "aggregate_across_components", "groupby"]
-        ):
-            msg = (
-                "'groupby_time', 'aggregate_across_components', and 'groupby' "
-                "can not be set and are automatically derived from the plot kwargs."
-            )
-            raise ValueError(msg)
-
-        plotter = ChartGenerator(self._n)
-
-        # Create context for schema application
-        context = {"index_names": self._n._index_names}
-
-        # Apply schema to plotting kwargs
-        stats_name = self._bound_method.__name__
-        plot_kwargs = apply_parameter_schema(
-            stats_name, chart_type, plot_kwargs, context
-        )
-        # Use helper for filtering
-        relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
-        # Derive base statistics kwargs
-        base_stats_kwargs = plotter.derive_statistic_parameters(
-            *relevant_plot_kwargs,
-            method_name=stats_name,
+        plotter, plot_kwargs, data = self._prepare_chart_data(
+            chart_type, plot_kwargs, stats_kwargs, kwargs
         )
 
-        # Add provided kwargs
-        stats_kwargs.update(base_stats_kwargs)
-
-        # Apply schema to statistics kwargs
-        stats_kwargs = apply_parameter_schema(stats_name, chart_type, stats_kwargs)
-
-        # Get statistics data and return plot
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message=".*Passing `aggregate_across_components` was deprecated.*",
-                category=DeprecationWarning,
-            )
-            data = self._bound_method(**stats_kwargs)
-        if data.empty:
-            msg = (
-                f"The statistics function '{stats_name}' returned an empty DataFrame. "
-            )
-            raise ValueError(msg)
         return plotter.iplot(data, chart_type, **plot_kwargs, **kwargs)  # type: ignore

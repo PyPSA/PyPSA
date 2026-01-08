@@ -11,7 +11,13 @@ import pytest
 import seaborn as sns
 
 from pypsa.consistency import ConsistencyError
-from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
+from pypsa.plot.statistics.charts import (
+    CHART_TYPES,
+    ChartGenerator,
+    adjust_collection_bar_defaults,
+    prepare_bar_data,
+)
+from pypsa.plot.statistics.plotter import StatisticPlotter
 from pypsa.statistics.expressions import StatisticsAccessor
 
 # Set random seed for reproducibility
@@ -20,6 +26,17 @@ np.random.seed(42)  # noqa: NPY002
 plt.rcdefaults()
 plt.rcParams["figure.figsize"] = [8, 6]
 plt.rcParams["figure.dpi"] = 100
+
+
+def _multi_period_sample() -> pd.DataFrame:
+    """Return deterministic sample data with investment period columns."""
+    index = pd.MultiIndex.from_product(
+        [["Generator"], ["wind"]], names=["component", "carrier"]
+    )
+    periods = pd.Index([2020, 2030], name="period")
+    data = pd.DataFrame([[1.0, 2.0]], index=index, columns=periods)
+    data.attrs = {"name": "Sample", "unit": "MW"}
+    return data
 
 
 @pytest.mark.skipif(
@@ -209,6 +226,52 @@ def test_networks_area_plot(network_collection, stat_func):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
+
+
+def test_prepare_bar_data_stacks_periods(ac_dc_network_r):
+    network = ac_dc_network_r.copy()
+    periods = pd.Index([2020, 2030], name="period")
+    network.investment_periods = periods
+
+    data = _multi_period_sample()
+    stacked = prepare_bar_data(network, "bar", data)
+
+    assert isinstance(stacked, pd.Series)
+    assert "period" in stacked.index.names
+    assert set(stacked.index.get_level_values("period")) == {"2020", "2030"}
+    assert stacked.attrs == data.attrs
+
+
+def test_adjust_defaults_for_multi_investment(ac_dc_network_r):
+    network = ac_dc_network_r.copy()
+    periods = pd.Index([2020, 2030], name="period")
+    network.investment_periods = periods
+
+    color, stacked, order = adjust_collection_bar_defaults(
+        network, "bar", None, True, None
+    )
+
+    assert color == "period"
+    assert stacked is False
+    assert list(order) == list(periods)
+
+
+def test_statistic_plotter_multi_investment_defaults(ac_dc_network_r):
+    network = ac_dc_network_r.copy()
+    network.investment_periods = pd.Index([2020, 2030], name="period")
+    sample = _multi_period_sample()
+
+    def fake_statistic(**kwargs):
+        return sample
+
+    fake_statistic.__name__ = "installed_capacity"
+
+    plotter = StatisticPlotter(fake_statistic, network)
+    fig, ax, g = plotter.bar()
+
+    assert "period" in g.data.columns
+    assert set(g.data["period"].unique()) == {"2020", "2030"}
     plt.close(fig)
 
 
