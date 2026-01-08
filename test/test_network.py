@@ -707,3 +707,74 @@ def test_api_new_components_api(component_name, new_components_api):
                 setattr(n, component_name, "test")
             with pytest.warns(DeprecationWarning, match="cannot be set"):
                 setattr(n, f"{component_name}_t", "test")
+
+
+def test_sanitize():
+    """Test sanitize method adds missing buses, carriers, and colors."""
+    n = pypsa.Network()
+    # Add components with missing buses and carriers
+    n.add("Generator", "gen1", bus="missing_bus", carrier="missing_carrier", p_nom=100)
+    n.add("Load", "load1", bus="missing_bus2", carrier="electricity", p_set=50)
+
+    # Before sanitize
+    assert len(n.c.buses.static) == 0
+    assert len(n.c.carriers.static) == 0
+
+    n.sanitize()
+
+    # After sanitize - buses should be added
+    assert "missing_bus" in n.c.buses.names
+    assert "missing_bus2" in n.c.buses.names
+
+    # After sanitize - carriers should be added (including AC from buses)
+    assert "missing_carrier" in n.c.carriers.names
+    assert "electricity" in n.c.carriers.names
+
+    # After sanitize - carriers should have colors assigned
+    assert n.c.carriers.static.loc["missing_carrier", "color"] != ""
+    assert n.c.carriers.static.loc["electricity", "color"] != ""
+
+
+def test_sanitize_with_existing_data():
+    """Test sanitize doesn't overwrite existing data."""
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=110)
+    n.add("Carrier", "wind", color="blue", co2_emissions=0.0)
+    n.add("Generator", "gen1", bus="bus1", carrier="wind", p_nom=100)
+    n.add("Generator", "gen2", bus="bus2", carrier="solar", p_nom=200)
+
+    n.sanitize()
+
+    # Existing bus unchanged
+    assert n.c.buses.static.loc["bus1", "v_nom"] == 110
+    # New bus added
+    assert "bus2" in n.c.buses.names
+
+    # Existing carrier color unchanged
+    assert n.c.carriers.static.loc["wind", "color"] == "blue"
+    # New carrier has color assigned
+    assert n.c.carriers.static.loc["solar", "color"] != ""
+
+
+def test_sanitize_no_changes_needed():
+    """Test sanitize works when no changes are needed."""
+    n = pypsa.Network()
+    n.add("Bus", "bus1")
+    n.add("Carrier", "wind", color="#1f77b4")
+    n.add("Generator", "gen1", bus="bus1", carrier="wind", p_nom=100)
+
+    # No missing data
+    n.sanitize()
+
+    # Should still work without errors
+    assert len(n.c.buses.static) == 1
+    assert len(n.c.carriers.static) == 2  # wind + AC from bus
+
+    # Stochastic network
+    n2 = pypsa.Network()
+    n2.add("Bus", "bus1")
+    n2.set_scenarios(["s1", "s2"])
+    n2.add("Generator", "gen1", bus="missing_bus", carrier="missing_carrier", p_nom=100)
+    n2.sanitize()
+    assert ("s1", "missing_bus") in n2.c.buses.static.index
+    assert ("s1", "missing_carrier") in n2.c.carriers.static.index

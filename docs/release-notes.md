@@ -17,9 +17,9 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - New network sanitization and data integrity features (<!-- md:pr 1401 -->):
     - [`n.sanitize()`][pypsa.Network.sanitize]: Run the following methods to fix consistency issues.
-    - [`n.c.buses.add_missing_buses()`][pypsa.Buses.add_missing_buses]: Add buses referenced by components but not yet defined.
-    - [`n.c.carriers.add_missing_carriers()`][pypsa.Carriers.add_missing_carriers]: Add carriers used by components but not yet defined.
-    - [`n.c.carriers.assign_colors()`][pypsa.Carriers.assign_colors]: Assign colors to carriers using matplotlib palettes.
+    - [`n.components.buses.add_missing_buses()`][pypsa.components.Buses.add_missing_buses]: Add buses referenced by components but not yet defined.
+    - [`n.components.carriers.add_missing_carriers()`][pypsa.components.Carriers.add_missing_carriers]: Add carriers used by components but not yet defined.
+    - [`n.components.carriers.assign_colors()`][pypsa.components.Carriers.assign_colors]: Assign colors to carriers using matplotlib palettes.
     - [`c.unique_carriers`][pypsa.Components.unique_carriers]: Get all unique carrier values for a component.
 
 - Enhanced statistics plotting for stochastic networks and network collections (<!-- md:pr 1401 -->):

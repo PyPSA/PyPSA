@@ -333,6 +333,8 @@ class NetworkCollection:
     def has_scenarios(self) -> bool:
         """Check if any network in the collection has scenarios.
 
+        <!-- md:badge-version v1.1.0 -->
+
         Returns
         -------
         bool

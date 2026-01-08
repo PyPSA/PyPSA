@@ -58,6 +58,8 @@ def test_add_missing_carriers_stochastic():
 
 def test_assign_colors():
     """Test assign_colors: basic, specific carriers, palette, overwrite, partial."""
+    import pytest
+
     # Test 1: Basic - assigns colors to all carriers
     n = Network()
     n.add("Bus", "bus1")
@@ -66,6 +68,9 @@ def test_assign_colors():
     n.c.carriers.assign_colors()
     assert all(n.c.carriers.static["color"] != "")
     assert len(set(n.c.carriers.static["color"])) == 3  # Different colors
+    # Unknown carrier raises
+    with pytest.raises(ValueError, match="unknown carriers"):
+        n.c.carriers.assign_colors("nonexistent")
 
     # Test 2: Specific carriers, single string
     n2 = Network()

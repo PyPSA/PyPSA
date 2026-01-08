@@ -891,7 +891,7 @@ def _scenarios_not_implemented(func: Callable) -> Callable:
 def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
     """Generate a list of colors from a matplotlib palette.
 
-    <!-- md:badge-version v1.0.0 -->
+    <!-- md:badge-version v1.1.0 -->
 
     Parameters
     ----------
@@ -912,17 +912,10 @@ def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
 
     """
     cmap = plt.get_cmap(palette)
+    n_palette_colors = cmap.N if hasattr(cmap, "N") else 256
 
-    if hasattr(cmap, "N"):
-        n_palette_colors = cmap.N
-    else:
-        # For continuous colormaps, use a reasonable number
-        n_palette_colors = 256
-
-    # Generate colors
     colors = []
     for i in range(n_colors):
-        # Cycle through palette if we have more carriers than colors
         idx = i % n_palette_colors
         if n_palette_colors <= 20:
             # For discrete palettes, use integer indices
@@ -930,7 +923,6 @@ def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
         else:
             # For continuous palettes, normalize to [0, 1]
             rgba = cmap(idx / n_palette_colors)
-        # Convert RGBA to hex
         colors.append(mcolors.to_hex(rgba))
 
     return colors

@@ -31,6 +31,14 @@ def test_add_missing_buses():
     assert n2.c.buses.static.loc["bus1", "v_nom"] == 110  # Not changed
     assert n2.c.buses.static.loc["bus2", "v_nom"] == 220
 
+    # Test 4: Link with empty bus2/bus3 doesn't create phantom buses
+    n3 = Network()
+    n3.add("Bus", "bus0")
+    n3.add("Link", "link1", bus0="bus0", bus1="bus1")
+    added4 = n3.c.buses.add_missing_buses()
+    assert set(added4) == {"bus1"}
+    assert "" not in n3.c.buses.names
+
 
 def test_add_missing_buses_stochastic():
     """Test add_missing_buses with stochastic networks."""

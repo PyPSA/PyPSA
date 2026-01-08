@@ -97,7 +97,6 @@ class ComponentsTransformMixin:
         The example is shown for Generator component, but the same applies to all
         component types.
 
-        >>> import pypsa
         >>> n = pypsa.Network()
         >>> c = n.components.generators
         >>> c
@@ -179,7 +178,6 @@ class ComponentsTransformMixin:
         Examples
         --------
         Define some network
-        >>> import pypsa
         >>> n = pypsa.Network()
         >>> n.add("Bus", ["bus1"])
         >>> n.add("Generator", ["gen1"], bus="bus1")

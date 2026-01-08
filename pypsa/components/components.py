@@ -737,7 +737,7 @@ class Components(
     def unique_carriers(self) -> set[str]:
         """Get all unique carrier values for this component.
 
-        <!-- md:badge-version v1.1 -->
+        <!-- md:badge-version v1.1.0 -->
 
         Returns
         -------

@@ -898,28 +898,16 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Carriers.add_missing_carriers][], [pypsa.Carriers.assign_colors][]
+        [pypsa.components.Buses.add_missing_buses][],
+        [pypsa.components.Carriers.add_missing_carriers][],
+        [pypsa.components.Carriers.assign_colors][]
 
         """
         logger.info("Sanitizing network...")
 
-        # Add missing buses
-        added_buses = self.c.buses.add_missing_buses()
-        if len(added_buses) > 0:
-            logger.info(
-                "Added %d missing buses: %s", len(added_buses), list(added_buses)
-            )
+        self.c.buses.add_missing_buses()
 
-        # Add missing carriers
-        added_carriers = self.c.carriers.add_missing_carriers()
-        if len(added_carriers) > 0:
-            logger.info(
-                "Added %d missing carriers: %s",
-                len(added_carriers),
-                list(added_carriers),
-            )
-
-        # Assign colors to carriers without colors
+        self.c.carriers.add_missing_carriers()
         self.c.carriers.assign_colors()
 
         logger.info("Network sanitization complete.")

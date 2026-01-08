@@ -69,6 +69,8 @@ class Carriers(Components):
     ) -> None:
         """Assign colors to carriers using a matplotlib color palette.
 
+        <!-- md:badge-version v1.1.0 -->
+
         Parameters
         ----------
         carriers : str, Sequence[str], or None, default None
@@ -84,24 +86,6 @@ class Carriers(Components):
         overwrite : bool, default False
             If True, overwrite existing colors. If False, only assign colors to
             carriers that don't have a color set (empty string or NaN).
-
-        Examples
-        --------
-        Assign colors to all carriers without colors:
-
-        >>> n.c.carriers.assign_colors()  # doctest: +SKIP
-
-        Assign colors using a different palette:
-
-        >>> n.c.carriers.assign_colors(palette="Set3")  # doctest: +SKIP
-
-        Assign colors to specific carriers:
-
-        >>> n.c.carriers.assign_colors(["wind", "gas"], palette="tab20")  # doctest: +SKIP
-
-        Overwrite existing colors:
-
-        >>> n.c.carriers.assign_colors(overwrite=True)  # doctest: +SKIP
 
         See Also
         --------
@@ -127,6 +111,11 @@ class Carriers(Components):
                 carriers = [carriers]
             target_carriers = pd.Index(carriers)
 
+            unknown = target_carriers.difference(self.names)
+            if len(unknown) > 0:
+                msg = f"Cannot assign colors to unknown carriers: {list(unknown)}"
+                raise ValueError(msg)
+
         if len(target_carriers) == 0:
             logger.debug("No carriers to assign colors to.")
             return
@@ -134,13 +123,11 @@ class Carriers(Components):
         # Sort carriers for deterministic color assignment
         target_carriers = sorted(target_carriers)
 
-        # Generate colors
         colors = generate_colors(len(target_carriers), palette)
 
-        # Assign colors
         for carrier, color in zip(target_carriers, colors, strict=False):
+            # Update color for all scenarios
             if self.n_save.has_scenarios:
-                # Update color for all scenarios
                 for scenario in self.n_save.scenarios:
                     self.static.loc[(scenario, carrier), "color"] = color
             else:
@@ -157,6 +144,8 @@ class Carriers(Components):
         **kwargs: Any,
     ) -> pd.Index:
         """Add carriers that are used in the network but not yet defined.
+
+        <!-- md:badge-version v1.1.0 -->
 
         This function iterates over all components that have a carrier attribute,
         collects all unique carrier values, and adds any carriers that are not yet
@@ -180,7 +169,7 @@ class Carriers(Components):
         >>> n.c.carriers.add_missing_carriers()
         Index(['my_carrier'], dtype='object')
 
-        Carriers are added without the need to extra call `n.add`:
+        Carriers are added without needing to call `n.add` separately:
 
         >>> n.components.carriers.static  # doctest: +ELLIPSIS
                     co2_emissions color nice_name  max_growth  max_relative_growth
