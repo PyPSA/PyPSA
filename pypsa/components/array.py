@@ -354,8 +354,8 @@ class ComponentsArrayMixin(_ComponentsABC):
     def get_effective_annual_cost(self, idx: pd.Index) -> xr.DataArray:
         """Calculate effective annual cost from component attributes.
 
-        If discount_rate > 0, calculates annuity from capital_cost (overnight) and
-        lifetime. If discount_rate = 0, uses capital_cost directly (already annuitized).
+        If overnight_cost is provided (not NaN), calculates annuity from overnight_cost
+        using discount_rate and lifetime. Otherwise uses capital_cost directly.
         Adds fom_cost (fixed O&M) to the result.
 
         Parameters
@@ -370,8 +370,9 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         """
         return effective_annual_cost(
-            self.da.capital_cost.sel(name=idx),
-            self.da.discount_rate.sel(name=idx),
-            self.da.lifetime.sel(name=idx),
-            self.da.fom_cost.sel(name=idx),
+            capital_cost=self.da.capital_cost.sel(name=idx),
+            overnight_cost=self.da.overnight_cost.sel(name=idx),
+            discount_rate=self.da.discount_rate.sel(name=idx),
+            lifetime=self.da.lifetime.sel(name=idx),
+            fom_cost=self.da.fom_cost.sel(name=idx),
         )

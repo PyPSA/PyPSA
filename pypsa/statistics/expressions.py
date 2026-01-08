@@ -981,11 +981,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             static = n.c[c].static
             capacity = static[f"{nominal_attrs[c]}_opt"]
+            overnight_cost = static.get("overnight_cost", float("nan"))
             capital_cost = static["capital_cost"]
-            discount_rate = static.get("discount_rate", 0)
+            discount_rate = static.get("discount_rate", float("nan"))
             lifetime = static.get("lifetime", float("inf"))
+
+            # If overnight_cost is provided, annuitize it; otherwise use capital_cost
+            has_overnight = overnight_cost.notna()
             ann_factor = annuity_factor(discount_rate, lifetime)
-            return capacity * capital_cost * ann_factor
+            annuitized = (overnight_cost * ann_factor).where(
+                has_overnight, capital_cost
+            )
+            return capacity * annuitized
 
         df = self._aggregate_components(
             func,
