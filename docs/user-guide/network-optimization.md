@@ -18,6 +18,7 @@ The accessor [n.optimize][pypsa.optimization.OptimizationAccessor] additionally 
 Initially, let us consider one of the canonical PyPSA examples and solve it with [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
 ``` py
+>>> import pypsa
 >>> n = pypsa.examples.ac_dc_meshed()
 ```
 

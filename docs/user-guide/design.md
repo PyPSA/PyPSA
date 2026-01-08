@@ -15,6 +15,7 @@ optimisation problems, compute power flows, read or write networks to files,
 retrieve statistics and plot the network.
 
 ``` py
+>>> import pypsa
 >>> n = pypsa.Network()
 >>> n
 Empty PyPSA Network 'Unnamed Network'
