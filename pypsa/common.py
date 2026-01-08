@@ -260,6 +260,8 @@ def as_index(
 
     if values is None:
         values_ = n_attr
+        # Skip the subset check, because we know the values are equal
+        force_subset = False
     elif isinstance(values, pd.MultiIndex):
         values_ = values
         values_.names = n_attr.names
@@ -937,7 +939,7 @@ def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
 def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     """Calculate the annuity factor for a given discount rate and lifetime.
 
-    According to formula $r / (1 - (1 + r)^{-n})$.
+    According to formula $r / (1 - (1 + r)^{-n})$ or $1 / n$ for $r = 0$.
 
     Parameters
     ----------
@@ -956,5 +958,30 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     >>> pypsa.common.annuity(0.05, 10)  # 5% discount rate over 10 years
     0.12950457496545661
 
+    >>> pypsa.common.annuity(0, 20)  # 0% discount rate over 20 years
+    0.05
+
+    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), pd.Series([10, 20]))
+    0    0.129505
+    1    0.067216
+    dtype: float64
+
+    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), 20)
+    0    0.080243
+    1    0.067216
+    dtype: float64
+
+    >>> pypsa.common.annuity(pd.Series([0.05, 0]), 20)
+    0    0.080243
+    1    0.050000
+    dtype: float64
+
     """
-    return r / (1.0 - 1.0 / (1.0 + r) ** n)
+    if isinstance(r, pd.Series):
+        return pd.Series(1 / n, index=r.index).where(
+            r == 0, r / (1.0 - 1.0 / (1.0 + r) ** n)
+        )
+    elif r > 0:
+        return r / (1.0 - 1.0 / (1.0 + r) ** n)
+    else:
+        return 1 / n

@@ -26,7 +26,30 @@ SPDX-License-Identifier: CC-BY-4.0
     - Interactive bar plots (`iplot.bar`) aggregate scenarios with standard deviation error bars
     - Improved multi-level index handling with automatic grouping/faceting
 
-- Add [`n.stats`][pypsa.Network.stats] as shorthand alias for [`n.statistics`][pypsa.Network.statistics] (<!-- md:pr 1448 -->)
+- Add support for Python 3.14. Note that not all optional dependencies and solvers
+  are available for Python 3.14 yet. (<!-- md:pr 1511 -->)
+
+### Bug Fixes
+
+- Fix `pypsa.common.annuity` function to correctly handle discount rate of 0. (<!-- md:pr 1512 -->)
+
+### Minor improvements
+
+- Speed up creating the model by avoiding some redundant checks. (<!-- md:pr 1515 -->)
+
+## [**v1.0.6**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.6) <small>22nd December 2025</small> { id="v1.0.6" }
+
+### Enhancements
+
+- Add [`n.stats`][pypsa.Network.stats] as a shorthand alias for the [`n.statistics`][pypsa.Network.statistics] accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
+- Enable modular expansion option in stochastic optimization problems. (<!-- md:pr 1500 -->)
+
+### Bug Fixes
+
+- Fix issue when assigning duals back to stochastic networks with global constraints. (<!-- md:pr 1498 -->)
+- Fix incorrect application of ramp limit constraints to fixed components without defined ramp limits. (<!-- md:pr 1494 -->)
+- Fix rolling horizon optimization with linearized unit commitment and ramp limits. (<!-- md:pr 1489 -->)
+- Fix `apply_transformer_types` failing in stochastic optimization due to types broadcasting. (<!-- md:pr 1499 -->)
 
 ## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }
 

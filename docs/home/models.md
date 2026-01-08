@@ -38,6 +38,7 @@ open source and actively maintained. Below is a list of some known models.
 ### Americas
 - **[:flag_us: PyPSA-USA](https://github.com/pypsa/pypsa-usa)**: United States energy system model, maintained by Stanford University
 - **[:flag_br: PyPSA-Brazil](https://gitlab.com/dlr-ve/esy/open-brazil-energy-data/open-brazilian-energy-data)**: Brazilian power system model (see [paper](https://doi.org/10.1038/s41597-023-01992-9)), developed by the German Aerospace Center (DLR)
+- **[:flag_ca: PyPSA-BC](https://github.com/DeltaE/PyPSA_BC)**: BC PyPSA work for the PICS Decarbonization project, maintained by Simon Fraser University
 
 ### Africa
 - **[:flag_za: PyPSA-RSA](https://github.com/MeridianEconomics/pypsa-rsa)**: South-African electricity model, maintained by [Meridian Economics](https://meridianeconomics.co.za/)
@@ -57,6 +58,7 @@ open source and actively maintained. Below is a list of some known models.
 - Transport of chemical energy carriers to Germany [TRACE](https://github.com/euronion/trace)
 - Transmission grid optimisation [eTraGo](https://github.com/openego/eTraGo)
 - Distribution grid optimisation [dDisGo](https://github.com/openego/eDisGo)
+- Assessing national mid-/long-term energy scenarios using a least-cost, multi-sectoral optimisation approach [PyPSA-SPICE](https://github.com/agoenergy/pypsa-spice) and visualization, maintained by [Agora Energiewende](https://github.com/agoenergy)
 
 !!! tip "Add your model to the list"
     You know another open-source model based on PyPSA or are developing one? Please reach out to us via [GitHub](https://github.com/PyPSA/PyPSA) or [Discord](https://discord.gg/AnuJBk23FU) and we will add it to the list!

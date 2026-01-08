@@ -666,7 +666,7 @@ def define_ramp_limit_constraints(
         p_nom = c.da[c._operational_attrs["nom"]].sel(name=fix_i)
 
         # Ramp up constraints for fixed components
-        non_null_up = ~ramp_limit_up_fix.isnull().all()
+        non_null_up = ~ramp_limit_up_fix.isnull()
         if non_null_up.any():
             lhs = p_actual(fix_i) - p_previous(fix_i)
             rhs = (ramp_limit_up_fix * p_nom) + rhs_start_fix
@@ -676,7 +676,7 @@ def define_ramp_limit_constraints(
             )
 
         # Ramp down constraints for fixed components
-        non_null_down = ~ramp_limit_down_fix.isnull().all()
+        non_null_down = ~ramp_limit_down_fix.isnull()
         if non_null_down.any():
             lhs = p_actual(fix_i) - p_previous(fix_i)
             rhs = (-ramp_limit_down_fix * p_nom) + rhs_start
@@ -783,9 +783,9 @@ def define_ramp_limit_constraints(
             if is_rolling_horizon:
                 status_start = c.dynamic["status"].iloc[start_i].loc[original_com_i]
                 limit_diff = (limit_up - limit_start).isel(snapshot=0)
-                rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
-                    limit_diff * status_start
-                )
+                rhs_first = rhs.isel(snapshot=0)
+                rhs_first = rhs_first + (limit_diff * status_start)
+                rhs[{"snapshot": 0}] = rhs_first
 
             mask = active_com & non_null_up
             m.add_constraints(
@@ -816,10 +816,10 @@ def define_ramp_limit_constraints(
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                status_start = c.dynamic["status"].iloc[start_i]
-                rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
-                    -limit_shut * status_start
-                )
+                status_start = c.dynamic["status"].iloc[start_i].loc[original_com_i]
+                rhs_first = rhs.isel(snapshot=0)
+                rhs_first = rhs_first + (-limit_shut * status_start)
+                rhs[{"snapshot": 0}] = rhs_first
 
             mask = active_com & non_null_down
             m.add_constraints(
@@ -1168,7 +1168,11 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     mask = c.static[ext_attr] & (c.static[mod_attr] > 0)
     mod_i = c.static.index[mask]
 
-    if (mod_i).empty:
+    # Unique component names for modular components (in absence of c.modulars helper)
+    if isinstance(mod_i, pd.MultiIndex):
+        mod_i = mod_i.unique(level="name")
+
+    if mod_i.empty:
         return
 
     # Get modular capacity values
@@ -1178,7 +1182,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     modularity = m[f"{c.name}-n_mod"]
     capacity = m.variables[f"{c.name}-{attr}"].loc[mod_i]
 
-    con = capacity - modularity * modular_capacity.values == 0
+    con = capacity - modularity * modular_capacity == 0
     n.model.add_constraints(con, name=f"{c.name}-{attr}_modularity", mask=None)
 
 

@@ -169,6 +169,7 @@ nav:
 - Contributing:
   - Instructions: contributing/contributing.md
   - Code of Conduct: CODE_OF_CONDUCT.md
+  - Security: SECURITY.md
   - Contributors: contributing/contributors.md
 
 # Theme settings
