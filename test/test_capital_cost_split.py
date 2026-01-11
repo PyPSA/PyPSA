@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 import pypsa
-from pypsa.costs import annuity, annuity_factor, effective_annual_cost
+from pypsa.costs import annuity, annuity_factor, periodized_cost
 
 TOLERANCE = 1e-5
 SOLVER_NAME = "highs"
@@ -69,10 +69,16 @@ class TestCostsModule:
         result = annuity(0.0, float("inf"))
         assert result == 0.0
 
-    def test_annuity_negative_discount_rate_raises(self):
-        """Test that negative discount rate raises ValueError."""
-        with pytest.raises(ValueError, match="discount_rate must be non-negative"):
-            annuity(-0.05, 25)
+    def test_annuity_negative_discount_rate(self):
+        """Test annuity with negative discount rate (penalizes present)."""
+        result = annuity(-0.02, 20)
+        # Negative rates are allowed and produce valid results
+        assert result > 0
+
+    def test_annuity_negative_rate_infinite_lifetime(self):
+        """Test annuity with negative rate and infinite lifetime returns 0."""
+        result = annuity(-0.05, float("inf"))
+        assert result == 0.0
 
     def test_annuity_non_positive_lifetime_raises(self):
         """Test that non-positive lifetime raises ValueError."""
@@ -98,51 +104,54 @@ class TestCostsModule:
         expected = 1.0 / 20
         assert abs(result - expected) < TOLERANCE
 
-    def test_effective_annual_cost_with_overnight(self):
-        """Test effective annual cost with overnight cost."""
+    def test_periodized_cost_with_overnight(self):
+        """Test periodized cost with overnight cost."""
         overnight = 1000  # EUR/kW overnight
         discount_rate = 0.07
         lifetime = 25
         fom = 20  # EUR/kW/year
 
-        result = effective_annual_cost(
+        result = periodized_cost(
             capital_cost=0,
             overnight_cost=overnight,
             discount_rate=discount_rate,
             lifetime=lifetime,
             fom_cost=fom,
+            nyears=0.5,
         )
-        expected = overnight * annuity(discount_rate, lifetime) + fom
+        expected = overnight * annuity(discount_rate, lifetime) * 0.5 + fom
         assert abs(result - expected) < TOLERANCE
 
-    def test_effective_annual_cost_with_capital_cost(self):
-        """Test effective annual cost using capital_cost (overnight is NaN)."""
+    def test_periodized_cost_with_capital_cost(self):
+        """Test periodized cost using capital_cost (overnight is NaN)."""
         capital = 100  # pre-annuitized
         fom = 20
 
-        result = effective_annual_cost(
+        result = periodized_cost(
             capital_cost=capital,
             overnight_cost=np.nan,
             discount_rate=np.nan,
             lifetime=25,
             fom_cost=fom,
+            nyears=0.5,
         )
         expected = capital + fom  # capital_cost used directly
         assert abs(result - expected) < TOLERANCE
 
-    def test_effective_annual_cost_zero_discount(self):
-        """Test effective annual cost with 0% discount rate."""
+    def test_periodized_cost_zero_discount(self):
+        """Test periodized cost with 0% discount rate."""
         overnight = 1000
         lifetime = 20
 
-        result = effective_annual_cost(
+        result = periodized_cost(
             capital_cost=0,
             overnight_cost=overnight,
             discount_rate=0.0,
             lifetime=lifetime,
             fom_cost=0,
+            nyears=2.0,
         )
-        expected = overnight / lifetime  # Simple depreciation
+        expected = overnight / lifetime * 2.0  # Simple depreciation
         assert abs(result - expected) < TOLERANCE
 
 
@@ -214,7 +223,7 @@ class TestOvernightCostWithDiscountRate:
 
         # The objective should use annuitized cost
         ann_factor = annuity(discount_rate, lifetime)
-        expected_annual_cost = overnight_cost * ann_factor
+        expected_annual_cost = overnight_cost * ann_factor * n.nyears
         # Verify via statistics
         investment = n.statistics.investment(groupby=False)
         capacity = n.c.generators.static.p_nom_opt.iloc[0]
@@ -247,7 +256,7 @@ class TestOvernightCostWithDiscountRate:
         assert capacity > 0
 
         # 0% rate means simple depreciation: 1000/20 = 50 per year
-        expected_annual_cost = overnight_cost / lifetime
+        expected_annual_cost = overnight_cost / lifetime * n.nyears
         investment = n.statistics.investment(groupby=False)
         actual = investment.values.sum()
         assert abs(actual - capacity * expected_annual_cost) < TOLERANCE
@@ -340,7 +349,9 @@ class TestStatisticsFunctions:
 
         investment = n.statistics.investment(groupby=False)
         capacity = n.c.generators.static.p_nom_opt.iloc[0]
-        expected = capacity * overnight_cost * annuity(discount_rate, lifetime)
+        expected = (
+            capacity * overnight_cost * annuity(discount_rate, lifetime) * n.nyears
+        )
 
         # Check the investment cost is calculated correctly
         assert not investment.empty
@@ -471,3 +482,133 @@ class TestDeprecation:
         # This should not raise any warnings
         result = pypsa.costs.annuity(0.07, 25)
         assert result > 0
+
+
+class TestComponentProperties:
+    """Test new component properties for cost calculations."""
+
+    def test_investment_cost_with_overnight(self, simple_network):
+        """Test investment_cost property with overnight_cost."""
+        n = simple_network
+        overnight_cost = 1000
+        discount_rate = 0.07
+        lifetime = 25
+
+        n.add(
+            "Generator",
+            "gen",
+            bus="bus",
+            overnight_cost=overnight_cost,
+            discount_rate=discount_rate,
+            lifetime=lifetime,
+        )
+
+        inv_cost = n.c.generators.investment_cost.iloc[0]
+        expected = overnight_cost * annuity(discount_rate, lifetime) * n.nyears
+        assert abs(inv_cost - expected) < TOLERANCE
+
+    def test_investment_cost_with_capital(self, simple_network):
+        """Test investment_cost property with capital_cost only."""
+        n = simple_network
+        capital_cost = 100
+
+        n.add("Generator", "gen", bus="bus", capital_cost=capital_cost)
+
+        inv_cost = n.c.generators.investment_cost.iloc[0]
+        assert abs(inv_cost - capital_cost) < TOLERANCE
+
+    def test_annuity_property(self, simple_network):
+        """Test annuity property returns correct factor."""
+        n = simple_network
+        discount_rate = 0.07
+        lifetime = 25
+
+        n.add(
+            "Generator",
+            "gen",
+            bus="bus",
+            overnight_cost=1000,
+            discount_rate=discount_rate,
+            lifetime=lifetime,
+        )
+
+        ann = n.c.generators.annuity.iloc[0]
+        expected = annuity(discount_rate, lifetime)
+        assert abs(ann - expected) < TOLERANCE
+
+    def test_annuity_property_nan_rate(self, simple_network):
+        """Test annuity property returns 1.0 for NaN discount_rate."""
+        n = simple_network
+        n.add("Generator", "gen", bus="bus", capital_cost=100)
+
+        ann = n.c.generators.annuity.iloc[0]
+        assert ann == 1.0
+
+
+class TestConsistencyCheck:
+    """Test consistency check for cost attributes."""
+
+    def test_warns_when_both_costs_set(self, simple_network, caplog):
+        """Test that a warning is logged when both overnight and capital cost are set."""
+        import logging
+
+        n = simple_network
+        n.add(
+            "Generator",
+            "gen",
+            bus="bus",
+            overnight_cost=1000,
+            capital_cost=100,  # Both set - should warn
+            discount_rate=0.07,
+            lifetime=25,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            n.consistency_check()
+
+        assert any("overnight_cost" in record.message for record in caplog.records)
+        assert any("capital_cost" in record.message for record in caplog.records)
+
+    def test_no_warning_overnight_only(self, simple_network, caplog):
+        """Test no warning when only overnight_cost is set."""
+        import logging
+
+        n = simple_network
+        n.add(
+            "Generator",
+            "gen",
+            bus="bus",
+            overnight_cost=1000,
+            discount_rate=0.07,
+            lifetime=25,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            n.consistency_check()
+
+        # Should not warn about cost consistency
+        assert not any(
+            "overnight_cost" in record.message and "capital_cost" in record.message
+            for record in caplog.records
+        )
+
+    def test_no_warning_capital_only(self, simple_network, caplog):
+        """Test no warning when only capital_cost is set."""
+        import logging
+
+        n = simple_network
+        n.add(
+            "Generator",
+            "gen",
+            bus="bus",
+            capital_cost=100,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            n.consistency_check()
+
+        # Should not warn about cost consistency
+        assert not any(
+            "overnight_cost" in record.message and "capital_cost" in record.message
+            for record in caplog.records
+        )

@@ -18,7 +18,6 @@ from pypsa.common import (
     deprecated_kwargs,
     pass_empty_series_if_keyerror,
 )
-from pypsa.costs import annuity_factor
 from pypsa.descriptors import nominal_attrs
 from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
@@ -652,7 +651,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         ----------------
         cost_attribute : str
             Network attribute that should be used to calculate Capital Expenditure.
-            Defaults to `capital_cost`.
+            Defaults to `capital_cost`. When set to `capital_cost`, the calculation uses
+            annuitized investment cost (without fixed O&M).
 
         Returns
         -------
@@ -669,8 +669,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            col = n.c[c].static.eval(f"{nominal_attrs[c]}_opt * {cost_attribute}")
-            return col
+            comp = n.c[c]
+            capacity = comp.static[f"{nominal_attrs[c]}_opt"]
+            if cost_attribute == "capital_cost":
+                return capacity * comp.capital_cost
+            return capacity * comp.static[cost_attribute]
 
         df = self._aggregate_components(
             func,
@@ -778,8 +781,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            col = n.c[c].static.eval(f"{nominal_attrs[c]} * {cost_attribute}")
-            return col
+            comp = n.c[c]
+            capacity = comp.static[nominal_attrs[c]]
+            fom_cost = comp.static.get("fom_cost", 0)
+            fom = fom_cost.fillna(0) if isinstance(fom_cost, pd.Series) else fom_cost
+            return capacity * (comp.investment_cost + fom)
 
         df = self._aggregate_components(
             func,
@@ -979,20 +985,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            static = n.c[c].static
-            capacity = static[f"{nominal_attrs[c]}_opt"]
-            overnight_cost = static.get("overnight_cost", float("nan"))
-            capital_cost = static["capital_cost"]
-            discount_rate = static.get("discount_rate", float("nan"))
-            lifetime = static.get("lifetime", float("inf"))
-
-            # If overnight_cost is provided, annuitize it; otherwise use capital_cost
-            has_overnight = overnight_cost.notna()
-            ann_factor = annuity_factor(discount_rate, lifetime)
-            annuitized = (overnight_cost * ann_factor).where(
-                has_overnight, capital_cost
-            )
-            return capacity * annuitized
+            comp = n.c[c]
+            capacity = comp.static[f"{nominal_attrs[c]}_opt"]
+            return capacity * comp.investment_cost
 
         df = self._aggregate_components(
             func,
@@ -1077,7 +1072,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             static = n.c[c].static
             capacity = static[f"{nominal_attrs[c]}_opt"]
-            fom_cost = static.get("fom_cost", 0)
+            fom_cost = static["fom_cost"]
             return capacity * fom_cost
 
         df = self._aggregate_components(
@@ -2522,7 +2517,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            sign = -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
+            sign = (
+                -1.0
+                if c in n.branch_components
+                else (n.c[c].static["sign"] if "sign" in n.c[c].static.columns else 1.0)
+            )
             df = sign * n.c[c].dynamic[f"p{port}"]
             buses = n.c[c].static[f"bus{port}"][df.columns]
             # catch multiindex case

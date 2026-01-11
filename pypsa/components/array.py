@@ -20,7 +20,7 @@ import xarray as xr
 from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index, list_as_string
 from pypsa.components.abstract import _ComponentsABC
-from pypsa.costs import effective_annual_cost
+from pypsa.costs import annuity_factor, periodized_cost
 from pypsa.guards import _assert_xarray_integrity
 
 if TYPE_CHECKING:
@@ -351,28 +351,111 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         return res
 
-    def get_effective_annual_cost(self, idx: pd.Index) -> xr.DataArray:
-        """Calculate effective annual cost from component attributes.
+    @property
+    def periodized_cost(self) -> pd.Series | pd.DataFrame:
+        """Calculate periodized cost from component attributes.
 
         If overnight_cost is provided (not NaN), calculates annuity from overnight_cost
         using discount_rate and lifetime. Otherwise uses capital_cost directly.
         Adds fom_cost (fixed O&M) to the result.
 
-        Parameters
-        ----------
-        idx : pd.Index
-            Index of assets to calculate costs for.
+        Returns
+        -------
+        pd.Series | pd.DataFrame
+            Periodized cost per unit of capacity for the modeled horizon. Returns
+            a DataFrame indexed by investment period when the network has periods.
+
+        """
+        static = self.static
+        return periodized_cost(
+            capital_cost=static["capital_cost"],
+            overnight_cost=static["overnight_cost"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=static.get("fom_cost", 0),
+            nyears=self.nyears,
+        )
+
+    @property
+    def capital_cost(self) -> pd.Series | pd.DataFrame:
+        """Calculate annuitized investment cost per unit of capacity (no fom)."""
+        static = self.static
+        return periodized_cost(
+            capital_cost=static["capital_cost"],
+            overnight_cost=static["overnight_cost"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=None,
+            nyears=self.nyears,
+        )
+
+    @property
+    def nyears(self) -> float | pd.Series:
+        """Return the modeled time horizon in years."""
+        if self.n is None:
+            msg = "Component is not attached to a Network."
+            raise AttributeError(msg)
+        return self.n.nyears
+
+    @property
+    def annuity(self) -> pd.Series:
+        """Calculate annuity factor for all components.
+
+        Returns the annuity factor based on discount_rate and lifetime.
+        If discount_rate is NaN (no overnight_cost provided), returns 1.0.
 
         Returns
         -------
-        xr.DataArray
-            Effective annual cost per unit of capacity.
+        pd.Series
+            Annuity factor for each component.
+
+        Examples
+        --------
+        >>> n.c.generators.annuity
+        name
+        gen1    0.085...
+        gen2    1.0
+        dtype: float64
 
         """
-        return effective_annual_cost(
-            capital_cost=self.da.capital_cost.sel(name=idx),
-            overnight_cost=self.da.overnight_cost.sel(name=idx),
-            discount_rate=self.da.discount_rate.sel(name=idx),
-            lifetime=self.da.lifetime.sel(name=idx),
-            fom_cost=self.da.fom_cost.sel(name=idx),
+        static = self.static
+        discount_rate = static["discount_rate"]
+        lifetime = static["lifetime"]
+        return annuity_factor(discount_rate, lifetime)
+
+    @property
+    def investment_cost(self) -> pd.Series | pd.DataFrame:
+        """Calculate annuitized investment cost per unit of capacity.
+
+        If overnight_cost is provided (not NaN), returns the annuitized value
+        (overnight_cost × annuity × nyears). Otherwise returns capital_cost directly.
+        Does NOT include fom_cost.
+
+        Returns
+        -------
+        pd.Series | pd.DataFrame
+            Investment cost per unit of capacity for the modeled horizon.
+
+        Examples
+        --------
+        >>> n.c.generators.investment_cost
+        name
+        gen1    85.8...  # 1000 * annuity(0.07, 25)
+        gen2    100.0    # capital_cost used directly
+        dtype: float64
+
+        See Also
+        --------
+        periodized_cost : Investment cost plus fom_cost (used in optimization).
+        annuity : Annuity factor for each component.
+
+        """
+        static = self.static
+        return periodized_cost(
+            capital_cost=static["capital_cost"],
+            overnight_cost=static["overnight_cost"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=None,
+            nyears=self.nyears,
         )

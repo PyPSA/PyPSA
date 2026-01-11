@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 
 from pypsa._options import options
+from pypsa.constants import HOURS_PER_YEAR
 from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
 
@@ -621,6 +622,20 @@ class NetworkIndexMixin(_NetworkABC):
 
         if options.debug.runtime_verification:
             _assert_data_integrity(self)
+
+    @property
+    def nyears(self) -> float | pd.Series:
+        """Return the modeled time horizon in years based on objective weightings.
+
+        Returns a Series indexed by investment period when the network has
+        investment periods.
+        """
+        if self.has_investment_periods:
+            return (
+                self.snapshot_weightings["objective"].groupby(level="period").sum()
+                / HOURS_PER_YEAR
+            )
+        return self.snapshot_weightings["objective"].sum() / HOURS_PER_YEAR
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:

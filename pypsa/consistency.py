@@ -455,6 +455,58 @@ def check_assets(n: NetworkType, component: Components, strict: bool = False) ->
             )
 
 
+def check_cost_consistency(component: Components, strict: bool = False) -> None:
+    """Check if both overnight_cost and capital_cost are set for the same asset.
+
+    When both are specified, overnight_cost takes precedence and capital_cost is
+    ignored. This may indicate user confusion.
+
+    Activate strict mode in general consistency check by passing `['cost_consistency']`
+    to the `strict` argument.
+
+    Parameters
+    ----------
+    component : pypsa.Component
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    static = component.static
+    if not {"capital_cost", "overnight_cost"}.issubset(static.columns):
+        return
+    has_overnight = static["overnight_cost"].notna()
+    has_capital = static["capital_cost"] != 0
+
+    both_set = has_overnight & has_capital
+    if both_set.any():
+        assets = static.index[both_set].tolist()
+        _log_or_raise(
+            strict,
+            "Component %s has assets with both 'overnight_cost' and 'capital_cost' "
+            "set: %s. When 'overnight_cost' is provided, it takes precedence and "
+            "'capital_cost' is ignored. Consider setting capital_cost=0 for these assets.",
+            component.name,
+            ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
+        )
+
+    if "discount_rate" in static.columns:
+        missing_discount_rate = has_overnight & static["discount_rate"].isna()
+        if missing_discount_rate.any():
+            assets = static.index[missing_discount_rate].tolist()
+            _log_or_raise(
+                True,
+                "Component %s has assets with 'overnight_cost' set but missing "
+                "'discount_rate': %s. Provide discount_rate for annuitization.",
+                component.name,
+                ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
+            )
+
+
 def check_generators(component: Components, strict: bool = False) -> None:
     """Check the consistency of generator attributes before the simulation.
 
@@ -770,6 +822,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "zero_s_nom",
             "assets",
             "generators",
+            "cost_consistency",
             "disconnected_buses",
             "investment_periods",
             "shapes",
@@ -817,6 +870,8 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_assets(self, c, "assets" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
+            # Checks cost attributes consistency
+            check_cost_consistency(c, "cost_consistency" in strict)
 
             if check_dtypes:
                 check_dtypes_(c, "dtypes" in strict)

@@ -10,10 +10,9 @@ from typing import TypeVar
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 
 # Type variable for numeric types that support array operations
-T = TypeVar("T", float, pd.Series, xr.DataArray)
+T = TypeVar("T", float, pd.Series)
 
 
 def annuity(
@@ -22,31 +21,35 @@ def annuity(
 ) -> T:
     r"""Calculate the annuity factor for given discount rate and lifetime.
 
-    Converts overnight investment cost to annualized cost using the formula:
+    Converts overnight investment cost to an annualized cost using the formula:
 
     .. math::
 
         \frac{r}{1 - (1 + r)^{-n}}
 
-    For zero discount rate, returns ``1/lifetime`` (simple depreciation).
-    For infinite lifetime with positive discount rate, returns the discount rate.
+    Special cases:
+
+    - Zero discount rate: returns ``1/lifetime`` (simple depreciation)
+    - Infinite lifetime with r > 0: returns the discount rate
+    - Infinite lifetime with r <= 0: returns 0
+    - Negative discount rates are allowed (penalizes the present)
 
     Parameters
     ----------
-    discount_rate : float | pd.Series | xr.DataArray
-        Discount rate as decimal (e.g., 0.07 for 7%). Must be non-negative.
-    lifetime : float | pd.Series | xr.DataArray
+    discount_rate : float | pd.Series
+        Discount rate as decimal (e.g., 0.07 for 7%).
+    lifetime : float | pd.Series
         Asset lifetime in years. Must be positive.
 
     Returns
     -------
-    float | pd.Series | xr.DataArray
-        Annuity factor to multiply overnight cost by.
+    float | pd.Series
+        Annual annuity factor to multiply overnight cost by.
 
     Raises
     ------
     ValueError
-        If discount_rate is negative or lifetime is non-positive.
+        If lifetime is non-positive.
 
     Examples
     --------
@@ -55,12 +58,11 @@ def annuity(
     0.0858...
     >>> pypsa.costs.annuity(0.0, 20)  # 0% discount rate = simple depreciation
     0.05
+    >>> pypsa.costs.annuity(-0.02, 20)  # doctest: +ELLIPSIS
+    0.040...
 
     """
     # Input validation for scalars
-    if isinstance(discount_rate, int | float) and discount_rate < 0:
-        msg = f"discount_rate must be non-negative, got {discount_rate}"
-        raise ValueError(msg)
     if isinstance(lifetime, int | float) and lifetime <= 0:
         msg = f"lifetime must be positive, got {lifetime}"
         raise ValueError(msg)
@@ -71,35 +73,31 @@ def annuity(
             return 0.0  # No cost if infinite lifetime and no interest
         return 1.0 / lifetime
 
-    # Handle infinite lifetime: limit of annuity as n -> inf is r
+    # Handle infinite lifetime: limit as n -> inf is r if r > 0, else 0
     if isinstance(lifetime, int | float) and np.isinf(lifetime):
+        if isinstance(discount_rate, int | float):
+            return max(discount_rate, 0.0)
         return discount_rate
 
     # Standard annuity calculation
     result = discount_rate / (1.0 - 1.0 / (1.0 + discount_rate) ** lifetime)
 
-    # Handle special cases for array types
+    # Handle special cases for pd.Series
     if isinstance(discount_rate, pd.Series):
         # Zero discount rate -> 1/lifetime
         zero_rate_mask = discount_rate == 0
         if zero_rate_mask.any():
             result = result.where(~zero_rate_mask, 1.0 / lifetime)
-        # Infinite lifetime -> discount_rate
+        # Infinite lifetime -> max(r, 0)
         if isinstance(lifetime, pd.Series):
             inf_mask = np.isinf(lifetime)
-            result = result.where(~inf_mask, discount_rate)
+            result = result.where(~inf_mask, discount_rate.clip(lower=0))
         elif np.isinf(lifetime):
-            result = discount_rate
-    elif isinstance(discount_rate, xr.DataArray):
-        # Zero discount rate -> 1/lifetime
-        result = xr.where(discount_rate == 0, 1.0 / lifetime, result)
-        # Infinite lifetime -> discount_rate
-        result = xr.where(np.isinf(lifetime), discount_rate, result)
+            result = discount_rate.clip(lower=0)
     elif isinstance(lifetime, pd.Series):
         # discount_rate is scalar, lifetime is Series
-        result = result.where(~np.isinf(lifetime), discount_rate)
-    elif isinstance(lifetime, xr.DataArray):
-        result = xr.where(np.isinf(lifetime), discount_rate, result)
+        inf_val = max(discount_rate, 0.0)
+        result = result.where(~np.isinf(lifetime), inf_val)
 
     return result
 
@@ -108,22 +106,23 @@ def annuity_factor(
     discount_rate: T,
     lifetime: T,
 ) -> T:
-    """Calculate annuity factor, returning 1.0 where discount_rate is NaN.
+    """Calculate annuity factor, handling NaN discount_rate.
 
-    This is a convenience wrapper around :func:`annuity` that handles the
-    common case where ``discount_rate`` is NaN (meaning ``capital_cost`` is
-    already annuitized and should be used directly).
+    This is a wrapper around :func:`annuity` that returns 1.0 where
+    ``discount_rate`` is NaN. This is used internally when computing
+    periodized costs - if discount_rate is NaN, it means the user
+    provided capital_cost (already annuitized) instead of overnight_cost.
 
     Parameters
     ----------
-    discount_rate : float | pd.Series | xr.DataArray
-        Discount rate as decimal. If NaN, returns 1.0 (no annuitization needed).
-    lifetime : float | pd.Series | xr.DataArray
+    discount_rate : float | pd.Series
+        Discount rate as decimal. If NaN, returns 1.0.
+    lifetime : float | pd.Series
         Asset lifetime in years.
 
     Returns
     -------
-    float | pd.Series | xr.DataArray
+    float | pd.Series
         Annuity factor: ``annuity(discount_rate, lifetime)`` if ``discount_rate``
         is not NaN, otherwise 1.0.
 
@@ -133,22 +132,12 @@ def annuity_factor(
     >>> import numpy as np
     >>> pypsa.costs.annuity_factor(0.07, 25)  # doctest: +ELLIPSIS
     0.0858...
-    >>> pypsa.costs.annuity_factor(np.nan, 25)  # NaN = already annuitized
+    >>> pypsa.costs.annuity_factor(np.nan, 25)  # NaN = pass-through
     1.0
     >>> pypsa.costs.annuity_factor(0.0, 20)  # 0% rate = simple depreciation
     0.05
 
     """
-    if isinstance(discount_rate, xr.DataArray):
-        # Use safe value where NaN to avoid calculation errors
-        safe_rate = xr.where(np.isnan(discount_rate), 0.07, discount_rate)
-        safe_lifetime = xr.where(np.isnan(lifetime), 25.0, lifetime)
-        return xr.where(
-            np.isnan(discount_rate),
-            1.0,
-            annuity(safe_rate, safe_lifetime),
-        )
-
     if isinstance(discount_rate, pd.Series):
         is_nan = discount_rate.isna()
         safe_rate = discount_rate.where(~is_nan, 0.07)
@@ -165,82 +154,100 @@ def annuity_factor(
     return annuity(discount_rate, lifetime)
 
 
-def effective_annual_cost(
+def periodized_cost(
     capital_cost: T,
     overnight_cost: T,
     discount_rate: T,
     lifetime: T,
     fom_cost: T | None = None,
-) -> T:
-    """Calculate effective annual cost from capital or overnight cost.
+    nyears: float | pd.Series = 1.0,
+) -> T | pd.DataFrame:
+    """Calculate fixed costs for the modeled horizon from capital or overnight cost.
 
-    This function calculates the total annual fixed cost by:
+    This function calculates the total fixed cost for the modeled horizon by:
 
     1. If ``overnight_cost`` is provided (not NaN): annuitize it using
-       ``discount_rate`` and ``lifetime``, then add ``fom_cost``
+       ``discount_rate`` and ``lifetime``, then scale by ``nyears`` and add
+       ``fom_cost``.
     2. If ``overnight_cost`` is NaN: use ``capital_cost`` directly
-       (already annuitized) and add ``fom_cost``
+       (already scaled to the model horizon) and add ``fom_cost``.
 
     Parameters
     ----------
-    capital_cost : float | pd.Series | xr.DataArray
-        Annuitized investment cost (currency/MW/year or currency/MWh/year).
-    overnight_cost : float | pd.Series | xr.DataArray
+    capital_cost : float | pd.Series
+        Investment cost per unit of capacity for the modeled horizon.
+    overnight_cost : float | pd.Series
         Overnight (upfront) investment cost. If NaN, capital_cost is used.
-    discount_rate : float | pd.Series | xr.DataArray
+    discount_rate : float | pd.Series
         Discount rate as decimal. Used only when overnight_cost is provided.
-    lifetime : float | pd.Series | xr.DataArray
+    lifetime : float | pd.Series
         Asset lifetime in years.
-    fom_cost : float | pd.Series | xr.DataArray, optional
-        Fixed operation and maintenance cost (currency/MW/year). Default 0.
+    fom_cost : float | pd.Series, optional
+        Fixed operation and maintenance cost per unit of capacity for the modeled
+        horizon. Default None.
+    nyears : float | pd.Series, optional
+        Modeled time horizon in years. Used only to scale annuitized overnight costs.
+        If provided as a Series indexed by investment period, the result is returned
+        with a period index. Default 1.0.
 
     Returns
     -------
-    float | pd.Series | xr.DataArray
-        Effective annual cost per unit of capacity.
-
-    Examples
-    --------
-    >>> import pypsa
-    >>> import numpy as np
-    >>> # Using overnight cost with discount rate
-    >>> pypsa.costs.effective_annual_cost(0, 1000, 0.07, 25, 20)  # doctest: +ELLIPSIS
-    105.8...
-    >>> # Using capital cost directly (overnight_cost is NaN)
-    >>> pypsa.costs.effective_annual_cost(100, np.nan, np.nan, 25, 20)
-    120
-    >>> # Zero discount rate (simple depreciation)
-    >>> pypsa.costs.effective_annual_cost(0, 1000, 0.0, 20, 0)
-    50.0
+    float | pd.Series | pd.DataFrame
+        Fixed cost per unit of capacity for the modeled horizon.
 
     """
-    if isinstance(overnight_cost, xr.DataArray):
-        has_overnight = ~np.isnan(overnight_cost)
-        # Where overnight_cost is provided, annuitize it; otherwise use capital_cost
-        annuitized = xr.where(
-            has_overnight,
-            overnight_cost * annuity_factor(discount_rate, lifetime),
-            capital_cost,
-        )
-    elif isinstance(overnight_cost, pd.Series):
+
+    def _broadcast_periods(values: pd.Series, scale: bool) -> pd.DataFrame:
+        if scale:
+            data = np.outer(nyears.to_numpy(), values.to_numpy())
+        else:
+            data = np.tile(values.to_numpy(), (len(nyears), 1))
+        return pd.DataFrame(data, index=nyears.index, columns=values.index)
+
+    if isinstance(overnight_cost, pd.Series):
         has_overnight = overnight_cost.notna()
         ann_factor = annuity_factor(discount_rate, lifetime)
-        annuitized = (overnight_cost * ann_factor).where(has_overnight, capital_cost)
+        annuitized = overnight_cost * ann_factor
+        if isinstance(nyears, pd.Series):
+            annuitized_df = _broadcast_periods(annuitized, scale=True)
+            if isinstance(capital_cost, pd.Series):
+                capital_df = _broadcast_periods(capital_cost, scale=False)
+            else:
+                capital_df = pd.DataFrame(
+                    capital_cost,
+                    index=nyears.index,
+                    columns=annuitized.index,
+                )
+            if has_overnight.all():
+                base = annuitized_df
+            else:
+                base = annuitized_df.copy()
+                base.loc[:, ~has_overnight] = capital_df.loc[:, ~has_overnight]
+        else:
+            base = (annuitized * nyears).where(has_overnight, capital_cost)
     # Scalar case
     elif np.isnan(overnight_cost):
-        annuitized = capital_cost
+        if isinstance(nyears, pd.Series):
+            if isinstance(capital_cost, pd.Series):
+                base = _broadcast_periods(capital_cost, scale=False)
+            else:
+                base = pd.Series(capital_cost, index=nyears.index)
+        else:
+            base = capital_cost
     else:
         annuitized = overnight_cost * annuity_factor(discount_rate, lifetime)
+        base = annuitized * nyears
 
     if fom_cost is None:
-        return annuitized
+        return base
 
     # Handle NaN in fom_cost (treat as 0)
-    if isinstance(fom_cost, xr.DataArray):
-        fom_cost = xr.where(np.isnan(fom_cost), 0.0, fom_cost)
-    elif isinstance(fom_cost, pd.Series):
+    if isinstance(fom_cost, pd.Series):
         fom_cost = fom_cost.fillna(0.0)
     elif np.isnan(fom_cost):
         fom_cost = 0.0
 
-    return annuitized + fom_cost
+    if isinstance(base, pd.DataFrame) and isinstance(fom_cost, pd.Series):
+        return base.add(fom_cost, axis="columns")
+
+    return base + fom_cost

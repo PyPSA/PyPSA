@@ -136,8 +136,18 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if ext_i.empty:
             continue
 
-        annual_cost = c.get_effective_annual_cost(ext_i)
-        if annual_cost.size == 0:
+        periodic_cost = c.periodized_cost
+        if isinstance(periodic_cost, pd.DataFrame):
+            cols = periodic_cost.columns
+            if isinstance(cols, pd.MultiIndex):
+                name_level = "name" if "name" in cols.names else cols.names[-1]
+                mask = cols.get_level_values(name_level).isin(ext_i)
+                periodic_cost = periodic_cost.loc[:, mask]
+            else:
+                periodic_cost = periodic_cost.loc[:, ext_i]
+        else:
+            periodic_cost = periodic_cost.loc[ext_i]
+        if periodic_cost.size == 0:
             continue
 
         nominal = c.da[attr].sel(name=ext_i)
@@ -148,11 +158,20 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             for period in periods:
                 # collapse time axis via any() so capex value isn't broadcasted
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += annual_cost * active * period_weighting.loc[period]
+                period_cost = (
+                    periodic_cost.loc[period]
+                    if isinstance(periodic_cost, pd.DataFrame)
+                    else periodic_cost
+                )
+                if isinstance(period_cost, pd.Series) and isinstance(
+                    period_cost.index, pd.MultiIndex
+                ):
+                    period_cost = period_cost.to_xarray()
+                weighted_cost += active * period_cost * period_weighting.loc[period]
         else:
             # collapse time axis via any() so capex value isn't broadcasted
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            weighted_cost = annual_cost * active
+            weighted_cost = active * periodic_cost
 
         terms.append((weighted_cost * nominal).sum(dim=["name"]))
 
@@ -250,8 +269,18 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if ext_i.empty:
             continue
 
-        annual_cost = c.get_effective_annual_cost(ext_i)
-        if annual_cost.size == 0 or (annual_cost == 0).all():
+        periodic_cost = c.periodized_cost
+        if isinstance(periodic_cost, pd.DataFrame):
+            cols = periodic_cost.columns
+            if isinstance(cols, pd.MultiIndex):
+                name_level = "name" if "name" in cols.names else cols.names[-1]
+                mask = cols.get_level_values(name_level).isin(ext_i)
+                periodic_cost = periodic_cost.loc[:, mask]
+            else:
+                periodic_cost = periodic_cost.loc[:, ext_i]
+        else:
+            periodic_cost = periodic_cost.loc[ext_i]
+        if periodic_cost.size == 0 or np.all(periodic_cost.to_numpy() == 0):
             continue
 
         # charge capex for new investment
@@ -260,11 +289,20 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             for period in periods:
                 # collapse time axis via any() so capex value isn't broadcasted
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += annual_cost * active * period_weighting.loc[period]
+                period_cost = (
+                    periodic_cost.loc[period]
+                    if isinstance(periodic_cost, pd.DataFrame)
+                    else periodic_cost
+                )
+                if isinstance(period_cost, pd.Series) and isinstance(
+                    period_cost.index, pd.MultiIndex
+                ):
+                    period_cost = period_cost.to_xarray()
+                weighted_cost += active * period_cost * period_weighting.loc[period]
         else:
             # collapse time axis via any() so capex value isn't broadcasted
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            weighted_cost = annual_cost * active
+            weighted_cost = active * periodic_cost
 
         caps = m[f"{c.name}-{attr}"].sel(name=ext_i)
         capex_terms.append((caps * weighted_cost).sum(dim=["name"]))
