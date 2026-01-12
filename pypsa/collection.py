@@ -480,6 +480,8 @@ def _get_method_patterns() -> dict[str, str]:
         rf"({_all_components if not new_api else ''})|"
         rf"({_component_classes}.static)|"
         rf"({_component_classes}.get_active_assets)|"
+        rf"({_component_classes}.capital_cost)|"
+        rf"({_component_classes}.annuity)|"
         rf"static|"
         rf"get_active_assets"
         rf")$",
