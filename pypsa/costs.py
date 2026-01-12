@@ -225,6 +225,9 @@ def periodized_cost(
             raise ValueError(msg)
 
     def _broadcast_to_periods(values: pd.Series) -> pd.DataFrame:
+        if periods_index is None:
+            msg = "periods_index must be set before calling _broadcast_to_periods"
+            raise ValueError(msg)
         return pd.DataFrame(
             np.tile(values.to_numpy(), (len(periods_index), 1)),
             index=periods_index,
