@@ -783,9 +783,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             comp = n.c[c]
             capacity = comp.static[nominal_attrs[c]]
-            fom_cost = comp.static.get("fom_cost", 0)
-            fom = fom_cost.fillna(0) if isinstance(fom_cost, pd.Series) else fom_cost
-            return capacity * (comp.capital_cost + fom)
+            return capacity * comp.capital_cost
 
         df = self._aggregate_components(
             func,
