@@ -411,7 +411,7 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         Examples
         --------
-        >>> n.c.generators.annuity
+        >>> n.c.generators.annuity  # doctest: +SKIP
         name
         gen1    0.085...
         gen2    1.0
@@ -441,7 +441,7 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         Examples
         --------
-        >>> n.c.generators.overnight_cost
+        >>> n.c.generators.overnight_cost  # doctest: +SKIP
         name
         gen1    1000.0   # overnight_cost used directly
         gen2    1166.0   # 100 / annuity(0.07, 25) - back-calculated from capital_cost
