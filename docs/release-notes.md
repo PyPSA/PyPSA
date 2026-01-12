@@ -42,7 +42,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix rolling horizon optimization with linearized unit commitment and ramp limits. (<!-- md:pr 1489 -->)
 - Fix `apply_transformer_types` failing in stochastic optimization due to types broadcasting. (<!-- md:pr 1499 -->)
 
-- Add support for splitting `capital_cost` into overnight investment cost and fixed O&M. New component attributes `overnight_cost`, `discount_rate`, and `fom_cost` allow specifying overnight costs that are automatically annuitized during optimization. When `overnight_cost` is provided, PyPSA calculates the annuity using `discount_rate` and `lifetime` (supports 0% rate for simple depreciation). When `overnight_cost` is not set (default NaN), `capital_cost` is used. New `pypsa.costs` module with `annuity()`, `annuity_factor()`, and `effective_annual_cost()` functions. New statistics methods `n.statistics.investment()` and `n.statistics.fom()` for reporting. (<!-- md:issue 371 -->)
+- Add support for splitting `capital_cost` into overnight investment cost and fixed O&M. New component attributes `overnight_cost`, `discount_rate`, and `fom_cost` allow specifying overnight costs that are automatically annuitized during optimization. When `overnight_cost` is provided, PyPSA calculates the annuity using `discount_rate` and `lifetime` (supports 0% rate for simple depreciation). When `overnight_cost` is not set (default NaN), `capital_cost` is used. New `pypsa.costs` module with `annuity()`, `annuity_factor()`, and `periodized_cost()` functions. New statistics methods `n.statistics.overnight_cost()` and `n.statistics.fom()` for reporting. (<!-- md:issue 371 -->)
 
 ## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }
 
