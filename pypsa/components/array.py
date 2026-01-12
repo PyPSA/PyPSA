@@ -352,19 +352,12 @@ class ComponentsArrayMixin(_ComponentsABC):
         return res
 
     @property
-    def periodized_cost(self) -> pd.Series | pd.DataFrame:
+    def periodized_cost(self) -> pd.Series:
         """Calculate periodized cost from component attributes.
 
         If overnight_cost is provided (not NaN), calculates annuity from overnight_cost
         using discount_rate and lifetime. Otherwise uses capital_cost directly.
         Adds fom_cost (fixed O&M) to the result.
-
-        Returns
-        -------
-        pd.Series | pd.DataFrame
-            Periodized cost per unit of capacity for the modeled horizon. Returns
-            a DataFrame indexed by investment period when the network has periods.
-
         """
         static = self.static
         return periodized_cost(
@@ -377,7 +370,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         )
 
     @property
-    def capital_cost(self) -> pd.Series | pd.DataFrame:
+    def capital_cost(self) -> pd.Series:
         """Calculate annuitized investment cost per unit of capacity (no fom)."""
         static = self.static
         return periodized_cost(

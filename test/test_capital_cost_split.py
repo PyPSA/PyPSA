@@ -155,7 +155,7 @@ class TestCostsModule:
         assert abs(result - expected) < TOLERANCE
 
     def test_periodized_cost_uniform_nyears_series(self):
-        """Test periodized cost with uniform nyears Series (should collapse)."""
+        """Test periodized cost with uniform nyears Series (collapses to scalar)."""
         overnight = pd.Series([1000, 2000], index=["a", "b"])
         nyears = pd.Series([1.0, 1.0], index=[2020, 2030])
 
@@ -167,8 +167,8 @@ class TestCostsModule:
             fom_cost=0,
             nyears=nyears,
         )
-        assert isinstance(result, pd.DataFrame)
-        assert result.shape == (2, 2)
+        assert isinstance(result, pd.Series)
+        assert len(result) == 2
 
     def test_periodized_cost_varying_nyears_raises(self):
         """Test periodized cost raises error with varying nyears and overnight_cost."""
@@ -198,8 +198,8 @@ class TestCostsModule:
             fom_cost=0,
             nyears=nyears,
         )
-        assert isinstance(result, pd.DataFrame)
-        assert result.shape == (2, 2)
+        assert isinstance(result, pd.Series)
+        pd.testing.assert_series_equal(result, capital)
 
 
 class TestBackwardCompatibility:

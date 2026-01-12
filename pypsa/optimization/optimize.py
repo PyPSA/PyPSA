@@ -137,14 +137,10 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             continue
 
         periodic_cost = c.periodized_cost
-        if isinstance(periodic_cost, pd.DataFrame):
-            cols = periodic_cost.columns
-            if isinstance(cols, pd.MultiIndex):
-                name_level = "name" if "name" in cols.names else cols.names[-1]
-                mask = cols.get_level_values(name_level).isin(ext_i)
-                periodic_cost = periodic_cost.loc[:, mask]
-            else:
-                periodic_cost = periodic_cost.loc[:, ext_i]
+        if isinstance(periodic_cost.index, pd.MultiIndex):
+            name_level = "name" if "name" in periodic_cost.index.names else -1
+            mask = periodic_cost.index.get_level_values(name_level).isin(ext_i)
+            periodic_cost = periodic_cost.loc[mask]
         else:
             periodic_cost = periodic_cost.loc[ext_i]
         if periodic_cost.size == 0:
@@ -152,25 +148,21 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
         nominal = c.da[attr].sel(name=ext_i)
 
-        # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
             for period in periods:
-                # collapse time axis via any() so capex value isn't broadcasted
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                period_cost = (
-                    periodic_cost.loc[period]
-                    if isinstance(periodic_cost, pd.DataFrame)
-                    else periodic_cost
+                if isinstance(periodic_cost.index, pd.MultiIndex):
+                    periodic_cost_xa = periodic_cost.to_xarray()
+                else:
+                    periodic_cost_xa = periodic_cost
+                weighted_cost += (
+                    active * periodic_cost_xa * period_weighting.loc[period]
                 )
-                if isinstance(period_cost, pd.Series) and isinstance(
-                    period_cost.index, pd.MultiIndex
-                ):
-                    period_cost = period_cost.to_xarray()
-                weighted_cost += active * period_cost * period_weighting.loc[period]
         else:
-            # collapse time axis via any() so capex value isn't broadcasted
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
+            if isinstance(periodic_cost.index, pd.MultiIndex):
+                periodic_cost = periodic_cost.to_xarray()
             weighted_cost = active * periodic_cost
 
         terms.append((weighted_cost * nominal).sum(dim=["name"]))
@@ -270,38 +262,30 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             continue
 
         periodic_cost = c.periodized_cost
-        if isinstance(periodic_cost, pd.DataFrame):
-            cols = periodic_cost.columns
-            if isinstance(cols, pd.MultiIndex):
-                name_level = "name" if "name" in cols.names else cols.names[-1]
-                mask = cols.get_level_values(name_level).isin(ext_i)
-                periodic_cost = periodic_cost.loc[:, mask]
-            else:
-                periodic_cost = periodic_cost.loc[:, ext_i]
+        if isinstance(periodic_cost.index, pd.MultiIndex):
+            name_level = "name" if "name" in periodic_cost.index.names else -1
+            mask = periodic_cost.index.get_level_values(name_level).isin(ext_i)
+            periodic_cost = periodic_cost.loc[mask]
         else:
             periodic_cost = periodic_cost.loc[ext_i]
         if periodic_cost.size == 0 or np.all(periodic_cost.to_numpy() == 0):
             continue
 
-        # charge capex for new investment
         if n._multi_invest:
             weighted_cost = 0
             for period in periods:
-                # collapse time axis via any() so capex value isn't broadcasted
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                period_cost = (
-                    periodic_cost.loc[period]
-                    if isinstance(periodic_cost, pd.DataFrame)
-                    else periodic_cost
+                if isinstance(periodic_cost.index, pd.MultiIndex):
+                    periodic_cost_xa = periodic_cost.to_xarray()
+                else:
+                    periodic_cost_xa = periodic_cost
+                weighted_cost += (
+                    active * periodic_cost_xa * period_weighting.loc[period]
                 )
-                if isinstance(period_cost, pd.Series) and isinstance(
-                    period_cost.index, pd.MultiIndex
-                ):
-                    period_cost = period_cost.to_xarray()
-                weighted_cost += active * period_cost * period_weighting.loc[period]
         else:
-            # collapse time axis via any() so capex value isn't broadcasted
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
+            if isinstance(periodic_cost.index, pd.MultiIndex):
+                periodic_cost = periodic_cost.to_xarray()
             weighted_cost = active * periodic_cost
 
         caps = m[f"{c.name}-{attr}"].sel(name=ext_i)

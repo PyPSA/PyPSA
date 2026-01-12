@@ -168,7 +168,7 @@ def periodized_cost(
     lifetime: T,
     fom_cost: T | None = None,
     nyears: float | pd.Series = 1.0,
-) -> T | pd.DataFrame:
+) -> T:
     """Calculate fixed costs for the modeled horizon from capital or overnight cost.
 
     This function calculates the total fixed cost for the modeled horizon by:
@@ -199,7 +199,7 @@ def periodized_cost(
 
     Returns
     -------
-    float | pd.Series | pd.DataFrame
+    float | pd.Series
         Fixed cost per unit of capacity for the modeled horizon.
 
     Raises
@@ -208,11 +208,9 @@ def periodized_cost(
         If overnight_cost is provided and nyears is a Series with varying values.
 
     """
-    periods_index = None
     use_overnight = _has_overnight_cost(overnight_cost)
 
     if isinstance(nyears, pd.Series):
-        periods_index = nyears.index
         unique_vals = nyears.unique()
         if len(unique_vals) == 1:
             nyears = float(unique_vals[0])
@@ -223,16 +221,6 @@ def periodized_cost(
                 "or use investment periods with equal duration."
             )
             raise ValueError(msg)
-
-    def _broadcast_to_periods(values: pd.Series) -> pd.DataFrame:
-        if periods_index is None:
-            msg = "periods_index must be set before calling _broadcast_to_periods"
-            raise ValueError(msg)
-        return pd.DataFrame(
-            np.tile(values.to_numpy(), (len(periods_index), 1)),
-            index=periods_index,
-            columns=values.index,
-        )
 
     if use_overnight:
         if isinstance(overnight_cost, pd.Series):
@@ -245,12 +233,6 @@ def periodized_cost(
     else:
         base = capital_cost
 
-    if periods_index is not None:
-        if isinstance(base, pd.Series):
-            base = _broadcast_to_periods(base)
-        elif not isinstance(base, pd.DataFrame):
-            base = pd.Series(base, index=periods_index)
-
     if fom_cost is None:
         return base
 
@@ -259,8 +241,5 @@ def periodized_cost(
         fom_cost = fom_cost.fillna(0.0)
     elif np.isnan(fom_cost):
         fom_cost = 0.0
-
-    if isinstance(base, pd.DataFrame) and isinstance(fom_cost, pd.Series):
-        return base.add(fom_cost, axis="columns")
 
     return base + fom_cost
