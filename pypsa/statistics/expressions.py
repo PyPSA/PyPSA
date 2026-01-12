@@ -785,7 +785,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             capacity = comp.static[nominal_attrs[c]]
             fom_cost = comp.static.get("fom_cost", 0)
             fom = fom_cost.fillna(0) if isinstance(fom_cost, pd.Series) else fom_cost
-            return capacity * (comp.investment_cost + fom)
+            return capacity * (comp.capital_cost + fom)
 
         df = self._aggregate_components(
             func,
@@ -928,7 +928,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_groups="groupby_method",
         aggregate_time="groupby_time",
     )
-    def investment(  # noqa: D417
+    def overnight_cost(  # noqa: D417
         self,
         components: str | Sequence[str] | None = None,
         groupby_method: Callable | str = "sum",
@@ -941,7 +941,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None = None,
         round: int | None = None,
     ) -> pd.DataFrame:
-        """Calculate the **annuitized investment costs** (excluding fom).
+        """Calculate the **overnight investment costs** (excluding fom).
 
         If ``discount_rate > 0``, returns ``capital_cost * annuity(discount_rate, lifetime) * capacity``.
         If ``discount_rate == 0``, returns ``capital_cost * capacity`` (pre-annuitized).
@@ -973,12 +973,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Returns
         -------
         pd.DataFrame
-            Annuitized investment costs with components as rows and a single column
+            Annuitized overnight investment costs with components as rows and a single column
             of aggregated values.
 
         See Also
         --------
-        capex : Returns total fixed costs (investment + fom_cost).
+        capex : Returns total fixed costs (overnight_cost + fom_cost).
         fom_cost : Returns fixed operation and maintenance costs.
 
         """
@@ -987,7 +987,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             comp = n.c[c]
             capacity = comp.static[f"{nominal_attrs[c]}_opt"]
-            return capacity * comp.investment_cost
+            return capacity * comp.overnight_cost
 
         df = self._aggregate_components(
             func,
@@ -1002,7 +1002,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
-        df.attrs["name"] = "Investment Cost"
+        df.attrs["name"] = "Overnight Investment Cost"
         df.attrs["unit"] = "currency"
         return df
 

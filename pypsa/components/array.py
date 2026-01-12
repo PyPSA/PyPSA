@@ -424,38 +424,43 @@ class ComponentsArrayMixin(_ComponentsABC):
         return annuity_factor(discount_rate, lifetime)
 
     @property
-    def investment_cost(self) -> pd.Series | pd.DataFrame:
-        """Calculate annuitized investment cost per unit of capacity.
+    def overnight_cost(self) -> pd.Series:
+        """Calculate overnight cost from component attributes.
 
-        If overnight_cost is provided (not NaN), returns the annuitized value
-        (overnight_cost × annuity × nyears). Otherwise returns capital_cost directly.
-        Does NOT include fom_cost.
+        If overnight_cost column is provided (not NaN), returns it directly.
+        Otherwise, converts annualized capital_cost back to overnight cost using
+        the formula: overnight_cost = capital_cost / (annuity_factor × nyears).
+
+        Note: When nyears == 1, capital_cost represents the annualized cost per year,
+        so overnight_cost = capital_cost / annuity_factor.
 
         Returns
         -------
-        pd.Series | pd.DataFrame
-            Investment cost per unit of capacity for the modeled horizon.
+        pd.Series
+            Overnight (upfront) investment cost per unit of capacity.
 
         Examples
         --------
-        >>> n.c.generators.investment_cost
+        >>> n.c.generators.overnight_cost
         name
-        gen1    85.8...  # 1000 * annuity(0.07, 25)
-        gen2    100.0    # capital_cost used directly
+        gen1    1000.0   # overnight_cost used directly
+        gen2    1166.0   # 100 / annuity(0.07, 25) - back-calculated from capital_cost
         dtype: float64
 
         See Also
         --------
-        periodized_cost : Investment cost plus fom_cost (used in optimization).
+        capital_cost : Annuitized investment cost for the modeled horizon.
         annuity : Annuity factor for each component.
 
         """
         static = self.static
-        return periodized_cost(
-            capital_cost=static["capital_cost"],
-            overnight_cost=static["overnight_cost"],
-            discount_rate=static["discount_rate"],
-            lifetime=static["lifetime"],
-            fom_cost=None,
-            nyears=self.nyears,
-        )
+        overnight = static["overnight_cost"]
+        capital = static["capital_cost"]
+        has_overnight = overnight.notna()
+
+        ann_factor = self.annuity
+        nyears = self.nyears
+        nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
+        back_calculated = capital / (ann_factor * nyears_scalar)
+
+        return overnight.where(has_overnight, back_calculated)

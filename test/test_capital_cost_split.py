@@ -221,14 +221,10 @@ class TestOvernightCostWithDiscountRate:
         # Verify generator is built
         assert n.c.generators.static.p_nom_opt.iloc[0] > 0
 
-        # The objective should use annuitized cost
-        ann_factor = annuity(discount_rate, lifetime)
-        expected_annual_cost = overnight_cost * ann_factor * n.nyears
-        # Verify via statistics
-        investment = n.statistics.investment(groupby=False)
+        overnight = n.statistics.overnight_cost(groupby=False)
         capacity = n.c.generators.static.p_nom_opt.iloc[0]
-        actual = investment.values.sum()
-        assert abs(actual - capacity * expected_annual_cost) < TOLERANCE
+        actual = overnight.values.sum()
+        assert abs(actual - capacity * overnight_cost) < TOLERANCE
 
     def test_zero_discount_rate(self, simple_network):
         """Test that 0% discount rate works correctly (simple depreciation)."""
@@ -255,11 +251,9 @@ class TestOvernightCostWithDiscountRate:
         capacity = n.c.generators.static.p_nom_opt.iloc[0]
         assert capacity > 0
 
-        # 0% rate means simple depreciation: 1000/20 = 50 per year
-        expected_annual_cost = overnight_cost / lifetime * n.nyears
-        investment = n.statistics.investment(groupby=False)
-        actual = investment.values.sum()
-        assert abs(actual - capacity * expected_annual_cost) < TOLERANCE
+        overnight = n.statistics.overnight_cost(groupby=False)
+        actual = overnight.values.sum()
+        assert abs(actual - capacity * overnight_cost) < TOLERANCE
 
     def test_fom_added_separately(self, simple_network):
         """Test that fom_cost is added to annuitized investment cost."""
@@ -291,8 +285,8 @@ class TestOvernightCostWithDiscountRate:
 class TestStatisticsFunctions:
     """Tests for new statistics functions."""
 
-    def test_investment_function_exists(self, simple_network):
-        """Test that investment() function exists and is callable."""
+    def test_overnight_cost_function_exists(self, simple_network):
+        """Test that overnight_cost() function exists and is callable."""
         n = simple_network
         n.add(
             "Generator",
@@ -306,7 +300,7 @@ class TestStatisticsFunctions:
         n.optimize(solver_name=SOLVER_NAME)
 
         # Should not raise an error
-        result = n.statistics.investment()
+        result = n.statistics.overnight_cost()
         assert isinstance(result, pd.DataFrame | pd.Series)
 
     def test_fom_function_exists(self, simple_network):
@@ -327,8 +321,8 @@ class TestStatisticsFunctions:
         result = n.statistics.fom()
         assert isinstance(result, pd.DataFrame | pd.Series)
 
-    def test_investment_with_overnight_cost(self, simple_network):
-        """Test investment() returns correct value with overnight cost."""
+    def test_overnight_cost_with_overnight_cost(self, simple_network):
+        """Test overnight_cost() returns correct value with overnight cost."""
         n = simple_network
         overnight_cost = 1000
         discount_rate = 0.07
@@ -347,19 +341,17 @@ class TestStatisticsFunctions:
         n.add("Load", "load", bus="bus", p_set=50)
         n.optimize(solver_name=SOLVER_NAME)
 
-        investment = n.statistics.investment(groupby=False)
+        overnight = n.statistics.overnight_cost(groupby=False)
         capacity = n.c.generators.static.p_nom_opt.iloc[0]
-        expected = (
-            capacity * overnight_cost * annuity(discount_rate, lifetime) * n.nyears
-        )
+        expected = capacity * overnight_cost
 
-        # Check the investment cost is calculated correctly
-        assert not investment.empty
-        actual = investment.values.sum()
+        # Check the overnight cost is the original overnight_cost
+        assert not overnight.empty
+        actual = overnight.values.sum()
         assert abs(actual - expected) < TOLERANCE
 
-    def test_investment_with_capital_cost(self, simple_network):
-        """Test investment() returns capital_cost when overnight is not set."""
+    def test_overnight_cost_with_capital_cost(self, simple_network):
+        """Test overnight_cost() back-calculates from capital_cost."""
         n = simple_network
         capital_cost = 100
 
@@ -374,12 +366,13 @@ class TestStatisticsFunctions:
         n.add("Load", "load", bus="bus", p_set=50)
         n.optimize(solver_name=SOLVER_NAME)
 
-        investment = n.statistics.investment(groupby=False)
+        overnight = n.statistics.overnight_cost(groupby=False)
         capacity = n.c.generators.static.p_nom_opt.iloc[0]
-        expected = capacity * capital_cost
+        # When discount_rate is NaN, annuity_factor=1.0, so overnight = capital_cost / nyears
+        expected = capacity * capital_cost / n.nyears
 
-        assert not investment.empty
-        actual = investment.values.sum()
+        assert not overnight.empty
+        actual = overnight.values.sum()
         assert abs(actual - expected) < TOLERANCE
 
     def test_fom_calculation(self, simple_network):
@@ -487,8 +480,8 @@ class TestDeprecation:
 class TestComponentProperties:
     """Test new component properties for cost calculations."""
 
-    def test_investment_cost_with_overnight(self, simple_network):
-        """Test investment_cost property with overnight_cost."""
+    def test_overnight_cost_property_with_overnight(self, simple_network):
+        """Test overnight_cost property returns provided overnight_cost."""
         n = simple_network
         overnight_cost = 1000
         discount_rate = 0.07
@@ -503,19 +496,20 @@ class TestComponentProperties:
             lifetime=lifetime,
         )
 
-        inv_cost = n.c.generators.investment_cost.iloc[0]
-        expected = overnight_cost * annuity(discount_rate, lifetime) * n.nyears
-        assert abs(inv_cost - expected) < TOLERANCE
+        oc = n.c.generators.overnight_cost.iloc[0]
+        assert abs(oc - overnight_cost) < TOLERANCE
 
-    def test_investment_cost_with_capital(self, simple_network):
-        """Test investment_cost property with capital_cost only."""
+    def test_overnight_cost_property_with_capital(self, simple_network):
+        """Test overnight_cost property back-calculates from capital_cost."""
         n = simple_network
         capital_cost = 100
 
         n.add("Generator", "gen", bus="bus", capital_cost=capital_cost)
 
-        inv_cost = n.c.generators.investment_cost.iloc[0]
-        assert abs(inv_cost - capital_cost) < TOLERANCE
+        oc = n.c.generators.overnight_cost.iloc[0]
+        # When discount_rate is NaN, annuity_factor=1.0, so overnight = capital_cost / nyears
+        expected = capital_cost / n.nyears
+        assert abs(oc - expected) < TOLERANCE
 
     def test_annuity_property(self, simple_network):
         """Test annuity property returns correct factor."""
