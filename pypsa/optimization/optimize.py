@@ -136,13 +136,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if ext_i.empty:
             continue
 
-        periodic_cost = c.periodized_cost
-        if isinstance(periodic_cost.index, pd.MultiIndex):
-            name_level = "name" if "name" in periodic_cost.index.names else -1
-            mask = periodic_cost.index.get_level_values(name_level).isin(ext_i)
-            periodic_cost = periodic_cost.loc[mask]
-        else:
-            periodic_cost = periodic_cost.loc[ext_i]
+        periodic_cost = c.periodized_cost.sel(name=ext_i)
         if periodic_cost.size == 0:
             continue
 
@@ -152,17 +146,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             weighted_cost = 0
             for period in periods:
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                if isinstance(periodic_cost.index, pd.MultiIndex):
-                    periodic_cost_xa = periodic_cost.to_xarray()
-                else:
-                    periodic_cost_xa = periodic_cost
-                weighted_cost += (
-                    active * periodic_cost_xa * period_weighting.loc[period]
-                )
+                weighted_cost += active * periodic_cost * period_weighting.loc[period]
         else:
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            if isinstance(periodic_cost.index, pd.MultiIndex):
-                periodic_cost = periodic_cost.to_xarray()
             weighted_cost = active * periodic_cost
 
         terms.append((weighted_cost * nominal).sum(dim=["name"]))
@@ -261,31 +247,17 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if ext_i.empty:
             continue
 
-        periodic_cost = c.periodized_cost
-        if isinstance(periodic_cost.index, pd.MultiIndex):
-            name_level = "name" if "name" in periodic_cost.index.names else -1
-            mask = periodic_cost.index.get_level_values(name_level).isin(ext_i)
-            periodic_cost = periodic_cost.loc[mask]
-        else:
-            periodic_cost = periodic_cost.loc[ext_i]
-        if periodic_cost.size == 0 or np.all(periodic_cost.to_numpy() == 0):
+        periodic_cost = c.periodized_cost.sel(name=ext_i)
+        if periodic_cost.size == 0 or (periodic_cost == 0).all():
             continue
 
         if n._multi_invest:
             weighted_cost = 0
             for period in periods:
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                if isinstance(periodic_cost.index, pd.MultiIndex):
-                    periodic_cost_xa = periodic_cost.to_xarray()
-                else:
-                    periodic_cost_xa = periodic_cost
-                weighted_cost += (
-                    active * periodic_cost_xa * period_weighting.loc[period]
-                )
+                weighted_cost += active * periodic_cost * period_weighting.loc[period]
         else:
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            if isinstance(periodic_cost.index, pd.MultiIndex):
-                periodic_cost = periodic_cost.to_xarray()
             weighted_cost = active * periodic_cost
 
         caps = m[f"{c.name}-{attr}"].sel(name=ext_i)

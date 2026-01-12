@@ -352,15 +352,10 @@ class ComponentsArrayMixin(_ComponentsABC):
         return res
 
     @property
-    def periodized_cost(self) -> pd.Series:
-        """Calculate periodized cost from component attributes.
-
-        If overnight_cost is provided (not NaN), calculates annuity from overnight_cost
-        using discount_rate and lifetime. Otherwise uses capital_cost directly.
-        Adds fom_cost (fixed O&M) to the result.
-        """
+    def periodized_cost(self) -> xr.DataArray:
+        """Calculate periodized cost from component attributes as xarray DataArray."""
         static = self.static
-        return periodized_cost(
+        cost = periodized_cost(
             capital_cost=static["capital_cost"],
             overnight_cost=static["overnight_cost"],
             discount_rate=static["discount_rate"],
@@ -368,6 +363,10 @@ class ComponentsArrayMixin(_ComponentsABC):
             fom_cost=static.get("fom_cost", 0),
             nyears=self.nyears,
         )
+        da = xr.DataArray(cost)
+        if self.has_scenarios:
+            da = da.unstack().reindex(name=self.names, scenario=self.scenarios)
+        return da
 
     @property
     def capital_cost(self) -> pd.Series:
