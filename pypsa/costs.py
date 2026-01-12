@@ -154,6 +154,13 @@ def annuity_factor(
     return annuity(discount_rate, lifetime)
 
 
+def _has_overnight_cost(overnight_cost: float | pd.Series) -> bool:
+    """Check if any overnight cost values are provided (not NaN)."""
+    if isinstance(overnight_cost, pd.Series):
+        return overnight_cost.notna().any()
+    return not np.isnan(overnight_cost)
+
+
 def periodized_cost(
     capital_cost: T,
     overnight_cost: T,
@@ -187,56 +194,59 @@ def periodized_cost(
         horizon. Default None.
     nyears : float | pd.Series, optional
         Modeled time horizon in years. Used only to scale annuitized overnight costs.
-        If provided as a Series indexed by investment period, the result is returned
-        with a period index. Default 1.0.
+        If provided as a Series indexed by investment period, all values must be
+        identical when overnight_cost is used. Default 1.0.
 
     Returns
     -------
     float | pd.Series | pd.DataFrame
         Fixed cost per unit of capacity for the modeled horizon.
 
+    Raises
+    ------
+    ValueError
+        If overnight_cost is provided and nyears is a Series with varying values.
+
     """
+    periods_index = None
+    use_overnight = _has_overnight_cost(overnight_cost)
 
-    def _broadcast_periods(values: pd.Series, scale: bool) -> pd.DataFrame:
-        if scale:
-            data = np.outer(nyears.to_numpy(), values.to_numpy())
-        else:
-            data = np.tile(values.to_numpy(), (len(nyears), 1))
-        return pd.DataFrame(data, index=nyears.index, columns=values.index)
+    if isinstance(nyears, pd.Series):
+        periods_index = nyears.index
+        unique_vals = nyears.unique()
+        if len(unique_vals) == 1:
+            nyears = float(unique_vals[0])
+        elif use_overnight:
+            msg = (
+                "overnight_cost cannot be used when investment periods have "
+                "different durations (nyears). Provide capital_cost instead, "
+                "or use investment periods with equal duration."
+            )
+            raise ValueError(msg)
 
-    if isinstance(overnight_cost, pd.Series):
-        has_overnight = overnight_cost.notna()
-        ann_factor = annuity_factor(discount_rate, lifetime)
-        annuitized = overnight_cost * ann_factor
-        if isinstance(nyears, pd.Series):
-            annuitized_df = _broadcast_periods(annuitized, scale=True)
-            if isinstance(capital_cost, pd.Series):
-                capital_df = _broadcast_periods(capital_cost, scale=False)
-            else:
-                capital_df = pd.DataFrame(
-                    capital_cost,
-                    index=nyears.index,
-                    columns=annuitized.index,
-                )
-            if has_overnight.all():
-                base = annuitized_df
-            else:
-                base = annuitized_df.copy()
-                base.loc[:, ~has_overnight] = capital_df.loc[:, ~has_overnight]
+    def _broadcast_to_periods(values: pd.Series) -> pd.DataFrame:
+        return pd.DataFrame(
+            np.tile(values.to_numpy(), (len(periods_index), 1)),
+            index=periods_index,
+            columns=values.index,
+        )
+
+    if use_overnight:
+        if isinstance(overnight_cost, pd.Series):
+            has_overnight = overnight_cost.notna()
+            ann_factor = annuity_factor(discount_rate, lifetime)
+            annuitized = overnight_cost * ann_factor * nyears
+            base = annuitized.where(has_overnight, capital_cost)
         else:
-            base = (annuitized * nyears).where(has_overnight, capital_cost)
-    # Scalar case
-    elif np.isnan(overnight_cost):
-        if isinstance(nyears, pd.Series):
-            if isinstance(capital_cost, pd.Series):
-                base = _broadcast_periods(capital_cost, scale=False)
-            else:
-                base = pd.Series(capital_cost, index=nyears.index)
-        else:
-            base = capital_cost
+            base = overnight_cost * annuity_factor(discount_rate, lifetime) * nyears
     else:
-        annuitized = overnight_cost * annuity_factor(discount_rate, lifetime)
-        base = annuitized * nyears
+        base = capital_cost
+
+    if periods_index is not None:
+        if isinstance(base, pd.Series):
+            base = _broadcast_to_periods(base)
+        elif not isinstance(base, pd.DataFrame):
+            base = pd.Series(base, index=periods_index)
 
     if fom_cost is None:
         return base

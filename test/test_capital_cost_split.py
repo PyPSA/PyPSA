@@ -154,6 +154,53 @@ class TestCostsModule:
         expected = overnight / lifetime * 2.0  # Simple depreciation
         assert abs(result - expected) < TOLERANCE
 
+    def test_periodized_cost_uniform_nyears_series(self):
+        """Test periodized cost with uniform nyears Series (should collapse)."""
+        overnight = pd.Series([1000, 2000], index=["a", "b"])
+        nyears = pd.Series([1.0, 1.0], index=[2020, 2030])
+
+        result = periodized_cost(
+            capital_cost=pd.Series([0, 0], index=["a", "b"]),
+            overnight_cost=overnight,
+            discount_rate=0.07,
+            lifetime=25,
+            fom_cost=0,
+            nyears=nyears,
+        )
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape == (2, 2)
+
+    def test_periodized_cost_varying_nyears_raises(self):
+        """Test periodized cost raises error with varying nyears and overnight_cost."""
+        overnight = pd.Series([1000, 2000], index=["a", "b"])
+        nyears = pd.Series([1.0, 2.0], index=[2020, 2030])
+
+        with pytest.raises(ValueError, match="overnight_cost cannot be used"):
+            periodized_cost(
+                capital_cost=pd.Series([0, 0], index=["a", "b"]),
+                overnight_cost=overnight,
+                discount_rate=0.07,
+                lifetime=25,
+                fom_cost=0,
+                nyears=nyears,
+            )
+
+    def test_periodized_cost_varying_nyears_capital_ok(self):
+        """Test periodized cost with varying nyears works when using capital_cost."""
+        capital = pd.Series([100, 200], index=["a", "b"])
+        nyears = pd.Series([1.0, 2.0], index=[2020, 2030])
+
+        result = periodized_cost(
+            capital_cost=capital,
+            overnight_cost=np.nan,
+            discount_rate=np.nan,
+            lifetime=25,
+            fom_cost=0,
+            nyears=nyears,
+        )
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape == (2, 2)
+
 
 class TestBackwardCompatibility:
     """Tests for backward compatibility with existing capital_cost usage."""
