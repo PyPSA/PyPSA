@@ -23,6 +23,7 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Bug Fixes
 
 - Fix `pypsa.common.annuity` function to correctly handle discount rate of 0. (<!-- md:pr 1512 -->)
+- Fix NetCDF export corrupting dynamic attributes when DataFrames are directly assigned without proper column names. (<!-- md:issue 1522 -->)
 
 ### Minor improvements
 
