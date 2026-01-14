@@ -397,18 +397,18 @@ def define_operational_constraints_for_committables(
         max_pu_ext = max_pu.sel(name=com_ext_i)
 
         active_ext = active.sel(name=com_ext_i)
-        lhs_lower = (1, p_ext), (-min_pu_ext, p_nom_ext), (-M_values, status_ext)
+        lhs_lower_ext = (1, p_ext), (-min_pu_ext, p_nom_ext), (-M_values, status_ext)
         n.model.add_constraints(
-            lhs_lower,
+            lhs_lower_ext,
             ">=",
             -M_values,
             name=f"{c.name}-com-ext-p-lower",
             mask=active_ext,
         )
 
-        lhs_upper = (1, p_ext), (-M_values, status_ext)
+        lhs_upper_ext = (1, p_ext), (-M_values, status_ext)
         n.model.add_constraints(
-            lhs_upper,
+            lhs_upper_ext,
             "<=",
             0,
             name=f"{c.name}-com-ext-p-upper-bigM",
@@ -517,18 +517,18 @@ def define_operational_constraints_for_committables(
     if not initially_up_indices.empty:
         rhs.loc[sns[0], initially_up_indices] = -1
 
-    lhs_lower = start_up - status_diff
+    lhs = start_up - status_diff
     n.model.add_constraints(
-        lhs_lower, ">=", rhs, name=f"{c.name}-com-transition-start-up", mask=active
+        lhs, ">=", rhs, name=f"{c.name}-com-transition-start-up", mask=active
     )
 
     rhs = pd.DataFrame(0, sns, com_i)
     if not initially_up_indices.empty:
         rhs.loc[sns[0], initially_up_indices] = 1
 
-    lhs_lower = shut_down + status_diff
+    lhs = shut_down + status_diff
     n.model.add_constraints(
-        lhs_lower, ">=", rhs, name=f"{c.name}-com-transition-shut-down", mask=active
+        lhs, ">=", rhs, name=f"{c.name}-com-transition-shut-down", mask=active
     )
 
     # min up time
@@ -540,10 +540,10 @@ def define_operational_constraints_for_committables(
             # Retrieve the minimum up time value for generator g and convert it to a scalar
             up_time_value = min_up_time_set.sel(name=g).item()
             expr.append(su.rolling(snapshot=up_time_value).sum())
-        lhs_lower = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
-        lhs_lower = lhs_lower.sel(snapshot=sns[1:])
+        lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
+        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs_lower,
+            lhs,
             "<=",
             0,
             name=f"{c.name}-com-up-time",
@@ -560,10 +560,10 @@ def define_operational_constraints_for_committables(
                 {min_down_time_set.dims[0]: g}
             ).item()
             expr.append(su.rolling(snapshot=down_time_value).sum())
-        lhs_lower = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
-        lhs_lower = lhs_lower.sel(snapshot=sns[1:])
+        lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
+        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs_lower,
+            lhs,
             "<=",
             1,
             name=f"{c.name}-com-down-time",
@@ -620,14 +620,14 @@ def define_operational_constraints_for_committables(
         ramp_up_limit_ce = ramp_up_limit.loc[cost_equal]
         ramp_down_limit_ce = ramp_down_limit.loc[cost_equal]
 
-        lhs_lower = (
+        lhs = (
             p_ce.shift(snapshot=1)
             - ramp_shut_down_ce * status_ce.shift(snapshot=1)
             - (upper_p_ce - ramp_shut_down_ce) * (status_ce - start_up_ce)
         )
-        lhs_lower = lhs_lower.sel(snapshot=sns[1:])
+        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs_lower,
+            lhs,
             "<=",
             0,
             name=f"{c.name}-com-p-before",
@@ -635,14 +635,14 @@ def define_operational_constraints_for_committables(
         )
 
         # dispatch limit for partly start up/shut down for t
-        lhs_lower = (
+        lhs = (
             p_ce
             - upper_p_ce * status_ce
             + (upper_p_ce - ramp_start_up_ce) * start_up_ce
         )
-        lhs_lower = lhs_lower.sel(snapshot=sns[1:])
+        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs_lower,
+            lhs,
             "<=",
             0,
             name=f"{c.name}-com-p-current",
@@ -650,16 +650,16 @@ def define_operational_constraints_for_committables(
         )
 
         # ramp up if committable is only partly active and some capacity is starting up
-        lhs_lower = (
+        lhs = (
             p_ce
             - p_ce.shift(snapshot=1)
             - (lower_p_ce + ramp_up_limit_ce) * status_ce
             + lower_p_ce * status_ce.shift(snapshot=1)
             + (lower_p_ce + ramp_up_limit_ce - ramp_start_up_ce) * start_up_ce
         )
-        lhs_lower = lhs_lower.sel(snapshot=sns[1:])
+        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs_lower,
+            lhs,
             "<=",
             0,
             name=f"{c.name}-com-partly-start-up",
@@ -667,16 +667,16 @@ def define_operational_constraints_for_committables(
         )
 
         # ramp down if committable is only partly active and some capacity is shutting up
-        lhs_lower = (
+        lhs = (
             p_ce.shift(snapshot=1)
             - p_ce
             - ramp_shut_down_ce * status_ce.shift(snapshot=1)
             + (ramp_shut_down_ce - ramp_down_limit_ce) * status_ce
             - (lower_p_ce + ramp_down_limit_ce - ramp_shut_down_ce) * start_up_ce
         )
-        lhs_lower = lhs_lower.sel(snapshot=sns[1:])
+        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs_lower,
+            lhs,
             "<=",
             0,
             name=f"{c.name}-com-partly-shut-down",
