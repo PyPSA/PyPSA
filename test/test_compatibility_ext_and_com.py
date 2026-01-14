@@ -125,16 +125,22 @@ def test_compatibility_ext_and_comt():
 
     n.optimize(transmission_losses=1)
 
-    f_obj = (n.generators.static.p_nom_opt * n.generators.static.capital_cost).sum()
-    f_obj += (n.generators.dynamic.p * n.generators.static.marginal_cost).sum().sum()
+    f_obj = (n.c.generators.static.p_nom_opt * n.c.generators.static.capital_cost).sum()
     f_obj += (
-        (n.generators.dynamic.status * n.generators.static.stand_by_cost).sum().sum()
+        (n.c.generators.dynamic.p * n.c.generators.static.marginal_cost).sum().sum()
     )
     f_obj += (
-        (n.generators.dynamic.start_up * n.generators.static.start_up_cost).sum().sum()
+        (n.c.generators.dynamic.status * n.c.generators.static.stand_by_cost)
+        .sum()
+        .sum()
     )
     f_obj += (
-        (n.generators.dynamic.shut_down * n.generators.static.shut_down_cost)
+        (n.c.generators.dynamic.start_up * n.c.generators.static.start_up_cost)
+        .sum()
+        .sum()
+    )
+    f_obj += (
+        (n.c.generators.dynamic.shut_down * n.c.generators.static.shut_down_cost)
         .sum()
         .sum()
     )
@@ -170,9 +176,9 @@ def test_ext_and_com_single():
 
     n.optimize()
 
-    equal(n.generators.static.p_nom_opt["coal"], 6000)
+    equal(n.c.generators.static.p_nom_opt["coal"], 6000)
 
-    equal(n.generators.dynamic.status.to_numpy().flatten(), [20, 30, 0, 4])
+    equal(n.c.generators.dynamic.status.to_numpy().flatten(), [20, 30, 0, 4])
 
 
 def test_unit_commitment_mod():
@@ -217,11 +223,11 @@ def test_unit_commitment_mod():
 
     expected_status = np.array([[1, 1, 1, 0], [0, 0, 0, 1]], dtype=float).T
 
-    equal(n.generators.dynamic.status.values, expected_status)
+    equal(n.c.generators.dynamic.status.values, expected_status)
 
     expected_dispatch = np.array([[4000, 6000, 5000, 0], [0, 0, 0, 800]], dtype=float).T
 
-    equal(n.generators.dynamic.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 # Trivial + non-extendable, non-modular & committable
@@ -261,7 +267,7 @@ def test_com():
         [[0, 1000, 0, 800], [4000, 5000, 5000, 0]], dtype=float
     ).T
 
-    equal(n.generators.dynamic.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 # Trivial + non-extendable, modular & non-committable
@@ -305,7 +311,7 @@ def test_mod_com():
         [[0, 1000, 0, 20], [4000, 5000, 5000, 0]], dtype=float
     ).T
 
-    equal(n.generators.dynamic.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 # Trivial + extendable, non-modular & non-committable
@@ -352,7 +358,7 @@ def test_ext_mod():
         [[0, 1000, 0, 0], [4000, 5000, 5000, 800]], dtype=float
     ).T
 
-    equal(n.generators.dynamic.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 # Trivial + extendable, committable & modular
@@ -394,7 +400,7 @@ def test_ext_com_mod():
         [[0, 1000, 0, 20], [4000, 5000, 5000, 0]], dtype=float
     ).T
 
-    equal(n.generators.dynamic.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 # If we have com + ext + mod but p_nom is defined, p_nom should be ignored
@@ -432,7 +438,7 @@ def test_com_ext_mod_p_nom():
 
     expected_dispatch = np.array([[0, 0, 0, 0], [4000, 6000, 5000, 800]], dtype=float).T
 
-    equal(n.generators.dynamic.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 def test_p_nom_p_nom_mod():
