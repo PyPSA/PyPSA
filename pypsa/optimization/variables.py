@@ -81,7 +81,12 @@ def define_status_variables(
     is_integer = has_modular and not is_linearized
     is_binary = not has_modular and not is_linearized
 
-    kwargs = {"lower": 0} if has_modular else {}
+    if has_modular:
+        kwargs = {"lower": 0}  # Upper bound set by constraint
+    elif is_linearized:
+        kwargs = {"upper": 1, "lower": 0}  # Explicit bounds for LP relaxation
+    else:
+        kwargs = {}  # Binary variables handle bounds internally
     n.model.add_variables(
         coords=coords,
         name=f"{c.name}-status",
@@ -127,7 +132,12 @@ def define_start_up_variables(
     is_integer = has_modular and not is_linearized
     is_binary = not has_modular and not is_linearized
 
-    kwargs = {"lower": 0} if has_modular else {}
+    if has_modular:
+        kwargs = {"lower": 0}
+    elif is_linearized:
+        kwargs = {"upper": 1, "lower": 0}
+    else:
+        kwargs = {}
     n.model.add_variables(
         coords=coords,
         name=f"{c.name}-start_up",
@@ -173,7 +183,12 @@ def define_shut_down_variables(
     is_integer = has_modular and not is_linearized
     is_binary = not has_modular and not is_linearized
 
-    kwargs = {"lower": 0} if has_modular else {}
+    if has_modular:
+        kwargs = {"lower": 0}
+    elif is_linearized:
+        kwargs = {"upper": 1, "lower": 0}
+    else:
+        kwargs = {}
     n.model.add_variables(
         coords=coords,
         name=f"{c.name}-shut_down",
