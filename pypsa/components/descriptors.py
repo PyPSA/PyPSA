@@ -225,6 +225,63 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         else:
             return inactive.index
 
+    def filter_by_active_assets(
+        self,
+        data: pd.DataFrame | pd.Index,
+        investment_period: int | float | Sequence | None = None,  # noqa: PYI041
+    ) -> pd.DataFrame | pd.Index:
+        """Filter DataFrame or Index to only include active assets.
+
+        Parameters
+        ----------
+        data : pd.DataFrame | pd.Index
+            DataFrame or Index to filter. Must have a "name" level in its index.
+        investment_period : int | float | Sequence, optional
+            If provided, additionally filter by assets active in this
+            specific investment period(s). If a sequence is given, assets
+            active in any of the periods are included. NaN values are
+            treated as None (no period filtering).
+
+        Returns
+        -------
+        pd.DataFrame | pd.Index
+            Filtered DataFrame or Index with only active assets.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus")
+        >>> n.add("Generator", "g1", bus="bus")
+        >>> n.add("Generator", "g2", bus="bus", active=False)
+        >>> df = n.generators[['p_nom', 'bus']]
+        >>> n.components.generators.filter_by_active_assets(df)
+           p_nom  bus
+        name
+        g1     0.0  bus
+
+        """
+        # Normalize investment_period: NaN -> None, float -> int
+        if investment_period is not None and isinstance(investment_period, float):
+            if np.isnan(investment_period):
+                investment_period = None
+            else:
+                investment_period = int(investment_period)
+
+        if isinstance(data, pd.Index):
+            if investment_period is not None:
+                active = self.get_active_assets(investment_period)
+                return data[active.reindex(data, fill_value=False)]
+            return data.intersection(self.active_assets)
+
+        names = data.index.get_level_values("name").unique()
+        if investment_period is not None:
+            active = self.get_active_assets(investment_period)
+            names = names[active.reindex(names, fill_value=False)]
+        else:
+            names = names.intersection(self.active_assets)
+
+        return data[data.index.get_level_values("name").isin(names)]
+
     def get_activity_mask(
         self,
         sns: Sequence | None = None,

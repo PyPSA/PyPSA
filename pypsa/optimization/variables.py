@@ -223,8 +223,7 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
 
     """
     c = n.components[c_name]
-    mod_i = c.extendables.intersection(c.modulars)
-    mod_i = mod_i.difference(c.inactive_assets)
+    mod_i = c.extendables.intersection(c.modulars).difference(c.inactive_assets)
 
     if mod_i.empty:
         return
@@ -241,7 +240,7 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
         return
 
     upper = c.da.inflow.sel(name=c.active_assets, snapshot=sns)
-    if (upper.max() <= 0).all():
+    if upper.size == 0 or (upper.max() <= 0).all():
         return
 
     active = c.da.active.sel(snapshot=sns, name=c.active_assets)

@@ -24,6 +24,8 @@ open source and actively maintained. Below is a list of some known models.
 - **[:flag_gb: PyPSA-UK](https://github.com/ember-climate/pypsa-uk)**: United Kingdom power system model, maintained by [Ember](https://ember-energy.org/)
 - **[:flag_gb: PyPSA-GB](https://github.com/andrewlyden/PyPSA-GB)**: Great Britain power system model, maintained by the University of Edinburgh
 - **[:flag_gb: PyPSA-FES](https://github.com/centrefornetzero/pypsa-fes)**: Great Britain power system model, maintained by Octopus Energy's [Centre for Net Zero](https://www.centrefornetzero.org)
+- **[:flag_at: PyPSA-AT](https://github.com/AGGM-AG/pypsa-at)**: Austrian power and gas system model, maintained by [Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/en/)
+- **[:flag_eu: PyPSA-IEI](https://github.com/Fraunhofer-IEG/PyPSA-IEI)**: European energy system model, maintained by [Fraunhofer IEG](https://www.ieg.fraunhofer.de/en.html), [Fraunhofer ISI](https://www.isi.fraunhofer.de/en.html), and [d-fine](https://www.d-fine.com/en/)
 
 ### Asia
 - **[:flag_cn: PyPSA-China-PIK](https://github.com/pik-piam/PyPSA-China-PIK)**: Chinese power and heat sector-coupling model, maintained by [PIK](https://www.pik-potsdam.de) based on a [previous version](https://github.com/Xiaowei-Z/PyPSA-China)
@@ -32,10 +34,12 @@ open source and actively maintained. Below is a list of some known models.
 - **[:flag_jp: PyPSA-Japan](https://github.com/smdumlao/demandfingerprint/tree/main/papers/coaldecommissioning)**: Japanese power system model, developed by Samuel Matthew Dumlao
 - **[:flag_kz: PyPSA-Kazakhstan](https://github.com/pypsa-meets-earth/pypsa-kz-data)**: Kazakhstan power system model, developed by [Open Energy Transition ](https://www.openenergytransition.org/)
 - **[:earth_asia: TZ-APG](https://www.transitionzero.org/products/tz-asean-power-grid-model)**: ASEAN power system model, maintained by [TransitionZero](https://www.transitionzero.org/)
+- **[:earth_asia: PyPSA-ASEAN](https://github.com/pypsa-meets-earth/pypsa-asean)**: ASEAN power system model, developed by [pypsa-meets-earth](https://pypsa-meets-earth.github.io/)
 
 ### Americas
 - **[:flag_us: PyPSA-USA](https://github.com/pypsa/pypsa-usa)**: United States energy system model, maintained by Stanford University
 - **[:flag_br: PyPSA-Brazil](https://gitlab.com/dlr-ve/esy/open-brazil-energy-data/open-brazilian-energy-data)**: Brazilian power system model (see [paper](https://doi.org/10.1038/s41597-023-01992-9)), developed by the German Aerospace Center (DLR)
+- **[:flag_ca: PyPSA-BC](https://github.com/DeltaE/PyPSA_BC)**: BC PyPSA work for the PICS Decarbonization project, maintained by Simon Fraser University
 
 ### Africa
 - **[:flag_za: PyPSA-RSA](https://github.com/MeridianEconomics/pypsa-rsa)**: South-African electricity model, maintained by [Meridian Economics](https://meridianeconomics.co.za/)
@@ -55,6 +59,7 @@ open source and actively maintained. Below is a list of some known models.
 - Transport of chemical energy carriers to Germany [TRACE](https://github.com/euronion/trace)
 - Transmission grid optimisation [eTraGo](https://github.com/openego/eTraGo)
 - Distribution grid optimisation [dDisGo](https://github.com/openego/eDisGo)
+- Assessing national mid-/long-term energy scenarios using a least-cost, multi-sectoral optimisation approach [PyPSA-SPICE](https://github.com/agoenergy/pypsa-spice) and visualization, maintained by [Agora Energiewende](https://github.com/agoenergy)
 
 !!! tip "Add your model to the list"
     You know another open-source model based on PyPSA or are developing one? Please reach out to us via [GitHub](https://github.com/PyPSA/PyPSA) or [Discord](https://discord.gg/AnuJBk23FU) and we will add it to the list!

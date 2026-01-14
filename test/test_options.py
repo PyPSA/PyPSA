@@ -3,24 +3,15 @@
 # SPDX-License-Identifier: MIT
 
 import pytest
-from linopy import available_solvers
 
 import pypsa
 
+try:
+    import gurobipy  # noqa: F401
 
-def _can_use_gurobi():
-    """Check if gurobi is available and usable (not just installed)."""
-    if "gurobi" not in available_solvers:
-        return False
-    try:
-        import gurobipy
-
-        # Try to create an environment to check if license is available
-        with gurobipy.Env():
-            pass
-        return True
-    except Exception:
-        return False
+    gurobi_installed = True
+except ImportError:
+    gurobi_installed = False
 
 
 @pytest.fixture
@@ -262,9 +253,7 @@ def test_add_return_names_option():
     assert n.add("Bus", "bus6") is None  # Back to False
 
 
-@pytest.mark.skipif(
-    not _can_use_gurobi(), reason="Gurobi not available or license issue"
-)
+@pytest.mark.skipif(not gurobi_installed, reason="Gurobi not installed")
 def test_params_optimize():
     n = pypsa.examples.ac_dc_meshed()
 
