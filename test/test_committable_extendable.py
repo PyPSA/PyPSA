@@ -836,6 +836,135 @@ def test_single_snapshot():
     assert status == "ok"
 
 
+def test_committable_extendable_with_ramp_limits():
+    """Test committable+extendable generator with ramp limits.
+
+    Regression test for bug where ramp constraints for committable+extendable
+    generators used static p_nom (which is 0 for extendables), making the
+    ramp coefficients zero and causing infeasibility when load varies.
+
+    The fix ensures committable+extendable generators use extendable ramp
+    constraints (with p_nom_var) instead of committable ramp constraints
+    (with static p_nom).
+    """
+    n = pypsa.Network(snapshots=range(11))
+    n.add("Bus", "bus")
+
+    # Varying load that requires ramping
+    n.add(
+        "Load",
+        "load",
+        bus="bus",
+        p_set=[400, 600, 500, 500, 500, 500, 700, 450, 650, 550, 400],
+    )
+
+    # Committable + extendable generator with ramp limits
+    n.add(
+        "Generator",
+        "slow_baseload",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_max=800,
+        p_min_pu=0.3,
+        marginal_cost=30,
+        capital_cost=400,
+        ramp_limit_up=0.8,
+        ramp_limit_down=0.8,
+    )
+
+    # This should solve successfully (was infeasible before fix)
+    status, termination_code = n.optimize(solver_name="highs")
+
+    assert status == "ok", f"Optimization failed with status: {status}"
+
+    # Verify capacity was built
+    p_nom_opt = n.c["Generator"].static.loc["slow_baseload", "p_nom_opt"]
+    assert p_nom_opt > 0, "Should have built some capacity"
+
+    # Verify ramp constraints are respected
+    dispatch = n.c["Generator"].dynamic["p"]["slow_baseload"]
+    ramp_limit_up = n.c["Generator"].static.loc["slow_baseload", "ramp_limit_up"]
+    ramp_limit_down = n.c["Generator"].static.loc["slow_baseload", "ramp_limit_down"]
+
+    for t in range(1, len(dispatch)):
+        ramp = dispatch.iloc[t] - dispatch.iloc[t - 1]
+        max_ramp_up = ramp_limit_up * p_nom_opt
+        max_ramp_down = ramp_limit_down * p_nom_opt
+
+        assert ramp <= max_ramp_up + 1e-6, (
+            f"Ramp up at t={t} ({ramp:.2f}) exceeds limit ({max_ramp_up:.2f})"
+        )
+        assert ramp >= -max_ramp_down - 1e-6, (
+            f"Ramp down at t={t} ({ramp:.2f}) exceeds limit ({-max_ramp_down:.2f})"
+        )
+
+    # Verify power balance
+    total_load = sum([400, 600, 500, 500, 500, 500, 700, 450, 650, 550, 400])
+    total_generation = dispatch.sum()
+    assert abs(total_load - total_generation) < 1e-3, "Power balance violated"
+
+
+def test_committable_extendable_link_with_ramp_limits():
+    """Test committable+extendable link with ramp limits.
+
+    Same regression test as test_committable_extendable_with_ramp_limits
+    but for Link components.
+    """
+    n = pypsa.Network(snapshots=range(8))
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    n.add(
+        "Load",
+        "load",
+        bus="bus1",
+        p_set=[300, 500, 400, 600, 350, 550, 450, 300],
+    )
+
+    n.add(
+        "Generator",
+        "gen0",
+        bus="bus0",
+        p_nom=1000,
+        marginal_cost=10,
+    )
+
+    n.add(
+        "Link",
+        "ramp_link",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_max=800,
+        p_min_pu=0.2,
+        marginal_cost=5,
+        capital_cost=30000,
+        ramp_limit_up=0.5,
+        ramp_limit_down=0.5,
+    )
+
+    status, termination_code = n.optimize(solver_name="highs")
+
+    assert status == "ok", f"Optimization failed with status: {status}"
+
+    p_nom_opt = n.c["Link"].static.loc["ramp_link", "p_nom_opt"]
+    assert p_nom_opt > 0
+
+    dispatch = n.c["Link"].dynamic["p0"]["ramp_link"]
+    ramp_limit_up = n.c["Link"].static.loc["ramp_link", "ramp_limit_up"]
+    ramp_limit_down = n.c["Link"].static.loc["ramp_link", "ramp_limit_down"]
+
+    for t in range(1, len(dispatch)):
+        ramp = dispatch.iloc[t] - dispatch.iloc[t - 1]
+        max_ramp_up = ramp_limit_up * p_nom_opt
+        max_ramp_down = ramp_limit_down * p_nom_opt
+
+        assert ramp <= max_ramp_up + 1e-6
+        assert ramp >= -max_ramp_down - 1e-6
+
+
 def test_no_start_costs():
     """Test with zero startup/shutdown costs."""
     n = pypsa.Network()

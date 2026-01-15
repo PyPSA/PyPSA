@@ -933,6 +933,12 @@ def define_ramp_limit_constraints(
                 mask=mask,
             )
     # ----------------------------- Committable Components ----------------------------- #
+    # For committable+extendable (non-modular) components, skip committable ramp constraints.
+    # They are handled by the extendable section above with p_nom_var instead of static p_nom.
+    com_ext_non_mod = com_i.intersection(ext_i).difference(c.modulars)
+    com_i = com_i.difference(com_ext_non_mod)
+    original_com_i = com_i.copy()
+
     if not com_i.empty:
         # Redefine active mask over com_i and get parameters directly using component methods
         active_com = (
@@ -962,12 +968,12 @@ def define_ramp_limit_constraints(
             limit_up = p_nom_com * ramp_limit_up_com
 
             status = m[f"{c.name}-status"].sel(
-                snapshot=active_com.coords["snapshot"].values
+                snapshot=active_com.coords["snapshot"].values, name=com_i
             )
             status_prev = (
                 m[f"{c.name}-status"]
                 .shift(snapshot=1)
-                .sel(snapshot=active_com.coords["snapshot"].values)
+                .sel(snapshot=active_com.coords["snapshot"].values, name=com_i)
             )
 
             lhs = (
@@ -997,12 +1003,12 @@ def define_ramp_limit_constraints(
             limit_down = p_nom_com * ramp_limit_down_com
 
             status = m[f"{c.name}-status"].sel(
-                snapshot=active_com.coords["snapshot"].values
+                snapshot=active_com.coords["snapshot"].values, name=com_i
             )
             status_prev = (
                 m[f"{c.name}-status"]
                 .shift(snapshot=1)
-                .sel(snapshot=active_com.coords["snapshot"].values)
+                .sel(snapshot=active_com.coords["snapshot"].values, name=com_i)
             )
 
             lhs = (
