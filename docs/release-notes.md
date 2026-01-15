@@ -25,7 +25,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Enhanced statistics plotting for stochastic networks and network collections (<!-- md:pr 1401 -->):
     - Interactive bar plots ([`iplot.bar`][pypsa.plot.StatisticPlotter.bar]) aggregate scenarios with standard deviation error bars
     - Improved multi-level index handling with automatic grouping/faceting
-    
+
 - Add environment variable support for options via `PYPSA_*` prefix (e.g., `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi`). (<!-- md:pr 1513 -->)
 
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
