@@ -17,16 +17,18 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add environment variable support for options via `PYPSA_*` prefix (e.g., `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi`).
 
+## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
+
+### Enhancements
+
 - Add support for Python 3.14. Note that not all optional dependencies and solvers
   are available for Python 3.14 yet. (<!-- md:pr 1511 -->)
+- Speed up creating the model by avoiding some redundant checks. (<!-- md:pr 1515 -->)
 
 ### Bug Fixes
 
 - Fix `pypsa.common.annuity` function to correctly handle discount rate of 0. (<!-- md:pr 1512 -->)
-
-### Minor improvements
-
-- Speed up creating the model by avoiding some redundant checks. (<!-- md:pr 1515 -->)
+- Fix NetCDF export corrupting dynamic attributes when DataFrames are directly assigned without proper column names. (<!-- md:pr 1522 -->)
 
 ## [**v1.0.6**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.6) <small>22nd December 2025</small> { id="v1.0.6" }
 
