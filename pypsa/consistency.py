@@ -78,8 +78,9 @@ def check_for_unknown_buses(
         if missing.any():
             _log_or_raise(
                 strict,
-                "The following %s have buses which are not defined. Run n.sanitize()"
-                " to add them. Components with undefined buses:\n%s",
+                "The following %s have buses which are not defined. Add them using "
+                "n.add() or run n.sanitize() to add them automatically. Components "
+                "with undefined buses:\n%s",
                 component.list_name,
                 component.static.index[missing],
             )

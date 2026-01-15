@@ -258,10 +258,7 @@ class AbstractStatisticsAccessor(ABC):
         # Handle MultiIndex (Collection and Stochastic Networks)
         bus_carriers = n.c.buses.static.carrier
         if isinstance(bus_carriers.index, pd.MultiIndex):
-            bus_carriers = bus_carriers.droplevel(
-                list(range(bus_carriers.index.nlevels - 1))
-            )
-            bus_carriers = bus_carriers[~bus_carriers.index.duplicated()]
+            bus_carriers = bus_carriers.groupby(level="name").first()
 
         port_carriers = ports.map(bus_carriers)
         if isinstance(bus_carrier, str):
