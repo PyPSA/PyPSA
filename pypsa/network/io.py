@@ -1020,9 +1020,11 @@ class _ExporterNetCDF(_Exporter):
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save a dynamic components data."""
-        df = df.rename_axis(
-            index="snapshots", columns={"name": list_name + "_t_" + attr + "_i"}
-        )
+        new_col_name = list_name + "_t_" + attr + "_i"
+        if isinstance(df.columns, pd.MultiIndex):  # stochastic
+            df = df.rename_axis(index="snapshots", columns=["scenario", new_col_name])
+        else:
+            df = df.rename_axis(index="snapshots", columns=new_col_name)
         self.ds[list_name + "_t_" + attr] = df.stack(
             level=df.columns.names, future_stack=True
         ).to_xarray()
