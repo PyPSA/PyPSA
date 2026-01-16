@@ -105,7 +105,7 @@ jobs:
         uv pip install "$(ls dist/*.whl)"
 
     - name: Check Gurobi license
-      run: uv run gurobi_cl --license
+      run: uv run python -c "import gurobipy as gp; m = gp.Model(); print('Gurobi license OK')"
 
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
