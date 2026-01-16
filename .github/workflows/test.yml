@@ -60,9 +60,10 @@ jobs:
 
     steps:
     - name: Setup Gurobi WLS License
-      env:
-        GUROBI_LIC: ${{ secrets.GUROBI_LIC }}
-      run: echo "$GUROBI_LIC" > $HOME/gurobi.lic
+      shell: bash
+      run: |
+        echo "${{ secrets.GUROBI_LIC }}" > $HOME/gurobi.lic
+        echo "GRB_LICENSE_FILE=$HOME/gurobi.lic" >> $GITHUB_ENV
 
     - uses: actions/checkout@v6
       with:
@@ -161,9 +162,10 @@ jobs:
     steps:
 
     - name: Setup Gurobi WLS License
-      env:
-        GUROBI_LIC: ${{ secrets.GUROBI_LIC }}
-      run: echo "$GUROBI_LIC" > $HOME/gurobi.lic
+      shell: bash
+      run: |
+        echo "${{ secrets.GUROBI_LIC }}" > $HOME/gurobi.lic
+        echo "GRB_LICENSE_FILE=$HOME/gurobi.lic" >> $GITHUB_ENV
 
     - uses: actions/checkout@v6
       with:
