@@ -56,7 +56,14 @@ jobs:
 
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
+      PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME: gurobi
+
     steps:
+    - name: Setup Gurobi WLS License
+      run: |
+        echo "${{ secrets.GUROBI_LIC }}" > $HOME/gurobi.lic
+        export GRB_LICENSE_FILE=$HOME/gurobi.lic
+
     - uses: actions/checkout@v6
       with:
         fetch-depth: 0   # Needed for setuptools_scm
@@ -148,7 +155,16 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
 
+    env:
+      PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME: gurobi
+
     steps:
+
+    - name: Setup Gurobi WLS License
+      run: |
+        echo "${{ secrets.GUROBI_LIC }}" > $HOME/gurobi.lic
+        export GRB_LICENSE_FILE=$HOME/gurobi.lic
+
     - uses: actions/checkout@v6
       with:
         fetch-depth: 0   # Needed for setuptools_scm
