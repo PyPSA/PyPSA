@@ -64,6 +64,7 @@ jobs:
       run: |
         echo "${{ secrets.GUROBI_LIC }}" > $HOME/gurobi.lic
         echo "GRB_LICENSE_FILE=$HOME/gurobi.lic" >> $GITHUB_ENV
+        curl -s -o /dev/null -w "%{http_code}" https://token.gurobi.com:443 || true
 
     - uses: actions/checkout@v6
       with:
@@ -102,6 +103,9 @@ jobs:
         python -m pip install uv
         uv sync --extra dev --no-install-project
         uv pip install "$(ls dist/*.whl)"
+
+    - name: Check Gurobi license
+      run: gurobi_cl --license
 
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
