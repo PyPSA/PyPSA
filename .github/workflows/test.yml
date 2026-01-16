@@ -105,7 +105,7 @@ jobs:
         uv pip install "$(ls dist/*.whl)"
 
     - name: Check Gurobi license
-      run: gurobi_cl --license
+      run: uv run gurobi_cl --license
 
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
