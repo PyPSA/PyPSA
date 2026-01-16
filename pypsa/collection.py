@@ -329,6 +329,29 @@ class NetworkCollection:
         """
         return True
 
+    @property
+    def has_scenarios(self) -> bool:
+        """Check if any network in the collection has scenarios.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns
+        -------
+        bool
+            True if any member network has scenarios, False otherwise.
+
+        Examples
+        --------
+        >>> nc.has_scenarios
+        False
+
+        See Also
+        --------
+        [pypsa.Network.has_scenarios][]
+
+        """
+        return any(n.has_scenarios for n in self.networks)
+
     def get_network(self, collection: Any) -> Network:
         """Return a single network from the collection.
 

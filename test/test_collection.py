@@ -392,3 +392,40 @@ class TestCollectionComponents:
         )
         for key, value in dynamic_data.items():
             assert dynamic_data[key].equals(value)
+
+
+def test_has_scenarios_collection():
+    """Test has_scenarios property on NetworkCollection."""
+    # Create networks without scenarios
+    n1 = pypsa.Network()
+    n1.add("Bus", "bus1")
+    n1.add("Generator", "gen1", bus="bus1", carrier="wind")
+
+    n2 = pypsa.Network()
+    n2.add("Bus", "bus2")
+    n2.add("Generator", "gen2", bus="bus2", carrier="solar")
+
+    # Collection without scenarios
+    nc = pypsa.NetworkCollection([n1, n2], index=["net1", "net2"])
+    assert not nc.has_scenarios
+
+    # Create a stochastic network
+    n_stoch = pypsa.Network()
+    n_stoch.add("Bus", "bus1")
+    n_stoch.add("Generator", "gen1", bus="bus1", carrier="wind")
+    n_stoch.set_scenarios(["low", "high"])
+
+    # Collection with one stochastic network
+    nc_with_stoch = pypsa.NetworkCollection([n1, n_stoch], index=["net1", "net_stoch"])
+    assert nc_with_stoch.has_scenarios
+
+    # Collection with only stochastic networks
+    n_stoch2 = pypsa.Network()
+    n_stoch2.add("Bus", "bus2")
+    n_stoch2.add("Generator", "gen2", bus="bus2", carrier="solar")
+    n_stoch2.set_scenarios(["scenario_a", "scenario_b", "scenario_c"])
+
+    nc_all_stoch = pypsa.NetworkCollection(
+        [n_stoch, n_stoch2], index=["stoch1", "stoch2"]
+    )
+    assert nc_all_stoch.has_scenarios

@@ -5,13 +5,28 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-<!--## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Features
+
+- New network sanitization and data integrity features (<!-- md:pr 1401 -->):
+    - [`n.sanitize()`][pypsa.Network.sanitize]: Run the following methods to fix consistency issues.
+        - [`n.components.buses.add_missing_buses()`][pypsa.components.Buses.add_missing_buses]: Add buses referenced by components but not yet defined.
+        - [`n.components.carriers.add_missing_carriers()`][pypsa.components.Carriers.add_missing_carriers]: Add carriers used by components but not yet defined.
+        - [`n.components.carriers.assign_colors()`][pypsa.components.Carriers.assign_colors]: Assign colors to carriers using matplotlib palettes.
+        - [`c.unique_carriers`][pypsa.Components.unique_carriers]: Get all unique carrier values for a component.
+
+- Enhanced statistics plotting for stochastic networks and network collections (<!-- md:pr 1401 -->):
+    - Interactive bar plots ([`iplot.bar`][pypsa.plot.StatisticPlotter.bar]) aggregate scenarios with standard deviation error bars
+    - Improved multi-level index handling with automatic grouping/faceting
+
+- Add environment variable support for options via `PYPSA_*` prefix (e.g., `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi`). (<!-- md:pr 1513 -->)
 
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
 
@@ -31,7 +46,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
-- Add `stats` as a shorthand alias for the `statistics` accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
+- Add [`n.stats`][pypsa.Network.stats] as a shorthand alias for the [`n.statistics`][pypsa.Network.statistics] accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
 - Enable modular expansion option in stochastic optimization problems. (<!-- md:pr 1500 -->)
 
 ### Bug Fixes
