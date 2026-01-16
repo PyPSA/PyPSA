@@ -60,9 +60,7 @@ jobs:
 
     steps:
     - name: Setup Gurobi WLS License
-      run: |
-        echo "${{ secrets.GUROBI_LIC }}" > $HOME/gurobi.lic
-        export GRB_LICENSE_FILE=$HOME/gurobi.lic
+      run: echo "${{ secrets.GUROBI_LIC }}" > $HOME/gurobi.lic
 
     - uses: actions/checkout@v6
       with:
@@ -161,9 +159,7 @@ jobs:
     steps:
 
     - name: Setup Gurobi WLS License
-      run: |
-        echo "${{ secrets.GUROBI_LIC }}" > $HOME/gurobi.lic
-        export GRB_LICENSE_FILE=$HOME/gurobi.lic
+      run: echo "${{ secrets.GUROBI_LIC }}" > $HOME/gurobi.lic
 
     - uses: actions/checkout@v6
       with:
