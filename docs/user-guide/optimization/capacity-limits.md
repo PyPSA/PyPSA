@@ -41,6 +41,223 @@ If `{p,s,e}_nom_mod>0`, the nominal capacity is given by:
 These constraints are set in the function `define_modular_constraints()`.
 
 
+## Combined Formulations
+
+### Committable and Extendable Components
+
+When components are both **committable** (`committable=True`) and **extendable** (`p_nom_extendable=True`), the optimizer co-optimizes both capacity expansion and operational unit commitment decisions. This enables modeling scenarios where both the optimal capacity to build AND the on/off operational schedule must be determined simultaneously.
+
+#### Big-M Linearization
+
+The challenge when combining capacity expansion with unit commitment is that the upper bound on dispatch becomes nonlinear: $g_{n,s,t} \leq u_{n,s,t} \cdot G_{n,s}$ (the product of binary status $u$ and continuous capacity $G$). To maintain a Mixed-Integer Linear Programme (MILP), PyPSA uses a **big-M formulation** that replaces this nonlinear constraint with two linear constraints:
+
+=== "Generator"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $g_{n,s,t} \leq u_{n,s,t} \cdot M$ | `Generator-com-ext-p-upper-bigM` |
+    | $g_{n,s,t} \leq G_{n,s}$ | `Generator-com-ext-p-upper-cap` |
+    | $g_{n,s,t} \geq u_{n,s,t} \cdot \underline{g}_{n,s,t} \cdot M$ | `Generator-com-ext-p-lower` |
+    | $g_{n,s,t} \geq 0$ | `Generator-com-ext-p-lower-nonneg` |
+
+=== "Link"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $f_{l,t} \leq u_{l,t} \cdot M$ | `Link-com-ext-p-upper-bigM` |
+    | $f_{l,t} \leq F_{l}$ | `Link-com-ext-p-upper-cap` |
+    | $f_{l,t} \geq u_{l,t} \cdot \underline{f}_{l,t} \cdot M$ | `Link-com-ext-p-lower` |
+    | $f_{l,t} \geq 0$ | `Link-com-ext-p-lower-nonneg` |
+
+where $M$ is a sufficiently large constant (the "big-M"). When the status $u = 0$, the big-M constraint forces dispatch to zero. When $u = 1$, the dispatch is bounded by both $M$ and the capacity variable $G$ or $F$.
+
+#### Big-M Parameter Configuration
+
+The big-M constant must be large enough to not constrain the optimization, but not so large as to cause numerical issues. PyPSA automatically infers an appropriate value based on the network's peak load:
+
+$$M = 10 \times \max_t \left( \sum_n L_{n,t} \right)$$
+
+where $L_{n,t}$ is the load at bus $n$ and time $t$. The factor of 10 provides a safety margin.
+
+The big-M value can be manually overridden using:
+
+```python
+with pypsa.option_context("params.optimize.committable_big_m", value):
+    n.optimize()
+```
+
+!!! warning "Big-M Size Warning"
+
+    If the optimized capacity $G_{n,s}$ or $F_{l}$ exceeds the big-M value, PyPSA will issue a warning. In this case, increase the big-M value manually to ensure the formulation remains valid.
+
+#### Ramp Constraints for Extendable Committable Components
+
+For components that are both committable and extendable with ramp limits, the ramp constraints use the capacity variable $G_{n,s}$ or $F_{l}$ (not the fixed capacity $\hat{g}_{n,s}$ or $\hat{f}_{l}$):
+
+=== "Generator"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $(g_{n,s,t} - g_{n,s,t-1}) \geq -rd_{n,s,t} \cdot G_{n,s}$ | `Generator-ext-p-ramp_limit_down` |
+    | $(g_{n,s,t} - g_{n,s,t-1}) \leq ru_{n,s,t} \cdot G_{n,s}$ | `Generator-ext-p-ramp_limit_up` |
+
+=== "Link"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $(f_{l,t} - f_{l,t-1}) \geq -rd_{l,t} \cdot F_{l}$ | `Link-ext-p-ramp_limit_down` |
+    | $(f_{l,t} - f_{l,t-1}) \leq ru_{l,t} \cdot F_{l}$ | `Link-ext-p-ramp_limit_up` |
+
+These constraints are defined in the functions `define_operational_constraints_for_committables()` and `define_ramp_limit_constraints()`.
+
+??? note "Mapping of symbols to component attributes"
+
+    === "Generator"
+
+        | Symbol | Attribute | Type |
+        |-------------------|-----------|-------------|
+        | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
+        | $G_{n,s}$         | `n.generators.p_nom_opt` | Decision variable |
+        | $u_{n,s,t}$       | `n.generators_t.status` | Decision variable |
+        | $M$               | auto-inferred or `pypsa.options.params.optimize.committable_big_m` | Parameter |
+        | $\underline{g}_{n,s,t}$ | `n.generators_t.p_min_pu` | Parameter |
+        | $ru_{n,s,t}$      | `n.generators.ramp_limit_up` | Parameter |
+        | $rd_{n,s,t}$      | `n.generators.ramp_limit_down` | Parameter |
+
+    === "Link"
+
+        | Symbol | Attribute | Type |
+        |-------------------|-----------|-------------|
+        | $f_{l,t}$         | `n.links_t.p` | Decision variable |
+        | $F_{l}$           | `n.links.p_nom_opt` | Decision variable |
+        | $u_{l,t}$         | `n.links_t.status` | Decision variable |
+        | $M$               | auto-inferred or `pypsa.options.params.optimize.committable_big_m` | Parameter |
+        | $\underline{f}_{l,t}$ | `n.links_t.p_min_pu` | Parameter |
+        | $ru_{l,t}$        | `n.links.ramp_limit_up` | Parameter |
+        | $rd_{l,t}$        | `n.links.ramp_limit_down` | Parameter |
+
+
+### Modular and Committable Components
+
+When components have both **modularity** (`p_nom_mod > 0`) and **unit commitment** (`committable=True`), the formulation differs from the standard binary unit commitment. Instead of a binary on/off status variable, the status variable becomes an **integer** representing the **number of committed modules**.
+
+#### Module-Level Commitment Formulation
+
+For modular committable components, two integer variables are introduced:
+
+- $n^{\textrm{mod}}_{*}$: Number of modules built (determines total capacity)
+- $u_{*,t}$: Number of modules committed at time $t$ (determines operational state)
+
+The capacity is constrained to be a multiple of the module size:
+
+=== "Generator"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $G_{n,s} = n^{\textrm{mod}}_{n,s} \cdot \tilde{G}_{n,s}$ | `Generator-p_nom_modularity` |
+    | $0 \leq u_{n,s,t} \leq n^{\textrm{mod}}_{n,s}$ | `Generator-status-p_nom-variable-upper` |
+
+=== "Link"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $F_{l} = n^{\textrm{mod}}_{l} \cdot \tilde{F}_{l}$ | `Link-p_nom_modularity` |
+    | $0 \leq u_{l,t} \leq n^{\textrm{mod}}_{l}$ | `Link-status-p_nom-variable-upper` |
+
+The dispatch constraints enforce that power output respects the number of committed modules:
+
+=== "Generator"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $g_{n,s,t} \geq u_{n,s,t} \cdot \underline{g}_{n,s,t} \cdot \tilde{G}_{n,s}$ | `Generator-com-mod-p-lower` |
+    | $g_{n,s,t} \leq u_{n,s,t} \cdot \bar{g}_{n,s,t} \cdot \tilde{G}_{n,s}$ | `Generator-com-mod-p-upper` |
+
+=== "Link"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $f_{l,t} \geq u_{l,t} \cdot \underline{f}_{l,t} \cdot \tilde{F}_{l}$ | `Link-com-mod-p-lower` |
+    | $f_{l,t} \leq u_{l,t} \cdot \bar{f}_{l,t} \cdot \tilde{F}_{l}$ | `Link-com-mod-p-upper` |
+
+Note that the minimum and maximum part-load parameters ($\underline{g}$ and $\bar{g}$) apply **per committed module**, not to the total capacity.
+
+#### Start-up and Shut-down for Modular Components
+
+Start-up and shut-down variables track changes in the number of committed modules:
+
+=== "Generator"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $su_{n,s,t} \geq u_{n,s,t} - u_{n,s,t-1}$ | `Generator-com-transition-start-up` |
+    | $sd_{n,s,t} \geq u_{n,s,t-1} - u_{n,s,t}$ | `Generator-com-transition-shut-down` |
+
+=== "Link"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $su_{l,t} \geq u_{l,t} - u_{l,t-1}$ | `Link-com-transition-start-up` |
+    | $sd_{l,t} \geq u_{l,t-1} - u_{l,t}$ | `Link-com-transition-shut-down` |
+
+The start-up and shut-down cost terms in the objective function are multiplied by the number of modules being started or stopped.
+
+These constraints are defined in the function `define_operational_constraints_for_committables()`.
+
+??? note "Mapping of symbols to component attributes"
+
+    === "Generator"
+
+        | Symbol | Attribute | Type |
+        |-------------------|-----------|-------------|
+        | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
+        | $G_{n,s}$         | `n.generators.p_nom_opt` | Decision variable |
+        | $n^{\textrm{mod}}_{n,s}$ | `n.model.variables['Generator-n_mod']` | Decision variable |
+        | $u_{n,s,t}$       | `n.generators_t.status` | Decision variable (integer) |
+        | $su_{n,s,t}$      | `n.generators_t.start_up` | Decision variable (integer) |
+        | $sd_{n,s,t}$      | `n.generators_t.shut_down` | Decision variable (integer) |
+        | $\tilde{G}_{n,s}$ | `n.generators.p_nom_mod` | Parameter |
+        | $\underline{g}_{n,s,t}$ | `n.generators_t.p_min_pu` | Parameter |
+        | $\bar{g}_{n,s,t}$ | `n.generators_t.p_max_pu` | Parameter |
+
+    === "Link"
+
+        | Symbol | Attribute | Type |
+        |-------------------|-----------|-------------|
+        | $f_{l,t}$         | `n.links_t.p` | Decision variable |
+        | $F_{l}$           | `n.links.p_nom_opt` | Decision variable |
+        | $n^{\textrm{mod}}_{l}$ | `n.model.variables['Link-n_mod']` | Decision variable |
+        | $u_{l,t}$         | `n.links_t.status` | Decision variable (integer) |
+        | $su_{l,t}$        | `n.links_t.start_up` | Decision variable (integer) |
+        | $sd_{l,t}$        | `n.links_t.shut_down` | Decision variable (integer) |
+        | $\tilde{F}_{l}$   | `n.links.p_nom_mod` | Parameter |
+        | $\underline{f}_{l,t}$ | `n.links_t.p_min_pu` | Parameter |
+        | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu` | Parameter |
+
+
+### Compatibility with Unit Commitment Features
+
+The following table summarizes which unit commitment features are compatible with the combined formulations:
+
+| Feature | Committable + Extendable (Big-M) | Modular + Committable |
+|---------|----------------------------------|----------------------|
+| Start-up costs | ✓ | ✓ |
+| Shut-down costs | ✓ | ✓ |
+| Minimum part-load (`p_min_pu`) | ✓ | ✓ (per module)¹ |
+| Ramp limits (`ramp_limit_up/down`) | ✓ | ✓² |
+| Stand-by costs | ✓ | ✓ |
+| Minimum up time (`min_up_time`) | ✓ | ✗ |
+| Minimum down time (`min_down_time`) | ✓ | ✗ |
+| Up time before (`up_time_before`) | ✓ | ✗ |
+| Down time before (`down_time_before`) | ✓ | ✗ |
+
+---
+
+¹ For modular components, `p_min_pu` and `p_max_pu` apply to **each committed module**. The minimum/maximum power is calculated as `p_min_pu × p_nom_mod × status` where `status` is the number of committed modules.
+
+² For modular + committable components, ramp limits are applied to the **total installed capacity** (similar to standard committable components), not per module. The ramp constraint is `p_t - p_{t-1} ≤ ramp_limit_up × p_nom_opt`, where `p_nom_opt` is the total capacity of all installed modules. This differs from the per-module behavior of minimum/maximum part-load constraints.
+
+
 ## Fixed Capacity
 
 Additionally, the nominal capacity can be fixed to a certain value $\tilde{G}_{n,s}$ for generators, $\tilde{F}_{l}$ for links, $\tilde{P}_{l}$ for lines and transformers, and $\tilde{E}_{n,s}$ for stores, and $\tilde{H}_{n,s}$ for storage units. In this case, the nominal capacity is given by:
@@ -143,5 +360,25 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
     decisions considering predefined unit sizes.
 
     [:octicons-arrow-right-24: Go to example](../../examples/modular-expansion.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Committable and Extendable Components**
+
+    ---
+
+    Co-optimize capacity expansion and unit commitment using big-M linearization.
+    Demonstrates continuous capacity decisions with start-up/shut-down costs,
+    ramp limits, and minimum load constraints.
+
+    [:octicons-arrow-right-24: Go to example](../../examples/committable-extendable.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Modular and Committable Components**
+
+    ---
+
+    Model discrete capacity blocks with unit commitment where status represents
+    the number of committed modules. Shows modular gas turbines, HVDC links,
+    and multi-module operational dynamics.
+
+    [:octicons-arrow-right-24: Go to example](../../examples/modular-committable.ipynb)
 
 </div>
