@@ -354,6 +354,47 @@ def test_collection_init_empty_string():
     assert isinstance(collection.networks.iloc[0], pypsa.Network)
 
 
+def test_collection_init_with_pathlib_path():
+    """Test initialization with pathlib.Path objects."""
+    from pathlib import Path
+
+    # Use existing example networks
+    path1 = Path("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
+    path2 = Path("examples/networks/storage-hvdc/storage-hvdc.nc")
+
+    # Test with list of Path objects
+    collection = pypsa.NetworkCollection([path1, path2])
+    assert len(collection) == 2
+    assert all(isinstance(n, pypsa.Network) for n in collection.networks)
+
+    # Test with pandas Series containing Path objects
+    networks_series = pd.Series([path1, path2], index=["net1", "net2"])
+    collection_series = pypsa.NetworkCollection(networks_series)
+    assert len(collection_series) == 2
+    assert all(isinstance(n, pypsa.Network) for n in collection_series.networks)
+
+
+def test_collection_init_mixed_networks_strings_and_paths(network1):
+    """Test initialization with mixed Network objects, strings, and Path objects."""
+    from pathlib import Path
+
+    network1.name = "manual_net"
+
+    # Use existing example networks
+    path_net = Path("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
+    str_net = "examples/networks/storage-hvdc/storage-hvdc.nc"
+
+    # Test with mixed list of Network and Path
+    collection = pypsa.NetworkCollection([network1, path_net])
+    assert len(collection) == 2
+    assert all(isinstance(n, pypsa.Network) for n in collection.networks)
+    assert collection["manual_net"] == network1
+
+    # Test with mixed list using string path as well
+    collection_mixed = pypsa.NetworkCollection([network1, str_net])
+    assert len(collection_mixed) == 2
+
+
 class TestCollectionComponents:
     """Test the components property of NetworkCollection."""
 

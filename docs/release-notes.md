@@ -27,6 +27,7 @@ SPDX-License-Identifier: CC-BY-4.0
     - Improved multi-level index handling with automatic grouping/faceting
 
 - Add environment variable support for options via `PYPSA_*` prefix (e.g., `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi`). (<!-- md:pr 1513 -->)
+- Add support for pathlike arguments in NetworkCollection initialization.
 
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
 
