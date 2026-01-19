@@ -60,6 +60,7 @@ cartopy = ["cartopy>=0.16"]
 excel = ["openpyxl", "python-calamine"]
 gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
+dotenv = ["python-dotenv"]
 dev = [
     "pytest",
     "pytest-cov",

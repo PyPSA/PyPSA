@@ -419,3 +419,19 @@ def test_option_priority(monkeypatch):
 
     monkeypatch.delenv("PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME")
     importlib.reload(_options)
+
+
+def test_dotenv_loading(monkeypatch, tmp_path):
+    """Test loading options from a .env file."""
+    (tmp_path / ".env").write_text("PYPSA_PARAMS__STATISTICS__ROUND=7\n")
+    monkeypatch.chdir(tmp_path)
+
+    from pypsa import _options
+
+    importlib.reload(_options)
+    assert _options.options.params.statistics.round == 7
+
+    # Env var should override .env value
+    monkeypatch.setenv("PYPSA_PARAMS__STATISTICS__ROUND", "3")
+    importlib.reload(_options)
+    assert _options.options.params.statistics.round == 3

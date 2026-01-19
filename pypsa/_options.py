@@ -498,5 +498,16 @@ options._add_option(
     "performance and should not be used in production.",
 )
 
+# Load environment variables from .env file if python-dotenv is installed
+try:
+    from dotenv import find_dotenv, load_dotenv
+
+    dotenv_path = find_dotenv(usecwd=True)
+    if dotenv_path:
+        load_dotenv(dotenv_path, override=False)
+        logger.debug("Loaded environment variables from '%s'", dotenv_path)
+except ImportError:
+    pass
+
 # Load options from environment variables
 options._load_from_env()
