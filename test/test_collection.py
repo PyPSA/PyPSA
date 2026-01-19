@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -309,8 +311,8 @@ def test_collection_repr(network1, network2, network3):
     assert "... and 5 more" in repr_str
 
 
-def test_collection_init_with_strings():
-    """Test initialization with string paths."""
+def test_collection_init_with_paths():
+    """Test initialization with string paths and Path objects."""
     # Use example networks from the examples directory
     example_path1 = "examples/networks/ac-dc-meshed/ac-dc-meshed.nc"
     example_path2 = "examples/networks/scigrid-de/scigrid-de.nc"
@@ -325,6 +327,18 @@ def test_collection_init_with_strings():
     collection_series = pypsa.NetworkCollection(networks_series)
     assert len(collection_series) == 2
     assert all(isinstance(n, pypsa.Network) for n in collection_series.networks)
+
+    # Test with list of Path objects
+    path1 = Path(example_path1)
+    path2 = Path(example_path2)
+    collection_paths = pypsa.NetworkCollection([path1, path2])
+    assert len(collection_paths) == 2
+    assert all(isinstance(n, pypsa.Network) for n in collection_paths.networks)
+
+    # Test with mixed Path objects and strings
+    collection_mixed = pypsa.NetworkCollection([path1, example_path2])
+    assert len(collection_mixed) == 2
+    assert all(isinstance(n, pypsa.Network) for n in collection_mixed.networks)
 
 
 def test_collection_init_mixed_networks_and_strings(network1):

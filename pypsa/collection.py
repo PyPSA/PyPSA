@@ -9,6 +9,11 @@ import re
 from collections.abc import Callable, Iterator, Sequence
 from typing import Any
 
+try:
+    from cloudpathlib import AnyPath as Path
+except ImportError:
+    from pathlib import Path
+
 import pandas as pd
 
 from pypsa._options import options
@@ -129,17 +134,16 @@ class NetworkCollection:
 
     def __init__(
         self,
-        networks: pd.Series | Sequence[Network | str],
+        networks: pd.Series | Sequence[Network | str | Path],
         index: pd.Index | pd.MultiIndex | Sequence | None = None,
     ) -> None:
         """Initialize the NetworkCollection with one or more networks.
 
         Parameters
         ----------
-        networks : pd.Series | Sequence[Network | str]
-            Sequence or pd.Series of Network objects or strings (file paths/ urls) to
-            include in the collection. If strings are provided, they will be passed to
-            pypsa.Network() to create Network objects.
+        networks : pd.Series | Sequence[Network | str | Path]
+            Sequence or pd.Series of Network objects or paths (anything that can
+            be passed to pypsa.Network()) to include in the collection.
         index : pd.Index, pd.MultiIndex, Sequence, or None, optional
             The index to use for the collection. If `networks` is of type `pd.Series`,
             no index is allowed and it will be retrieved from the Series. If None, a
@@ -161,10 +165,10 @@ class NetworkCollection:
         def _convert_to_network(item: Any) -> Network:
             if isinstance(item, Network):
                 return item
-            elif isinstance(item, str):
+            elif isinstance(item, str | Path):
                 return Network(item)
             else:
-                msg = f"All values must be PyPSA Network objects or strings, got {type(item)}."
+                msg = f"All values must be PyPSA Network objects, strings, or pathlib Path, got {type(item)}."
                 raise TypeError(msg)
 
         if isinstance(networks, pd.Series):
