@@ -27,6 +27,7 @@ from pypsa.plot.maps.common import (
     as_branch_series,
     calculate_angle,
     calculate_midpoint,
+    convert_matplotlib_color_to_plotly,
     create_rgba_colors,
     df_to_html_table,
     feature_to_geojson,
@@ -47,7 +48,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-
 
 _token_required_mb_styles = [
     "basic",
@@ -213,6 +213,8 @@ def iplot(
         x = x + rng.uniform(low=-jitter, high=jitter, size=len(x))
         y = y + rng.uniform(low=-jitter, high=jitter, size=len(y))
 
+    bus_color_plotly = convert_matplotlib_color_to_plotly(bus_color)
+
     bus_trace = {
         "x": x,
         "y": y,
@@ -221,7 +223,7 @@ def iplot(
         "mode": "markers",
         "hoverinfo": "text",
         "opacity": bus_alpha,
-        "marker": {"color": bus_color, "size": bus_size},
+        "marker": {"color": bus_color_plotly, "size": bus_size},
     }
 
     if bus_cmap is not None:
@@ -234,9 +236,9 @@ def iplot(
         branch_components = n.branch_components
 
     branch_color = {
-        "Line": line_color,
-        "Link": link_color,
-        "Transformer": transformer_color,
+        "Line": convert_matplotlib_color_to_plotly(line_color),
+        "Link": convert_matplotlib_color_to_plotly(link_color),
+        "Transformer": convert_matplotlib_color_to_plotly(transformer_color),
     }
     branch_width = {
         "Line": line_width,
