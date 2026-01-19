@@ -466,10 +466,9 @@ options._add_option(
 options._add_option(
     "params.optimize.include_objective_constant",
     None,
-    "Whether to include the objective constant (capital costs of existing\n\t"
-    "infrastructure) as a variable in the objective function. Setting to False\n\t"
-    "improves LP numerical conditioning. If None, a FutureWarning is raised\n\t"
-    "indicating that the default will change from True to False in version 2.0.",
+    "Include capital costs of existing capacity on extendable assets in the objective. "
+    "Setting False sets n.objective_constant to zero and improves LP numerical "
+    "conditioning. None defaults to True with a FutureWarning (changes to False in v2.0).",
 )
 
 # Warnings category

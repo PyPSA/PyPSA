@@ -473,8 +473,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant : bool | None, default None
             Whether to include the objective constant (capital costs of existing
             infrastructure) as a variable in the objective function. Setting to False
-            improves LP numerical conditioning. If None, uses the value from
-            `pypsa.options.params.optimize.include_objective_constant`.
+            improves LP numerical conditioning. Defaults to module wide option. See
+            `pypsa.options.params.optimize.describe()` for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -567,8 +567,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant : bool | None, default: None
             Whether to include the objective constant (capital costs of existing
             infrastructure) as a variable in the objective function. Setting to False
-            improves LP numerical conditioning. If None, uses the value from
-            `pypsa.options.params.optimize.include_objective_constant`.
+            improves LP numerical conditioning. Defaults to module wide option. See
+            `pypsa.options.params.optimize.describe()` for more information.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 

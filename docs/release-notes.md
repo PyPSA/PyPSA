@@ -27,7 +27,7 @@ SPDX-License-Identifier: CC-BY-4.0
     - Improved multi-level index handling with automatic grouping/faceting
 
 - Add environment variable support for options via `PYPSA_*` prefix (e.g., `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi`). (<!-- md:pr 1513 -->)
-- Add `include_objective_constant` parameter to `n.optimize()` and `n.optimize.create_model()` to control whether the objective constant (capital costs of existing infrastructure) is included as a variable in the objective function and assigned to the network. Setting to `False` sets `n.objective_constant` to zero and improves LP numerical conditioning. The default will change from `True` to `False` in version 2.0. Can also be configured via `pypsa.options.params.optimize.include_objective_constant`. (<!-- md:pr 1509 -->)
+- In version 2.0, capital costs of existing capacity on extendable assets will no longer be included in the objective by default (`n.objective_constant` will be set to zero), which improves LP numerical conditioning. A `FutureWarning` is now raised to announce this change. A new `include_objective_constant` parameter was added to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] and [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] to allow controlling this behavior and opt-in to the new default. Can also be configured via `pypsa.options.params.optimize.include_objective_constant` (see <!-- md:guide options.md -->). (<!-- md:pr 1509 -->)
 
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
 
