@@ -530,3 +530,42 @@ class TestSegmentFunctionality:
         assert isinstance(result, TemporalClustering)
         assert isinstance(result.n, pypsa.Network)
         assert isinstance(result.snapshot_map, pd.Series)
+
+
+class TestStochasticNotSupported:
+    """Temporal clustering should raise error for stochastic networks."""
+
+    @pytest.fixture
+    def stochastic_network(self):
+        """Create a simple stochastic network."""
+        n = pypsa.Network()
+        n.set_snapshots(pd.date_range("2021-01-01", periods=24, freq="h"))
+        n.set_scenarios(low=0.5, high=0.5)
+
+        n.add("Bus", "bus0")
+        n.add("Generator", "gen0", bus="bus0", p_nom=100)
+        n.add("Load", "load0", bus="bus0", p_set=50)
+
+        return n
+
+    def test_resample_stochastic_raises(self, stochastic_network):
+        with pytest.raises(NotImplementedError, match="stochastic networks"):
+            resample(stochastic_network, "3h")
+
+    def test_downsample_stochastic_raises(self, stochastic_network):
+        with pytest.raises(NotImplementedError, match="stochastic networks"):
+            downsample(stochastic_network, 4)
+
+    def test_segment_stochastic_raises(self, stochastic_network):
+        pytest.importorskip("tsam")
+        from pypsa.clustering.temporal import segment
+
+        with pytest.raises(NotImplementedError, match="stochastic networks"):
+            segment(stochastic_network, 10)
+
+    def test_from_snapshot_map_stochastic_raises(self, stochastic_network):
+        snapshot_map = pd.Series(
+            stochastic_network.snapshots[0], index=stochastic_network.snapshots
+        )
+        with pytest.raises(NotImplementedError, match="stochastic networks"):
+            from_snapshot_map(stochastic_network, snapshot_map)

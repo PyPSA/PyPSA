@@ -41,6 +41,13 @@ def _warn_if_solved(n: Network) -> None:
         )
 
 
+def _check_no_scenarios(n: Network) -> None:
+    """Raise error if network has scenarios (stochastic)."""
+    if n.has_scenarios:
+        msg = "Temporal clustering does not yet support stochastic networks."
+        raise NotImplementedError(msg)
+
+
 HOURS_PER_YEAR = 8760
 
 TEMPORAL_AGGREGATION_DEFAULTS: dict[str, str] = {
@@ -202,6 +209,7 @@ def resample(
 
     """
     _warn_if_solved(n)
+    _check_no_scenarios(n)
 
     if not isinstance(n.snapshots, pd.DatetimeIndex) and not n.has_periods:
         msg = "resample() requires snapshots to be a DatetimeIndex"
@@ -433,6 +441,7 @@ def downsample(
 
     """
     _warn_if_solved(n)
+    _check_no_scenarios(n)
 
     if stride < 1:
         msg = f"stride must be >= 1, got {stride}"
@@ -510,6 +519,7 @@ def segment(
 
     """
     _warn_if_solved(n)
+    _check_no_scenarios(n)
 
     if num_segments < 1:
         msg = f"num_segments must be >= 1, got {num_segments}"
@@ -643,6 +653,7 @@ def from_snapshot_map(
 
     """
     _warn_if_solved(n)
+    _check_no_scenarios(n)
 
     if isinstance(snapshot_map, pd.DataFrame):
         snapshot_map_series = snapshot_map.iloc[:, 0]
