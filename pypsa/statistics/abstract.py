@@ -254,9 +254,15 @@ class AbstractStatisticsAccessor(ABC):
 
         idx = self._get_component_index(obj, c)
         ports = n.c[c].static.loc[idx, f"bus{port}"]
-        port_carriers = ports.map(n.c.buses.static.carrier)
+
+        # Handle MultiIndex (Collection and Stochastic Networks)
+        bus_carriers = n.c.buses.static.carrier
+        if isinstance(bus_carriers.index, pd.MultiIndex):
+            bus_carriers = bus_carriers.groupby(level="name").first()
+
+        port_carriers = ports.map(bus_carriers)
         if isinstance(bus_carrier, str):
-            if bus_carrier in n.c.buses.static.carrier.unique():
+            if bus_carrier in bus_carriers.unique():
                 mask = port_carriers == bus_carrier
             else:
                 mask = port_carriers.str.contains(bus_carrier, regex=True)

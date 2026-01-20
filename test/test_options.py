@@ -2,9 +2,45 @@
 #
 # SPDX-License-Identifier: MIT
 
+import importlib
+
 import pytest
 
 import pypsa
+
+try:
+    import gurobipy  # noqa: F401
+
+    gurobi_installed = True
+except ImportError:
+    gurobi_installed = False
+
+
+@pytest.fixture(autouse=True)
+def restore_options_module():
+    """Restore _options module state after tests that use importlib.reload.
+
+    This fixture re-imports _options after each test and updates all module
+    references to ensure consistent state.
+    """
+    import sys
+
+    yield
+    from pypsa import _options
+
+    importlib.reload(_options)
+
+    # Update pypsa's references to the fresh options
+    pypsa.options = _options.options
+    pypsa.get_option = _options.options.get_option
+    pypsa.set_option = _options.options.set_option
+    pypsa.reset_option = _options.options.reset_option
+    pypsa.option_context = _options.option_context
+
+    # Update all pypsa modules that have an 'options' attribute
+    for mod_name, mod in sys.modules.items():
+        if mod_name.startswith("pypsa.") and hasattr(mod, "options"):
+            mod.options = _options.options
 
 
 @pytest.fixture
@@ -246,6 +282,7 @@ def test_add_return_names_option():
     assert n.add("Bus", "bus6") is None  # Back to False
 
 
+@pytest.mark.skipif(not gurobi_installed, reason="Gurobi not installed")
 def test_params_optimize():
     n = pypsa.examples.ac_dc_meshed()
 
@@ -263,3 +300,122 @@ def test_params_optimize():
         n.optimize.create_model()
         n.optimize.solve_model()
         assert n.model.solver_name == "gurobi"
+
+
+@pytest.mark.parametrize(
+    ("env_var", "env_value", "option_path", "expected"),
+    [
+        # String
+        (
+            "PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME",
+            "gurobi",
+            "params.optimize.solver_name",
+            "gurobi",
+        ),
+        # Booleans
+        (
+            "PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS",
+            "true",
+            "general.allow_network_requests",
+            True,
+        ),
+        (
+            "PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS",
+            "false",
+            "general.allow_network_requests",
+            False,
+        ),
+        (
+            "PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS",
+            "1",
+            "general.allow_network_requests",
+            True,
+        ),
+        (
+            "PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS",
+            "0",
+            "general.allow_network_requests",
+            False,
+        ),
+        (
+            "PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS",
+            "TRUE",
+            "general.allow_network_requests",
+            True,
+        ),
+        (
+            "PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS",
+            "FALSE",
+            "general.allow_network_requests",
+            False,
+        ),
+        # Integer
+        ("PYPSA_PARAMS__STATISTICS__ROUND", "3", "params.statistics.round", 3),
+        # Dict
+        (
+            "PYPSA_PARAMS__OPTIMIZE__SOLVER_OPTIONS",
+            "{'threads': 4}",
+            "params.optimize.solver_options",
+            {"threads": 4},
+        ),
+        # Malformed dict falls back to string
+        (
+            "PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME",
+            "{'threads': 4",
+            "params.optimize.solver_name",
+            "{'threads': 4",
+        ),
+    ],
+)
+def test_env_var_parsing(monkeypatch, env_var, env_value, option_path, expected):
+    """Test parsing of a couple of different environment variables."""
+    import importlib
+
+    from pypsa import _options
+
+    monkeypatch.setenv(env_var, env_value)
+    importlib.reload(_options)
+
+    assert _options.options.get_option(option_path) == expected
+
+    monkeypatch.delenv(env_var)
+    importlib.reload(_options)
+
+
+def test_invalid_env_var_warns(monkeypatch, caplog):
+    """Test that invalid env vars log a warning."""
+    import importlib
+    import logging
+
+    from pypsa import _options
+
+    monkeypatch.setenv("PYPSA_INVALID__OPTION", "value")
+
+    with caplog.at_level(logging.WARNING):
+        importlib.reload(_options)
+
+    assert "Unknown option" in caplog.text
+
+    monkeypatch.delenv("PYPSA_INVALID__OPTION")
+    importlib.reload(_options)
+
+
+def test_option_priority(monkeypatch):
+    """Test that priority holds: function args > runtime > env vars > defaults."""
+    import importlib
+
+    from pypsa import _options
+
+    assert _options.options.params.optimize.solver_name == "highs"
+
+    # Env var overrides default
+    monkeypatch.setenv("PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME", "gurobi")
+    importlib.reload(_options)
+    assert _options.options.params.optimize.solver_name == "gurobi"
+
+    # Runtime overrides env var
+    _options.options.set_option("params.optimize.solver_name", "cplex")
+    assert _options.options.params.optimize.solver_name == "cplex"
+
+    monkeypatch.delenv("PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME")
+    importlib.reload(_options)
