@@ -777,8 +777,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            col = n.c[c].static.eval(f"{nominal_attrs[c]} * {cost_attribute}")
-            return col
+            nom_attr = nominal_attrs[c]
+            static = n.c[c].static
+            # For extendable components, use p_nom_min since p_nom is ignored
+            # For non-extendable, use p_nom
+            ext_attr = f"{nom_attr}_extendable"
+            if ext_attr in static.columns:
+                is_ext = static[ext_attr]
+                nom = static[nom_attr].where(~is_ext, static[f"{nom_attr}_min"])
+            else:
+                nom = static[nom_attr]
+            return nom * static[cost_attribute]
 
         df = self._aggregate_components(
             func,
