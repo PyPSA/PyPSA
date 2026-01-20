@@ -336,10 +336,49 @@ class TestEdgeCases:
         assert len(result.n.snapshots) == 1
         assert np.isclose(result.n.snapshot_weightings["objective"].iloc[0], 168)
 
-    def test_downsample_multiperiod_raises(self, multiperiod_network):
+    def test_downsample_multiperiod(self, multiperiod_network):
         n = multiperiod_network
-        with pytest.raises(NotImplementedError, match="does not yet support"):
-            downsample(n, 4)
+        original_hours = n.snapshot_weightings["objective"].sum()
+
+        result = downsample(n, 4)
+
+        # 24 snapshots per period / 4 = 6 per period, 2 periods = 12 total
+        assert len(result.n.snapshots) == 12
+        assert result.n.has_periods
+        assert len(result.n.periods) == 2
+        assert np.isclose(
+            result.n.snapshot_weightings["objective"].sum(), original_hours
+        )
+
+    def test_downsample_multiperiod_snapshot_map(self, multiperiod_network):
+        n = multiperiod_network
+        result = downsample(n, 4)
+
+        assert len(result.snapshot_map) == len(n.snapshots)
+        assert all(s in result.n.snapshots for s in result.snapshot_map.values)
+
+    def test_downsample_multiperiod_non_divisible_stride(self, multiperiod_network):
+        n = multiperiod_network
+        original_hours = n.snapshot_weightings["objective"].sum()
+
+        result = downsample(n, 5)  # 24 % 5 = 4 remainder
+
+        # ceil(24/5) = 5 snapshots per period, 2 periods = 10 total
+        assert len(result.n.snapshots) == 10
+        assert np.isclose(
+            result.n.snapshot_weightings["objective"].sum(), original_hours
+        )
+
+    def test_downsample_multiperiod_large_stride(self, multiperiod_network):
+        n = multiperiod_network
+        original_hours = n.snapshot_weightings["objective"].sum()
+
+        result = downsample(n, 24)  # Each period reduced to 1 snapshot
+
+        assert len(result.n.snapshots) == 2  # One per period
+        assert np.isclose(
+            result.n.snapshot_weightings["objective"].sum(), original_hours
+        )
 
     def test_from_snapshot_map_dataframe_input(self, simple_network):
         n = simple_network

@@ -8,9 +8,6 @@ This module provides methods to reduce the temporal resolution of PyPSA networks
 while preserving the total modeled hours through snapshot weighting adjustments,
 so that the total number of hours modelled is kept invariant.
 
-The core abstraction is **snapshot weighting** - each snapshot has a weight
-representing the number of hours it represents.
-
 **Invariant**: ``sum(weights) == total_modeled_hours`` (e.g., 8760 for one year)
 """
 
@@ -347,6 +344,66 @@ def _resample_with_periods(
     return TemporalClustering(m, snapshot_map)
 
 
+def _downsample_with_periods(n: Network, stride: int) -> TemporalClustering:
+    """Downsample network with investment periods, selecting within each period."""
+    m = n.copy()
+    original_snapshots = n.snapshots
+
+    downsampled_weightings_list = []
+    selected_snapshots_list = []
+
+    for period in n.periods:
+        period_mask = n.snapshots.get_level_values("period") == period
+        period_snapshots = n.snapshots[period_mask]
+        period_weightings = n.snapshot_weightings[period_mask]
+
+        # Select every Nth snapshot within this period
+        selected_idx = range(0, len(period_snapshots), stride)
+        selected = period_snapshots[list(selected_idx)]
+        selected_snapshots_list.append(selected)
+
+        # Scale weightings, handle remainder for last snapshot
+        remainder = len(period_snapshots) % stride
+        new_weights = period_weightings.loc[selected].copy()
+        new_weights *= stride
+        if remainder != 0:
+            new_weights.iloc[-1] = new_weights.iloc[-1] / stride * remainder
+        downsampled_weightings_list.append(new_weights)
+
+    all_selected = pd.MultiIndex.from_tuples(
+        [s for idx in selected_snapshots_list for s in idx],
+        names=["period", "timestep"],
+    )
+    snapshot_weightings = pd.concat(downsampled_weightings_list)
+
+    m.set_snapshots(all_selected)
+    m.snapshot_weightings = snapshot_weightings
+
+    for c in n.components:
+        if c.static.empty:
+            continue
+        for attr, df in c.dynamic.items():
+            if df.empty:
+                continue
+            m._import_series_from_df(df.loc[all_selected], c.name, attr, overwrite=True)
+
+    # Build snapshot map using vectorized assignment per period
+    snapshot_map = pd.Series(index=original_snapshots, dtype=object)
+    for period in n.periods:
+        period_mask = original_snapshots.get_level_values("period") == period
+        period_snapshots = original_snapshots[period_mask]
+        new_mask = all_selected.get_level_values("period") == period
+        period_selected = all_selected[new_mask]
+
+        # Vectorized: assign each original snapshot to its representative
+        num_period = len(period_snapshots)
+        indices = np.arange(num_period) // stride
+        indices = np.clip(indices, 0, len(period_selected) - 1)
+        snapshot_map.loc[period_snapshots] = [period_selected[i] for i in indices]
+
+    return TemporalClustering(m, snapshot_map)
+
+
 def downsample(
     n: Network,
     stride: int,
@@ -382,8 +439,7 @@ def downsample(
         raise ValueError(msg)
 
     if n.has_periods:
-        msg = "downsample() does not yet support networks with investment periods"
-        raise NotImplementedError(msg)
+        return _downsample_with_periods(n, stride)
 
     m = n.copy()
     original_snapshots = n.snapshots
