@@ -140,7 +140,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if capital_cost.size == 0:
             continue
 
-        nominal = c.da[attr].sel(name=ext_i)
+        # Use p_nom_min (not p_nom) since p_nom is ignored for extendable components
+        nominal = c.da[attr + "_min"].sel(name=ext_i)
 
         # only charge capex for already-existing assets
         if n._multi_invest:

@@ -378,3 +378,76 @@ def test_1522(tmp_path):
 
     assert set(m.generators_t.marginal_cost.columns) == {"gen0", "gen1"}
     assert set(m.links_t.marginal_cost.columns) == {"link0", "link1"}
+
+
+def test_objective_constant_with_p_nom_and_p_nom_extendable():
+    n = pypsa.Network()
+    n.set_snapshots(range(1))
+
+    n.add("Bus", "electricity_bus")
+    n.add("Load", "electricity_load", bus="electricity_bus", p_set=[10])
+    n.add(
+        "Generator",
+        "generator",
+        bus="electricity_bus",
+        p_nom_extendable=True,
+        marginal_cost=0,
+        capital_cost=100,
+    )
+    n.add(
+        "StorageUnit",
+        "battery",
+        bus="electricity_bus",
+        p_nom=1,
+        p_nom_extendable=True,
+        max_hours=2,
+        efficiency_store=0.9,
+        efficiency_dispatch=0.9,
+        marginal_cost=1,
+        capital_cost=5000,
+    )
+
+    n.optimize()
+
+    # Battery not installed (p_nom_opt should be 0)
+    assert n.c.storage_units.static.loc["battery", "p_nom_opt"] == 0
+
+    # objective_constant should be 0 since p_nom_min defaults to 0
+    assert n.objective_constant == 0
+
+    # Total objective should equal capex + opex from statistics
+    capex = n.statistics.capex().sum()
+    opex = n.statistics.opex().sum()
+    almost_equal(n.objective, capex + opex)
+
+
+def test_objective_constant_with_p_nom_min():
+    """
+    Test that objective_constant correctly includes cost when p_nom_min > 0.
+
+    When p_nom_min is set for an extendable component, that minimum capacity
+    represents pre-committed investment and its cost should be in objective_constant.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(1))
+
+    n.add("Bus", "electricity_bus")
+    n.add("Load", "electricity_load", bus="electricity_bus", p_set=[10])
+    n.add(
+        "Generator",
+        "generator",
+        bus="electricity_bus",
+        p_nom_extendable=True,
+        p_nom_min=5,
+        marginal_cost=0,
+        capital_cost=100,
+    )
+
+    n.optimize()
+
+    # Generator must have at least p_nom_min capacity
+    assert n.c.generators.static.loc["generator", "p_nom_opt"] >= 5
+
+    # objective_constant should include cost of p_nom_min
+    expected_constant = 5 * 100  # p_nom_min * capital_cost
+    assert n.objective_constant == expected_constant

@@ -28,6 +28,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add environment variable support for options via `PYPSA_*` prefix (e.g., `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi`). (<!-- md:pr 1513 -->)
 
+### Bug Fixes
+
+- Fix `objective_constant` calculation to use `p_nom_min` instead of `p_nom` for extendable components, ensuring correct objective values when both are set.
+
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
 
 ### Enhancements
