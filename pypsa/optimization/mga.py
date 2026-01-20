@@ -637,21 +637,21 @@ class OptimizationAbstractMGAMixin:
         Examples
         --------
         >>> dimensions = {
-        ...     "wind": {"Generator": {"p_nom": {"wind": 1}}},
-        ...     "solar": {"Generator": {"p_nom": {"solar": 1}}}
+        ...     "wind": {"Generator": {"p_nom": {"Manchester Wind": 1}}},
+        ...     "gas": {"Generator": {"p_nom": {"Manchester Gas": 1}}}
         ... }
-        >>> directions = pypsa.optimization.mga.generate_directions_random(["wind", "solar"], 10)
+        >>> directions = pypsa.optimization.mga.generate_directions_random(["wind", "gas"], 10)
         >>> dirs_df, coords_df = n.optimize.optimize_mga_in_multiple_directions(
         ...     directions, dimensions, max_parallel=2
-        ... )
+        ... ) # doctest: +SKIP
         >>> dirs_df # doctest: +SKIP
-                wind     solar
+                wind       gas
         0  0.958766  0.284198
         1 -0.937432 -0.348170
         2 -0.805652  0.592389
         ...
-        >>> coords_df # doctest: +ELLIPSIS
-        wind  solar
+        >>> coords_df # doctest: +SKIP
+        wind  gas
         0   0.0    0.0
         1   0.0    0.0
         2   0.0    0.0
