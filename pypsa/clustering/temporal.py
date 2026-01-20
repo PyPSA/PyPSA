@@ -5,7 +5,7 @@
 """Functions for temporal clustering of networks.
 
 This module provides methods to reduce the temporal resolution of PyPSA networks
-while preserving the total modeled hours through snapshot weighting adjustments.
+while preserving the total modeled hours through snapshot weighting adjustments, so that the total number of hours modelled is kept invariant.
 
 The core abstraction is **snapshot weighting** - each snapshot has a weight
 representing the number of hours it represents.
