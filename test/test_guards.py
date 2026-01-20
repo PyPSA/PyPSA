@@ -33,6 +33,5 @@ def test_runtime_verification_disabled_by_default():
     result = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True
     )
-    # Use last line to ignore solver license messages (e.g. Gurobi)
     last_line = result.stdout.strip().splitlines()[-1]
     assert last_line == "False", "Runtime verification should be False by default"
