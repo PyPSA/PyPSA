@@ -20,11 +20,22 @@ SPDX-License-Identifier: CC-BY-4.0
 
     - `resample(offset)` - Aggregate snapshots at regular intervals (e.g., "3h", "24h")
     - `downsample(stride)` - Select every Nth snapshot as representative
-    - `segment(num_segments)` - TSAM k-means clustering for variable-duration segments
+    - `segment(num_segments)` - TSAM agglomerative clustering for variable-duration segments
     - `from_snapshot_map(snapshot_map)` - Apply pre-computed temporal aggregation
 
     All methods preserve the snapshot weighting invariant and return the clustered network.
-    Use `get_*_result()` methods to also get the snapshot mapping for disaggregation.
+    Use `get_resample_result()`, `get_downsample_result()`, `get_segment_result()`, or
+    `get_from_snapshot_map_result()` to also get the snapshot mapping for disaggregation.
+
+    ```python
+    # Resample to 3-hour resolution
+    m = n.cluster.temporal.resample("3h")
+
+    # Get full result with mapping
+    result = n.cluster.temporal.get_resample_result("3h")
+    clustered_network = result.n
+    snapshot_map = result.snapshot_map  # For disaggregation
+    ```
 
 - Add `n.nyears` property to get total modeled years based on snapshot weightings. (<!-- md:pr 1508 -->)
 

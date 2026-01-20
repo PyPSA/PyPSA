@@ -5,7 +5,8 @@
 """Functions for temporal clustering of networks.
 
 This module provides methods to reduce the temporal resolution of PyPSA networks
-while preserving the total modeled hours through snapshot weighting adjustments, so that the total number of hours modelled is kept invariant.
+while preserving the total modeled hours through snapshot weighting adjustments,
+so that the total number of hours modelled is kept invariant.
 
 The core abstraction is **snapshot weighting** - each snapshot has a weight
 representing the number of hours it represents.
@@ -15,6 +16,7 @@ representing the number of hours it represents.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from importlib.util import find_spec
 from typing import TYPE_CHECKING
@@ -24,6 +26,22 @@ import pandas as pd
 
 if TYPE_CHECKING:
     from pypsa import Network
+
+
+def _warn_if_solved(n: Network) -> None:
+    """Warn if applying temporal clustering to a solved network."""
+    has_results = any(
+        not c.dynamic.get("p", pd.DataFrame()).empty
+        for c in n.components
+        if "p" in c.dynamic
+    )
+    if has_results:
+        warnings.warn(
+            "Applying temporal clustering to a solved network may result in "
+            "inconsistent storage state of charge and dispatch values.",
+            UserWarning,
+            stacklevel=3,
+        )
 
 
 HOURS_PER_YEAR = 8760
@@ -142,13 +160,11 @@ def _build_resample_map(
 
     """
     if isinstance(original_snapshots, pd.DatetimeIndex):
-        resampler = pd.Series(index=original_snapshots, dtype=object)
-        for ts in resampled_snapshots:
-            mask = (original_snapshots >= ts) & (
-                original_snapshots < ts + pd.Timedelta(offset)
-            )
-            resampler.loc[mask] = ts
-        return resampler
+        resampled_dt = pd.DatetimeIndex(resampled_snapshots)
+        idx = np.searchsorted(resampled_dt, original_snapshots, side="right") - 1
+        idx = np.clip(idx, 0, len(resampled_dt) - 1)
+        mapped_index = pd.DatetimeIndex(resampled_dt[idx])
+        return pd.Series(mapped_index, index=original_snapshots)
     return pd.Series(resampled_snapshots[0], index=original_snapshots)
 
 
@@ -177,6 +193,10 @@ def resample(
     TemporalClustering
         Result with clustered network and snapshot mapping.
 
+    Note
+    ----
+    This is not an inplace operation. Returns a new network.
+
     Examples
     --------
     >>> result = resample(n, "3h")  # doctest: +SKIP
@@ -184,6 +204,12 @@ def resample(
     >>> mapping = result.snapshot_map  # doctest: +SKIP
 
     """
+    _warn_if_solved(n)
+
+    if not isinstance(n.snapshots, pd.DatetimeIndex) and not n.has_periods:
+        msg = "resample() requires snapshots to be a DatetimeIndex"
+        raise TypeError(msg)
+
     if n.has_periods:
         return _resample_with_periods(
             n, offset, drop_leap_day=drop_leap_day, aggregation_rules=aggregation_rules
@@ -193,6 +219,7 @@ def resample(
 
     original_snapshots = n.snapshots
 
+    # Year-wise resampling handles non-contiguous years gracefully
     years = pd.DatetimeIndex(n.snapshots).year.unique()
     snapshot_weightings_list = []
     for year in years:
@@ -202,6 +229,9 @@ def resample(
         snapshot_weightings_list.append(sws_year)
     snapshot_weightings = pd.concat(snapshot_weightings_list)
 
+    # The resampling produces a contiguous date range. In case the original
+    # index was not contiguous, all rows with zero weight must be dropped
+    # (corresponding to time steps not included in the original snapshots).
     snapshot_weightings = snapshot_weightings.query("objective != 0")
 
     if drop_leap_day:
@@ -324,7 +354,7 @@ def downsample(
     """Select every Nth snapshot as representative.
 
     Weightings are scaled by stride to preserve total modeled hours.
-    Time series are not aggregated - values at selected timestamps are used.
+    Time series are not aggregated - values at selected snapshots are used.
 
     Parameters
     ----------
@@ -345,6 +375,8 @@ def downsample(
     >>> assert len(clustered.snapshots) == len(n.snapshots) // 4  # doctest: +SKIP
 
     """
+    _warn_if_solved(n)
+
     if stride < 1:
         msg = f"stride must be >= 1, got {stride}"
         raise ValueError(msg)
@@ -359,8 +391,13 @@ def downsample(
     selected = n.snapshots[::stride]
     m.set_snapshots(selected)
 
+    num_orig = len(original_snapshots)
+    remainder = num_orig % stride
+
     new_weightings = n.snapshot_weightings.loc[selected].copy()
     new_weightings *= stride
+    if remainder != 0:
+        new_weightings.iloc[-1] = new_weightings.iloc[-1] / stride * remainder
     m.snapshot_weightings = new_weightings
 
     for c in n.components:
@@ -371,7 +408,6 @@ def downsample(
                 continue
             m._import_series_from_df(df.loc[selected], c.name, attr, overwrite=True)
 
-    num_orig = len(original_snapshots)
     snapshot_map = pd.Series(index=original_snapshots, dtype=object)
     for i, sel in enumerate(selected):
         start = i * stride
@@ -391,7 +427,7 @@ def segment(
 ) -> TemporalClustering:
     """Cluster time series into variable-duration segments using TSAM.
 
-    Uses k-means clustering to identify representative time segments
+    Uses agglomerative clustering to identify representative time segments
     with optimal duration allocation.
 
     Parameters
@@ -401,7 +437,7 @@ def segment(
     num_segments : int
         Target number of segments.
     solver : str, default "highs"
-        MIP solver for duration optimization.
+        MIP solver for time clustering.
     exclude_attrs : list, optional
         Attributes to exclude from clustering (default: ["e_min_pu"]).
     aggregation_rules : dict, optional
@@ -417,8 +453,14 @@ def segment(
     Requires `tsam` package: pip install tsam
 
     """
+    _warn_if_solved(n)
+
     if num_segments < 1:
         msg = f"num_segments must be >= 1, got {num_segments}"
+        raise ValueError(msg)
+
+    if num_segments > len(n.snapshots):
+        msg = f"num_segments ({num_segments}) cannot exceed number of snapshots ({len(n.snapshots)})"
         raise ValueError(msg)
 
     if find_spec("tsam") is None:
@@ -455,8 +497,8 @@ def segment(
     combined = pd.concat(dfs, axis=1)
     combined.columns = range(len(combined.columns))
 
-    annual_max = combined.max().replace(0, 1)
-    df_normalized = combined.div(annual_max)
+    normalization_factors = combined.max().replace(0, 1)
+    df_normalized = combined.div(normalization_factors)
     df_normalized = df_normalized.fillna(0)
 
     agg = tsam_module.TimeSeriesAggregation(
@@ -487,7 +529,7 @@ def segment(
     )
     m.snapshot_weightings = new_weightings
 
-    segmented_values = segmented.values * annual_max.values
+    segmented_values = segmented.values * normalization_factors.values
     segmented_df = pd.DataFrame(
         segmented_values,
         index=new_snapshots,
@@ -502,14 +544,12 @@ def segment(
         else:
             m._import_series_from_df(data_col, comp, attr, overwrite=True)
 
-    snapshot_map = pd.Series(index=original_snapshots, dtype=object)
-    for i, new_ts in enumerate(new_snapshots):
-        start = offsets[i]
-        if i + 1 < len(offsets):
-            end = offsets[i + 1]
-        else:
-            end = len(original_snapshots)
-        snapshot_map.iloc[start:end] = new_ts
+    segment_indices = (
+        np.searchsorted(offsets, np.arange(len(original_snapshots)), side="right") - 1
+    )
+    snapshot_map = pd.Series(
+        np.asarray(new_snapshots)[segment_indices], index=original_snapshots
+    )
 
     return TemporalClustering(m, snapshot_map)
 
@@ -546,6 +586,8 @@ def from_snapshot_map(
     >>> result = from_snapshot_map(n, snapshot_map)  # doctest: +SKIP
 
     """
+    _warn_if_solved(n)
+
     if isinstance(snapshot_map, pd.DataFrame):
         snapshot_map_series = snapshot_map.iloc[:, 0]
     else:

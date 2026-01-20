@@ -19,7 +19,7 @@ from pypsa.clustering.temporal import (
 def simple_network():
     """Create a simple network with hourly resolution for one week."""
     n = pypsa.Network()
-    n.set_snapshots(pd.date_range("2020-01-01", periods=168, freq="h"))
+    n.set_snapshots(pd.date_range("2021-01-01", periods=168, freq="h"))
 
     n.add("Bus", "bus0")
     n.add("Bus", "bus1")
@@ -51,9 +51,9 @@ def simple_network():
 
 @pytest.fixture
 def yearly_network():
-    """Create a network with full year hourly resolution."""
+    """Create a network with full year hourly resolution (leap year)."""
     n = pypsa.Network()
-    n.set_snapshots(pd.date_range("2020-01-01", periods=8760, freq="h"))
+    n.set_snapshots(pd.date_range("2020-01-01", periods=8784, freq="h"))
 
     n.add("Bus", "bus0")
     n.add(
@@ -61,7 +61,7 @@ def yearly_network():
         "gen0",
         bus="bus0",
         p_nom=100,
-        p_max_pu=np.random.default_rng(42).uniform(0.3, 1.0, 8760),
+        p_max_pu=np.random.default_rng(42).uniform(0.3, 1.0, 8784),
     )
     n.add("Load", "load0", bus="bus0", p_set=50)
 
@@ -72,8 +72,8 @@ def yearly_network():
 def multiperiod_network():
     """Create a network with investment periods."""
     n = pypsa.Network()
-    n.set_snapshots(pd.date_range("2020-01-01", periods=24, freq="h"))
-    n.set_investment_periods([2020, 2030])
+    n.set_snapshots(pd.date_range("2021-01-01", periods=24, freq="h"))
+    n.set_investment_periods([2021, 2030])
 
     n.add("Bus", "bus0")
     n.add("Generator", "gen0", bus="bus0", p_nom=100)
@@ -115,13 +115,17 @@ class TestResample:
 
         assert "p_max_pu" in result.n.c.generators.dynamic
         assert len(result.n.c.generators.dynamic["p_max_pu"]) == len(result.n.snapshots)
+        assert np.allclose(
+            result.n.c.generators.dynamic["p_max_pu"],
+            n.c.generators.dynamic["p_max_pu"].resample("3h").mean(),
+        )
 
     def test_resample_snapshot_map(self, simple_network):
         n = simple_network
         result = resample(n, "3h")
 
         assert len(result.snapshot_map) == len(n.snapshots)
-        assert set(result.snapshot_map.values).issubset(set(result.n.snapshots))
+        assert result.snapshot_map.isin(result.n.snapshots).all()
 
     def test_resample_accessor(self, simple_network):
         n = simple_network
@@ -232,7 +236,8 @@ class TestNyears:
 
     def test_nyears_full_year(self, yearly_network):
         n = yearly_network
-        assert np.isclose(n.nyears, 1.0)
+        # Leap year has 8784 hours (366 days), so nyears is slightly > 1.0
+        assert np.isclose(n.nyears, 8784 / 8760)
 
     def test_nyears_preserved_after_resample(self, simple_network):
         n = simple_network
@@ -311,7 +316,7 @@ class TestSegment:
 class TestEdgeCases:
     def test_empty_dynamic_data(self):
         n = pypsa.Network()
-        n.set_snapshots(pd.date_range("2020-01-01", periods=24, freq="h"))
+        n.set_snapshots(pd.date_range("2021-01-01", periods=24, freq="h"))
         n.add("Bus", "bus0")
         n.add("Generator", "gen0", bus="bus0", p_nom=100)
 
@@ -347,6 +352,28 @@ class TestEdgeCases:
 
         assert isinstance(result, TemporalClustering)
         assert len(result.n.snapshots) == 7
+
+    def test_downsample_stride_not_divisible(self, simple_network):
+        n = simple_network
+        original_hours = n.snapshot_weightings["objective"].sum()
+
+        result = downsample(n, 5)
+
+        assert len(result.n.snapshots) == (168 + 5 - 1) // 5  # ceiling division
+        assert np.isclose(
+            result.n.snapshot_weightings["objective"].sum(), original_hours
+        )
+
+    def test_resample_frequency_larger_than_snapshots(self, simple_network):
+        n = simple_network
+        original_hours = n.snapshot_weightings["objective"].sum()
+
+        result = resample(n, "500h")
+
+        assert len(result.n.snapshots) == 1
+        assert np.isclose(
+            result.n.snapshot_weightings["objective"].sum(), original_hours
+        )
 
 
 class TestAggregationRulesDetailed:
@@ -420,7 +447,7 @@ class TestSegmentErrors:
     def test_segment_no_dynamic_data(self):
         pytest.importorskip("tsam")
         n = pypsa.Network()
-        n.set_snapshots(pd.date_range("2020-01-01", periods=24, freq="h"))
+        n.set_snapshots(pd.date_range("2021-01-01", periods=24, freq="h"))
         n.add("Bus", "bus0")
         n.add("Generator", "gen0", bus="bus0", p_nom=100)
 
