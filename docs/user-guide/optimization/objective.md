@@ -26,6 +26,65 @@ To minimise **long-run annual system costs** (currency/a), capital costs for com
 
 If no extendable components are present, only the dispatch of the components is optimised as in a **short-run market model**.
 
+### Specifying Capital Costs
+
+PyPSA supports two approaches for specifying investment costs:
+
+=== "Direct capital_cost (default)"
+
+    Provide `capital_cost` directly as annualized cost per unit capacity (currency/MW/a or currency/MWh/a). This is the traditional approach:
+
+    ``` py
+    n.add("Generator", "wind",
+          bus="bus",
+          p_nom_extendable=True,
+          capital_cost=50000)  # Already annualized: €/MW/a
+    ```
+
+=== "Overnight cost with automatic annuitization"
+
+    Provide `overnight_cost` (upfront investment cost), `discount_rate`, and `lifetime`. PyPSA automatically calculates the annualized cost:
+
+    ``` py
+    n.add("Generator", "wind",
+          bus="bus",
+          p_nom_extendable=True,
+          overnight_cost=1200000,  # Upfront cost: €/MW
+          discount_rate=0.07,      # 7% discount rate
+          lifetime=25,             # 25 years
+          fom_cost=12000)          # Fixed O&M: €/MW/a
+    ```
+
+    The effective capital cost used in optimization is calculated as:
+
+    $$c = c_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}} + c_{\text{fom}}$$
+
+    where the annuity factor converts overnight cost to annual payments:
+
+    $$\text{annuity}(r, n) = \frac{r}{1 - (1 + r)^{-n}}$$
+
+!!! tip "When to use overnight costs"
+
+    The overnight cost approach is useful when:
+
+    - Working with technology cost databases (e.g., [technology-data](https://github.com/pypsa/technology-data)) that provide overnight costs
+    - Different technologies have different discount rates or lifetimes
+    - You want to separately report overnight investment costs and fixed O&M in results
+
+    When `overnight_cost` is not set (default NaN), `capital_cost` is used directly, preserving backward compatibility.
+
+### Fixed Operation & Maintenance Costs
+
+Fixed O&M costs (`fom_cost`) represent annual costs that are incurred regardless of dispatch, such as maintenance, insurance, and land lease. They are added to the annualized overnight cost when using the overnight cost approach:
+
+``` py
+# Wind turbine with 2% of overnight cost as annual FOM
+n.generators.loc["wind", "fom_cost"] = 0.02 * n.generators.loc["wind", "overnight_cost"]
+```
+
+!!! note "FOM with direct capital_cost"
+
+    When using `capital_cost` directly (without `overnight_cost`), you can still specify `fom_cost`. It will be added to `capital_cost` in the optimization.
 
 ??? note "Mapping of symbols to attributes"
 
@@ -38,6 +97,10 @@ If no extendable components are present, only the dispatch of the components is 
     | $P_l$             | `n.lines.s_nom_opt` | Decision variable |
     | $c_{n,s}$         | `n.{generators,storage_units,stores}.capital_cost` | Parameter |
     | $c_{l}$           | `n.{links,lines,transformers}.capital_cost` | Parameter |
+    | $c_{\text{overnight}}$ | `n.{generators,...}.overnight_cost` | Parameter |
+    | $r$               | `n.{generators,...}.discount_rate` | Parameter |
+    | $n$               | `n.{generators,...}.lifetime` | Parameter |
+    | $c_{\text{fom}}$  | `n.{generators,...}.fom_cost` | Parameter |
 
 ## Marginal Costs
 
