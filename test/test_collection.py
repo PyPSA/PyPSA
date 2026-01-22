@@ -340,6 +340,11 @@ def test_collection_init_with_paths():
     assert len(collection_mixed) == 2
     assert all(isinstance(n, pypsa.Network) for n in collection_mixed.networks)
 
+    # Test with dict
+    collection_dict = pypsa.NetworkCollection({"net1": path1, "net2": example_path2})
+    assert len(collection_dict) == 2
+    assert list(collection_dict.networks.index) == ["net1", "net2"]
+
 
 def test_collection_init_mixed_networks_and_strings(network1):
     """Test initialization with mixed Network objects and strings."""

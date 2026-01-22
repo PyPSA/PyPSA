@@ -134,28 +134,35 @@ class NetworkCollection:
 
     def __init__(
         self,
-        networks: pd.Series | Sequence[Network | str | Path],
+        networks: pd.Series
+        | dict[Any, Network | str | Path]
+        | Sequence[Network | str | Path],
         index: pd.Index | pd.MultiIndex | Sequence | None = None,
     ) -> None:
         """Initialize the NetworkCollection with one or more networks.
 
         Parameters
         ----------
-        networks : pd.Series | Sequence[Network | str | Path]
-            Sequence or pd.Series of Network objects or paths (anything that can
-            be passed to pypsa.Network()) to include in the collection.
+        networks : pd.Series | dict | Sequence[Network | str | Path]
+            Sequence, dict, or pd.Series of Network objects or paths (anything that can
+            be passed to pypsa.Network()) to include in the collection. If a dict is
+            provided, keys become the index and values are the networks/paths.
         index : pd.Index, pd.MultiIndex, Sequence, or None, optional
-            The index to use for the collection. If `networks` is of type `pd.Series`,
-            no index is allowed and it will be retrieved from the Series. If None, a
-            default index based on the network names will be created.
+            The index to use for the collection. If `networks` is of type `pd.Series`
+            or dict, no index is allowed and it will be retrieved from the keys. If
+            None, a default index based on the network names will be created.
 
         """
-        if isinstance(networks, pd.Series) and index is not None:
+        if isinstance(networks, pd.Series | dict) and index is not None:
             msg = (
-                "When passing a pandas Series, the index must be None, "
-                "as the Series index is used as the collection index."
+                "When passing a pandas Series or dict, the index must be None, "
+                "as the keys are used as the collection index."
             )
             raise ValueError(msg)
+
+        # Convert dict to Series (before the string check)
+        if isinstance(networks, dict):
+            networks = pd.Series(networks)
 
         # Validate that networks is not a single string (which would iterate char by char)
         if isinstance(networks, str):
