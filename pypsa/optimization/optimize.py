@@ -576,17 +576,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_fixed_operation_constraints(n, sns, c, attr)
 
         meshed_threshold = kwargs.get("meshed_threshold", 45)
-        meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)
+        strongly_meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)
+        weakly_meshed_buses = n.c.buses.names.difference(strongly_meshed_buses)
 
-        if isinstance(n.c.buses.static.index, pd.MultiIndex):
-            bus_names = n.c.buses.static.index.get_level_values(1)
-            weakly_meshed_buses = pd.Index(
-                [b for b in bus_names if b not in meshed_buses], name="Bus"
-            )
-        else:
-            weakly_meshed_buses = n.c.buses.static.index.difference(meshed_buses)
-
-        if not meshed_buses.empty and not weakly_meshed_buses.empty:
+        if not strongly_meshed_buses.empty and not weakly_meshed_buses.empty:
             # Write constraint for buses many terms and for buses with a few terms
             # separately. This reduces memory usage for large networks.
             define_nodal_balance_constraints(
@@ -599,7 +592,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 n,
                 sns,
                 transmission_losses=transmission_losses,
-                buses=meshed_buses,
+                buses=strongly_meshed_buses,
                 suffix="-meshed",
             )
         else:

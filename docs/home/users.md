@@ -95,6 +95,8 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_de: Forschungszentrum Jülich (FZJ)](https://www.fz-juelich.de/)** used PyPSA for network calculations.
 
+- **[:flag_de: Fraunhofer Institute for Systems and Innovation Research (ISI)](https://www.isi.fraunhofer.de/)** uses a PyPSA-Eur-based approach for infrastructure analysis in Europe, e.g. in [Integrated Infrastructure Planning and 2050 Climate Neutrality: Deriving Future-Proof European Energy Infrastructures](https://www.agora-energiewende.org/publications/integrated-infrastructure-planning-and-2050-climate-neutrality) on future-proof European energy infrastructures jointly with Fraunhofer IEG and d-fine.
+
 ## Companies
 
 * **[:flag_de: TransnetBW](https://www.transnetbw.de/)**, the electricity transmission system operator in southwest Germany, **[:flag_de: ONTRAS](https://www.ontras.com/)**, the gas transmission system operator in eastern Germany and **[:flag_de: d-fine](https://www.d-fine.com/)**, a consultancy firm, used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see [Stromnetz 2050](https://www.transnetbw.de/de/stromnetz2050/), for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen [Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050](https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf), and for their 2022 study [Energy System 2050 - Towards a decarbonised Europe](https://www.energysystem2050.net/).
@@ -127,6 +129,8 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_jp: Tokyo Electric Power Services Company (TEPSCO)](https://www.tepsco.co.jp/english/)**, provides wide-ranging engineering services; planning, study, design, construction supervision and after care. See [Linkedin.com](https://www.linkedin.com/posts/takashi-yanase-850462a0_i-built-and-ran-a-preliminary-model-of-japan-activity-7401253510639648768-F3EB?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAp_3N8BMuXs2_8w1fGMmfRzJESnpY7vzI4).
 
+* **[:flag_de: d-fine](https://www.d-fine.com/)**: uses a PyPSA-Eur-based approach for infrastructure analysis in Europe, e.g. in [Integrated Infrastructure Planning and 2050 Climate Neutrality: Deriving Future-Proof European Energy Infrastructures](https://www.agora-energiewende.org/publications/integrated-infrastructure-planning-and-2050-climate-neutrality) on future-proof European energy infrastructures (jointly with Fraunhofer IEG and Fraunhofer ISI.
+
 ## Governmental Organisation
 
 * **[:globe_with_meridians: International Energy Agency (IEA)](https://www.iea.org/)** uses PyPSA within their [Global Energy and Climate Model](https://www.iea.org/reports/global-energy-and-climate-model). A 2024 report [Managing the Seasonal Variability of Electricity Demand and Supply](https://www.iea.org/reports/managing-the-seasonal-variability-of-electricity-demand-and-supply) used PyPSA to explore how seasonal variations in both demand and supply affect electricity system operations in various world regions in 2050.
@@ -158,3 +162,5 @@ The following universities, research institutes, companies, governmental and non
 * **[:flag_eu:/:flag_us: RAND Europe](https://www.rand.org/randeurope.html)** used PyPSA in a 2024 report [The use of AI for improving energy security](https://www.rand.org/pubs/research_reports/RRA2907-2.html) to explore the extent to which different AI applications can improve energy security in Europe.
 
 * **[:flag_gb: ClimateXChange](https://www.climatexchange.org.uk/)** commissioned a report for the Scottish Government on [Electricity system security of supply in Scotland](https://www.climatexchange.org.uk/projects/electricity-system-security-of-supply-in-scotland/) using PyPSA-GB.
+
+- **[:flag_kr: PLANiT Institute](https://planit.institute)** A non-profit research institute based in Seoul developed [PyPSA_KR](https://github.com/PLANiT-Institute/PyPSA_KR), a comprehensive power system analysis toolkit for modeling and optimizing electricity networks in South Korea with multi-node network modeling at different granularities, and [pyPPA](https://github.com/PLANiT-Institute/pyPPA), a Power Purchase Agreement modeling and optimization framework for evaluating renewable energy procurement strategies.
