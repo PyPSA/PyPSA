@@ -19,8 +19,6 @@ beautifulsoup4==4.14.3
     # via nbconvert
 bleach==6.3.0
     # via nbconvert
-blosc2==3.12.2
-    # via tables
 bottleneck==1.6.0
     # via linopy
 cairocffi==1.7.1
@@ -47,8 +45,6 @@ click==8.3.1
     # via
     #   dask
     #   mkdocs
-cloudpathlib==0.23.0
-    # via pypsa
 cloudpickle==3.1.2
     # via dask
 colorama==0.4.6
@@ -260,8 +256,6 @@ mkdocstrings==1.0.1
     # via mkdocstrings-python
 mkdocstrings-python==2.0.1
     # via pypsa
-msgpack==1.1.2
-    # via blosc2
 narwhals==2.15.0
     # via plotly
 nbclient==0.10.4
@@ -273,8 +267,6 @@ nbformat==5.10.4
     #   jupytext
     #   nbclient
     #   nbconvert
-ndindex==1.10.1
-    # via blosc2
 nest-asyncio==1.6.0
     # via ipykernel
 netcdf4==1.7.3
@@ -284,13 +276,9 @@ networkx==3.6.1
     #   pypsa
     #   tsam
 numexpr==2.14.1
-    # via
-    #   blosc2
-    #   linopy
-    #   tables
+    # via linopy
 numpy==2.4.1
     # via
-    #   blosc2
     #   bottleneck
     #   cartopy
     #   cftime
@@ -309,7 +297,6 @@ numpy==2.4.1
     #   scipy
     #   seaborn
     #   shapely
-    #   tables
     #   tsam
     #   xarray
 openpyxl==3.1.5
@@ -329,7 +316,6 @@ packaging==25.0
     #   plotly
     #   pyogrio
     #   pytest
-    #   tables
     #   xarray
 paginate==0.5.7
     # via mkdocs-material
@@ -358,7 +344,6 @@ pillow==12.1.0
     #   pypsa
 platformdirs==4.5.1
     # via
-    #   blosc2
     #   jupyter-core
     #   mkdocs-get-deps
 plotly==6.5.2
@@ -386,10 +371,6 @@ ptyprocess==0.7.0 ; sys_platform != 'emscripten' and sys_platform != 'win32'
     # via pexpect
 pure-eval==0.2.3
     # via stack-data
-py-cpuinfo==9.0.0
-    # via
-    #   blosc2
-    #   tables
 pyasn1==0.6.2
     # via
     #   pyasn1-modules
@@ -461,7 +442,6 @@ referencing==0.37.0
     #   jsonschema-specifications
 requests==2.32.5
     # via
-    #   blosc2
     #   google-api-core
     #   google-cloud-storage
     #   linopy
@@ -494,8 +474,6 @@ soupsieve==2.8.3
     # via beautifulsoup4
 stack-data==0.6.3
     # via ipython
-tables==3.10.2
-    # via pypsa
 tabulate==0.9.0
     # via mkdocs-table-reader-plugin
 threadpoolctl==3.6.0
@@ -535,7 +513,6 @@ typing-extensions==4.15.0
     #   beautifulsoup4
     #   ipython
     #   referencing
-    #   tables
 tzdata==2025.3
     # via
     #   mkdocs-git-revision-date-localized-plugin
