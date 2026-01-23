@@ -49,7 +49,12 @@ jobs:
             - 'pyproject.toml'
             - '.github/workflows/test-models.yml'
 
+    - name: Skip - no source changes
+      if: steps.filter.outputs.src != 'true' && github.event_name != 'schedule'
+      run: echo "Skipping tests because no source code changes detected"
+
     - name: Free up disk space
+      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
       run: |
         echo "Initial disk space"
         df -h
@@ -59,10 +64,6 @@ jobs:
         sudo docker builder prune -a --force
         echo "Final disk space"
         df -h
-
-    - name: Skip - no source changes
-      if: steps.filter.outputs.src != 'true' && github.event_name != 'schedule'
-      run: echo "Skipping tests because no source code changes detected"
 
     - uses: actions/checkout@v6
       if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
@@ -111,7 +112,7 @@ jobs:
         key: data-cutouts-pypsa-eur-${{ env.WEEK }}
 
     - name: Restore git-tracked files in data/
-      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
+      if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
       run: git checkout HEAD -- data/
 
     - name: Install package from ref
