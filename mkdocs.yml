@@ -373,7 +373,7 @@ plugins:
 # This will rebuild and execute the notebooks during any modifications when running `mkdocs serve`
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
 - mkdocs-jupyter:
-    execute: true
+    execute: false
     include: ["*.ipynb"]
     allow_errors: false
     include_source: true
