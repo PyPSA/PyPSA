@@ -91,6 +91,7 @@ docs = [
     "gurobipy",
     "openpyxl",
     "python-calamine",
+    "pytest",
 ]
 
 # setuptools_scm settings
