@@ -28,6 +28,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add environment variable support for options via `PYPSA_*` prefix (e.g., `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi`). (<!-- md:pr 1513 -->)
 
+### Bug Fixes
+
+- Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
+
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
 
 ### Enhancements
