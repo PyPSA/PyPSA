@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 site_name: Documentation
-site_url: !ENV READTHEDOCS_CANONICAL_URL
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, "https://docs.pypsa.org"]
 repo_url: https://github.com/PyPSA/PyPSA
 repo_name: PyPSA/PyPSA
 edit_uri: edit/master/docs/

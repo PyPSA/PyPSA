@@ -93,8 +93,6 @@ docs = [
     "python-calamine",
     "pytest",
     "cartopy>=0.16",
-    "tables",
-    "cloudpathlib",
 ]
 
 # setuptools_scm settings
