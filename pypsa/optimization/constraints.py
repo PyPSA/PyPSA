@@ -688,17 +688,14 @@ def define_ramp_limit_constraints(
     # ----------------------------- Extendable Components ----------------------------- #
     if not ext_i.empty:
         # Redefine active mask over ext_i
-        active_ext = (
-            c.da.active.sel(name=ext_i, snapshot=sns)
-            if is_rolling_horizon
-            else c.da.active.sel(name=ext_i, snapshot=sns[1:])
-        )
+        snapshot_sel = sns if is_rolling_horizon else sns[1:]
+        active_ext = c.da.active.sel(name=ext_i, snapshot=snapshot_sel)
 
-        ramp_limit_up_ext = ramp_limit_up.reindex(
-            {"snapshot": active_ext.coords["snapshot"].values, "name": ext_i}
-        ).rename({"name": ext_dim})
-        ramp_limit_down_ext = ramp_limit_down.reindex(
-            {"snapshot": active_ext.coords["snapshot"].values, "name": ext_i}
+        ramp_limit_up_ext = ramp_limit_up.sel(snapshot=snapshot_sel, name=ext_i).rename(
+            {"name": ext_dim}
+        )
+        ramp_limit_down_ext = ramp_limit_down.sel(
+            snapshot=snapshot_sel, name=ext_i
         ).rename({"name": ext_dim})
         rhs_start_ext = rhs_start.sel({"name": ext_i}).rename({"name": ext_dim})
 
@@ -736,19 +733,12 @@ def define_ramp_limit_constraints(
             )
     # ----------------------------- Committable Components ----------------------------- #
     if not com_i.empty:
-        # Redefine active mask over com_i and get parameters directly using component methods
-        active_com = (
-            c.da.active.sel(name=com_i, snapshot=sns)
-            if is_rolling_horizon
-            else c.da.active.sel(name=com_i, snapshot=sns[1:])
-        )
+        # Redefine active mask over com_i
+        snapshot_sel = sns if is_rolling_horizon else sns[1:]
+        active_com = c.da.active.sel(name=com_i, snapshot=snapshot_sel)
 
-        ramp_limit_up_com = ramp_limit_up.reindex(
-            {"snapshot": active_com.coords["snapshot"].values, "name": com_i}
-        )
-        ramp_limit_down_com = ramp_limit_down.reindex(
-            {"snapshot": active_com.coords["snapshot"].values, "name": com_i}
-        )
+        ramp_limit_up_com = ramp_limit_up.sel(snapshot=snapshot_sel, name=com_i)
+        ramp_limit_down_com = ramp_limit_down.sel(snapshot=snapshot_sel, name=com_i)
 
         ramp_limit_start_up_com = c.da.ramp_limit_start_up.sel(name=com_i)
         ramp_limit_shut_down_com = c.da.ramp_limit_shut_down.sel(name=com_i)
