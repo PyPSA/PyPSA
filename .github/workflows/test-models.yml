@@ -112,6 +112,10 @@ jobs:
           cutouts
         key: data-cutouts-pypsa-eur-${{ env.WEEK }}
 
+    - name: Restore git-tracked files in data/
+      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
+      run: git checkout HEAD -- data/
+
     - name: Install package from ref
       if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
       run: |
