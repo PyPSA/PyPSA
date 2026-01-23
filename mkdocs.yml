@@ -117,7 +117,6 @@ nav:
     - examples/biomass-synthetic-fuels-carbon-management.ipynb
   - Advanced Topics:
     - examples/scigrid-redispatch.ipynb
-    - examples/demand-elasticity.ipynb
     - examples/generation-investment-screening-curve.ipynb
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer-example.ipynb
@@ -373,7 +372,7 @@ plugins:
 # This will rebuild and execute the notebooks during any modifications when running `mkdocs serve`
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
 - mkdocs-jupyter:
-    execute: false
+    execute: true
     include: ["*.ipynb"]
     allow_errors: false
     include_source: true
