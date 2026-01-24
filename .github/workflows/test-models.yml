@@ -16,6 +16,8 @@ on:
 
 env:
   PACKAGE_NAME: 'pypsa'
+  SNAKEMAKE_STORAGE_CACHED_HTTP_CACHE: ""
+  SNAKEMAKE_STORAGE_CACHED_HTTP_SKIP_REMOTE_CHECKS: "1"
 
 # Cancel any in-progress runs when a new run is triggered
 concurrency:
