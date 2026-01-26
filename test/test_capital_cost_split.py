@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 import pypsa
-from pypsa.costs import annuity, annuity_factor, periodized_cost
+from pypsa.costs import annuity, periodized_cost
 
 TOLERANCE = 1e-5
 SOLVER_NAME = "highs"
@@ -86,23 +86,6 @@ class TestCostsModule:
             annuity(0.07, 0)
         with pytest.raises(ValueError, match="lifetime must be positive"):
             annuity(0.07, -10)
-
-    def test_annuity_factor_nan_discount_rate(self):
-        """Test annuity_factor returns 1.0 for NaN discount rate."""
-        result = annuity_factor(np.nan, 25)
-        assert result == 1.0
-
-    def test_annuity_factor_positive_discount_rate(self):
-        """Test annuity_factor returns correct value for positive discount rate."""
-        result = annuity_factor(0.07, 25)
-        expected = annuity(0.07, 25)
-        assert abs(result - expected) < TOLERANCE
-
-    def test_annuity_factor_zero_discount_rate(self):
-        """Test annuity_factor with 0% rate returns 1/lifetime."""
-        result = annuity_factor(0.0, 20)
-        expected = 1.0 / 20
-        assert abs(result - expected) < TOLERANCE
 
     def test_periodized_cost_with_overnight(self):
         """Test periodized cost with overnight cost."""
@@ -398,7 +381,7 @@ class TestStatisticsFunctions:
         assert abs(actual - expected) < TOLERANCE
 
     def test_overnight_cost_with_capital_cost(self, simple_network):
-        """Test overnight_cost() back-calculates from capital_cost."""
+        """Test overnight_cost() returns NaN when only capital_cost is provided."""
         n = simple_network
         capital_cost = 100
 
@@ -414,13 +397,7 @@ class TestStatisticsFunctions:
         n.optimize(solver_name=SOLVER_NAME)
 
         overnight = n.statistics.overnight_cost(groupby=False)
-        capacity = n.c.generators.static.p_nom_opt.iloc[0]
-        # When discount_rate is NaN, annuity_factor=1.0, so overnight = capital_cost / nyears
-        expected = capacity * capital_cost / n.nyears
-
-        assert not overnight.empty
-        actual = overnight.values.sum()
-        assert abs(actual - expected) < TOLERANCE
+        assert overnight.isna().all()
 
     def test_fom_calculation(self, simple_network):
         """Test fom() returns correct value."""
@@ -547,16 +524,14 @@ class TestComponentProperties:
         assert abs(oc - overnight_cost) < TOLERANCE
 
     def test_overnight_cost_property_with_capital(self, simple_network):
-        """Test overnight_cost property back-calculates from capital_cost."""
+        """Test overnight_cost property returns NaN when only capital_cost is provided."""
         n = simple_network
         capital_cost = 100
 
         n.add("Generator", "gen", bus="bus", capital_cost=capital_cost)
 
         oc = n.c.generators.overnight_cost.iloc[0]
-        # When discount_rate is NaN, annuity_factor=1.0, so overnight = capital_cost / nyears
-        expected = capital_cost / n.nyears
-        assert abs(oc - expected) < TOLERANCE
+        assert np.isnan(oc)
 
     def test_annuity_property(self, simple_network):
         """Test annuity property returns correct factor."""
@@ -576,14 +551,6 @@ class TestComponentProperties:
         ann = n.c.generators.annuity.iloc[0]
         expected = annuity(discount_rate, lifetime)
         assert abs(ann - expected) < TOLERANCE
-
-    def test_annuity_property_nan_rate(self, simple_network):
-        """Test annuity property returns 1.0 for NaN discount_rate."""
-        n = simple_network
-        n.add("Generator", "gen", bus="bus", capital_cost=100)
-
-        ann = n.c.generators.annuity.iloc[0]
-        assert ann == 1.0
 
 
 class TestConsistencyCheck:

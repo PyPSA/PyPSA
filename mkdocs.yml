@@ -161,6 +161,7 @@ nav:
       - Shapes: api/components/types/shapes.md
     - Utilities: api/components/common.md
   - Other:
+    - Cost: api/other/costs.md
     - Consistency Checks: api/other/consistency.md
     - Examples: api/other/api-examples.md
     - Utilities: api/other/common.md
