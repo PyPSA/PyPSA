@@ -173,8 +173,12 @@ def define_objective(
             if n._multi_invest:
                 weighted_cost = 0
                 for period in periods:
-                    active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                    weighted_cost += active * periodic_cost * period_weighting.loc[period]
+                    active = c.da.active.sel(period=period, name=ext_i).any(
+                        dim="timestep"
+                    )
+                    weighted_cost += (
+                        active * periodic_cost * period_weighting.loc[period]
+                    )
             else:
                 active = c.da.active.sel(name=ext_i).any(dim="snapshot")
                 weighted_cost = active * periodic_cost
