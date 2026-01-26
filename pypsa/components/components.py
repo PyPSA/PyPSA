@@ -34,6 +34,7 @@ from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, RE_PORTS
+from pypsa.costs import annuity, periodized_cost
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
@@ -835,6 +836,134 @@ class Components(
             idx = idx.get_level_values("name").drop_duplicates()
 
         return idx
+
+    @property
+    def periodized_cost(self) -> xarray.DataArray:
+        """Calculate periodized cost from component attributes as xarray DataArray.
+
+        See Also
+        --------
+        `pypsa.costs.periodized_cost`
+
+        """
+        static = self.static
+        cost = periodized_cost(
+            capital_cost=static["capital_cost"],
+            overnight_cost=static["overnight_cost"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=static.get("fom_cost", 0),
+            nyears=self.nyears,
+        )
+        da = xarray.DataArray(cost)
+        if self.has_scenarios:
+            da = da.unstack().reindex(name=self.names, scenario=self.scenarios)
+        return da
+
+    @property
+    def capital_cost(self) -> pd.Series:
+        """Calculate annuitized investment cost per unit of capacity (no fom).
+
+        See Also
+        --------
+        `pypsa.costs.periodized_cost`
+
+        """
+        static = self.static
+        return periodized_cost(
+            capital_cost=static["capital_cost"],
+            overnight_cost=static["overnight_cost"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=None,
+            nyears=self.nyears,
+        )
+
+    @property
+    def nyears(self) -> float | pd.Series:
+        """Return the modeled time horizon in years.
+
+        See Also
+        --------
+        `pypsa.Network.nyears`
+
+        """
+        if self.n is None:
+            msg = "Component is not attached to a Network."
+            raise AttributeError(msg)
+        return self.n.nyears
+
+    @property
+    def annuity(self) -> pd.Series:
+        """Calculate annuity factor for all components.
+
+        Returns the annuity factor based on `discount_rate` and `lifetime`.
+        If `discount_rate` is NaN (no `overnight_cost` provided), returns 1.0.
+
+        Returns
+        -------
+        pd.Series
+            Annuity factor for each component.
+
+        Examples
+        --------
+        >>> n.c.generators.annuity  # doctest: +SKIP
+        name
+        gen1    0.085...
+        gen2    1.0
+        dtype: float64
+
+        See Also
+        --------
+        `pypsa.costs.annuity_factor`
+
+        """
+        static = self.static
+        discount_rate = static["discount_rate"]
+        lifetime = static["lifetime"]
+        return annuity(discount_rate, lifetime)
+
+    @property
+    def overnight_cost(self) -> pd.Series:
+        """Calculate overnight cost from component attributes.
+
+        If overnight_cost column is provided (not NaN), returns it directly.
+        Otherwise, converts annualized capital_cost back to overnight cost using
+        the formula: overnight_cost = capital_cost / (annuity_factor × nyears).
+
+        Note: When nyears == 1, capital_cost represents the annualized cost per year,
+        so overnight_cost = capital_cost / annuity_factor.
+
+        Returns
+        -------
+        pd.Series
+            Overnight (upfront) investment cost per unit of capacity.
+
+        Examples
+        --------
+        >>> n.c.generators.overnight_cost  # doctest: +SKIP
+        name
+        gen1    1000.0   # overnight_cost used directly
+        gen2    1166.0   # 100 / annuity(0.07, 25) - back-calculated from capital_cost
+        dtype: float64
+
+        See Also
+        --------
+        `capital_cost` : Annuitized investment cost for the modeled horizon.
+        `annuity` : Annuity factor for each component.
+
+        """
+        static = self.static
+        overnight = static["overnight_cost"]
+        capital = static["capital_cost"]
+        has_overnight = overnight.notna()
+
+        ann_factor = self.annuity
+        nyears = self.nyears
+        nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
+        back_calculated = capital / (ann_factor * nyears_scalar)
+
+        return overnight.where(has_overnight, back_calculated)
 
 
 class SubNetworkComponents:

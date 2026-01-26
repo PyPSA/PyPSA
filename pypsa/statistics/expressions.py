@@ -941,8 +941,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **overnight investment costs** (excluding fom).
 
-        If ``discount_rate > 0``, returns ``capital_cost * annuity(discount_rate, lifetime) * capacity``.
-        If ``discount_rate == 0``, returns ``capital_cost * capacity`` (pre-annuitized).
+        Returns `overnight_cost * {p/s}_nom_opt` if given, else
+        `capital_cost / annuity_factor(lifetime, discount_rate) * {p/s}_nom_opt` (PVF calculation).
 
         Parameters
         ----------
