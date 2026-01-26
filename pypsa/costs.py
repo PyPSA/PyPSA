@@ -6,19 +6,14 @@
 
 from __future__ import annotations
 
-from typing import TypeVar
-
 import numpy as np
 import pandas as pd
 
-# Type variable for numeric types that support array operations
-T = TypeVar("T", float, pd.Series)
-
 
 def annuity(
-    discount_rate: T,
-    lifetime: T,
-) -> T:
+    discount_rate: float | pd.Series,
+    lifetime: float | pd.Series,
+) -> float | pd.Series:
     r"""Calculate the annuity factor for given discount rate and lifetime.
 
     Converts overnight investment cost to an annualized cost using the formula:
@@ -103,9 +98,9 @@ def annuity(
 
 
 def annuity_factor(
-    discount_rate: T,
-    lifetime: T,
-) -> T:
+    discount_rate: float | pd.Series,
+    lifetime: float | pd.Series,
+) -> float | pd.Series:
     """Calculate annuity factor, handling NaN discount_rate.
 
     This is a wrapper around :func:`annuity` that returns 1.0 where
@@ -162,13 +157,13 @@ def _has_overnight_cost(overnight_cost: float | pd.Series) -> bool:
 
 
 def periodized_cost(
-    capital_cost: T,
-    overnight_cost: T,
-    discount_rate: T,
-    lifetime: T,
-    fom_cost: T | None = None,
+    capital_cost: float | pd.Series,
+    overnight_cost: float | pd.Series,
+    discount_rate: float | pd.Series,
+    lifetime: float | pd.Series,
+    fom_cost: float | pd.Series | None = None,
     nyears: float | pd.Series = 1.0,
-) -> T:
+) -> float | pd.Series:
     """Calculate fixed costs for the modeled horizon from capital or overnight cost.
 
     This function calculates the total fixed cost for the modeled horizon by:

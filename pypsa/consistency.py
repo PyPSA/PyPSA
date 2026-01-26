@@ -509,6 +509,18 @@ def check_cost_consistency(component: Components, strict: bool = False) -> None:
                 ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
             )
 
+    if "lifetime" in static.columns:
+        missing_lifetime_rate = has_overnight & static["lifetime"].isna()
+        if missing_lifetime_rate.any():
+            assets = static.index[missing_lifetime_rate].tolist()
+            _log_or_raise(
+                True,
+                "Component %s has assets with 'overnight_cost' set but missing "
+                "'lifetime': %s. Provide lifetime for annuitization.",
+                component.name,
+                ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
+            )
+
 
 def check_generators(component: Components, strict: bool = False) -> None:
     """Check the consistency of generator attributes before the simulation.
@@ -879,7 +891,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             # Checks generators
             check_generators(c, "generators" in strict)
             # Checks cost attributes consistency
-            check_cost_consistency(c, "cost_consistency" in strict)
+            check_cost_consistency(c)
 
             if check_dtypes:
                 check_dtypes_(c, "dtypes" in strict)

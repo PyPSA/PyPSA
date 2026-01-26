@@ -929,8 +929,8 @@ def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
 
 
 @deprecated(
-    deprecated_in="0.35.0",
-    removed_in="1.0.0",
+    deprecated_in="1.1.0",
+    removed_in="2.0.0",
     details="Use pypsa.costs.annuity() instead.",
 )
 def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:

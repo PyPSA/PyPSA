@@ -55,7 +55,7 @@ PyPSA supports two approaches for specifying investment costs:
           fom_cost=12000)          # Fixed O&M: €/MW/a
     ```
 
-    The effective capital cost used in optimization is calculated as:
+    The effective periodized cost per MW installation used in optimization is calculated as:
 
     $$c = c_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}} + c_{\text{fom}}$$
 
@@ -63,19 +63,13 @@ PyPSA supports two approaches for specifying investment costs:
 
     $$\text{annuity}(r, n) = \frac{r}{1 - (1 + r)^{-n}}$$
 
-!!! tip "When to use overnight costs"
+    or
 
-    The overnight cost approach is useful when:
-
-    - Working with technology cost databases (e.g., [technology-data](https://github.com/pypsa/technology-data)) that provide overnight costs
-    - Different technologies have different discount rates or lifetimes
-    - You want to separately report overnight investment costs and fixed O&M in results
-
-    When `overnight_cost` is not set (default NaN), `capital_cost` is used directly, preserving backward compatibility.
+    $$1/n  /text{if} r=0$$
 
 ### Fixed Operation & Maintenance Costs
 
-Fixed O&M costs (`fom_cost`) represent annual costs that are incurred regardless of dispatch, such as maintenance, insurance, and land lease. They are added to the annualized overnight cost when using the overnight cost approach:
+Fixed O&M costs (`fom_cost`) represent annual costs that are incurred regardless of dispatch, such as maintenance, insurance, and land lease. They are added to the annualized investment cost (`capital_cost` / `overnight_cost`) when using the overnight cost approach:
 
 ``` py
 # Wind turbine with 2% of overnight cost as annual FOM
