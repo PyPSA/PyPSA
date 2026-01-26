@@ -114,6 +114,12 @@ optimize.solver_name:
 optimize.solver_options:
     Default: {}
     Description: Default value for the 'solver_options' parameter in optimization module.
+optimize.include_objective_constant:
+    Default: None
+    Description: Include capital costs of existing capacity on extendable assets in the
+        objective. Setting False sets n.objective_constant to zero and improves LP
+        numerical conditioning. None defaults to True with a FutureWarning (changes to
+        False in v2.0).
 ```
 
 ### Warnings options

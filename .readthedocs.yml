@@ -21,7 +21,7 @@ build:
     - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv pip install -r docs/requirements.txt
     pre_build:
       # To create all doctest files
-    - uv run pytest test/test_docs.py --test-docs
+    - ${READTHEDOCS_VIRTUALENV_PATH}/bin/python -m pytest test/test_docs.py --test-docs
 
 mkdocs:
   configuration: mkdocs.yml
