@@ -936,10 +936,9 @@ def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
 def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     """Calculate the annuity factor for a given discount rate and lifetime.
 
-    .. deprecated:: 1.1.0
-        Use :func:`pypsa.costs.annuity` instead.
+    **Deprecated since 1.1.0:** Use `pypsa.costs.annuity()` instead.
 
-    According to formula :math:`r / (1 - (1 + r)^{-n})` or :math:`1 / n` for :math:`r = 0`.
+    According to formula $r / (1 - (1 + r)^{-n})$ or $1 / n$ for $r = 0$.
 
     Parameters
     ----------

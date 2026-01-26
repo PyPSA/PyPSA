@@ -461,11 +461,16 @@ def check_assets(n: NetworkType, component: Components, strict: bool = False) ->
 def check_cost_consistency(component: Components, strict: bool = False) -> None:
     """Check if both overnight_cost and capital_cost are set for the same asset.
 
+<<<<<<< HEAD
     When both are specified, overnight_cost takes precedence and capital_cost is
     ignored.
+=======
+    When both are specified, `overnight_cost` takes precedence and `capital_cost` is
+    ignored. This may indicate user confusion.
+>>>>>>> d1db3f94 (reverted: rst to md now)
 
-    Activate strict mode in general consistency check by passing ``['cost_consistency']``
-    to the ``strict`` argument.
+    Activate strict mode in general consistency check by passing `['cost_consistency']`
+    to the `strict` argument.
 
     Parameters
     ----------
@@ -476,7 +481,7 @@ def check_cost_consistency(component: Components, strict: bool = False) -> None:
 
     See Also
     --------
-    :meth:`pypsa.Network.consistency_check`
+    `pypsa.Network.consistency_check`
 
     """
     static = component.static

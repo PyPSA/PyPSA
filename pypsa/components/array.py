@@ -355,7 +355,7 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         See Also
         --------
-        :func:`pypsa.costs.periodized_cost`
+        `pypsa.costs.periodized_cost`
 
         """
         static = self.static
@@ -378,7 +378,7 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         See Also
         --------
-        :func:`pypsa.costs.periodized_cost`
+        `pypsa.costs.periodized_cost`
 
         """
         static = self.static
@@ -397,7 +397,7 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         See Also
         --------
-        :attr:`pypsa.Network.nyears`
+        `pypsa.Network.nyears`
 
         """
         if self.n is None:
@@ -409,8 +409,8 @@ class ComponentsArrayMixin(_ComponentsABC):
     def annuity(self) -> pd.Series:
         """Calculate annuity factor for all components.
 
-        Returns the annuity factor based on ``discount_rate`` and ``lifetime``.
-        If ``discount_rate`` is NaN (no ``overnight_cost`` provided), returns 1.0.
+        Returns the annuity factor based on `discount_rate` and `lifetime`.
+        If `discount_rate` is NaN (no `overnight_cost` provided), returns 1.0.
 
         Returns
         -------
@@ -427,7 +427,7 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         See Also
         --------
-        :func:`pypsa.costs.annuity_factor`
+        `pypsa.costs.annuity_factor`
 
         """
         static = self.static
@@ -461,8 +461,8 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         See Also
         --------
-        :attr:`capital_cost` : Annuitized investment cost for the modeled horizon.
-        :attr:`annuity` : Annuity factor for each component.
+        `capital_cost` : Annuitized investment cost for the modeled horizon.
+        `annuity` : Annuity factor for each component.
 
         """
         static = self.static

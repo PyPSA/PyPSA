@@ -18,13 +18,11 @@ def annuity(
 
     Converts overnight investment cost to an annualized cost using the formula:
 
-    .. math::
-
-        \frac{r}{1 - (1 + r)^{-n}}
+    $$\frac{r}{1 - (1 + r)^{-n}}$$
 
     Special cases:
 
-    - Zero discount rate: returns ``1/lifetime`` (simple depreciation)
+    - Zero discount rate: returns `1/lifetime` (simple depreciation)
     - Infinite lifetime with r > 0: returns the discount rate
     - Infinite lifetime with r <= 0: returns 0
     - Negative discount rates are allowed (penalizes the present)
@@ -97,58 +95,6 @@ def annuity(
     return result
 
 
-def annuity_factor(
-    discount_rate: float | pd.Series,
-    lifetime: float | pd.Series,
-) -> float | pd.Series:
-    """Calculate annuity factor, handling NaN discount_rate.
-
-    This is a wrapper around :func:`annuity` that returns 1.0 where
-    ``discount_rate`` is NaN. This is used internally when computing
-    periodized costs - if discount_rate is NaN, it means the user
-    provided capital_cost (already annuitized) instead of overnight_cost.
-
-    Parameters
-    ----------
-    discount_rate : float | pd.Series
-        Discount rate as decimal. If NaN, returns 1.0.
-    lifetime : float | pd.Series
-        Asset lifetime in years.
-
-    Returns
-    -------
-    float | pd.Series
-        Annuity factor: ``annuity(discount_rate, lifetime)`` if ``discount_rate``
-        is not NaN, otherwise 1.0.
-
-    Examples
-    --------
-    >>> import pypsa
-    >>> import numpy as np
-    >>> pypsa.costs.annuity_factor(0.07, 25)  # doctest: +ELLIPSIS
-    0.0858...
-    >>> pypsa.costs.annuity_factor(np.nan, 25)  # NaN = pass-through
-    1.0
-    >>> pypsa.costs.annuity_factor(0.0, 20)  # 0% rate = simple depreciation
-    0.05
-
-    """
-    if isinstance(discount_rate, pd.Series):
-        is_nan = discount_rate.isna()
-        safe_rate = discount_rate.where(~is_nan, 0.07)
-        if isinstance(lifetime, pd.Series):
-            safe_lifetime = lifetime.where(~lifetime.isna(), 25.0)
-        else:
-            safe_lifetime = lifetime
-        result = annuity(safe_rate, safe_lifetime)
-        return result.where(~is_nan, 1.0)
-
-    # Scalar case
-    if np.isnan(discount_rate):
-        return 1.0
-    return annuity(discount_rate, lifetime)
-
-
 def _has_overnight_cost(overnight_cost: float | pd.Series) -> bool:
     """Check if any overnight cost values are provided (not NaN)."""
     if isinstance(overnight_cost, pd.Series):
@@ -168,11 +114,11 @@ def periodized_cost(
 
     This function calculates the total fixed cost for the modeled horizon by:
 
-    1. If ``overnight_cost`` is provided (not NaN): annuitize it using
-       ``discount_rate`` and ``lifetime``, then scale by ``nyears`` and add
-       ``fom_cost``.
-    2. If ``overnight_cost`` is NaN: use ``capital_cost`` directly
-       (already scaled to the model horizon) and add ``fom_cost``.
+    1. If `overnight_cost` is provided (not NaN): annuitize it using
+       `discount_rate` and `lifetime`, then scale by `nyears` and add
+       `fom_cost`.
+    2. If `overnight_cost` is NaN: use `capital_cost` directly
+       (already scaled to the model horizon) and add `fom_cost`.
 
     Parameters
     ----------
@@ -220,11 +166,11 @@ def periodized_cost(
     if use_overnight:
         if isinstance(overnight_cost, pd.Series):
             has_overnight = overnight_cost.notna()
-            ann_factor = annuity_factor(discount_rate, lifetime)
+            ann_factor = annuity(discount_rate, lifetime)
             annuitized = overnight_cost * ann_factor * nyears
             base = annuitized.where(has_overnight, capital_cost)
         else:
-            base = overnight_cost * annuity_factor(discount_rate, lifetime) * nyears
+            base = overnight_cost * annuity(discount_rate, lifetime) * nyears
     else:
         base = capital_cost
 
