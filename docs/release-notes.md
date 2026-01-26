@@ -13,6 +13,8 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Enhancements
+
 ### Features
 
 - New network sanitization and data integrity features (<!-- md:pr 1401 -->):
@@ -36,6 +38,21 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Bug Fixes
 
 - Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
+
+- Add temporal clustering functionality via `n.cluster.temporal.*` accessor. (<!-- md:pr 1508 -->)
+
+    - `resample(offset)` - Aggregate snapshots at regular intervals (e.g., "3h", "24h")
+    - `downsample(stride)` - Select every Nth snapshot as representative
+    - `segment(num_segments)` - TSAM agglomerative clustering for variable-duration segments
+    - `from_snapshot_map(snapshot_map)` - Apply pre-computed temporal aggregation
+
+    All methods preserve the snapshot weighting invariant and return the clustered network.
+    Use `get_resample_result()`, `get_downsample_result()`, `get_segment_result()`, or
+    `get_from_snapshot_map_result()` to also get the snapshot mapping for disaggregation.
+    ```
+
+- Add `n.nyears` property to get total modeled years based on snapshot weightings. (<!-- md:pr 1508 -->)
+
 
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
 
