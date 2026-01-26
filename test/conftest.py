@@ -15,6 +15,7 @@ import pypsa
 from pypsa.constants import DEFAULT_EPSG
 
 pypsa.options.debug.runtime_verification = True
+pypsa.options.params.optimize.include_objective_constant = True
 
 
 @pytest.fixture(autouse=True)

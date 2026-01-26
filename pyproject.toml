@@ -91,6 +91,8 @@ docs = [
     "gurobipy",
     "openpyxl",
     "python-calamine",
+    "pytest",
+    "cartopy>=0.16",
 ]
 
 # setuptools_scm settings
@@ -117,6 +119,7 @@ filterwarnings = [
     # Ignore internal warnings
     "default:With PyPSA 1.0, the API for how to access components data has changed:DeprecationWarning",
     "default:When combining.*with other plots on a geographical axis.*:UserWarning", # TODO: needs to be checked
+    "default:The default value of `include_objective_constant` will change:FutureWarning",
 
     # Ignore linopy warnings
     "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
