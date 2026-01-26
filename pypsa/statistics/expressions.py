@@ -941,7 +941,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **overnight investment costs** (excluding fom).
 
-        Returns `overnight_cost * {p/s}_nom_opt` if given, else
+        Returns `overnight_cost * {p/s}_nom_opt` where `overnight_cost` is given, else
         `capital_cost / annuity_factor(lifetime, discount_rate) * {p/s}_nom_opt` (PVF calculation).
 
         Parameters
@@ -1027,7 +1027,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **fixed operation and maintenance costs**.
 
-        Returns ``fom * capacity`` for each component.
+        Returns ``fom_cost * {p/s}_nom_opt`` for each component.
 
         Parameters
         ----------
@@ -2515,11 +2515,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            sign = (
-                -1.0
-                if c in n.branch_components
-                else (n.c[c].static["sign"] if "sign" in n.c[c].static.columns else 1.0)
-            )
+            sign = -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
             df = sign * n.c[c].dynamic[f"p{port}"]
             buses = n.c[c].static[f"bus{port}"][df.columns]
             # catch multiindex case

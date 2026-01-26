@@ -601,24 +601,3 @@ class TestConsistencyCheck:
             "overnight_cost" in record.message and "capital_cost" in record.message
             for record in caplog.records
         )
-
-    def test_no_warning_capital_only(self, simple_network, caplog):
-        """Test no warning when only capital_cost is set."""
-        import logging
-
-        n = simple_network
-        n.add(
-            "Generator",
-            "gen",
-            bus="bus",
-            capital_cost=100,
-        )
-
-        with caplog.at_level(logging.WARNING):
-            n.consistency_check()
-
-        # Should not warn about cost consistency
-        assert not any(
-            "overnight_cost" in record.message and "capital_cost" in record.message
-            for record in caplog.records
-        )

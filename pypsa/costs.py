@@ -112,7 +112,7 @@ def periodized_cost(
 ) -> float | pd.Series:
     """Calculate fixed costs for the modeled horizon from capital or overnight cost.
 
-    This function calculates the total fixed cost for the modeled horizon by:
+    This function calculates the total fixed cost for the modeled horizon `n.nyears` by:
 
     1. If `overnight_cost` is provided (not NaN): annuitize it using
        `discount_rate` and `lifetime`, then scale by `nyears` and add

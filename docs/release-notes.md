@@ -34,7 +34,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add support for Python 3.14. Note that not all optional dependencies and solvers
   are available for Python 3.14 yet. (<!-- md:pr 1511 -->)
-- Add support for splitting `capital_cost` into overnight investment cost and fixed O&M. New component attributes `overnight_cost`, `discount_rate`, and `fom_cost` allow specifying overnight costs that are automatically annuitized during optimization. When `overnight_cost` is provided, PyPSA calculates the annuity using `discount_rate` and `lifetime` (supports 0% rate for simple depreciation). When `overnight_cost` is not set (default NaN), `capital_cost` is used. New `pypsa.costs` module with `annuity()`, `annuity_factor()`, and `periodized_cost()` functions. New statistics methods `n.statistics.overnight_cost()` and `n.statistics.fom()` for reporting. (<!-- md:pr 1507 -->)
+- Add support for splitting `capital_cost` into overnight investment cost and fixed O&M. New component attributes `overnight_cost`, `discount_rate`, and `fom_cost` allow specifying overnight costs that are automatically annuitized during optimization. When `overnight_cost` is provided, PyPSA calculates the annuity using `discount_rate` and `lifetime` (supports 0% rate for simple depreciation). When `overnight_cost` is not set (default NaN), `capital_cost` is used. New `pypsa.costs` module with `annuity()`, and `periodized_cost()` functions. New statistics methods `n.statistics.overnight_cost()` and `n.statistics.fom()` for reporting. (<!-- md:pr 1507 -->)
 - Speed up creating the model by avoiding some redundant checks. (<!-- md:pr 1515 -->)
 
 ### Bug Fixes

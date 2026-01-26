@@ -32,18 +32,18 @@ PyPSA supports two approaches for specifying investment costs:
 
 === "Direct capital_cost (default)"
 
-    Provide `capital_cost` directly as annualized cost per unit capacity (currency/MW/a or currency/MWh/a). This is the traditional approach:
+    Provide `capital_cost` directly as annualized cost per unit capacity (currency/MW or currency/MWh) per model period:
 
     ``` py
     n.add("Generator", "wind",
           bus="bus",
           p_nom_extendable=True,
-          capital_cost=50000)  # Already annualized: €/MW/a
+          capital_cost=50000)  # Already periodized: €/MW
     ```
 
-=== "Overnight cost with automatic annuitization"
+=== "Overnight cost with automatic periodization"
 
-    Provide `overnight_cost` (upfront investment cost), `discount_rate`, and `lifetime`. PyPSA automatically calculates the annualized cost:
+    Provide `overnight_cost` (upfront investment cost), `discount_rate`, and `lifetime`. PyPSA automatically calculates the periodized cost:
 
     ``` py
     n.add("Generator", "wind",
@@ -59,7 +59,7 @@ PyPSA supports two approaches for specifying investment costs:
 
     $$c = c_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}} + c_{\text{fom}}$$
 
-    where the annuity factor converts overnight cost to annual payments:
+    where $N_{\text{years}}$ refers to the model time span in units of years, derived from `n.snapshot_weightings["objective"]`.  The annuity factor converts overnight cost to annual payments:
 
     $$\text{annuity}(r, n) = \frac{r}{1 - (1 + r)^{-n}}$$
 
@@ -67,18 +67,16 @@ PyPSA supports two approaches for specifying investment costs:
 
     $$1/n  /text{if} r=0$$
 
+
+
 ### Fixed Operation & Maintenance Costs
 
-Fixed O&M costs (`fom_cost`) represent annual costs that are incurred regardless of dispatch, such as maintenance, insurance, and land lease. They are added to the annualized investment cost (`capital_cost` / `overnight_cost`) when using the overnight cost approach:
+Fixed O&M costs (`fom_cost`) represent periodized costs that are incurred regardless of dispatch, such as maintenance, insurance, and land lease. They are added to the annualized investment cost (`capital_cost` / `overnight_cost`):
 
 ``` py
 # Wind turbine with 2% of overnight cost as annual FOM
 n.generators.loc["wind", "fom_cost"] = 0.02 * n.generators.loc["wind", "overnight_cost"]
 ```
-
-!!! note "FOM with direct capital_cost"
-
-    When using `capital_cost` directly (without `overnight_cost`), you can still specify `fom_cost`. It will be added to `capital_cost` in the optimization.
 
 ??? note "Mapping of symbols to attributes"
 
