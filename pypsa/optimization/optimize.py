@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -75,7 +76,31 @@ lookup = pd.read_csv(
 )
 
 
-def define_objective(n: Network, sns: pd.Index) -> None:
+def _resolve_include_objective_constant(
+    value: bool | None, stacklevel: int = 3
+) -> bool:
+    """Resolve include_objective_constant from explicit value or options.
+
+    Raises FutureWarning if neither is set.
+    """
+    if value is None:
+        value = options.params.optimize.include_objective_constant
+    if value is None:
+        warnings.warn(
+            "The default value of `include_objective_constant` will change from "
+            "True to False in version 2.0. Set `include_objective_constant` "
+            "explicitly to suppress this warning. Using False improves LP numerical "
+            "conditioning by not including the objective constant as a variable.",
+            FutureWarning,
+            stacklevel=stacklevel,
+        )
+        value = True
+    return value
+
+
+def define_objective(
+    n: Network, sns: pd.Index, include_objective_constant: bool
+) -> None:
     """Define and write the optimization objective function.
 
     Builds the (linear or quadratic) objective by assembling the following terms:
@@ -101,6 +126,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         Network instance containing the Linopy model and component data.
     sns : pandas.Index
         Snapshots (and, for multi-investment, periods) over which to build the objective.
+    include_objective_constant : bool
+        Whether to include the objective constant as a variable in the objective function.
 
     Returns
     -------
@@ -125,55 +152,63 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         period_weighting = n.investment_period_weightings.objective[periods]
 
     # constant for already done investment
-    nom_attr = nominal_attrs.items()
-    constant: xr.DataArray | float = 0
-    terms = []
+    if include_objective_constant:
+        nom_attr = nominal_attrs.items()
+        constant: xr.DataArray | float = 0
+        terms = []
 
-    for c_name, attr in nom_attr:
-        c = as_components(n, c_name)
-        ext_i = c.extendables.difference(c.inactive_assets)
+        for c_name, attr in nom_attr:
+            c = as_components(n, c_name)
+            ext_i = c.extendables.difference(c.inactive_assets)
 
-        if ext_i.empty:
-            continue
+            if ext_i.empty:
+                continue
 
-        capital_cost = c.da.capital_cost.sel(name=ext_i)
-        if capital_cost.size == 0:
-            continue
+            capital_cost = c.da.capital_cost.sel(name=ext_i)
+            if capital_cost.size == 0:
+                continue
 
-        nominal = c.da[attr].sel(name=ext_i)
+            nominal = c.da[attr].sel(name=ext_i)
 
-        # only charge capex for already-existing assets
-        if n._multi_invest:
-            weighted_cost = 0
-            for period in periods:
+            # only charge capex for already-existing assets
+            if n._multi_invest:
+                weighted_cost = 0
+                for period in periods:
+                    # collapse time axis via any() so capex value isn't broadcasted
+                    active = c.da.active.sel(period=period, name=ext_i).any(
+                        dim="timestep"
+                    )
+                    weighted_cost += (
+                        capital_cost * active * period_weighting.loc[period]
+                    )
+            else:
                 # collapse time axis via any() so capex value isn't broadcasted
-                active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += capital_cost * active * period_weighting.loc[period]
+                active = c.da.active.sel(name=ext_i).any(dim="snapshot")
+                weighted_cost = capital_cost * active
+
+            terms.append((weighted_cost * nominal).sum(dim=["name"]))
+
+        constant += sum(terms)
+
+        # Handle constant for stochastic vs deterministic networks
+        if n.has_scenarios and isinstance(constant, xr.DataArray):
+            # For stochastic networks, weight constant by scenario probabilities
+            weighted_constant = sum(
+                constant.sel(scenario=s) * n.scenario_weightings.loc[s, "weight"]
+                for s in n.scenarios
+            )
+            n._objective_constant = float(weighted_constant)
+            has_const = (constant != 0).any().item()
         else:
-            # collapse time axis via any() so capex value isn’t broadcasted
-            active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            weighted_cost = capital_cost * active
-
-        terms.append((weighted_cost * nominal).sum(dim=["name"]))
-
-    constant += sum(terms)
-
-    # Handle constant for stochastic vs deterministic networks
-    if n.has_scenarios and isinstance(constant, xr.DataArray):
-        # For stochastic networks, weight constant by scenario probabilities
-        weighted_constant = sum(
-            constant.sel(scenario=s) * n.scenario_weightings.loc[s, "weight"]
-            for s in n.scenarios
-        )
-        n._objective_constant = float(weighted_constant)
-        has_const = (constant != 0).any().item()
+            n._objective_constant = float(constant)
+            has_const = constant != 0
+        if has_const:
+            object_const = m.add_variables(
+                constant, constant, name="objective_constant"
+            )
+            capex_terms.append(-1 * object_const)
     else:
-        n._objective_constant = float(constant)
-        has_const = constant != 0
-    if has_const:
-        object_const = m.add_variables(constant, constant, name="objective_constant")
-        # Treat constant as part of CAPEX block
-        capex_terms.append(-1 * object_const)
+        n._objective_constant = 0.0
 
     # Weightings
     weighting = n.snapshot_weightings.objective
@@ -391,6 +426,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         solver_name: str | None = None,
         solver_options: dict | None = None,
         compute_infeasibilities: bool = False,
+        include_objective_constant: bool | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -435,6 +471,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         compute_infeasibilities : bool, default False
             Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
             of an infeasible solution. Requires Gurobi.
+        include_objective_constant : bool | None, default None
+            Whether to include the objective constant (capital costs of existing
+            infrastructure) as a variable in the objective function. Setting to False
+            improves LP numerical conditioning. Defaults to module wide option. See
+            `pypsa.options.params.optimize.describe()` for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -458,6 +499,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if solver_options is None:
             solver_options = options.params.optimize.solver_options.copy()
 
+        include_objective_constant = _resolve_include_objective_constant(
+            include_objective_constant
+        )
+
         n = self._n
         sns = as_index(n, snapshots, "snapshots")
         n._multi_invest = int(multi_investment_periods)
@@ -470,6 +515,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             transmission_losses,
             linearized_unit_commitment,
             consistency_check=False,
+            include_objective_constant=include_objective_constant,
             **model_kwargs,
         )
         if extra_functionality:
@@ -497,6 +543,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         transmission_losses: int | dict = 0,
         linearized_unit_commitment: bool = False,
         consistency_check: bool = True,
+        include_objective_constant: bool | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -518,6 +565,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Whether to optimise using the linearised unit commitment formulation or not.
         consistency_check : bool, default: True
             Whether to run the consistency check before building the model.
+        include_objective_constant : bool | None, default: None
+            Whether to include the objective constant (capital costs of existing
+            infrastructure) as a variable in the objective function. Setting to False
+            improves LP numerical conditioning. Defaults to module wide option. See
+            `pypsa.options.params.optimize.describe()` for more information.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -532,6 +584,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._multi_invest = int(multi_investment_periods)
         if consistency_check:
             n.consistency_check()
+
+        include_objective_constant = _resolve_include_objective_constant(
+            include_objective_constant
+        )
 
         kwargs.setdefault("force_dim_names", True)
         n._model = Model(**kwargs)
@@ -625,7 +681,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
 
-        define_objective(n, sns)
+        define_objective(n, sns, include_objective_constant)
 
         return n.model
 

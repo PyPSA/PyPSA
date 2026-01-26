@@ -16,6 +16,8 @@ on:
 
 env:
   PACKAGE_NAME: 'pypsa'
+  SNAKEMAKE_STORAGE_CACHED_HTTP_CACHE: ""
+  SNAKEMAKE_STORAGE_CACHED_HTTP_SKIP_REMOTE_CHECKS: "1"
 
 # Cancel any in-progress runs when a new run is triggered
 concurrency:
@@ -51,8 +53,7 @@ jobs:
 
     - name: Skip - no source changes
       if: steps.filter.outputs.src != 'true' && github.event_name != 'schedule'
-      run: |
-        echo "No source code changes detected, skipping pypsa-eur tests"
+      run: echo "Skipping tests because no source code changes detected"
 
     - name: Free up disk space
       if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
@@ -111,6 +112,10 @@ jobs:
           data
           cutouts
         key: data-cutouts-pypsa-eur-${{ env.WEEK }}
+
+    - name: Restore git-tracked files in data/
+      if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
+      run: git checkout HEAD -- data/
 
     - name: Install package from ref
       if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'

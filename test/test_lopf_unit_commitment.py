@@ -812,3 +812,27 @@ def test_dynamic_start_up_rates_for_commitables():
         assert gen1_p[snapshot] <= expected_max_startup, (
             f"Startup ramp limit violated at snapshot {snapshot}: {gen1_p[snapshot]} > {expected_max_startup}"
         )
+
+
+def test_ramp_limits_multi_investment_period():
+    n = pypsa.Network()
+    sns = pd.date_range("2025-01-01", periods=5, freq="h").append(
+        pd.date_range("2026-01-01", periods=5, freq="h")
+    )
+    n.set_snapshots(pd.MultiIndex.from_arrays([sns.year, sns]))
+    n.investment_periods = [2025, 2026]
+    n.investment_period_weightings["years"] = 5
+
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        ramp_limit_up=0.5,
+        marginal_cost=10,
+    )
+    n.add("Load", "load", bus="bus", p_set=100)
+
+    status, _ = n.optimize()
+    assert status == "ok"
