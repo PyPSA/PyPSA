@@ -33,6 +33,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
 
+### Bug Fixes
+
+- Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
+
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
 
 ### Enhancements
