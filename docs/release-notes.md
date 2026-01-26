@@ -29,6 +29,15 @@ SPDX-License-Identifier: CC-BY-4.0
     - Improved multi-level index handling with automatic grouping/faceting
 
 - Add environment variable support for options via `PYPSA_*` prefix (e.g., `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi`). (<!-- md:pr 1513 -->)
+- In version 2.0, capital costs of existing capacity on extendable assets will no longer be included in the objective by default (`n.objective_constant` will be set to zero), which improves LP numerical conditioning. A `FutureWarning` is now raised to announce this change. A new `include_objective_constant` parameter was added to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] and [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] to allow controlling this behavior and opt-in to the new default. Can also be configured via `pypsa.options.params.optimize.include_objective_constant` (see <!-- md:guide options.md -->). (<!-- md:pr 1509 -->)
+
+### Bug Fixes
+
+- Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
+
+### Bug Fixes
+
+- Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
 
 - Add temporal clustering functionality via `n.cluster.temporal.*` accessor. (<!-- md:pr 1508 -->)
 
@@ -52,6 +61,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Add support for Python 3.14. Note that not all optional dependencies and solvers
   are available for Python 3.14 yet. (<!-- md:pr 1511 -->)
 - Speed up creating the model by avoiding some redundant checks. (<!-- md:pr 1515 -->)
+
 
 ### Bug Fixes
 
