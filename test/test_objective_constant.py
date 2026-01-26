@@ -73,12 +73,13 @@ def test_include_objective_constant_none_raises_future_warning(
 ) -> None:
     """Test that include_objective_constant=None raises FutureWarning."""
     n = network_with_extendable_assets
+    pypsa.options.reset_option("params.optimize.include_objective_constant")
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         n.optimize(log_to_console=False)
-        assert len(w) == 1
-        assert issubclass(w[0].category, FutureWarning)
-        assert "include_objective_constant" in str(w[0].message)
+        future_warnings = [x for x in w if issubclass(x.category, FutureWarning)]
+        assert len(future_warnings) == 1
+        assert "include_objective_constant" in str(future_warnings[0].message)
 
 
 def test_include_objective_constant_true_suppresses_warning(
@@ -175,6 +176,7 @@ def test_create_model_raises_future_warning(
 ) -> None:
     """Test that create_model raises FutureWarning when parameter not set."""
     n = network_with_extendable_assets
+    pypsa.options.reset_option("params.optimize.include_objective_constant")
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         n.optimize.create_model()
