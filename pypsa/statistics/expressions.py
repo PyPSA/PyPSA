@@ -976,8 +976,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         See Also
         --------
-        capex : Returns total fixed costs (overnight_cost + fom_cost).
-        fom_cost : Returns fixed operation and maintenance costs.
+        :meth:`capex` : Returns total fixed costs (overnight_cost + fom_cost).
+        :meth:`fom` : Returns fixed operation and maintenance costs.
 
         """
 
@@ -1061,8 +1061,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         See Also
         --------
-        capex : Returns total fixed costs (investment + fom_cost).
-        investment : Returns annuitized investment costs.
+        :meth:`capex` : Returns total fixed costs (investment + fom_cost).
+        :meth:`overnight_cost` : Returns annuitized investment costs.
 
         """
 

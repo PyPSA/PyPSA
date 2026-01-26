@@ -464,8 +464,8 @@ def check_cost_consistency(component: Components, strict: bool = False) -> None:
     When both are specified, overnight_cost takes precedence and capital_cost is
     ignored.
 
-    Activate strict mode in general consistency check by passing `['cost_consistency']`
-    to the `strict` argument.
+    Activate strict mode in general consistency check by passing ``['cost_consistency']``
+    to the ``strict`` argument.
 
     Parameters
     ----------
@@ -476,7 +476,7 @@ def check_cost_consistency(component: Components, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][]
+    :meth:`pypsa.Network.consistency_check`
 
     """
     static = component.static

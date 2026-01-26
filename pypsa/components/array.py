@@ -351,7 +351,13 @@ class ComponentsArrayMixin(_ComponentsABC):
 
     @property
     def periodized_cost(self) -> xr.DataArray:
-        """Calculate periodized cost from component attributes as xarray DataArray."""
+        """Calculate periodized cost from component attributes as xarray DataArray.
+
+        See Also
+        --------
+        :func:`pypsa.costs.periodized_cost`
+
+        """
         static = self.static
         cost = periodized_cost(
             capital_cost=static["capital_cost"],
@@ -368,7 +374,13 @@ class ComponentsArrayMixin(_ComponentsABC):
 
     @property
     def capital_cost(self) -> pd.Series:
-        """Calculate annuitized investment cost per unit of capacity (no fom)."""
+        """Calculate annuitized investment cost per unit of capacity (no fom).
+
+        See Also
+        --------
+        :func:`pypsa.costs.periodized_cost`
+
+        """
         static = self.static
         return periodized_cost(
             capital_cost=static["capital_cost"],
@@ -381,7 +393,13 @@ class ComponentsArrayMixin(_ComponentsABC):
 
     @property
     def nyears(self) -> float | pd.Series:
-        """Return the modeled time horizon in years."""
+        """Return the modeled time horizon in years.
+
+        See Also
+        --------
+        :attr:`pypsa.Network.nyears`
+
+        """
         if self.n is None:
             msg = "Component is not attached to a Network."
             raise AttributeError(msg)
@@ -391,8 +409,8 @@ class ComponentsArrayMixin(_ComponentsABC):
     def annuity(self) -> pd.Series:
         """Calculate annuity factor for all components.
 
-        Returns the annuity factor based on discount_rate and lifetime.
-        If discount_rate is NaN (no overnight_cost provided), returns 1.0.
+        Returns the annuity factor based on ``discount_rate`` and ``lifetime``.
+        If ``discount_rate`` is NaN (no ``overnight_cost`` provided), returns 1.0.
 
         Returns
         -------
@@ -406,6 +424,10 @@ class ComponentsArrayMixin(_ComponentsABC):
         gen1    0.085...
         gen2    1.0
         dtype: float64
+
+        See Also
+        --------
+        :func:`pypsa.costs.annuity_factor`
 
         """
         static = self.static
@@ -439,8 +461,8 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         See Also
         --------
-        capital_cost : Annuitized investment cost for the modeled horizon.
-        annuity : Annuity factor for each component.
+        :attr:`capital_cost` : Annuitized investment cost for the modeled horizon.
+        :attr:`annuity` : Annuity factor for each component.
 
         """
         static = self.static
