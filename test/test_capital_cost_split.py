@@ -323,7 +323,9 @@ class TestStatisticsFunctions:
             "gen",
             bus="bus",
             p_nom_extendable=True,
-            capital_cost=100,
+            overnight_cost=1000,
+            discount_rate=0.07,
+            lifetime=25,
             marginal_cost=10,
         )
         n.add("Load", "load", bus="bus", p_set=50)
@@ -381,7 +383,7 @@ class TestStatisticsFunctions:
         assert abs(actual - expected) < TOLERANCE
 
     def test_overnight_cost_with_capital_cost(self, simple_network):
-        """Test overnight_cost() returns NaN when only capital_cost is provided."""
+        """Test overnight_cost() raises error when only capital_cost is provided."""
         n = simple_network
         capital_cost = 100
 
@@ -396,8 +398,8 @@ class TestStatisticsFunctions:
         n.add("Load", "load", bus="bus", p_set=50)
         n.optimize(solver_name=SOLVER_NAME)
 
-        overnight = n.statistics.overnight_cost(groupby=False)
-        assert overnight.isna().all()
+        with pytest.raises(ValueError, match="Cannot back-calculate overnight_cost"):
+            n.statistics.overnight_cost(groupby=False)
 
     def test_fom_calculation(self, simple_network):
         """Test fom() returns correct value."""
@@ -524,14 +526,14 @@ class TestComponentProperties:
         assert abs(oc - overnight_cost) < TOLERANCE
 
     def test_overnight_cost_property_with_capital(self, simple_network):
-        """Test overnight_cost property returns NaN when only capital_cost is provided."""
+        """Test overnight_cost property raises error when only capital_cost is provided."""
         n = simple_network
         capital_cost = 100
 
         n.add("Generator", "gen", bus="bus", capital_cost=capital_cost)
 
-        oc = n.c.generators.overnight_cost.iloc[0]
-        assert np.isnan(oc)
+        with pytest.raises(ValueError, match="Cannot back-calculate overnight_cost"):
+            _ = n.c.generators.overnight_cost
 
     def test_annuity_property(self, simple_network):
         """Test annuity property returns correct factor."""

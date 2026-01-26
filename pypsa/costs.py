@@ -70,7 +70,7 @@ def annuity(
     if isinstance(lifetime, int | float) and np.isinf(lifetime):
         if isinstance(discount_rate, int | float):
             return max(discount_rate, 0.0)
-        return discount_rate
+        return discount_rate.clip(lower=0)
 
     # Standard annuity calculation
     result = discount_rate / (1.0 - 1.0 / (1.0 + discount_rate) ** lifetime)

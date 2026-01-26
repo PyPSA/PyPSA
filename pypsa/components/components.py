@@ -958,6 +958,20 @@ class Components(
         capital = static["capital_cost"]
         has_overnight = overnight.notna()
 
+        needs_back_calc = ~has_overnight & (capital != 0)
+        discount_rate = static["discount_rate"]
+        lifetime = static["lifetime"]
+        missing_params = needs_back_calc & (discount_rate.isna() | lifetime.isna())
+
+        if missing_params.any():
+            bad = static.index[missing_params].tolist()
+            msg = (
+                f"Cannot back-calculate overnight_cost for {bad}: "
+                "both 'discount_rate' and 'lifetime' must be provided "
+                "when 'overnight_cost' is not set."
+            )
+            raise ValueError(msg)
+
         ann_factor = self.annuity
         nyears = self.nyears
         nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
