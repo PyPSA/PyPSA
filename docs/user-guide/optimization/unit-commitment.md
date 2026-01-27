@@ -243,7 +243,6 @@ n.optimize(linearized_unit_commitment=True)
 !!! warning "Not compatible with modular components"
 
     Linearized unit commitment cannot be used with [modular committable components](capacity-limits.md#modular-and-committable-components) and will result in a `ValueError`.
-    Modular components use integer status variables representing the number of committed modules (e.g., 0, 1, 2, ... modules online), which cannot be meaningfully relaxed to continuous values (e.g., 1.5 modules online).
 
 To tighten the relaxation, additional constraints are introduced that improve capturing the relationship between commitment status, ramping, and dispatch. This requires start up and shut down costs need to be equal. Otherwise the unit commitment variables are purely relaxed. The added constraints limit the dispatch during partial start-up and shut-down, as well as ramping during partial commitment:
 

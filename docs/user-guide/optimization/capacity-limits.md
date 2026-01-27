@@ -45,7 +45,7 @@ These constraints are set in the function `define_modular_constraints()`.
 
 ### Committable and Extendable Components
 
-When components are both **committable** (`committable=True`) and **extendable** (`p_nom_extendable=True`), the optimizer co-optimizes both capacity expansion and operational unit commitment decisions. This enables modeling scenarios where both the optimal capacity to build AND the on/off operational schedule must be determined simultaneously.
+When components are both **committable** (`committable=True`) and **extendable** (e.g. `p_nom_extendable=True`), the optimizer co-optimizes both capacity expansion and operational unit commitment. This enables modeling scenarios where both the optimal capacity to build AND the on/off operational schedule must be determined simultaneously.
 
 #### Big-M Linearization
 

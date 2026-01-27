@@ -237,44 +237,15 @@ def define_operational_constraints_for_extendables(
 def define_operational_constraints_for_committables(
     n: Network, sns: pd.Index, component: str
 ) -> None:
-    r"""Define operational constraints for committable components.
+    """Define operational constraints for committable components.
 
     Sets operational constraints for components with unit commitment
     decisions. Supports both fixed-capacity and extendable committable
-    components using a big-M formulation for the latter.
-
-    The constraints include:
-
-    1. Power output limits based on commitment status
-    2. State transition constraints (start-up/shut-down)
-    3. Minimum up and down time constraints
-    4. Ramp rate constraints for committed units
-
-    For committable-only components (fixed capacity):
-    $$
-    p_{i,t}^{min} u_{i,t} \\leq p_{i,t} \\leq p_{i,t}^{max} u_{i,t}
-    $$
-
-    For committable+extendable components (big-M formulation):
-    $$
-    p_{i,t} \\geq p_{i,t}^{min,pu} \\cdot p_{i}^{nom} - M \\cdot (1 - u_{i,t})
-    $$
-
-    $$
-    p_{i,t} \\leq M \\cdot u_{i,t}
-    $$
-
-    $$
-    p_{i,t} \\leq p_{i,t}^{max,pu} \\cdot p_{i}^{nom}
-    $$
-
-    where $M$ is a sufficiently large constant (big-M), $u_{i,t}$
-    is the binary commitment status, and $p_{i}^{nom}$ is the optimized
-    capacity variable.
+    components (using big-M formulation for the latter).
 
     Applies to Components
     ---------------------
-    Generator, Link (when they have unit commitment capabilities)
+    Generator, Link
 
     Parameters
     ----------
@@ -1389,10 +1360,6 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
 
     For case a), if the number of modules is not an integer, the function raises a ValueError.
 
-    Applies to Components
-    ---------------------
-    Generator, Link
-
     Parameters
     ----------
     n : pypsa.Network
@@ -1431,10 +1398,6 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
     if com_i.empty:
         return
 
-    ##############################################################
-    # rhs is initially filled for committable, modular, non-extendable components
-    # rhs = p_nom / p_nom_mod (number of installed modules)
-
     inter_i = com_i.intersection(mod_i).intersection(fix_i)
 
     if not inter_i.empty:
@@ -1460,10 +1423,6 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
         rhs = pd.DataFrame(0, sns, inter_i)
         rhs.loc[sns, inter_i] = n_mod.loc[inter_i].values
 
-    ##############################################################
-    # rhs is completed with element "1" for committable, non-modular components
-    # rhs = 1
-
     inter_i2 = com_i.difference(mod_i)
 
     if not inter_i2.empty:
@@ -1475,8 +1434,6 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
             rhs = pd.DataFrame(0, sns, inter_i2)
             rhs.loc[sns, inter_i2] = 1
             inter_i = inter_i2
-
-    #################################################################
 
     if inter_i.empty:
         return
@@ -1518,10 +1475,6 @@ def define_committability_variables_constraints_with_variable_upper_limit(
     The constraint enforces that the number of committed units cannot exceed the total
     number of installed modules, which is itself a decision variable in the optimization.
 
-    Applies to Components
-    ---------------------
-    Generator, Link
-
     Parameters
     ----------
     n : pypsa.Network
@@ -1532,10 +1485,6 @@ def define_committability_variables_constraints_with_variable_upper_limit(
         Name of the network component (e.g. "Generator", "Link")
     attr : str
         Name of the capacity attribute (e.g. "p_nom" for nominal power)
-
-    Returns
-    -------
-    None
 
     Notes
     -----

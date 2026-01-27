@@ -30,6 +30,9 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add environment variable support for options via `PYPSA_*` prefix (e.g., `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi`). (<!-- md:pr 1513 -->)
 - In version 2.0, capital costs of existing capacity on extendable assets will no longer be included in the objective by default (`n.objective_constant` will be set to zero), which improves LP numerical conditioning. A `FutureWarning` is now raised to announce this change. A new `include_objective_constant` parameter was added to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] and [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] to allow controlling this behavior and opt-in to the new default. Can also be configured via `pypsa.options.params.optimize.include_objective_constant` (see <!-- md:guide options.md -->). (<!-- md:pr 1509 -->)
+- Components can now be both committable and extendable simultaneously. This enables unit commitment with capacity expansion optimization using a big-M formulation that maintains the linear programming structure.
+- Components can now be committable and extendable together with modular capacity expansion. This enables unit commitment on single capacity modules within on asset. The formulation is compatible with start-up and shut-down costs, ramp-up and
+  shut-down limit. The feature is not still compatible with min-up and min-down time, up and down time before.
 
 ### Bug Fixes
 
@@ -54,15 +57,6 @@ SPDX-License-Identifier: CC-BY-4.0
 - Add `n.nyears` property to get total modeled years based on snapshot weightings. (<!-- md:pr 1508 -->)
 
 
-* PyPSA now supports committability and extendability, on
-  the same components, if modularity is used. The new feature
-  is compatible with start-up and shut-down costs, ramp-up and
-  shut-down limit. The feature is not still compatible with
-  min-up and min-down time, up and down time before.
-
-- Components (Generators and Links) can now be both committable and extendable
-  simultaneously. This enables unit commitment with capacity expansion optimization
-  using a big-M formulation that maintains the linear programming structure.
 
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
 
