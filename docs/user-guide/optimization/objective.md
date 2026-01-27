@@ -30,7 +30,7 @@ If no extendable components are present, only the dispatch of the components is 
 
 PyPSA supports two approaches for specifying investment costs:
 
-=== "Direct capital_cost (default)"
+=== "Direct periodized capital cost (default)"
 
     Provide `capital_cost` directly as annualized cost per unit capacity (currency/MW or currency/MWh) per model period:
 
