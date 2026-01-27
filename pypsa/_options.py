@@ -463,6 +463,13 @@ options._add_option(
     {},
     "Default value for the 'solver_options' parameter in optimization module.",
 )
+options._add_option(
+    "params.optimize.include_objective_constant",
+    None,
+    "Include capital costs of existing capacity on extendable assets in the objective. "
+    "Setting False sets n.objective_constant to zero and improves LP numerical "
+    "conditioning. None defaults to True with a FutureWarning (changes to False in v2.0).",
+)
 
 options._add_option(
     "params.optimize.committable_big_m",

@@ -152,13 +152,6 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](scigrid-redispatch.ipynb)
 
--   :material-notebook:{ .lg .middle } **Demand Elasticity**
-
-    Demonstrates modelling of price-responsive electricity demands and how they
-    affect price formation.
-
-    [:octicons-arrow-right-24: Go to example](demand-elasticity.ipynb)
-
 -   :material-notebook:{ .lg .middle } **Screening Curves**
 
     Determines optimal generation capacity mix based on screening curves.

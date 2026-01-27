@@ -116,6 +116,12 @@ optimize.solver_options:
 optimize.committable_big_m:
     Default: None
     Description: Fallback big-M value for committable+extendable constraints. If None, PyPSA infers a scale from the network (e.g. peak load); otherwise this numeric bound is used when no component-specific limit is available.
+optimize.include_objective_constant:
+    Default: None
+    Description: Include capital costs of existing capacity on extendable assets in the
+        objective. Setting False sets n.objective_constant to zero and improves LP
+        numerical conditioning. None defaults to True with a FutureWarning (changes to
+        False in v2.0).
 ```
 
 ### Warnings options
