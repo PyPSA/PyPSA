@@ -957,9 +957,7 @@ def define_ramp_limit_constraints(
             limit_start = p_nom_com * ramp_limit_start_up_com
             limit_up = p_nom_com * ramp_limit_up_com
 
-            status = m[f"{c.name}-status"].sel(
-                snapshot=snapshot_sel, name=com_i
-            )
+            status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel, name=com_i)
             status_prev = (
                 m[f"{c.name}-status"]
                 .shift(snapshot=1)
@@ -992,9 +990,7 @@ def define_ramp_limit_constraints(
             limit_shut = p_nom_com * ramp_limit_shut_down_com
             limit_down = p_nom_com * ramp_limit_down_com
 
-            status = m[f"{c.name}-status"].sel(
-                snapshot=snapshot_sel, name=com_i
-            )
+            status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel, name=com_i)
             status_prev = (
                 m[f"{c.name}-status"]
                 .shift(snapshot=1)
