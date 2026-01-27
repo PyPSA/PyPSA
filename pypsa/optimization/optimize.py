@@ -583,6 +583,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         sns = as_index(n, snapshots, "snapshots")
         n._linearized_uc = int(linearized_unit_commitment)
         n._multi_invest = int(multi_investment_periods)
+
+        if linearized_unit_commitment:
+            self._validate_no_modular_committables()
+
         if consistency_check:
             n.consistency_check()
 
@@ -1109,6 +1113,39 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 n.c.buses.dynamic.v_ang = pd.concat(
                     [v_ang_for_(sub) for sub in n.c.sub_networks.static.obj], axis=1
                 ).reindex(columns=n.c.buses.static.index, fill_value=0.0)
+
+    def _validate_no_modular_committables(self) -> None:
+        """Validate that no modular committable components exist.
+
+        Raises ValueError if linearized_unit_commitment is used with modular
+        committable components, as this combination is semantically invalid.
+        """
+        n = self._n
+        modular_committables: list[str] = []
+
+        for c in n.components:
+            com_i = c.committables
+            if com_i.empty:
+                continue
+            com_i = com_i.difference(c.inactive_assets)
+            mod_com_i = com_i.intersection(c.modulars)
+            if not mod_com_i.empty:
+                modular_committables.extend(f"{c.name}:{name}" for name in mod_com_i)
+
+        if modular_committables:
+            components_str = ", ".join(modular_committables[:5])
+            if len(modular_committables) > 5:
+                components_str += f", ... ({len(modular_committables)} total)"
+            msg = (
+                f"linearized_unit_commitment=True cannot be used with modular "
+                f"committable components: {components_str}. "
+                f"Modular components use integer status variables representing the "
+                f"number of committed modules, which cannot be meaningfully relaxed "
+                f"to continuous values. Use standard unit commitment "
+                f"(linearized_unit_commitment=False) or remove modular sizing "
+                f"(set p_nom_mod=0)."
+            )
+            raise ValueError(msg)
 
     def fix_optimal_capacities(self) -> None:
         """Fix capacities of extendable assets to optimized capacities.

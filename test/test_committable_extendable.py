@@ -965,6 +965,215 @@ def test_committable_extendable_link_with_ramp_limits():
         assert ramp >= -max_ramp_down - 1e-6
 
 
+def test_committable_extendable_linearized_uc():
+    """Test committable+extendable generators with linearized unit commitment.
+
+    Linearized unit commitment relaxes binary status variables to continuous
+    [0,1], which should still work with the big-M formulation for extendable
+    generators.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(12))
+
+    n.add("Bus", "bus")
+
+    load_profile = [300, 400, 600, 800, 700, 500, 400, 600, 800, 900, 700, 500]
+    n.add("Load", "load", bus="bus", p_set=load_profile)
+
+    n.add(
+        "Generator",
+        "gas_com_ext",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        marginal_cost=50,
+        capital_cost=80000,
+        p_nom_max=1200,
+        p_min_pu=0.3,
+        start_up_cost=500,
+        shut_down_cost=200,
+    )
+
+    status, termination_code = n.optimize(
+        solver_name="highs", linearized_unit_commitment=True
+    )
+
+    assert status == "ok", f"Optimization failed: {status}"
+
+    p_nom_opt = n.c["Generator"].static.loc["gas_com_ext", "p_nom_opt"]
+    assert p_nom_opt > 0, "Should build capacity"
+
+    dispatch = n.c["Generator"].dynamic["p"]["gas_com_ext"]
+    total_load = sum(load_profile)
+    total_gen = dispatch.sum()
+    assert abs(total_load - total_gen) < 1e-3, "Power balance violated"
+
+
+def test_committable_extendable_linearized_vs_milp():
+    """Compare linearized UC vs MILP for committable+extendable generators.
+
+    The linearized formulation is a relaxation, so its objective should be
+    less than or equal to the MILP objective.
+    """
+
+    def create_network():
+        n = pypsa.Network()
+        n.set_snapshots(range(8))
+        n.add("Bus", "bus")
+        n.add("Load", "load", bus="bus", p_set=[200, 400, 600, 500, 300, 400, 500, 350])
+        n.add(
+            "Generator",
+            "gen",
+            bus="bus",
+            p_nom_extendable=True,
+            committable=True,
+            marginal_cost=40,
+            capital_cost=60000,
+            p_nom_max=800,
+            p_min_pu=0.25,
+            start_up_cost=300,
+            shut_down_cost=150,
+        )
+        return n
+
+    n_milp = create_network()
+    status_milp, _ = n_milp.optimize(solver_name="highs")
+    assert status_milp == "ok"
+
+    n_lin = create_network()
+    status_lin, _ = n_lin.optimize(solver_name="highs", linearized_unit_commitment=True)
+    assert status_lin == "ok"
+
+    assert n_lin.objective <= n_milp.objective + 1e-3, (
+        f"Linearized objective {n_lin.objective} should be <= MILP {n_milp.objective}"
+    )
+
+    cap_milp = n_milp.c["Generator"].static.loc["gen", "p_nom_opt"]
+    cap_lin = n_lin.c["Generator"].static.loc["gen", "p_nom_opt"]
+    assert cap_milp > 0, "MILP should build capacity"
+    assert cap_lin > 0, "Linearized should build capacity"
+
+
+def test_committable_extendable_linearized_uc_multiple_gens():
+    """Test linearized UC with multiple committable+extendable generators."""
+    n = pypsa.Network()
+    n.set_snapshots(range(10))
+
+    n.add("Carrier", ["coal", "gas"])
+    n.add("Bus", "bus")
+
+    load_profile = [500, 700, 900, 1100, 1000, 800, 700, 900, 1000, 800]
+    n.add("Load", "load", bus="bus", p_set=load_profile)
+
+    n.add(
+        "Generator",
+        "coal_gen",
+        bus="bus",
+        carrier="coal",
+        p_nom_extendable=True,
+        committable=True,
+        marginal_cost=30,
+        capital_cost=100000,
+        p_nom_max=800,
+        p_min_pu=0.4,
+        start_up_cost=1000,
+        shut_down_cost=500,
+    )
+
+    n.add(
+        "Generator",
+        "gas_gen",
+        bus="bus",
+        carrier="gas",
+        p_nom_extendable=True,
+        committable=True,
+        marginal_cost=60,
+        capital_cost=50000,
+        p_nom_max=600,
+        p_min_pu=0.2,
+        start_up_cost=200,
+        shut_down_cost=100,
+    )
+
+    status, termination_code = n.optimize(
+        solver_name="highs", linearized_unit_commitment=True
+    )
+
+    assert status == "ok", f"Optimization failed: {status}"
+
+    coal_cap = n.c["Generator"].static.loc["coal_gen", "p_nom_opt"]
+    gas_cap = n.c["Generator"].static.loc["gas_gen", "p_nom_opt"]
+    assert coal_cap >= 0
+    assert gas_cap >= 0
+
+    total_cap = coal_cap + gas_cap
+    peak_load = max(load_profile)
+    assert total_cap >= peak_load, f"Total capacity {total_cap} < peak load {peak_load}"
+
+    dispatch = n.c["Generator"].dynamic["p"]
+    total_load = sum(load_profile)
+    total_gen = dispatch.sum().sum()
+    assert abs(total_load - total_gen) < 1e-3, "Power balance violated"
+
+
+def test_committable_extendable_modular_linearized_uc_raises():
+    """Test that modular + committable + linearized UC raises an error.
+
+    Modular committable components use integer status variables for the number
+    of committed modules, which cannot be meaningfully relaxed to continuous.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(6))
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[300, 500, 700, 600, 400, 350])
+
+    n.add(
+        "Generator",
+        "modular_gen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_mod=150,
+        p_nom_max=750,
+        p_min_pu=0.25,
+        marginal_cost=45,
+        capital_cost=70000,
+        start_up_cost=400,
+        shut_down_cost=200,
+    )
+
+    with pytest.raises(ValueError, match="linearized_unit_commitment.*modular"):
+        n.optimize(solver_name="highs", linearized_unit_commitment=True)
+
+
+def test_committable_extendable_modular_link_linearized_uc_raises():
+    """Test that modular + committable + linearized UC raises error for Links."""
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+    n.add("Generator", "gen", bus="bus0", p_nom=1000, marginal_cost=10)
+    n.add("Load", "load", bus="bus1", p_set=[200, 400, 300, 250])
+
+    n.add(
+        "Link",
+        "modular_link",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_mod=100,
+        p_nom_max=500,
+        marginal_cost=5,
+        capital_cost=30000,
+    )
+
+    with pytest.raises(ValueError, match="linearized_unit_commitment.*modular"):
+        n.optimize(solver_name="highs", linearized_unit_commitment=True)
+
+
 def test_no_start_costs():
     """Test with zero startup/shutdown costs."""
     n = pypsa.Network()
