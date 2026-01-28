@@ -938,6 +938,16 @@ def test_ramp_limit_shut_down_binary_uc():
         p_nom=5000,
         marginal_cost=1e5,
     )
+
+    n.add(
+        "Generator",
+        "slack_dump",
+        bus="electricity",
+        p_nom=20000,
+        marginal_cost=1e6,
+        sign=-1,
+    )
+
     n.add("Load", "load", bus="electricity", p_set=[4000, 5000, 2000, 0])
 
     status, condition = n.optimize()
@@ -949,10 +959,10 @@ def test_ramp_limit_shut_down_binary_uc():
     backstop_output = n.c.generators.dynamic.p.loc[:, "expensive_backstop"].values
 
     # Expected pattern based on ramp_limit_shut_down constraint
-    # Snapshot 0: 8000.0 MW (gas), 0.0 MW (backstop)
-    # Snapshot 1: 10000.0 MW (gas), 0.0 MW (backstop)
-    # Snapshot 2: 1000.0 MW (gas), 1500.0 MW (backstop)
-    # Snapshot 3: 0.0 MW (gas), 0.0 MW (backstop)
+    # Snapshot 0: 9000.0 MW (gas), 0.0 MW (backstop), 500.0 MW (slack)
+    # Snapshot 1: 10000.0 MW (gas), 0.0 MW (backstop), 0.0 MW (slack)
+    # Snapshot 2: 1000.0 MW (gas), 1500.0 MW (backstop), 0.0 MW (slack)
+    # Snapshot 3: 0.0 MW (gas), 0.0 MW (backstop), 0.0 MW (slack)
 
     assert abs(gas_output[1] - 10000.0) < 1e-3, (
         f"Snapshot 1: Expected gas output 10000.0, got {gas_output[1]}"
