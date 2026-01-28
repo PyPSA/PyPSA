@@ -836,3 +836,70 @@ def test_ramp_limits_multi_investment_period():
 
     status, _ = n.optimize()
     assert status == "ok"
+
+
+def test_ramp_limit_start_up_binary_uc():
+    """
+    Test that ramp_limit_start_up parameter works correctly in binary unit commitment.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+
+    n.add("Bus", ["gas", "electricity"])
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    # Committable link with ramp_limit_start_up set, but ramp_limit_up is NaN
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        committable=True,
+        p_min_pu=0.1,
+        efficiency=0.5,
+        ramp_limit_start_up=0.4,  # 40% of p_nom on start-up
+        p_nom=10000,
+        up_time_before=0,  # Starts from OFF state
+        start_up_cost=3333,
+    )
+
+    # Backstop generator to ensure feasibility
+    n.add(
+        "Generator",
+        "expensive_backstop",
+        bus="electricity",
+        p_nom=5000,
+        marginal_cost=1e5,
+    )
+
+    n.add("Load", "load", bus="electricity", p_set=[4000, 5000, 2000, 5000])
+
+    status, condition = n.optimize()
+
+    assert status == "ok", f"Optimization failed with status {status}"
+
+    # Get the link output (convert p1 to positive power output)
+    link_output = -n.c.links.dynamic.p1.loc[:, "OCGT"].values
+
+    # Expected ramp limit on start-up: 0.4 * 10000 = 4000 MW
+    max_start_up_output = 0.4 * 10000
+
+    # First snapshot: unit starts from OFF, should respect ramp_limit_start_up
+    assert link_output[0] <= max_start_up_output * 1.01, (
+        f"First snapshot output {link_output[0]} exceeds start-up ramp limit {max_start_up_output}"
+    )
+
+    # Verify unit is committed (status = 1)
+    assert n.c.links.dynamic.status.loc[0, "OCGT"] == 1, (
+        "Link should be committed at first snapshot"
+    )
+
+    # Verify start_up variable catches the start-up event
+    assert n.c.links.dynamic.start_up.loc[0, "OCGT"] == 1, (
+        "Link should show start-up at first snapshot"
+    )
+
+    # Verify constraint
+    assert "Link-com-p-ramp_limit_start_up_first" in n.model.constraints, (
+        "Start-up constraint for the first snapshot should exist"
+    )
