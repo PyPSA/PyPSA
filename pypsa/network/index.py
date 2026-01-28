@@ -633,6 +633,17 @@ class NetworkIndexMixin(_NetworkABC):
             The modeled time horizon in years. Returns a Series indexed by investment
             period when the network has investment periods.
 
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(range(24))  # 24 hourly snapshots
+        >>> n.nyears  # 1/365 # doctest: +ELLIPSIS
+        np.float64(0.00273...)
+        >>> n.snapshot_weightings.loc[:, :] = 365  # weight each hour as one day
+        >>> n.nyears
+        np.float64(1.0)
+
         """
         if self.has_investment_periods:
             return (

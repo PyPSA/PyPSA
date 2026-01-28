@@ -888,10 +888,7 @@ class Components(
         `pypsa.Network.nyears`
 
         """
-        if self.n is None:
-            msg = "Component is not attached to a Network."
-            raise AttributeError(msg)
-        return self.n.nyears
+        return self.n_save.nyears
 
     @property
     def annuity(self) -> pd.Series:

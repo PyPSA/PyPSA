@@ -39,11 +39,6 @@ def annuity(
     float | pd.Series
         Annual annuity factor to multiply overnight cost by.
 
-    Raises
-    ------
-    ValueError
-        If lifetime is non-positive.
-
     Examples
     --------
     >>> import pypsa
@@ -143,10 +138,28 @@ def periodized_cost(
     float | pd.Series
         Fixed cost per unit of capacity for the modeled horizon.
 
-    Raises
-    ------
-    ValueError
-        If overnight_cost is provided and nyears is a Series with varying values.
+    Examples
+    --------
+    Using overnight cost with annuitization:
+
+    >>> periodized_cost(
+    ...     capital_cost=0,
+    ...     overnight_cost=1000,
+    ...     discount_rate=0.07,
+    ...     lifetime=25,
+    ...     nyears=1.0,
+    ... )  # doctest: +ELLIPSIS
+    85.81...
+
+    Falling back to capital_cost when overnight_cost is NaN:
+
+    >>> periodized_cost(
+    ...     capital_cost=100,
+    ...     overnight_cost=np.nan,
+    ...     discount_rate=0.07,
+    ...     lifetime=25,
+    ... )
+    100
 
     """
     use_overnight = _has_overnight_cost(overnight_cost)

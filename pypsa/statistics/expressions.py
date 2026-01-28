@@ -919,13 +919,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    @deprecated_kwargs(
-        deprecated_in="1.0",
-        removed_in="2.0",
-        comps="components",
-        aggregate_groups="groupby_method",
-        aggregate_time="groupby_time",
-    )
     def overnight_cost(  # noqa: D417
         self,
         components: str | Sequence[str] | None = None,
@@ -1005,13 +998,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    @deprecated_kwargs(
-        deprecated_in="1.0",
-        removed_in="2.0",
-        comps="components",
-        aggregate_groups="groupby_method",
-        aggregate_time="groupby_time",
-    )
     def fom(  # noqa: D417
         self,
         components: str | Sequence[str] | None = None,
