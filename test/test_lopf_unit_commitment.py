@@ -974,3 +974,78 @@ def test_ramp_limit_shut_down_binary_uc():
     assert abs(backstop_output[3] - 0.0) < 1e-3, (
         f"Snapshot 3: Expected backstop output 0.0, got {backstop_output[3]}"
     )
+
+
+def test_ramp_limit_shut_down_first_snapshot_with_slack():
+    """
+    Test that ramp_limit_shut_down_first constraint forces production in snapshot 0
+    when unit starts ON, even with zero demand, requiring slack generator to absorb excess.
+    """
+    n = pypsa.Network()
+    snapshots = range(4)
+    n.set_snapshots(snapshots)
+
+    n.add("Bus", ["gas", "electricity"])
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        committable=True,
+        p_min_pu=0.1,
+        efficiency=0.5,
+        ramp_limit_start_up=0.4,
+        start_up_cost=3333,
+        p_nom=10000,
+        status=1,  # Unit starts ON
+        ramp_limit_shut_down=0.1,  # 10% of p_nom max shutdown rate
+    )
+
+    n.add(
+        "Generator",
+        "expensive_backstop",
+        bus="electricity",
+        p_nom=5000,
+        marginal_cost=1e5,
+    )
+    n.add(
+        "Generator",
+        "slack_dump",
+        bus="electricity",
+        p_nom=20000,
+        marginal_cost=1e6,
+        sign=-1,  # Slack variable to keep feasibility
+    )
+    n.add("Load", "load", bus="electricity", p_set=[0, 5000, 2000, 0])
+
+    status, condition = n.optimize()
+
+    assert status == "ok", f"Optimization failed with status {status}"
+
+    # Get generator outputs
+    gas_output = n.c.generators.dynamic.p.loc[:, "gas"].values
+    backstop_output = n.c.generators.dynamic.p.loc[:, "expensive_backstop"].values
+    slack_output = n.c.generators.dynamic.p.loc[:, "slack_dump"].values
+
+    # Expected pattern:
+    # Snapshot 0: ramp_limit_shut_down_first forces gas=9000, producing 4500 MW elec
+    #             Load=0, so slack absorbs 4500 MW excess
+    # Snapshot 2: Gas produces 1000 MW (500 MW elec), backstop fills 1500 MW gap
+
+    # Check snapshot 0
+    assert abs(gas_output[0] - 9000.0) < 1e-3, (
+        f"Snapshot 0: Expected gas output 9000.0, got {gas_output[0]}"
+    )
+    assert abs(slack_output[0] - 4500.0) < 1e-3, (
+        f"Snapshot 0: Expected slack output 4500.0, got {slack_output[0]}"
+    )
+
+    # Check snapshot 2
+    assert abs(gas_output[2] - 1000.0) < 1e-3, (
+        f"Snapshot 2: Expected gas output 1000.0, got {gas_output[2]}"
+    )
+    assert abs(backstop_output[2] - 1500.0) < 1e-3, (
+        f"Snapshot 2: Expected backstop output 1500.0, got {backstop_output[2]}"
+    )
