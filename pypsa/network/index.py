@@ -627,6 +627,8 @@ class NetworkIndexMixin(_NetworkABC):
     def nyears(self) -> float | pd.Series:
         """Return the modeled time horizon in years based on objective weightings.
 
+        <!-- md:badge-version v1.1.0 -->
+
         Returns
         -------
         float | pd.Series

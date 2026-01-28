@@ -16,6 +16,8 @@ def annuity(
 ) -> float | pd.Series:
     r"""Calculate the annuity factor for given discount rate and lifetime.
 
+    <!-- md:badge-version v1.1.0 -->
+
     Converts overnight investment cost to an annualized cost using the formula:
 
     $$\frac{r}{1 - (1 + r)^{-n}}$$
@@ -106,6 +108,8 @@ def periodized_cost(
     nyears: float | pd.Series = 1.0,
 ) -> float | pd.Series:
     """Calculate fixed costs for the modeled horizon from capital or overnight cost.
+
+    <!-- md:badge-version v1.1.0 -->
 
     This function calculates the total fixed cost for the modeled horizon `n.nyears` by:
 

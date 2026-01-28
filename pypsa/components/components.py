@@ -841,6 +841,8 @@ class Components(
     def periodized_cost(self) -> xarray.DataArray:
         """Calculate periodized cost from component attributes as xarray DataArray.
 
+        <!-- md:badge-version v1.1.0 -->
+
         See Also
         --------
         `pypsa.costs.periodized_cost`
@@ -864,6 +866,8 @@ class Components(
     def capital_cost(self) -> pd.Series:
         """Calculate annuitized investment cost per unit of capacity (no fom).
 
+        <!-- md:badge-version v1.1.0 -->
+
         See Also
         --------
         `pypsa.costs.periodized_cost`
@@ -883,6 +887,8 @@ class Components(
     def nyears(self) -> float | pd.Series:
         """Return the modeled time horizon in years.
 
+        <!-- md:badge-version v1.1.0 -->
+
         See Also
         --------
         `pypsa.Network.nyears`
@@ -893,6 +899,8 @@ class Components(
     @property
     def annuity(self) -> pd.Series:
         """Calculate annuity factor for all components.
+
+        <!-- md:badge-version v1.1.0 -->
 
         Returns the annuity factor based on `discount_rate` and `lifetime`.
         If `discount_rate` is NaN (no `overnight_cost` provided), returns 1.0.
@@ -923,6 +931,8 @@ class Components(
     @property
     def overnight_cost(self) -> pd.Series:
         """Calculate overnight cost from component attributes.
+
+        <!-- md:badge-version v1.1.0 -->
 
         If overnight_cost column is provided (not NaN), returns it directly.
         Otherwise, converts annualized capital_cost back to overnight cost using

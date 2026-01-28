@@ -934,6 +934,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **overnight investment costs** (excluding fom).
 
+        <!-- md:badge-version v1.1.0 -->
+
         Returns `overnight_cost * {p/s}_nom_opt` where `overnight_cost` is given, else
         `capital_cost / annuity_factor(lifetime, discount_rate) * {p/s}_nom_opt` (PVF calculation).
 
@@ -1012,6 +1014,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
     ) -> pd.DataFrame:
         """Calculate the **fixed operation and maintenance costs**.
+
+        <!-- md:badge-version v1.1.0 -->
 
         Returns ``fom_cost * {p/s}_nom_opt`` for each component.
 
