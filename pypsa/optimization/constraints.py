@@ -784,9 +784,6 @@ def define_ramp_limit_constraints(
             )
 
         # Special constraint for first snapshot when NOT rolling horizon
-        # Limit start-up power for units starting from off state
-        # NOTE: This block could be avoided if ramp_limit_start_up/shut_down defaults were 1 instead of NaN, but that would always add unbinding constraints to the model.
-        # With NaN defaults, we only create constraints when explicitly needed, but there is need for this special handling.
 
         if not is_rolling_horizon and ~ramp_limit_start_up_com.isnull().any():
             # Check which units start from off state (up_time_before == 0)
