@@ -783,7 +783,7 @@ def define_ramp_limit_constraints(
                 lhs, "<=", rhs, name=f"{c.name}-com-{attr}-ramp_limit_up", mask=mask
             )
 
-        # Special constraint for first snapshot when NOT rolling horizon
+        # Special constraints for first snapshot when NOT rolling horizon
 
         if not is_rolling_horizon and ~ramp_limit_start_up_com.isnull().any():
             # Check which units start from off state (up_time_before == 0)
@@ -807,6 +807,29 @@ def define_ramp_limit_constraints(
                     0,
                     name=f"{c.name}-com-{attr}-ramp_limit_start_up_first",
                     mask=mask_first,
+                )
+
+        if not is_rolling_horizon and ~ramp_limit_shut_down_com.isnull().any():
+            # Check which units start from ON state (up_time_before > 0)
+            up_time_before = c.da.up_time_before.sel(name=com_i)
+            starts_from_on = up_time_before > 0
+            if starts_from_on.any():
+                # For first snapshot: p(0) >= (p_nom - ramp_limit_shut_down * p_nom)
+                p_first = p.sel(name=original_com_i, snapshot=sns[0])
+                limit_shut_first = p_nom_com * ramp_limit_shut_down_com.fillna(1.0)
+                rhs_shut_first = p_nom_com - limit_shut_first
+
+                mask_shut_first = (
+                    c.da.active.sel(name=com_i, snapshot=sns[0])
+                    & starts_from_on
+                    & ~ramp_limit_shut_down_com.isnull()
+                )
+                m.add_constraints(
+                    p_first,
+                    ">=",
+                    rhs_shut_first,
+                    name=f"{c.name}-com-{attr}-ramp_limit_shut_down_first",
+                    mask=mask_shut_first,
                 )
 
         # com down
