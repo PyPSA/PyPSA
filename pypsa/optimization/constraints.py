@@ -596,11 +596,16 @@ def define_ramp_limit_constraints(
 
     ramp_limit_up = c.da.ramp_limit_up.sel(snapshot=sns)
     ramp_limit_down = c.da.ramp_limit_down.sel(snapshot=sns)
+    all_null = (ramp_limit_up.isnull() & ramp_limit_down.isnull()).all()
 
-    # Skip if there are no ramp limits defined or if all are set to 1 (no limit)
-    if (ramp_limit_up.isnull() & ramp_limit_down.isnull()).all():
-        return
-    if (ramp_limit_up == 1).all() and (ramp_limit_down == 1).all():
+    if not c.committables.empty:
+        ramp_limit_start_up = c.da.ramp_limit_start_up
+        ramp_limit_shut_down = c.da.ramp_limit_shut_down
+        all_null = (
+            all_null
+            and (ramp_limit_start_up.isnull() & ramp_limit_shut_down.isnull()).all()
+        )
+    if all_null:
         return
 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
@@ -748,10 +753,10 @@ def define_ramp_limit_constraints(
         rhs_start_com = rhs_start.sel(name=com_i)
 
         # com up
-        non_null_up = ~ramp_limit_up_com.isnull()
+        non_null_up = ~ramp_limit_up_com.isnull() | ~ramp_limit_start_up_com.isnull()
         if non_null_up.any():
-            limit_start = p_nom_com * ramp_limit_start_up_com
-            limit_up = p_nom_com * ramp_limit_up_com
+            limit_start = p_nom_com * ramp_limit_start_up_com.fillna(1.0)
+            limit_up = p_nom_com * ramp_limit_up_com.fillna(1.0)
 
             status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel)
             status_prev = (
@@ -778,11 +783,42 @@ def define_ramp_limit_constraints(
                 lhs, "<=", rhs, name=f"{c.name}-com-{attr}-ramp_limit_up", mask=mask
             )
 
+        # Special constraint for first snapshot when NOT rolling horizon
+        # Limit start-up power for units starting from off state
+        # NOTE: This block could be avoided if ramp_limit_start_up/shut_down defaults were 1 instead of NaN, but that would always add unbinding constraints to the model.
+        # With NaN defaults, we only create constraints when explicitly needed, but there is need for this special handling.
+
+        if not is_rolling_horizon and ~ramp_limit_start_up_com.isnull().any():
+            # Check which units start from off state (up_time_before == 0)
+            up_time_before = c.da.up_time_before.sel(name=com_i)
+            starts_from_off = up_time_before == 0
+            if starts_from_off.any():
+                # For first snapshot: p(0) <= ramp_limit_start_up * p_nom * status(0)
+                p_first = p.sel(name=original_com_i, snapshot=sns[0])
+                status_first = m[f"{c.name}-status"].sel(name=com_i, snapshot=sns[0])
+                limit_start_first = p_nom_com * ramp_limit_start_up_com.fillna(1.0)
+
+                lhs_first = p_first - limit_start_first * status_first
+                mask_first = (
+                    c.da.active.sel(name=com_i, snapshot=sns[0])
+                    & starts_from_off
+                    & ~ramp_limit_start_up_com.isnull()
+                )
+                m.add_constraints(
+                    lhs_first,
+                    "<=",
+                    0,
+                    name=f"{c.name}-com-{attr}-ramp_limit_start_up_first",
+                    mask=mask_first,
+                )
+
         # com down
-        non_null_down = ~ramp_limit_down_com.isnull()
+        non_null_down = (
+            ~ramp_limit_down_com.isnull() | ~ramp_limit_shut_down_com.isnull()
+        )
         if non_null_down.any():
-            limit_shut = p_nom_com * ramp_limit_shut_down_com
-            limit_down = p_nom_com * ramp_limit_down_com
+            limit_shut = p_nom_com * ramp_limit_shut_down_com.fillna(1.0)
+            limit_down = p_nom_com * ramp_limit_down_com.fillna(1.0)
 
             status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel)
             status_prev = (
