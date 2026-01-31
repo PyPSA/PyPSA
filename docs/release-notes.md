@@ -17,6 +17,9 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
+- Add [`n.plot.animate()`][pypsa.plot.PlotAccessor.animate] for creating animations of the network plot over snapshots using `matplotlib.animation.FuncAnimation`. Time-varying parameters like bus sizes and line flows can be passed as DataFrames. Supports `figsize`, `dpi`, `path`, and `margin_adjustment` parameters for controlling output resolution and whitespace. (<!-- md:pr 1285 -->)
+- Add `figsize` and `dpi` parameters to [`n.plot()`][pypsa.plot.PlotAccessor.__call__] for convenient figure sizing without pre-creating axes. (<!-- md:pr 1285 -->)
+
 - New network sanitization and data integrity features (<!-- md:pr 1401 -->):
     - [`n.sanitize()`][pypsa.Network.sanitize]: Run the following methods to fix consistency issues.
         - [`n.components.buses.add_missing_buses()`][pypsa.components.Buses.add_missing_buses]: Add buses referenced by components but not yet defined.
