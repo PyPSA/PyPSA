@@ -112,9 +112,7 @@ def test_animate_static_and_dynamic_params(animated_network):
         index=n.snapshots,
         columns=n.lines.index,
     )
-    anim = n.plot.animate(
-        line_width=line_width, bus_color="red", geomap=False
-    )
+    anim = n.plot.animate(line_width=line_width, bus_color="red", geomap=False)
     assert isinstance(anim, FuncAnimation)
     plt.close("all")
 
@@ -123,8 +121,6 @@ def test_animate_static_and_dynamic_params(animated_network):
 def test_animate_save(animated_network, tmp_path):
     n = animated_network
     filepath = str(tmp_path / "test_anim.gif")
-    result = n.plot.animate(
-        geomap=False, fps=2, path=filepath, writer="pillow"
-    )
+    result = n.plot.animate(geomap=False, fps=2, path=filepath, writer="pillow")
     assert result is None
     assert (tmp_path / "test_anim.gif").exists()

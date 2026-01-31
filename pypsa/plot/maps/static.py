@@ -1341,7 +1341,13 @@ def plot(  # noqa: D103
     **kwargs: Any,
 ) -> dict:
     plotter, geomap, geomap_resolution = _create_plotter(
-        n, layouter, boundaries, margin, jitter, geomap, geomap_resolution,
+        n,
+        layouter,
+        boundaries,
+        margin,
+        jitter,
+        geomap,
+        geomap_resolution,
         kwargs.get("bus_size"),
     )
 

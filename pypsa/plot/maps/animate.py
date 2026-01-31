@@ -143,7 +143,13 @@ def animate(  # noqa: D417
         bus_size = bus_size.iloc[0]
 
     plotter, geomap, geomap_resolution = _create_plotter(
-        n, layouter, boundaries, margin, jitter, geomap, geomap_resolution,
+        n,
+        layouter,
+        boundaries,
+        margin,
+        jitter,
+        geomap,
+        geomap_resolution,
         bus_size,
     )
 
@@ -170,14 +176,18 @@ def animate(  # noqa: D417
 
     # Timestamp text
     ts_kw: dict[str, Any] = {
-        "ha": "left", "va": "top", "fontsize": 12,
+        "ha": "left",
+        "va": "top",
+        "fontsize": 12,
     }
     ts_format = None
     if timestamp_kwargs:
         ts_format = timestamp_kwargs.pop("format", None)
         ts_kw.update(timestamp_kwargs)
     timestamp_text = ax.text(  # type: ignore
-        ts_kw.pop("x", 0.02), ts_kw.pop("y", 0.98), "",
+        ts_kw.pop("x", 0.02),
+        ts_kw.pop("y", 0.98),
+        "",
         transform=ts_kw.pop("transform", ax.transAxes),  # type: ignore
         **ts_kw,
     )
@@ -193,8 +203,12 @@ def animate(  # noqa: D417
         frame_kwargs = _slice_kwargs_for_snapshot(kwargs, snapshot)
 
         result = plotter.draw_map(
-            ax=plotter.ax, projection=projection, geomap=False,
-            title=title, _skip_init_axis=True, **frame_kwargs,
+            ax=plotter.ax,
+            projection=projection,
+            geomap=False,
+            title=title,
+            _skip_init_axis=True,
+            **frame_kwargs,
         )
 
         for key in ("nodes", "branches", "flows"):
@@ -208,8 +222,12 @@ def animate(  # noqa: D417
         return collections + [timestamp_text]
 
     anim = FuncAnimation(
-        fig, _update, frames=len(snapshots), interval=interval,  # type: ignore
-        blit=blit, repeat=repeat,
+        fig,
+        _update,
+        frames=len(snapshots),
+        interval=interval,  # type: ignore
+        blit=blit,
+        repeat=repeat,
     )
 
     if path is not None:
