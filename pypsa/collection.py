@@ -14,6 +14,7 @@ try:
 except ImportError:
     from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from pypsa._options import options
@@ -480,6 +481,72 @@ class NetworkCollection:
             return  # No validation needed for single network or empty collection
 
         # TODO: Implement basic validation of network compatibility
+
+    def analyze_sobol(
+        self,
+        uncertainty: dict,
+        outputs: dict[str, pd.Series | np.ndarray],
+        calc_second_order: bool = False,
+    ) -> dict[str, pd.DataFrame]:
+        """Compute Sobol sensitivity indices for GSA outputs.
+
+        Parameters
+        ----------
+        uncertainty : dict
+            SALib uncertainty dict (must have "names" key)
+        outputs : dict[str, pd.Series | np.ndarray]
+            Output metrics to analyze. Keys are output names,
+            values are arrays/Series indexed by samples.
+            Example: {"capex": nc.statistics.capex()}
+        calc_second_order : bool, default False
+            Whether to compute second-order indices
+
+        Returns
+        -------
+        dict[str, pd.DataFrame]
+            Sobol indices for each output. Keys match `outputs` keys.
+            DataFrames have columns: S1, S1_conf, ST, ST_conf
+            Index: parameter names from uncertainty["names"]
+
+        Examples
+        --------
+        >>> nc = n.optimize.optimize_gsa(samples, uncertainty)
+        >>> capex = nc.statistics.capex()
+        >>> si = nc.analyze_sobol(uncertainty, {"capex": capex})
+        >>> si["capex"]["S1"]  # First-order indices
+        """
+        from SALib.analyze import sobol as sobol_analyze
+
+        results = {}
+
+        for output_name, Y in outputs.items():
+            # Convert to numpy array if pd.Series
+            if isinstance(Y, pd.Series):
+                Y = Y.values
+
+            # Compute Sobol indices
+            Si = sobol_analyze(
+                uncertainty,
+                Y,
+                calc_second_order=calc_second_order,
+            )
+
+            # Convert to DataFrame
+            df = pd.DataFrame(
+                {
+                    "S1": Si["S1"],
+                    "S1_conf": Si["S1_conf"],
+                    "ST": Si["ST"],
+                    "ST_conf": Si["ST_conf"],
+                },
+                index=uncertainty["names"],
+            )
+
+            df.attrs["name"] = f"Sobol Indices: {output_name}"
+
+            results[output_name] = df
+
+        return results
 
 
 _all_components = (

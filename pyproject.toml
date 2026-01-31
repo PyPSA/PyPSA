@@ -61,6 +61,7 @@ excel = ["openpyxl", "python-calamine"]
 gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
 tsam = ["tsam"]
+sensitivity = ["SALib"]
 dev = [
     "pytest",
     "pytest-cov",

@@ -17,6 +17,7 @@ import xarray as xr
 
 from pypsa._options import options
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.gsa import OptimizationAbstractGSAMixin
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
 
 if TYPE_CHECKING:
@@ -112,7 +113,7 @@ def discretized_capacity(
     return block_capacity
 
 
-class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
+class OptimizationAbstractMixin(OptimizationAbstractGSAMixin, OptimizationAbstractMGAMixin):
     """Mixin class for additional optimization methods.
 
     Class inherits to [pypsa.optimization.OptimizationAccessor][]. All attributes and
