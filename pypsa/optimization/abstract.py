@@ -634,3 +634,111 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         )
 
         return dict(status=status, terminantion_condition=condition, **res)
+
+    def calculate_evpi(
+        self,
+        snapshots: Sequence | None = None,
+        **kwargs: Any,
+    ) -> dict:
+        """Calculate Expected Value of Perfect Information (EVPI) for stochastic network.
+
+        The EVPI measures the maximum value of perfect information about uncertain
+        parameters. It compares the expected cost of the wait-and-see (WS) solutions
+        against the stochastic programming (SP) solution.
+
+        EVPI = SP - WS
+
+        where:
+        - SP: Stochastic programming solution
+        - WS: Expected cost of wait-and-see solutions (solving each scenario independently)
+
+        The EVPI represents an upper bound on what should be paid for improved
+        forecasting or information gathering systems. By definition, EVPI is always
+        non-negative (WS ≤ SP).
+
+        Parameters
+        ----------
+        snapshots : Sequence | None, optional
+            Set of snapshots to consider. If None, uses all snapshots.
+        **kwargs : Any
+            Keyword arguments passed to the optimize function for each scenario.
+
+        Returns
+        -------
+        dict
+            Dictionary containing:
+            - 'evpi_abs': The absolute EVPI value in euros (SP - WS)
+            - 'evpi_rel': The relative EVPI as percentage of SP cost
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.set_scenarios({"low": 0.3, "high": 0.7})
+        >>> # ... set up network and scenario-specific parameters ...
+        >>> n.optimize()  # Solve stochastic problem first
+        >>> result = n.optimize.calculate_evpi()
+        >>> print(f"EVPI: {result['evpi_abs']:.2f} EUR ({result['evpi_rel']:.2f}%)")
+
+        """
+        n = self._n
+
+        if not n.has_scenarios:
+            msg = "EVPI can only be calculated for stochastic networks with scenarios."
+            raise ValueError(msg)
+
+        if not hasattr(n, "_objective") or n._objective is None:
+            msg = (
+                "The stochastic network must be optimized before calculating EVPI. "
+                "Please call n.optimize() first."
+            )
+            raise ValueError(msg)
+
+        sp_cost = n.objective
+        scenario_weights = n.scenario_weightings["weight"]
+
+        logger.info("Calculating EVPI: solving wait-and-see problems for each scenario")
+
+        # Detach solver model if it exists to allow copying
+        solver_model_backup = None
+        if (
+            hasattr(n, "_model")
+            and n._model is not None
+            and hasattr(n._model, "solver_model")
+        ):
+            solver_model_backup = n._model.solver_model
+            n._model.solver_model = None
+
+        ws_costs = []
+        for scenario in n.scenarios:
+            logger.info("Solving scenario '%s' independently (wait-and-see)", scenario)
+
+            # Extract single scenario network
+            n_scenario = n.get_scenario(scenario)
+
+            # Solve this scenario independently
+            status, _ = n_scenario.optimize(snapshots=snapshots, **kwargs)
+
+            if status != "ok":
+                logger.warning(
+                    "Scenario '%s' optimization failed with status %s", scenario, status
+                )
+
+            ws_costs.append(n_scenario.objective)
+
+        # Restore solver model that was detached
+        if solver_model_backup is not None:
+            n._model.solver_model = solver_model_backup
+
+        # Calculate expected wait-and-see cost
+        ws_cost = sum(
+            cost * scenario_weights[scenario]
+            for cost, scenario in zip(ws_costs, n.scenarios, strict=True)
+        )
+
+        evpi_absolute = sp_cost - ws_cost
+        evpi_relative = (evpi_absolute / sp_cost * 100) if sp_cost != 0 else 0.0
+
+        return {
+            "evpi_abs": evpi_absolute,
+            "evpi_rel": evpi_relative,
+        }
