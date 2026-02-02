@@ -1382,6 +1382,7 @@ def check_no_modular_committables(n: Network) -> None:
             f"number of committed modules, which cannot be meaningfully relaxed "
             f"to continuous values. Use standard unit commitment "
             f"(linearized_unit_commitment=False) or remove modular sizing "
-            f"(set p_nom_mod=0)."
+            f"(set p_nom_mod=0). "
+            f"See https://go.pypsa.org/modular-committable"
         )
         raise ValueError(msg)
