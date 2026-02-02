@@ -41,13 +41,16 @@ If `{p,s,e}_nom_mod>0`, the nominal capacity is given by:
 These constraints are set in the function `define_modular_constraints()`.
 
 
-## Combined Formulations
+## Committable and Extendable Components
 
-### Committable and Extendable Components
+When components are both **committable** (`committable=True`) and **extendable** (e.g. `p_nom_extendable=True`), the optimizer co-optimizes both capacity expansion and operational unit commitment. The following two formulations apply depending on whether components are modular (`p_nom_mod > 0`) or not (default option).
 
-When components are both **committable** (`committable=True`) and **extendable** (e.g. `p_nom_extendable=True`), the optimizer co-optimizes both capacity expansion and operational unit commitment. This enables modeling scenarios where both the optimal capacity to build AND the on/off operational schedule must be determined simultaneously.
+- non-modular components `p_nom_mod=0` (default): Big-M formulation applies
+- modular components `p_nom_mod>0`: Modular unit commitment applies with integer unit commitment
 
-#### Big-M Linearization
+The detailed mathematical procedure is described below.
+
+### Non-Modular Components (default)
 
 The challenge when combining capacity expansion with unit commitment is that the upper bound on dispatch becomes nonlinear: $g_{n,s,t} \leq u_{n,s,t} \cdot G_{n,s}$ (the product of binary status $u$ and continuous capacity $G$). To maintain a Mixed-Integer Linear Programme (MILP), PyPSA uses a **big-M formulation** that replaces this nonlinear constraint with two linear constraints:
 
@@ -79,11 +82,10 @@ $$M = 10 \times \max_t \left( \sum_n L_{n,t} \right)$$
 
 where $L_{n,t}$ is the load at bus $n$ and time $t$. The factor of 10 provides a safety margin.
 
-The big-M value can be manually overridden using:
+The big-M value can be manually overridden using the `committable_big_m` parameter:
 
 ```python
-with pypsa.option_context("params.optimize.committable_big_m", value):
-    n.optimize()
+n.optimize(committable_big_m=value)
 ```
 
 !!! warning "Big-M Size Warning"
@@ -119,7 +121,7 @@ These constraints are defined in the functions `define_operational_constraints_f
         | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
         | $G_{n,s}$         | `n.generators.p_nom_opt` | Decision variable |
         | $u_{n,s,t}$       | `n.generators_t.status` | Decision variable |
-        | $M$               | auto-inferred or `pypsa.options.params.optimize.committable_big_m` | Parameter |
+        | $M$               | auto-inferred or `committable_big_m` parameter | Parameter |
         | $\underline{g}_{n,s,t}$ | `n.generators_t.p_min_pu` | Parameter |
         | $ru_{n,s,t}$      | `n.generators.ramp_limit_up` | Parameter |
         | $rd_{n,s,t}$      | `n.generators.ramp_limit_down` | Parameter |
@@ -131,15 +133,15 @@ These constraints are defined in the functions `define_operational_constraints_f
         | $f_{l,t}$         | `n.links_t.p` | Decision variable |
         | $F_{l}$           | `n.links.p_nom_opt` | Decision variable |
         | $u_{l,t}$         | `n.links_t.status` | Decision variable |
-        | $M$               | auto-inferred or `pypsa.options.params.optimize.committable_big_m` | Parameter |
+        | $M$               | auto-inferred or `committable_big_m` parameter | Parameter |
         | $\underline{f}_{l,t}$ | `n.links_t.p_min_pu` | Parameter |
         | $ru_{l,t}$        | `n.links.ramp_limit_up` | Parameter |
         | $rd_{l,t}$        | `n.links.ramp_limit_down` | Parameter |
 
 
-### Modular and Committable Components
+### Modular Components
 
-When components have both **modularity** (`p_nom_mod > 0`) and **unit commitment** (`committable=True`), the formulation differs from the standard binary unit commitment. Instead of a binary on/off status variable, the status variable becomes an **integer** representing the **number of committed modules**.
+When extendable components additionally have **modular capacities** activated (`p_nom_mod > 0`), the formulation differs from the standard binary unit commitment with Big-M linearization. Instead of a binary on/off status variable, the status variable becomes an **integer** representing the **number of committed modules** inside the component.
 
 #### Module-Level Commitment Formulation
 

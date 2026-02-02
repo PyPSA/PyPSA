@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 import pypsa
+from pypsa.consistency import check_big_m_exceeded
 from pypsa.optimization.constraints import _infer_big_m_scale
 
 
@@ -407,24 +408,19 @@ def test_big_m_validation():
         capital_cost=1000,
     )
 
-    with pypsa.option_context("params.optimize.committable_big_m", 1000):
-        n.optimize.create_model()
+    n.optimize.create_model(committable_big_m=1000)
 
-    with pypsa.option_context("params.optimize.committable_big_m", np.inf):
-        with pytest.raises(ValueError, match="must be finite"):
-            n.optimize.create_model()
+    with pytest.raises(ValueError, match="must be finite"):
+        n.optimize.create_model(committable_big_m=np.inf)
 
-    with pypsa.option_context("params.optimize.committable_big_m", np.nan):
-        with pytest.raises(ValueError, match="must be finite"):
-            n.optimize.create_model()
+    with pytest.raises(ValueError, match="must be finite"):
+        n.optimize.create_model(committable_big_m=np.nan)
 
-    with pypsa.option_context("params.optimize.committable_big_m", 0):
-        with pytest.raises(ValueError, match="must be positive"):
-            n.optimize.create_model()
+    with pytest.raises(ValueError, match="must be positive"):
+        n.optimize.create_model(committable_big_m=0)
 
-    with pypsa.option_context("params.optimize.committable_big_m", -100):
-        with pytest.raises(ValueError, match="must be positive"):
-            n.optimize.create_model()
+    with pytest.raises(ValueError, match="must be positive"):
+        n.optimize.create_model(committable_big_m=-100)
 
 
 def test_non_negative_constraint_added():
@@ -539,8 +535,8 @@ def test_big_m_warning_emitted(caplog):
     n.c["Generator"].static.loc["uc_gen", "p_max_pu"] = 0.2
     n.c["Generator"].dynamic["p_max_pu"]["uc_gen"] = 0.2
 
-    caplog.set_level("WARNING", logger="pypsa.optimization.optimize")
-    n.optimize._warn_big_m_exceeded()
+    caplog.set_level("WARNING", logger="pypsa.consistency")
+    check_big_m_exceeded(n)
 
     assert any("big-M bounds" in record.message for record in caplog.records), (
         "Expected big-M warning was not emitted"
@@ -1172,6 +1168,53 @@ def test_committable_extendable_modular_link_linearized_uc_raises():
 
     with pytest.raises(ValueError, match="linearized_unit_commitment.*modular"):
         n.optimize(solver_name="highs", linearized_unit_commitment=True)
+
+
+def test_snapshot_interval_up_down_time_calculation():
+    """Test up_time_before/down_time_before calculation when starting from non-initial snapshot.
+
+    This tests the code path in define_operational_constraints_for_committables
+    where sns[0] != n.snapshots[0], which calculates up_time_before and
+    down_time_before from previously stored status values.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(12))
+
+    n.add("Bus", "bus")
+    load_profile = [200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200]
+    n.add("Load", "load", bus="bus", p_set=load_profile)
+
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        marginal_cost=50,
+        capital_cost=50000,
+        p_nom_max=500,
+        p_min_pu=0.3,
+        min_up_time=3,
+        min_down_time=2,
+    )
+
+    status, _ = n.optimize(solver_name="highs", snapshots=n.snapshots[:6])
+    assert status == "ok"
+
+    status, _ = n.optimize(solver_name="highs", snapshots=n.snapshots[6:])
+    assert status == "ok"
+
+    dispatch = n.c["Generator"].dynamic["p"]["gen"]
+    p_nom_opt = n.c["Generator"].static.loc["gen", "p_nom_opt"]
+    p_min_pu = n.c["Generator"].static.loc["gen", "p_min_pu"]
+
+    for t in range(6, 12):
+        if n.c["Generator"].dynamic["status"]["gen"].iloc[t] > 0.5:
+            assert dispatch.iloc[t] >= p_min_pu * p_nom_opt - 1e-6
+
+    total_load = sum(load_profile[6:])
+    total_gen = dispatch.iloc[6:].sum()
+    assert abs(total_load - total_gen) < 1e-3
 
 
 def test_no_start_costs():

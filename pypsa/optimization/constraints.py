@@ -19,7 +19,6 @@ from linopy import merge
 from numpy import inf, isfinite
 from xarray import DataArray, concat
 
-from pypsa._options import options
 from pypsa.common import as_index, expand_series
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
@@ -280,7 +279,7 @@ def define_operational_constraints_for_committables(
 
     """
     c = as_components(n, component)
-    com_i: pd.Index = c.committables.difference(c.inactive_assets)
+    com_i = c.committables.difference(c.inactive_assets)
 
     if com_i.empty:
         return
@@ -292,9 +291,9 @@ def define_operational_constraints_for_committables(
     p = n.model[f"{c.name}-p"].sel(name=com_i)
     active = c.da.active.sel(name=com_i, snapshot=sns)
 
-    ext_i: pd.Index = c.extendables.difference(c.inactive_assets)
-    com_ext_i: pd.Index = com_i.intersection(ext_i).difference(c.modulars)
-    com_fix_i: pd.Index = com_i.difference(ext_i)
+    ext_i = c.extendables.difference(c.inactive_assets)
+    com_ext_i = com_i.intersection(ext_i).difference(c.modulars)
+    com_fix_i = com_i.difference(ext_i)
 
     # parameters
     nominal = c.da[c._operational_attrs["nom"]].sel(name=com_i)
@@ -319,22 +318,18 @@ def define_operational_constraints_for_committables(
     # check if there are status calculated/fixed before given sns interval
     if sns[0] != n.snapshots[0]:
         start_i = n.snapshots.get_loc(sns[0])
-        # get generators which are online until the first regarded snapshot
-        until_start_up = c._as_dynamic(
-            "status", n.snapshots[:start_i][::-1], inds=com_i
-        )
-        ref = range(1, len(until_start_up) + 1)
-        up_time_before = DataArray(
-            until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
-        )
+        prev_sns = n.snapshots[:start_i][::-1]
+        until_start_up = c.da.status.sel(name=com_i, snapshot=prev_sns)
+        ref = DataArray(range(1, len(prev_sns) + 1), dims="snapshot")
+        up_time_before = until_start_up.where(
+            until_start_up.cumsum("snapshot") == ref
+        ).sum("snapshot")
         up_time_before_set = up_time_before.clip(max=min_up_time_set)
         initially_up = up_time_before_set.astype(bool)
-        # get number of snapshots for generators which are offline before the first regarded snapshot
         until_start_down = ~until_start_up.astype(bool)
-        ref = range(1, len(until_start_down) + 1)
-        down_time_before = DataArray(
-            until_start_down[until_start_down.cumsum().eq(ref, axis=0)].sum()
-        )
+        down_time_before = until_start_down.where(
+            until_start_down.cumsum("snapshot") == ref
+        ).sum("snapshot")
         down_time_before_set = down_time_before.clip(max=min_down_time_set)
         initially_down = down_time_before_set.astype(bool)
 
@@ -344,15 +339,15 @@ def define_operational_constraints_for_committables(
         p_nom_max_vals = c.da.p_nom_max.sel(name=com_ext_i)
         max_pu_vals = max_pu.sel(name=com_ext_i).max("snapshot")
 
-        big_m_default = options.params.optimize.committable_big_m
+        big_m_default = n._committable_big_m
         if big_m_default is None:
             big_m_default = _infer_big_m_scale(n, component)
         else:
             if not np.isfinite(big_m_default):
-                msg = f"options.params.optimize.committable_big_m must be finite, got {big_m_default}."
+                msg = f"committable_big_m must be finite, got {big_m_default}."
                 raise ValueError(msg)
             if big_m_default <= 0:
-                msg = f"options.params.optimize.committable_big_m must be positive, got {big_m_default}."
+                msg = f"committable_big_m must be positive, got {big_m_default}."
                 raise ValueError(msg)
 
         fallback_values = big_m_default * max_pu_vals.fillna(1)
@@ -443,7 +438,7 @@ def define_operational_constraints_for_committables(
 
     # Operational constraints for modular committable components
     # For modular components, use p_nom_mod * status instead of p_nom * status
-    com_mod_i: pd.Index = com_i.intersection(c.modulars)
+    com_mod_i = com_i.intersection(c.modulars)
     if not com_mod_i.empty:
         p_mod = p.sel(name=com_mod_i)
         status_mod = status.sel(name=com_mod_i)

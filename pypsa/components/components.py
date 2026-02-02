@@ -843,7 +843,7 @@ class Components(
         Modular components have a positive module size (e.g., p_nom_mod > 0)
         which introduces integer variables for capacity expansion.
 
-        <!-- md:badge-version v1.0.1 -->
+        <!-- md:badge-version v1.1.0 -->
 
         Returns
         -------

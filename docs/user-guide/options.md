@@ -113,9 +113,6 @@ optimize.solver_name:
 optimize.solver_options:
     Default: {}
     Description: Default value for the 'solver_options' parameter in optimization module.
-optimize.committable_big_m:
-    Default: None
-    Description: Fallback big-M value for committable+extendable constraints. If None, PyPSA infers a scale from the network (e.g. peak load); otherwise this numeric bound is used when no component-specific limit is available.
 optimize.include_objective_constant:
     Default: None
     Description: Include capital costs of existing capacity on extendable assets in the
