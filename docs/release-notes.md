@@ -33,9 +33,9 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
+- Fix `ramp_limit_start_up` and `ramp_limit_shut_down` being ignored in binary unit commitment. The constraints are now properly applied when these attributes are explicitly set. Changed default values of these attributes from `1` to `NaN` to align with `ramp_limit_up` and `ramp_limit_down` defaults and avoiding redundant constraints in the model instance. (<!-- md:pr 1540 -->)
 
-### Bug Fixes
+- Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
 
 - Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
 
