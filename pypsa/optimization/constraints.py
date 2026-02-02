@@ -12,7 +12,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
+import numpy as np
 import pandas as pd
+import xarray as xr
 from linopy import merge
 from numpy import inf, isfinite
 from xarray import DataArray, concat
@@ -38,6 +40,38 @@ lookup = pd.read_csv(
     Path(__file__).parent / ".." / "data" / "variables.csv",
     index_col=["component", "variable"],
 )
+
+
+def _infer_big_m_scale(n: Network, component: str) -> float:
+    """Infer a reasonable big-M scale from network data."""
+    candidates: list[float] = []
+
+    # Peak total load over time provides a natural system-scale bound
+    load = n.get_switchable_as_dense("Load", "p_set")
+    peak_load = load.sum(axis=1).abs().max()
+    candidates.append(peak_load)
+
+    # Use existing nominal values as additional hints
+    c = as_components(n, component)
+    if not c.static.empty:
+        nom_attr = c._operational_attrs["nom"]
+        nom_series = c.static[nom_attr]
+        finite_nominal = nom_series[np.isfinite(nom_series) & (nom_series > 0)]
+        if not finite_nominal.empty:
+            candidates.append(float(finite_nominal.max()))
+
+        nom_max_series = c.static[f"{nom_attr}_max"]
+        finite_max = nom_max_series[np.isfinite(nom_max_series) & (nom_max_series > 0)]
+        if not finite_max.empty:
+            candidates.append(finite_max.max())
+
+    if not candidates:
+        return 1e6
+
+    fallback = max(candidates) * 10
+    if not np.isfinite(fallback) or fallback <= 0:
+        return 1e6
+    return fallback
 
 
 def define_operational_constraints_for_non_extendables(
@@ -164,6 +198,9 @@ def define_operational_constraints_for_extendables(
     sns = as_index(n, sns, "snapshots")
 
     ext_i = c.extendables.difference(c.inactive_assets)
+    com_ext_i = c.committables.intersection(ext_i)
+    ext_i = ext_i.difference(com_ext_i)
+
     if ext_i.empty:
         return
     if isinstance(ext_i, pd.MultiIndex):
@@ -177,7 +214,7 @@ def define_operational_constraints_for_extendables(
         max_pu = max_pu.sel(snapshot=sns)
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=ext_i)
-    capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"]
+    capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"].sel(name=ext_i)
     active = c.da.active.sel(name=ext_i, snapshot=sns)
 
     lhs_lower = dispatch - min_pu * capacity
@@ -199,19 +236,15 @@ def define_operational_constraints_for_extendables(
 def define_operational_constraints_for_committables(
     n: Network, sns: pd.Index, component: str
 ) -> None:
-    """Define operational constraints (lower-/upper bound) for committable components.
+    """Define operational constraints for committable components.
 
     Sets operational constraints for components with unit commitment
-    decisions. The constraints include:
-
-    1. Power output limits based on commitment status
-    2. State transition constraints (start-up/shut-down)
-    3. Minimum up and down time constraints
-    4. Ramp rate constraints for committed units
+    decisions. Supports both fixed-capacity and extendable committable
+    components (using big-M formulation for the latter).
 
     Applies to Components
     ---------------------
-    Generator, Link (when they have unit commitment capabilities)
+    Generator, Link
 
     Parameters
     ----------
@@ -251,13 +284,16 @@ def define_operational_constraints_for_committables(
     if com_i.empty:
         return
 
-    # variables
     status = n.model[f"{c.name}-status"]
     start_up = n.model[f"{c.name}-start_up"]
     shut_down = n.model[f"{c.name}-shut_down"]
     status_diff = status - status.shift(snapshot=1)
     p = n.model[f"{c.name}-p"].sel(name=com_i)
-    active = c.get_activity_mask(sns, com_i)
+    active = c.da.active.sel(name=com_i, snapshot=sns)
+
+    ext_i = c.extendables.difference(c.inactive_assets)
+    com_ext_i = com_i.intersection(ext_i).difference(c.modulars)
+    com_fix_i = com_i.difference(ext_i)
 
     # parameters
     nominal = c.da[c._operational_attrs["nom"]].sel(name=com_i)
@@ -269,6 +305,7 @@ def define_operational_constraints_for_committables(
     upper_p = max_pu * nominal
     min_up_time_set = c.da.min_up_time.sel(name=com_i)
     min_down_time_set = c.da.min_down_time.sel(name=com_i)
+
     ramp_up_limit = nominal * c.da.ramp_limit_up.sel(name=com_i).fillna(1)
     ramp_down_limit = nominal * c.da.ramp_limit_down.sel(name=com_i).fillna(1)
     ramp_start_up = nominal * c.da.ramp_limit_start_up.sel(name=com_i)
@@ -281,34 +318,163 @@ def define_operational_constraints_for_committables(
     # check if there are status calculated/fixed before given sns interval
     if sns[0] != n.snapshots[0]:
         start_i = n.snapshots.get_loc(sns[0])
-        # get generators which are online until the first regarded snapshot
-        until_start_up = c._as_dynamic(
-            "status", n.snapshots[:start_i][::-1], inds=com_i
-        )
-        ref = range(1, len(until_start_up) + 1)
-        up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
-        up_time_before_set = up_time_before.clip(upper=min_up_time_set)
+        prev_sns = n.snapshots[:start_i][::-1]
+        until_start_up = c.da.status.sel(name=com_i, snapshot=prev_sns)
+        ref = DataArray(range(1, len(prev_sns) + 1), dims="snapshot")
+        up_time_before = until_start_up.where(
+            until_start_up.cumsum("snapshot") == ref
+        ).sum("snapshot")
+        up_time_before_set = up_time_before.clip(max=min_up_time_set)
         initially_up = up_time_before_set.astype(bool)
-        # get number of snapshots for generators which are offline before the first regarded snapshot
         until_start_down = ~until_start_up.astype(bool)
-        ref = range(1, len(until_start_down) + 1)
-        down_time_before = until_start_down[
-            until_start_down.cumsum().eq(ref, axis=0)
-        ].sum()
-        down_time_before_set = down_time_before.clip(upper=min_down_time_set)
+        down_time_before = until_start_down.where(
+            until_start_down.cumsum("snapshot") == ref
+        ).sum("snapshot")
+        down_time_before_set = down_time_before.clip(max=min_down_time_set)
         initially_down = down_time_before_set.astype(bool)
 
-    # lower dispatch level limit
-    lhs_tuple = (1, p), (-lower_p, status)
-    n.model.add_constraints(
-        lhs_tuple, ">=", 0, name=f"{c.name}-com-p-lower", mask=active
-    )
+    if not com_ext_i.empty:
+        p_nom_var = n.model[f"{c.name}-{c._operational_attrs['nom']}"]
 
-    # upper dispatch level limit
-    lhs_tuple = (1, p), (-upper_p, status)
-    n.model.add_constraints(
-        lhs_tuple, "<=", 0, name=f"{c.name}-com-p-upper", mask=active
-    )
+        p_nom_max_vals = c.da.p_nom_max.sel(name=com_ext_i)
+        max_pu_vals = max_pu.sel(name=com_ext_i).max("snapshot")
+
+        big_m_default = n._committable_big_m
+        if big_m_default is None:
+            big_m_default = _infer_big_m_scale(n, component)
+        else:
+            if not np.isfinite(big_m_default):
+                msg = f"committable_big_m must be finite, got {big_m_default}."
+                raise ValueError(msg)
+            if big_m_default <= 0:
+                msg = f"committable_big_m must be positive, got {big_m_default}."
+                raise ValueError(msg)
+
+        fallback_values = big_m_default * max_pu_vals.fillna(1)
+        M_values = xr.where(
+            isfinite(p_nom_max_vals) & (p_nom_max_vals > 0),
+            p_nom_max_vals * max_pu_vals,
+            fallback_values,
+        )
+        p_ext = p.sel(name=com_ext_i)
+        status_ext = status.sel(name=com_ext_i)
+        p_nom_ext = p_nom_var.sel(name=com_ext_i)
+        min_pu_ext = min_pu.sel(name=com_ext_i)
+        max_pu_ext = max_pu.sel(name=com_ext_i)
+
+        active_ext = active.sel(name=com_ext_i)
+        lhs_lower_ext = (1, p_ext), (-min_pu_ext, p_nom_ext), (-M_values, status_ext)
+        n.model.add_constraints(
+            lhs_lower_ext,
+            ">=",
+            -M_values,
+            name=f"{c.name}-com-ext-p-lower",
+            mask=active_ext,
+        )
+
+        lhs_upper_ext = (1, p_ext), (-M_values, status_ext)
+        n.model.add_constraints(
+            lhs_upper_ext,
+            "<=",
+            0,
+            name=f"{c.name}-com-ext-p-upper-bigM",
+            mask=active_ext,
+        )
+
+        lhs_upper_cap = (1, p_ext), (-max_pu_ext, p_nom_ext)
+        n.model.add_constraints(
+            lhs_upper_cap,
+            "<=",
+            0,
+            name=f"{c.name}-com-ext-p-upper-cap",
+            mask=active_ext,
+        )
+
+        dims_excl_name = [dim for dim in min_pu_ext.dims if dim != "name"]
+        if dims_excl_name:
+            nonneg_mask = (min_pu_ext >= 0).all(dim=dims_excl_name)
+        else:
+            nonneg_mask = min_pu_ext >= 0
+
+        if nonneg_mask.any().item():
+            nonneg_idx = nonneg_mask.to_series()
+            nonneg_idx = nonneg_idx[nonneg_idx].index
+            if len(nonneg_idx) > 0:
+                p_nonneg = p_ext.sel(name=nonneg_idx)
+                active_nonneg = active_ext.sel(name=nonneg_idx)
+                lhs_nonneg = ((1, p_nonneg),)
+                n.model.add_constraints(
+                    lhs_nonneg,
+                    ">=",
+                    0,
+                    name=f"{c.name}-com-ext-p-lower-nonneg",
+                    mask=active_nonneg,
+                )
+
+    if not com_fix_i.empty:
+        p_fix = p.sel(name=com_fix_i)
+        status_fix = status.sel(name=com_fix_i)
+        lower_p_fix = lower_p.sel(name=com_fix_i)
+        upper_p_fix = upper_p.sel(name=com_fix_i)
+        active_fix = active.sel(name=com_fix_i)
+
+        lhs_lower_fix = (1, p_fix), (-lower_p_fix, status_fix)
+        n.model.add_constraints(
+            lhs_lower_fix,
+            ">=",
+            0,
+            name=f"{c.name}-com-p-lower",
+            mask=active_fix,
+        )
+
+        lhs_upper_fix = (1, p_fix), (-upper_p_fix, status_fix)
+        n.model.add_constraints(
+            lhs_upper_fix,
+            "<=",
+            0,
+            name=f"{c.name}-com-p-upper",
+            mask=active_fix,
+        )
+
+    # Operational constraints for modular committable components
+    # For modular components, use p_nom_mod * status instead of p_nom * status
+    com_mod_i = com_i.intersection(c.modulars)
+    if not com_mod_i.empty:
+        p_mod = p.sel(name=com_mod_i)
+        status_mod = status.sel(name=com_mod_i)
+        active_mod = active.sel(name=com_mod_i)
+
+        # Get module size (p_nom_mod, s_nom_mod, e_nom_mod)
+        mod_attr = c._operational_attrs["nom_mod"]
+        nominal_mod = c.da[mod_attr].sel(name=com_mod_i)
+
+        # Get min/max_pu for modular components
+        min_pu_mod = min_pu.sel(name=com_mod_i)
+        max_pu_mod = max_pu.sel(name=com_mod_i)
+
+        # Calculate bounds using module size
+        lower_p_mod = min_pu_mod * nominal_mod
+        upper_p_mod = max_pu_mod * nominal_mod
+
+        # Lower constraint: p >= min_pu * p_nom_mod * status
+        lhs_lower_mod = (1, p_mod), (-lower_p_mod, status_mod)
+        n.model.add_constraints(
+            lhs_lower_mod,
+            ">=",
+            0,
+            name=f"{c.name}-com-mod-p-lower",
+            mask=active_mod,
+        )
+
+        # Upper constraint: p <= max_pu * p_nom_mod * status
+        lhs_upper_mod = (1, p_mod), (-upper_p_mod, status_mod)
+        n.model.add_constraints(
+            lhs_upper_mod,
+            "<=",
+            0,
+            name=f"{c.name}-com-mod-p-upper",
+            mask=active_mod,
+        )
 
     # state-transition constraint
     rhs = pd.DataFrame(0, sns, com_i)
@@ -338,7 +504,7 @@ def define_operational_constraints_for_committables(
         for g in min_up_time_i:
             su = start_up.loc[:, g]
             # Retrieve the minimum up time value for generator g and convert it to a scalar
-            up_time_value = min_up_time_set.sel({min_up_time_set.dims[0]: g}).item()
+            up_time_value = min_up_time_set.sel(name=g).item()
             expr.append(su.rolling(snapshot=up_time_value).sum())
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
@@ -347,7 +513,7 @@ def define_operational_constraints_for_committables(
             "<=",
             0,
             name=f"{c.name}-com-up-time",
-            mask=DataArray(active[min_up_time_i]).sel(snapshot=sns[1:]),
+            mask=active.loc[sns[1:], min_up_time_i],
         )
 
     # min down time
@@ -367,16 +533,17 @@ def define_operational_constraints_for_committables(
             "<=",
             1,
             name=f"{c.name}-com-down-time",
-            mask=DataArray(active[min_down_time_i]).sel(snapshot=sns[1:]),
+            mask=active.loc[sns[1:], min_down_time_i],
         )
     # up time before
-    timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
+    timesteps = xr.DataArray(
+        [range(1, len(sns) + 1)] * len(com_i),
+        coords=[com_i, sns],
+        dims=["name", "snapshot"],
+    )
     if initially_up.any():
         must_stay_up = (min_up_time_set - up_time_before_set).clip(min=0)
-        mask_values = (must_stay_up.values >= timesteps) & initially_up.values
-        mask = pd.DataFrame(
-            mask_values, index=timesteps.index, columns=timesteps.columns
-        )
+        mask = (must_stay_up >= timesteps) & initially_up
         name = f"{c.name}-com-status-min_up_time_must_stay_up"
         mask = mask & active if active is not None else mask
         n.model.add_constraints(status, "=", 1, name=name, mask=mask)
@@ -384,10 +551,7 @@ def define_operational_constraints_for_committables(
     # down time before
     if initially_down.any():
         must_stay_down = (min_down_time_set - down_time_before_set).clip(min=0)
-        mask_values = (must_stay_down.values >= timesteps) & initially_down.values
-        mask = pd.DataFrame(
-            mask_values, index=timesteps.index, columns=timesteps.columns
-        )
+        mask = (must_stay_down >= timesteps) & initially_down
         name = f"{c.name}-com-status-min_down_time_must_stay_up"
         mask = mask & active if active is not None else mask
         n.model.add_constraints(status, "=", 0, name=name, mask=mask)
@@ -732,6 +896,12 @@ def define_ramp_limit_constraints(
                 mask=mask,
             )
     # ----------------------------- Committable Components ----------------------------- #
+    # For committable+extendable (non-modular) components, skip committable ramp constraints.
+    # They are handled by the extendable section above with p_nom_var instead of static p_nom.
+    com_ext_non_mod = com_i.intersection(ext_i).difference(c.modulars)
+    com_i = com_i.difference(com_ext_non_mod)
+    original_com_i = com_i.copy()
+
     if not com_i.empty:
         # Redefine active mask over com_i
         snapshot_sel = sns if is_rolling_horizon else sns[1:]
@@ -753,9 +923,11 @@ def define_ramp_limit_constraints(
             limit_start = p_nom_com * ramp_limit_start_up_com
             limit_up = p_nom_com * ramp_limit_up_com
 
-            status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel)
+            status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel, name=com_i)
             status_prev = (
-                m[f"{c.name}-status"].shift(snapshot=1).sel(snapshot=snapshot_sel)
+                m[f"{c.name}-status"]
+                .shift(snapshot=1)
+                .sel(snapshot=snapshot_sel, name=com_i)
             )
 
             lhs = (
@@ -784,9 +956,11 @@ def define_ramp_limit_constraints(
             limit_shut = p_nom_com * ramp_limit_shut_down_com
             limit_down = p_nom_com * ramp_limit_down_com
 
-            status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel)
+            status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel, name=com_i)
             status_prev = (
-                m[f"{c.name}-status"].shift(snapshot=1).sel(snapshot=snapshot_sel)
+                m[f"{c.name}-status"]
+                .shift(snapshot=1)
+                .sel(snapshot=snapshot_sel, name=com_i)
             )
 
             lhs = (
@@ -1143,12 +1317,8 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     m = n.model
     c = as_components(n, component)
 
-    ext_attr = f"{attr}_extendable"
-    mod_attr = f"{attr}_mod"
-
-    # Mask components that are both extendable and have a positive modular capacity
-    mask = c.static[ext_attr] & (c.static[mod_attr] > 0)
-    mod_i = c.static.index[mask]
+    # Get components that are both extendable and modular
+    mod_i = c.extendables.intersection(c.modulars)
 
     # Unique component names for modular components (in absence of c.modulars helper)
     if isinstance(mod_i, pd.MultiIndex):
@@ -1158,6 +1328,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
         return
 
     # Get modular capacity values
+    mod_attr = c._operational_attrs["nom_mod"]
     modular_capacity = c.da[mod_attr].sel(name=mod_i)
 
     # Get variables
@@ -1166,6 +1337,191 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
 
     con = capacity - modularity * modular_capacity == 0
     n.model.add_constraints(con, name=f"{c.name}-{attr}_modularity", mask=None)
+
+
+def define_committability_variables_constraints_with_fixed_upper_limit(
+    n: Network, sns: pd.Index, component: str, attr: str
+) -> None:
+    """Define upper limit constraints for committable unit status variables with fixed limits.
+
+    This function sets the upper limit of committable variables (status, start-up, shut-down)
+    for components with fixed upper limits. The upper limit corresponds to:
+
+    a) The installed number of modules for committable, non-extendable components with modularity.
+       The number of modules is calculated as: nominal_capacity / module_size (e.g., p_nom / p_nom_mod)
+
+    b) The value 1 for all committable components without modularity, regardless of whether
+       they are extendable or not.
+
+    For case a), if the number of modules is not an integer, the function raises a ValueError.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component (e.g. "Generator", "Link")
+    attr : str
+        Name of the capacity attribute (e.g. "p_nom" for nominal power)
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        If non-extendable modular components have nominal capacity that is not
+        an integer multiple of their module size
+
+    Notes
+    -----
+    This function is part of the modular unit commitment formulation that allows
+    committable components to have discrete capacity expansion.
+
+    """
+    c = as_components(n, component)
+    m = n.model
+
+    # Get committable, modular, and non-extendable component indices
+    com_i = c.committables
+    mod_i = c.modulars
+    fix_i = c.fixed
+
+    if com_i.empty:
+        return
+
+    inter_i = com_i.intersection(mod_i).intersection(fix_i)
+
+    if not inter_i.empty:
+        # Get nominal capacity and module size
+        nom_attr = c._operational_attrs["nom"]
+        mod_attr = c._operational_attrs["nom_mod"]
+
+        nom_values = c.static[nom_attr].loc[inter_i]
+        mod_values = c.static[mod_attr].loc[inter_i]
+
+        n_mod = nom_values / mod_values
+        diff_n_mod = abs(n_mod - round(n_mod))
+        non_integers_n_mod_i = diff_n_mod[diff_n_mod > 10**-6].index
+
+        if not non_integers_n_mod_i.empty:
+            msg = (
+                f"For non-extendable but committable assets, if both {nom_attr} and {mod_attr} are declared, "
+                f"{nom_attr} must be a multiple of {mod_attr}. Found assets in component {component} "
+                f"that do not respect this criterion:\n\n\t{', '.join(non_integers_n_mod_i)}"
+            )
+            raise ValueError(msg)
+
+        rhs = pd.DataFrame(0, sns, inter_i)
+        rhs.loc[sns, inter_i] = n_mod.loc[inter_i].values
+
+    inter_i2 = com_i.difference(mod_i)
+
+    if not inter_i2.empty:
+        if not inter_i.empty:
+            rhs = rhs.reindex(columns=rhs.columns.union(inter_i2))
+            rhs.loc[:, inter_i2] = 1
+            inter_i = inter_i.union(inter_i2)
+        else:
+            rhs = pd.DataFrame(0, sns, inter_i2)
+            rhs.loc[sns, inter_i2] = 1
+            inter_i = inter_i2
+
+    if inter_i.empty:
+        return
+
+    active = c.da.active.sel(snapshot=sns, name=inter_i) if n._multi_invest else None
+
+    status = m.variables[f"{component}-status"].loc[sns, inter_i]
+    m.add_constraints(
+        status, "<=", rhs, name=f"{component}-status-{attr}-fixed-upper", mask=active
+    )
+
+    start_up = m.variables[f"{component}-start_up"].loc[sns, inter_i]
+    m.add_constraints(
+        start_up,
+        "<=",
+        rhs,
+        name=f"{component}-start_up-{attr}-fixed-upper",
+        mask=active,
+    )
+
+    shut_down = m.variables[f"{component}-shut_down"].loc[sns, inter_i]
+    m.add_constraints(
+        shut_down,
+        "<=",
+        rhs,
+        name=f"{component}-shut_down-{attr}-fixed-upper",
+        mask=active,
+    )
+
+
+def define_committability_variables_constraints_with_variable_upper_limit(
+    n: Network, sns: pd.Index, component: str, attr: str
+) -> None:
+    """Define upper limit constraints for committable unit status variables with variable limits.
+
+    This function sets the upper limit of committable variables (status, start-up, shut-down)
+    to the variable n_mod for all committable, extendable, and modular components.
+
+    The constraint enforces that the number of committed units cannot exceed the total
+    number of installed modules, which is itself a decision variable in the optimization.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component (e.g. "Generator", "Link")
+    attr : str
+        Name of the capacity attribute (e.g. "p_nom" for nominal power)
+
+    Notes
+    -----
+    This function is part of the modular unit commitment formulation that allows
+    committable and extendable components to have discrete capacity expansion.
+    The number of committed units is constrained by the optimized number of modules.
+
+    """
+    c = as_components(n, component)
+    m = n.model
+
+    # Get committable, extendable, and modular component indices
+    com_i = c.committables
+    ext_i = c.extendables
+    mod_i = c.modulars
+
+    inter_i = com_i.intersection(mod_i).intersection(ext_i)
+
+    if inter_i.empty:
+        return
+
+    active = c.da.active.sel(snapshot=sns, name=inter_i) if n._multi_invest else None
+
+    n_mod = m[f"{component}-n_mod"].loc[inter_i]
+
+    status = m.variables[f"{component}-status"].loc[sns, inter_i]
+    lhs = ((1, status), (-1, n_mod))
+    m.add_constraints(
+        lhs, "<=", 0, name=f"{component}-status-{attr}-variable-upper", mask=active
+    )
+
+    start_up = m.variables[f"{component}-start_up"].loc[sns, inter_i]
+    lhs = ((1, start_up), (-1, n_mod))
+    m.add_constraints(
+        lhs, "<=", 0, name=f"{component}-start_up-{attr}-variable-upper", mask=active
+    )
+
+    shut_down = m.variables[f"{component}-shut_down"].loc[sns, inter_i]
+    lhs = ((1, shut_down), (-1, n_mod))
+    m.add_constraints(
+        lhs, "<=", 0, name=f"{component}-shut_down-{attr}-variable-upper", mask=active
+    )
 
 
 def define_fixed_operation_constraints(

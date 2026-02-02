@@ -17,6 +17,7 @@ import pandas as pd
 
 from pypsa._options import options
 from pypsa.constants import RE_PORTS_FILTER
+from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
 
@@ -886,8 +887,6 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_impedances(self, c, "zero_impedances" in strict)
             # Checks transformers
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
-            # Checks generators and links
-            check_assets(self, c, "assets" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
             # Checks cost attributes consistency
@@ -1253,3 +1252,137 @@ def check_stochastic_slack_bus_consistency(
                         scenario,
                         current_slack_buses,
                     )
+
+
+def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
+    """Check if optimized capacities exceed big-M bounds for committable extendables.
+
+    For committable+extendable components, the big-M formulation uses p_nom_max
+    as an upper bound. If the optimized capacity exceeds this bound, the unit
+    commitment constraints may not be binding correctly.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    for c in n.c[["Generator", "Link"]]:
+        if c.static.empty:
+            continue
+
+        com_i = c.committables.difference(c.inactive_assets)
+        if com_i.empty:
+            continue
+
+        ext_i = c.extendables.difference(c.inactive_assets)
+        com_ext_i = com_i.intersection(ext_i)
+        if com_ext_i.empty:
+            continue
+
+        nom_attr = nominal_attrs[c.name]
+
+        p_nom_max_da = c.da[f"{nom_attr}_max"].sel(name=com_ext_i)
+        valid_mask = np.isfinite(p_nom_max_da) & (p_nom_max_da > 0)
+        if not valid_mask.any().item():
+            continue
+        p_nom_max_da = p_nom_max_da.where(valid_mask, drop=True)
+
+        p_nom_opt_da = c.da[f"{nom_attr}_opt"].sel(name=p_nom_max_da.coords["name"])
+
+        if p_nom_opt_da.size == 0:
+            continue
+
+        _, max_pu_da = c.get_bounds_pu(attr="p")
+        max_pu_da = max_pu_da.sel(name=p_nom_max_da.coords["name"])
+        reduce_dims = [dim for dim in max_pu_da.dims if dim != "name"]
+        if reduce_dims:
+            max_pu_da = max_pu_da.max(dim=reduce_dims)
+
+        p_nom_max_series = p_nom_max_da.to_series()
+        p_nom_opt_series = p_nom_opt_da.to_series()
+        max_pu_series = max_pu_da.to_series()
+
+        max_pu_series = max_pu_series.reindex(p_nom_max_series.index)
+        big_m_series = p_nom_max_series * max_pu_series
+        big_m_series = big_m_series.dropna()
+        if big_m_series.empty:
+            continue
+
+        aligned_opt = p_nom_opt_series.reindex(big_m_series.index)
+        aligned_opt = aligned_opt.dropna()
+        if aligned_opt.empty:
+            continue
+
+        exceeded_mask = aligned_opt > big_m_series.loc[aligned_opt.index]
+        exceeded_mask &= aligned_opt > 0
+
+        if not exceeded_mask.any():
+            continue
+
+        details = []
+        for label, exceeded in exceeded_mask.items():
+            if not exceeded:
+                continue
+            limit = big_m_series.loc[label]
+            opt_val = aligned_opt.loc[label]
+            label = "/".join(str(part) for part in label)
+            details.append(f"{label} (p_nom_opt={opt_val:.3g}, big_M={limit:.3g})")
+
+        if details:
+            _log_or_raise(
+                strict,
+                "Optimized capacities exceed big-M bounds for committable extendable %s: %s.",
+                c.name.lower(),
+                ", ".join(details),
+            )
+
+
+def check_no_modular_committables(n: Network) -> None:
+    """Check that no modular committable components exist.
+
+    Raises ValueError if linearized_unit_commitment is used with modular
+    committable components, as this combination is semantically invalid.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    modular_committables: list[str] = []
+
+    for c in n.components:
+        com_i = c.committables
+        if com_i.empty:
+            continue
+        com_i = com_i.difference(c.inactive_assets)
+        mod_com_i = com_i.intersection(c.modulars)
+        if not mod_com_i.empty:
+            modular_committables.extend(f"{c.name}:{name}" for name in mod_com_i)
+
+    if modular_committables:
+        components_str = ", ".join(modular_committables[:5])
+        if len(modular_committables) > 5:
+            components_str += f", ... ({len(modular_committables)} total)"
+        msg = (
+            f"linearized_unit_commitment=True cannot be used with modular "
+            f"committable components: {components_str}. "
+            f"Modular components use integer status variables representing the "
+            f"number of committed modules, which cannot be meaningfully relaxed "
+            f"to continuous values. Use standard unit commitment "
+            f"(linearized_unit_commitment=False) or remove modular sizing "
+            f"(set p_nom_mod=0). "
+            f"See https://go.pypsa.org/modular-committable"
+        )
+        raise ValueError(msg)
