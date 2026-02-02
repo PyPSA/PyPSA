@@ -94,6 +94,7 @@ class Network(
     # Optimization
     _multi_invest: int
     _linearized_uc: int
+    _committable_big_m: float | None
     iteration: int
 
     # ----------------
