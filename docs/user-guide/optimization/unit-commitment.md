@@ -40,7 +40,7 @@ i.e. $u_{*,t} = 1$:
 Unit commitment can be combined with capacity expansion for co-optimized investment and operational decisions:
 
 - [Committable and Extendable Components](capacity-limits.md#committable-and-extendable-components) - Continuous capacity expansion with unit commitment using big-M formulation
-- [Modular and Committable Components](capacity-limits.md#modular-and-committable-components) - Discrete capacity blocks with integer commitment variables
+- [Modular and Committable Components](capacity-limits.md#modular-components) - Discrete capacity blocks with integer commitment variables
 
 ///
 
@@ -242,7 +242,7 @@ n.optimize(linearized_unit_commitment=True)
 
 !!! warning "Not compatible with modular components"
 
-    Linearized unit commitment cannot be used with [modular committable components](capacity-limits.md#modular-and-committable-components) and will result in a `ValueError`.
+    Linearized unit commitment cannot be used with [modular committable components](capacity-limits.md#modular-components) and will result in a `ValueError`.
 
 To tighten the relaxation, additional constraints are introduced that improve capturing the relationship between commitment status, ramping, and dispatch. This requires start up and shut down costs need to be equal. Otherwise the unit commitment variables are purely relaxed. The added constraints limit the dispatch during partial start-up and shut-down, as well as ramping during partial commitment:
 
