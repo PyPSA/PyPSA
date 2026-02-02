@@ -164,6 +164,9 @@ class Network(
         self._model: linopy.Model | None = None
         self._objective: float | None = None
         self._objective_constant: float | None = None
+        self._linearized_uc: int = 0
+        self._multi_invest: int = 0
+        self._committable_big_m: float | None = None
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -1001,6 +1004,7 @@ class Network(
             "_meta",
             "_linearized_uc",
             "_multi_invest",
+            "_committable_big_m",
             "_objective",
             "_objective_constant",
             "now",
