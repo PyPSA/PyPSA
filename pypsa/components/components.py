@@ -864,6 +864,7 @@ class Components(
 
         return idx
 
+    @property
     def periodized_cost(self) -> xarray.DataArray:
         """Calculate periodized cost from component attributes as xarray DataArray.
 
