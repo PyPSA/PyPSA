@@ -287,6 +287,8 @@ class MapPlotter:
         geomap_color: dict | bool | None = None,
         boundaries: tuple[float, float, float, float] | None = None,
         title: str = "",
+        figsize: tuple[float, float] | None = None,
+        dpi: int | None = None,
     ) -> None:
         """Initialize the plot axis with geographic features if requested.
 
@@ -306,6 +308,12 @@ class MapPlotter:
             Plot boundaries as [xmin, xmax, ymin, ymax]
         title : str, default ""
             Plot title
+        figsize : tuple[float, float], optional
+            Figure size ``(width, height)`` in inches. Only used when
+            no ``ax`` is provided.
+        dpi : int, optional
+            Resolution in dots per inch. Only used when no ``ax`` is
+            provided.
 
         """
         # Ensure that boundaries are set
@@ -332,7 +340,8 @@ class MapPlotter:
                 raise ValueError(msg)
 
             if ax is None:
-                self.ax = plt.axes(projection=projection)
+                fig = plt.figure(figsize=figsize, dpi=dpi)
+                self.ax = fig.add_subplot(1, 1, 1, projection=projection)
             elif not isinstance(ax, GeoAxesSubplot):
                 msg = "The passed axis is not a GeoAxesSubplot. You can "
                 "create one with: \nimport cartopy.crs as ccrs \n"
@@ -364,7 +373,8 @@ class MapPlotter:
             self.area_factor = get_projected_area_factor(self.ax, self.n.srid)
         else:
             if ax is None:
-                self.ax = plt.gca()
+                fig = plt.figure(figsize=figsize, dpi=dpi)
+                self.ax = fig.add_subplot(1, 1, 1)
             else:
                 self.ax = ax
             # Only set axis boundaries if they are not degenerate
@@ -958,6 +968,9 @@ class MapPlotter:
         transformer_alpha: float | dict | pd.Series = 1,
         transformer_width: float | dict | pd.Series = 1.5,
         auto_scale_branches: bool = True,
+        figsize: tuple[float, float] | None = None,
+        dpi: int | None = None,
+        _skip_init_axis: bool = False,
     ) -> dict:
         """Plot the network buses and lines using matplotlib and cartopy.
 
@@ -1088,15 +1101,18 @@ class MapPlotter:
         """
         n = self.n
 
-        self.init_axis(
-            ax=ax,
-            projection=projection,
-            geomap=geomap,
-            geomap_resolution=geomap_resolution,
-            geomap_color=geomap_color,
-            title=title,
-            boundaries=boundaries,
-        )
+        if not _skip_init_axis:
+            self.init_axis(
+                ax=ax,
+                projection=projection,
+                geomap=geomap,
+                geomap_resolution=geomap_resolution,
+                geomap_color=geomap_color,
+                title=title,
+                boundaries=boundaries,
+                figsize=figsize,
+                dpi=dpi,
+            )
 
         if self.ax is None:
             msg = "No axis passed or created."
@@ -1234,6 +1250,59 @@ class MapPlotter:
         }
 
 
+def _create_plotter(
+    n: Network,
+    layouter: Callable | None = None,
+    boundaries: tuple[float, float, float, float] | None = None,
+    margin: float | None = 0.05,
+    jitter: float | None = None,
+    geomap: bool | str = True,
+    geomap_resolution: Literal["10m", "50m", "110m"] = "50m",
+    bus_size: float | dict | pd.Series | None = None,
+) -> tuple[MapPlotter, bool, Literal["10m", "50m", "110m"]]:
+    """Create a MapPlotter with common argument handling.
+
+    Shared setup logic for :func:`plot` and
+    :func:`~pypsa.plot.maps.animate.animate`.
+    """
+    if margin is None:
+        logger.warning(
+            "The `margin` argument does support None value anymore. "
+            "Falling back to the default value 0.05. This will raise "
+            "an error in the future."
+        )
+        margin = 0.05
+
+    multindex_buses = isinstance(bus_size, pd.Series) and isinstance(
+        bus_size.index, pd.MultiIndex
+    )
+    if isinstance(bus_size, pd.Series):
+        buses = (
+            bus_size.index if not multindex_buses else bus_size.index.unique(level=0)
+        )
+    else:
+        buses = n.c.buses.static.index
+
+    if isinstance(geomap, str):
+        logger.warning(
+            "The `geomap` argument now only accepts a boolean value. "
+            "If you want to set the resolution, use the `geomap_resolution` "
+            "argument instead."
+        )
+        geomap_resolution = geomap  # type: ignore
+        geomap = True
+
+    plotter = MapPlotter(
+        n,
+        layouter,
+        boundaries=boundaries,
+        margin=margin,
+        buses=buses,
+        jitter=jitter,
+    )
+    return plotter, geomap, geomap_resolution
+
+
 @wraps(
     MapPlotter.draw_map,
     assigned=("__doc__", "__annotations__", "__type_params__"),
@@ -1267,44 +1336,19 @@ def plot(  # noqa: D103
     geomap_color: dict | bool | None = None,
     title: str = "",
     jitter: float | None = None,
+    figsize: tuple[float, float] | None = None,
+    dpi: int | None = None,
     **kwargs: Any,
 ) -> dict:
-    if margin is None:
-        logger.warning(
-            "The `margin` argument does support None value anymore. "
-            "Falling back to the default value 0.05. This will raise "
-            "an error in the future."
-        )
-        margin = 0.05
-
-    bus_size = kwargs.get("bus_size")
-    multindex_buses = isinstance(bus_size, pd.Series) and isinstance(
-        bus_size.index, pd.MultiIndex
-    )
-    if isinstance(bus_size, pd.Series):
-        buses = (
-            bus_size.index if not multindex_buses else bus_size.index.unique(level=0)
-        )
-    else:
-        buses = n.c.buses.static.index
-
-    if isinstance(geomap, str):
-        logger.warning(
-            "The `geomap` argument now only accepts a boolean value. "
-            "If you want to set the resolution, use the `geomap_resolution` "
-            "argument instead."
-        )
-        geomap = True
-        geomap_resolution = geomap  # type: ignore
-
-    # setup plotter
-    plotter = MapPlotter(
+    plotter, geomap, geomap_resolution = _create_plotter(
         n,
         layouter,
-        boundaries=boundaries,
-        margin=margin,
-        buses=buses,
-        jitter=jitter,
+        boundaries,
+        margin,
+        jitter,
+        geomap,
+        geomap_resolution,
+        kwargs.get("bus_size"),
     )
 
     return plotter.draw_map(
@@ -1314,6 +1358,8 @@ def plot(  # noqa: D103
         geomap_resolution=geomap_resolution,
         geomap_color=geomap_color,
         title=title,
+        figsize=figsize,
+        dpi=dpi,
         **kwargs,
     )
 

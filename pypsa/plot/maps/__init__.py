@@ -8,11 +8,13 @@ This module contains all plotting functions which can be used on top of the
 functions of [`pypsa.Network.plot`][], [`pypsa.Network.explore`][], [`pypsa.Network.iplot`][].
 """
 
+from pypsa.plot.maps.animate import animate
 from pypsa.plot.maps.interactive import explore, iplot
 from pypsa.plot.maps.static import MapPlotter, plot
 
 __all__ = [
     "MapPlotter",
+    "animate",
     "plot",
     "iplot",
     "explore",

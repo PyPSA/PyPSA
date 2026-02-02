@@ -82,6 +82,7 @@ nav:
       - Statistics: user-guide/plotting/charts.md
       - Maps (Static): user-guide/plotting/static-map.ipynb
       - Maps (Interactive): user-guide/plotting/explore.ipynb
+      - Animation: user-guide/plotting/animation.ipynb
     - Network Collection: user-guide/collection.md
     - Options: user-guide/options.md
     - Logging: user-guide/logging.ipynb
@@ -341,6 +342,7 @@ plugins:
               - pypsa.components._types.sub_networks.SubNetworks.add
               - pypsa.components._types.transformers.Transformers.add
               # Plot Accessor
+              - pypsa.plot.accessor.PlotAccessor.animate
               - pypsa.plot.accessor.PlotAccessor.explore
               - pypsa.plot.accessor.PlotAccessor.iplot
               - pypsa.plot.accessor.PlotAccessor.map

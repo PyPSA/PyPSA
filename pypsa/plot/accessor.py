@@ -7,7 +7,7 @@
 import functools
 from typing import TYPE_CHECKING, Any
 
-from pypsa.plot.maps import explore, iplot, plot
+from pypsa.plot.maps import animate, explore, iplot, plot
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -40,6 +40,11 @@ class PlotAccessor:
     def iplot(self, *args: Any, **kwargs: Any) -> Any:
         """Interactive plot method."""
         return iplot(self._n, *args, **kwargs)
+
+    @functools.wraps(animate)
+    def animate(self, *args: Any, **kwargs: Any) -> Any:
+        """Animate the network plot over snapshots."""
+        return animate(self._n, *args, **kwargs)
 
     @functools.wraps(explore)
     def explore(self, *args: Any, **kwargs: Any) -> Any:
