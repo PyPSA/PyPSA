@@ -785,7 +785,7 @@ def define_ramp_limit_constraints(
 
         # Special constraints for first snapshot when NOT rolling horizon
 
-        if not is_rolling_horizon and ~ramp_limit_start_up_com.isnull().any():
+        if not is_rolling_horizon and ramp_limit_start_up_com.notnull().any():
             # Check which units start from off state (up_time_before == 0)
             up_time_before = c.da.up_time_before.sel(name=com_i)
             starts_from_off = up_time_before == 0
