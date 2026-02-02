@@ -9,19 +9,21 @@ from numpy.testing import assert_array_almost_equal as equal
 import pypsa
 
 
-def test_compatibility_ext_and_comt():
-    """
-    This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
-    commitment.html and is not very comprehensive.
-    """
+@pytest.fixture
+def base_network():
     n = pypsa.Network()
-
-    snapshots = range(4)
-
-    n.set_snapshots(snapshots)
-
+    n.set_snapshots(range(4))
     n.add("Bus", "bus")
+    n.add("Generator", "coal", bus="bus", p_nom=1000, marginal_cost=2)
+    n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
+    return n
 
+
+def test_compatibility_ext_and_comt():
+    """Test complex network with various generator combinations and objective verification."""
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+    n.add("Bus", "bus")
     n.add("Bus", "bus2")
 
     n.add(
@@ -149,12 +151,9 @@ def test_compatibility_ext_and_comt():
 
 
 def test_ext_and_com_single():
+    """Test single modular+extendable+committable generator with status counting."""
     n = pypsa.Network()
-
-    snapshots = range(4)
-
-    n.set_snapshots(snapshots)
-
+    n.set_snapshots(range(4))
     n.add("Bus", "bus")
 
     n.add(
@@ -168,7 +167,6 @@ def test_ext_and_com_single():
         p_nom_mod=200,
         p_nom_max=10000,
         p_min_pu=0.1,
-        # Without this, we might decide to use more units than necessary
         stand_by_cost=1,
     )
 
@@ -177,21 +175,13 @@ def test_ext_and_com_single():
     n.optimize()
 
     equal(n.c.generators.static.p_nom_opt["coal"], 6000)
-
     equal(n.c.generators.dynamic.status.to_numpy().flatten(), [20, 30, 0, 4])
 
 
 def test_unit_commitment_mod():
-    """
-    This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
-    commitment.html and is not very comprehensive.
-    """
+    """Test unit commitment with modular generators."""
     n = pypsa.Network()
-
-    snapshots = range(4)
-
-    n.set_snapshots(snapshots)
-
+    n.set_snapshots(range(4))
     n.add("Bus", "bus")
 
     n.add(
@@ -222,206 +212,83 @@ def test_unit_commitment_mod():
     n.optimize()
 
     expected_status = np.array([[1, 1, 1, 0], [0, 0, 0, 1]], dtype=float).T
-
     equal(n.c.generators.dynamic.status.values, expected_status)
 
     expected_dispatch = np.array([[4000, 6000, 5000, 0], [0, 0, 0, 800]], dtype=float).T
-
     equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
-# Trivial + non-extendable, non-modular & committable
-# Already tested in test_lopf_unit_commitment.py
-def test_com():
-    n = pypsa.Network()
-
-    snapshots = range(4)
-
-    n.set_snapshots(snapshots)
-
-    n.add("Bus", "bus")
-
-    n.add(
-        "Generator",
-        "coal",
-        bus="bus",
-        p_nom=1000,
-        marginal_cost=2,
-    )
-
-    n.add(
-        "Generator",
-        "FFG",
-        bus="bus",
-        p_nom=5000,
-        marginal_cost=1,
-        committable=True,
-        p_min_pu=0.2,
-    )
-
-    n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
+@pytest.mark.parametrize(
+    ("gen_config", "load", "expected_dispatch"),
+    [
+        # Committable only
+        (
+            {"p_nom": 5000, "marginal_cost": 1, "committable": True, "p_min_pu": 0.2},
+            [4000, 6000, 5000, 800],
+            [[0, 1000, 0, 800], [4000, 5000, 5000, 0]],
+        ),
+        # Modular + committable
+        (
+            {
+                "p_nom": 5000,
+                "capital_cost": 1,
+                "marginal_cost": 0,
+                "committable": True,
+                "p_min_pu": 0.2,
+            },
+            [4000, 6000, 5000, 20],
+            [[0, 1000, 0, 20], [4000, 5000, 5000, 0]],
+        ),
+        # Extendable + modular
+        (
+            {
+                "p_nom_mod": 1,
+                "p_nom_max": 5000,
+                "capital_cost": 1,
+                "marginal_cost": 0,
+                "p_nom_extendable": True,
+            },
+            [4000, 6000, 5000, 800],
+            [[0, 1000, 0, 0], [4000, 5000, 5000, 800]],
+        ),
+        # Extendable + committable + modular
+        (
+            {
+                "p_nom_mod": 200,
+                "p_nom_max": 5000,
+                "capital_cost": 1,
+                "marginal_cost": 0,
+                "p_nom_extendable": True,
+                "committable": True,
+                "p_min_pu": 0.2,
+            },
+            [4000, 6000, 5000, 20],
+            [[0, 1000, 0, 20], [4000, 5000, 5000, 0]],
+        ),
+    ],
+)
+def test_generator_combinations(base_network, gen_config, load, expected_dispatch):
+    """Test various combinations of extendable/committable/modular generators."""
+    n = base_network
+    n.loads_t.p_set["load"] = load
+    n.add("Generator", "flex", bus="bus", **gen_config)
 
     n.optimize()
 
-    expected_dispatch = np.array(
-        [[0, 1000, 0, 800], [4000, 5000, 5000, 0]], dtype=float
-    ).T
-
-    equal(n.c.generators.dynamic.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, np.array(expected_dispatch, dtype=float).T)
 
 
-# Trivial + non-extendable, modular & non-committable
-# Already test in test_lopf_modularity.py
-
-
-# Trivial + non-extendable, modular & committable
-def test_mod_com():
-    n = pypsa.Network()
-
-    snapshots = range(4)
-
-    n.set_snapshots(snapshots)
-
-    n.add("Bus", "bus")
-
-    n.add(
-        "Generator",
-        "coal",
-        bus="bus",
-        p_nom=1000,
-        marginal_cost=2,
-    )
-
-    n.add(
-        "Generator",
-        "ffg",
-        bus="bus",
-        p_nom=5000,
-        capital_cost=1,
-        marginal_cost=0,
-        committable=True,
-        p_min_pu=0.2,
-    )
-
-    n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 20])
-
-    n.optimize()
-
-    expected_dispatch = np.array(
-        [[0, 1000, 0, 20], [4000, 5000, 5000, 0]], dtype=float
-    ).T
-
-    equal(n.c.generators.dynamic.p.values, expected_dispatch)
-
-
-# Trivial + extendable, non-modular & non-committable
-# Already tested
-
-# Trivial + extendable, non-modular & committable
-# Already tested
-
-
-# Trivial + extendable, modular & non-committable
-def test_ext_mod():
-    n = pypsa.Network()
-
-    snapshots = range(4)
-
-    n.set_snapshots(snapshots)
-
-    n.add("Bus", "bus")
-
-    n.add(
-        "Generator",
-        "coal",
-        bus="bus",
-        p_nom=1000,
-        marginal_cost=2,
-    )
-
-    n.add(
-        "Generator",
-        "PV",
-        bus="bus",
-        p_nom_mod=1,
-        p_nom_max=5000,
-        capital_cost=1,
-        marginal_cost=0,
-        p_nom_extendable=True,
-    )
-
-    n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
-
-    n.optimize()
-
-    expected_dispatch = np.array(
-        [[0, 1000, 0, 0], [4000, 5000, 5000, 800]], dtype=float
-    ).T
-
-    equal(n.c.generators.dynamic.p.values, expected_dispatch)
-
-
-# Trivial + extendable, committable & modular
-def test_ext_com_mod():
-    n = pypsa.Network()
-
-    snapshots = range(4)
-
-    n.set_snapshots(snapshots)
-
-    n.add("Bus", "bus")
-
-    n.add(
-        "Generator",
-        "coal",
-        bus="bus",
-        p_nom=1000,
-        marginal_cost=2,
-    )
-
-    n.add(
-        "Generator",
-        "ffg",
-        bus="bus",
-        p_nom_mod=200,
-        p_nom_max=5000,
-        capital_cost=1,
-        marginal_cost=0,
-        p_nom_extendable=True,
-        committable=True,
-        p_min_pu=0.2,
-    )
-
-    n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 20])
-
-    n.optimize()
-
-    expected_dispatch = np.array(
-        [[0, 1000, 0, 20], [4000, 5000, 5000, 0]], dtype=float
-    ).T
-
-    equal(n.c.generators.dynamic.p.values, expected_dispatch)
-
-
-# If we have com + ext + mod but p_nom is defined, p_nom should be ignored
 def test_com_ext_mod_p_nom():
+    """Test that p_nom is ignored when extendable+modular."""
     n = pypsa.Network()
-    snapshots = range(4)
-    n.set_snapshots(snapshots)
+    n.set_snapshots(range(4))
     n.add("Bus", "bus")
-    n.add(
-        "Generator",
-        "coal",
-        bus="bus",
-        p_nom=5000,
-        marginal_cost=100,
-    )
+    n.add("Generator", "coal", bus="bus", p_nom=5000, marginal_cost=100)
 
     n.add(
         "Generator",
         "ffg",
         bus="bus",
-        # This should be ignored
         p_nom=0,
         p_nom_mod=200,
         p_nom_max=10000,
@@ -437,25 +304,19 @@ def test_com_ext_mod_p_nom():
     n.optimize()
 
     expected_dispatch = np.array([[0, 0, 0, 0], [4000, 6000, 5000, 800]], dtype=float).T
-
     equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
-def test_p_nom_p_nom_mod():
+def test_p_nom_not_multiple_of_mod_raises():
+    """Test that non-multiple p_nom/p_nom_mod raises error."""
     n = pypsa.Network()
-
-    snapshots = range(4)
-
-    n.set_snapshots(snapshots)
-
+    n.set_snapshots(range(4))
     n.add("Bus", "bus")
 
     n.add(
         "Generator",
         "ffg",
         bus="bus",
-        # p_nom is not a multiple of p_nom_mod
-        # therefore, it is discarded
         p_nom=6001,
         p_nom_mod=2,
         capital_cost=1,
