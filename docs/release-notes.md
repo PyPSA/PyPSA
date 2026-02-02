@@ -31,6 +31,10 @@ SPDX-License-Identifier: CC-BY-4.0
 - Add environment variable support for options via `PYPSA_*` prefix (e.g., `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi`). (<!-- md:pr 1513 -->)
 - In version 2.0, capital costs of existing capacity on extendable assets will no longer be included in the objective by default (`n.objective_constant` will be set to zero), which improves LP numerical conditioning. A `FutureWarning` is now raised to announce this change. A new `include_objective_constant` parameter was added to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] and [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] to allow controlling this behavior and opt-in to the new default. Can also be configured via `pypsa.options.params.optimize.include_objective_constant` (see <!-- md:guide options.md -->). (<!-- md:pr 1509 -->)
 
+### Breaking Changes
+
+- Default values for `ramp_limit_start_up` and `ramp_limit_shut_down` changed from `1` to `NaN` for generators and links. This allows distinguishing between "no limit" (NaN) and "full ramp allowed" (1). Code that relied on the implicit default of 1 may need updating.
+
 ### Bug Fixes
 
 - Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
