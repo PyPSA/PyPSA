@@ -49,8 +49,7 @@ def test_component_initialization(legacy_component):
 
 def test_active_assets(legacy_component):
     component = legacy_component
-    active_assets = component.active_assets
-    # active_assets should return an Index of active asset names
+    active_assets = component.static.query("active").index
     assert len(active_assets) == 2
     assert "asset1" in active_assets
     assert "asset2" not in active_assets

@@ -165,12 +165,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         """
         active_assets = self.get_active_assets()
-        active = active_assets[active_assets]
-        # Handle both simple Index and MultiIndex (with scenarios)
-        if isinstance(active.index, pd.MultiIndex):
-            return active.index.get_level_values("name").unique()
-        else:
-            return active.index
+        return active_assets[active_assets].index.get_level_values("name").unique()
 
     @property
     def inactive_assets(self) -> pd.Series:
@@ -218,12 +213,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         """
         active_assets = self.get_active_assets()
-        inactive = active_assets[~active_assets]
-        # Handle both simple Index and MultiIndex (with scenarios)
-        if isinstance(inactive.index, pd.MultiIndex):
-            return inactive.index.get_level_values("name").unique()
-        else:
-            return inactive.index
+        return active_assets[~active_assets].index.get_level_values("name").unique()
 
     def filter_by_active_assets(
         self,
