@@ -598,9 +598,10 @@ def define_ramp_limit_constraints(
     ramp_limit_down = c.da.ramp_limit_down.sel(snapshot=sns)
     all_null = (ramp_limit_up.isnull() & ramp_limit_down.isnull()).all()
 
-    if not c.committables.empty:
-        ramp_limit_start_up = c.da.ramp_limit_start_up
-        ramp_limit_shut_down = c.da.ramp_limit_shut_down
+    com_i = c.committables.difference(c.inactive_assets)
+    if not com_i.empty:
+        ramp_limit_start_up = c.da.ramp_limit_start_up.sel(name=com_i)
+        ramp_limit_shut_down = c.da.ramp_limit_shut_down.sel(name=com_i)
         all_null = (
             all_null
             and (ramp_limit_start_up.isnull() & ramp_limit_shut_down.isnull()).all()
@@ -629,7 +630,6 @@ def define_ramp_limit_constraints(
     p = m[f"{c.name}-{var_attr}"]
 
     # Get different component groups for constraint application
-    com_i = c.committables.difference(c.inactive_assets)
     fix_i = c.fixed.difference(c.inactive_assets)
     fix_i = fix_i.difference(com_i).rename(fix_i.name)
     ext_i = c.extendables.difference(c.inactive_assets)
