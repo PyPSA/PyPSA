@@ -162,6 +162,7 @@ nav:
   - Other:
     - Consistency Checks: api/other/consistency.md
     - Examples: api/other/api-examples.md
+    - Cost: api/other/costs.md
     - Utilities: api/other/common.md
     - Options: api/other/options.md
 

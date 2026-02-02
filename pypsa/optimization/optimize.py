@@ -164,29 +164,26 @@ def define_objective(
             if ext_i.empty:
                 continue
 
-            capital_cost = c.da.capital_cost.sel(name=ext_i)
-            if capital_cost.size == 0:
+            periodic_cost = c.periodized_cost.sel(name=ext_i)
+            if periodic_cost.size == 0:
                 continue
 
             nominal = c.da[attr].sel(name=ext_i)
 
-            # only charge capex for already-existing assets
             if n._multi_invest:
                 weighted_cost = 0
                 for period in periods:
-                    # collapse time axis via any() so capex value isn't broadcasted
                     active = c.da.active.sel(period=period, name=ext_i).any(
                         dim="timestep"
                     )
                     weighted_cost += (
-                        capital_cost * active * period_weighting.loc[period]
+                        active * periodic_cost * period_weighting.loc[period]
                     )
             else:
-                # collapse time axis via any() so capex value isn't broadcasted
                 active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-                weighted_cost = capital_cost * active
+                weighted_cost = active * periodic_cost
 
-            terms.append((weighted_cost * nominal).sum(dim=["name"]))
+                terms.append((weighted_cost * nominal).sum(dim=["name"]))
 
         constant += sum(terms)
 
@@ -285,21 +282,18 @@ def define_objective(
         if ext_i.empty:
             continue
 
-        capital_cost = c.da.capital_cost.sel(name=ext_i)
-        if capital_cost.size == 0 or (capital_cost == 0).all():
+        periodic_cost = c.periodized_cost.sel(name=ext_i)
+        if periodic_cost.size == 0 or (periodic_cost == 0).all():
             continue
 
-        # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
             for period in periods:
-                # collapse time axis via any() so capex value isn't broadcasted
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += capital_cost * active * period_weighting.loc[period]
+                weighted_cost += active * periodic_cost * period_weighting.loc[period]
         else:
-            # collapse time axis via any() so capex value isn't broadcasted
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            weighted_cost = capital_cost * active
+            weighted_cost = active * periodic_cost
 
         caps = m[f"{c.name}-{attr}"].sel(name=ext_i)
         capex_terms.append((caps * weighted_cost).sum(dim=["name"]))
