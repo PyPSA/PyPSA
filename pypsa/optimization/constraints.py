@@ -694,14 +694,14 @@ def define_ramp_limit_constraints(
     # ----------------------------- Extendable Components ----------------------------- #
     if not ext_i.empty:
         # Redefine active mask over ext_i
-        snapshot_sel = sns if is_rolling_horizon else sns[1:]
-        active_ext = c.da.active.sel(name=ext_i, snapshot=snapshot_sel)
+        sns = sns if is_rolling_horizon else sns[1:]
+        active_ext = c.da.active.sel(name=ext_i, snapshot=sns)
 
-        ramp_limit_up_ext = ramp_limit_up.sel(snapshot=snapshot_sel, name=ext_i).rename(
+        ramp_limit_up_ext = ramp_limit_up.sel(snapshot=sns, name=ext_i).rename(
             {"name": ext_dim}
         )
         ramp_limit_down_ext = ramp_limit_down.sel(
-            snapshot=snapshot_sel, name=ext_i
+            snapshot=sns, name=ext_i
         ).rename({"name": ext_dim})
         rhs_start_ext = rhs_start.sel({"name": ext_i}).rename({"name": ext_dim})
 
@@ -739,11 +739,10 @@ def define_ramp_limit_constraints(
             )
     # ----------------------------- Committable Components ----------------------------- #
     if not com_i.empty:
-        snapshot_sel = sns
-        active_com = c.da.active.sel(name=com_i, snapshot=snapshot_sel)
+        active_com = c.da.active.sel(name=com_i, snapshot=sns)
 
-        ramp_limit_up_com = ramp_limit_up.sel(snapshot=snapshot_sel, name=com_i)
-        ramp_limit_down_com = ramp_limit_down.sel(snapshot=snapshot_sel, name=com_i)
+        ramp_limit_up_com = ramp_limit_up.sel(name=com_i)
+        ramp_limit_down_com = ramp_limit_down.sel(name=com_i)
         ramp_limit_start_up_com = c.da.ramp_limit_start_up.sel(name=com_i)
         ramp_limit_shut_down_com = c.da.ramp_limit_shut_down.sel(name=com_i)
         p_nom_com = c.da[c._operational_attrs["nom"]].sel(name=original_com_i)
@@ -768,10 +767,10 @@ def define_ramp_limit_constraints(
             status_initial = initially_up
         rhs_start_com = DataArray(rhs_start_com)
 
-        p_com = p.sel(name=original_com_i, snapshot=snapshot_sel)
-        p_com_prev = p.shift(snapshot=1).sel(name=original_com_i, snapshot=snapshot_sel)
-        status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel)
-        status_prev = m[f"{c.name}-status"].shift(snapshot=1).sel(snapshot=snapshot_sel)
+        p_com = p.sel(name=original_com_i)
+        p_com_prev = p.shift(snapshot=1).sel(name=original_com_i)
+        status = m[f"{c.name}-status"]
+        status_prev = status.shift(snapshot=1)
 
         if non_null_up.any():
             limit_start = p_nom_com * ramp_limit_start_up_com.fillna(1.0)
