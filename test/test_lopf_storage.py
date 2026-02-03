@@ -109,3 +109,28 @@ def test_spill_cost():
             assert total_spill == 0
         else:
             assert total_spill == 400
+
+
+def test_storage_unit_p_set():
+    """Test that p_set constrains net power (p_dispatch - p_store) for StorageUnit."""
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=10)
+    n.add("Load", "load", bus="bus", p_set=[20, 30, 25, 35])
+
+    n.add(
+        "StorageUnit",
+        "storage",
+        bus="bus",
+        p_nom=50,
+        max_hours=2,
+        p_set=[-10, 0, 5, 0],  # negative=charge, positive=discharge
+        state_of_charge_initial=10,
+    )
+
+    n.optimize()
+
+    # Check that p = p_dispatch - p_store equals p_set
+    equal(n.c.storage_units.dynamic.p["storage"].values, [-10, 0, 5, 0], decimal=5)

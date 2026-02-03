@@ -1203,6 +1203,10 @@ def define_fixed_operation_constraints(
     The function only creates constraints for snapshots and components where
     the '{attr}_set' values are not NaN and the component is active.
 
+    For StorageUnit components, if `p_set` is specified (via attr="p"), the
+    constraint fixes the net power (p_dispatch - p_store) to the given values.
+    Positive p_set means net discharge, negative means net charge.
+
     """
     c = as_components(n, component)
     attr_set = f"{attr}_set"
@@ -1218,9 +1222,14 @@ def define_fixed_operation_constraints(
     active = c.da.active.sel(snapshot=sns, name=fix.coords["name"].values)
     mask = active & (~fix.isnull())
 
-    var = n.model[f"{c.name}-{attr}"]
-
-    n.model.add_constraints(var, "=", fix, name=f"{c.name}-" + attr_set, mask=mask)
+    if component == "StorageUnit" and attr == "p":
+        p_dispatch = n.model["StorageUnit-p_dispatch"]
+        p_store = n.model["StorageUnit-p_store"]
+        lhs = p_dispatch - p_store
+        n.model.add_constraints(lhs, "=", fix, name="StorageUnit-p_set", mask=mask)
+    else:
+        var = n.model[f"{c.name}-{attr}"]
+        n.model.add_constraints(var, "=", fix, name=f"{c.name}-" + attr_set, mask=mask)
 
 
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
