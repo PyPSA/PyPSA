@@ -17,6 +17,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
+- Add support for `p_set` time series in `StorageUnit` optimization. When specified, `p_set` now constrains the net power output (`p_dispatch - p_store`) to the given values, consistent with how `p_set` works for other components. (<!-- md:pr 1549 -->)
+
 - New network sanitization and data integrity features (<!-- md:pr 1401 -->):
     - [`n.sanitize()`][pypsa.Network.sanitize]: Run the following methods to fix consistency issues.
         - [`n.components.buses.add_missing_buses()`][pypsa.components.Buses.add_missing_buses]: Add buses referenced by components but not yet defined.
