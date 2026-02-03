@@ -14,8 +14,13 @@ from shapely.geometry import Polygon
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
 
-pypsa.options.debug.runtime_verification = True
-pypsa.options.params.optimize.include_objective_constant = True
+
+@pytest.fixture(autouse=True)
+def _set_test_options():
+    """Ensure test-specific options are set before each test."""
+    pypsa.options.debug.runtime_verification = True
+    pypsa.options.params.optimize.include_objective_constant = True
+    return
 
 
 @pytest.fixture(autouse=True)

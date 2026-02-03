@@ -42,16 +42,17 @@ For example, to set the default solver to Gurobi:
 export PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi
 ```
 
-These can be added to your shell configuration (e.g., `.bashrc`), CI pipelines, or container environments. Note that relying on environment variables can make scripts less reproducible when shared, since the environment configuration is not included in the script itself.
+These can be added to your shell configuration (e.g., `.bashrc`), CI pipelines, or container environments. If you have `python-dotenv` installed (`pip install pypsa[dotenv]`), PyPSA will also load variables from a `.env` file in your working directory. Note that relying on environment variables can make scripts less reproducible when shared, since the environment configuration is not included in the script itself.
 
 ### Priority
 
 When the same option is set in multiple ways, the following priority applies (lowest to highest):
 
 1. **Default values**: Defined in PyPSA
-2. **Environment variables**: `PYPSA_*` (loaded once at import time)
-3. **Runtime setting**: `pypsa.set_option()` or `pypsa.options.x = ...`
-4. **Function arguments** (where applicable): e.g., `n.optimize(solver_name="gurobi")`
+2. **`.env` file**: Via `python-dotenv` (if installed)
+3. **Environment variables**: `PYPSA_*` (loaded once at import time)
+4. **Runtime setting**: `pypsa.set_option()` or `pypsa.options.x = ...`
+5. **Function arguments** (where applicable): e.g., `n.optimize(solver_name="gurobi")`
 
 ## List of available options
 Options are grouped into categories and sub-categories. You can run the [`describe()`][pypsa.options.describe] function on any category or sub-category to get a list of available options and their current values. To list all options just run
