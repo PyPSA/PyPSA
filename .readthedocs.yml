@@ -20,8 +20,9 @@ build:
     install:
     - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv pip install -r docs/requirements.txt
     pre_build:
+    - echo "$GUROBI_LIC" | tr -d "'" > $HOME/gurobi.lic
       # To create all doctest files
-    - uv run pytest test/test_docs.py --test-docs
+    - PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi ${READTHEDOCS_VIRTUALENV_PATH}/bin/python -m pytest test/test_docs.py --test-docs
 
 mkdocs:
   configuration: mkdocs.yml
