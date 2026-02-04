@@ -157,6 +157,14 @@ class ComponentsIndexMixin(_ComponentsABC):
         return self.n_save.has_periods
 
     @property
+    def has_typical_periods(self) -> bool:
+        """Investment periods of the network.
+
+        <!-- md:badge-version v0.34.0 -->
+        """
+        return self.n_save.has_typical_periods
+
+    @property
     def scenarios(self) -> pd.Index:
         """Scenarios of networks.
 

@@ -16,12 +16,14 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass
 from importlib.util import find_spec
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
+    import tsam.timeseriesaggregation as tsam_module
+
     from pypsa import Network
 
 
@@ -529,47 +531,10 @@ def segment(
         msg = f"num_segments ({num_segments}) cannot exceed number of snapshots ({len(n.snapshots)})"
         raise ValueError(msg)
 
-    if find_spec("tsam") is None:
-        msg = (
-            "Optional dependency 'tsam' not found. "
-            "Install via 'pip install tsam' or 'conda install -c conda-forge tsam'"
-        )
-        raise ModuleNotFoundError(msg)
-
-    import tsam.timeseriesaggregation as tsam_module  # noqa: PLC0415
-
-    if exclude_attrs is None:
-        exclude_attrs = ["e_min_pu"]
-
-    if n.has_periods:
-        msg = "segment() does not yet support networks with investment periods"
-        raise NotImplementedError(msg)
-
-    dfs = []
-    col_attrs = []
-    for c in n.components:
-        if c.static.empty:
-            continue
-        for attr, df in c.dynamic.items():
-            if not df.empty and attr not in exclude_attrs:
-                for col in df.columns:
-                    dfs.append(df[[col]])
-                    col_attrs.append((c.name, attr, col))
-
-    if not dfs:
-        msg = "No time-varying data found for segmentation"
-        raise ValueError(msg)
-
-    combined = pd.concat(dfs, axis=1)
-    combined.columns = range(len(combined.columns))
-
-    normalization_factors = combined.max().replace(0, 1)
-    df_normalized = combined.div(normalization_factors)
-    df_normalized = df_normalized.fillna(0)
-
-    agg = tsam_module.TimeSeriesAggregation(
-        df_normalized,
-        hoursPerPeriod=len(df_normalized),
+    agg, col_attrs, normalization_factors = _prep_tsam_agg(
+        n,
+        exclude_attrs=exclude_attrs,
+        hoursPerPeriod=len(n.snapshots),
         noTypicalPeriods=1,
         noSegments=num_segments,
         segmentation=True,
@@ -618,6 +583,153 @@ def segment(
     )
 
     return TemporalClustering(m, snapshot_map)
+
+
+def typical_periods(
+    n: Network,
+    num_typical_periods: int,
+    num_days_per_period: int = 1,
+    *,
+    solver: str = "highs",
+    exclude_attrs: list[str] | None = None,
+) -> TemporalClustering:
+    """Cluster time series into non-contiguous typical periods using TSAM.
+
+    Parameters
+    ----------
+    n : Network
+        Network with original resolution.
+    num_typical_periods : int
+        Target number of typical periods.
+    num_days_per_period : int, default 1
+        Number of days per typical period.
+    solver : str, default "highs"
+        MIP solver for time clustering.
+    exclude_attrs : list, optional
+        Attributes to exclude from clustering (default: ["e_min_pu"]).
+
+    Returns
+    -------
+    TemporalClustering
+        Result with segmented network.
+
+    Note
+    ----
+    Requires `tsam` package: pip install tsam
+
+    """
+    _warn_if_solved(n)
+    _check_no_scenarios(n)
+
+    if num_typical_periods < 1:
+        msg = f"num_typical_periods must be >= 1, got {num_typical_periods}"
+        raise ValueError(msg)
+
+    if num_typical_periods * num_days_per_period > len(np.unique(n.snapshots.date)):
+        msg = f"Number of days represented by the typical periods ({num_typical_periods * num_days_per_period}) cannot exceed number of unique days in snapshots ({len(np.unique(n.snapshots.date))})"
+        raise ValueError(msg)
+
+    agg, col_attrs, normalization_factors = _prep_tsam_agg(
+        n,
+        exclude_attrs=exclude_attrs,
+        hoursPerPeriod=num_days_per_period * 24,
+        noTypicalPeriods=num_typical_periods,
+        segmentation=False,
+        solver=solver,
+    )
+    clustered = agg.createTypicalPeriods()
+    matched_indices = agg.indexMatching()
+    representative_dates = (
+        agg.timeSeries.resample(f"{num_days_per_period}D")
+        .first()
+        .iloc[agg.clusterCenterIndices]
+        .index
+    )
+    new_snapshots = pd.Index([], dtype=n.snapshots.dtype)
+    clusters = pd.Series(dtype=int)
+    for idx, day in enumerate(representative_dates):
+        first_day = day.strftime("%Y-%m-%d")
+        last_day = (day.date() + pd.Timedelta(days=num_days_per_period - 1)).strftime(
+            "%Y-%m-%d"
+        )
+        extra_snapshots = agg.timeSeries.loc[slice(first_day, last_day)].index
+        new_snapshots = new_snapshots.append(extra_snapshots)
+        clusters = pd.concat([clusters, pd.Series(idx, index=extra_snapshots)])
+
+    m = n.copy()
+    m.set_snapshots(new_snapshots)
+    m.typical_periods = clusters.rename_axis(index="snapshot")
+
+    clustered_values = clustered.values * normalization_factors.values
+    clustered_df = pd.DataFrame(
+        clustered_values,
+        index=new_snapshots,
+        columns=range(len(col_attrs)),
+    )
+
+    for i, (comp, attr, col_name) in enumerate(col_attrs):
+        data_col = clustered_df[[i]]
+        data_col.columns = [col_name]
+        if attr in m.c[comp].dynamic and not m.c[comp].dynamic[attr].empty:
+            m.c[comp].dynamic[attr][col_name] = data_col[col_name]
+        else:
+            m._import_series_from_df(data_col, comp, attr, overwrite=True)
+
+    typical_period_map = (
+        matched_indices.resample(f"{num_days_per_period}D").first().PeriodNum
+    )
+    m.typical_period_map = typical_period_map.rename_axis(index="day")
+    return TemporalClustering(m, typical_period_map)
+
+
+def _prep_tsam_agg(
+    n: Network, exclude_attrs: list[str] | None = None, **tsam_kwargs: Any
+) -> tuple[
+    tsam_module.TimeSeriesAggregation,
+    list[tuple[str, str, str]],
+    pd.Series,
+]:
+    """Prepare TSAM TimeSeriesAggregation object from network time series."""
+    if find_spec("tsam") is None:
+        msg = (
+            "Optional dependency 'tsam' not found. "
+            "Install via 'pip install tsam' or 'conda install -c conda-forge tsam'"
+        )
+        raise ModuleNotFoundError(msg)
+
+    import tsam.timeseriesaggregation as tsam_module  # noqa: PLC0415
+
+    if exclude_attrs is None:
+        exclude_attrs = ["e_min_pu"]
+
+    if n.has_periods:
+        msg = "typical_periods() does not yet support networks with investment periods"
+        raise NotImplementedError(msg)
+
+    dfs = []
+    col_attrs = []
+    for c in n.components:
+        if c.static.empty:
+            continue
+        for attr, df in c.dynamic.items():
+            if not df.empty and attr not in exclude_attrs:
+                for col in df.columns:
+                    dfs.append(df[[col]])
+                    col_attrs.append((c.name, attr, col))
+
+    if not dfs:
+        msg = "No time-varying data found for aggregation"
+        raise ValueError(msg)
+
+    combined = pd.concat(dfs, axis=1)
+    combined.columns = range(len(combined.columns))
+
+    normalization_factors = combined.max().replace(0, 1)
+    df_normalized = combined.div(normalization_factors)
+    df_normalized = df_normalized.fillna(0)
+
+    agg = tsam_module.TimeSeriesAggregation(df_normalized, **tsam_kwargs)
+    return agg, col_attrs, normalization_factors
 
 
 def from_snapshot_map(

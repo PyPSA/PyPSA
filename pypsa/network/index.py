@@ -466,6 +466,35 @@ class NetworkIndexMixin(_NetworkABC):
         return not self.periods.empty
 
     @property
+    def has_typical_periods(self) -> bool:
+        """Check if network has investment periods assigned to snapshots dimension.
+
+        Returns
+        -------
+        bool
+            True if network has investment periods, otherwise False.
+
+        See Also
+        --------
+        [pypsa.Network.snapshots][]
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus") # doctest: +SKIP
+        >>> n.snapshots = pd.date_range("2015-01-01", freq="h", periods=3)
+        >>> n.has_periods
+        False
+
+        Add investment periods:
+        >>> n.periods = [1, 2]
+        >>> n.has_periods
+        True
+
+        """
+        return not self.typical_periods.empty
+
+    @property
     def investment_periods(self) -> pd.Index:
         """Periods level of snapshots dimension.
 

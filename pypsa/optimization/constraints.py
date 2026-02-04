@@ -101,7 +101,13 @@ def define_operational_constraints_for_non_extendables(
     if "snapshot" in min_pu.dims:
         min_pu = min_pu.sel(snapshot=sns)
         max_pu = max_pu.sel(snapshot=sns)
-
+    if n.has_typical_periods and (attr, component) in [
+        ("state_of_charge", "StorageUnit"),
+        ("e", "Store"),
+    ]:
+        # For stores and storageunits with typical periods we ignore the reservoir bounds here.
+        # We will enforce them separately using other variables and constraints.
+        return
     lower = min_pu * nominal_fix
     upper = max_pu * nominal_fix
 
@@ -175,6 +181,13 @@ def define_operational_constraints_for_extendables(
     if "snapshot" in min_pu.dims:
         min_pu = min_pu.sel(snapshot=sns)
         max_pu = max_pu.sel(snapshot=sns)
+    if n.has_typical_periods and (attr, component) in [
+        ("state_of_charge", "StorageUnit"),
+        ("e", "Store"),
+    ]:
+        # For stores and storageunits with typical periods we ignore the reservoir bounds here.
+        # We will enforce them separately using other variables and constraints.
+        return
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=ext_i)
     capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"]
@@ -1427,6 +1440,62 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
 
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
+
+    if n.has_typical_periods:
+        typical_period_da = n.typical_periods.to_xarray()
+        for op_, bound_ in [(">=", "min"), ("<=", "max")]:
+            var = m[f"{component}-state_of_charge_intra_period_{bound_}"].sel(
+                typical_period=typical_period_da
+            )
+            m.add_constraints(
+                soc, op_, var, name=f"{component}-soc-intra-typical-period-{bound_}"
+            )
+
+        min_pu, max_pu = c.get_bounds_pu(attr="state_of_charge")
+        typical_period_map_da = n.typical_period_map.to_xarray()
+        inter_period_soc = m[f"{component}-state_of_charge_inter_period"]
+        for op_, bound_, pu in [(">=", "min", min_pu), ("<=", "max", max_pu)]:
+            var = m[f"{component}-state_of_charge_intra_period_{bound_}"].sel(
+                typical_period=typical_period_map_da
+            )
+            lhs = [(eff_stand, inter_period_soc), (1, var)]
+            rhs = pu
+            m.add_constraints(
+                lhs, op_, rhs, name=f"{component}-soc-inter-typical-period-{bound_}"
+            )
+
+        previous_soc = (
+            inter_period_soc.where(active)
+            .ffill(dim)
+            .roll(day=1)
+            .ffill(dim)
+            .where(include_previous_soc)
+        )
+        final_snapshot_per_typical_period = (
+            n.typical_periods[n.typical_periods.diff().shift(-1) != 0]
+            .rename("typical_period")
+            .reset_index()
+            .set_index("typical_period")
+            .squeeze()
+        )
+        final_snapshot_per_day = n.typical_period_map.map(
+            final_snapshot_per_typical_period
+        ).to_xarray()
+        soc_intra = (
+            m[f"{component}-state_of_charge"]
+            .sel(snapshot=final_snapshot_per_day.roll(day=1))
+            .where(include_previous_soc)
+        )
+        lhs = [(1, inter_period_soc), (-eff_stand, previous_soc), (-1, soc_intra)]
+        rhs = soc_init.where(~include_previous_soc, 0)
+
+        m.add_constraints(
+            lhs, "=", rhs, name=f"{component}-energy_balance_typical_period_inter"
+        )
+
+        # TODO: set initial storage level appropriately if exogenously set
+        # TODO: update core energy_balance constraint to account for links between typical periods
+        # TODO: apply all the same constraints to stores
 
 
 def define_store_constraints(n: Network, sns: pd.Index) -> None:

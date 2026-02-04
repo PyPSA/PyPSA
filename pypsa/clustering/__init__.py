@@ -51,6 +51,11 @@ class TemporalClusteringAccessor:
         """Wrap [`pypsa.clustering.temporal.segment`][]."""
         return temporal.segment(self.n, *args, **kwargs).n
 
+    @wraps(temporal.typical_periods)
+    def typical_periods(self, *args: Any, **kwargs: Any) -> "Network":
+        """Wrap [`pypsa.clustering.temporal.typical_periods`][]."""
+        return temporal.typical_periods(self.n, *args, **kwargs).n
+
     @wraps(temporal.from_snapshot_map)
     def from_snapshot_map(self, *args: Any, **kwargs: Any) -> "Network":
         """Wrap [`pypsa.clustering.temporal.from_snapshot_map`][]."""

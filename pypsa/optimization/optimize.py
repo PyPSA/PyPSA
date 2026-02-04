@@ -53,6 +53,7 @@ from pypsa.optimization.global_constraints import (
 )
 from pypsa.optimization.variables import (
     define_cvar_variables,
+    define_inter_period_storage_variables,
     define_loss_variables,
     define_modular_variables,
     define_nominal_variables,
@@ -602,6 +603,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
+
+        # Inter-typical-period storage variables (only for networks with snapshots aggregated to non-contiguous typical periods)
+        define_inter_period_storage_variables(n)
 
         if transmission_losses:
             for c in n.passive_branch_components:
