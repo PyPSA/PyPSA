@@ -1612,7 +1612,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
             idx = static.query("active").index if active_only else static.index
             types += len(idx) * [c.name]
             names += list(idx)
-        return pd.MultiIndex.from_arrays([types, names], names=("type", "name"))
+        return pd.MultiIndex.from_arrays([types, names], names=("component", "name"))
 
     def branches(self) -> pd.DataFrame:
         """Get the branches in the sub-network.
