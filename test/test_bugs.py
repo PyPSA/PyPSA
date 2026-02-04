@@ -378,3 +378,14 @@ def test_1522(tmp_path):
 
     assert set(m.generators_t.marginal_cost.columns) == {"gen0", "gen1"}
     assert set(m.links_t.marginal_cost.columns) == {"link0", "link1"}
+
+
+def test_statistics_groupby_time_true():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1534.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+    result = n.statistics.revenue(groupby_time=True)
+    expected = n.statistics.revenue(groupby_time="sum")
+    pd.testing.assert_series_equal(result, expected)
