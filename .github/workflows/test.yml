@@ -147,8 +147,6 @@ jobs:
     name: Check docs
     needs: [build]
     runs-on: ubuntu-latest
-    env:
-      PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME: gurobi
 
     steps:
     - uses: actions/checkout@v6
