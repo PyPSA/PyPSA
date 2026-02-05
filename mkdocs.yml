@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 site_name: Documentation
-site_url: !ENV READTHEDOCS_CANONICAL_URL
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, "https://docs.pypsa.org"]
 repo_url: https://github.com/PyPSA/PyPSA
 repo_name: PyPSA/PyPSA
 edit_uri: edit/master/docs/
@@ -118,7 +118,6 @@ nav:
     - examples/biomass-synthetic-fuels-carbon-management.ipynb
   - Advanced Topics:
     - examples/scigrid-redispatch.ipynb
-    - examples/demand-elasticity.ipynb
     - examples/generation-investment-screening-curve.ipynb
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer-example.ipynb
@@ -164,6 +163,7 @@ nav:
   - Other:
     - Consistency Checks: api/other/consistency.md
     - Examples: api/other/api-examples.md
+    - Cost: api/other/costs.md
     - Utilities: api/other/common.md
     - Options: api/other/options.md
 

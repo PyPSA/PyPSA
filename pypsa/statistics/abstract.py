@@ -84,6 +84,9 @@ class AbstractStatisticsAccessor(ABC):
         if not agg:
             return obj.T if isinstance(obj, pd.DataFrame) else obj
 
+        if agg is True:
+            agg = "sum"
+
         if agg == "mean":
             if isinstance(weights.index, pd.MultiIndex):
                 weights = weights.groupby(level=0).transform(lambda w: w / w.sum())
