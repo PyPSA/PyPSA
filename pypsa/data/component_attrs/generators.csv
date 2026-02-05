@@ -37,8 +37,8 @@ up_time_before,int,snapshots,1,Number of snapshots that the generator was online
 down_time_before,int,snapshots,0,Number of snapshots that the generator was offline before `n.snapshots` start. Only used if `committable=True` and `min_down_time>0`. Does not consider snapshot weightings.,Input (optional)
 ramp_limit_up,static or series,per unit,NaN,"Maximum active power increase from one snapshot to the next, per unit of the nominal power. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
 ramp_limit_down,static or series,per unit,NaN,"Maximum active power decrease from one snapshot to the next, per unit of the nominal power. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
-ramp_limit_start_up,float,per unit,1,"Maximum active power increase at start up, per unit of the nominal power. Only used if `committable=True`.",Input (optional)
-ramp_limit_shut_down,float,per unit,1,"Maximum active power decrease at shut down, per unit of the nominal power. Only used if `committable=True`.",Input (optional)
+ramp_limit_start_up,float,per unit,NaN,"Maximum active power increase at start up, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional)
+ramp_limit_shut_down,float,per unit,NaN,"Maximum active power decrease at shut down, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional)
 weight,float,n/a,1,"Weighting of a generator. Only used for network clustering.",Input (optional)
 p,series,MW,0.,Active power at bus (positive if net generation),Output
 q,series,MVar,0.,Reactive power (positive if net generation),Output

@@ -271,8 +271,8 @@ def define_operational_constraints_for_committables(
     min_down_time_set = c.da.min_down_time.sel(name=com_i)
     ramp_up_limit = nominal * c.da.ramp_limit_up.sel(name=com_i).fillna(1)
     ramp_down_limit = nominal * c.da.ramp_limit_down.sel(name=com_i).fillna(1)
-    ramp_start_up = nominal * c.da.ramp_limit_start_up.sel(name=com_i)
-    ramp_shut_down = nominal * c.da.ramp_limit_shut_down.sel(name=com_i)
+    ramp_start_up = nominal * c.da.ramp_limit_start_up.sel(name=com_i).fillna(1)
+    ramp_shut_down = nominal * c.da.ramp_limit_shut_down.sel(name=com_i).fillna(1)
     up_time_before_set = c.da.up_time_before.sel(name=com_i)
     down_time_before_set = c.da.down_time_before.sel(name=com_i)
     initially_up = up_time_before_set.astype(bool)
@@ -596,11 +596,17 @@ def define_ramp_limit_constraints(
 
     ramp_limit_up = c.da.ramp_limit_up.sel(snapshot=sns)
     ramp_limit_down = c.da.ramp_limit_down.sel(snapshot=sns)
+    all_null = (ramp_limit_up.isnull() & ramp_limit_down.isnull()).all()
 
-    # Skip if there are no ramp limits defined or if all are set to 1 (no limit)
-    if (ramp_limit_up.isnull() & ramp_limit_down.isnull()).all():
-        return
-    if (ramp_limit_up == 1).all() and (ramp_limit_down == 1).all():
+    com_i = c.committables.difference(c.inactive_assets)
+    if not com_i.empty:
+        ramp_limit_start_up = c.da.ramp_limit_start_up.sel(name=com_i)
+        ramp_limit_shut_down = c.da.ramp_limit_shut_down.sel(name=com_i)
+        all_null = (
+            all_null
+            and (ramp_limit_start_up.isnull() & ramp_limit_shut_down.isnull()).all()
+        )
+    if all_null:
         return
 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
@@ -624,7 +630,6 @@ def define_ramp_limit_constraints(
     p = m[f"{c.name}-{var_attr}"]
 
     # Get different component groups for constraint application
-    com_i = c.committables.difference(c.inactive_assets)
     fix_i = c.fixed.difference(c.inactive_assets)
     fix_i = fix_i.difference(com_i).rename(fix_i.name)
     ext_i = c.extendables.difference(c.inactive_assets)
@@ -748,10 +753,10 @@ def define_ramp_limit_constraints(
         rhs_start_com = rhs_start.sel(name=com_i)
 
         # com up
-        non_null_up = ~ramp_limit_up_com.isnull()
+        non_null_up = ~ramp_limit_up_com.isnull() | ~ramp_limit_start_up_com.isnull()
         if non_null_up.any():
-            limit_start = p_nom_com * ramp_limit_start_up_com
-            limit_up = p_nom_com * ramp_limit_up_com
+            limit_start = p_nom_com * ramp_limit_start_up_com.fillna(1.0)
+            limit_up = p_nom_com * ramp_limit_up_com.fillna(1.0)
 
             status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel)
             status_prev = (
@@ -778,11 +783,62 @@ def define_ramp_limit_constraints(
                 lhs, "<=", rhs, name=f"{c.name}-com-{attr}-ramp_limit_up", mask=mask
             )
 
+        # Special constraints for first snapshot when NOT rolling horizon
+
+        if not is_rolling_horizon and ramp_limit_start_up_com.notnull().any():
+            # Check which units start from off state (up_time_before == 0)
+            up_time_before = c.da.up_time_before.sel(name=com_i)
+            starts_from_off = up_time_before == 0
+            if starts_from_off.any():
+                # For first snapshot: p(0) <= ramp_limit_start_up * p_nom * status(0)
+                p_first = p.sel(name=original_com_i, snapshot=sns[0])
+                status_first = m[f"{c.name}-status"].sel(name=com_i, snapshot=sns[0])
+                limit_start_first = p_nom_com * ramp_limit_start_up_com.fillna(1.0)
+
+                lhs_first = p_first - limit_start_first * status_first
+                mask_first = (
+                    c.da.active.sel(name=com_i, snapshot=sns[0])
+                    & starts_from_off
+                    & ~ramp_limit_start_up_com.isnull()
+                )
+                m.add_constraints(
+                    lhs_first,
+                    "<=",
+                    0,
+                    name=f"{c.name}-com-{attr}-ramp_limit_start_up_first",
+                    mask=mask_first,
+                )
+
+        if not is_rolling_horizon and ~ramp_limit_shut_down_com.isnull().any():
+            # Check which units start from ON state (up_time_before > 0)
+            up_time_before = c.da.up_time_before.sel(name=com_i)
+            starts_from_on = up_time_before > 0
+            if starts_from_on.any():
+                # For first snapshot: p(0) >= (p_nom - ramp_limit_shut_down * p_nom)
+                p_first = p.sel(name=original_com_i, snapshot=sns[0])
+                limit_shut_first = p_nom_com * ramp_limit_shut_down_com.fillna(1.0)
+                rhs_shut_first = p_nom_com - limit_shut_first
+
+                mask_shut_first = (
+                    c.da.active.sel(name=com_i, snapshot=sns[0])
+                    & starts_from_on
+                    & ~ramp_limit_shut_down_com.isnull()
+                )
+                m.add_constraints(
+                    p_first,
+                    ">=",
+                    rhs_shut_first,
+                    name=f"{c.name}-com-{attr}-ramp_limit_shut_down_first",
+                    mask=mask_shut_first,
+                )
+
         # com down
-        non_null_down = ~ramp_limit_down_com.isnull()
+        non_null_down = (
+            ~ramp_limit_down_com.isnull() | ~ramp_limit_shut_down_com.isnull()
+        )
         if non_null_down.any():
-            limit_shut = p_nom_com * ramp_limit_shut_down_com
-            limit_down = p_nom_com * ramp_limit_down_com
+            limit_shut = p_nom_com * ramp_limit_shut_down_com.fillna(1.0)
+            limit_down = p_nom_com * ramp_limit_down_com.fillna(1.0)
 
             status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel)
             status_prev = (

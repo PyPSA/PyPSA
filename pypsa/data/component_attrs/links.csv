@@ -35,8 +35,8 @@ up_time_before,int,snapshots,1,Number of snapshots that the link was online befo
 down_time_before,int,snapshots,0,Number of snapshots that the link was offline before network.snapshots start. Only read if `committable=True` and `min_down_time>0`. Does not consider snapshot weightings.,Input (optional)
 ramp_limit_up,static or series,per unit,NaN,"Maximum increase from one snapshot to the next, per unit of `p_nom`. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
 ramp_limit_down,static or series,per unit,NaN,"Maximum decrease from one snapshot to the next, per unit of `p_nom`. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
-ramp_limit_start_up,float,per unit,1,"Maximum increase at start up, per unit of `p_nom`. Only used if `committable=True`.",Input (optional)
-ramp_limit_shut_down,float,per unit,1,"Maximum decrease at shut down, per unit of `p_nom`. Only used if `committable=True`.",Input (optional)
+ramp_limit_start_up,float,per unit,NaN,"Maximum increase at start up, per unit of `p_nom`. Only used if `committable=True`. Ignored if NaN.",Input (optional)
+ramp_limit_shut_down,float,per unit,NaN,"Maximum decrease at shut down, per unit of `p_nom`. Only used if `committable=True`. Ignored if NaN.",Input (optional)
 p0,series,MW,0.,Power at `bus0` (positive if link is withdrawing from `bus0`).,Output
 p1,series,MW,0.,Power at `bus1` (positive if link is withdrawing from `bus1`).,Output
 p_nom_opt,float,MW,0,Optimised nominal capacity.,Output
