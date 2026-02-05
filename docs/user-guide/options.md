@@ -27,6 +27,32 @@ To reset options to their default values, simply remove the assignment or use [p
 
 Instead of setting the value and getting the value via attribute access, you can also use  [pypsa.set_option][] and [pypsa.get_option][].
 
+## Environment variables
+
+Options can also be set via environment variables using the `PYPSA_` prefix. Use double underscores (`__`) to separate nested paths:
+
+| Option Path | Environment Variable |
+|-------------|---------------------|
+| `general.allow_network_requests` | `PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS` |
+| `params.optimize.solver_name` | `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME` |
+| `params.statistics.round` | `PYPSA_PARAMS__STATISTICS__ROUND` |
+
+For example, to set the default solver to Gurobi:
+```bash
+export PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi
+```
+
+These can be added to your shell configuration (e.g., `.bashrc`), CI pipelines, or container environments. If you have `python-dotenv` installed (`pip install pypsa[dotenv]`), PyPSA will also load variables from a `.env` file in your working directory. Note that relying on environment variables can make scripts less reproducible when shared, since the environment configuration is not included in the script itself.
+
+### Priority
+
+When the same option is set in multiple ways, the following priority applies (lowest to highest):
+
+1. **Default values**: Defined in PyPSA
+2. **`.env` file**: Via `python-dotenv` (if installed)
+3. **Environment variables**: `PYPSA_*` (loaded once at import time)
+4. **Runtime setting**: `pypsa.set_option()` or `pypsa.options.x = ...`
+5. **Function arguments** (where applicable): e.g., `n.optimize(solver_name="gurobi")`
 
 ## List of available options
 Options are grouped into categories and sub-categories. You can run the [`describe()`][pypsa.options.describe] function on any category or sub-category to get a list of available options and their current values. To list all options just run
@@ -88,6 +114,12 @@ optimize.solver_name:
 optimize.solver_options:
     Default: {}
     Description: Default value for the 'solver_options' parameter in optimization module.
+optimize.include_objective_constant:
+    Default: None
+    Description: Include capital costs of existing capacity on extendable assets in the
+        objective. Setting False sets n.objective_constant to zero and improves LP
+        numerical conditioning. None defaults to True with a FutureWarning (changes to
+        False in v2.0).
 ```
 
 ### Warnings options

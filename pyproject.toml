@@ -17,6 +17,7 @@ classifiers=[
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Science/Research",
@@ -31,13 +32,13 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy",
     "scipy",
-    "pandas>=0.24",
+    "pandas>=0.24,<3.0.0",
     "xarray",
-    "netcdf4",
-    "linopy>=0.5.5",
+    "netcdf4!=1.7.4",  # See https://github.com/PyPSA/PyPSA/issues/1510
+    "linopy>=0.6.1",
     "matplotlib",
     "plotly",
-    "pydeck",
+    "pydeck>=0.6",
     "seaborn",
     "geopandas>=0.9",
     "shapely",
@@ -59,6 +60,8 @@ cartopy = ["cartopy>=0.16"]
 excel = ["openpyxl", "python-calamine"]
 gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
+dotenv = ["python-dotenv"]
+tsam = ["tsam"]
 dev = [
     "pytest",
     "pytest-cov",
@@ -90,6 +93,8 @@ docs = [
     "gurobipy",
     "openpyxl",
     "python-calamine",
+    "pytest",
+    "cartopy>=0.16",
 ]
 
 # setuptools_scm settings
@@ -116,6 +121,7 @@ filterwarnings = [
     # Ignore internal warnings
     "default:With PyPSA 1.0, the API for how to access components data has changed:DeprecationWarning",
     "default:When combining.*with other plots on a geographical axis.*:UserWarning", # TODO: needs to be checked
+    "default:The default value of `include_objective_constant` will change:FutureWarning",
 
     # Ignore linopy warnings
     "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
