@@ -93,6 +93,7 @@ docs = [
     "gurobipy",
     "openpyxl",
     "python-calamine",
+    "salib",
     "pytest",
     "cartopy>=0.16",
 ]
