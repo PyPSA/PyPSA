@@ -41,6 +41,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
 
+- Fix spatial clustering filling empty time series with defaults for `aggregate_one_ports`. (<!-- md:pr 1528 -->)
+
 - Add temporal clustering functionality via `n.cluster.temporal.*` accessor. (<!-- md:pr 1508 -->)
 
     - `resample(offset)` - Aggregate snapshots at regular intervals (e.g., "3h", "24h")
