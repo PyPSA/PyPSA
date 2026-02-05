@@ -396,6 +396,7 @@ hooks:
 - docs/hooks/shortcodes.py
 - docs/hooks/cleanup.py
 - docs/hooks/path_aliases.py
+- docs/hooks/notebook_timing.py
 
 extra:
   social:
