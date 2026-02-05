@@ -666,7 +666,7 @@ def define_ramp_limit_constraints(
         p_nom = c.da[c._operational_attrs["nom"]].sel(name=fix_i)
 
         # Ramp up constraints for fixed components
-        non_null_up = ~ramp_limit_up_fix.isnull().all()
+        non_null_up = ~ramp_limit_up_fix.isnull()
         if non_null_up.any():
             lhs = p_actual(fix_i) - p_previous(fix_i)
             rhs = (ramp_limit_up_fix * p_nom) + rhs_start_fix
@@ -676,7 +676,7 @@ def define_ramp_limit_constraints(
             )
 
         # Ramp down constraints for fixed components
-        non_null_down = ~ramp_limit_down_fix.isnull().all()
+        non_null_down = ~ramp_limit_down_fix.isnull()
         if non_null_down.any():
             lhs = p_actual(fix_i) - p_previous(fix_i)
             rhs = (-ramp_limit_down_fix * p_nom) + rhs_start
@@ -688,17 +688,14 @@ def define_ramp_limit_constraints(
     # ----------------------------- Extendable Components ----------------------------- #
     if not ext_i.empty:
         # Redefine active mask over ext_i
-        active_ext = (
-            c.da.active.sel(name=ext_i, snapshot=sns)
-            if is_rolling_horizon
-            else c.da.active.sel(name=ext_i, snapshot=sns[1:])
-        )
+        snapshot_sel = sns if is_rolling_horizon else sns[1:]
+        active_ext = c.da.active.sel(name=ext_i, snapshot=snapshot_sel)
 
-        ramp_limit_up_ext = ramp_limit_up.reindex(
-            {"snapshot": active_ext.coords["snapshot"].values, "name": ext_i}
-        ).rename({"name": ext_dim})
-        ramp_limit_down_ext = ramp_limit_down.reindex(
-            {"snapshot": active_ext.coords["snapshot"].values, "name": ext_i}
+        ramp_limit_up_ext = ramp_limit_up.sel(snapshot=snapshot_sel, name=ext_i).rename(
+            {"name": ext_dim}
+        )
+        ramp_limit_down_ext = ramp_limit_down.sel(
+            snapshot=snapshot_sel, name=ext_i
         ).rename({"name": ext_dim})
         rhs_start_ext = rhs_start.sel({"name": ext_i}).rename({"name": ext_dim})
 
@@ -736,19 +733,12 @@ def define_ramp_limit_constraints(
             )
     # ----------------------------- Committable Components ----------------------------- #
     if not com_i.empty:
-        # Redefine active mask over com_i and get parameters directly using component methods
-        active_com = (
-            c.da.active.sel(name=com_i, snapshot=sns)
-            if is_rolling_horizon
-            else c.da.active.sel(name=com_i, snapshot=sns[1:])
-        )
+        # Redefine active mask over com_i
+        snapshot_sel = sns if is_rolling_horizon else sns[1:]
+        active_com = c.da.active.sel(name=com_i, snapshot=snapshot_sel)
 
-        ramp_limit_up_com = ramp_limit_up.reindex(
-            {"snapshot": active_com.coords["snapshot"].values, "name": com_i}
-        )
-        ramp_limit_down_com = ramp_limit_down.reindex(
-            {"snapshot": active_com.coords["snapshot"].values, "name": com_i}
-        )
+        ramp_limit_up_com = ramp_limit_up.sel(snapshot=snapshot_sel, name=com_i)
+        ramp_limit_down_com = ramp_limit_down.sel(snapshot=snapshot_sel, name=com_i)
 
         ramp_limit_start_up_com = c.da.ramp_limit_start_up.sel(name=com_i)
         ramp_limit_shut_down_com = c.da.ramp_limit_shut_down.sel(name=com_i)
@@ -763,13 +753,9 @@ def define_ramp_limit_constraints(
             limit_start = p_nom_com * ramp_limit_start_up_com
             limit_up = p_nom_com * ramp_limit_up_com
 
-            status = m[f"{c.name}-status"].sel(
-                snapshot=active_com.coords["snapshot"].values
-            )
+            status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel)
             status_prev = (
-                m[f"{c.name}-status"]
-                .shift(snapshot=1)
-                .sel(snapshot=active_com.coords["snapshot"].values)
+                m[f"{c.name}-status"].shift(snapshot=1).sel(snapshot=snapshot_sel)
             )
 
             lhs = (
@@ -781,11 +767,11 @@ def define_ramp_limit_constraints(
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                status_start = c.dynamic["status"].iloc[start_i]
+                status_start = c.dynamic["status"].iloc[start_i].loc[original_com_i]
                 limit_diff = (limit_up - limit_start).isel(snapshot=0)
-                rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
-                    limit_diff * status_start
-                )
+                rhs_first = rhs.isel(snapshot=0)
+                rhs_first = rhs_first + (limit_diff * status_start)
+                rhs[{"snapshot": 0}] = rhs_first
 
             mask = active_com & non_null_up
             m.add_constraints(
@@ -798,13 +784,9 @@ def define_ramp_limit_constraints(
             limit_shut = p_nom_com * ramp_limit_shut_down_com
             limit_down = p_nom_com * ramp_limit_down_com
 
-            status = m[f"{c.name}-status"].sel(
-                snapshot=active_com.coords["snapshot"].values
-            )
+            status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel)
             status_prev = (
-                m[f"{c.name}-status"]
-                .shift(snapshot=1)
-                .sel(snapshot=active_com.coords["snapshot"].values)
+                m[f"{c.name}-status"].shift(snapshot=1).sel(snapshot=snapshot_sel)
             )
 
             lhs = (
@@ -816,10 +798,10 @@ def define_ramp_limit_constraints(
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                status_start = c.dynamic["status"].iloc[start_i]
-                rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
-                    -limit_shut * status_start
-                )
+                status_start = c.dynamic["status"].iloc[start_i].loc[original_com_i]
+                rhs_first = rhs.isel(snapshot=0)
+                rhs_first = rhs_first + (-limit_shut * status_start)
+                rhs[{"snapshot": 0}] = rhs_first
 
             mask = active_com & non_null_down
             m.add_constraints(
@@ -1168,7 +1150,11 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     mask = c.static[ext_attr] & (c.static[mod_attr] > 0)
     mod_i = c.static.index[mask]
 
-    if (mod_i).empty:
+    # Unique component names for modular components (in absence of c.modulars helper)
+    if isinstance(mod_i, pd.MultiIndex):
+        mod_i = mod_i.unique(level="name")
+
+    if mod_i.empty:
         return
 
     # Get modular capacity values
@@ -1178,7 +1164,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     modularity = m[f"{c.name}-n_mod"]
     capacity = m.variables[f"{c.name}-{attr}"].loc[mod_i]
 
-    con = capacity - modularity * modular_capacity.values == 0
+    con = capacity - modularity * modular_capacity == 0
     n.model.add_constraints(con, name=f"{c.name}-{attr}_modularity", mask=None)
 
 
@@ -1217,6 +1203,10 @@ def define_fixed_operation_constraints(
     The function only creates constraints for snapshots and components where
     the '{attr}_set' values are not NaN and the component is active.
 
+    For StorageUnit components, if `p_set` is specified (via attr="p"), the
+    constraint fixes the net power (p_dispatch - p_store) to the given values.
+    Positive p_set means net discharge, negative means net charge.
+
     """
     c = as_components(n, component)
     attr_set = f"{attr}_set"
@@ -1232,9 +1222,14 @@ def define_fixed_operation_constraints(
     active = c.da.active.sel(snapshot=sns, name=fix.coords["name"].values)
     mask = active & (~fix.isnull())
 
-    var = n.model[f"{c.name}-{attr}"]
-
-    n.model.add_constraints(var, "=", fix, name=f"{c.name}-" + attr_set, mask=mask)
+    if component == "StorageUnit" and attr == "p":
+        p_dispatch = n.model["StorageUnit-p_dispatch"]
+        p_store = n.model["StorageUnit-p_store"]
+        lhs = p_dispatch - p_store
+        n.model.add_constraints(lhs, "=", fix, name="StorageUnit-p_set", mask=mask)
+    else:
+        var = n.model[f"{c.name}-{attr}"]
+        n.model.add_constraints(var, "=", fix, name=f"{c.name}-" + attr_set, mask=mask)
 
 
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:

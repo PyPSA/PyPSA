@@ -4,6 +4,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
@@ -626,6 +627,140 @@ def test_dynamic_ramp_rates():
     assert (n.c.generators.dynamic.p.diff().loc[6:, "gen1"]).min() >= -100
 
 
+@pytest.mark.parametrize("direction", ["up", "down"])
+def test_generator_ramp_constraints_mask_nan(direction):
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1493
+    """
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2025-01-01", periods=2, freq="h"))
+
+    n.add("Bus", "bus")
+    # Add load with sudden change to trigger ramping up/down
+    p_set = [0.0, 50.0] if direction == "up" else [50.0, 10.0]
+    n.add(
+        "Load",
+        "load",
+        bus="bus",
+        p_set=pd.Series(p_set, index=n.snapshots),
+    )
+
+    ramp_kw = {f"ramp_limit_{direction}": 0.5}
+
+    # Generator with ramp limits
+    n.add(
+        "Generator",
+        "gen_limited",
+        bus="bus",
+        p_nom=10,
+        marginal_cost=1,
+        **ramp_kw,
+    )
+
+    # Generator without ramp limits
+    n.add(
+        "Generator",
+        "gen_unlimited",
+        bus="bus",
+        p_nom=1000,
+        marginal_cost=10,
+    )
+
+    n.optimize(solver_name="highs")
+
+    # Check labels to see which generators have active ramp constraints applied
+    # Generator with undefined ramp limits should have label -1 (no constraint)
+    key = f"Generator-fix-p-ramp_limit_{direction}"
+    constraints = n.model.constraints[key]
+    labels_gen_limited = constraints.data["labels"].sel(name="gen_limited").to_pandas()
+    assert (labels_gen_limited != -1).all(), (
+        f"ramp_{direction} constraint should be active for 'gen_limited'."
+    )
+
+    labels_gen_unlimited = (
+        constraints.data["labels"].sel(name="gen_unlimited").to_pandas()
+    )
+    assert (labels_gen_unlimited == -1).all(), (
+        f"ramp_{direction} constraint should be masked for 'gen_unlimited'."
+    )
+
+
+@pytest.mark.parametrize("direction", ["up", "down"])
+def test_link_ramp_constraints_mask_nan(direction):
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1493
+    """
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2025-01-01", periods=2, freq="h"))
+
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    # Add load with sudden change to trigger ramping up/down
+    p_set = [0.0, 50.0] if direction == "up" else [50.0, 10.0]
+    n.add(
+        "Load",
+        "load",
+        bus="bus1",
+        p_set=pd.Series(p_set, index=n.snapshots),
+    )
+
+    ramp_kw = {
+        f"ramp_limit_{direction}": 0.5,
+    }
+
+    # Link with ramp limits
+    n.add(
+        "Link",
+        "link_limited",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom=10,
+        efficiency=1.0,
+        marginal_cost=1,
+        **ramp_kw,
+    )
+
+    # Link without ramp limits
+    n.add(
+        "Link",
+        "link_unlimited",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom=1000,
+        efficiency=1.0,
+        marginal_cost=10,
+    )
+
+    n.add(
+        "Generator",
+        "generator",
+        bus="bus0",
+        p_nom=1000,
+        marginal_cost=0.0,
+    )
+
+    n.optimize(solver_name="highs")
+
+    # Check labels to see which links have active ramp constraints applied
+    # Link with undefined ramp limits should have label -1 (no constraint)
+    key = f"Link-fix-p-ramp_limit_{direction}"
+    constraints = n.model.constraints[key]
+    labels_link_limited = (
+        constraints.data["labels"].sel(name="link_limited").to_pandas()
+    )
+    assert (labels_link_limited != -1).all(), (
+        f"ramp_{direction} constraint should be active for 'link_limited'."
+    )
+
+    labels_link_unlimited = (
+        constraints.data["labels"].sel(name="link_unlimited").to_pandas()
+    )
+    assert (labels_link_unlimited == -1).all(), (
+        f"ramp_{direction} constraint should be masked for 'link_unlimited'."
+    )
+
+
 def test_dynamic_start_up_rates_for_commitables():
     """
     This test checks that start up ramp rate constraints within unit commitment functionality runs through and is considered correctly.
@@ -677,3 +812,27 @@ def test_dynamic_start_up_rates_for_commitables():
         assert gen1_p[snapshot] <= expected_max_startup, (
             f"Startup ramp limit violated at snapshot {snapshot}: {gen1_p[snapshot]} > {expected_max_startup}"
         )
+
+
+def test_ramp_limits_multi_investment_period():
+    n = pypsa.Network()
+    sns = pd.date_range("2025-01-01", periods=5, freq="h").append(
+        pd.date_range("2026-01-01", periods=5, freq="h")
+    )
+    n.set_snapshots(pd.MultiIndex.from_arrays([sns.year, sns]))
+    n.investment_periods = [2025, 2026]
+    n.investment_period_weightings["years"] = 5
+
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        ramp_limit_up=0.5,
+        marginal_cost=10,
+    )
+    n.add("Load", "load", bus="bus", p_set=100)
+
+    status, _ = n.optimize()
+    assert status == "ok"

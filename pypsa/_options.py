@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: MIT
 
+import ast
 import logging
+import os
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
@@ -290,6 +292,44 @@ class OptionsNode:
             else:
                 child.reset_all()
 
+    def _load_from_env(self) -> None:
+        """Load options from PYPSA_* environment variables."""
+        prefix = "PYPSA_"
+
+        for env_var, env_value in os.environ.items():
+            if not env_var.startswith(prefix):
+                continue
+
+            # PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS -> general.allow_network_requests
+            option_path = env_var[len(prefix) :].replace("__", ".").lower()
+
+            lower_value = env_value.lower()
+            # Handle common booleans
+            if lower_value in ("true", "1"):
+                parsed_value: Any = True
+            elif lower_value in ("false", "0"):
+                parsed_value = False
+            # Otherwise use literal_eval for Python literals
+            else:
+                try:
+                    parsed_value = ast.literal_eval(env_value)
+                except (ValueError, SyntaxError):
+                    parsed_value = env_value
+                    logger.debug(
+                        "Could not parse '%s' as literal, using string", env_var
+                    )
+
+            try:
+                self.set_option(option_path, parsed_value)
+                logger.debug("Set option '%s' from env var '%s'", option_path, env_var)
+            except InvalidOptionError:
+                logger.warning(
+                    "Unknown option '%s' from env var '%s'. "
+                    "Use pypsa.options.describe() to see valid options.",
+                    option_path,
+                    env_var,
+                )
+
     def _describe_options(self, prefix: str = "") -> None:
         """Print documentation for options via path.
 
@@ -423,6 +463,13 @@ options._add_option(
     {},
     "Default value for the 'solver_options' parameter in optimization module.",
 )
+options._add_option(
+    "params.optimize.include_objective_constant",
+    None,
+    "Include capital costs of existing capacity on extendable assets in the objective. "
+    "Setting False sets n.objective_constant to zero and improves LP numerical "
+    "conditioning. None defaults to True with a FutureWarning (changes to False in v2.0).",
+)
 
 # Warnings category
 options._add_option(
@@ -457,3 +504,17 @@ options._add_option(
     "debugging and development purposes. This will lead to overhead in\n\t"
     "performance and should not be used in production.",
 )
+
+# Load environment variables from .env file if python-dotenv is installed
+try:
+    from dotenv import find_dotenv, load_dotenv
+
+    dotenv_path = find_dotenv(usecwd=True)
+    if dotenv_path:
+        load_dotenv(dotenv_path, override=False)
+        logger.debug("Loaded environment variables from '%s'", dotenv_path)
+except ImportError:
+    pass
+
+# Load options from environment variables
+options._load_from_env()

@@ -352,18 +352,20 @@ class Network(
         Stochastic PyPSA Network 'Stochastic-Network'
         ---------------------------------------------
         Components:
-        - Bus: 3
-        - Generator: 12
-        - Load: 3
+         - Bus: 3
+         - Carrier: 18
+         - Generator: 12
+         - Load: 3
         Snapshots: 2920
         Scenarios: 3
         >>> n_stochastic["high"]
         PyPSA Network 'Stochastic-Network - Scenario 'high''
         ----------------------------------------------------
         Components:
-        - Bus: 1
-        - Generator: 4
-        - Load: 1
+         - Bus: 1
+         - Carrier: 6
+         - Generator: 4
+         - Load: 1
         Snapshots: 2920
 
         Select single collection from a network collection:
@@ -480,6 +482,11 @@ class Network(
                 raise NotImplementedError(msg)
 
             return self.slice_network(key)
+
+    @property
+    def stats(self) -> StatisticsAccessor:
+        """Network [statistics functionality][pypsa.statistics.StatisticsAccessor] accessor (alias for [pypsa.Network.statistics][])."""
+        return self.statistics
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check for equality of two networks.
@@ -1045,7 +1052,7 @@ class Network(
                   Bremen Converter     True  NaN   NaN  ...       NaN       NaN      NaN
                   DC link              True  NaN   NaN  ...       NaN       NaN      NaN
         <BLANKLINE>
-        [11 rows x 61 columns]
+        [11 rows x 65 columns]
 
         See Also
         --------
@@ -1091,7 +1098,7 @@ class Network(
         5            True  0.0   0.0  ...  0.238800  0.000002  0.000002
         6            True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 38 columns]
+        [7 rows x 41 columns]
 
         """
         comps = sorted(
@@ -1134,7 +1141,7 @@ class Network(
                 5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
                 6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 38 columns]
+        [7 rows x 41 columns]
 
         See Also
         --------

@@ -42,7 +42,8 @@ class ComponentsIndexMixin(_ComponentsABC):
         <!-- md:badge-version v1.0.0 -->
 
         The names are corresponding to [`c.static.index`][pypsa.Components.static] for
-        non stochastic networks. For stochastic networks the index will be multi-indexed.
+        non stochastic networks. For stochastic networks the index will be,
+        multi-indexed while here only the name dimension is returned.
 
         Returns
         -------

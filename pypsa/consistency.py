@@ -64,7 +64,7 @@ def check_for_unknown_buses(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][]
+    [pypsa.Network.consistency_check][], [pypsa.Network.sanitize][]
 
     """
     for attr in _bus_columns(component.static):
@@ -78,7 +78,9 @@ def check_for_unknown_buses(
         if missing.any():
             _log_or_raise(
                 strict,
-                "The following %s have buses which are not defined:\n%s",
+                "The following %s have buses which are not defined. Add them using "
+                "n.add() or run n.sanitize() to add them automatically. Components "
+                "with undefined buses:\n%s",
                 component.list_name,
                 component.static.index[missing],
             )
@@ -135,7 +137,7 @@ def check_for_unknown_carriers(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][]
+    [pypsa.Network.consistency_check][], [pypsa.Network.sanitize][]
 
 
     """
@@ -148,7 +150,8 @@ def check_for_unknown_carriers(
         if missing.any():
             _log_or_raise(
                 strict,
-                "The following %s have carriers which are not defined:\n%s",
+                "The following %s have carriers which are not defined. Run n.sanitize()"
+                " to add them. Components with undefined carriers:\n%s",
                 component.list_name,
                 component.static.index[missing],
             )
@@ -455,6 +458,70 @@ def check_assets(n: NetworkType, component: Components, strict: bool = False) ->
             )
 
 
+def check_cost_consistency(component: Components, strict: bool = False) -> None:
+    """Check if both overnight_cost and capital_cost are set for the same asset.
+
+    When both are specified, overnight_cost takes precedence and capital_cost is
+    ignored.
+
+    Activate strict mode in general consistency check by passing `['cost_consistency']`
+    to the `strict` argument.
+
+    Parameters
+    ----------
+    component : pypsa.Component
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    `pypsa.Network.consistency_check`
+
+    """
+    static = component.static
+    if not {"capital_cost", "overnight_cost"}.issubset(static.columns):
+        return
+    has_overnight = static["overnight_cost"].notna()
+    has_capital = static["capital_cost"] != 0
+
+    both_set = has_overnight & has_capital
+    if both_set.any():
+        assets = static.index[both_set].tolist()
+        _log_or_raise(
+            strict,
+            "Component %s has assets with both 'overnight_cost' and 'capital_cost' "
+            "set: %s. When 'overnight_cost' is provided, it takes precedence and "
+            "'capital_cost' is ignored. Consider setting capital_cost=0 for these assets.",
+            component.name,
+            ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
+        )
+
+    if "discount_rate" in static.columns:
+        missing_discount_rate = has_overnight & static["discount_rate"].isna()
+        if missing_discount_rate.any():
+            assets = static.index[missing_discount_rate].tolist()
+            _log_or_raise(
+                True,
+                "Component %s has assets with 'overnight_cost' set but missing "
+                "'discount_rate': %s. Provide discount_rate for annuitization.",
+                component.name,
+                ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
+            )
+
+    if "lifetime" in static.columns:
+        missing_lifetime_rate = has_overnight & static["lifetime"].isna()
+        if missing_lifetime_rate.any():
+            assets = static.index[missing_lifetime_rate].tolist()
+            _log_or_raise(
+                True,
+                "Component %s has assets with 'overnight_cost' set but missing "
+                "'lifetime': %s. Provide lifetime for annuitization.",
+                component.name,
+                ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
+            )
+
+
 def check_generators(component: Components, strict: bool = False) -> None:
     """Check the consistency of generator attributes before the simulation.
 
@@ -712,6 +779,10 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
     strict : bool, optional
         If True, raise an error instead of logging a warning.
 
+    See Also
+    --------
+    [pypsa.Network.consistency_check][], [pypsa.Network.sanitize][]
+
     """
     missing_colors = n.c.carriers.static[
         n.c.carriers.static.color.isna() | n.c.carriers.static.color.eq("")
@@ -719,7 +790,8 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
     if not missing_colors.empty:
         _log_or_raise(
             strict,
-            "The following carriers are missing colors:\n%s",
+            "The following carriers are missing colors. Run n.sanitize()"
+            " to assign them. Carriers missing colors:\n%s",
             missing_colors.index,
         )
 
@@ -770,6 +842,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "zero_s_nom",
             "assets",
             "generators",
+            "cost_consistency",
             "disconnected_buses",
             "investment_periods",
             "shapes",
@@ -777,6 +850,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "scenarios_sum",
             "scenario_invariant_attrs",
             "line_types",
+            "transformer_types",
             "slack_bus_consistency",
         ]
 
@@ -816,6 +890,8 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_assets(self, c, "assets" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
+            # Checks cost attributes consistency
+            check_cost_consistency(c)
 
             if check_dtypes:
                 check_dtypes_(c, "dtypes" in strict)
@@ -827,6 +903,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         check_scenarios_sum_to_one(self, "scenarios_sum" in strict)
         check_scenario_invariant_attributes(self, "scenario_invariant_attrs" in strict)
         check_line_types_consistency(self, "line_types" in strict)
+        check_transformer_types_consistency(self, "transformer_types" in strict)
         check_stochastic_slack_bus_consistency(self, "slack_bus_consistency" in strict)
 
         # Optional runtime verification
@@ -878,6 +955,30 @@ class NetworkConsistencyMixin(_NetworkABC):
             self,  # type: ignore
             strict="missing_carrier_colors" in strict,
         )
+
+    def sanitize(self) -> None:
+        """Sanitize the network to ensure data integrity.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        This method performs a set of operations to heal the networks data integrity.
+        For a full list of operations which are done, check the See Also section below.
+
+        See Also
+        --------
+        [pypsa.components.Buses.add_missing_buses][],
+        [pypsa.components.Carriers.add_missing_carriers][],
+        [pypsa.components.Carriers.assign_colors][]
+
+        """
+        logger.info("Sanitizing network...")
+
+        self.c.buses.add_missing_buses()
+
+        self.c.carriers.add_missing_carriers()
+        self.c.carriers.assign_colors()
+
+        logger.info("Network sanitization complete.")
 
 
 def check_scenarios_sum_to_one(n: NetworkType, strict: bool = False) -> None:
@@ -945,11 +1046,18 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
         # but we ensure consistent slack bus selection separately
         "type",
         "p_nom_extendable",  # changes mathematical problem
+        "s_nom_extendable",
+        "e_nom_extendable",
+        "p_nom_mod",  # modular investment is first-stage decision
+        "s_nom_mod",
+        "e_nom_mod",
         "committable",  # changes mathematical problem
         "sign",
         "carrier",
         "weight",
         "p_nom_opt",  # optimization result
+        "s_nom_opt",
+        "e_nom_opt",
         "build_year",
         "lifetime",
         "active",  # theoretically can be different, but problematic with "Line"
@@ -1034,6 +1142,53 @@ def check_line_types_consistency(n: NetworkType, strict: bool = False) -> None:
                     "line_types must be identical across all scenarios. "
                     "Found differences between scenario '%s' and '%s'. "
                     "line_types define physical characteristics and cannot vary across scenarios.",
+                    reference_scenario,
+                    scenario,
+                )
+
+
+def check_transformer_types_consistency(n: NetworkType, strict: bool = False) -> None:
+    """Check that transformer_types are identical across all scenarios.
+
+    In stochastic networks, transformer_types must be identical across all scenarios
+    since they define physical characteristics of transformers.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if not n.has_scenarios:
+        return
+
+    # Check transformer_types consistency across scenarios
+    if not n.c.transformer_types.static.empty and len(n.scenarios) > 1:
+        # Get reference transformer_types from first scenario
+        reference_scenario = n.scenarios[0]
+        reference_transformer_types = n.c.transformer_types.static.xs(
+            reference_scenario, level="scenario"
+        )
+
+        # Check each other scenario
+        for scenario in n.scenarios[1:]:
+            scenario_transformer_types = n.c.transformer_types.static.xs(
+                scenario, level="scenario"
+            )
+
+            # Check if DataFrames are equal
+            if not reference_transformer_types.equals(scenario_transformer_types):
+                _log_or_raise(
+                    strict,
+                    "transformer_types must be identical across all scenarios. "
+                    "Found differences between scenario '%s' and '%s'. "
+                    "transformer_types define physical characteristics and cannot vary across scenarios.",
                     reference_scenario,
                     scenario,
                 )

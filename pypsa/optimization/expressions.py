@@ -17,7 +17,6 @@ from packaging import version
 from xarray import DataArray
 
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
-from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
     get_transmission_branches,
     port_efficiency,
@@ -196,13 +195,28 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series | None:
+        def func(n: Network, component: str, port: str) -> pd.Series | None:
             m = n.model
-            capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            if include_non_extendable:
-                query = f"~{nominal_attrs[c]}_extendable"
-                capacity = capacity + n.c[c].static.query(query)["p_nom"]
-            costs = n.c[c].static[cost_attribute][capacity.indexes["name"]]
+            c = n.c[component]
+            nom_attr = c._operational_attrs["nom"]
+            var_name = f"{component}-{nom_attr}"
+
+            # Get non-extendable capacity using component's fixed property
+            non_ext_capacity = (
+                c.static.loc[c.fixed, nom_attr]
+                if include_non_extendable
+                else pd.Series(dtype=float)
+            )
+
+            # Build capacity expression handling both extendable and non-extendable
+            if var_name in m.variables:
+                capacity = m.variables[var_name] + non_ext_capacity
+            elif not non_ext_capacity.empty:
+                capacity = LinearExpression(non_ext_capacity, m)
+            else:
+                return None
+
+            costs = c.static[cost_attribute][capacity.indexes["name"]]
             return capacity * costs
 
         return self._aggregate_components(
@@ -254,19 +268,35 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             at_port = True
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series | None:
+        def func(n: Network, component: str, port: str) -> pd.Series | None:
             m = n.model
-            attr = nominal_attrs[c]
-            capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            if include_non_extendable:
-                query = f"~{attr}_extendable"
-                capacity = capacity + n.c[c].static.query(query)[attr]
-            efficiency = port_efficiency(n, c, port=port)[capacity.indexes["name"]]
+            c = n.c[component]
+            nom_attr = c._operational_attrs["nom"]
+            var_name = f"{component}-{nom_attr}"
+
+            # Get non-extendable capacity using component's fixed property
+            non_ext_capacity = (
+                c.static.loc[c.fixed, nom_attr]
+                if include_non_extendable
+                else pd.Series(dtype=float)
+            )
+
+            # Build capacity expression handling both extendable and non-extendable
+            if var_name in m.variables:
+                capacity = m.variables[var_name] + non_ext_capacity
+            elif not non_ext_capacity.empty:
+                capacity = LinearExpression(non_ext_capacity, m)
+            else:
+                return None
+
+            efficiency = port_efficiency(n, component, port=port)[
+                capacity.indexes["name"]
+            ]
             if not at_port:
                 efficiency = abs(efficiency)
             res = capacity * efficiency
-            if storage and (c == "StorageUnit"):
-                res = res * n.components[c].static.max_hours
+            if storage and (component == "StorageUnit"):
+                res = res * c.static.max_hours
             return res
 
         return self._aggregate_components(
@@ -620,16 +650,29 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            attr = nominal_attrs[c]
-            capacity = (
-                n.model.variables[f"{c}-{attr}"]
-                + n.c[c].static.query(f"~{attr}_extendable")[attr]
-            )
+        def func(n: Network, component: str, port: str) -> pd.Series:
+            m = n.model
+            c = n.c[component]
+            nom_attr = c._operational_attrs["nom"]
+            var_name = f"{component}-{nom_attr}"
+
+            # Get non-extendable capacity using component's fixed property
+            non_ext_capacity = c.static.loc[c.fixed, nom_attr]
+
+            # Build capacity expression handling both extendable and non-extendable
+            if var_name in m.variables:
+                capacity = m.variables[var_name] + non_ext_capacity
+            elif not non_ext_capacity.empty:
+                capacity = LinearExpression(non_ext_capacity, m)
+            else:
+                return None
+
             idx = capacity.indexes["name"]
-            operation = self._get_operational_variable(c).loc[:, idx]
+            operation = self._get_operational_variable(component).loc[:, idx]
             sns = operation.indexes["snapshot"]
-            p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx]).loc[sns]
+            p_max_pu = DataArray(
+                n.get_switchable_as_dense(component, "p_max_pu")[idx]
+            ).loc[sns]
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
             # TODO curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu

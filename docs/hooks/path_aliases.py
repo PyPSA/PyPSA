@@ -5,61 +5,100 @@
 """
 Path aliases hook for MkDocs to enable simplified cross-references.
 
-This module provides MkDocs hooks to register simplified path aliases with autorefs,
-allowing cross-references like [pypsa.get_option][] to work while keeping internal
-paths unchanged.
+Registers aliases so that e.g. `pypsa.Network.static` resolves to the actual
+documented identifier `pypsa.network.components.NetworkComponentsMixin.static`.
 """
 
 from __future__ import annotations
 
+import importlib
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mkdocs.config.defaults import MkDocsConfig
     from mkdocs.structure.pages import Page
 
-# Path mappings - real path to simplified display name
-PATH_MAPPINGS = {
-    # Options API
-    "pypsa._options.option_context": "pypsa.option_context",
-    "pypsa._options.OptionsNode.get_option": "pypsa.get_option",
-    "pypsa._options.OptionsNode.set_option": "pypsa.set_option",
-    "pypsa._options.OptionsNode.reset_option": "pypsa.reset_option",
-    "pypsa._options.OptionsNode": "pypsa.options",
-    # Network Mixins
-    "pypsa.consistency.NetworkConsistencyMixin": "pypsa.Network",
-    "pypsa.network.index.NetworkIndexMixin": "pypsa.Network",
-    "pypsa.network.components.NetworkComponentsMixin": "pypsa.Network",
-    "pypsa.network.transform.NetworkTransformMixin": "pypsa.Network",
-    "pypsa.network.descriptors.NetworkDescriptorsMixin": "pypsa.Network",
-    "pypsa.network.io.NetworkIOMixin": "pypsa.Network",
-    "pypsa.network.power_flow.NetworkPowerFlowMixin": "pypsa.Network",
-    # Network Accesors
-    "pypsa.optimization.OptimizationAccessor": "pypsa.Network.optimize",
-    "pypsa.clustering.ClusteringAccessor": "pypsa.Network.cluster",
-    "pypsa.statistics.StatisticsAccessor": "pypsa.Network.statistics",
-    "pypsa.plot.accessor.PlotAccessor": "pypsa.Network.plot",
-    # Plot Accessors
-    "pypsa.plot.statistics.plotter": "pypsa.plot",
-    # SubNetwork
-    "pypsa.networks.SubNetwork": "pypsa.SubNetwork",
-    # Components
-    "pypsa.components.Components": "pypsa.Components",
-    # Groupers
-    "pypsa.statistics.grouping.Groupers": "pypsa.statistics.Groupers",
+# Maps alias prefix → {source_class: page_slug}.
+# Members of each source_class are registered as alias_prefix.member,
+# pointing to page_slug/#source_class.member.
+# Also used for display name substitution: source_class → alias_prefix in HTML.
+ALIASES = {
+    "pypsa.Network": {
+        "pypsa.network.index.NetworkIndexMixin": "api/networks/indexing",
+        "pypsa.network.components.NetworkComponentsMixin": "api/networks/components",
+        "pypsa.network.io.NetworkIOMixin": "api/networks/io",
+        "pypsa.network.transform.NetworkTransformMixin": "api/networks/transform",
+        "pypsa.network.descriptors.NetworkDescriptorsMixin": "api/networks/descriptors",
+        "pypsa.network.power_flow.NetworkPowerFlowMixin": "api/networks/power-flow",
+        "pypsa.consistency.NetworkConsistencyMixin": "api/other/consistency",
+    },
+    "pypsa.Network.optimize": {
+        "pypsa.optimization.OptimizationAccessor": "api/networks/optimize",
+    },
+    "pypsa.Network.cluster": {
+        "pypsa.clustering.ClusteringAccessor": "api/networks/cluster",
+    },
+    "pypsa.Network.statistics": {
+        "pypsa.statistics.StatisticsAccessor": "api/networks/statistics",
+    },
+    "pypsa.Network.plot": {
+        "pypsa.plot.accessor.PlotAccessor": "api/networks/plot",
+    },
+    "pypsa.SubNetwork": {
+        "pypsa.networks.SubNetwork": "api/networks/subnetwork",
+    },
+    "pypsa.Components": {
+        "pypsa.components.Components": "api/components/components",
+    },
+    "pypsa.plot.PlotAccessor": {
+        "pypsa.plot.accessor.PlotAccessor": "api/networks/plot",
+    },
+    "pypsa.plot.StatisticPlotter": {
+        "pypsa.plot.statistics.plotter.StatisticPlotter": "api/networks/plot",
+    },
+    "pypsa.plot.StatisticInteractivePlotter": {
+        "pypsa.plot.statistics.plotter.StatisticInteractivePlotter": "api/networks/plot",
+    },
+    "pypsa.statistics.Groupers": {
+        "pypsa.statistics.grouping.Groupers": "api/networks/statistics",
+    },
+    "pypsa": {
+        "pypsa._options.OptionsNode": "api/other/options",
+    },
+    "pypsa.options": {
+        "pypsa._options.OptionsNode": "api/other/options",
+    },
 }
+
+# Explicit overrides for references to attributes that are dynamically generated
+# (e.g. based on old or new Components API)
+EXPLICIT_ALIASES = {
+    "pypsa.Components.static": "api/components/components/#pypsa.components.Components.df",
+    "pypsa.Components.dynamic": "api/components/components/#pypsa.components.Components.pnl",
+    "pypsa.Components.da": "api/components/components/#pypsa.components.Components.ds",
+    "pypsa.Network.static": "api/networks/components/#pypsa.network.components.NetworkComponentsMixin.df",
+    "pypsa.Network.dynamic": "api/networks/components/#pypsa.network.components.NetworkComponentsMixin.pnl",
+}
+
+
+
+def _import_class(full_path: str):
+    """Import a class from its full module path."""
+    module_path, class_name = full_path.rsplit(".", 1)
+    module = importlib.import_module(module_path)
+    return getattr(module, class_name)
 
 
 def on_post_page(output: str, *, page: Page, config: MkDocsConfig, **kwargs):
     """Post-process the rendered HTML to replace path displays."""
-    for original_path, simplified_path in PATH_MAPPINGS.items():
-        output = output.replace(original_path, simplified_path)
+    for alias_prefix, sources in ALIASES.items():
+        for class_path in sources:
+            output = output.replace(class_path, alias_prefix)
     return output
 
 
 def on_env(env, *, config: MkDocsConfig, **kwargs):
     """Register path aliases with autorefs for cross-references."""
-    # Get the autorefs plugin
     autorefs_plugin = None
     for plugin_name, plugin_instance in config.plugins.items():
         if plugin_name == "autorefs":
@@ -69,50 +108,33 @@ def on_env(env, *, config: MkDocsConfig, **kwargs):
     if not autorefs_plugin:
         return env
 
-    # Register aliases for commonly used methods/attributes
-    common_suffixes = [
-        "__getattr__",
-        "__setattr__",
-        "__init__",
-        "__call__",
-        "get",
-        "set",
-        "add",
-        "remove",
-        "update",
-        "clear",
-        "load",
-        "save",
-        "export",
-        "import_",
-        "describe",
-        "to_dict",
-        "from_dict",
-        "copy",
-        "keys",
-        "values",
-        "items",
-    ]
+    # Register explicit aliases (overrides for non-existent members)
+    for alias_id, target_url in EXPLICIT_ALIASES.items():
+        autorefs_plugin.register_url(alias_id, target_url)
 
-    for original_path, simplified_path in PATH_MAPPINGS.items():
-        # Register the base class/module alias
-        try:
-            original_url, title = autorefs_plugin.get_item_url(original_path)
-            autorefs_plugin.register_url(simplified_path, original_url)
-            print(f"Registered alias: {simplified_path} -> {original_url}")
-        except KeyError:
-            print(f"Could not find original URL for: {original_path}")
+    # Register dynamically discovered aliases (base classes + their members)
+    for alias_prefix, sources in ALIASES.items():
+        multiple_sources = len(sources) > 1
+        for class_path, page_slug in sources.items():
+            # Register the base class alias itself
+            autorefs_plugin.register_url(
+                alias_prefix, f"{page_slug}/#{class_path}"
+            )
 
-        # Register common method/attribute aliases
-        for suffix in common_suffixes:
-            full_original = f"{original_path}.{suffix}"
-            full_simplified = f"{simplified_path}.{suffix}"
             try:
-                original_url, title = autorefs_plugin.get_item_url(full_original)
-                autorefs_plugin.register_url(full_simplified, original_url)
-                print(f"Registered alias: {full_simplified} -> {original_url}")
-            except KeyError:
-                # This is expected for many methods that don't exist
-                pass
+                cls = _import_class(class_path)
+            except (ImportError, AttributeError):
+                continue
+
+            # When multiple classes map to the same prefix (e.g. Network mixins),
+            # only use own members to avoid duplicates across pages.
+            members = vars(cls) if multiple_sources else dir(cls)
+
+            for name in members:
+                if name.startswith("_") and name != "__call__":
+                    continue
+                alias_id = f"{alias_prefix}.{name}"
+                target_url = f"{page_slug}/#{class_path}.{name}"
+                autorefs_plugin.register_url(alias_id, target_url)
 
     return env

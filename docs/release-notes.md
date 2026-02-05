@@ -13,6 +13,89 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Enhancements
+
+### Features
+
+- Add support for `p_set` time series in `StorageUnit` optimization. When specified, `p_set` now constrains the net power output (`p_dispatch - p_store`) to the given values, consistent with how `p_set` works for other components. (<!-- md:pr 1549 -->)
+
+- New network sanitization and data integrity features (<!-- md:pr 1401 -->):
+    - [`n.sanitize()`][pypsa.Network.sanitize]: Run the following methods to fix consistency issues.
+        - [`n.components.buses.add_missing_buses()`][pypsa.components.Buses.add_missing_buses]: Add buses referenced by components but not yet defined.
+        - [`n.components.carriers.add_missing_carriers()`][pypsa.components.Carriers.add_missing_carriers]: Add carriers used by components but not yet defined.
+        - [`n.components.carriers.assign_colors()`][pypsa.components.Carriers.assign_colors]: Assign colors to carriers using matplotlib palettes.
+        - [`c.unique_carriers`][pypsa.Components.unique_carriers]: Get all unique carrier values for a component.
+
+- Enhanced statistics plotting for stochastic networks and network collections (<!-- md:pr 1401 -->):
+    - Interactive bar plots ([`iplot.bar`][pypsa.plot.StatisticPlotter.bar]) aggregate scenarios with standard deviation error bars
+    - Improved multi-level index handling with automatic grouping/faceting
+
+- Add environment variable support for options via `PYPSA_*` prefix (e.g., `PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi`). (<!-- md:pr 1513 -->)
+- In version 2.0, capital costs of existing capacity on extendable assets will no longer be included in the objective by default (`n.objective_constant` will be set to zero), which improves LP numerical conditioning. A `FutureWarning` is now raised to announce this change. A new `include_objective_constant` parameter was added to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] and [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] to allow controlling this behavior and opt-in to the new default. Can also be configured via `pypsa.options.params.optimize.include_objective_constant` (see <!-- md:guide options.md -->). (<!-- md:pr 1509 -->)
+
+### Bug Fixes
+
+- Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
+
+### Bug Fixes
+
+- Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
+
+- Add temporal clustering functionality via `n.cluster.temporal.*` accessor. (<!-- md:pr 1508 -->)
+
+    - `resample(offset)` - Aggregate snapshots at regular intervals (e.g., "3h", "24h")
+    - `downsample(stride)` - Select every Nth snapshot as representative
+    - `segment(num_segments)` - TSAM agglomerative clustering for variable-duration segments
+    - `from_snapshot_map(snapshot_map)` - Apply pre-computed temporal aggregation
+
+    All methods preserve the snapshot weighting invariant and return the clustered network.
+    Use `get_resample_result()`, `get_downsample_result()`, `get_segment_result()`, or
+    `get_from_snapshot_map_result()` to also get the snapshot mapping for disaggregation.
+    ```
+
+- Add `n.nyears` property to get total modeled years based on snapshot weightings. (<!-- md:pr 1508 -->)
+
+
+## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
+
+### Enhancements
+
+- Add support for Python 3.14. Note that not all optional dependencies and solvers
+  are available for Python 3.14 yet. (<!-- md:pr 1511 -->)
+- Add support for splitting `capital_cost` into overnight investment cost and fixed O&M (see <!-- md:guide optimization/objective.md -->). New component attributes `overnight_cost`, `discount_rate`, and `fom_cost` allow specifying overnight costs that are automatically annuitized during optimization. When `overnight_cost` is provided, PyPSA calculates the annuity using `discount_rate` and `lifetime` (supports 0% rate for simple depreciation). When `overnight_cost` is not set (default NaN), `capital_cost` is used. New [`pypsa.costs`][pypsa.costs] module with [`annuity()`][pypsa.costs.annuity] and [`periodized_cost()`][pypsa.costs.periodized_cost] functions. New statistics methods [`n.statistics.overnight_cost()`][pypsa.statistics.StatisticsAccessor.overnight_cost] and [`n.statistics.fom()`][pypsa.statistics.StatisticsAccessor.fom] for reporting. (<!-- md:pr 1507 -->)
+- Speed up creating the model by avoiding some redundant checks. (<!-- md:pr 1515 -->)
+
+
+### Bug Fixes
+
+- Fix `pypsa.common.annuity` function to correctly handle discount rate of 0. (<!-- md:pr 1512 -->)
+- Fix NetCDF export corrupting dynamic attributes when DataFrames are directly assigned without proper column names. (<!-- md:pr 1522 -->)
+
+## [**v1.0.6**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.6) <small>22nd December 2025</small> { id="v1.0.6" }
+
+### Enhancements
+
+- Add [`n.stats`][pypsa.Network.stats] as a shorthand alias for the [`n.statistics`][pypsa.Network.statistics] accessor. Users can now use `n.stats` interchangeably with `n.statistics`. (<!-- md:pr 1448 -->)
+- Enable modular expansion option in stochastic optimization problems. (<!-- md:pr 1500 -->)
+
+### Bug Fixes
+
+- Fix issue when assigning duals back to stochastic networks with global constraints. (<!-- md:pr 1498 -->)
+- Fix incorrect application of ramp limit constraints to fixed components without defined ramp limits. (<!-- md:pr 1494 -->)
+- Fix rolling horizon optimization with linearized unit commitment and ramp limits. (<!-- md:pr 1489 -->)
+- Fix `apply_transformer_types` failing in stochastic optimization due to types broadcasting. (<!-- md:pr 1499 -->)
+
+## [**v1.0.5**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.5) <small>4th December 2025</small> { id="v1.0.5" }
+
+### Bug Fixes
+
+- Fix curtailment, capacity, and capex expressions returning zero for non-extendable generators. (<!-- md:pr 1451 -->)
+- Fix using inactive generators in global carrier constraint. (<!-- md:pr 1450 -->)
+- Fix CVaR optimization to handle networks with zero operational costs. (<!-- md:pr 1457 -->)
+- Fix xarray broadcasting for rolling-horizon with linearized unit commitment optimization. (<!-- md:pr 1464 -->)
+
+## [**v1.0.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.4) <small>21st November 2025</small> { id="v1.0.4" }
+
 ### Bug Fixes
 
 - Fix busmap clustering to correctly remap all bus ports in multi-port links. (<!-- md:pr 1441 -->)
