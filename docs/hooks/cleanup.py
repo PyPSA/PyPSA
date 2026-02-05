@@ -29,4 +29,16 @@ def on_page_markdown(markdown, page, config, files):
         return code_block
 
     markdown = re.sub(pattern, remove_doctest_skip, markdown, flags=re.DOTALL)
+
+    # Filter out Gurobi license messages from notebook output
+    gurobi_patterns = [
+        r"^.*Set parameter WLSAccessID.*$\n?",
+        r"^.*Set parameter WLSSecret.*$\n?",
+        r"^.*Set parameter LicenseID.*$\n?",
+        r"^.*Academic license.*for non-commercial use only.*$\n?",
+        r"^.*environment still referenced so free is deferred.*$\n?",
+    ]
+    for pattern in gurobi_patterns:
+        markdown = re.sub(pattern, "", markdown, flags=re.MULTILINE)
+
     return markdown
