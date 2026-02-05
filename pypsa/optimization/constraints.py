@@ -596,18 +596,19 @@ def define_ramp_limit_constraints(
     if c.static.empty:
         return
 
-    is_ext = c.index.isin(c.extendable)
-    is_com = c.index.isin(c.committables)
+    idx = c.static.index
+    is_ext = idx.isin(c.extendables)
+    is_com = idx.isin(c.committables)
 
     limit_up = c.da.ramp_limit_up.sel(snapshot=sns)
     limit_down = c.da.ramp_limit_down.sel(snapshot=sns)
-    limit_start = c.da.ramp_limit_start_up.sel(snapshot=sns)
-    limit_shut = c.da.ramp_limit_shut_down.sel(snapshot=sns)
-    active = c.da.active.sel(snapshot=sns)
+    limit_start = c.da.ramp_limit_start_up
+    limit_shut = c.da.ramp_limit_shut_down
+    mask = c.da.active.sel(snapshot=sns)
 
-    all_null = (limit_up.isnull() & limit_down.isnull()).all()
-    if not c.committables.empty:
-        all_null = all_null and (limit_start.isnull() & limit_shut.isnull()).all()
+    no_up_limit = limit_up.isnull() & limit_start.isnull()
+    no_down_limit = limit_down.isnull() & limit_shut.isnull()
+    all_null = (no_up_limit & no_down_limit).all()
     if all_null:
         return
 
@@ -617,31 +618,43 @@ def define_ramp_limit_constraints(
     limit_shut = limit_shut.fillna(1.0)
 
     is_rolling_horizon = (sns[0] != n.snapshots[0]) & (not c.dynamic[hist_attr].empty)
+    filter_first_sn = DataArray([1] + [0] * (len(sns) - 1), coords=[sns])
 
-    p_nom = c.da[nom_attr].where(~is_ext, 0) + m[f"{c.name}-{nom_attr}"]
+    p_nom = c.da[nom_attr].where(~is_ext, 0)
+    if is_ext.any():
+        p_nom = m[f"{c.name}-{nom_attr}"] + p_nom
+
+    status = linopy.LinearExpression(
+        DataArray(1, coords=[sns, idx]).where(~is_com, 0), m
+    )
+    if is_com.any():
+        status = status + m[f"{c.name}-status"]
 
     if is_rolling_horizon:
         start_i = n.snapshots.get_loc(sns[0]) - 1
         p_init = c.da[hist_attr][start_i]
-        s_init = c.da.status[start_i]
+        s_init = c.da.status[start_i].fillna(1)
     else:
         initially_up = (c.da.up_time_before > 0).astype(float)
-        p_init = p_nom * initially_up
+        p_init = c.da.p_init * initially_up
         s_init = initially_up
+        mask[0] = p_init.notnull()
 
     p = m[f"{c.name}-{var_attr}"]
-    p_prev = p.shift(snapshot=1) + p_init.expand_dims(snapshot=sns[[0]])
-    status_non_com = DataArray(1, coords=[sns, c.index]).where(~is_com, 0)
-    status = status_non_com + m[f"{c.name}-status"]
-    status_prev = status.shift(snapshot=1) + s_init.expand_dims(snapshot=sns[[0]])
+    p_prev = p.shift(snapshot=1) + p_init * filter_first_sn
+    status_prev = status.shift(snapshot=1) + s_init * filter_first_sn
 
     lhs = p - p_prev
     rhs = limit_up * p_nom * status_prev + limit_start * p_nom * (status - status_prev)
-    m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_up", mask=active)
+    mask_up = mask & ~no_up_limit
+    m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_up", mask=mask_up)
 
-    lhs = p_prev - p
-    rhs = limit_down * p_nom * status + limit_shut * p_nom * (status_prev - status)
-    m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_down", mask=active)
+    lhs = p - p_prev
+    rhs = -limit_down * p_nom * status - limit_shut * p_nom * (status_prev - status)
+    mask_down = mask & ~no_down_limit
+    m.add_constraints(
+        lhs >= rhs, name=f"{c.name}-{attr}-ramp_limit_down", mask=mask_down
+    )
 
 
 def define_nodal_balance_constraints(

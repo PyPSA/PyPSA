@@ -160,6 +160,13 @@ For non-committable components, $u_{*,t} = 1$ for all $t$, so the constraints si
 
 For extendable components, $\hat{g}_{n,s}$ is replaced by the capacity variable $G_{n,s}$.
 
+### Initial Conditions
+
+The ramp constraints require knowledge of the previous snapshot's dispatch. At the first snapshot of the optimization horizon, this is handled as follows:
+
+- **Rolling horizon optimization**: When `n.optimize(snapshots=...)` starts after the first snapshot in `n.snapshots`, the dispatch from the previous snapshot is used automatically.
+- **First snapshot of `n.snapshots`**: The `p_init` attribute specifies the initial dispatch level. For committable components, the initial status is determined by `up_time_before > 0`. If `p_init` is not set (NaN), no ramp constraint is applied at the first snapshot.
+
 These constraints are defined in the function `define_ramp_limit_constraints()`.
 
 ??? note "Mapping of symbols to component attributes"
@@ -178,6 +185,7 @@ These constraints are defined in the function `define_ramp_limit_constraints()`.
         | $rd_{n,s,t}$ | `n.generators_t.ramp_limit_down` | Parameter |
         | $rusu_{n,s}$     | `n.generators.ramp_limit_start_up` | Parameter |
         | $rdsd_{n,s}$     | `n.generators.ramp_limit_shut_down` | Parameter |
+        | $g_{n,s,0}$      | `n.generators.p_init` | Parameter (initial dispatch) |
 
     === "Link"
 
@@ -194,6 +202,7 @@ These constraints are defined in the function `define_ramp_limit_constraints()`.
         | $rd_{l,t}$ | `n.links_t.ramp_limit_down` | Parameter |
         | $rusu_{l}$     | `n.links.ramp_limit_start_up` | Parameter |
         | $rdsd_{l}$     | `n.links.ramp_limit_shut_down` | Parameter |
+        | $f_{l,0}$      | `n.links.p_init` | Parameter (initial dispatch) |
 
 ## Linearization
 

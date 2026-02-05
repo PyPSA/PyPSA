@@ -670,10 +670,11 @@ def test_generator_ramp_constraints_mask_nan(direction):
 
     # Check labels to see which generators have active ramp constraints applied
     # Generator with undefined ramp limits should have label -1 (no constraint)
-    key = f"Generator-fix-p-ramp_limit_{direction}"
+    # Limited generators should not have label -1 except for the very first snapshot
+    key = f"Generator-p-ramp_limit_{direction}"
     constraints = n.model.constraints[key]
     labels_gen_limited = constraints.data["labels"].sel(name="gen_limited").to_pandas()
-    assert (labels_gen_limited != -1).all(), (
+    assert (labels_gen_limited.loc[n.snapshots[1:]] != -1).all(), (
         f"ramp_{direction} constraint should be active for 'gen_limited'."
     )
 
@@ -744,12 +745,12 @@ def test_link_ramp_constraints_mask_nan(direction):
 
     # Check labels to see which links have active ramp constraints applied
     # Link with undefined ramp limits should have label -1 (no constraint)
-    key = f"Link-fix-p-ramp_limit_{direction}"
+    key = f"Link-p-ramp_limit_{direction}"
     constraints = n.model.constraints[key]
     labels_link_limited = (
         constraints.data["labels"].sel(name="link_limited").to_pandas()
     )
-    assert (labels_link_limited != -1).all(), (
+    assert (labels_link_limited.loc[n.snapshots[1:]] != -1).all(), (
         f"ramp_{direction} constraint should be active for 'link_limited'."
     )
 
