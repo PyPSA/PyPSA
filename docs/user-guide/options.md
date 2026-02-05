@@ -114,6 +114,10 @@ optimize.solver_name:
 optimize.solver_options:
     Default: {}
     Description: Default value for the 'solver_options' parameter in optimization module.
+optimize.log_to_console:
+    Default: True
+    Description: Whether to print solver output to console. See linopy's Model.solve()
+    	documentation at https://linopy.readthedocs.io for details.
 optimize.include_objective_constant:
     Default: None
     Description: Include capital costs of existing capacity on extendable assets in the
