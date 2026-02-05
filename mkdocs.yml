@@ -117,6 +117,7 @@ nav:
     - examples/biomass-synthetic-fuels-carbon-management.ipynb
   - Advanced Topics:
     - examples/scigrid-redispatch.ipynb
+    - examples/demand-elasticity.ipynb
     - examples/generation-investment-screening-curve.ipynb
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer-example.ipynb
