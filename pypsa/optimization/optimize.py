@@ -212,6 +212,11 @@ def define_objective(
     weighting = n.snapshot_weightings.objective
     if n._multi_invest:
         weighting = weighting.mul(period_weighting, level=0).loc[sns]
+    elif n.has_typical_periods:
+        typical_period_weighting = n.typical_periods.map(
+            n.typical_period_map.value_counts()
+        )
+        weighting = weighting.mul(typical_period_weighting, level=0).loc[sns]
     else:
         weighting = weighting.loc[sns]
     weight = xr.DataArray(weighting.values, coords={"snapshot": sns}, dims=["snapshot"])
@@ -782,7 +787,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             c = n.c[_c_name]
             df = _from_xarray(sol, c)
 
-            if "snapshot" in sol.dims:
+            if any(dim in sol.dims for dim in ["snapshot", "day", "typical_period"]):
                 if c.name in n.passive_branch_components and attr == "s":
                     _set_dynamic_data(n, c.name, "p0", df)
                     _set_dynamic_data(n, c.name, "p1", -df)

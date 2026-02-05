@@ -531,6 +531,10 @@ def segment(
         msg = f"num_segments ({num_segments}) cannot exceed number of snapshots ({len(n.snapshots)})"
         raise ValueError(msg)
 
+    if n.has_periods:
+        msg = "segment() does not yet support networks with investment periods"
+        raise NotImplementedError(msg)
+
     agg, col_attrs, normalization_factors = _prep_tsam_agg(
         n,
         exclude_attrs=exclude_attrs,
@@ -621,15 +625,23 @@ def typical_periods(
     _warn_if_solved(n)
     _check_no_scenarios(n)
 
+    if n.has_periods:
+        msg = "typical_periods() does not yet support networks with investment periods"
+        raise NotImplementedError(msg)
+
     if num_typical_periods < 1:
         msg = f"num_typical_periods must be >= 1, got {num_typical_periods}"
         raise ValueError(msg)
 
-    if num_typical_periods * num_days_per_period > len(np.unique(n.snapshots.date)):
-        msg = f"Number of days represented by the typical periods ({num_typical_periods * num_days_per_period}) cannot exceed number of unique days in snapshots ({len(np.unique(n.snapshots.date))})"
+    if num_days_per_period < 1:
+        msg = f"num_days_per_period must be >= 1, got {num_days_per_period}"
         raise ValueError(msg)
 
-    agg, col_attrs, normalization_factors = _prep_tsam_agg(
+    if num_typical_periods * num_days_per_period > len(np.unique(n.snapshots.date)):
+        msg = f"Number of days represented by the typical periods ({num_typical_periods * num_days_per_period:.0f}) cannot exceed number of unique days in snapshots ({len(np.unique(n.snapshots.date))})"
+        raise ValueError(msg)
+
+    agg, _, _ = _prep_tsam_agg(
         n,
         exclude_attrs=exclude_attrs,
         hoursPerPeriod=num_days_per_period * 24,
@@ -646,7 +658,7 @@ def typical_periods(
         .index
     )
     new_snapshots = pd.Index([], dtype=n.snapshots.dtype)
-    clusters = pd.Series(dtype=int)
+    clusters = []
     for idx, day in enumerate(representative_dates):
         first_day = day.strftime("%Y-%m-%d")
         last_day = (day.date() + pd.Timedelta(days=num_days_per_period - 1)).strftime(
@@ -654,27 +666,11 @@ def typical_periods(
         )
         extra_snapshots = agg.timeSeries.loc[slice(first_day, last_day)].index
         new_snapshots = new_snapshots.append(extra_snapshots)
-        clusters = pd.concat([clusters, pd.Series(idx, index=extra_snapshots)])
+        clusters.append(pd.Series(idx, index=extra_snapshots))
 
     m = n.copy()
     m.set_snapshots(new_snapshots)
-    m.typical_periods = clusters.rename_axis(index="snapshot")
-
-    clustered_values = clustered.values * normalization_factors.values
-    clustered_df = pd.DataFrame(
-        clustered_values,
-        index=new_snapshots,
-        columns=range(len(col_attrs)),
-    )
-
-    for i, (comp, attr, col_name) in enumerate(col_attrs):
-        data_col = clustered_df[[i]]
-        data_col.columns = [col_name]
-        if attr in m.c[comp].dynamic and not m.c[comp].dynamic[attr].empty:
-            m.c[comp].dynamic[attr][col_name] = data_col[col_name]
-        else:
-            m._import_series_from_df(data_col, comp, attr, overwrite=True)
-
+    m.typical_periods = pd.concat(clusters).rename_axis(index="snapshot")
     typical_period_map = (
         matched_indices.resample(f"{num_days_per_period}D").first().PeriodNum
     )
@@ -701,10 +697,6 @@ def _prep_tsam_agg(
 
     if exclude_attrs is None:
         exclude_attrs = ["e_min_pu"]
-
-    if n.has_periods:
-        msg = "typical_periods() does not yet support networks with investment periods"
-        raise NotImplementedError(msg)
 
     dfs = []
     col_attrs = []

@@ -1442,60 +1442,11 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
 
     if n.has_typical_periods:
-        typical_period_da = n.typical_periods.to_xarray()
-        for op_, bound_ in [(">=", "min"), ("<=", "max")]:
-            var = m[f"{component}-state_of_charge_intra_period_{bound_}"].sel(
-                typical_period=typical_period_da
-            )
-            m.add_constraints(
-                soc, op_, var, name=f"{component}-soc-intra-typical-period-{bound_}"
-            )
-
-        min_pu, max_pu = c.get_bounds_pu(attr="state_of_charge")
-        typical_period_map_da = n.typical_period_map.to_xarray()
-        inter_period_soc = m[f"{component}-state_of_charge_inter_period"]
-        for op_, bound_, pu in [(">=", "min", min_pu), ("<=", "max", max_pu)]:
-            var = m[f"{component}-state_of_charge_intra_period_{bound_}"].sel(
-                typical_period=typical_period_map_da
-            )
-            lhs = [(eff_stand, inter_period_soc), (1, var)]
-            rhs = pu
-            m.add_constraints(
-                lhs, op_, rhs, name=f"{component}-soc-inter-typical-period-{bound_}"
-            )
-
-        previous_soc = (
-            inter_period_soc.where(active)
-            .ffill(dim)
-            .roll(day=1)
-            .ffill(dim)
-            .where(include_previous_soc)
-        )
-        final_snapshot_per_typical_period = (
-            n.typical_periods[n.typical_periods.diff().shift(-1) != 0]
-            .rename("typical_period")
-            .reset_index()
-            .set_index("typical_period")
-            .squeeze()
-        )
-        final_snapshot_per_day = n.typical_period_map.map(
-            final_snapshot_per_typical_period
-        ).to_xarray()
-        soc_intra = (
-            m[f"{component}-state_of_charge"]
-            .sel(snapshot=final_snapshot_per_day.roll(day=1))
-            .where(include_previous_soc)
-        )
-        lhs = [(1, inter_period_soc), (-eff_stand, previous_soc), (-1, soc_intra)]
-        rhs = soc_init.where(~include_previous_soc, 0)
-
-        m.add_constraints(
-            lhs, "=", rhs, name=f"{component}-energy_balance_typical_period_inter"
+        _define_inter_typical_period_storage_constraints(
+            n, component, eff_stand, noncyclic_b, rhs - soc_init
         )
 
-        # TODO: set initial storage level appropriately if exogenously set
-        # TODO: update core energy_balance constraint to account for links between typical periods
-        # TODO: apply all the same constraints to stores
+        # TODO: propagate cluster weights across all constraints
 
 
 def define_store_constraints(n: Network, sns: pd.Index) -> None:
@@ -1677,6 +1628,119 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     rhs = -e_init.where(~include_previous_e, 0)
 
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
+
+    if n.has_typical_periods:
+        _define_inter_typical_period_storage_constraints(
+            n, component, eff_stand, noncyclic_b, e_init
+        )
+
+
+def _define_inter_typical_period_storage_constraints(
+    n: Network,
+    component: str,
+    eff_stand: DataArray,
+    noncyclic_b: DataArray,
+    soc_init: DataArray,
+) -> None:
+    """Define inter-typical-period constraints for storage components."""
+    attr = (
+        "state_of_charge"
+        if component == "StorageUnit"
+        else "e"
+        if component == "Store"
+        else None
+    )
+    if attr is None:
+        msg = f"Component {component} is not supported for inter-typical-period storage constraints."
+        raise ValueError(msg)
+    m = n.model
+    c = as_components(n, component)
+    soc_var = m[f"{component}-{attr}"]
+    typical_period_da = n.typical_periods.to_xarray()
+    for op_, bound_ in [(">=", "lower"), ("<=", "upper")]:
+        var = m[f"{component}-{attr}_intra_period_{bound_}"].sel(
+            typical_period=typical_period_da
+        )
+        # Hack because linopy adds unallocated coords to the constraint if they are left lying around
+        var._data = var._data.drop_vars("typical_period")
+        m.add_constraints(
+            soc_var, op_, var, name=f"{component}-e-intra-typical-period-{bound_}"
+        )
+
+    typical_period_map_da = n.typical_period_map.to_xarray()
+    inter_period_var = m[f"{component}-{attr}_inter_period"]
+
+    snapshots_per_typical_period = {
+        "final": n.typical_periods[n.typical_periods.diff().shift(-1) != 0],
+        "first": n.typical_periods[n.typical_periods.diff() != 0],
+    }
+    # To map typical period to final snapshot of that period, we need to swap idx and values
+    snapshots_per_typical_period_pivoted = {
+        k: pd.Series(v.index, index=pd.Index(v.values, name="typical_period"))
+        for k, v in snapshots_per_typical_period.items()
+    }
+    snapshots_per_day = {
+        k: n.typical_period_map.map(v).to_xarray()
+        for k, v in snapshots_per_typical_period_pivoted.items()
+    }
+    capacity = m[f"{c.name}-{nominal_attrs[c.name]}"]
+    # standing loss of energy from the previous inter-typical period storage
+    # is that for the first snapshot of each typical period,
+    # mapped to each day based on the typical period to which it belongs.
+    standing_loss_per_day = eff_stand.sel(
+        snapshot=snapshots_per_day["first"]
+    ).drop_vars("snapshot")
+
+    min_pu, max_pu = c.get_bounds_pu(attr=attr)
+    for op_, bound_, pu in [(">=", "lower", min_pu), ("<=", "upper", max_pu)]:
+        var = m[f"{component}-{attr}_intra_period_{bound_}"].sel(
+            typical_period=typical_period_map_da
+        )
+        # Hack because linopy adds unallocated coords to the constraint if they are left lying around
+        var._data = var._data.drop_vars("typical_period")
+
+        lhs = [(standing_loss_per_day, inter_period_var), (1, var)]
+        # TODO: check whether a time-dependent pu works in this constraint
+        # (i.e., it will be indexed over (snapshot, day, name), not just (day, name)).
+        # It may not make sense to do that and instead just use capacity directly.
+        rhs = pu * capacity
+        m.add_constraints(
+            lhs, op_, rhs, name=f"{component}-{attr}-inter-typical-period-{bound_}"
+        )
+
+    first_day = inter_period_var.coords["day"] == inter_period_var.coords["day"][0]
+    include_previous_inter = ~(first_day & noncyclic_b)
+    previous_var = inter_period_var.roll(day=1).where(include_previous_inter)
+    intra_var = (
+        m[f"{component}-{attr}"]
+        .sel(snapshot=snapshots_per_day["final"].roll(day=1))
+        .where(include_previous_inter)
+    )
+    # Hack because linopy adds unallocated coords to the constraint if they are left lying around
+    intra_var._data = intra_var._data.drop_vars("snapshot")
+
+    lhs = [
+        (1, inter_period_var),
+        (-standing_loss_per_day, previous_var),
+        (-1, intra_var),
+    ]
+    rhs = (
+        soc_init.where(n.snapshots.to_series().to_xarray())
+        .sel(snapshot=snapshots_per_day["first"])
+        .where(~include_previous_inter, 0)
+    ).drop_vars("snapshot")
+    m.add_constraints(
+        lhs, "=", rhs, name=f"{component}-energy_balance_typical_period_inter"
+    )
+
+    # Update energy balance constraints to fix initial e in first snapshot of each typical period to zero
+    # This is based on the previous e being added as the final term in the LHS expression
+    new_coeffs = eff_stand.where(
+        ~eff_stand.snapshot.isin(snapshots_per_typical_period["first"].index), 0
+    )
+    m.constraints[f"{component}-energy_balance"].coeffs.loc[
+        {"_term": m.constraints[f"{component}-energy_balance"].coords["_term"][-1]}
+    ] = new_coeffs
 
 
 def define_loss_constraints(

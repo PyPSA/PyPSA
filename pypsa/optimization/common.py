@@ -48,13 +48,16 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
     """Update values in time-dependent attribute from new dataframe."""
     c = n.components[component]
     if (attr not in c.dynamic) or (c.dynamic[attr].empty):
-        c.dynamic[attr] = df.reindex(n.snapshots)
+        c.dynamic[attr] = df
 
     else:
         c.dynamic[attr].loc[df.index, df.columns] = df
 
-    # Reindex to match network snapshots and component names
-    result = c.dynamic[attr].reindex(n.snapshots, level="snapshot", axis=0)
+    if df.index.name == "snapshot":
+        # Reindex to match network snapshots and component names
+        result = c.dynamic[attr].reindex(n.snapshots, level="snapshot", axis=0)
+    else:
+        result = c.dynamic[attr]
     if n.has_scenarios:
         expected_columns = pd.MultiIndex.from_product(
             [n.scenarios, c.names], names=["scenario", "name"]

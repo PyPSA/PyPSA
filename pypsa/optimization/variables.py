@@ -319,9 +319,9 @@ def define_inter_period_storage_variables(n: Network) -> None:
             )
             n.model.add_variables(
                 coords=[c.active_assets, typical_periods],
-                name=f"{c_name}-{attr}_intra_period_min",
+                name=f"{c_name}-{attr}_intra_period_lower",
             )
             n.model.add_variables(
                 coords=[c.active_assets, typical_periods],
-                name=f"{c_name}-{attr}_intra_period_max",
+                name=f"{c_name}-{attr}_intra_period_upper",
             )

@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+import re
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -12,6 +14,7 @@ from pypsa.clustering.temporal import (
     downsample,
     from_snapshot_map,
     resample,
+    typical_periods,
 )
 
 
@@ -313,6 +316,48 @@ class TestSegment:
         assert hasattr(n.cluster.temporal, "segment")
 
 
+class TestTypicalPeriod:
+    @pytest.mark.parametrize(
+        ("num_periods", "num_days", "expected_hours"),
+        [(1, 1, 24), (2, 1, 48), (1, 7, 168)],
+    )
+    def test_1_typical_day(self, simple_network, num_periods, num_days, expected_hours):
+        n = simple_network
+        result = typical_periods(n, num_periods, num_days)
+
+        assert isinstance(result, TemporalClustering)
+        assert len(result.n.snapshots) == expected_hours
+        assert np.isclose(
+            result.n.snapshot_weightings["objective"].sum() * (168 / expected_hours),
+            n.snapshot_weightings["objective"].sum(),
+        )
+
+    def test_typical_period_preserves_period_data(self, simple_network):
+        n = simple_network
+        original_data = n.generators_t["p_max_pu"]
+
+        result = typical_periods(n, 1, 1)
+        new_data = result.n.generators_t["p_max_pu"]
+
+        assert original_data.reindex(new_data.index).equals(new_data)
+
+    def test_typical_period_preserves_snapshot_weightings(self, simple_network):
+        n = simple_network
+        original_data = n.snapshot_weightings["objective"]
+
+        result = typical_periods(n, 1, 1)
+        new_data = result.n.snapshot_weightings["objective"]
+
+        assert original_data.reindex(new_data.index).equals(new_data)
+
+    def test_typical_period_accessor(self, simple_network):
+        n = simple_network
+        m = n.cluster.temporal.typical_periods(2, 2)
+
+        assert isinstance(m, pypsa.Network)
+        assert len(m.snapshots) == 96  # 2 typical periods * 2 days * 24 hours
+
+
 class TestEdgeCases:
     def test_empty_dynamic_data(self):
         n = pypsa.Network()
@@ -530,6 +575,33 @@ class TestSegmentFunctionality:
         assert isinstance(result, TemporalClustering)
         assert isinstance(result.n, pypsa.Network)
         assert isinstance(result.snapshot_map, pd.Series)
+
+
+class TestTypicalPeriodErrors:
+    def test_typical_period_invalid_num_periods(self, simple_network):
+        n = simple_network
+        with pytest.raises(ValueError, match="num_typical_periods must be >= 1"):
+            typical_periods(n, num_days_per_period=1, num_typical_periods=0)
+
+    def test_typical_period_invalid_num_days(self, simple_network):
+        n = simple_network
+        with pytest.raises(ValueError, match="num_days_per_period must be >= 1"):
+            typical_periods(n, num_days_per_period=0, num_typical_periods=1)
+
+    def test_typical_period_invalid_num_days_period_product(self, simple_network):
+        n = simple_network
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "Number of days represented by the typical periods (100) cannot exceed number of unique days in snapshots (7)"
+            ),
+        ):
+            typical_periods(n, num_days_per_period=10, num_typical_periods=10)
+
+    def test_typical_period_multiperiod_raises(self, multiperiod_network):
+        n = multiperiod_network
+        with pytest.raises(NotImplementedError, match="does not yet support"):
+            typical_periods(n, 2, 2)
 
 
 class TestStochasticNotSupported:
