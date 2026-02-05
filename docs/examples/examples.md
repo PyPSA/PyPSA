@@ -67,6 +67,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](rolling-horizon.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Water Values**
+
+    Explores how water values, the marginal values of stored energy, can improve seasonal storage operation in rolling-horizon optimization.
+
+    [:octicons-arrow-right-24: Go to example](water-value.ipynb)
+
 </div>
 
 ## Planning Problems
