@@ -14,6 +14,8 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 from urllib import parse, request
 
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pandas.testing as pd_testing
@@ -886,8 +888,55 @@ def _scenarios_not_implemented(func: Callable) -> Callable:
     return wrapper
 
 
+def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
+    """Generate a list of colors from a matplotlib palette.
+
+    <!-- md:badge-version v1.1.0 -->
+
+    Parameters
+    ----------
+    n_colors : int
+        Number of colors to generate.
+    palette : str, default "tab10"
+        Matplotlib color palette name.
+
+    Returns
+    -------
+    list of str
+        List of hex color strings.
+
+    Examples
+    --------
+    >>> pypsa.common.generate_colors(3, "tab10")
+    ['#1f77b4', '#ff7f0e', '#2ca02c']
+
+    """
+    cmap = plt.get_cmap(palette)
+    n_palette_colors = cmap.N if hasattr(cmap, "N") else 256
+
+    colors = []
+    for i in range(n_colors):
+        idx = i % n_palette_colors
+        if n_palette_colors <= 20:
+            # For discrete palettes, use integer indices
+            rgba = cmap(idx)
+        else:
+            # For continuous palettes, normalize to [0, 1]
+            rgba = cmap(idx / n_palette_colors)
+        colors.append(mcolors.to_hex(rgba))
+
+    return colors
+
+
+@deprecated(
+    deprecated_in="1.1.0",
+    removed_in="2.0.0",
+    details="Use pypsa.costs.annuity() instead.",
+)
 def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     """Calculate the annuity factor for a given discount rate and lifetime.
+
+    **Deprecated since 1.1.0:** Use `pypsa.costs.annuity()` instead.
 
     According to formula $r / (1 - (1 + r)^{-n})$ or $1 / n$ for $r = 0$.
 
@@ -903,35 +952,7 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     float | pd.Series
         The annuity factor.
 
-    Examples
-    --------
-    >>> pypsa.common.annuity(0.05, 10)  # 5% discount rate over 10 years
-    0.12950457496545661
-
-    >>> pypsa.common.annuity(0, 20)  # 0% discount rate over 20 years
-    0.05
-
-    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), pd.Series([10, 20]))
-    0    0.129505
-    1    0.067216
-    dtype: float64
-
-    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), 20)
-    0    0.080243
-    1    0.067216
-    dtype: float64
-
-    >>> pypsa.common.annuity(pd.Series([0.05, 0]), 20)
-    0    0.080243
-    1    0.050000
-    dtype: float64
-
     """
-    if isinstance(r, pd.Series):
-        return pd.Series(1 / n, index=r.index).where(
-            r == 0, r / (1.0 - 1.0 / (1.0 + r) ** n)
-        )
-    elif r > 0:
-        return r / (1.0 - 1.0 / (1.0 + r) ** n)
-    else:
-        return 1 / n
+    from pypsa.costs import annuity as costs_annuity  # noqa: PLC0415
+
+    return costs_annuity(r, n)

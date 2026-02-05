@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 site_name: Documentation
-site_url: !ENV READTHEDOCS_CANONICAL_URL
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, "https://docs.pypsa.org"]
 repo_url: https://github.com/PyPSA/PyPSA
 repo_name: PyPSA/PyPSA
 edit_uri: edit/master/docs/
@@ -124,6 +124,7 @@ nav:
     - examples/reserve-power.ipynb
   - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
+    - examples/gsa.ipynb
     - examples/replace-generator-storage-units-with-store.ipynb
     - examples/tracing-infeasibilities.ipynb
 
@@ -163,6 +164,7 @@ nav:
   - Other:
     - Consistency Checks: api/other/consistency.md
     - Examples: api/other/api-examples.md
+    - Cost: api/other/costs.md
     - Utilities: api/other/common.md
     - Options: api/other/options.md
 
