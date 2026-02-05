@@ -20,6 +20,8 @@ Currently supported metrics are:
 - [Capital expenditure][pypsa.statistics.StatisticsAccessor.capex]: The capital expenditure of all components.
 - [Installed capital expenditure][pypsa.statistics.StatisticsAccessor.installed_capex]: The capital expenditure of all components before optimization.
 - [Expanded capital expenditure][pypsa.statistics.StatisticsAccessor.expanded_capex]: The capital expenditure of all components added during optimization.
+- [Overnight investment cost][pypsa.statistics.StatisticsAccessor.overnight_cost]: The overnight investment costs (excluding FOM) of all components.
+- [Fixed O&M][pypsa.statistics.StatisticsAccessor.fom]: The fixed operation and maintenance costs of all components.
 - [Operational expenditure][pypsa.statistics.StatisticsAccessor.opex]: The operational expenditure of all components.
 - [Installed capacities][pypsa.statistics.StatisticsAccessor.installed_capacity]: The capacities of all components before optimization.
 - [Expanded capacities][pypsa.statistics.StatisticsAccessor.expanded_capacity]: The capacities of all components added during optimization.

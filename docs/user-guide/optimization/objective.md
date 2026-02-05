@@ -26,6 +26,57 @@ To minimise **long-run annual system costs** (currency/a), capital costs for com
 
 If no extendable components are present, only the dispatch of the components is optimised as in a **short-run market model**.
 
+### Specifying Capital Costs
+
+PyPSA supports two approaches for specifying investment costs:
+
+=== "Direct periodized capital cost (default)"
+
+    Provide `capital_cost` directly as annualized cost per unit capacity (currency/MW or currency/MWh) per model period:
+
+    ``` py
+    n.add("Generator", "wind",
+          bus="bus",
+          p_nom_extendable=True,
+          capital_cost=50000)  # Already periodized: €/MW
+    ```
+
+=== "Overnight cost with automatic periodization"
+
+    Provide `overnight_cost` (upfront investment cost), `discount_rate`, and `lifetime`. PyPSA automatically calculates the periodized cost:
+
+    ``` py
+    n.add("Generator", "wind",
+          bus="bus",
+          p_nom_extendable=True,
+          overnight_cost=1200000,  # Upfront cost: €/MW
+          discount_rate=0.07,      # 7% discount rate
+          lifetime=25,             # 25 years
+          fom_cost=12000)          # Fixed O&M: €/MW/a
+    ```
+
+    The effective periodized cost per MW installation used in optimization is calculated as:
+
+    $$c = c_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}} + c_{\text{fom}}$$
+
+    where $N_{\text{years}}$ refers to the model time span in units of years, derived from `n.snapshot_weightings["objective"]`.  The annuity factor converts overnight cost to annual payments:
+
+    $$\text{annuity}(r, n) = \frac{r}{1 - (1 + r)^{-n}}$$
+
+    or
+
+    $$1/n  /text{if} r=0$$
+
+
+
+### Fixed Operation & Maintenance Costs
+
+Fixed O&M costs (`fom_cost`) represent periodized costs that are incurred regardless of dispatch, such as maintenance, insurance, and land lease. They are added to the annualized investment cost (`capital_cost` / `overnight_cost`):
+
+``` py
+# Wind turbine with 2% of overnight cost as annual FOM
+n.generators.loc["wind", "fom_cost"] = 0.02 * n.generators.loc["wind", "overnight_cost"]
+```
 
 ??? note "Mapping of symbols to attributes"
 
@@ -38,6 +89,10 @@ If no extendable components are present, only the dispatch of the components is 
     | $P_l$             | `n.lines.s_nom_opt` | Decision variable |
     | $c_{n,s}$         | `n.{generators,storage_units,stores}.capital_cost` | Parameter |
     | $c_{l}$           | `n.{links,lines,transformers}.capital_cost` | Parameter |
+    | $c_{\text{overnight}}$ | `n.{generators,...}.overnight_cost` | Parameter |
+    | $r$               | `n.{generators,...}.discount_rate` | Parameter |
+    | $n$               | `n.{generators,...}.lifetime` | Parameter |
+    | $c_{\text{fom}}$  | `n.{generators,...}.fom_cost` | Parameter |
 
 ## Marginal Costs
 
