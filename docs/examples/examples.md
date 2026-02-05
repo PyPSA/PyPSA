@@ -61,6 +61,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](rolling-horizon.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Water Values**
+
+    Explores how water values, the marginal values of stored energy, can improve seasonal storage operation in rolling-horizon optimization.
+
+    [:octicons-arrow-right-24: Go to example](water-value.ipynb)
+
 </div>
 
 ## Planning Problems
@@ -135,6 +141,13 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
     congestion management.
 
     [:octicons-arrow-right-24: Go to example](scigrid-redispatch.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Demand Elasticity**
+
+    Demonstrates modelling of price-responsive electricity demands and how they
+    affect price formation.
+
+    [:octicons-arrow-right-24: Go to example](demand-elasticity.ipynb)
 
 -   :material-notebook:{ .lg .middle } **Screening Curves**
 

@@ -17,6 +17,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
+- Add support for `p_set` time series in `StorageUnit` optimization. When specified, `p_set` now constrains the net power output (`p_dispatch - p_store`) to the given values, consistent with how `p_set` works for other components. (<!-- md:pr 1549 -->)
+
 - New network sanitization and data integrity features (<!-- md:pr 1401 -->):
     - [`n.sanitize()`][pypsa.Network.sanitize]: Run the following methods to fix consistency issues.
         - [`n.components.buses.add_missing_buses()`][pypsa.components.Buses.add_missing_buses]: Add buses referenced by components but not yet defined.
@@ -62,6 +64,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add support for Python 3.14. Note that not all optional dependencies and solvers
   are available for Python 3.14 yet. (<!-- md:pr 1511 -->)
+- Add support for splitting `capital_cost` into overnight investment cost and fixed O&M (see <!-- md:guide optimization/objective.md -->). New component attributes `overnight_cost`, `discount_rate`, and `fom_cost` allow specifying overnight costs that are automatically annuitized during optimization. When `overnight_cost` is provided, PyPSA calculates the annuity using `discount_rate` and `lifetime` (supports 0% rate for simple depreciation). When `overnight_cost` is not set (default NaN), `capital_cost` is used. New [`pypsa.costs`][pypsa.costs] module with [`annuity()`][pypsa.costs.annuity] and [`periodized_cost()`][pypsa.costs.periodized_cost] functions. New statistics methods [`n.statistics.overnight_cost()`][pypsa.statistics.StatisticsAccessor.overnight_cost] and [`n.statistics.fom()`][pypsa.statistics.StatisticsAccessor.fom] for reporting. (<!-- md:pr 1507 -->)
 - Speed up creating the model by avoiding some redundant checks. (<!-- md:pr 1515 -->)
 
 
@@ -103,7 +106,9 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Documentation
 
-- Added new example notebook demonstrating negative electricity prices in linearized unit commitment problem. (<!-- md:pr 1434 -->)
+- New example notebooks:
+  - Demonstrating negative electricity prices in linearized unit commitment problem. See [:material-notebook-multiple: notebook](./examples/unit-commitment.ipynb). (<!-- md:pr 1434 -->)
+  - Combining PyPSA with Global Sensitivity Analysis (GSA) methods. See [:material-notebook-multiple: notebook](./examples/gsa.ipynb). (<!-- md:pr 1318 -->)
 
 ## [**v1.0.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.3) <small>6th November 2025</small> { id="v1.0.3" }
 
