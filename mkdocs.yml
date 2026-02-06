@@ -99,6 +99,7 @@ nav:
     - examples/negative-prices-kvl-baker.ipynb
     - examples/rolling-horizon.ipynb
     - examples/water-value.ipynb
+    - examples/demand-supply-bids.ipynb
   - Planning Problems:
     - examples/capacity-expansion-planning-single-node.ipynb
     - examples/3-node-cem.ipynb

@@ -19,6 +19,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](simple-electricity-market-examples.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Demand and Supply Bids**
+
+    Demonstrates market-clearing with supply and demand bids in single and two-zone configurations.
+
+    [:octicons-arrow-right-24: Go to example](demand-supply-bids.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Unit Commitment**
 
     Models generator unit commitment with start-up and shut-down costs, ramping limits, minimum part loads, up and down times using binary variables.
