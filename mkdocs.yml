@@ -98,6 +98,7 @@ nav:
     - examples/minimal-example-pf.ipynb
     - examples/negative-prices-kvl-baker.ipynb
     - examples/rolling-horizon.ipynb
+    - examples/water-value.ipynb
     - examples/demand-supply-bids.ipynb
   - Planning Problems:
     - examples/capacity-expansion-planning-single-node.ipynb
@@ -396,6 +397,7 @@ hooks:
 - docs/hooks/shortcodes.py
 - docs/hooks/cleanup.py
 - docs/hooks/path_aliases.py
+- docs/hooks/notebook_timing.py
 
 extra:
   social:
