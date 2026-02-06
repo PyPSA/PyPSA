@@ -670,10 +670,11 @@ def test_generator_ramp_constraints_mask_nan(direction):
 
     # Check labels to see which generators have active ramp constraints applied
     # Generator with undefined ramp limits should have label -1 (no constraint)
-    key = f"Generator-fix-p-ramp_limit_{direction}"
+    # Limited generators should not have label -1 except for the very first snapshot
+    key = f"Generator-p-ramp_limit_{direction}"
     constraints = n.model.constraints[key]
     labels_gen_limited = constraints.data["labels"].sel(name="gen_limited").to_pandas()
-    assert (labels_gen_limited != -1).all(), (
+    assert (labels_gen_limited.loc[n.snapshots[1:]] != -1).all(), (
         f"ramp_{direction} constraint should be active for 'gen_limited'."
     )
 
@@ -744,12 +745,12 @@ def test_link_ramp_constraints_mask_nan(direction):
 
     # Check labels to see which links have active ramp constraints applied
     # Link with undefined ramp limits should have label -1 (no constraint)
-    key = f"Link-fix-p-ramp_limit_{direction}"
+    key = f"Link-p-ramp_limit_{direction}"
     constraints = n.model.constraints[key]
     labels_link_limited = (
         constraints.data["labels"].sel(name="link_limited").to_pandas()
     )
-    assert (labels_link_limited != -1).all(), (
+    assert (labels_link_limited.loc[n.snapshots[1:]] != -1).all(), (
         f"ramp_{direction} constraint should be active for 'link_limited'."
     )
 
@@ -836,3 +837,120 @@ def test_ramp_limits_multi_investment_period():
 
     status, _ = n.optimize()
     assert status == "ok"
+
+
+def test_committable_start_up_only_ramp_limit():
+    n = pypsa.Network()
+    n.set_snapshots(range(6))
+    n.add("Bus", "bus")
+
+    load_profile = [0, 50, 100, 100, 50, 0]
+    n.add("Load", "load", bus="bus", p_set=load_profile)
+
+    n.add(
+        "Generator",
+        "gen_commit",
+        bus="bus",
+        p_nom=100,
+        committable=True,
+        p_min_pu=0.1,
+        ramp_limit_start_up=0.4,
+        marginal_cost=10,
+    )
+    n.add("Generator", "gen_backup", bus="bus", p_nom=200, marginal_cost=100)
+
+    status, _ = n.optimize()
+    assert status == "ok"
+
+    gen_status = n.c.generators.dynamic.status["gen_commit"]
+    gen_p = n.c.generators.dynamic.p["gen_commit"]
+    startup_snapshots = gen_status[(gen_status == 1) & (gen_status.shift(1) == 0)].index
+
+    for snapshot in startup_snapshots:
+        expected_max = 0.4 * 100
+        assert gen_p[snapshot] <= expected_max + 1e-5
+
+
+def test_committable_shut_down_only_ramp_limit():
+    n = pypsa.Network()
+    n.set_snapshots(range(6))
+    n.add("Bus", "bus")
+
+    load_profile = [100, 100, 50, 20, 10, 0]
+    n.add("Load", "load", bus="bus", p_set=load_profile)
+
+    n.add(
+        "Generator",
+        "gen_commit",
+        bus="bus",
+        p_nom=100,
+        committable=True,
+        p_min_pu=0.1,
+        up_time_before=1,
+        ramp_limit_shut_down=0.3,
+        marginal_cost=10,
+    )
+    n.add("Generator", "gen_backup", bus="bus", p_nom=200, marginal_cost=100)
+
+    status, _ = n.optimize()
+    assert status == "ok"
+
+    gen_status = n.c.generators.dynamic.status["gen_commit"]
+    gen_p = n.c.generators.dynamic.p["gen_commit"]
+    shutdown_snapshots = gen_status[
+        (gen_status == 0) & (gen_status.shift(1) == 1)
+    ].index
+
+    for snapshot in shutdown_snapshots:
+        prev_snapshot = snapshot - 1
+        if prev_snapshot >= 0:
+            expected_max_prev = 0.3 * 100
+            assert gen_p[prev_snapshot] <= expected_max_prev + 1e-5
+
+
+def test_committable_ramp_limits_multi_investment_period():
+    n = pypsa.Network()
+    sns = pd.date_range("2025-01-01", periods=5, freq="h").append(
+        pd.date_range("2026-01-01", periods=5, freq="h")
+    )
+    n.set_snapshots(pd.MultiIndex.from_arrays([sns.year, sns]))
+    n.investment_periods = [2025, 2026]
+    n.investment_period_weightings["years"] = 5
+
+    n.add("Bus", "bus")
+
+    load_profile = [50, 80, 100, 80, 50, 50, 80, 100, 80, 50]
+    n.add("Load", "load", bus="bus", p_set=load_profile)
+
+    n.add(
+        "Generator",
+        "gen_commit",
+        bus="bus",
+        p_nom=100,
+        committable=True,
+        p_min_pu=0.3,
+        ramp_limit_up=0.5,
+        ramp_limit_start_up=0.4,
+        ramp_limit_down=0.5,
+        ramp_limit_shut_down=0.3,
+        marginal_cost=10,
+    )
+    n.add("Generator", "gen_backup", bus="bus", p_nom=200, marginal_cost=100)
+
+    status, _ = n.optimize()
+    assert status == "ok"
+
+    gen_p = n.c.generators.dynamic.p["gen_commit"]
+    gen_status = n.c.generators.dynamic.status["gen_commit"]
+
+    for i in range(1, len(n.snapshots)):
+        curr_sns = n.snapshots[i]
+        prev_sns = n.snapshots[i - 1]
+        curr_status = gen_status[curr_sns]
+        prev_status = gen_status[prev_sns]
+        curr_p = gen_p[curr_sns]
+        prev_p = gen_p[prev_sns]
+
+        if curr_status == 1 and prev_status == 1:
+            assert curr_p - prev_p <= 0.5 * 100 + 1e-5
+            assert prev_p - curr_p <= 0.5 * 100 + 1e-5

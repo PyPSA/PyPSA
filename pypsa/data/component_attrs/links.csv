@@ -15,6 +15,7 @@ p_nom_min,float,MW,0,"If `p_nom_extendable=True`, set its minimum value.",Input 
 p_nom_max,float,MW,inf,"If `p_nom_extendable=True`, set its maximum value.",Input (optional)
 p_nom_set,float,MW,n/a,"If `p_nom` is extendable in optimization, set its value.",Input (optional)
 p_set,static or series,MW,n/a,The dispatch set point for `p0` of the link (for optimisation and power flow).,Input (optional)
+p_init,static,MW,n/a,Active power used as a starting point for limiting the ramp in the very first snapshot (for optimisation),Input (optional)
 p_min_pu,static or series,per unit of p_nom,0.,Minimal dispatch per unit of `p_nom` for the link. Can also be negative.,Input (optional)
 p_max_pu,static or series,per unit of p_nom,1.,Maximal dispatch per unit of `p_nom` for the link. Can also be negative.,Input (optional)
 capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW (unit of `bus0`, e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified. Any `length` factor must already be included.",Input (optional)
@@ -35,8 +36,8 @@ up_time_before,int,snapshots,1,Number of snapshots that the link was online befo
 down_time_before,int,snapshots,0,Number of snapshots that the link was offline before network.snapshots start. Only read if `committable=True` and `min_down_time>0`. Does not consider snapshot weightings.,Input (optional)
 ramp_limit_up,static or series,per unit,NaN,"Maximum increase from one snapshot to the next, per unit of `p_nom`. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
 ramp_limit_down,static or series,per unit,NaN,"Maximum decrease from one snapshot to the next, per unit of `p_nom`. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
-ramp_limit_start_up,float,per unit,1,"Maximum increase at start up, per unit of `p_nom`. Only used if `committable=True`.",Input (optional)
-ramp_limit_shut_down,float,per unit,1,"Maximum decrease at shut down, per unit of `p_nom`. Only used if `committable=True`.",Input (optional)
+ramp_limit_start_up,float,per unit,NaN,"Maximum increase at start up, per unit of `p_nom`. Only used if `committable=True`. Ignored if NaN.",Input (optional)
+ramp_limit_shut_down,float,per unit,NaN,"Maximum decrease at shut down, per unit of `p_nom`. Only used if `committable=True`. Ignored if NaN.",Input (optional)
 p0,series,MW,0.,Power at `bus0` (positive if link is withdrawing from `bus0`).,Output
 p1,series,MW,0.,Power at `bus1` (positive if link is withdrawing from `bus1`).,Output
 p_nom_opt,float,MW,0,Optimised nominal capacity.,Output

@@ -12,6 +12,7 @@ p_nom_set,float,MW,n/a,"If `p_nom` is extendable in optimization, set its value.
 p_min_pu,static or series,per unit,0.,"The minimum output for each snapshot per unit of `p_nom` for the optimization (e.g. a minimal dispatch level for conventional power plants). Note that if `committable=False` and `p_min_pu>0`, this represents a must-run condition.",Input (optional)
 p_max_pu,static or series,per unit,1,The maximum output for each snapshot per unit of `p_nom` for the optimization (e.g. changing availability of renewable generators due to weather conditions or a de-rating of conventional power plants).,Input (optional)
 p_set,static or series,MW,n/a,Active power set point (for optimisation and power flow),Input (optional)
+p_init,static,MW,n/a,Active power used as a starting point for limiting the ramp in the very first snapshot (for optimisation),Input (optional)
 e_sum_min,float,MWh,-inf,The minimum total energy produced during a single optimization horizon.,Input (optional)
 e_sum_max,float,MWh,inf,The maximum total energy produced during a single optimization horizon.,Input (optional)
 q_set,static or series,MVar,0.,Reactive power set point (for power flow),Input (optional)
@@ -37,8 +38,8 @@ up_time_before,int,snapshots,1,Number of snapshots that the generator was online
 down_time_before,int,snapshots,0,Number of snapshots that the generator was offline before `n.snapshots` start. Only used if `committable=True` and `min_down_time>0`. Does not consider snapshot weightings.,Input (optional)
 ramp_limit_up,static or series,per unit,NaN,"Maximum active power increase from one snapshot to the next, per unit of the nominal power. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
 ramp_limit_down,static or series,per unit,NaN,"Maximum active power decrease from one snapshot to the next, per unit of the nominal power. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
-ramp_limit_start_up,float,per unit,1,"Maximum active power increase at start up, per unit of the nominal power. Only used if `committable=True`.",Input (optional)
-ramp_limit_shut_down,float,per unit,1,"Maximum active power decrease at shut down, per unit of the nominal power. Only used if `committable=True`.",Input (optional)
+ramp_limit_start_up,float,per unit,NaN,"Maximum active power increase at start up, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional)
+ramp_limit_shut_down,float,per unit,NaN,"Maximum active power decrease at shut down, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional)
 weight,float,n/a,1,"Weighting of a generator. Only used for network clustering.",Input (optional)
 p,series,MW,0.,Active power at bus (positive if net generation),Output
 q,series,MVar,0.,Reactive power (positive if net generation),Output
