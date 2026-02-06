@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
+import numpy as np
 import pandas as pd
 from linopy import merge
 from numpy import inf, isfinite
@@ -1665,43 +1666,119 @@ def define_loss_constraints(
 
     # Define nominal capacity (depends on extendability of lines)
     is_extendable = c.da.s_nom_extendable
-    s_nom_max = c.da.s_nom_max.where(is_extendable, c.da.s_nom)
+    # If optimizing transmission expansion, use s_nom_opt from the last iteration if available
+    if getattr(n, "_optimize_transmission_expansion_iteratively", False):
+        s_nom_opt = c.da.get("s_nom_opt", c.da.s_nom)
+        # Use s_nom_opt where it's positive, otherwise fall back to s_nom
+        s_nom_for_max = s_nom_opt.where(s_nom_opt > 0, c.da.s_nom)
+        s_nom_max = c.da.s_nom_max.where(is_extendable, s_nom_for_max)
+    else:
+        s_nom_max = c.da.s_nom_max.where(is_extendable, c.da.s_nom)
 
-    if not isfinite(s_nom_max).all():
-        msg = (
-            f"Loss approximation requires finite 's_nom_max' for extendable "
-            f"branches:\n {s_nom_max.sel(name=~isfinite(s_nom_max))}"
-        )
-        raise ValueError(msg)
+        if not isfinite(s_nom_max).all():
+            msg = (
+                f"Loss approximation requires finite 's_nom_max' for extendable "
+                f"branches:\n {s_nom_max.sel(name=~isfinite(s_nom_max))}"
+            )
+            raise ValueError(msg)
 
     r_pu_eff = c.da.r_pu_eff
-
-    # Calculate upper bound on losses
-    upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2
 
     # Get variables
     loss = n.model[f"{c.name}-loss"]
     flow = n.model[f"{c.name}-s"]
 
-    # Add upper limit constraint
-    n.model.add_constraints(
-        loss <= upper_limit, name=f"{c.name}-loss_upper", mask=active
-    )
+    # Single tangent case: use optimal closed-form slope
+    if tangents == 1:
+        # Optimal slope a = (3/4) * r * p_max minimizes squared error
+        slope_opt = 0.75 * r_pu_eff * s_nom_max * s_max_pu
 
-    # Add linearization constraints for each tangent segment
-    for k in range(1, tangents + 1):
-        # Calculate linearization parameters for segment k
-        p_k = k / tangents * s_max_pu * s_nom_max
-        loss_k = r_pu_eff * p_k**2
-        slope_k = 2 * r_pu_eff * p_k
-        offset_k = loss_k - slope_k * p_k
-
-        # Add constraints for both positive and negative flow
         for sign in [-1, 1]:
-            lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
+            lhs = n.model.linexpr((1, loss), (sign * slope_opt, flow))
             n.model.add_constraints(
-                lhs >= offset_k, name=f"{c.name}-loss_tangents-{k}-{sign}", mask=active
+                lhs >= 0, name=f"{c.name}-loss_tangent-{sign}", mask=active
             )
+        return
+
+    # Multiple tangents: fit analytic piecewise linear segments
+    s_max = (s_max_pu * s_nom_max).max(dim="snapshot").to_numpy()
+    r_val = n.df(c)["r_pu_eff"].to_numpy()
+    idx = n.df(c).index
+    n_branches = len(idx)
+    n_segments = int(tangents)
+
+    # Compute segment slopes and offsets analytically
+    slopes = np.zeros((n_branches, n_segments))
+    offsets = np.zeros((n_branches, n_segments))
+
+    for i in range(n_branches):
+        p_max_i = float(s_max[i]) if np.isfinite(s_max[i]) else 0.0
+        r_i = float(r_val[i])
+
+        if p_max_i <= 0.0 or not np.isfinite(r_i):
+            continue
+
+        # Uniform breakpoints over [0, p_max]
+        breakpoints = np.linspace(0.0, p_max_i, n_segments + 1)
+
+        for k in range(n_segments):
+            x0, x1 = float(breakpoints[k]), float(breakpoints[k + 1])
+
+            if x1 <= x0 or x1 <= 0.0:
+                continue
+
+            # Analytic least-squares fit for y = r*p^2 ≈ a*p + b on [x0, x1]
+            if k == 0:
+                # First segment: enforce b = 0 for convexity at origin
+                # a = r * (∫p³dp) / (∫p²dp)
+                I2 = (x1**3 - x0**3) / 3.0
+                I3 = 0.25 * (x1**4 - x0**4)
+                a = r_i * (I3 / I2) if abs(I2) > 1e-16 else 0.0
+                b = 0.0
+            else:
+                # General case: solve normal equations
+                I0 = x1 - x0
+                I1 = 0.5 * (x1**2 - x0**2)
+                I2 = (x1**3 - x0**3) / 3.0
+                I3 = 0.25 * (x1**4 - x0**4)
+
+                denom = I2 * I0 - I1**2
+                if abs(denom) < 1e-16:
+                    # Degenerate case: fall back to origin fit
+                    I2_alt = (x1**3 - x0**3) / 3.0
+                    I3_alt = 0.25 * (x1**4 - x0**4)
+                    a = r_i * (I3_alt / I2_alt) if abs(I2_alt) > 1e-16 else 0.0
+                    b = 0.0
+                else:
+                    a = r_i * (I3 * I0 - I2 * I1) / denom
+                    b = r_i * (I2 * I2 - I3 * I1) / denom
+                    # Guard against small negative offsets due to roundoff
+                    if b < 0 and b > -1e-14:
+                        b = 0.0
+
+            slopes[i, k] = a
+            offsets[i, k] = b
+
+    # Add piecewise linear constraints for each segment
+    for k in range(n_segments):
+        slope_k = pd.Series(slopes[:, k], index=idx)
+        offset_k = pd.Series(offsets[:, k], index=idx)
+
+        # Symmetric constraints: loss >= a*|p| + b
+        # Implemented as: loss - a*p >= b  and  loss + a*p >= b
+        lhs_pos = n.model.linexpr((1, loss), (-slope_k, flow))
+        lhs_neg = n.model.linexpr((1, loss), (slope_k, flow))
+
+        n.model.add_constraints(
+            lhs_pos >= offset_k,
+            name=f"{c.name}-loss_segment-{k + 1}-pos",
+            mask=active,
+        )
+        n.model.add_constraints(
+            lhs_neg >= offset_k,
+            name=f"{c.name}-loss_segment-{k + 1}-neg",
+            mask=active,
+        )
 
 
 def define_total_supply_constraints(
