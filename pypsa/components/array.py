@@ -96,6 +96,12 @@ def _from_xarray(da: xr.DataArray, c: Components) -> pd.DataFrame | pd.Series:
         # For 2D cases like ('snapshot', 'cycle'), just use to_pandas() directly
         return da.to_pandas()
 
+    # Handle cases when using typical days
+    elif dims.intersection({"day", "typical_period"}):
+        return da.transpose(
+            "day", "typical_period", "name", missing_dims="ignore"
+        ).to_pandas()
+
     # Handle other cases
     available_dims = list_as_string(dims)
     msg = (

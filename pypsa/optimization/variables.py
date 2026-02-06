@@ -279,3 +279,49 @@ def define_cvar_variables(n: Network) -> None:
     # Scalar theta (VaR) and CVaR
     n.model.add_variables(name="CVaR-theta")
     n.model.add_variables(name="CVaR")
+
+
+def define_inter_period_storage_variables(n: Network) -> None:
+    r"""Define auxiliary variables used in the inter-period storage implementation.
+
+    This helper adds six auxiliary variables to the model when
+    non-contiguous time aggregation (typical periods) is implemented.
+    It also updates the bound of core variables: `e` (stores) / `state_of_charge` (storage units).
+
+    * `e_inter_period`/`state_of_charge_inter_period`:
+        auxiliary inter-period storage variable to link days of the original, un-clustered timeseries.
+    * `e_intra_period_max`/`state_of_charge_intra_period_max`:
+        auxiliary intra-period storage variable to limit _maximum_ state of charge within a typical period.
+    * `e_intra_period_min`/`state_of_charge_intra_period_min`:
+        auxiliary intra-period storage variable to limit _minimum_ state of charge within a typical period.
+
+    These variables are linked by constraints to implement the overall inter-period storage formulation.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance
+
+    """
+    if n.has_typical_periods is False:
+        return
+
+    var_map = {"Store": "e", "StorageUnit": "state_of_charge"}
+    for c_name, attr in var_map.items():
+        if not (c := n.components[c_name]).empty:
+            typical_periods = pd.Index(
+                n.typical_periods.unique(), name="typical_period"
+            ).sort_values()
+            n.model.add_variables(
+                coords=[c.active_assets, n.typical_period_map.index],
+                name=f"{c_name}-{attr}_inter_period",
+                lower=0,
+            )
+            n.model.add_variables(
+                coords=[c.active_assets, typical_periods],
+                name=f"{c_name}-{attr}_intra_period_lower",
+            )
+            n.model.add_variables(
+                coords=[c.active_assets, typical_periods],
+                name=f"{c_name}-{attr}_intra_period_upper",
+            )

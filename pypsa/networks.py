@@ -33,9 +33,7 @@ from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
-from pypsa.common import (
-    as_index,
-)
+from pypsa.common import as_index
 from pypsa.components.components import SubNetworkComponents
 from pypsa.components.store import ComponentsStore
 from pypsa.consistency import NetworkConsistencyMixin
@@ -1536,6 +1534,28 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
 
         """
         return self.n.snapshot_weightings
+
+    @property
+    def cluster_map(self) -> pd.Series:
+        """Get the cluster map for the sub-network.
+
+        See Also
+        --------
+        [pypsa.Network.cluster_map][]
+
+        """
+        return self.n.cluster_map
+
+    @property
+    def clusters(self) -> pd.DataFrame:
+        """Get the clusters for the sub-network.
+
+        See Also
+        --------
+        [pypsa.Network.clusters][]
+
+        """
+        return self.n.clusters
 
     @property
     def investment_periods(self) -> pd.Index:
