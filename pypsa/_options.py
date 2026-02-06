@@ -464,6 +464,12 @@ options._add_option(
     "Default value for the 'solver_options' parameter in optimization module.",
 )
 options._add_option(
+    "params.optimize.log_to_console",
+    True,
+    "Whether to print solver output to console. See linopy's Model.solve()\n\t"
+    "documentation at https://linopy.readthedocs.io for details.",
+)
+options._add_option(
     "params.optimize.include_objective_constant",
     None,
     "Include capital costs of existing capacity on extendable assets in the objective. "

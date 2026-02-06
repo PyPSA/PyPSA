@@ -183,9 +183,14 @@ def test_notebooks(test_docs_flag, pytestconfig):
     expected_tags = ["injected-warnings", "hide-cell"]
     expected_source = [
         "# General notebook settings\n",
+        "import logging\n",
         "import warnings\n",
         "\n",
-        'warnings.filterwarnings("error", category=DeprecationWarning)',
+        "import pypsa\n",
+        "\n",
+        'warnings.filterwarnings("error", category=DeprecationWarning)\n',
+        'logging.getLogger("gurobipy").propagate = False\n',
+        "pypsa.options.params.optimize.log_to_console = False",
     ]
     expected_cell = {
         "cell_type": "code",
