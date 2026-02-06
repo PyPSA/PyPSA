@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING, Any
 import linopy
 import pandas as pd
 from linopy import merge
-from numpy import inf, isfinite
-from xarray import DataArray, concat
+from numpy import inf, isfinite, maximum, sqrt, tile
+from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
 from pypsa.components.common import as_components
@@ -41,7 +41,11 @@ lookup = pd.read_csv(
 
 
 def define_operational_constraints_for_non_extendables(
-    n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int
+    n: Network,
+    sns: pd.Index,
+    component: str,
+    attr: str,
+    transmission_losses: int | dict,
 ) -> None:
     """Define operational constraints (lower-/upper bound).
 
@@ -68,8 +72,8 @@ def define_operational_constraints_for_non_extendables(
         Name of the network component (e.g. "Generator", "Link")
     attr : str
         Name of the attribute to constrain (e.g. "p" for active power)
-    transmission_losses : int
-        Number of segments for transmission loss linearization; if non-zero,
+    transmission_losses : int | dict
+        parameters for transmission losses; if non-zero,
         losses are considered in the constraints for passive branches
 
     Returns
@@ -125,7 +129,11 @@ def define_operational_constraints_for_non_extendables(
 
 
 def define_operational_constraints_for_extendables(
-    n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int
+    n: Network,
+    sns: pd.Index,
+    component: str,
+    attr: str,
+    transmission_losses: int | dict = 0,
 ) -> None:
     """Define operational constraints (lower-/upper bound) for extendable components.
 
@@ -151,8 +159,8 @@ def define_operational_constraints_for_extendables(
         Name of the network component (e.g. "Generator", "Link")
     attr : str
         Name of the attribute to constrain (e.g. "p" for active power)
-    transmission_losses : int
-        Number of segments for transmission loss linearization; if non-zero,
+    transmission_losses : int | dict
+        parameters for transmission losses; if non-zero,
         losses are considered in the constraints for passive branches
 
     Returns
@@ -812,7 +820,7 @@ def define_ramp_limit_constraints(
 def define_nodal_balance_constraints(
     n: Network,
     sns: pd.Index,
-    transmission_losses: int = 0,
+    transmission_losses: int | dict = 0,
     buses: Sequence | None = None,
     suffix: str = "",
 ) -> None:
@@ -845,8 +853,8 @@ def define_nodal_balance_constraints(
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    transmission_losses : int, default 0
-        Number of segments for transmission loss linearization; if non-zero,
+    transmission_losses : int | dict, default 0
+        Parameters for transmission losses; if non-zero,
         losses are included in the power balance
     buses : Sequence | None, default None
         Subset of buses for which to define constraints; if None, all buses are used
@@ -1611,19 +1619,27 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
 
 def define_loss_constraints(
-    n: Network, sns: pd.Index, component: str, transmission_losses: int
+    n: Network,
+    sns: pd.Index,
+    component: str,
+    transmission_losses: int = 0,
+    mode: str = "secants",
+    atol: float = 1,
+    rtol: float = 0.1,
+    max_segments: int = 20,
 ) -> None:
     """Define power loss constraints for passive branches.
 
     This function approximates quadratic power losses using piecewise linear
-    constraints. It creates tangent segments to the quadratic loss curve
-    to model the relationship between power flow and losses.
+    constraints. Depending on `mode` it creates secant or tangent segments to the
+    quadratic loss curve to model the relationship between power flow and losses.
 
-    See equations (39)-(46) in [1]_ for further details on the formulation.
+    For secants: See https://github.com/PyPSA/PyPSA/pull/1495 for further details.
+    For tangents: See equations (39)-(46) in [1] for further details.
 
     Applies to Components
     ---------------------
-    Line, Transformer (passive branch components when transmission_losses > 0)
+    Line, Transformer (passive branch components when transmission_losses are used)
 
     Parameters
     ----------
@@ -1637,14 +1653,25 @@ def define_loss_constraints(
         Number of tangent segments to use in the piecewise linearization
         of the quadratic loss function; higher values increase accuracy
         but also computational complexity
+    mode : str, default "secants"
+        Method for linearizing losses; options are: "tangents" or "secants"
+    atol : float, default 1
+        Absolute error tolerance between the quadratic loss function and its
+        piecewise linear approximation (used only in "secants" mode)
+    rtol : float, default 0.1
+        Relative error tolerance between the quadratic loss function and its
+        piecewise linear approximation (used only in "secants" mode)
+    max_segments : int, default 20
+        Maximum number of segments to use in the piecewise linear approximation
+        (used only in "secants" mode). Applies to the positive and negative
+        branches separately, s.t. the total number of segements may be at most
+        2*max_segments. Usually the real number of segments will be lower depending
+        on the specified error tolerances and branch parameters.
 
     Returns
     -------
     None
 
-    Notes
-    -----
-    3 segments offer a good trade-off between accuracy and solver performance.
 
     References
     ----------
@@ -1658,7 +1685,6 @@ def define_loss_constraints(
     if c.static.empty or component not in n.passive_branch_components:
         return
 
-    tangents = transmission_losses
     active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     s_max_pu = c.da.s_max_pu.sel(snapshot=sns)
@@ -1688,20 +1714,100 @@ def define_loss_constraints(
         loss <= upper_limit, name=f"{c.name}-loss_upper", mask=active
     )
 
-    # Add linearization constraints for each tangent segment
-    for k in range(1, tangents + 1):
-        # Calculate linearization parameters for segment k
-        p_k = k / tangents * s_max_pu * s_nom_max
-        loss_k = r_pu_eff * p_k**2
-        slope_k = 2 * r_pu_eff * p_k
-        offset_k = loss_k - slope_k * p_k
+    if mode == "secants":
+        atol = 1
+        rtol = 0.1
+
+        lossy = r_pu_eff > 0  # only for lines with losses
+        target = (s_nom_max * s_max_pu).where(lossy, 0)
+
+        # Step-by-step construct the breakpoints for the piecewise linear approximation
+        # The first breakpoint p_0 is always at zero
+        # The first step is always determined by atol, since the rtol step would be zero at p=0
+        p_1 = where(lossy, 2 * sqrt(atol / r_pu_eff), 0)
+
+        # Instead of building the full list of breakpoints, we just build the factors relative to p_1
+        # This will allow for some algebraic simplifications later on
+        breakpoint_factors = [0, 1]  # factors for p_0 and p_1
+
+        target_factors = where(
+            lossy, target.max("snapshot") / p_1, 0
+        )  # amounts to scaling p_1 to s_nom_max * s_max_pu
+
+        while (breakpoint_factors[-1] < target_factors).any():
+            k = len(breakpoint_factors)
+            stepfactor_atol = k / (k - 1)
+            stepfactor_rtol = 1 + 2 * (rtol + sqrt(rtol + rtol**2))
+            stepfactor_k = maximum(stepfactor_atol, stepfactor_rtol)
+            breakpoint_factors.append(breakpoint_factors[-1] * stepfactor_k)
+            if k >= max_segments:
+                raise RuntimeError(
+                    f"secant loop hit max_segments; check atol/rtol or line parameters; current inputs would result in {2 * max_segments} additional constraints per line"
+                )
+
+        # make a separate array of factors for every line
+        factors_1d = DataArray(breakpoint_factors, dims=["secant"])
+        breakpoint_factors = DataArray(
+            tile(factors_1d.values[:, None], (1, p_1.sizes["name"])),
+            dims=["secant", "name"],
+            coords={"secant": factors_1d["secant"], "name": p_1["name"]},
+        )
+        # zero out factors for branches without losses
+        breakpoint_factors = breakpoint_factors.where(lossy, 0)
+
+        # Call the intersection points of a secant with the loss curve a and b, then we have:
+        a_factors = breakpoint_factors.isel(
+            secant=slice(None, -1)
+        )  # k segments: 0..K-1
+        b_factors = breakpoint_factors.isel(secant=slice(1, None))  # k segments: 1..K
+        b_factors["secant"] = b_factors["secant"] - 1  # align indices
+
+        # The final breakpoint can be made smaller by setting it to the target
+        # This improves the approximation, however may introduce a dependency on s_nom_max:
+        # Therefore we do it only for lines that are non-extendable:
+        b_factors = where(
+            lossy & ~is_extendable, b_factors.clip(max=target_factors), b_factors
+        )
+
+        # The simplest form of the slope would be:
+        # slope = r_pu_eff * (a + b)
+        # with a=x_i, b=x_{i+1} we have:
+        # x_i = breakpoint_factors[i] * x_1
+        # ... = breakpoint_factors[i] * 2 * sqrt(atol / r_pu_eff)
+        # Therefore:
+        # slope = r_pu_eff * 2 * sqrt(atol / r_pu_eff) * (a_factors + b_factors) = ...
+        slope = 2 * sqrt(atol * r_pu_eff) * (a_factors + b_factors)
+        # offset = -r_pu_eff * a * b = ...
+        offset = -4 * atol * (a_factors * b_factors)
 
         # Add constraints for both positive and negative flow
-        for sign in [-1, 1]:
-            lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
+        for sign, s in [(-1, "neg"), (1, "pos")]:
+            lhs = n.model.linexpr((1, loss), (sign * slope, flow))
             n.model.add_constraints(
-                lhs >= offset_k, name=f"{c.name}-loss_tangents-{k}-{sign}", mask=active
+                lhs >= offset,
+                name=f"{c.name}-loss_secants-{s}",
+                mask=active,
             )
+    elif mode == "tangents":
+        tangents = transmission_losses
+        # Add linearization constraints for each tangent segment
+        for k in range(1, tangents + 1):
+            # Calculate linearization parameters for segment k
+            p_k = k / tangents * s_max_pu * s_nom_max
+            loss_k = r_pu_eff * p_k**2
+            slope_k = 2 * r_pu_eff * p_k
+            offset_k = loss_k - slope_k * p_k
+
+            # Add constraints for both positive and negative flow
+            for sign in [-1, 1]:
+                lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
+                n.model.add_constraints(
+                    lhs >= offset_k,
+                    name=f"{c.name}-loss_tangents-{k}-{sign}",
+                    mask=active,
+                )
+    else:
+        raise ValueError("mode must be either 'tangents' or 'secants'")
 
 
 def define_total_supply_constraints(
