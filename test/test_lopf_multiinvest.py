@@ -1,8 +1,6 @@
-"""
-Created on Fri Jul  2 10:21:16 2021.
-
-@author: fabian
-"""
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
 import pandas as pd
 import pytest
@@ -1060,3 +1058,77 @@ def test_storageunit_ip_only_resets_per_period():
             "Observed continuous discharge [0.9,0.8,0.7,0.6]"
             "state_of_charge_initial_per_period=True was ignored"
         )
+
+
+def test_operational_limit_with_investment_period_storage():
+    """
+    Test operational limit constraint with specific investment_period for storage.
+
+    Regression test for bug #1437: snapshot selection for operational limit in
+    multi-period optimization. The bug was that period_last_sns was calculated
+    from all snapshots instead of filtered snapshots when investment_period was
+    specified in the global constraint.
+    """
+    n = pypsa.Network(snapshots=range(4))
+    n.investment_periods = [2020, 2030, 2040]
+    n.investment_period_weightings.loc[:, "years"] = 1
+
+    # Add bus
+    n.add("Bus", "bus1")
+    n.add("Carrier", ["battery", "electricity"])
+
+    # Add generator with costs
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus1",
+        p_nom=100,
+        carrier="electricity",
+        marginal_cost=1,
+    )
+
+    # Add storage unit with per-period initial state of charge
+    n.add(
+        "StorageUnit",
+        "storage1",
+        bus="bus1",
+        carrier="battery",
+        p_nom=50,
+        state_of_charge_initial=100,
+        state_of_charge_initial_per_period=True,
+        cyclic_state_of_charge=False,
+        max_hours=10,
+    )
+
+    # Add load
+    n.add("Load", "load1", bus="bus1", p_set=[10, 20, 15, 25] * 3)
+
+    # Add operational limit for ONLY the 2030 period
+    # This is where the bug manifests
+    n.add(
+        "GlobalConstraint",
+        "battery_limit_2030",
+        type="operational_limit",
+        carrier_attribute="battery",
+        sense="<=",
+        constant=25,
+        investment_period=2030,  # Only apply to 2030 period
+    )
+
+    # This should succeed without KeyError
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+    # Verify the constraint is applied correctly to 2030 period
+    period_2030_sns = n.snapshots[n.snapshots.get_loc(2030)]
+
+    # Calculate storage SOC delta in 2030
+    soc_initial = n.c.storage_units.static.loc["storage1", "state_of_charge_initial"]
+    soc_final = n.c.storage_units.dynamic.state_of_charge.loc[
+        period_2030_sns[-1], "storage1"
+    ]
+    soc_delta = soc_initial - soc_final
+
+    # Total operational value for 2030 should respect the limit
+    total_2030 = soc_delta
+    assert total_2030 <= 25 + 1e-6  # Allow small numerical tolerance

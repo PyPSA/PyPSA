@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Assertion guards for runtime verification of PyPSA.
 
 Methods of this module should only be called when
@@ -167,7 +171,7 @@ def _network_index_data_verification(n: Network) -> None:
 
 
 @_guard_error_handler
-def _as_xarray_guard(component: Any, res: xarray.DataArray) -> None:
+def _assert_xarray_integrity(component: Any, res: xarray.DataArray) -> None:
     if component.has_scenarios and list(res.scenario.values) != list(
         component.scenarios
     ):
@@ -180,12 +184,6 @@ def _as_xarray_guard(component: Any, res: xarray.DataArray) -> None:
 
 
 @_guard_error_handler
-def _consistency_check_guard(n: Network) -> None:
-    _network_components_data_verification(n)
-    _network_index_data_verification(n)
-
-
-@_guard_error_handler
-def _optimize_guard(n: Network) -> None:
+def _assert_data_integrity(n: Network) -> None:
     _network_components_data_verification(n)
     _network_index_data_verification(n)

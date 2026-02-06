@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Retrieve PyPSA example networks."""
 
 from __future__ import annotations
@@ -52,10 +56,10 @@ def _retrieve_if_not_local(path: str | Path) -> Network:
         return Network(path)
 
 
-def ac_dc_meshed(
-    update: bool = False, from_master: bool = False, remove_link_p_set: bool = False
-) -> Network:
+def ac_dc_meshed() -> Network:
     """Load the meshed AC-DC example network.
+
+    <!-- md:badge-version v0.18.0 -->
 
     Returns
     -------
@@ -82,8 +86,10 @@ def ac_dc_meshed(
     return _retrieve_if_not_local("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
 
 
-def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
+def storage_hvdc() -> Network:
     """Load the storage network example of PyPSA.
+
+    <!-- md:badge-version v0.18.0 -->
 
     Returns
     -------
@@ -111,8 +117,10 @@ def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
     return _retrieve_if_not_local("examples/networks/storage-hvdc/storage-hvdc.nc")
 
 
-def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
+def scigrid_de() -> Network:
     """Load the SciGrid network example of PyPSA.
+
+    <!-- md:badge-version v0.18.0 --> | <!-- md:badge-example scigrid-lopf-then-pf.ipynb -->
 
     Returns
     -------
@@ -139,8 +147,10 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
     return _retrieve_if_not_local("examples/networks/scigrid-de/scigrid-de.nc")
 
 
-def model_energy(update: bool = False, from_master: bool = False) -> Network:
+def model_energy() -> Network:
     """Load the single-node capacity expansion model in style of model.energy.
+
+    <!-- md:badge-version v0.34.1 -->
 
     Check out the [model.energy website](https://model.energy/) for more information.
 
@@ -177,7 +187,7 @@ def model_energy(update: bool = False, from_master: bool = False) -> Network:
 def stochastic_network() -> Network:
     """Load the stochastic network example.
 
-    For details check the example notebook. #TODO new-docs link.
+    <!-- md:badge-version v1.0.0 --> | <!-- md:guide-badge optimization/stochastic.md -->
 
     Returns
     -------
@@ -191,9 +201,10 @@ def stochastic_network() -> Network:
     Stochastic PyPSA Network 'Stochastic-Network'
     ---------------------------------------------
     Components:
-        - Bus: 3
-        - Generator: 12
-        - Load: 3
+     - Bus: 3
+     - Carrier: 18
+     - Generator: 12
+     - Load: 3
     Snapshots: 2920
     Scenarios: 3
 
@@ -201,12 +212,13 @@ def stochastic_network() -> Network:
     n = _retrieve_if_not_local(
         "examples/networks/stochastic-network/stochastic-network.nc"
     )
-
     return n
 
 
 def carbon_management() -> Network:
     """Load the carbon management network example of PyPSA.
+
+    <!-- md:badge-version v1.0.0 -->
 
     The Carbon Management Network has 20 days of data on the hybrid case from a
     recently published paper on carbon management based on PyPSA-Eur. It is
@@ -219,9 +231,28 @@ def carbon_management() -> Network:
     the European energy system. Nat Energy 10, 715–724 (2025).
     https://doi.org/10.1038/s41560-025-01752-6
 
+    Examples
+    --------
+    >>> n = pypsa.examples.carbon_management()
+    >>> n
+    PyPSA Network 'Hybrid Scenario from https://www.nature.com/articles/s41560-025-01752-6'
+    ---------------------------------------------------------------------------------------
+    Components:
+     - Bus: 2164
+     - Carrier: 89
+     - Generator: 1489
+     - GlobalConstraint: 4
+     - Line: 157
+     - Link: 6830
+     - Load: 1357
+     - StorageUnit: 106
+     - Store: 1263
+    Snapshots: 168
+    <BLANKLINE>
+
     """
     primary_url = (
-        "https://tubcloud.tu-berlin.de/s/b37rfZrBymTFpZ4/download/carbon-management.nc"
+        "https://tubcloud.tu-berlin.de/s/4nsj6XSAbnq8skc/download/carbon-management.nc"
     )
 
     if _check_url_availability(primary_url):

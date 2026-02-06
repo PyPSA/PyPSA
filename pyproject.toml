@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 [build-system]
 requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
@@ -7,13 +11,13 @@ name="pypsa"
 dynamic = ["version"]
 description="Python for Power Systems Analysis"
 readme="README.md"
-authors=[{name = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html", email = "t.brown@tu-berlin.de"}]
+authors=[{name = "PyPSA Developers, see https://docs.pypsa.org/latest/contributing/contributors.html", email = "t.brown@tu-berlin.de"}]
 license = { file = "LICENSE" }
 classifiers=[
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Science/Research",
@@ -23,25 +27,26 @@ classifiers=[
     "Operating System :: OS Independent",
 ]
 
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 dependencies = [
     "numpy",
     "scipy",
-    "pandas>=0.24",
-    "xarray<=2025.9.0",
-    "netcdf4",
-    "linopy>=0.5.5",
+    "pandas>=0.24,<3.0.0",
+    "xarray",
+    "netcdf4!=1.7.4",  # See https://github.com/PyPSA/PyPSA/issues/1510
+    "linopy>=0.6.1",
     "matplotlib",
     "plotly",
-    "pydeck",
+    "pydeck>=0.6",
     "seaborn",
     "geopandas>=0.9",
-    "shapely<2.1",
+    "shapely",
     "networkx>=2",
     "deprecation",
     "validators",
     "highspy",
+    "levenshtein>=0.27.1",
 ]
 
 [project.urls]
@@ -55,36 +60,46 @@ cartopy = ["cartopy>=0.16"]
 excel = ["openpyxl", "python-calamine"]
 gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
+dotenv = ["python-dotenv"]
+tsam = ["tsam"]
 dev = [
     "pytest",
     "pytest-cov",
-    "pytest-mpl", 
+    "pytest-mpl",
     "coverage",
     "pypower",
     "pandapower>=2.14.11",
     "scikit-learn",
-    "pre-commit", 
+    "pre-commit",
     "ruff",
     "mypy",
     "jupyter>=1.1.1",
     "typing-extensions>=4.14.0",
+    "reuse>=5.1.1",
 ]
 docs = [
-    "numpydoc==1.8.0",
-    "sphinx==8.1.3",
-    "sphinx-book-theme==1.1.3",
-    "pydata-sphinx-theme==0.16.1",
-    "sphinx-reredirects==0.1.5",
-    "nbsphinx==0.9.7",
-    "nbsphinx-link==1.3.1",
-    "scikit-learn==1.6.1",
-    "ipython<9.0.0; python_version < '3.11'",
-    "ipython==9.0.1; python_version >= '3.11'",
-    "ipykernel==6.29.5",
+    "mkdocs-material",
+    "mkdocs-ezlinks-plugin",
+    "mkdocs-autolinks-plugin",
+    "mkdocs-redirects",
+    "mkdocs-video",
+    "mkdocs-git-revision-date-localized-plugin",
+    "mkdocs-table-reader-plugin",
+    "mkdocstrings-python",
+    "mkdocs-jupyter",
+    "cairosvg",
+    "pillow",
+    "tsam",
+    "gurobipy",
+    "openpyxl",
+    "python-calamine",
+    "salib",
+    "pytest",
+    "cartopy>=0.16",
 ]
 
 # setuptools_scm settings
- 
+
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
 
@@ -107,6 +122,7 @@ filterwarnings = [
     # Ignore internal warnings
     "default:With PyPSA 1.0, the API for how to access components data has changed:DeprecationWarning",
     "default:When combining.*with other plots on a geographical axis.*:UserWarning", # TODO: needs to be checked
+    "default:The default value of `include_objective_constant` will change:FutureWarning",
 
     # Ignore linopy warnings
     "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
@@ -130,13 +146,13 @@ exclude_also = [
 # Static type checker settings
 
 [tool.mypy]
-exclude = ['dev/*', 'examples/*', 'doc/*']
+exclude = ['dev/*', 'examples/*', 'docs/*']
 ignore_missing_imports = true
 no_implicit_optional = true
 warn_unused_ignores = true
 show_error_code_links = true
 # Maybe activate at later stage
-# disallow_any_generics = true 
+# disallow_any_generics = true
 # warn_return_any = true
 
 [[tool.mypy.overrides]]
@@ -200,7 +216,9 @@ ignore = [
     'E741', # ambiguous variable names
     'D203', # 1 blank line required before class docstring
     'D213', # Multi-line docstring summary should start at the second line
-    'SIM105', 
+    'D400', # First line should end with a period
+    'D415', # First line should end with a period, question mark, or exclamation point
+    'SIM105',
     'SIM108',
     'SIM118',
     'PLR0911',
@@ -217,7 +235,7 @@ ignore = [
 
 
 [tool.ruff.lint.per-file-ignores]
-"{test,examples,doc}/**" = [
+"{test,examples,doc,docs}/**" = [
     'D',     # pydocstyle
     'ERA',   # eradicate
     'S',     # flake8-bandit
@@ -246,7 +264,7 @@ ignore = [
     'D417', # Missing argument descriptions in the docstring
     ]
 
-"{test,examples}/**"=[
+"{test,examples,docs}/**"=[
     'ANN' # flake8-annotations
 ]
 

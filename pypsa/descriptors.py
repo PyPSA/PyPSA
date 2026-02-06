@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Descriptors for component attributes."""
 
 from __future__ import annotations
@@ -104,7 +108,7 @@ def get_active_assets(
 ) -> pd.Series:
     """Get active assets. Use `c.get_active_assets`.
 
-    See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
+    See the [`pypsa.descriptors.components.Component.get_active_assets`][].
 
     Parameters
     ----------
@@ -134,7 +138,7 @@ def get_activity_mask(
     """Get active components mask indexed by snapshots.
 
     Wrapper around the
-    `:py:meth:`pypsa.descriptors.components.Componenet.get_active_assets` method.
+    [`pypsa.descriptors.components.Componenet.get_active_assets`][] method.
     Get's the boolean mask for active components, but indexed by snapshots and
     components instead of just components.
 
@@ -266,14 +270,14 @@ def _update_linkports_component_attrs(
 
     for i, attr in product(ports, ["bus", "efficiency", "p"]):
         target = f"{attr}{i}"
-        if target in n.components[c]["attrs"].index:
+        if target in n.components[c]["defaults"].index:
             continue
         j = "1" if attr != "efficiency" else ""
         base_attr = attr + j
-        base_attr_index = n.components[c]["attrs"].index.get_loc(base_attr)
-        n.components[c]["attrs"].index.insert(base_attr_index + 1, target)
-        n.components[c]["attrs"].loc[target] = (
-            n.components[c]["attrs"]
+        base_attr_index = n.components[c]["defaults"].index.get_loc(base_attr)
+        n.components[c]["defaults"].index.insert(base_attr_index + 1, target)
+        n.components[c]["defaults"].loc[target] = (
+            n.components[c]["defaults"]
             .loc[attr + j]
             .apply(_update_linkports_doc_changes, args=("1", i))
         )
@@ -284,4 +288,4 @@ def _update_linkports_component_attrs(
             )
             n.c[c].dynamic[target] = df
         elif attr == "bus" and target not in n.c[c].static.columns:
-            n.c[c].static[target] = n.components[c]["attrs"].loc[target, "default"]
+            n.c[c].static[target] = n.components[c]["defaults"].loc[target, "default"]

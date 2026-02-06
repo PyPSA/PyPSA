@@ -1,8 +1,13 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Build optimisation problems from PyPSA networks with Linopy."""
 
 from __future__ import annotations
 
 import logging
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -17,7 +22,7 @@ from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
-from pypsa.guards import _optimize_guard
+from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
 from pypsa.optimization.constraints import (
@@ -71,7 +76,31 @@ lookup = pd.read_csv(
 )
 
 
-def define_objective(n: Network, sns: pd.Index) -> None:
+def _resolve_include_objective_constant(
+    value: bool | None, stacklevel: int = 3
+) -> bool:
+    """Resolve include_objective_constant from explicit value or options.
+
+    Raises FutureWarning if neither is set.
+    """
+    if value is None:
+        value = options.params.optimize.include_objective_constant
+    if value is None:
+        warnings.warn(
+            "The default value of `include_objective_constant` will change from "
+            "True to False in version 2.0. Set `include_objective_constant` "
+            "explicitly to suppress this warning. Using False improves LP numerical "
+            "conditioning by not including the objective constant as a variable.",
+            FutureWarning,
+            stacklevel=stacklevel,
+        )
+        value = True
+    return value
+
+
+def define_objective(
+    n: Network, sns: pd.Index, include_objective_constant: bool
+) -> None:
     """Define and write the optimization objective function.
 
     Builds the (linear or quadratic) objective by assembling the following terms:
@@ -97,6 +126,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         Network instance containing the Linopy model and component data.
     sns : pandas.Index
         Snapshots (and, for multi-investment, periods) over which to build the objective.
+    include_objective_constant : bool
+        Whether to include the objective constant as a variable in the objective function.
 
     Returns
     -------
@@ -121,55 +152,60 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         period_weighting = n.investment_period_weightings.objective[periods]
 
     # constant for already done investment
-    nom_attr = nominal_attrs.items()
-    constant: xr.DataArray | float = 0
-    terms = []
+    if include_objective_constant:
+        nom_attr = nominal_attrs.items()
+        constant: xr.DataArray | float = 0
+        terms = []
 
-    for c_name, attr in nom_attr:
-        c = as_components(n, c_name)
-        ext_i = c.extendables.difference(c.inactive_assets)
+        for c_name, attr in nom_attr:
+            c = as_components(n, c_name)
+            ext_i = c.extendables.difference(c.inactive_assets)
 
-        if ext_i.empty:
-            continue
+            if ext_i.empty:
+                continue
 
-        capital_cost = c.da.capital_cost.sel(name=ext_i)
-        if capital_cost.size == 0:
-            continue
+            periodic_cost = c.periodized_cost.sel(name=ext_i)
+            if periodic_cost.size == 0:
+                continue
 
-        nominal = c.da[attr].sel(name=ext_i)
+            nominal = c.da[attr].sel(name=ext_i)
 
-        # only charge capex for already-existing assets
-        if n._multi_invest:
-            weighted_cost = 0
-            for period in periods:
-                # collapse time axis via any() so capex value isn't broadcasted
-                active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += capital_cost * active * period_weighting.loc[period]
+            if n._multi_invest:
+                weighted_cost = 0
+                for period in periods:
+                    active = c.da.active.sel(period=period, name=ext_i).any(
+                        dim="timestep"
+                    )
+                    weighted_cost += (
+                        active * periodic_cost * period_weighting.loc[period]
+                    )
+            else:
+                active = c.da.active.sel(name=ext_i).any(dim="snapshot")
+                weighted_cost = active * periodic_cost
+
+                terms.append((weighted_cost * nominal).sum(dim=["name"]))
+
+        constant += sum(terms)
+
+        # Handle constant for stochastic vs deterministic networks
+        if n.has_scenarios and isinstance(constant, xr.DataArray):
+            # For stochastic networks, weight constant by scenario probabilities
+            weighted_constant = sum(
+                constant.sel(scenario=s) * n.scenario_weightings.loc[s, "weight"]
+                for s in n.scenarios
+            )
+            n._objective_constant = float(weighted_constant)
+            has_const = (constant != 0).any().item()
         else:
-            # collapse time axis via any() so capex value isn’t broadcasted
-            active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            weighted_cost = capital_cost * active
-
-        terms.append((weighted_cost * nominal).sum(dim=["name"]))
-
-    constant += sum(terms)
-
-    # Handle constant for stochastic vs deterministic networks
-    if n.has_scenarios and isinstance(constant, xr.DataArray):
-        # For stochastic networks, weight constant by scenario probabilities
-        weighted_constant = sum(
-            constant.sel(scenario=s) * n.scenario_weightings.loc[s, "weight"]
-            for s in n.scenarios
-        )
-        n._objective_constant = float(weighted_constant)
-        has_const = (constant != 0).any().item()
+            n._objective_constant = float(constant)
+            has_const = constant != 0
+        if has_const:
+            object_const = m.add_variables(
+                constant, constant, name="objective_constant"
+            )
+            capex_terms.append(-1 * object_const)
     else:
-        n._objective_constant = float(constant)
-        has_const = constant != 0
-    if has_const:
-        object_const = m.add_variables(constant, constant, name="objective_constant")
-        # Treat constant as part of CAPEX block
-        capex_terms.append(-1 * object_const)
+        n._objective_constant = 0.0
 
     # Weightings
     weighting = n.snapshot_weightings.objective
@@ -246,21 +282,18 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if ext_i.empty:
             continue
 
-        capital_cost = c.da.capital_cost.sel(name=ext_i)
-        if capital_cost.size == 0 or (capital_cost == 0).all():
+        periodic_cost = c.periodized_cost.sel(name=ext_i)
+        if periodic_cost.size == 0 or (periodic_cost == 0).all():
             continue
 
-        # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
             for period in periods:
-                # collapse time axis via any() so capex value isn't broadcasted
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += capital_cost * active * period_weighting.loc[period]
+                weighted_cost += active * periodic_cost * period_weighting.loc[period]
         else:
-            # collapse time axis via any() so capex value isn't broadcasted
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            weighted_cost = capital_cost * active
+            weighted_cost = active * periodic_cost
 
         caps = m[f"{c.name}-{attr}"].sel(name=ext_i)
         capex_terms.append((caps * weighted_cost).sum(dim=["name"]))
@@ -330,7 +363,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         for s in n.scenarios:
             scen_selected = [e.sel(scenario=s) for e in opex_terms]
             scen_opex_exprs[s] = (
-                sum(scen_selected) if is_quadratic else merge(scen_selected)
+                (sum(scen_selected) if is_quadratic else merge(scen_selected))
+                if scen_selected
+                else 0
             )
 
         # Retrieve CVaR auxiliary variables
@@ -363,7 +398,10 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
-    """Optimization accessor for building and solving models using linopy."""
+    """Optimization accessor for building and solving models using linopy.
+
+    <!-- md:guide network-optimization.md -->
+    """
 
     def __init__(self, n: Network) -> None:
         """Initialize the optimization accessor."""
@@ -382,6 +420,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         solver_name: str | None = None,
         solver_options: dict | None = None,
         compute_infeasibilities: bool = False,
+        include_objective_constant: bool | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -393,7 +432,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             n.snapshots, defaults to n.snapshots
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
-            investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+            investment periods. Then, snapshots should be a `pd.MultiIndex`.
         transmission_losses : int, default 0
             Whether an approximation of transmission losses should be included
             in the linearised power flow formulation. A passed number will denote
@@ -404,7 +443,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
-            https://go.pypsa.org/options-params for more information.
+            `https://go.pypsa.org/options-params` for more information.
         extra_functionality : callable
             This function must take two arguments
             `extra_functionality(n, snapshots)` and is called after
@@ -416,15 +455,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             have a designated place in the network.
         solver_name : str, optional
             Name of the solver to use. Defaults to module wide option
-            (default: 'highs'). See https://go.pypsa.org/options-params for more
+            (default: 'highs'). See `https://go.pypsa.org/options-params` for more
             information.
         solver_options : dict, optional
             Keyword arguments used by the solver. Can also be passed via `**kwargs`.
             Defaults to module wide option (default: {}). See
-            https://go.pypsa.org/options-params for more information.
+            `https://go.pypsa.org/options-params` for more information.
         compute_infeasibilities : bool, default False
             Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
             of an infeasible solution. Requires Gurobi.
+        include_objective_constant : bool | None, default None
+            Whether to include the objective constant (capital costs of existing
+            infrastructure) as a variable in the objective function. Setting to False
+            improves LP numerical conditioning. Defaults to module wide option. See
+            `pypsa.options.params.optimize.describe()` for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -433,11 +477,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         -------
         status : str
             The status of the optimization, either "ok" or one of the codes listed
-            in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+            in [linopy.constants.SolverStatus](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html)
         condition : str
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+            [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
         """
         # Handle default parameters from options
@@ -447,6 +491,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             solver_name = options.params.optimize.solver_name
         if solver_options is None:
             solver_options = options.params.optimize.solver_options.copy()
+
+        include_objective_constant = _resolve_include_objective_constant(
+            include_objective_constant
+        )
 
         n = self._n
         sns = as_index(n, snapshots, "snapshots")
@@ -460,6 +508,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             transmission_losses,
             linearized_unit_commitment,
             consistency_check=False,
+            include_objective_constant=include_objective_constant,
             **model_kwargs,
         )
         if extra_functionality:
@@ -487,6 +536,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         transmission_losses: int = 0,
         linearized_unit_commitment: bool = False,
         consistency_check: bool = True,
+        include_objective_constant: bool | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -500,7 +550,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             n.snapshots, defaults to n.snapshots
         multi_investment_periods : bool, default: False
             Whether to optimise as a single investment period or to optimize in multiple
-            investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+            investment periods. Then, snapshots should be a `pd.MultiIndex`.
         transmission_losses : int, default: 0
             Whether an approximation of transmission losses should be included
             in the linearised power flow formulation.
@@ -508,6 +558,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Whether to optimise using the linearised unit commitment formulation or not.
         consistency_check : bool, default: True
             Whether to run the consistency check before building the model.
+        include_objective_constant : bool | None, default: None
+            Whether to include the objective constant (capital costs of existing
+            infrastructure) as a variable in the objective function. Setting to False
+            improves LP numerical conditioning. Defaults to module wide option. See
+            `pypsa.options.params.optimize.describe()` for more information.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -522,6 +577,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._multi_invest = int(multi_investment_periods)
         if consistency_check:
             n.consistency_check()
+
+        include_objective_constant = _resolve_include_objective_constant(
+            include_objective_constant
+        )
 
         kwargs.setdefault("force_dim_names", True)
         n._model = Model(**kwargs)
@@ -565,18 +624,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_ramp_limit_constraints(n, sns, c, attr)
             define_fixed_operation_constraints(n, sns, c, attr)
 
+        # Handle StorageUnit p_set separately (fixes p_dispatch - p_store = p_set)
+        define_fixed_operation_constraints(n, sns, "StorageUnit", "p")
+
         meshed_threshold = kwargs.get("meshed_threshold", 45)
-        meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)
+        strongly_meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)
+        weakly_meshed_buses = n.c.buses.names.difference(strongly_meshed_buses)
 
-        if isinstance(n.c.buses.static.index, pd.MultiIndex):
-            bus_names = n.c.buses.static.index.get_level_values(1)
-            weakly_meshed_buses = pd.Index(
-                [b for b in bus_names if b not in meshed_buses], name="Bus"
-            )
-        else:
-            weakly_meshed_buses = n.c.buses.static.index.difference(meshed_buses)
-
-        if not meshed_buses.empty and not weakly_meshed_buses.empty:
+        if not strongly_meshed_buses.empty and not weakly_meshed_buses.empty:
             # Write constraint for buses many terms and for buses with a few terms
             # separately. This reduces memory usage for large networks.
             define_nodal_balance_constraints(
@@ -589,7 +644,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 n,
                 sns,
                 transmission_losses=transmission_losses,
-                buses=meshed_buses,
+                buses=strongly_meshed_buses,
                 suffix="-meshed",
             )
         else:
@@ -615,7 +670,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
 
-        define_objective(n, sns)
+        define_objective(n, sns, include_objective_constant)
 
         return n.model
 
@@ -639,12 +694,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             add/change constraints and add/change the objective function.
         solver_name : str | None, default=None
             Name of the solver to use. Defaults to module wide option
-            (default: 'highs'). See https://go.pypsa.org/options-params for more
+            (default: 'highs'). See `https://go.pypsa.org/options-params` for more
             information.
         solver_options : dict | None, default=None
             Keyword arguments used by the solver. Defaults to module wide option
             (default: {}). Can also be passed via `**kwargs`. See
-            https://go.pypsa.org/options-params for more information.
+            `https://go.pypsa.org/options-params` for more information.
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
@@ -657,11 +712,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         status : str
             The status of the optimization, either "ok" or one of the
             codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+            [linopy.constants.SolverStatus](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html)
         condition : str
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+            [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
         """
         # Handle default parameters from options
@@ -683,7 +738,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # Optional runtime verification
         if options.debug.runtime_verification:
-            _optimize_guard(self._n)
+            _assert_data_integrity(self._n)
 
         return status, condition
 
@@ -739,7 +794,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                         _set_dynamic_data(n, c.name, f"p{i}", -df * eff)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
-                        ] = float(c.attrs.loc[f"p{i}", "default"])
+                        ] = float(c.defaults.loc[f"p{i}", "default"])
 
                 else:
                     _set_dynamic_data(n, c.name, attr, df)

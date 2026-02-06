@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Network index module.
 
 Contains single mixin class which is used to inherit to [pypsa.Networks] class.
@@ -16,10 +20,14 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from pypsa._options import options
+from pypsa.constants import HOURS_PER_YEAR
+from pypsa.guards import _assert_data_integrity
+from pypsa.network.abstract import _NetworkABC
+
 if TYPE_CHECKING:
     from pypsa import Network
 
-from pypsa.network.abstract import _NetworkABC
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +35,8 @@ logger = logging.getLogger(__name__)
 class NetworkIndexMixin(_NetworkABC):
     """Mixin class for network index methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     _risk_preference: dict[str, float] | None
@@ -51,7 +59,7 @@ class NetworkIndexMixin(_NetworkABC):
         of type `pd.DatetimeIndex`.
 
         This will reindex all components time-dependent DataFrames
-        (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for
+        ([`pypsa.Network.dynamic`][]). NaNs are filled with the default value for
         that quantity.
 
         Parameters
@@ -113,7 +121,7 @@ class NetworkIndexMixin(_NetworkABC):
                 .apply(lambda x: x.total_seconds() / 3600)
             )
             self._snapshots_data = pd.DataFrame(
-                dict.fromkeys(self._snapshots_data.columns, hours_per_step)
+                dict.fromkeys(self._snapshots_data.columns, hours_per_step), index=sns
             )
         elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
             logger.info(
@@ -122,7 +130,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         for component in self.all_components:
             dynamic = self.c[component].dynamic
-            attrs = self.components[component]["attrs"]
+            attrs = self.components[component]["defaults"]
 
             for k in dynamic:
                 if dynamic[k].empty:  # avoid expensive reindex operation
@@ -142,7 +150,16 @@ class NetworkIndexMixin(_NetworkABC):
                 else:
                     dynamic[k] = dynamic[k].reindex(self.snapshots)
 
-        # NB: No need to rebind dynamic to self, since haven't changed it
+        # Synchronize investment_periods_data when snapshots have a period level
+        if isinstance(sns, pd.MultiIndex):
+            self.investment_period_weightings = (
+                self.investment_period_weightings.reindex(
+                    self.periods, fill_value=1.0
+                ).astype(float)
+            )
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     @property
     def snapshots(self) -> pd.Index | pd.MultiIndex:
@@ -159,8 +176,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.timesteps][] : Get the timestep level only.
-        [pypsa.Network[] : Get the period level only.
+        [pypsa.Network.timesteps][], [pypsa.Network.periods][]
 
         Notes
         -----
@@ -191,8 +207,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Getter method
-        [pypsa.Network.set_snapshots][] : Setter method
+        [pypsa.Network.snapshots][], [pypsa.Network.set_snapshots][]
 
         """
         self.set_snapshots(snapshots)
@@ -213,8 +228,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.periods][] : Get the period level only.
+        [pypsa.Network.snapshots][], [pypsa.Network.periods][]
 
         Examples
         --------
@@ -257,7 +271,7 @@ class NetworkIndexMixin(_NetworkABC):
     def timesteps(self, timesteps: Sequence) -> None:
         """Setter for timesteps level of snapshots dimension.
 
-        .. warning::
+        !!! warning
             Setting `timesteps` is not supported. Please set `snapshots` instead.
 
         Parameters
@@ -356,6 +370,9 @@ class NetworkIndexMixin(_NetworkABC):
             self.periods, fill_value=1.0
         ).astype(float)
 
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
+
     @property
     def periods(self) -> pd.Index:
         """Periods level of snapshots dimension.
@@ -371,8 +388,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.timesteps][] : Get the timestep level only.
+        [pypsa.Network.snapshots][], [pypsa.Network.timesteps][]
 
         Examples
         --------
@@ -431,7 +447,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
+        [pypsa.Network.snapshots][]
 
         Examples
         --------
@@ -457,7 +473,8 @@ class NetworkIndexMixin(_NetworkABC):
         investment periods without timesteps are defined. Otherwise only the period
         level will be returned.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.periods`.
+        !!! note
+            Alias for [`pypsa.Network.periods`][].
 
         Returns
         -------
@@ -466,9 +483,8 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.periods][] : Get the snapshots dimension.
-        [pypsa.Network.timesteps][] : Get the timestep level only.
+        [pypsa.Network.snapshots][], [pypsa.Network.periods][],
+        [pypsa.Network.timesteps][]
 
         Examples
         --------
@@ -502,7 +518,8 @@ class NetworkIndexMixin(_NetworkABC):
     def investment_periods(self, periods: Sequence) -> None:
         """Setter for periods level of snapshots dimension.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.periods`.
+        !!! note
+            Alias for [`pypsa.Network.periods`][].
 
         Parameters
         ----------
@@ -521,7 +538,8 @@ class NetworkIndexMixin(_NetworkABC):
     def has_investment_periods(self) -> bool:
         """Check if network has investment periods assigned to snapshots dimension.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.has_periods`.
+        !!! note
+            Alias for [`pypsa.Network.has_periods`][].
 
         Returns
         -------
@@ -530,8 +548,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
-        [pypsa.Network.periods][] : Periods level of snapshots dimension.
+        [pypsa.Network.snapshots][], [pypsa.Network.periods][]
 
         Examples
         --------
@@ -599,8 +616,43 @@ class NetworkIndexMixin(_NetworkABC):
         if isinstance(df, pd.Series):
             logger.info("Applying weightings to all columns of `snapshot_weightings`")
             df = pd.DataFrame(dict.fromkeys(self._snapshots_data.columns, df))
+        df.index.name = self.snapshots.name
         df.index.names = self.snapshots.names
         self._snapshots_data = df
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
+
+    @property
+    def nyears(self) -> float | pd.Series:
+        """Return the modeled time horizon in years based on objective weightings.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns
+        -------
+        float | pd.Series
+            The modeled time horizon in years. Returns a Series indexed by investment
+            period when the network has investment periods.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(range(24))  # 24 hourly snapshots
+        >>> n.nyears  # 1/365 # doctest: +ELLIPSIS
+        np.float64(0.00273...)
+        >>> n.snapshot_weightings.loc[:, :] = 365  # weight each hour as one day
+        >>> n.nyears
+        np.float64(1.0)
+
+        """
+        if self.has_investment_periods:
+            return (
+                self.snapshot_weightings["objective"].groupby(level="period").sum()
+                / HOURS_PER_YEAR
+            )
+        return self.snapshot_weightings["objective"].sum() / HOURS_PER_YEAR
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
@@ -649,6 +701,9 @@ class NetworkIndexMixin(_NetworkABC):
             )
             df = pd.DataFrame(dict.fromkeys(self._investment_periods_data.columns, df))
         self._investment_periods_data = df
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     # -----------
     # Scenarios
@@ -730,6 +785,9 @@ class NetworkIndexMixin(_NetworkABC):
                 )
 
         self._scenarios_data = scenarios_.to_frame()
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     @property
     def scenarios(self) -> pd.Index:
@@ -820,6 +878,9 @@ class NetworkIndexMixin(_NetworkABC):
         # Store risk preferences
         self._risk_preference = {"alpha": alpha, "omega": omega}
 
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
+
     @property
     def risk_preference(self) -> dict[str, float] | None:
         """Get the risk preference parameters for the network.
@@ -853,8 +914,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network][]
-        [pypsa.Collection][]
+        [pypsa.Network][], [pypsa.NetworkCollection][]
 
         """
         return False
@@ -883,6 +943,7 @@ class NetworkIndexMixin(_NetworkABC):
         ---------------------------------------------
         Components:
          - Bus: 3
+         - Carrier: 18
          - Generator: 12
          - Load: 3
         Snapshots: 2920
@@ -893,6 +954,7 @@ class NetworkIndexMixin(_NetworkABC):
         ----------------------------------------------------
         Components:
          - Bus: 1
+         - Carrier: 6
          - Generator: 4
          - Load: 1
         Snapshots: 2920
@@ -917,9 +979,13 @@ class NetworkIndexMixin(_NetworkABC):
         for c in n.components.values():
             if not c.static.empty:
                 c.static = c.static.xs(scenario, level="scenario", axis=0)
+            else:
+                c.static.index = c.static.index.droplevel("scenario")
             for k, v in c.dynamic.items():
                 if not c.dynamic[k].empty:
                     c.dynamic[k] = v.xs(scenario, level="scenario", axis=1)
+                else:
+                    c.dynamic[k].columns = c.dynamic[k].columns.droplevel("scenario")
 
         return n
 
@@ -938,14 +1004,14 @@ class NetworkIndexMixin(_NetworkABC):
 
         Examples
         --------
-        >>> network_collection
+        >>> nc
         NetworkCollection
         -----------------
         Networks: 2
         Index name: 'network'
-        Entries: ['AC-DC-Meshed', 'Storage-HVDC']
+        Entries: ['AC-DC-Meshed', 'AC-DC-Meshed-Shuffled-Load']
 
-        >>> selected = network_collection.get_network("AC-DC-Meshed")
+        >>> selected = nc.get_network("AC-DC-Meshed")
         >>> selected
         PyPSA Network 'AC-DC-Meshed'
         ----------------------------
@@ -957,7 +1023,9 @@ class NetworkIndexMixin(_NetworkABC):
          - Line: 7
          - Link: 4
          - Load: 6
+         - SubNetwork: 3
         Snapshots: 10
+        <BLANKLINE>
 
         A network collection does not copy the selected network, but returns
         a reference to it:

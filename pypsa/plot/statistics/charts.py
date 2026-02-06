@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Chart plots based on statistics functions (like bar, line, area)."""
 
 from __future__ import annotations
@@ -19,6 +23,7 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure
 
+
 CHART_TYPES = [
     "area",
     "bar",
@@ -28,6 +33,169 @@ CHART_TYPES = [
     "violin",
     "histogram",
 ]
+
+
+def _get_periods(network: Any) -> pd.Index | None:
+    """Return investment periods for a network if multi-invest is enabled."""
+    try:
+        periods = network.periods
+    except (AttributeError, NotImplementedError):
+        # NetworkCollection and some other types don't support periods
+        return None
+
+    if periods is None or periods.empty:
+        return None
+
+    if len(periods) <= 1:
+        return None
+
+    return periods
+
+
+def adjust_collection_bar_defaults(
+    network: Any,
+    chart_type: str,
+    color: str | None,
+    stacked: bool,
+    order: Sequence[Any] | None,
+) -> tuple[str | None, bool, Sequence[Any] | None]:
+    """Return adjusted defaults for bar charts on collections and multi-period data."""
+    if chart_type != "bar":
+        return color, stacked, order
+
+    index_names = network._index_names
+
+    # Check if network has stochastic scenarios
+    has_scenarios = network.has_scenarios
+
+    # When scenarios exist, DON'T use collection indices for color
+    # (they'll be used for faceting instead), so seaborn can aggregate scenarios
+    if has_scenarios:
+        # Don't set color - leave it as default (usually 'carrier')
+        # This ensures custom_case = False and seaborn aggregates scenarios
+        pass
+    # No scenarios: use original logic for collection grouping
+    # Handle 2-level multiindex: use second level for grouped bars
+    elif len(index_names) >= 2:
+        second_index_name = index_names[1]
+        if color is None:
+            color = second_index_name
+        if stacked and color == second_index_name:
+            stacked = False
+        if order is None:
+            index_values = getattr(network, "index", None)
+            if index_values is not None and isinstance(index_values, pd.MultiIndex):
+                # Get unique values from second level
+                order = list(index_values.get_level_values(1).unique())
+    # Handle single-level index
+    elif len(index_names) == 1:
+        index_name = index_names[0]
+        if color is None:
+            color = index_name
+        if stacked and color == index_name:
+            stacked = False
+        if order is None:
+            index_values = getattr(network, "index", None)
+            if index_values is not None:
+                order = list(index_values)
+
+    periods = _get_periods(network)
+    if periods is not None:
+        period_name = periods.name or "period"
+        if color is None:
+            color = period_name
+        if stacked and color == period_name:
+            stacked = False
+        if order is None and color == period_name:
+            order = list(periods)
+
+    return color, stacked, order
+
+
+def prepare_bar_data(
+    network: Any, chart_type: str, data: pd.Series | pd.DataFrame
+) -> pd.Series | pd.DataFrame:
+    """Return data with investment-period columns stacked for bar charts."""
+    if chart_type != "bar":
+        return data
+
+    periods = _get_periods(network)
+    if periods is None:
+        return data
+
+    if isinstance(data, pd.Series):
+        period_name = periods.name or "period"
+        index_names = list(data.index.names) if data.index.names else []
+        if period_name in index_names:
+            return data
+        return data
+
+    # DataFrame case
+    columns = data.columns
+    period_name = periods.name or "period"
+
+    filled = data.fillna(0)
+
+    if isinstance(columns, pd.MultiIndex):
+        if period_name not in columns.names:
+            return data
+        stacked = filled.stack(level=period_name, future_stack=True)
+    elif (
+        columns.name == period_name
+        or columns.equals(periods)
+        or columns.astype(str).equals(periods.astype(str))
+    ):
+        stacked = filled.stack(future_stack=True)
+    else:
+        return data
+
+    if period_name in getattr(stacked.index, "names", []):
+        stacked = stacked.rename(str, level=period_name)
+
+    stacked.attrs = data.attrs
+    return stacked
+
+
+def aggregate_scenarios_for_plotly(
+    ldata: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Aggregate scenario data and calculate error bars for plotly.
+
+    Parameters
+    ----------
+    ldata : pd.DataFrame
+        Long format data with 'scenario' column
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame]
+        Aggregated data (with mean values) and full aggregated data (with std)
+
+    """
+    if "scenario" not in ldata.columns:
+        return ldata, ldata
+
+    # Group by all columns except 'scenario' and 'value'
+    groupby_cols = [col for col in ldata.columns if col not in ["scenario", "value"]]
+
+    # Calculate mean and std across scenarios
+    aggregated = ldata.groupby(groupby_cols, as_index=False).agg(
+        {"value": ["mean", "std"]}
+    )
+
+    # Flatten column names
+    aggregated.columns = groupby_cols + ["value", "value_std"]
+
+    # Fill NaN std with 0 (for cases with only one scenario)
+    aggregated["value_std"] = aggregated["value_std"].fillna(0)
+
+    # Keep the full aggregated data for error bar lookup
+    aggregated_with_std = aggregated.copy()
+
+    # Drop the std column from the main dataframe for plotting
+    aggregated = aggregated.drop(columns=["value_std"])
+
+    return aggregated, aggregated_with_std
 
 
 def facet_iter(
@@ -229,6 +397,12 @@ class ChartGenerator(PlotsGenerator, ABC):
         else:
             df = data.fillna(0).melt(ignore_index=False).reset_index()
 
+            # For multi-period networks, use timestep as snapshot since period is faceted
+            if "period" in df.columns and "timestep" in df.columns:
+                # Use timestep for x-axis; period will be used for faceting
+                df["snapshot"] = df["timestep"]
+                # Keep the original columns for potential faceting by period
+
         return df
 
     def plot(
@@ -261,11 +435,18 @@ class ChartGenerator(PlotsGenerator, ABC):
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Plot method to be implemented by subclasses."""
         self._n.consistency_check_plots(strict="all")
+        color, stacked, hue_order = adjust_collection_bar_defaults(
+            self._n, kind, color, stacked, hue_order
+        )
+
         ldata = self._to_long_format(data)
         if query:
             ldata = ldata.query(query)
         ldata = self._validate(ldata)
-        palette = self.get_carrier_colors(nice_names=nice_names)
+
+        palette = None
+        if color in (None, "carrier"):
+            palette = self.get_carrier_colors(nice_names=nice_names)
 
         # set shared axis to the one where "value" is plotted
         if sharex is None:
@@ -425,6 +606,21 @@ class ChartGenerator(PlotsGenerator, ABC):
             ldata = ldata.query(query)
         ldata = self._validate(ldata)
 
+        # Aggregate scenarios and calculate error bars for bar plots
+        # Only aggregate if we have actual stochastic scenarios (not just a column named 'scenario')
+        aggregated_with_std = None
+        has_stochastic_scenarios = self._n.has_scenarios
+
+        if kind == "bar" and "scenario" in ldata.columns and has_stochastic_scenarios:
+            ldata, aggregated_with_std = aggregate_scenarios_for_plotly(ldata)
+            # Remove 'scenario' from parameters since it's been aggregated
+            if facet_col == "scenario":
+                facet_col = None
+            if facet_row == "scenario":
+                facet_row = None
+            if color == "scenario":
+                color = None
+
         # Get carrier colors for the plot
         carrier_colors = self.get_carrier_colors(nice_names=nice_names)
 
@@ -456,9 +652,11 @@ class ChartGenerator(PlotsGenerator, ABC):
         # Prepare color mapping if color column is provided
         if color and color_discrete_map is None and color in ldata.columns:
             color_values = ldata[color].unique()
-            color_discrete_map = {
-                col: carrier_colors.get(col, "#AAAAAA") for col in color_values
-            }
+            if all(value in carrier_colors for value in color_values):
+                color_discrete_map = {
+                    value: carrier_colors.get(value, "#AAAAAA")
+                    for value in color_values
+                }
 
         # Set default title if none is provided
         if title is None:
@@ -496,6 +694,35 @@ class ChartGenerator(PlotsGenerator, ABC):
                 title=title,
                 **{k: v for k, v in kwargs.items() if k not in ["facet_col_wrap"]},
             )
+
+            # Apply error bars if we have scenarios
+            if (
+                aggregated_with_std is not None
+                and "value_std" in aggregated_with_std.columns
+            ):
+                # Match error bars to traces based on color (usually carrier)
+                # Each trace corresponds to one value of the color parameter
+                for trace in fig.data:
+                    if (
+                        hasattr(trace, "name")
+                        and trace.name
+                        and color
+                        and color in aggregated_with_std.columns
+                    ):
+                        # Filter aggregated data for this trace's color value
+                        mask = aggregated_with_std[color] == trace.name
+                        error_values = aggregated_with_std.loc[mask, "value_std"].values
+
+                        if len(error_values) > 0:
+                            # Apply error bars based on which axis has 'value'
+                            if x == "value":
+                                trace.error_x = go.bar.ErrorX(
+                                    type="data", array=error_values, visible=True
+                                )
+                            elif y == "value":
+                                trace.error_y = go.bar.ErrorY(
+                                    type="data", array=error_values, visible=True
+                                )
 
         elif kind == "line":
             fig = px.line(
@@ -556,8 +783,13 @@ class ChartGenerator(PlotsGenerator, ABC):
                 # To fix this, we need to add an artificial trace with the last value
                 # of each color and use that for the legend.
                 unique_colors = ldata[color].unique() if color else []
+                n_colors = len(unique_colors)
                 artificial_zeros = pd.DataFrame(
-                    {x: ldata[x].iloc[-1], y: np.nan, color: unique_colors}
+                    {
+                        x: [ldata[x].iloc[-1]] * n_colors,
+                        y: [np.nan] * n_colors,
+                        color: unique_colors,
+                    }
                 )
                 if facet_col:
                     artificial_zeros[facet_col] = ldata[facet_col].iloc[-1]
@@ -611,7 +843,7 @@ class ChartGenerator(PlotsGenerator, ABC):
             List of groupby columns and boolean for component aggregation
 
         """
-        filtered = ["value", "name", "snapshot"]
+        filtered = ["value", "name", "snapshot", "scenario", "period"]
         filtered_cols = [c for c in args if c not in filtered and c is not None]
 
         stats_kwargs: dict[str, str | bool | list] = {}

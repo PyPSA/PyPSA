@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Functions for importing and exporting data."""
 
 from __future__ import annotations
@@ -24,6 +28,7 @@ from pyproj import CRS
 
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
+from pypsa.consistency import check_for_unknown_buses
 from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_base__
@@ -34,9 +39,9 @@ except ImportError:
     from pathlib import Path
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
+    from typing import Self
 
     from pandapower.auxiliary import pandapowerNet
-    from typing_extensions import Self
 
     from pypsa import Network
 logger = logging.getLogger(__name__)
@@ -903,6 +908,7 @@ class _ImporterNetCDF(_Importer):
             return None
         df = pd.DataFrame()
         for attr in self.ds.data_vars.keys():
+            attr = str(attr)
             if attr.startswith(t) and attr[i : i + 2] != "t_":
                 loaded_df = self.ds[attr].to_pandas()
                 if isinstance(loaded_df, pd.DataFrame):
@@ -921,6 +927,7 @@ class _ImporterNetCDF(_Importer):
         """Get dynamic components data."""
         t = list_name + "_t_"
         for attr in self.ds.data_vars.keys():
+            attr = str(attr)
             if attr.startswith(t):
                 try:
                     df = self.ds[attr].to_pandas()
@@ -946,7 +953,7 @@ class _ExporterNetCDF(_Exporter):
 
     def __init__(
         self,
-        path: str | None,
+        path: Path | str | None,
         compression: dict | None = None,
         float32: bool = False,
     ) -> None:
@@ -1013,9 +1020,11 @@ class _ExporterNetCDF(_Exporter):
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save a dynamic components data."""
-        df = df.rename_axis(
-            index="snapshots", columns={"name": list_name + "_t_" + attr + "_i"}
-        )
+        new_col_name = list_name + "_t_" + attr + "_i"
+        if isinstance(df.columns, pd.MultiIndex):  # stochastic
+            df = df.rename_axis(index="snapshots", columns=["scenario", new_col_name])
+        else:
+            df = df.rename_axis(index="snapshots", columns=new_col_name)
         self.ds[list_name + "_t_" + attr] = df.stack(
             level=df.columns.names, future_stack=True
         ).to_xarray()
@@ -1064,9 +1073,9 @@ def _sort_attrs(
     Returns
     -------
     pandas.Index
-        ``axis_labels`` with the attributes appearing in ``attrs_list`` first and
-        in the same order. Attributes missing from ``attrs_list`` follow in their
-        original order while names not present in ``axis_labels`` are ignored.
+        `axis_labels` with the attributes appearing in `attrs_list` first and
+        in the same order. Attributes missing from `attrs_list` follow in their
+        original order while names not present in `axis_labels` are ignored.
 
     """
     if axis_labels.empty or len(attrs_list) == 0:
@@ -1091,8 +1100,10 @@ def _sort_attrs(
 class NetworkIOMixin(_NetworkABC):
     """Mixin class for network I/O methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    <!-- md:guide import-export.md -->
+
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     def _export_to_exporter(
@@ -1202,7 +1213,7 @@ class NetworkIOMixin(_NetworkABC):
         for component in self.all_components:
             c = self.components[component]
             list_name = c["list_name"]
-            attrs = c["attrs"]
+            attrs = c["defaults"]
 
             static = c.static
             dynamic = c.dynamic
@@ -1329,7 +1340,7 @@ class NetworkIOMixin(_NetworkABC):
             pypsa_version_str = str(pypsa_version)
             logger.warning(
                 "Importing network from PyPSA version v%s while current version is v%s. Read the "
-                "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
+                "release notes at `https://go.pypsa.org/release-notes` "
                 "to prepare your network for import.",
                 pypsa_version_str,
                 __version_base__,
@@ -1428,16 +1439,15 @@ class NetworkIOMixin(_NetworkABC):
     ) -> None:
         """Import network data from CSVs in a folder.
 
-        The CSVs must follow the standard form, see ``pypsa/examples``.
+        The CSVs must follow the standard form, see `pypsa/examples`.
 
         Parameters
         ----------
         path : string
             Name of folder
         encoding : str, default None
-            Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
-            standard encodings
-            <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+            Encoding to use for UTF when reading (ex. 'utf-8'). See [List of Python
+            standard encodings](https://docs.python.org/3/library/codecs.html#standard-encodings)
         quotechar : str, default '"'
             String of length 1. Character used to denote the start and end of a
             quoted item. Quoted items can include "," and it will be ignored
@@ -1456,7 +1466,7 @@ class NetworkIOMixin(_NetworkABC):
 
     def export_to_csv_folder(
         self,
-        path: str,
+        path: Path | str,
         encoding: str | None = None,
         quotechar: str = '"',
         export_standard_types: bool = False,
@@ -1466,24 +1476,23 @@ class NetworkIOMixin(_NetworkABC):
         Both static and series attributes of all components are exported, but only
         if they have non-default values.
 
-        If ``path`` does not already exist, it is created.
+        If `path` does not already exist, it is created.
 
-        ``path`` may also be a cloud object storage URI if cloudpathlib is installed.
+        `path` may also be a cloud object storage URI if cloudpathlib is installed.
 
         Static attributes are exported in one CSV file per component,
-        e.g. ``generators.csv``.
+        e.g. `generators.csv`.
 
         Series attributes are exported in one CSV file per component per
-        attribute, e.g. ``generators-p_set.csv``.
+        attribute, e.g. `generators-p_set.csv`.
 
         Parameters
         ----------
-        path : string
+        path : Path | str
             Name of folder to which to export.
         encoding : str, default None
-            Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
-            standard encodings
-            <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+            Encoding to use for UTF when reading (ex. 'utf-8'). See [List of Python
+            standard encodings](https://docs.python.org/3/library/codecs.html#standard-encodings)
         quotechar : str, default '"'
             String of length 1. Character used to quote fields.
         export_standard_types : boolean, default False
@@ -1496,9 +1505,8 @@ class NetworkIOMixin(_NetworkABC):
 
         See Also
         --------
-        export_to_netcdf : Export to a netCDF file
-        export_to_hdf5 : Export to an HDF5 file
-        export_to_excel : Export to an Excel file
+        [pypsa.Network.export_to_netcdf][], [pypsa.Network.export_to_hdf5][],
+        [pypsa.Network.export_to_excel][]
 
         """
         with _ExporterCSV(
@@ -1525,8 +1533,8 @@ class NetworkIOMixin(_NetworkABC):
         skip_time : bool, default False
             Skip reading in time dependent attributes
         engine : string, default "calamine"
-            The engine to use for reading the Excel file. See `pandas.read_excel
-            <https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html>`_
+            The engine to use for reading the Excel file. See [pandas.read_excel
+            ](https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html).
 
         Examples
         --------
@@ -1552,13 +1560,13 @@ class NetworkIOMixin(_NetworkABC):
         Both static and series attributes of all components are exported, but only
         if they have non-default values.
 
-        If ``path`` does not already exist, it is created.
+        If `path` does not already exist, it is created.
 
         Static attributes are exported in one sheet per component,
-        e.g. a sheet named ``generators``.
+        e.g. a sheet named `generators`.
 
         Series attributes are exported in one sheet per component per
-        attribute, e.g. a sheet named ``generators-p_set``.
+        attribute, e.g. a sheet named `generators-p_set`.
 
         Parameters
         ----------
@@ -1568,8 +1576,8 @@ class NetworkIOMixin(_NetworkABC):
             If True, then standard types are exported too (upon reimporting you
             should then set "ignore_standard_types" when initialising the network).
         engine : string, default "openpyxl"
-            The engine to use for writing the Excel file. See `pandas.ExcelWriter
-            <https://pandas.pydata.org/docs/reference/api/pandas.ExcelWriter.html>`_
+            The engine to use for writing the Excel file. See [pandas.ExcelWriter
+            ](https://pandas.pydata.org/docs/reference/api/pandas.ExcelWriter.html).
 
         Examples
         --------
@@ -1577,9 +1585,8 @@ class NetworkIOMixin(_NetworkABC):
 
         See Also
         --------
-        export_to_netcdf : Export to a netCDF file
-        export_to_hdf5 : Export to an HDF5 file
-        export_to_csv_folder : Export to a folder of CSVs
+        [pypsa.Network.export_to_netcdf][], [pypsa.Network.export_to_hdf5][],
+        [pypsa.Network.export_to_csv_folder][]
 
         """
         with _ExporterExcel(path, engine=engine) as exporter:
@@ -1621,7 +1628,7 @@ class NetworkIOMixin(_NetworkABC):
 
         If path does not already exist, it is created.
 
-        ``path`` may also be a cloud object storage URI if cloudpathlib is installed.
+        `path` may also be a cloud object storage URI if cloudpathlib is installed.
 
         Parameters
         ----------
@@ -1640,9 +1647,8 @@ class NetworkIOMixin(_NetworkABC):
 
         See Also
         --------
-        export_to_netcdf : Export to a netCDF file
-        export_to_csv_folder : Export to a folder of CSVs
-        export_to_excel : Export to an Excel file
+        [pypsa.Network.export_to_netcdf][], [pypsa.Network.export_to_csv_folder][],
+        [pypsa.Network.export_to_excel][]
 
         """
         kwargs.setdefault("complevel", 4)
@@ -1658,11 +1664,11 @@ class NetworkIOMixin(_NetworkABC):
     ) -> None:
         """Import network data from netCDF file or xarray Dataset at `path`.
 
-        ``path`` may also be a cloud object storage URI if cloudpathlib is installed.
+        `path` may also be a cloud object storage URI if cloudpathlib is installed.
 
         Parameters
         ----------
-        path : string|xr.Dataset
+        path : string | Path | xr.Dataset
             Path to netCDF dataset or instance of xarray Dataset.
             The string could be a URL.
         skip_time : bool, default False
@@ -1680,12 +1686,12 @@ class NetworkIOMixin(_NetworkABC):
 
     def export_to_netcdf(
         self,
-        path: str | None = None,
+        path: Path | str | None = None,
         export_standard_types: bool = False,
         compression: dict | None = None,
         float32: bool = False,
     ) -> xr.Dataset:
-        """Export network and components to a netCDF file.
+        r"""Export network and components to a netCDF file.
 
         Both static and series attributes of components are exported, but only
         if they have non-default values.
@@ -1700,7 +1706,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        path : string | None
+        path : Path | string | None
             Name of netCDF file to which to export (if it exists, it is overwritten);
             if None is passed, no file is exported and only the xarray.Dataset is returned.
         export_standard_types : boolean, default False
@@ -1709,8 +1715,8 @@ class NetworkIOMixin(_NetworkABC):
         compression : dict|None
             Compression level to use for all features which are being prepared.
             The compression is handled via xarray.Dataset.to_netcdf(...). For details see:
-            https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html
-            An example compression directive is ``{'zlib': True, 'complevel': 4}``.
+            [xarray.Dataset.to\_netcdf](https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html)
+            An example compression directive is `{'zlib': True, 'complevel': 4}`.
             The default is None which disables compression.
         float32 : boolean, default False
             If True, typecasts values to float32.
@@ -1726,9 +1732,8 @@ class NetworkIOMixin(_NetworkABC):
 
         See Also
         --------
-        export_to_hdf5 : Export to an HDF5 file
-        export_to_csv_folder : Export to a folder of CSVs
-        export_to_excel : Export to an Excel file
+        [pypsa.Network.export_to_hdf5][], [pypsa.Network.export_to_csv_folder][],
+        [pypsa.Network.export_to_excel][]
 
         """
         with _ExporterNetCDF(path, compression, float32) as exporter:
@@ -1752,12 +1757,12 @@ class NetworkIOMixin(_NetworkABC):
             A DataFrame whose index is the names of the components and
             whose columns are the non-default attributes.
         cls_name : string
-            Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
+            Name of class of component, e.g. `"Line", "Bus", "Generator", "StorageUnit"`
         overwrite : bool, default False
             If True, overwrite existing components.
 
         """
-        attrs = self.components[cls_name]["attrs"]
+        attrs = self.components[cls_name]["defaults"]
 
         static_attrs = attrs[attrs.static].drop("name")
         non_static_attrs = attrs[~attrs.static]
@@ -1796,23 +1801,6 @@ class NetworkIOMixin(_NetworkABC):
                             df[k] = gpd.GeoSeries.from_wkt(geometry)
                     else:
                         df[k] = df[k].astype(static_attrs.at[k, "typ"])
-
-        # check all the buses are well-defined
-        # TODO use func from consistency checks
-        for attr in [attr for attr in df if attr.startswith("bus")]:
-            # allow empty buses for multi-ports
-            port = int(attr[-1]) if attr[-1].isdigit() else 0
-            buses = self.c.buses.names
-            mask = ~df[attr].isin(buses)
-            if port > 1:
-                mask &= df[attr].ne("")
-            missing = df.index[mask]
-            if len(missing) > 0:
-                logger.warning(
-                    "The following %s have buses which are not defined:\n%s",
-                    cls_name,
-                    missing,
-                )
 
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
         old_static = self.c[cls_name].static
@@ -1875,6 +1863,9 @@ class NetworkIOMixin(_NetworkABC):
 
         self.components[cls_name].dynamic = dynamic
 
+        # Run consistency checks
+        check_for_unknown_buses(self, self.c[cls_name])
+
     def _import_series_from_df(
         self,
         df: pd.DataFrame,
@@ -1887,7 +1878,7 @@ class NetworkIOMixin(_NetworkABC):
         Parameters
         ----------
         df : pandas.DataFrame
-            A DataFrame whose index is ``n.snapshots`` and
+            A DataFrame whose index is `n.snapshots` and
             whose columns are a subset of the relevant components.
         cls_name : string
             Name of class of component
@@ -1925,7 +1916,7 @@ class NetworkIOMixin(_NetworkABC):
             )
 
         # Get all attributes for the component
-        attrs = self.components[cls_name]["attrs"]
+        attrs = self.components[cls_name]["defaults"]
 
         # Add all unknown attributes to the dataframe without any checks
         expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
@@ -2405,7 +2396,7 @@ class NetworkIOMixin(_NetworkABC):
             )
         d["Transformer"] = d["Transformer"].fillna(0)
 
-        # documented at https://pypsa.readthedocs.io/en/latest/components.html#shunt-impedance
+        # documented at https://docs.pypsa.org/latest/user-guide/components/shunt-impedances
         g_shunt = net.shunt.p_mw.values / net.shunt.vn_kv.values**2
         b_shunt = net.shunt.q_mvar.values / net.shunt.vn_kv.values**2
 

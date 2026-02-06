@@ -1,3 +1,9 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+exclude: ^(docs/hooks|examples)
+
 ci:
   autoupdate_schedule: quarterly
 
@@ -7,11 +13,13 @@ repos:
   hooks:
   - id: check-added-large-files
     args: ['--maxkb=2000']
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
 
 # Run ruff to lint and format
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: v0.13.3
+  rev: v0.14.10
   hooks:
     # Run the linter.
   - id: ruff
@@ -42,3 +50,9 @@ repos:
   hooks:
   - id: pretty-format-yaml
     args: [--autofix, --indent, '2', --preserve-quotes]
+
+# Check for FSFE REUSE compliance (licensing)
+- repo: https://github.com/fsfe/reuse-tool
+  rev: v6.2.0
+  hooks:
+  - id: reuse-lint-file

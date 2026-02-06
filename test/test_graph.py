@@ -1,4 +1,7 @@
-#!/usr/bin/env python3
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """
 Created on Wed May  6 12:00:00 2025
 

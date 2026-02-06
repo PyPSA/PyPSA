@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Groupers for PyPSA statistics.
 
 Use them via the groupers instance via `pypsa.statistics.groupers`. Do not use the
@@ -68,12 +72,7 @@ class Groupers:
             return component_series.map(mapping_series)
 
     def __repr__(self) -> str:
-        """Return a string representation of the grouper container.
-
-        Returns
-        -------
-        str
-            String representation.
+        """Get representation of the grouper container.
 
         Examples
         --------
@@ -265,9 +264,12 @@ class Groupers:
         fall_back = pd.Series("", index=static.index)
         carrier_series = static.get("carrier", fall_back).rename("carrier")
         if nice_names:
-            carrier_series = carrier_series.replace(
-                n.c.carriers.static.nice_name[lambda ds: ds != ""]
-            ).replace("", "-")
+            carrier_nice_name = n.c.carriers.static.nice_name[lambda ds: ds != ""]
+            carrier_series = (
+                self._map_with_multiindex(carrier_series, carrier_nice_name)
+                .fillna(carrier_series)
+                .replace("", "-")
+            )
         return carrier_series
 
     def bus_carrier(

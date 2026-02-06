@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Abstract network module.
 
 Only defines a base class for all Network mixin classes which inherit to

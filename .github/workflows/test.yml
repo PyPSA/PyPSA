@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 name: Tests
 
 on:
@@ -6,7 +10,7 @@ on:
     - master
     - release-branch-v*
   pull_request:
-    branches: ['*']
+    branches: ["*"]
   schedule:
   - cron: "0 5 * * *"
 
@@ -21,7 +25,7 @@ jobs:
     name: Build and verify package
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0   # Needed for setuptools_scm
     - uses: hynek/build-and-inspect-python-package@v2
@@ -51,11 +55,11 @@ jobs:
           api: new_api
 
     env:
-      MPLBACKEND: Agg  # https://github.com/orgs/community/discussions/26434
+      MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
-        fetch-depth: 0 # Needed for setuptools_scm
+        fetch-depth: 0   # Needed for setuptools_scm
 
     - name: Set up Python ${{ matrix.python-version }} on ${{ matrix.os }}
       uses: actions/setup-python@v6
@@ -72,7 +76,90 @@ jobs:
         brew install hdf5
 
     - name: Download package
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
+      with:
+        name: Packages
+        path: dist
+
+    - name: Install package and dependencies
+      if: matrix.python-version != '3.14'
+      run: |
+        python -m pip install uv
+        uv sync --all-extras --no-install-project
+        uv pip install "$(ls dist/*.whl)"
+
+    - name: Install package and dependencies (Python 3.14)
+      if: matrix.python-version == '3.14'
+      run: |
+        python -m pip install uv
+        uv sync --extra dev --no-install-project
+        uv pip install "$(ls dist/*.whl)"
+
+    - name: Run unit tests (old API)
+      if: matrix.api == 'default'
+      run: >
+        uv run pytest  --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results
+        --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
+        && uv run coverage xml
+
+    - name: Run unit tests (new API)
+      if: matrix.api == 'new_api'
+      run: >
+        uv run pytest
+        --new-components-api
+        --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results
+        --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
+        && uv run coverage xml
+
+    - name: Upload artifacts
+      if: matrix.api == 'default' && matrix.os == 'macos-latest' && matrix.python-version == '3.13'
+      uses: actions/upload-artifact@v6
+      with:
+        name: results-plotting
+        path: |
+          mpl-results
+        retention-days: 14
+        if-no-files-found: ignore
+
+    - name: Upload code coverage report
+      if: ${{ !cancelled() }}
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        flags: >
+          unit-tests,
+          os-${{ matrix.os }},
+          python${{ matrix.python-version }},
+          api-${{ matrix.api }}
+
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      uses: codecov/test-results-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        flags: >
+          unit-tests,
+          os-${{ matrix.os }},
+          python${{ matrix.python-version }},
+          api-${{ matrix.api }}
+
+  check-docs:
+    name: Check docs
+    needs: [build]
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0   # Needed for setuptools_scm
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v6
+      with:
+        python-version: 3.13
+
+    - name: Download package
+      uses: actions/download-artifact@v7
       with:
         name: Packages
         path: dist
@@ -83,37 +170,34 @@ jobs:
         uv sync --all-extras --no-install-project
         uv pip install "$(ls dist/*.whl)"
 
-    - name: Run unit tests (old API)
-      if: matrix.api == 'default'
-      run: |
-        uv run pytest --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results --cov=pypsa
-        uv run coverage xml
-
-    - name: Upload artifacts
-      if: matrix.api == 'default' && matrix.os == 'macos-latest' && matrix.python-version == '3.13'
-      uses: actions/upload-artifact@v4
-      with:
-        name: results-plotting
-        path: |
-          mpl-results
-        retention-days: 14
-        if-no-files-found: ignore
-
-    - name: Run unit tests (new API)
-      if: matrix.api == 'new_api'
-      run: |
-        uv run pytest --new-components-api
-
-    - name: Run unit tests (new API)
-      if: matrix.api == 'new_api'
-      run: |
-        uv run pytest --new-components-api
+    - name: Run doc tests
+      run: >
+        uv run pytest
+        test/test_docs.py --test-docs
+        --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
+        && uv run coverage xml
 
     - name: Upload code coverage report
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+      if: ${{ !cancelled() }}
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        flags: >
+          doc-tests,
+          os-ubuntu-latest,
+          python3.13,
+          api-old-api
+
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      uses: codecov/test-results-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        flags: >
+          doc-tests,
+          os-ubuntu-latest,
+          python3.13,
+          api-old-api
 
   check-types:
     name: Check types
@@ -121,17 +205,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
-        fetch-depth: 0 # Needed for setuptools_scm
+        fetch-depth: 0   # Needed for setuptools_scm
 
-    - name: Set up Python 3.12
+    - name: Set up Python 3.13
       uses: actions/setup-python@v6
       with:
-        python-version: 3.12
+        python-version: 3.13
 
     - name: Download package
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: Packages
         path: dist

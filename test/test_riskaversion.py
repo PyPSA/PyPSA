@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pytest
 from numpy.testing import assert_array_almost_equal as almost_equal
 
@@ -282,7 +286,7 @@ def test_cvar_with_quadratic_opex_raises():
     """Ensure we fail fast when CVaR is enabled together with quadratic marginal costs.
 
     The guard should raise a ValueError with a clear message before model solve
-    when ``marginal_cost_quadratic`` terms are present (unsupported with CVaR).
+    when `marginal_cost_quadratic` terms are present (unsupported with CVaR).
     """
     import pandas as pd
 
@@ -347,3 +351,28 @@ def test_objective_includes_standby_cost_for_committable():
     assert status == "ok"
     assert cond == "optimal"
     assert n.objective == 506.0  # 10*50 + 5 + 1
+
+
+def test_cvar_with_zero_opex(toy_network):
+    """Test CVaR optimization works when all components have zero marginal costs.
+
+    Regression test for bug where CVaR failed with IndexError when opex_terms was empty.
+    """
+    n = toy_network.copy()
+    # Remove all generators with non-zero marginal cost
+    n.remove("Generator", "load shedding")
+    n.remove("Generator", "gas")
+
+    # Stochastic setup + CVaR
+    n.set_scenarios(["scenario_1", "scenario_2"])
+    n.set_risk_preference(alpha=0.5, omega=0.5)
+
+    # This should not raise IndexError
+    status, cond = n.optimize(log_to_console=False, solver_name="highs")
+    assert status == "ok"
+    assert cond == "optimal"
+
+    # Verify CVaR constraints exist
+    assert "CVaR-def" in n.model.constraints
+    for s in n.scenarios:
+        assert f"CVaR-excess-{s}" in n.model.constraints

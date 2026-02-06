@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Map plots for network objects."""
 
 from __future__ import annotations
@@ -280,7 +284,7 @@ class MapPlotter:
         projection: Any = None,
         geomap: bool = True,
         geomap_resolution: Literal["10m", "50m", "110m"] = "50m",
-        geomap_colors: dict | bool | None = None,
+        geomap_color: dict | bool | None = None,
         boundaries: tuple[float, float, float, float] | None = None,
         title: str = "",
     ) -> None:
@@ -296,7 +300,7 @@ class MapPlotter:
             Whether to add geographic features
         geomap_resolution : {'10m', '50m', '110m'}, default '50m'
             Resolution of geographic features
-        geomap_colors : dict or bool, optional
+        geomap_color : dict or bool, optional
             Colors for geographic features
         boundaries : tuple[float, float, float, float], optional
             Plot boundaries as [xmin, xmax, ymin, ymax]
@@ -347,11 +351,11 @@ class MapPlotter:
                 pd.Series(y, self.y.index),
             )
 
-            if geomap_colors is not False:
-                if geomap_colors is None:
-                    geomap_colors = {}
-                if isinstance(geomap_colors, dict):
-                    self.add_geomap_features(geomap_resolution, geomap_colors)
+            if geomap_color is not False:
+                if geomap_color is None:
+                    geomap_color = {}
+                if isinstance(geomap_color, dict):
+                    self.add_geomap_features(geomap_resolution, geomap_color)
                 else:
                     self.add_geomap_features(geomap_resolution)
 
@@ -378,7 +382,7 @@ class MapPlotter:
     def add_geomap_features(
         self,
         resolution: Literal["10m", "50m", "110m"] = "50m",
-        geomap_colors: dict | None = None,
+        geomap_color: dict | None = None,
     ) -> None:
         """Add geographic features to the map using cartopy.
 
@@ -386,7 +390,7 @@ class MapPlotter:
         ----------
         resolution : {'10m', '50m', '110m'}, default '50m'
             Resolution of geographic features
-        geomap_colors : dict, optional
+        geomap_color : dict, optional
             Colors for geographic features. Keys can include:
             - 'ocean': color for ocean areas
             - 'land': color for land areas
@@ -410,36 +414,36 @@ class MapPlotter:
             msg = "Resolution has to be one of '10m', '50m', '110m'"
             raise ValueError(msg)
 
-        if geomap_colors is None:
-            geomap_colors = {
+        if geomap_color is None:
+            geomap_color = {
                 "ocean": "lightblue",
                 "land": "whitesmoke",
                 "border": "darkgray",
                 "coastline": "black",
             }
 
-        if "land" in geomap_colors:
+        if "land" in geomap_color:
             self.ax.add_feature(
                 cartopy.feature.LAND.with_scale(resolution),
-                facecolor=geomap_colors["land"],
+                facecolor=geomap_color["land"],
             )
 
-        if "ocean" in geomap_colors:
+        if "ocean" in geomap_color:
             self.ax.add_feature(
                 cartopy.feature.OCEAN.with_scale(resolution),
-                facecolor=geomap_colors["ocean"],
+                facecolor=geomap_color["ocean"],
             )
 
         self.ax.add_feature(
             cartopy.feature.BORDERS.with_scale(resolution),
             linewidth=0.3,
-            edgecolor=geomap_colors.get("border", "black"),
+            edgecolor=geomap_color.get("border", "black"),
         )
 
         self.ax.add_feature(
             cartopy.feature.COASTLINE.with_scale(resolution),
             linewidth=0.3,
-            edgecolor=geomap_colors.get("coastline", "black"),
+            edgecolor=geomap_color.get("coastline", "black"),
         )
 
     def get_multiindex_buses(
@@ -901,41 +905,58 @@ class MapPlotter:
         """
         return abs(flow) ** 0.5 * width_factor
 
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        bus_sizes="bus_size",
+        bus_colors="bus_color",
+        bus_split_circles="bus_split_circle",
+        branch_colors="branch_color",
+        branch_widths="branch_width",
+        arrow_colors="arrow_color",
+        geomap_colors="geomap_color",
+        line_colors="line_color",
+        line_widths="line_width",
+        link_colors="link_color",
+        link_widths="link_width",
+        transformer_colors="transformer_color",
+        transformer_widths="transformer_width",
+    )
     def draw_map(  # noqa: D417
         self,
         ax: Axes | None = None,
         projection: Any = None,
         geomap: bool = True,
         geomap_resolution: Literal["10m", "50m", "110m"] = "50m",
-        geomap_colors: dict | bool | None = None,
+        geomap_color: dict | bool | None = None,
         title: str = "",
         boundaries: tuple[float, float, float, float] | None = None,
         branch_components: list | set | None = None,
-        bus_sizes: float | dict | pd.Series = 2e-2,
-        bus_split_circles: bool = False,
-        bus_colors: str | dict | pd.Series = None,
+        bus_size: float | dict | pd.Series = 2e-2,
+        bus_split_circle: bool = False,
+        bus_color: str | dict | pd.Series = None,
         bus_cmap: str | mcolors.Colormap | None = None,
         bus_cmap_norm: mcolors.Normalize | None = None,
         bus_alpha: float | dict | pd.Series = 1,
         geometry: bool = False,
         line_flow: float | str | Callable | dict | pd.Series = None,
-        line_colors: str | dict | pd.Series = "rosybrown",
+        line_color: str | dict | pd.Series = "rosybrown",
         line_cmap: str | mcolors.Colormap = "viridis",
         line_cmap_norm: mcolors.Normalize | None = None,
         line_alpha: float | dict | pd.Series = 1,
-        line_widths: float | dict | pd.Series = 1.5,
+        line_width: float | dict | pd.Series = 1.5,
         link_flow: float | str | Callable | dict | pd.Series = None,
-        link_colors: str | dict | pd.Series = "darkseagreen",
+        link_color: str | dict | pd.Series = "darkseagreen",
         link_cmap: str | mcolors.Colormap = "viridis",
         link_cmap_norm: mcolors.Normalize | None = None,
         link_alpha: float | dict | pd.Series = 1,
-        link_widths: float | dict | pd.Series = 1.5,
+        link_width: float | dict | pd.Series = 1.5,
         transformer_flow: float | str | Callable | dict | pd.Series = None,
-        transformer_colors: str | dict | pd.Series = "orange",
+        transformer_color: str | dict | pd.Series = "orange",
         transformer_cmap: str | mcolors.Colormap = "viridis",
         transformer_cmap_norm: mcolors.Normalize | None = None,
         transformer_alpha: float | dict | pd.Series = 1,
-        transformer_widths: float | dict | pd.Series = 1.5,
+        transformer_width: float | dict | pd.Series = 1.5,
         auto_scale_branches: bool = True,
     ) -> dict:
         """Plot the network buses and lines using matplotlib and cartopy.
@@ -958,7 +979,7 @@ class MapPlotter:
             Define the projection of your geomap, only valid if cartopy is
             installed. If None (default) is passed the projection for cartopy
             is set to cartopy.crs.PlateCarree
-        geomap_colors : dict/bool, default None
+        geomap_color : dict/bool, default None
             Specify colors to paint land and sea areas in.
             If True, it defaults to `{'ocean': 'lightblue', 'land': 'whitesmoke'}`.
             If no dictionary is provided, colors are white.
@@ -967,21 +988,21 @@ class MapPlotter:
             Graph title
         branch_components : list, default n.branch_components
             Branch components to be plotted
-        bus_sizes : float/dict/pandas.Series
+        bus_size : float/dict/pandas.Series
             Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
             the function will draw pies for each bus (first index level) with
             segments of different color (second index level). Such a Series is ob-
             tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
-        bus_split_circles : bool, default False
-            Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
+        bus_split_circle : bool, default False
+            Draw half circles if bus_size is a pandas.Series with a Multiindex.
             If set to true, the upper half circle per bus then includes all positive values
             of the series, the lower half circle all negative values. Defaults to False.
-        bus_colors : str/dict/pandas.Series
-            Colors for the buses, defaults to "cadetblue". If bus_sizes is a
-            pandas.Series with a Multiindex, bus_colors defaults to the
+        bus_color : str/dict/pandas.Series
+            Colors for the buses, defaults to "cadetblue". If bus_size is a
+            pandas.Series with a Multiindex, bus_color defaults to the
             n.carriers['color'] column.
         bus_cmap : mcolors.Colormap/str
-            If bus_colors are floats, this color map will assign the colors
+            If bus_color are floats, this color map will assign the colors
         bus_cmap_norm : mcolors.Normalize
             The norm applied to the bus_cmap
         bus_alpha : float/dict/pandas.Series
@@ -1008,48 +1029,46 @@ class MapPlotter:
             function names). Otherwise flows can be specified by passing a pandas
             Series. Use the corresponding width argument to adjust size of the
             flow arrows.
-        line_colors : str/pandas.Series
+        line_color : str/pandas.Series
             Colors for the lines, defaults to 'rosybrown'.
         line_cmap : mcolors.Colormap/str|dict
-            If line_colors are floats, this color map will assign the colors.
+            If line_color are floats, this color map will assign the colors.
         line_cmap_norm : mcolors.Normalize
             The norm applied to the line_cmap.
         line_alpha : str/pandas.Series
             Alpha for the lines, defaults to 1.
-        line_widths : dict/pandas.Series
+        line_width : dict/pandas.Series
             Widths of lines, defaults to 1.5
         link_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
             Flow to be for each link branch. See line_flow for more information.
-        link_colors : str/pandas.Series
+        link_color : str/pandas.Series
             Colors for the links, defaults to 'darkseagreen'.
         link_cmap : mcolors.Colormap/str|dict
-            If link_colors are floats, this color map will assign the colors.
+            If link_color are floats, this color map will assign the colors.
         link_cmap_norm : mcolors.Normalize|matplotlib.colors.*Norm
             The norm applied to the link_cmap.
         link_alpha : str/pandas.Series
             Alpha for the links, defaults to 1.
-        link_widths : dict/pandas.Series
+        link_width : dict/pandas.Series
             Widths of links, defaults to 1.5
         transformer_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
             Flow to be for each transformer branch. See line_flow for more information.
-        transformer_colors : str/pandas.Series
+        transformer_color : str/pandas.Series
             Colors for the transfomer, defaults to 'orange'.
         transformer_cmap : mcolors.Colormap/str|dict
-            If transformer_colors are floats, this color map will assign the colors.
+            If transformer_color are floats, this color map will assign the colors.
         transformer_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
             The norm applied to the transformer_cmap.
         transformer_alpha : str/pandas.Series
             Alpha for the transfomer, defaults to 1.
-        transformer_widths : dict/pandas.Series
+        transformer_width : dict/pandas.Series
             Widths of transformer, defaults to 1.5
 
-        .. deprecated:: 0.28.0
-            `flow` will be deprecated, use `line_flow`, `link_flow` and `transformer_flow`
-                instead. The argument will be passed to all branches.
-            `bus_norm`, `line_norm`, `link_norm` and `transformer_norm` are deprecated,
-                use `bus_cmap_norm`, `line_cmap_norm`, `link_cmap_norm` and
-                `transformer_cmap_norm` instead.
-            `color_geomap` is deprecated, use `geomap_colors` instead.
+        !!! warning "Deprecated in <!-- md:badge-version v0.28.0 -->"
+
+            - `flow` will be deprecated, use `line_flow`, `link_flow` and `transformer_flow` instead. The argument will be passed to all branches.
+            - `bus_norm`, `line_norm`, `link_norm` and `transformer_norm` are deprecated, use `bus_cmap_norm`, `line_cmap_norm`, `link_cmap_norm` and `transformer_cmap_norm` instead.
+            - `color_geomap` is deprecated, use `geomap_color` instead.
 
         Returns
         -------
@@ -1074,7 +1093,7 @@ class MapPlotter:
             projection=projection,
             geomap=geomap,
             geomap_resolution=geomap_resolution,
-            geomap_colors=geomap_colors,
+            geomap_color=geomap_color,
             title=title,
             boundaries=boundaries,
         )
@@ -1088,55 +1107,55 @@ class MapPlotter:
             logger.warning("Cartopy needs to be installed to use `geomap=True`.")
             geomap = False
 
-        # Check if bus_sizes is a MultiIndex
-        multindex_buses = isinstance(bus_sizes, pd.Series) and isinstance(
-            bus_sizes.index, pd.MultiIndex
+        # Check if bus_size is a MultiIndex
+        multindex_buses = isinstance(bus_size, pd.Series) and isinstance(
+            bus_size.index, pd.MultiIndex
         )
 
         # Apply default values
-        if bus_colors is None:
+        if bus_color is None:
             if multindex_buses:
-                bus_colors = n.c.carriers.static.color
+                bus_color = n.c.carriers.static.color
             else:
-                bus_colors = "cadetblue"
+                bus_color = "cadetblue"
 
         # Format different input types
-        bus_colors = _convert_to_series(bus_colors, n.c.buses.static.index)
-        bus_sizes = _convert_to_series(bus_sizes, n.c.buses.static.index)
+        bus_color = _convert_to_series(bus_color, n.c.buses.static.index)
+        bus_size = _convert_to_series(bus_size, n.c.buses.static.index)
 
         # Add missing colors
         # TODO: This is not consistent, since for multiindex a ValueError is raised
         if not multindex_buses:
-            bus_colors = bus_colors.reindex(n.c.buses.static.index)
+            bus_color = bus_color.reindex(n.c.buses.static.index)
 
         # Raise additional ValueErrors after formatting
         if multindex_buses:
             if (
-                len(bus_sizes.index.unique(level=0).difference(n.c.buses.static.index))
+                len(bus_size.index.unique(level=0).difference(n.c.buses.static.index))
                 != 0
             ):
                 msg = "The first MultiIndex level of sizes must contain buses"
                 raise ValueError(msg)
-            if not bus_sizes.index.unique(level=1).isin(bus_colors.index).all():
+            if not bus_size.index.unique(level=1).isin(bus_color.index).all():
                 msg = "Colors not defined for all elements in the second MultiIndex "
                 "level of sizes, please make sure that all the elements are "
                 "included in colors or in n.c.carriers.static.color"
                 raise ValueError(msg)
 
         # Apply all cmaps
-        bus_colors = apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
+        bus_color = apply_cmap(bus_color, bus_cmap, bus_cmap_norm)
 
         # Plot buses
-        bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
+        bus_size = bus_size.sort_index(level=0, sort_remaining=False)
         if geomap:
-            bus_sizes = bus_sizes * self.area_factor**2
-        if isinstance(bus_sizes.index, pd.MultiIndex):
+            bus_size = bus_size * self.area_factor**2
+        if isinstance(bus_size.index, pd.MultiIndex):
             patches: list[Circle] | list[Wedge]
             patches = self.get_multiindex_buses(
-                bus_sizes, bus_colors, bus_alpha, bus_split_circles
+                bus_size, bus_color, bus_alpha, bus_split_circle
             )
         else:
-            patches = self.get_singleindex_buses(bus_sizes, bus_colors, bus_alpha)
+            patches = self.get_singleindex_buses(bus_size, bus_color, bus_alpha)
         bus_collection = PatchCollection(patches, match_original=True, zorder=5)
         self.ax.add_collection(bus_collection)
 
@@ -1152,22 +1171,22 @@ class MapPlotter:
                 continue
             # Get branch collection
             if c.name == "Line":
-                widths = line_widths
-                colors = line_colors
+                widths = line_width
+                colors = line_color
                 alpha = line_alpha
                 flow = self._flow_ds_from_arg(line_flow, c.name)
                 cmap = line_cmap
                 cmap_norm = line_cmap_norm
             elif c.name == "Link":
-                widths = link_widths
-                colors = link_colors
+                widths = link_width
+                colors = link_color
                 alpha = link_alpha
                 flow = self._flow_ds_from_arg(link_flow, c.name)
                 cmap = link_cmap
                 cmap_norm = link_cmap_norm
             elif c.name == "Transformer":
-                widths = transformer_widths
-                colors = transformer_colors
+                widths = transformer_width
+                colors = transformer_color
                 alpha = transformer_alpha
                 flow = self._flow_ds_from_arg(transformer_flow, c.name)
                 cmap = transformer_cmap
@@ -1215,18 +1234,26 @@ class MapPlotter:
         }
 
 
-@deprecated_kwargs(
-    bus_norm="bus_cmap_norm",
-    line_norm="line_cmap_norm",
-    link_norm="link_cmap_norm",
-    transformer_norm="transformer_cmap_norm",
-    color_geomap="geomap_colors",
-    deprecated_in="0.34",
-    removed_in="1.0",
-)
 @wraps(
     MapPlotter.draw_map,
     assigned=("__doc__", "__annotations__", "__type_params__"),
+)
+@deprecated_kwargs(
+    deprecated_in="1.0",
+    removed_in="2.0",
+    bus_sizes="bus_size",
+    bus_colors="bus_color",
+    bus_split_circles="bus_split_circle",
+    branch_colors="branch_color",
+    branch_widths="branch_width",
+    arrow_colors="arrow_color",
+    geomap_colors="geomap_color",
+    line_colors="line_color",
+    line_widths="line_width",
+    link_colors="link_color",
+    link_widths="link_width",
+    transformer_colors="transformer_color",
+    transformer_widths="transformer_width",
 )
 def plot(  # noqa: D103
     n: Network,
@@ -1237,7 +1264,7 @@ def plot(  # noqa: D103
     projection: Any = None,
     geomap: bool | str = True,
     geomap_resolution: Literal["10m", "50m", "110m"] = "50m",
-    geomap_colors: dict | bool | None = None,
+    geomap_color: dict | bool | None = None,
     title: str = "",
     jitter: float | None = None,
     **kwargs: Any,
@@ -1250,13 +1277,13 @@ def plot(  # noqa: D103
         )
         margin = 0.05
 
-    bus_sizes = kwargs.get("bus_sizes")
-    multindex_buses = isinstance(bus_sizes, pd.Series) and isinstance(
-        bus_sizes.index, pd.MultiIndex
+    bus_size = kwargs.get("bus_size")
+    multindex_buses = isinstance(bus_size, pd.Series) and isinstance(
+        bus_size.index, pd.MultiIndex
     )
-    if isinstance(bus_sizes, pd.Series):
+    if isinstance(bus_size, pd.Series):
         buses = (
-            bus_sizes.index if not multindex_buses else bus_sizes.index.unique(level=0)
+            bus_size.index if not multindex_buses else bus_size.index.unique(level=0)
         )
     else:
         buses = n.c.buses.static.index
@@ -1285,7 +1312,7 @@ def plot(  # noqa: D103
         projection=projection,
         geomap=geomap,
         geomap_resolution=geomap_resolution,
-        geomap_colors=geomap_colors,
+        geomap_color=geomap_color,
         title=title,
         **kwargs,
     )
@@ -1552,10 +1579,10 @@ def add_legend_circles(
 ) -> Legend:
     """Add a legend for reference circles.
 
-    .. warning::
-        When combining ``n.plot()`` with other plots on a geographical axis,
-        ensure ``n.plot()`` is called first or the final axis extent is set initially
-        (``ax.set_extent(boundaries, crs=crs)``) for consistent legend circle sizes.
+    !!! warning
+        When combining `n.plot()` with other plots on a geographical axis,
+        ensure `n.plot()` is called first or the final axis extent is set initially
+        (`ax.set_extent(boundaries, crs=crs)`) for consistent legend circle sizes.
 
     Parameters
     ----------
@@ -1618,10 +1645,10 @@ def add_legend_semicircles(
 ) -> Legend:
     """Add a legend for reference semi-circles.
 
-    .. warning::
-        When combining ``n.plot()`` with other plots on a geographical axis,
-        ensure ``n.plot()`` is called first or the final axis extent is set initially
-        (``ax.set_extent(boundaries, crs=crs)``) for consistent legend semicircle sizes.
+    !!! warning
+        When combining `n.plot()` with other plots on a geographical axis,
+        ensure `n.plot()` is called first or the final axis extent is set initially
+        (`ax.set_extent(boundaries, crs=crs)`) for consistent legend semicircle sizes.
 
     Parameters
     ----------

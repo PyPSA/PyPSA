@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Define common functions for plotting maps in PyPSA."""
 
 import importlib
@@ -43,6 +47,46 @@ def apply_cmap(  # noqa
     return colors
 
 
+def convert_matplotlib_color_to_plotly(
+    color: str | pd.Series | dict,
+) -> str | pd.Series | dict:
+    """Convert matplotlib color specifications to plotly-compatible formats.
+
+    Converts matplotlib-specific colors (e.g., 'k', 'C0', 'tab:blue', '0.75') to hex
+    strings. Preserves plotly-compatible formats (hex, CSS names, rgb/rgba strings).
+
+    Parameters
+    ----------
+    color : str, pd.Series, or dict
+        Color specification that might contain matplotlib formats.
+
+    Returns
+    -------
+    str, pd.Series, or dict
+        Plotly-compatible color specification.
+
+    """
+
+    def _convert_single_color(c: Any) -> Any:
+        if not isinstance(c, str):
+            return c
+        if c.startswith(("#", "rgb")):
+            return c
+        if c.lower() in mcolors.CSS4_COLORS:
+            return c
+        try:
+            return mcolors.to_hex(mcolors.to_rgb(c))
+        except (ValueError, AttributeError):
+            return c
+
+    if isinstance(color, pd.Series):
+        return color.map(_convert_single_color)
+    elif isinstance(color, dict):
+        return {k: _convert_single_color(v) for k, v in color.items()}
+    else:
+        return _convert_single_color(color)
+
+
 def as_branch_series(  # noqa
     ser: pd.Series | dict | list, arg: str, c_name: str, n: "Network"
 ) -> pd.Series:
@@ -77,7 +121,7 @@ def apply_layouter(
 ) -> Any:
     """Automatically generate bus coordinates for the network graph.
 
-    Layouting function from `networkx <https://networkx.github.io/>`_ is used to
+    Layouting function from [networkx](https://networkx.github.io/) is used to
     determine the coordinates of the buses in the network.
 
     Parameters
@@ -85,15 +129,15 @@ def apply_layouter(
     n : pypsa.Network
         Network to generate coordinates for.
     layouter : networkx.drawing.layout function, default None
-        Layouting function from `networkx <https://networkx.github.io/>`_. See
-        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+        Layouting function from [networkx](https://networkx.github.io/). See
+        [list](https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout)
         of available options. By default, coordinates are determined for a
-        `planar layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.planar_layout.html#networkx.drawing.layout.planar_layout>`_
+        [planar layout](https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.planar_layout.html#networkx.drawing.layout.planar_layout)
         if the network graph is planar, otherwise for a
-        `Kamada-Kawai layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout>`_.
+        [Kamada-Kawai layout](https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout).
     inplace : bool, default False
         Assign generated coordinates to the network bus coordinates
-        at ``n.buses[['x', 'y']]`` if True, otherwise return them.
+        at `n.buses[['x', 'y']]` if True, otherwise return them.
 
     Returns
     -------
@@ -103,8 +147,6 @@ def apply_layouter(
 
     Examples
     --------
-    >>> import pypsa
-    >>> n = pypsa.examples.ac_dc_meshed()
     >>> x, y = apply_layouter(n, layouter=nx.circular_layout)
     >>> x
     London        1.000000
@@ -419,8 +461,10 @@ def wkt_to_linestring(wkt_str: str) -> LineString:
 
     Raises
     ------
-        TypeError: if the WKT does not represent a LineString.
-        ValueError: if the string cannot be parsed.
+    TypeError
+        If the WKT does not represent a LineString.
+    ValueError
+        If the string cannot be parsed.
 
     Parameters
     ----------
@@ -442,8 +486,6 @@ def wkt_to_linestring(wkt_str: str) -> LineString:
 
 def linestring_to_pdk_path(line: LineString) -> list[list[float]]:
     """Convert a single LineString to a pydeck list of [lon, lat] coordinates for PathLayer.
-
-    Raises TypeError if input is not a LineString.
 
     Parameters
     ----------

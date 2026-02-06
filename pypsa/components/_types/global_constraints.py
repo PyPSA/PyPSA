@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Global constraints components module."""
 
 from __future__ import annotations
@@ -23,7 +27,7 @@ class GlobalConstraints(Components):
 
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     Examples
     --------

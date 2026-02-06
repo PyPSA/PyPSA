@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Use common methods for optimization problem definition with Linopy."""
 
 from __future__ import annotations
@@ -49,12 +53,20 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
     else:
         c.dynamic[attr].loc[df.index, df.columns] = df
 
-    c.dynamic[attr] = (
-        c.dynamic[attr]
-        .reindex(n.snapshots, level="snapshot", axis=0)
-        .reindex(c.names, level="name", axis=1)
-        .fillna(0.0)
-    )
+    # Reindex to match network snapshots and component names
+    result = c.dynamic[attr].reindex(n.snapshots, level="snapshot", axis=0)
+    if n.has_scenarios:
+        expected_columns = pd.MultiIndex.from_product(
+            [n.scenarios, c.names], names=["scenario", "name"]
+        )
+        result = result.reindex(columns=expected_columns)
+    else:
+        # Preserve auxiliary dimensions (e.g. contingencies), using level="name"
+        # Note that we don't have a case to preserve auxiliary dimensions
+        # with stochastic dimension currently
+        result = result.reindex(c.names, level="name", axis=1)
+
+    c.dynamic[attr] = result.fillna(0.0)
 
 
 def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:

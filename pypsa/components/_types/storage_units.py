@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Storage units components module."""
 
 from collections.abc import Sequence
@@ -21,7 +25,7 @@ class StorageUnits(Components):
 
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     Examples
     --------
@@ -37,6 +41,8 @@ class StorageUnits(Components):
         attr: str = "p_store",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for storage units.
+
+        <!-- md:badge-version v1.0.0 -->
 
         Parameters
         ----------

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pytest
 from linopy import LinearExpression
 
@@ -16,7 +20,7 @@ GROUPER_PARAMETERS = [
     False,
 ]
 KWARGS_PARAMETERS = [
-    {"at_port": True},
+    {"at_port": "all"},
     {"bus_carrier": "AC"},
     {"carrier": "AC"},
     {"nice_names": True},
@@ -174,5 +178,99 @@ def test_expressions_curtailment(prepared_network):
 def test_expressions_operation(prepared_network):
     n = prepared_network
     expr = n.optimize.expressions.operation()
+    assert isinstance(expr, LinearExpression)
+    assert expr.size > 0
+
+
+@pytest.fixture
+def non_extendable_network():
+    """Network with only non-extendable generators."""
+    import pandas as pd
+
+    import pypsa
+
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2024", periods=4, freq="h"))
+
+    n.add("Carrier", ["AC", "solar", "gas"])
+    n.add("Bus", "bus0", carrier="AC")
+    n.add(
+        "Generator",
+        "solar0",
+        bus="bus0",
+        p_nom=100,
+        p_nom_extendable=False,
+        marginal_cost=0,
+        capital_cost=1000,
+        carrier="solar",
+        p_max_pu=[1.0, 0.8, 0.6, 0.4],
+    )
+    n.add(
+        "Generator",
+        "gas0",
+        bus="bus0",
+        p_nom=100,
+        p_nom_extendable=False,
+        marginal_cost=50,
+        capital_cost=500,
+        carrier="gas",
+    )
+    n.add("Load", "load0", bus="bus0", p_set=[50, 50, 50, 50])
+
+    n.optimize.create_model()
+    return n
+
+
+def test_curtailment_non_extendable_generators(non_extendable_network):
+    """Test curtailment expression works with only non-extendable generators."""
+    n = non_extendable_network
+    curtailment_expr = n.optimize.expressions.curtailment(
+        components=["Generator"], groupby_time=False
+    )
+    assert isinstance(curtailment_expr, LinearExpression)
+    assert curtailment_expr.size > 0, (
+        "Curtailment expression should not be empty for non-extendable generators"
+    )
+
+
+def test_capacity_non_extendable_generators(non_extendable_network):
+    """Test capacity expression works with only non-extendable generators."""
+    n = non_extendable_network
+    capacity_expr = n.optimize.expressions.capacity(components=["Generator"])
+    assert isinstance(capacity_expr, LinearExpression)
+    # For constant-only expressions (no variables), size=0 but const has values
+    assert len(capacity_expr.dims) > 0, (
+        "Capacity expression should have dimensions for non-extendable generators"
+    )
+    # Verify the constants are present (p_nom values: 100 for each generator)
+    assert (capacity_expr.const > 0).any(), (
+        "Capacity expression should have non-zero constant values"
+    )
+
+
+def test_capex_non_extendable_generators(non_extendable_network):
+    """Test capex expression works with only non-extendable generators."""
+    n = non_extendable_network
+    capex_expr = n.optimize.expressions.capex(components=["Generator"])
+    assert isinstance(capex_expr, LinearExpression)
+    # For constant-only expressions (no variables), size=0 but const has values
+    assert len(capex_expr.dims) > 0, (
+        "Capex expression should have dimensions for non-extendable generators"
+    )
+    # Verify the constants are present (p_nom * capital_cost)
+    assert (capex_expr.const > 0).any(), (
+        "Capex expression should have non-zero constant values"
+    )
+
+
+def test_concrete_at_port(prepared_network):
+    n = prepared_network
+    n.links["efficiency"] = 0.9
+    expr = n.optimize.expressions.capacity("Link", at_port=["bus1", "bus2"])
+    assert isinstance(expr, LinearExpression)
+    assert expr.size > 0
+    assert (expr.coeffs == 0.9).all().item()
+
+    expr = n.optimize.expressions.capacity("Link", at_port="all")
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0

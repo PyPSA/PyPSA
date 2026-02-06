@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Array module of PyPSA components.
 
 Contains logic to combine static and dynamic pandas DataFrames to single xarray
@@ -11,12 +15,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
-import xarray
+import xarray as xr
 
 from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index, list_as_string
 from pypsa.components.abstract import _ComponentsABC
-from pypsa.guards import _as_xarray_guard
+from pypsa.guards import _assert_xarray_integrity
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -24,7 +28,7 @@ if TYPE_CHECKING:
     from pypsa import Components
 
 
-def _from_xarray(da: xarray.DataArray, c: Components) -> pd.DataFrame | pd.Series:
+def _from_xarray(da: xr.DataArray, c: Components) -> pd.DataFrame | pd.Series:
     """Convert component attribute xarray view back to pandas dataframe or series.
 
     Based on the dimensions the method returns the pandas format as stored in Network:
@@ -105,41 +109,96 @@ class _XarrayAccessor:
     """Accessor class that provides property-like xarray access to all attributes.
 
     Attributes are lazy evaluated via _as_xarray method of the component.
+    Supports both attribute access (c.da.p_max_pu) and item access (c.da['p_max_pu']).
     """
 
+    # Use __slots__ to reduce memory footprint (no __dict__ and no dynamic attributes)
+    __slots__ = ("_component",)
+
     def __init__(self, component: ComponentsArrayMixin) -> None:
-        self._component = component
+        object.__setattr__(self, "_component", component)
 
-    def __getattr__(self, attr: str) -> xarray.DataArray:
+    def _get_component(self) -> ComponentsArrayMixin:
+        """Safely get the component reference to avoid recursion during unpickling."""
+        return object.__getattribute__(self, "_component")
+
+    def _get_array(self, attr: str) -> xr.DataArray:
+        """Get an xarray DataArray for the specified attribute."""
+        component = self._get_component()
         try:
-            return self._component._as_xarray(attr=attr)
+            return component._as_xarray(attr=attr)
         except AttributeError as e:
-            msg = (
-                f"'{self._component.__class__.__name__}' components has no "
-                "attribute '{attr}'"
-            )
+            msg = f"'{component.__class__.__name__}' components has no attribute '{attr}'."
             raise AttributeError(msg) from e
 
-    def __getitem__(self, attr: str) -> xarray.DataArray:
-        try:
-            return self._component._as_xarray(attr=attr)
-        except AttributeError as e:
-            msg = (
-                f"'{self._component.__class__.__name__}' components has no "
-                "attribute '{attr}'"
-            )
-            raise AttributeError(msg) from e
+    def __getattr__(self, attr: str) -> xr.DataArray:
+        """Access component attributes as xarray DataArrays via dot notation."""
+        return self._get_array(attr)
+
+    def __getitem__(self, attr: str) -> xr.DataArray:
+        """Access component attributes as xarray DataArrays via bracket notation."""
+        return self._get_array(attr)
+
+    def __dir__(self) -> list[str]:
+        """List available attributes for tab-completion."""
+        component = self._get_component()
+        # Include all static and dynamic attributes
+        attrs = set(component.static.columns)
+        attrs.update(component.dynamic.keys())
+        return sorted(attrs)
+
+    def __str__(self) -> str:
+        """Get string representation of the xarray accessor."""
+        component = self._get_component()
+        return f"'{component.ctype.name}' XarrayAccessor"
+
+    def __repr__(self) -> str:
+        """Get representation of the xarray accessor."""
+        component = self._get_component()
+        return f"'{component.ctype.name}' XarrayAccessor"
 
 
 class ComponentsArrayMixin(_ComponentsABC):
     """Helper class for components array methods.
 
-    Class only inherits to Components and should not be used directly.
+    Class inherits to [pypsa.Components][]. All attributes and methods can be used
+    within any Components instance.
     """
 
     def __init__(self) -> None:
         """Initialize the ComponentsArrayMixin."""
         self.da = _XarrayAccessor(self)
+        """
+        xArray accessor to get component attributes as xarray DataArray.
+
+        Examples
+        --------
+        >>> c = n.components.generators
+        >>> c.da.p_max_pu
+        <xarray.DataArray 'p_max_pu' (snapshot: 10, name: 6)> Size: 480B
+        array([[0.93001988, 1.        , 0.9745832 , 1.        , 0.5590784 ,
+              ...
+                1.        ]])
+        Coordinates:
+        * snapshot  (snapshot) datetime64[ns] 80B 2015-01-01 ... 2015-01-01T09:00:00
+        * name      (name) object 48B 'Manchester Wind' ... 'Frankfurt Gas'
+
+        For stochastic networks the scenarios are unstacked automatically:
+        >>> c = n_stoch.components.generators
+        >>> c.da.p_max_pu
+        <xarray.DataArray 'p_max_pu' (snapshot: 2920, scenario: 3, name: 4)> Size: 280kB
+        array([[[0.    , 0.1566, 1.    , 1.    ],
+              ...
+                [0.    , 0.1082, 1.    , 1.    ]]], shape=(2920, 3, 4))
+        Coordinates:
+        * snapshot  (snapshot) datetime64[ns] 23kB 2015-01-01 ... 2015-12-31T21:00:00
+        * scenario  (scenario) object 24B 'low' 'med' 'high'
+        * name      (name) object 32B 'solar' 'wind' 'gas' 'lignite'
+
+        String representation:
+        >>> c.da
+        <XarrayAccessor for Generators>
+        """
 
     def __deepcopy__(
         self, memo: dict[int, object] | None = None
@@ -183,8 +242,6 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators._as_dynamic('p_max_pu', n.snapshots[:2])
         name                 Manchester Wind  ...  Frankfurt Gas
         snapshot                              ...
@@ -242,7 +299,7 @@ class ComponentsArrayMixin(_ComponentsABC):
             res.columns.name = "name"
         return res
 
-    def _as_xarray(self, attr: str) -> xarray.DataArray:
+    def _as_xarray(self, attr: str) -> xr.DataArray:
         """Get an attribute as a xarray DataArray.
 
         Converts component data to a flexible xarray DataArray format, which is
@@ -263,16 +320,16 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         Returns
         -------
-        xarray.DataArray
+        xr.DataArray
             The requested attribute data as an xarray DataArray with appropriate dimensions
 
         """
         if attr == "active":
-            res = xarray.DataArray(self.get_activity_mask())
+            res = xr.DataArray(self.get_activity_mask())
         elif attr in self.dynamic.keys():
-            res = xarray.DataArray(self._as_dynamic(attr))
+            res = xr.DataArray(self._as_dynamic(attr))
         else:
-            res = xarray.DataArray(self.static[attr])
+            res = xr.DataArray(self.static[attr])
 
         # Unstack the dimension that contains the scenarios
         if self.has_scenarios:
@@ -287,6 +344,6 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         # Optional runtime verification
         if options.debug.runtime_verification:
-            _as_xarray_guard(self, res)
+            _assert_xarray_integrity(self, res)
 
         return res

@@ -1,5 +1,10 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 import pandas as pd
+import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
@@ -7,7 +12,7 @@ import pypsa
 
 def test_unit_commitment():
     """
-    This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
+    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
     n = pypsa.Network()
@@ -53,7 +58,7 @@ def test_unit_commitment():
 
 def test_minimum_up_time():
     """
-    This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
+    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
     n = pypsa.Network()
@@ -103,7 +108,7 @@ def test_minimum_up_time():
 
 def test_minimum_up_time_up_time_before():
     """
-    This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
+    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
     n = pypsa.Network()
@@ -153,7 +158,7 @@ def test_minimum_up_time_up_time_before():
 
 def test_minimum_down_time():
     """
-    This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
+    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
     n = pypsa.Network()
@@ -199,7 +204,7 @@ def test_minimum_down_time():
 
 def test_minimum_down_time_up_time_before():
     """
-    This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
+    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
     n = pypsa.Network()
@@ -465,6 +470,121 @@ def test_link_unit_commitment():
     assert round(n.objective, 1) == 267333.0
 
 
+def test_link_ramp_limits():
+    """
+    Test that ramp limits work for Links.
+    """
+    n = pypsa.Network()
+
+    snapshots = range(6)
+    n.set_snapshots(snapshots)
+
+    n.add("Bus", ["gas", "electricity"])
+
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        p_min_pu=0.1,
+        efficiency=0.5,
+        p_nom=10000,
+        ramp_limit_up=0.3,  # 30% of p_nom per timestep = 3000 MW
+        ramp_limit_down=0.4,  # 40% of p_nom per timestep = 4000 MW
+        marginal_cost=20,
+    )
+
+    n.add("Generator", "backup", bus="electricity", marginal_cost=100, p_nom=10000)
+
+    # Varying load to induce ramping
+    n.add("Load", "load", bus="electricity", p_set=[2000, 7000, 1500, 5500, 5000, 2500])
+
+    n.optimize()
+
+    # Check that ramp limits are respected
+    # For Links, use p0 (the power at bus0) which is the optimization variable
+    p_diff = n.c.links.dynamic.p0["OCGT"].diff()
+    max_ramp_up = 0.3 * 10000  # 3000 MW
+    max_ramp_down = 0.4 * 10000  # 4000 MW
+
+    # Check ramp up (positive changes)
+    ramp_ups = p_diff[p_diff > 0]
+    if not ramp_ups.empty:
+        assert ramp_ups.max() <= max_ramp_up + 1e-4, (
+            f"Ramp up limit violated: {ramp_ups.max()} > {max_ramp_up}"
+        )
+
+    # Check ramp down (negative changes)
+    ramp_downs = p_diff[p_diff < 0].abs()
+    if not ramp_downs.empty:
+        assert ramp_downs.max() <= max_ramp_down + 1e-4, (
+            f"Ramp down limit violated: {ramp_downs.max()} > {max_ramp_down}"
+        )
+
+
+def test_link_ramp_limits_rolling_horizon():
+    """
+    Test that ramp limits work for Links in rolling horizon optimization.
+    This specifically tests the historical data retrieval for p0 in Links
+    when sns[0] != n.snapshots[0].
+    """
+    n = pypsa.Network()
+
+    snapshots = range(12)
+    n.set_snapshots(snapshots)
+
+    n.add("Bus", ["gas", "electricity"])
+
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        p_min_pu=0.1,
+        efficiency=0.5,
+        p_nom=10000,
+        ramp_limit_up=0.3,  # 30% of p_nom per timestep = 3000 MW
+        ramp_limit_down=0.4,  # 40% of p_nom per timestep = 4000 MW
+        marginal_cost=20,
+    )
+
+    n.add("Generator", "backup", bus="electricity", marginal_cost=100, p_nom=10000)
+
+    # Varying load to induce ramping with jumps > ramp limits (3000 up, 4000 down)
+    n.add(
+        "Load",
+        "load",
+        bus="electricity",
+        p_set=[2000, 6000, 1000, 5500, 9000, 3000, 7500, 2500, 7000, 1500, 6000, 2000],
+    )
+
+    n.optimize.optimize_with_rolling_horizon(horizon=4, overlap=1)
+
+    # Check that ramp limits are respected across all snapshots
+    # For Links, use p0 (the power at bus0)
+    p_diff = n.c.links.dynamic.p0["OCGT"].diff()
+    max_ramp_up = 0.3 * 10000  # 3000 MW
+    max_ramp_down = 0.4 * 10000  # 4000 MW
+
+    # Check ramp up (positive changes)
+    ramp_ups = p_diff[p_diff > 0]
+    if not ramp_ups.empty:
+        assert ramp_ups.max() <= max_ramp_up + 1e-4, (
+            f"Ramp up limit violated: {ramp_ups.max()} > {max_ramp_up}"
+        )
+
+    # Check ramp down (negative changes)
+    ramp_downs = p_diff[p_diff < 0].abs()
+    if not ramp_downs.empty:
+        assert ramp_downs.max() <= max_ramp_down + 1e-4, (
+            f"Ramp down limit violated: {ramp_downs.max()} > {max_ramp_down}"
+        )
+
+
 def test_dynamic_ramp_rates():
     """
     This test checks that dynamic ramp rates are correctly applied when
@@ -505,6 +625,140 @@ def test_dynamic_ramp_rates():
     assert (n.c.generators.dynamic.p.diff().loc[0:6, "gen1"]).min() >= -0.5 * 100
     assert (n.c.generators.dynamic.p.diff().loc[6:, "gen1"]).max() <= 80
     assert (n.c.generators.dynamic.p.diff().loc[6:, "gen1"]).min() >= -100
+
+
+@pytest.mark.parametrize("direction", ["up", "down"])
+def test_generator_ramp_constraints_mask_nan(direction):
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1493
+    """
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2025-01-01", periods=2, freq="h"))
+
+    n.add("Bus", "bus")
+    # Add load with sudden change to trigger ramping up/down
+    p_set = [0.0, 50.0] if direction == "up" else [50.0, 10.0]
+    n.add(
+        "Load",
+        "load",
+        bus="bus",
+        p_set=pd.Series(p_set, index=n.snapshots),
+    )
+
+    ramp_kw = {f"ramp_limit_{direction}": 0.5}
+
+    # Generator with ramp limits
+    n.add(
+        "Generator",
+        "gen_limited",
+        bus="bus",
+        p_nom=10,
+        marginal_cost=1,
+        **ramp_kw,
+    )
+
+    # Generator without ramp limits
+    n.add(
+        "Generator",
+        "gen_unlimited",
+        bus="bus",
+        p_nom=1000,
+        marginal_cost=10,
+    )
+
+    n.optimize(solver_name="highs")
+
+    # Check labels to see which generators have active ramp constraints applied
+    # Generator with undefined ramp limits should have label -1 (no constraint)
+    key = f"Generator-fix-p-ramp_limit_{direction}"
+    constraints = n.model.constraints[key]
+    labels_gen_limited = constraints.data["labels"].sel(name="gen_limited").to_pandas()
+    assert (labels_gen_limited != -1).all(), (
+        f"ramp_{direction} constraint should be active for 'gen_limited'."
+    )
+
+    labels_gen_unlimited = (
+        constraints.data["labels"].sel(name="gen_unlimited").to_pandas()
+    )
+    assert (labels_gen_unlimited == -1).all(), (
+        f"ramp_{direction} constraint should be masked for 'gen_unlimited'."
+    )
+
+
+@pytest.mark.parametrize("direction", ["up", "down"])
+def test_link_ramp_constraints_mask_nan(direction):
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1493
+    """
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2025-01-01", periods=2, freq="h"))
+
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    # Add load with sudden change to trigger ramping up/down
+    p_set = [0.0, 50.0] if direction == "up" else [50.0, 10.0]
+    n.add(
+        "Load",
+        "load",
+        bus="bus1",
+        p_set=pd.Series(p_set, index=n.snapshots),
+    )
+
+    ramp_kw = {
+        f"ramp_limit_{direction}": 0.5,
+    }
+
+    # Link with ramp limits
+    n.add(
+        "Link",
+        "link_limited",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom=10,
+        efficiency=1.0,
+        marginal_cost=1,
+        **ramp_kw,
+    )
+
+    # Link without ramp limits
+    n.add(
+        "Link",
+        "link_unlimited",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom=1000,
+        efficiency=1.0,
+        marginal_cost=10,
+    )
+
+    n.add(
+        "Generator",
+        "generator",
+        bus="bus0",
+        p_nom=1000,
+        marginal_cost=0.0,
+    )
+
+    n.optimize(solver_name="highs")
+
+    # Check labels to see which links have active ramp constraints applied
+    # Link with undefined ramp limits should have label -1 (no constraint)
+    key = f"Link-fix-p-ramp_limit_{direction}"
+    constraints = n.model.constraints[key]
+    labels_link_limited = (
+        constraints.data["labels"].sel(name="link_limited").to_pandas()
+    )
+    assert (labels_link_limited != -1).all(), (
+        f"ramp_{direction} constraint should be active for 'link_limited'."
+    )
+
+    labels_link_unlimited = (
+        constraints.data["labels"].sel(name="link_unlimited").to_pandas()
+    )
+    assert (labels_link_unlimited == -1).all(), (
+        f"ramp_{direction} constraint should be masked for 'link_unlimited'."
+    )
 
 
 def test_dynamic_start_up_rates_for_commitables():
@@ -558,3 +812,27 @@ def test_dynamic_start_up_rates_for_commitables():
         assert gen1_p[snapshot] <= expected_max_startup, (
             f"Startup ramp limit violated at snapshot {snapshot}: {gen1_p[snapshot]} > {expected_max_startup}"
         )
+
+
+def test_ramp_limits_multi_investment_period():
+    n = pypsa.Network()
+    sns = pd.date_range("2025-01-01", periods=5, freq="h").append(
+        pd.date_range("2026-01-01", periods=5, freq="h")
+    )
+    n.set_snapshots(pd.MultiIndex.from_arrays([sns.year, sns]))
+    n.investment_periods = [2025, 2026]
+    n.investment_period_weightings["years"] = 5
+
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        ramp_limit_up=0.5,
+        marginal_cost=10,
+    )
+    n.add("Load", "load", bus="bus", p_set=100)
+
+    status, _ = n.optimize()
+    assert status == "ok"

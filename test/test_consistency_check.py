@@ -1,6 +1,11 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import os
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
@@ -305,6 +310,34 @@ def test_scenario_invariant_attributes_comprehensive():
     n_non_stoch.consistency_check()  # Should pass
 
 
+def test_p_nom_mod_invariant():
+    """Test that p_nom_mod is enforced as invariant across scenarios."""
+    n = pypsa.Network()
+    n.add("Bus", "bus1")
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus1",
+        p_nom_extendable=True,
+        p_nom_mod=0.7,
+    )
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Should pass with same p_nom_mod across scenarios
+    n.consistency_check()
+
+    n.c.generators.static.loc[("s1", "gen1"), "p_nom_mod"] = 0.7
+    n.c.generators.static.loc[("s2", "gen1"), "p_nom_mod"] = 1.0
+
+    # Should raise error
+    with pytest.raises(
+        pypsa.consistency.ConsistencyError,
+        match="Component 'gen1' .* has attribute 'p_nom_mod' that varies across scenarios",
+    ):
+        n.consistency_check()
+
+
 @pytest.mark.parametrize("strict", [[], ["line_types"]])
 def test_line_types_consistency(caplog, strict):
     """
@@ -395,3 +428,118 @@ def test_line_types_consistency_non_stochastic():
 
     # This should pass because it's not a stochastic network
     pypsa.consistency.check_line_types_consistency(n, strict=True)
+
+
+@pytest.mark.parametrize("strict", [[], ["transformer_types"]])
+def test_transformer_types_consistency_fail(caplog, strict):
+    """
+    Test that the consistency check fails when transformer_types differ across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    transformer_types_data = {
+        ("s1", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+        ("s2", "type1"): {"s_nom": 150, "vsc": 15.0, "vscr": 0.30, "pfe": 65},
+    }
+
+    transformer_types_df = pd.DataFrame.from_dict(
+        transformer_types_data, orient="index"
+    )
+    transformer_types_df.index = pd.MultiIndex.from_tuples(
+        transformer_types_df.index, names=["scenario", "type"]
+    )
+
+    n.c.transformer_types.static = transformer_types_df
+
+    if strict and "transformer_types" in strict:
+        with pytest.raises(pypsa.consistency.ConsistencyError):
+            pypsa.consistency.check_transformer_types_consistency(n, strict=True)
+    else:
+        pypsa.consistency.check_transformer_types_consistency(n, strict=False)
+        assert caplog.records[-1].levelname == "WARNING"
+
+
+def test_transformer_types_consistency_pass():
+    """
+    Test that the consistency check passes when transformer_types are identical across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    transformer_types_data = {
+        ("s1", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+        ("s2", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+    }
+
+    transformer_types_df = pd.DataFrame.from_dict(
+        transformer_types_data, orient="index"
+    )
+    transformer_types_df.index = pd.MultiIndex.from_tuples(
+        transformer_types_df.index, names=["scenario", "type"]
+    )
+
+    n.c.transformer_types.static = transformer_types_df
+
+    pypsa.consistency.check_transformer_types_consistency(n, strict=True)
+
+
+def test_transformer_types_consistency_non_stochastic():
+    """
+    Test that the consistency check is skipped for non-stochastic networks.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.add("TransformerType", "type1", s_nom=100, vsc=12.0, vscr=0.26, pfe=55)
+    n.add("TransformerType", "type2", s_nom=160, vsc=12.2, vscr=0.25, pfe=60)
+
+    pypsa.consistency.check_transformer_types_consistency(n, strict=True)
+
+
+@pytest.mark.parametrize("strict", [[], ["unknown_buses"]])
+def test_check_for_unknown_buses(caplog, strict):
+    """Test check_for_unknown_buses via consistency_check(): GlobalConstraint/Link empty buses OK, invalid warns."""
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    # Add components with empty buses (should be OK)
+    n.add("GlobalConstraint", "gc1")
+    n.add("Link", "link1", bus0="bus0", bus1="bus1")
+    caplog.clear()
+    n.consistency_check(strict=strict)
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Add component with invalid bus (should warn/error)
+    n.add("Generator", "gen1", bus="invalid_bus")
+    assert_log_or_error_in_consistency(n, caplog, strict=strict)
+
+
+def test_check_for_unknown_buses_when_adding(caplog):
+    """Test check_for_unknown_buses: empty buses in GlobalConstraint/Links OK, invalid buses warn."""
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    # GlobalConstraint with empty bus - no warning
+    caplog.clear()
+    n.add("GlobalConstraint", "gc1")
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Link with empty bus2/bus3 - no warning
+    caplog.clear()
+    n.add("Link", "link1", bus0="bus0", bus1="bus1")
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Invalid bus - should warn
+    caplog.clear()
+    n.add("Generator", "gen1", bus="invalid")
+    assert any("buses which are not defined" in r.message for r in caplog.records)

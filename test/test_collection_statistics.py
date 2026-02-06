@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Tests for NetworkCollection statistics with various groupers."""
 
 import pandas as pd
@@ -151,6 +155,45 @@ def test_network_collection_carrier_bus_carrier_grouper(
     if "wind" in result.index.get_level_values("carrier"):
         wind_results = result.xs("wind", level="carrier", drop_level=False)
         assert all(wind_results.index.get_level_values("bus_carrier") == "AC")
+
+
+def test_network_collection_carrier_nice_names():
+    """Test that carrier grouping with nice names works correctly for NetworkCollection.
+
+    This test specifically checks the bug fix for MultiIndex replace operations
+    when using nice_names=True with NetworkCollections.
+    """
+    # Create a simple network with nice names
+    n = pypsa.Network()
+    n.add("Bus", "bus1")
+    n.add("Carrier", "wind", nice_name="Wind Power")
+    n.add("Carrier", "solar", nice_name="Solar PV")
+    n.add("Generator", "wind1", bus="bus1", carrier="wind", p_nom=100)
+    n.add("Generator", "solar1", bus="bus1", carrier="solar", p_nom=200)
+
+    # Create NetworkCollection
+    nc = pypsa.NetworkCollection([n, n.copy()], index=["s1", "s2"])
+
+    # Test with nice_names=True (default)
+    result = nc.statistics.installed_capacity(groupby="carrier", nice_names=True)
+
+    # Verify nice names are used
+    carriers = result.index.get_level_values("carrier").unique()
+    assert "Wind Power" in carriers
+    assert "Solar PV" in carriers
+    assert "wind" not in carriers
+    assert "solar" not in carriers
+
+    # Verify values are correct
+    assert result.loc[("Generator", "s1", "Wind Power")] == 100.0
+    assert result.loc[("Generator", "s1", "Solar PV")] == 200.0
+
+    # Test with nice_names=False
+    result_raw = nc.statistics.installed_capacity(groupby="carrier", nice_names=False)
+    carriers_raw = result_raw.index.get_level_values("carrier").unique()
+    assert "wind" in carriers_raw
+    assert "solar" in carriers_raw
+    assert "Wind Power" not in carriers_raw
 
 
 def test_network_collection_country_grouper(simple_network):
@@ -489,3 +532,33 @@ def test_network_collection_revenue(
         assert (scenario_revenue == network_revenue).all(), (
             f"Revenue mismatch for scenario {scenario}"
         )
+
+
+def test_network_collection_bus_carrier_filter(
+    optimized_network_collection_from_ac_dc,
+):
+    """Test bus_carrier parameter as filter with NetworkCollection.
+
+    This test specifically checks that the bus_carrier parameter works correctly
+    for NetworkCollection, which was a bug previously.
+    """
+    nc = optimized_network_collection_from_ac_dc
+
+    result = nc.statistics.energy_balance(bus_carrier="AC")
+    assert not result.empty
+
+    assert "bus_carrier" in result.index.names
+    bus_carriers = result.index.get_level_values("bus_carrier").unique()
+    assert "AC" in bus_carriers
+
+    # Compare with single network
+    single_result = nc.networks.iloc[0].statistics.energy_balance(bus_carrier="AC")
+    collection_result_first = result.xs(
+        nc.networks.index[0], level=nc.networks.index.name
+    )
+
+    pd.testing.assert_series_equal(
+        single_result.sort_index(),
+        collection_result_first.sort_index(),
+        check_names=False,
+    )

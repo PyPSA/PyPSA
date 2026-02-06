@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -5,6 +9,20 @@ import pytest
 import pypsa
 from pypsa.statistics import groupers
 from pypsa.statistics.expressions import StatisticsAccessor
+
+
+def test_stats_alias(ac_dc_network):
+    """Test that n.stats works as an alias for n.statistics."""
+    n = ac_dc_network
+    assert n.stats is n.statistics
+    df_stats = n.stats()
+    df_statistics = n.statistics()
+    pd.testing.assert_frame_equal(df_stats, df_statistics)
+    stats_installed_capacity = n.stats.installed_capacity()
+    statistics_installed_capacity = n.statistics.installed_capacity()
+    pd.testing.assert_series_equal(
+        stats_installed_capacity, statistics_installed_capacity
+    )
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)

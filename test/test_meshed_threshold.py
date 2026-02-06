@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pandas as pd
 
 import pypsa
@@ -6,7 +10,7 @@ from pypsa.optimization.common import get_strongly_meshed_buses
 
 def test_meshed_threshold():
     """
-    This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
+    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
     # marginal costs in EUR/MWh

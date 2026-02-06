@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Define optimisation constraints from PyPSA networks with Linopy."""
 
 from __future__ import annotations
@@ -79,9 +83,9 @@ def define_operational_constraints_for_non_extendables(
 
     References
     ----------
-    .. [1] F. Neumann, T. Brown, "Transmission losses in power system
-       optimization models: A comparison of heuristic and exact solution methods,"
-       Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
+    [1] F. Neumann, T. Brown, "Transmission losses in power system
+        optimization models: A comparison of heuristic and exact solution methods,"
+        Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
 
     """
     c = as_components(n, component)
@@ -235,10 +239,10 @@ def define_operational_constraints_for_committables(
 
     References
     ----------
-    .. [2] Y. Hua, C. Liu, J. Zhang, "Representing Operational
-       Flexibility in Generation Expansion Planning Through Convex Relaxation
-       of Unit Commitment," IEEE Transactions on Power Systems, vol. 32,
-       no. 5, pp. 3854-3865, 2017, https://doi.org/10.1109/TPWRS.2017.2735026
+    [2] Y. Hua, C. Liu, J. Zhang, "Representing Operational
+        Flexibility in Generation Expansion Planning Through Convex Relaxation
+        of Unit Commitment," IEEE Transactions on Power Systems, vol. 32,
+        no. 5, pp. 3854-3865, 2017, https://doi.org/10.1109/TPWRS.2017.2735026
 
     """
     c = as_components(n, component)
@@ -551,7 +555,7 @@ def define_ramp_limit_constraints(
 
     Applies to Components
     ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+    Generator (p), Link (p)
 
     Parameters
     ----------
@@ -583,11 +587,11 @@ def define_ramp_limit_constraints(
     m = n.model
     c = as_components(n, component)
 
-    # Fix for as_dynamic function breaking with scenarios. TODO fix it OR leave this if clause
-    if c.static.size == 0:
+    if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(c.static.columns):
         return
 
-    if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(c.static.columns):
+    # Fix for as_dynamic function breaking with scenarios. TODO fix it OR leave this if clause
+    if c.static.size == 0:
         return
 
     ramp_limit_up = c.da.ramp_limit_up.sel(snapshot=sns)
@@ -601,13 +605,23 @@ def define_ramp_limit_constraints(
 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
 
-    attr = {"p", "p0"}.intersection(c.dynamic.keys()).pop()
-    start_i = n.snapshots.get_loc(sns[0]) - 1
-    p_start = c.dynamic[attr].iloc[start_i]
+    # Both Generator and Link use "p" as their dispatch variable
+    var_attr = "p"
 
-    # Get the dispatch value from previous snapshot if not at beginning
-    is_rolling_horizon = sns[0] != n.snapshots[0] and not p_start.empty
-    p = m[f"{c.name}-{attr}"]
+    # Check if we're in rolling horizon optimization (not starting from first snapshot)
+    # If so, retrieve historical data from the previous snapshot
+    p_start = pd.Series(dtype=float)
+    if sns[0] != n.snapshots[0]:
+        # Historical data: "p0" for Links, "p" for Generators
+        historical_attrs = {"p", "p0"}.intersection(c.dynamic.keys())
+        if historical_attrs:
+            hist_attr = historical_attrs.pop()
+            start_i = n.snapshots.get_loc(sns[0]) - 1
+            p_start = c.dynamic[hist_attr].iloc[start_i]
+
+    is_rolling_horizon = not p_start.empty
+
+    p = m[f"{c.name}-{var_attr}"]
 
     # Get different component groups for constraint application
     com_i = c.committables.difference(c.inactive_assets)
@@ -652,7 +666,7 @@ def define_ramp_limit_constraints(
         p_nom = c.da[c._operational_attrs["nom"]].sel(name=fix_i)
 
         # Ramp up constraints for fixed components
-        non_null_up = ~ramp_limit_up_fix.isnull().all()
+        non_null_up = ~ramp_limit_up_fix.isnull()
         if non_null_up.any():
             lhs = p_actual(fix_i) - p_previous(fix_i)
             rhs = (ramp_limit_up_fix * p_nom) + rhs_start_fix
@@ -662,7 +676,7 @@ def define_ramp_limit_constraints(
             )
 
         # Ramp down constraints for fixed components
-        non_null_down = ~ramp_limit_down_fix.isnull().all()
+        non_null_down = ~ramp_limit_down_fix.isnull()
         if non_null_down.any():
             lhs = p_actual(fix_i) - p_previous(fix_i)
             rhs = (-ramp_limit_down_fix * p_nom) + rhs_start
@@ -674,17 +688,14 @@ def define_ramp_limit_constraints(
     # ----------------------------- Extendable Components ----------------------------- #
     if not ext_i.empty:
         # Redefine active mask over ext_i
-        active_ext = (
-            c.da.active.sel(name=ext_i, snapshot=sns)
-            if is_rolling_horizon
-            else c.da.active.sel(name=ext_i, snapshot=sns[1:])
-        )
+        snapshot_sel = sns if is_rolling_horizon else sns[1:]
+        active_ext = c.da.active.sel(name=ext_i, snapshot=snapshot_sel)
 
-        ramp_limit_up_ext = ramp_limit_up.reindex(
-            {"snapshot": active_ext.coords["snapshot"].values, "name": ext_i}
-        ).rename({"name": ext_dim})
-        ramp_limit_down_ext = ramp_limit_down.reindex(
-            {"snapshot": active_ext.coords["snapshot"].values, "name": ext_i}
+        ramp_limit_up_ext = ramp_limit_up.sel(snapshot=snapshot_sel, name=ext_i).rename(
+            {"name": ext_dim}
+        )
+        ramp_limit_down_ext = ramp_limit_down.sel(
+            snapshot=snapshot_sel, name=ext_i
         ).rename({"name": ext_dim})
         rhs_start_ext = rhs_start.sel({"name": ext_i}).rename({"name": ext_dim})
 
@@ -722,19 +733,12 @@ def define_ramp_limit_constraints(
             )
     # ----------------------------- Committable Components ----------------------------- #
     if not com_i.empty:
-        # Redefine active mask over com_i and get parameters directly using component methods
-        active_com = (
-            c.da.active.sel(name=com_i, snapshot=sns)
-            if is_rolling_horizon
-            else c.da.active.sel(name=com_i, snapshot=sns[1:])
-        )
+        # Redefine active mask over com_i
+        snapshot_sel = sns if is_rolling_horizon else sns[1:]
+        active_com = c.da.active.sel(name=com_i, snapshot=snapshot_sel)
 
-        ramp_limit_up_com = ramp_limit_up.reindex(
-            {"snapshot": active_com.coords["snapshot"].values, "name": com_i}
-        )
-        ramp_limit_down_com = ramp_limit_down.reindex(
-            {"snapshot": active_com.coords["snapshot"].values, "name": com_i}
-        )
+        ramp_limit_up_com = ramp_limit_up.sel(snapshot=snapshot_sel, name=com_i)
+        ramp_limit_down_com = ramp_limit_down.sel(snapshot=snapshot_sel, name=com_i)
 
         ramp_limit_start_up_com = c.da.ramp_limit_start_up.sel(name=com_i)
         ramp_limit_shut_down_com = c.da.ramp_limit_shut_down.sel(name=com_i)
@@ -749,13 +753,9 @@ def define_ramp_limit_constraints(
             limit_start = p_nom_com * ramp_limit_start_up_com
             limit_up = p_nom_com * ramp_limit_up_com
 
-            status = m[f"{c.name}-status"].sel(
-                snapshot=active_com.coords["snapshot"].values
-            )
+            status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel)
             status_prev = (
-                m[f"{c.name}-status"]
-                .shift(snapshot=1)
-                .sel(snapshot=active_com.coords["snapshot"].values)
+                m[f"{c.name}-status"].shift(snapshot=1).sel(snapshot=snapshot_sel)
             )
 
             lhs = (
@@ -767,11 +767,11 @@ def define_ramp_limit_constraints(
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                status_start = c.dynamic["status"].iloc[start_i]
+                status_start = c.dynamic["status"].iloc[start_i].loc[original_com_i]
                 limit_diff = (limit_up - limit_start).isel(snapshot=0)
-                rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
-                    limit_diff * status_start
-                )
+                rhs_first = rhs.isel(snapshot=0)
+                rhs_first = rhs_first + (limit_diff * status_start)
+                rhs[{"snapshot": 0}] = rhs_first
 
             mask = active_com & non_null_up
             m.add_constraints(
@@ -784,13 +784,9 @@ def define_ramp_limit_constraints(
             limit_shut = p_nom_com * ramp_limit_shut_down_com
             limit_down = p_nom_com * ramp_limit_down_com
 
-            status = m[f"{c.name}-status"].sel(
-                snapshot=active_com.coords["snapshot"].values
-            )
+            status = m[f"{c.name}-status"].sel(snapshot=snapshot_sel)
             status_prev = (
-                m[f"{c.name}-status"]
-                .shift(snapshot=1)
-                .sel(snapshot=active_com.coords["snapshot"].values)
+                m[f"{c.name}-status"].shift(snapshot=1).sel(snapshot=snapshot_sel)
             )
 
             lhs = (
@@ -802,10 +798,10 @@ def define_ramp_limit_constraints(
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                status_start = c.dynamic["status"].iloc[start_i]
-                rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
-                    -limit_shut * status_start
-                )
+                status_start = c.dynamic["status"].iloc[start_i].loc[original_com_i]
+                rhs_first = rhs.isel(snapshot=0)
+                rhs_first = rhs_first + (-limit_shut * status_start)
+                rhs[{"snapshot": 0}] = rhs_first
 
             mask = active_com & non_null_down
             m.add_constraints(
@@ -1022,9 +1018,9 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
 
     References
     ----------
-    .. [3] J. Hörsch et al., "Linear optimal power flow using cycle flows,"
-       Electric Power Systems Research, vol. 158, pp. 126-135, 2018,
-       https://doi.org/10.1016/j.epsr.2020.106908
+    [3] J. Hörsch et al., "Linear optimal power flow using cycle flows,"
+        Electric Power Systems Research, vol. 158, pp. 126-135, 2018,
+        https://doi.org/10.1016/j.epsr.2020.106908
 
     """
     m = n.model
@@ -1050,7 +1046,9 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
 
     if lhs:
         lhs = merge(lhs, dim="snapshot")
-        m.add_constraints(lhs == 0, name="Kirchhoff-Voltage-Law")
+        con = lhs == 0
+        mask = con.rhs.notnull()
+        m.add_constraints(con, name="Kirchhoff-Voltage-Law", mask=mask)
 
 
 def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:
@@ -1087,11 +1085,13 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     if attr + "_set" not in c.static:
         return
 
-    dim = f"{component}-{attr}_set_i"
-    fix = c.static[attr + "_set"].dropna().rename_axis(dim)
+    fix = c.static[attr + "_set"].dropna()
 
     if fix.empty:
         return
+
+    dim = f"{component}-{attr}_set_i"
+    fix = fix.rename_axis(dim)
 
     var = n.model[f"{component}-{attr}"]
     var = reindex(var, var.dims[0], fix.index)
@@ -1150,7 +1150,11 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     mask = c.static[ext_attr] & (c.static[mod_attr] > 0)
     mod_i = c.static.index[mask]
 
-    if (mod_i).empty:
+    # Unique component names for modular components (in absence of c.modulars helper)
+    if isinstance(mod_i, pd.MultiIndex):
+        mod_i = mod_i.unique(level="name")
+
+    if mod_i.empty:
         return
 
     # Get modular capacity values
@@ -1160,7 +1164,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     modularity = m[f"{c.name}-n_mod"]
     capacity = m.variables[f"{c.name}-{attr}"].loc[mod_i]
 
-    con = capacity - modularity * modular_capacity.values == 0
+    con = capacity - modularity * modular_capacity == 0
     n.model.add_constraints(con, name=f"{c.name}-{attr}_modularity", mask=None)
 
 
@@ -1199,6 +1203,10 @@ def define_fixed_operation_constraints(
     The function only creates constraints for snapshots and components where
     the '{attr}_set' values are not NaN and the component is active.
 
+    For StorageUnit components, if `p_set` is specified (via attr="p"), the
+    constraint fixes the net power (p_dispatch - p_store) to the given values.
+    Positive p_set means net discharge, negative means net charge.
+
     """
     c = as_components(n, component)
     attr_set = f"{attr}_set"
@@ -1214,9 +1222,14 @@ def define_fixed_operation_constraints(
     active = c.da.active.sel(snapshot=sns, name=fix.coords["name"].values)
     mask = active & (~fix.isnull())
 
-    var = n.model[f"{c.name}-{attr}"]
-
-    n.model.add_constraints(var, "=", fix, name=f"{c.name}-" + attr_set, mask=mask)
+    if component == "StorageUnit" and attr == "p":
+        p_dispatch = n.model["StorageUnit-p_dispatch"]
+        p_store = n.model["StorageUnit-p_store"]
+        lhs = p_dispatch - p_store
+        n.model.add_constraints(lhs, "=", fix, name="StorageUnit-p_set", mask=mask)
+    else:
+        var = n.model[f"{c.name}-{attr}"]
+        n.model.add_constraints(var, "=", fix, name=f"{c.name}-" + attr_set, mask=mask)
 
 
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
@@ -1289,9 +1302,9 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         pass
 
     # efficiencies as xarray DataArrays
-    eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns)) ** eh
-    eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns)
-    eff_store = c.da.efficiency_store.sel(snapshot=sns)
+    eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
+    eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=c.active_assets)
+    eff_store = c.da.efficiency_store.sel(snapshot=sns, name=c.active_assets)
 
     soc = m[f"{component}-state_of_charge"]
 
@@ -1306,7 +1319,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     # We create a mask `include_previous_soc` which excludes the first snapshot
     # for non-cyclic assets
-    noncyclic_b = ~c.da.cyclic_state_of_charge
+    noncyclic_b = ~c.da.cyclic_state_of_charge.sel(name=c.active_assets)
     include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     previous_soc = (
@@ -1318,8 +1331,8 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     )
 
     # We add inflow and initial soc for noncyclic assets to rhs
-    soc_init = c.da.state_of_charge_initial
-    rhs = -c.da.inflow.sel(snapshot=sns) * eh
+    soc_init = c.da.state_of_charge_initial.sel(name=c.active_assets)
+    rhs = -c.da.inflow.sel(snapshot=sns, name=c.active_assets) * eh
 
     if n._multi_invest:
         # If multi-horizon optimizing, we update the previous_soc and the rhs
@@ -1328,10 +1341,9 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         # An asset is treated as per-period if:
         # 1. It cycles per period (CP=cyclic_state_of_charge_per_period=True), OR
         # 2. It uses initial state per period (IP=state_of_charge_initial_per_period=True)
-        per_period = (
-            c.da.cyclic_state_of_charge_per_period
-            | c.da.state_of_charge_initial_per_period
-        )
+        per_period = c.da.cyclic_state_of_charge_per_period.sel(
+            name=c.active_assets
+        ) | c.da.state_of_charge_initial_per_period.sel(name=c.active_assets)
 
         # We calculate the previous soc per period while cycling within a period
         # Normally, we should use groupby, but is broken for multi-index
@@ -1352,7 +1364,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
         include_previous_soc_pp = active & (
             (periods == periods.shift(snapshot=1))
-            | c.da.cyclic_state_of_charge_per_period
+            | c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
         )
 
         # Ensure that dimension order is consistent for stochastic networks
@@ -1373,12 +1385,14 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         )
 
     # Warn if cyclic overrides initial values (both global and per-period)
-    has_initial = c.da.state_of_charge_initial != 0
-    global_conflict = c.da.cyclic_state_of_charge & has_initial
+    has_initial = c.da.state_of_charge_initial.sel(name=c.active_assets) != 0
+    global_conflict = (
+        c.da.cyclic_state_of_charge.sel(name=c.active_assets) & has_initial
+    )
     period_conflict = (
         (
-            c.da.cyclic_state_of_charge_per_period
-            & c.da.state_of_charge_initial_per_period
+            c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
+            & c.da.state_of_charge_initial_per_period.sel(name=c.active_assets)
             & has_initial
         )
         if n._multi_invest
@@ -1387,7 +1401,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     ignored = global_conflict | period_conflict
     if ignored.any():
-        affected = c.static.index[ignored.values].tolist()
+        affected = c.active_assets[ignored.values].tolist()
         logger.warning(
             "StorageUnits %s: Cyclic state of charge constraint overrules initial storage level setting. "
             "User-defined state_of_charge_initial will be ignored.",
@@ -1396,11 +1410,11 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     # Warn if per-period cyclic overrides global cyclic
     if n._multi_invest:
-        cp_overrides_c = (
-            c.da.cyclic_state_of_charge & c.da.cyclic_state_of_charge_per_period
-        )
+        cp_overrides_c = c.da.cyclic_state_of_charge.sel(
+            name=c.active_assets
+        ) & c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
         if cp_overrides_c.any():
-            affected = c.static.index[cp_overrides_c.values].tolist()
+            affected = c.active_assets[cp_overrides_c.values].tolist()
             logger.warning(
                 "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
                 "overrides global cyclic (cyclic_state_of_charge=True). "
@@ -1538,7 +1552,8 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         #   * If IP=True: use initial value instead (no wrap, handled via rhs)
         #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
         include_previous_e_pp = active & (
-            (periods == periods.shift(snapshot=1)) | c.da.e_cyclic_per_period
+            (periods == periods.shift(snapshot=1))
+            | c.da.e_cyclic_per_period.sel(name=c.active_assets)
         )
 
         # We take values still to handle internal xarray multi-index difficulties
@@ -1551,11 +1566,13 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
     # Warn if cyclic overrides initial values (both global and per-period)
-    has_initial = c.da.e_initial != 0
+    has_initial = c.da.e_initial.sel(name=c.active_assets) != 0
     global_conflict = c.da.e_cyclic.sel(name=c.active_assets) & has_initial
     period_conflict = (
-        (c.da.e_cyclic_per_period & c.da.e_initial_per_period & has_initial).sel(
-            name=c.active_assets
+        (
+            c.da.e_cyclic_per_period.sel(name=c.active_assets)
+            & c.da.e_initial_per_period.sel(name=c.active_assets)
+            & has_initial
         )
         if n._multi_invest
         else False
@@ -1563,7 +1580,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     ignored = global_conflict | period_conflict
     if ignored.any():
-        affected = c.static.index[ignored.values].tolist()
+        affected = c.active_assets[ignored.values].tolist()
         logger.warning(
             "Stores %s: Cyclic energy level constraint overrules initial value setting. "
             "User-defined e_initial will be ignored.",
@@ -1572,11 +1589,11 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     # Warn if per-period cyclic overrides global cyclic
     if n._multi_invest:
-        cp_overrides_c = (
-            c.da.e_cyclic.sel(name=c.active_assets) & c.da.e_cyclic_per_period
-        )
+        cp_overrides_c = c.da.e_cyclic.sel(
+            name=c.active_assets
+        ) & c.da.e_cyclic_per_period.sel(name=c.active_assets)
         if cp_overrides_c.any():
-            affected = c.static.index[cp_overrides_c.values].tolist()
+            affected = c.active_assets[cp_overrides_c.values].tolist()
             logger.warning(
                 "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
                 "overrides global cyclic (e_cyclic=True). "
@@ -1631,9 +1648,9 @@ def define_loss_constraints(
 
     References
     ----------
-    .. [1] F. Neumann, T. Brown, "Transmission losses in power system
-       optimization models: A comparison of heuristic and exact solution methods,"
-       Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
+    [1] F. Neumann, T. Brown, "Transmission losses in power system
+        optimization models: A comparison of heuristic and exact solution methods,"
+        Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
 
     """
     c = as_components(n, component)

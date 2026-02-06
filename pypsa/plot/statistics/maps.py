@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Maps plots based on statistics functions."""
 
 import warnings
@@ -8,6 +12,7 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 
+from pypsa.common import deprecated_kwargs
 from pypsa.plot.maps.static import (
     MapPlotter,
     add_legend_arrows,
@@ -52,6 +57,23 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         """Handle default statistics kwargs based on provided plot kwargs."""
         return {}
 
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        bus_sizes="bus_size",
+        bus_colors="bus_color",
+        bus_split_circles="bus_split_circle",
+        branch_colors="branch_color",
+        branch_widths="branch_width",
+        arrow_colors="arrow_color",
+        geomap_colors="geomap_color",
+        line_colors="line_color",
+        line_widths="line_width",
+        link_colors="link_color",
+        link_widths="link_width",
+        transformer_colors="transformer_color",
+        transformer_widths="transformer_width",
+    )
     def plot(
         self,
         func: Callable,
@@ -60,7 +82,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         projection: Any = None,
         geomap: bool = True,
         geomap_resolution: Literal["10m", "50m", "110m"] = "50m",
-        geomap_colors: dict | bool | None = None,
+        geomap_color: dict | bool | None = None,
         boundaries: tuple[float, float, float, float] | None = None,
         title: str = "",
         carrier: str | None = None,
@@ -76,7 +98,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         legend_lines_kw: dict | None = None,
         legend_arrows_kw: dict | None = None,
         legend_patches_kw: dict | None = None,
-        bus_split_circles: bool = False,
+        bus_split_circle: bool = False,
         stats_kwargs: dict | None = None,
         nice_names: bool = True,
         **kwargs: Any,
@@ -109,7 +131,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
                 message=".*Passing `aggregate_across_components` was deprecated.*",
                 category=DeprecationWarning,
             )
-            bus_sizes = func(
+            bus_size = func(
                 bus_carrier=bus_carrier,
                 groupby=["bus", "carrier"],
                 carrier=list(non_transmission_carriers),
@@ -117,9 +139,9 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
                 aggregate_across_components=True,
                 **(stats_kwargs or {}),
             )
-        if bus_sizes.empty:
+        if bus_size.empty:
             # TODO: this fallback case should be handled in the statistics function
-            bus_sizes = (
+            bus_size = (
                 pd.DataFrame({"bus": [], "carrier": [], "value": []})
                 .set_index(["bus", "carrier"])
                 .value
@@ -127,7 +149,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
         # Calculate scaling factors for visual elements
         bus_size_scaling_factor = self.scaling_factor_from_area_contribution(
-            bus_sizes, x_min, x_max, y_min, y_max, bus_area_fraction
+            bus_size, x_min, x_max, y_min, y_max, bus_area_fraction
         )
 
         # Handle transmission flows or branch widths
@@ -143,10 +165,10 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
             )
 
             branch_flow_scaled = branch_flows * branch_flow_scaling_factor
-            branch_widths_scaled = self.flow_to_width(branch_flow_scaled)
+            branch_width_scaled = self.flow_to_width(branch_flow_scaled)
         else:
             branch_flow_scaled = {}
-            branch_widths = func(
+            branch_width = func(
                 components=n.branch_components,
                 bus_carrier=bus_carrier,
                 groupby=False,
@@ -154,28 +176,28 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
                 nice_names=False,
                 **(stats_kwargs or {}),
             )
-            branch_widths_scaling_factor = self.scaling_factor_from_area_contribution(
-                branch_widths, x_min, x_max, y_min, y_max, branch_area_fraction
+            branch_width_scaling_factor = self.scaling_factor_from_area_contribution(
+                branch_width, x_min, x_max, y_min, y_max, branch_area_fraction
             )
-            branch_widths_scaled = branch_widths * branch_widths_scaling_factor
+            branch_width_scaled = branch_width * branch_width_scaling_factor
 
         # Get branch colors from carrier colors
-        branch_colors = n.branches().carrier[branch_widths_scaled.index].map(colors)
+        branch_color = n.branches().carrier[branch_width_scaled.index].map(colors)
 
         # Set default plot arguments
         plot_args = {
-            "bus_sizes": bus_sizes * bus_size_scaling_factor,
-            "bus_split_circles": bus_split_circles,
-            "bus_colors": colors,
+            "bus_size": bus_size * bus_size_scaling_factor,
+            "bus_split_circle": bus_split_circle,
+            "bus_color": colors,
             "line_flow": branch_flow_scaled.get("Line"),
-            "line_widths": branch_widths_scaled.get("Line", 0),
-            "line_colors": branch_colors.get("Line", "k"),
+            "line_width": branch_width_scaled.get("Line", 0),
+            "line_color": branch_color.get("Line", "k"),
             "link_flow": branch_flow_scaled.get("Link"),
-            "link_widths": branch_widths_scaled.get("Link", 0),
-            "link_colors": branch_colors.get("Link", "k"),
+            "link_width": branch_width_scaled.get("Link", 0),
+            "link_color": branch_color.get("Link", "k"),
             "transformer_flow": branch_flow_scaled.get("Transformer"),
-            "transformer_widths": branch_widths_scaled.get("Transformer", 0),
-            "transformer_colors": branch_colors.get("Transformer", "k"),
+            "transformer_width": branch_width_scaled.get("Transformer", 0),
+            "transformer_color": branch_color.get("Transformer", "k"),
             "auto_scale_branches": False,
         }
 
@@ -189,25 +211,25 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
             projection=projection,
             geomap=geomap,
             geomap_resolution=geomap_resolution,
-            geomap_colors=geomap_colors,
+            geomap_color=geomap_color,
             title=title,
             boundaries=boundaries,
             **plot_args,
         )
 
         # Get unit for legends
-        unit = bus_sizes.attrs.get("unit", "")
+        unit = bus_size.attrs.get("unit", "")
         if unit == "carrier dependent":
             unit = ""
 
         # Add legends if requested
         if draw_legend_circles and hasattr(self.ax, "figure"):
             legend_representatives = get_legend_representatives(
-                bus_sizes, group_on_first_level=True, base_unit=unit
+                bus_size, group_on_first_level=True, base_unit=unit
             )
 
             if legend_representatives:
-                if bus_split_circles:
+                if bus_split_circle:
                     add_legend_semicircles(
                         self.ax,  # type: ignore
                         [
@@ -269,14 +291,14 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
                 raise ValueError(msg)
 
             legend_representatives = get_legend_representatives(
-                branch_widths, n_significant=1, base_unit=unit
+                branch_width, n_significant=1, base_unit=unit
             )
 
             if legend_representatives:
                 add_legend_lines(
                     self.ax,  # type: ignore
                     [
-                        s * branch_widths_scaling_factor
+                        s * branch_width_scaling_factor
                         for s, label in legend_representatives
                     ],
                     [label for s, label in legend_representatives],
@@ -289,7 +311,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
                 )
 
         if draw_legend_patches and hasattr(self.ax, "figure"):
-            carriers = bus_sizes.index.get_level_values("carrier").drop_duplicates()
+            carriers = bus_size.index.get_level_values("carrier").drop_duplicates()
             colors = self.get_carrier_colors(carriers, nice_names=False)
             labels = self.get_carrier_labels(carriers, nice_names=nice_names)
 
