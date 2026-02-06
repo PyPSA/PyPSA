@@ -20,7 +20,7 @@ GROUPER_PARAMETERS = [
     False,
 ]
 KWARGS_PARAMETERS = [
-    {"at_port": True},
+    {"at_port": "all"},
     {"bus_carrier": "AC"},
     {"carrier": "AC"},
     {"nice_names": True},
@@ -271,6 +271,6 @@ def test_concrete_at_port(prepared_network):
     assert expr.size > 0
     assert (expr.coeffs == 0.9).all().item()
 
-    expr = n.optimize.expressions.capacity("Link", at_port="all")  # does not exist
+    expr = n.optimize.expressions.capacity("Link", at_port="all")
     assert isinstance(expr, LinearExpression)
-    assert expr.size == 0
+    assert expr.size > 0

@@ -176,7 +176,10 @@ class AbstractStatisticsAccessor(ABC):
 
             values = []
             for port in c._as_ports(at_port):
-                port_suffix = c.ports[port]
+                try:
+                    port_suffix = c.ports[port]
+                except IndexError:
+                    continue
                 vals = func(n, cn, port_suffix)
                 if self._aggregate_components_skip_iteration(vals):
                     continue
