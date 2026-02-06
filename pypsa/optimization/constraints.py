@@ -628,7 +628,7 @@ def define_ramp_limit_constraints(
         DataArray(1, coords=[sns, idx]).where(~is_com, 0), m
     )
     if is_com.any():
-        status = status + m[f"{c.name}-status"]
+        status = (status + m[f"{c.name}-status"]).loc[:, status.indexes["name"]]
 
     if is_rolling_horizon:
         start_i = n.snapshots.get_loc(sns[0]) - 1
@@ -641,8 +641,8 @@ def define_ramp_limit_constraints(
         mask[0] = p_init.notnull()
 
     p = m[f"{c.name}-{var_attr}"]
-    p_prev = p.shift(snapshot=1) + p_init * filter_first_sn
-    status_prev = status.shift(snapshot=1) + s_init * filter_first_sn
+    p_prev = p.shift(snapshot=1) + p_init.fillna(0) * filter_first_sn
+    status_prev = status.shift(snapshot=1) + s_init.fillna(0) * filter_first_sn
 
     lhs = p - p_prev
     rhs = limit_up * p_nom * status_prev + limit_start * p_nom * (status - status_prev)
