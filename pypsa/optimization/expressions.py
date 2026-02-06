@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
     from pypsa import Network, NetworkCollection
+    from pypsa.components.components import PortsLike
 logger = logging.getLogger(__name__)
 
 
@@ -178,7 +179,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -244,7 +245,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: str | Sequence[str] | bool | None = None,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         storage: bool = False,
@@ -264,8 +265,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
         if storage:
             components = ("Store", "StorageUnit")
-        if bus_carrier and at_port is None:
-            at_port = True
+        if at_port is None:
+            at_port = "all" if bus_carrier else "bus0"
 
         @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series | None:
@@ -292,7 +293,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             efficiency = port_efficiency(n, component, port=port)[
                 capacity.indexes["name"]
             ]
-            if not at_port:
+            if c._as_ports(at_port) == [0]:
                 efficiency = abs(efficiency)
             res = capacity * efficiency
             if storage and (component == "StorageUnit"):
@@ -325,7 +326,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -385,7 +386,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -451,7 +452,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | None = None,
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -536,7 +537,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | None = None,
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -580,7 +581,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | None = None,
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -624,7 +625,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -704,7 +705,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_time: str | bool = "mean",
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         groupby: str | Sequence[str] | Callable = "carrier",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,

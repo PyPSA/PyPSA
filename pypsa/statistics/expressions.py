@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
     from pypsa import Network, NetworkCollection
+    from pypsa.components.components import PortsLike
 
 logger = logging.getLogger(__name__)
 
@@ -40,21 +41,29 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
 
 
 def port_efficiency(
-    n: Network, c_name: str, port: str = "", dynamic: bool = False
+    n: Network, c_name: str, port: int | str = 0, dynamic: bool = False
 ) -> pd.Series | pd.DataFrame:
     """Get the efficiency of a component at a specific port."""
-    ones = pd.Series(1, index=n.c[c_name].static.index)
-    if port == "":
-        efficiency = ones
-    elif port == "0":
-        efficiency = -ones
+    c = n.c[c_name]
+    port = c._as_port(port)
+
+    ones = pd.Series(1, index=c.static.index)
+    if c.name in n.one_port_components:
+        return ones
+    elif c.name in n.passive_branch_components:
+        return -ones if port == 0 else ones
+    elif c.name == "Link":
+        if port == 0:
+            return -ones
+
+        key = "efficiency" if port == 1 else f"efficiency{port}"
+        if dynamic and key in c.static:
+            return n.get_switchable_as_dense(c.name, key)
+
+        return c.static.get(key, ones)
     else:
-        key = "efficiency" if port == "1" else f"efficiency{port}"
-        if dynamic and key in n.c[c_name].static:
-            efficiency = n.get_switchable_as_dense(c_name, key)
-        else:
-            efficiency = n.c[c_name].static.get(key, ones)
-    return efficiency
+        msg = f"port_efficiency has not been implemented for: {c.name}"
+        raise NotImplementedError(msg)
 
 
 def get_transmission_branches(
@@ -479,7 +488,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -509,12 +518,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="bus0"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -596,7 +604,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -626,12 +634,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="bus0"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -708,7 +715,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -735,12 +742,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="bus0"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -819,7 +825,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -846,12 +852,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="bus0"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -929,7 +934,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -954,8 +959,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Whether to aggregate across components.
         groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components.
-        at_port : bool | str | Sequence[str], default=False
-            Which ports to consider.
+        at_port : PortsLike, default="bus0"
+            Which ports to consider:
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier.
         bus_carrier : str | Sequence[str] | None, default=None
@@ -1010,7 +1018,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -1034,8 +1042,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Whether to aggregate across components.
         groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components.
-        at_port : bool | str | Sequence[str], default=False
-            Which ports to consider.
+        at_port : PortsLike, default="bus0"
+            Which ports to consider:
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier.
         bus_carrier : str | Sequence[str] | None, default=None
@@ -1098,7 +1109,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: str | Sequence[str] | bool | None = None,
+        at_port: PortsLike | None = None,
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -1128,12 +1139,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike | None, default=None
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - None: Automatically set to "all" if bus_carrier is specified,
+              otherwise "bus0"
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1176,13 +1188,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """
         if storage:
             components = ("Store", "StorageUnit")
-        if bus_carrier and at_port is None:
-            at_port = True
+        if at_port is None:
+            at_port = "all" if bus_carrier else "bus0"
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             efficiency = port_efficiency(n, c, port=port)
-            if not at_port:
+            if n.c[c]._as_ports(at_port) == [0]:
                 efficiency = abs(efficiency)
             col = n.c[c].static[f"{nominal_attrs[c]}_opt"] * efficiency
             if storage and (c == "StorageUnit"):
@@ -1220,7 +1232,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: str | Sequence[str] | bool | None = None,
+        at_port: PortsLike | None = None,
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -1250,12 +1262,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike | None, default=None
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - None: Automatically set to "all" if bus_carrier is specified,
+              otherwise "bus0"
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1298,13 +1311,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """
         if storage:
             components = ("Store", "StorageUnit")
-        if bus_carrier and at_port is None:
-            at_port = True
+        if at_port is None:
+            at_port = "all" if bus_carrier else "bus0"
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             efficiency = port_efficiency(n, c, port=port)
-            if not at_port:
+            if n.c[c]._as_ports(at_port) == [0]:
                 efficiency = abs(efficiency)
             col = n.c[c].static[f"{nominal_attrs[c]}"] * efficiency
             if storage and (c == "StorageUnit"):
@@ -1342,7 +1355,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: str | Sequence[str] | bool | None = None,
+        at_port: PortsLike | None = None,
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -1371,12 +1384,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike | None, default=None
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - None: Automatically set to "all" if bus_carrier is specified,
+              otherwise "bus0"
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1451,7 +1465,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -1481,12 +1495,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="bus0"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1623,7 +1636,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -1651,12 +1664,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="bus0"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1745,7 +1757,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -1773,12 +1785,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="all"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1850,7 +1861,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -1878,12 +1889,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="all"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1955,7 +1965,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -1983,12 +1993,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="bus0"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -2073,7 +2082,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | None = None,
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -2104,12 +2113,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="all"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -2215,7 +2223,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -2244,12 +2252,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="bus0"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -2329,7 +2336,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_time: str | bool = "mean",
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike = "bus0",
         groupby: str | Sequence[str] | Callable = "carrier",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
@@ -2356,12 +2363,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="bus0"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -2441,7 +2447,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -2471,12 +2477,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="all"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -2578,7 +2583,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -2607,12 +2612,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : PortsLike, default="all"
             Which ports to consider:
-            - True: All ports of components
-            - False: Consider only first port ("bus"/"bus0")
-            - str or list of str: Specific ports to include
-                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
+            - "all": All ports of components
+            - "bus0": Consider only first port
+            - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).

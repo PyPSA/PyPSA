@@ -15,11 +15,11 @@ from typing import TYPE_CHECKING, Any, Literal
 import pandas as pd
 
 from pypsa._options import options
-from pypsa.constants import RE_PORTS
 from pypsa.statistics.grouping import groupers
 
 if TYPE_CHECKING:
     from pypsa import Network, NetworkCollection
+    from pypsa.components.components import PortsLike
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class AbstractStatisticsAccessor(ABC):
         n: Network | NetworkCollection,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
-        port: str | None = None,
+        port: str,
         nice_names: bool = False,
     ) -> dict:
         by = None
@@ -136,7 +136,7 @@ class AbstractStatisticsAccessor(ABC):
         components: Collection[str] | str | None = None,
         groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         aggregate_across_components: bool = False,
-        at_port: str | Sequence[str] | bool | None = None,
+        at_port: PortsLike = 0,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = True,
@@ -154,42 +154,36 @@ class AbstractStatisticsAccessor(ABC):
         if nice_names is None:
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
-        for c in components:
-            if n.c[c].static.empty:
+        for cn in components:
+            c = n.c[cn]
+            if c.static.empty:
                 continue
 
-            ports = [
-                match.group(1)
-                for col in n.c[c].static
-                if (match := RE_PORTS.search(str(col)))
-            ]
-
-            match at_port:
-                case str():
-                    if at_port in ports:
-                        ports = [at_port]
-                    elif at_port.startswith("bus"):
-                        msg = f"{at_port} with 'bus' prefix is not valid. Use the port number only."
-                        raise ValueError(msg)
-                    else:
-                        ports = []    
-                case [str(), *_]:
-                    if any(p.startswith("bus") for p in at_port):
-                        msg = f"{at_port} with 'bus' prefix is not valid. Use the port number only."
-                        raise ValueError(msg)
-                    ports = [p for p in at_port if p in ports]
-                case False | None:
-                    ports = [ports[0]]
+            if at_port is False or at_port is None:
+                warnings.warn(
+                    f"Passing `at_port={at_port}` is deprecated. Use `at_port=0` instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                at_port = [0]
+            elif at_port is True:
+                warnings.warn(
+                    'Passing `at_port=True` is deprecated. Use `at_port="all"` instead.',
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                at_port = "all"
 
             values = []
-            for port in ports:
-                vals = func(n, c, port)
+            for port in c._as_ports(at_port):
+                port_suffix = c.ports[port]
+                vals = func(n, cn, port_suffix)
                 if self._aggregate_components_skip_iteration(vals):
                     continue
 
-                vals = self._filter_active_assets(n, c, vals)  # for multiinvest
-                vals = self._filter_bus_carrier(n, c, port, bus_carrier, vals)
-                vals = self._filter_carrier(n, c, carrier, vals)
+                vals = self._filter_active_assets(n, cn, vals)  # for multiinvest
+                vals = self._filter_bus_carrier(n, cn, port_suffix, bus_carrier, vals)
+                vals = self._filter_carrier(n, cn, carrier, vals)
 
                 if self._aggregate_components_skip_iteration(vals):
                     continue
@@ -206,12 +200,12 @@ class AbstractStatisticsAccessor(ABC):
                         )
                         groupby = "carrier"
                     grouping = self._get_grouping(
-                        n, c, groupby, port=port, nice_names=nice_names
+                        n, cn, groupby, port=port_suffix, nice_names=nice_names
                     )
-                    vals = self._aggregate_components_groupby(vals, grouping, agg, c)
+                    vals = self._aggregate_components_groupby(vals, grouping, agg, cn)
                 # Avoid having 'component' as index name in multiindex
                 elif isinstance(vals, pd.DataFrame | pd.Series):
-                    vals = vals.rename_axis(c, axis=0)
+                    vals = vals.rename_axis("name", axis=0)
                 values.append(vals)
 
             if not values:
@@ -219,7 +213,7 @@ class AbstractStatisticsAccessor(ABC):
 
             df = self._aggregate_components_concat_values(values, agg)
 
-            d[c] = df
+            d[cn] = df
         df = self._aggregate_components_concat_data(d, is_one_component)
         if not df.empty:
             df = self._apply_option_kwargs(
@@ -271,14 +265,14 @@ class AbstractStatisticsAccessor(ABC):
             return obj
 
         idx = self._get_component_index(obj, c)
-        ports = n.c[c].static.loc[idx, f"bus{port}"]
+        buses = n.c[c].static.loc[idx, f"bus{port}"]
 
         # Handle MultiIndex (Collection and Stochastic Networks)
         bus_carriers = n.c.buses.static.carrier
         if isinstance(bus_carriers.index, pd.MultiIndex):
             bus_carriers = bus_carriers.groupby(level="name").first()
 
-        port_carriers = ports.map(bus_carriers)
+        port_carriers = buses.map(bus_carriers)
         if isinstance(bus_carrier, str):
             if bus_carrier in bus_carriers.unique():
                 mask = port_carriers == bus_carrier
@@ -291,7 +285,7 @@ class AbstractStatisticsAccessor(ABC):
             raise TypeError(msg)
         # links may have empty ports which results in NaNs
         mask = mask.where(mask.notnull(), False)
-        return obj.loc[ports.index[mask]]
+        return obj.loc[buses.index[mask]]
 
     def _filter_carrier(
         self,
