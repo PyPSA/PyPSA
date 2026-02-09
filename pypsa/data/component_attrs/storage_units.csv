@@ -11,7 +11,7 @@ p_nom_max,float,MW,inf,"If `p_nom_extendable=True`, set the maximum value of `p_
 p_nom_set,float,MW,n/a,"If `p_nom_extendable=True`, set the value of `p_nom_opt`.",Input (optional)
 p_min_pu,static or series,per unit,-1,The minimum output for each snapshot per unit of `p_nom` for the optimisation. Negative sign implies storing mode withdrawing power from bus.,Input (optional)
 p_max_pu,static or series,per unit,1,The maximum output for each snapshot per unit of `p_nom` for the optimisation. Positive sign implies discharging mode injecting power into bus.,Input (optional)
-p_set,static or series,MW,n/a,Active power set point (for power flow only),Input (optional)
+p_set,static or series,MW,n/a,Active power set point. Sets p directly in power flow. In LOPF optimisation constrains net power (p_dispatch - p_store),Input (optional)
 q_set,static or series,MVar,0,Reactive power set point (for power flow only),Input (optional)
 p_dispatch_set,static or series,MW,NaN,Active power dispatch set point (for optimisation only),Input (optional)
 p_store_set,static or series,MW,NaN,Active power charging set point (for optimisation only),Input (optional)

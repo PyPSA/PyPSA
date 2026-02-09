@@ -60,6 +60,7 @@ cartopy = ["cartopy>=0.16"]
 excel = ["openpyxl", "python-calamine"]
 gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
+dotenv = ["python-dotenv"]
 tsam = ["tsam"]
 dev = [
     "pytest",
@@ -92,6 +93,7 @@ docs = [
     "gurobipy",
     "openpyxl",
     "python-calamine",
+    "salib",
     "pytest",
     "cartopy>=0.16",
 ]

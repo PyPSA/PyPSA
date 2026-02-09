@@ -464,6 +464,12 @@ options._add_option(
     "Default value for the 'solver_options' parameter in optimization module.",
 )
 options._add_option(
+    "params.optimize.log_to_console",
+    True,
+    "Whether to print solver output to console. See linopy's Model.solve()\n\t"
+    "documentation at https://linopy.readthedocs.io for details.",
+)
+options._add_option(
     "params.optimize.include_objective_constant",
     None,
     "Include capital costs of existing capacity on extendable assets in the objective. "
@@ -504,6 +510,17 @@ options._add_option(
     "debugging and development purposes. This will lead to overhead in\n\t"
     "performance and should not be used in production.",
 )
+
+# Load environment variables from .env file if python-dotenv is installed
+try:
+    from dotenv import find_dotenv, load_dotenv
+
+    dotenv_path = find_dotenv(usecwd=True)
+    if dotenv_path:
+        load_dotenv(dotenv_path, override=False)
+        logger.debug("Loaded environment variables from '%s'", dotenv_path)
+except ImportError:
+    pass
 
 # Load options from environment variables
 options._load_from_env()
