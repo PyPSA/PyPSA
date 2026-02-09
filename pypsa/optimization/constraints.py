@@ -58,9 +58,8 @@ def define_operational_constraints_for_non_extendables(
     where lower_bound and upper_bound are computed from the component's nominal
     capacity and min/max per unit values.
 
-    Applies to Components
-    ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+    Applies to Generator (p), Line (s), Transformer (s), Link (p), Store (e),
+    StorageUnit (p_dispatch, p_store, state_of_charge).
 
     Parameters
     ----------
@@ -141,9 +140,8 @@ def define_operational_constraints_for_extendables(
     where lower_bound and upper_bound are computed from the component's nominal
     capacity and min/max per unit values.
 
-    Applies to Components
-    ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+    Applies to Generator (p), Line (s), Transformer (s), Link (p), Store (e),
+    StorageUnit (p_dispatch, p_store, state_of_charge).
 
     Parameters
     ----------
@@ -209,9 +207,7 @@ def define_operational_constraints_for_committables(
     3. Minimum up and down time constraints
     4. Ramp rate constraints for committed units
 
-    Applies to Components
-    ---------------------
-    Generator, Link (when they have unit commitment capabilities)
+    Applies to Generator and Link (when they have unit commitment capabilities).
 
     Parameters
     ----------
@@ -495,10 +491,8 @@ def define_nominal_constraints_for_extendables(
     where capacity is a decision variable representing the component's
     optimal capacity.
 
-    Applies to Components
-    ---------------------
-    Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
-    Store (e_nom), StorageUnit (p_nom)
+    Applies to Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
+    Store (e_nom), StorageUnit (p_nom).
 
     Parameters
     ----------
@@ -545,9 +539,7 @@ def define_ramp_limit_constraints(
     extendable, and committable components, with different formulations
     for each case.
 
-    Applies to Components
-    ---------------------
-    Generator (p), Link (p)
+    Applies to Generator (p) and Link (p).
 
     Parameters
     ----------
@@ -818,9 +810,8 @@ def define_nodal_balance_constraints(
     where power injections include generation, storage discharge, and incoming branch flows,
     while power withdrawals include loads, storage charging, and outgoing branch flows.
 
-    Applies to Components
-    ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (p), Load (p), StorageUnit (p_dispatch, p_store)*
+    Applies to Generator (p), Line (s), Transformer (s), Link (p), Store (p),
+    Load (p), StorageUnit (p_dispatch, p_store).
 
     Notes
     -----
@@ -969,9 +960,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         x_l : series reactance or resistance of branch l (depending on AC/DC)
         s_l : branch flow variable for branch l in the cycle
 
-    Applies to Components
-    ---------------------
-    Line, Transformer, Link (passive branch components)
+    Applies to Line, Transformer, and Link (passive branch components).
 
     Parameters
     ----------
@@ -1036,10 +1025,8 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     Sets constraints to fix nominal (capacity) variables of components to values
     specified in the corresponding '_set' attribute.
 
-    Applies to Components
-    ---------------------
-    Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
-    Store (e_nom), StorageUnit (p_nom)
+    Applies to Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
+    Store (e_nom), StorageUnit (p_nom).
 
     Parameters
     ----------
@@ -1087,10 +1074,8 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     where n_modules is an integer decision variable and module_size is the
     specified size of each module.
 
-    Applies to Components
-    ---------------------
-    Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
-    Store (e_nom), StorageUnit (p_nom)
+    Applies to Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
+    Store (e_nom), StorageUnit (p_nom).
 
     Parameters
     ----------
@@ -1147,9 +1132,8 @@ def define_fixed_operation_constraints(
     Sets constraints to fix dispatch variables of components to values specified
     in the corresponding '_set' attribute.
 
-    Applies to Components
-    ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+    Applies to Generator (p), Line (s), Transformer (s), Link (p), Store (e),
+    StorageUnit (p_dispatch, p_store, state_of_charge).
 
     Parameters
     ----------
@@ -1213,9 +1197,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     charging and discharging power variables, and the efficiencies account
     for energy losses.
 
-    Applies to Components
-    ---------------------
-    StorageUnit (p_dispatch, p_store, state_of_charge, spill)
+    Applies to StorageUnit (p_dispatch, p_store, state_of_charge, spill).
 
     Parameters
     ----------
@@ -1407,9 +1389,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         p(t)        : energy charging (positive), or discharging (negative)
         elapsed_hours: duration of the time step
 
-    Applies to Components
-    ---------------------
-    Store (e, p)
+    Applies to Store (e, p).
 
     Parameters
     ----------
@@ -1577,9 +1557,8 @@ def define_tangent_loss_constraints(
 ) -> None:
     """Approximate transmission losses using piecewise linear tangents.
 
-    Applies to Components
-    ---------------------
-    Line, Transformer (passive branch components when transmission_losses are used)
+    Applies to Line and Transformer (passive branch components when transmission_losses
+    are used).
 
     The tangent-based approximation underestimates losses. See equations
     (39)-(46) in [1] for details.
@@ -1669,9 +1648,8 @@ def define_secant_loss_constraints(
 ) -> None:
     """Approximate transmission losses using piecewise linear secants.
 
-    Applies to Components
-    ---------------------
-    Line, Transformer (passive branch components when transmission_losses are used)
+    Applies to Line and Transformer (passive branch components when transmission_losses
+    are used).
 
     Creates secant constraints to the quadratic loss curve ``L(p) = r * p^2``
     for passive branches. The secant-based approximation overestimates losses
@@ -1828,9 +1806,7 @@ def define_total_supply_constraints(
     where the sum is taken over all snapshots and weighting accounts for the
     duration of each snapshot.
 
-    Applies to Components
-    ---------------------
-    Generator (by default, but component parameter can be changed)
+    Applies to Generator (by default, but component parameter can be changed).
 
     Parameters
     ----------

@@ -91,15 +91,19 @@ splitting losses equally between both connection points.
 The dispatch limits of $p_{\ell,t}$ are now subtracted by $\psi_{l,t}$.
 
 
-Two linearization methods are available in pypsa, the legacy tangent-based approximation, and the default secant-based approximation with error control. These constraints are added to the PyPSA model in the function `define_loss_constraints()`.
+Two linearization methods are available in PyPSA: the tangent-based approximation ([`define_tangent_loss_constraints()`][pypsa.optimization.constraints.define_tangent_loss_constraints]) and the secant-based approximation with error control ([`define_secant_loss_constraints()`][pypsa.optimization.constraints.define_secant_loss_constraints]).
 
 The transmission loss approximation is not activated by default, but must be enabled in [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
 ```py
-# For secant-based approximation with error control
-n.optimize(transmission_losses={mode="secants", atol=1, rtol=0.1})
-# Or for the tangent-based approximation
-n.optimize(transmission_losses={mode="tangents", n_tangents=3})
+# Secant-based approximation with error control
+n.optimize(transmission_losses=True)
+# Or with custom tolerances
+n.optimize(transmission_losses={"mode": "secants", "atol": 1, "rtol": 0.1})
+# Tangent-based approximation (deprecated in version 2.0)
+n.optimize(transmission_losses=3)
+# Or explicitly
+n.optimize(transmission_losses={"mode": "tangents", "segments": 3})
 ```
 
 
