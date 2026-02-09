@@ -141,6 +141,7 @@ nav:
       - IO: api/networks/io.md
       - Power Flow: api/networks/power-flow.md
       - Optimize: api/networks/optimize.md
+      - Constraints: api/networks/constraints.md
       - Cluster: api/networks/cluster.md
       - Statistics: api/networks/statistics.md
       - Plotting: api/networks/plot.md

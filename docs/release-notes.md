@@ -45,15 +45,21 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - In version 2.0, capital costs of existing capacity on extendable assets will no longer be included in the objective by default (`n.objective_constant` will be set to zero), which improves LP numerical conditioning. A new `include_objective_constant` parameter was added to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] and [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] to allow controlling this behavior and opt-in to the new default. It can also be configured via `pypsa.options.params.optimize.include_objective_constant` (see <!-- md:guide options.md -->). (<!-- md:pr 1509 -->)
 
-- New example notebooks:
-  - Demonstrating negative electricity prices in linearized unit commitment problem. See [:material-notebook-multiple: notebook](./examples/unit-commitment.ipynb). (<!-- md:pr 1434 -->)
-  - Combining PyPSA with Global Sensitivity Analysis (GSA) methods. See [:material-notebook-multiple: notebook](./examples/gsa.ipynb). (<!-- md:pr 1318 -->)
+
 
 ### Bug Fixes
 
 - Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
 - Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
 - Fix spatial clustering filling empty time series with defaults for `aggregate_one_ports`. (<!-- md:pr 1528 -->)
+
+### Documentation
+
+- New example notebooks:
+  - Demonstrating negative electricity prices in linearized unit commitment problem. See [:material-notebook-multiple: notebook](./examples/unit-commitment.ipynb). (<!-- md:pr 1434 -->)
+  - Combining PyPSA with Global Sensitivity Analysis (GSA) methods. See [:material-notebook-multiple: notebook](./examples/gsa.ipynb). (<!-- md:pr 1318 -->)
+
+- Add internal constraint and global constraint functions to the API reference (see <!-- md:api networks/constraints.md -->).
 
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
 

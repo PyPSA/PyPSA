@@ -130,10 +130,6 @@ def define_objective(
     include_objective_constant : bool
         Whether to include the objective constant as a variable in the objective function.
 
-    Returns
-    -------
-    None
-
     Notes
     -----
     - The final objective expression is assigned to `n.model.objective`.

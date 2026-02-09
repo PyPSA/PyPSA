@@ -76,10 +76,6 @@ def define_operational_constraints_for_non_extendables(
         If truthy, transmission losses are considered in the operational
         constraints for passive branches.
 
-    Returns
-    -------
-    None
-
     Notes
     -----
     For passive branches with transmission losses, the constraint accounts for
@@ -163,10 +159,6 @@ def define_operational_constraints_for_extendables(
         If truthy, transmission losses are considered in the operational
         constraints for passive branches.
 
-    Returns
-    -------
-    None
-
     """
     c = as_components(n, component)
     sns = as_index(n, sns, "snapshots")
@@ -229,10 +221,6 @@ def define_operational_constraints_for_committables(
         Set of snapshots for which to define the constraints
     component : str
         Name of the network component ("Generator" or "Link")
-
-    Returns
-    -------
-    None
 
     Notes
     -----
@@ -521,10 +509,6 @@ def define_nominal_constraints_for_extendables(
     attr : str
         Name of the capacity attribute (e.g. "p_nom" for nominal power)
 
-    Returns
-    -------
-    None
-
     Notes
     -----
     Components with infinite max_capacity values are handled through masking
@@ -575,10 +559,6 @@ def define_ramp_limit_constraints(
         Name of the network component (e.g. "Generator")
     attr : str
         Name of the dispatch attribute (e.g. "p" for active power)
-
-    Returns
-    -------
-    None
 
     Notes
     -----
@@ -860,10 +840,6 @@ def define_nodal_balance_constraints(
     suffix : str, default ""
         Optional suffix to append to constraint names and dimensions
 
-    Returns
-    -------
-    None
-
     Notes
     -----
     Link components with multiple buses are handled with their respective
@@ -1004,10 +980,6 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     sns : pd.Index
         Set of snapshots for which to define the constraints
 
-    Returns
-    -------
-    None
-
     Notes
     -----
     While there are different formulations of KVL, the cycle-based
@@ -1078,10 +1050,6 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     attr : str
         Name of the capacity attribute (e.g. "p_nom" for nominal power)
 
-    Returns
-    -------
-    None
-
     Notes
     -----
     The function only creates constraints for components that have non-NaN
@@ -1132,10 +1100,6 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
         Name of the network component (e.g. "Generator", "StorageUnit")
     attr : str
         Name of the capacity attribute (e.g. "p_nom" for nominal power)
-
-    Returns
-    -------
-    None
 
     Notes
     -----
@@ -1198,10 +1162,6 @@ def define_fixed_operation_constraints(
     attr : str
         Name of the dispatch attribute (e.g. "p" for active power)
 
-    Returns
-    -------
-    None
-
     Notes
     -----
     This function is useful for modeling must-run generators, fixed imports/exports,
@@ -1263,10 +1223,6 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-
-    Returns
-    -------
-    None
 
     Notes
     -----
@@ -1462,10 +1418,6 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     sns : pd.Index
         Set of snapshots for which to define the constraints
 
-    Returns
-    -------
-    None
-
     Notes
     -----
     Stores differ from storage units in that they have a single power variable
@@ -1647,10 +1599,6 @@ def define_tangent_loss_constraints(
         of the quadratic loss function. Higher values increase accuracy
         but also computational complexity.
 
-    Returns
-    -------
-    None
-
     References
     ----------
     [1] F. Neumann, T. Brown, "Transmission losses in power system
@@ -1751,10 +1699,6 @@ def define_secant_loss_constraints(
     max_segments : int, default 20
         Safety cap on the number of segments per direction. The total number
         of constraints may be at most ``2 * max_segments`` per branch.
-
-    Returns
-    -------
-    None
 
     References
     ----------
@@ -1896,10 +1840,6 @@ def define_total_supply_constraints(
         Set of snapshots for which to define the constraints
     component : str, default "Generator"
         Name of the network component to apply the constraints to
-
-    Returns
-    -------
-    None
 
     Notes
     -----
