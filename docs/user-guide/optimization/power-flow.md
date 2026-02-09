@@ -100,17 +100,18 @@ The transmission loss approximation is not activated by default, but must be ena
 n.optimize(transmission_losses=True)
 # Or with custom tolerances
 n.optimize(transmission_losses={"mode": "secants", "atol": 1, "rtol": 0.1})
-# Tangent-based approximation (deprecated in version 2.0)
-n.optimize(transmission_losses=3)
-# Or explicitly
+# Tangent-based approximation
 n.optimize(transmission_losses={"mode": "tangents", "segments": 3})
 ```
 
+When passing a dict, the `mode` key selects the method. Additional keys are forwarded to the corresponding constraint function:
 
+- **Secant mode** (`"secants"`, see [`define_secant_loss_constraints()`][pypsa.optimization.constraints.define_secant_loss_constraints]): `atol`, `rtol`, `max_segments`.
+- **Tangent mode** (`"tangents"`, see [`define_tangent_loss_constraints()`][pypsa.optimization.constraints.define_tangent_loss_constraints]): `segments`.
 
 !!! hint "Hint: Calculating transmission losses"
 
-    The losses can be calculated with`n.lines_t.p0 + n.lines_t.p1`.
+    The losses can be calculated with `n.lines_t.p0 + n.lines_t.p1`.
 
 ??? note "Mapping of symbols to component attributes"
 

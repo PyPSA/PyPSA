@@ -409,7 +409,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         self,
         snapshots: Sequence | None = None,
         multi_investment_periods: bool = False,
-        transmission_losses: int | dict | bool = 0,
+        transmission_losses: bool | int | dict = False,
         linearized_unit_commitment: bool = False,
         model_kwargs: dict | None = None,
         extra_functionality: Callable | None = None,
@@ -685,7 +685,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_total_supply_constraints(n, sns)
 
         if transmission_losses:
-            if transmission_losses is True:
+            if isinstance(transmission_losses, bool):
                 transmission_losses = {"mode": "secants"}
             elif isinstance(transmission_losses, int):
                 equivalent = {"mode": "tangents", "segments": transmission_losses}
@@ -701,8 +701,16 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     "mode": "tangents",
                     "segments": transmission_losses,
                 }
-
+            # Don't mutate passed dict
+            transmission_losses = dict(transmission_losses)
             mode = transmission_losses.pop("mode", "secants")
+            if mode == "tangents" and "segments" not in transmission_losses:
+                msg = (
+                    "The 'tangents' mode requires a 'segments' key, e.g. "
+                    "transmission_losses={'mode': 'tangents', 'segments': 3}"
+                )
+                raise ValueError(msg)
+
             for c in n.passive_branch_components:
                 if mode == "secants":
                     define_secant_loss_constraints(n, sns, c, **transmission_losses)

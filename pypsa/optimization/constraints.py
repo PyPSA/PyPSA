@@ -45,7 +45,7 @@ def define_operational_constraints_for_non_extendables(
     sns: pd.Index,
     component: str,
     attr: str,
-    transmission_losses: int | dict,
+    transmission_losses: bool | int | dict = False,
 ) -> None:
     """Define operational constraints (lower-/upper bound).
 
@@ -128,7 +128,7 @@ def define_operational_constraints_for_extendables(
     sns: pd.Index,
     component: str,
     attr: str,
-    transmission_losses: int | dict = 0,
+    transmission_losses: bool | int | dict = False,
 ) -> None:
     """Define operational constraints (lower-/upper bound) for extendable components.
 
@@ -792,7 +792,7 @@ def define_ramp_limit_constraints(
 def define_nodal_balance_constraints(
     n: Network,
     sns: pd.Index,
-    transmission_losses: int | dict = 0,
+    transmission_losses: bool | int | dict = False,
     buses: Sequence | None = None,
     suffix: str = "",
 ) -> None:
@@ -1586,6 +1586,10 @@ def define_tangent_loss_constraints(
         https://doi.org/10.1016/j.apenergy.2022.118859
 
     """
+    if not isinstance(segments, int) or segments < 1:
+        msg = f"'segments' must be a positive integer, got {segments!r}"
+        raise ValueError(msg)
+
     c = n.components[component]
 
     if c.static.empty or component not in n.passive_branch_components:
@@ -1683,6 +1687,16 @@ def define_secant_loss_constraints(
     [1] https://github.com/PyPSA/PyPSA/pull/1495
 
     """
+    if atol <= 0:
+        msg = f"'atol' must be positive, got {atol}"
+        raise ValueError(msg)
+    if rtol < 0:
+        msg = f"'rtol' must be non-negative, got {rtol}"
+        raise ValueError(msg)
+    if max_segments < 1:
+        msg = f"'max_segments' must be >= 1, got {max_segments}"
+        raise ValueError(msg)
+
     c = n.components[component]
 
     if c.static.empty or component not in n.passive_branch_components:
