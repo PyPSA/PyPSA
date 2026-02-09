@@ -1741,9 +1741,8 @@ def define_loss_constraints(
             stepfactor_k = maximum(stepfactor_atol, stepfactor_rtol)
             breakpoint_factors.append(breakpoint_factors[-1] * stepfactor_k)
             if k >= max_segments:
-                raise RuntimeError(
-                    f"secant loop hit max_segments; check atol/rtol or line parameters; current inputs would result in {2 * max_segments} additional constraints per line"
-                )
+                msg = f"Secant loop hit max_segments; check atol/rtol or line parameters; current inputs would result in {2 * max_segments} additional constraints per line"
+                raise RuntimeError(msg)
 
         # make a separate array of factors for every line
         factors_1d = DataArray(breakpoint_factors, dims=["secant"])
@@ -1807,7 +1806,8 @@ def define_loss_constraints(
                     mask=active,
                 )
     else:
-        raise ValueError("mode must be either 'tangents' or 'secants'")
+        msg = "Mode must be either 'tangents' or 'secants'"
+        raise ValueError(msg)
 
 
 def define_total_supply_constraints(
