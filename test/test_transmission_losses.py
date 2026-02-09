@@ -21,14 +21,16 @@ def test_transmission_losses_independent_of_s_nom_max():
 def test_secant_losses_larger():
     n = pypsa.examples.ac_dc_meshed()
     n.optimize(transmission_losses={"mode": "secants"})
-    assert (n.lines_t.p0**2 * n.lines.r_pu_eff).values <= n.model.solution[
-        "Line-loss"
-    ].sel(name=n.lines.index)
+    assert (
+        (n.lines_t.p0**2 * n.lines.r_pu_eff).values
+        <= n.model.solution["Line-loss"].sel(name=n.lines.index)
+    ).all()
 
 
 def test_tangent_losses_smaller():
     n = pypsa.examples.ac_dc_meshed()
-    n.optimize(transmission_losses={"mode": "tangents"})
-    assert (n.lines_t.p0**2 * n.lines.r_pu_eff).values >= n.model.solution[
-        "Line-loss"
-    ].sel(name=n.lines.index)
+    n.optimize(transmission_losses={"mode": "tangents", "segments": 3})
+    assert (
+        (n.lines_t.p0**2 * n.lines.r_pu_eff).values
+        >= n.model.solution["Line-loss"].sel(name=n.lines.index)
+    ).all()
