@@ -54,8 +54,8 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Bug Fixes
 
 - **Breaking**: Fix `ramp_limit_start_up` and `ramp_limit_shut_down` being ignored in binary unit commitment. The constraints are now properly applied when these attributes are explicitly set. (<!-- md:pr 1553 -->)
-    - Changed default values of these attributes from `1` to `NaN` to align with `ramp_limit_up` and `ramp_limit_down` defaults and avoiding redundant constraints in the model instance. This allows distinguishing between "no limit" (NaN) and "full ramp allowed" (1). Code that relied on the implicit default of 1 may need updating. 
-    - Ramp limit constraint names simplified from `{c}-fix-p-ramp_limit_*`, `{c}-ext-p-ramp_limit_*`, `{c}-com-p-ramp_limit_*` to unified `{c}-p-ramp_limit_*` (where `{c}` is `Generator` or `Link`). 
+    - Changed default values of these attributes from `1` to `NaN` to align with `ramp_limit_up` and `ramp_limit_down` defaults and avoiding redundant constraints in the model instance. This allows distinguishing between "no limit" (NaN) and "full ramp allowed" (1). Code that relied on the implicit default of 1 may need updating.
+    - Ramp limit constraint names simplified from `{c}-fix-p-ramp_limit_*`, `{c}-ext-p-ramp_limit_*`, `{c}-com-p-ramp_limit_*` to unified `{c}-p-ramp_limit_*` (where `{c}` is `Generator` or `Link`).
 - Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
 - Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
 - Fix spatial clustering filling empty time series with defaults for `aggregate_one_ports`. (<!-- md:pr 1528 -->)
