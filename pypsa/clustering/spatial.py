@@ -594,7 +594,8 @@ def get_clustering_from_busmap(
         )
         clustered.add(one_port, new_static.index, **new_static)
         for attr, df in new_dynamic.items():
-            clustered._import_series_from_df(df, one_port, attr)
+            if not df.empty:
+                clustered._import_series_from_df(df, one_port, attr)
 
     # Collect remaining one ports
 

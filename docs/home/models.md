@@ -26,6 +26,7 @@ open source and actively maintained. Below is a list of some known models.
 - **[:flag_gb: PyPSA-FES](https://github.com/centrefornetzero/pypsa-fes)**: Great Britain power system model, maintained by Octopus Energy's [Centre for Net Zero](https://www.centrefornetzero.org)
 - **[:flag_at: PyPSA-AT](https://github.com/AGGM-AG/pypsa-at)**: Austrian power and gas system model, maintained by [Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/en/)
 - **[:flag_eu: PyPSA-IEI](https://github.com/Fraunhofer-IEG/PyPSA-IEI)**: European energy system model, maintained by [Fraunhofer IEG](https://www.ieg.fraunhofer.de/en.html), [Fraunhofer ISI](https://www.isi.fraunhofer.de/en.html), and [d-fine](https://www.d-fine.com/en/)
+- **[:flag_nl: PyPSA-NL2025](https://github.com/Tanneheemsbergen/pypsa-NL2025)**: Dutch energy system model simulating day-ahead, imbalance-only, and value stacking for energy storage projects, maintained by Tanne Heemsbergen
 
 ### Asia
 - **[:flag_cn: PyPSA-China-PIK](https://github.com/pik-piam/PyPSA-China-PIK)**: Chinese power and heat sector-coupling model, maintained by [PIK](https://www.pik-potsdam.de) based on a [previous version](https://github.com/Xiaowei-Z/PyPSA-China)

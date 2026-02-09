@@ -19,11 +19,23 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](simple-electricity-market-examples.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Demand and Supply Bids**
+
+    Demonstrates market-clearing with supply and demand bids in single and two-zone configurations.
+
+    [:octicons-arrow-right-24: Go to example](demand-supply-bids.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Unit Commitment**
 
     Models generator unit commitment with start-up and shut-down costs, ramping limits, minimum part loads, up and down times using binary variables.
 
     [:octicons-arrow-right-24: Go to example](unit-commitment.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Negative Prices in Linearized UC**
+
+    Shows how negative electricity prices emerge from linearized unit commitment constraints due to the trade-off between cycling costs and operating at minimum load.
+
+    [:octicons-arrow-right-24: Go to example](uc-prices.ipynb)
 
 -   :material-notebook:{ .lg .middle } **Meshed AC-DC Networks**
 
@@ -244,6 +256,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
     Shows how model complexity can be reduced by aggregating snapshots.
 
     [:octicons-arrow-right-24: Go to example](time-series-aggregation.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Global Sensitivity Analysis**
+
+    Combines PyPSA with SALib's Sobol indices to understand how technology cost uncertainties affect optimal system design and total costs.
+
+    [:octicons-arrow-right-24: Go to example](gsa.ipynb)
 
 -   :material-notebook:{ .lg .middle } **Storage Units as Links & Stores**
 
