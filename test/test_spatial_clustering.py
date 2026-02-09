@@ -248,3 +248,18 @@ def test_clustering_multiport_links():
 
     # Assert total number of buses is correct
     assert len(n.c.buses.static) == 3, f"Expected 3 buses, got {len(n.c.buses.static)}"
+
+
+def test_aggregate_one_ports_no_time_series():
+    """Test that empty time series stay empty after clustering."""
+    n = pypsa.Network()
+    n.set_snapshots(range(3))
+    n.add("Bus", ["a", "b"])
+    n.add("StorageUnit", "su", bus="a", p_nom=100)
+
+    assert n.storage_units_t.p.empty
+
+    busmap = pd.Series("x", n.buses.index)
+    C = get_clustering_from_busmap(n, busmap, aggregate_one_ports=["StorageUnit"])
+
+    assert C.n.storage_units_t.p.empty

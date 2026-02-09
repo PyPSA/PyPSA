@@ -419,6 +419,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         assign_all_duals: bool = False,
         solver_name: str | None = None,
         solver_options: dict | None = None,
+        log_to_console: bool | None = None,
         compute_infeasibilities: bool = False,
         include_objective_constant: bool | None = None,
         **kwargs: Any,
@@ -461,6 +462,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Keyword arguments used by the solver. Can also be passed via `**kwargs`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        log_to_console : bool, optional
+            Whether the solver prints its progress to the console. This is passed
+            to linopy's `Model.solve()` method. Defaults to module wide option
+            (default: True). See `https://go.pypsa.org/options-params` for more
+            information.
         compute_infeasibilities : bool, default False
             Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
             of an infeasible solution. Requires Gurobi.
@@ -491,6 +497,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             solver_name = options.params.optimize.solver_name
         if solver_options is None:
             solver_options = options.params.optimize.solver_options.copy()
+        if log_to_console is None:
+            log_to_console = options.params.optimize.log_to_console
 
         include_objective_constant = _resolve_include_objective_constant(
             include_objective_constant
@@ -513,7 +521,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         )
         if extra_functionality:
             extra_functionality(n, sns)
-        status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
+        status, condition = m.solve(
+            solver_name=solver_name,
+            log_to_console=log_to_console,
+            **solver_options,
+            **kwargs,
+        )
 
         if status == "ok":
             n.optimize.assign_solution()
@@ -679,6 +692,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         extra_functionality: Callable | None = None,
         solver_name: str | None = None,
         solver_options: dict | None = None,
+        log_to_console: bool | None = None,
         assign_all_duals: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
@@ -700,6 +714,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Keyword arguments used by the solver. Defaults to module wide option
             (default: {}). Can also be passed via `**kwargs`. See
             `https://go.pypsa.org/options-params` for more information.
+        log_to_console : bool, optional
+            Whether the solver prints its progress to the console. This is passed
+            to linopy's `Model.solve()` method. Defaults to module wide option
+            (default: True). See `https://go.pypsa.org/options-params` for more
+            information.
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
@@ -724,12 +743,19 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             solver_options = options.params.optimize.solver_options.copy()
         if solver_name is None:
             solver_name = options.params.optimize.solver_name
+        if log_to_console is None:
+            log_to_console = options.params.optimize.log_to_console
 
         n = self._n
         if extra_functionality:
             extra_functionality(n, n.snapshots)
         m = n.model
-        status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
+        status, condition = m.solve(
+            solver_name=solver_name,
+            log_to_console=log_to_console,
+            **solver_options,
+            **kwargs,
+        )
 
         if status == "ok":
             self._n.optimize.assign_solution()
