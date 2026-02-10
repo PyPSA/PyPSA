@@ -1772,13 +1772,6 @@ def define_secant_loss_constraints(
     b_factors = breakpoint_factors.isel(secant=slice(1, None))  # k segments: 1..K
     b_factors["secant"] = b_factors["secant"] - 1  # align indices
 
-    # The final breakpoint can be made smaller by setting it to the target
-    # This improves the approximation, however may introduce a dependency on s_nom_max:
-    # Therefore we do it only for lines that are non-extendable:
-    b_factors = where(
-        lossy & ~is_extendable, b_factors.clip(max=target_factors), b_factors
-    )
-
     # The simplest form of the slope would be:
     # slope = r_pu_eff * (a + b)
     # with a=x_i, b=x_{i+1} we have:
