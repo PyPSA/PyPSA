@@ -398,7 +398,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self, values: list[pd.DataFrame], agg: Callable | str
     ) -> pd.DataFrame:
         """Concatenate a list of DataFrames."""
-        df = pd.concat(values, copy=False) if len(values) > 1 else values[0]
+        df = pd.concat(values) if len(values) > 1 else values[0]
         if not df.index.is_unique:
             df = df.groupby(level=df.index.names).agg(agg)
         return df

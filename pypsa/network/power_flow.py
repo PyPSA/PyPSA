@@ -1316,7 +1316,7 @@ class SubNetworkPowerFlowMixin:
         self.pvs = buses_control.index[buses_control == "PV"]
         self.pqs = buses_control.index[buses_control == "PQ"]
 
-        self.pvpqs = self.pvs.append(self.pqs)
+        self.pvpqs = self.pvs.union(self.pqs, sort=False)
 
         # order buses
         self.buses_o = self.pvpqs.insert(0, self.slack_bus)
