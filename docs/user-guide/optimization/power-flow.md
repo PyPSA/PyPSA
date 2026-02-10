@@ -140,7 +140,7 @@ $$
 
 where $\rho_k$ are suitably chosen points on the loss parabola. For details on how these points are derived see the [original PR](https://github.com/PyPSA/PyPSA/pull/1495).
 
-### Legacy Tangent-Based Linearization
+### Tangent-Based Linearization
 
 !!! hint "Warning: Depending on parameters, some lines can be lossless when the tangent-based linearization is used"
     - The tangent-based approximation is designed to underestimate losses
