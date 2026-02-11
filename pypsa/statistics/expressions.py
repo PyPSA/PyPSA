@@ -504,12 +504,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str], default=False
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
@@ -620,12 +620,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str], default=False
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
@@ -728,12 +728,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str], default=False
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
@@ -838,12 +838,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str], default=False
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
@@ -1119,15 +1119,16 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str] | None, default=None
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
+            - None: Defaults to True if `bus_carrier` is set, otherwise False
             - str or list of str: Specific ports to include
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
@@ -1240,15 +1241,16 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str] | None, default=None
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
+            - None: Defaults to True if `bus_carrier` is set, otherwise False
             - str or list of str: Specific ports to include
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
@@ -1360,15 +1362,16 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str] | None, default=None
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
+            - None: Defaults to True if `bus_carrier` is set, otherwise False
             - str or list of str: Specific ports to include
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
@@ -1469,12 +1472,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str], default=False
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
@@ -1638,12 +1641,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str], default=False
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
@@ -1759,7 +1762,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -1863,7 +1866,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -1953,7 +1956,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **transmission** of branch components in the network.
 
-        Units depend on the regarded bus carrier.
+        Only includes branch components (links, lines, transformers) that connect
+        buses of the same carrier. Components connecting buses of different carriers
+        (e.g. sector-coupling links) are excluded.
 
         Parameters
         ----------
@@ -1967,12 +1972,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str], default=False
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
@@ -2226,12 +2231,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str], default=False
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
@@ -2337,12 +2342,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : bool | str | Sequence[str], default=True
+        at_port : bool | str | Sequence[str], default=False
             Which ports to consider:
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
@@ -2451,7 +2456,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -2586,7 +2591,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
