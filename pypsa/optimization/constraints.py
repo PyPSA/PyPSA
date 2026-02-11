@@ -646,12 +646,16 @@ def define_ramp_limit_constraints(
     status_prev = status.shift(snapshot=1) + s_init.fillna(0) * filter_first_sn
 
     lhs = p - p_prev
-    rhs = limit_up * p_nom * status_prev + limit_start * p_nom * (status - status_prev)
+    rhs = limit_up * p_nom * status_prev
+    if is_com.any():
+        rhs = rhs + limit_start * p_nom * (status - status_prev)
     mask_up = mask & ~no_up_limit
     m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_up", mask=mask_up)
 
     lhs = p - p_prev
-    rhs = -limit_down * p_nom * status - limit_shut * p_nom * (status_prev - status)
+    rhs = -limit_down * p_nom * status
+    if is_com.any():
+        rhs = rhs - limit_shut * p_nom * (status_prev - status)
     mask_down = mask & ~no_down_limit
     m.add_constraints(
         lhs >= rhs, name=f"{c.name}-{attr}-ramp_limit_down", mask=mask_down
