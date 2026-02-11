@@ -6,8 +6,10 @@ import doctest
 import importlib
 import json
 import pkgutil
+import re
 import sys
 from pathlib import Path
+from urllib.request import urlopen
 
 import numpy as np
 import pandas as pd
@@ -244,3 +246,23 @@ def test_notebooks(test_docs_flag, pytestconfig):
             f"{len(failed_notebooks)} notebook(s) have missing or incorrect warning filters. "
             f"Run `pytest test/test_docs.py::test_notebooks --test-docs --fix-notebooks` and commit the changes."
         )
+
+
+def _collect_go_urls():
+    """Collect all unique go.pypsa.org URLs from the project."""
+    pattern = re.compile(r"https://go\.pypsa\.org/[a-zA-Z0-9_-]+")
+    urls = set()
+    for fpath in Path("pypsa").glob("**/*.py"):
+        urls.update(pattern.findall(fpath.read_text()))
+    for fpath in Path("docs").glob("**/*.md"):
+        urls.update(pattern.findall(fpath.read_text()))
+    return sorted(urls)
+
+
+@pytest.mark.parametrize("url", _collect_go_urls())
+def test_go_links(url, test_docs_flag):
+    """Test that all go.pypsa.org short-links resolve (no 404)."""
+    if not test_docs_flag:
+        pytest.skip("Need --test-docs option to run documentation tests")
+    response = urlopen(url)  # noqa: S310
+    assert response.status == 200, f"{url} returned {response.status}"
