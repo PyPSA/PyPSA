@@ -27,7 +27,7 @@ class _NetworkABC(ABC):
     snapshots: pd.Index | pd.MultiIndex
     snapshot_weightings: pd.DataFrame
     typical_period_map: pd.Series
-    typical_periods: pd.DataFrame
+    typical_periods: pd.Series
     _snapshots_data: pd.DataFrame
     investment_periods: pd.Index
     investment_period_weightings: pd.DataFrame

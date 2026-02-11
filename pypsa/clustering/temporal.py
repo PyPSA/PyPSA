@@ -674,7 +674,10 @@ def typical_periods(
     typical_period_map = (
         matched_indices.resample(f"{num_days_per_period}D").first().PeriodNum
     )
-    m.typical_period_map = typical_period_map.rename_axis(index="day")
+    typical_period_map.index = typical_period_map.index.strftime("%Y-%m-%d").rename(
+        "day"
+    )
+    m.typical_period_map = typical_period_map
     return TemporalClustering(m, typical_period_map)
 
 

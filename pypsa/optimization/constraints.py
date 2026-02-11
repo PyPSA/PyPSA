@@ -1656,18 +1656,35 @@ def _define_inter_typical_period_storage_constraints(
     m = n.model
     c = as_components(n, component)
     soc_var = m[f"{component}-{attr}"]
-    typical_period_da = n.typical_periods.to_xarray()
-    for op_, bound_ in [(">=", "lower"), ("<=", "upper")]:
+    typical_period_da = n.typical_periods.to_xarray().rename("typical_period")
+    typical_period_map_da = n.typical_period_map.to_xarray().rename("day")
+    min_pu, max_pu = c.get_bounds_pu(attr=attr)
+    nom_attr = nominal_attrs[c.name]
+    is_extendable = c.da[f"{nom_attr}_extendable"]
+    if is_extendable.any():
+        capacity_ext = m[f"{c.name}-{nom_attr}"]
+    else:
+        capacity_ext = None
+    capacity_fixed = c.da[nom_attr]
+    capacity = capacity_ext + capacity_fixed.where(~is_extendable)
+
+    for op_, bound_, pu in [(">=", "lower", min_pu), ("<=", "upper", max_pu)]:
         var = m[f"{component}-{attr}_intra_period_{bound_}"].sel(
             typical_period=typical_period_da
         )
         # Hack because linopy adds unallocated coords to the constraint if they are left lying around
         var._data = var._data.drop_vars("typical_period")
+        lhs = [(1, soc_var)]
+        rhs = var
+        if component == "Store" and bound_ == "upper":
+            rhs -= (1 - pu) * capacity
+        if component == "Store" and bound_ == "lower":
+            rhs += pu * capacity
+
         m.add_constraints(
-            soc_var, op_, var, name=f"{component}-e-intra-typical-period-{bound_}"
+            soc_var, op_, rhs, name=f"{component}-{attr}-intra-typical-period-{bound_}"
         )
 
-    typical_period_map_da = n.typical_period_map.to_xarray()
     inter_period_var = m[f"{component}-{attr}_inter_period"]
 
     snapshots_per_typical_period = {
@@ -1683,15 +1700,17 @@ def _define_inter_typical_period_storage_constraints(
         k: n.typical_period_map.map(v).to_xarray()
         for k, v in snapshots_per_typical_period_pivoted.items()
     }
-    capacity = m[f"{c.name}-{nominal_attrs[c.name]}"]
+
     # standing loss of energy from the previous inter-typical period storage
     # is that for the first snapshot of each typical period,
     # mapped to each day based on the typical period to which it belongs.
-    standing_loss_per_day = eff_stand.sel(
-        snapshot=snapshots_per_day["first"]
-    ).drop_vars("snapshot")
+    standing_loss_per_typical_period = (
+        eff_stand.groupby(typical_period_da)
+        .prod()
+        .sel(typical_period=typical_period_map_da)
+        .drop_vars("typical_period")
+    )
 
-    min_pu, max_pu = c.get_bounds_pu(attr=attr)
     for op_, bound_, pu in [(">=", "lower", min_pu), ("<=", "upper", max_pu)]:
         var = m[f"{component}-{attr}_intra_period_{bound_}"].sel(
             typical_period=typical_period_map_da
@@ -1699,11 +1718,13 @@ def _define_inter_typical_period_storage_constraints(
         # Hack because linopy adds unallocated coords to the constraint if they are left lying around
         var._data = var._data.drop_vars("typical_period")
 
-        lhs = [(standing_loss_per_day, inter_period_var), (1, var)]
-        # TODO: check whether a time-dependent pu works in this constraint
-        # (i.e., it will be indexed over (snapshot, day, name), not just (day, name)).
-        # It may not make sense to do that and instead just use capacity directly.
-        rhs = pu * capacity
+        lhs = [(standing_loss_per_typical_period, inter_period_var), (1, var)]
+        if component == "StorageUnit":
+            rhs = pu * capacity
+        elif component == "Store" and bound_ == "upper":
+            rhs = capacity
+        elif component == "Store" and bound_ == "lower":
+            rhs = 0
         m.add_constraints(
             lhs, op_, rhs, name=f"{component}-{attr}-inter-typical-period-{bound_}"
         )
@@ -1721,7 +1742,7 @@ def _define_inter_typical_period_storage_constraints(
 
     lhs = [
         (1, inter_period_var),
-        (-standing_loss_per_day, previous_var),
+        (-standing_loss_per_typical_period, previous_var),
         (-1, intra_var),
     ]
     rhs = (

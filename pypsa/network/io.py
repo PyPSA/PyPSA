@@ -263,6 +263,15 @@ class _ImporterCSV(_Importer):
             fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
         )
 
+    def get_typical_periods(self) -> pd.Series:
+        """Get typical periods data."""
+        fn = self.path.joinpath("typical_periods.csv")
+        if not fn.is_file():
+            return None
+        return pd.read_csv(
+            fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
+        )
+
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
         fn = self.path.joinpath(list_name + ".csv")
@@ -515,6 +524,17 @@ class _ImporterExcel(_Importer):
         else:
             return df
 
+    def get_typical_periods(self) -> pd.Series:
+        """Get typical periods data."""
+        try:
+            df = self.sheets["typical_periods"]
+            df = df.set_index(df.columns[0])
+            df.index = df.index.astype(int)
+        except (ValueError, KeyError):
+            return None
+        else:
+            return df
+
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
         try:
@@ -724,6 +744,12 @@ class _ImporterHDF5(_Importer):
             self.ds["/investment_periods"] if "/investment_periods" in self.ds else None  # noqa: SIM401
         )
 
+    def get_typical_periods(self) -> pd.Series:
+        """Get typical periods data."""
+        return (
+            self.ds["/typical_periods"] if "/typical_periods" in self.ds else None  # noqa: SIM401
+        )
+
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
         if "/" + list_name not in self.ds:
@@ -890,6 +916,10 @@ class _ImporterNetCDF(_Importer):
     def get_investment_periods(self) -> pd.DataFrame:
         """Get investment periods data."""
         return self.get_static("investment_periods", "investment_periods")
+
+    def get_typical_periods(self) -> pd.DataFrame:
+        """Get typical periods data."""
+        return self.get_static("typical_periods", "typical_periods")
 
     def get_scenarios(self) -> pd.DataFrame:
         """Get scenarios data."""
@@ -1377,10 +1407,16 @@ class NetworkIOMixin(_NetworkABC):
         # read in investment period weightings
         periods = importer.get_investment_periods()
 
+        # read in typical periods
+        typical_periods = importer.get_typical_periods()
+
         if periods is not None and not periods.empty:
             self.periods = periods.index
 
             self._investment_periods_data = periods.reindex(self.investment_periods)
+
+        if typical_periods is not None and not typical_periods.empty:
+            self.typical_periods = typical_periods.index
 
         scenarios = importer.get_scenarios()
         if scenarios is not None:
