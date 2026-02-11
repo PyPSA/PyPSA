@@ -253,9 +253,9 @@ def _collect_go_urls():
     pattern = re.compile(r"https://go\.pypsa\.org/[a-zA-Z0-9_-]+")
     urls = set()
     for fpath in Path("pypsa").glob("**/*.py"):
-        urls.update(pattern.findall(fpath.read_text()))
+        urls.update(pattern.findall(fpath.read_text(encoding="utf-8")))
     for fpath in Path("docs").glob("**/*.md"):
-        urls.update(pattern.findall(fpath.read_text()))
+        urls.update(pattern.findall(fpath.read_text(encoding="utf-8")))
     return sorted(urls)
 
 
