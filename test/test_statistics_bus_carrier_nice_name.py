@@ -1,5 +1,5 @@
 import pandas as pd
-import pytest
+
 import pypsa
 
 
@@ -24,7 +24,8 @@ def test_energy_balance_bus_carrier_filter():
     assert "bus_carrier" in result.index.names
     assert "rural heat" in result.index.get_level_values("bus_carrier")
 
-# Test that filtering by bus_carrier with nice_names works 
+
+# Test that filtering by bus_carrier with nice_names works
 def test_energy_balance_bus_carrier_nice_name_filter():
     n = pypsa.Network()
     n.set_snapshots([0])
