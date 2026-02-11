@@ -338,6 +338,9 @@ class ComponentsArrayMixin(_ComponentsABC):
                 .reindex(name=self.names)
                 .reindex(scenario=self.scenarios)
             )
+            # xr.unstack can leave .dims and .coords in different orders
+            # Make sure dimensions match
+            res = res.transpose(*[c for c in res.coords if c in res.dims])
 
         # Set attibute name as DataArray name
         res.name = attr
