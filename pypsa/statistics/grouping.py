@@ -295,16 +295,12 @@ class Groupers:
 
         """
         bus = f"bus{port}"
-        buses_carrier = self.carrier(n, "Bus", nice_names=False)
+        buses_carrier = self.carrier(n, "Bus", nice_names=nice_names)
         component_buses = n.c[c].static[bus]
 
-        bus_carrier_series = self._map_with_multiindex(
-            component_buses, buses_carrier
-        ).rename("bus_carrier")
-        if nice_names:
-            mapping = n.c.carriers.static.nice_name[lambda ds: ds != ""]
-            bus_carrier_series = bus_carrier_series.replace(mapping).replace("", "-")
-        return bus_carrier_series
+        return self._map_with_multiindex(component_buses, buses_carrier).rename(
+            "bus_carrier"
+        )
 
     def bus(self, n: Network, c: str, port: str = "") -> pd.Series:
         """Grouper method to group by the attached bus of the components.

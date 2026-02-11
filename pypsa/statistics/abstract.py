@@ -243,6 +243,36 @@ class AbstractStatisticsAccessor(ABC):
             per_period[p] = obj.loc[mask.index[mask].intersection(idx)]
         return self._concat_periods(per_period, c)
 
+    def _normalize_bus_carrier(
+        self,
+        n: Network | NetworkCollection,
+        bus_carrier: str | Sequence[str] | None,
+    ) -> str | Sequence[str] | None:
+        """Normalize bus_carrier nice names to canonical carrier names."""
+        if bus_carrier is None:
+            return None
+
+        if isinstance(bus_carrier, str):
+            carriers = [bus_carrier]
+            scalar = True
+        elif isinstance(bus_carrier, Sequence):
+            carriers = list(bus_carrier)
+            scalar = False
+        else:
+            return bus_carrier
+
+        nice_names = n.c.carriers.static.nice_name
+        nice_names = nice_names[nice_names != ""]
+        if nice_names.empty:
+            return bus_carrier
+
+        unique_nice_names = nice_names[~nice_names.duplicated(keep=False)]
+        nice_name_to_carrier = pd.Series(
+            unique_nice_names.index, index=unique_nice_names.values
+        )
+        normalized = [nice_name_to_carrier.get(name, name) for name in carriers]
+        return normalized[0] if scalar else normalized
+
     def _filter_bus_carrier(
         self,
         n: Network | NetworkCollection,
@@ -254,6 +284,8 @@ class AbstractStatisticsAccessor(ABC):
         """Filter for components which are connected to bus with `bus_carrier`."""
         if bus_carrier is None:
             return obj
+
+        bus_carrier = self._normalize_bus_carrier(n, bus_carrier)
 
         idx = self._get_component_index(obj, c)
         ports = n.c[c].static.loc[idx, f"bus{port}"]
