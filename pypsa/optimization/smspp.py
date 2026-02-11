@@ -50,7 +50,7 @@ class SMSppAccessor:
 
     def __call__(
         self,
-        config: str | Path,
+        config: str | Path | dict[str, Any] | None = None,
         verbose: bool = False,
         network: Network | None = None,
         **kwargs: Any,
@@ -59,8 +59,10 @@ class SMSppAccessor:
 
         Parameters
         ----------
-        config : str | Path
-            Path to the Transformation YAML config.
+        config : str | Path | dict[str, Any] | None, default None
+            Transformation configuration. If a path is provided, it is interpreted
+            as a YAML config file. If a dict is provided, it is forwarded as
+            configuration overrides. If None, defaults are used by pypsa2smspp.
         verbose : bool, default False
             Verbosity forwarded to the Transformation runner.
         network : Network | None
@@ -76,13 +78,12 @@ class SMSppAccessor:
         """
         _require_smspp_deps()
 
-        # Lazy import without violating Ruff PLC0415 (no import statement inside function)
         module = import_module("pypsa2smspp")
         Transformation = module.Transformation
 
         n_in = self._n if network is None else network
-        cfg_path = str(config)
 
-        logger.info("Running SMS++ pipeline with config: %s", cfg_path)
-        tr = Transformation(cfg_path)
+        # Do not coerce to str: Transformation now supports None and possibly dict overrides
+        logger.info("Running SMS++ pipeline with config: %s", config)
+        tr = Transformation(config)
         return tr.run(n_in, verbose=verbose)
