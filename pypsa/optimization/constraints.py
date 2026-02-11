@@ -625,10 +625,10 @@ def define_ramp_limit_constraints(
     if is_ext.any():
         p_nom = m[f"{c.name}-{nom_attr}"] + p_nom
 
-    status = linopy.LinearExpression(
-        DataArray(1, coords=[sns, idx]).where(~is_com, 0), m
-    )
+    status = DataArray(1, coords=[sns, idx])
     if is_com.any():
+        status = status.where(~is_com, 0)
+        status = linopy.LinearExpression(status, m)
         status = (status + m[f"{c.name}-status"]).loc[:, status.indexes["name"]]
 
     if is_rolling_horizon:

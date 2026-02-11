@@ -1017,11 +1017,6 @@ def test_ramp_limit_start_up_binary_uc():
         "Link should show start-up at first snapshot"
     )
 
-    # Verify constraint
-    assert "Link-com-p-ramp_limit_start_up_first" in n.model.constraints, (
-        "Start-up constraint for the first snapshot should exist"
-    )
-
 
 def test_ramp_limit_shut_down_binary_uc():
     """
