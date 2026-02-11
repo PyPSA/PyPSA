@@ -1018,6 +1018,51 @@ def test_ramp_limit_start_up_binary_uc():
     )
 
 
+def test_infeasible_start_up_limit():
+    """Test that introduction of infeasible start-up limit results in infeasible solution"""
+    n = pypsa.Network()
+
+    snapshots = range(4)
+
+    n.set_snapshots(snapshots)
+
+    n.add("Bus", ["gas", "electricity"])
+
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        committable=True,
+        p_min_pu=0.1,
+        efficiency=0.5,
+        min_up_time=3,
+        start_up_cost=3333,
+        p_nom=12000,
+        up_time_before=0,
+    )
+
+    n.add(
+        "Generator",
+        "wind",
+        bus="electricity",
+        p_nom=800,
+    )
+
+    n.add("Load", "load", bus="electricity", p_set=[4000, 6000, 800, 5000])
+
+    status, condition = n.optimize()
+    assert status == "ok"
+
+    n.c.links.static.loc["OCGT", "ramp_limit_start_up"] = 0.01
+
+    status, condition = n.optimize()
+    assert status == "warning"
+    assert condition == "infeasible"
+
+
 def test_ramp_limit_shut_down_binary_uc():
     """
     Test that ramp_limit_shut_down parameter works correctly in binary unit commitment (excluding first period as special case).

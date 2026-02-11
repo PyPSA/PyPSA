@@ -616,14 +616,17 @@ def define_ramp_limit_constraints(
         p_init = c.da[hist_attr][start_i]
         s_init = c.da.status[start_i].fillna(1)
     else:
-        initially_up = (c.da.up_time_before > 0).astype(float)
-        p_init = c.da.p_init * initially_up
+        initially_up = c.da.up_time_before > 0
+        p_init = c.da.p_init.where(initially_up, 0)
         s_init = initially_up
         mask[0] = p_init.notnull()
 
     p = m[f"{c.name}-{var_attr}"]
     p_prev = p.shift(snapshot=1) + p_init.fillna(0) * filter_first_sn
-    status_prev = status.shift(snapshot=1) + s_init.fillna(0) * filter_first_sn
+    status_shifted = status.shift(snapshot=1)
+    if not is_com.any():
+        status_shifted = status_shifted.fillna(0)
+    status_prev = status_shifted + s_init.fillna(0) * filter_first_sn
 
     lhs = p - p_prev
     rhs = limit_up * p_nom * status_prev
