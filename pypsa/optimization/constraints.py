@@ -597,8 +597,9 @@ def define_ramp_limit_constraints(
         return
 
     idx = c.static.index
-    is_ext = idx.isin(c.extendables)
-    is_com = idx.isin(c.committables)
+    kwargs = {"level": "name"} if isinstance(idx, pd.MultiIndex) else {}
+    is_ext = idx.isin(c.extendables, **kwargs)
+    is_com = idx.isin(c.committables, **kwargs)
 
     limit_up = c.da.ramp_limit_up.sel(snapshot=sns)
     limit_down = c.da.ramp_limit_down.sel(snapshot=sns)
