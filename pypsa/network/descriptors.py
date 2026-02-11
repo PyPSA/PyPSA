@@ -195,7 +195,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
         def is_same_indices(i1: pd.Index, i2: pd.Index) -> bool:
             return len(i1) == len(i2) and (i1 == i2).all()
 
-        if is_same_indices(fixed_i.append(varying_i), index):
+        if is_same_indices(fixed_i.union(varying_i, sort=False), index):
 
             def reindex_maybe(s: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
                 return s

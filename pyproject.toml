@@ -32,7 +32,7 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy",
     "scipy",
-    "pandas>=0.24,<3.0.0",
+    "pandas>=2.0",
     "xarray",
     "netcdf4!=1.7.4",  # See https://github.com/PyPSA/PyPSA/issues/1510
     "linopy>=0.6.1",
