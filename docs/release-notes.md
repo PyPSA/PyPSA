@@ -19,6 +19,8 @@ SPDX-License-Identifier: CC-BY-4.0
     - Interactive bar plots ([`iplot.bar`][pypsa.plot.StatisticPlotter.bar]) aggregate scenarios with standard deviation error bars
     - Improved multi-level index handling with automatic grouping/faceting
 
+- Add secant-based transmission loss approximation (see <!-- md:guide optimization/power-flow.md -->). Use `transmission_losses=True` or pass a dict with mode and options, e.g. `transmission_losses={"mode": "secants", "atol": 1, "rtol": 0.1}`. Current tangent-based transmission loss approximation will stay as is, but needs to be chosen explicitly from version 2.0 (e.g. pass `transmission_losses={"mode": "tangents", "segments": 3}` instead of `transmission_losses=3`).
+
 - Add temporal clustering functionality via `n.cluster.temporal.*` accessor. (<!-- md:pr 1508 -->)
 
     - `resample(offset)` - Aggregate snapshots at regular intervals (e.g., "3h", "24h")
@@ -50,15 +52,24 @@ SPDX-License-Identifier: CC-BY-4.0
 - New example notebooks:
   - Demonstrating negative electricity prices in linearized unit commitment problem. See [:material-notebook-multiple: notebook](./examples/unit-commitment.ipynb). (<!-- md:pr 1434 -->)
   - Combining PyPSA with Global Sensitivity Analysis (GSA) methods. See [:material-notebook-multiple: notebook](./examples/gsa.ipynb). (<!-- md:pr 1318 -->)
+- Add support for pandas 3.0, while maintaining compatibility with pandas 2.x. (<!-- md:pr 1556 -->)
 
 ### Bug Fixes
 
-- **Breaking**: Fix `ramp_limit_start_up` and `ramp_limit_shut_down` being ignored in binary unit commitment. The constraints are now properly applied when these attributes are explicitly set. (<!-- md:pr 1553 -->)
+- **Breaking**: Fix `ramp_limit_start_up` and `ramp_limit_shut_down` being ignored in the very first snapshot in binary unit commitment. The constraints are now properly applied when these attributes are explicitly set. (<!-- md:pr 1553 -->)
     - Changed default values of these attributes from `1` to `NaN` to align with `ramp_limit_up` and `ramp_limit_down` defaults and avoiding redundant constraints in the model instance. This allows distinguishing between "no limit" (NaN) and "full ramp allowed" (1). Code that relied on the implicit default of 1 may need updating.
     - Ramp limit constraint names simplified from `{c}-fix-p-ramp_limit_*`, `{c}-ext-p-ramp_limit_*`, `{c}-com-p-ramp_limit_*` to unified `{c}-p-ramp_limit_*` (where `{c}` is `Generator` or `Link`).
 - Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
 - Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
 - Fix spatial clustering filling empty time series with defaults for `aggregate_one_ports`. (<!-- md:pr 1528 -->)
+
+### Documentation
+
+- New example notebooks:
+  - Demonstrating negative electricity prices in linearized unit commitment problem. See [:material-notebook-multiple: notebook](./examples/unit-commitment.ipynb). (<!-- md:pr 1434 -->)
+  - Combining PyPSA with Global Sensitivity Analysis (GSA) methods. See [:material-notebook-multiple: notebook](./examples/gsa.ipynb). (<!-- md:pr 1318 -->)
+
+- Add internal constraint and global constraint functions to the API reference (see <!-- md:api networks/constraints.md -->). (~!-- md:pr 1495 -->)
 
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
 

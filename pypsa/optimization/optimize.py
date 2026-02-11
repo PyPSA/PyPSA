@@ -29,7 +29,6 @@ from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
-    define_loss_constraints,
     define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
@@ -37,8 +36,10 @@ from pypsa.optimization.constraints import (
     define_operational_constraints_for_extendables,
     define_operational_constraints_for_non_extendables,
     define_ramp_limit_constraints,
+    define_secant_loss_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
+    define_tangent_loss_constraints,
     define_total_supply_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
@@ -128,10 +129,6 @@ def define_objective(
         Snapshots (and, for multi-investment, periods) over which to build the objective.
     include_objective_constant : bool
         Whether to include the objective constant as a variable in the objective function.
-
-    Returns
-    -------
-    None
 
     Notes
     -----
@@ -412,7 +409,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         self,
         snapshots: Sequence | None = None,
         multi_investment_periods: bool = False,
-        transmission_losses: int = 0,
+        transmission_losses: bool | int | dict = False,
         linearized_unit_commitment: bool = False,
         model_kwargs: dict | None = None,
         extra_functionality: Callable | None = None,
@@ -434,11 +431,19 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
             investment periods. Then, snapshots should be a `pd.MultiIndex`.
-        transmission_losses : int, default 0
-            Whether an approximation of transmission losses should be included
-            in the linearised power flow formulation. A passed number will denote
-            the number of tangents used for the piecewise linear approximation.
-            Defaults to 0, which ignores losses.
+        transmission_losses : bool | int | dict, default False
+            Include piecewise linear approximation of transmission losses for
+            passive branches:
+
+            - ``True``: secant-based approximation with default tolerances
+            - ``int``: *(deprecated)* tangent-based with that many segments
+            - ``dict``: explicit config with key ``mode`` ("secants" or
+              "tangents") and mode-specific options. Secant options:
+              ``atol`` (default 1), ``rtol`` (default 0.1),
+              ``max_segments`` (default 20). Tangent options: ``segments``
+              (required).
+
+            See `https://go.pypsa.org/transmission-losses` for details.
         linearized_unit_commitment : bool, default False
             Whether to optimise using the linearised unit commitment formulation or not.
         model_kwargs : dict, optional
@@ -546,7 +551,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         self,
         snapshots: Sequence | None = None,
         multi_investment_periods: bool = False,
-        transmission_losses: int = 0,
+        transmission_losses: int | dict | bool = False,
         linearized_unit_commitment: bool = False,
         consistency_check: bool = True,
         include_objective_constant: bool | None = None,
@@ -564,9 +569,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         multi_investment_periods : bool, default: False
             Whether to optimise as a single investment period or to optimize in multiple
             investment periods. Then, snapshots should be a `pd.MultiIndex`.
-        transmission_losses : int, default: 0
-            Whether an approximation of transmission losses should be included
-            in the linearised power flow formulation.
+        transmission_losses : bool | int | dict, default False
+            Include piecewise linear approximation of transmission losses for
+            passive branches:
+            - ``True``: secant-based approximation with default tolerances
+            - ``int``: *(deprecated)* tangent-based with that many segments
+            - ``dict``: explicit config with key ``mode`` ("secants" or
+              "tangents") and mode-specific options. Secant options:
+              ``atol`` (default 1), ``rtol`` (default 0.1),
+              ``max_segments`` (default 20). Tangent options: ``segments``
+              (required).
+
+            See `https://go.pypsa.org/transmission-losses` for details.
         linearized_unit_commitment : bool, default: False
             Whether to optimise using the linearised unit commitment formulation or not.
         consistency_check : bool, default: True
@@ -671,8 +685,40 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_total_supply_constraints(n, sns)
 
         if transmission_losses:
+            if isinstance(transmission_losses, bool):
+                transmission_losses = {"mode": "secants"}
+            elif isinstance(transmission_losses, int):
+                equivalent = {"mode": "tangents", "segments": transmission_losses}
+                warnings.warn(
+                    "Passing an int for `transmission_losses` is deprecated "
+                    "and will be removed in PyPSA 2.0. Explicitly pass "
+                    f"{equivalent} (current behavior) or use the new "
+                    "secant-based losses via `transmission_losses=True`.",
+                    FutureWarning,
+                    stacklevel=2,
+                )
+                transmission_losses = {
+                    "mode": "tangents",
+                    "segments": transmission_losses,
+                }
+            # Don't mutate passed dict
+            transmission_losses = dict(transmission_losses)
+            mode = transmission_losses.pop("mode", "secants")
+            if mode == "tangents" and "segments" not in transmission_losses:
+                msg = (
+                    "The 'tangents' mode requires a 'segments' key, e.g. "
+                    "transmission_losses={'mode': 'tangents', 'segments': 3}"
+                )
+                raise ValueError(msg)
+
             for c in n.passive_branch_components:
-                define_loss_constraints(n, sns, c, transmission_losses)
+                if mode == "secants":
+                    define_secant_loss_constraints(n, sns, c, **transmission_losses)
+                elif mode == "tangents":
+                    define_tangent_loss_constraints(n, sns, c, **transmission_losses)
+                else:
+                    msg = f"Unknown transmission_losses mode: {mode!r}"
+                    raise ValueError(msg)
 
         # Define global constraints
         define_primary_energy_limit(n, sns)

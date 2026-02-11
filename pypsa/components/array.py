@@ -286,7 +286,7 @@ class ComponentsArrayMixin(_ComponentsABC):
 
             # Concatenate only if there is existing dynamic data
             if len(dynamic) > 0:
-                res = pd.concat([dynamic, static_to_dynamic], axis=1, copy=False)
+                res = pd.concat([dynamic, static_to_dynamic], axis=1)
                 res = res[index]
             else:
                 res = static_to_dynamic
