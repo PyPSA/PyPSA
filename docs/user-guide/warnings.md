@@ -52,4 +52,4 @@ names that happen to be close to standard ones:
 pypsa.options.warnings.attribute_typos = False
 ```
 
-See also [Warnings options](options.md#warnings-options).
+See also [Warnings options](./options.md#warnings-options).
