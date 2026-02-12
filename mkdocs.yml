@@ -85,6 +85,7 @@ nav:
     - Network Collection: user-guide/collection.md
     - Options: user-guide/options.md
     - Logging: user-guide/logging.ipynb
+    - Warnings: user-guide/warnings.md
 
 - Examples:
   - Overview: examples/examples.md
