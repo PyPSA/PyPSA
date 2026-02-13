@@ -661,7 +661,7 @@ class Components(
         Coordinates:
           * name                     (name) object ... 'Manchester Wind' ... 'Frankfu...
           * snapshot                 (snapshot) datetime64[ns] ... 2015-01-01 ... 201...
-        Data variables: (12/42)
+        Data variables: (12/43)
             bus                      (name) object ... 'Manchester' ... 'Frankfurt'
             control                  (name) object ... 'Slack' 'PQ' ... 'Slack' 'PQ'
             type                     (name) object ... '' '' '' '' '' ''

@@ -47,10 +47,15 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - In version 2.0, capital costs of existing capacity on extendable assets will no longer be included in the objective by default (`n.objective_constant` will be set to zero), which improves LP numerical conditioning. A new `include_objective_constant` parameter was added to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] and [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] to allow controlling this behavior and opt-in to the new default. It can also be configured via `pypsa.options.params.optimize.include_objective_constant` (see <!-- md:guide options.md -->). (<!-- md:pr 1509 -->)
 
+- Add `p_init` attribute to generators and links. This specifies the initial active power for ramp limit constraints at the first snapshot, enabling ramp constraints to be applied from the very start of an optimization horizon. (<!-- md:pr 1553 -->)
+
 - Add support for pandas 3.0, while maintaining compatibility with pandas 2.x. (<!-- md:pr 1556 -->)
 
 ### Bug Fixes
 
+- **Breaking**: Fix `ramp_limit_start_up` and `ramp_limit_shut_down` being ignored in the very first snapshot in binary unit commitment. The constraints are now properly applied when these attributes are explicitly set. (<!-- md:pr 1553 -->)
+    - Changed default values of these attributes from `1` to `NaN` to align with `ramp_limit_up` and `ramp_limit_down` defaults and avoiding redundant constraints in the model instance. This allows distinguishing between "no limit" (NaN) and "full ramp allowed" (1). Code that relied on the implicit default of 1 may need updating.
+    - Ramp limit constraint names simplified from `{c}-fix-p-ramp_limit_*`, `{c}-ext-p-ramp_limit_*`, `{c}-com-p-ramp_limit_*` to unified `{c}-p-ramp_limit_*` (where `{c}` is `Generator` or `Link`).
 - Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
 - Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
 - Fix spatial clustering filling empty time series with defaults for `aggregate_one_ports`. (<!-- md:pr 1528 -->)

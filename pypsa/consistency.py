@@ -559,6 +559,18 @@ def check_generators(component: Components, strict: bool = False) -> None:
                 " up and down before the simulation: %s. This could cause an infeasibility.",
                 bad_uc_gens,
             )
+        bad_uc_gens = component.static.index[
+            component.static.committable
+            & (component.static.up_time_before == 0)
+            & (component.static.p_init.notnull())
+        ]
+        if not bad_uc_gens.empty:
+            _log_or_raise(
+                strict,
+                "The following committable generators were down "
+                "before the simulation and have a p_init value. The latter will be ignored: %s.",
+                bad_uc_gens,
+            )
 
         bad_e_sum_gens = component.static.index[
             component.static.e_sum_min > component.static.e_sum_max
@@ -873,7 +885,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         for c in self.components:
             # Checks all components
             check_for_unknown_buses(self, c, "unknown_buses" in strict)
-            check_for_unknown_carriers(self, c, "unkown_carriers" in strict)
+            check_for_unknown_carriers(self, c, "unknown_carriers" in strict)
             check_time_series(self, c, "time_series" in strict)
             check_static_power_attributes(self, c, "static_power_attrs" in strict)
             check_time_series_power_attributes(

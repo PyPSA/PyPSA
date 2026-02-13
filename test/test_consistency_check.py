@@ -115,6 +115,19 @@ def test_scenarios_sum_to_one(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("strict", [[], ["generators"]])
+def test_committable_down_with_p_init(consistent_n, caplog, strict):
+    consistent_n.add(
+        "Generator",
+        "gen_uc",
+        bus="one",
+        committable=True,
+        up_time_before=0,
+        p_init=50,
+    )
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
 def test_unknown_check():
     n = pypsa.Network()
     with pytest.raises(ValueError):

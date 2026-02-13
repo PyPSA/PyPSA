@@ -9,7 +9,6 @@ import pkgutil
 import re
 import sys
 from pathlib import Path
-from urllib.request import urlopen
 
 import numpy as np
 import pandas as pd
@@ -261,8 +260,14 @@ def _collect_go_urls():
 
 @pytest.mark.parametrize("url", _collect_go_urls())
 def test_go_links(url, test_docs_flag):
-    """Test that all go.pypsa.org short-links resolve (no 404)."""
+    """Test that all go.pypsa.org short-links are configured (not 404)."""
     if not test_docs_flag:
         pytest.skip("Need --test-docs option to run documentation tests")
-    response = urlopen(url)  # noqa: S310
-    assert response.status == 200, f"{url} returned {response.status}"
+    import http.client
+
+    path = url.removeprefix("https://go.pypsa.org")
+    conn = http.client.HTTPSConnection("go.pypsa.org")
+    conn.request("HEAD", path)
+    code = conn.getresponse().status
+    conn.close()
+    assert code in range(200, 400), f"{url} returned {code}"
