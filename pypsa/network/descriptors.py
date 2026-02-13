@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from pypsa.common import deprecated_in_next_major
+from pypsa.common import deprecated_in_next_major, normalize_carrier_nice_names
 from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
 
@@ -241,6 +241,10 @@ class NetworkDescriptorsMixin(_NetworkABC):
 
         if isinstance(bus_carrier, str):
             bus_carrier = [bus_carrier]
+
+        bus_carrier = normalize_carrier_nice_names(
+            self.c.carriers.static.nice_name, bus_carrier
+        )
 
         not_included = set(bus_carrier) - set(self.c.buses.static.carrier.unique())
         if not_included:

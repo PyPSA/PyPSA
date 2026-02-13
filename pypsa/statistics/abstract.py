@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import pandas as pd
 
 from pypsa._options import options
+from pypsa.common import normalize_carrier_nice_names
 from pypsa.constants import RE_PORTS
 from pypsa.statistics.grouping import groupers
 
@@ -154,6 +155,12 @@ class AbstractStatisticsAccessor(ABC):
         if nice_names is None:
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
+        # Normalize bus_carrier and carrier if nice_names was passed to allow using
+        # nice names to filter
+        if nice_names:
+            nice_name_series = n.c.carriers.static.nice_name
+            bus_carrier = normalize_carrier_nice_names(nice_name_series, bus_carrier)
+            carrier = normalize_carrier_nice_names(nice_name_series, carrier)
         for c in components:
             if n.c[c].static.empty:
                 continue
@@ -243,36 +250,6 @@ class AbstractStatisticsAccessor(ABC):
             per_period[p] = obj.loc[mask.index[mask].intersection(idx)]
         return self._concat_periods(per_period, c)
 
-    def _normalize_bus_carrier(
-        self,
-        n: Network | NetworkCollection,
-        bus_carrier: str | Sequence[str] | None,
-    ) -> str | Sequence[str] | None:
-        """Normalize bus_carrier nice names to canonical carrier names."""
-        if bus_carrier is None:
-            return None
-
-        if isinstance(bus_carrier, str):
-            carriers = [bus_carrier]
-            scalar = True
-        elif isinstance(bus_carrier, Sequence):
-            carriers = list(bus_carrier)
-            scalar = False
-        else:
-            return bus_carrier
-
-        nice_names = n.c.carriers.static.nice_name
-        nice_names = nice_names[nice_names != ""]
-        if nice_names.empty:
-            return bus_carrier
-
-        unique_nice_names = nice_names[~nice_names.duplicated(keep=False)]
-        nice_name_to_carrier = pd.Series(
-            unique_nice_names.index, index=unique_nice_names.values
-        )
-        normalized = [nice_name_to_carrier.get(name, name) for name in carriers]
-        return normalized[0] if scalar else normalized
-
     def _filter_bus_carrier(
         self,
         n: Network | NetworkCollection,
@@ -284,8 +261,6 @@ class AbstractStatisticsAccessor(ABC):
         """Filter for components which are connected to bus with `bus_carrier`."""
         if bus_carrier is None:
             return obj
-
-        bus_carrier = self._normalize_bus_carrier(n, bus_carrier)
 
         idx = self._get_component_index(obj, c)
         ports = n.c[c].static.loc[idx, f"bus{port}"]

@@ -956,3 +956,47 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     from pypsa.costs import annuity as costs_annuity  # noqa: PLC0415
 
     return costs_annuity(r, n)
+
+
+def normalize_carrier_nice_names(
+    nice_name_series: pd.Series,
+    carrier: str | Sequence[str] | None,
+) -> str | Sequence[str] | None:
+    """Normalize carrier nice names to carrier names.
+
+    Parameters
+    ----------
+    nice_name_series : pd.Series
+        Series with carrier names as index and nice names as values
+        (i.e. ``n.c.carriers.static.nice_name``).
+    carrier : str | Sequence[str] | None
+        Carrier name(s) to normalize.
+
+    Returns
+    -------
+    str | Sequence[str] | None
+        Normalized carrier name(s).
+
+    """
+    if carrier is None:
+        return None
+
+    if isinstance(carrier, str):
+        carriers = [carrier]
+        scalar = True
+    elif isinstance(carrier, list):
+        carriers = carrier
+        scalar = False
+    else:
+        return carrier
+
+    nice_names = nice_name_series[nice_name_series != ""]
+    if nice_names.empty:
+        return carrier
+
+    unique_nice_names = nice_names[~nice_names.duplicated(keep=False)]
+    nice_name_to_carrier = pd.Series(
+        unique_nice_names.index, index=unique_nice_names.values
+    )
+    normalized = [nice_name_to_carrier.get(name, name) for name in carriers]
+    return normalized[0] if scalar else normalized

@@ -2148,7 +2148,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
         n = self._n
-        bus_carrier = self._normalize_bus_carrier(n, bus_carrier)
 
         if (
             n.c.buses.static.carrier.unique().size > 1
