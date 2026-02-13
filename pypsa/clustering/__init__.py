@@ -7,11 +7,11 @@
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+from deprecation import deprecated
 
 from pypsa.clustering import spatial, temporal
 from pypsa.clustering.spatial import SpatialClusteringMixin
 from pypsa.clustering.temporal import TemporalClusteringMixin
-from pypsa.common import deprecated_in_next_major
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -102,35 +102,55 @@ class ClusteringAccessor:
 
     # --- Deprecated spatial methods (use n.cluster.spatial.* instead) ---
 
-    @deprecated_in_next_major("Use `n.cluster.spatial.busmap_by_hac` instead.")
+    @deprecated(
+        deprecated_in="1.1.0",
+        removed_in="2.0.0",
+        details="Use `n.cluster.spatial.busmap_by_hac` instead.",
+    )
     def busmap_by_hac(self, *args: Any, **kwargs: Any) -> pd.Series:
         """Wrap `n.cluster.spatial.busmap_by_hac`, deprecated."""  # noqa: D401
         return self.spatial.busmap_by_hac(*args, **kwargs)
 
-    @deprecated_in_next_major("Use `n.cluster.spatial.busmap_by_kmeans` instead.")
+    @deprecated(
+        deprecated_in="1.1.0",
+        removed_in="2.0.0",
+        details="Use `n.cluster.spatial.busmap_by_kmeans` instead.",
+    )
     def busmap_by_kmeans(self, *args: Any, **kwargs: Any) -> pd.Series:
         """Wrap `n.cluster.spatial.busmap_by_kmeans`, deprecated."""  # noqa: D401
         return self.spatial.busmap_by_kmeans(*args, **kwargs)
 
-    @deprecated_in_next_major(
-        "Use `n.cluster.spatial.busmap_by_greedy_modularity` instead."
+    @deprecated(
+        deprecated_in="1.1.0",
+        removed_in="2.0.0",
+        details="Use `n.cluster.spatial.busmap_by_greedy_modularity` instead.",
     )
     def busmap_by_greedy_modularity(self, *args: Any, **kwargs: Any) -> pd.Series:
         """Wrap `n.cluster.spatial.busmap_by_greedy_modularity`, deprecated."""  # noqa: D401
         return self.spatial.busmap_by_greedy_modularity(*args, **kwargs)
 
-    @deprecated_in_next_major("Use `n.cluster.spatial.cluster_by_hac` instead.")
+    @deprecated(
+        deprecated_in="1.1.0",
+        removed_in="2.0.0",
+        details="Use `n.cluster.spatial.cluster_by_hac` instead.",
+    )
     def cluster_spatially_by_hac(self, *args: Any, **kwargs: Any) -> "Network":
         """Wrap `n.cluster.spatial.cluster_by_hac`, deprecated."""  # noqa: D401
         return self.spatial.cluster_by_hac(*args, **kwargs)
 
-    @deprecated_in_next_major("Use `n.cluster.spatial.cluster_by_kmeans` instead.")
+    @deprecated(
+        deprecated_in="1.1.0",
+        removed_in="2.0.0",
+        details="Use `n.cluster.spatial.cluster_by_kmeans` instead.",
+    )
     def cluster_spatially_by_kmeans(self, *args: Any, **kwargs: Any) -> "Network":
         """Wrap `n.cluster.spatial.cluster_by_kmeans`, deprecated."""  # noqa: D401
         return self.spatial.cluster_by_kmeans(*args, **kwargs)
 
-    @deprecated_in_next_major(
-        "Use `n.cluster.spatial.cluster_by_greedy_modularity` instead."
+    @deprecated(
+        deprecated_in="1.1.0",
+        removed_in="2.0.0",
+        details="Use `n.cluster.spatial.cluster_by_greedy_modularity` instead.",
     )
     def cluster_spatially_by_greedy_modularity(
         self, *args: Any, **kwargs: Any
@@ -138,13 +158,19 @@ class ClusteringAccessor:
         """Wrap `n.cluster.spatial.cluster_by_greedy_modularity`, deprecated."""  # noqa: D401
         return self.spatial.cluster_by_greedy_modularity(*args, **kwargs)
 
-    @deprecated_in_next_major("Use `n.cluster.spatial.cluster_by_busmap` instead.")
+    @deprecated(
+        deprecated_in="1.1.0",
+        removed_in="2.0.0",
+        details="Use `n.cluster.spatial.cluster_by_busmap` instead.",
+    )
     def cluster_by_busmap(self, *args: Any, **kwargs: Any) -> "Network":
         """Wrap `n.cluster.spatial.cluster_by_busmap`, deprecated."""  # noqa: D401
         return self.spatial.cluster_by_busmap(*args, **kwargs)
 
-    @deprecated_in_next_major(
-        "Use `n.cluster.spatial.get_clustering_from_busmap` instead."
+    @deprecated(
+        deprecated_in="1.1.0",
+        removed_in="2.0.0",
+        details="Use `n.cluster.spatial.get_clustering_from_busmap` instead.",
     )
     def get_clustering_from_busmap(self, *args: Any, **kwargs: Any) -> "Clustering":
         """Wrap `n.cluster.spatial.get_clustering_from_busmap`, deprecated."""  # noqa: D401
