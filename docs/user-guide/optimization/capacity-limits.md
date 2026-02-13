@@ -33,8 +33,8 @@ When components are both **committable** (`committable=True`) and **extendable**
     | Constraint | Name |
     |-------------------|------------------|
     | $g_{n,s,t} \leq u_{n,s,t} \cdot M$ | `Generator-com-ext-p-upper-bigM` |
-    | $g_{n,s,t} \leq G_{n,s}$ | `Generator-com-ext-p-upper-cap` |
-    | $g_{n,s,t} \geq u_{n,s,t} \cdot \underline{g}_{n,s,t} \cdot M$ | `Generator-com-ext-p-lower` |
+    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot G_{n,s}$ | `Generator-com-ext-p-upper-cap` |
+    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot G_{n,s} - M \cdot (1 - u_{n,s,t})$ | `Generator-com-ext-p-lower` |
     | $g_{n,s,t} \geq 0$ | `Generator-com-ext-p-lower-nonneg` |
 
 === "Link"
@@ -42,11 +42,11 @@ When components are both **committable** (`committable=True`) and **extendable**
     | Constraint | Name |
     |-------------------|------------------|
     | $f_{l,t} \leq u_{l,t} \cdot M$ | `Link-com-ext-p-upper-bigM` |
-    | $f_{l,t} \leq F_{l}$ | `Link-com-ext-p-upper-cap` |
-    | $f_{l,t} \geq u_{l,t} \cdot \underline{f}_{l,t} \cdot M$ | `Link-com-ext-p-lower` |
+    | $f_{l,t} \leq \bar{f}_{l,t} \cdot F_{l}$ | `Link-com-ext-p-upper-cap` |
+    | $f_{l,t} \geq \underline{f}_{l,t} \cdot F_{l} - M \cdot (1 - u_{l,t})$ | `Link-com-ext-p-lower` |
     | $f_{l,t} \geq 0$ | `Link-com-ext-p-lower-nonneg` |
 
-where $M$ is a sufficiently large constant (the "big-M"). When the status $u = 0$, the big-M constraint forces dispatch to zero. When $u = 1$, the dispatch is bounded by both $M$ and the capacity variable $G$ or $F$.
+where $M$ is a sufficiently large constant (the "big-M") and $\bar{g}$, $\bar{f}$ are the maximum per-unit dispatch limits (`p_max_pu`, default 1). When the status $u = 0$, the big-M constraint forces dispatch to zero. When $u = 1$, the lower bound becomes $g \geq \underline{g} \cdot G$ (minimum part-load) and the upper bound is $g \leq \bar{g} \cdot G$ (capacity limit).
 
 ### Big-M Parameter Configuration
 
@@ -97,6 +97,7 @@ These constraints are defined in the functions `define_operational_constraints_f
         | $u_{n,s,t}$       | `n.generators_t.status` | Decision variable |
         | $M$               | auto-inferred or `committable_big_m` parameter | Parameter |
         | $\underline{g}_{n,s,t}$ | `n.generators_t.p_min_pu` | Parameter |
+        | $\bar{g}_{n,s,t}$ | `n.generators_t.p_max_pu` | Parameter |
         | $ru_{n,s,t}$      | `n.generators.ramp_limit_up` | Parameter |
         | $rd_{n,s,t}$      | `n.generators.ramp_limit_down` | Parameter |
 
@@ -109,6 +110,7 @@ These constraints are defined in the functions `define_operational_constraints_f
         | $u_{l,t}$         | `n.links_t.status` | Decision variable |
         | $M$               | auto-inferred or `committable_big_m` parameter | Parameter |
         | $\underline{f}_{l,t}$ | `n.links_t.p_min_pu` | Parameter |
+        | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu` | Parameter |
         | $ru_{l,t}$        | `n.links.ramp_limit_up` | Parameter |
         | $rd_{l,t}$        | `n.links.ramp_limit_down` | Parameter |
 
@@ -193,6 +195,10 @@ Start-up and shut-down variables track changes in the number of committed module
     | $sd_{l,t} \geq u_{l,t-1} - u_{l,t}$ | `Link-com-transition-shut-down` |
 
 The start-up and shut-down cost terms in the objective function are multiplied by the number of modules being started or stopped.
+
+!!! warning "Initial status affects start-up costs"
+
+    The `status` attribute defaults to 1, which is used as $u_{t-1}$ for the first snapshot. For modular committable components, this means **one module is assumed to be already committed** at the start of the optimization. For example, if the optimizer invests in 5 modules and commits all 5 in the first timestep, only 4 start-up events are counted ($su_0 \geq 5 - 1 = 4$), and start-up costs are only charged for those 4 transitions. To charge start-up costs for all modules, set the initial status to 0 via `n.generators.loc[name, "status"] = 0`. This also applies to the non-modular (big-M) committable formulation.
 
 These constraints are defined in the function `define_operational_constraints_for_committables()`.
 
