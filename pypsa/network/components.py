@@ -276,7 +276,7 @@ class NetworkComponentsMixin(_NetworkABC):
         self.c.links.static = value
 
     @property
-    def processes(self) -> any:
+    def processes(self) -> Any:
         return (
             self.c.processes.static
             if options.api.legacy_components
