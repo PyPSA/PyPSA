@@ -49,6 +49,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add `p_init` attribute to generators and links. This specifies the initial active power for ramp limit constraints at the first snapshot, enabling ramp constraints to be applied from the very start of an optimization horizon. (<!-- md:pr 1553 -->)
 
+- Allow filtering by carrier nice names in statistics methods. When `nice_names=True`, the `bus_carrier` and `carrier` parameters now accept nice names in addition to carrier names. (<!-- md:pr 1565 -->)
+
 - Add support for pandas 3.0, while maintaining compatibility with pandas 2.x. (<!-- md:pr 1556 -->)
 
 ### Bug Fixes

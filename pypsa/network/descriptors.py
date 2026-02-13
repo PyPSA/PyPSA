@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from deprecation import deprecated
 
+from pypsa.common import deprecated_in_next_major, normalize_carrier_nice_names
 from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
 
@@ -248,6 +249,10 @@ class NetworkDescriptorsMixin(_NetworkABC):
             units are found for the specified bus carrier.
 
         """
+        bus_carrier = normalize_carrier_nice_names(
+            self.c.carriers.static.nice_name, bus_carrier
+        )
+
         if bus_carrier is None:
             return "carrier dependent"
 
