@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from deprecation import deprecated
 
-from pypsa.common import deprecated_in_next_major, normalize_carrier_nice_names
+from pypsa.common import normalize_carrier_nice_names
 from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
 
