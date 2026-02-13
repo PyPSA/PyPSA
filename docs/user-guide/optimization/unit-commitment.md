@@ -35,7 +35,7 @@ i.e. $u_{*,t} = 1$:
     | $f_{l,t} \geq u_{l,t} \cdot \underline{f}_{l,t} \cdot \hat{f}_{l}$ | `Link-com-p-lower` |
     | $f_{l,t} \leq u_{l,t} \cdot \bar{f}_{l,t} \cdot \hat{f}_{l}$ | `Link-com-p-upper` |
 
-/// note | Combined with Capacity Expansion
+!!! note | Combined with Capacity Expansion
 
 Unit commitment can be combined with capacity expansion for co-optimized investment and operational decisions:
 

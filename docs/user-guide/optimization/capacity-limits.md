@@ -24,35 +24,9 @@ If the nominal capacity of a components is also the subject of optimisation (e.g
 
 These constraints are set in the function `define_nominal_constraints_for_extendables`.
 
-## Modularity Constraints
-
-The capacity expansion can be further constrained to be a multiple (e.g. $G^{\textrm{mod}}_{n,s} \in \mathbb{N}$) of a modular capacity (e.g. $\tilde{G}_{n,s}$) to represent fixed block sizes of added components (e.g. fixed block size of a nuclear power plant or a fixed capacity of a new circuit).
-
-If `{p,s,e}_nom_mod>0`, the nominal capacity is given by:
-
-| Constraint | Dual Variable | Name |
-|-------------------|------------------|------------------|
-| $G_{n,s} = G^{\textrm{mod}}_{n,s} \cdot \tilde{G}_{n,s}$ | N/A | `Generator-p_nom_modularity` |
-| $F_{l} = F^{\textrm{mod}}_{l} \cdot \tilde{F}_{l}$ | N/A | `Link-p_nom_modularity` |
-| $P_{l} = P^{\textrm{mod}}_{l} \cdot \tilde{P}_{l}$ | N/A | `{Line,Transformer}-s_nom_modularity` |
-| $E_{n,s} = E^{\textrm{mod}}_{n,s} \cdot \tilde{E}_{n,s}$ | N/A | `Store-e_nom_modularity` |
-| $H_{n,s} = H^{\textrm{mod}}_{n,s} \cdot \tilde{H}_{n,s}$ | N/A | `StorageUnit-p_nom_modularity` |
-
-These constraints are set in the function `define_modular_constraints()`.
-
-
 ## Committable and Extendable Components
 
-When components are both **committable** (`committable=True`) and **extendable** (e.g. `p_nom_extendable=True`), the optimizer co-optimizes both capacity expansion and operational unit commitment. The following two formulations apply depending on whether components are modular (`p_nom_mod > 0`) or not (default option).
-
-- non-modular components `p_nom_mod=0` (default): Big-M formulation applies
-- modular components `p_nom_mod>0`: Modular unit commitment applies with integer unit commitment
-
-The detailed mathematical procedure is described below.
-
-### Non-Modular Components (default)
-
-The challenge when combining capacity expansion with unit commitment is that the upper bound on dispatch becomes nonlinear: $g_{n,s,t} \leq u_{n,s,t} \cdot G_{n,s}$ (the product of binary status $u$ and continuous capacity $G$). To maintain a Mixed-Integer Linear Programme (MILP), PyPSA uses a **big-M formulation** that replaces this nonlinear constraint with two linear constraints:
+When components are both **committable** (`committable=True`) and **extendable** (e.g. `p_nom_extendable=True`), the optimizer co-optimizes both capacity expansion and operational unit commitment. The challenge is that the upper bound on dispatch becomes nonlinear: $g_{n,s,t} \leq u_{n,s,t} \cdot G_{n,s}$ (the product of binary status $u$ and continuous capacity $G$). To maintain a Mixed-Integer Linear Programme (MILP), PyPSA uses a **big-M formulation** that replaces this nonlinear constraint with two linear constraints:
 
 === "Generator"
 
@@ -74,7 +48,7 @@ The challenge when combining capacity expansion with unit commitment is that the
 
 where $M$ is a sufficiently large constant (the "big-M"). When the status $u = 0$, the big-M constraint forces dispatch to zero. When $u = 1$, the dispatch is bounded by both $M$ and the capacity variable $G$ or $F$.
 
-#### Big-M Parameter Configuration
+### Big-M Parameter Configuration
 
 The big-M constant must be large enough to not constrain the optimization, but not so large as to cause numerical issues. PyPSA automatically infers an appropriate value based on the network's peak load:
 
@@ -92,7 +66,7 @@ n.optimize(committable_big_m=value)
 
     If the optimized capacity $G_{n,s}$ or $F_{l}$ exceeds the big-M value, PyPSA will issue a warning. In this case, increase the big-M value manually to ensure the formulation remains valid.
 
-#### Ramp Constraints for Extendable Committable Components
+### Ramp Constraints for Extendable Committable Components
 
 For components that are both committable and extendable with ramp limits, the ramp constraints use the capacity variable $G_{n,s}$ or $F_{l}$ (not the fixed capacity $\hat{g}_{n,s}$ or $\hat{f}_{l}$):
 
@@ -139,9 +113,25 @@ These constraints are defined in the functions `define_operational_constraints_f
         | $rd_{l,t}$        | `n.links.ramp_limit_down` | Parameter |
 
 
-### Modular Components
+## Modularity Constraints
 
-When extendable components additionally have **modular capacities** activated (`p_nom_mod > 0`), the formulation differs from the standard binary unit commitment with Big-M linearization. Instead of a binary on/off status variable, the status variable becomes an **integer** representing the **number of committed modules** inside the component.
+The capacity expansion can be further constrained to be a multiple (e.g. $G^{\textrm{mod}}_{n,s} \in \mathbb{N}$) of a modular capacity (e.g. $\tilde{G}_{n,s}$) to represent fixed block sizes of added components (e.g. fixed block size of a nuclear power plant or a fixed capacity of a new circuit).
+
+If `{p,s,e}_nom_mod>0`, the nominal capacity is given by:
+
+| Constraint | Dual Variable | Name |
+|-------------------|------------------|------------------|
+| $G_{n,s} = G^{\textrm{mod}}_{n,s} \cdot \tilde{G}_{n,s}$ | N/A | `Generator-p_nom_modularity` |
+| $F_{l} = F^{\textrm{mod}}_{l} \cdot \tilde{F}_{l}$ | N/A | `Link-p_nom_modularity` |
+| $P_{l} = P^{\textrm{mod}}_{l} \cdot \tilde{P}_{l}$ | N/A | `{Line,Transformer}-s_nom_modularity` |
+| $E_{n,s} = E^{\textrm{mod}}_{n,s} \cdot \tilde{E}_{n,s}$ | N/A | `Store-e_nom_modularity` |
+| $H_{n,s} = H^{\textrm{mod}}_{n,s} \cdot \tilde{H}_{n,s}$ | N/A | `StorageUnit-p_nom_modularity` |
+
+These constraints are set in the function `define_modular_constraints()`.
+
+### Modular and Committable Components
+
+When extendable components additionally have **modular capacities** activated (`p_nom_mod > 0`) and are **committable** (`committable=True`), the formulation differs from the big-M approach above. Instead of a binary on/off status variable, the status variable becomes an **integer** representing the **number of committed modules** inside the component.
 
 #### Module-Level Commitment Formulation
 
@@ -237,9 +227,9 @@ These constraints are defined in the function `define_operational_constraints_fo
         | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu` | Parameter |
 
 
-### Compatibility with Unit Commitment Features
+## Compatibility of Capacity Expansion with Unit Commitment Features
 
-The following table summarizes which unit commitment features are compatible with the combined formulations:
+The following table summarizes which unit commitment features are compatible with the two formulations:
 
 | Feature | Committable + Extendable (Big-M) | Modular + Committable |
 |---------|----------------------------------|----------------------|

@@ -887,6 +887,8 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_impedances(self, c, "zero_impedances" in strict)
             # Checks transformers
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
+            # Checks generators and links
+            check_assets(self, c, "assets" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
             # Checks cost attributes consistency
