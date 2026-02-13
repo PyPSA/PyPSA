@@ -283,15 +283,15 @@ def _update_ports_component_attrs(
         msg = f"Only implemented for Link and Process, not: {c}"
         raise NotImplementedError(msg)
 
-    attrs_index = n.components[c]["attrs"].index
+    defaults_index = n.components[c]["defaults"].index
     for i, attr in product(ports, ["bus", *varying_attrs]):
         target = f"{attr}{i}"
         if target in n.c[c]["defaults"].index:
             continue
         j = "1" if attr != "efficiency" else ""
         base_attr = attr + j
-        base_attr_index = attrs_index.get_loc(base_attr)
-        attrs_index = attrs_index.insert(
+        base_attr_index = defaults_index.get_loc(base_attr)
+        defaults_index = defaults_index.insert(
             base_attr_index + 1, target
         )  # insert is NOT inplace
         n.c[c]["defaults"].loc[target] = (
@@ -312,4 +312,4 @@ def _update_ports_component_attrs(
     # TODO: there is no in-place reordering or in-place inserting at the right row (as far as i am aware),
     # so we would have to update the attrs for that to work, but there i am hitting some special components
     # setters, @lkstrp
-    # n.components[c]["attrs"] = n.components[c]["attrs"].loc[attrs_index]
+    # n.components[c]["attrs"] = n.components[c]["attrs"].loc[defaults_index]

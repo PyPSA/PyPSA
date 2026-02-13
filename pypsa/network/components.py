@@ -277,15 +277,16 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def processes(self) -> Any:
+        """Access to static data of [pypsa.components.Processes][]."""
         return (
             self.c.processes.static
-            if options.api.legacy_components
+            if not options.api.new_components_api
             else self.c.processes
         )
 
     @processes.setter
     def processes(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.processes.static = value
 
