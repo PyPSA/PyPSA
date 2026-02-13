@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Network transform module.
 
 Contains single mixin class which is used to inherit to [pypsa.Networks] class.
@@ -14,8 +18,11 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+from Levenshtein import distance
 
+from pypsa._options import options
 from pypsa.components.common import as_components
+from pypsa.components.types import all_standard_attrs_set
 from pypsa.network.abstract import _NetworkABC
 from pypsa.type_utils import is_1d_list_like
 
@@ -28,11 +35,60 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _get_potential_typos(
+    custom_attrs: set[str], standard_attrs: set[str]
+) -> set[tuple[str, str]]:
+    def is_typo(custom_attr: str, default_attr: str) -> bool:
+        """Check if custom_attr could be a typo of default_attr.
+
+        See according test in `test_transform.py` for detailed examples.
+
+        Parameters
+        ----------
+        custom_attr : str
+            Custom attribute name
+        default_attr : str
+            Default attribute name
+
+        Returns
+        -------
+        bool
+            True if custom_attr could be a typo of default_attr, False otherwise
+
+        """
+        dist = distance(custom_attr, default_attr)
+        # Basic condition
+        if (
+            dist != 1
+            or len(custom_attr) <= 1
+            or len(default_attr) <= 1
+            or default_attr in ["type"]
+        ):
+            return False
+
+        # Don't catch different base_attrs (p_nom vs e_nom etc.)
+        if dist == 1 and custom_attr[0] != default_attr[0] and custom_attr[1] == "_":
+            return False
+
+        # Don't catch different suffix (efficiency vs efficiency2, bus0 vs bus1 etc.)
+        if dist == 1 and (custom_attr[-1].isdigit() or default_attr[-1].isdigit()):  # noqa: SIM103
+            return False
+
+        return True
+
+    return {
+        (custom_attr, default_attr)
+        for custom_attr in custom_attrs
+        for default_attr in standard_attrs
+        if is_typo(custom_attr, default_attr)
+    }
+
+
 class NetworkTransformMixin(_NetworkABC):
     """Mixin class for network transform methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     def add(
@@ -41,8 +97,9 @@ class NetworkTransformMixin(_NetworkABC):
         name: str | int | Sequence[int | str],
         suffix: str = "",
         overwrite: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
-    ) -> pd.Index:
+    ) -> pd.Index | None:
         """Add components to the network.
 
         Handles addition of single and multiple components along with their attributes.
@@ -60,7 +117,7 @@ class NetworkTransformMixin(_NetworkABC):
         dimension is names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`/user-guide/components`.
+        value from <!-- md:guide components.md -->.
 
         Parameters
         ----------
@@ -75,14 +132,19 @@ class NetworkTransformMixin(_NetworkABC):
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
             ignored.
+        return_names : bool | None, default=None
+            Whether to return the names of the components added. Defaults to module wide
+            option (default: False). See `https://go.pypsa.org/options-params` for more
+            information.
         kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             or pandas.DataFrame for time-varying
 
         Returns
         -------
-        new_names : pandas.index
-            Names of new components (including suffix)
+        new_names : pandas.index or None
+            Names of new components (including suffix) if return_names is True,
+            otherwise None
 
         Examples
         --------
@@ -90,18 +152,14 @@ class NetworkTransformMixin(_NetworkABC):
 
         >>> n = pypsa.Network()
         >>> n.add("Bus", "my_bus_0")
-        Index(['my_bus_0'], dtype='object')
         >>> n.add("Bus", "my_bus_1", v_nom=380)
-        Index(['my_bus_1'], dtype='object')
         >>> n.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
-        Index(['my_line_name'], dtype='object')
 
         Add multiple components with static attributes:
 
         >>> n.add("Load", ["load 1", "load 2"],
         ...       bus=["1", "2"],
         ...       p_set=np.random.rand(len(n.snapshots), 2))
-        Index(['load 1', 'load 2'], dtype='object')
 
         Add multiple components with time-varying attributes:
 
@@ -111,15 +169,11 @@ class NetworkTransformMixin(_NetworkABC):
         >>> n = pypsa.Network()
         >>> n.set_snapshots(snapshots)
         >>> n.add("Bus", buses)
-        Index(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], dtype='object')
         >>> # add load as numpy array
         >>> n.add("Load",
         ...       n.buses.index + " load",
         ...       bus=buses,
         ...       p_set=np.random.rand(len(snapshots), len(buses)))
-        Index(['0 load', '1 load', '2 load', '3 load', '4 load', '5 load', '6 load',
-               '7 load', '8 load', '9 load', '10 load', '11 load', '12 load'],
-              dtype='object', name='name')
         >>> # add wind availability as pandas DataFrame
         >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
         ...        index=n.snapshots,
@@ -132,21 +186,22 @@ class NetworkTransformMixin(_NetworkABC):
         ...       p_nom_extendable=True,
         ...       capital_cost=1e5,
         ...       p_max_pu=wind)
-        Index(['0 wind', '1 wind', '2 wind', '3 wind', '4 wind', '5 wind', '6 wind',
-               '7 wind', '8 wind', '9 wind', '10 wind', '11 wind', '12 wind'],
-              dtype='object')
 
 
         """
+        # Handle default parameters from options
+        if return_names is None:
+            return_names = options.params.add.return_names
+
         c = as_components(self, class_name)
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name)
 
         # Check if multi-index names are passed
         if isinstance(name, pd.MultiIndex):
-            msg = "Component names must be a one-dimensional."
+            msg = "Component names must be one-dimensional."
             if self.has_scenarios:
-                msg += " For stochastic networks, they will be casted to all dimensions and data per scenario can be changed after adding them."
+                msg += " For stochastic networks, pass simple names. They will be automatically broadcast to all scenarios."
             raise TypeError(msg)
 
         names = pd.Index([name]) if single_component else pd.Index(name)
@@ -161,6 +216,35 @@ class NetworkTransformMixin(_NetworkABC):
         if not names.is_unique:
             msg = f"Names for {c.name} must be unique."
             raise ValueError(msg)
+
+        # Check custom attributes
+        standard_attrs = set(c.defaults.index)
+        custom_attrs = set(kwargs.keys()) - standard_attrs
+        if custom_attrs:
+            # Raise warning if user adds a custom attribute which is a standard attribute
+            # for other components
+            unintended_attr_names = custom_attrs & all_standard_attrs_set
+            for unintended_attr_name in unintended_attr_names:
+                logger.warning(
+                    "The attribute '%s' is a standard attribute for other components but not for %s. "
+                    "This could cause confusion and it should be renamed. "
+                    "See also: https://go.pypsa.org/warning-attr-misleading.",
+                    unintended_attr_name,
+                    c.list_name,
+                )
+        # Check if levenshtein distance to standard attributes is small (<= 1) which
+        # indicates a typo in the attribute name
+        if options.warnings.attribute_typos:
+            potential_typos = _get_potential_typos(custom_attrs, standard_attrs)
+            for custom_attr, standard_attr in potential_typos:
+                logger.warning(
+                    "The attribute '%s' is not a standard attribute for %s. "
+                    "Did you mean '%s'? "
+                    "See also: https://go.pypsa.org/warning-attr-typo.",
+                    custom_attr,
+                    c.list_name,
+                    standard_attr,
+                )
 
         for k, v in kwargs.items():
             # If index/ columnes are passed (pd.DataFrame or pd.Series)
@@ -262,13 +346,29 @@ class NetworkTransformMixin(_NetworkABC):
             static_df = pd.DataFrame(static, index=names)
         else:
             static_df = pd.DataFrame(index=names)
+
+        # Broadcast to scenarios if network has scenario structure
+        # Skip SubNetwork components, they are handled internally in determine_topology
+        if self.has_scenarios and c.name != "SubNetwork":
+            static_df = pd.concat(
+                dict.fromkeys(self.scenarios, static_df), names=["scenario"]
+            )
+            series = {
+                k: pd.concat(
+                    dict.fromkeys(self.scenarios, v), names=["scenario"], axis=1
+                )
+                for k, v in series.items()
+            }
+
         self._import_components_from_df(static_df, c.name, overwrite=overwrite)
 
         # Load time-varying attributes as components
         for k, v in series.items():
             self._import_series_from_df(v, c.name, k, overwrite=overwrite)
 
-        return names
+        if return_names:
+            return names
+        return None
 
     def remove(
         self,
@@ -294,9 +394,7 @@ class NetworkTransformMixin(_NetworkABC):
         >>> n = pypsa.Network()
         >>> n.snapshots = pd.date_range("2015-01-01", freq="h", periods=2)
         >>> n.add("Bus", ["bus0", "bus1"])
-        Index(['bus0', 'bus1'], dtype='object')
         >>> n.add("Bus", "bus2", p_min_pu=[1, 1])
-        Index(['bus2'], dtype='object', name='name')
         >>> n.components.buses.static
                v_nom type    x    y  ... v_mag_pu_max control generator  sub_network
         name                             ...
@@ -339,12 +437,11 @@ class NetworkTransformMixin(_NetworkABC):
         names = names.astype(str) + suffix
 
         # Drop from static components
-        cls_static = self.static(c.name)
+        cls_static = c.static
         cls_static.drop(names, inplace=True)
 
         # Drop from time-varying components
-        dynamic = self.dynamic(c.name)
-        for df in dynamic.values():
+        for df in c.dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
     def merge(
@@ -359,11 +456,11 @@ class NetworkTransformMixin(_NetworkABC):
         Requires disjunct sets of component indices and, if time-dependent data is
         merged, identical snapshots and snapshot weightings.
 
-        If a component in ``other`` does not have values for attributes present in
-        ``n``, default values are set.
+        If a component in `ther` does not have values for attributes present in
+        `n`, default values are set.
 
-        If a component in ``other`` has attributes which are not present in
-        ``n`` these attributes are ignored.
+        If a component in `other` has attributes which are not present in
+        `n` these attributes are ignored.
 
         Parameters
         ----------
@@ -372,7 +469,7 @@ class NetworkTransformMixin(_NetworkABC):
         components_to_skip : list-like, default None
             List of names of components which are not to be merged e.g. "Bus"
         inplace : bool, default False
-            If True, merge into ``n`` in-place, otherwise a copy is made.
+            If True, merge into `n` in-place, otherwise a copy is made.
         with_time : bool, default True
             If False, only static data is merged.
 
@@ -388,8 +485,11 @@ class NetworkTransformMixin(_NetworkABC):
         to_iterate = other.all_components - to_skip
         # ensure buses are merged first
         to_iterate_list = ["Bus"] + sorted(to_iterate - {"Bus"})
-        for c in other.iterate_components(to_iterate_list):
-            if not c.static.index.intersection(self.static(c.name).index).empty:
+        for c in other.components:
+            if c.name not in to_iterate_list:
+                continue
+            # for c in other.iterate_components(to_iterate_list):
+            if not c.static.index.intersection(self.c[c.name].static.index).empty:
                 msg = f"Component {c.name} has overlapping indices, cannot merge networks."
                 raise ValueError(msg)
         if with_time:
@@ -423,7 +523,9 @@ class NetworkTransformMixin(_NetworkABC):
                 other.srid,
                 new.srid,
             )
-        for c in other.iterate_components(to_iterate_list):
+        for c in other.components:
+            if c.name not in to_iterate_list:
+                continue
             new.add(c.name, c.static.index, **c.static)
             if with_time:
                 for k, v in c.dynamic.items():
@@ -453,9 +555,7 @@ class NetworkTransformMixin(_NetworkABC):
 
         >>> n = pypsa.Network()
         >>> n.add("Bus", ["bus1"])
-        Index(['bus1'], dtype='object')
         >>> n.add("Generator", ["gen1"], bus="bus1")
-        Index(['gen1'], dtype='object')
 
         Now rename the bus component
 

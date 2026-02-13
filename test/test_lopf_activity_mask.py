@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -128,7 +132,6 @@ def test_stores_with_active_attribute():
 
     n.add("Bus", "bus0", carrier="AC")
     n.add("Bus", "bus1", carrier="AC")
-    n.add("Carrier", "electricity")
     n.add("Carrier", "AC")
 
     n.add("Load", "load", bus="bus0", p_set=100)
@@ -138,7 +141,7 @@ def test_stores_with_active_attribute():
         bus="bus0",
         p_nom=200,
         marginal_cost=10,
-        carrier="electricity",
+        carrier="AC",
     )
 
     # Add stores with different active states
@@ -147,18 +150,16 @@ def test_stores_with_active_attribute():
         "store_active",
         bus="bus0",
         e_nom=500,
-        e_cyclic=True,
         active=True,
-        carrier="electricity",
+        carrier="AC",
     )
     n.add(
         "Store",
         "store_inactive",
         bus="bus1",
         e_nom=300,
-        e_cyclic=False,
         active=False,
-        carrier="electricity",
+        carrier="AC",
     )
 
     status, _ = n.optimize()
@@ -171,6 +172,163 @@ def test_stores_with_active_attribute():
     # Inactive store should not be in model variables
     assert "store_inactive" not in n.model.variables["Store-p"].coords["name"]
     assert "store_active" in n.model.variables["Store-p"].coords["name"]
+    assert "store_inactive" not in n.model.variables["Store-e"].coords["name"]
+    assert "store_active" in n.model.variables["Store-e"].coords["name"]
+
+
+def test_storage_units_with_active_attribute():
+    """Test storage units with active=False attribute."""
+    n = pypsa.Network()
+
+    n.set_snapshots(pd.date_range("2023-01-01", periods=3, freq="h"))
+
+    n.add("Bus", "bus0", carrier="AC")
+    n.add("Bus", "bus1", carrier="AC")
+    n.add("Carrier", "AC")
+
+    n.add("Load", "load", bus="bus0", p_set=100)
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus0",
+        p_nom=200,
+        marginal_cost=10,
+        carrier="AC",
+    )
+
+    # Add storage units with different active states
+    n.add(
+        "StorageUnit",
+        "battery_active",
+        bus="bus0",
+        p_nom=50,
+        active=True,
+        carrier="AC",
+    )
+    n.add(
+        "StorageUnit",
+        "battery_inactive",
+        bus="bus1",
+        p_nom=30,
+        active=False,
+        carrier="AC",
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+
+    # Inactive storage unit should have zero dispatch and store
+    assert (n.c.storage_units.dynamic.p_dispatch["battery_inactive"] == 0).all()
+    assert (n.c.storage_units.dynamic.p_store["battery_inactive"] == 0).all()
+
+    # Inactive storage unit should not be in model variables
+    assert (
+        "battery_inactive"
+        not in n.model.variables["StorageUnit-p_dispatch"].coords["name"]
+    )
+    assert (
+        "battery_active" in n.model.variables["StorageUnit-p_dispatch"].coords["name"]
+    )
+    assert (
+        "battery_inactive"
+        not in n.model.variables["StorageUnit-state_of_charge"].coords["name"]
+    )
+    assert (
+        "battery_active"
+        in n.model.variables["StorageUnit-state_of_charge"].coords["name"]
+    )
+
+
+def test_cyclic_overrides_initial_warnings(caplog):
+    """Test that warnings are issued when cyclic constraints override initial values for active components only."""
+    n = pypsa.Network()
+
+    n.set_snapshots(pd.date_range("2023-01-01", periods=3, freq="h"))
+
+    n.add("Bus", "bus0", carrier="AC")
+    n.add("Bus", "bus1", carrier="AC")
+    n.add("Carrier", "AC")
+
+    n.add("Load", "load", bus="bus0", p_set=100)
+    n.add("Generator", "gen", bus="bus0", p_nom=200, marginal_cost=10, carrier="AC")
+
+    # Add StorageUnits: active with cyclic+initial, inactive with cyclic+initial
+    n.add(
+        "StorageUnit",
+        "battery_active_cyclic",
+        bus="bus0",
+        p_nom=50,
+        state_of_charge_initial=10,
+        cyclic_state_of_charge=True,
+        active=True,
+        carrier="AC",
+    )
+    n.add(
+        "StorageUnit",
+        "battery_inactive_cyclic",
+        bus="bus1",
+        p_nom=30,
+        state_of_charge_initial=5,
+        cyclic_state_of_charge=True,  # Also cyclic with initial
+        active=False,
+        carrier="AC",
+    )
+
+    # Add Stores: active with cyclic+initial, inactive with cyclic+initial
+    n.add(
+        "Store",
+        "store_active_cyclic",
+        bus="bus0",
+        e_nom=500,
+        e_initial=50,
+        e_cyclic=True,
+        active=True,
+        carrier="AC",
+    )
+    n.add(
+        "Store",
+        "store_inactive_cyclic",
+        bus="bus1",
+        e_nom=300,
+        e_initial=30,
+        e_cyclic=True,  # Also cyclic with initial
+        active=False,
+        carrier="AC",
+    )
+
+    caplog.clear()
+    status, _ = n.optimize()
+
+    assert status == "ok"
+
+    # Check that warnings are issued ONLY for active components
+    storage_unit_warning = any(
+        "Cyclic state of charge constraint overrules initial storage level setting"
+        in record.message
+        and "battery_active_cyclic" in record.message
+        for record in caplog.records
+    )
+    assert storage_unit_warning, (
+        "Expected warning for active StorageUnit with cyclic + initial"
+    )
+
+    store_warning = any(
+        "Cyclic energy level constraint overrules initial value setting"
+        in record.message
+        and "store_active_cyclic" in record.message
+        for record in caplog.records
+    )
+    assert store_warning, "Expected warning for active Store with cyclic + initial"
+
+    # Verify inactive components are NOT mentioned in any warnings
+    assert not any(
+        "battery_inactive_cyclic" in record.message for record in caplog.records
+    ), "Inactive StorageUnit should not appear in warnings"
+
+    assert not any(
+        "store_inactive_cyclic" in record.message for record in caplog.records
+    ), "Inactive Store should not appear in warnings"
 
 
 def test_mixed_components_with_active_attribute():
@@ -334,3 +492,25 @@ def test_inactive_stores_with_global_operational_limit():
     # Test inactive store is not in model constraints related to energy
     assert "store_inactive" not in n.model.variables["Store-e"].coords["name"]
     assert "store_active" in n.model.variables["Store-e"].coords["name"]
+
+
+def test_all_storage_units_inactive():
+    """Test that optimization works when all storage units are inactive."""
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2023-01-01", periods=2, freq="h"))
+
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=5)
+    n.add("StorageUnit", "storage1", bus="bus", p_nom=50, active=False)
+    n.add("StorageUnit", "storage2", bus="bus", p_nom=50, active=False)
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+
+    # Test that no spillage variables were created for inactive storage units
+    assert "StorageUnit-spill" not in n.model.variables
+
+    # Test that inactive storage units have zero dispatch
+    assert (n.c.storage_units.dynamic.p["storage1"] == 0).all()
+    assert (n.c.storage_units.dynamic.p["storage2"] == 0).all()

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """General utility functions for PyPSA."""
 
 from __future__ import annotations
@@ -10,6 +14,8 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 from urllib import parse, request
 
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pandas.testing as pd_testing
@@ -19,7 +25,7 @@ from pandas.api.types import is_list_like
 
 from pypsa._options import options
 from pypsa.definitions.structures import Dict
-from pypsa.version import __version_semver__
+from pypsa.version import __version_base__
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -30,7 +36,10 @@ logger = logging.getLogger(__name__)
 
 
 class UnexpectedError(AssertionError):
-    """Custom error for unexpected conditions with issue tracker reference."""
+    """Custom error for unexpected conditions with issue tracker reference.
+
+    <!-- md:badge-version v0.35.0 -->
+    """
 
     URL_CREATE_ISSUE = "https://go.pypsa.org/report-bug"
 
@@ -154,7 +163,7 @@ class MethodHandlerWrapper:
 
 
 @lru_cache(maxsize=1)
-def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -> str:
+def _check_for_update(current_version: str, repo_owner: str, repo_name: str) -> str:
     """Log a message if a newer version is available.
 
     Checks the latest release on GitHub and compares it to the current version. Does
@@ -163,8 +172,8 @@ def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -
 
     Parameters
     ----------
-    current_version : tuple
-        The current version of the package as a tuple (major, minor, patch).
+    current_version : str
+        The current version of the package as a semantic version string.
     repo_owner : str
         The owner of the repository.
     repo_name : str
@@ -193,12 +202,14 @@ def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -
         response = request.urlopen(req)  # noqa: S310
         latest_version = json.loads(response.read())["tag_name"].replace("v", "")
 
-        # Simple version comparison
-        latest = tuple(map(int, latest_version.split(".")))
+        # Version comparison using packaging.version
+        latest_parsed = version.parse(latest_version)
+        current_parsed = version.parse(current_version)
 
-        if latest > current_version:
-            current_version_str = ".".join(map(str, current_version))
-            return f"New version {latest_version} available! (Current: {current_version_str})"
+        if latest_parsed > current_parsed:
+            return (
+                f"New version {latest_version} available! (Current: {current_version})"
+            )
 
     except Exception:  # noqa: S110
         pass
@@ -210,6 +221,8 @@ def as_index(
     n: NetworkType, values: Any, network_attribute: str, force_subset: bool = True
 ) -> pd.Index:
     """Return a pd.Index object from a list-like or scalar object.
+
+    <!-- md:badge-version v0.30.0 -->
 
     Also checks if the values are a subset of the corresponding attribute of the
     network object. If values is None, it is also used as the default.
@@ -247,6 +260,8 @@ def as_index(
 
     if values is None:
         values_ = n_attr
+        # Skip the subset check, because we know the values are equal
+        force_subset = False
     elif isinstance(values, pd.MultiIndex):
         values_ = values
         values_.names = n_attr.names
@@ -563,9 +578,9 @@ def deprecated_in_next_major(details: str) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         return deprecated(
-            deprecated_in="1.0",
+            deprecated_in="1.0rc1",
             removed_in="2.0",
-            current_version=__version_semver__,
+            current_version=__version_base__,
             details=details,
         )(func)
 
@@ -597,11 +612,11 @@ def deprecated_namespace(
         A wrapper function that warns about the deprecated namespace.
 
     """
-    current_version = version.parse(__version_semver__)
-    if version.parse(deprecated_in) > current_version and __version_semver__ != "0.0":
+    current_version = version.parse(__version_base__)
+    if version.parse(deprecated_in) > current_version and __version_base__ != "0.0":
         msg = (
             "'deprecated_namespace' can only be used in a version >= deprecated_in "
-            f"(current version: {__version_semver__}, deprecated_in: {deprecated_in})."
+            f"(current version: {__version_base__}, deprecated_in: {deprecated_in})."
         )
         raise ValueError(msg)
 
@@ -873,10 +888,57 @@ def _scenarios_not_implemented(func: Callable) -> Callable:
     return wrapper
 
 
+def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
+    """Generate a list of colors from a matplotlib palette.
+
+    <!-- md:badge-version v1.1.0 -->
+
+    Parameters
+    ----------
+    n_colors : int
+        Number of colors to generate.
+    palette : str, default "tab10"
+        Matplotlib color palette name.
+
+    Returns
+    -------
+    list of str
+        List of hex color strings.
+
+    Examples
+    --------
+    >>> pypsa.common.generate_colors(3, "tab10")
+    ['#1f77b4', '#ff7f0e', '#2ca02c']
+
+    """
+    cmap = plt.get_cmap(palette)
+    n_palette_colors = cmap.N if hasattr(cmap, "N") else 256
+
+    colors = []
+    for i in range(n_colors):
+        idx = i % n_palette_colors
+        if n_palette_colors <= 20:
+            # For discrete palettes, use integer indices
+            rgba = cmap(idx)
+        else:
+            # For continuous palettes, normalize to [0, 1]
+            rgba = cmap(idx / n_palette_colors)
+        colors.append(mcolors.to_hex(rgba))
+
+    return colors
+
+
+@deprecated(
+    deprecated_in="1.1.0",
+    removed_in="2.0.0",
+    details="Use pypsa.costs.annuity() instead.",
+)
 def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     """Calculate the annuity factor for a given discount rate and lifetime.
 
-    According to formula $r / (1 - (1 + r)^{-n})$.
+    **Deprecated since 1.1.0:** Use `pypsa.costs.annuity()` instead.
+
+    According to formula $r / (1 - (1 + r)^{-n})$ or $1 / n$ for $r = 0$.
 
     Parameters
     ----------
@@ -890,20 +952,51 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     float | pd.Series
         The annuity factor.
 
-    Examples
-    --------
-    >>> pypsa.common.annuity(0.05, 10)  # 5% discount rate over 10 years
-    0.12950457496545661
+    """
+    from pypsa.costs import annuity as costs_annuity  # noqa: PLC0415
 
-    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), pd.Series([10, 20]))
-    0    0.129505
-    1    0.067216
-    dtype: float64
+    return costs_annuity(r, n)
 
-    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), 20)
-    0    0.080243
-    1    0.067216
-    dtype: float64
+
+def normalize_carrier_nice_names(
+    nice_name_series: pd.Series,
+    carrier: str | Sequence[str] | None,
+) -> str | Sequence[str] | None:
+    """Normalize carrier nice names to carrier names.
+
+    Parameters
+    ----------
+    nice_name_series : pd.Series
+        Series with carrier names as index and nice names as values
+        (i.e. ``n.c.carriers.static.nice_name``).
+    carrier : str | Sequence[str] | None
+        Carrier name(s) to normalize.
+
+    Returns
+    -------
+    str | Sequence[str] | None
+        Normalized carrier name(s).
 
     """
-    return r / (1.0 - 1.0 / (1.0 + r) ** n)
+    if carrier is None:
+        return None
+
+    if isinstance(carrier, str):
+        carriers = [carrier]
+        scalar = True
+    elif isinstance(carrier, list):
+        carriers = carrier
+        scalar = False
+    else:
+        return carrier
+
+    nice_names = nice_name_series[nice_name_series != ""]
+    if nice_names.empty:
+        return carrier
+
+    unique_nice_names = nice_names[~nice_names.duplicated(keep=False)]
+    nice_name_to_carrier = pd.Series(
+        unique_nice_names.index, index=unique_nice_names.values
+    )
+    normalized = [nice_name_to_carrier.get(name, name) for name in carriers]
+    return normalized[0] if scalar else normalized

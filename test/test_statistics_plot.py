@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import sys
 
 import matplotlib.pyplot as plt
@@ -7,7 +11,13 @@ import pytest
 import seaborn as sns
 
 from pypsa.consistency import ConsistencyError
-from pypsa.plot.statistics.charts import ChartGenerator
+from pypsa.plot.statistics.charts import (
+    CHART_TYPES,
+    ChartGenerator,
+    adjust_collection_bar_defaults,
+    prepare_bar_data,
+)
+from pypsa.plot.statistics.plotter import StatisticPlotter
 from pypsa.statistics.expressions import StatisticsAccessor
 
 # Set random seed for reproducibility
@@ -18,9 +28,20 @@ plt.rcParams["figure.figsize"] = [8, 6]
 plt.rcParams["figure.dpi"] = 100
 
 
+def _multi_period_sample() -> pd.DataFrame:
+    """Return deterministic sample data with investment period columns."""
+    index = pd.MultiIndex.from_product(
+        [["Generator"], ["wind"]], names=["component", "carrier"]
+    )
+    periods = pd.Index([2020, 2030], name="period")
+    data = pd.DataFrame([[1.0, 2.0]], index=index, columns=periods)
+    data.attrs = {"name": "Sample", "unit": "MW"}
+    return data
+
+
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
+    sys.version_info < (3, 13) or sys.platform not in ["darwin"],
+    reason="Run only once for stability.",
 )
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=40)
@@ -32,56 +53,19 @@ def test_simple_plot(ac_dc_network_r, stat_func):
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
+    sys.version_info < (3, 13) or sys.platform not in ["darwin"],
+    reason="Run only once for stability.",
 )
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+@pytest.mark.parametrize("kind", CHART_TYPES + ["map"])
 @pytest.mark.mpl_image_compare(tolerance=40)
-def test_bar_plot(ac_dc_network_r, stat_func):
+def test_plot_types(ac_dc_network_r, stat_func, kind):
+    if kind == "map" and stat_func == "prices":
+        pytest.skip("Map plotting for 'prices' is not implemented.")
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    fig, _, _ = plotter.plot.bar()
+    fig, *_ = plotter.plot(kind=kind)
 
     return fig
-
-
-@pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
-)
-@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-@pytest.mark.mpl_image_compare(tolerance=40)
-def test_line_plot(ac_dc_network_r, stat_func):
-    plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    fig, _, _ = plotter.plot.line()
-
-    return fig
-
-
-@pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
-)
-@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-@pytest.mark.mpl_image_compare(tolerance=40)
-def test_area_plot(ac_dc_network_r, stat_func):
-    plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    fig, _, _ = plotter.plot.area()
-
-    return fig
-
-
-@pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
-)
-@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-# @pytest.mark.mpl_image_compare(tolerance=40) # TODO find better way to compare
-def test_map_plot(ac_dc_network_r, stat_func):
-    plotter = getattr(ac_dc_network_r.statistics, stat_func)
-
-    fig, _ = plotter.plot.map()
-
-    # return fig
 
 
 def test_to_long_format_static(ac_dc_network_r):
@@ -182,6 +166,7 @@ def test_query_filtering(ac_dc_network_r):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 def test_consistency_checks(ac_dc_network_r):
@@ -202,6 +187,7 @@ def test_stacking(ac_dc_network_r):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
@@ -220,6 +206,7 @@ def test_networks_bar_plot(network_collection, stat_func):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
@@ -229,6 +216,7 @@ def test_networks_line_plot(network_collection, stat_func):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
@@ -238,6 +226,53 @@ def test_networks_area_plot(network_collection, stat_func):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
+
+
+def test_prepare_bar_data_stacks_periods(ac_dc_network_r):
+    network = ac_dc_network_r.copy()
+    periods = pd.Index([2020, 2030], name="period")
+    network.investment_periods = periods
+
+    data = _multi_period_sample()
+    stacked = prepare_bar_data(network, "bar", data)
+
+    assert isinstance(stacked, pd.Series)
+    assert "period" in stacked.index.names
+    assert set(stacked.index.get_level_values("period")) == {"2020", "2030"}
+    assert stacked.attrs == data.attrs
+
+
+def test_adjust_defaults_for_multi_investment(ac_dc_network_r):
+    network = ac_dc_network_r.copy()
+    periods = pd.Index([2020, 2030], name="period")
+    network.investment_periods = periods
+
+    color, stacked, order = adjust_collection_bar_defaults(
+        network, "bar", None, True, None
+    )
+
+    assert color == "period"
+    assert stacked is False
+    assert list(order) == list(periods)
+
+
+def test_statistic_plotter_multi_investment_defaults(ac_dc_network_r):
+    network = ac_dc_network_r.copy()
+    network.investment_periods = pd.Index([2020, 2030], name="period")
+    sample = _multi_period_sample()
+
+    def fake_statistic(**kwargs):
+        return sample
+
+    fake_statistic.__name__ = "installed_capacity"
+
+    plotter = StatisticPlotter(fake_statistic, network)
+    fig, ax, g = plotter.bar()
+
+    assert "period" in g.data.columns
+    assert set(g.data["period"].unique()) == {"2020", "2030"}
+    plt.close(fig)
 
 
 def test_networks_query_filtering(network_collection):

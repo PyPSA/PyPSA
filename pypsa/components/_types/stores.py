@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Stores components module."""
 
 from __future__ import annotations
@@ -33,7 +37,7 @@ class Stores(Components):
 
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     """
 
@@ -44,6 +48,8 @@ class Stores(Components):
         attr: str = "e",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for stores.
+
+        <!-- md:badge-version v1.0.0 -->
 
         Parameters
         ----------
@@ -67,12 +73,14 @@ class Stores(Components):
         name: str | int | Sequence[int | str],
         suffix: str = "",
         overwrite: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
-    ) -> pd.Index:
+    ) -> pd.Index | None:
         """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,
             overwrite=overwrite,
+            return_names=return_names,
             **kwargs,
         )

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Define optimisation variables from PyPSA networks with Linopy."""
 
 from __future__ import annotations
@@ -186,6 +190,12 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     """
     c = n.components[c_name]
     mod_i = c.static.query(f"{attr}_extendable and ({attr}_mod>0)").index
+
+    # Unlike handled with c.extendables, modular vars's index is lost with difference() method.
+    # Can be handled with a helper "c.modulars" that would preserve level names.
+    if isinstance(mod_i, pd.MultiIndex):
+        mod_i = mod_i.unique(level="name")
+
     mod_i = mod_i.difference(c.inactive_assets)
 
     if mod_i.empty:
@@ -203,7 +213,7 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
         return
 
     upper = c.da.inflow.sel(name=c.active_assets, snapshot=sns)
-    if (upper.max() <= 0).all():
+    if upper.size == 0 or (upper.max() <= 0).all():
         return
 
     active = c.da.active.sel(snapshot=sns, name=c.active_assets)
@@ -234,3 +244,38 @@ def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
     active = c.da.active.sel(name=c.active_assets, snapshot=sns)
     coords = active.coords
     n.model.add_variables(0, coords=coords, name=f"{c.name}-loss", mask=active)
+
+
+def define_cvar_variables(n: Network) -> None:
+    """Define auxiliary variables used in the CVaR (Conditional Value-at-Risk) formulation.
+
+    This helper adds three auxiliary variables to the model when
+    stochastic optimisation with risk preference is enabled.
+
+    * `CVaR-a` (per-scenario, non-negative): auxiliary excess loss variables `a_s`.
+      They linearise the tail expectation: `a_s >= OPEX_s - theta`.
+    * `CVaR-theta` (scalar): the Value-at-Risk (VaR) level `theta` at confidence `alpha`.
+    * `CVaR` (scalar): the Conditional Value-at-Risk (Expected Shortfall) objective term.
+
+    These variables are linked by constraints (added in the objective construction)
+    to implement the linear CVaR formulation.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance
+
+    """
+    if n.has_scenarios and n.has_risk_preference is False:
+        return
+
+    # Per-scenario auxiliary variables a[s]
+    scenarios = n.scenarios
+    if scenarios is None or len(scenarios) == 0:
+        return
+
+    # Non-negative excess loss variables per scenario
+    n.model.add_variables(lower=0, coords=[scenarios], name="CVaR-a")
+    # Scalar theta (VaR) and CVaR
+    n.model.add_variables(name="CVaR-theta")
+    n.model.add_variables(name="CVaR")

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 from numpy.testing import assert_array_almost_equal as equal
 
@@ -6,7 +10,7 @@ import pypsa
 
 def test_modular_components():
     """
-    This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
+    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
     n = pypsa.Network()

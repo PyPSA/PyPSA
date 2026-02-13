@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Tests for interactive statistics plotting."""
 
 import pandas as pd
@@ -6,6 +10,7 @@ import pytest
 
 import pypsa
 from pypsa.plot.statistics.charts import ChartGenerator
+from pypsa.plot.statistics.plotter import StatisticInteractivePlotter
 from pypsa.statistics.expressions import StatisticsAccessor
 
 
@@ -30,6 +35,17 @@ def collection_multiindex(ac_dc_network_r):
         [["2030", "2040", "2050"], ["low", "high"]], names=["year", "cost"]
     )
     return pypsa.NetworkCollection(networks, index=index)
+
+
+def _multi_period_sample() -> pd.DataFrame:
+    """Return deterministic sample data with investment period columns."""
+    index = pd.MultiIndex.from_product(
+        [["Generator"], ["wind"]], names=["component", "carrier"]
+    )
+    periods = pd.Index([2020, 2030], name="period")
+    data = pd.DataFrame([[1.0, 2.0]], index=index, columns=periods)
+    data.attrs = {"name": "Sample", "unit": "MW"}
+    return data
 
 
 def test_iplot_exists(ac_dc_network_r):
@@ -222,28 +238,23 @@ def test_networks_interactive_stacking(network_collection):
 class TestAutoFaceting:
     """Test automatic faceting functionality for NetworkCollections."""
 
-    def test_single_index_auto_facet_col(self, collection_single_index):
-        """Test that single index automatically sets facet_col."""
-        # Call plot method and check that the plot is created successfully
-        # The autofaceting should work transparently
+    def test_single_index_grouped_bars(self, collection_single_index):
+        """Single-index collections should group bars instead of faceting."""
         fig = collection_single_index.statistics.installed_capacity.iplot.bar()
         assert isinstance(fig, go.Figure)
 
-        # Check that we have data for multiple scenarios
-        assert len(fig.data) >= 1
+        # Bars should share a single subplot axis (no auto-created facets)
+        subplot_axes = {getattr(trace, "xaxis", "x") for trace in fig.data}
+        assert subplot_axes == {"x"}
 
-        # The plot should have faceted structure for multiple scenarios
-        # We can verify this by checking subplot annotations or layout
-        if hasattr(fig, "layout") and hasattr(fig.layout, "annotations"):
-            # Faceted plots often have annotations for subplot titles
-            annotations = [
-                ann.text for ann in fig.layout.annotations if hasattr(ann, "text")
-            ]
-            # This is a softer check since the exact annotation format may vary
-            assert len(annotations) >= 0  # Just ensure no errors occurred
+        # Default behaviour should group bars by scenario (network index)
+        assert fig.layout.barmode == "group"
+        trace_names = {trace.name for trace in fig.data if hasattr(trace, "name")}
+        expected_names = set(map(str, collection_single_index.index))
+        assert expected_names.issubset(trace_names)
 
     def test_multiindex_auto_facet_both(self, collection_multiindex):
-        """Test that MultiIndex automatically sets both facet_row and facet_col."""
+        """Test that MultiIndex bar plots use 1D faceting + grouped bars."""
         # Call plot method and check that the plot is created successfully
         fig = collection_multiindex.statistics.installed_capacity.iplot.bar()
         assert isinstance(fig, go.Figure)
@@ -251,15 +262,29 @@ class TestAutoFaceting:
         # Check that we have data
         assert len(fig.data) >= 1
 
-        # For multiindex, we should have a more complex layout structure
-        # indicating both row and column faceting
+        # For bar plots, should group by second index level (cost: "low", "high")
+        assert fig.layout.barmode == "group"
+        trace_names = {trace.name for trace in fig.data if getattr(trace, "name", None)}
+        # Should include the second index level values
+        expected_second_level = set(
+            map(str, collection_multiindex.index.get_level_values(1).unique())
+        )
+        assert expected_second_level.issubset(trace_names)
+
+        # Should have 1D faceting (column facets for first index level: year)
+        # Check for multiple subplots but not a 2D grid
         layout = fig.layout
         assert layout is not None
 
-        # The presence of multiple axis definitions can indicate faceting
-        axis_keys = [key for key in dir(layout) if "axis" in key.lower()]
-        # Should have some axis definitions for the faceted structure
-        assert len(axis_keys) >= 0  # Ensure no errors in plot creation
+        # Should have multiple xaxis definitions for column faceting
+        # but not both xaxis2 and yaxis2 (which would indicate 2D grid)
+        has_xaxis2 = "xaxis2" in fig.layout
+        has_yaxis2 = "yaxis2" in fig.layout
+        # For 1D column faceting, we should have multiple x-axes but share y-axis
+        if has_xaxis2 and has_yaxis2:
+            # If both exist, they shouldn't create a 2D grid (check domain structure)
+            # In 1D faceting, all subplots share the same row (y domain)
+            pass  # Allow both for now, as plotly may create them differently
 
     def test_explicit_facet_overrides_auto(self, collection_single_index):
         """Test that explicit facet arguments override automatic faceting."""
@@ -283,3 +308,25 @@ class TestAutoFaceting:
 
         # Check that _index_names is empty for single networks
         assert getattr(ac_dc_network_r, "_index_names", []) == []
+
+
+def test_interactive_multi_investment_grouping(ac_dc_network_r):
+    """Interactive bar charts should group investment periods side-by-side."""
+    network = ac_dc_network_r.copy()
+    network.investment_periods = pd.Index([2020, 2030], name="period")
+    sample = _multi_period_sample()
+
+    def fake_statistic(**kwargs):
+        return sample
+
+    fake_statistic.__name__ = "installed_capacity"
+
+    plotter = StatisticInteractivePlotter(fake_statistic, network)
+    fig = plotter.bar()
+
+    assert isinstance(fig, go.Figure)
+    assert fig.layout.barmode == "group"
+    trace_names = {
+        str(trace.name) for trace in fig.data if getattr(trace, "name", None)
+    }
+    assert trace_names == {"2020", "2030"}

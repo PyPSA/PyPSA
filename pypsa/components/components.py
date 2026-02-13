@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components module.
 
 Contains classes and properties relevant to all component types in PyPSA. Also imports
@@ -24,12 +28,13 @@ import pandas as pd
 import xarray
 from pyproj import CRS
 
-from pypsa.common import equals
+from pypsa.common import deprecated_in_next_major, equals
 from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, RE_PORTS
+from pypsa.costs import annuity, periodized_cost
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
@@ -49,19 +54,17 @@ if TYPE_CHECKING:
 class ComponentsData:
     """Dataclass for Components.
 
+    <!-- md:guide components.md -->
+
     This class is used to store all data of a Components object. Other classes inherit
     from this class to implement logic and methods, but do not store any data next
     to the data in here.
 
     All attributes can therefore also be accessed directly from
-    any [`Components`][pypsa.components.Components] object (which defines all
+    any [`Components`][pypsa.Components] object (which defines all
     attributes and properties which are available for all component types) as well as
     in specific type classes as [`Generators`][pypsa.components.Generators] (which
     define logic and methods specific to the component type).
-
-    User Guide
-    ----------
-    Check out the corresponding user guide: [:material-bookshelf: Components](/user-guide/components)
 
     Attributes
     ----------
@@ -82,7 +85,31 @@ class ComponentsData:
     ctype: ComponentType
     n: Network | None
     static: pd.DataFrame
+    """
+    Dataframe with static data for all components of this type.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Static data of the component.
+
+    Examples
+    --------
+    >>> c.static
+    """
     dynamic: Dict
+    """
+    Dataframe with dynamic data for all components of this type.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Dynamic data of the component.
+
+    Examples
+    --------
+    >>> c.dynamic
+    """
 
 
 class Components(
@@ -94,10 +121,12 @@ class Components(
 ):
     """Components base class.
 
+    <!-- md:badge-version v0.33.0 --> | <!-- md:guide components.md -->
+
     Base class for container of energy system related assets, such as
     generators or transmission lines. Use the specific subclasses for concrete or
     a generic component type.
-    All data is stored in the dataclass [pypsa.components.components.ComponentsData][].
+    All data is stored in the dataclass [ComponentsData][pypsa.components.components.ComponentsData].
     Components inherits from it, adds logic and methods, but does not store any data
     itself.
 
@@ -140,10 +169,7 @@ class Components(
     def __str__(self) -> str:
         """Get string representation of component.
 
-        Returns
-        -------
-        str
-            String representation of component.
+        <!-- md:badge-version v0.33.0 -->
 
         Examples
         --------
@@ -156,10 +182,7 @@ class Components(
     def __repr__(self) -> str:
         """Get representation of component.
 
-        Returns
-        -------
-        str
-            Representation of component.
+        <!-- md:badge-version v0.33.0 -->
 
         Examples
         --------
@@ -187,6 +210,8 @@ class Components(
     def __getitem__(self, key: str) -> Any:
         """Get attribute of component.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Parameters
         ----------
         key : str
@@ -202,6 +227,8 @@ class Components(
 
     def __setitem__(self, key: str, value: Any) -> None:
         """Set attribute of component.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Parameters
         ----------
@@ -225,6 +252,8 @@ class Components(
     def __eq__(self, other: object) -> bool:
         """Check if two Components are equal.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Does not check the attached Network, but only component specific data. Therefore
         two components can be equal even if they are attached to different networks.
 
@@ -240,8 +269,7 @@ class Components(
 
         See Also
         --------
-        [pypsa.Components.equals][] :
-            Check for equality of two networks.
+        [pypsa.Components.equals][]
 
         """
         return self.equals(other)
@@ -249,16 +277,29 @@ class Components(
     def __len__(self) -> int:
         """Get the number of components.
 
+        <!-- md:badge-version v1.0.0 -->
+
         Returns
         -------
         int
             Number of components.
+
+        Examples
+        --------
+        >>> len(n.components.generators)
+        6
+
+        Which is the same as:
+        >>> n.components.generators.static.shape[0]
+        6
 
         """
         return len(self.static)
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check if two Components are equal.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Does not check the attached Network, but only component specific data. Therefore
         two components can be equal even if they are attached to different networks.
@@ -288,9 +329,7 @@ class Components(
         >>> n1 = pypsa.Network()
         >>> n2 = pypsa.Network()
         >>> n1.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n2.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n1.buses.equals(n2.buses)
         True
 
@@ -338,6 +377,8 @@ class Components(
     def standard_types(self) -> pd.DataFrame | None:
         """Get standard types of component.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Returns
         -------
         pd.DataFrame
@@ -353,6 +394,8 @@ class Components(
     @property
     def name(self) -> str:
         """Name of component type.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Returns
         -------
@@ -371,6 +414,8 @@ class Components(
     def list_name(self) -> str:
         """List name of component type.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Returns
         -------
         str
@@ -387,6 +432,8 @@ class Components(
     @property
     def description(self) -> str:
         """Description of component.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Returns
         -------
@@ -405,6 +452,8 @@ class Components(
     def category(self) -> str:
         """Category of component.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Returns
         -------
         str
@@ -422,8 +471,10 @@ class Components(
     def type(self) -> str:
         """Get category of component.
 
-        .. note ::
-            While not actively deprecated yet, :meth:`category` is the preferred method
+        <!-- md:badge-version v0.33.0 -->
+
+        !!! note
+            While not actively deprecated yet, [`category`][pypsa.Components.category] is the preferred method
             to access component type.
 
         Returns
@@ -435,12 +486,13 @@ class Components(
         return self.ctype.category
 
     @property
+    @deprecated_in_next_major(details="Use `c.defaults` instead.")
     def attrs(self) -> pd.DataFrame:
         """Default values of corresponding component type.
 
-        .. note::
-            While not actively deprecated yet, :meth:`defaults` is the preferred method
-            to access component attributes.
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
+            Use [`c.defaults`][pypsa.Components.defaults] instead.
 
         Returns
         -------
@@ -455,9 +507,7 @@ class Components(
     def defaults(self) -> pd.DataFrame:
         """Default values of corresponding component type.
 
-        .. note::
-            While not actively deprecated yet, :meth:`defaults` is the preferred method
-            to access component attributes.
+        <!-- md:badge-version v0.33.0 -->
 
         Returns
         -------
@@ -483,6 +533,8 @@ class Components(
     def empty(self) -> bool:
         """Check if component is empty.
 
+        <!-- md:badge-version v1.0.0 -->
+
         Returns
         -------
         bool
@@ -491,8 +543,7 @@ class Components(
         Examples
         --------
         >>> n = pypsa.Network()
-        >>> n.add('Generator', 'g1')  # doctest: +ELLIPSIS
-        Index(['g1'], dtype='object')
+        >>> n.add('Generator', 'g1')
         >>> n.components.generators.empty
         False
 
@@ -502,30 +553,11 @@ class Components(
         """
         return self.static.empty
 
-    def get(self, attribute_name: str, default: Any = None) -> Any:
-        """Get attribute of component.
-
-        Just an alias for built-in getattr and allows for default values.
-        #TODO change to handle data access instead
-
-        Parameters
-        ----------
-        attribute_name : str
-            Name of the attribute to get.
-        default : Any, optional
-            Default value to return if attribute is not found.
-
-        Returns
-        -------
-        Any
-            Value of the attribute if found, otherwise the default value.
-
-        """
-        return getattr(self, attribute_name, default)
-
     @property
     def attached(self) -> bool:
         """Check if component is attached to a Network.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Some functionality of the component is only available when attached to a
         Network.
@@ -547,6 +579,8 @@ class Components(
     def n_save(self) -> Any:
         """A save property to access the network (component must be attached).
 
+        <!-- md:badge-version v0.33.0 -->
+
         Returns
         -------
         Network
@@ -564,12 +598,12 @@ class Components(
         return self.n
 
     @property
+    @deprecated_in_next_major(details="Use `c.static` instead.")
     def df(self) -> pd.DataFrame:
         """Get static data of all components as pandas DataFrame.
 
-        .. note::
-            While not actively deprecated yet, :meth:`static` is the preferred method
-            to access static components data.
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+            Use [`c.static`][pypsa.Components.static] instead.
 
         Returns
         -------
@@ -580,12 +614,12 @@ class Components(
         return self.static
 
     @property
+    @deprecated_in_next_major(details="Use `c.dynamic` instead.")
     def pnl(self) -> dict:
         """Get dynamic data of all components as a dictionary of pandas DataFrames.
 
-        .. note::
-            While not actively deprecated yet, :meth:`dynamic` is the preferred method
-            to access dynamic components data.
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+            Use [`c.dynamic`][pypsa.Components.dynamic] instead.
 
         Returns
         -------
@@ -601,6 +635,8 @@ class Components(
     def ds(self) -> xarray.Dataset:
         """Create a xarray data array view of the component.
 
+        <!-- md:badge-version v1.0.0 -->
+
         !!! note
 
             Note that this will create a full copy of the component data. For large networks
@@ -614,8 +650,7 @@ class Components(
 
         See Also
         --------
-        [pypsa.Components.da][] :
-            Accessor for a specific attribute of the component.
+        [pypsa.Components.da][]
 
         Examples
         --------
@@ -626,7 +661,7 @@ class Components(
         Coordinates:
           * name                     (name) object ... 'Manchester Wind' ... 'Frankfu...
           * snapshot                 (snapshot) datetime64[ns] ... 2015-01-01 ... 201...
-        Data variables: (12/38)
+        Data variables: (12/43)
             bus                      (name) object ... 'Manchester' ... 'Frankfurt'
             control                  (name) object ... 'Slack' 'PQ' ... 'Slack' 'PQ'
             type                     (name) object ... '' '' '' '' '' ''
@@ -650,6 +685,8 @@ class Components(
     @property
     def units(self) -> pd.Series:
         """Get units of all attributes of components.
+
+        <!-- md:badge-version v0.34.0 -->
 
         Returns
         -------
@@ -675,6 +712,8 @@ class Components(
     def ports(self) -> list:
         """Get ports of all components.
 
+        <!-- md:badge-version v0.34.0 -->
+
         Returns
         -------
         pd.Series
@@ -688,8 +727,7 @@ class Components(
 
         See Also
         --------
-        [pypsa.components.Links.additional_ports][] :
-            Additional ports of components.
+        [pypsa.components.Links.additional_ports][]
 
         """
         return [
@@ -697,8 +735,42 @@ class Components(
         ]
 
     @property
+    def unique_carriers(self) -> set[str]:
+        """Get all unique carrier values for this component.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns
+        -------
+        set of str
+            Set of all unique carrier names found in this component.
+
+        Examples
+        --------
+        >>> sorted(n.c.generators.unique_carriers)
+        ['gas', 'wind']
+
+        >>> sorted(n.c.buses.unique_carriers)
+        ['AC', 'DC']
+
+        See Also
+        --------
+        [pypsa.components.Carriers.add_missing_carriers][]
+
+        """
+        if self.static.empty or "carrier" not in self.static.columns:
+            return set()
+
+        # Get carriers and filter out empty strings and NaN
+        c_carriers = self.static["carrier"].dropna()
+        c_carriers = c_carriers[c_carriers != ""]
+        return set(c_carriers.unique())
+
+    @property
     def extendables(self) -> pd.Index:
         """Get the index of extendable elements of this component.
+
+        <!-- md:badge-version v1.0.0 -->
 
         Returns
         -------
@@ -722,6 +794,8 @@ class Components(
     def fixed(self) -> pd.Index:
         """Get the index of non-extendable elements of this component.
 
+        <!-- md:badge-version v1.0.0 -->
+
         Returns
         -------
         pd.Index
@@ -744,6 +818,8 @@ class Components(
     def committables(self) -> pd.Index:
         """Get the index of committable elements of this component.
 
+        <!-- md:badge-version v1.0.0 -->
+
         Returns
         -------
         pd.Index
@@ -760,6 +836,155 @@ class Components(
             idx = idx.get_level_values("name").drop_duplicates()
 
         return idx
+
+    @property
+    def periodized_cost(self) -> xarray.DataArray:
+        """Calculate periodized cost from component attributes as xarray DataArray.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        See Also
+        --------
+        `pypsa.costs.periodized_cost`
+
+        """
+        static = self.static
+        cost = periodized_cost(
+            capital_cost=static["capital_cost"],
+            overnight_cost=static["overnight_cost"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=static.get("fom_cost", 0),
+            nyears=self.nyears,
+        )
+        da = xarray.DataArray(cost)
+        if self.has_scenarios:
+            da = da.unstack().reindex(name=self.names, scenario=self.scenarios)
+        return da
+
+    @property
+    def capital_cost(self) -> pd.Series:
+        """Calculate annuitized investment cost per unit of capacity (no fom).
+
+        <!-- md:badge-version v1.1.0 -->
+
+        See Also
+        --------
+        `pypsa.costs.periodized_cost`
+
+        """
+        static = self.static
+        return periodized_cost(
+            capital_cost=static["capital_cost"],
+            overnight_cost=static["overnight_cost"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=None,
+            nyears=self.nyears,
+        )
+
+    @property
+    def nyears(self) -> float | pd.Series:
+        """Return the modeled time horizon in years.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        See Also
+        --------
+        `pypsa.Network.nyears`
+
+        """
+        return self.n_save.nyears
+
+    @property
+    def annuity(self) -> pd.Series:
+        """Calculate annuity factor for all components.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns the annuity factor based on `discount_rate` and `lifetime`.
+        If `discount_rate` is NaN (no `overnight_cost` provided), returns 1.0.
+
+        Returns
+        -------
+        pd.Series
+            Annuity factor for each component.
+
+        Examples
+        --------
+        >>> n.c.generators.annuity  # doctest: +SKIP
+        name
+        gen1    0.085...
+        gen2    1.0
+        dtype: float64
+
+        See Also
+        --------
+        `pypsa.costs.annuity_factor`
+
+        """
+        static = self.static
+        discount_rate = static["discount_rate"]
+        lifetime = static["lifetime"]
+        return annuity(discount_rate, lifetime)
+
+    @property
+    def overnight_cost(self) -> pd.Series:
+        """Calculate overnight cost from component attributes.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        If overnight_cost column is provided (not NaN), returns it directly.
+        Otherwise, converts annualized capital_cost back to overnight cost using
+        the formula: overnight_cost = capital_cost / (annuity_factor × nyears).
+
+        Note: When nyears == 1, capital_cost represents the annualized cost per year,
+        so overnight_cost = capital_cost / annuity_factor.
+
+        Returns
+        -------
+        pd.Series
+            Overnight (upfront) investment cost per unit of capacity.
+
+        Examples
+        --------
+        >>> n.c.generators.overnight_cost  # doctest: +SKIP
+        name
+        gen1    1000.0   # overnight_cost used directly
+        gen2    1166.0   # 100 / annuity(0.07, 25) - back-calculated from capital_cost
+        dtype: float64
+
+        See Also
+        --------
+        `capital_cost` : Annuitized investment cost for the modeled horizon.
+        `annuity` : Annuity factor for each component.
+
+        """
+        static = self.static
+        overnight = static["overnight_cost"]
+        capital = static["capital_cost"]
+        has_overnight = overnight.notna()
+
+        needs_back_calc = ~has_overnight & (capital != 0)
+        discount_rate = static["discount_rate"]
+        lifetime = static["lifetime"]
+        missing_params = needs_back_calc & (discount_rate.isna() | lifetime.isna())
+
+        if missing_params.any():
+            bad = static.index[missing_params].tolist()
+            msg = (
+                f"Cannot back-calculate overnight_cost for {bad}: "
+                "both 'discount_rate' and 'lifetime' must be provided "
+                "when 'overnight_cost' is not set."
+            )
+            raise ValueError(msg)
+
+        ann_factor = self.annuity
+        nyears = self.nyears
+        nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
+        back_calculated = capital / (ann_factor * nyears_scalar)
+
+        return overnight.where(has_overnight, back_calculated)
 
 
 class SubNetworkComponents:
@@ -849,11 +1074,6 @@ class SubNetworkComponents:
     def __str__(self) -> str:
         """Get string representation of sub-network components.
 
-        Returns
-        -------
-        str
-            String representation of sub-network components.
-
         Examples
         --------
         >>> str(sub_network.components.generators)
@@ -864,11 +1084,6 @@ class SubNetworkComponents:
 
     def __repr__(self) -> str:
         """Get representation of sub-network components.
-
-        Returns
-        -------
-        str
-            Representation of sub-network components.
 
         Examples
         --------

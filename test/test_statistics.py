@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -5,6 +9,20 @@ import pytest
 import pypsa
 from pypsa.statistics import groupers
 from pypsa.statistics.expressions import StatisticsAccessor
+
+
+def test_stats_alias(ac_dc_network):
+    """Test that n.stats works as an alias for n.statistics."""
+    n = ac_dc_network
+    assert n.stats is n.statistics
+    df_stats = n.stats()
+    df_statistics = n.statistics()
+    pd.testing.assert_frame_equal(df_stats, df_statistics)
+    stats_installed_capacity = n.stats.installed_capacity()
+    statistics_installed_capacity = n.statistics.installed_capacity()
+    pd.testing.assert_series_equal(
+        stats_installed_capacity, statistics_installed_capacity
+    )
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
@@ -60,13 +78,13 @@ def test_grouping_by_keys_solved(ac_dc_network_r, groupby):
 
 
 def test_grouping_by_keys_with_specific_column_solved(ac_dc_network_r):
-    df = ac_dc_network_r.statistics(groupby=["bus0", "carrier"], comps={"Link"})
+    df = ac_dc_network_r.statistics(groupby=["bus0", "carrier"], components={"Link"})
     assert not df.empty
 
 
 def test_grouping_by_new_registered_key(ac_dc_network_r):
     def new_grouper(n, c):
-        return n.df(c).index.to_series()
+        return n.c[c].static.index.to_series()
 
     n = ac_dc_network_r
     pypsa.statistics.groupers.add_grouper("new_grouper", new_grouper)
@@ -74,7 +92,7 @@ def test_grouping_by_new_registered_key(ac_dc_network_r):
     assert not df.empty
     assert df.index.nlevels == 2
 
-    df = n.statistics.supply(groupby=["new_grouper", "carrier"], comps="Link")
+    df = n.statistics.supply(groupby=["new_grouper", "carrier"], components="Link")
     assert not df.empty
     assert df.index.nlevels == 2
 
@@ -94,7 +112,7 @@ def test_drop_zero(ac_dc_network):
 
 def test_zero_profit_rule_branches(ac_dc_network_r):
     n = ac_dc_network_r
-    revenue = n.statistics.revenue(aggregate_time="sum")
+    revenue = n.statistics.revenue(groupby_time="sum")
     capex = n.statistics.capex()
     comps = ["Line", "Link"]
     assert np.allclose(revenue[comps], capex[comps])
@@ -102,9 +120,9 @@ def test_zero_profit_rule_branches(ac_dc_network_r):
 
 def test_net_and_gross_revenue(ac_dc_network_r):
     n = ac_dc_network_r
-    target = n.statistics.revenue(aggregate_time="sum")
-    revenue_out = n.statistics.revenue(aggregate_time="sum", direction="output")
-    revenue_in = n.statistics.revenue(aggregate_time="sum", direction="input")
+    target = n.statistics.revenue(groupby_time="sum")
+    revenue_out = n.statistics.revenue(groupby_time="sum", direction="output")
+    revenue_in = n.statistics.revenue(groupby_time="sum", direction="input")
     revenue = revenue_in.add(revenue_out, fill_value=0)
     comps = ["Generator", "Line", "Link"]
     assert np.allclose(revenue[comps], target[comps])
@@ -199,7 +217,7 @@ def test_no_grouping(ac_dc_network_r):
 
 
 def test_no_time_aggregation(ac_dc_network_r):
-    df = ac_dc_network_r.statistics.supply(aggregate_time=False)
+    df = ac_dc_network_r.statistics.supply(groupby_time=False)
     assert not df.empty
     assert isinstance(df, pd.DataFrame)
 
@@ -248,25 +266,29 @@ def test_storage_capacity(ac_dc_network_r):
 
 def test_single_component(ac_dc_network_r):
     n = ac_dc_network_r
-    df = n.statistics.installed_capacity(comps="Generator")
+    df = n.statistics.installed_capacity(components="Generator")
     assert not df.empty
     assert df.index.nlevels == 1
 
 
 def test_aggregate_across_components(ac_dc_network_r):
-    n = ac_dc_network_r
-    df = n.statistics.installed_capacity(
-        comps=["Generator", "Line"], aggregate_across_components=True
-    )
-    assert not df.empty
-    assert "component" not in df.index.names
+    import warnings
 
-    df = n.statistics.supply(
-        comps=["Generator", "Line"],
-        aggregate_across_components=True,
-        aggregate_time=False,
-    )
-    assert not df.empty
+    n = ac_dc_network_r
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        df = n.statistics.installed_capacity(
+            components=["Generator", "Line"], aggregate_across_components=True
+        )
+        assert not df.empty
+        assert "component" not in df.index.names
+
+        df = n.statistics.supply(
+            components=["Generator", "Line"],
+            aggregate_across_components=True,
+            groupby_time=False,
+        )
+        assert not df.empty
     assert "component" not in df.index.names
 
 
@@ -279,12 +301,16 @@ def test_multiindexed(ac_dc_periods):
 
 
 def test_multiindexed_aggregate_across_components(ac_dc_periods):
+    import warnings
+
     n = ac_dc_periods
-    df = n.statistics.installed_capacity(
-        comps=["Generator", "Line"], aggregate_across_components=True
-    )
-    assert not df.empty
-    assert "component" not in df.index.names
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        df = n.statistics.installed_capacity(
+            components=["Generator", "Line"], aggregate_across_components=True
+        )
+        assert not df.empty
+        assert "component" not in df.index.names
 
 
 def test_inactive_exclusion_in_static(ac_dc_network_r):
@@ -312,3 +338,88 @@ def test_system_cost(ac_dc_network_r):
     opex = n.statistics.opex().sum()
     system_cost = n.statistics.system_cost().sum()
     assert system_cost == capex + opex
+
+
+def test_prices(ac_dc_network_r):
+    n = ac_dc_network_r
+
+    # Test basic prices (load-weighted by default)
+    prices = n.statistics.prices()
+    assert isinstance(prices, pd.Series)
+    assert len(prices) == len(n.buses)
+
+    time_weighted = n.statistics.prices(weighting="time")
+    load_weighted = n.statistics.prices(weighting="load")
+    assert not time_weighted.equals(load_weighted)
+
+    # Test bus carrier filtering
+    ac_prices = n.statistics.prices(bus_carrier="AC")
+    assert len(ac_prices) == sum(n.c.buses.static.carrier == "AC")
+
+    # Test groupby bus_carrier
+    grouped = n.statistics.prices(groupby="bus_carrier")
+    assert set(grouped.index) == set(n.c.buses.static.carrier.unique())
+
+
+@pytest.fixture
+def network_with_nice_name():
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Carrier", "rural heat", nice_name="residential rural heat")
+    n.add("Bus", "heat bus", carrier="rural heat", unit="MW")
+    n.add(
+        "Load",
+        "heat load",
+        bus="heat bus",
+        carrier="rural heat",
+        p_set=[1.0],
+    )
+    n.c.loads.dynamic.p = n.c.loads.dynamic.p_set.copy()
+    return n
+
+
+def test_energy_balance_bus_carrier_filter():
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Carrier", "rural heat")
+    n.add("Bus", "heat bus", carrier="rural heat", unit="MW")
+    n.add(
+        "Load",
+        "heat load",
+        bus="heat bus",
+        carrier="rural heat",
+        p_set=[1.0],
+    )
+    n.c.loads.dynamic.p = n.c.loads.dynamic.p_set.copy()
+
+    result = n.statistics.energy_balance(bus_carrier="rural heat")
+    assert not result.empty
+    assert "bus_carrier" in result.index.names
+    assert "rural heat" in result.index.get_level_values("bus_carrier")
+
+
+def test_energy_balance_bus_carrier_nice_name_filter(network_with_nice_name):
+    n = network_with_nice_name
+
+    displayed = n.statistics.energy_balance(nice_names=True)
+    assert "residential rural heat" in displayed.index.get_level_values("bus_carrier")
+
+    result = n.statistics.energy_balance(
+        bus_carrier="residential rural heat", nice_names=True
+    )
+    assert not result.empty
+    assert "residential rural heat" in result.index.get_level_values("bus_carrier")
+
+
+def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
+    n = network_with_nice_name
+
+    result = n.statistics.energy_balance(
+        carrier="residential rural heat", nice_names=True
+    )
+    assert not result.empty
+
+    result = n.statistics.energy_balance(
+        carrier="residential rural heat", nice_names=False
+    )
+    assert result.empty

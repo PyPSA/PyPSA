@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 import pandas as pd
 from numpy.testing import assert_array_almost_equal as equal
@@ -100,7 +104,9 @@ def test_pypower_case():
     n.pf()
 
     # compare branch flows
-    for c in n.iterate_components(n.passive_branch_components):
+    for c in n.components:
+        if c.name not in n.passive_branch_components:
+            continue
         for si in ["p0", "p1", "q0", "q1"]:
             si_pypsa = getattr(c.dynamic, si).loc[DEFAULT_TIMESTAMP].values
             si_pypower = results_df["branch"][si][c.static.original_index].values

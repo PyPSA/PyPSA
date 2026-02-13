@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Groupers for PyPSA statistics.
 
 Use them via the groupers instance via `pypsa.statistics.groupers`. Do not use the
@@ -68,12 +72,7 @@ class Groupers:
             return component_series.map(mapping_series)
 
     def __repr__(self) -> str:
-        """Return a string representation of the grouper container.
-
-        Returns
-        -------
-        str
-            String representation.
+        """Get representation of the grouper container.
 
         Examples
         --------
@@ -132,7 +131,7 @@ class Groupers:
 
     def _get_generic_grouper(self, n: Network, c: str, key: str) -> pd.Series:
         try:
-            return n.static(c)[key].rename(key)
+            return n.c[c].static[key].rename(key)
         except KeyError as e:
             msg = f"Unknown grouper {key}."
             raise KeyError(msg) from e
@@ -261,13 +260,16 @@ class Groupers:
             Series with the carrier of the components.
 
         """
-        static = n.static(c)
+        static = n.c[c].static
         fall_back = pd.Series("", index=static.index)
         carrier_series = static.get("carrier", fall_back).rename("carrier")
         if nice_names:
-            carrier_series = carrier_series.replace(
-                n.c.carriers.static.nice_name[lambda ds: ds != ""]
-            ).replace("", "-")
+            carrier_nice_name = n.c.carriers.static.nice_name[lambda ds: ds != ""]
+            carrier_series = (
+                self._map_with_multiindex(carrier_series, carrier_nice_name)
+                .fillna(carrier_series)
+                .replace("", "-")
+            )
         return carrier_series
 
     def bus_carrier(
@@ -294,7 +296,7 @@ class Groupers:
         """
         bus = f"bus{port}"
         buses_carrier = self.carrier(n, "Bus", nice_names=nice_names)
-        component_buses = n.static(c)[bus]
+        component_buses = n.c[c].static[bus]
 
         return self._map_with_multiindex(component_buses, buses_carrier).rename(
             "bus_carrier"
@@ -319,7 +321,7 @@ class Groupers:
 
         """
         bus = f"bus{port}"
-        return n.static(c)[bus].rename("bus")
+        return n.c[c].static[bus].rename("bus")
 
     def country(self, n: Network, c: str, port: str = "") -> pd.Series:
         """Grouper method to group by the country of the components corresponding bus.
@@ -340,7 +342,7 @@ class Groupers:
 
         """
         bus = f"bus{port}"
-        component_buses = n.static(c)[bus]
+        component_buses = n.c[c].static[bus]
         buses_country = n.c.buses.static.country
         return self._map_with_multiindex(component_buses, buses_country).rename(
             "country"
@@ -365,7 +367,7 @@ class Groupers:
 
         """
         bus = f"bus{port}"
-        component_buses = n.static(c)[bus]
+        component_buses = n.c[c].static[bus]
         buses_location = n.c.buses.static.location
         return self._map_with_multiindex(component_buses, buses_location).rename(
             "location"
@@ -390,7 +392,7 @@ class Groupers:
 
         """
         bus = f"bus{port}"
-        component_buses = n.static(c)[bus]
+        component_buses = n.c[c].static[bus]
         buses_unit = n.c.buses.static.unit
         return self._map_with_multiindex(component_buses, buses_unit).rename("unit")
 
@@ -410,7 +412,7 @@ class Groupers:
             Series with the component names.
 
         """
-        return n.static(c).index.to_series().rename("name")
+        return n.c[c].static.index.to_series().rename("name")
 
 
 groupers = Groupers()

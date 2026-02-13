@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """
 Test stochastic functionality of PyPSA networks.
 """
@@ -79,6 +83,31 @@ def test_calculate_dependent_values(ac_dc_stochastic: pypsa.Network):
     n = ac_dc_stochastic
     n.calculate_dependent_values()
     assert n.c.lines.static.x_pu_eff.notnull().all()
+
+
+def test_apply_transformer_types_with_scenarios():
+    """
+    Test that apply_transformer_types works correctly with broadcasted transformer
+    types in stochastic networks.
+
+    @TODO update test once properties are implemented and types are no longer broadcasted.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220, carrier="AC")
+    n.add("Bus", "bus2", v_nom=110, carrier="AC")
+    n.add("Transformer", "trafo", bus0="bus1", bus1="bus2", type="100 MVA 220/110 kV")
+
+    # Set up scenarios - this broadcasts transformer_types with scenario index
+    n.set_scenarios(["low", "high"])
+
+    # This should not raise "type does not exist in n.transformer_types"
+    n.calculate_dependent_values()
+
+    # Verify transformer parameters were correctly computed from type
+    trafo = n.c.transformers.static
+    assert trafo.s_nom.notnull().all()
+    assert trafo.x.notnull().all()
+    assert trafo.r.notnull().all()
 
 
 def test_determine_network_topology(ac_dc_stochastic: pypsa.Network):
@@ -196,7 +225,7 @@ def test_statistics(ac_dc_stochastic_r):
     assert "scenario" in ds.index.names
     assert not stats.empty
 
-    df = n.statistics.supply(aggregate_time=False)
+    df = n.statistics.supply(groupby_time=False)
     assert isinstance(df, pd.DataFrame)
     assert isinstance(df.index, pd.MultiIndex)
     assert "scenario" in df.index.names
@@ -270,6 +299,50 @@ def test_solved_network_simple(stochastic_benchmark_network):
 
     # Compare objective value
     equal(n.objective, n_r.objective, decimal=2)
+
+
+def test_solved_network_simple_modular(stochastic_benchmark_network):
+    """
+    Solve the stochastic problem with modular expansion constraints.
+    Tests that p_nom_mod works correctly with scenarios.
+    """
+    n = stochastic_benchmark_network
+
+    # GAS_PRICES = {"low": 40, "med": 70, "high": 100}
+    n.c.generators.static.loc[("medium", "gas"), "marginal_cost"] = (
+        70 / n.c.generators.static.loc[("medium", "gas"), "efficiency"]
+    )
+    n.c.generators.static.loc[("high", "gas"), "marginal_cost"] = (
+        100 / n.c.generators.static.loc[("high", "gas"), "efficiency"]
+    )
+
+    # Set modular expansion
+    for scenario in n.scenarios:
+        n.c.generators.static.loc[(scenario, "gas"), "p_nom_mod"] = 0.7
+        n.c.generators.static.loc[(scenario, "lignite"), "p_nom_mod"] = 0.7
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    # Check that modular constraints are satisfied
+    # p_nom_opt should be a multiple of p_nom_mod (0.7)
+    for gen in ["gas", "lignite"]:
+        p_nom_opt = n.c.generators.static.loc[("low", gen), "p_nom_opt"]
+        p_nom_mod = n.c.generators.static.loc[("low", gen), "p_nom_mod"]
+        n_modules = round(p_nom_opt / p_nom_mod)
+        assert abs(p_nom_opt - n_modules * p_nom_mod) < 1e-4, (
+            f"{gen} p_nom_opt={p_nom_opt} is not a multiple of p_nom_mod={p_nom_mod}"
+        )
+
+    # Check first-stage decision
+    for gen in n.c.generators.static.loc["low", :].index:
+        low_cap = n.c.generators.static.loc[("low", gen), "p_nom_opt"]
+        medium_cap = n.c.generators.static.loc[("medium", gen), "p_nom_opt"]
+        high_cap = n.c.generators.static.loc[("high", gen), "p_nom_opt"]
+        assert low_cap == medium_cap == high_cap, (
+            f"{gen} has different capacities across scenarios: "
+            f"low={low_cap}, medium={medium_cap}, high={high_cap}"
+        )
 
 
 def test_solved_network_multiperiod():
@@ -728,7 +801,7 @@ def test_scenario_ordering_bug():
 
     # Check 3: verify that the results match the expected scenario ordering
     # by checking that the DataArray scenario coordinate order is preserved
-    da_p_max_pu = n.components.generators.da.p_max_pu.sel(name="Manchester Wind")
+    da_p_max_pu = n.c.generators.da.p_max_pu.sel(name="Manchester Wind")
     da_scenarios = list(da_p_max_pu.coords["scenario"].values)
     network_scenarios = list(n.scenarios)
 
@@ -1440,7 +1513,7 @@ def test_max_growth_constraint_stochastic(n):
     gen_carrier = n.c.generators.static.carrier.unique()[0]
     n.c.carriers.static.at[gen_carrier, "max_growth"] = 300
     n.set_scenarios({"scenario_1": 0.5, "scenario_2": 0.5})
-    n.c.carriers.static.xs("scenario_1").at[gen_carrier, "max_growth"] = 218
+    n.c.carriers.static.loc[("scenario_1", gen_carrier), "max_growth"] = 218
     kwargs = {"multi_investment_periods": True}
     status, cond = n.optimize(**kwargs)
 
@@ -1463,7 +1536,7 @@ def test_max_relative_growth_constraint(n):
     n.c.carriers.static.at[gen_carrier, "max_growth"] = 218
     n.c.carriers.static.at[gen_carrier, "max_relative_growth"] = 3
     n.set_scenarios({"scenario_1": 0.5, "scenario_2": 0.5})
-    n.c.carriers.static.xs("scenario_1").at[gen_carrier, "max_relative_growth"] = 1.5
+    n.c.carriers.static.loc[("scenario_1", gen_carrier), "max_relative_growth"] = 1.5
     kwargs = {"multi_investment_periods": True}
     status, cond = n.optimize(**kwargs)
     built_per_period = (

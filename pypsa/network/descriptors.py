@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Network descriptors module.
 
 Contains single mixin class which is used to inherit to [pypsa.Networks] class.
@@ -15,7 +19,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from pypsa.common import deprecated_in_next_major
+from pypsa.common import deprecated_in_next_major, normalize_carrier_nice_names
 from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
 
@@ -29,8 +33,8 @@ logger = logging.getLogger(__name__)
 class NetworkDescriptorsMixin(_NetworkABC):
     """Mixin class for network descriptor methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     @deprecated_in_next_major(
@@ -75,7 +79,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
     ) -> pd.Series:
         """Get active components mask of component type in investment period(s).
 
-        See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
+        See the [`pypsa.components.descriptors.ComponentsDescriptorsMixin.get_active_assets`][].
 
         Parameters
         ----------
@@ -171,8 +175,8 @@ class NetworkDescriptorsMixin(_NetworkABC):
         dtype: float64
 
         """
-        static = self.static(component)
-        dynamic = self.dynamic(component)
+        static = self.c[component].static
+        dynamic = self.c[component].dynamic
 
         index = static.index
         varying_i = dynamic[attr].columns
@@ -191,7 +195,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
         def is_same_indices(i1: pd.Index, i2: pd.Index) -> bool:
             return len(i1) == len(i2) and (i1 == i2).all()
 
-        if is_same_indices(fixed_i.append(varying_i), index):
+        if is_same_indices(fixed_i.union(varying_i, sort=False), index):
 
             def reindex_maybe(s: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
                 return s
@@ -227,11 +231,15 @@ class NetworkDescriptorsMixin(_NetworkABC):
 
         Raises
         ------
-        ValueError:
+        ValueError
             If the specified bus carrier is not found in the network or if multiple
             units are found for the specified bus carrier.
 
         """
+        bus_carrier = normalize_carrier_nice_names(
+            self.c.carriers.static.nice_name, bus_carrier
+        )
+
         if bus_carrier is None:
             return "carrier dependent"
 

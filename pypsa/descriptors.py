@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Descriptors for component attributes."""
 
 from __future__ import annotations
@@ -105,7 +109,7 @@ def get_active_assets(
 ) -> pd.Series:
     """Get active assets. Use `c.get_active_assets`.
 
-    See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
+    See the [`pypsa.descriptors.components.Component.get_active_assets`][].
 
     Parameters
     ----------
@@ -135,7 +139,7 @@ def get_activity_mask(
     """Get active components mask indexed by snapshots.
 
     Wrapper around the
-    `:py:meth:`pypsa.descriptors.components.Componenet.get_active_assets` method.
+    [`pypsa.descriptors.components.Componenet.get_active_assets`][] method.
     Get's the boolean mask for active components, but indexed by snapshots and
     components instead of just components.
 
@@ -282,7 +286,7 @@ def _update_ports_component_attrs(
     attrs_index = n.components[c]["attrs"].index
     for i, attr in product(ports, ["bus", *varying_attrs]):
         target = f"{attr}{i}"
-        if target in n.components[c]["attrs"].index:
+        if target in n.c[c]["defaults"].index:
             continue
         j = "1" if attr != "efficiency" else ""
         base_attr = attr + j
@@ -290,19 +294,19 @@ def _update_ports_component_attrs(
         attrs_index = attrs_index.insert(
             base_attr_index + 1, target
         )  # insert is NOT inplace
-        n.components[c]["attrs"].loc[target] = (
-            n.components[c]["attrs"]
+        n.c[c]["defaults"].loc[target] = (
+            n.c[c]["defaults"]
             .loc[attr + j]
             .apply(_update_ports_doc_changes, args=("1", i))
         )
         # Also update container for varying attributes
-        if attr in varying_attrs and target not in n.dynamic(c):
+        if attr in varying_attrs and target not in n.c[c].dynamic:
             df = pd.DataFrame(
                 index=n.snapshots, columns=n.c[c].static.index[:0], dtype=float
             )
-            n.dynamic(c)[target] = df
-        elif attr == "bus" and target not in n.static(c).columns:
-            n.static(c)[target] = n.components[c]["attrs"].loc[target, "default"]
+            n.c[c].dynamic[target] = df
+        elif attr == "bus" and target not in n.c[c].static.columns:
+            n.c[c].static[target] = n.c[c]["defaults"].loc[target, "default"]
 
     # re-order correctly
     # TODO: there is no in-place reordering or in-place inserting at the right row (as far as i am aware),
