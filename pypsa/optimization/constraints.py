@@ -702,8 +702,8 @@ def define_nodal_balance_constraints(
     if buses is None:
         buses = n.c.buses.static.index.unique("name")
 
-    links = as_components(n, "Link")
-    processes = as_components(n, "Process")
+    links = n.c.links
+    processes = n.c.processes
 
     args: list[Any] = [
         ["Generator", "p", "bus", 1],
@@ -766,7 +766,8 @@ def define_nodal_balance_constraints(
 
         #  drop non-existent multiport buses which are ''
         if c.name in n.controllable_branch_components and column in [
-            "bus" + i for i in c.additional_ports
+            "bus" + i
+            for i in c.additional_ports  # type: ignore[attr-defined]
         ]:
             cbuses = cbuses[cbuses != ""]
 
