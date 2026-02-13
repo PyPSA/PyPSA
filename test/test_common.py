@@ -524,3 +524,7 @@ class TestNormalizeCarrierNiceNames:
     def test_empty_nice_names(self):
         empty = pd.Series(["", ""], index=["a", "b"])
         assert normalize_carrier_nice_names(empty, "a") == "a"
+
+    def test_tuple_passthrough(self):
+        result = normalize_carrier_nice_names(self.nice_names, ("gas", "oil"))
+        assert result == ("gas", "oil")
