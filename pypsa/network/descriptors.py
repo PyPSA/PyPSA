@@ -236,15 +236,15 @@ class NetworkDescriptorsMixin(_NetworkABC):
             units are found for the specified bus carrier.
 
         """
+        bus_carrier = normalize_carrier_nice_names(
+            self.c.carriers.static.nice_name, bus_carrier
+        )
+
         if bus_carrier is None:
             return "carrier dependent"
 
         if isinstance(bus_carrier, str):
             bus_carrier = [bus_carrier]
-
-        bus_carrier = normalize_carrier_nice_names(
-            self.c.carriers.static.nice_name, bus_carrier
-        )
 
         not_included = set(bus_carrier) - set(self.c.buses.static.carrier.unique())
         if not_included:
