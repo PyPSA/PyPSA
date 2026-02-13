@@ -670,10 +670,11 @@ def test_generator_ramp_constraints_mask_nan(direction):
 
     # Check labels to see which generators have active ramp constraints applied
     # Generator with undefined ramp limits should have label -1 (no constraint)
-    key = f"Generator-fix-p-ramp_limit_{direction}"
+    # Limited generators should not have label -1 except for the very first snapshot
+    key = f"Generator-p-ramp_limit_{direction}"
     constraints = n.model.constraints[key]
     labels_gen_limited = constraints.data["labels"].sel(name="gen_limited").to_pandas()
-    assert (labels_gen_limited != -1).all(), (
+    assert (labels_gen_limited.loc[n.snapshots[1:]] != -1).all(), (
         f"ramp_{direction} constraint should be active for 'gen_limited'."
     )
 
@@ -744,12 +745,12 @@ def test_link_ramp_constraints_mask_nan(direction):
 
     # Check labels to see which links have active ramp constraints applied
     # Link with undefined ramp limits should have label -1 (no constraint)
-    key = f"Link-fix-p-ramp_limit_{direction}"
+    key = f"Link-p-ramp_limit_{direction}"
     constraints = n.model.constraints[key]
     labels_link_limited = (
         constraints.data["labels"].sel(name="link_limited").to_pandas()
     )
-    assert (labels_link_limited != -1).all(), (
+    assert (labels_link_limited.loc[n.snapshots[1:]] != -1).all(), (
         f"ramp_{direction} constraint should be active for 'link_limited'."
     )
 
@@ -836,3 +837,367 @@ def test_ramp_limits_multi_investment_period():
 
     status, _ = n.optimize()
     assert status == "ok"
+
+
+def test_committable_start_up_only_ramp_limit():
+    n = pypsa.Network()
+    n.set_snapshots(range(6))
+    n.add("Bus", "bus")
+
+    load_profile = [0, 50, 100, 100, 50, 0]
+    n.add("Load", "load", bus="bus", p_set=load_profile)
+
+    n.add(
+        "Generator",
+        "gen_commit",
+        bus="bus",
+        p_nom=100,
+        committable=True,
+        p_min_pu=0.1,
+        ramp_limit_start_up=0.4,
+        marginal_cost=10,
+    )
+    n.add("Generator", "gen_backup", bus="bus", p_nom=200, marginal_cost=100)
+
+    status, _ = n.optimize()
+    assert status == "ok"
+
+    gen_status = n.c.generators.dynamic.status["gen_commit"]
+    gen_p = n.c.generators.dynamic.p["gen_commit"]
+    startup_snapshots = gen_status[(gen_status == 1) & (gen_status.shift(1) == 0)].index
+
+    for snapshot in startup_snapshots:
+        expected_max = 0.4 * 100
+        assert gen_p[snapshot] <= expected_max + 1e-5
+
+
+def test_committable_shut_down_only_ramp_limit():
+    n = pypsa.Network()
+    n.set_snapshots(range(6))
+    n.add("Bus", "bus")
+
+    load_profile = [100, 100, 50, 20, 10, 0]
+    n.add("Load", "load", bus="bus", p_set=load_profile)
+
+    n.add(
+        "Generator",
+        "gen_commit",
+        bus="bus",
+        p_nom=100,
+        committable=True,
+        p_min_pu=0.1,
+        up_time_before=1,
+        ramp_limit_shut_down=0.3,
+        marginal_cost=10,
+    )
+    n.add("Generator", "gen_backup", bus="bus", p_nom=200, marginal_cost=100)
+
+    status, _ = n.optimize()
+    assert status == "ok"
+
+    gen_status = n.c.generators.dynamic.status["gen_commit"]
+    gen_p = n.c.generators.dynamic.p["gen_commit"]
+    shutdown_snapshots = gen_status[
+        (gen_status == 0) & (gen_status.shift(1) == 1)
+    ].index
+
+    for snapshot in shutdown_snapshots:
+        prev_snapshot = snapshot - 1
+        if prev_snapshot >= 0:
+            expected_max_prev = 0.3 * 100
+            assert gen_p[prev_snapshot] <= expected_max_prev + 1e-5
+
+
+def test_committable_ramp_limits_multi_investment_period():
+    n = pypsa.Network()
+    sns = pd.date_range("2025-01-01", periods=5, freq="h").append(
+        pd.date_range("2026-01-01", periods=5, freq="h")
+    )
+    n.set_snapshots(pd.MultiIndex.from_arrays([sns.year, sns]))
+    n.investment_periods = [2025, 2026]
+    n.investment_period_weightings["years"] = 5
+
+    n.add("Bus", "bus")
+
+    load_profile = [50, 80, 100, 80, 50, 50, 80, 100, 80, 50]
+    n.add("Load", "load", bus="bus", p_set=load_profile)
+
+    n.add(
+        "Generator",
+        "gen_commit",
+        bus="bus",
+        p_nom=100,
+        committable=True,
+        p_min_pu=0.3,
+        ramp_limit_up=0.5,
+        ramp_limit_start_up=0.4,
+        ramp_limit_down=0.5,
+        ramp_limit_shut_down=0.3,
+        marginal_cost=10,
+    )
+    n.add("Generator", "gen_backup", bus="bus", p_nom=200, marginal_cost=100)
+
+    status, _ = n.optimize()
+    assert status == "ok"
+
+    gen_p = n.c.generators.dynamic.p["gen_commit"]
+    gen_status = n.c.generators.dynamic.status["gen_commit"]
+
+    for i in range(1, len(n.snapshots)):
+        curr_sns = n.snapshots[i]
+        prev_sns = n.snapshots[i - 1]
+        curr_status = gen_status[curr_sns]
+        prev_status = gen_status[prev_sns]
+        curr_p = gen_p[curr_sns]
+        prev_p = gen_p[prev_sns]
+
+        if curr_status == 1 and prev_status == 1:
+            assert curr_p - prev_p <= 0.5 * 100 + 1e-5
+            assert prev_p - curr_p <= 0.5 * 100 + 1e-5
+
+
+def test_ramp_limit_start_up_binary_uc():
+    """
+    Test that ramp_limit_start_up parameter works correctly in binary unit commitment.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+
+    n.add("Bus", ["gas", "electricity"])
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    # Committable link with ramp_limit_start_up set, but ramp_limit_up is NaN
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        committable=True,
+        p_min_pu=0.1,
+        efficiency=0.5,
+        ramp_limit_start_up=0.4,  # 40% of p_nom on start-up
+        p_nom=10000,
+        up_time_before=0,  # Starts from OFF state
+        start_up_cost=3333,
+    )
+
+    # Backstop generator to ensure feasibility
+    n.add(
+        "Generator",
+        "expensive_backstop",
+        bus="electricity",
+        p_nom=5000,
+        marginal_cost=1e5,
+    )
+
+    n.add("Load", "load", bus="electricity", p_set=[4000, 5000, 2000, 5000])
+
+    status, condition = n.optimize()
+
+    assert status == "ok", f"Optimization failed with status {status}"
+
+    # Get the link output (convert p1 to positive power output)
+    link_output = -n.c.links.dynamic.p1.loc[:, "OCGT"].values
+
+    # Expected ramp limit on start-up: 0.4 * 10000 = 4000 MW
+    max_start_up_output = 0.4 * 10000
+
+    # First snapshot: unit starts from OFF, should respect ramp_limit_start_up
+    assert link_output[0] <= max_start_up_output * 1.01, (
+        f"First snapshot output {link_output[0]} exceeds start-up ramp limit {max_start_up_output}"
+    )
+
+    # Verify unit is committed (status = 1)
+    assert n.c.links.dynamic.status.loc[0, "OCGT"] == 1, (
+        "Link should be committed at first snapshot"
+    )
+
+    # Verify start_up variable catches the start-up event
+    assert n.c.links.dynamic.start_up.loc[0, "OCGT"] == 1, (
+        "Link should show start-up at first snapshot"
+    )
+
+
+def test_infeasible_start_up_limit():
+    """Test that introduction of infeasible start-up limit results in infeasible solution"""
+    n = pypsa.Network()
+
+    snapshots = range(4)
+
+    n.set_snapshots(snapshots)
+
+    n.add("Bus", ["gas", "electricity"])
+
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        committable=True,
+        p_min_pu=0.1,
+        efficiency=0.5,
+        min_up_time=3,
+        start_up_cost=3333,
+        p_nom=12000,
+        up_time_before=0,
+    )
+
+    n.add(
+        "Generator",
+        "wind",
+        bus="electricity",
+        p_nom=800,
+    )
+
+    n.add("Load", "load", bus="electricity", p_set=[4000, 6000, 800, 5000])
+
+    status, condition = n.optimize()
+    assert status == "ok"
+
+    n.c.links.static.loc["OCGT", "ramp_limit_start_up"] = 0.01
+
+    status, condition = n.optimize()
+    assert status == "warning"
+    assert condition == "infeasible"
+
+
+def test_ramp_limit_shut_down_binary_uc():
+    """
+    Test that ramp_limit_shut_down parameter works correctly in binary unit commitment (excluding first period as special case).
+    """
+    n = pypsa.Network()
+    snapshots = range(4)
+    n.set_snapshots(snapshots)
+
+    n.add("Bus", ["gas", "electricity"])
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        committable=True,
+        p_min_pu=0.1,
+        efficiency=0.5,
+        ramp_limit_start_up=0.4,
+        start_up_cost=3333,
+        p_nom=10000,
+        status=1,
+        ramp_limit_shut_down=0.1,  # 10% of p_nom on shut-down
+    )
+
+    n.add(
+        "Generator",
+        "expensive_backstop",
+        bus="electricity",
+        p_nom=5000,
+        marginal_cost=1e5,
+    )
+
+    n.add(
+        "Generator",
+        "slack_dump",
+        bus="electricity",
+        p_nom=20000,
+        marginal_cost=1e6,
+        sign=-1,
+    )
+
+    n.add("Load", "load", bus="electricity", p_set=[4000, 5000, 2000, 0])
+
+    status, condition = n.optimize()
+
+    assert status == "ok", f"Optimization failed with status {status}"
+
+    # Get generator outputs
+    gas_output = n.c.generators.dynamic.p.loc[:, "gas"].values
+    backstop_output = n.c.generators.dynamic.p.loc[:, "expensive_backstop"].values
+
+    # Expected pattern based on ramp_limit_shut_down constraint
+    # Snapshot 0: 9000.0 MW (gas), 0.0 MW (backstop), 500.0 MW (slack)
+    # Snapshot 1: 10000.0 MW (gas), 0.0 MW (backstop), 0.0 MW (slack)
+    # Snapshot 2: 1000.0 MW (gas), 1500.0 MW (backstop), 0.0 MW (slack)
+    # Snapshot 3: 0.0 MW (gas), 0.0 MW (backstop), 0.0 MW (slack)
+
+    assert abs(gas_output[1] - 10000.0) < 1e-3, (
+        f"Snapshot 1: Expected gas output 10000.0, got {gas_output[1]}"
+    )
+    assert abs(backstop_output[1] - 0.0) < 1e-3, (
+        f"Snapshot 1: Expected backstop output 0.0, got {backstop_output[1]}"
+    )
+
+    assert abs(gas_output[2] - 1000.0) < 1e-3, (
+        f"Snapshot 2: Expected gas output 1000.0, got {gas_output[2]}"
+    )
+    assert abs(backstop_output[2] - 1500.0) < 1e-3, (
+        f"Snapshot 2: Expected backstop output 1500.0, got {backstop_output[2]}"
+    )
+
+    assert abs(gas_output[3] - 0.0) < 1e-3, (
+        f"Snapshot 3: Expected gas output 0.0, got {gas_output[3]}"
+    )
+    assert abs(backstop_output[3] - 0.0) < 1e-3, (
+        f"Snapshot 3: Expected backstop output 0.0, got {backstop_output[3]}"
+    )
+
+
+def test_ramp_limit_shut_down_first_snapshot_with_slack():
+    """
+    Test that ramp_limit_down and ramp_limit_shut_down constrain dispatch
+    at snapshot 0 when unit starts ON at full capacity with zero demand.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+
+    n.add("Bus", ["gas", "electricity"])
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        committable=True,
+        p_min_pu=0.1,
+        efficiency=0.5,
+        ramp_limit_start_up=0.4,
+        start_up_cost=3333,
+        p_nom=10000,
+        p_init=10000,
+        ramp_limit_down=0.1,
+        ramp_limit_shut_down=0.1,
+    )
+
+    n.add(
+        "Generator",
+        "expensive_backstop",
+        bus="electricity",
+        p_nom=5000,
+        marginal_cost=1e5,
+    )
+    n.add(
+        "Generator",
+        "slack_dump",
+        bus="electricity",
+        p_nom=20000,
+        marginal_cost=1e6,
+        sign=-1,
+    )
+    n.add("Load", "load", bus="electricity", p_set=[0, 5000, 2000, 0])
+
+    status, condition = n.optimize()
+
+    assert status == "ok", f"Optimization failed with status {status}"
+
+    gas_output = n.c.generators.dynamic.p.loc[:, "gas"].values
+    slack_output = n.c.generators.dynamic.p.loc[:, "slack_dump"].values
+
+    assert abs(gas_output[0] - 9000.0) < 1e-3, (
+        f"Snapshot 0: Expected gas output 9000.0, got {gas_output[0]}"
+    )
+    assert abs(slack_output[0] - 4500.0) < 1e-3, (
+        f"Snapshot 0: Expected slack output 4500.0, got {slack_output[0]}"
+    )

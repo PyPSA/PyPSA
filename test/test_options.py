@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 import importlib
+import importlib.util
+import os
 
 import pytest
 
@@ -419,3 +421,27 @@ def test_option_priority(monkeypatch):
 
     monkeypatch.delenv("PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME")
     importlib.reload(_options)
+
+
+@pytest.mark.skipif(
+    not importlib.util.find_spec("dotenv"),
+    reason="python-dotenv not installed",
+)
+def test_dotenv_loading(monkeypatch, tmp_path):
+    """Test loading options from a .env file."""
+    (tmp_path / ".env").write_text("PYPSA_PARAMS__STATISTICS__ROUND=7\n")
+    monkeypatch.chdir(tmp_path)
+
+    from pypsa import _options
+
+    importlib.reload(_options)
+    assert _options.options.params.statistics.round == 7
+
+    # load_dotenv sets env vars directly in os.environ, bypassing monkeypatch.
+    # Remove it so monkeypatch.setenv below correctly records a clean baseline.
+    os.environ.pop("PYPSA_PARAMS__STATISTICS__ROUND", None)
+
+    # Env var should override .env value
+    monkeypatch.setenv("PYPSA_PARAMS__STATISTICS__ROUND", "3")
+    importlib.reload(_options)
+    assert _options.options.params.statistics.round == 3

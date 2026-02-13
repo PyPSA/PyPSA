@@ -85,6 +85,7 @@ nav:
     - Network Collection: user-guide/collection.md
     - Options: user-guide/options.md
     - Logging: user-guide/logging.ipynb
+    - Warnings: user-guide/warnings.md
 
 - Examples:
   - Overview: examples/examples.md
@@ -98,6 +99,8 @@ nav:
     - examples/minimal-example-pf.ipynb
     - examples/negative-prices-kvl-baker.ipynb
     - examples/rolling-horizon.ipynb
+    - examples/water-value.ipynb
+    - examples/demand-supply-bids.ipynb
   - Planning Problems:
     - examples/capacity-expansion-planning-single-node.ipynb
     - examples/3-node-cem.ipynb
@@ -119,12 +122,14 @@ nav:
     - examples/biomass-synthetic-fuels-carbon-management.ipynb
   - Advanced Topics:
     - examples/scigrid-redispatch.ipynb
+    - examples/demand-elasticity.ipynb
     - examples/generation-investment-screening-curve.ipynb
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer-example.ipynb
     - examples/reserve-power.ipynb
   - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
+    - examples/gsa.ipynb
     - examples/replace-generator-storage-units-with-store.ipynb
     - examples/tracing-infeasibilities.ipynb
 
@@ -139,6 +144,7 @@ nav:
       - IO: api/networks/io.md
       - Power Flow: api/networks/power-flow.md
       - Optimize: api/networks/optimize.md
+      - Constraints: api/networks/constraints.md
       - Cluster: api/networks/cluster.md
       - Statistics: api/networks/statistics.md
       - Plotting: api/networks/plot.md
@@ -395,6 +401,7 @@ hooks:
 - docs/hooks/shortcodes.py
 - docs/hooks/cleanup.py
 - docs/hooks/path_aliases.py
+- docs/hooks/notebook_timing.py
 
 extra:
   social:

@@ -136,11 +136,15 @@ where `<feature>` can be one of the following:
 
 - `pypsa[cartopy]`: for plotting geographical maps
 
+**Configuration**
+
+- `pypsa[dotenv]`: for loading PyPSA options from `.env` files
+
 **Solvers**
 
 - `pypsa[gurobipy]`: for installing the Gurobi Python API
 
 **Development**
 
-- `pypsa[dev]`: for installing all development dependencies, including linopy and pytest
+- `pypsa[dev]`: for installing all development dependencies, including pytest and pre-commit
 - `pypsa[docs]`: for installing all dependencies needed to build the documentation

@@ -1089,7 +1089,7 @@ def _sort_attrs(
         return axis_labels
 
     remaining = axis_labels.difference(attrs_index, sort=False)
-    target = existing.append(remaining)
+    target = existing.union(remaining, sort=False)
 
     if axis_labels.equals(target):
         return axis_labels
