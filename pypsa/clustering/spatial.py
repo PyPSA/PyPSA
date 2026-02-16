@@ -887,7 +887,7 @@ class SpatialClusteringMixin:
     ) -> Network:
         """Cluster the network spatially by busmap.
 
-        This function calls [`pypsa.clustering.spatial.get_clustering_from_busmap`][] internally.
+        This function calls [`get_clustering_from_busmap`][pypsa.clustering.SpatialClusteringAccessor.get_clustering_from_busmap] internally.
         For more information, see the documentation of that function.
 
         Returns
