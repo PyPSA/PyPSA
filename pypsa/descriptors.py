@@ -12,8 +12,8 @@ from itertools import product
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+from deprecation import deprecated
 
-from pypsa.common import deprecated_in_next_major
 from pypsa.constants import RE_PORTS_GE_2
 
 if TYPE_CHECKING:
@@ -25,7 +25,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@deprecated_in_next_major(details="Use `n.get_switchable_as_dense` instead.")
+@deprecated(
+    deprecated_in="1.0.0",
+    removed_in="2.0.0",
+    details="Use `n.get_switchable_as_dense` instead.",
+)
 def get_switchable_as_dense(
     n: Network,
     component: str,
@@ -43,7 +47,11 @@ def get_switchable_as_dense(
     return n.get_switchable_as_dense(component, attr, snapshots, inds)
 
 
-@deprecated_in_next_major(details="Use `n.get_switchable_as_iter` instead.")
+@deprecated(
+    deprecated_in="1.0.0",
+    removed_in="2.0.0",
+    details="Use `n.get_switchable_as_iter` instead.",
+)
 def get_switchable_as_iter(
     n: Network,
     component: str,
@@ -72,13 +80,21 @@ nominal_attrs = {
 }
 
 
-@deprecated_in_next_major(details="Use `n.components[c].extendables` instead.")
+@deprecated(
+    deprecated_in="1.0.0",
+    removed_in="2.0.0",
+    details="Use `n.components[c].extendables` instead.",
+)
 def get_extendable_i(n: Network, c: str) -> pd.Index:
     """Get the index of extendable elements of a given component."""
     return n.components[c].extendables
 
 
-@deprecated_in_next_major(details="Use `n.components[c].fixed` instead.")
+@deprecated(
+    deprecated_in="1.0.0",
+    removed_in="2.0.0",
+    details="Use `n.components[c].fixed` instead.",
+)
 def get_non_extendable_i(n: Network, c: str) -> pd.Index:
     """Getter function.
 
@@ -89,7 +105,11 @@ def get_non_extendable_i(n: Network, c: str) -> pd.Index:
     return n.components[c].fixed
 
 
-@deprecated_in_next_major(details="Use `n.components[c].committables` instead.")
+@deprecated(
+    deprecated_in="1.0.0",
+    removed_in="2.0.0",
+    details="Use `n.components[c].committables` instead.",
+)
 def get_committable_i(n: Network, c: str) -> pd.Index:
     """Getter function.
 
@@ -100,7 +120,11 @@ def get_committable_i(n: Network, c: str) -> pd.Index:
     return n.components[c].committables
 
 
-@deprecated_in_next_major(details="Use `n.components[c].get_active_assets` instead.")
+@deprecated(
+    deprecated_in="1.0.0",
+    removed_in="2.0.0",
+    details="Use `n.components[c].get_active_assets` instead.",
+)
 def get_active_assets(
     n: Network | SubNetwork,
     c: str,
@@ -128,7 +152,11 @@ def get_active_assets(
     return n.components[c].get_active_assets(investment_period=investment_period)
 
 
-@deprecated_in_next_major(details="Use `n.components[c].get_activity_mask` instead.")
+@deprecated(
+    deprecated_in="1.0.0",
+    removed_in="2.0.0",
+    details="Use `n.components[c].get_activity_mask` instead.",
+)
 def get_activity_mask(
     n: Network,
     c: str,
@@ -157,7 +185,11 @@ def get_activity_mask(
     return n.components[c].get_activity_mask(sns, index)
 
 
-@deprecated_in_next_major(details="Use `n.components[c].get_bounds_pu` instead.")
+@deprecated(
+    deprecated_in="1.0.0",
+    removed_in="2.0.0",
+    details="Use `n.components[c].get_bounds_pu` instead.",
+)
 def get_bounds_pu(
     n: Network,
     c: str,

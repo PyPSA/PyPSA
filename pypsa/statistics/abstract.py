@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import pandas as pd
 
 from pypsa._options import options
+from pypsa.common import normalize_carrier_nice_names
 from pypsa.constants import RE_PORTS
 from pypsa.statistics.grouping import groupers
 
@@ -154,6 +155,12 @@ class AbstractStatisticsAccessor(ABC):
         if nice_names is None:
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
+        # Normalize bus_carrier and carrier if nice_names was passed to allow using
+        # nice names to filter
+        if nice_names:
+            nice_name_series = n.c.carriers.static.nice_name
+            bus_carrier = normalize_carrier_nice_names(nice_name_series, bus_carrier)
+            carrier = normalize_carrier_nice_names(nice_name_series, carrier)
         for c in components:
             if n.c[c].static.empty:
                 continue

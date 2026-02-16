@@ -18,6 +18,7 @@ from pypsa.common import (
     equals,
     generate_colors,
     list_as_string,
+    normalize_carrier_nice_names,
 )
 from pypsa.definitions.structures import Dict
 
@@ -493,3 +494,37 @@ class TestGenerateColors:
         colors = generate_colors(5, "viridis")
         assert len(colors) == 5
         assert all(c.startswith("#") for c in colors)
+
+
+class TestNormalizeCarrierNiceNames:
+    nice_names = pd.Series(
+        ["Natural Gas", "Electricity", ""],
+        index=["gas", "electricity", "oil"],
+    )
+
+    def test_none(self):
+        assert normalize_carrier_nice_names(self.nice_names, None) is None
+
+    def test_string_nice_name(self):
+        assert normalize_carrier_nice_names(self.nice_names, "Natural Gas") == "gas"
+
+    def test_string_canonical_passthrough(self):
+        assert normalize_carrier_nice_names(self.nice_names, "gas") == "gas"
+
+    def test_list(self):
+        result = normalize_carrier_nice_names(
+            self.nice_names, ["Natural Gas", "Electricity"]
+        )
+        assert result == ["gas", "electricity"]
+
+    def test_duplicate_nice_names_skipped(self):
+        dupes = pd.Series(["Same", "Same"], index=["a", "b"])
+        assert normalize_carrier_nice_names(dupes, "Same") == "Same"
+
+    def test_empty_nice_names(self):
+        empty = pd.Series(["", ""], index=["a", "b"])
+        assert normalize_carrier_nice_names(empty, "a") == "a"
+
+    def test_tuple_passthrough(self):
+        result = normalize_carrier_nice_names(self.nice_names, ("gas", "oil"))
+        assert result == ("gas", "oil")

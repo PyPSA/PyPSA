@@ -27,9 +27,10 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import xarray
+from deprecation import deprecated
 from pyproj import CRS
 
-from pypsa.common import deprecated_in_next_major, equals
+from pypsa.common import equals
 from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
@@ -487,7 +488,9 @@ class Components(
         return self.ctype.category
 
     @property
-    @deprecated_in_next_major(details="Use `c.defaults` instead.")
+    @deprecated(
+        deprecated_in="1.0.0", removed_in="2.0.0", details="Use `c.defaults` instead."
+    )
     def attrs(self) -> pd.DataFrame:
         """Default values of corresponding component type.
 
@@ -599,7 +602,9 @@ class Components(
         return self.n
 
     @property
-    @deprecated_in_next_major(details="Use `c.static` instead.")
+    @deprecated(
+        deprecated_in="1.0.0", removed_in="2.0.0", details="Use `c.static` instead."
+    )
     def df(self) -> pd.DataFrame:
         """Get static data of all components as pandas DataFrame.
 
@@ -615,7 +620,9 @@ class Components(
         return self.static
 
     @property
-    @deprecated_in_next_major(details="Use `c.dynamic` instead.")
+    @deprecated(
+        deprecated_in="1.0.0", removed_in="2.0.0", details="Use `c.dynamic` instead."
+    )
     def pnl(self) -> dict:
         """Get dynamic data of all components as a dictionary of pandas DataFrames.
 

@@ -20,8 +20,9 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any
 
+from deprecation import deprecated
+
 from pypsa._options import options
-from pypsa.common import deprecated_in_next_major
 from pypsa.components.legacy import Component
 from pypsa.components.store import ComponentsStore
 from pypsa.components.types import (
@@ -803,7 +804,9 @@ class NetworkComponentsMixin(_NetworkABC):
         return []
 
     @property
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `self.components.<component>.defaults` instead.",
     )
     def component_attrs(self) -> pd.DataFrame:
@@ -828,8 +831,10 @@ class NetworkComponentsMixin(_NetworkABC):
         """
         return Dict({value.name: value.defaults for value in self.components})
 
-    @deprecated_in_next_major(
-        details="Use `self.components[<component>].static` instead."
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `self.components[<component>].static` instead.",
     )
     def df(self, component_name: str) -> pd.DataFrame:
         """Alias for [`n.static`][pypsa.Network.static].
@@ -854,8 +859,10 @@ class NetworkComponentsMixin(_NetworkABC):
         """
         return self.components[component_name].static
 
-    @deprecated_in_next_major(
-        details="Use `self.components.<component>.static` instead."
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `self.components.<component>.static` instead.",
     )
     def static(self, component_name: str) -> pd.DataFrame:
         """Return the DataFrame of static components for component_name.
@@ -880,7 +887,9 @@ class NetworkComponentsMixin(_NetworkABC):
         """
         return self.components[component_name].static
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `self.components.<component>.dynamic` instead.",
     )
     def pnl(self, component_name: str) -> Dict:
@@ -906,7 +915,9 @@ class NetworkComponentsMixin(_NetworkABC):
         """
         return self.components[component_name].dynamic
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `self.components.<component>.dynamic` instead.",
     )
     def dynamic(self, component_name: str) -> Dict:
