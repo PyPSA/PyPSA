@@ -4,11 +4,11 @@
 """Test the committable+extendable functionality using big-M formulation."""
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
 from pypsa.consistency import check_big_m_exceeded
-from pypsa.optimization.constraints import _infer_big_m_scale
 
 
 @pytest.fixture
@@ -224,7 +224,7 @@ def test_big_m_scale_infers_peak_load():
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=[100, 250, 180])
 
-    assert _infer_big_m_scale(n, "Generator") == pytest.approx(2500)
+    assert n.c.generators._infer_committable_big_m_scale() == pytest.approx(2500)
 
 
 def test_big_m_scale_fallback_without_load():
@@ -232,7 +232,38 @@ def test_big_m_scale_fallback_without_load():
     n.set_snapshots([0])
     n.add("Bus", "bus")
 
-    assert _infer_big_m_scale(n, "Generator") == pytest.approx(1e6)
+    assert n.c.generators._infer_committable_big_m_scale() == pytest.approx(1e6)
+
+
+def test_component_api_get_committable_big_m_values():
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[100, 200])
+    add_com_ext_generator(n, "gen", p_nom_max=np.inf)
+
+    c = n.c.generators
+    _, max_pu = c.get_bounds_pu(attr="p")
+    M = c.get_committable_big_m_values(
+        names=c.static.index.intersection(["gen"]),
+        max_pu=max_pu,
+        committable_big_m=123.0,
+    )
+    assert M.sel(name="gen") == pytest.approx(123.0)
+
+
+def test_component_api_get_committable_big_m_values_without_max_pu():
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[100, 200])
+    add_com_ext_generator(n, "gen", p_nom_max=np.inf)
+
+    M = n.c.generators.get_committable_big_m_values(
+        names=pd.Index(["gen"]),
+        committable_big_m=321.0,
+    )
+    assert M.sel(name="gen") == pytest.approx(321.0)
 
 
 def test_big_m_validation(base_network):
