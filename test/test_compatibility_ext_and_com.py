@@ -125,7 +125,7 @@ def test_compatibility_ext_and_comt():
 
     n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
 
-    n.optimize(transmission_losses=1)
+    n.optimize(transmission_losses={"mode": "tangents", "segments": 1})
 
     f_obj = (n.c.generators.static.p_nom_opt * n.c.generators.static.capital_cost).sum()
     f_obj += (
@@ -146,6 +146,7 @@ def test_compatibility_ext_and_comt():
         .sum()
         .sum()
     )
+    f_obj += (n.c.lines.static.s_nom_opt * n.c.lines.static.capital_cost).sum()
 
     equal(f_obj, n.objective + n.objective_constant)
 

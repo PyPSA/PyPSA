@@ -778,6 +778,7 @@ def define_ramp_limit_constraints(
     is_com = idx.isin(c.committables, **kwargs)
     is_modular = idx.isin(c.modulars, **kwargs)
     is_com_ext = is_com & is_ext & ~is_modular
+    is_com_ext_mod = is_com & is_ext & is_modular
     is_com_fix = is_com & ~is_com_ext
 
     limit_up = c.da.ramp_limit_up.sel(snapshot=sns)
@@ -800,11 +801,15 @@ def define_ramp_limit_constraints(
     is_rolling_horizon = (sns[0] != n.snapshots[0]) & (not c.dynamic[hist_attr].empty)
     filter_first_sn = DataArray([1] + [0] * (len(sns) - 1), coords=[sns])
 
+    nom_mod_attr = c._operational_attrs["nom_mod"]
     p_nom = c.da[nom_attr].where(~is_ext, 0)
-    is_ext_main = is_ext & ~is_com_ext
+    if is_com_ext_mod.any():
+        p_nom = p_nom.where(~is_com_ext_mod, c.da[nom_mod_attr])
+    is_ext_main = is_ext & ~is_com_ext & ~is_com_ext_mod
+    p_nom_ext_var = None
     if is_ext_main.any():
         ext_main_names = idx[is_ext_main]
-        p_nom = m[f"{c.name}-{nom_attr}"].sel(name=ext_main_names) + p_nom
+        p_nom_ext_var = m[f"{c.name}-{nom_attr}"].sel(name=ext_main_names)
 
     status = DataArray(1, coords=[sns, idx])
     if is_com_fix.any():
@@ -836,6 +841,18 @@ def define_ramp_limit_constraints(
     rhs = limit_up * p_nom * status_prev
     if is_com_fix.any():
         rhs = rhs + limit_start * p_nom * (status - status_prev)
+    if p_nom_ext_var is not None:
+        if is_rolling_horizon:
+            s_init_ext = c.da.status[start_i].sel(name=ext_main_names).fillna(1)
+        else:
+            s_init_ext = (c.da.up_time_before.sel(name=ext_main_names) > 0) * 1.0
+        sp_ext = (1 - filter_first_sn) + s_init_ext * filter_first_sn
+        if not isinstance(rhs, linopy.LinearExpression):
+            rhs = linopy.LinearExpression(rhs, m)
+        rhs = rhs + limit_up.sel(name=ext_main_names) * p_nom_ext_var * sp_ext
+        if is_com_fix.any():
+            ds_ext = filter_first_sn * (1 - s_init_ext)
+            rhs = rhs + limit_start.sel(name=ext_main_names) * p_nom_ext_var * ds_ext
     mask_up = mask & ~no_up_limit & non_com_ext
     m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_up", mask=mask_up)
 
@@ -843,6 +860,13 @@ def define_ramp_limit_constraints(
     rhs = -limit_down * p_nom * status
     if is_com_fix.any():
         rhs = rhs - limit_shut * p_nom * (status_prev - status)
+    if p_nom_ext_var is not None:
+        if not isinstance(rhs, linopy.LinearExpression):
+            rhs = linopy.LinearExpression(rhs, m)
+        rhs = rhs - limit_down.sel(name=ext_main_names) * p_nom_ext_var
+        if is_com_fix.any():
+            ds_ext = filter_first_sn * (1 - s_init_ext)
+            rhs = rhs + limit_shut.sel(name=ext_main_names) * p_nom_ext_var * ds_ext
     mask_down = mask & ~no_down_limit & non_com_ext
     m.add_constraints(
         lhs >= rhs, name=f"{c.name}-{attr}-ramp_limit_down", mask=mask_down
