@@ -366,15 +366,6 @@ plugins:
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.box
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.violin
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.histogram
-              # Clustering Accessor
-              - pypsa.clustering.ClusteringAccessor.busmap_by_greedy_modularity
-              - pypsa.clustering.ClusteringAccessor.busmap_by_hac
-              - pypsa.clustering.ClusteringAccessor.busmap_by_kmeans
-              - pypsa.clustering.ClusteringAccessor.cluster_by_busmap
-              - pypsa.clustering.ClusteringAccessor.cluster_spatially_by_greedy_modularity
-              - pypsa.clustering.ClusteringAccessor.cluster_spatially_by_hac
-              - pypsa.clustering.ClusteringAccessor.cluster_spatially_by_kmeans
-              - pypsa.clustering.ClusteringAccessor.get_clustering_from_busmap
 
 # This will rebuild and execute the notebooks during any modifications when running `mkdocs serve`
 # For local development, this can be commented out/ filtered to only include the notebooks of interest

@@ -34,7 +34,7 @@ class TemporalClusteringAccessor(TemporalClusteringMixin):
 
     def __init__(self, n: "Network") -> None:
         """Initialize the TemporalClusteringAccessor."""
-        self.n = n
+        self._n = n
 
 
 class SpatialClusteringAccessor(SpatialClusteringMixin):
@@ -45,7 +45,7 @@ class SpatialClusteringAccessor(SpatialClusteringMixin):
 
     def __init__(self, n: "Network") -> None:
         """Initialize the SpatialClusteringAccessor."""
-        self.n = n
+        self._n = n
 
 
 class ClusteringAccessor:
@@ -56,7 +56,7 @@ class ClusteringAccessor:
 
     def __init__(self, n: "Network") -> None:
         """Initialize the ClusteringAccessor."""
-        self.n = n
+        self._n = n
         self._temporal: TemporalClusteringAccessor | None = None
         self._spatial: SpatialClusteringAccessor | None = None
 
@@ -77,7 +77,7 @@ class ClusteringAccessor:
 
         """
         if self._temporal is None:
-            self._temporal = TemporalClusteringAccessor(self.n)
+            self._temporal = TemporalClusteringAccessor(self._n)
         return self._temporal
 
     @property
@@ -97,7 +97,7 @@ class ClusteringAccessor:
 
         """
         if self._spatial is None:
-            self._spatial = SpatialClusteringAccessor(self.n)
+            self._spatial = SpatialClusteringAccessor(self._n)
         return self._spatial
 
     # --- Deprecated spatial methods (use n.cluster.spatial.* instead) ---

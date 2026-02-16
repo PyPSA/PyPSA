@@ -510,7 +510,7 @@ class SpatialClusteringMixin:
     available via `n.cluster.spatial`.
     """
 
-    n: Network
+    _n: Network
 
     @_scenarios_not_implemented
     def busmap_by_kmeans(
@@ -540,7 +540,7 @@ class SpatialClusteringMixin:
             non-negative integers).
 
         """
-        n = self.n
+        n = self._n
 
         if find_spec("sklearn") is None:
             msg = (
@@ -620,7 +620,7 @@ class SpatialClusteringMixin:
             non-negative integers).
 
         """
-        n = self.n
+        n = self._n
 
         if find_spec("sklearn") is None:
             msg = (
@@ -694,7 +694,7 @@ class SpatialClusteringMixin:
             Physical Review E 70(6), 2004.
 
         """
-        n = self.n
+        n = self._n
 
         if parse(nx.__version__) < Version("2.8"):
             msg = (
@@ -929,7 +929,7 @@ class SpatialClusteringMixin:
         custom_line_groupers: list | None = None,
     ) -> Clustering:
         """Get a clustering result from a busmap."""
-        n = self.n
+        n = self._n
 
         if bus_strategies is None:
             bus_strategies = {}
@@ -1160,7 +1160,7 @@ def busmap_by_kmeans(
 
     """
     obj = SpatialClusteringMixin()
-    obj.n = n
+    obj._n = n
     return obj.busmap_by_kmeans(
         bus_weightings=bus_weightings,
         n_clusters=n_clusters,
@@ -1207,7 +1207,7 @@ def busmap_by_hac(
 
     """
     obj = SpatialClusteringMixin()
-    obj.n = n
+    obj._n = n
     return obj.busmap_by_hac(
         n_clusters,
         buses_i,
@@ -1240,7 +1240,7 @@ def busmap_by_greedy_modularity(
 
     """
     obj = SpatialClusteringMixin()
-    obj.n = n
+    obj._n = n
     return obj.busmap_by_greedy_modularity(n_clusters, buses_i)
 
 
@@ -1278,7 +1278,7 @@ def kmeans_clustering(
 
     """
     obj = SpatialClusteringMixin()
-    obj.n = n
+    obj._n = n
     busmap = obj.busmap_by_kmeans(
         bus_weightings=bus_weightings, n_clusters=n_clusters, **kwargs
     )
@@ -1336,7 +1336,7 @@ def hac_clustering(  # noqa: D417
 
     """
     obj = SpatialClusteringMixin()
-    obj.n = n
+    obj._n = n
     busmap = obj.busmap_by_hac(
         n_clusters,
         buses_i,
@@ -1383,7 +1383,7 @@ def greedy_modularity_clustering(
 
     """
     obj = SpatialClusteringMixin()
-    obj.n = n
+    obj._n = n
     busmap = obj.busmap_by_greedy_modularity(n_clusters, buses_i)
     return obj.get_clustering_from_busmap(busmap, line_length_factor=line_length_factor)
 
@@ -1444,7 +1444,7 @@ def get_clustering_from_busmap(
 
     """
     obj = SpatialClusteringMixin()
-    obj.n = n
+    obj._n = n
     return obj.get_clustering_from_busmap(
         busmap,
         with_time=with_time,

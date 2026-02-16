@@ -324,7 +324,7 @@ class TemporalClusteringMixin:
     available via `n.cluster.temporal`.
     """
 
-    n: Network
+    _n: Network
 
     def resample(
         self,
@@ -392,7 +392,7 @@ class TemporalClusteringMixin:
             Result with clustered network and snapshot mapping.
 
         """
-        n = self.n
+        n = self._n
         _warn_if_solved(n)
         _check_no_scenarios(n)
 
@@ -499,7 +499,7 @@ class TemporalClusteringMixin:
             Result with downsampled network and snapshot mapping.
 
         """
-        n = self.n
+        n = self._n
         _warn_if_solved(n)
         _check_no_scenarios(n)
 
@@ -609,7 +609,7 @@ class TemporalClusteringMixin:
             Result with segmented network and snapshot mapping.
 
         """
-        n = self.n
+        n = self._n
         _warn_if_solved(n)
         _check_no_scenarios(n)
 
@@ -763,7 +763,7 @@ class TemporalClusteringMixin:
             Result with aggregated network and snapshot mapping.
 
         """
-        n = self.n
+        n = self._n
         _warn_if_solved(n)
         _check_no_scenarios(n)
 
@@ -830,7 +830,7 @@ def resample(
 
     """
     obj = TemporalClusteringMixin()
-    obj.n = n
+    obj._n = n
     return obj.get_resample_result(
         offset, drop_leap_day=drop_leap_day, aggregation_rules=aggregation_rules
     )
@@ -856,7 +856,7 @@ def downsample(
 
     """
     obj = TemporalClusteringMixin()
-    obj.n = n
+    obj._n = n
     return obj.get_downsample_result(stride)
 
 
@@ -890,7 +890,7 @@ def segment(
 
     """
     obj = TemporalClusteringMixin()
-    obj.n = n
+    obj._n = n
     return obj.get_segment_result(
         num_segments,
         solver=solver,
@@ -923,7 +923,7 @@ def from_snapshot_map(
 
     """
     obj = TemporalClusteringMixin()
-    obj.n = n
+    obj._n = n
     return obj.get_from_snapshot_map_result(
         snapshot_map, aggregation_rules=aggregation_rules
     )

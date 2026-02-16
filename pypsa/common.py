@@ -848,8 +848,7 @@ def _scenarios_not_implemented(func: Callable) -> Callable:
 
     @functools.wraps(func)
     def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-        # Check if self is the network or has an 'n' attribute pointing to the network
-        network = getattr(self, "n", self)
+        network = getattr(self, "_n", self)
         if network.has_scenarios:
             msg = f"Method '{func.__name__}' is not yet implemented for stochastic networks."
             raise ValueError(msg)
