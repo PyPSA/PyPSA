@@ -425,40 +425,6 @@ def check_time_series_power_attributes(
                 )
 
 
-def check_assets(n: NetworkType, component: Components, strict: bool = False) -> None:
-    """Check if assets are only committable or extendable, but not both.
-
-    Activate strict mode in general consistency check by passing `['assets']` to the
-    `strict` argument.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        The network to check.
-    component : pypsa.Component
-        The component to check.
-    strict : bool, optional
-        If True, raise an error instead of logging a warning.
-
-    See Also
-    --------
-    [pypsa.Network.consistency_check][]
-
-    """
-    if component.name in {"Generator", "Link"}:
-        committables = component.committables
-        extendables = component.extendables
-        intersection = committables.intersection(extendables)
-        if not intersection.empty:
-            _log_or_raise(
-                strict,
-                "Assets can only be committable or extendable."
-                " Found assets in component %s which are both:\n\n\t%s",
-                component.name,
-                ", ".join(intersection),
-            )
-
-
 def check_cost_consistency(component: Components, strict: bool = False) -> None:
     """Check if both overnight_cost and capital_cost are set for the same asset.
 
@@ -853,7 +819,6 @@ class NetworkConsistencyMixin(_NetworkABC):
             "nans_for_component_default_attrs",
             "zero_impedances",
             "zero_s_nom",
-            "assets",
             "generators",
             "cost_consistency",
             "disconnected_buses",
@@ -899,8 +864,6 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_impedances(self, c, "zero_impedances" in strict)
             # Checks transformers
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
-            # Checks generators and links
-            check_assets(self, c, "assets" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
             # Checks cost attributes consistency
