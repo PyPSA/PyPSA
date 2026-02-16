@@ -636,15 +636,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         for c, attr in lookup.query("nominal").index:
             define_nominal_variables(n, c, attr)
             define_modular_variables(n, c, attr)
-            define_committability_variables_constraints_with_fixed_upper_limit(
-                n, sns, c, attr
-            )
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
             define_operational_variables(n, sns, c, attr)
             define_status_variables(n, sns, c, linearized_unit_commitment)
             define_start_up_variables(n, sns, c, linearized_unit_commitment)
             define_shut_down_variables(n, sns, c, linearized_unit_commitment)
+            define_committability_variables_constraints_with_fixed_upper_limit(
+                n, sns, c, attr
+            )
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")

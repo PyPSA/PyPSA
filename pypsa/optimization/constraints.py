@@ -74,6 +74,34 @@ def _infer_big_m_scale(n: Network, component: str) -> float:
     return fallback
 
 
+def _get_committable_big_m_values(
+    n: Network, c: Any, names: pd.Index, max_pu: DataArray
+) -> DataArray:
+    """Get per-asset big-M values for committable+extendable constraints."""
+    p_nom_max_vals = c.da.p_nom_max.sel(name=names)
+    max_pu_vals = max_pu.sel(name=names)
+    if "snapshot" in max_pu_vals.dims:
+        max_pu_vals = max_pu_vals.max("snapshot")
+
+    big_m_default = n._committable_big_m
+    if big_m_default is None:
+        big_m_default = _infer_big_m_scale(n, c.name)
+    else:
+        if not np.isfinite(big_m_default):
+            msg = f"committable_big_m must be finite, got {big_m_default}."
+            raise ValueError(msg)
+        if big_m_default <= 0:
+            msg = f"committable_big_m must be positive, got {big_m_default}."
+            raise ValueError(msg)
+
+    fallback_values = big_m_default * max_pu_vals.fillna(1)
+    return xr.where(
+        isfinite(p_nom_max_vals) & (p_nom_max_vals > 0),
+        p_nom_max_vals * max_pu_vals,
+        fallback_values,
+    )
+
+
 def define_operational_constraints_for_non_extendables(
     n: Network,
     sns: pd.Index,
@@ -329,27 +357,7 @@ def define_operational_constraints_for_committables(
 
     if not com_ext_i.empty:
         p_nom_var = n.model[f"{c.name}-{c._operational_attrs['nom']}"]
-
-        p_nom_max_vals = c.da.p_nom_max.sel(name=com_ext_i)
-        max_pu_vals = max_pu.sel(name=com_ext_i).max("snapshot")
-
-        big_m_default = n._committable_big_m
-        if big_m_default is None:
-            big_m_default = _infer_big_m_scale(n, component)
-        else:
-            if not np.isfinite(big_m_default):
-                msg = f"committable_big_m must be finite, got {big_m_default}."
-                raise ValueError(msg)
-            if big_m_default <= 0:
-                msg = f"committable_big_m must be positive, got {big_m_default}."
-                raise ValueError(msg)
-
-        fallback_values = big_m_default * max_pu_vals.fillna(1)
-        M_values = xr.where(
-            isfinite(p_nom_max_vals) & (p_nom_max_vals > 0),
-            p_nom_max_vals * max_pu_vals,
-            fallback_values,
-        )
+        M_values = _get_committable_big_m_values(n, c, com_ext_i, max_pu)
         p_ext = p.sel(name=com_ext_i)
         status_ext = status.sel(name=com_ext_i)
         p_nom_ext = p_nom_var.sel(name=com_ext_i)
@@ -695,6 +703,85 @@ def define_nominal_constraints_for_extendables(
         )
 
 
+def _define_ramp_limit_big_m(
+    n: Network,
+    sns: pd.Index | pd.MultiIndex,
+    c: Any,
+    attr: str,
+    ce_names: pd.Index,
+    limit_up: DataArray,
+    limit_down: DataArray,
+    limit_start: DataArray,
+    limit_shut: DataArray,
+    no_up_limit: DataArray,
+    no_down_limit: DataArray,
+    mask: DataArray,
+) -> None:
+    """Add big-M ramp constraints for committable+extendable components."""
+    m = n.model
+    var_attr = "p"
+    nom_attr = c._operational_attrs["nom"]
+    hist_attr = "p0" if c.name in n.branch_components else "p"
+    is_rolling_horizon = (sns[0] != n.snapshots[0]) & (not c.dynamic[hist_attr].empty)
+    filter_first_sn = DataArray([1] + [0] * (len(sns) - 1), coords=[sns])
+
+    _, max_pu = c.get_bounds_pu(attr="p")
+    max_pu_ce = max_pu.sel(name=ce_names, snapshot=sns)
+    M = _get_committable_big_m_values(n, c, ce_names, max_pu_ce)
+
+    p_ce = m[f"{c.name}-{var_attr}"].sel(name=ce_names)
+    p_nom_ce = m[f"{c.name}-{nom_attr}"].sel(name=ce_names)
+    status_ce = m[f"{c.name}-status"].sel(name=ce_names)
+    start_up_ce = m[f"{c.name}-start_up"].sel(name=ce_names)
+    shut_down_ce = m[f"{c.name}-shut_down"].sel(name=ce_names)
+
+    if is_rolling_horizon:
+        start_i = n.snapshots.get_loc(sns[0]) - 1
+        p_init_ce = c.da[hist_attr][start_i].sel(name=ce_names)
+        s_init_ce = c.da.status[start_i].sel(name=ce_names).fillna(1)
+    else:
+        initially_up = c.da.up_time_before.sel(name=ce_names) > 0
+        p_init_ce = c.da.p_init.sel(name=ce_names).where(initially_up, 0)
+        s_init_ce = initially_up
+
+    p_prev_ce = p_ce.shift(snapshot=1) + p_init_ce.fillna(0) * filter_first_sn
+    status_prev_ce = status_ce.shift(snapshot=1) + s_init_ce.fillna(0) * filter_first_sn
+
+    lhs_delta = p_ce - p_prev_ce
+    mask_ce = mask.sel(name=ce_names)
+    mask_up_ce = mask_ce & ~no_up_limit.sel(name=ce_names)
+    mask_down_ce = mask_ce & ~no_down_limit.sel(name=ce_names)
+
+    lu_ce = limit_up.sel(name=ce_names)
+    ld_ce = limit_down.sel(name=ce_names)
+    ls_ce = limit_start.sel(name=ce_names)
+    lsh_ce = limit_shut.sel(name=ce_names)
+
+    m.add_constraints(
+        lhs_delta <= lu_ce * p_nom_ce + M * (1 - status_prev_ce),
+        name=f"{c.name}-{attr}-ramp_limit_up-run-bigM",
+        mask=mask_up_ce,
+    )
+
+    m.add_constraints(
+        lhs_delta <= ls_ce * p_nom_ce + M * (1 - start_up_ce),
+        name=f"{c.name}-{attr}-ramp_limit_up-start-bigM",
+        mask=mask_up_ce,
+    )
+
+    m.add_constraints(
+        lhs_delta >= -ld_ce * p_nom_ce - M * (1 - status_ce),
+        name=f"{c.name}-{attr}-ramp_limit_down-run-bigM",
+        mask=mask_down_ce,
+    )
+
+    m.add_constraints(
+        lhs_delta >= -lsh_ce * p_nom_ce - M * (1 - shut_down_ce),
+        name=f"{c.name}-{attr}-ramp_limit_down-shut-bigM",
+        mask=mask_down_ce,
+    )
+
+
 def define_ramp_limit_constraints(
     n: Network, sns: pd.Index, component: str, attr: str
 ) -> None:
@@ -746,6 +833,9 @@ def define_ramp_limit_constraints(
     kwargs = {"level": "name"} if isinstance(idx, pd.MultiIndex) else {}
     is_ext = idx.isin(c.extendables, **kwargs)
     is_com = idx.isin(c.committables, **kwargs)
+    is_modular = idx.isin(c.modulars, **kwargs)
+    is_com_ext = is_com & is_ext & ~is_modular
+    is_com_fix = is_com & ~is_com_ext
 
     limit_up = c.da.ramp_limit_up.sel(snapshot=sns)
     limit_down = c.da.ramp_limit_down.sel(snapshot=sns)
@@ -768,14 +858,18 @@ def define_ramp_limit_constraints(
     filter_first_sn = DataArray([1] + [0] * (len(sns) - 1), coords=[sns])
 
     p_nom = c.da[nom_attr].where(~is_ext, 0)
-    if is_ext.any():
-        p_nom = m[f"{c.name}-{nom_attr}"] + p_nom
+    is_ext_main = is_ext & ~is_com_ext
+    if is_ext_main.any():
+        ext_main_names = idx[is_ext_main]
+        p_nom = m[f"{c.name}-{nom_attr}"].sel(name=ext_main_names) + p_nom
 
     status = DataArray(1, coords=[sns, idx])
-    if is_com.any():
-        status = status.where(~is_com, 0)
+    if is_com_fix.any():
+        com_main_names = idx[is_com_fix]
+        status = status.where(~is_com_fix, 0)
         status = linopy.LinearExpression(status, m)
-        status = (status + m[f"{c.name}-status"]).loc[:, status.indexes["name"]]
+        status_var = m[f"{c.name}-status"].sel(name=com_main_names)
+        status = (status + status_var).loc[:, status.indexes["name"]]
 
     if is_rolling_horizon:
         start_i = n.snapshots.get_loc(sns[0]) - 1
@@ -790,25 +884,42 @@ def define_ramp_limit_constraints(
     p = m[f"{c.name}-{var_attr}"]
     p_prev = p.shift(snapshot=1) + p_init.fillna(0) * filter_first_sn
     status_shifted = status.shift(snapshot=1)
-    if not is_com.any():
+    if not is_com_fix.any():
         status_shifted = status_shifted.fillna(0)
     status_prev = status_shifted + s_init.fillna(0) * filter_first_sn
 
+    non_com_ext = ~is_com_ext
     lhs = p - p_prev
     rhs = limit_up * p_nom * status_prev
-    if is_com.any():
+    if is_com_fix.any():
         rhs = rhs + limit_start * p_nom * (status - status_prev)
-    mask_up = mask & ~no_up_limit
+    mask_up = mask & ~no_up_limit & non_com_ext
     m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_up", mask=mask_up)
 
     lhs = p - p_prev
     rhs = -limit_down * p_nom * status
-    if is_com.any():
+    if is_com_fix.any():
         rhs = rhs - limit_shut * p_nom * (status_prev - status)
-    mask_down = mask & ~no_down_limit
+    mask_down = mask & ~no_down_limit & non_com_ext
     m.add_constraints(
         lhs >= rhs, name=f"{c.name}-{attr}-ramp_limit_down", mask=mask_down
     )
+
+    if is_com_ext.any():
+        _define_ramp_limit_big_m(
+            n,
+            sns,
+            c,
+            attr,
+            idx[is_com_ext],
+            limit_up,
+            limit_down,
+            limit_start,
+            limit_shut,
+            no_up_limit,
+            no_down_limit,
+            mask,
+        )
 
 
 def define_nodal_balance_constraints(

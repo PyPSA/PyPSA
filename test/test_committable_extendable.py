@@ -624,3 +624,151 @@ def test_no_start_costs(base_network):
 
     status, _ = n.optimize(solver_name="highs")
     assert status in ["ok", "warning"]
+
+
+def test_ramp_big_m_startup_shutdown_limits():
+    n = pypsa.Network(snapshots=range(6))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[120, 520, 120, 520, 120, 120])
+
+    n.add(
+        "Generator",
+        "cheap",
+        bus="bus",
+        p_nom=180,
+        marginal_cost=10,
+    )
+
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_max=800,
+        p_min_pu=0.1,
+        marginal_cost=30,
+        capital_cost=400,
+        ramp_limit_up=0.5,
+        ramp_limit_down=0.5,
+        ramp_limit_start_up=0.4,
+        ramp_limit_shut_down=0.3,
+    )
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    p = n.c["Generator"].dynamic["p"]["gen"]
+    p_nom_opt = n.c["Generator"].static.loc["gen", "p_nom_opt"]
+    status_var = n.model.variables["Generator-status"].solution.sel(name="gen")
+    start_up_var = n.model.variables["Generator-start_up"].solution.sel(name="gen")
+    shut_down_var = n.model.variables["Generator-shut_down"].solution.sel(name="gen")
+    status_values = status_var.values
+    start_up_values = start_up_var.values
+    shut_down_values = shut_down_var.values
+    assert p_nom_opt > 0
+    assert (start_up_values > 0.5).any()
+    assert (shut_down_values > 0.5).any()
+
+    for t in range(1, len(p)):
+        ramp = p.iloc[t] - p.iloc[t - 1]
+        assert ramp <= 0.5 * p_nom_opt + 1e-5
+        assert ramp >= -0.5 * p_nom_opt - 1e-5
+        if start_up_values[t] > 0.5:
+            assert ramp <= 0.4 * p_nom_opt + 1e-5
+        if shut_down_values[t] > 0.5:
+            assert ramp >= -0.3 * p_nom_opt - 1e-5
+        if status_values[t - 1] > 0.5 and status_values[t] > 0.5:
+            assert ramp <= 0.5 * p_nom_opt + 1e-5
+            assert ramp >= -0.5 * p_nom_opt - 1e-5
+
+
+def test_ramp_big_m_constraint_names():
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[100, 200, 150, 120])
+
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_max=500,
+        p_min_pu=0.3,
+        marginal_cost=50,
+        capital_cost=50000,
+        ramp_limit_up=0.8,
+        ramp_limit_down=0.8,
+    )
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    constraints = list(n.model.constraints)
+    assert "Generator-p-ramp_limit_up-run-bigM" in constraints
+    assert "Generator-p-ramp_limit_up-start-bigM" in constraints
+    assert "Generator-p-ramp_limit_down-run-bigM" in constraints
+    assert "Generator-p-ramp_limit_down-shut-bigM" in constraints
+
+
+def test_ramp_big_m_with_explicit_big_m():
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[100, 300, 200, 150])
+
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_max=np.inf,
+        p_min_pu=0.2,
+        marginal_cost=40,
+        capital_cost=50000,
+        ramp_limit_up=0.6,
+        ramp_limit_down=0.6,
+    )
+
+    status, _ = n.optimize(solver_name="highs", committable_big_m=1000)
+    assert status == "ok"
+    assert n.c["Generator"].static.loc["gen", "p_nom_opt"] > 0
+
+    con_up_run = n.model.constraints["Generator-p-ramp_limit_up-run-bigM"]
+    con_down_run = n.model.constraints["Generator-p-ramp_limit_down-run-bigM"]
+    assert np.isclose(con_up_run.lhs.coeffs.values, 1000).any()
+    assert np.isclose(con_down_run.lhs.coeffs.values, -1000).any()
+
+
+def test_ramp_big_m_coexistence_com_fix_and_com_ext(base_network):
+    n = base_network
+    n.loads_t.p_set["load"] = [200, 400, 300, 250]
+
+    n.add(
+        "Generator",
+        "com_fix",
+        bus="bus",
+        committable=True,
+        p_nom=500,
+        p_min_pu=0.3,
+        marginal_cost=20,
+        ramp_limit_up=0.6,
+        ramp_limit_down=0.6,
+    )
+
+    add_com_ext_generator(
+        n,
+        "com_ext",
+        p_nom_max=400,
+        marginal_cost=50,
+        ramp_limit_up=0.5,
+        ramp_limit_down=0.5,
+    )
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    constraints = list(n.model.constraints)
+    assert "Generator-p-ramp_limit_up" in constraints
+    assert "Generator-p-ramp_limit_up-run-bigM" in constraints
