@@ -424,6 +424,7 @@ def check_time_series_power_attributes(
                     diff[col].dropna().index,
                 )
 
+
 def check_link_delays(
     n: NetworkType, component: Components, strict: bool = False
 ) -> None:
