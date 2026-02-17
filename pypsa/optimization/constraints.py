@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
+    from pypsa.components._types.links import Links  # noqa: TC004
 
     ArgItem = list[str | int | float | DataArray]
 
