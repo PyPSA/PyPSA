@@ -68,23 +68,29 @@ n.optimize(committable_big_m=value)
 
 ### Ramp Constraints for Extendable Committable Components
 
-For components that are both committable and extendable with ramp limits, the ramp constraints use the capacity variable $G_{n,s}$ or $F_{l}$ (not the fixed capacity $\hat{g}_{n,s}$ or $\hat{f}_{l}$):
+For components that are both committable and extendable with ramp limits, a big-M formulation is used to handle the interaction between ramp limits and the commitment status. Four constraints are added — two for ramping up (during normal operation and during start-up) and two for ramping down (during normal operation and during shut-down):
 
 === "Generator"
 
     | Constraint | Name |
     |-------------------|------------------|
-    | $(g_{n,s,t} - g_{n,s,t-1}) \geq -rd_{n,s,t} \cdot G_{n,s}$ | `Generator-ext-p-ramp_limit_down` |
-    | $(g_{n,s,t} - g_{n,s,t-1}) \leq ru_{n,s,t} \cdot G_{n,s}$ | `Generator-ext-p-ramp_limit_up` |
+    | $(g_{n,s,t} - g_{n,s,t-1}) \leq ru_{n,s} \cdot G_{n,s} + M \cdot (1 - u_{n,s,t-1})$ | `Generator-p-ramp_limit_up-run-bigM` |
+    | $(g_{n,s,t} - g_{n,s,t-1}) \leq rs_{n,s} \cdot G_{n,s} + M \cdot (1 - su_{n,s,t})$ | `Generator-p-ramp_limit_up-start-bigM` |
+    | $(g_{n,s,t} - g_{n,s,t-1}) \geq -rd_{n,s} \cdot G_{n,s} - M \cdot (1 - u_{n,s,t})$ | `Generator-p-ramp_limit_down-run-bigM` |
+    | $(g_{n,s,t} - g_{n,s,t-1}) \geq -rsd_{n,s} \cdot G_{n,s} - M \cdot (1 - sd_{n,s,t})$ | `Generator-p-ramp_limit_down-shut-bigM` |
 
 === "Link"
 
     | Constraint | Name |
     |-------------------|------------------|
-    | $(f_{l,t} - f_{l,t-1}) \geq -rd_{l,t} \cdot F_{l}$ | `Link-ext-p-ramp_limit_down` |
-    | $(f_{l,t} - f_{l,t-1}) \leq ru_{l,t} \cdot F_{l}$ | `Link-ext-p-ramp_limit_up` |
+    | $(f_{l,t} - f_{l,t-1}) \leq ru_{l} \cdot F_{l} + M \cdot (1 - u_{l,t-1})$ | `Link-p-ramp_limit_up-run-bigM` |
+    | $(f_{l,t} - f_{l,t-1}) \leq rs_{l} \cdot F_{l} + M \cdot (1 - su_{l,t})$ | `Link-p-ramp_limit_up-start-bigM` |
+    | $(f_{l,t} - f_{l,t-1}) \geq -rd_{l} \cdot F_{l} - M \cdot (1 - u_{l,t})$ | `Link-p-ramp_limit_down-run-bigM` |
+    | $(f_{l,t} - f_{l,t-1}) \geq -rsd_{l} \cdot F_{l} - M \cdot (1 - sd_{l,t})$ | `Link-p-ramp_limit_down-shut-bigM` |
 
-These constraints are defined in the functions `define_operational_constraints_for_committables()` and `define_ramp_limit_constraints()`.
+When the unit was running in the previous timestep ($u_{t-1} = 1$), the big-M term vanishes and the normal ramp-up limit $ru$ applies. When $u_{t-1} = 0$, the big-M relaxes the constraint, allowing unrestricted ramp-up. The start-up ramp limit $rs$ is enforced only during start-up events ($su_t = 1$). The same logic applies symmetrically to ramp-down and shut-down constraints.
+
+These constraints are defined in the function `define_ramp_limit_constraints()`.
 
 ??? note "Mapping of symbols to component attributes"
 
@@ -95,11 +101,13 @@ These constraints are defined in the functions `define_operational_constraints_f
         | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
         | $G_{n,s}$         | `n.generators.p_nom_opt` | Decision variable |
         | $u_{n,s,t}$       | `n.generators_t.status` | Decision variable |
+        | $su_{n,s,t}$      | `n.generators_t.start_up` | Decision variable |
+        | $sd_{n,s,t}$      | `n.generators_t.shut_down` | Decision variable |
         | $M$               | auto-inferred or `committable_big_m` parameter | Parameter |
-        | $\underline{g}_{n,s,t}$ | `n.generators_t.p_min_pu` | Parameter |
-        | $\bar{g}_{n,s,t}$ | `n.generators_t.p_max_pu` | Parameter |
-        | $ru_{n,s,t}$      | `n.generators.ramp_limit_up` | Parameter |
-        | $rd_{n,s,t}$      | `n.generators.ramp_limit_down` | Parameter |
+        | $ru_{n,s}$        | `n.generators.ramp_limit_up` | Parameter |
+        | $rd_{n,s}$        | `n.generators.ramp_limit_down` | Parameter |
+        | $rs_{n,s}$        | `n.generators.ramp_limit_start_up` | Parameter |
+        | $rsd_{n,s}$       | `n.generators.ramp_limit_shut_down` | Parameter |
 
     === "Link"
 
@@ -108,11 +116,13 @@ These constraints are defined in the functions `define_operational_constraints_f
         | $f_{l,t}$         | `n.links_t.p` | Decision variable |
         | $F_{l}$           | `n.links.p_nom_opt` | Decision variable |
         | $u_{l,t}$         | `n.links_t.status` | Decision variable |
+        | $su_{l,t}$        | `n.links_t.start_up` | Decision variable |
+        | $sd_{l,t}$        | `n.links_t.shut_down` | Decision variable |
         | $M$               | auto-inferred or `committable_big_m` parameter | Parameter |
-        | $\underline{f}_{l,t}$ | `n.links_t.p_min_pu` | Parameter |
-        | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu` | Parameter |
-        | $ru_{l,t}$        | `n.links.ramp_limit_up` | Parameter |
-        | $rd_{l,t}$        | `n.links.ramp_limit_down` | Parameter |
+        | $ru_{l}$          | `n.links.ramp_limit_up` | Parameter |
+        | $rd_{l}$          | `n.links.ramp_limit_down` | Parameter |
+        | $rs_{l}$          | `n.links.ramp_limit_start_up` | Parameter |
+        | $rsd_{l}$         | `n.links.ramp_limit_shut_down` | Parameter |
 
 
 ## Modularity Constraints
