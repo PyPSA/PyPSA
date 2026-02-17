@@ -649,7 +649,7 @@ def _define_ramp_limit_big_m(
     sns: pd.Index | pd.MultiIndex,
     c: Any,
     attr: str,
-    ce_names: pd.Index,
+    idx: pd.Index,
     limit_up: DataArray,
     limit_down: DataArray,
     limit_start: DataArray,
@@ -666,62 +666,60 @@ def _define_ramp_limit_big_m(
     is_rolling_horizon = (sns[0] != n.snapshots[0]) & (not c.dynamic[hist_attr].empty)
     filter_first_sn = DataArray([1] + [0] * (len(sns) - 1), coords=[sns])
 
-    _, max_pu = c.get_bounds_pu(attr="p")
-    max_pu_ce = max_pu.sel(name=ce_names, snapshot=sns)
     M = c.get_committable_big_m_values(
-        names=ce_names, max_pu=max_pu_ce, committable_big_m=n._committable_big_m
+        names=idx, committable_big_m=n._committable_big_m
     )
 
-    p_ce = m[f"{c.name}-{var_attr}"].sel(name=ce_names)
-    p_nom_ce = m[f"{c.name}-{nom_attr}"].sel(name=ce_names)
-    status_ce = m[f"{c.name}-status"].sel(name=ce_names)
-    start_up_ce = m[f"{c.name}-start_up"].sel(name=ce_names)
-    shut_down_ce = m[f"{c.name}-shut_down"].sel(name=ce_names)
+    p = m[f"{c.name}-{var_attr}"].sel(name=idx)
+    p_nom = m[f"{c.name}-{nom_attr}"].sel(name=idx)
+    status = m[f"{c.name}-status"].sel(name=idx)
+    start_up = m[f"{c.name}-start_up"].sel(name=idx)
+    shut_down = m[f"{c.name}-shut_down"].sel(name=idx)
 
     if is_rolling_horizon:
         start_i = n.snapshots.get_loc(sns[0]) - 1
-        p_init_ce = c.da[hist_attr][start_i].sel(name=ce_names)
-        s_init_ce = c.da.status[start_i].sel(name=ce_names).fillna(1)
+        p_init = c.da[hist_attr][start_i].sel(name=idx)
+        s_init = c.da.status[start_i].sel(name=idx).fillna(1)
     else:
-        initially_up = c.da.up_time_before.sel(name=ce_names) > 0
-        p_init_ce = c.da.p_init.sel(name=ce_names).where(initially_up, 0)
-        s_init_ce = initially_up
+        initially_up = c.da.up_time_before.sel(name=idx) > 0
+        p_init = c.da.p_init.sel(name=idx).where(initially_up, 0)
+        s_init = initially_up
 
-    p_prev_ce = p_ce.shift(snapshot=1) + p_init_ce.fillna(0) * filter_first_sn
-    status_prev_ce = status_ce.shift(snapshot=1) + s_init_ce.fillna(0) * filter_first_sn
+    p_prev_ce = p.shift(snapshot=1) + p_init.fillna(0) * filter_first_sn
+    status_prev_ce = status.shift(snapshot=1) + s_init.fillna(0) * filter_first_sn
 
-    lhs_delta = p_ce - p_prev_ce
-    mask_ce = mask.sel(name=ce_names)
-    mask_up_ce = mask_ce & ~no_up_limit.sel(name=ce_names)
-    mask_down_ce = mask_ce & ~no_down_limit.sel(name=ce_names)
+    lhs_delta = p - p_prev_ce
+    mask = mask.sel(name=idx)
+    mask_up = mask & ~no_up_limit.sel(name=idx)
+    mask_down = mask & ~no_down_limit.sel(name=idx)
 
-    lu_ce = limit_up.sel(name=ce_names)
-    ld_ce = limit_down.sel(name=ce_names)
-    ls_ce = limit_start.sel(name=ce_names)
-    lsh_ce = limit_shut.sel(name=ce_names)
+    lu = limit_up.sel(name=idx)
+    ld = limit_down.sel(name=idx)
+    ls = limit_start.sel(name=idx)
+    lsh = limit_shut.sel(name=idx)
 
     m.add_constraints(
-        lhs_delta <= lu_ce * p_nom_ce + M * (1 - status_prev_ce),
+        lhs_delta <= lu * p_nom + M * (1 - status_prev_ce),
         name=f"{c.name}-{attr}-ramp_limit_up-run-bigM",
-        mask=mask_up_ce,
+        mask=mask_up,
     )
 
     m.add_constraints(
-        lhs_delta <= ls_ce * p_nom_ce + M * (1 - start_up_ce),
+        lhs_delta <= ls * p_nom + M * (1 - start_up),
         name=f"{c.name}-{attr}-ramp_limit_up-start-bigM",
-        mask=mask_up_ce,
+        mask=mask_up,
     )
 
     m.add_constraints(
-        lhs_delta >= -ld_ce * p_nom_ce - M * (1 - status_ce),
+        lhs_delta >= -ld * p_nom - M * (1 - status),
         name=f"{c.name}-{attr}-ramp_limit_down-run-bigM",
-        mask=mask_down_ce,
+        mask=mask_down,
     )
 
     m.add_constraints(
-        lhs_delta >= -lsh_ce * p_nom_ce - M * (1 - shut_down_ce),
+        lhs_delta >= -lsh * p_nom - M * (1 - shut_down),
         name=f"{c.name}-{attr}-ramp_limit_down-shut-bigM",
-        mask=mask_down_ce,
+        mask=mask_down,
     )
 
 
