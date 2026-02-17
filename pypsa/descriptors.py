@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from dataclasses import replace
 from itertools import product
 from typing import TYPE_CHECKING, Any
 
@@ -267,23 +268,25 @@ def _update_linkports_component_attrs(
         ports = _additional_linkports(n, where)
     ports.sort(reverse=True)
     c = "Link"
+    # Ensure link defaults mutations are local to this network instance.
+    c = n.components[c]
+    c.ctype = replace(c.ctype, defaults=c.defaults.copy(deep=True))
+    defaults = c.defaults
 
     static_attrs = ["bus", "delay", "cyclic_delay"]
     dynamic_attrs = ["efficiency", "p"]
     for i, attr in product(ports, static_attrs + dynamic_attrs):
         target = f"{attr}{i}"
-        if target in n.components[c]["defaults"].index:
+        if target in defaults.index:
             continue
         j = "1" if attr in ("bus", "p") else ""
         base_attr = attr + j
-        if base_attr not in n.components[c]["defaults"].index:
+        if base_attr not in defaults.index:
             continue
-        base_attr_index = n.components[c]["defaults"].index.get_loc(base_attr)
-        n.components[c]["defaults"].index.insert(base_attr_index + 1, target)
-        n.components[c]["defaults"].loc[target] = (
-            n.components[c]["defaults"]
-            .loc[base_attr]
-            .apply(_update_linkports_doc_changes, args=("1", i))
+        base_attr_index = defaults.index.get_loc(base_attr)
+        defaults.index.insert(base_attr_index + 1, target)
+        defaults.loc[target] = defaults.loc[base_attr].apply(
+            _update_linkports_doc_changes, args=("1", i)
         )
         if attr in dynamic_attrs and target not in n.c[c].dynamic:
             df = pd.DataFrame(
@@ -291,4 +294,4 @@ def _update_linkports_component_attrs(
             )
             n.c[c].dynamic[target] = df
         elif attr in static_attrs and target not in n.c[c].static.columns:
-            n.c[c].static[target] = n.components[c]["defaults"].loc[target, "default"]
+            n.c[c].static[target] = defaults.loc[target, "default"]

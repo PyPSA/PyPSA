@@ -51,6 +51,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add support for pandas 3.0, while maintaining compatibility with pandas 2.x. (<!-- md:pr 1556 -->)
 
+- Add snapshot-based delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Link withdrawals at `bus0` now arrive at output ports after the configured number of snapshots, with cyclic or non-cyclic boundary behavior.
+
 ### Bug Fixes
 
 - **Breaking**: Fix `ramp_limit_start_up` and `ramp_limit_shut_down` being ignored in the very first snapshot in binary unit commitment. The constraints are now properly applied when these attributes are explicitly set. (<!-- md:pr 1553 -->)
@@ -59,6 +61,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
 - Fix statistics methods raising an error when called with `groupby_time=True`. (<!-- md:pr 1538 -->)
 - Fix spatial clustering filling empty time series with defaults for `aggregate_one_ports`. (<!-- md:pr 1528 -->)
+- Fix link-port attribute expansion (`bus2`, `bus3`, `efficiency2`, ...) mutating shared Link defaults across networks. Additional Link ports are now updated only locally per network instance.
 
 ### Documentation
 
