@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import linopy
 import pandas as pd
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
+    from pypsa.components._types.links import Links
 
     ArgItem = list[str | int | float | DataArray]
 
@@ -700,7 +701,7 @@ def define_nodal_balance_constraints(
     if buses is None:
         buses = n.c.buses.static.index.unique("name")
 
-    links = as_components(n, "Link")
+    links = cast("Links", as_components(n, "Link"))
 
     args: list[Any] = [
         ["Generator", "p", "bus", 1],
