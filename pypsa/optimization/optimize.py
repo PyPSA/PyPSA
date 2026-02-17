@@ -21,11 +21,14 @@ from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
+from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
 from pypsa.optimization.constraints import (
+    define_committability_variables_constraints_with_fixed_upper_limit,
+    define_committability_variables_constraints_with_variable_upper_limit,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
@@ -419,6 +422,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         log_to_console: bool | None = None,
         compute_infeasibilities: bool = False,
         include_objective_constant: bool | None = None,
+        committable_big_m: float | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -480,6 +484,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             infrastructure) as a variable in the objective function. Setting to False
             improves LP numerical conditioning. Defaults to module wide option. See
             `pypsa.options.params.optimize.describe()` for more information.
+        committable_big_m : float | None, default None
+            Big-M value for committable+extendable constraints. If None, PyPSA infers
+            a scale from the network (e.g. peak load). Otherwise this numeric bound
+            is used when no component-specific limit (p_nom_max) is available.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -522,6 +530,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             linearized_unit_commitment,
             consistency_check=False,
             include_objective_constant=include_objective_constant,
+            committable_big_m=committable_big_m,
             **model_kwargs,
         )
         if extra_functionality:
@@ -555,6 +564,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         linearized_unit_commitment: bool = False,
         consistency_check: bool = True,
         include_objective_constant: bool | None = None,
+        committable_big_m: float | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -590,6 +600,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             infrastructure) as a variable in the objective function. Setting to False
             improves LP numerical conditioning. Defaults to module wide option. See
             `pypsa.options.params.optimize.describe()` for more information.
+        committable_big_m : float | None, default: None
+            Big-M value for committable+extendable constraints. If None, PyPSA infers
+            a scale from the network (e.g. peak load). Otherwise this numeric bound
+            is used when no component-specific limit (p_nom_max) is available.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -602,6 +616,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         sns = as_index(n, snapshots, "snapshots")
         n._linearized_uc = int(linearized_unit_commitment)
         n._multi_invest = int(multi_investment_periods)
+        n._committable_big_m = committable_big_m
+
+        if linearized_unit_commitment:
+            check_no_modular_committables(n)
+
         if consistency_check:
             n.consistency_check()
 
@@ -623,6 +642,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_status_variables(n, sns, c, linearized_unit_commitment)
             define_start_up_variables(n, sns, c, linearized_unit_commitment)
             define_shut_down_variables(n, sns, c, linearized_unit_commitment)
+            define_committability_variables_constraints_with_fixed_upper_limit(
+                n, sns, c, attr
+            )
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
@@ -639,6 +661,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_nominal_constraints_for_extendables(n, c, attr)
             define_fixed_nominal_constraints(n, c, attr)
             define_modular_constraints(n, c, attr)
+            define_committability_variables_constraints_with_variable_upper_limit(
+                n, sns, c, attr
+            )
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
             define_operational_constraints_for_non_extendables(
@@ -1013,6 +1038,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """
         n = self._n
         sns = n.model.parameters.snapshots.to_index()
+
+        check_big_m_exceeded(n)
 
         # correct prices with objective weightings
         if n._multi_invest:

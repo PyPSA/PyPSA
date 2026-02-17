@@ -27,7 +27,7 @@ marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost
 stand_by_cost,static or series,currency/h,0.,Stand-by cost for operating the link. This cost is incurred whenever the status is 1 (including when dispatch decision is zero).,Input (optional)
 length,float,km,0,"Length of the link. Useful for calculating `capital_cost` for HVDC connections.",Input (optional)
 terrain_factor,float,per unit,1,Terrain factor for increasing `capital_cost` calculated from `length`.,Input (optional)
-committable,boolean,n/a,False,Apply unit commitment constraints. This is only possible with `p_nom_extendable=False`.,Input (optional)
+committable,boolean,n/a,False,Apply unit commitment constraints.,Input (optional)
 start_up_cost,float,currency,0,Cost to start up the link. Only used if `committable=True`.,Input (optional)
 shut_down_cost,float,currency,0,Cost to shut down the link. Only used if `committable=True`.,Input (optional)
 min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1.  Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)

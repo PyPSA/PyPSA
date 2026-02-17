@@ -140,6 +140,22 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](modular-expansion.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Committable and Extendable Components**
+
+    Co-optimize capacity expansion and unit commitment using big-M linearization.
+    Demonstrates continuous capacity decisions with start-up/shut-down costs,
+    ramp limits, and minimum load constraints.
+
+    [:octicons-arrow-right-24: Go to example](committable-extendable.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Modular and Committable Components**
+
+    Model discrete capacity blocks with unit commitment where status represents
+    the number of committed modules. Shows modular gas turbines, HVDC links,
+    and multi-module operational dynamics.
+
+    [:octicons-arrow-right-24: Go to example](modular-committable.ipynb)
+
 </div>
 
 

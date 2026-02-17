@@ -28,7 +28,7 @@ overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional)
 efficiency,static or series,per unit,1,"Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.",Input (optional)
-committable,boolean,n/a,False,Apply unit commitment constraints. This is only possible with `p_nom_extendable=False`.,Input (optional)
+committable,boolean,n/a,False,Apply unit commitment constraints.,Input (optional)
 start_up_cost,float,currency,0,Cost to start up the generator. Only used if `committable=True`.,Input (optional)
 shut_down_cost,float,currency,0,Cost to shut down the generator. Only used if `committable=True`.,Input (optional)
 stand_by_cost,static or series,currency/h,0.,Stand-by cost for running the generator. This cost is incurred whenever the status is 1 (including when the dispatch decision is zero).,Input (optional)

@@ -50,3 +50,50 @@ def test_modular_components():
 
     equal(n.c.generators.static.p_nom_opt, expected_p_nom_opt_gen)
     equal(n.c.stores.static.e_nom_opt, expected_e_nom_opt_store)
+
+
+def test_modular_committable_with_ramp_limits():
+    n = pypsa.Network(snapshots=range(6))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[200, 500, 300, 600, 250, 550])
+
+    n.add(
+        "Generator",
+        "modgen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_max=800,
+        p_nom_mod=200,
+        p_min_pu=0.3,
+        marginal_cost=30,
+        capital_cost=100,
+        ramp_limit_up=0.5,
+        ramp_limit_down=0.5,
+        status=0,
+    )
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    p_nom_opt = n.c["Generator"].static.loc["modgen", "p_nom_opt"]
+    p_nom_mod = n.c["Generator"].static.loc["modgen", "p_nom_mod"]
+    assert p_nom_opt > 0
+    assert p_nom_opt % p_nom_mod == 0
+
+    p = n.c["Generator"].dynamic["p"]["modgen"]
+    u = n.c["Generator"].dynamic["status"]["modgen"]
+    ru = n.c["Generator"].static.loc["modgen", "ramp_limit_up"]
+    rd = n.c["Generator"].static.loc["modgen", "ramp_limit_down"]
+
+    constraints = list(n.model.constraints)
+    assert "Generator-p-ramp_limit_up" in constraints
+    assert "Generator-p-ramp_limit_down" in constraints
+
+    for t in range(1, len(p)):
+        delta = p.iloc[t] - p.iloc[t - 1]
+        u_prev, u_cur = u.iloc[t - 1], u.iloc[t]
+        startup = max(0, u_cur - u_prev)
+        shutdown = max(0, u_prev - u_cur)
+        assert delta <= ru * p_nom_mod * u_prev + 1.0 * p_nom_mod * startup + 1e-6
+        assert delta >= -rd * p_nom_mod * u_cur - 1.0 * p_nom_mod * shutdown - 1e-6

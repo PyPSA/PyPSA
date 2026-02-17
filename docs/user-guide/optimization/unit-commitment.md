@@ -35,9 +35,14 @@ i.e. $u_{*,t} = 1$:
     | $f_{l,t} \geq u_{l,t} \cdot \underline{f}_{l,t} \cdot \hat{f}_{l}$ | `Link-com-p-lower` |
     | $f_{l,t} \leq u_{l,t} \cdot \bar{f}_{l,t} \cdot \hat{f}_{l}$ | `Link-com-p-upper` |
 
-!!! warning
+!!! note | Combined with Capacity Expansion
 
-    Note that components cannot be both extendable (`p_nom_extendable=True`) and committable (`committable=True`) because of the non-linear coupling of status and capacity.
+Unit commitment can be combined with capacity expansion for co-optimized investment and operational decisions:
+
+- [Committable and Extendable Components](capacity-limits.md#committable-and-extendable-components) - Continuous capacity expansion with unit commitment using big-M formulation
+- [Modular and Committable Components](capacity-limits.md#modular-and-committable-components) - Discrete capacity blocks with integer commitment variables
+
+///
 
 If the **minimum up time** $T_{\textrm{min_up}}$ is set, status switches are constrained to ensure
 that the component is running for at least $T_{\textrm{min_up}}$ snapshots after it has been started up:
@@ -210,11 +215,15 @@ The implementation is based on Hua et al. (2017)[^2] and relaxes the binary unit
 
 $$u_{*,t},\quad su_{*,t},\quad sd_{*,t}\quad  \in [0,1]$$
 
-This allows for partial commitment states (generators can be partially on/off), making the problem more computationally tractable while loosing some accuracy. To enable this, use:
+This allows for partial commitment states (generators can be partially on/off), making the problem more computationally tractable while losing some accuracy. To enable this, use:
 
 ``` py
 n.optimize(linearized_unit_commitment=True)
 ```
+
+!!! warning "Not compatible with modular components"
+
+    Linearized unit commitment cannot be used with [modular committable components](capacity-limits.md#modular-and-committable-components) and will result in a `ValueError`.
 
 To tighten the relaxation, additional constraints are introduced that improve capturing the relationship between commitment status, ramping, and dispatch. This requires start up and shut down costs need to be equal. Otherwise the unit commitment variables are purely relaxed. The added constraints limit the dispatch during partial start-up and shut-down, as well as ramping during partial commitment:
 

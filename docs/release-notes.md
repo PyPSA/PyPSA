@@ -5,13 +5,15 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-## Upcoming Release
+<!--## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+
+## [**v1.1.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.1.0) <small>17th February 2026</small> { id="v1.1.0" }
 
 ### Features
 
@@ -27,10 +29,6 @@ SPDX-License-Identifier: CC-BY-4.0
     - `downsample(stride)` - Select every Nth snapshot as representative
     - `segment(num_segments)` - TSAM agglomerative clustering for variable-duration segments
     - `from_snapshot_map(snapshot_map)` - Apply pre-computed temporal aggregation
-
-    All methods preserve the snapshot weighting invariant and return the clustered network.
-    Use `get_resample_result()`, `get_downsample_result()`, `get_segment_result()`, or
-    `get_from_snapshot_map_result()` to also get the snapshot mapping for disaggregation.
 
 - New network sanitization and data integrity features (<!-- md:pr 1401 -->):
     - [`n.sanitize()`][pypsa.Network.sanitize]: Run the following methods to fix consistency issues.
@@ -53,6 +51,11 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add support for pandas 3.0, while maintaining compatibility with pandas 2.x. (<!-- md:pr 1556 -->)
 
+- Components can now be both committable and extendable simultaneously. This enables unit commitment with capacity expansion optimization using a big-M formulation that maintains the linear programming structure.
+
+- Components can now be committable and extendable together with modular capacity expansion. This enables unit commitment on single capacity modules within on asset. The formulation is compatible with start-up and shut-down costs, ramp-up and shut-down limit. The feature is not still compatible with min-up and min-down time, up and down time before.
+
+
 ### Bug Fixes
 
 - **Breaking**: Fix `ramp_limit_start_up` and `ramp_limit_shut_down` being ignored in the very first snapshot in binary unit commitment. The constraints are now properly applied when these attributes are explicitly set. (<!-- md:pr 1553 -->)
@@ -65,10 +68,11 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Documentation
 
 - New example notebooks:
-  - Demonstrating negative electricity prices in linearized unit commitment problem. See [:material-notebook-multiple: notebook](./examples/unit-commitment.ipynb). (<!-- md:pr 1434 -->)
-  - Combining PyPSA with Global Sensitivity Analysis (GSA) methods. See [:material-notebook-multiple: notebook](./examples/gsa.ipynb). (<!-- md:pr 1318 -->)
+    - Demonstrating negative electricity prices in linearized unit commitment problem. See [:material-notebook-multiple: notebook](./examples/unit-commitment.ipynb). (<!-- md:pr 1434 -->)
+    - Combining PyPSA with Global Sensitivity Analysis (GSA) methods. See [:material-notebook-multiple: notebook](./examples/gsa.ipynb). (<!-- md:pr 1318 -->)
 
-- Add internal constraint and global constraint functions to the API reference (see <!-- md:api networks/constraints.md -->). (~!-- md:pr 1495 -->)
+- Add internal constraint and global constraint functions to the API reference (see <!-- md:api networks/constraints.md -->). (<!-- md:pr 1495 -->)
+
 
 ## [**v1.0.7**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.7) <small>13th January 2026</small> { id="v1.0.7" }
 
