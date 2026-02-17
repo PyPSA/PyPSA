@@ -864,21 +864,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                             "Link", f"efficiency{i_suffix}", sns
                         )
                         port_df = -df * eff
-                        delay_attr = f"delay{i_suffix}"
-                        cyclic_attr = f"cyclic_delay{i_suffix}"
-                        if delay_attr in c.static.columns:
-                            delays = c.static[delay_attr]
-                            for d in delays[delays > 0].unique():
-                                cols = delays[delays == d].index
-                                cyclic = c.static.loc[cols, cyclic_attr]
-                                for cyc_val in cyclic.unique():
-                                    cyc_cols = cyclic[cyclic == cyc_val].index
-                                    if cyc_val:
-                                        port_df[cyc_cols] = np.roll(
-                                            port_df[cyc_cols].values, d, axis=0
-                                        )
-                                    else:
-                                        port_df[cyc_cols] = port_df[cyc_cols].shift(d)
+                        _, delayed_groups = n.c.links.split_by_port_delay(i)
+                        for group in delayed_groups:
+                            cols = group.names
+                            if group.is_cyclic:
+                                port_df[cols] = np.roll(
+                                    port_df[cols].values, group.delay, axis=0
+                                )
+                            else:
+                                port_df[cols] = port_df[cols].shift(group.delay)
                         _set_dynamic_data(n, c.name, f"p{i}", port_df)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]

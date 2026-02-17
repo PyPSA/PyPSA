@@ -720,50 +720,28 @@ def define_nodal_balance_constraints(
         for i in ["1"] + n.c.links.additional_ports:
             i_suffix = "" if i == "1" else i
             eff_attr = f"efficiency{i_suffix}"
-            delay_attr = f"delay{i_suffix}"
-            cyclic_attr = f"cyclic_delay{i_suffix}"
             eff = links.da[eff_attr].sel(snapshot=sns)
 
-            if (
-                delay_attr not in links.static.columns
-                or not (links.static.loc[active, delay_attr] > 0).any()
-            ):
-                args.append(["Link", "p", f"bus{i}", eff])
-                continue
-
-            delays = links.static[delay_attr]
-            has_delay = delays > 0
-            non_delayed = ~has_delay
+            non_delayed, delayed_groups = links.split_by_port_delay(i, subset=active)
             if non_delayed.any():
                 args.append(
                     [
                         "Link",
                         "p",
                         f"bus{i}",
-                        eff.sel(name=non_delayed[non_delayed].index),
+                        eff.sel(name=non_delayed),
                     ]
                 )
-
-            if cyclic_attr in links.static.columns:
-                cyclic = links.static[cyclic_attr]
-            else:
-                cyclic = pd.Series(True, index=links.static.index)
-
-            for d in delays[has_delay].unique():
-                mask = has_delay & (delays == d)
-                names = mask[mask].index
-                is_cyclic = cyclic.loc[names]
-                for cyc_val in is_cyclic.unique():
-                    cyc_names = is_cyclic[is_cyclic == cyc_val].index
-                    delayed_link_args.append(
-                        (
-                            f"bus{i}",
-                            eff.sel(name=cyc_names),
-                            cyc_names,
-                            int(d),
-                            bool(cyc_val),
-                        )
-                    )
+            delayed_link_args.extend(
+                (
+                    f"bus{i}",
+                    eff.sel(name=group.names),
+                    group.names,
+                    group.delay,
+                    group.is_cyclic,
+                )
+                for group in delayed_groups
+            )
 
     if transmission_losses:
         args.extend(
