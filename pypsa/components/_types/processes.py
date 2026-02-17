@@ -38,10 +38,7 @@ class Processes(Components):
     Examples
     --------
     >>> n.components.processes
-    'Process' Components
-    --------------------
-    Attached to PyPSA Network 'AC-DC-Meshed'
-    Components: 4
+    Empty 'Process' Components
 
     """
 
