@@ -701,7 +701,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.controllable_branch_components)
-        ['Link']
+        ['Link', 'Process']
 
         """
         return {"Link", "Process"}
@@ -773,7 +773,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.branch_components)
-        ['Line', 'Link', 'Transformer', 'Process']
+        ['Line', 'Link', 'Process', 'Transformer']
 
         """
         return self.passive_branch_components | self.controllable_branch_components

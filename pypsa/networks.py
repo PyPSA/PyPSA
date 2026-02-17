@@ -1121,17 +1121,9 @@ class Network(
     def controllable_branches(self) -> pd.DataFrame:
         """Get controllable branches.
 
-        <<<<<<< HEAD
-                <!-- md:badge-version v0.3.0 -->
+        <!-- md:badge-version v0.3.0 -->
 
-                Controllable branches are Links and Processes.
-        ||||||| 18718979
-                Controllable branches are Links.
-        =======
-                <!-- md:badge-version v0.3.0 -->
-
-                Controllable branches are Links.
-        >>>>>>> master
+        Controllable branches are Links and Processes.
 
                 !!! note
 

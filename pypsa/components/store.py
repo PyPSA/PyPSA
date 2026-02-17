@@ -73,6 +73,7 @@ class ComponentsStore(dict):
         - 0 'StorageUnit' Components
         - 7 'Line' Components
         - 59 'LineType' Components
+        - 0 'Process' Components
         - 0 'Transformer' Components
         - 14 'TransformerType' Components
         - 0 'ShuntImpedance' Components
@@ -111,6 +112,7 @@ class ComponentsStore(dict):
         - 0 'StorageUnit' Components
         - 7 'Line' Components
         - 59 'LineType' Components
+        - 0 'Process' Components
         - 0 'Transformer' Components
         - 14 'TransformerType' Components
         - 0 'ShuntImpedance' Components
