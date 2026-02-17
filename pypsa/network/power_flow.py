@@ -183,7 +183,7 @@ def _network_prepare_and_run_pf(
                 n.c.processes.static[f"bus{i}"] != ""
             ]
             n.c.processes.dynamic[f"p{i}"].loc[sns, processes] = (
-                p_set.loc[sns, processes] * rate.loc[sns, processes]
+                -p_set.loc[sns, processes] * rate.loc[sns, processes]
             )
 
     itdf = pd.DataFrame(index=sns, columns=n.c.sub_networks.static.index, dtype=int)
