@@ -629,6 +629,10 @@ def typical_periods(
         msg = "typical_periods() does not yet support networks with investment periods"
         raise NotImplementedError(msg)
 
+    if not isinstance(n.snapshots, pd.DatetimeIndex):
+        msg = "typical_periods() requires snapshots to be a DatetimeIndex"
+        raise TypeError(msg)
+
     if num_typical_periods < 1:
         msg = f"num_typical_periods must be >= 1, got {num_typical_periods}"
         raise ValueError(msg)
@@ -638,9 +642,12 @@ def typical_periods(
         raise ValueError(msg)
 
     if num_typical_periods * num_days_per_period > len(np.unique(n.snapshots.date)):
-        msg = f"Number of days represented by the typical periods ({num_typical_periods * num_days_per_period:.0f}) cannot exceed number of unique days in snapshots ({len(np.unique(n.snapshots.date))})"
+        msg = (
+            f"Number of days represented by the typical periods "
+            f"({num_typical_periods * num_days_per_period:.0f}) cannot exceed number of "
+            f"unique days in snapshots ({len(np.unique(n.snapshots.date))})"
+        )
         raise ValueError(msg)
-
     agg, _, _ = _prep_tsam_agg(
         n,
         exclude_attrs=exclude_attrs,
@@ -722,8 +729,12 @@ def _prep_tsam_agg(
     normalization_factors = combined.max().replace(0, 1)
     df_normalized = combined.div(normalization_factors)
     df_normalized = df_normalized.fillna(0)
+    try:
+        agg = tsam_module.TimeSeriesAggregation(df_normalized, **tsam_kwargs)
+    except ValueError as e:
+        msg = f"Error preparing TSAM aggregation: {e}"
+        raise ValueError(msg) from e
 
-    agg = tsam_module.TimeSeriesAggregation(df_normalized, **tsam_kwargs)
     return agg, col_attrs, normalization_factors
 
 
