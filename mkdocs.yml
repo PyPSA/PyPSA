@@ -110,6 +110,8 @@ nav:
     - examples/mga.ipynb
     - examples/near-opt-space.ipynb
     - examples/modular-expansion.ipynb
+    - examples/committable-extendable.ipynb
+    - examples/modular-committable.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
     - examples/islanded-methanol-production.ipynb
