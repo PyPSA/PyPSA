@@ -960,14 +960,15 @@ def define_nodal_balance_constraints(
     delayed_link_args: list[tuple[str, Any, pd.Index, int, bool]] = []
     if not links.empty:
         active = links.active_assets
-        if isinstance(active, pd.MultiIndex):
-            active = active.unique("name")
         for i in ["1"] + n.c.links.additional_ports:
             i_suffix = "" if i == "1" else i
             eff_attr = f"efficiency{i_suffix}"
             eff = links.da[eff_attr].sel(snapshot=sns)
 
-            non_delayed, delayed_groups = links.split_by_port_delay(i, subset=active)
+            non_delayed, delayed_groups = links.split_by_port_delay(i)
+            if isinstance(non_delayed, pd.MultiIndex):
+                non_delayed = non_delayed.get_level_values("name").unique()
+            non_delayed = non_delayed.intersection(active)
             if not non_delayed.empty:
                 args.append(
                     [
@@ -977,16 +978,22 @@ def define_nodal_balance_constraints(
                         eff.sel(name=non_delayed),
                     ]
                 )
-            delayed_link_args.extend(
-                (
-                    f"bus{i}",
-                    eff.sel(name=group.names),
-                    group.names,
-                    group.delay,
-                    group.is_cyclic,
+            for group in delayed_groups:
+                names = group.names
+                if isinstance(names, pd.MultiIndex):
+                    names = names.get_level_values("name").unique()
+                names = names.intersection(active)
+                if names.empty:
+                    continue
+                delayed_link_args.append(
+                    (
+                        f"bus{i}",
+                        eff.sel(name=names),
+                        names,
+                        group.delay,
+                        group.is_cyclic,
+                    )
                 )
-                for group in delayed_groups
-            )
 
     if transmission_losses:
         args.extend(
