@@ -51,7 +51,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add support for pandas 3.0, while maintaining compatibility with pandas 2.x. (<!-- md:pr 1556 -->)
 
-- Add snapshot-based delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Link withdrawals at `bus0` now arrive at output ports after the configured number of snapshots, with cyclic or non-cyclic boundary behavior.
+- Add weighted-time delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior.
 
 ### Bug Fixes
 

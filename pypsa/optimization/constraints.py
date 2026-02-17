@@ -717,13 +717,15 @@ def define_nodal_balance_constraints(
     delayed_link_args: list[tuple[str, Any, pd.Index, int, bool]] = []
     if not links.empty:
         active = links.active_assets
+        if isinstance(active, pd.MultiIndex):
+            active = active.unique("name")
         for i in ["1"] + n.c.links.additional_ports:
             i_suffix = "" if i == "1" else i
             eff_attr = f"efficiency{i_suffix}"
             eff = links.da[eff_attr].sel(snapshot=sns)
 
             non_delayed, delayed_groups = links.split_by_port_delay(i, subset=active)
-            if non_delayed.any():
+            if not non_delayed.empty:
                 args.append(
                     [
                         "Link",
@@ -784,14 +786,25 @@ def define_nodal_balance_constraints(
             exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
 
     for bus_col, eff, names, delay, is_cyclic in delayed_link_args:
-        active_names = names.intersection(links.active_assets)
+        active_names = names.intersection(active)
         if active_names.empty:
             continue
-        link_p = m["Link-p"].sel(name=active_names.values)
-        if is_cyclic:
-            shifted_p = link_p.roll(snapshot=delay)
-        else:
-            shifted_p = link_p.shift(snapshot=delay)
+
+        src_snapshot_pos, valid = links.get_delay_source_indexer(
+            sns,
+            n.snapshot_weightings.generators.loc[sns],
+            delay,
+            is_cyclic,
+        )
+        valid_mask = DataArray(
+            valid.astype(float),
+            dims=["snapshot"],
+            coords={"snapshot": sns},
+        )
+
+        link_p = m["Link-p"].sel(name=active_names)
+        shifted_p = link_p.isel(snapshot=src_snapshot_pos).assign_coords(snapshot=sns)
+        shifted_p = shifted_p * valid_mask
         expr = eff.sel(name=active_names) * shifted_p
         cbuses = links._as_xarray(bus_col).sel(name=active_names)
         if n.has_scenarios:

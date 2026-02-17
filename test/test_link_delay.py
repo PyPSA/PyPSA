@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 import pypsa
+import pypsa.consistency
 
 
 @pytest.fixture
@@ -182,3 +183,80 @@ def test_link_delay_equal_to_horizon(base_network):
     p0 = n.c.links.dynamic.p0["link"].values
     p1 = n.c.links.dynamic.p1["link"].values
     np.testing.assert_allclose(p1, -0.9 * p0)
+
+
+def test_link_delay_uses_generator_snapshot_weightings_cyclic(base_network):
+    n = base_network
+    n.snapshot_weightings.loc[:, "generators"] = [1, 2, 1, 2, 1, 2]
+    n.add("Load", "load", bus="bus1", p_set=[10, 20, 30, 40, 50, 60])
+    n.add(
+        "Link",
+        "link",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom=100,
+        efficiency=0.9,
+        delay=3,
+        cyclic_delay=True,
+    )
+    n.optimize()
+    p0 = n.c.links.dynamic.p0["link"].values
+    p1 = n.c.links.dynamic.p1["link"].values
+    expected_source = [4, 5, 0, 1, 2, 3]
+    for t in range(6):
+        np.testing.assert_allclose(p1[t], -0.9 * p0[expected_source[t]])
+
+
+def test_link_delay_uses_generator_snapshot_weightings_non_cyclic(base_network):
+    n = base_network
+    n.snapshot_weightings.loc[:, "generators"] = [1, 2, 1, 2, 1, 2]
+    n.add("Load", "load", bus="bus1", p_set=[10, 20, 30, 40, 50, 60])
+    n.add(
+        "Link",
+        "link",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom=100,
+        efficiency=0.9,
+        delay=3,
+        cyclic_delay=False,
+    )
+    n.optimize()
+    p0 = n.c.links.dynamic.p0["link"].values
+    p1 = n.c.links.dynamic.p1["link"].values
+    np.testing.assert_allclose(p1[0], 0.0, atol=1e-10)
+    np.testing.assert_allclose(p1[1], 0.0, atol=1e-10)
+    expected_source = [0, 1, 2, 3]
+    for t in range(2, 6):
+        np.testing.assert_allclose(p1[t], -0.9 * p0[expected_source[t - 2]])
+
+
+def test_link_delay_with_scenarios_non_delayed_regression():
+    n = pypsa.examples.ac_dc_meshed()
+    n.set_scenarios({"low": 0.3, "high": 0.7})
+    status, _ = n.optimize()
+    assert status == "ok"
+
+
+@pytest.mark.parametrize("strict", [[], ["link_delays"]])
+def test_consistency_negative_delay(base_network, caplog, strict):
+    n = base_network
+    n.add("Link", "link", bus0="bus0", bus1="bus1", p_nom=100, delay=-1)
+    if strict:
+        with pytest.raises(pypsa.consistency.ConsistencyError, match="Negative delay"):
+            n.consistency_check(strict=strict)
+    else:
+        n.consistency_check()
+        assert any("Negative delay" in r.message for r in caplog.records)
+
+
+@pytest.mark.parametrize("strict", [[], ["link_delays"]])
+def test_consistency_delay_exceeds_horizon(base_network, caplog, strict):
+    n = base_network
+    n.add("Link", "link", bus0="bus0", bus1="bus1", p_nom=100, delay=6)
+    if strict:
+        with pytest.raises(pypsa.consistency.ConsistencyError, match="equal or exceed"):
+            n.consistency_check(strict=strict)
+    else:
+        n.consistency_check()
+        assert any("equal or exceed" in r.message for r in caplog.records)

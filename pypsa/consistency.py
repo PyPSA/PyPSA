@@ -458,6 +458,59 @@ def check_assets(n: NetworkType, component: Components, strict: bool = False) ->
             )
 
 
+def check_link_delays(
+    n: NetworkType, component: Components, strict: bool = False
+) -> None:
+    """Check that link delay attributes are valid.
+
+    Validates that delay values are non-negative and do not exceed the number
+    of snapshots in the optimization horizon.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    component : pypsa.Component
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if component.name != "Link" or component.static.empty:
+        return
+
+    n_snapshots = len(n.snapshots)
+    delay_cols = [
+        col
+        for col in component.static.columns
+        if col == "delay" or (col.startswith("delay") and col[5:].isdigit())
+    ]
+    for col in delay_cols:
+        values = component.static[col]
+        negative = values[values < 0]
+        if not negative.empty:
+            _log_or_raise(
+                strict,
+                "Negative delay values in column '%s' of Link for assets:\n\n\t%s",
+                col,
+                ", ".join(negative.index.astype(str)),
+            )
+        too_large = values[values >= n_snapshots]
+        if not too_large.empty:
+            _log_or_raise(
+                strict,
+                "Delay values in column '%s' of Link equal or exceed the number of"
+                " snapshots (%d) for assets:\n\n\t%s",
+                col,
+                n_snapshots,
+                ", ".join(too_large.index.astype(str)),
+            )
+
+
 def check_cost_consistency(component: Components, strict: bool = False) -> None:
     """Check if both overnight_cost and capital_cost are set for the same asset.
 
@@ -855,6 +908,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "assets",
             "generators",
             "cost_consistency",
+            "link_delays",
             "disconnected_buses",
             "investment_periods",
             "shapes",
@@ -904,6 +958,8 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_generators(c, "generators" in strict)
             # Checks cost attributes consistency
             check_cost_consistency(c)
+            # Checks link delay attributes
+            check_link_delays(self, c, "link_delays" in strict)
 
             if check_dtypes:
                 check_dtypes_(c, "dtypes" in strict)

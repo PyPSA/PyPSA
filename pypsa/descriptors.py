@@ -267,9 +267,9 @@ def _update_linkports_component_attrs(
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         ports = _additional_linkports(n, where)
     ports.sort(reverse=True)
-    c = "Link"
+    c_name = "Link"
     # Ensure link defaults mutations are local to this network instance.
-    c = n.components[c]
+    c = n.components[c_name]
     c.ctype = replace(c.ctype, defaults=c.defaults.copy(deep=True))
     defaults = c.defaults
 
@@ -288,10 +288,10 @@ def _update_linkports_component_attrs(
         defaults.loc[target] = defaults.loc[base_attr].apply(
             _update_linkports_doc_changes, args=("1", i)
         )
-        if attr in dynamic_attrs and target not in n.c[c].dynamic:
+        if attr in dynamic_attrs and target not in n.c[c_name].dynamic:
             df = pd.DataFrame(
                 index=n.snapshots, columns=n.c.links.static.index[:0], dtype=float
             )
-            n.c[c].dynamic[target] = df
-        elif attr in static_attrs and target not in n.c[c].static.columns:
-            n.c[c].static[target] = defaults.loc[target, "default"]
+            n.c[c_name].dynamic[target] = df
+        elif attr in static_attrs and target not in n.c[c_name].static.columns:
+            n.c[c_name].static[target] = defaults.loc[target, "default"]

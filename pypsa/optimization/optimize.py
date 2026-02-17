@@ -864,15 +864,23 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                             "Link", f"efficiency{i_suffix}", sns
                         )
                         port_df = -df * eff
+                        delay_weightings = n.snapshot_weightings.generators.loc[sns]
                         _, delayed_groups = n.c.links.split_by_port_delay(i)
                         for group in delayed_groups:
                             cols = group.names
-                            if group.is_cyclic:
-                                port_df[cols] = np.roll(
-                                    port_df[cols].values, group.delay, axis=0
+                            src_snapshot_pos, valid = (
+                                n.c.links.get_delay_source_indexer(
+                                    sns,
+                                    delay_weightings,
+                                    group.delay,
+                                    group.is_cyclic,
                                 )
-                            else:
-                                port_df[cols] = port_df[cols].shift(group.delay)
+                            )
+                            delayed_values = port_df[cols].to_numpy()[
+                                src_snapshot_pos, :
+                            ]
+                            delayed_values[~valid, :] = 0.0
+                            port_df[cols] = delayed_values
                         _set_dynamic_data(n, c.name, f"p{i}", port_df)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]

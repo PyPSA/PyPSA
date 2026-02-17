@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+import numpy as np
 import pandas as pd
 
 from pypsa.common import list_as_string
@@ -175,3 +176,48 @@ class Links(Components):
                 grouped.append(Links.DelayGroup(int(d), bool(cyc_val), cyc_names))
 
         return non_delayed, grouped
+
+    @staticmethod
+    def get_delay_source_indexer(
+        snapshots: pd.Index,
+        weightings: pd.Series,
+        delay: int,
+        is_cyclic: bool,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Get per-snapshot source positions for link delays.
+
+        Delay is interpreted in elapsed time units. For each target snapshot
+        ``t``, the source is the latest snapshot ``s`` such that
+        ``tau[s] <= tau[t] - delay``, where ``tau`` are cumulative weighting starts.
+        """
+        n_snapshots = len(snapshots)
+        if n_snapshots == 0:
+            return np.array([], dtype=int), np.array([], dtype=bool)
+        if delay <= 0:
+            src = np.arange(n_snapshots, dtype=int)
+            return src, np.ones(n_snapshots, dtype=bool)
+
+        weights = weightings.reindex(snapshots).astype(float).to_numpy()
+        if (weights < 0).any():
+            msg = "Negative snapshot weightings are not supported for link delays."
+            raise ValueError(msg)
+
+        tau = np.concatenate(([0.0], np.cumsum(weights[:-1])))
+        src_time = tau - float(delay)
+
+        if is_cyclic:
+            total = float(weights.sum())
+            if total <= 0:
+                msg = (
+                    "Cyclic weighted link delay requires a positive total "
+                    "snapshot weighting over the optimized snapshots."
+                )
+                raise ValueError(msg)
+            src_time = np.mod(src_time, total)
+            valid = np.ones(n_snapshots, dtype=bool)
+        else:
+            valid = src_time >= 0
+
+        src = np.searchsorted(tau, src_time, side="right") - 1
+        src = np.clip(src, 0, n_snapshots - 1).astype(int)
+        return src, valid
