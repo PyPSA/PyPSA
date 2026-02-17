@@ -49,6 +49,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add `p_init` attribute to generators and links. This specifies the initial active power for ramp limit constraints at the first snapshot, enabling ramp constraints to be applied from the very start of an optimization horizon. (<!-- md:pr 1553 -->)
 
+- Allow filtering by carrier nice names in statistics methods. When `nice_names=True`, the `bus_carrier` and `carrier` parameters now accept nice names in addition to carrier names. (<!-- md:pr 1565 -->)
+
 - Add support for pandas 3.0, while maintaining compatibility with pandas 2.x. (<!-- md:pr 1556 -->)
 
 - Add weighted-time delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior.

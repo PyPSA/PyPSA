@@ -557,36 +557,6 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
     return deprecated_kwargs(network="n", deprecated_in="0.31", removed_in="1.0")(f)
 
 
-def deprecated_in_next_major(details: str) -> Callable:
-    """Wrap the @deprecated decorator to only require specifying the details.
-
-    Deprecates the function in the next major version and removes it in the
-    following major version. Currently set to deprecate in version 1.0 and remove
-    in version 2.0.
-
-    Parameters
-    ----------
-    details : str
-        Details about the deprecation.
-
-    Returns
-    -------
-    Callable
-        A decorator that marks the function as deprecated.
-
-    """
-
-    def decorator(func: Callable) -> Callable:
-        return deprecated(
-            deprecated_in="1.0rc1",
-            removed_in="2.0",
-            current_version=__version_base__,
-            details=details,
-        )(func)
-
-    return decorator
-
-
 def deprecated_namespace(
     func: Callable,
     previous_module: str,
@@ -878,8 +848,7 @@ def _scenarios_not_implemented(func: Callable) -> Callable:
 
     @functools.wraps(func)
     def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-        # Check if self is the network or has an 'n' attribute pointing to the network
-        network = getattr(self, "n", self)
+        network = getattr(self, "_n", self)
         if network.has_scenarios:
             msg = f"Method '{func.__name__}' is not yet implemented for stochastic networks."
             raise ValueError(msg)
@@ -956,3 +925,47 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     from pypsa.costs import annuity as costs_annuity  # noqa: PLC0415
 
     return costs_annuity(r, n)
+
+
+def normalize_carrier_nice_names(
+    nice_name_series: pd.Series,
+    carrier: str | Sequence[str] | None,
+) -> str | Sequence[str] | None:
+    """Normalize carrier nice names to carrier names.
+
+    Parameters
+    ----------
+    nice_name_series : pd.Series
+        Series with carrier names as index and nice names as values
+        (i.e. ``n.c.carriers.static.nice_name``).
+    carrier : str | Sequence[str] | None
+        Carrier name(s) to normalize.
+
+    Returns
+    -------
+    str | Sequence[str] | None
+        Normalized carrier name(s).
+
+    """
+    if carrier is None:
+        return None
+
+    if isinstance(carrier, str):
+        carriers = [carrier]
+        scalar = True
+    elif isinstance(carrier, list):
+        carriers = carrier
+        scalar = False
+    else:
+        return carrier
+
+    nice_names = nice_name_series[nice_name_series != ""]
+    if nice_names.empty:
+        return carrier
+
+    unique_nice_names = nice_names[~nice_names.duplicated(keep=False)]
+    nice_name_to_carrier = pd.Series(
+        unique_nice_names.index, index=unique_nice_names.values
+    )
+    normalized = [nice_name_to_carrier.get(name, name) for name in carriers]
+    return normalized[0] if scalar else normalized

@@ -359,3 +359,67 @@ def test_prices(ac_dc_network_r):
     # Test groupby bus_carrier
     grouped = n.statistics.prices(groupby="bus_carrier")
     assert set(grouped.index) == set(n.c.buses.static.carrier.unique())
+
+
+@pytest.fixture
+def network_with_nice_name():
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Carrier", "rural heat", nice_name="residential rural heat")
+    n.add("Bus", "heat bus", carrier="rural heat", unit="MW")
+    n.add(
+        "Load",
+        "heat load",
+        bus="heat bus",
+        carrier="rural heat",
+        p_set=[1.0],
+    )
+    n.c.loads.dynamic.p = n.c.loads.dynamic.p_set.copy()
+    return n
+
+
+def test_energy_balance_bus_carrier_filter():
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Carrier", "rural heat")
+    n.add("Bus", "heat bus", carrier="rural heat", unit="MW")
+    n.add(
+        "Load",
+        "heat load",
+        bus="heat bus",
+        carrier="rural heat",
+        p_set=[1.0],
+    )
+    n.c.loads.dynamic.p = n.c.loads.dynamic.p_set.copy()
+
+    result = n.statistics.energy_balance(bus_carrier="rural heat")
+    assert not result.empty
+    assert "bus_carrier" in result.index.names
+    assert "rural heat" in result.index.get_level_values("bus_carrier")
+
+
+def test_energy_balance_bus_carrier_nice_name_filter(network_with_nice_name):
+    n = network_with_nice_name
+
+    displayed = n.statistics.energy_balance(nice_names=True)
+    assert "residential rural heat" in displayed.index.get_level_values("bus_carrier")
+
+    result = n.statistics.energy_balance(
+        bus_carrier="residential rural heat", nice_names=True
+    )
+    assert not result.empty
+    assert "residential rural heat" in result.index.get_level_values("bus_carrier")
+
+
+def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
+    n = network_with_nice_name
+
+    result = n.statistics.energy_balance(
+        carrier="residential rural heat", nice_names=True
+    )
+    assert not result.empty
+
+    result = n.statistics.energy_balance(
+        carrier="residential rural heat", nice_names=False
+    )
+    assert result.empty
