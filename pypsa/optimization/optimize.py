@@ -859,11 +859,27 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p0", df)
 
                     for i in ["1"] + n.c.links.additional_ports:
-                        i_eff = "" if i == "1" else i
+                        i_suffix = "" if i == "1" else i
                         eff = n.get_switchable_as_dense(
-                            "Link", f"efficiency{i_eff}", sns
+                            "Link", f"efficiency{i_suffix}", sns
                         )
-                        _set_dynamic_data(n, c.name, f"p{i}", -df * eff)
+                        port_df = -df * eff
+                        delay_attr = f"delay{i_suffix}"
+                        cyclic_attr = f"cyclic_delay{i_suffix}"
+                        if delay_attr in c.static.columns:
+                            delays = c.static[delay_attr]
+                            for d in delays[delays > 0].unique():
+                                cols = delays[delays == d].index
+                                cyclic = c.static.loc[cols, cyclic_attr]
+                                for cyc_val in cyclic.unique():
+                                    cyc_cols = cyclic[cyclic == cyc_val].index
+                                    if cyc_val:
+                                        port_df[cyc_cols] = np.roll(
+                                            port_df[cyc_cols].values, d, axis=0
+                                        )
+                                    else:
+                                        port_df[cyc_cols] = port_df[cyc_cols].shift(d)
+                        _set_dynamic_data(n, c.name, f"p{i}", port_df)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
                         ] = float(c.defaults.loc[f"p{i}", "default"])

@@ -268,24 +268,27 @@ def _update_linkports_component_attrs(
     ports.sort(reverse=True)
     c = "Link"
 
-    for i, attr in product(ports, ["bus", "efficiency", "p"]):
+    static_attrs = ["bus", "delay", "cyclic_delay"]
+    dynamic_attrs = ["efficiency", "p"]
+    for i, attr in product(ports, static_attrs + dynamic_attrs):
         target = f"{attr}{i}"
         if target in n.components[c]["defaults"].index:
             continue
-        j = "1" if attr != "efficiency" else ""
+        j = "1" if attr in ("bus", "p") else ""
         base_attr = attr + j
+        if base_attr not in n.components[c]["defaults"].index:
+            continue
         base_attr_index = n.components[c]["defaults"].index.get_loc(base_attr)
         n.components[c]["defaults"].index.insert(base_attr_index + 1, target)
         n.components[c]["defaults"].loc[target] = (
             n.components[c]["defaults"]
-            .loc[attr + j]
+            .loc[base_attr]
             .apply(_update_linkports_doc_changes, args=("1", i))
         )
-        # Also update container for varying attributes
-        if attr in ["efficiency", "p"] and target not in n.c[c].dynamic:
+        if attr in dynamic_attrs and target not in n.c[c].dynamic:
             df = pd.DataFrame(
                 index=n.snapshots, columns=n.c.links.static.index[:0], dtype=float
             )
             n.c[c].dynamic[target] = df
-        elif attr == "bus" and target not in n.c[c].static.columns:
+        elif attr in static_attrs and target not in n.c[c].static.columns:
             n.c[c].static[target] = n.components[c]["defaults"].loc[target, "default"]

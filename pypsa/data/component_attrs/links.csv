@@ -28,6 +28,8 @@ stand_by_cost,static or series,currency/h,0.,Stand-by cost for operating the lin
 length,float,km,0,"Length of the link. Useful for calculating `capital_cost` for HVDC connections.",Input (optional)
 terrain_factor,float,per unit,1,Terrain factor for increasing `capital_cost` calculated from `length`.,Input (optional)
 committable,boolean,n/a,False,Apply unit commitment constraints. This is only possible with `p_nom_extendable=False`.,Input (optional)
+delay,int,snapshots,0,"Number of snapshots by which energy delivery to `bus1` is delayed. Energy withdrawn from `bus0` at snapshot `t` arrives at `bus1` at snapshot `t + delay`. Auto-expanded as `delay2`, `delay3`, etc. for additional ports.",Input (optional)
+cyclic_delay,boolean,n/a,True,"Whether delayed energy wraps cyclically from end to start of the optimization period. If False, energy is lost at the tail and first snapshots receive nothing from delayed links. Auto-expanded as `cyclic_delay2`, `cyclic_delay3`, etc. for additional ports.",Input (optional)
 start_up_cost,float,currency,0,Cost to start up the link. Only used if `committable=True`.,Input (optional)
 shut_down_cost,float,currency,0,Cost to shut down the link. Only used if `committable=True`.,Input (optional)
 min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1.  Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)

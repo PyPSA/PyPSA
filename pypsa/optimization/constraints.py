@@ -712,14 +712,58 @@ def define_nodal_balance_constraints(
         ["Transformer", "s", "bus0", -1],
         ["Transformer", "s", "bus1", 1],
         ["Link", "p", "bus0", -1],
-        ["Link", "p", "bus1", links.da.efficiency.sel(snapshot=sns)],
     ]
 
+    delayed_link_args: list[tuple[str, Any, pd.Index, int, bool]] = []
     if not links.empty:
-        for i in n.c.links.additional_ports:
-            eff_attr = f"efficiency{i}" if i != "1" else "efficiency"
+        active = links.active_assets
+        for i in ["1"] + n.c.links.additional_ports:
+            i_suffix = "" if i == "1" else i
+            eff_attr = f"efficiency{i_suffix}"
+            delay_attr = f"delay{i_suffix}"
+            cyclic_attr = f"cyclic_delay{i_suffix}"
             eff = links.da[eff_attr].sel(snapshot=sns)
-            args.append(["Link", "p", f"bus{i}", eff])
+
+            if (
+                delay_attr not in links.static.columns
+                or not (links.static.loc[active, delay_attr] > 0).any()
+            ):
+                args.append(["Link", "p", f"bus{i}", eff])
+                continue
+
+            delays = links.static[delay_attr]
+            has_delay = delays > 0
+            non_delayed = ~has_delay
+            if non_delayed.any():
+                args.append(
+                    [
+                        "Link",
+                        "p",
+                        f"bus{i}",
+                        eff.sel(name=non_delayed[non_delayed].index),
+                    ]
+                )
+
+            if cyclic_attr in links.static.columns:
+                cyclic = links.static[cyclic_attr]
+            else:
+                cyclic = pd.Series(True, index=links.static.index)
+
+            for d in delays[has_delay].unique():
+                mask = has_delay & (delays == d)
+                names = mask[mask].index
+                is_cyclic = cyclic.loc[names]
+                for cyc_val in is_cyclic.unique():
+                    cyc_names = is_cyclic[is_cyclic == cyc_val].index
+                    delayed_link_args.append(
+                        (
+                            f"bus{i}",
+                            eff.sel(name=cyc_names),
+                            cyc_names,
+                            int(d),
+                            bool(cyc_val),
+                        )
+                    )
 
     if transmission_losses:
         args.extend(
@@ -757,6 +801,27 @@ def define_nodal_balance_constraints(
         if column in ["bus" + i for i in n.c.links.additional_ports]:
             cbuses = cbuses[cbuses != ""]
 
+        expr = expr.sel(name=cbuses.coords["name"].values)
+        if expr.size:
+            exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
+
+    for bus_col, eff, names, delay, is_cyclic in delayed_link_args:
+        active_names = names.intersection(links.active_assets)
+        if active_names.empty:
+            continue
+        link_p = m["Link-p"].sel(name=active_names.values)
+        if is_cyclic:
+            shifted_p = link_p.roll(snapshot=delay)
+        else:
+            shifted_p = link_p.shift(snapshot=delay)
+        expr = eff.sel(name=active_names) * shifted_p
+        cbuses = links._as_xarray(bus_col).sel(name=active_names)
+        if n.has_scenarios:
+            cbuses = cbuses.isel(scenario=0, drop=True)
+        cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
+        cbuses = cbuses[cbuses != ""]
+        if not cbuses.size:
+            continue
         expr = expr.sel(name=cbuses.coords["name"].values)
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
