@@ -18,8 +18,9 @@ from itertools import repeat
 from typing import TYPE_CHECKING
 
 import pandas as pd
+from deprecation import deprecated
 
-from pypsa.common import deprecated_in_next_major, normalize_carrier_nice_names
+from pypsa.common import normalize_carrier_nice_names
 from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
 
@@ -37,7 +38,9 @@ class NetworkDescriptorsMixin(_NetworkABC):
     within any Network instance.
     """
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `n.components[c].extendables` instead.",
     )
     def get_extendable_i(self, c: str) -> pd.Index:
@@ -49,7 +52,11 @@ class NetworkDescriptorsMixin(_NetworkABC):
         """
         return self.components[c].extendables
 
-    @deprecated_in_next_major(details="Use `n.components[c].fixed` instead.")
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `n.components[c].fixed` instead.",
+    )
     def get_non_extendable_i(self, c: str) -> pd.Index:
         """Getter function.
 
@@ -59,7 +66,11 @@ class NetworkDescriptorsMixin(_NetworkABC):
         """
         return self.components[c].fixed
 
-    @deprecated_in_next_major(details="Use `n.components[c].committables` instead.")
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `n.components[c].committables` instead.",
+    )
     def get_committable_i(self, c: str) -> pd.Index:
         """Getter function.
 
@@ -69,8 +80,10 @@ class NetworkDescriptorsMixin(_NetworkABC):
         """
         return self.components[c].committables
 
-    @deprecated_in_next_major(
-        details="Use `n.components[c].get_active_assets` instead."
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `n.components[c].get_active_assets` instead.",
     )
     def get_active_assets(
         self,

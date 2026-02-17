@@ -170,15 +170,32 @@ def test_cluster_accessor(scipy_network):
     prepare_network_for_aggregation(n)
 
     weighting = pd.Series(1, n.c.buses.static.index)
-    busmap = n.cluster.busmap_by_kmeans(
+    busmap = n.cluster.spatial.busmap_by_kmeans(
         bus_weightings=weighting, n_clusters=50, random_state=42
     )
-    buses = n.cluster.cluster_by_busmap(busmap).buses
+    buses = n.cluster.spatial.cluster_by_busmap(busmap).buses
 
-    buses_direct = n.cluster.cluster_spatially_by_kmeans(
+    buses_direct = n.cluster.spatial.cluster_by_kmeans(
         bus_weightings=weighting, n_clusters=50, random_state=42
     ).buses
     assert buses.equals(buses_direct)
+
+
+def test_cluster_accessor_deprecated(scipy_network):
+    n = scipy_network
+    prepare_network_for_aggregation(n)
+
+    weighting = pd.Series(1, n.c.buses.static.index)
+    with pytest.warns(DeprecationWarning, match="n.cluster.spatial"):
+        busmap = n.cluster.busmap_by_kmeans(
+            bus_weightings=weighting, n_clusters=50, random_state=42
+        )
+    with pytest.warns(DeprecationWarning, match="n.cluster.spatial"):
+        n.cluster.cluster_by_busmap(busmap)
+    with pytest.warns(DeprecationWarning, match="n.cluster.spatial"):
+        n.cluster.cluster_spatially_by_kmeans(
+            bus_weightings=weighting, n_clusters=50, random_state=42
+        )
 
 
 def test_custom_line_groupers(scipy_network):
