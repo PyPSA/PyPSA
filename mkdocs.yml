@@ -123,6 +123,7 @@ nav:
   - Advanced Topics:
     - examples/scigrid-redispatch.ipynb
     - examples/demand-elasticity.ipynb
+    - examples/imperfect-competition.ipynb
     - examples/generation-investment-screening-curve.ipynb
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer-example.ipynb
