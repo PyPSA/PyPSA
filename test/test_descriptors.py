@@ -114,6 +114,60 @@ def test_additional_ports():
     assert ports == n.c.links.additional_ports
 
 
+def test_additional_ports_process():
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add("Bus", "bus3")
+    n.add(
+        "Process",
+        "proc0",
+        bus0="bus0",
+        bus1="bus1",
+        bus2="bus2",
+        bus3="bus3",
+        rate0=-1,
+        rate1=0.5,
+        rate2=0.3,
+        rate3=0.1,
+        p_nom=10,
+    )
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        ports = _additional_ports(n, n.c.processes.static.columns, c="Process")
+    assert sorted(ports) == ["2", "3"]
+    assert sorted(ports) == sorted(n.c.processes.additional_ports)
+
+
+def test_update_ports_component_attrs_process():
+    from pypsa.descriptors import _update_ports_component_attrs
+
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add(
+        "Process",
+        "proc0",
+        bus0="bus0",
+        bus1="bus1",
+        bus2="bus2",
+        rate0=-1,
+        rate1=0.5,
+        rate2=0.3,
+        p_nom=10,
+    )
+
+    _update_ports_component_attrs(n, c="Process")
+    defaults = n.components["Process"]["defaults"]
+    assert "bus2" in defaults.index
+    assert "rate2" in defaults.index
+    assert "p2" in defaults.index
+
+
 def test_get_bounds_pu():
     n = pypsa.Network()
     n.snapshots = pd.date_range("2019-01-01", "2019-01-02", freq="h")
