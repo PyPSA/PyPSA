@@ -52,7 +52,7 @@ plant).
 
 ## Time-Delayed Energy Delivery
 
-Links can model time-delayed energy transport via the `delay` and `cyclic_delay` attributes. This is useful for representing transport delays in gas pipelines, hydrogen shipping, long-distance HVDC transmission, or any process where energy withdrawn at `bus0` arrives at output ports after a configurable time lag.
+Links can model time-delayed energy transport via the `delay` and `cyclic_delay` attributes. This is useful for representing transport delays in pipelines, shipping and other transport modes, or any process where energy withdrawn at `bus0` arrives at output ports after a configurable time lag.
 
 - **`delay`**: The delay in units of elapsed time, referencing `n.snapshot_weightings.generators`. Energy withdrawn from `bus0` at snapshot `t` arrives at `bus1` at `t + delay`. That is, for uniform hourly snapshots with unit weightings, `delay=3` means a 3-hour delay. In case of snapshot weightings greater than 1, the energy arrives at `bus1` the first snapshot at whose time step at least `delay` units later.
 
