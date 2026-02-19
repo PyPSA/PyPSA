@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
@@ -236,6 +237,102 @@ def test_link_delay_with_scenarios_non_delayed_regression():
     n.set_scenarios({"low": 0.3, "high": 0.7})
     status, _ = n.optimize()
     assert status == "ok"
+
+
+def test_link_split_by_port_delay_with_scenarios():
+    n = pypsa.Network()
+    n.set_snapshots(range(5))
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add("Generator", "gen0", bus="bus0", p_nom=500, marginal_cost=10)
+    n.add("Generator", "gen1", bus="bus1", p_nom=500, marginal_cost=100)
+    n.add("Generator", "gen2", bus="bus2", p_nom=500, marginal_cost=100)
+    n.add("Load", "load1", bus="bus1", p_set=[0, 20, 40, 0, 0])
+    n.add("Load", "load2", bus="bus2", p_set=[10, 0, 0, 10, 0])
+
+    n.add(
+        "Link",
+        "delayed",
+        bus0="bus0",
+        bus1="bus1",
+        bus2="bus2",
+        p_nom=300,
+        efficiency=0.9,
+        efficiency2=0.8,
+        delay=1,
+        cyclic_delay=True,
+        delay2=2,
+        cyclic_delay2=False,
+    )
+    n.add(
+        "Link",
+        "instant",
+        bus0="bus0",
+        bus1="bus1",
+        bus2="bus2",
+        p_nom=300,
+        efficiency=0.95,
+        efficiency2=0.85,
+        delay=0,
+        delay2=0,
+    )
+
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+
+    non_delayed_p1, delayed_groups_p1 = n.c.links.split_by_port_delay("1")
+    assert non_delayed_p1.equals(
+        pd.MultiIndex.from_product(
+            [n.scenarios, ["instant"]], names=["scenario", "name"]
+        )
+    )
+    assert len(delayed_groups_p1) == 1
+    assert delayed_groups_p1[0].delay == 1
+    assert delayed_groups_p1[0].is_cyclic
+    assert delayed_groups_p1[0].names.equals(
+        pd.MultiIndex.from_product(
+            [n.scenarios, ["delayed"]], names=["scenario", "name"]
+        )
+    )
+
+    non_delayed_p2, delayed_groups_p2 = n.c.links.split_by_port_delay("2")
+    assert non_delayed_p2.equals(
+        pd.MultiIndex.from_product(
+            [n.scenarios, ["instant"]], names=["scenario", "name"]
+        )
+    )
+    assert len(delayed_groups_p2) == 1
+    assert delayed_groups_p2[0].delay == 2
+    assert not delayed_groups_p2[0].is_cyclic
+    assert delayed_groups_p2[0].names.equals(
+        pd.MultiIndex.from_product(
+            [n.scenarios, ["delayed"]], names=["scenario", "name"]
+        )
+    )
+
+    status, _ = n.optimize()
+    assert status == "ok"
+
+    delay_weightings = n.snapshot_weightings.generators.loc[n.snapshots]
+    src1, valid1 = n.c.links.get_delay_source_indexer(
+        n.snapshots, delay_weightings, 1, True
+    )
+    src2, valid2 = n.c.links.get_delay_source_indexer(
+        n.snapshots, delay_weightings, 2, False
+    )
+
+    for scenario in n.scenarios:
+        p0 = n.c.links.dynamic.p0[(scenario, "delayed")].to_numpy()
+        p1 = n.c.links.dynamic.p1[(scenario, "delayed")].to_numpy()
+        p2 = n.c.links.dynamic.p2[(scenario, "delayed")].to_numpy()
+
+        expected_p1 = -0.9 * p0[src1]
+        expected_p1[~valid1] = 0.0
+        np.testing.assert_allclose(p1, expected_p1)
+
+        expected_p2 = -0.8 * p0[src2]
+        expected_p2[~valid2] = 0.0
+        np.testing.assert_allclose(p2, expected_p2)
 
 
 @pytest.mark.parametrize("strict", [[], ["link_delays"]])

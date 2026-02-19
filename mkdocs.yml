@@ -127,6 +127,7 @@ nav:
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer-example.ipynb
     - examples/reserve-power.ipynb
+    - examples/link-delay.ipynb
   - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
     - examples/gsa.ipynb

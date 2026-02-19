@@ -13,6 +13,12 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
 
+### Features
+
+
+- Add weighted-time delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior.
+
+
 ## [**v1.1.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.1.0) <small>17th February 2026</small> { id="v1.1.0" }
 
 ### Features
@@ -54,8 +60,6 @@ SPDX-License-Identifier: CC-BY-4.0
 - Components can now be both committable and extendable simultaneously. This enables unit commitment with capacity expansion optimization using a big-M formulation that maintains the linear programming structure.
 
 - Components can now be committable and extendable together with modular capacity expansion. This enables unit commitment on single capacity modules within on asset. The formulation is compatible with start-up and shut-down costs, ramp-up and shut-down limit. The feature is not still compatible with min-up and min-down time, up and down time before.
-
-- Add weighted-time delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior.
 
 
 ### Bug Fixes

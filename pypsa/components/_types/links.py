@@ -198,10 +198,6 @@ class Links(Components):
             return src, np.ones(n_snapshots, dtype=bool)
 
         weights = weightings.reindex(snapshots).astype(float).to_numpy()
-        if (weights < 0).any():
-            msg = "Negative snapshot weightings are not supported for link delays."
-            raise ValueError(msg)
-
         tau = np.concatenate(([0.0], np.cumsum(weights[:-1])))
         src_time = tau - float(delay)
 
