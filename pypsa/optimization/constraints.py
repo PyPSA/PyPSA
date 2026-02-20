@@ -1049,6 +1049,7 @@ def define_nodal_balance_constraints(
             is_cyclic,
         )
         # Zero out invalid positions (non-cyclic: before horizon start)
+        sns_coords: xr.Coordinates | dict[str, Any]
         if isinstance(sns, pd.MultiIndex):
             sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
         else:
