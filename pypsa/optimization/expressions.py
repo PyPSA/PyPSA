@@ -454,7 +454,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         removed_in="2.0",
         kind="direction",
     )
-    def energy_balance(
+    def energy_balance(  # noqa: D417
         self,
         components: str | Sequence[str] | None = None,
         groupby_time: str | bool = "sum",
@@ -475,14 +475,18 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
-        Additional parameter
-        --------------------
-        aggregate_bus: bool, optional
-            Whether to obtain the nodal or carrier-wise energy balance. Default is True, corresponding to the carrier-wise balance.
+        Parameters
+        ----------
         groupby_time : str, bool, optional
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
+        direction : str | None, optional
+            Type of energy balance to calculate:
+            - 'supply': Only consider positive values (energy production)
+            - 'withdrawal': Only consider negative values (energy consumption)
+            - None: Consider both supply and withdrawal
+
         """
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
@@ -559,7 +563,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         `bus_carrier` is calculated.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
@@ -603,7 +607,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier `bus_carrier` is calculated.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
