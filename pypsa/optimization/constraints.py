@@ -1049,14 +1049,18 @@ def define_nodal_balance_constraints(
             is_cyclic,
         )
         # Zero out invalid positions (non-cyclic: before horizon start)
+        if isinstance(sns, pd.MultiIndex):
+            sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
+        else:
+            sns_coords = {"snapshot": sns}
         valid_mask = DataArray(
             valid.astype(float),
             dims=["snapshot"],
-            coords={"snapshot": sns},
+            coords=sns_coords,
         )
 
         link_p = m["Link-p"].sel(name=active_names)
-        shifted_p = link_p.isel(snapshot=src_snapshot_pos).assign_coords(snapshot=sns)
+        shifted_p = link_p.isel(snapshot=src_snapshot_pos).assign_coords(sns_coords)
         shifted_p = shifted_p * valid_mask
         expr = eff.sel(name=active_names) * shifted_p
         cbuses = links._as_xarray(bus_col).sel(name=active_names)

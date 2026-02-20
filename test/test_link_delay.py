@@ -328,6 +328,113 @@ def test_delay_rounding_warning_silent(caplog):
     assert not any("does not align" in r.message for r in caplog.records)
 
 
+def test_get_delay_source_indexer_multi_invest():
+    """Delay wraps within each investment period, not across periods."""
+    snapshots = pd.MultiIndex.from_product(
+        [[2020, 2030], range(4)], names=["period", "timestep"]
+    )
+    weightings = pd.Series(1.0, index=snapshots)
+    src, valid = Links.get_delay_source_indexer(
+        snapshots, weightings, delay=2, is_cyclic=True
+    )
+    # Period 2020 (positions 0-3): wraps within [0,3] → [2,3,0,1]
+    # Period 2030 (positions 4-7): wraps within [4,7] → [6,7,4,5]
+    expected_src = np.array([2, 3, 0, 1, 6, 7, 4, 5])
+    np.testing.assert_array_equal(src, expected_src)
+    np.testing.assert_array_equal(valid, np.ones(8, dtype=bool))
+
+
+def test_get_delay_source_indexer_multi_invest_non_cyclic():
+    """Non-cyclic delay per period marks early snapshots invalid per period."""
+    snapshots = pd.MultiIndex.from_product(
+        [[2020, 2030], range(4)], names=["period", "timestep"]
+    )
+    weightings = pd.Series(1.0, index=snapshots)
+    src, valid = Links.get_delay_source_indexer(
+        snapshots, weightings, delay=2, is_cyclic=False
+    )
+    # Each period independently: first 2 snapshots invalid
+    expected_valid = np.array([False, False, True, True, False, False, True, True])
+    np.testing.assert_array_equal(valid, expected_valid)
+
+
+def test_link_delay_multi_invest_cyclic():
+    """End-to-end: delayed output wraps within each investment period."""
+    n = pypsa.Network()
+    periods = [2020, 2030]
+    snapshots = pd.MultiIndex.from_product([periods, range(6)])
+    n.set_snapshots(snapshots)
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+    n.add("Generator", "gen0", bus="bus0", p_nom=200, marginal_cost=10)
+    n.add("Generator", "gen1", bus="bus1", p_nom=200, marginal_cost=50)
+    n.add("Load", "load", bus="bus1", p_set=[10, 20, 30, 40, 50, 60] * 2)
+    n.add(
+        "Link",
+        "link",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom=100,
+        efficiency=0.9,
+        delay=2,
+        cyclic_delay=True,
+    )
+    n.optimize()
+    for period in periods:
+        p0 = n.c.links.dynamic.p0["link"].loc[period].values
+        p1 = n.c.links.dynamic.p1["link"].loc[period].values
+        for t in range(6):
+            np.testing.assert_allclose(p1[t], -0.9 * p0[(t - 2) % 6])
+
+
+def test_link_delay_multi_invest_non_cyclic():
+    """End-to-end: non-cyclic delay applied independently per investment period."""
+    n = pypsa.Network()
+    periods = [2020, 2030]
+    snapshots = pd.MultiIndex.from_product([periods, range(6)])
+    n.set_snapshots(snapshots)
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+    n.add("Generator", "gen0", bus="bus0", p_nom=200, marginal_cost=10)
+    n.add("Generator", "gen1", bus="bus1", p_nom=200, marginal_cost=50)
+    n.add("Load", "load", bus="bus1", p_set=[10, 20, 30, 40, 50, 60] * 2)
+    n.add(
+        "Link",
+        "link",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom=100,
+        efficiency=0.9,
+        delay=2,
+        cyclic_delay=False,
+    )
+    n.optimize()
+    for period in periods:
+        p0 = n.c.links.dynamic.p0["link"].loc[period].values
+        p1 = n.c.links.dynamic.p1["link"].loc[period].values
+        np.testing.assert_allclose(p1[0], 0.0, atol=1e-10)
+        np.testing.assert_allclose(p1[1], 0.0, atol=1e-10)
+        for t in range(2, 6):
+            np.testing.assert_allclose(p1[t], -0.9 * p0[t - 2])
+        np.testing.assert_allclose(p0[4], 0.0, atol=1e-10)
+        np.testing.assert_allclose(p0[5], 0.0, atol=1e-10)
+
+
+def test_consistency_delay_exceeds_period_horizon():
+    """In multi-invest, delay is checked against per-period horizon."""
+    n = pypsa.Network()
+    snapshots = pd.MultiIndex.from_product(
+        [[2020, 2030], range(4)], names=["period", "timestep"]
+    )
+    n.set_snapshots(snapshots)
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+    # delay=4 equals per-period horizon (4 snapshots * weight 1.0 = 4.0)
+    n.add("Link", "link", bus0="bus0", bus1="bus1", p_nom=100, delay=4)
+    with pytest.raises(pypsa.consistency.ConsistencyError, match="equal or exceed"):
+        n.consistency_check(strict=["link_delays"])
+
+
 @pytest.mark.parametrize("strict", [[], ["link_delays"]])
 def test_consistency_negative_delay(base_network, caplog, strict):
     n = base_network

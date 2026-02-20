@@ -10,6 +10,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import pandas as pd
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
@@ -19,7 +20,6 @@ from pypsa.constants import RE_PORTS_GE_2
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    import pandas as pd
     import xarray as xr
 
 logger = logging.getLogger(__name__)
@@ -120,6 +120,44 @@ class Links(Components):
         ]
 
     @staticmethod
+    def _delay_positions(
+        weights: np.ndarray, delay: float, is_cyclic: bool
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Compute source positions from a numpy weight array."""
+        n = len(weights)
+
+        #  cumulative start time of snapshot i
+        tau = np.concatenate(([0.0], np.cumsum(weights[:-1])))
+        src_time = tau - delay
+
+        if is_cyclic:
+            total = float(weights.sum())
+            if total <= 0:
+                msg = (
+                    "Cyclic weighted link delay requires a positive total "
+                    "snapshot weighting over the optimized snapshots."
+                )
+                raise ValueError(msg)
+            src_time = np.mod(src_time, total)
+            valid = np.ones(n, dtype=bool)
+        else:
+            valid = src_time >= 0
+
+        src = np.searchsorted(tau, src_time, side="right") - 1
+        src = np.clip(src, 0, n - 1).astype(int)
+
+        # Warn if delay doesn't align with snapshot boundaries (sub/super-snapshot)
+        if valid.any() and np.any(tau[src[valid]] != src_time[valid]):
+            logger.warning(
+                "Link delay %g does not align exactly with snapshot weighting "
+                "boundaries and will be rounded to the nearest snapshot "
+                "boundary.",
+                delay,
+            )
+
+        return src, valid
+
+    @staticmethod
     def get_delay_source_indexer(
         snapshots: pd.Index,
         weightings: pd.Series,
@@ -133,6 +171,10 @@ class Links(Components):
         `tau[s] <= tau[t] - delay`, where `tau` are cumulative weighting
         starts. In cyclic mode, source times wrap around the horizon. In
         non-cyclic mode, targets without a valid source are marked invalid.
+
+        For multi-investment period snapshots (MultiIndex), delays are applied
+        independently per period since investment periods are not temporally
+        adjacent.
 
         Parameters
         ----------
@@ -175,36 +217,20 @@ class Links(Components):
         if n_snapshots == 0:
             return np.array([], dtype=int), np.array([], dtype=bool)
         if delay <= 0:
-            src = np.arange(n_snapshots, dtype=int)
-            return src, np.ones(n_snapshots, dtype=bool)
+            return np.arange(n_snapshots, dtype=int), np.ones(n_snapshots, dtype=bool)
 
-        weights = weightings.reindex(snapshots).astype(float).to_numpy()
-        tau = np.concatenate(([0.0], np.cumsum(weights[:-1])))
-        src_time = tau - float(delay)
+        # For multi-investment periods, apply delay per period independently
+        if isinstance(snapshots, pd.MultiIndex):
+            src = np.empty(n_snapshots, dtype=int)
+            valid = np.empty(n_snapshots, dtype=bool)
+            offset = 0
+            for period in snapshots.unique("period"):
+                w = weightings[snapshots.get_loc(period)].to_numpy().astype(float)
+                p_src, p_valid = Links._delay_positions(w, delay, is_cyclic)
+                src[offset : offset + len(w)] = p_src + offset
+                valid[offset : offset + len(w)] = p_valid
+                offset += len(w)
+            return src, valid
 
-        if is_cyclic:
-            total = float(weights.sum())
-            if total <= 0:
-                msg = (
-                    "Cyclic weighted link delay requires a positive total "
-                    "snapshot weighting over the optimized snapshots."
-                )
-                raise ValueError(msg)
-            src_time = np.mod(src_time, total)
-            valid = np.ones(n_snapshots, dtype=bool)
-        else:
-            valid = src_time >= 0
-
-        src = np.searchsorted(tau, src_time, side="right") - 1
-        src = np.clip(src, 0, n_snapshots - 1).astype(int)
-
-        # Warn if delay doesn't align with snapshot boundaries (sub/super-snapshot)
-        if valid.any() and np.any(tau[src[valid]] != src_time[valid]):
-            logger.warning(
-                "Link delay %g does not align exactly with snapshot weighting "
-                "boundaries and will be rounded to the nearest snapshot "
-                "boundary.",
-                delay,
-            )
-
-        return src, valid
+        w = weightings.reindex(snapshots).astype(float).to_numpy()
+        return Links._delay_positions(w, delay, is_cyclic)

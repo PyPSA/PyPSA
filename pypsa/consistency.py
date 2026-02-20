@@ -450,7 +450,14 @@ def check_link_delays(
     if component.name != "Link" or component.static.empty:
         return
 
-    total_horizon = float(n.snapshot_weightings.generators.sum())
+    # For multi-invest, check against per-period horizon (periods are independent)
+    if isinstance(n.snapshots, pd.MultiIndex):
+        total_horizon = min(
+            float(n.snapshot_weightings.generators.loc[p].sum())
+            for p in n.snapshots.unique(level=0)
+        )
+    else:
+        total_horizon = float(n.snapshot_weightings.generators.sum())
     delay_cols = [
         col
         for col in component.static.columns
