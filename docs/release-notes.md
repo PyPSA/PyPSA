@@ -12,8 +12,8 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
-    
-- Statistics functions correctly interpret `at_port` as a port number. (<!-- md:pr 1386 -->)    
+
+- Statistics functions correctly interpret `at_port` as a port number. (<!-- md:pr 1386 -->)
 
 ## [**v1.1.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.1.0) <small>17th February 2026</small> { id="v1.1.0" }
 

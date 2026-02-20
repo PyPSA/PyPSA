@@ -16,7 +16,6 @@ import pandas as pd
 
 from pypsa._options import options
 from pypsa.common import normalize_carrier_nice_names
-from pypsa.constants import RE_PORTS
 from pypsa.statistics.grouping import groupers
 
 if TYPE_CHECKING:
