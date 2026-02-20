@@ -21,7 +21,7 @@ from pypsa.statistics import (
     get_transmission_branches,
     port_efficiency,
 )
-from pypsa.statistics.abstract import AbstractStatisticsAccessor
+from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_port
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
@@ -179,7 +179,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: PortsLike = "bus0",
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -194,6 +194,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
+        at_port = resolve_at_port(at_port, bus_carrier)
 
         @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series | None:
@@ -265,8 +266,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
         if storage:
             components = ("Store", "StorageUnit")
-        if at_port is None:
-            at_port = "all" if bus_carrier else "bus0"
+        at_port = resolve_at_port(at_port, bus_carrier)
 
         @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series | None:
@@ -326,7 +326,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: PortsLike = "bus0",
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -348,6 +348,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         """
         from pypsa.optimization.optimize import lookup  # noqa: PLC0415
+
+        at_port = resolve_at_port(at_port, bus_carrier)
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
@@ -386,7 +388,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: PortsLike = "bus0",
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -409,6 +411,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
 
         """
+        at_port = resolve_at_port(at_port, bus_carrier)
+
         if components is None:
             components = self._n.branch_components
 
@@ -445,6 +449,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_groups="groupby_method",
         aggregate_time="groupby_time",
     )
+    @deprecated_kwargs(
+        deprecated_in="1.1",
+        removed_in="2.0",
+        kind="direction",
+    )
     def energy_balance(
         self,
         components: str | Sequence[str] | None = None,
@@ -456,7 +465,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
-        kind: str | None = None,
+        direction: str | None = None,
     ) -> LinearExpression:
         """Calculate the energy balance of components in the network.
 
@@ -498,15 +507,15 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             sign = n.c[c].static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators.loc[sns]
             coeffs = DataArray(efficiency * sign)
-            if kind == "supply":
+            if direction == "supply":
                 coeffs = coeffs.clip(min=0)
-            elif kind == "withdrawal":
+            elif direction == "withdrawal":
                 logger.warning(
                     "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
                 )
                 coeffs = -coeffs.clip(max=0)
-            elif kind is not None:
-                msg = f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."
+            elif direction is not None:
+                msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or None."
                 raise ValueError(msg)
             p = var.where(coeffs != 0) * coeffs
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
@@ -564,7 +573,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             bus_carrier=bus_carrier,
             carrier=carrier,
             nice_names=nice_names,
-            kind="supply",
+            direction="supply",
         )
 
     @deprecated_kwargs(
@@ -608,7 +617,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             bus_carrier=bus_carrier,
             carrier=carrier,
             nice_names=nice_names,
-            kind="withdrawal",
+            direction="withdrawal",
         )
 
     @deprecated_kwargs(
@@ -625,7 +634,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: PortsLike = "bus0",
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -649,6 +658,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
 
         """
+        at_port = resolve_at_port(at_port, bus_carrier)
 
         @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series:
@@ -705,7 +715,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_time: str | bool = "mean",
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
-        at_port: PortsLike = "bus0",
+        at_port: PortsLike | None = None,
         groupby: str | Sequence[str] | Callable = "carrier",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
@@ -727,6 +737,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given. Defaults to 'mean'.
 
         """
+        at_port = resolve_at_port(at_port, bus_carrier)
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
