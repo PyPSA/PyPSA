@@ -60,6 +60,10 @@ Links can model time-delayed energy transport via the `delay` and `cyclic_delay`
 
 - **Multi-port delays**: Each output port can have its own delay. For additional ports (`bus2`, `bus3`, ...), use `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ....
 
+!!! info "Delays in multi investment periods"ss
+
+    In multi-period optimization, delays are applied independently within each investment period. Energy does not cross period boundaries, so a delay in the last snapshots of one period does not carry over to the first snapshots of the next period.
+
 !!! example "Adding a delayed link"
 
     ```python
