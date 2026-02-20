@@ -450,7 +450,7 @@ def check_link_delays(
     if component.name != "Link" or component.static.empty:
         return
 
-    n_snapshots = len(n.snapshots)
+    total_horizon = float(n.snapshot_weightings.generators.sum())
     delay_cols = [
         col
         for col in component.static.columns
@@ -466,14 +466,14 @@ def check_link_delays(
                 col,
                 ", ".join(negative.index.astype(str)),
             )
-        too_large = values[values >= n_snapshots]
+        too_large = values[values >= total_horizon]
         if not too_large.empty:
             _log_or_raise(
                 strict,
-                "Delay values in column '%s' of Link equal or exceed the number of"
-                " snapshots (%d) for assets:\n\n\t%s",
+                "Delay values in column '%s' of Link equal or exceed the total"
+                " snapshot horizon (%.1f) for assets:\n\n\t%s",
                 col,
-                n_snapshots,
+                total_horizon,
                 ", ".join(too_large.index.astype(str)),
             )
 
