@@ -125,7 +125,7 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_us: spire](https://www.spireenergy.com/)**
 
-* **[:flag_in: Serentica](https://www.serentica.com/)**
+* **[:flag_in: Serentica](https://www.serenticaglobal.com/)**, an Indian independent power producer (IPP) and project developer, uses PyPSA to create and assess round-the-clock power purchase agreements (PPAs). See [YouTube](https://www.youtube.com/watch?v=Yz-6ZH3oFWA&list=PLz1RcE1NdLlHsbQoUXxJOVQ8IdEv9Ks5Z&index=8).
 
 * **[:flag_jp: Tokyo Electric Power Services Company (TEPSCO)](https://www.tepsco.co.jp/english/)**, provides wide-ranging engineering services; planning, study, design, construction supervision and after care. See [Linkedin.com](https://www.linkedin.com/posts/takashi-yanase-850462a0_i-built-and-ran-a-preliminary-model-of-japan-activity-7401253510639648768-F3EB?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAp_3N8BMuXs2_8w1fGMmfRzJESnpY7vzI4).
 

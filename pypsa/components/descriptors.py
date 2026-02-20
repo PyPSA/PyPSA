@@ -72,6 +72,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             "nom_min": f"{base}_nom_min",
             "nom_max": f"{base}_nom_max",
             "nom_set": f"{base}_nom_set",
+            "nom_mod": f"{base}_nom_mod",
             "min_pu": f"{base}_min_pu",
             "max_pu": f"{base}_max_pu",
             "set": f"{base}_set",

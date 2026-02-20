@@ -1,2 +1,2 @@
-name,bus
-demand,electricity
+name,bus,carrier,type
+demand,electricity,,

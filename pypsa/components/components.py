@@ -24,11 +24,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import xarray
+from deprecation import deprecated
 from pyproj import CRS
 
-from pypsa.common import deprecated_in_next_major, equals
+from pypsa.common import equals
 from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
@@ -489,7 +491,9 @@ class Components(
         return self.ctype.category
 
     @property
-    @deprecated_in_next_major(details="Use `c.defaults` instead.")
+    @deprecated(
+        deprecated_in="1.0.0", removed_in="2.0.0", details="Use `c.defaults` instead."
+    )
     def attrs(self) -> pd.DataFrame:
         """Default values of corresponding component type.
 
@@ -601,7 +605,9 @@ class Components(
         return self.n
 
     @property
-    @deprecated_in_next_major(details="Use `c.static` instead.")
+    @deprecated(
+        deprecated_in="1.0.0", removed_in="2.0.0", details="Use `c.static` instead."
+    )
     def df(self) -> pd.DataFrame:
         """Get static data of all components as pandas DataFrame.
 
@@ -617,7 +623,9 @@ class Components(
         return self.static
 
     @property
-    @deprecated_in_next_major(details="Use `c.dynamic` instead.")
+    @deprecated(
+        deprecated_in="1.0.0", removed_in="2.0.0", details="Use `c.dynamic` instead."
+    )
     def pnl(self) -> dict:
         """Get dynamic data of all components as a dictionary of pandas DataFrames.
 
@@ -664,7 +672,7 @@ class Components(
         Coordinates:
           * name                     (name) object ... 'Manchester Wind' ... 'Frankfu...
           * snapshot                 (snapshot) datetime64[ns] ... 2015-01-01 ... 201...
-        Data variables: (12/42)
+        Data variables: (12/43)
             bus                      (name) object ... 'Manchester' ... 'Frankfurt'
             control                  (name) object ... 'Slack' 'PQ' ... 'Slack' 'PQ'
             type                     (name) object ... '' '' '' '' '' ''
@@ -902,6 +910,108 @@ class Components(
             idx = idx.get_level_values("name").drop_duplicates()
 
         return idx
+
+    @property
+    def modulars(self) -> pd.Index:
+        """Get the index of modular elements of this component.
+
+        Modular components have a positive module size (e.g., p_nom_mod > 0)
+        which introduces integer variables for capacity expansion.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of modular elements.
+
+        """
+        mod_col = self._operational_attrs["nom_mod"]
+        if mod_col not in self.static.columns:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static[mod_col] > 0].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
+    def _infer_committable_big_m_scale(self) -> float:
+        """Infer a reasonable big-M scale from network and component data."""
+        candidates: list[float] = []
+
+        if "nom" not in self._operational_attrs:
+            msg = f"Component {self.name} has no nominal operational attribute."
+            raise AttributeError(msg)
+
+        if self.n is not None:
+            # Peak total load over time provides a natural system-scale bound.
+            load = self.n.get_switchable_as_dense("Load", "p_set")
+            peak_load = load.sum(axis=1).abs().max()
+            candidates.append(float(peak_load))
+
+        nom_attr = self._operational_attrs["nom"]
+        nom_series = self.static[nom_attr]
+        finite_nominal = nom_series[np.isfinite(nom_series) & (nom_series > 0)]
+        if not finite_nominal.empty:
+            candidates.append(float(finite_nominal.max()))
+
+        nom_max_attr = f"{nom_attr}_max"
+        nom_max_series = self.static[nom_max_attr]
+        finite_max = nom_max_series[np.isfinite(nom_max_series) & (nom_max_series > 0)]
+        if not finite_max.empty:
+            candidates.append(float(finite_max.max()))
+
+        if not candidates:
+            return 1e6
+
+        fallback = max(candidates) * 10
+        if not np.isfinite(fallback) or fallback <= 0:
+            return 1e6
+        return fallback
+
+    def get_committable_big_m_values(
+        self,
+        names: pd.Index,
+        max_pu: xarray.DataArray | None = None,
+        committable_big_m: float | None = None,
+    ) -> xarray.DataArray:
+        """Get per-asset big-M values for committable+extendable constraints."""
+        if "nom" not in self._operational_attrs:
+            msg = f"Component {self.name} has no nominal operational attribute."
+            raise AttributeError(msg)
+
+        nom_attr = self._operational_attrs["nom"]
+        nom_max_attr = f"{nom_attr}_max"
+
+        nom_max_values = self.da[nom_max_attr].sel(name=names)
+        if max_pu is None:
+            _, max_pu = self.get_bounds_pu(attr=self._operational_attrs["base"])
+        max_pu_values = max_pu.sel(name=names)
+        if "snapshot" in max_pu_values.dims:
+            max_pu_values = max_pu_values.max("snapshot")
+
+        big_m_default = committable_big_m
+        if big_m_default is None and self.n is not None:
+            big_m_default = self.n._committable_big_m
+        if big_m_default is None:
+            big_m_default = self._infer_committable_big_m_scale()
+        else:
+            if not np.isfinite(big_m_default):
+                msg = f"committable_big_m must be finite, got {big_m_default}."
+                raise ValueError(msg)
+            if big_m_default <= 0:
+                msg = f"committable_big_m must be positive, got {big_m_default}."
+                raise ValueError(msg)
+
+        fallback_values = big_m_default * max_pu_values.fillna(1)
+        return xarray.where(
+            np.isfinite(nom_max_values) & (nom_max_values > 0),
+            nom_max_values * max_pu_values,
+            fallback_values,
+        )
 
     @property
     def periodized_cost(self) -> xarray.DataArray:

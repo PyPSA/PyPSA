@@ -21,15 +21,17 @@ from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
+from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
 from pypsa.optimization.constraints import (
+    define_committability_variables_constraints_with_fixed_upper_limit,
+    define_committability_variables_constraints_with_variable_upper_limit,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
-    define_loss_constraints,
     define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
@@ -37,8 +39,10 @@ from pypsa.optimization.constraints import (
     define_operational_constraints_for_extendables,
     define_operational_constraints_for_non_extendables,
     define_ramp_limit_constraints,
+    define_secant_loss_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
+    define_tangent_loss_constraints,
     define_total_supply_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
@@ -128,10 +132,6 @@ def define_objective(
         Snapshots (and, for multi-investment, periods) over which to build the objective.
     include_objective_constant : bool
         Whether to include the objective constant as a variable in the objective function.
-
-    Returns
-    -------
-    None
 
     Notes
     -----
@@ -412,15 +412,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         self,
         snapshots: Sequence | None = None,
         multi_investment_periods: bool = False,
-        transmission_losses: int = 0,
+        transmission_losses: bool | int | dict = False,
         linearized_unit_commitment: bool = False,
         model_kwargs: dict | None = None,
         extra_functionality: Callable | None = None,
         assign_all_duals: bool = False,
         solver_name: str | None = None,
         solver_options: dict | None = None,
+        log_to_console: bool | None = None,
         compute_infeasibilities: bool = False,
         include_objective_constant: bool | None = None,
+        committable_big_m: float | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -433,11 +435,19 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
             investment periods. Then, snapshots should be a `pd.MultiIndex`.
-        transmission_losses : int, default 0
-            Whether an approximation of transmission losses should be included
-            in the linearised power flow formulation. A passed number will denote
-            the number of tangents used for the piecewise linear approximation.
-            Defaults to 0, which ignores losses.
+        transmission_losses : bool | int | dict, default False
+            Include piecewise linear approximation of transmission losses for
+            passive branches:
+
+            - ``True``: secant-based approximation with default tolerances
+            - ``int``: *(deprecated)* tangent-based with that many segments
+            - ``dict``: explicit config with key ``mode`` ("secants" or
+              "tangents") and mode-specific options. Secant options:
+              ``atol`` (default 1), ``rtol`` (default 0.1),
+              ``max_segments`` (default 20). Tangent options: ``segments``
+              (required).
+
+            See `https://go.pypsa.org/transmission-losses` for details.
         linearized_unit_commitment : bool, default False
             Whether to optimise using the linearised unit commitment formulation or not.
         model_kwargs : dict, optional
@@ -461,6 +471,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Keyword arguments used by the solver. Can also be passed via `**kwargs`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        log_to_console : bool, optional
+            Whether the solver prints its progress to the console. This is passed
+            to linopy's `Model.solve()` method. Defaults to module wide option
+            (default: True). See `https://go.pypsa.org/options-params` for more
+            information.
         compute_infeasibilities : bool, default False
             Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
             of an infeasible solution. Requires Gurobi.
@@ -469,6 +484,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             infrastructure) as a variable in the objective function. Setting to False
             improves LP numerical conditioning. Defaults to module wide option. See
             `pypsa.options.params.optimize.describe()` for more information.
+        committable_big_m : float | None, default None
+            Big-M value for committable+extendable constraints. If None, PyPSA infers
+            a scale from the network (e.g. peak load). Otherwise this numeric bound
+            is used when no component-specific limit (p_nom_max) is available.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -491,6 +510,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             solver_name = options.params.optimize.solver_name
         if solver_options is None:
             solver_options = options.params.optimize.solver_options.copy()
+        if log_to_console is None:
+            log_to_console = options.params.optimize.log_to_console
 
         include_objective_constant = _resolve_include_objective_constant(
             include_objective_constant
@@ -509,11 +530,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             linearized_unit_commitment,
             consistency_check=False,
             include_objective_constant=include_objective_constant,
+            committable_big_m=committable_big_m,
             **model_kwargs,
         )
         if extra_functionality:
             extra_functionality(n, sns)
-        status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
+        status, condition = m.solve(
+            solver_name=solver_name,
+            log_to_console=log_to_console,
+            **solver_options,
+            **kwargs,
+        )
 
         if status == "ok":
             n.optimize.assign_solution()
@@ -533,10 +560,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         self,
         snapshots: Sequence | None = None,
         multi_investment_periods: bool = False,
-        transmission_losses: int = 0,
+        transmission_losses: int | dict | bool = False,
         linearized_unit_commitment: bool = False,
         consistency_check: bool = True,
         include_objective_constant: bool | None = None,
+        committable_big_m: float | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -551,9 +579,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         multi_investment_periods : bool, default: False
             Whether to optimise as a single investment period or to optimize in multiple
             investment periods. Then, snapshots should be a `pd.MultiIndex`.
-        transmission_losses : int, default: 0
-            Whether an approximation of transmission losses should be included
-            in the linearised power flow formulation.
+        transmission_losses : bool | int | dict, default False
+            Include piecewise linear approximation of transmission losses for
+            passive branches:
+            - ``True``: secant-based approximation with default tolerances
+            - ``int``: *(deprecated)* tangent-based with that many segments
+            - ``dict``: explicit config with key ``mode`` ("secants" or
+              "tangents") and mode-specific options. Secant options:
+              ``atol`` (default 1), ``rtol`` (default 0.1),
+              ``max_segments`` (default 20). Tangent options: ``segments``
+              (required).
+
+            See `https://go.pypsa.org/transmission-losses` for details.
         linearized_unit_commitment : bool, default: False
             Whether to optimise using the linearised unit commitment formulation or not.
         consistency_check : bool, default: True
@@ -563,6 +600,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             infrastructure) as a variable in the objective function. Setting to False
             improves LP numerical conditioning. Defaults to module wide option. See
             `pypsa.options.params.optimize.describe()` for more information.
+        committable_big_m : float | None, default: None
+            Big-M value for committable+extendable constraints. If None, PyPSA infers
+            a scale from the network (e.g. peak load). Otherwise this numeric bound
+            is used when no component-specific limit (p_nom_max) is available.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -575,6 +616,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         sns = as_index(n, snapshots, "snapshots")
         n._linearized_uc = int(linearized_unit_commitment)
         n._multi_invest = int(multi_investment_periods)
+        n._committable_big_m = committable_big_m
+
+        if linearized_unit_commitment:
+            check_no_modular_committables(n)
+
         if consistency_check:
             n.consistency_check()
 
@@ -596,6 +642,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_status_variables(n, sns, c, linearized_unit_commitment)
             define_start_up_variables(n, sns, c, linearized_unit_commitment)
             define_shut_down_variables(n, sns, c, linearized_unit_commitment)
+            define_committability_variables_constraints_with_fixed_upper_limit(
+                n, sns, c, attr
+            )
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
@@ -612,6 +661,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_nominal_constraints_for_extendables(n, c, attr)
             define_fixed_nominal_constraints(n, c, attr)
             define_modular_constraints(n, c, attr)
+            define_committability_variables_constraints_with_variable_upper_limit(
+                n, sns, c, attr
+            )
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
             define_operational_constraints_for_non_extendables(
@@ -658,8 +710,40 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_total_supply_constraints(n, sns)
 
         if transmission_losses:
+            if isinstance(transmission_losses, bool):
+                transmission_losses = {"mode": "secants"}
+            elif isinstance(transmission_losses, int):
+                equivalent = {"mode": "tangents", "segments": transmission_losses}
+                warnings.warn(
+                    "Passing an int for `transmission_losses` is deprecated "
+                    "and will be removed in PyPSA 2.0. Explicitly pass "
+                    f"{equivalent} (current behavior) or use the new "
+                    "secant-based losses via `transmission_losses=True`.",
+                    FutureWarning,
+                    stacklevel=2,
+                )
+                transmission_losses = {
+                    "mode": "tangents",
+                    "segments": transmission_losses,
+                }
+            # Don't mutate passed dict
+            transmission_losses = dict(transmission_losses)
+            mode = transmission_losses.pop("mode", "secants")
+            if mode == "tangents" and "segments" not in transmission_losses:
+                msg = (
+                    "The 'tangents' mode requires a 'segments' key, e.g. "
+                    "transmission_losses={'mode': 'tangents', 'segments': 3}"
+                )
+                raise ValueError(msg)
+
             for c in n.passive_branch_components:
-                define_loss_constraints(n, sns, c, transmission_losses)
+                if mode == "secants":
+                    define_secant_loss_constraints(n, sns, c, **transmission_losses)
+                elif mode == "tangents":
+                    define_tangent_loss_constraints(n, sns, c, **transmission_losses)
+                else:
+                    msg = f"Unknown transmission_losses mode: {mode!r}"
+                    raise ValueError(msg)
 
         # Define global constraints
         define_primary_energy_limit(n, sns)
@@ -679,6 +763,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         extra_functionality: Callable | None = None,
         solver_name: str | None = None,
         solver_options: dict | None = None,
+        log_to_console: bool | None = None,
         assign_all_duals: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
@@ -700,6 +785,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Keyword arguments used by the solver. Defaults to module wide option
             (default: {}). Can also be passed via `**kwargs`. See
             `https://go.pypsa.org/options-params` for more information.
+        log_to_console : bool, optional
+            Whether the solver prints its progress to the console. This is passed
+            to linopy's `Model.solve()` method. Defaults to module wide option
+            (default: True). See `https://go.pypsa.org/options-params` for more
+            information.
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
@@ -724,12 +814,19 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             solver_options = options.params.optimize.solver_options.copy()
         if solver_name is None:
             solver_name = options.params.optimize.solver_name
+        if log_to_console is None:
+            log_to_console = options.params.optimize.log_to_console
 
         n = self._n
         if extra_functionality:
             extra_functionality(n, n.snapshots)
         m = n.model
-        status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
+        status, condition = m.solve(
+            solver_name=solver_name,
+            log_to_console=log_to_console,
+            **solver_options,
+            **kwargs,
+        )
 
         if status == "ok":
             self._n.optimize.assign_solution()
@@ -927,6 +1024,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """
         n = self._n
         sns = n.model.parameters.snapshots.to_index()
+
+        check_big_m_exceeded(n)
 
         # correct prices with objective weightings
         if n._multi_invest:

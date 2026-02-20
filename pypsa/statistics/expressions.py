@@ -407,7 +407,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self, values: list[pd.DataFrame], agg: Callable | str
     ) -> pd.DataFrame:
         """Concatenate a list of DataFrames."""
-        df = pd.concat(values, copy=False) if len(values) > 1 else values[0]
+        df = pd.concat(values) if len(values) > 1 else values[0]
         if not df.index.is_unique:
             df = df.groupby(level=df.index.names).agg(agg)
         return df
@@ -513,7 +513,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -630,7 +630,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -739,7 +739,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -850,7 +850,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -1140,7 +1140,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -1262,7 +1262,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -1383,7 +1383,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -1494,7 +1494,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -1664,7 +1664,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -1786,7 +1786,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -1890,7 +1890,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -1980,7 +1980,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **transmission** of branch components in the network.
 
-        Units depend on the regarded bus carrier.
+        Only includes branch components (links, lines, transformers) that connect
+        buses of the same carrier. Components connecting buses of different carriers
+        (e.g. sector-coupling links) are excluded.
 
         Parameters
         ----------
@@ -1994,7 +1996,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -2254,7 +2256,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -2366,7 +2368,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -2481,7 +2483,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
@@ -2616,7 +2618,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components : bool, default=False
             Whether to aggregate across components. If there are different components
             which would be grouped together due to the same index, this is avoided.
-        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+        groupby : str | Sequence[str] | Callable, default="carrier"
             How to group components:
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]

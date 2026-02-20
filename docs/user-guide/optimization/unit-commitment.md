@@ -35,9 +35,14 @@ i.e. $u_{*,t} = 1$:
     | $f_{l,t} \geq u_{l,t} \cdot \underline{f}_{l,t} \cdot \hat{f}_{l}$ | `Link-com-p-lower` |
     | $f_{l,t} \leq u_{l,t} \cdot \bar{f}_{l,t} \cdot \hat{f}_{l}$ | `Link-com-p-upper` |
 
-!!! warning
+!!! note | Combined with Capacity Expansion
 
-    Note that components cannot be both extendable (`p_nom_extendable=True`) and committable (`committable=True`) because of the non-linear coupling of status and capacity.
+Unit commitment can be combined with capacity expansion for co-optimized investment and operational decisions:
+
+- [Committable and Extendable Components](capacity-limits.md#committable-and-extendable-components) - Continuous capacity expansion with unit commitment using big-M formulation
+- [Modular and Committable Components](capacity-limits.md#modular-and-committable-components) - Discrete capacity blocks with integer commitment variables
+
+///
 
 If the **minimum up time** $T_{\textrm{min_up}}$ is set, status switches are constrained to ensure
 that the component is running for at least $T_{\textrm{min_up}}$ snapshots after it has been started up:
@@ -137,56 +142,35 @@ Ramp rate limits can be defined for increasing output $ru_{n,s,t}$ and decreasin
     When provided, ramping limits are also considered if they are not
     committable (`committable=False`), i.e. the component is not subject to start-up and shut-down constraints.
 
-For **non-extendable** but **non-committable** components, the dispatch obeys for $t \in \{1,\dots |T|-1\}$:
+A unified ramp constraint formulation is used for all component types (fixed, extendable, and committable). For committable components, additional ramp limits at start-up $rusu_{n,s}$ and shut-down $rdsd_{n,s}$ can be specified. The general form for $t \in \{1,\dots |T|-1\}$ is:
 
 === "Generator"
 
     | Constraint | Dual Variable | Name |
     |-------------------|------------------|------------------|
-    | $(g_{n,s,t} - g_{n,s,t-1}) \geq -rd_{n,s,t} \cdot \hat{g}_{n,s}$ | `n.generators_t.mu_ramp_limit_down` | `Generator-fix-p-ramp_limit_down` |
-    | $(g_{n,s,t} - g_{n,s,t-1}) \leq ru_{n,s,t} \cdot \hat{g}_{n,s}$ | `n.generators_t.mu_ramp_limit_up` | `Generator-fix-p-ramp_limit_up` |
+    | $(g_{n,s,t} - g_{n,s,t-1}) \geq \left[ -rd_{n,s,t} \cdot u_{n,s,t} -rdsd_{n,s}(u_{n,s,t-1} - u_{n,s,t})\right] \hat{g}_{n,s}$ | `n.generators_t.mu_ramp_limit_down` | `Generator-p-ramp_limit_down` |
+    | $(g_{n,s,t} - g_{n,s,t-1}) \leq \left[ru_{n,s,t} \cdot u_{n,s,t-1} + rusu_{n,s} (u_{n,s,t} - u_{n,s,t-1})\right] \hat{g}_{n,s}$ | `n.generators_t.mu_ramp_limit_up` | `Generator-p-ramp_limit_up` |
 
 === "Link"
 
     | Constraint | Dual Variable | Name |
     |-------------------|------------------|------------------|
-    | $(f_{l,t} - f_{l,t-1}) \geq -rd_{l,t} \cdot \hat{f}_{l}$ | `n.links_t.mu_ramp_limit_down` | `Link-fix-p-ramp_limit_down` |
-    | $(f_{l,t} - f_{l,t-1}) \leq ru_{l,t} \cdot \hat{f}_{l}$ | `n.links_t.mu_ramp_limit_up` | `Link-fix-p-ramp_limit_up` |
+    | $(f_{l,t} - f_{l,t-1}) \geq \left[ -rd_{l,t} \cdot u_{l,t} -rdsd_{l,t}(u_{l,t-1} - u_{l,t})\right] \hat{f}_{l}$ | `n.links_t.mu_ramp_limit_down` | `Link-p-ramp_limit_down` |
+    | $(f_{l,t} - f_{l,t-1}) \leq \left[ru_{l,t} \cdot u_{l,t-1} + rusu_{l} (u_{l,t} - u_{l,t-1})\right] \hat{f}_{l}$ | `n.links_t.mu_ramp_limit_up` | `Link-p-ramp_limit_up` |
 
+For non-committable components, $u_{*,t} = 1$ for all $t$, so the constraints simplify to:
 
+- $(g_{n,s,t} - g_{n,s,t-1}) \geq -rd_{n,s,t} \cdot \hat{g}_{n,s}$
+- $(g_{n,s,t} - g_{n,s,t-1}) \leq ru_{n,s,t} \cdot \hat{g}_{n,s}$
 
-For **extendable** and **non-committable** components, the dispatch obeys for $t \in \{1,\dots |T|-1\}$:
+For extendable components, $\hat{g}_{n,s}$ is replaced by the capacity variable $G_{n,s}$.
 
-=== "Generator"
+### Initial Conditions
 
-    | Constraint | Dual Variable | Name |
-    |-------------------|------------------|------------------|
-    | $(g_{n,s,t} - g_{n,s,t-1}) \geq -rd_{n,s,t} \cdot G_{n,s}$ | `n.generators_t.mu_ramp_limit_down` | `Generator-ext-p-ramp_limit_down` |
-    | $(g_{n,s,t} - g_{n,s,t-1}) \leq ru_{n,s,t} \cdot G_{n,s}$ | `n.generators_t.mu_ramp_limit_up` | `Generator-ext-p-ramp_limit_up` |
+The ramp constraints require knowledge of the previous snapshot's dispatch. At the first snapshot of the optimization horizon, this is handled as follows:
 
-=== "Link"
-
-    | Constraint | Dual Variable | Name |
-    |-------------------|------------------|------------------|
-    | $(f_{l,t} - f_{l,t-1}) \geq -rd_{l,t} \cdot F_{l}$ | `n.links_t.mu_ramp_limit_down` | `Link-ext-p-ramp_limit_down` |
-    | $(f_{l,t} - f_{l,t-1}) \leq ru_{l,t} \cdot F_{l}$ | `n.links_t.mu_ramp_limit_up` | `Link-ext-p-ramp_limit_up` |
-
-
-For **committable** and **non-extendable** components, additional ramp limits at start-up $rusu_{n,s}$ and shut-down $rdsd_{n,s}$ can be specified for $t \in \{1,\dots |T|-1\}$:
-
-=== "Generator"
-
-    | Constraint | Name |
-    |-------------------|------------------|
-    | $(g_{n,s,t} - g_{n,s,t-1}) \geq \left[ -rd_{n,s,t} \cdot u_{n,s,t} -rdsd_{n,s}(u_{n,s,t-1} - u_{n,s,t})\right] \hat{g}_{n,s}$ | `Generator-com-p-ramp_limit_down` |
-    | $(g_{n,s,t} - g_{n,s,t-1}) \leq \left[ru_{n,s,t} \cdot u_{n,s,t-1} + rusu_{n,s} (u_{n,s,t} - u_{n,s,t-1})\right] \hat{g}_{n,s}$ | `Generator-com-p-ramp_limit_up` |
-
-=== "Link"
-
-    | Constraint | Name |
-    |-------------------|------------------|
-    | $(f_{l,t} - f_{l,t-1}) \geq \left[ -rd_{l,t} \cdot u_{l,t} -rdsd_{l,t}(u_{l,t-1} - u_{l,t})\right] \hat{f}_{l}$ | `Link-com-p-ramp_limit_down` |
-    | $(f_{l,t} - f_{l,t-1}) \leq \left[ru_{l,t} \cdot u_{l,t-1} + rusu_{l} (u_{l,t} - u_{l,t-1})\right] \hat{f}_{l}$ | `Link-com-p-ramp_limit_up` |
+- **Rolling horizon optimization**: When `n.optimize(snapshots=...)` starts after the first snapshot in `n.snapshots`, the dispatch from the previous snapshot is used automatically.
+- **First snapshot of `n.snapshots`**: The `p_init` attribute specifies the initial dispatch level. For committable components, the initial status is determined by `up_time_before > 0`. If `p_init` is not set (NaN), no ramp constraint is applied at the first snapshot.
 
 These constraints are defined in the function `define_ramp_limit_constraints()`.
 
@@ -206,6 +190,7 @@ These constraints are defined in the function `define_ramp_limit_constraints()`.
         | $rd_{n,s,t}$ | `n.generators_t.ramp_limit_down` | Parameter |
         | $rusu_{n,s}$     | `n.generators.ramp_limit_start_up` | Parameter |
         | $rdsd_{n,s}$     | `n.generators.ramp_limit_shut_down` | Parameter |
+        | $g_{n,s,0}$      | `n.generators.p_init` | Parameter (initial dispatch) |
 
     === "Link"
 
@@ -222,6 +207,7 @@ These constraints are defined in the function `define_ramp_limit_constraints()`.
         | $rd_{l,t}$ | `n.links_t.ramp_limit_down` | Parameter |
         | $rusu_{l}$     | `n.links.ramp_limit_start_up` | Parameter |
         | $rdsd_{l}$     | `n.links.ramp_limit_shut_down` | Parameter |
+        | $f_{l,0}$      | `n.links.p_init` | Parameter (initial dispatch) |
 
 ## Linearization
 
@@ -229,11 +215,15 @@ The implementation is based on Hua et al. (2017)[^2] and relaxes the binary unit
 
 $$u_{*,t},\quad su_{*,t},\quad sd_{*,t}\quad  \in [0,1]$$
 
-This allows for partial commitment states (generators can be partially on/off), making the problem more computationally tractable while loosing some accuracy. To enable this, use:
+This allows for partial commitment states (generators can be partially on/off), making the problem more computationally tractable while losing some accuracy. To enable this, use:
 
 ``` py
 n.optimize(linearized_unit_commitment=True)
 ```
+
+!!! warning "Not compatible with modular components"
+
+    Linearized unit commitment cannot be used with [modular committable components](capacity-limits.md#modular-and-committable-components) and will result in a `ValueError`.
 
 To tighten the relaxation, additional constraints are introduced that improve capturing the relationship between commitment status, ramping, and dispatch. This requires start up and shut down costs need to be equal. Otherwise the unit commitment variables are purely relaxed. The added constraints limit the dispatch during partial start-up and shut-down, as well as ramping during partial commitment:
 

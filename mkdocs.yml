@@ -85,6 +85,7 @@ nav:
     - Network Collection: user-guide/collection.md
     - Options: user-guide/options.md
     - Logging: user-guide/logging.ipynb
+    - Warnings: user-guide/warnings.md
 
 - Examples:
   - Overview: examples/examples.md
@@ -99,6 +100,7 @@ nav:
     - examples/negative-prices-kvl-baker.ipynb
     - examples/rolling-horizon.ipynb
     - examples/water-value.ipynb
+    - examples/demand-supply-bids.ipynb
   - Planning Problems:
     - examples/capacity-expansion-planning-single-node.ipynb
     - examples/3-node-cem.ipynb
@@ -108,6 +110,8 @@ nav:
     - examples/mga.ipynb
     - examples/near-opt-space.ipynb
     - examples/modular-expansion.ipynb
+    - examples/committable-extendable.ipynb
+    - examples/modular-committable.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
     - examples/islanded-methanol-production.ipynb
@@ -140,6 +144,7 @@ nav:
       - IO: api/networks/io.md
       - Power Flow: api/networks/power-flow.md
       - Optimize: api/networks/optimize.md
+      - Constraints: api/networks/constraints.md
       - Cluster: api/networks/cluster.md
       - Statistics: api/networks/statistics.md
       - Plotting: api/networks/plot.md
@@ -363,15 +368,6 @@ plugins:
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.box
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.violin
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.histogram
-              # Clustering Accessor
-              - pypsa.clustering.ClusteringAccessor.busmap_by_greedy_modularity
-              - pypsa.clustering.ClusteringAccessor.busmap_by_hac
-              - pypsa.clustering.ClusteringAccessor.busmap_by_kmeans
-              - pypsa.clustering.ClusteringAccessor.cluster_by_busmap
-              - pypsa.clustering.ClusteringAccessor.cluster_spatially_by_greedy_modularity
-              - pypsa.clustering.ClusteringAccessor.cluster_spatially_by_hac
-              - pypsa.clustering.ClusteringAccessor.cluster_spatially_by_kmeans
-              - pypsa.clustering.ClusteringAccessor.get_clustering_from_busmap
 
 # This will rebuild and execute the notebooks during any modifications when running `mkdocs serve`
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
@@ -396,6 +392,7 @@ hooks:
 - docs/hooks/shortcodes.py
 - docs/hooks/cleanup.py
 - docs/hooks/path_aliases.py
+- docs/hooks/notebook_timing.py
 
 extra:
   social:

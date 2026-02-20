@@ -26,25 +26,25 @@ def test_clustering():
     bus_weights = pd.Series([1, 1], index=["bus1", "bus2"])
 
     with pytest.raises(ValueError, match="not yet implemented for stochastic networks"):
-        n.cluster.busmap_by_hac(2)
+        n.cluster.spatial.busmap_by_hac(2)
 
     with pytest.raises(ValueError, match="not yet implemented for stochastic networks"):
-        n.cluster.busmap_by_kmeans(bus_weights, 2)
+        n.cluster.spatial.busmap_by_kmeans(bus_weights, 2)
 
     with pytest.raises(ValueError, match="not yet implemented for stochastic networks"):
-        n.cluster.busmap_by_greedy_modularity(2)
+        n.cluster.spatial.busmap_by_greedy_modularity(2)
 
     with pytest.raises(ValueError, match="not yet implemented for stochastic networks"):
-        n.cluster.cluster_spatially_by_hac(2)
+        n.cluster.spatial.cluster_by_hac(2)
 
     with pytest.raises(ValueError, match="not yet implemented for stochastic networks"):
-        n.cluster.cluster_spatially_by_kmeans(bus_weights, 2)
+        n.cluster.spatial.cluster_by_kmeans(bus_weights, 2)
 
     with pytest.raises(ValueError, match="not yet implemented for stochastic networks"):
-        n.cluster.cluster_spatially_by_greedy_modularity(2)
+        n.cluster.spatial.cluster_by_greedy_modularity(2)
 
     with pytest.raises(ValueError, match="not yet implemented for stochastic networks"):
-        n.cluster.cluster_by_busmap(busmap)
+        n.cluster.spatial.cluster_by_busmap(busmap)
 
     with pytest.raises(ValueError, match="not yet implemented for stochastic networks"):
-        n.cluster.get_clustering_from_busmap(busmap)
+        n.cluster.spatial.get_clustering_from_busmap(busmap)

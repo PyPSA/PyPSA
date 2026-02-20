@@ -6,7 +6,7 @@ cff-version: 1.2.0
 message: "If you use this package, please cite the corresponding manuscript in Journal of Open Research Software."
 title: "PyPSA: Python for Power System Analysis"
 repository: https://github.com/pypsa/pypsa
-version: 1.0.7 # Don't touch, will be updated by the release script
+version: 1.1.0 # Don't touch, will be updated by the release script
 license: MIT
 journal: Journal of Open Research Software
 doi: 10.5334/jors.188

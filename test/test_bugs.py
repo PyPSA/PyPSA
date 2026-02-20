@@ -51,10 +51,10 @@ def test_890():
     n.set_investment_periods([2020, 2030])
 
     weighting = pd.Series(1, n.c.buses.static.index)
-    busmap = n.cluster.busmap_by_kmeans(bus_weightings=weighting, n_clusters=50)
-    nc = n.cluster.cluster_by_busmap(busmap)
+    busmap = n.cluster.spatial.busmap_by_kmeans(bus_weightings=weighting, n_clusters=50)
+    nc = n.cluster.spatial.cluster_by_busmap(busmap)
 
-    C = n.cluster.get_clustering_from_busmap(busmap)
+    C = n.cluster.spatial.get_clustering_from_busmap(busmap)
     nc = C.n
 
     almost_equal(n.investment_periods, nc.investment_periods)
