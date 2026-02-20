@@ -58,7 +58,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         n: Network | NetworkCollection,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
-        port: str | None = None,
+        port: str,
         nice_names: bool = False,
     ) -> pd.DataFrame:
         result = super()._get_grouping(n, c, groupby, port, nice_names)
