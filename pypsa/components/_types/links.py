@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -20,6 +21,8 @@ if TYPE_CHECKING:
 
     import pandas as pd
     import xarray as xr
+
+logger = logging.getLogger(__name__)
 
 
 @patch_add_docstring
@@ -194,4 +197,14 @@ class Links(Components):
 
         src = np.searchsorted(tau, src_time, side="right") - 1
         src = np.clip(src, 0, n_snapshots - 1).astype(int)
+
+        # Warn if delay doesn't align with snapshot boundaries (sub/super-snapshot)
+        if valid.any() and np.any(tau[src[valid]] != src_time[valid]):
+            logger.warning(
+                "Link delay %g does not align exactly with snapshot weighting "
+                "boundaries and will be rounded to the nearest snapshot "
+                "boundary.",
+                delay,
+            )
+
         return src, valid

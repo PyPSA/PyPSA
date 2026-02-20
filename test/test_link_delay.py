@@ -2,11 +2,15 @@
 #
 # SPDX-License-Identifier: MIT
 
+import logging
+
 import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
 import pypsa.consistency
+from pypsa.components._types.links import Links
 
 
 @pytest.fixture
@@ -304,6 +308,24 @@ def test_link_delay_with_scenarios():
         expected_p2 = -0.8 * p0[src2]
         expected_p2[~valid2] = 0.0
         np.testing.assert_allclose(p2, expected_p2)
+
+
+def test_delay_rounding_warning_fires(caplog):
+    """Warn when delay doesn't align with snapshot boundaries (sub/super-snapshot)."""
+    snapshots = pd.RangeIndex(8)
+    weightings = pd.Series(4.0, index=snapshots)
+    with caplog.at_level(logging.WARNING):
+        Links.get_delay_source_indexer(snapshots, weightings, delay=3, is_cyclic=True)
+    assert any("does not align" in r.message for r in caplog.records)
+
+
+def test_delay_rounding_warning_silent(caplog):
+    """No warning when delay aligns exactly with snapshot boundaries."""
+    snapshots = pd.RangeIndex(6)
+    weightings = pd.Series(1.0, index=snapshots)
+    with caplog.at_level(logging.WARNING):
+        Links.get_delay_source_indexer(snapshots, weightings, delay=2, is_cyclic=True)
+    assert not any("does not align" in r.message for r in caplog.records)
 
 
 @pytest.mark.parametrize("strict", [[], ["link_delays"]])
