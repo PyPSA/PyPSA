@@ -126,8 +126,47 @@ class Links(Components):
         """Get per-snapshot source positions for link delays.
 
         Delay is interpreted in elapsed time units. For each target snapshot
-        ``t``, the source is the latest snapshot ``s`` such that
-        ``tau[s] <= tau[t] - delay``, where ``tau`` are cumulative weighting starts.
+        `t`, the source is the latest snapshot `s` such that
+        `tau[s] <= tau[t] - delay`, where `tau` are cumulative weighting
+        starts. In cyclic mode, source times wrap around the horizon. In
+        non-cyclic mode, targets without a valid source are marked invalid.
+
+        Parameters
+        ----------
+        snapshots : pd.Index
+            Snapshot index of the optimization horizon.
+        weightings : pd.Series
+            Generator snapshot weightings (`n.snapshot_weightings.generators`),
+            defining the duration of each snapshot in time units.
+        delay : int
+            Delivery delay in the same time units as `weightings`.
+        is_cyclic : bool
+            If True, delayed times wrap around the horizon. If False,
+            snapshots without a valid source are marked invalid.
+
+        Returns
+        -------
+        src_positions : np.ndarray of int
+            Index position of the source snapshot for each target snapshot.
+        valid : np.ndarray of bool
+            False for target snapshots that have no valid source
+            (non-cyclic mode only).
+
+        Examples
+        --------
+        >>> snapshots = pd.RangeIndex(6)
+        >>> weightings = pd.Series(1.0, index=snapshots)
+        >>> src, valid = Links.get_delay_source_indexer(snapshots, weightings, delay=2, is_cyclic=True)
+        >>> src
+        array([4, 5, 0, 1, 2, 3])
+        >>> valid
+        array([ True,  True,  True,  True,  True,  True])
+        >>> src, valid = Links.get_delay_source_indexer(snapshots, weightings, delay=2, is_cyclic=False)
+        >>> src
+        array([0, 0, 0, 1, 2, 3])
+        >>> valid
+        array([False, False,  True,  True,  True,  True])
+
         """
         n_snapshots = len(snapshots)
         if n_snapshots == 0:
