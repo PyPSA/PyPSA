@@ -246,6 +246,17 @@ def test_bus_carrier_selection_with_list(ac_dc_network_r):
     assert not df.empty
 
 
+@pytest.mark.parametrize(
+    "stat_func",
+    ["capex", "optimal_capacity", "installed_capacity"],
+)
+def test_bus_carrier_searches_all_ports(ac_dc_network_r, stat_func):
+    n = ac_dc_network_r
+    result = getattr(n.statistics, stat_func)(bus_carrier="DC")
+    components = result.index.get_level_values("component")
+    assert "Link" in components
+
+
 def test_storage_capacity(ac_dc_network_r):
     n = ac_dc_network_r
     df = n.statistics.installed_capacity(storage=True)

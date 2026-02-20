@@ -24,6 +24,30 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def resolve_at_port(
+    at_port: PortsLike | None,
+    bus_carrier: str | Sequence[str] | None = None,
+) -> PortsLike:
+    """Resolve `at_port` default: "all" when `bus_carrier` is set, otherwise 0."""
+    if at_port is False:
+        warnings.warn(
+            f"Passing `at_port={at_port}` is deprecated. Use `at_port=0` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return 0
+    if at_port is True:
+        warnings.warn(
+            'Passing `at_port=True` is deprecated. Use `at_port="all"` instead.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return "all"
+    if at_port is None:
+        return "all" if bus_carrier else [0]
+    return at_port
+
+
 class AbstractStatisticsAccessor(ABC):
     """Abstract accessor to calculate different statistical values."""
 
@@ -136,7 +160,7 @@ class AbstractStatisticsAccessor(ABC):
         components: Collection[str] | str | None = None,
         groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         aggregate_across_components: bool = False,
-        at_port: PortsLike = 0,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = True,
@@ -154,25 +178,12 @@ class AbstractStatisticsAccessor(ABC):
         if nice_names is None:
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
+        at_port = resolve_at_port(at_port, bus_carrier)
+
         for cn in components:
             c = n.c[cn]
             if c.static.empty:
                 continue
-
-            if at_port is False or at_port is None:
-                warnings.warn(
-                    f"Passing `at_port={at_port}` is deprecated. Use `at_port=0` instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                at_port = [0]
-            elif at_port is True:
-                warnings.warn(
-                    'Passing `at_port=True` is deprecated. Use `at_port="all"` instead.',
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                at_port = "all"
 
             values = []
             for port in c._as_ports(at_port):
