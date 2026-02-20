@@ -266,6 +266,7 @@ def test_capex_non_extendable_generators(non_extendable_network):
 def test_concrete_at_port(prepared_network):
     n = prepared_network
     n.links["efficiency"] = 0.9
+    n.links["efficiency2"] = 0.9
     expr = n.optimize.expressions.capacity("Link", at_port=["bus1", "bus2"])
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
