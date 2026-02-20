@@ -186,10 +186,6 @@ class AbstractStatisticsAccessor(ABC):
 
         at_port = resolve_at_port(at_port, bus_carrier)
 
-        for c in components:
-            if n.c[c].static.empty:
-                continue
-
         for cn in components:
             c = n.c[cn]
             if c.static.empty:
