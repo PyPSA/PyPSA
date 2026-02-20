@@ -32,14 +32,14 @@ def resolve_at_port(
     """Resolve `at_port` default: "all" when `bus_carrier` is set, otherwise 0."""
     if at_port is False:
         warnings.warn(
-            f"Passing `at_port={at_port}` is deprecated. Use `at_port=0` instead.",
+            f"Passing `at_port={at_port}` is deprecated. Use `at_port=0` instead. Deprecated in version 1.1. Will be removed in version 2.0.",
             DeprecationWarning,
             stacklevel=2,
         )
         return 0
     if at_port is True:
         warnings.warn(
-            'Passing `at_port=True` is deprecated. Use `at_port="all"` instead.',
+            'Passing `at_port=True` is deprecated. Use `at_port="all"` instead. Deprecated in version 1.1. Will be removed in version 2.0.',
             DeprecationWarning,
             stacklevel=2,
         )
@@ -209,16 +209,6 @@ class AbstractStatisticsAccessor(ABC):
                     continue
 
                 if groupby is not False:
-                    if groupby is None:
-                        warnings.warn(
-                            "Passing `groupby=None` is deprecated. Drop the "
-                            "argument to get the default grouping (by carrier), which "
-                            "was also the previous default behavior. Deprecated in "
-                            "version 0.34 and will be removed in version 1.0.",
-                            DeprecationWarning,
-                            stacklevel=2,
-                        )
-                        groupby = "carrier"
                     grouping = self._get_grouping(
                         n, cn, groupby, port=port_suffix, nice_names=nice_names
                     )

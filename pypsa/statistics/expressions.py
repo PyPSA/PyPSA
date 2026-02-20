@@ -2097,7 +2097,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        direction: str | None = None,
+        direction: str | None = "both",
     ) -> pd.DataFrame:
         """Calculate the **energy balance** of components in network.
 
@@ -2151,11 +2151,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
             With False the time series is given in MW.
-        direction : str | None, default=None
+        direction : str, default="both"
             Type of energy balance to calculate:
             - 'supply': Only consider positive values (energy production)
             - 'withdrawal': Only consider negative values (energy consumption)
-            - None: Consider both supply and withdrawal
+            - 'both': Consider both supply and withdrawal
 
         Returns
         -------
@@ -2172,6 +2172,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
+        if direction is None:
+            warnings.warn(
+                "Passing `direction=None` is deprecated. Use `direction='both'` instead. Deprecated in version 1.1. Will be removed in version 2.0.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            direction = "both"
         n = self._n
 
         if (
@@ -2193,10 +2200,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 p = p.clip(lower=0)
             elif direction == "withdrawal":
                 p = -p.clip(upper=0)
-            elif direction is not None:
-                logger.warning(
-                    "Argument 'direction' is not recognized. Falling back to energy balance."
-                )
+            elif direction != "both":
+                msg = f"Argument 'direction' must be 'supply', 'withdrawal' or 'both', got '{direction}'."
+                raise ValueError(msg)
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         df = self._aggregate_components(
@@ -2464,7 +2470,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        direction: str | None = None,
+        direction: str | None = "both",
     ) -> pd.DataFrame:
         """Calculate the **revenue** of components in the network in given currency.
 
@@ -2517,9 +2523,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
             With False the time series is given in MW.
-        direction : str, optional, default=None
+        direction : str, default="both"
             Type of revenue to consider. If 'input' only the revenue of the input is considered.
-            If 'output' only the revenue of the output is considered. Defaults to None.
+            If 'output' only the revenue of the output is considered. Defaults to 'both'.
 
         Returns
         -------
@@ -2534,6 +2540,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
+        if direction is None:
+            warnings.warn(
+                "Passing `direction=None` is deprecated. Use `direction='both'` instead. Deprecated in version 1.1. Will be removed in version 2.0.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            direction = "both"
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
@@ -2550,14 +2563,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             prices = n.c.buses.dynamic.marginal_price.reindex(
                 columns=buses, fill_value=0
             ).values
-            if direction is not None:
-                if direction == "input":
-                    df = df.clip(upper=0)
-                elif direction == "output":
-                    df = df.clip(lower=0)
-                else:
-                    msg = f"Argument 'direction' must be 'input', 'output' or None, got {direction}"
-                    raise ValueError(msg)
+            if direction == "input":
+                df = df.clip(upper=0)
+            elif direction == "output":
+                df = df.clip(lower=0)
+            elif direction != "both":
+                msg = f"Argument 'direction' must be 'input', 'output' or 'both', got '{direction}'."
+                raise ValueError(msg)
             revenue = df * prices
             weights = n.snapshot_weightings.objective
             return self._aggregate_timeseries(revenue, weights, agg=groupby_time)

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import linopy as ln
@@ -465,7 +466,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
-        direction: str | None = None,
+        direction: str | None = "both",
     ) -> LinearExpression:
         """Calculate the energy balance of components in the network.
 
@@ -481,15 +482,22 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
-        direction : str | None, optional
+        direction : str, default="both"
             Type of energy balance to calculate:
             - 'supply': Only consider positive values (energy production)
             - 'withdrawal': Only consider negative values (energy consumption)
-            - None: Consider both supply and withdrawal
+            - 'both': Consider both supply and withdrawal
 
         """
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
+        if direction is None:
+            warnings.warn(
+                "Passing `direction=None` is deprecated. Use `direction='both'` instead. Deprecated in version 1.1. Will be removed in version 2.0.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            direction = "both"
         if (
             self._n.c.buses.static.carrier.unique().size > 1
             and groupby is None
@@ -518,8 +526,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                     "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
                 )
                 coeffs = -coeffs.clip(max=0)
-            elif direction is not None:
-                msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or None."
+            elif direction != "both":
+                msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
             p = var.where(coeffs != 0) * coeffs
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
