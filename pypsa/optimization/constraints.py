@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import linopy
 import pandas as pd
@@ -19,6 +19,7 @@ from numpy import inf, isfinite, maximum, sqrt, tile
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
+from pypsa.components._types.links import Links
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
@@ -29,7 +30,6 @@ if TYPE_CHECKING:
     from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
-    from pypsa.components._types.links import Links  # noqa: TC004
 
     ArgItem = list[str | int | float | DataArray]
 
@@ -943,7 +943,7 @@ def define_nodal_balance_constraints(
     if buses is None:
         buses = n.c.buses.static.index.unique("name")
 
-    links = cast("Links", as_components(n, "Link"))
+    links = n.components["Link"]
 
     args: list[Any] = [
         ["Generator", "p", "bus", 1],
@@ -957,43 +957,42 @@ def define_nodal_balance_constraints(
         ["Link", "p", "bus0", -1],
     ]
 
+    # Group link ports by (delay, cyclic_delay)
+    # - Non delayed (delay=0) go into the standard args list
+    # - Delayed groups are collected separately and are time-shifted
     delayed_link_args: list[tuple[str, Any, pd.Index, int, bool]] = []
     if not links.empty:
         active = links.active_assets
         for i in ["1"] + n.c.links.additional_ports:
             i_suffix = "" if i == "1" else i
-            eff_attr = f"efficiency{i_suffix}"
-            eff = links.da[eff_attr].sel(snapshot=sns)
+            eff = links.da[f"efficiency{i_suffix}"].sel(snapshot=sns)
+            delay_col = f"delay{i_suffix}"
+            cyclic_col = f"cyclic_delay{i_suffix}"
 
-            non_delayed, delayed_groups = links.split_by_port_delay(i)
-            if isinstance(non_delayed, pd.MultiIndex):
-                non_delayed = non_delayed.get_level_values("name").unique()
-            non_delayed = non_delayed.intersection(active)
-            if not non_delayed.empty:
-                args.append(
-                    [
-                        "Link",
-                        "p",
-                        f"bus{i}",
-                        eff.sel(name=non_delayed),
-                    ]
-                )
-            for group in delayed_groups:
-                names = group.names
+            if delay_col in links.static.columns:
+                delays = links.static[delay_col]
+                cyclics = links.static[cyclic_col]
+            else:
+                delays = 0
+                cyclics = True
+
+            # Group links sharing the same (delay, cyclic) configuration
+            for (d, cyc), group in links.static.assign(
+                _delay=delays, _cyclic=cyclics
+            ).groupby(["_delay", "_cyclic"]):
+                names = group.index
+                # Manually handle stochastic dimension
                 if isinstance(names, pd.MultiIndex):
                     names = names.get_level_values("name").unique()
                 names = names.intersection(active)
                 if names.empty:
                     continue
-                delayed_link_args.append(
-                    (
-                        f"bus{i}",
-                        eff.sel(name=names),
-                        names,
-                        group.delay,
-                        group.is_cyclic,
+                if int(d) == 0:
+                    args.append(["Link", "p", f"bus{i}", eff.sel(name=names)])
+                else:
+                    delayed_link_args.append(
+                        (f"bus{i}", eff.sel(name=names), names, int(d), bool(cyc))
                     )
-                )
 
     if transmission_losses:
         args.extend(
@@ -1035,17 +1034,21 @@ def define_nodal_balance_constraints(
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
 
+    # For delayed links, time shift the p variable so that output at
+    # snapshot t uses the input from the source snapshot s(t)
     for bus_col, eff, names, delay, is_cyclic in delayed_link_args:
         active_names = names.intersection(active)
         if active_names.empty:
             continue
 
-        src_snapshot_pos, valid = links.get_delay_source_indexer(
+        # Map each target snapshot to its source snapshot position
+        src_snapshot_pos, valid = Links.get_delay_source_indexer(
             sns,
             n.snapshot_weightings.generators.loc[sns],
             delay,
             is_cyclic,
         )
+        # Zero out invalid positions (non-cyclic: before horizon start)
         valid_mask = DataArray(
             valid.astype(float),
             dims=["snapshot"],

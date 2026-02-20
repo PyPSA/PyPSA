@@ -6,11 +6,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
@@ -20,6 +18,7 @@ from pypsa.constants import RE_PORTS_GE_2
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    import pandas as pd
     import xarray as xr
 
 
@@ -46,13 +45,6 @@ class Links(Components):
     """
 
     _operational_variables = ["p"]
-
-    class DelayGroup(NamedTuple):
-        """Grouped delay configuration for a link port."""
-
-        delay: int
-        is_cyclic: bool
-        names: pd.Index
 
     def get_bounds_pu(
         self,
@@ -123,59 +115,6 @@ class Links(Components):
             for col in self.static.columns
             if (match := RE_PORTS_GE_2.search(col))
         ]
-
-    def split_by_port_delay(
-        self, port: str, *, subset: pd.Index | None = None
-    ) -> tuple[pd.Index, list[DelayGroup]]:
-        """Split links of a port into non-delayed assets and delayed groups.
-
-        Parameters
-        ----------
-        port : str
-            Port id like ``"1"``, ``"2"``, ...
-        subset : pd.Index, optional
-            Optional subset of link names to process.
-
-        Returns
-        -------
-        tuple[pd.Index, list[DelayGroup]]
-            First element contains non-delayed link names. Second element contains
-            delay-groups, where each group has common ``delay`` and
-            ``is_cyclic`` values.
-
-        """
-        i_suffix = "" if port == "1" else port
-        delay_attr = f"delay{i_suffix}"
-        cyclic_attr = f"cyclic_delay{i_suffix}"
-
-        names = (
-            self.static.index
-            if subset is None
-            else subset.intersection(self.static.index)
-        )
-        if delay_attr not in self.static.columns:
-            return names, []
-
-        delays = self.static.loc[names, delay_attr]
-        has_delay = delays > 0
-        non_delayed = delays[~has_delay].index
-        if not has_delay.any():
-            return non_delayed, []
-
-        if cyclic_attr in self.static.columns:
-            cyclic = self.static.loc[names, cyclic_attr]
-        else:
-            cyclic = pd.Series(True, index=names)
-
-        grouped: list[Links.DelayGroup] = []
-        for d in delays[has_delay].unique():
-            delay_names = delays[has_delay & (delays == d)].index
-            is_cyclic = cyclic.loc[delay_names]
-            for cyc_val in is_cyclic.unique():
-                cyc_names = is_cyclic[is_cyclic == cyc_val].index
-                grouped.append(Links.DelayGroup(int(d), bool(cyc_val), cyc_names))
-
-        return non_delayed, grouped
 
     @staticmethod
     def get_delay_source_indexer(

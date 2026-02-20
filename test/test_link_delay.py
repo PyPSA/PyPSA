@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: MIT
 
 import numpy as np
-import pandas as pd
 import pytest
 
 import pypsa
@@ -239,7 +238,7 @@ def test_link_delay_with_scenarios_non_delayed_regression():
     assert status == "ok"
 
 
-def test_link_split_by_port_delay_with_scenarios():
+def test_link_delay_with_scenarios():
     n = pypsa.Network()
     n.set_snapshots(range(5))
     n.add("Bus", "bus0")
@@ -280,44 +279,16 @@ def test_link_split_by_port_delay_with_scenarios():
 
     n.set_scenarios({"low": 0.5, "high": 0.5})
 
-    non_delayed_p1, delayed_groups_p1 = n.c.links.split_by_port_delay("1")
-    assert non_delayed_p1.equals(
-        pd.MultiIndex.from_product(
-            [n.scenarios, ["instant"]], names=["scenario", "name"]
-        )
-    )
-    assert len(delayed_groups_p1) == 1
-    assert delayed_groups_p1[0].delay == 1
-    assert delayed_groups_p1[0].is_cyclic
-    assert delayed_groups_p1[0].names.equals(
-        pd.MultiIndex.from_product(
-            [n.scenarios, ["delayed"]], names=["scenario", "name"]
-        )
-    )
-
-    non_delayed_p2, delayed_groups_p2 = n.c.links.split_by_port_delay("2")
-    assert non_delayed_p2.equals(
-        pd.MultiIndex.from_product(
-            [n.scenarios, ["instant"]], names=["scenario", "name"]
-        )
-    )
-    assert len(delayed_groups_p2) == 1
-    assert delayed_groups_p2[0].delay == 2
-    assert not delayed_groups_p2[0].is_cyclic
-    assert delayed_groups_p2[0].names.equals(
-        pd.MultiIndex.from_product(
-            [n.scenarios, ["delayed"]], names=["scenario", "name"]
-        )
-    )
-
     status, _ = n.optimize()
     assert status == "ok"
 
+    from pypsa.components._types.links import Links
+
     delay_weightings = n.snapshot_weightings.generators.loc[n.snapshots]
-    src1, valid1 = n.c.links.get_delay_source_indexer(
+    src1, valid1 = Links.get_delay_source_indexer(
         n.snapshots, delay_weightings, 1, True
     )
-    src2, valid2 = n.c.links.get_delay_source_indexer(
+    src2, valid2 = Links.get_delay_source_indexer(
         n.snapshots, delay_weightings, 2, False
     )
 

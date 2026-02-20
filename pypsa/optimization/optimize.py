@@ -19,6 +19,7 @@ from linopy.solvers import available_solvers
 
 from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
+from pypsa.components._types.links import Links
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
@@ -889,23 +890,34 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                             "Link", f"efficiency{i_suffix}", sns
                         )
                         port_df = -df * eff
+                        # For delayed links, time shift the p variable so that output at
+                        # snapshot t uses the input from the source snapshot s(t)
                         delay_weightings = n.snapshot_weightings.generators.loc[sns]
-                        _, delayed_groups = n.c.links.split_by_port_delay(i)
-                        for group in delayed_groups:
-                            cols = group.names
-                            src_snapshot_pos, valid = (
-                                n.c.links.get_delay_source_indexer(
-                                    sns,
-                                    delay_weightings,
-                                    group.delay,
-                                    group.is_cyclic,
+                        delay_col = f"delay{i_suffix}"
+                        cyclic_col = f"cyclic_delay{i_suffix}"
+                        link_static = c.static
+                        if delay_col in link_static.columns:
+                            delayed = link_static[link_static[delay_col] > 0]
+                            if cyclic_col in link_static.columns:
+                                grp_cols = [delay_col, cyclic_col]
+                            else:
+                                delayed = delayed.assign(_cyclic=True)
+                                grp_cols = [delay_col, "_cyclic"]
+                            for (d, cyc), grp in delayed.groupby(grp_cols):
+                                cols = grp.index
+                                src_snapshot_pos, valid = (
+                                    Links.get_delay_source_indexer(
+                                        sns,
+                                        delay_weightings,
+                                        int(d),
+                                        bool(cyc),
+                                    )
                                 )
-                            )
-                            delayed_values = port_df[cols].to_numpy()[
-                                src_snapshot_pos, :
-                            ]
-                            delayed_values[~valid, :] = 0.0
-                            port_df[cols] = delayed_values
+                                delayed_values = port_df[cols].to_numpy()[
+                                    src_snapshot_pos, :
+                                ]
+                                delayed_values[~valid, :] = 0.0
+                                port_df[cols] = delayed_values
                         _set_dynamic_data(n, c.name, f"p{i}", port_df)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
