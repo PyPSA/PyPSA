@@ -199,7 +199,7 @@ def get_bounds_pu(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Retrieve per unit bounds of a given component.
 
-    Getter function to retrieve the per unit bounds of a given compoent for
+    Getter function to retrieve the per unit bounds of a given component for
     given snapshots and possible subset of elements (e.g. non-extendables).
     Depending on the attr you can further specify the bounds of the variable
     you are looking at, e.g. p_store for storage units.
