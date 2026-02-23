@@ -55,7 +55,7 @@ jobs:
 
     - name: Find the branch for commit/ tag
       run: |
-        branch=$(git branch -r --contains ${{ github.sha }} | grep -v 'HEAD' | head -n 1 | sed 's|origin/||' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        branch=$(git branch -r --points-at ${{ github.sha }} | grep -v 'HEAD' | head -n 1 | sed 's|origin/||' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         echo "Branch found: $branch"
         echo "BRANCH_NAME=$branch" >> $GITHUB_ENV
 
