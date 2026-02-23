@@ -432,31 +432,21 @@ def test_consistency_delay_exceeds_period_horizon():
     # delay=4 equals per-period horizon (4 snapshots * weight 1.0 = 4.0)
     n.add("Link", "link", bus0="bus0", bus1="bus1", p_nom=100, delay=4)
     with pytest.raises(pypsa.consistency.ConsistencyError, match="equal or exceed"):
-        n.consistency_check(strict=["link_delays"])
+        n.consistency_check()
 
 
-@pytest.mark.parametrize("strict", [[], ["link_delays"]])
-def test_consistency_negative_delay(base_network, caplog, strict):
+def test_consistency_negative_delay(base_network):
     n = base_network
     n.add("Link", "link", bus0="bus0", bus1="bus1", p_nom=100, delay=-1)
-    if strict:
-        with pytest.raises(pypsa.consistency.ConsistencyError, match="Negative delay"):
-            n.consistency_check(strict=strict)
-    else:
+    with pytest.raises(pypsa.consistency.ConsistencyError, match="Negative delay"):
         n.consistency_check()
-        assert any("Negative delay" in r.message for r in caplog.records)
 
 
-@pytest.mark.parametrize("strict", [[], ["link_delays"]])
-def test_consistency_delay_exceeds_horizon(base_network, caplog, strict):
+def test_consistency_delay_exceeds_horizon(base_network):
     n = base_network
     n.add("Link", "link", bus0="bus0", bus1="bus1", p_nom=100, delay=6)
-    if strict:
-        with pytest.raises(pypsa.consistency.ConsistencyError, match="equal or exceed"):
-            n.consistency_check(strict=strict)
-    else:
+    with pytest.raises(pypsa.consistency.ConsistencyError, match="equal or exceed"):
         n.consistency_check()
-        assert any("equal or exceed" in r.message for r in caplog.records)
 
 
 def test_delay_positions_raises_on_zero_total_weight():
