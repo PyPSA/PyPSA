@@ -206,7 +206,7 @@ def define_maintenance_variables(n: Network, sns: Sequence, c_name: str) -> None
     ----------
     n : pypsa.Network
         Network instance containing the model and component data
-    sns : pd.Index
+    sns : Sequence
         Set of snapshots for which to define the constraints
     c_name : str
         Name of the network component ("Generator" or "Link")
@@ -232,7 +232,7 @@ def define_maintenance_start_variables(n: Network, sns: Sequence, c_name: str) -
     ----------
     n : pypsa.Network
         Network instance containing the model and component data
-    sns : pd.Index
+    sns : Sequence
         Set of snapshots for which to define the constraints
     c_name : str
         Name of the network component ("Generator" or "Link")
@@ -259,6 +259,15 @@ def define_maintenance_capacity_variables(
     Only needed for maintainable extendable components. The variable
     represents z = p_nom * maintenance and is bounded via McCormick
     constraints in define_maintenance_constraints.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : Sequence
+        Set of snapshots for which to define the constraints
+    c_name : str
+        Name of the network component ("Generator" or "Link")
 
     """
     c = n.components[c_name]

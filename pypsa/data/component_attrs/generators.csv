@@ -52,7 +52,6 @@ status,series,n/a,1,"Status in the snapshot (1 is on, 0 is off). Only returned i
 start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only returned if `committable=True`.",Output
 shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no).  Only returned if `committable=True`.",Output
 maintenance,series,n/a,0,Maintenance status (1=in maintenance). Only returned if `maintainable=True`.,Output
-maintenance_start,series,n/a,0,Whether maintenance started in the snapshot. Only returned if `maintainable=True`.,Output
 mu_upper,series,currency/MWh,n/a,Shadow price of upper `p_nom` limit,Output
 mu_lower,series,currency/MWh,n/a,Shadow price of lower `p_nom` limit,Output
 mu_p_set,series,currency/MWh,n/a,Shadow price of fixed power generation `p_set`,Output

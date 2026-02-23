@@ -643,7 +643,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
         Name of the network component ("Generator" or "Link")
 
     """
-    c = as_components(n, component)
+    c = n.c[component]
     maint_i = c.maintainables.difference(c.inactive_assets)
 
     if maint_i.empty:
@@ -656,19 +656,16 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     duration = c.da.maintenance_duration.sel(name=maint_i)
     events = c.da.maintenance_events.sel(name=maint_i)
 
-    # Event count
     n.model.add_constraints(
         maintenance_start.sum("snapshot") == events,
         name=f"{c.name}-maint-event-count",
     )
 
-    # Total duration
     n.model.add_constraints(
         maintenance.sum("snapshot") == duration * events,
         name=f"{c.name}-maint-total-duration",
     )
 
-    # Duration/contiguity
     expr = []
     for g in maint_i:
         ms = maintenance_start.loc[:, g]
@@ -677,7 +674,6 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     lhs = -maintenance + merge(expr, dim=maint_i.name)
     n.model.add_constraints(lhs <= 0, name=f"{c.name}-maint-duration", mask=active)
 
-    # Restrict starts to fit within horizon
     expr = []
     for g in maint_i:
         d = duration.sel(name=g).item()
@@ -688,7 +684,6 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
         lhs = merge(expr, dim="name")
         n.model.add_constraints(lhs <= 0, name=f"{c.name}-maint-start-horizon")
 
-    # envelope for maintenance capacity z
     ext_i = c.extendables.difference(c.inactive_assets)
     maint_ext_i = maint_i.intersection(ext_i)
     if not maint_ext_i.empty:

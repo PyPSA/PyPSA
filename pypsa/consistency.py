@@ -943,7 +943,6 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
-            # Checks maintainable components
             check_maintenance_attributes(self, c, "maintenance" in strict)
             # Checks cost attributes consistency
             check_cost_consistency(c)
@@ -1409,9 +1408,9 @@ def check_maintenance_attributes(
 
     Parameters
     ----------
-    n : pypsa.Network
+    n : NetworkType
         The network to check.
-    component : pypsa.Component
+    component : Components
         The component to check.
     strict : bool, optional
         If True, raise an error instead of logging a warning.
@@ -1438,6 +1437,16 @@ def check_maintenance_attributes(
             bad_duration.index,
         )
 
+    bad_events = maintainable[maintainable.maintenance_events <= 0]
+    if not bad_events.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintainable=True but maintenance_events <= 0,"
+            " which will cause infeasibility:\n%s",
+            component.list_name,
+            bad_events.index,
+        )
+
     n_snapshots = len(n.snapshots)
     bad_horizon = maintainable[maintainable.maintenance_duration > n_snapshots]
     if not bad_horizon.empty:
@@ -1448,6 +1457,18 @@ def check_maintenance_attributes(
             component.list_name,
             n_snapshots,
             bad_horizon.index,
+        )
+
+    total = maintainable.maintenance_duration * maintainable.maintenance_events
+    bad_total = maintainable[total > n_snapshots]
+    if not bad_total.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintenance_duration * maintenance_events > number"
+            " of snapshots (%d), which will cause infeasibility:\n%s",
+            component.list_name,
+            n_snapshots,
+            bad_total.index,
         )
 
 
