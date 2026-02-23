@@ -32,13 +32,12 @@ def test_basic_maintenance_scheduling(basic_network):
     n.add("Load", "load", bus="bus", p_set=50)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     assert maint.sum() == 3
     diffs = np.diff(np.where(maint)[0])
-    if len(diffs):
-        assert (diffs == 1).all()
+    assert (diffs == 1).all()
 
 
 def test_optimal_timing(basic_network):
@@ -59,7 +58,7 @@ def test_optimal_timing(basic_network):
     n.add("Load", "load", bus="bus", p_set=load)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["cheap"].values
     maint_periods = np.where(maint)[0]
@@ -82,7 +81,7 @@ def test_partial_maintenance(basic_network):
     n.add("Load", "load", bus="bus", p_set=50)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     p = n.c.generators.dynamic.p["gen"].values
@@ -108,7 +107,7 @@ def test_multiple_events(basic_network):
     n.add("Load", "load", bus="bus", p_set=50)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     assert maint.sum() == 4
@@ -139,7 +138,7 @@ def test_committable_maintainable(basic_network):
     n.add("Load", "load", bus="bus", p_set=50)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     p = n.c.generators.dynamic.p["gen"].values
@@ -166,7 +165,7 @@ def test_extendable_maintainable(basic_network):
     n.add("Load", "load", bus="bus", p_set=80)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     p = n.c.generators.dynamic.p["gen"].values
@@ -193,7 +192,7 @@ def test_link_maintenance(basic_network):
     n.add("Load", "load", bus="bus1", p_set=50)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     maint = n.c.links.dynamic.maintenance["link"].values
     assert maint.sum() == 2
@@ -219,7 +218,7 @@ def test_multiple_generators_no_simultaneous_overlap(basic_network):
     n.add("Load", "load", bus="bus", p_set=150)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     m0 = n.c.generators.dynamic.maintenance["gen0"].values
     m1 = n.c.generators.dynamic.maintenance["gen1"].values
@@ -233,7 +232,7 @@ def test_no_maintenance_without_flag(basic_network):
     n.add("Load", "load", bus="bus", p_set=50)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     assert (
         "maintenance" not in n.c.generators.dynamic
@@ -256,7 +255,7 @@ def test_single_snapshot_duration(basic_network):
     n.add("Load", "load", bus="bus", p_set=50)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     assert maint.sum() == 1
@@ -279,7 +278,7 @@ def test_full_horizon_duration():
     n.add("Load", "load", bus="bus", p_set=50)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     assert maint.sum() == 5
@@ -305,7 +304,7 @@ def test_extendable_committable_maintainable(basic_network):
     n.add("Load", "load", bus="bus", p_set=80)
 
     status = n.optimize()
-    assert status[1] == "optimal"
+    assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     p = n.c.generators.dynamic.p["gen"].values

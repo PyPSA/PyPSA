@@ -207,21 +207,20 @@ def define_maintenance_variables(n: Network, sns: Sequence, c_name: str) -> None
     n : pypsa.Network
         Network instance containing the model and component data
     sns : Sequence
-        Set of snapshots for which to define the constraints
+        Set of snapshots for which to define the variables
     c_name : str
         Name of the network component ("Generator" or "Link")
 
     """
-    c = n.components[c_name]
+    c = n.c[c_name]
     maint_i = c.maintainables.difference(c.inactive_assets)
 
     if maint_i.empty:
         return
 
     active = c.da.active.sel(name=maint_i, snapshot=sns)
-    coords = active.coords
     n.model.add_variables(
-        coords=coords, name=f"{c.name}-maintenance", mask=active, binary=True
+        coords=active.coords, name=f"{c.name}-maintenance", mask=active, binary=True
     )
 
 
@@ -233,21 +232,23 @@ def define_maintenance_start_variables(n: Network, sns: Sequence, c_name: str) -
     n : pypsa.Network
         Network instance containing the model and component data
     sns : Sequence
-        Set of snapshots for which to define the constraints
+        Set of snapshots for which to define the variables
     c_name : str
         Name of the network component ("Generator" or "Link")
 
     """
-    c = n.components[c_name]
+    c = n.c[c_name]
     maint_i = c.maintainables.difference(c.inactive_assets)
 
     if maint_i.empty:
         return
 
     active = c.da.active.sel(name=maint_i, snapshot=sns)
-    coords = active.coords
     n.model.add_variables(
-        coords=coords, name=f"{c.name}-maintenance_start", mask=active, binary=True
+        coords=active.coords,
+        name=f"{c.name}-maintenance_start",
+        mask=active,
+        binary=True,
     )
 
 
@@ -265,12 +266,12 @@ def define_maintenance_capacity_variables(
     n : pypsa.Network
         Network instance containing the model and component data
     sns : Sequence
-        Set of snapshots for which to define the constraints
+        Set of snapshots for which to define the variables
     c_name : str
         Name of the network component ("Generator" or "Link")
 
     """
-    c = n.components[c_name]
+    c = n.c[c_name]
     maint_ext_i = c.maintainables.intersection(c.extendables).difference(
         c.inactive_assets
     )
@@ -279,9 +280,11 @@ def define_maintenance_capacity_variables(
         return
 
     active = c.da.active.sel(name=maint_ext_i, snapshot=sns)
-    coords = active.coords
     n.model.add_variables(
-        lower=0, coords=coords, name=f"{c.name}-maintenance_capacity", mask=active
+        lower=0,
+        coords=active.coords,
+        name=f"{c.name}-maintenance_capacity",
+        mask=active,
     )
 
 

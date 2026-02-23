@@ -671,7 +671,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
         ms = maintenance_start.loc[:, g]
         d = duration.sel(name=g).item()
         expr.append(ms.rolling(snapshot=d, min_periods=1).sum())
-    lhs = -maintenance + merge(expr, dim=maint_i.name)
+    lhs = -maintenance + merge(expr, dim="name")
     n.model.add_constraints(lhs <= 0, name=f"{c.name}-maint-duration", mask=active)
 
     expr = []

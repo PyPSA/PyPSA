@@ -1420,7 +1420,7 @@ def check_maintenance_attributes(
     [pypsa.Network.consistency_check][]
 
     """
-    if "maintainable" not in component.static.columns:
+    if "maintainable" not in component.static:
         return
 
     maintainable = component.static[component.static.maintainable]
