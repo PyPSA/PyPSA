@@ -457,3 +457,19 @@ def test_consistency_delay_exceeds_horizon(base_network, caplog, strict):
     else:
         n.consistency_check()
         assert any("equal or exceed" in r.message for r in caplog.records)
+
+
+def test_delay_positions_raises_on_zero_total_weight():
+    weights = np.array([0.0, 0.0, 0.0])
+    with pytest.raises(ValueError, match="positive total"):
+        Links._delay_positions(weights, delay=1.0, is_cyclic=True)
+
+
+def test_get_delay_source_indexer_empty_snapshots():
+    snapshots = pd.RangeIndex(0)
+    weightings = pd.Series(dtype=float)
+    src, valid = Links.get_delay_source_indexer(
+        snapshots, weightings, delay=2, is_cyclic=True
+    )
+    assert len(src) == 0
+    assert len(valid) == 0
