@@ -472,10 +472,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         log_to_console : bool, optional
-            Whether the solver prints its progress to the console. This is passed
-            to linopy's `Model.solve()` method. Defaults to module wide option
-            (default: True). See `https://go.pypsa.org/options-params` for more
-            information.
+            Whether the solver prints its progress to the console. Passed as a
+            solver option to linopy's `Model.solve()` method. When None,
+            solver default behavior is used. Note: not all solvers support
+            this option (e.g. HiGHS does, CPLEX does not). See
+            `https://go.pypsa.org/options-params` for more information.
         compute_infeasibilities : bool, default False
             Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
             of an infeasible solution. Requires Gurobi.
@@ -535,9 +536,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         )
         if extra_functionality:
             extra_functionality(n, sns)
+        if log_to_console is not None:
+            kwargs["log_to_console"] = log_to_console
         status, condition = m.solve(
             solver_name=solver_name,
-            log_to_console=log_to_console,
             **solver_options,
             **kwargs,
         )
@@ -786,10 +788,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             (default: {}). Can also be passed via `**kwargs`. See
             `https://go.pypsa.org/options-params` for more information.
         log_to_console : bool, optional
-            Whether the solver prints its progress to the console. This is passed
-            to linopy's `Model.solve()` method. Defaults to module wide option
-            (default: True). See `https://go.pypsa.org/options-params` for more
-            information.
+            Whether the solver prints its progress to the console. Passed as a
+            solver option to linopy's `Model.solve()` method. When None,
+            solver default behavior is used. Note: not all solvers support
+            this option (e.g. HiGHS does, CPLEX does not). See
+            `https://go.pypsa.org/options-params` for more information.
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
@@ -821,9 +824,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if extra_functionality:
             extra_functionality(n, n.snapshots)
         m = n.model
+        if log_to_console is not None:
+            kwargs["log_to_console"] = log_to_console
         status, condition = m.solve(
             solver_name=solver_name,
-            log_to_console=log_to_console,
             **solver_options,
             **kwargs,
         )
