@@ -1055,9 +1055,7 @@ def define_nodal_balance_constraints(
         else:
             sns_coords = {"snapshot": sns}
         valid_mask = DataArray(
-            valid.astype(float),
-            dims=["snapshot"],
-            coords=sns_coords,
+            valid.astype(float), dims=["snapshot"], coords=sns_coords
         )
 
         link_p = m["Link-p"].sel(name=active_names)
