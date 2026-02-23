@@ -90,6 +90,7 @@ def define_operational_constraints_for_non_extendables(
     """
     c = as_components(n, component)
     fix_i = c.fixed.difference(c.committables).difference(c.inactive_assets)
+    maint_fix_i = c.maintainables.intersection(fix_i)
 
     if fix_i.empty:
         return
@@ -115,6 +116,12 @@ def define_operational_constraints_for_non_extendables(
         lhs_upper = dispatch + loss
     else:
         lhs_lower = lhs_upper = dispatch
+
+    if not maint_fix_i.empty:
+        alpha = c.da.maintenance_pu.sel(name=maint_fix_i)
+        m = n.model[f"{c.name}-maintenance"].sel(name=maint_fix_i)
+        lhs_upper = lhs_upper + upper * alpha * m
+        lhs_lower = lhs_lower + lower * alpha * m
 
     n.model.add_constraints(
         lhs_lower, ">=", lower, name=f"{c.name}-fix-{attr}-lower", mask=active
@@ -189,6 +196,15 @@ def define_operational_constraints_for_extendables(
         loss = n.model[f"{c.name}-loss"].sel(name=ext_i)
         lhs_lower = lhs_lower - loss
         lhs_upper = lhs_upper + loss
+
+    maint_ext_i = c.maintainables.intersection(ext_i)
+    if not maint_ext_i.empty:
+        if isinstance(maint_ext_i, pd.MultiIndex):
+            maint_ext_i = maint_ext_i.unique(level="name")
+        alpha = c.da.maintenance_pu.sel(name=maint_ext_i)
+        z = n.model[f"{c.name}-maintenance_capacity"].sel(name=maint_ext_i)
+        lhs_upper = lhs_upper + max_pu * alpha * z
+        lhs_lower = lhs_lower + min_pu * alpha * z
 
     n.model.add_constraints(
         lhs_lower, ">=", 0, name=f"{c.name}-ext-{attr}-lower", mask=active
@@ -294,6 +310,8 @@ def define_operational_constraints_for_committables(
         down_time_before_set = down_time_before.clip(max=min_down_time_set)
         initially_down = down_time_before_set.astype(bool)
 
+    maint_i = c.maintainables.difference(c.inactive_assets)
+
     if not com_ext_i.empty:
         p_nom_var = n.model[f"{c.name}-{c._operational_attrs['nom']}"]
         M_values = c.get_committable_big_m_values(
@@ -304,9 +322,20 @@ def define_operational_constraints_for_committables(
         p_nom_ext = p_nom_var.sel(name=com_ext_i)
         min_pu_ext = min_pu.sel(name=com_ext_i)
         max_pu_ext = max_pu.sel(name=com_ext_i)
-
         active_ext = active.sel(name=com_ext_i)
-        lhs_lower_ext = (1, p_ext), (-min_pu_ext, p_nom_ext), (-M_values, status_ext)
+
+        maint_com_ext_i = com_ext_i.intersection(maint_i)
+
+        lhs_lower_ext = p_ext - min_pu_ext * p_nom_ext - M_values * status_ext
+        lhs_upper_bigM = p_ext - M_values * status_ext
+        lhs_upper_cap = p_ext - max_pu_ext * p_nom_ext
+
+        if not maint_com_ext_i.empty:
+            alpha = c.da.maintenance_pu.sel(name=maint_com_ext_i)
+            z = n.model[f"{c.name}-maintenance_capacity"].sel(name=maint_com_ext_i)
+            lhs_lower_ext = lhs_lower_ext + min_pu_ext * alpha * z
+            lhs_upper_cap = lhs_upper_cap + max_pu_ext * alpha * z
+
         n.model.add_constraints(
             lhs_lower_ext,
             ">=",
@@ -314,17 +343,13 @@ def define_operational_constraints_for_committables(
             name=f"{c.name}-com-ext-p-lower",
             mask=active_ext,
         )
-
-        lhs_upper_ext = (1, p_ext), (-M_values, status_ext)
         n.model.add_constraints(
-            lhs_upper_ext,
+            lhs_upper_bigM,
             "<=",
             0,
             name=f"{c.name}-com-ext-p-upper-bigM",
             mask=active_ext,
         )
-
-        lhs_upper_cap = (1, p_ext), (-max_pu_ext, p_nom_ext)
         n.model.add_constraints(
             lhs_upper_cap,
             "<=",
@@ -361,7 +386,17 @@ def define_operational_constraints_for_committables(
         upper_p_fix = upper_p.sel(name=com_fix_i)
         active_fix = active.sel(name=com_fix_i)
 
-        lhs_lower_fix = (1, p_fix), (-lower_p_fix, status_fix)
+        maint_com_fix_i = com_fix_i.intersection(maint_i)
+
+        lhs_lower_fix = p_fix - lower_p_fix * status_fix
+        lhs_upper_fix = p_fix - upper_p_fix * status_fix
+
+        if not maint_com_fix_i.empty:
+            alpha = c.da.maintenance_pu.sel(name=maint_com_fix_i)
+            m = n.model[f"{c.name}-maintenance"].sel(name=maint_com_fix_i)
+            lhs_lower_fix = lhs_lower_fix + lower_p_fix * alpha * m
+            lhs_upper_fix = lhs_upper_fix + upper_p_fix * alpha * m
+
         n.model.add_constraints(
             lhs_lower_fix,
             ">=",
@@ -369,8 +404,6 @@ def define_operational_constraints_for_committables(
             name=f"{c.name}-com-p-lower",
             mask=active_fix,
         )
-
-        lhs_upper_fix = (1, p_fix), (-upper_p_fix, status_fix)
         n.model.add_constraints(
             lhs_upper_fix,
             "<=",
@@ -590,6 +623,94 @@ def define_operational_constraints_for_committables(
             0,
             name=f"{c.name}-com-partly-shut-down",
             mask=active_ce,
+        )
+
+
+def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) -> None:
+    """Define maintenance scheduling constraints.
+
+    Adds event count, duration/contiguity, and horizon restriction constraints
+    for maintainable components. Dispatch coupling is handled by the existing
+    operational constraint functions.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component ("Generator" or "Link")
+
+    """
+    c = as_components(n, component)
+    maint_i = c.maintainables.difference(c.inactive_assets)
+
+    if maint_i.empty:
+        return
+
+    maintenance = n.model[f"{c.name}-maintenance"]
+    maintenance_start = n.model[f"{c.name}-maintenance_start"]
+    active = c.da.active.sel(name=maint_i, snapshot=sns)
+
+    duration = c.da.maintenance_duration.sel(name=maint_i)
+    events = c.da.maintenance_events.sel(name=maint_i)
+
+    # Event count
+    n.model.add_constraints(
+        maintenance_start.sum("snapshot") == events,
+        name=f"{c.name}-maint-event-count",
+    )
+
+    # Total duration
+    n.model.add_constraints(
+        maintenance.sum("snapshot") == duration * events,
+        name=f"{c.name}-maint-total-duration",
+    )
+
+    # Duration/contiguity
+    expr = []
+    for g in maint_i:
+        ms = maintenance_start.loc[:, g]
+        d = duration.sel(name=g).item()
+        expr.append(ms.rolling(snapshot=d, min_periods=1).sum())
+    lhs = -maintenance + merge(expr, dim=maint_i.name)
+    n.model.add_constraints(lhs <= 0, name=f"{c.name}-maint-duration", mask=active)
+
+    # Restrict starts to fit within horizon
+    expr = []
+    for g in maint_i:
+        d = duration.sel(name=g).item()
+        if d > 1 and d <= len(sns):
+            forbidden_sns = sns[-(d - 1) :]
+            expr.append(maintenance_start.loc[forbidden_sns, g].to_linexpr())
+    if expr:
+        lhs = merge(expr, dim="name")
+        n.model.add_constraints(lhs <= 0, name=f"{c.name}-maint-start-horizon")
+
+    # envelope for maintainence capacity z
+    ext_i = c.extendables.difference(c.inactive_assets)
+    maint_ext_i = maint_i.intersection(ext_i)
+    if not maint_ext_i.empty:
+        nom_attr = c._operational_attrs["nom"]
+        p_nom = n.model[f"{c.name}-{nom_attr}"].sel(name=maint_ext_i)
+        p_nom_max = c.da[f"{nom_attr}_max"].sel(name=maint_ext_i)
+        m = maintenance.sel(name=maint_ext_i)
+        z = n.model[f"{c.name}-maintenance_capacity"].sel(name=maint_ext_i)
+        active_me = active.sel(name=maint_ext_i)
+
+        n.model.add_constraints(
+            z <= p_nom, name=f"{c.name}-maintcap_upper", mask=active_me
+        )
+        n.model.add_constraints(
+            z <= p_nom_max * m,
+            name=f"{c.name}-maintcap_upper_nommax",
+            mask=active_me,
+        )
+        n.model.add_constraints(
+            z + p_nom_max >= p_nom + p_nom_max * m,
+            name=f"{c.name}-maintcap_lower_nommax",
+            mask=active_me,
         )
 
 

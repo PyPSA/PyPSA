@@ -199,6 +199,83 @@ def define_shut_down_variables(
     )
 
 
+def define_maintenance_variables(n: Network, sns: Sequence, c_name: str) -> None:
+    """Initialize binary variables for maintenance status.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    c_name : str
+        Name of the network component ("Generator" or "Link")
+
+    """
+    c = n.components[c_name]
+    maint_i = c.maintainables.difference(c.inactive_assets)
+
+    if maint_i.empty:
+        return
+
+    active = c.da.active.sel(name=maint_i, snapshot=sns)
+    coords = active.coords
+    n.model.add_variables(
+        coords=coords, name=f"{c.name}-maintenance", mask=active, binary=True
+    )
+
+
+def define_maintenance_start_variables(n: Network, sns: Sequence, c_name: str) -> None:
+    """Initialize binary variables for maintenance start events.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    c_name : str
+        Name of the network component ("Generator" or "Link")
+
+    """
+    c = n.components[c_name]
+    maint_i = c.maintainables.difference(c.inactive_assets)
+
+    if maint_i.empty:
+        return
+
+    active = c.da.active.sel(name=maint_i, snapshot=sns)
+    coords = active.coords
+    n.model.add_variables(
+        coords=coords, name=f"{c.name}-maintenance_start", mask=active, binary=True
+    )
+
+
+def define_maintenance_capacity_variables(
+    n: Network, sns: Sequence, c_name: str
+) -> None:
+    """Initialize auxiliary variables for linearizing p_nom * maintenance.
+
+    Only needed for maintainable extendable components. The variable
+    represents z = p_nom * maintenance and is bounded via McCormick
+    constraints in define_maintenance_constraints.
+
+    """
+    c = n.components[c_name]
+    maint_ext_i = c.maintainables.intersection(c.extendables).difference(
+        c.inactive_assets
+    )
+
+    if maint_ext_i.empty:
+        return
+
+    active = c.da.active.sel(name=maint_ext_i, snapshot=sns)
+    coords = active.coords
+    n.model.add_variables(
+        lower=0, coords=coords, name=f"{c.name}-maintenance_capacity", mask=active
+    )
+
+
 def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
     """Initialize variables for nominal capacities.
 
