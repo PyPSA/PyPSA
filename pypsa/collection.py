@@ -532,6 +532,7 @@ def _get_method_patterns() -> dict[str, str]:
         r"snapshots|"
         r"snapshot_weightings|"
         r"bus_carrier_unit|"
+        rf"({_component_classes}\.(name|ports|_as_port|_as_ports))|"
         r")$",
         # ---------------
         "index_concat": r"^("
