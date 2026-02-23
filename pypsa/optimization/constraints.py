@@ -649,6 +649,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     if maint_i.empty:
         return
 
+    weightings = n.snapshot_weightings.generators
     maintenance = n.model[f"{c.name}-maintenance"]
     maintenance_start = n.model[f"{c.name}-maintenance_start"]
     active = c.da.active.sel(name=maint_i, snapshot=sns)
@@ -662,7 +663,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     )
 
     n.model.add_constraints(
-        maintenance.sum("snapshot") == duration * events,
+        maintenance @ weightings == duration * events,
         name=f"{c.name}-maint-total-duration",
     )
 

@@ -90,9 +90,9 @@ Constraint name: `*-maint-event-count`
 
 ## Total Duration
 
-The total number of snapshots in maintenance equals the duration per event $d$ times the number of events $E$:
+The total weighted time in maintenance equals the duration per event $d$ times the number of events $E$, where $w_t$ are the snapshot weightings:
 
-$$\sum_{t} m_{*,t} = d \cdot E$$
+$$\sum_{t} w_t \cdot m_{*,t} = d \cdot E$$
 
 Constraint name: `*-maint-total-duration`
 
