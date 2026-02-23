@@ -23,7 +23,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix release pipeline branch detection picking the wrong branch when multiple branches contain the tagged commit. (<!-- md:pr 1577 -->)
 
-## ~~v1.1.1~~ <small>23rd February 2026 (yanked)</small> { id="v1.1.1" }
+## ~~v1.1.1~~ <small>23rd February 2026</small> { id="v1.1.1" }
 
 Yanked due to incorrect release from CI pipeline. Use v1.1.2 instead.
 
