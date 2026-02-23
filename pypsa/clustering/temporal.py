@@ -628,7 +628,7 @@ class TemporalClusteringMixin:
             )
             raise ModuleNotFoundError(msg)
 
-        import tsam.timeseriesaggregation as tsam_module  # noqa: PLC0415
+        import tsam  # noqa: PLC0415
 
         if exclude_attrs is None:
             exclude_attrs = ["e_min_pu"]
@@ -659,15 +659,26 @@ class TemporalClusteringMixin:
         df_normalized = combined.div(normalization_factors)
         df_normalized = df_normalized.fillna(0)
 
-        agg = tsam_module.TimeSeriesAggregation(
-            df_normalized,
-            hoursPerPeriod=len(df_normalized),
-            noTypicalPeriods=1,
-            noSegments=num_segments,
-            segmentation=True,
-            solver=solver,
-        )
-        segmented = agg.createTypicalPeriods()
+        if hasattr(tsam, "aggregate"):  # tsam >= 3.0
+            result = tsam.aggregate(
+                df_normalized,
+                n_clusters=1,
+                period_duration=len(df_normalized),
+                segments=tsam.SegmentConfig(n_segments=num_segments),
+            )
+            segmented = result.cluster_representatives
+        else:  # tsam < 3.0
+            import tsam.timeseriesaggregation  # noqa: PLC0415
+
+            agg = tsam.timeseriesaggregation.TimeSeriesAggregation(
+                df_normalized,
+                hoursPerPeriod=len(df_normalized),
+                noTypicalPeriods=1,
+                noSegments=num_segments,
+                segmentation=True,
+                solver=solver,
+            )
+            segmented = agg.createTypicalPeriods()
 
         weightings_raw = segmented.index.get_level_values("Segment Duration")
         offsets = np.insert(np.cumsum(weightings_raw.values[:-1]), 0, 0).astype(int)
