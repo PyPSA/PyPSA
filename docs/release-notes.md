@@ -21,7 +21,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix `log_to_console` option breaking solvers that don't support it (e.g. CPLEX). The option is now only passed to the solver when explicitly set. (<!-- md:pr 1574 -->)
 
-- Fix release pipeline branch detection picking the wrong branch when multiple branches contain the tagged commit.
+- Fix release pipeline branch detection picking the wrong branch when multiple branches contain the tagged commit. (<!-- md:pr 1577 -->)
 
 ## ~~v1.1.1~~ <small>23rd February 2026 (yanked)</small> { id="v1.1.1" }
 
