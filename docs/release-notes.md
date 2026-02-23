@@ -5,23 +5,21 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-<!--## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
-<<<<<<< feat/link-delay
 ### Features
-
 
 - Add weighted-time delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior.
 
-=======
+### Bug Fixes
+
 - Fix inconsistent `at_port` handling in statistics functions. The parameter now accepts integer port numbers and `"all"` with proper port resolution via component methods. Passing `True`/`False` is deprecated. (<!-- md:pr 1386 -->)
->>>>>>> master
 
 ## [**v1.1.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.1.0) <small>17th February 2026</small> { id="v1.1.0" }
 
