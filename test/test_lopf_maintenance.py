@@ -57,7 +57,8 @@ def test_optimal_timing(basic_network):
     load[1] = 10
     n.add("Load", "load", bus="bus", p_set=load)
 
-    n.optimize()
+    status = n.optimize()
+    assert status[1] == "optimal"
 
     maint = n.c.generators.dynamic.maintenance["cheap"].values
     maint_periods = np.where(maint)[0]
@@ -81,7 +82,8 @@ def test_partial_maintenance():
     n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=100)
     n.add("Load", "load", bus="bus", p_set=50)
 
-    n.optimize()
+    status = n.optimize()
+    assert status[1] == "optimal"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     p = n.c.generators.dynamic.p["gen"].values
@@ -108,13 +110,22 @@ def test_multiple_events():
     n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=50)
     n.add("Load", "load", bus="bus", p_set=50)
 
-    n.optimize()
+    status = n.optimize()
+    assert status[1] == "optimal"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     assert maint.sum() == 4
 
     starts = n.c.generators.dynamic.maintenance_start["gen"].values
     assert starts.sum() == 2
+
+    maint_bool = maint > 0.5
+    blocks = np.diff(np.concatenate([[0], maint_bool.astype(int), [0]]))
+    block_starts = np.where(blocks == 1)[0]
+    block_ends = np.where(blocks == -1)[0]
+    block_lengths = block_ends - block_starts
+    assert len(block_lengths) == 2
+    assert (block_lengths == 2).all()
 
 
 def test_committable_maintainable():
@@ -135,7 +146,8 @@ def test_committable_maintainable():
     n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=50)
     n.add("Load", "load", bus="bus", p_set=50)
 
-    n.optimize()
+    status = n.optimize()
+    assert status[1] == "optimal"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     p = n.c.generators.dynamic.p["gen"].values
@@ -163,7 +175,8 @@ def test_extendable_maintainable():
     n.add("Generator", "backup", bus="bus", p_nom=200, marginal_cost=100)
     n.add("Load", "load", bus="bus", p_set=80)
 
-    n.optimize()
+    status = n.optimize()
+    assert status[1] == "optimal"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     p = n.c.generators.dynamic.p["gen"].values
@@ -191,7 +204,8 @@ def test_link_maintenance():
     n.add("Generator", "backup", bus="bus1", p_nom=100, marginal_cost=100)
     n.add("Load", "load", bus="bus1", p_set=50)
 
-    n.optimize()
+    status = n.optimize()
+    assert status[1] == "optimal"
 
     maint = n.c.links.dynamic.maintenance["link"].values
     assert maint.sum() == 2
@@ -218,7 +232,8 @@ def test_multiple_generators_no_simultaneous_overlap():
     n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=100)
     n.add("Load", "load", bus="bus", p_set=150)
 
-    n.optimize()
+    status = n.optimize()
+    assert status[1] == "optimal"
 
     m0 = n.c.generators.dynamic.maintenance["gen0"].values
     m1 = n.c.generators.dynamic.maintenance["gen1"].values
@@ -231,9 +246,48 @@ def test_no_maintenance_without_flag(basic_network):
     n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=10)
     n.add("Load", "load", bus="bus", p_set=50)
 
-    n.optimize()
+    status = n.optimize()
+    assert status[1] == "optimal"
 
     assert (
         "maintenance" not in n.c.generators.dynamic
         or n.c.generators.dynamic.maintenance.empty
     )
+
+
+def test_invalid_zero_duration(basic_network):
+    from pypsa.consistency import ConsistencyError
+
+    n = basic_network.copy()
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=10,
+        maintainable=True,
+        maintenance_duration=0,
+    )
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    with pytest.raises(ConsistencyError, match="maintenance_duration <= 0"):
+        n.consistency_check(strict=["maintenance"])
+
+
+def test_invalid_duration_exceeds_horizon(basic_network):
+    from pypsa.consistency import ConsistencyError
+
+    n = basic_network.copy()
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=10,
+        maintainable=True,
+        maintenance_duration=20,
+    )
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    with pytest.raises(ConsistencyError, match="maintenance_duration > number"):
+        n.consistency_check(strict=["maintenance"])

@@ -688,7 +688,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
         lhs = merge(expr, dim="name")
         n.model.add_constraints(lhs <= 0, name=f"{c.name}-maint-start-horizon")
 
-    # envelope for maintainence capacity z
+    # envelope for maintenance capacity z
     ext_i = c.extendables.difference(c.inactive_assets)
     maint_ext_i = maint_i.intersection(ext_i)
     if not maint_ext_i.empty:
