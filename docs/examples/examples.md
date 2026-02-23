@@ -37,6 +37,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](uc-prices.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Maintenance Scheduling**
+
+    Schedules optimal maintenance windows for generators and links with contiguous downtime blocks, partial outages, and multiple events.
+
+    [:octicons-arrow-right-24: Go to example](maintenance-scheduling.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Meshed AC-DC Networks**
 
     Builds a stylized 3-node AC network coupled via AC-DC converters to a 3-node DC network.
