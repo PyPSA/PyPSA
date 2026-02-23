@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from dataclasses import replace
 from itertools import product
 from typing import TYPE_CHECKING, Any
 
@@ -308,37 +309,41 @@ def _update_ports_component_attrs(
     ports.sort(reverse=True)
 
     if c == "Link":
-        varying_attrs = ["efficiency", "p"]
+        static_attrs = ["bus"]
+        dynamic_attrs = ["efficiency", "p"]
+        unsuffixed_attrs = {"efficiency"}
     elif c == "Process":
-        varying_attrs = ["rate", "p"]
+        static_attrs = ["bus"]
+        dynamic_attrs = ["rate", "p"]
+        unsuffixed_attrs = set[str]()
     else:
         msg = f"Only implemented for Link and Process, not: {c}"
         raise NotImplementedError(msg)
 
-    defaults_index = n.components[c]["defaults"].index
-    for i, attr in product(ports, ["bus", *varying_attrs]):
+    comp = n.components[c]
+    comp.ctype = replace(comp.ctype, defaults=comp.defaults.copy(deep=True))
+    defaults = comp.defaults
+
+    for i, attr in product(ports, static_attrs + dynamic_attrs):
         target = f"{attr}{i}"
-        if target in n.c[c]["defaults"].index:
+        if target in defaults.index:
             continue
-        j = "1" if attr != "efficiency" else ""
+        j = "" if attr in unsuffixed_attrs else "1"
         base_attr = attr + j
-        base_attr_index = defaults_index.get_loc(base_attr)
-        defaults_index = defaults_index.insert(
-            base_attr_index + 1, target
-        )  # insert is NOT inplace
-        n.c[c]["defaults"].loc[target] = (
-            n.c[c]["defaults"]
-            .loc[attr + j]
-            .apply(_update_ports_doc_changes, args=("1", i))
+        if base_attr not in defaults.index:
+            continue
+        base_attr_index = defaults.index.get_loc(base_attr)
+        defaults.index.insert(base_attr_index + 1, target)
+        defaults.loc[target] = defaults.loc[base_attr].apply(
+            _update_ports_doc_changes, args=("1", i)
         )
-        # Also update container for varying attributes
-        if attr in varying_attrs and target not in n.c[c].dynamic:
+        if attr in dynamic_attrs and target not in n.c[c].dynamic:
             df = pd.DataFrame(
                 index=n.snapshots, columns=n.c[c].static.index[:0], dtype=float
             )
             n.c[c].dynamic[target] = df
-        elif attr == "bus" and target not in n.c[c].static.columns:
-            n.c[c].static[target] = n.c[c]["defaults"].loc[target, "default"]
+        elif attr in static_attrs and target not in n.c[c].static.columns:
+            n.c[c].static[target] = defaults.loc[target, "default"]
 
     # re-order correctly
     # TODO: there is no in-place reordering or in-place inserting at the right row (as far as i am aware),

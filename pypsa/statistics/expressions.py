@@ -61,6 +61,12 @@ def port_efficiency(
             return n.get_switchable_as_dense(c.name, key)
 
         return c.static.get(key, ones)
+    elif c.name == "Process":
+        key = f"rate{port}"
+        if dynamic and key in c.static:
+            return n.get_switchable_as_dense(c.name, key)
+
+        return c.static.get(key, ones)
     else:
         msg = f"port_efficiency has not been implemented for: {c.name}"
         raise NotImplementedError(msg)
