@@ -465,9 +465,10 @@ options._add_option(
 )
 options._add_option(
     "params.optimize.log_to_console",
-    True,
-    "Whether to print solver output to console. See linopy's Model.solve()\n\t"
-    "documentation at https://linopy.readthedocs.io for details.",
+    None,
+    "Whether to print solver output to console. Passed as a solver option\n\t"
+    "to linopy's Model.solve(). When None, solver default behavior is used.\n\t"
+    "Note: not all solvers support this option (e.g. HiGHS does, CPLEX does not).",
 )
 options._add_option(
     "params.optimize.include_objective_constant",

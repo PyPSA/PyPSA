@@ -19,7 +19,13 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+## [**v1.1.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.1.1) <small>23th February 2026</small> { id="v1.1.1" }
+
+### Bug Fixes
+
 - Fix inconsistent `at_port` handling in statistics functions. The parameter now accepts integer port numbers and `"all"` with proper port resolution via component methods. Passing `True`/`False` is deprecated. (<!-- md:pr 1386 -->)
+
+- Fix `log_to_console` option breaking solvers that don't support it (e.g. CPLEX). The option is now only passed to the solver when explicitly set. (<!-- md:pr 1574 -->)
 
 ## [**v1.1.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.1.0) <small>17th February 2026</small> { id="v1.1.0" }
 
