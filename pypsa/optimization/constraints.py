@@ -975,7 +975,7 @@ def define_nodal_balance_constraints(
     exprs = []
 
     for component, attr, column, sign in args:
-        c = as_components(n, component)
+        c = n.c[component]
         if c.static.empty:
             continue
 
@@ -1005,42 +1005,37 @@ def define_nodal_balance_constraints(
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
 
-    links = n.c.links
-    processes = n.c.processes
+    for component in ("Process", "Link"):
+        c = n.c[component]
+        for bus_col, coeff, names, delay, is_cyclic in c._iter_balance_args(sns):
+            if delay <= 0:
+                expr = coeff * m[f"{c.name}-p"]
+            else:
+                src_snapshot_pos, valid = c.get_delay_source_indexer(
+                    sns,
+                    n.snapshot_weightings.generators.loc[sns],
+                    delay,
+                    is_cyclic,
+                )
+                valid_mask = DataArray(
+                    valid.astype(float), dims=["snapshot"], coords=sns_coords
+                )
+                comp_p = m[f"{c.name}-p"].sel(name=names)
+                shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(
+                    sns_coords
+                )
+                expr = coeff.sel(name=names) * (shifted_p * valid_mask)
 
-    all_delayed_args: list[tuple[list[tuple[str, Any, pd.Index, int, bool]], Any]] = []
-    for c in (processes, links):
-        immediate, delayed = c.get_delayed_balance_args(sns)
-        args.extend(immediate)
-        if delayed:
-            all_delayed_args.append((delayed, c))
-
-    for delayed_args, c in all_delayed_args:
-        for bus_col, coeff, names, delay, is_cyclic in delayed_args:
-            if names.empty:
-                continue
-
-            src_snapshot_pos, valid = c.get_delay_source_indexer(
-                sns,
-                n.snapshot_weightings.generators.loc[sns],
-                delay,
-                is_cyclic,
-            )
-            valid_mask = DataArray(
-                valid.astype(float), dims=["snapshot"], coords=sns_coords
-            )
-
-            comp_p = m[f"{c.name}-p"].sel(name=names)
-            shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(sns_coords)
-            shifted_p = shifted_p * valid_mask
-            expr = coeff.sel(name=names) * shifted_p
-            cbuses = c._as_xarray(bus_col).sel(name=names)
+            cbuses = c._as_xarray(bus_col)
+            cbuses = cbuses.sel(name=names)
             if n.has_scenarios:
                 cbuses = cbuses.isel(scenario=0, drop=True)
             cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
             cbuses = cbuses[cbuses != ""]
+
             if not cbuses.size:
                 continue
+
             expr = expr.sel(name=cbuses.coords["name"].values)
             if expr.size:
                 exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))

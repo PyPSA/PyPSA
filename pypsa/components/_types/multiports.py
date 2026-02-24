@@ -7,12 +7,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
 from pypsa.constants import RE_PORTS_GE_2
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+
 
 logger = logging.getLogger(__name__)
 
@@ -67,48 +71,76 @@ class Multiport:
     def _coefficient_attr(self) -> str:
         raise NotImplementedError
 
-    def get_delayed_balance_args(
-        self, sns: Any
-    ) -> tuple[list[list[Any]], list[tuple[str, Any, pd.Index, int, bool]]]:
-        if self.empty:
-            return [], []
+    @property
+    def _delay_config(self) -> dict[str, tuple[pd.Series | int, pd.Series | bool]]:
+        """Get delay and cyclic_delay configuration for each output port.
 
-        active = self.active_assets
-        immediate: list[list[Any]] = []
-        delayed: list[tuple[str, Any, pd.Index, int, bool]] = []
+        Returns
+        -------
+        dict
+            Mapping of port_suffix to (delays, cyclics) pair. If no delay columns
+            exist, returns scalar values (0, True).
 
+        """
+        config = {}
         for port in self._output_ports:
             suffix = self._port_suffix(port)
-            coeff = self.da[f"{self._coefficient_attr}{suffix}"].sel(snapshot=sns)
             delay_col = f"delay{suffix}"
             cyclic_col = f"cyclic_delay{suffix}"
 
             if delay_col in self.static.columns:
-                delays = self.static[delay_col]
-                cyclics = self.static[cyclic_col]
+                config[suffix] = (self.static[delay_col], self.static[cyclic_col])
             else:
-                delays = 0
-                cyclics = True
+                config[suffix] = (0, True)
+        return config
+
+    def _iter_balance_args(
+        self, sns: Sequence
+    ) -> Iterator[tuple[str, Any, pd.Index, int, bool]]:
+        """Iterate over all balance arguments, separating immediate and delayed.
+
+        Yields
+        ------
+        bus_col : str
+            Bus column name (e.g., "bus0", "bus1")
+        coeff : xr.DataArray
+            Coefficient values for the component
+        names : pd.Index
+            Component names with this delay configuration
+        delay : int
+            Delay in time units (0 for immediate, >0 for delayed)
+        is_cyclic : bool
+            Whether delay wraps around the horizon
+
+        """
+        if self.empty:
+            return
+
+        active = self.active_assets
+
+        for port in self._output_ports:
+            suffix = self._port_suffix(port)
+            coeff = self.da[f"{self._coefficient_attr}{suffix}"].sel(snapshot=sns)
+            delays, cyclics = self._delay_config[suffix]
 
             for (d, cyc), group in self.static.assign(
                 _delay=delays, _cyclic=cyclics
             ).groupby(["_delay", "_cyclic"]):
+                delay_int = int(d)
+
                 names = group.index
                 if isinstance(names, pd.MultiIndex):
                     names = names.get_level_values("name").unique()
                 names = names.intersection(active)
-                if names.empty:
-                    continue
-                if int(d) == 0:
-                    immediate.append(
-                        [self.name, "p", f"bus{port}", coeff.sel(name=names)]
-                    )
-                else:
-                    delayed.append(
-                        (f"bus{port}", coeff.sel(name=names), names, int(d), bool(cyc))
-                    )
 
-        return immediate, delayed
+                if not names.empty:
+                    yield (
+                        f"bus{port}",
+                        coeff.sel(name=names),
+                        names,
+                        delay_int,
+                        bool(cyc),
+                    )
 
     @staticmethod
     def _delay_positions(
