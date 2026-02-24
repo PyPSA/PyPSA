@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 from deprecation import deprecated
 
-from pypsa.components._types.multiports import Multiport
+from pypsa.components._types.shared_layer.multiports import Multiport
 from pypsa.constants import RE_PORTS_GE_2
 
 if TYPE_CHECKING:

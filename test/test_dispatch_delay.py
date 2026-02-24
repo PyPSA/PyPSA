@@ -10,7 +10,7 @@ import pytest
 
 import pypsa
 import pypsa.consistency
-from pypsa.components._types.multiports import Multiport
+from pypsa.components._types.shared_layer.multiports import Multiport
 
 
 class LinkSpec:
