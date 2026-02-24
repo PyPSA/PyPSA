@@ -1156,7 +1156,7 @@ class Network(
 
         """
         comps = list(
-            set(self.passive_branch_components) - set(self._empty_components())
+            set(self.controllable_branch_components) - set(self._empty_components())
         )
         names = (
             ["component", "scenario", "name"]
