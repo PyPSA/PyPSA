@@ -869,8 +869,6 @@ class NetworkConsistencyMixin(_NetworkABC):
         if strict is None:
             strict = ["dispatch_delays"]
 
-        strict = ["dispatch_delays" if s == "link_delays" else s for s in strict]
-
         strict_options = [
             "unknown_buses",
             "unknown_carriers",
