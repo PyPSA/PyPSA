@@ -43,7 +43,7 @@ class Links(Multiport, Components):
     """
 
     _operational_variables = ["p"]
-    _unsuffixed_attrs = {"efficiency"}
+    _unsuffixed_attrs = {"efficiency", "delay", "cyclic_delay"}
 
     @property
     def _output_ports(self) -> list[str]:

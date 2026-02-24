@@ -133,10 +133,25 @@ def test_additional_ports_process():
     assert sorted(ports) == ["2", "3"]
 
 
-def test_update_ports_component_attrs_process():
+def test_update_ports_component_attrs():
     from pypsa.descriptors import _update_ports_component_attrs
 
     n = pypsa.Network()
+
+    process_defaults = n.components["Process"]["defaults"]
+    assert "bus2" not in process_defaults.index
+    assert "rate2" not in process_defaults.index
+    assert "p2" not in process_defaults.index
+    assert "delay2" not in process_defaults.index
+    assert "cyclic_delay2" not in process_defaults.index
+
+    link_defaults = n.components["Link"]["defaults"]
+    assert "bus2" not in link_defaults.index
+    assert "efficiency2" not in link_defaults.index
+    assert "p2" not in link_defaults.index
+    assert "delay2" not in link_defaults.index
+    assert "cyclic_delay2" not in link_defaults.index
+
     n.set_snapshots([0])
     n.add("Bus", "bus0")
     n.add("Bus", "bus1")
@@ -153,11 +168,32 @@ def test_update_ports_component_attrs_process():
         p_nom=10,
     )
 
-    _update_ports_component_attrs(n, c_name="Process")
-    defaults = n.components["Process"]["defaults"]
-    assert "bus2" in defaults.index
-    assert "rate2" in defaults.index
-    assert "p2" in defaults.index
+    n.add(
+        "Link",
+        "proc0",
+        bus0="bus0",
+        bus1="bus1",
+        bus2="bus2",
+        efficiency=0.5,
+        efficiency2=0.3,
+        p_nom=10,
+    )
+
+    _update_ports_component_attrs(n)
+
+    process_defaults = n.components["Process"]["defaults"]
+    assert "bus2" in process_defaults.index
+    assert "rate2" in process_defaults.index
+    assert "p2" in process_defaults.index
+    assert "delay2" in process_defaults.index
+    assert "cyclic_delay2" in process_defaults.index
+
+    link_defaults = n.components["Link"]["defaults"]
+    assert "bus2" in link_defaults.index
+    assert "efficiency2" in link_defaults.index
+    assert "p2" in link_defaults.index
+    assert "delay2" in link_defaults.index
+    assert "cyclic_delay2" in link_defaults.index
 
 
 def test_additional_linkports_isolated_between_networks():

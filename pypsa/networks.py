@@ -1129,10 +1129,10 @@ class Network(
 
         Controllable branches are Links and Processes.
 
-                !!! note
+        !!! note
 
-                    This method will return a merged copy of all controllable branches of the network.
-                    Changes to the returned DataFrame will not be reflected in the network.
+            This method will return a merged copy of all controllable branches of the network.
+            Changes to the returned DataFrame will not be reflected in the network.
 
         Examples
         --------

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -68,8 +69,8 @@ class Multiport:
         return port
 
     @property
-    def _coefficient_attr(self) -> str:
-        raise NotImplementedError
+    @abstractmethod
+    def _coefficient_attr(self) -> str: ...
 
     @property
     def _delay_config(self) -> dict[str, tuple[pd.Series | int, pd.Series | bool]]:

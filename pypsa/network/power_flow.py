@@ -810,8 +810,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
             self.c.stores.static.bus.map(buses.carrier)
         )
 
-        for c in self.controllable_branch_components:
-            _update_ports_component_attrs(self, c_name=c)
+        _update_ports_component_attrs(self)
 
     def lpf(
         n: Network, snapshots: Sequence | None = None, skip_pre: bool = False

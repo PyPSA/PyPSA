@@ -233,9 +233,9 @@ def get_bounds_pu(
 
 
 def _update_ports_doc_changes(s: Any, i: int, j: str) -> Any:
-    """Update components documentation for link ports.
+    """Update components documentation for multiport components.
 
-    Multi-linkports require the following changes:
+    Additional ports require the following changes:
     1. Replaces every occurrence of the substring `j` with `i`.
     2. Make attribute required
 
@@ -261,9 +261,9 @@ def _update_ports_doc_changes(s: Any, i: int, j: str) -> Any:
 def _update_ports_component_attrs(
     n: NetworkType,
     where: Iterable[str] | None = None,
-    c_name: str = "Link",
+    c_name: str | list[str] | None = None,
 ) -> None:
-    """Update the Link components attributes to add the additional ports.
+    """Update multiport component attributes to add the additional ports.
 
     Parameters
     ----------
@@ -271,50 +271,55 @@ def _update_ports_component_attrs(
         Network instance to which additional ports will be added.
     where : Iterable[str] or None, optional
         Filters for specific subsets of data by providing an iterable of tags
-        or identifiers. If None, no filtering is applied and additional link
+        or identifiers. If None, no filtering is applied and additional
         ports are considered for all connectors.
-    c_name : str
-        Component name to apply to
+    c_name : str or list[str] or None
+        Component name(s) to apply to. If None, applied to controlled branch components.
 
     """
-    c = n.components[c_name]
+    if c_name is None:
+        c_name = list(n.controllable_branch_components)
 
-    if not isinstance(c, Multiport):
-        msg = f"Only implemented for Link and Process, not: {c_name}"
-        raise NotImplementedError(msg)
+    if not isinstance(c_name, list):
+        c_name = [c_name]
 
-    if where is None:
-        ports = list(c.additional_ports)
-    else:
-        ports = [
-            match.group(1) for col in where if (match := RE_PORTS_GE_2.search(col))
-        ]
-    ports.sort(reverse=True)
+    for c in n.c[c_name]:
+        if not isinstance(c, Multiport):
+            msg = f"Only implemented for Link and Process, not: {c_name}"
+            raise NotImplementedError(msg)
 
-    static_attrs = ["bus"]
-    dynamic_attrs = [c._coefficient_attr, "p"]
-    unsuffixed_attrs = c._unsuffixed_attrs
+        if where is None:
+            ports = list(c.additional_ports)
+        else:
+            ports = [
+                match.group(1) for col in where if (match := RE_PORTS_GE_2.search(col))
+            ]
+        ports.sort(reverse=True)
 
-    c.ctype = replace(c.ctype, defaults=c.defaults.copy(deep=True))
-    defaults = c.defaults
+        static_attrs = ["bus", "delay", "cyclic_delay"]
+        dynamic_attrs = [c._coefficient_attr, "p"]
+        unsuffixed_attrs = c._unsuffixed_attrs
 
-    for i, attr in product(ports, static_attrs + dynamic_attrs):
-        target = f"{attr}{i}"
-        if target in defaults.index:
-            continue
-        j = "" if attr in unsuffixed_attrs else "1"
-        base_attr = attr + j
-        if base_attr not in defaults.index:
-            continue
-        base_attr_index = defaults.index.get_loc(base_attr)
-        defaults.index.insert(base_attr_index + 1, target)
-        defaults.loc[target] = defaults.loc[base_attr].apply(
-            _update_ports_doc_changes, args=("1", i)
-        )
-        if attr in dynamic_attrs and target not in n.c[c_name].dynamic:
-            df = pd.DataFrame(
-                index=n.snapshots, columns=n.c[c_name].static.index[:0], dtype=float
+        c.ctype = replace(c.ctype, defaults=c.defaults.copy(deep=True))
+        defaults = c.defaults
+
+        for i, attr in product(ports, static_attrs + dynamic_attrs):
+            target = f"{attr}{i}"
+            if target in defaults.index:
+                continue
+            j = "" if attr in unsuffixed_attrs else "1"
+            base_attr = attr + j
+            if base_attr not in defaults.index:
+                continue
+            base_attr_index = defaults.index.get_loc(base_attr)
+            defaults.index.insert(base_attr_index + 1, target)
+            defaults.loc[target] = defaults.loc[base_attr].apply(
+                _update_ports_doc_changes, args=("1", i)
             )
-            n.c[c_name].dynamic[target] = df
-        elif attr in static_attrs and target not in n.c[c_name].static.columns:
-            n.c[c_name].static[target] = defaults.loc[target, "default"]
+            if attr in dynamic_attrs and target not in c.dynamic:
+                df = pd.DataFrame(
+                    index=n.snapshots, columns=c.static.index[:0], dtype=float
+                )
+                c.dynamic[target] = df
+            elif attr in static_attrs and target not in c.static.columns:
+                c.static[target] = defaults.loc[target, "default"]

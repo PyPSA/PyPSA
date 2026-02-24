@@ -71,6 +71,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from pypsa import Network, SubNetwork
+    from pypsa.components.components import Components
 logger = logging.getLogger(__name__)
 
 
@@ -82,11 +83,11 @@ lookup = pd.read_csv(
 
 def _apply_delay_shift(
     port_df: pd.DataFrame,
-    c: Any,
+    c: Components,
     delay_col: str,
     cyclic_col: str,
     sns: pd.Index,
-    n: Any,
+    n: Network,
 ) -> None:
     """Time-shift port_df values in-place for delayed components."""
     static = c.static
@@ -920,9 +921,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
                 elif c.name == "Link" and attr == "p":
                     _set_dynamic_data(n, c.name, "p", df)
-                    # TODO: Check that this is not too intrusive
-                    c.dynamic["p0"] = c.dynamic["p"]
-                    # _set_dynamic_data(n, c.name, "p0", df)
+                    _set_dynamic_data(n, c.name, "p0", df)
 
                     for i in ["1"] + c.additional_ports:
                         i_suffix = "" if i == "1" else i

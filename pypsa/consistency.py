@@ -858,7 +858,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         strict : list, optional
             If some checks should raise an error instead of logging a warning, pass a list
             of strings with the names of the checks to be strict about. If 'all' is passed,
-            all checks will be strict. By default, 'link_delays' is always strict.
+            all checks will be strict. By default, 'dispatch_delays' is always strict.
 
         Raises
         ------

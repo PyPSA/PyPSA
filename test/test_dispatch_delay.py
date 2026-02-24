@@ -501,7 +501,7 @@ def test_process_delay_on_input_bus():
     p0 = n.c.processes.dynamic["p0"]["electrolyser"].values
     p1 = n.c.processes.dynamic["p1"]["electrolyser"].values
     for t in range(6):
-        np.testing.assert_allclose(p0[t], -(-1) * p[(t - 2) % 6], atol=1e-5)
+        np.testing.assert_allclose(p0[t], p[(t - 2) % 6], atol=1e-5)
     np.testing.assert_allclose(p1, -0.8 * p, atol=1e-5)
 
 
