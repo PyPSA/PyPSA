@@ -10,6 +10,7 @@ Mainly used in the `Network.consistency_check()` method.
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -425,10 +426,10 @@ def check_time_series_power_attributes(
                 )
 
 
-def check_link_delays(
+def check_dispatch_delays(
     n: NetworkType, component: Components, strict: bool = False
 ) -> None:
-    """Check that link delay attributes are valid.
+    """Check that delay attributes are valid for Link and Process components.
 
     Validates that delay values are non-negative and do not exceed the number
     of snapshots in the optimization horizon.
@@ -447,10 +448,9 @@ def check_link_delays(
     [pypsa.Network.consistency_check][]
 
     """
-    if component.name != "Link" or component.static.empty:
+    if component.name not in ("Link", "Process") or component.static.empty:
         return
 
-    # For multi-invest, check against per-period horizon (periods are independent)
     if isinstance(n.snapshots, pd.MultiIndex):
         total_horizon = min(
             float(n.snapshot_weightings.generators.loc[p].sum())
@@ -458,28 +458,27 @@ def check_link_delays(
         )
     else:
         total_horizon = float(n.snapshot_weightings.generators.sum())
-    delay_cols = [
-        col
-        for col in component.static.columns
-        if col == "delay" or (col.startswith("delay") and col[5:].isdigit())
-    ]
+    delay_pattern = re.compile(r"^delay\d*$")
+    delay_cols = [col for col in component.static.columns if delay_pattern.match(col)]
     for col in delay_cols:
         values = component.static[col]
         negative = values[values < 0]
         if not negative.empty:
             _log_or_raise(
                 strict,
-                "Negative delay values in column '%s' of Link for assets:\n\n\t%s",
+                "Negative delay values in column '%s' of %s for assets:\n\n\t%s",
                 col,
+                component.name,
                 ", ".join(negative.index.astype(str)),
             )
         too_large = values[values >= total_horizon]
         if not too_large.empty:
             _log_or_raise(
                 strict,
-                "Delay values in column '%s' of Link equal or exceed the total"
+                "Delay values in column '%s' of %s equal or exceed the total"
                 " snapshot horizon (%.1f) for assets:\n\n\t%s",
                 col,
+                component.name,
                 total_horizon,
                 ", ".join(too_large.index.astype(str)),
             )
@@ -868,7 +867,9 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         """
         if strict is None:
-            strict = ["link_delays"]
+            strict = ["dispatch_delays"]
+
+        strict = ["dispatch_delays" if s == "link_delays" else s for s in strict]
 
         strict_options = [
             "unknown_buses",
@@ -881,7 +882,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "zero_s_nom",
             "generators",
             "cost_consistency",
-            "link_delays",
+            "dispatch_delays",
             "disconnected_buses",
             "investment_periods",
             "shapes",
@@ -929,8 +930,8 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_generators(c, "generators" in strict)
             # Checks cost attributes consistency
             check_cost_consistency(c)
-            # Checks link delay attributes
-            check_link_delays(self, c, "link_delays" in strict)
+            # Checks dispatch delay attributes
+            check_dispatch_delays(self, c, "dispatch_delays" in strict)
 
             if check_dtypes:
                 check_dtypes_(c, "dtypes" in strict)

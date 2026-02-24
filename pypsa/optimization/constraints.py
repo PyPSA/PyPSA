@@ -19,8 +19,8 @@ from numpy import inf, isfinite, maximum, sqrt, tile
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
-from pypsa.components._types.links import Links
 from pypsa.components.common import as_components
+from pypsa.components.components import Components
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
 
@@ -960,13 +960,36 @@ def define_nodal_balance_constraints(
         ["Link", "p", "bus0", -1],
     ]
 
+    delayed_process_args: list[tuple[str, Any, pd.Index, int, bool]] = []
     if not processes.empty:
-        args.extend(
-            [
-                ["Process", "p", f"bus{i}", processes.da[f"rate{i}"].sel(snapshot=sns)]
-                for i in processes.ports
-            ]
-        )
+        process_active = processes.active_assets
+        for i in processes.ports:
+            rate = processes.da[f"rate{i}"].sel(snapshot=sns)
+            delay_col = f"delay{i}"
+            cyclic_col = f"cyclic_delay{i}"
+
+            if delay_col in processes.static.columns:
+                delays = processes.static[delay_col]
+                cyclics = processes.static[cyclic_col]
+            else:
+                delays = 0
+                cyclics = True
+
+            for (d, cyc), group in processes.static.assign(
+                _delay=delays, _cyclic=cyclics
+            ).groupby(["_delay", "_cyclic"]):
+                names = group.index
+                if isinstance(names, pd.MultiIndex):
+                    names = names.get_level_values("name").unique()
+                names = names.intersection(process_active)
+                if names.empty:
+                    continue
+                if int(d) == 0:
+                    args.append(["Process", "p", f"bus{i}", rate.sel(name=names)])
+                else:
+                    delayed_process_args.append(
+                        (f"bus{i}", rate.sel(name=names), names, int(d), bool(cyc))
+                    )
 
     # Group link ports by (delay, cyclic_delay)
     # - Non delayed (delay=0) go into the standard args list
@@ -1048,44 +1071,47 @@ def define_nodal_balance_constraints(
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
 
-    # For delayed links, time shift the p variable so that output at
+    # For delayed components, time shift the p variable so that output at
     # snapshot t uses the input from the source snapshot s(t)
-    for bus_col, eff, names, delay, is_cyclic in delayed_link_args:
-        active_names = names.intersection(active)
-        if active_names.empty:
-            continue
+    sns_coords: xr.Coordinates | dict[str, Any]
+    if isinstance(sns, pd.MultiIndex):
+        sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
+    else:
+        sns_coords = {"snapshot": sns}
 
-        # Map each target snapshot to its source snapshot position
-        src_snapshot_pos, valid = Links.get_delay_source_indexer(
-            sns,
-            n.snapshot_weightings.generators.loc[sns],
-            delay,
-            is_cyclic,
-        )
-        # Zero out invalid positions (non-cyclic: before horizon start)
-        sns_coords: xr.Coordinates | dict[str, Any]
-        if isinstance(sns, pd.MultiIndex):
-            sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
-        else:
-            sns_coords = {"snapshot": sns}
-        valid_mask = DataArray(
-            valid.astype(float), dims=["snapshot"], coords=sns_coords
-        )
+    all_delayed_args = [
+        (delayed_link_args, "Link", links),
+        (delayed_process_args, "Process", processes),
+    ]
+    for delayed_args, comp_name, comp in all_delayed_args:
+        for bus_col, coeff, names, delay, is_cyclic in delayed_args:
+            if names.empty:
+                continue
 
-        link_p = m["Link-p"].sel(name=active_names)
-        shifted_p = link_p.isel(snapshot=src_snapshot_pos).assign_coords(sns_coords)
-        shifted_p = shifted_p * valid_mask
-        expr = eff.sel(name=active_names) * shifted_p
-        cbuses = links._as_xarray(bus_col).sel(name=active_names)
-        if n.has_scenarios:
-            cbuses = cbuses.isel(scenario=0, drop=True)
-        cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
-        cbuses = cbuses[cbuses != ""]
-        if not cbuses.size:
-            continue
-        expr = expr.sel(name=cbuses.coords["name"].values)
-        if expr.size:
-            exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
+            src_snapshot_pos, valid = Components.get_delay_source_indexer(
+                sns,
+                n.snapshot_weightings.generators.loc[sns],
+                delay,
+                is_cyclic,
+            )
+            valid_mask = DataArray(
+                valid.astype(float), dims=["snapshot"], coords=sns_coords
+            )
+
+            comp_p = m[f"{comp_name}-p"].sel(name=names)
+            shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(sns_coords)
+            shifted_p = shifted_p * valid_mask
+            expr = coeff.sel(name=names) * shifted_p
+            cbuses = comp._as_xarray(bus_col).sel(name=names)
+            if n.has_scenarios:
+                cbuses = cbuses.isel(scenario=0, drop=True)
+            cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
+            cbuses = cbuses[cbuses != ""]
+            if not cbuses.size:
+                continue
+            expr = expr.sel(name=cbuses.coords["name"].values)
+            if expr.size:
+                exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
 
     lhs = merge(exprs, join="outer").reindex(name=buses)
 

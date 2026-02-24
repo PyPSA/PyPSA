@@ -28,6 +28,11 @@ multi-carrier processes like electrolysis, heat pumps, or combined heat and powe
 - The columns `bus2`, `rate2`, `bus3`, `rate3`, etc. in `n.processes` are
   automatically added to the component attributes.
 
+- Each port supports a configurable time delay (`delay0`, `delay1`, `delay2`,
+  ...) in units of `n.snapshot_weightings.generators`. When set, energy
+  withdrawn at snapshot `t` arrives at the corresponding bus after `delay`
+  weighting units. Set `cyclic_delayX=False` for non-cyclic boundary behavior.
+
 !!! note "Comparison with [`Link`][pypsa.components.Links]"
 
     The key difference to [`Link`][pypsa.components.Links] is that `efficiency`,

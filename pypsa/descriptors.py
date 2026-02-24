@@ -253,7 +253,6 @@ def _update_ports_doc_changes(s: Any, i: int, j: str) -> Any:
     Any : Updated string or original value if not a string.
 
     """
-    # TODO do we need to make any changes here for Process?
     if not isinstance(s, str) or len(s) == 1:
         return s
     return s.replace(j, str(i)).replace("required", "optional")
