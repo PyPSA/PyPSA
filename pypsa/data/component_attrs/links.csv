@@ -5,6 +5,8 @@ bus1,string,n/a,n/a,"Name of first destination bus to which link is attached. Fu
 type,string,n/a,n/a,Placeholder for link type. Not implemented.,Input (optional)
 carrier,string,n/a,,"Carrier of the link describing its technology (e.g. gas boiler, electrolyser, HVDC link).",Input (optional)
 efficiency,static or series,per unit,1,"Efficiency of energy transfer from `bus0` to `bus1`. Can be time-dependent (e.g. to represent temperature-dependent heat pump COP).  Further efficiency attributes for further buses (e.g. `bus2`, `bus3`, etc.) are automatically expanded as needed (e.g. `efficiency2`, `efficiency3`, etc.).",Input (optional)
+delay,int,snapshot weighting units,0,"Delay of energy delivery to `bus1` in units of `n.snapshot_weightings.generators`. Energy withdrawn from `bus0` at snapshot `t` arrives at the first snapshot whose cumulative generator weighting start is at least `delay` units later. Auto-expanded as `delay2`, `delay3`, etc. for additional ports.",Input (optional)
+cyclic_delay,boolean,n/a,True,"Whether delayed energy wraps cyclically from end to start of the optimization period. If False, energy is lost at the tail and first snapshots receive nothing from delayed links. Auto-expanded as `cyclic_delay2`, `cyclic_delay3`, etc. for additional ports.",Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in basic functionality or not",Input (optional)
 build_year,int,year,0,Build year,Input (optional)
 lifetime,float,years,inf,Lifetime,Input (optional)

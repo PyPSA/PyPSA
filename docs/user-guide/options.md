@@ -115,9 +115,10 @@ optimize.solver_options:
     Default: {}
     Description: Default value for the 'solver_options' parameter in optimization module.
 optimize.log_to_console:
-    Default: True
-    Description: Whether to print solver output to console. See linopy's Model.solve()
-    	documentation at https://linopy.readthedocs.io for details.
+    Default: None
+    Description: Whether to print solver output to console. Passed as a solver option
+    	to linopy's Model.solve(). When None, solver default behavior is used.
+    	Note: not all solvers support this option (e.g. HiGHS does, CPLEX does not).
 optimize.include_objective_constant:
     Default: None
     Description: Include capital costs of existing capacity on extendable assets in the

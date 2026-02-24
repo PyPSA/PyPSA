@@ -19,6 +19,7 @@ from linopy.solvers import available_solvers
 
 from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
+from pypsa.components._types.links import Links
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
@@ -472,10 +473,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         log_to_console : bool, optional
-            Whether the solver prints its progress to the console. This is passed
-            to linopy's `Model.solve()` method. Defaults to module wide option
-            (default: True). See `https://go.pypsa.org/options-params` for more
-            information.
+            Whether the solver prints its progress to the console. Passed as a
+            solver option to linopy's `Model.solve()` method. When None,
+            solver default behavior is used. Note: not all solvers support
+            this option (e.g. HiGHS does, CPLEX does not). See
+            `https://go.pypsa.org/options-params` for more information.
         compute_infeasibilities : bool, default False
             Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
             of an infeasible solution. Requires Gurobi.
@@ -535,9 +537,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         )
         if extra_functionality:
             extra_functionality(n, sns)
+        if log_to_console is not None:
+            kwargs["log_to_console"] = log_to_console
         status, condition = m.solve(
             solver_name=solver_name,
-            log_to_console=log_to_console,
             **solver_options,
             **kwargs,
         )
@@ -786,10 +789,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             (default: {}). Can also be passed via `**kwargs`. See
             `https://go.pypsa.org/options-params` for more information.
         log_to_console : bool, optional
-            Whether the solver prints its progress to the console. This is passed
-            to linopy's `Model.solve()` method. Defaults to module wide option
-            (default: True). See `https://go.pypsa.org/options-params` for more
-            information.
+            Whether the solver prints its progress to the console. Passed as a
+            solver option to linopy's `Model.solve()` method. When None,
+            solver default behavior is used. Note: not all solvers support
+            this option (e.g. HiGHS does, CPLEX does not). See
+            `https://go.pypsa.org/options-params` for more information.
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
@@ -821,9 +825,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if extra_functionality:
             extra_functionality(n, n.snapshots)
         m = n.model
+        if log_to_console is not None:
+            kwargs["log_to_console"] = log_to_console
         status, condition = m.solve(
             solver_name=solver_name,
-            log_to_console=log_to_console,
             **solver_options,
             **kwargs,
         )
@@ -884,11 +889,40 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p0", df)
 
                     for i in ["1"] + n.c.links.additional_ports:
-                        i_eff = "" if i == "1" else i
+                        i_suffix = "" if i == "1" else i
                         eff = n.get_switchable_as_dense(
-                            "Link", f"efficiency{i_eff}", sns
+                            "Link", f"efficiency{i_suffix}", sns
                         )
-                        _set_dynamic_data(n, c.name, f"p{i}", -df * eff)
+                        port_df = -df * eff
+                        # For delayed links, time shift the p variable so that output at
+                        # snapshot t uses the input from the source snapshot s(t)
+                        delay_weightings = n.snapshot_weightings.generators.loc[sns]
+                        delay_col = f"delay{i_suffix}"
+                        cyclic_col = f"cyclic_delay{i_suffix}"
+                        link_static = c.static
+                        if delay_col in link_static.columns:
+                            delayed = link_static[link_static[delay_col] > 0]
+                            if cyclic_col in link_static.columns:
+                                grp_cols = [delay_col, cyclic_col]
+                            else:
+                                delayed = delayed.assign(_cyclic=True)
+                                grp_cols = [delay_col, "_cyclic"]
+                            for (d, cyc), grp in delayed.groupby(grp_cols):
+                                cols = grp.index
+                                src_snapshot_pos, valid = (
+                                    Links.get_delay_source_indexer(
+                                        sns,
+                                        delay_weightings,
+                                        int(d),
+                                        bool(cyc),
+                                    )
+                                )
+                                delayed_values = port_df[cols].to_numpy()[
+                                    src_snapshot_pos, :
+                                ]
+                                delayed_values[~valid, :] = 0.0
+                                port_df[cols] = delayed_values
+                        _set_dynamic_data(n, c.name, f"p{i}", port_df)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
                         ] = float(c.defaults.loc[f"p{i}", "default"])

@@ -42,10 +42,13 @@ from pypsa.definitions.structures import Dict
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Collection, Sequence
+    from typing import Literal
 
     from pypsa import Network
     from pypsa.definitions.components import ComponentType
+
+    PortsLike = Literal["all"] | str | int | Collection[str] | Collection[int]  # noqa: PYI051
 
 # TODO attachment todos
 # - crs
@@ -741,6 +744,69 @@ class Components(
         return [
             match.group(1) for col in self.static if (match := RE_PORTS.search(col))
         ]
+
+    def _as_port(self, port: int | str) -> int:
+        """Convert a single port specification to an integer index.
+
+        Parameters
+        ----------
+        port : int | str
+            Port specification. Can be an integer index directly, or a string
+            like "bus0", "bus1", or just "0", "1". The string "bus" alone
+            maps to port 0.
+
+        Returns
+        -------
+        int
+            The port index.
+
+        Raises
+        ------
+        ValueError
+            If port cannot be converted to a valid port index.
+
+        """
+        try:
+            if isinstance(port, str):
+                port = port.removeprefix("bus")
+                if port == "":
+                    return 0
+            return int(port)
+        except ValueError:
+            msg = f"Ports should be given as int or 'busX' string, not: {port}"
+            raise ValueError(msg) from None
+
+    def _as_ports(self, ports: PortsLike) -> list[int]:
+        """Convert port-like input to a list of integer port indices.
+
+        Parameters
+        ----------
+        ports : PortsLike
+            Port specification. Can be:
+            - "all": returns all port indices
+            - str: port name like "bus0", "bus1", or just "0", "1"
+            - int: port index directly
+            - Sequence of str/int: multiple ports
+
+        Returns
+        -------
+        list of int
+            List of port indices.
+
+        Raises
+        ------
+        ValueError
+            If a port specification cannot be converted to a valid port index.
+
+        """
+        existing_ports = self.ports
+
+        if ports == "all":
+            return list(range(len(existing_ports)))
+        elif isinstance(ports, str | int):
+            return [self._as_port(ports)]
+
+        return [self._as_port(p) for p in ports]
 
     @property
     def unique_carriers(self) -> set[str]:
