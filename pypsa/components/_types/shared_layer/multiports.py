@@ -18,6 +18,10 @@ from pypsa.constants import RE_PORTS_GE_2
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
+    from pypsa.components.array import _XarrayAccessor
+    from pypsa.definitions.components import ComponentType
+    from pypsa.definitions.structures import Dict
+
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +36,17 @@ class Multiport:
     [pypsa.Components][]
 
     """
+
+    if TYPE_CHECKING:
+        ctype: ComponentType
+        static: pd.DataFrame
+        dynamic: Dict
+        da: _XarrayAccessor
+        ports: list[str]
+        empty: bool
+        active_assets: pd.Index
+        defaults: pd.DataFrame
+        _unsuffixed_attrs: set[str]
 
     @property
     def additional_ports(self) -> list[str]:

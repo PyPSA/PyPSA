@@ -19,6 +19,7 @@ from numpy import inf, isfinite, maximum, sqrt, tile
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
+from pypsa.components._types.shared_layer.multiports import Multiport
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
@@ -995,10 +996,11 @@ def define_nodal_balance_constraints(
             continue
 
         #  drop non-existent multiport buses which are ''
-        if c.name in n.controllable_branch_components and column in [
-            "bus" + i
-            for i in c.additional_ports  # type: ignore[attr-defined]
-        ]:
+        if (
+            c.name in n.controllable_branch_components
+            and isinstance(c, Multiport)
+            and column in ["bus" + i for i in c.additional_ports]
+        ):
             cbuses = cbuses[cbuses != ""]
 
         expr = expr.sel(name=cbuses.coords["name"].values)

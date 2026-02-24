@@ -71,7 +71,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from pypsa import Network, SubNetwork
-    from pypsa.components.components import Components
+    from pypsa.components import Links, Processes
 logger = logging.getLogger(__name__)
 
 
@@ -83,7 +83,7 @@ lookup = pd.read_csv(
 
 def _apply_delay_shift(
     port_df: pd.DataFrame,
-    c: Components,
+    c: Links | Processes,
     delay_col: str,
     cyclic_col: str,
     sns: pd.Index,
