@@ -21,7 +21,6 @@ from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
-from pypsa.components.components import Components
 from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
@@ -83,13 +82,14 @@ lookup = pd.read_csv(
 
 def _apply_delay_shift(
     port_df: pd.DataFrame,
-    static: pd.DataFrame,
+    c: Any,
     delay_col: str,
     cyclic_col: str,
     sns: pd.Index,
     n: Any,
 ) -> None:
     """Time-shift port_df values in-place for delayed components."""
+    static = c.static
     if delay_col not in static.columns:
         return
     delayed = static[static[delay_col] > 0]
@@ -103,7 +103,7 @@ def _apply_delay_shift(
     delay_weightings = n.snapshot_weightings.generators.loc[sns]
     for (d, cyc), grp in delayed.groupby(grp_cols):
         cols = grp.index
-        src_pos, valid = Components.get_delay_source_indexer(
+        src_pos, valid = c.get_delay_source_indexer(
             sns,
             delay_weightings,
             int(d),
@@ -932,7 +932,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                         port_df = -df * eff
                         _apply_delay_shift(
                             port_df,
-                            c.static,
+                            c,
                             f"delay{i_suffix}",
                             f"cyclic_delay{i_suffix}",
                             sns,
@@ -951,7 +951,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                         port_df = -df * rate
                         _apply_delay_shift(
                             port_df,
-                            c.static,
+                            c,
                             f"delay{i}",
                             f"cyclic_delay{i}",
                             sns,

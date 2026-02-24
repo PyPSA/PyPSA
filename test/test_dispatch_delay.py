@@ -10,7 +10,7 @@ import pytest
 
 import pypsa
 import pypsa.consistency
-from pypsa.components.components import Components
+from pypsa.components._types.multiports import Multiport
 
 
 class LinkSpec:
@@ -276,7 +276,7 @@ def test_delay_with_scenarios(spec):
     assert status == "ok"
 
     delay_weightings = n.snapshot_weightings.generators.loc[n.snapshots]
-    src, valid = Components.get_delay_source_indexer(
+    src, valid = Multiport.get_delay_source_indexer(
         n.snapshots, delay_weightings, 1, True
     )
     for scenario in n.scenarios:
@@ -422,10 +422,10 @@ def test_link_delay_with_scenarios_multiport():
     assert status == "ok"
 
     delay_weightings = n.snapshot_weightings.generators.loc[n.snapshots]
-    src1, valid1 = Components.get_delay_source_indexer(
+    src1, valid1 = Multiport.get_delay_source_indexer(
         n.snapshots, delay_weightings, 1, True
     )
-    src2, valid2 = Components.get_delay_source_indexer(
+    src2, valid2 = Multiport.get_delay_source_indexer(
         n.snapshots, delay_weightings, 2, False
     )
     for scenario in n.scenarios:
@@ -542,7 +542,7 @@ def test_delay_rounding_warning_fires(caplog):
     snapshots = pd.RangeIndex(8)
     weightings = pd.Series(4.0, index=snapshots)
     with caplog.at_level(logging.WARNING):
-        Components.get_delay_source_indexer(
+        Multiport.get_delay_source_indexer(
             snapshots, weightings, delay=3, is_cyclic=True
         )
     assert any("does not align" in r.message for r in caplog.records)
@@ -552,7 +552,7 @@ def test_delay_rounding_warning_silent(caplog):
     snapshots = pd.RangeIndex(6)
     weightings = pd.Series(1.0, index=snapshots)
     with caplog.at_level(logging.WARNING):
-        Components.get_delay_source_indexer(
+        Multiport.get_delay_source_indexer(
             snapshots, weightings, delay=2, is_cyclic=True
         )
     assert not any("does not align" in r.message for r in caplog.records)
@@ -563,7 +563,7 @@ def test_get_delay_source_indexer_multi_invest():
         [[2020, 2030], range(4)], names=["period", "timestep"]
     )
     weightings = pd.Series(1.0, index=snapshots)
-    src, valid = Components.get_delay_source_indexer(
+    src, valid = Multiport.get_delay_source_indexer(
         snapshots, weightings, delay=2, is_cyclic=True
     )
     expected_src = np.array([2, 3, 0, 1, 6, 7, 4, 5])
@@ -576,7 +576,7 @@ def test_get_delay_source_indexer_multi_invest_non_cyclic():
         [[2020, 2030], range(4)], names=["period", "timestep"]
     )
     weightings = pd.Series(1.0, index=snapshots)
-    src, valid = Components.get_delay_source_indexer(
+    src, valid = Multiport.get_delay_source_indexer(
         snapshots, weightings, delay=2, is_cyclic=False
     )
     expected_valid = np.array([False, False, True, True, False, False, True, True])
@@ -599,13 +599,13 @@ def test_consistency_delay_exceeds_period_horizon():
 def test_delay_positions_raises_on_zero_total_weight():
     weights = np.array([0.0, 0.0, 0.0])
     with pytest.raises(ValueError, match="positive total"):
-        Components._delay_positions(weights, delay=1.0, is_cyclic=True)
+        Multiport._delay_positions(weights, delay=1.0, is_cyclic=True)
 
 
 def test_get_delay_source_indexer_empty_snapshots():
     snapshots = pd.RangeIndex(0)
     weightings = pd.Series(dtype=float)
-    src, valid = Components.get_delay_source_indexer(
+    src, valid = Multiport.get_delay_source_indexer(
         snapshots, weightings, delay=2, is_cyclic=True
     )
     assert len(src) == 0

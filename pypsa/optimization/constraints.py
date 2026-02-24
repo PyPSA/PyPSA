@@ -20,7 +20,6 @@ from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
 from pypsa.components.common import as_components
-from pypsa.components.components import Components
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
 
@@ -945,8 +944,11 @@ def define_nodal_balance_constraints(
     if buses is None:
         buses = n.c.buses.static.index.unique("name")
 
-    links = n.c.links
-    processes = n.c.processes
+    sns_coords: xr.Coordinates | dict[str, Any]
+    if isinstance(sns, pd.MultiIndex):
+        sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
+    else:
+        sns_coords = {"snapshot": sns}
 
     args: list[Any] = [
         ["Generator", "p", "bus", 1],
@@ -959,74 +961,6 @@ def define_nodal_balance_constraints(
         ["Transformer", "s", "bus1", 1],
         ["Link", "p", "bus0", -1],
     ]
-
-    delayed_process_args: list[tuple[str, Any, pd.Index, int, bool]] = []
-    if not processes.empty:
-        process_active = processes.active_assets
-        for i in processes.ports:
-            rate = processes.da[f"rate{i}"].sel(snapshot=sns)
-            delay_col = f"delay{i}"
-            cyclic_col = f"cyclic_delay{i}"
-
-            if delay_col in processes.static.columns:
-                delays = processes.static[delay_col]
-                cyclics = processes.static[cyclic_col]
-            else:
-                delays = 0
-                cyclics = True
-
-            for (d, cyc), group in processes.static.assign(
-                _delay=delays, _cyclic=cyclics
-            ).groupby(["_delay", "_cyclic"]):
-                names = group.index
-                if isinstance(names, pd.MultiIndex):
-                    names = names.get_level_values("name").unique()
-                names = names.intersection(process_active)
-                if names.empty:
-                    continue
-                if int(d) == 0:
-                    args.append(["Process", "p", f"bus{i}", rate.sel(name=names)])
-                else:
-                    delayed_process_args.append(
-                        (f"bus{i}", rate.sel(name=names), names, int(d), bool(cyc))
-                    )
-
-    # Group link ports by (delay, cyclic_delay)
-    # - Non delayed (delay=0) go into the standard args list
-    # - Delayed groups are collected separately and are time-shifted
-    delayed_link_args: list[tuple[str, Any, pd.Index, int, bool]] = []
-    if not links.empty:
-        active = links.active_assets
-        for i in ["1"] + n.c.links.additional_ports:
-            i_suffix = "" if i == "1" else i
-            eff = links.da[f"efficiency{i_suffix}"].sel(snapshot=sns)
-            delay_col = f"delay{i_suffix}"
-            cyclic_col = f"cyclic_delay{i_suffix}"
-
-            if delay_col in links.static.columns:
-                delays = links.static[delay_col]
-                cyclics = links.static[cyclic_col]
-            else:
-                delays = 0
-                cyclics = True
-
-            # Group links sharing the same (delay, cyclic) configuration
-            for (d, cyc), group in links.static.assign(
-                _delay=delays, _cyclic=cyclics
-            ).groupby(["_delay", "_cyclic"]):
-                names = group.index
-                # Manually handle stochastic dimension
-                if isinstance(names, pd.MultiIndex):
-                    names = names.get_level_values("name").unique()
-                names = names.intersection(active)
-                if names.empty:
-                    continue
-                if int(d) == 0:
-                    args.append(["Link", "p", f"bus{i}", eff.sel(name=names)])
-                else:
-                    delayed_link_args.append(
-                        (f"bus{i}", eff.sel(name=names), names, int(d), bool(cyc))
-                    )
 
     if transmission_losses:
         args.extend(
@@ -1071,24 +1005,22 @@ def define_nodal_balance_constraints(
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
 
-    # For delayed components, time shift the p variable so that output at
-    # snapshot t uses the input from the source snapshot s(t)
-    sns_coords: xr.Coordinates | dict[str, Any]
-    if isinstance(sns, pd.MultiIndex):
-        sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
-    else:
-        sns_coords = {"snapshot": sns}
+    links = n.c.links
+    processes = n.c.processes
 
-    all_delayed_args = [
-        (delayed_link_args, "Link", links),
-        (delayed_process_args, "Process", processes),
-    ]
-    for delayed_args, comp_name, comp in all_delayed_args:
+    all_delayed_args: list[tuple[list[tuple[str, Any, pd.Index, int, bool]], Any]] = []
+    for c in (processes, links):
+        immediate, delayed = c.get_delayed_balance_args(sns)
+        args.extend(immediate)
+        if delayed:
+            all_delayed_args.append((delayed, c))
+
+    for delayed_args, c in all_delayed_args:
         for bus_col, coeff, names, delay, is_cyclic in delayed_args:
             if names.empty:
                 continue
 
-            src_snapshot_pos, valid = Components.get_delay_source_indexer(
+            src_snapshot_pos, valid = c.get_delay_source_indexer(
                 sns,
                 n.snapshot_weightings.generators.loc[sns],
                 delay,
@@ -1098,11 +1030,11 @@ def define_nodal_balance_constraints(
                 valid.astype(float), dims=["snapshot"], coords=sns_coords
             )
 
-            comp_p = m[f"{comp_name}-p"].sel(name=names)
+            comp_p = m[f"{c.name}-p"].sel(name=names)
             shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(sns_coords)
             shifted_p = shifted_p * valid_mask
             expr = coeff.sel(name=names) * shifted_p
-            cbuses = comp._as_xarray(bus_col).sel(name=names)
+            cbuses = c._as_xarray(bus_col).sel(name=names)
             if n.has_scenarios:
                 cbuses = cbuses.isel(scenario=0, drop=True)
             cbuses = cbuses[cbuses.isin(buses)].rename("Bus")

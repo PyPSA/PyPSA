@@ -16,6 +16,7 @@ from pypsa.components._types.line_types import LineTypes
 from pypsa.components._types.lines import Lines
 from pypsa.components._types.links import Links
 from pypsa.components._types.loads import Loads
+from pypsa.components._types.multiports import Multiport
 from pypsa.components._types.processes import Processes
 from pypsa.components._types.shapes import Shapes
 from pypsa.components._types.shunt_impedances import ShuntImpedances
@@ -34,6 +35,7 @@ __all__ = [
     "Lines",
     "Links",
     "Loads",
+    "Multiport",
     "Processes",
     "Shapes",
     "ShuntImpedances",

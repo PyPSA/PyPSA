@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Any
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
+from pypsa.components._types.multiports import Multiport
 from pypsa.components.components import Components
-from pypsa.constants import RE_PORTS_GE_2
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class Links(Components):
+class Links(Multiport, Components):
     """Links components class.
 
     This class is used for link components. All functionality specific to
@@ -43,6 +43,17 @@ class Links(Components):
     """
 
     _operational_variables = ["p"]
+
+    @property
+    def _output_ports(self) -> list[str]:
+        return ["1"] + self.additional_ports
+
+    def _port_suffix(self, port: str) -> str:
+        return "" if port == "1" else port
+
+    @property
+    def _coefficient_attr(self) -> str:
+        return "efficiency"
 
     def get_bounds_pu(
         self,
@@ -85,31 +96,3 @@ class Links(Components):
             return_names=return_names,
             **kwargs,
         )
-
-    @property
-    def additional_ports(self) -> list[str]:
-        """Identify additional link ports (bus connections) beyond predefined ones.
-
-        Returns
-        -------
-        list of strings
-            List of additional link ports. E.g. ["2", "3"] for bus2, bus3.
-
-        Also see
-        ---------
-        pypsa.Components.ports
-
-        Examples
-        --------
-        >>> n = pypsa.Network() # doctest: +SKIP
-        >>> n.add("Link", "link1", bus0="bus1", bus1="bus2", bus2="bus3") # doctest: +SKIP
-        Index(['link1'], dtype='object')
-        >>> n.components.links.additional_ports # doctest: +SKIP
-        ['2']
-
-        """
-        return [
-            match.group(1)
-            for col in self.static.columns
-            if (match := RE_PORTS_GE_2.search(col))
-        ]

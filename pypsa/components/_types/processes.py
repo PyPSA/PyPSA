@@ -6,15 +6,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
-
-import pandas as pd
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
+from pypsa.components._types.multiports import Multiport
 from pypsa.components.components import Components
-from pypsa.constants import RE_PORTS_GE_2
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -24,11 +21,11 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class Processes(Components):
+class Processes(Multiport, Components):
     """Processes components class.
 
     This class is used for process components. All functionality specific to
-    processses is implemented here. Functionality for all components is implemented in
+    processes is implemented here. Functionality for all components is implemented in
     the abstract base class.
 
     See Also
@@ -43,6 +40,10 @@ class Processes(Components):
     """
 
     _operational_variables = ["p"]
+
+    @property
+    def _coefficient_attr(self) -> str:
+        return "rate"
 
     def get_bounds_pu(
         self,
@@ -85,31 +86,3 @@ class Processes(Components):
             return_names=return_names,
             **kwargs,
         )
-
-    @property
-    def additional_ports(self) -> list[str]:
-        """Identify additional process ports (bus connections) beyond predefined ones.
-
-        Returns
-        -------
-        list of strings
-            List of additional link ports. E.g. ["2", "3"] for bus2, bus3.
-
-        Also see
-        ---------
-        pypsa.Components.ports
-
-        Examples
-        --------
-        >>> n = pypsa.Network() # doctest: +SKIP
-        >>> n.add("Process", "process1", bus0="bus1", bus1="bus2", bus2="bus3") # doctest: +SKIP
-        Index(['process1'], dtype='object')
-        >>> n.components.processes.additional_ports # doctest: +SKIP
-        ['2']
-
-        """
-        return [
-            match.group(1)
-            for col in self.static.columns
-            if (match := RE_PORTS_GE_2.search(col))
-        ]
