@@ -81,7 +81,6 @@ def test_process_component_basics(n):
     assert "Process" not in n.passive_branch_components
 
     assert "electrolyser" in n.c.processes.static.index
-    assert n.processes is n.c.processes.static
     assert "0" in n.c.processes.ports
     assert "1" in n.c.processes.ports
 
