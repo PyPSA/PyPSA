@@ -168,6 +168,26 @@ def test_update_ports_component_attrs_process():
     assert "p2" in defaults.index
 
 
+def test_additional_linkports_isolated_between_networks():
+    n1 = pypsa.Network()
+    n1.add("Bus", "bus0")
+    n1.add("Bus", "bus1")
+    n1.add("Bus", "bus2")
+    n1.add("Bus", "bus3")
+    n1.add("Link", "link0", bus0="bus0", bus1="bus1", bus2="bus2", bus3="bus3")
+
+    n2 = pypsa.Network()
+    n2.add("Bus", "bus0")
+    n2.add("Bus", "bus1")
+    n2.add("Bus", "bus2")
+    n2.add("Link", "link0", bus0="bus0", bus1="bus1", bus2="bus2")
+
+    ports = n2.c.links.additional_ports
+
+    assert ports == ["2"]
+    assert "bus3" not in n2.c.links.static.columns
+
+
 def test_get_bounds_pu():
     n = pypsa.Network()
     n.snapshots = pd.date_range("2019-01-01", "2019-01-02", freq="h")

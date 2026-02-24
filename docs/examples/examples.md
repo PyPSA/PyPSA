@@ -204,6 +204,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](reserve-power.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Link Delay**
+
+    Demonstrates time-delayed energy transport through links, modeling pipeline or shipping delays with cyclic and non-cyclic boundary behavior.
+
+    [:octicons-arrow-right-24: Go to example](link-delay.ipynb)
+
 </div>
 
 ## Sector Coupling

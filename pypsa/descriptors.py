@@ -344,9 +344,3 @@ def _update_ports_component_attrs(
             n.c[c].dynamic[target] = df
         elif attr in static_attrs and target not in n.c[c].static.columns:
             n.c[c].static[target] = defaults.loc[target, "default"]
-
-    # re-order correctly
-    # TODO: there is no in-place reordering or in-place inserting at the right row (as far as i am aware),
-    # so we would have to update the attrs for that to work, but there i am hitting some special components
-    # setters, @lkstrp
-    # n.components[c]["attrs"] = n.components[c]["attrs"].loc[defaults_index]
