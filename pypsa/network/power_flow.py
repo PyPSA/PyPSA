@@ -811,7 +811,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
         )
 
         for c in self.controllable_branch_components:
-            _update_ports_component_attrs(self, c=c)
+            _update_ports_component_attrs(self, c_name=c)
 
     def lpf(
         n: Network, snapshots: Sequence | None = None, skip_pre: bool = False

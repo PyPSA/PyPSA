@@ -40,6 +40,7 @@ class Processes(Multiport, Components):
     """
 
     _operational_variables = ["p"]
+    _unsuffixed_attrs = set[str]()
 
     @property
     def _coefficient_attr(self) -> str:

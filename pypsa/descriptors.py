@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from dataclasses import replace
 from itertools import product
 from typing import TYPE_CHECKING, Any
@@ -15,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 from deprecation import deprecated
 
+from pypsa.components._types.multiports import Multiport
 from pypsa.constants import RE_PORTS_GE_2
 
 if TYPE_CHECKING:
@@ -258,35 +258,10 @@ def _update_ports_doc_changes(s: Any, i: int, j: str) -> Any:
     return s.replace(j, str(i)).replace("required", "optional")
 
 
-def _additional_ports(
-    n: NetworkType, where: Iterable[str] | None = None, c: str = "Link"
-) -> list[str]:
-    """Identify additional ports (bus connections) beyond predefined ones.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network instance.
-    where : iterable of strings, default None
-        Subset of columns to consider. Takes columns from `c` by default.
-    c : str
-        Component name to take columns from
-
-    Returns
-    -------
-    list of strings
-        List of additional ports. E.g. ["2", "3"] for bus2, bus3.
-
-    """
-    if where is None:
-        where = n.c[c].static.columns
-    return [match.group(1) for col in where if (match := RE_PORTS_GE_2.search(col))]
-
-
 def _update_ports_component_attrs(
     n: NetworkType,
     where: Iterable[str] | None = None,
-    c: str = "Link",
+    c_name: str = "Link",
 ) -> None:
     """Update the Link components attributes to add the additional ports.
 
@@ -298,30 +273,30 @@ def _update_ports_component_attrs(
         Filters for specific subsets of data by providing an iterable of tags
         or identifiers. If None, no filtering is applied and additional link
         ports are considered for all connectors.
-    c : str
+    c_name : str
         Component name to apply to
 
     """
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        ports = _additional_ports(n, where, c)
-    ports.sort(reverse=True)
+    c = n.components[c_name]
 
-    if c == "Link":
-        static_attrs = ["bus"]
-        dynamic_attrs = ["efficiency", "p"]
-        unsuffixed_attrs = {"efficiency"}
-    elif c == "Process":
-        static_attrs = ["bus"]
-        dynamic_attrs = ["rate", "p"]
-        unsuffixed_attrs = set[str]()
-    else:
-        msg = f"Only implemented for Link and Process, not: {c}"
+    if not isinstance(c, Multiport):
+        msg = f"Only implemented for Link and Process, not: {c_name}"
         raise NotImplementedError(msg)
 
-    comp = n.components[c]
-    comp.ctype = replace(comp.ctype, defaults=comp.defaults.copy(deep=True))
-    defaults = comp.defaults
+    if where is None:
+        ports = list(c.additional_ports)
+    else:
+        ports = [
+            match.group(1) for col in where if (match := RE_PORTS_GE_2.search(col))
+        ]
+    ports.sort(reverse=True)
+
+    static_attrs = ["bus"]
+    dynamic_attrs = [c._coefficient_attr, "p"]
+    unsuffixed_attrs = c._unsuffixed_attrs
+
+    c.ctype = replace(c.ctype, defaults=c.defaults.copy(deep=True))
+    defaults = c.defaults
 
     for i, attr in product(ports, static_attrs + dynamic_attrs):
         target = f"{attr}{i}"
@@ -336,10 +311,10 @@ def _update_ports_component_attrs(
         defaults.loc[target] = defaults.loc[base_attr].apply(
             _update_ports_doc_changes, args=("1", i)
         )
-        if attr in dynamic_attrs and target not in n.c[c].dynamic:
+        if attr in dynamic_attrs and target not in n.c[c_name].dynamic:
             df = pd.DataFrame(
-                index=n.snapshots, columns=n.c[c].static.index[:0], dtype=float
+                index=n.snapshots, columns=n.c[c_name].static.index[:0], dtype=float
             )
-            n.c[c].dynamic[target] = df
-        elif attr in static_attrs and target not in n.c[c].static.columns:
-            n.c[c].static[target] = defaults.loc[target, "default"]
+            n.c[c_name].dynamic[target] = df
+        elif attr in static_attrs and target not in n.c[c_name].static.columns:
+            n.c[c_name].static[target] = defaults.loc[target, "default"]

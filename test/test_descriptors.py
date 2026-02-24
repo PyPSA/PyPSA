@@ -10,7 +10,6 @@ import pytest
 import pypsa
 from pypsa.common import expand_series
 from pypsa.descriptors import (
-    _additional_ports,
     get_bounds_pu,
     get_extendable_i,
     get_non_extendable_i,
@@ -106,12 +105,8 @@ def test_additional_ports():
     n.add("Bus", "bus2")
     n.add("Link", "link0", bus0="bus0", bus1="bus1", bus2="bus2")
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-        ports = _additional_ports(n, n.c.links.static.columns)
+    ports = n.c.links.additional_ports
     assert ports == ["2"]
-    assert ports == n.c.links.additional_ports
 
 
 def test_additional_ports_process():
@@ -134,11 +129,8 @@ def test_additional_ports_process():
         p_nom=10,
     )
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        ports = _additional_ports(n, n.c.processes.static.columns, c="Process")
+    ports = n.c.processes.additional_ports
     assert sorted(ports) == ["2", "3"]
-    assert sorted(ports) == sorted(n.c.processes.additional_ports)
 
 
 def test_update_ports_component_attrs_process():
@@ -161,7 +153,7 @@ def test_update_ports_component_attrs_process():
         p_nom=10,
     )
 
-    _update_ports_component_attrs(n, c="Process")
+    _update_ports_component_attrs(n, c_name="Process")
     defaults = n.components["Process"]["defaults"]
     assert "bus2" in defaults.index
     assert "rate2" in defaults.index

@@ -1402,7 +1402,7 @@ class NetworkIOMixin(_NetworkABC):
                 continue
 
             if component in ("Link", "Process"):
-                _update_ports_component_attrs(self, where=df, c=component)
+                _update_ports_component_attrs(self, where=df, c_name=component)
 
             self._import_components_from_df(df, component)
 
@@ -1765,7 +1765,7 @@ class NetworkIOMixin(_NetworkABC):
         attrs = self.components[cls_name]["defaults"]
 
         if cls_name in ("Link", "Process"):
-            _update_ports_component_attrs(self, where=df, c=cls_name)
+            _update_ports_component_attrs(self, where=df, c_name=cls_name)
 
         static_attrs = attrs[attrs.static].drop("name")
         non_static_attrs = attrs[~attrs.static]
