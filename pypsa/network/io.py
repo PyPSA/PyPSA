@@ -1762,11 +1762,10 @@ class NetworkIOMixin(_NetworkABC):
             If True, overwrite existing components.
 
         """
-        attrs = self.components[cls_name]["defaults"]
-
         if cls_name in ("Link", "Process"):
             _update_ports_component_attrs(self, where=df, c_name=cls_name)
 
+        attrs = self.components[cls_name]["defaults"]
         static_attrs = attrs[attrs.static].drop("name")
         non_static_attrs = attrs[~attrs.static]
 
