@@ -1148,8 +1148,8 @@ class Network(
 
         See Also
         --------
-                [pypsa.Network.branches][],
-                [pypsa.Network.passive_branches][]
+        [pypsa.Network.branches][],
+        [pypsa.Network.passive_branches][]
 
         """
         comps = list(

@@ -631,4 +631,4 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             slack_weights=slack_weights,
         )
 
-        return dict(status=status, terminantion_condition=condition, **res)
+        return dict(status=status, termination_condition=condition, **res)
