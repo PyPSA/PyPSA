@@ -163,6 +163,12 @@ class _Exporter(_ImpExper):
         """Save investment periods data."""
 
     @abstractmethod
+    def save_typical_periods(
+        self, typical_periods: pd.Series, typical_period_map: pd.Series
+    ) -> None:
+        """Save typical periods data."""
+
+    @abstractmethod
     def save_scenarios(self, scenarios: pd.DataFrame) -> None:
         """Save scenarios data."""
 
@@ -263,14 +269,21 @@ class _ImporterCSV(_Importer):
             fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
         )
 
-    def get_typical_periods(self) -> pd.Series:
+    def get_typical_periods(self) -> tuple[pd.Series, pd.Series]:
         """Get typical periods data."""
         fn = self.path.joinpath("typical_periods.csv")
         if not fn.is_file():
-            return None
-        return pd.read_csv(
+            return None, None
+        typical_periods = pd.read_csv(
             fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
         )
+        fn = self.path.joinpath("typical_period_map.csv")
+        if not fn.is_file():
+            return typical_periods, None
+        typical_period_map = pd.read_csv(
+            fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
+        )
+        return typical_periods.squeeze(), typical_period_map.squeeze()
 
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
@@ -360,6 +373,18 @@ class _ExporterCSV(_Exporter):
         fn = self.path.joinpath("investment_periods.csv")
         with fn.open("w"):
             investment_periods.to_csv(
+                fn, encoding=self.encoding, quotechar=self.quotechar
+            )
+
+    def save_typical_periods(
+        self, typical_periods: pd.Series, typical_period_map: pd.Series
+    ) -> None:
+        fn = self.path.joinpath("typical_periods.csv")
+        with fn.open("w"):
+            typical_periods.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
+        fn = self.path.joinpath("typical_period_map.csv")
+        with fn.open("w"):
+            typical_period_map.to_csv(
                 fn, encoding=self.encoding, quotechar=self.quotechar
             )
 
@@ -524,16 +549,20 @@ class _ImporterExcel(_Importer):
         else:
             return df
 
-    def get_typical_periods(self) -> pd.Series:
+    def get_typical_periods(self) -> tuple[pd.Series, pd.Series]:
         """Get typical periods data."""
         try:
-            df = self.sheets["typical_periods"]
-            df = df.set_index(df.columns[0])
-            df.index = df.index.astype(int)
+            typical_periods = self.sheets["typical_periods"]
+            typical_periods = typical_periods.set_index(typical_periods.columns[0])
+
+            typical_period_map = self.sheets["typical_period_map"]
+            typical_period_map = typical_period_map.set_index(
+                typical_period_map.columns[0]
+            )
         except (ValueError, KeyError):
-            return None
+            return None, None
         else:
-            return df
+            return typical_periods, typical_period_map
 
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
@@ -648,6 +677,12 @@ class _ExporterExcel(_Exporter):
         """Save investment periods data."""
         investment_periods.to_excel(self.writer, sheet_name="investment_periods")
 
+    def save_typical_periods(
+        self, typical_periods: pd.Series, typical_period_map: pd.Series
+    ) -> None:
+        typical_periods.to_excel(self.writer, sheet_name="typical_periods")
+        typical_period_map.to_excel(self.writer, sheet_name="typical_period_map")
+
     def save_scenarios(self, scenarios: pd.DataFrame) -> None:
         """Save scenarios data."""
         msg = "Stochastic networks are not supported in the Excel exporter. Use netcdf instead."
@@ -744,11 +779,15 @@ class _ImporterHDF5(_Importer):
             self.ds["/investment_periods"] if "/investment_periods" in self.ds else None  # noqa: SIM401
         )
 
-    def get_typical_periods(self) -> pd.Series:
+    def get_typical_periods(self) -> tuple[pd.Series, pd.Series]:
         """Get typical periods data."""
-        return (
-            self.ds["/typical_periods"] if "/typical_periods" in self.ds else None  # noqa: SIM401
-        )
+        typical_periods = (
+            self.ds["/typical_periods"] if "/typical_periods" in self.ds else None
+        )  # noqa: SIM401
+        typical_period_map = (
+            self.ds["/typical_period_map"] if "/typical_period_map" in self.ds else None
+        )  # noqa: SIM401
+        return typical_periods, typical_period_map
 
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
@@ -830,6 +869,15 @@ class _ExporterHDF5(_Exporter):
             investment_periods,
             format="table",
             index=False,
+        )
+
+    def save_typical_periods(
+        self, typical_periods: pd.Series, typical_period_map: pd.Series
+    ) -> None:
+        breakpoint()
+        self.ds.put("/typical_periods", typical_periods, format="table", index=True)
+        self.ds.put(
+            "/typical_period_map", typical_period_map, format="table", index=True
         )
 
     def save_scenarios(self, scenarios: pd.DataFrame) -> None:
@@ -917,9 +965,11 @@ class _ImporterNetCDF(_Importer):
         """Get investment periods data."""
         return self.get_static("investment_periods", "investment_periods")
 
-    def get_typical_periods(self) -> pd.DataFrame:
+    def get_typical_periods(self) -> tuple[pd.Series, pd.Series]:
         """Get typical periods data."""
-        return self.get_static("typical_periods", "typical_periods")
+        return self.get_static("typical_periods", "typical_periods"), self.get_static(
+            "typical_period_map", "typical_period_map"
+        )
 
     def get_scenarios(self) -> pd.DataFrame:
         """Get scenarios data."""
@@ -1029,6 +1079,17 @@ class _ExporterNetCDF(_Exporter):
         investment_periods = investment_periods.rename_axis(index="investment_periods")
         for attr in investment_periods.columns:
             self.ds["investment_periods_" + attr] = investment_periods[attr]
+
+    def save_typical_periods(
+        self, typical_periods: pd.Series, typical_period_map: pd.Series
+    ) -> None:
+        typical_periods = typical_periods.rename_axis(index="typical_periods")
+        for attr in typical_periods.columns:
+            self.ds["typical_periods_" + attr] = typical_periods[attr]
+
+        typical_period_map = typical_period_map.rename_axis(index="typical_period_map")
+        for attr in typical_period_map.columns:
+            self.ds["typical_period_map_" + attr] = typical_period_map[attr]
 
     def save_scenarios(self, scenarios: pd.Index) -> None:
         """Save scenarios data."""
@@ -1235,6 +1296,16 @@ class NetworkIOMixin(_NetworkABC):
             investment_periods = self.investment_period_weightings
             exporter.save_investment_periods(investment_periods)
 
+        # export investment period weightings
+        if self.has_typical_periods:
+            typical_periods = self.typical_periods.rename(
+                "typical_period"
+            ).reset_index()
+            typical_period_map = self.typical_period_map.rename(
+                "typical_period"
+            ).reset_index()
+            exporter.save_typical_periods(typical_periods, typical_period_map)
+
         # export scenarios
         if self.has_scenarios:
             exporter.save_scenarios(self.scenario_weightings)
@@ -1408,7 +1479,7 @@ class NetworkIOMixin(_NetworkABC):
         periods = importer.get_investment_periods()
 
         # read in typical periods
-        typical_periods = importer.get_typical_periods()
+        typical_periods, typical_period_map = importer.get_typical_periods()
 
         if periods is not None and not periods.empty:
             self.periods = periods.index
@@ -1416,7 +1487,8 @@ class NetworkIOMixin(_NetworkABC):
             self._investment_periods_data = periods.reindex(self.investment_periods)
 
         if typical_periods is not None and not typical_periods.empty:
-            self.typical_periods = typical_periods.index
+            self.typical_periods = typical_periods.set_index("snapshot")
+            self.typical_period_map = typical_period_map.set_index("day")
 
         scenarios = importer.get_scenarios()
         if scenarios is not None:
