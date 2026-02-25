@@ -596,6 +596,7 @@ def typical_periods(
     *,
     solver: str = "highs",
     exclude_attrs: list[str] | None = None,
+    **tsam_kwargs: dict[str, Any],
 ) -> TemporalClustering:
     """Cluster time series into non-contiguous typical periods using TSAM.
 
@@ -611,6 +612,8 @@ def typical_periods(
         MIP solver for time clustering.
     exclude_attrs : list, optional
         Attributes to exclude from clustering (default: ["e_min_pu"]).
+    **tsam_kwargs : dict, optional
+        Additional keyword arguments for TSAM TimeSeriesAggregation (e.g., "distance_metric").
 
     Returns
     -------
@@ -655,6 +658,7 @@ def typical_periods(
         noTypicalPeriods=num_typical_periods,
         segmentation=False,
         solver=solver,
+        **tsam_kwargs,
     )
     clustered = agg.createTypicalPeriods()
     matched_indices = agg.indexMatching()
@@ -728,7 +732,8 @@ def _prep_tsam_agg(
 
     normalization_factors = combined.max().replace(0, 1)
     df_normalized = combined.div(normalization_factors)
-    df_normalized = df_normalized.fillna(0)
+    df_normalized = df_normalized.fillna(0).clip(lower=0)
+
     try:
         agg = tsam_module.TimeSeriesAggregation(df_normalized, **tsam_kwargs)
     except ValueError as e:

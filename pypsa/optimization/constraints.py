@@ -1664,7 +1664,7 @@ def _define_inter_typical_period_storage_constraints(
     if is_extendable.any():
         capacity_ext = m[f"{c.name}-{nom_attr}"]
     else:
-        capacity_ext = None
+        capacity_ext = 0
     capacity_fixed = c.da[nom_attr]
     capacity = capacity_ext + capacity_fixed.where(~is_extendable)
 
