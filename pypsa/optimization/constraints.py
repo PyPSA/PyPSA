@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -19,13 +18,13 @@ from numpy import inf, isfinite, maximum, sqrt, tile
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
-from pypsa.components._types.shared_layer.multiports import Multiport
+from pypsa.components._types.mixin.multiports import Multiport
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
     from xarray import DataArray  # noqa: TC004
 
@@ -888,6 +887,93 @@ def define_ramp_limit_constraints(
         )
 
 
+def _get_delay_config(
+    c: Multiport,
+) -> dict[str, tuple[pd.Series | int, pd.Series | bool]]:
+    """Get delay and cyclic_delay configuration for each output port.
+
+    Parameters
+    ----------
+    c : Multiport
+        Multiport component (Link or Process).
+
+    Returns
+    -------
+    dict
+        Mapping of port_suffix to (delays, cyclics) pair. If no delay columns
+        exist, returns scalar values (0, True).
+
+    """
+    config = {}
+    for port in c._output_ports:
+        suffix = c._port_suffix(port)
+        delay_col = f"delay{suffix}"
+        cyclic_col = f"cyclic_delay{suffix}"
+
+        if delay_col in c.static.columns:
+            config[suffix] = (c.static[delay_col], c.static[cyclic_col])
+        else:
+            config[suffix] = (0, True)
+    return config
+
+
+def _iter_balance_args(
+    c: Multiport, sns: Sequence
+) -> Iterator[tuple[str, Any, pd.Index, int, bool]]:
+    """Iterate over all balance arguments, separating immediate and delayed.
+
+    Parameters
+    ----------
+    c : Multiport
+        Multiport component (Link or Process).
+    sns : Sequence
+        Snapshot index.
+
+    Yields
+    ------
+    bus_col : str
+        Bus column name (e.g., "bus0", "bus1")
+    coeff : xr.DataArray
+        Coefficient values for the component
+    names : pd.Index
+        Component names with this delay configuration
+    delay : int
+        Delay in time units (0 for immediate, >0 for delayed)
+    is_cyclic : bool
+        Whether delay wraps around the horizon
+
+    """
+    if c.empty:
+        return
+
+    active = c.active_assets
+    delay_config = _get_delay_config(c)
+
+    for port in c._output_ports:
+        suffix = c._port_suffix(port)
+        coeff = c.da[f"{c._coefficient_attr}{suffix}"].sel(snapshot=sns)
+        delays, cyclics = delay_config[suffix]
+
+        for (d, cyc), group in c.static.assign(_delay=delays, _cyclic=cyclics).groupby(
+            ["_delay", "_cyclic"]
+        ):
+            delay_int = int(d)
+
+            names = group.index
+            if isinstance(names, pd.MultiIndex):
+                names = names.get_level_values("name").unique()
+            names = names.intersection(active)
+
+            if not names.empty:
+                yield (
+                    f"bus{port}",
+                    coeff.sel(name=names),
+                    names,
+                    delay_int,
+                    bool(cyc),
+                )
+
+
 def define_nodal_balance_constraints(
     n: Network,
     sns: pd.Index,
@@ -1009,7 +1095,7 @@ def define_nodal_balance_constraints(
 
     for component in ("Process", "Link"):
         c = n.c[component]
-        for bus_col, coeff, names, delay, is_cyclic in c._iter_balance_args(sns):
+        for bus_col, coeff, names, delay, is_cyclic in _iter_balance_args(c, sns):
             if delay <= 0:
                 expr = coeff * m[f"{c.name}-p"]
             else:

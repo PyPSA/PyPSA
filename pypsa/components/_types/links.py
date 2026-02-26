@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components._types.shared_layer.multiports import Multiport
+from pypsa.components._types.mixin.multiports import Multiport
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -30,6 +30,7 @@ class Links(Multiport):
     See Also
     --------
     [pypsa.Components][]
+    [pypsa.components.Processes][]
 
     Examples
     --------
