@@ -26,7 +26,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fixed typo "terminantion_condition" -> "termination_condition" in dictionary returned by `optimize_and_run_non_linear_powerflow` (<!-- md:pr 1333 -->)
 
 - Fixed output of `n.controllable_branches()` to include controllable branches instead of passive branches. (<!-- md:pr 1578 -->)
- 
+
 - Fix `expand_series` losing index name on the resulting DataFrame with pandas >= 3.0, which caused xarray alignment errors in multi-investment period optimization. (<!-- md:pr 1581 -->)
 
 ## [**v1.1.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.1.2) <small>23rd February 2026</small> { id="v1.1.2" }
