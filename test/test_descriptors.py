@@ -98,6 +98,15 @@ def test_expand_series():
     assert (df["a"] == df["b"]).all()
     assert (df["b"] == df["c"]).all()
 
+    # Test index name preservation with MultiIndex (regression for #1580)
+    mi = pd.MultiIndex.from_product(
+        [[2020, 2030], [1, 2]], names=["period", "timestep"]
+    )
+    mi.name = "snapshot"
+    s_named = pd.Series([1.0] * 4, index=mi)
+    df_named = expand_series(s_named, ["x", "y"])
+    assert df_named.index.name == "snapshot"
+
 
 def test_additional_linkports():
     n = pypsa.Network()
