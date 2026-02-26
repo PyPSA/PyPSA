@@ -196,6 +196,92 @@ def test_update_ports_component_attrs():
     assert "cyclic_delay2" in link_defaults.index
 
 
+def test_update_ports_column_ordering():
+    """Test that bus2, bus3, efficiency2, efficiency3 are inserted after bus1, efficiency."""
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add("Bus", "bus3")
+    n.add(
+        "Link",
+        "link0",
+        bus0="bus0",
+        bus1="bus1",
+        bus2="bus2",
+        bus3="bus3",
+        efficiency2=0.5,
+        efficiency3=0.3,
+        p_nom=10,
+    )
+
+    defaults = n.components["Link"]["defaults"]
+    idx = list(defaults.index)
+
+    # bus2 and bus3 should come right after bus1
+    bus1_pos = idx.index("bus1")
+    assert idx[bus1_pos + 1] == "bus2", (
+        f"Expected bus2 after bus1, got {idx[bus1_pos + 1]}"
+    )
+    assert idx[bus1_pos + 2] == "bus3", (
+        f"Expected bus3 after bus2, got {idx[bus1_pos + 2]}"
+    )
+
+    # efficiency2 and efficiency3 should come right after efficiency
+    eff_pos = idx.index("efficiency")
+    assert idx[eff_pos + 1] == "efficiency2", (
+        f"Expected efficiency2 after efficiency, got {idx[eff_pos + 1]}"
+    )
+    assert idx[eff_pos + 2] == "efficiency3", (
+        f"Expected efficiency3 after efficiency2, got {idx[eff_pos + 2]}"
+    )
+
+    # p2 and p3 should come right after p1
+    p1_pos = idx.index("p1")
+    assert idx[p1_pos + 1] == "p2", f"Expected p2 after p1, got {idx[p1_pos + 1]}"
+    assert idx[p1_pos + 2] == "p3", f"Expected p3 after p2, got {idx[p1_pos + 2]}"
+
+
+def test_update_ports_column_ordering_process():
+    """Test that bus2, rate2 are inserted after bus1, rate1 for Process."""
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add(
+        "Process",
+        "proc0",
+        bus0="bus0",
+        bus1="bus1",
+        bus2="bus2",
+        rate0=-1,
+        rate1=0.5,
+        rate2=0.3,
+        p_nom=10,
+    )
+
+    defaults = n.components["Process"]["defaults"]
+    idx = list(defaults.index)
+
+    # bus2 should come right after bus1
+    bus1_pos = idx.index("bus1")
+    assert idx[bus1_pos + 1] == "bus2", (
+        f"Expected bus2 after bus1, got {idx[bus1_pos + 1]}"
+    )
+
+    # rate2 should come right after rate1
+    rate1_pos = idx.index("rate1")
+    assert idx[rate1_pos + 1] == "rate2", (
+        f"Expected rate2 after rate1, got {idx[rate1_pos + 1]}"
+    )
+
+    # p2 should come right after p1
+    p1_pos = idx.index("p1")
+    assert idx[p1_pos + 1] == "p2", f"Expected p2 after p1, got {idx[p1_pos + 1]}"
+
+
 def test_additional_linkports_isolated_between_networks():
     n1 = pypsa.Network()
     n1.add("Bus", "bus0")
@@ -209,6 +295,13 @@ def test_additional_linkports_isolated_between_networks():
     n2.add("Bus", "bus1")
     n2.add("Bus", "bus2")
     n2.add("Link", "link0", bus0="bus0", bus1="bus1", bus2="bus2")
+
+    n3 = pypsa.Network()
+    n3.add("Bus", "bus0")
+    n3.add("Bus", "bus1")
+    n3.add("Bus", "bus2")
+    n3.add("Bus", "bus3")
+    n3.add("Link", "link0", bus0="bus0", bus1="bus1", bus2="bus2", bus3="bus3")
 
     ports = n2.c.links.additional_ports
 

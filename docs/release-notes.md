@@ -21,6 +21,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix ordering of additional port columns (`bus2`, `bus3`, `efficiency2`, etc.) in multi-port component defaults — they now appear right after their base attribute instead of at the end.
+
 - Fixed typo "terminantion_condition" -> "termination_condition" in dictionary returned by `optimize_and_run_non_linear_powerflow` (<!-- md:pr 1333 -->)
 
 - Fixed output of `n.controllable_branches()` to include controllable branches instead of passive branches. (<!-- md:pr 1333 -->)

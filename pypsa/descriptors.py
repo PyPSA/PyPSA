@@ -311,11 +311,16 @@ def _update_ports_component_attrs(
             base_attr = attr + j
             if base_attr not in defaults.index:
                 continue
-            base_attr_index = defaults.index.get_loc(base_attr)
-            defaults.index.insert(base_attr_index + 1, target)
             defaults.loc[target] = defaults.loc[base_attr].apply(
                 _update_ports_doc_changes, args=("1", i)
             )
+            # Reorder so target appears right after base_attr
+            base_attr_index = defaults.index.get_loc(base_attr)
+            target_index = defaults.index.get_loc(target)
+            new_order = list(defaults.index)
+            new_order.pop(target_index)
+            new_order.insert(base_attr_index + 1, target)
+            defaults = defaults.reindex(new_order)
             if attr in dynamic_attrs and target not in c.dynamic:
                 df = pd.DataFrame(
                     index=n.snapshots, columns=c.static.index[:0], dtype=float
@@ -323,3 +328,5 @@ def _update_ports_component_attrs(
                 c.dynamic[target] = df
             elif attr in static_attrs and target not in c.static.columns:
                 c.static[target] = defaults.loc[target, "default"]
+
+        c.ctype = replace(c.ctype, defaults=defaults)
