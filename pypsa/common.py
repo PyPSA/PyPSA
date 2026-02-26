@@ -840,7 +840,9 @@ def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
     c   3.0   3.0
 
     """
-    return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+    result = ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+    result.index.name = ser.index.name
+    return result
 
 
 def _scenarios_not_implemented(func: Callable) -> Callable:
