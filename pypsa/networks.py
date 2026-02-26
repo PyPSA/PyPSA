@@ -1137,17 +1137,14 @@ class Network(
         Examples
         --------
         >>> n.controllable_branches() # doctest: +ELLIPSIS
-                        active    b  b_pu  ...         x      x_pu  x_pu_eff
-        component name                     ...
-        Line      0       True  0.0   0.0  ...  0.796878  0.000006  0.000006
-                1       True  0.0   0.0  ...  0.391560  0.000003  0.000003
-                2       True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                3       True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                4       True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
-                6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
+                active  build_year  ... type up_time_before
+        component name                                   ...
+        Link      Norwich Converter    True           0  ...                   1
+                  Norway Converter     True           0  ...                   1
+                  Bremen Converter     True           0  ...                   1
+                  DC link              True           0  ...                   1
         <BLANKLINE>
-        [7 rows x 41 columns]
+        [4 rows x 41 columns]
 
         See Also
         --------
@@ -1156,7 +1153,7 @@ class Network(
 
         """
         comps = list(
-            set(self.passive_branch_components) - set(self._empty_components())
+            set(self.controllable_branch_components) - set(self._empty_components())
         )
         names = (
             ["component", "scenario", "name"]

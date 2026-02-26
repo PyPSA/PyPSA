@@ -21,6 +21,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - New example notebook modeling oligopolistic behavior in energy markets using Cournot-Nash equilibrium with the fictitious objective approach. See [:material-notebook-multiple: notebook](./examples/imperfect-competition.ipynb).
 
+- Fix `expand_series` losing index name on the resulting DataFrame with pandas >= 3.0, which caused xarray alignment errors in multi-investment period optimization. (<!-- md:pr 1581 -->)
+
 ## [**v1.1.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.1.2) <small>23rd February 2026</small> { id="v1.1.2" }
 
 ### Bug Fixes
