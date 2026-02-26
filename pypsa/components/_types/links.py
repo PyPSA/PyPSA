@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components._types.shared_layer.multiports import Multiport
-from pypsa.components.components import Components
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -21,7 +20,7 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class Links(Multiport, Components):
+class Links(Multiport):
     """Links components class.
 
     This class is used for link components. All functionality specific to

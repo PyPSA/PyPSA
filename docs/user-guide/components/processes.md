@@ -28,10 +28,10 @@ multi-carrier processes like electrolysis, heat pumps, or combined heat and powe
 - The columns `bus2`, `rate2`, `bus3`, `rate3`, etc. in `n.processes` are
   automatically added to the component attributes.
 
-- Each port supports a configurable time delay (`delay0`, `delay1`, `delay2`,
-  ...) in units of `n.snapshot_weightings.generators`. When set, energy
-  withdrawn at snapshot `t` arrives at the corresponding bus after `delay`
-  weighting units. Set `cyclic_delayX=False` for non-cyclic boundary behavior.
+- For delayed energy transport, use the attribute `delay0`, `delay1`, ... which postpones
+  the output at `bus0`, `bus1`, ... in terms of elapsed time, taking snapshot weightings into account.
+  See [this example](../../examples/transport-delay.ipynb).
+
 
 !!! note "Comparison with [`Link`][pypsa.components.Links]"
 
@@ -62,7 +62,8 @@ multi-carrier processes like electrolysis, heat pumps, or combined heat and powe
 !!! example "[`Process`][pypsa.components.Processes] for a CHP plant"
 
     A combined heat and power plant taking gas as input and producing electricity
-    and heat:
+    and heat. [This example](../../examples/sector-coupling-single-node-process.ipynb)
+    illustrates sector coupling with processes including a CHP plant.
 
     ```python
     n.add(
