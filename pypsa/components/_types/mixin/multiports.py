@@ -29,6 +29,8 @@ class Multiport(Components):
 
     """
 
+    _unsuffixed_attrs: set[str] = set()
+
     @property
     def additional_ports(self) -> list[str]:
         """Identify additional component ports (bus connections) beyond predefined ones.
