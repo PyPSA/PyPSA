@@ -115,7 +115,6 @@ nav:
     - examples/modular-committable.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
-    - examples/sector-coupling-single-node-process.ipynb
     - examples/islanded-methanol-production.ipynb
     - examples/battery-electric-vehicle-charging.ipynb
     - examples/chp-fixed-heat-power-ratio.ipynb
