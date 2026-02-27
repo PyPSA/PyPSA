@@ -62,7 +62,7 @@ multi-carrier processes like electrolysis, heat pumps, or combined heat and powe
 !!! example "[`Process`][pypsa.components.Processes] for a CHP plant"
 
     A combined heat and power plant taking gas as input and producing electricity
-    and heat. [This example](../../examples/sector-coupling-single-node-process.ipynb)
+    and heat. [This example](../../examples/sector-coupling-single-node.ipynb)
     illustrates sector coupling with processes including a CHP plant.
 
     ```python

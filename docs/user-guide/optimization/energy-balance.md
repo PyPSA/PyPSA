@@ -31,7 +31,7 @@ When a link has a non-zero `delay` attribute, the output flow at snapshot $t$ co
 
 $$L_{n,l,t} \cdot f_{l,s(t)}$$
 
-With `cyclic_delay=True` (default), the source time wraps cyclically modulo the total horizon length, so energy sent in the last snapshots arrives at the first snapshots. With `cyclic_delay=False`, snapshots whose source time falls before the start of the horizon receive no flow ($f_{l,s(t)} = 0$), and energy sent in the tail snapshots that would arrive beyond the horizon is lost. See the [Link component page](../components/links.md#time-delayed-energy-delivery) for usage details.
+With `cyclic_delay=True` (default), the source time wraps cyclically modulo the total horizon length, so energy sent in the last snapshots arrives at the first snapshots. With `cyclic_delay=False`, snapshots whose source time falls before the start of the horizon receive no flow ($f_{l,s(t)} = 0$), and energy sent in the tail snapshots that would arrive beyond the horizon is lost. See the [Link component page](../components/links.md) for usage details.
 
 The dual variable $\lambda_{n,t}$ represents the shadow price of the constraint (e.g. market clearing price, dynamic locational marginal prices) and is scaled by the snapshot weighting $w_t^o$ to yield units of currency per unit of energy regardless of the time resolution.
 
