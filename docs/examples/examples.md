@@ -177,6 +177,13 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](demand-elasticity.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Imperfect Competition**
+
+    Models oligopolistic behavior in energy markets using Cournot-Nash equilibrium
+    with the fictitious objective approach, avoiding KKT conditions.
+
+    [:octicons-arrow-right-24: Go to example](imperfect-competition.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Screening Curves**
 
     Determines optimal generation capacity mix based on screening curves.
