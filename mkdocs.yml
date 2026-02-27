@@ -166,6 +166,7 @@ nav:
       - Shunt Impedance: api/components/types/shunt-impedances.md
       - Line: api/components/types/lines.md
       - Transformer: api/components/types/transformers.md
+      - Multiport: api/components/types/multiports.md
       - Link: api/components/types/links.md
       - Process: api/components/types/processes.md
       - Shapes: api/components/types/shapes.md
