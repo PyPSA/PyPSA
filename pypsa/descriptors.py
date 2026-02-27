@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 from deprecation import deprecated
 
-from pypsa.components._types.mixin.multiports import Multiport
+from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.constants import RE_PORTS_GE_2
 
 if TYPE_CHECKING:
@@ -284,7 +284,7 @@ def _update_ports_component_attrs(
         c_name = [c_name]
 
     for c in n.c[c_name]:
-        if not isinstance(c, Multiport):
+        if not isinstance(c, _Multiport):
             msg = f"Only implemented for Link and Process, not: {c_name}"
             raise NotImplementedError(msg)
 

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 
 from pypsa._options import options
 from pypsa.constants import RE_PORTS_FILTER
@@ -482,6 +483,21 @@ def check_dispatch_delays(
                 total_horizon,
                 ", ".join(too_large.index.astype(str)),
             )
+
+
+@deprecated(
+    deprecated_in="1.2.0",
+    removed_in="2.0.0",
+    details="Use `check_dispatch_delays` instead.",
+)
+def check_link_delays(
+    n: NetworkType, component: Components, strict: bool = False
+) -> None:
+    """Check that delay attributes are valid for Link and Process components.
+
+    **Deprecated since 1.2:** Use `check_dispatch_delays` instead.
+    """
+    return check_dispatch_delays(n, component, strict)
 
 
 def check_cost_consistency(component: Components, strict: bool = False) -> None:

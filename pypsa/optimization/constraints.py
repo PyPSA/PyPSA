@@ -18,7 +18,7 @@ from numpy import inf, isfinite, maximum, sqrt, tile
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
-from pypsa.components._types.mixin.multiports import Multiport
+from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
@@ -888,14 +888,14 @@ def define_ramp_limit_constraints(
 
 
 def _get_delay_config(
-    c: Multiport,
+    c: _Multiport,
 ) -> dict[str, tuple[pd.Series | int, pd.Series | bool]]:
     """Get delay and cyclic_delay configuration for each output port.
 
     Parameters
     ----------
-    c : Multiport
-        Multiport component (Link or Process).
+    c : _Multiport
+        _Multiport component (Link or Process).
 
     Returns
     -------
@@ -918,14 +918,14 @@ def _get_delay_config(
 
 
 def _iter_balance_args(
-    c: Multiport, sns: Sequence
+    c: _Multiport, sns: Sequence
 ) -> Iterator[tuple[str, Any, pd.Index, int, bool]]:
     """Iterate over all balance arguments, separating immediate and delayed.
 
     Parameters
     ----------
-    c : Multiport
-        Multiport component (Link or Process).
+    c : _Multiport
+        _Multiport component (Link or Process).
     sns : Sequence
         Snapshot index.
 
@@ -1084,7 +1084,7 @@ def define_nodal_balance_constraints(
         #  drop non-existent multiport buses which are ''
         if (
             c.name in n.controllable_branch_components
-            and isinstance(c, Multiport)
+            and isinstance(c, _Multiport)
             and column in ["bus" + i for i in c.additional_ports]
         ):
             cbuses = cbuses[cbuses != ""]

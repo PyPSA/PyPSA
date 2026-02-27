@@ -18,8 +18,8 @@ from pypsa.constants import RE_PORTS_GE_2
 logger = logging.getLogger(__name__)
 
 
-class Multiport(Components):
-    """Multiport components class.
+class _Multiport(Components):
+    """_Multiport components class.
 
     This class is used for shared functionality for components with multiple ports.
 
@@ -46,10 +46,10 @@ class Multiport(Components):
 
         Examples
         --------
-        >>> n = pypsa.Network() # doctest: +SKIP
-        >>> n.add("Link", "link1", bus0="bus1", bus1="bus2", bus2="bus3") # doctest: +SKIP
+        >>> n = pypsa.Network()
+        >>> n.add("Link", "link1", bus0="bus1", bus1="bus2", bus2="bus3")
         Index(['link1'], dtype='object')
-        >>> n.components.links.additional_ports # doctest: +SKIP
+        >>> n.components.links.additional_ports
         ['2']
 
         """
@@ -173,12 +173,13 @@ class Multiport(Components):
         --------
         >>> snapshots = pd.RangeIndex(6)
         >>> weightings = pd.Series(1.0, index=snapshots)
-        >>> src, valid = Multiport.get_delay_source_indexer(snapshots, weightings, delay=2, is_cyclic=True)
+        >>> from pypsa.components import Links
+        >>> src, valid = Links.get_delay_source_indexer(snapshots, weightings, delay=2, is_cyclic=True)
         >>> src
         array([4, 5, 0, 1, 2, 3])
         >>> valid
         array([ True,  True,  True,  True,  True,  True])
-        >>> src, valid = Multiport.get_delay_source_indexer(snapshots, weightings, delay=2, is_cyclic=False)
+        >>> src, valid = Links.get_delay_source_indexer(snapshots, weightings, delay=2, is_cyclic=False)
         >>> src
         array([0, 0, 0, 1, 2, 3])
         >>> valid
@@ -197,11 +198,11 @@ class Multiport(Components):
             offset = 0
             for period in snapshots.unique("period"):
                 w = weightings[snapshots.get_loc(period)].to_numpy().astype(float)
-                p_src, p_valid = Multiport._delay_positions(w, delay, is_cyclic)
+                p_src, p_valid = _Multiport._delay_positions(w, delay, is_cyclic)
                 src[offset : offset + len(w)] = p_src + offset
                 valid[offset : offset + len(w)] = p_valid
                 offset += len(w)
             return src, valid
 
         w = weightings.reindex(snapshots).astype(float).to_numpy()
-        return Multiport._delay_positions(w, delay, is_cyclic)
+        return _Multiport._delay_positions(w, delay, is_cyclic)

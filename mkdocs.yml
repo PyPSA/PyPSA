@@ -166,7 +166,6 @@ nav:
       - Shunt Impedance: api/components/types/shunt-impedances.md
       - Line: api/components/types/lines.md
       - Transformer: api/components/types/transformers.md
-      - Multiport: api/components/types/multiports.md
       - Link: api/components/types/links.md
       - Process: api/components/types/processes.md
       - Shapes: api/components/types/shapes.md
@@ -377,7 +376,7 @@ plugins:
 # This will rebuild and execute the notebooks during any modifications when running `mkdocs serve`
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
 - mkdocs-jupyter:
-    execute: true
+    execute: false
     include: ["*.ipynb"]
     allow_errors: false
     include_source: true
