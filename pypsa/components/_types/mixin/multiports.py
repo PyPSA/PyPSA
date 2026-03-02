@@ -47,8 +47,7 @@ class _Multiport(Components):
         Examples
         --------
         >>> n = pypsa.Network()
-        >>> n.add("Link", "link1", bus0="bus1", bus1="bus2", bus2="bus3")
-        Index(['link1'], dtype='object')
+        >>> _ = n.add("Link", "link1", bus0="bus1", bus1="bus2", bus2="bus3")
         >>> n.components.links.additional_ports
         ['2']
 
