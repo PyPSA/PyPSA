@@ -277,6 +277,21 @@ class NetworkComponentsMixin(_NetworkABC):
         self.c.links.static = value
 
     @property
+    def processes(self) -> Any:
+        """Access to static data of [pypsa.components.Processes][]."""
+        return (
+            self.c.processes.static
+            if not options.api.new_components_api
+            else self.c.processes
+        )
+
+    @processes.setter
+    def processes(self, value: pd.DataFrame) -> None:
+        if options.api.new_components_api:
+            raise AttributeError(_STATIC_SETTER_WARNING)
+        self.c.processes.static = value
+
+    @property
     def loads(self) -> Any:
         """Access to static data of [pypsa.components.Loads][]."""
         return (
@@ -686,10 +701,10 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.controllable_branch_components)
-        ['Link']
+        ['Link', 'Process']
 
         """
-        return {"Link"}
+        return {"Link", "Process"}
 
     @property
     def controllable_one_port_components(self) -> set[str]:
@@ -758,7 +773,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.branch_components)
-        ['Line', 'Link', 'Transformer']
+        ['Line', 'Link', 'Process', 'Transformer']
 
         """
         return self.passive_branch_components | self.controllable_branch_components
@@ -770,7 +785,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.all_components)
-        ['Bus', 'Carrier', 'Generator', 'GlobalConstraint', 'Line', 'LineType', 'Link', 'Load', 'Shape', 'ShuntImpedance', 'StorageUnit', 'Store', 'SubNetwork', 'Transformer', 'TransformerType']
+        ['Bus', 'Carrier', 'Generator', 'GlobalConstraint', 'Line', 'LineType', 'Link', 'Load', 'Process', 'Shape', 'ShuntImpedance', 'StorageUnit', 'Store', 'SubNetwork', 'Transformer', 'TransformerType']
 
         """
         return {
@@ -789,6 +804,7 @@ class NetworkComponentsMixin(_NetworkABC):
             "LineType",
             "Bus",
             "Load",
+            "Process",
         }
 
     @property

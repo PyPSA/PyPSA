@@ -19,7 +19,6 @@ from linopy.solvers import available_solvers
 
 from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
-from pypsa.components._types.links import Links
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
@@ -72,6 +71,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from pypsa import Network, SubNetwork
+    from pypsa.components import Links, Processes
 logger = logging.getLogger(__name__)
 
 
@@ -79,6 +79,40 @@ lookup = pd.read_csv(
     Path(__file__).parent / ".." / "data" / "variables.csv",
     index_col=["component", "variable"],
 )
+
+
+def _apply_delay_shift(
+    port_df: pd.DataFrame,
+    c: Links | Processes,
+    delay_col: str,
+    cyclic_col: str,
+    sns: pd.Index,
+    n: Network,
+) -> None:
+    """Time-shift port_df values in-place for delayed components."""
+    static = c.static
+    if delay_col not in static.columns:
+        return
+    delayed = static[static[delay_col] > 0]
+    if delayed.empty:
+        return
+    if cyclic_col in static.columns:
+        grp_cols = [delay_col, cyclic_col]
+    else:
+        delayed = delayed.assign(_cyclic=True)
+        grp_cols = [delay_col, "_cyclic"]
+    delay_weightings = n.snapshot_weightings.generators.loc[sns]
+    for (d, cyc), grp in delayed.groupby(grp_cols):
+        cols = grp.index
+        src_pos, valid = c.get_delay_source_indexer(
+            sns,
+            delay_weightings,
+            int(d),
+            bool(cyc),
+        )
+        delayed_values = port_df[cols].to_numpy()[src_pos, :]
+        delayed_values[~valid, :] = 0.0
+        port_df[cols] = delayed_values
 
 
 def _resolve_include_objective_constant(
@@ -257,7 +291,7 @@ def define_objective(
         is_quadratic = True
 
     # stand-by cost
-    for c_name in ["Generator", "Link"]:
+    for c_name in ["Generator", "Link", "Process"]:
         c = as_components(n, c_name)
         com_i = c.committables.difference(c.inactive_assets)
 
@@ -886,42 +920,42 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p1", -df)
 
                 elif c.name == "Link" and attr == "p":
+                    _set_dynamic_data(n, c.name, "p", df)
                     _set_dynamic_data(n, c.name, "p0", df)
 
-                    for i in ["1"] + n.c.links.additional_ports:
+                    for i in ["1"] + c.additional_ports:
                         i_suffix = "" if i == "1" else i
                         eff = n.get_switchable_as_dense(
                             "Link", f"efficiency{i_suffix}", sns
                         )
                         port_df = -df * eff
-                        # For delayed links, time shift the p variable so that output at
-                        # snapshot t uses the input from the source snapshot s(t)
-                        delay_weightings = n.snapshot_weightings.generators.loc[sns]
-                        delay_col = f"delay{i_suffix}"
-                        cyclic_col = f"cyclic_delay{i_suffix}"
-                        link_static = c.static
-                        if delay_col in link_static.columns:
-                            delayed = link_static[link_static[delay_col] > 0]
-                            if cyclic_col in link_static.columns:
-                                grp_cols = [delay_col, cyclic_col]
-                            else:
-                                delayed = delayed.assign(_cyclic=True)
-                                grp_cols = [delay_col, "_cyclic"]
-                            for (d, cyc), grp in delayed.groupby(grp_cols):
-                                cols = grp.index
-                                src_snapshot_pos, valid = (
-                                    Links.get_delay_source_indexer(
-                                        sns,
-                                        delay_weightings,
-                                        int(d),
-                                        bool(cyc),
-                                    )
-                                )
-                                delayed_values = port_df[cols].to_numpy()[
-                                    src_snapshot_pos, :
-                                ]
-                                delayed_values[~valid, :] = 0.0
-                                port_df[cols] = delayed_values
+                        _apply_delay_shift(
+                            port_df,
+                            c,
+                            f"delay{i_suffix}",
+                            f"cyclic_delay{i_suffix}",
+                            sns,
+                            n,
+                        )
+                        _set_dynamic_data(n, c.name, f"p{i}", port_df)
+                        c.dynamic[f"p{i}"].loc[
+                            sns, c.static.index[c.static[f"bus{i}"] == ""]
+                        ] = float(c.defaults.loc[f"p{i}", "default"])
+
+                elif c.name == "Process" and attr == "p":
+                    _set_dynamic_data(n, c.name, "p", df)
+
+                    for i in c.ports:
+                        rate = n.get_switchable_as_dense(c.name, f"rate{i}", sns)
+                        port_df = -df * rate
+                        _apply_delay_shift(
+                            port_df,
+                            c,
+                            f"delay{i}",
+                            f"cyclic_delay{i}",
+                            sns,
+                            n,
+                        )
                         _set_dynamic_data(n, c.name, f"p{i}", port_df)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
@@ -1092,10 +1126,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             ("Store", "p", "bus"),
             ("Load", "p", "bus"),
             ("StorageUnit", "p", "bus"),
-            ("Link", "p0", "bus0"),
-            ("Link", "p1", "bus1"),
         ]
-        ca.extend([("Link", f"p{i}", f"bus{i}") for i in n.c.links.additional_ports])
+        for c in n.controllable_branch_components:
+            ca.extend([(c, f"p{i}", f"bus{i}") for i in n.c[c].ports])
 
         def sign(c: str) -> int:
             return n.c[c].static.get("sign", -1)  # -1 is the sign for 'Link'

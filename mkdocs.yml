@@ -43,6 +43,7 @@ nav:
       - Generator: user-guide/components/generators.md
       - Load: user-guide/components/loads.md
       - Link: user-guide/components/links.md
+      - Process: user-guide/components/processes.md
       - Store: user-guide/components/stores.md
       - Storage Unit: user-guide/components/storage-units.md
       - Line: user-guide/components/lines.md
@@ -128,7 +129,7 @@ nav:
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer-example.ipynb
     - examples/reserve-power.ipynb
-    - examples/link-delay.ipynb
+    - examples/transport-delay.ipynb
   - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
     - examples/gsa.ipynb
@@ -167,6 +168,7 @@ nav:
       - Line: api/components/types/lines.md
       - Transformer: api/components/types/transformers.md
       - Link: api/components/types/links.md
+      - Process: api/components/types/processes.md
       - Shapes: api/components/types/shapes.md
     - Utilities: api/components/common.md
   - Other:
@@ -345,6 +347,7 @@ plugins:
               - pypsa.components._types.global_constraints.GlobalConstraints.add
               - pypsa.components._types.lines.Lines.add
               - pypsa.components._types.links.Links.add
+              - pypsa.components._types.processes.Processes.add
               - pypsa.components._types.shapes.Shapes.add
               - pypsa.components._types.storage_units.StorageUnits.add
               - pypsa.components._types.stores.Stores.add

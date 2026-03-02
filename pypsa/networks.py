@@ -1033,7 +1033,7 @@ class Network(
 
         <!-- md:badge-version v0.3.0 -->
 
-        Branches are Lines, Links and Transformers.
+        Branches are Links, Processes, Lines and Transformers.
 
         !!! note
 
@@ -1127,7 +1127,7 @@ class Network(
 
         <!-- md:badge-version v0.3.0 -->
 
-        Controllable branches are Links.
+        Controllable branches are Links and Processes.
 
         !!! note
 
@@ -1137,14 +1137,14 @@ class Network(
         Examples
         --------
         >>> n.controllable_branches() # doctest: +ELLIPSIS
-                active  build_year  ... type up_time_before
+                                     active  build_year  ... type up_time_before
         component name                                   ...
         Link      Norwich Converter    True           0  ...                   1
                   Norway Converter     True           0  ...                   1
                   Bremen Converter     True           0  ...                   1
                   DC link              True           0  ...                   1
         <BLANKLINE>
-        [4 rows x 41 columns]
+        [4 rows x 47 columns]
 
         See Also
         --------

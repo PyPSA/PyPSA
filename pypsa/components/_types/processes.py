@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Links components module."""
+"""Processes components module."""
 
 from __future__ import annotations
 
@@ -20,47 +20,44 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class Links(_Multiport):
-    """Links components class.
+class Processes(_Multiport):
+    """Processes components class.
 
-    This class is used for link components. All functionality specific to
-    links is implemented here. Functionality for all components is implemented in
+    This class is used for process components. All functionality specific to
+    processes is implemented here. Functionality for all components is implemented in
     the abstract base class.
 
     See Also
     --------
     [pypsa.Components][]
-    [pypsa.components.Processes][]
+    [pypsa.components.Links][]
 
     Examples
     --------
-    >>> n.components.links
-    'Link' Components
-    -----------------
-    Attached to PyPSA Network 'AC-DC-Meshed'
-    Components: 4
+    >>> n.components.processes
+    Empty 'Process' Components
 
     """
 
     _operational_variables = ["p"]
-    _unsuffixed_attrs = {"efficiency", "delay", "cyclic_delay"}
+    _unsuffixed_attrs: set[str] = set()
 
     @property
     def _output_ports(self) -> list[str]:
-        return ["1"] + self.additional_ports
+        return self.ports
 
     def _port_suffix(self, port: str) -> str:
-        return "" if port == "1" else port
+        return port
 
     @property
     def _coefficient_attr(self) -> str:
-        return "efficiency"
+        return "rate"
 
     def get_bounds_pu(
         self,
         attr: str = "p",
     ) -> tuple[xr.DataArray, xr.DataArray]:
-        """Get per unit bounds for links.
+        """Get per unit bounds for processes.
 
         <!-- md:badge-version v1.0.0 -->
 
@@ -76,7 +73,7 @@ class Links(_Multiport):
 
         """
         if attr not in self._operational_variables:
-            msg = f"Bounds can only be retrieved for operational attributes. For links those are: {list_as_string(self._operational_variables)}."
+            msg = f"Bounds can only be retrieved for operational attributes. For processes those are: {list_as_string(self._operational_variables)}."
             raise ValueError(msg)
 
         return self.da.p_min_pu, self.da.p_max_pu

@@ -215,7 +215,7 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     Demonstrates time-delayed energy transport through links, modeling pipeline or shipping delays with cyclic and non-cyclic boundary behavior.
 
-    [:octicons-arrow-right-24: Go to example](link-delay.ipynb)
+    [:octicons-arrow-right-24: Go to example](transport-delay.ipynb)
 
 </div>
 

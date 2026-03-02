@@ -736,10 +736,6 @@ class Components(
         >>> c.ports
         ['0', '1']
 
-        See Also
-        --------
-        [pypsa.components.Links.additional_ports][]
-
         """
         return [
             match.group(1) for col in self.static if (match := RE_PORTS.search(col))

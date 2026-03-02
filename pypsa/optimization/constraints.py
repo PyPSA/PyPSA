@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -19,13 +18,13 @@ from numpy import inf, isfinite, maximum, sqrt, tile
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
-from pypsa.components._types.links import Links
+from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
     from xarray import DataArray  # noqa: TC004
 
@@ -60,8 +59,8 @@ def define_operational_constraints_for_non_extendables(
     where lower_bound and upper_bound are computed from the component's nominal
     capacity and min/max per unit values.
 
-    Applies to Generator (p), Line (s), Transformer (s), Link (p), Store (e),
-    StorageUnit (p_dispatch, p_store, state_of_charge).
+    Applies to Generator (p), Line (s), Transformer (s), Link (p), Process(p),
+    Store (e), StorageUnit (p_dispatch, p_store, state_of_charge).
 
     Parameters
     ----------
@@ -142,8 +141,8 @@ def define_operational_constraints_for_extendables(
     where lower_bound and upper_bound are computed from the component's nominal
     capacity and min/max per unit values.
 
-    Applies to Generator (p), Line (s), Transformer (s), Link (p), Store (e),
-    StorageUnit (p_dispatch, p_store, state_of_charge).
+    Applies to Generator (p), Line (s), Transformer (s),Process (p), Link (p),
+    Store (e), StorageUnit (p_dispatch, p_store, state_of_charge).
 
     Parameters
     ----------
@@ -608,7 +607,7 @@ def define_nominal_constraints_for_extendables(
     optimal capacity.
 
     Applies to Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
-    Store (e_nom), StorageUnit (p_nom).
+    Process (p_nom), Store (e_nom), StorageUnit (p_nom).
 
     Parameters
     ----------
@@ -734,7 +733,7 @@ def define_ramp_limit_constraints(
     extendable, and committable components, with different formulations
     for each case.
 
-    Applies to Generator (p) and Link (p).
+    Applies to Generator (p), Link (p) and Process (p).
 
     Parameters
     ----------
@@ -888,6 +887,93 @@ def define_ramp_limit_constraints(
         )
 
 
+def _get_delay_config(
+    c: _Multiport,
+) -> dict[str, tuple[pd.Series | int, pd.Series | bool]]:
+    """Get delay and cyclic_delay configuration for each output port.
+
+    Parameters
+    ----------
+    c : _Multiport
+        _Multiport component (Link or Process).
+
+    Returns
+    -------
+    dict
+        Mapping of port_suffix to (delays, cyclics) pair. If no delay columns
+        exist, returns scalar values (0, True).
+
+    """
+    config = {}
+    for port in c._output_ports:
+        suffix = c._port_suffix(port)
+        delay_col = f"delay{suffix}"
+        cyclic_col = f"cyclic_delay{suffix}"
+
+        if delay_col in c.static.columns:
+            config[suffix] = (c.static[delay_col], c.static[cyclic_col])
+        else:
+            config[suffix] = (0, True)
+    return config
+
+
+def _iter_balance_args(
+    c: _Multiport, sns: Sequence
+) -> Iterator[tuple[str, Any, pd.Index, int, bool]]:
+    """Iterate over all balance arguments, separating immediate and delayed.
+
+    Parameters
+    ----------
+    c : _Multiport
+        _Multiport component (Link or Process).
+    sns : Sequence
+        Snapshot index.
+
+    Yields
+    ------
+    bus_col : str
+        Bus column name (e.g., "bus0", "bus1")
+    coeff : xr.DataArray
+        Coefficient values for the component
+    names : pd.Index
+        Component names with this delay configuration
+    delay : int
+        Delay in time units (0 for immediate, >0 for delayed)
+    is_cyclic : bool
+        Whether delay wraps around the horizon
+
+    """
+    if c.empty:
+        return
+
+    active = c.active_assets
+    delay_config = _get_delay_config(c)
+
+    for port in c._output_ports:
+        suffix = c._port_suffix(port)
+        coeff = c.da[f"{c._coefficient_attr}{suffix}"].sel(snapshot=sns)
+        delays, cyclics = delay_config[suffix]
+
+        for (d, cyc), group in c.static.assign(_delay=delays, _cyclic=cyclics).groupby(
+            ["_delay", "_cyclic"]
+        ):
+            delay_int = int(d)
+
+            names = group.index
+            if isinstance(names, pd.MultiIndex):
+                names = names.get_level_values("name").unique()
+            names = names.intersection(active)
+
+            if not names.empty:
+                yield (
+                    f"bus{port}",
+                    coeff.sel(name=names),
+                    names,
+                    delay_int,
+                    bool(cyc),
+                )
+
+
 def define_nodal_balance_constraints(
     n: Network,
     sns: pd.Index,
@@ -909,8 +995,8 @@ def define_nodal_balance_constraints(
     where power injections include generation, storage discharge, and incoming branch flows,
     while power withdrawals include loads, storage charging, and outgoing branch flows.
 
-    Applies to Generator (p), Line (s), Transformer (s), Link (p), Store (p),
-    Load (p), StorageUnit (p_dispatch, p_store).
+    Applies to Generator (p), Line (s), Transformer (s), Link (p), Process (p),
+    Store (p), Load (p), StorageUnit (p_dispatch, p_store).
 
     Notes
     -----
@@ -935,6 +1021,8 @@ def define_nodal_balance_constraints(
     Link components with multiple buses are handled with their respective
     efficiency factors for conversion between energy carriers.
 
+    Process components are handled with their respective rate factors.
+
     The function raises an error if there's a bus with non-zero load but no
     connected components to provide power.
 
@@ -943,7 +1031,11 @@ def define_nodal_balance_constraints(
     if buses is None:
         buses = n.c.buses.static.index.unique("name")
 
-    links = n.components["Link"]
+    sns_coords: xr.Coordinates | dict[str, Any]
+    if isinstance(sns, pd.MultiIndex):
+        sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
+    else:
+        sns_coords = {"snapshot": sns}
 
     args: list[Any] = [
         ["Generator", "p", "bus", 1],
@@ -956,43 +1048,6 @@ def define_nodal_balance_constraints(
         ["Transformer", "s", "bus1", 1],
         ["Link", "p", "bus0", -1],
     ]
-
-    # Group link ports by (delay, cyclic_delay)
-    # - Non delayed (delay=0) go into the standard args list
-    # - Delayed groups are collected separately and are time-shifted
-    delayed_link_args: list[tuple[str, Any, pd.Index, int, bool]] = []
-    if not links.empty:
-        active = links.active_assets
-        for i in ["1"] + n.c.links.additional_ports:
-            i_suffix = "" if i == "1" else i
-            eff = links.da[f"efficiency{i_suffix}"].sel(snapshot=sns)
-            delay_col = f"delay{i_suffix}"
-            cyclic_col = f"cyclic_delay{i_suffix}"
-
-            if delay_col in links.static.columns:
-                delays = links.static[delay_col]
-                cyclics = links.static[cyclic_col]
-            else:
-                delays = 0
-                cyclics = True
-
-            # Group links sharing the same (delay, cyclic) configuration
-            for (d, cyc), group in links.static.assign(
-                _delay=delays, _cyclic=cyclics
-            ).groupby(["_delay", "_cyclic"]):
-                names = group.index
-                # Manually handle stochastic dimension
-                if isinstance(names, pd.MultiIndex):
-                    names = names.get_level_values("name").unique()
-                names = names.intersection(active)
-                if names.empty:
-                    continue
-                if int(d) == 0:
-                    args.append(["Link", "p", f"bus{i}", eff.sel(name=names)])
-                else:
-                    delayed_link_args.append(
-                        (f"bus{i}", eff.sel(name=names), names, int(d), bool(cyc))
-                    )
 
     if transmission_losses:
         args.extend(
@@ -1007,7 +1062,7 @@ def define_nodal_balance_constraints(
     exprs = []
 
     for component, attr, column, sign in args:
-        c = as_components(n, component)
+        c = n.c[component]
         if c.static.empty:
             continue
 
@@ -1027,51 +1082,51 @@ def define_nodal_balance_constraints(
             continue
 
         #  drop non-existent multiport buses which are ''
-        if column in ["bus" + i for i in n.c.links.additional_ports]:
+        if (
+            c.name in n.controllable_branch_components
+            and isinstance(c, _Multiport)
+            and column in ["bus" + i for i in c.additional_ports]
+        ):
             cbuses = cbuses[cbuses != ""]
 
         expr = expr.sel(name=cbuses.coords["name"].values)
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
 
-    # For delayed links, time shift the p variable so that output at
-    # snapshot t uses the input from the source snapshot s(t)
-    for bus_col, eff, names, delay, is_cyclic in delayed_link_args:
-        active_names = names.intersection(active)
-        if active_names.empty:
-            continue
+    for component in ("Process", "Link"):
+        c = n.c[component]
+        for bus_col, coeff, names, delay, is_cyclic in _iter_balance_args(c, sns):
+            if delay <= 0:
+                expr = coeff * m[f"{c.name}-p"]
+            else:
+                src_snapshot_pos, valid = c.get_delay_source_indexer(
+                    sns,
+                    n.snapshot_weightings.generators.loc[sns],
+                    delay,
+                    is_cyclic,
+                )
+                valid_mask = DataArray(
+                    valid.astype(float), dims=["snapshot"], coords=sns_coords
+                )
+                comp_p = m[f"{c.name}-p"].sel(name=names)
+                shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(
+                    sns_coords
+                )
+                expr = coeff.sel(name=names) * (shifted_p * valid_mask)
 
-        # Map each target snapshot to its source snapshot position
-        src_snapshot_pos, valid = Links.get_delay_source_indexer(
-            sns,
-            n.snapshot_weightings.generators.loc[sns],
-            delay,
-            is_cyclic,
-        )
-        # Zero out invalid positions (non-cyclic: before horizon start)
-        sns_coords: xr.Coordinates | dict[str, Any]
-        if isinstance(sns, pd.MultiIndex):
-            sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
-        else:
-            sns_coords = {"snapshot": sns}
-        valid_mask = DataArray(
-            valid.astype(float), dims=["snapshot"], coords=sns_coords
-        )
+            cbuses = c._as_xarray(bus_col)
+            cbuses = cbuses.sel(name=names)
+            if n.has_scenarios:
+                cbuses = cbuses.isel(scenario=0, drop=True)
+            cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
+            cbuses = cbuses[cbuses != ""]
 
-        link_p = m["Link-p"].sel(name=active_names)
-        shifted_p = link_p.isel(snapshot=src_snapshot_pos).assign_coords(sns_coords)
-        shifted_p = shifted_p * valid_mask
-        expr = eff.sel(name=active_names) * shifted_p
-        cbuses = links._as_xarray(bus_col).sel(name=active_names)
-        if n.has_scenarios:
-            cbuses = cbuses.isel(scenario=0, drop=True)
-        cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
-        cbuses = cbuses[cbuses != ""]
-        if not cbuses.size:
-            continue
-        expr = expr.sel(name=cbuses.coords["name"].values)
-        if expr.size:
-            exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
+            if not cbuses.size:
+                continue
+
+            expr = expr.sel(name=cbuses.coords["name"].values)
+            if expr.size:
+                exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
 
     lhs = merge(exprs, join="outer").reindex(name=buses)
 

@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: PyPSA Contributors
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-::: pypsa.components.Links
+::: pypsa.components.Processes
     options:
         inherited_members:
         - additional_ports
