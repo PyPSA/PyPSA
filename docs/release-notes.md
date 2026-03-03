@@ -19,6 +19,12 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add weighted-time delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior. For the Process component the corresponding attributes have explicit numbering (`delay0`, `delay1`, `delay2`, ... and `cyclic_delay0`, `cyclic_delay1`). (<!-- md:pr 1569 -->)
 
+- New parameter `meshed_thresholds` in `n.optimize` for controlling groups of buses in nodal-balance constraints. Use this to save memory in the optimization definition for large networks with many interconnected buses.
+
+### Deprecations
+
+- Deprecate `pypsa.optimization.common.get_strongly_meshed_buses` in favor of `get_bus_counts`. The old `meshed_threshold` model kwarg is deprecated; use `meshed_thresholds=[...]` in [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] or [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
+
 ### Documentation
 
 - New example notebook modeling oligopolistic behavior in energy markets using Cournot-Nash equilibrium with the fictitious objective approach. See [:material-notebook-multiple: notebook](./examples/imperfect-competition.ipynb).

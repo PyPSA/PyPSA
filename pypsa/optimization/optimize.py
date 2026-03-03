@@ -25,7 +25,7 @@ from pypsa.consistency import check_big_m_exceeded, check_no_modular_committable
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
-from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
+from pypsa.optimization.common import _set_dynamic_data, get_bus_counts
 from pypsa.optimization.constraints import (
     define_committability_variables_constraints_with_fixed_upper_limit,
     define_committability_variables_constraints_with_variable_upper_limit,
@@ -458,6 +458,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         compute_infeasibilities: bool = False,
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
+        meshed_thresholds: Sequence[int] | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -524,6 +525,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Big-M value for committable+extendable constraints. If None, PyPSA infers
             a scale from the network (e.g. peak load). Otherwise this numeric bound
             is used when no component-specific limit (p_nom_max) is available.
+        meshed_thresholds : Sequence[int] | None, default: None
+            Thresholds for splitting buses into nodal-balance constraint groups by
+            bus connectivity count. Defaults to ``[30, 100, 400]``.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -567,6 +571,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             consistency_check=False,
             include_objective_constant=include_objective_constant,
             committable_big_m=committable_big_m,
+            meshed_thresholds=meshed_thresholds,
             **model_kwargs,
         )
         if extra_functionality:
@@ -602,6 +607,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         consistency_check: bool = True,
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
+        meshed_thresholds: Sequence[int] | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -641,6 +647,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Big-M value for committable+extendable constraints. If None, PyPSA infers
             a scale from the network (e.g. peak load). Otherwise this numeric bound
             is used when no component-specific limit (p_nom_max) is available.
+        meshed_thresholds : Sequence[int] | None, default: None
+            Thresholds for splitting buses into nodal-balance constraint groups by
+            bus connectivity count. Defaults to ``[30, 100, 400]``.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -664,6 +673,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant = _resolve_include_objective_constant(
             include_objective_constant
         )
+
+        if "meshed_threshold" in kwargs:
+            meshed_threshold = kwargs.pop("meshed_threshold")
+            warnings.warn(
+                "`meshed_threshold` is deprecated and will be removed in PyPSA 2.0. "
+                "Use `meshed_thresholds=[meshed_threshold]` instead.",
+                FutureWarning,
+                stacklevel=2,
+            )
+            if meshed_thresholds is None:
+                meshed_thresholds = [meshed_threshold]
 
         kwargs.setdefault("force_dim_names", True)
         n._model = Model(**kwargs)
@@ -716,30 +736,29 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         # Handle StorageUnit p_set separately (fixes p_dispatch - p_store = p_set)
         define_fixed_operation_constraints(n, sns, "StorageUnit", "p")
 
-        meshed_threshold = kwargs.get("meshed_threshold", 45)
-        strongly_meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)
-        weakly_meshed_buses = n.c.buses.names.difference(strongly_meshed_buses)
-
-        if not strongly_meshed_buses.empty and not weakly_meshed_buses.empty:
-            # Write constraint for buses many terms and for buses with a few terms
-            # separately. This reduces memory usage for large networks.
-            define_nodal_balance_constraints(
-                n,
-                sns,
-                transmission_losses=transmission_losses,
-                buses=weakly_meshed_buses,
-            )
-            define_nodal_balance_constraints(
-                n,
-                sns,
-                transmission_losses=transmission_losses,
-                buses=strongly_meshed_buses,
-                suffix="-meshed",
-            )
-        else:
-            define_nodal_balance_constraints(
-                n, sns, transmission_losses=transmission_losses
-            )
+        thresholds = (
+            sorted(set(meshed_thresholds))
+            if meshed_thresholds is not None
+            else [30, 100, 400]
+        )
+        bus_counts = get_bus_counts(n).reindex(n.c.buses.names, fill_value=0)
+        prev = 0
+        for t in thresholds + [float("inf")]:
+            if t == float("inf"):
+                mask = bus_counts > prev
+            else:
+                mask = (bus_counts > prev) & (bus_counts <= t)
+            buses = bus_counts.index[mask]
+            suffix = f"-meshed-{prev}" if prev > 0 else ""
+            if not buses.empty:
+                define_nodal_balance_constraints(
+                    n,
+                    sns,
+                    transmission_losses=transmission_losses,
+                    buses=buses,
+                    suffix=suffix,
+                )
+            prev = t
 
         define_kirchhoff_voltage_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
