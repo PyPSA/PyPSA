@@ -742,7 +742,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             else [30, 100, 400]
         )
         bus_counts = get_bus_counts(n).reindex(n.c.buses.names, fill_value=0)
-        prev = 0
+        prev: float = 0
         for t in thresholds + [float("inf")]:
             if t == float("inf"):
                 mask = bus_counts > prev
