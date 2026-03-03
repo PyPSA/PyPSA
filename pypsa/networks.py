@@ -1144,7 +1144,7 @@ class Network(
                   Bremen Converter     True           0  ...                   1
                   DC link              True           0  ...                   1
         <BLANKLINE>
-        [4 rows x 47 columns]
+        [4 rows x 51 columns]
 
         See Also
         --------
