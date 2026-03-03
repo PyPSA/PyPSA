@@ -1089,35 +1089,23 @@ class _ExporterDuckDB(_Exporter):
 
     def save_meta(self, meta: dict) -> None:
         """Save meta data (`n.meta`)."""
-        self.ds.execute(
-            "CREATE TABLE IF NOT EXISTS network_meta (data TEXT)"
-        )
+        self.ds.execute("CREATE TABLE IF NOT EXISTS network_meta (data TEXT)")
         self.ds.execute("DELETE FROM network_meta")
-        self.ds.execute(
-            "INSERT INTO network_meta VALUES (?)", [json.dumps(meta)]
-        )
+        self.ds.execute("INSERT INTO network_meta VALUES (?)", [json.dumps(meta)])
 
     def save_crs(self, crs: dict) -> None:
         """Save CRS of shapes of network."""
-        self.ds.execute(
-            "CREATE TABLE IF NOT EXISTS network_crs (data TEXT)"
-        )
+        self.ds.execute("CREATE TABLE IF NOT EXISTS network_crs (data TEXT)")
         self.ds.execute("DELETE FROM network_crs")
-        self.ds.execute(
-            "INSERT INTO network_crs VALUES (?)", [json.dumps(crs)]
-        )
+        self.ds.execute("INSERT INTO network_crs VALUES (?)", [json.dumps(crs)])
 
-    def _create_table_from_df(
-        self, table_name: str, df: pd.DataFrame
-    ) -> None:
+    def _create_table_from_df(self, table_name: str, df: pd.DataFrame) -> None:
         """Create a DuckDB table from a pandas DataFrame."""
         self.ds.execute(f'DROP TABLE IF EXISTS "{table_name}"')
         # Register DataFrame, create table, then unregister
         view_name = f"__pypsa_tmp_{table_name.replace('-', '_')}"
         self.ds.register(view_name, df)
-        self.ds.execute(
-            f'CREATE TABLE "{table_name}" AS SELECT * FROM "{view_name}"'
-        )
+        self.ds.execute(f'CREATE TABLE "{table_name}" AS SELECT * FROM "{view_name}"')
         self.ds.unregister(view_name)
 
     def save_snapshots(self, snapshots: pd.DataFrame) -> None:
@@ -1180,10 +1168,7 @@ class _ImporterDuckDB(_Importer):
             msg = f"DuckDB file {path} does not exist."
             raise FileNotFoundError(msg)
         self.ds = duckdb.connect(str(self.path), read_only=True)
-        self._tables = {
-            row[0]
-            for row in self.ds.execute("SHOW TABLES").fetchall()
-        }
+        self._tables = {row[0] for row in self.ds.execute("SHOW TABLES").fetchall()}
 
     def _table_exists(self, name: str) -> bool:
         return name in self._tables
@@ -1192,9 +1177,7 @@ class _ImporterDuckDB(_Importer):
         """Get generic network attributes."""
         if not self._table_exists("network_attributes"):
             return None
-        rows = self.ds.execute(
-            "SELECT key, value FROM network_attributes"
-        ).fetchall()
+        rows = self.ds.execute("SELECT key, value FROM network_attributes").fetchall()
         if not rows:
             return None
         attrs = {}
@@ -1281,7 +1264,7 @@ class _ImporterDuckDB(_Importer):
         prefix = f"{list_name}_t_"
         for table in sorted(self._tables):
             if table.startswith(prefix):
-                attr = table[len(prefix):]
+                attr = table[len(prefix) :]
                 df = self.ds.execute(f'SELECT * FROM "{table}"').df()
                 yield attr, df
 
@@ -1938,9 +1921,7 @@ class NetworkIOMixin(_NetworkABC):
                 exporter, export_standard_types=export_standard_types
             )
 
-    def import_from_duckdb(
-        self, path: str | Path, skip_time: bool = False
-    ) -> None:
+    def import_from_duckdb(self, path: str | Path, skip_time: bool = False) -> None:
         """Import network data from a DuckDB database file.
 
         Parameters
@@ -1963,9 +1944,7 @@ class NetworkIOMixin(_NetworkABC):
         )
         basename = Path(path).name
         with _ImporterDuckDB(path=path) as importer:
-            self._import_from_importer(
-                importer, basename=basename, skip_time=skip_time
-            )
+            self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
     def import_from_netcdf(
         self, path: str | Path | xr.Dataset, skip_time: bool = False
