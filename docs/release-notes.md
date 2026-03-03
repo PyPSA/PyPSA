@@ -19,6 +19,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add weighted-time delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior. For the Process component the corresponding attributes have explicit numbering (`delay0`, `delay1`, `delay2`, ... and `cyclic_delay0`, `cyclic_delay1`). (<!-- md:pr 1569 -->)
 
+- Add a `groupby` argument to statistics map plotting, allowing custom bus grouping (defaults to `['bus', 'carrier']`).
+
 ### Documentation
 
 - New example notebook modeling oligopolistic behavior in energy markets using Cournot-Nash equilibrium with the fictitious objective approach. See [:material-notebook-multiple: notebook](./examples/imperfect-competition.ipynb).
@@ -30,6 +32,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fixed output of `n.controllable_branches()` to include controllable branches instead of passive branches. (<!-- md:pr 1578 -->)
 
 - Fix `expand_series` losing index name on the resulting DataFrame with pandas >= 3.0, which caused xarray alignment errors in multi-investment period optimization. (<!-- md:pr 1581 -->)
+
+- Fix transmission flows not being displayed on energy balance map plots when `bus_carrier` is specified. The map plot now explicitly requests `at_port=0`, avoiding cancellation from summing both ports.
 
 ## [**v1.1.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.1.2) <small>23rd February 2026</small> { id="v1.1.2" }
 
