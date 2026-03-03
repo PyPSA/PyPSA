@@ -1058,6 +1058,239 @@ class _ExporterNetCDF(_Exporter):
                 self.ds.to_netcdf(_path)
 
 
+class _ExporterDuckDB(_Exporter):
+    """Exporter class for DuckDB files."""
+
+    def __init__(self, path: Path | str) -> None:
+        """Initialize exporter for DuckDB files.
+
+        Parameters
+        ----------
+        path : str | Path
+            Path to save the DuckDB file.
+
+        """
+        import duckdb
+
+        self.path = Path(path)
+        self.ds = duckdb.connect(str(self.path))
+
+    def save_attributes(self, attrs: dict) -> None:
+        """Save generic network attributes."""
+        self.ds.execute(
+            "CREATE TABLE IF NOT EXISTS network_attributes "
+            "(key TEXT PRIMARY KEY, value TEXT)"
+        )
+        for key, val in attrs.items():
+            self.ds.execute(
+                "INSERT OR REPLACE INTO network_attributes VALUES (?, ?)",
+                [key, str(val)],
+            )
+
+    def save_meta(self, meta: dict) -> None:
+        """Save meta data (`n.meta`)."""
+        self.ds.execute(
+            "CREATE TABLE IF NOT EXISTS network_meta (data TEXT)"
+        )
+        self.ds.execute("DELETE FROM network_meta")
+        self.ds.execute(
+            "INSERT INTO network_meta VALUES (?)", [json.dumps(meta)]
+        )
+
+    def save_crs(self, crs: dict) -> None:
+        """Save CRS of shapes of network."""
+        self.ds.execute(
+            "CREATE TABLE IF NOT EXISTS network_crs (data TEXT)"
+        )
+        self.ds.execute("DELETE FROM network_crs")
+        self.ds.execute(
+            "INSERT INTO network_crs VALUES (?)", [json.dumps(crs)]
+        )
+
+    def _create_table_from_df(
+        self, table_name: str, df: pd.DataFrame
+    ) -> None:
+        """Create a DuckDB table from a pandas DataFrame."""
+        self.ds.execute(f'DROP TABLE IF EXISTS "{table_name}"')
+        # Register DataFrame, create table, then unregister
+        view_name = f"__pypsa_tmp_{table_name.replace('-', '_')}"
+        self.ds.register(view_name, df)
+        self.ds.execute(
+            f'CREATE TABLE "{table_name}" AS SELECT * FROM "{view_name}"'
+        )
+        self.ds.unregister(view_name)
+
+    def save_snapshots(self, snapshots: pd.DataFrame) -> None:
+        """Save snapshots data."""
+        self._create_table_from_df("snapshots", snapshots)
+
+    def save_investment_periods(self, investment_periods: pd.Index) -> None:
+        """Save investment periods data."""
+        self._create_table_from_df(
+            "investment_periods", investment_periods.reset_index()
+        )
+
+    def save_scenarios(self, scenarios: pd.DataFrame) -> None:
+        """Save scenarios data."""
+        self._create_table_from_df("scenarios", scenarios.reset_index())
+
+    def save_static(self, list_name: str, df: pd.DataFrame) -> None:
+        """Save static components data."""
+        self._create_table_from_df(list_name, df.reset_index())
+
+    def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        """Save dynamic components data."""
+        table_name = f"{list_name}_t_{attr}"
+        # df arrives with RangeIndex (snapshot index already stripped by
+        # _export_to_exporter); don't call reset_index() to avoid adding
+        # a spurious "index" column.
+        self._create_table_from_df(table_name, df)
+
+    def remove_static(self, list_name: str) -> None:
+        """Remove static components data."""
+        self.ds.execute(f'DROP TABLE IF EXISTS "{list_name}"')
+
+    def remove_series(self, list_name: str, attr: str) -> None:
+        """Remove dynamic components data."""
+        table_name = f"{list_name}_t_{attr}"
+        self.ds.execute(f'DROP TABLE IF EXISTS "{table_name}"')
+
+    def finish(self) -> None:
+        """Finish the export process."""
+        self.ds.close()
+        self.ds = None
+
+
+class _ImporterDuckDB(_Importer):
+    """Importer class for DuckDB files."""
+
+    def __init__(self, path: str | Path) -> None:
+        """Initialize the importer for DuckDB files.
+
+        Parameters
+        ----------
+        path : str | Path
+            Path to the DuckDB file.
+
+        """
+        import duckdb
+
+        self.path = Path(path)
+        if not self.path.is_file():
+            msg = f"DuckDB file {path} does not exist."
+            raise FileNotFoundError(msg)
+        self.ds = duckdb.connect(str(self.path), read_only=True)
+        self._tables = {
+            row[0]
+            for row in self.ds.execute("SHOW TABLES").fetchall()
+        }
+
+    def _table_exists(self, name: str) -> bool:
+        return name in self._tables
+
+    def get_attributes(self) -> dict | None:
+        """Get generic network attributes."""
+        if not self._table_exists("network_attributes"):
+            return None
+        rows = self.ds.execute(
+            "SELECT key, value FROM network_attributes"
+        ).fetchall()
+        if not rows:
+            return None
+        attrs = {}
+        for key, val in rows:
+            # Try to parse numeric and boolean values
+            if val == "True":
+                attrs[key] = True
+            elif val == "False":
+                attrs[key] = False
+            else:
+                try:
+                    attrs[key] = int(val)
+                except ValueError:
+                    try:
+                        attrs[key] = float(val)
+                    except ValueError:
+                        attrs[key] = val
+        return attrs
+
+    def get_meta(self) -> dict:
+        """Get meta data (`n.meta`)."""
+        if not self._table_exists("network_meta"):
+            return {}
+        row = self.ds.execute("SELECT data FROM network_meta").fetchone()
+        return json.loads(row[0]) if row else {}
+
+    def get_crs(self) -> dict:
+        """Get CRS of shapes of network."""
+        if not self._table_exists("network_crs"):
+            return {}
+        row = self.ds.execute("SELECT data FROM network_crs").fetchone()
+        return json.loads(row[0]) if row else {}
+
+    def get_snapshots(self) -> pd.DataFrame | None:
+        """Get snapshots data."""
+        if not self._table_exists("snapshots"):
+            return None
+        df = self.ds.execute("SELECT * FROM snapshots").df()
+        # Convert snapshot column to datetime (if possible)
+        for col in ("snapshot", "timestep"):
+            if col in df.columns:
+                try:
+                    df[col] = pd.to_datetime(df[col])
+                except (ValueError, TypeError):
+                    pass
+        return df
+
+    def get_investment_periods(self) -> pd.DataFrame | None:
+        """Get investment periods data."""
+        if not self._table_exists("investment_periods"):
+            return None
+        df = self.ds.execute("SELECT * FROM investment_periods").df()
+        if not df.empty and df.columns[0] != "name":
+            df = df.set_index(df.columns[0])
+        return df
+
+    def get_scenarios(self) -> pd.DataFrame | None:
+        """Get scenarios data."""
+        if not self._table_exists("scenarios"):
+            return None
+        df = self.ds.execute("SELECT * FROM scenarios").df()
+        if not df.empty and "scenario" in df.columns:
+            df = df.set_index("scenario")
+        return df
+
+    def get_static(self, list_name: str) -> pd.DataFrame | None:
+        """Get static components data."""
+        if not self._table_exists(list_name):
+            return None
+        df = self.ds.execute(f'SELECT * FROM "{list_name}"').df()
+        if df.empty:
+            return None
+        # First column is the index (component name)
+        df = df.set_index(df.columns[0])
+        df.index.name = "name"
+        # Convert NaN to empty strings for object dtype columns
+        object_cols = [col for col in df.columns if df[col].dtype == "object"]
+        if object_cols:
+            df[object_cols] = df[object_cols].fillna("")
+        return df
+
+    def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        """Get dynamic components data."""
+        prefix = f"{list_name}_t_"
+        for table in sorted(self._tables):
+            if table.startswith(prefix):
+                attr = table[len(prefix):]
+                df = self.ds.execute(f'SELECT * FROM "{table}"').df()
+                yield attr, df
+
+    def finish(self) -> None:
+        """Finish the import process."""
+        self.ds.close()
+        self.ds = None
+
+
 def _sort_attrs(
     axis_labels: pd.Index, attrs_list: Sequence[str] | pd.Index
 ) -> pd.Index:
@@ -1657,6 +1890,81 @@ class NetworkIOMixin(_NetworkABC):
             self._export_to_exporter(
                 exporter,
                 export_standard_types=export_standard_types,
+            )
+
+    def export_to_duckdb(
+        self,
+        path: Path | str,
+        export_standard_types: bool = False,
+    ) -> None:
+        r"""Export network and components to a DuckDB database file.
+
+        Both static and series attributes of components are exported, but only
+        if they have non-default values.
+
+        DuckDB provides columnar storage with SQL query support, enabling
+        fast analytical queries on network results without loading the full
+        dataset into memory. This is particularly useful for comparing
+        results across multiple scenarios.
+
+        Parameters
+        ----------
+        path : Path | string
+            Name of DuckDB file to which to export (if it exists, it is
+            overwritten).
+        export_standard_types : boolean, default False
+            If True, then standard types are exported too (upon reimporting you
+            should then set "ignore_standard_types" when initialising the
+            network).
+
+        Examples
+        --------
+        >>> n.export_to_duckdb("my_network.duckdb") # doctest: +SKIP
+
+        See Also
+        --------
+        [pypsa.Network.import_from_duckdb][],
+        [pypsa.Network.export_to_netcdf][],
+        [pypsa.Network.export_to_hdf5][]
+
+        """
+        check_optional_dependency(
+            "duckdb",
+            "DuckDB is required for DuckDB export. "
+            "Install it with: pip install pypsa[duckdb]",
+        )
+        with _ExporterDuckDB(path) as exporter:
+            self._export_to_exporter(
+                exporter, export_standard_types=export_standard_types
+            )
+
+    def import_from_duckdb(
+        self, path: str | Path, skip_time: bool = False
+    ) -> None:
+        """Import network data from a DuckDB database file.
+
+        Parameters
+        ----------
+        path : string | Path
+            Path to DuckDB database file.
+        skip_time : bool, default False
+            Skip reading in time dependent attributes.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.import_from_duckdb("my_network.duckdb") # doctest: +SKIP
+
+        """
+        check_optional_dependency(
+            "duckdb",
+            "DuckDB is required for DuckDB import. "
+            "Install it with: pip install pypsa[duckdb]",
+        )
+        basename = Path(path).name
+        with _ImporterDuckDB(path=path) as importer:
+            self._import_from_importer(
+                importer, basename=basename, skip_time=skip_time
             )
 
     def import_from_netcdf(
