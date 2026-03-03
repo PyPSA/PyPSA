@@ -1070,7 +1070,7 @@ class _ExporterDuckDB(_Exporter):
             Path to save the DuckDB file.
 
         """
-        import duckdb
+        import duckdb  # noqa: PLC0415
 
         self.path = Path(path)
         self.ds = duckdb.connect(str(self.path))
@@ -1101,11 +1101,11 @@ class _ExporterDuckDB(_Exporter):
 
     def _create_table_from_df(self, table_name: str, df: pd.DataFrame) -> None:
         """Create a DuckDB table from a pandas DataFrame."""
-        self.ds.execute(f'DROP TABLE IF EXISTS "{table_name}"')
+        self.ds.execute(f'DROP TABLE IF EXISTS "{table_name}"')  # noqa: S608
         # Register DataFrame, create table, then unregister
         view_name = f"__pypsa_tmp_{table_name.replace('-', '_')}"
         self.ds.register(view_name, df)
-        self.ds.execute(f'CREATE TABLE "{table_name}" AS SELECT * FROM "{view_name}"')
+        self.ds.execute(f'CREATE TABLE "{table_name}" AS SELECT * FROM "{view_name}"')  # noqa: S608
         self.ds.unregister(view_name)
 
     def save_snapshots(self, snapshots: pd.DataFrame) -> None:
@@ -1136,12 +1136,12 @@ class _ExporterDuckDB(_Exporter):
 
     def remove_static(self, list_name: str) -> None:
         """Remove static components data."""
-        self.ds.execute(f'DROP TABLE IF EXISTS "{list_name}"')
+        self.ds.execute(f'DROP TABLE IF EXISTS "{list_name}"')  # noqa: S608
 
     def remove_series(self, list_name: str, attr: str) -> None:
         """Remove dynamic components data."""
         table_name = f"{list_name}_t_{attr}"
-        self.ds.execute(f'DROP TABLE IF EXISTS "{table_name}"')
+        self.ds.execute(f'DROP TABLE IF EXISTS "{table_name}"')  # noqa: S608
 
     def finish(self) -> None:
         """Finish the export process."""
@@ -1161,7 +1161,7 @@ class _ImporterDuckDB(_Importer):
             Path to the DuckDB file.
 
         """
-        import duckdb
+        import duckdb  # noqa: PLC0415
 
         self.path = Path(path)
         if not self.path.is_file():
@@ -1247,7 +1247,7 @@ class _ImporterDuckDB(_Importer):
         """Get static components data."""
         if not self._table_exists(list_name):
             return None
-        df = self.ds.execute(f'SELECT * FROM "{list_name}"').df()
+        df = self.ds.execute(f'SELECT * FROM "{list_name}"').df()  # noqa: S608
         if df.empty:
             return None
         # First column is the index (component name)
@@ -1265,7 +1265,7 @@ class _ImporterDuckDB(_Importer):
         for table in sorted(self._tables):
             if table.startswith(prefix):
                 attr = table[len(prefix) :]
-                df = self.ds.execute(f'SELECT * FROM "{table}"').df()
+                df = self.ds.execute(f'SELECT * FROM "{table}"').df()  # noqa: S608
                 yield attr, df
 
     def finish(self) -> None:
