@@ -269,10 +269,10 @@ def aggregateoneport(
     capacity = static.columns.intersection({"p_nom", "e_nom"})
     if len(capacity):
         capacity_weights = (
-            static[capacity[0]].groupby(grouper, axis=0).transform(normed_or_uniform)
+            static[capacity[0]].groupby(grouper).transform(normed_or_uniform)
         )
     if "weight" in static.columns:
-        weights = static.weight.groupby(grouper, axis=0).transform(normed_or_uniform)
+        weights = static.weight.groupby(grouper).transform(normed_or_uniform)
 
     for k, v in static_strategies.items():
         if v == "weighted_average":
