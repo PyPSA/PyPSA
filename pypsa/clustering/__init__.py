@@ -185,6 +185,13 @@ class ClusteringAccessor:
         """Wrap [`pypsa.clustering.npap.npap_clustering`][]."""
         return npap_module.npap_clustering(self._n, *args, **kwargs).n
 
+    def plot_npap(self, *args: Any, **kwargs: Any) -> Any:
+        """Visualize the network using NPAP's interactive map plotting.
+
+        Wraps [`pypsa.clustering.npap.plot_npap`][].
+        """
+        return npap_module.plot_npap(self._n, *args, **kwargs)
+
     def get_npap_clustering_result(self, *args: Any, **kwargs: Any) -> "Clustering":
         """Get full Clustering result from NPAP clustering.
 

@@ -20,6 +20,8 @@ from pypsa.clustering.spatial import (
 )
 
 if TYPE_CHECKING:
+    import plotly.graph_objects as go
+
     from pypsa import Network
 
 logger = logging.getLogger(__name__)
@@ -286,6 +288,91 @@ def busmap_by_npap(
 
     # Convert NPAP partition result to PyPSA busmap
     return _npap_partition_to_busmap(result.mapping)
+
+
+def plot_npap(
+    n: Network,
+    busmap: pd.Series | None = None,
+    style: str = "voltage_aware",
+    buses_i: pd.Index | None = None,
+    include_transformers: bool = True,
+    include_links: bool = False,
+    show: bool = True,
+    **kwargs: Any,
+) -> go.Figure:
+    """Visualize a PyPSA network using NPAP's interactive map plotting.
+
+    Creates an interactive Plotly map of the network with edges colored by
+    type/voltage and optional cluster coloring when a busmap is provided.
+
+    Parameters
+    ----------
+    n : Network
+        The PyPSA network to visualize.
+    busmap : pd.Series | None, optional
+        Series mapping bus names to cluster labels. Required when
+        ``style="clustered"``.
+    style : str, optional
+        Visualization style: ``"simple"``, ``"voltage_aware"`` (default),
+        or ``"clustered"``.
+    buses_i : pd.Index | None, optional
+        Subset of buses to include. If None, all buses are included.
+    include_transformers : bool, optional
+        Include transformers as edges (default True).
+    include_links : bool, optional
+        Include links as edges (default False).
+    show : bool, optional
+        Whether to display the figure immediately in browser (default True).
+    **kwargs : Any
+        Additional keyword arguments passed to
+        :class:`npap.visualization.PlotConfig` (e.g. ``title``, ``width``,
+        ``height``, ``node_size``, ``edge_width``).
+
+    Returns
+    -------
+    go.Figure
+        Plotly Figure object.
+
+    Raises
+    ------
+    ModuleNotFoundError
+        If the npap package is not installed.
+    ValueError
+        If ``style="clustered"`` but no ``busmap`` is provided.
+
+    Examples
+    --------
+    >>> from pypsa.clustering.npap import plot_npap
+    >>> plot_npap(n, style="voltage_aware", title="My Network")  # doctest: +SKIP
+    >>> plot_npap(n, busmap=busmap, style="clustered")  # doctest: +SKIP
+
+    """
+    if find_spec("npap") is None:
+        msg = "Optional dependency 'npap' not found. Install via 'pip install npap'"
+        raise ModuleNotFoundError(msg)
+
+    from npap.visualization import plot_network  # noqa: PLC0415
+
+    if style == "clustered" and busmap is None:
+        msg = "A busmap is required for style='clustered'"
+        raise ValueError(msg)
+
+    G = _build_networkx_graph_from_pypsa(
+        n,
+        buses_i=buses_i,
+        include_transformers=include_transformers,
+        include_links=include_links,
+    )
+
+    partition_map = _busmap_to_partition_map(busmap) if busmap is not None else None
+
+    return plot_network(
+        G,
+        style=style,
+        partition_map=partition_map,
+        show=show,
+        **kwargs,
+    )
 
 
 def aggregate_network_by_npap(
