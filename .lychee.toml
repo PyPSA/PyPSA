@@ -1,0 +1,7 @@
+exclude = [
+  "localhost",
+  "127.0.0.1"
+]
+
+timeout = 20
+max_redirects = 5
