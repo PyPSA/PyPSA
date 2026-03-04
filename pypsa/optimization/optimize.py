@@ -99,6 +99,118 @@ def _resolve_include_objective_constant(
     return value
 
 
+def _add_piecewise_tangent_constraints(
+    m: Model,
+    c: Any,
+    x_var: Any,
+    y_attr: str,
+    aux_var_name: str,
+    constraint_name_prefix: str,
+    active_names: pd.Index,
+) -> Any:
+    """Add an auxiliary variable and tangent constraints for a piecewise linear curve.
+
+    For a convex curve y(x), the tangent at each breakpoint k gives:
+
+        aux >= y_k + slope_k * (x - x_k)
+
+    which is equivalent to the lower envelope of all tangents and stays LP.
+
+    Derives the segment DataFrame, x-axis attribute, component names with segment
+    data, and the optional p_nom scale factor from the component ``c`` directly.
+
+    For ``marginal_cost``, components that are extendable are rejected with a
+    ``ValueError`` (piecewise marginal cost requires fixed ``p_nom``).
+
+    Parameters
+    ----------
+    m : linopy.Model
+        Model
+    c : pypsa.Components
+        Component instance; used to read ``segments``, ``extendables``,
+        ``static``, and ``ctype.segments_attrs``.
+    x_var : linopy.Variable
+        The optimisation variable for the x-axis (e.g. dispatch ``p`` or capacity
+        ``p_nom``).  Should cover at least ``active_names``.
+    y_attr : str
+        Y-axis attribute name, e.g. ``"marginal_cost"`` or ``"capital_cost"``.
+    aux_var_name : str
+        Name for the auxiliary linopy variable.
+    constraint_name_prefix : str
+        Prefix for tangent constraint names; segment index is appended.
+    active_names : pd.Index
+        Active component names to consider (e.g. ``c.active_assets`` or
+        ``c.extendables``).
+
+    Returns
+    -------
+    aux_var : linopy.Variable or None
+        Auxiliary variable equalling the piecewise function at the optimum,
+        or None if no segment data exists. The ``name`` coordinate contains
+        exactly the component names that have segment data.
+
+    """
+    seg_df = c.segments.get(y_attr)
+    if seg_df is None or seg_df.empty:
+        return None
+
+    seg_names = seg_df.columns.unique("name").intersection(active_names)
+    if seg_names.empty:
+        return None
+
+    x_attr = c.ctype.segments_attrs[y_attr]
+
+    seg_df = seg_df[seg_names]
+
+    # y_attr stores the marginal value (slope) at each breakpoint.
+    x_da = xr.DataArray(seg_df.xs(x_attr, level="attribute", axis=1))
+    y_da = xr.DataArray(seg_df.xs(y_attr, level="attribute", axis=1))
+
+    # For per-unit x-axes (p_pu, e_pu), scale to absolute values and reject extendables.
+    nom_attr = nominal_attrs.get(c.name)
+    if nom_attr and x_attr == nom_attr.replace("_nom", "_pu"):
+        bad = seg_names.intersection(c.extendables)
+        if not bad.empty:
+            msg = (
+                f"Piecewise '{y_attr}' segments on a per-unit x-axis are not supported "
+                f"for extendable components (fixed {nom_attr} required). "
+                f"Extendable components: {bad.tolist()}."
+            )
+            raise ValueError(msg)
+        x_da = x_da * xr.DataArray(c.static.loc[seg_names, nom_attr], dims="name")
+
+    # integrate to a total curve
+    x_arr = x_da.values
+    y_arr = y_da.values
+    dx = np.diff(x_arr, axis=0, prepend=x_arr[:1])
+    dx[0] = 0
+    y_avg = (y_arr + np.roll(y_arr, 1, axis=0)) / 2
+    y_avg[0] = y_arr[0]
+    total_y_da = xr.DataArray(np.cumsum(dx * y_avg, axis=0), coords=x_da.coords)
+
+    extra_dims = [d for d in x_var.dims if d != "name"]
+    coords = [x_var.coords[d].values for d in extra_dims] + [seg_names]
+    dims = extra_dims + ["name"]
+    aux_var = m.add_variables(lower=0, coords=coords, dims=dims, name=aux_var_name)
+
+    x_var_sel = x_var.sel(name=seg_names)
+
+    for seg_idx in seg_df.index:
+        x_k = x_da.sel(segment=seg_idx).drop_vars("segment")
+        y_k = total_y_da.sel(segment=seg_idx).drop_vars("segment")
+        slope_k = y_da.sel(segment=seg_idx).drop_vars("segment")
+
+        # aux >= y_k + slope_k * (x - x_k)
+        # => aux - slope_k * x >= y_k - slope_k * x_k
+        rhs = y_k - slope_k * x_k
+        m.add_constraints(
+            aux_var - slope_k * x_var_sel >= rhs,
+            name=f"{constraint_name_prefix}-{seg_idx}",
+        )
+
+    return aux_var
+
+
 def define_objective(
     n: Network, sns: pd.Index, include_objective_constant: bool
 ) -> None:
@@ -224,14 +336,34 @@ def define_objective(
             if var_name not in m.variables and cost_type == "spill_cost":
                 continue
 
-            cost = c.da[cost_type].sel(snapshot=sns, name=c.active_assets)
-            if cost.size == 0 or (cost == 0).all():
-                continue
+            # Piecewise marginal cost via tangent constraints.
+            p = m[var_name].sel(snapshot=sns)
+            seg_cost_var = _add_piecewise_tangent_constraints(
+                m,
+                c,
+                p,
+                y_attr=cost_type,
+                aux_var_name=f"{c.name}-{cost_type}_piecewise",
+                constraint_name_prefix=f"{c.name}-{cost_type}_piecewise_tangent",
+                active_names=c.active_assets,
+            )
 
-            cost = cost * weight
+            linear_names = (
+                c.active_assets
+                if seg_cost_var is None
+                else c.active_assets.difference(seg_cost_var.indexes["name"])
+            )
 
-            operation = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
-            opex_terms.append((operation * cost).sum(dim=["name", "snapshot"]))
+            # Linear marginal cost for non-piecewise components
+            if not linear_names.empty:
+                cost = c.da[cost_type].sel(snapshot=sns, name=linear_names)
+                if cost.size > 0 and not (cost == 0).all():
+                    cost = cost * weight
+                    operation = m[var_name].sel(snapshot=sns, name=linear_names)
+                    opex_terms.append((operation * cost).sum(dim=["name", "snapshot"]))
+
+            if seg_cost_var is not None:
+                opex_terms.append((seg_cost_var * weight).sum(dim=["name", "snapshot"]))
 
     # marginal cost quadratic
     for c_name, attr in lookup.query("marginal_cost_quadratic").index:
@@ -279,21 +411,57 @@ def define_objective(
         if ext_i.empty:
             continue
 
-        periodic_cost = c.periodized_cost.sel(name=ext_i)
-        if periodic_cost.size == 0 or (periodic_cost == 0).all():
-            continue
+        # Piecewise capital cost via tangent constraints
+        caps = m[f"{c.name}-{attr}"]
+        seg_cc_var = _add_piecewise_tangent_constraints(
+            m,
+            c,
+            caps,
+            y_attr="capital_cost",
+            aux_var_name=f"{c.name}-capital_cost_piecewise",
+            constraint_name_prefix=f"{c.name}-capital_cost_piecewise_tangent",
+            active_names=ext_i,
+        )
 
-        if n._multi_invest:
-            weighted_cost = 0
-            for period in periods:
-                active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += active * periodic_cost * period_weighting.loc[period]
-        else:
-            active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            weighted_cost = active * periodic_cost
+        linear_names = (
+            ext_i
+            if seg_cc_var is None
+            else ext_i.difference(seg_cc_var.indexes["name"])
+        )
 
-        caps = m[f"{c.name}-{attr}"].sel(name=ext_i)
-        capex_terms.append((caps * weighted_cost).sum(dim=["name"]))
+        # Linear capital cost for non-piecewise components
+        if not linear_names.empty:
+            periodic_cost = c.periodized_cost.sel(name=linear_names)
+            if periodic_cost.size > 0 and not (periodic_cost == 0).all():
+                if n._multi_invest:
+                    weighted_cost = sum(
+                        c.da.active.sel(period=period, name=linear_names).any(
+                            dim="timestep"
+                        )
+                        * periodic_cost
+                        * period_weighting.loc[period]
+                        for period in periods
+                    )
+                else:
+                    active = c.da.active.sel(name=linear_names).any(dim="snapshot")
+                    weighted_cost = active * periodic_cost
+
+                caps_lin = m[f"{c.name}-{attr}"].sel(name=linear_names)
+                capex_terms.append((caps_lin * weighted_cost).sum(dim=["name"]))
+
+        if seg_cc_var is not None:
+            seg_names = seg_cc_var.indexes["name"]
+            if n._multi_invest:
+                weighted_cc = sum(
+                    c.da.active.sel(period=period, name=seg_names).any(dim="timestep")
+                    * period_weighting.loc[period]
+                    for period in periods
+                )
+            else:
+                weighted_cc = (
+                    c.da.active.sel(name=seg_names).any(dim="snapshot").astype(float)
+                )
+            capex_terms.append((seg_cc_var * weighted_cc).sum(dim=["name"]))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
