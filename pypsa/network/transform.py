@@ -208,9 +208,10 @@ class NetworkTransformMixin(_NetworkABC):
         names = names.astype(str) + suffix
 
         names_str = "name" if single_component else "names"
-        # Read kwargs into static and time-varying attributes
+        # Read kwargs into static, time-varying, and segment attributes
         series = {}
         static = {}
+        segments = {}  # {attr: DataFrame with columns [x_attr, attr], index = segment}
 
         # Check if names are unique
         if not names.is_unique:
@@ -219,6 +220,7 @@ class NetworkTransformMixin(_NetworkABC):
 
         # Check custom attributes
         standard_attrs = set(c.defaults.index)
+        segments_attrs = c.ctype.segments_attrs
         custom_attrs = set(kwargs.keys()) - standard_attrs
         if custom_attrs:
             # Raise warning if user adds a custom attribute which is a standard attribute
@@ -246,30 +248,62 @@ class NetworkTransformMixin(_NetworkABC):
                     standard_attr,
                 )
 
+        def add_suffix(s: Any) -> str:
+            s = str(s)
+            if s.endswith(suffix):
+                return s
+            return s + suffix
+
         for k, v in kwargs.items():
             # If index/ columnes are passed (pd.DataFrame or pd.Series)
             # - cast names index to string and add suffix
             # - check if passed index/ columns align
             msg = "{} has an index which does not align with the passed {}."
+
+            # Intercept segment data: a DataFrame whose columns are the curve
+            # attributes (e.g. ["p_pu", "efficiency"]), not component names.
+            # These are identified by the attribute name being in segments_attrs and
+            # the value being a DataFrame whose columns include the x-axis attribute.
+            if x_attr := segments_attrs.get(k):
+                # Intercept segments shorthand: dict {x_value: y_value}
+                if isinstance(v, dict):
+                    v = pd.DataFrame({x_attr: list(v.keys()), k: list(v.values())})
+                if isinstance(v, pd.DataFrame):
+                    if isinstance(v.columns, pd.MultiIndex):
+                        v = v.rename(columns=add_suffix, level=0)
+                        if not v.columns.unique(0).equals(names):
+                            raise ValueError(msg.format(f"Dataframe {k}", names_str))
+                        if v.columns.unique(1).equals([x_attr, k]):
+                            msg_seg = (
+                                f"Segment Dataframe {k} must have column labels "
+                                f"consisting of {x_attr} and {k}"
+                            )
+                            raise ValueError(msg_seg)
+                        segments[k] = v
+                        continue
+                    elif set(v.columns) == {x_attr, k}:
+                        # Build a MultiIndex-columned DataFrame: broadcast the curve to all names
+                        v = pd.concat(
+                            [v[[x_attr, k]]] * len(names),
+                            keys=pd.Index(names, name="name"),
+                            axis=1,
+                        )
+                        v.columns.names = ["name", "attribute"]
+                        v.index.name = "segment"
+                        segments[k] = v
+                        continue
+
             if isinstance(v, pd.Series) and single_component:
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"Series {k}", "network snapshots"))
             elif isinstance(v, pd.Series):
                 # Cast names index to string + suffix
-                v = v.rename(
-                    index=lambda s: str(s)
-                    if str(s).endswith(suffix)
-                    else str(s) + suffix
-                )
+                v = v.rename(index=add_suffix)
                 if not v.index.equals(names):
                     raise ValueError(msg.format(f"Series {k}", names_str))
             if isinstance(v, pd.DataFrame):
                 # Cast names columns to string + suffix
-                v = v.rename(
-                    columns=lambda s: str(s)
-                    if str(s).endswith(suffix)
-                    else str(s) + suffix
-                )
+                v = v.rename(columns=add_suffix)
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
                 if not v.columns.equals(names):
@@ -330,16 +364,15 @@ class NetworkTransformMixin(_NetworkABC):
                     static[k] = v
 
             # Handle addition of multiple components
-            elif not single_component:
-                # Read 2-dim data as time-varying attribute
-                if isinstance(v, pd.DataFrame):
-                    series[k] = v
-                # Read 1-dim data as static attribute
-                elif isinstance(v, pd.Series):
-                    static[k] = v.values
-                # Read scalar data as static attribute
-                else:
-                    static[k] = v
+            # Read 2-dim data as time-varying attribute
+            elif isinstance(v, pd.DataFrame):
+                series[k] = v
+            # Read 1-dim data as static attribute
+            elif isinstance(v, pd.Series):
+                static[k] = v.values
+            # Read scalar data as static attribute
+            else:
+                static[k] = v
 
         # Load static attributes as components
         if static:
@@ -365,6 +398,10 @@ class NetworkTransformMixin(_NetworkABC):
         # Load time-varying attributes as components
         for k, v in series.items():
             self._import_series_from_df(v, c.name, k, overwrite=overwrite)
+
+        # Load segment data
+        for k, v in segments.items():
+            self._import_segments_from_df(v, c.name, k, overwrite=overwrite)
 
         if return_names:
             return names

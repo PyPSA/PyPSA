@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status
+attribute,type,unit,default,description,status,segments_x
 name,string,n/a,n/a,Unique name,Input (required)
 f_nom,float,Hz,50.,Nominal frequency,Input (required)
 r_per_length,float,Ohm per km,0.,Series resistance per length,Input (required)

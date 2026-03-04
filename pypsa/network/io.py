@@ -1959,6 +1959,103 @@ class NetworkIOMixin(_NetworkABC):
             self.snapshots, df.columns
         ]
 
+    def _import_segments_from_df(
+        self,
+        df: pd.DataFrame,
+        cls_name: str,
+        attr: str,
+        overwrite: bool = False,
+    ) -> None:
+        """Import piecewise segment data from a pandas DataFrame.
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            DataFrame whose columns are ``[x_attr, attr]`` (the x-axis coordinate
+            and the y-axis attribute) and whose index is the segment number.
+            This is the per-component form as passed to ``network.add()``.
+        cls_name : str
+            Component class name, e.g. ``"Generator"``.
+        attr : str
+            Piecewise y-axis attribute name, e.g. ``"efficiency"``.
+        component_name : str
+            Name of the individual component.
+        overwrite : bool, default False
+            If True, replace existing segment data for the component.
+
+        """
+        segments_attrs = self.c[cls_name].ctype.segments_attrs
+        if attr not in segments_attrs:
+            msg = (
+                f"'{attr}' is not a recognised segments attribute for {cls_name}. "
+                f"Known segments attributes: {list(segments_attrs)}."
+            )
+            raise ValueError(msg)
+
+        x_attr = segments_attrs[attr]
+
+        # Piecewise marginal_cost requires fixed p_nom — reject extendable components.
+        # (capital_cost segments are only meaningful for extendable components, so no
+        # restriction there.)
+        if attr == "marginal_cost":
+            new_names = (
+                df.columns.get_level_values("name").unique()
+                if isinstance(df.columns, pd.MultiIndex)
+                else pd.Index([])
+            )
+            extendable_i = self.c[cls_name].extendables
+            bad = new_names.intersection(extendable_i)
+            if not bad.empty:
+                msg = (
+                    f"Piecewise '{attr}' segments are not supported for extendable "
+                    f"components (fixed p_nom required). Extendable components: "
+                    f"{bad.tolist()}."
+                )
+                raise ValueError(msg)
+
+        segments = self.c[cls_name].segments
+
+        if attr not in segments:
+            cols = pd.MultiIndex.from_tuples([], names=["name", "attribute"])
+            segments[attr] = pd.DataFrame(
+                index=pd.Index([], name="segment", dtype=int), columns=cols, dtype=float
+            )
+
+        existing = segments[attr]
+
+        # df must have MultiIndex columns (name, attribute) with x_attr and attr present
+        if not isinstance(df.columns, pd.MultiIndex):
+            msg = (
+                "Pass a MultiIndex-columned DataFrame to _import_segments_from_df "
+                "with levels ['name', 'attribute']. Use network.add() for the "
+                "user-facing interface."
+            )
+            raise TypeError(msg)
+
+        attribute_values = set(df.columns.get_level_values("attribute"))
+        if x_attr not in attribute_values or attr not in attribute_values:
+            msg = (
+                f"DataFrame for piecewise attribute '{attr}' must have attribute "
+                f"level values ['{x_attr}', '{attr}']. Got: {sorted(attribute_values)}."
+            )
+            raise ValueError(msg)
+
+        df.index.name = "segment"
+        df.columns.names = ["name", "attribute"]
+
+        if overwrite:
+            # Drop existing entries for the new components
+            new_names = df.columns.unique("name")
+            keep = ~existing.columns.get_level_values("name").isin(new_names)
+            existing = existing.loc[:, keep]
+
+        # Align segment indices: union of existing and new
+        all_segments = existing.index.union(df.index)
+        existing = existing.reindex(all_segments)
+        df = df.reindex(all_segments)
+
+        segments[attr] = pd.concat([existing, df], axis=1)
+
     def import_from_pypower_ppc(
         self, ppc: dict, overwrite_zero_s_nom: float | None = None
     ) -> None:

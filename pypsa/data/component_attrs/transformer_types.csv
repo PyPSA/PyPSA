@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status
+attribute,type,unit,default,description,status,segments_x
 name,string,n/a,n/a,Unique name,Input (required)
 f_nom,float,Hz,50.,Nominal frequency,Input (required)
 s_nom,float,MVA,0.,Rated apparent power,Input (required)
