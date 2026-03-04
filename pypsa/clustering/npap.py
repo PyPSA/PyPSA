@@ -203,7 +203,6 @@ def busmap_by_npap(
     include_transformers: bool = True,
     include_links: bool = False,
     voltage_levels: list[float] | None = None,
-    aggregate_parallel_edges: bool = False,
     parallel_edge_strategies: dict[str, str] | None = None,
     **kwargs: Any,
 ) -> pd.Series:
@@ -226,8 +225,6 @@ def busmap_by_npap(
     voltage_levels : list[float] | None, optional
         Target voltage levels for voltage-aware strategies. If None and
         a voltage-aware strategy is used, levels are auto-detected from v_nom.
-    aggregate_parallel_edges : bool, optional
-        Whether to aggregate parallel edges before partitioning (default False).
     parallel_edge_strategies : dict[str, str] | None, optional
         Strategies for parallel edge aggregation (NPAP strategy names).
     **kwargs : Any
@@ -262,7 +259,7 @@ def busmap_by_npap(
     manager = PartitionAggregatorManager()
     manager.load_data("networkx_direct", graph=G, bidirectional=False)
 
-    # Handle MultiDiGraph or explicit parallel edge aggregation
+    # By default, NPAP's partitioning algorithms do not handle parallel edges
     if isinstance(manager.get_current_graph(), nx.MultiDiGraph):
         manager.aggregate_parallel_edges(
             edge_properties=parallel_edge_strategies,
