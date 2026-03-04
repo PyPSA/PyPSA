@@ -29,7 +29,7 @@ from pyproj import CRS
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.consistency import check_for_unknown_buses
-from pypsa.descriptors import _update_linkports_component_attrs
+from pypsa.descriptors import _update_linkports_component_attrs, nominal_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_base__
 
@@ -1984,6 +1984,7 @@ class NetworkIOMixin(_NetworkABC):
             If True, replace existing segment data for the component.
 
         """
+        nom_attr = nominal_attrs.get(cls_name)
         segments_attrs = self.c[cls_name].ctype.segments_attrs
         if attr not in segments_attrs:
             msg = (
@@ -1994,12 +1995,9 @@ class NetworkIOMixin(_NetworkABC):
 
         x_attr = segments_attrs[attr]
 
-        # Piecewise marginal_cost requires fixed p_nom — reject extendable components.
-        # (capital_cost segments are only meaningful for extendable components, so no
-        # restriction there.)
-        if attr == "marginal_cost":
+        if x_attr == nom_attr.replace("_nom", "_pu"):
             new_names = (
-                df.columns.get_level_values("name").unique()
+                df.columns.unique("name")
                 if isinstance(df.columns, pd.MultiIndex)
                 else pd.Index([])
             )
@@ -2013,16 +2011,6 @@ class NetworkIOMixin(_NetworkABC):
                 )
                 raise ValueError(msg)
 
-        segments = self.c[cls_name].segments
-
-        if attr not in segments:
-            cols = pd.MultiIndex.from_tuples([], names=["name", "attribute"])
-            segments[attr] = pd.DataFrame(
-                index=pd.Index([], name="segment", dtype=int), columns=cols, dtype=float
-            )
-
-        existing = segments[attr]
-
         # df must have MultiIndex columns (name, attribute) with x_attr and attr present
         if not isinstance(df.columns, pd.MultiIndex):
             msg = (
@@ -2031,6 +2019,17 @@ class NetworkIOMixin(_NetworkABC):
                 "user-facing interface."
             )
             raise TypeError(msg)
+
+        segments = self.c[cls_name].segments
+
+        if attr not in segments:
+            segments[attr] = pd.DataFrame(
+                index=pd.Index([], name="segment", dtype=int),
+                columns=pd.MultiIndex.from_tuples([], names=["name", "attribute"]),
+                dtype=float,
+            )
+
+        existing = segments[attr]
 
         attribute_values = set(df.columns.get_level_values("attribute"))
         if x_attr not in attribute_values or attr not in attribute_values:

@@ -23,6 +23,7 @@ from Levenshtein import distance
 from pypsa._options import options
 from pypsa.components.common import as_components
 from pypsa.components.types import all_standard_attrs_set
+from pypsa.descriptors import nominal_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.type_utils import is_1d_list_like
 
@@ -392,6 +393,26 @@ class NetworkTransformMixin(_NetworkABC):
                 )
                 for k, v in series.items()
             }
+
+        # Validate segments before modifying any state: reject piecewise per-unit
+        # attributes (e.g. marginal_cost with x_attr=p_pu) on extendable components.
+        nom_attr = nominal_attrs.get(class_name)
+        for attr, seg_df in segments.items():
+            x_attr = segments_attrs.get(attr)
+            if (
+                nom_attr
+                and x_attr == nom_attr.replace("_nom", "_pu")
+                and (ext := static_df.get(f"{nom_attr}_extendable")) is not None
+            ):
+                seg_names = seg_df.columns.unique("name")
+                bad = seg_names[ext.loc[seg_names]]
+                if not bad.empty:
+                    msg = (
+                        f"Piecewise '{attr}' segments are not supported for extendable "
+                        f"components (fixed {nom_attr} required). Extendable components: "
+                        f"{bad.tolist()}."
+                    )
+                    raise ValueError(msg)
 
         self._import_components_from_df(static_df, c.name, overwrite=overwrite)
 

@@ -146,7 +146,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         return pd.DataFrame(active).any(axis=1) & self.static.active
 
     @property
-    def active_assets(self) -> pd.Series:
+    def active_assets(self) -> pd.Index:
         """Get list of active assets.
 
         <!-- md:badge-version v1.0.0 -->
@@ -164,7 +164,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         """
         active_assets = self.get_active_assets()
-        return active_assets[active_assets].index.get_level_values("name").unique()
+        return active_assets[active_assets].index.unique("name")
 
     @property
     def inactive_assets(self) -> pd.Series:
