@@ -131,6 +131,28 @@ def test_committable_down_with_p_init(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("strict", [[], ["committable_components"]])
+def test_committable_storage_unit(caplog, strict):
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("StorageUnit", "battery", bus="bus0", committable=True, p_nom=50)
+    assert_log_or_error_in_consistency(n, caplog, strict=strict)
+
+
+@pytest.mark.parametrize("component", ["Generator", "Link", "Process"])
+def test_committable_supported_components_pass(consistent_n, component, caplog):
+    if component == "Link":
+        consistent_n.add("Link", "link_uc", bus0="one", bus1="two", committable=True)
+    elif component == "Process":
+        consistent_n.add("Process", "proc_uc", bus0="one", committable=True)
+    else:
+        consistent_n.add("Generator", "gen_uc", bus="one", committable=True, p_nom=100)
+    consistent_n.consistency_check(strict=["committable_components"])
+    assert not any(
+        "does not support unit commitment" in r.message for r in caplog.records
+    )
+
+
 def test_unknown_check():
     n = pypsa.Network()
     with pytest.raises(ValueError):
