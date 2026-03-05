@@ -626,6 +626,23 @@ def check_generators(component: Components, strict: bool = False) -> None:
             )
 
 
+def check_committable_components(component: Components, strict: bool = False) -> None:
+    """Check that components using committable=True are of a supported type."""
+    COMMITTABLE_COMPONENTS = {"Generator", "Link", "Process"}
+    if component.name in COMMITTABLE_COMPONENTS:
+        return
+    if "committable" not in component.static.columns:
+        return
+    bad = component.static.index[component.static["committable"]]
+    if not bad.empty:
+        _log_or_raise(
+            strict,
+            "Component type '%s' does not support unit commitment. "
+            "Only Generator, Link, and Process support committable=True.",
+            component.name,
+        )
+
+
 def check_dtypes_(component: Components, strict: bool = False) -> None:
     """Check if the dtypes of the attributes in the component are as expected.
 
@@ -895,6 +912,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "zero_impedances",
             "zero_s_nom",
             "generators",
+            "committable_components",
             "cost_consistency",
             "dispatch_delays",
             "disconnected_buses",
@@ -942,6 +960,8 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
+            # Checks committable component types
+            check_committable_components(c, "committable_components" in strict)
             # Checks cost attributes consistency
             check_cost_consistency(c)
             # Checks dispatch delay attributes
