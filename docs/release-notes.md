@@ -24,6 +24,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Add consistency check `check_committable_components` that captures when `committable=True` is set on a component type that does not support unit commitment functionality. (<!-- md:issue 1604 -->)
+
 - Fix call to `DataFrame/Series.groupby()` in pandas 3.0, dropping the `axis` argument (<!-- md:pr 1596 -->)
 
 - Fix ordering of additional port columns (`bus2`, `bus3`, `efficiency2`, etc.) in multi-port component defaults — they now appear right after their base attribute instead of at the end.
