@@ -572,29 +572,29 @@ class TestNumericalTolerance:
     E_SUM_MSG = "e_sum_min"
 
     @pytest.fixture
-    def net(self):
+    def n(self):
         """Return a network with a bus and generator."""
         n = pypsa.Network()
         n.add("Bus", "bus")
         n.add("Generator", "gen", bus="bus")
         return n
 
-    def test_e_sum_within_tolerance_no_warning(self, net, caplog):
+    def test_e_sum_within_tolerance_no_warning(self, n, caplog):
         """e_sum_min exceeding e_sum_max by a tiny amount within tolerance."""
-        net.generators.loc["gen", ["e_sum_min", "e_sum_max"]] = [1e-12, 0.0]
+        n.c.generators.static.loc["gen", ["e_sum_min", "e_sum_max"]] = [1e-12, 0.0]
         caplog.clear()
-        net.consistency_check()
+        n.consistency_check()
         assert not any(self.E_SUM_MSG in r.message for r in caplog.records)
 
-    def test_static_power_within_tolerance_no_warning(self, net, caplog):
+    def test_static_power_within_tolerance_no_warning(self, n, caplog):
         """p_nom_max < p_nom_min by a tiny amount within tolerance."""
-        net.generators.loc["gen", "p_nom_extendable"] = True
-        net.generators.loc["gen", ["p_nom_min", "p_nom_max"]] = [
+        n.c.generators.static.loc["gen", "p_nom_extendable"] = True
+        n.c.generators.static.loc["gen", ["p_nom_min", "p_nom_max"]] = [
             10.0 + 1e-12,
             10.0,
         ]
         caplog.clear()
-        net.consistency_check()
+        n.consistency_check()
         assert not any(self.EXPANSION_MSG in r.message for r in caplog.records)
 
     def test_time_series_within_tolerance_no_warning(self, caplog):
@@ -603,26 +603,26 @@ class TestNumericalTolerance:
         n.set_snapshots([0, 1, 2])
         n.add("Bus", "bus")
         n.add("Generator", "gen", bus="bus")
-        n.generators_t.p_max_pu = pd.DataFrame(
+        n.c.generators.dynamic.p_max_pu = pd.DataFrame(
             {"gen": [0.9, 0.9, 0.9]}, index=n.snapshots
         )
-        n.generators_t.p_min_pu = pd.DataFrame(
+        n.c.generators.dynamic.p_min_pu = pd.DataFrame(
             {"gen": [0.9 + 1e-12, 0.9 + 1e-12, 0.9 + 1e-12]}, index=n.snapshots
         )
         caplog.clear()
         n.consistency_check()
         assert not any(self.OPERATIONAL_MSG in r.message for r in caplog.records)
 
-    def test_large_tolerance_suppresses_warning(self, net, caplog):
+    def test_large_tolerance_suppresses_warning(self, n, caplog):
         """Custom large tolerance via option_context suppresses warnings."""
-        net.generators.loc["gen", ["e_sum_min", "e_sum_max"]] = [5.5, 5.0]
+        n.c.generators.static.loc["gen", ["e_sum_min", "e_sum_max"]] = [5.5, 5.0]
         # diff = 0.5, within custom tolerance of 1.0
         with pypsa.option_context("params.consistency.numerical_tolerance", 1.0):
             caplog.clear()
-            net.consistency_check()
+            n.consistency_check()
             assert not any(self.E_SUM_MSG in r.message for r in caplog.records)
 
         # Without custom tolerance, should warn
         caplog.clear()
-        net.consistency_check()
+        n.consistency_check()
         assert any(self.E_SUM_MSG in r.message for r in caplog.records)
