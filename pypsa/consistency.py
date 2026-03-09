@@ -30,7 +30,6 @@ if TYPE_CHECKING:
     from pypsa.components import Components
     from pypsa.type_utils import NetworkType
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -287,9 +286,6 @@ def check_static_power_attributes(
     Activate strict mode in general consistency check by passing `['static_power_attrs']`
     the `strict` argument.
 
-    A numerical tolerance from `params.consistency.numerical_tolerance` is applied
-    when comparing minimum and maximum expansion limits.
-
     Parameters
     ----------
     n : pypsa.Network
@@ -312,10 +308,7 @@ def check_static_power_attributes(
         )
         if len(static_attr):
             attr = static_attr[0]
-            tol = options.params.consistency.numerical_tolerance
-            bad = (
-                component.static[attr + "_max"] < component.static[attr + "_min"] - tol
-            )
+            bad = component.static[attr + "_max"] < component.static[attr + "_min"]
             if bad.any():
                 _log_or_raise(
                     strict,
@@ -347,9 +340,6 @@ def check_time_series_power_attributes(
 
     Activate strict mode in general consistency check by passing `['time_series_power_attrs']`
     the `strict` argument.
-
-    A numerical tolerance from `params.consistency.numerical_tolerance` is applied
-    when comparing minimum and maximum operational limits.
 
     Parameters
     ----------
@@ -424,9 +414,8 @@ def check_time_series_power_attributes(
                         min_pu.index[np.isinf(min_pu[col])],
                     )
 
-            tol = options.params.consistency.numerical_tolerance
             diff = max_pu - min_pu
-            diff = diff[diff < -tol].dropna(axis=1, how="all")
+            diff = diff[diff < 0].dropna(axis=1, how="all")
             for col in diff.columns:
                 _log_or_raise(
                     strict,
@@ -580,11 +569,7 @@ def check_generators(component: Components, strict: bool = False) -> None:
 
     This function performs the following checks on generator components:
     1. Ensures that committable generators are not both up and down before the simulation.
-    2. Verifies that the minimum total energy to be produced (e_sum_min) is not greater
-       than the maximum total energy to be produced (e_sum_max).
-
-    A numerical tolerance from `params.consistency.numerical_tolerance` is applied
-    when comparing `e_sum_min` and `e_sum_max`.
+    2. Verifies that the minimum total energy to be produced (e_sum_min) is not greater than the maximum total energy to be produced (e_sum_max).
 
     Activate strict mode in general consistency check by passing `['generators']` to the
     the `strict` argument.
@@ -595,6 +580,8 @@ def check_generators(component: Components, strict: bool = False) -> None:
         The generator component to be checked.
     strict : bool, optional
         If True, raise an error instead of logging a warning.
+
+
 
     See Also
     --------
@@ -627,9 +614,8 @@ def check_generators(component: Components, strict: bool = False) -> None:
                 bad_uc_gens,
             )
 
-        tol = options.params.consistency.numerical_tolerance
         bad_e_sum_gens = component.static.index[
-            component.static.e_sum_min > component.static.e_sum_max + tol
+            component.static.e_sum_min > component.static.e_sum_max
         ]
         if not bad_e_sum_gens.empty:
             _log_or_raise(
