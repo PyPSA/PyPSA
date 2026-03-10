@@ -32,12 +32,35 @@ logger = logging.getLogger(__name__)
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
-    """Get the operation data for a network component."""
-    if c in n.branch_components:
+    """Get the reference operation data for a network component.
+
+    For passive branches (Lines, Transformers), returns `p0` since no reference
+    `p` attribute exists. For all other components with power output (Links,
+    Processes, one-port components), returns `p` which is the reference
+    operational variable. For Stores, returns `e` (energy level).
+
+    Parameters
+    ----------
+    n : Network
+        The PyPSA network instance.
+    c : str
+        The component name (e.g., 'Generator', 'Link', 'Line', 'Store').
+
+    Returns
+    -------
+    pd.DataFrame
+        Time series of the reference operational variable for the component.
+
+    """
+    if c in n.passive_branch_components:
         return n.c[c].dynamic.p0
     if c == "Store":
         return n.c[c].dynamic.e
-    return n.c[c].dynamic.p
+    p = n.c[c].dynamic.p
+    if p.empty and c in n.branch_components:
+        # Fallback for legacy networks where only p0 is stored (for Links)
+        return n.c[c].dynamic.p0
+    return p
 
 
 def port_efficiency(
@@ -2621,8 +2644,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **market value** of components in the network.
 
-        Curreny is currency/MWh or currency/unit_{bus_carrier} where unit_{bus_carrier}
-        is the unit of the bus carrier.
+        Currency is currency/MWh or currency/unit_{bus_carrier} where
+        unit_{bus_carrier} is the unit of the bus carrier.
+
+        The behavior depends on whether `bus_carrier` is specified:
+
+        - **Default (no `bus_carrier`)**: Returns total revenue across all ports
+          divided by the reference operational variable. Units are
+          `currency/MWh` of the component's reference carrier (e.g., €/MWh_el
+          for electrolysis consuming electricity at bus0).
+        - **With `bus_carrier`**: Returns revenue at the specified bus carrier's
+          ports divided by the energy balance at those ports. Units are
+          `currency/MWh_{bus_carrier}`.
 
         Parameters
         ----------
@@ -2697,7 +2730,37 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             "drop_zero": drop_zero,
             "round": round,
         }
-        df = self.revenue(**kwargs) / self.supply(**kwargs)
+
+        if bus_carrier is not None:
+            df = self.revenue(**kwargs) / self.energy_balance(**kwargs).abs()
+        else:
+            revenue_kwargs = {**kwargs, "at_port": "all"}
+            rev = self.revenue(**revenue_kwargs)
+
+            @pass_empty_series_if_keyerror
+            def ref_func(n: Network, c: str, port: str) -> pd.Series:
+                sign = (
+                    -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
+                )
+                p = sign * get_operation(n, c)
+                weights = n.snapshot_weightings.generators
+                return self._aggregate_timeseries(p, weights, agg=groupby_time)
+
+            denom = self._aggregate_components(
+                ref_func,
+                components=components,
+                agg=groupby_method,
+                aggregate_across_components=aggregate_across_components,
+                groupby=groupby,
+                at_port=[0],
+                carrier=carrier,
+                bus_carrier=None,
+                nice_names=nice_names,
+                drop_zero=False,
+                round=None,
+            )
+            df = rev / denom.abs()
+
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df

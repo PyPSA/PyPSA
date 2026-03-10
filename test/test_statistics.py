@@ -8,7 +8,7 @@ import pytest
 
 import pypsa
 from pypsa.statistics import groupers
-from pypsa.statistics.expressions import StatisticsAccessor
+from pypsa.statistics.expressions import StatisticsAccessor, get_operation
 
 
 def test_stats_alias(ac_dc_network):
@@ -434,3 +434,111 @@ def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
         carrier="residential rural heat", nice_names=False
     )
     assert result.empty
+
+
+@pytest.fixture
+def multiport_network():
+    n = pypsa.Network()
+    n.set_snapshots([0, 1, 2])
+    for c in ["AC", "H2", "electrolysis"]:
+        n.add("Carrier", c)
+    n.add("Bus", "elec", carrier="AC")
+    n.add("Bus", "h2", carrier="H2")
+    n.add("Generator", "gen", bus="elec", carrier="AC", p_nom=200, marginal_cost=10)
+    n.add(
+        "Link",
+        "electrolysis",
+        bus0="elec",
+        bus1="h2",
+        carrier="electrolysis",
+        p_nom=100,
+        efficiency=0.7,
+    )
+    n.add("Load", "h2_load", bus="h2", carrier="H2", p_set=50)
+
+    def _df(data):
+        df = pd.DataFrame(data, index=n.snapshots)
+        df.columns.name = "name"
+        return df
+
+    p = _df({"electrolysis": [80.0, 60.0, 70.0]})
+    n.c.links.dynamic["p"] = p
+    n.c.links.dynamic["p0"] = p.copy()
+    n.c.links.dynamic["p1"] = -p * 0.7
+    n.c.generators.dynamic["p"] = _df({"gen": [130.0, 110.0, 120.0]})
+    n.c.loads.dynamic["p"] = _df({"h2_load": [50.0, 50.0, 50.0]})
+    n.c.buses.dynamic["marginal_price"] = _df(
+        {"elec": [50.0, 40.0, 45.0], "h2": [100.0, 90.0, 95.0]}
+    )
+    return n
+
+
+def test_get_operation(ac_dc_network_r, multiport_network):
+    n = ac_dc_network_r
+    pd.testing.assert_frame_equal(get_operation(n, "Link"), n.c.links.dynamic["p0"])
+    pd.testing.assert_frame_equal(get_operation(n, "Line"), n.c.lines.dynamic["p0"])
+    pd.testing.assert_frame_equal(
+        get_operation(n, "Generator"), n.c.generators.dynamic["p"]
+    )
+    pd.testing.assert_frame_equal(
+        get_operation(multiport_network, "Link"),
+        multiport_network.c.links.dynamic["p"],
+    )
+
+
+def test_get_operation_process():
+    n = pypsa.Network()
+    n.set_snapshots([0, 1])
+    n.add("Bus", "b0", carrier="AC")
+    n.add("Bus", "b1", carrier="H2")
+    n.add("Process", "proc", bus0="b0", bus1="b1", rate0=-1.0, rate1=0.7)
+    p = pd.DataFrame({"proc": [50.0, 30.0]}, index=n.snapshots)
+    n.c.processes.dynamic["p"] = p
+    n.c.processes.dynamic["p0"] = -p
+    pd.testing.assert_frame_equal(get_operation(n, "Process"), p)
+
+
+def test_market_value_multiport(multiport_network):
+    n = multiport_network
+    mv = n.statistics.market_value(nice_names=False, round=None, drop_zero=False)
+
+    p = np.array([80.0, 60.0, 70.0])
+    price_elec = np.array([50.0, 40.0, 45.0])
+    price_h2 = np.array([100.0, 90.0, 95.0])
+    rev_per_t = (-p * price_elec) + (p * 0.7 * price_h2)
+    expected = rev_per_t.mean() / p.mean()
+    np.testing.assert_allclose(mv.loc[("Link", "electrolysis")], expected, rtol=1e-10)
+
+
+def test_market_value_with_bus_carrier(multiport_network):
+    n = multiport_network
+    p = np.array([80.0, 60.0, 70.0])
+
+    mv_ac = n.statistics.market_value(
+        bus_carrier="AC", nice_names=False, round=None, drop_zero=False
+    )
+    expected_ac = (-p * np.array([50.0, 40.0, 45.0])).mean() / p.mean()
+    np.testing.assert_allclose(
+        mv_ac.loc[("Link", "electrolysis")], expected_ac, rtol=1e-6
+    )
+
+    mv_h2 = n.statistics.market_value(
+        bus_carrier="H2", nice_names=False, round=None, drop_zero=False
+    )
+    p1 = p * 0.7
+    price_h2 = np.array([100.0, 90.0, 95.0])
+    expected_h2 = (p1 * price_h2).mean() / p1.mean()
+    np.testing.assert_allclose(
+        mv_h2.loc[("Link", "electrolysis")], expected_h2, rtol=1e-6
+    )
+
+
+def test_market_value_generator(multiport_network):
+    n = multiport_network
+    mv = n.statistics.market_value(
+        components="Generator", nice_names=False, round=None, drop_zero=False
+    )
+    p = np.array([130.0, 110.0, 120.0])
+    price = np.array([50.0, 40.0, 45.0])
+    expected = (p * price).mean() / p.mean()
+    np.testing.assert_allclose(mv.loc["AC"], expected, rtol=1e-6)

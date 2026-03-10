@@ -31,6 +31,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix `get_operation` to correctly return the reference operational variable (`p`) for Link and Process components instead of `p0`. For Process components, `p ≠ p0` so this was a bug.
+
+- Fix `market_value` to correctly handle multi-port components (Links, Processes) by using total revenue across all ports divided by the reference operational variable when no `bus_carrier` is specified, and using `energy_balance` instead of `supply` when `bus_carrier` is specified.
+
 - Fix `ruff check` errors in documentation hooks. (<!-- md:pr 1612 -->)
 
 - Fix call to `DataFrame/Series.groupby()` in pandas 3.0, dropping the `axis` argument (<!-- md:pr 1596 -->)
