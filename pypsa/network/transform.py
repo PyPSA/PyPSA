@@ -14,6 +14,7 @@ Transform methods are methods which modify, restructure data and add or remove d
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -450,13 +451,14 @@ class NetworkTransformMixin(_NetworkABC):
         components_to_skip: Collection[str] | None = None,
         inplace: bool = False,
         with_time: bool = True,
+        merge_output: bool | None = None,
     ) -> Any:
         """Merge the components of two networks.
 
         Requires disjunct sets of component indices and, if time-dependent data is
         merged, identical snapshots and snapshot weightings.
 
-        If a component in `ther` does not have values for attributes present in
+        If a component in `other` does not have values for attributes present in
         `n`, default values are set.
 
         If a component in `other` has attributes which are not present in
@@ -472,6 +474,13 @@ class NetworkTransformMixin(_NetworkABC):
             If True, merge into `n` in-place, otherwise a copy is made.
         with_time : bool, default True
             If False, only static data is merged.
+        merge_output : bool, optional
+            Whether to include output data in the merged network. If `None` (default)
+            and either network has output data, a `FutureWarning` is emitted and
+            output data is included. In upcoming version, the default will change to `False`.
+            Set explicitly to suppress the warning.
+            Note that merging output data from multiple networks will lead to
+            potentially conflicting results.
 
         Returns
         -------
@@ -479,6 +488,20 @@ class NetworkTransformMixin(_NetworkABC):
             Merged network, or None if inplace=True
 
         """
+        # Handle merge_output parameter
+        if merge_output is None:
+            if self.has_output or other.has_output:
+                warnings.warn(
+                    "Merging networks that contain output data (e.g. from "
+                    "optimization or power flow). In version 2.0, the default "
+                    "behavior will change to exclude output data "
+                    "(merge_output=False). Set merge_output explicitly to "
+                    "suppress this warning.",
+                    FutureWarning,
+                    stacklevel=2,
+                )
+            merge_output = True
+
         to_skip = {"Network", "SubNetwork", "LineType", "TransformerType"}
         if components_to_skip:
             to_skip.update(components_to_skip)
@@ -530,6 +553,9 @@ class NetworkTransformMixin(_NetworkABC):
             if with_time:
                 for k, v in c.dynamic.items():
                     new._import_series_from_df(v, c.name, k)
+
+        if not merge_output:
+            new.reset()
 
         return None if inplace else new
 

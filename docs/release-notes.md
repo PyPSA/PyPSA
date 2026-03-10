@@ -16,6 +16,12 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
+- Add `Network.has_output` property to check if the network contains any output data (from optimization, power flow, or topology determination).
+
+- Add `Network.reset()` method to clear all output data from the network, resetting component output attributes to defaults and clearing the objective value and optimization model.
+
+- Add `merge_output` parameter to `Network.merge()` to control whether output data is included in the merged network. Defaults to `None` which warns and includes output data; will default to `False` in version 2.
+
 - New Process component mirroring the behavior of a multi-port Link component with explicit rates (efficiency equivalent to the Link) at each bus, including `bus0`. The component allows to flexibly change the reference unit used for associated costs by adjusting the rates. (<!-- md:pr 1333 -->)
 
 - Add weighted-time delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior. For the Process component the corresponding attributes have explicit numbering (`delay0`, `delay1`, `delay2`, ... and `cyclic_delay0`, `cyclic_delay1`). (<!-- md:pr 1569 -->)
@@ -23,6 +29,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - New parameter `meshed_thresholds` in `n.optimize` for controlling groups of buses in nodal-balance constraints. Use this to save memory in the optimization definition for large networks with many interconnected buses. (<!-- md:pr 1591 -->)
 
 ### Deprecations
+
+- The default behavior of `Network.merge()` for output data will change in version 2. Currently, output data is included by default; in v2, `merge_output` will default to `False`. Set `merge_output` explicitly to suppress the `FutureWarning`.
 
 - Deprecate `pypsa.optimization.common.get_strongly_meshed_buses` in favor of `get_bus_counts`. The old `meshed_threshold` model kwarg is deprecated; use `meshed_thresholds=[...]` in [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] or [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 

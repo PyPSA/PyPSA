@@ -64,8 +64,15 @@ class _NetworkABC(ABC):
     component_attrs: pd.DataFrame
     global_constraints: pd.DataFrame
     calculate_dependent_values: Callable
+    reset: Callable[[], None]
 
     passive_branches: pd.DataFrame
+
+    @property
+    @abstractmethod
+    def has_output(self) -> bool:
+        """Whether the network contains output data."""
+        ...
 
     @property
     @abstractmethod

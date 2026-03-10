@@ -782,6 +782,98 @@ class Network(
         return self._objective is not None
 
     @property
+    def has_output(self) -> bool:
+        """Check if the network has any output data.
+
+        Returns `True` if the network has been solved (i.e. has an objective
+        value) or if any component has non-empty dynamic output data (e.g.
+        after a power flow calculation).
+
+        This differs from [`is_solved`][pypsa.Network.is_solved] which only
+        checks for an objective value. `has_output` also detects output from
+        power flow calculations and topology determination.
+
+        Returns
+        -------
+        bool
+            True if the network has output data, False otherwise.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.has_output
+        False
+
+        """
+        if self.is_solved:
+            return True
+        for c, static_output, varying_output in self._iter_output_attrs():
+            for attr in varying_output:
+                if attr in c.dynamic and len(c.dynamic[attr].columns) > 0:
+                    return True
+
+            for attr in static_output:
+                if attr in c.static.columns:
+                    default = c.defaults.loc[attr, "default"]
+                    col = c.static[attr]
+                    if default == "" or (
+                        isinstance(default, float) and pd.isna(default)
+                    ):
+                        if not (col.eq("") | col.isna()).all():
+                            return True
+                    elif not (col == default).all():
+                        return True
+        return False
+
+    def _iter_output_attrs(
+        self,
+    ) -> Iterator[tuple[Components, pd.Index, pd.Index]]:
+        """Yield (component, static_output_attrs, varying_output_attrs) tuples.
+
+        Iterates over non-empty components and returns the output attribute
+        indices split by whether they are static or time-varying.
+
+        """
+        for c in self.components:
+            if c.empty:
+                continue
+            output = c.output_attrs
+            static_output = output[c.defaults.loc[output, "static"]]
+            varying_output = output[c.defaults.loc[output, "varying"]]
+            yield c, static_output, varying_output
+
+    def reset(self) -> None:
+        """Clear all output data and return the network to a pre-solve state.
+
+        Resets all component output attributes to their default values and
+        clears optimization related records.
+
+        Examples
+        --------
+        >>> n.optimize()  # doctest: +SKIP
+        >>> n.has_output
+        True
+        >>> n.reset()
+        >>> n.has_output
+        False
+
+        """
+        for c, static_output, varying_output in self._iter_output_attrs():
+            for attr in static_output:
+                if attr in c.static.columns:
+                    default = c.defaults.loc[attr, "default"]
+                    c.static[attr] = default
+
+            for attr in varying_output:
+                if attr in c.dynamic:
+                    c.dynamic[attr] = c.dynamic[attr].reindex(columns=[])
+        self._objective = None
+        self._objective_constant = None
+        self._model = None
+        self._multi_invest = 0
+        self._committable_big_m = None
+
+    @property
     def crs(self) -> Any:
         """Coordinate reference system of the network's geometries.
 

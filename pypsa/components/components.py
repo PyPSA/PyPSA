@@ -561,6 +561,18 @@ class Components(
         return self.static.empty
 
     @property
+    def output_attrs(self) -> pd.Index:
+        """Return index of attributes with 'Output' status.
+
+        Returns
+        -------
+        pd.Index
+            Index of attribute names that are marked as output.
+
+        """
+        return self.defaults.index[self.defaults.status == "Output"]
+
+    @property
     def attached(self) -> bool:
         """Check if component is attached to a Network.
 
