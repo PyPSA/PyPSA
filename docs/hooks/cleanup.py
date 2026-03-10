@@ -7,9 +7,9 @@ from __future__ import annotations
 import re
 
 try:
-    import griffe
+    import importlib.util
 
-    GRIFFE_AVAILABLE = True
+    GRIFFE_AVAILABLE = importlib.util.find_spec("griffe") is not None
 except ImportError:
     GRIFFE_AVAILABLE = False
 
