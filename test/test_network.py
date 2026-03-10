@@ -780,8 +780,8 @@ def test_sanitize_no_changes_needed():
     assert ("s1", "missing_carrier") in n2.c.carriers.static.index
 
 
-def _make_simple_network():
-    """Create a simple solvable network."""
+@pytest.fixture
+def simple_network():
     n = pypsa.Network()
     n.add("Bus", "bus0")
     n.add("Generator", "gen0", bus="bus0", p_nom=100, marginal_cost=10)
@@ -790,40 +790,45 @@ def _make_simple_network():
     return n
 
 
-def _solve_and_detach(n):
-    """Optimize and detach solver model so network can be copied."""
-    n.optimize(include_objective_constant=False)
-    if n._model is not None and hasattr(n._model, "solver_model"):
-        n._model.solver_model = None
+@pytest.fixture
+def solved_network(simple_network):
+    simple_network.optimize(include_objective_constant=False)
+    if simple_network._model is not None:
+        simple_network._model.solver_model = None
+    return simple_network
 
 
-def test_has_output_fresh_network():
-    """Fresh network has no output data."""
-    n = _make_simple_network()
-    assert n.has_output is False
+@pytest.fixture
+def merge_other(simple_network):
+    n2 = pypsa.Network()
+    n2.add("Bus", "bus1")
+    n2.set_snapshots(simple_network.snapshots)
+    return n2
 
 
-def test_has_output_after_optimize():
-    """After optimization, has_output is True."""
-    n = _make_simple_network()
-    _solve_and_detach(n)
-    assert n.has_output is True
-    assert n.is_solved is True
+def test_has_output_fresh_network(simple_network):
+    assert simple_network.has_output is False
 
 
-def test_has_output_after_pf():
-    """After power flow, has_output is True."""
-    n = _make_simple_network()
-    n.pf()
-    assert n.has_output is True
-    # Power flow does not set objective
-    assert n.is_solved is False
+def test_has_output_after_optimize(solved_network):
+    assert solved_network.has_output is True
+    assert solved_network.is_solved is True
 
 
-def test_reset_clears_output():
-    """After reset(), has_output is False and objective is None."""
-    n = _make_simple_network()
-    _solve_and_detach(n)
+def test_has_output_after_pf(simple_network):
+    simple_network.pf()
+    assert simple_network.has_output is True
+    assert simple_network.is_solved is False
+
+
+def test_has_output_static_only(simple_network):
+    assert simple_network.has_output is False
+    simple_network.c.generators.static["p_nom_opt"] = 50.0
+    assert simple_network.has_output is True
+
+
+def test_reset_clears_output(solved_network):
+    n = solved_network
     assert n.has_output is True
 
     n.reset()
@@ -832,26 +837,8 @@ def test_reset_clears_output():
     assert n.objective is None
     assert n._objective_constant is None
     assert n._model is None
-    # Check that dynamic output is cleared
     assert len(n.c.generators.dynamic["p"].columns) == 0
-    # Check static output is reset
     assert n.c.generators.static["p_nom_opt"].iloc[0] == 0.0
-
-
-def test_reset_idempotent():
-    """Calling reset() twice is safe."""
-    n = _make_simple_network()
-    _solve_and_detach(n)
-    n.reset()
-    n.reset()
-    assert n.has_output is False
-
-
-def test_reset_preserves_input():
-    """After reset(), input data is intact."""
-    n = _make_simple_network()
-    _solve_and_detach(n)
-    n.reset()
 
     assert "gen0" in n.c.generators.static.index
     assert n.c.generators.static.loc["gen0", "p_nom"] == 100
@@ -860,168 +847,76 @@ def test_reset_preserves_input():
     assert "bus0" in n.c.buses.static.index
     assert len(n.snapshots) == 3
 
+    n.reset()
+    assert n.has_output is False
 
-def test_merge_warns_with_output():
-    """Merging networks with output data emits FutureWarning."""
-    n1 = _make_simple_network()
-    _solve_and_detach(n1)
 
-    n2 = pypsa.Network()
-    n2.add("Bus", "bus1")
-    n2.set_snapshots(n1.snapshots)
+def test_reset_after_pf(simple_network):
+    simple_network.pf()
+    assert simple_network.has_output is True
+    simple_network.reset()
+    assert simple_network.has_output is False
+    assert "gen0" in simple_network.c.generators.static.index
+    assert simple_network.c.generators.static.loc["gen0", "p_nom"] == 100
 
+
+def test_output_attrs_property(simple_network):
+    output = simple_network.c.generators.output_attrs
+    assert "p_nom_opt" in output
+    assert "p_nom" not in output
+
+
+def test_merge_warns_with_output(solved_network, merge_other):
     with pytest.warns(FutureWarning, match="merge_output"):
-        n1.merge(n2)
+        solved_network.merge(merge_other)
 
 
-def test_merge_no_warn_without_output():
-    """Merging networks without output data does not warn."""
-    n1 = _make_simple_network()
-    n2 = pypsa.Network()
-    n2.add("Bus", "bus1")
-    n2.set_snapshots(n1.snapshots)
-
+def test_merge_no_warn_without_output(simple_network, merge_other):
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
-        n1.merge(n2)
+        result = simple_network.merge(merge_other)
+
+    assert "bus0" in result.c.buses.static.index
+    assert "bus1" in result.c.buses.static.index
 
 
-def test_merge_output_false():
-    """merge(merge_output=False) clears output data from result."""
-    n1 = _make_simple_network()
-    _solve_and_detach(n1)
-    assert n1.has_output is True
-
-    n2 = pypsa.Network()
-    n2.add("Bus", "bus1")
-    n2.set_snapshots(n1.snapshots)
-
-    result = n1.merge(n2, merge_output=False)
+def test_merge_output_false(solved_network, merge_other):
+    result = solved_network.merge(merge_other, merge_output=False)
     assert result.has_output is False
     assert result.objective is None
 
 
-def test_merge_output_true():
-    """merge(merge_output=True) retains output data, no warning."""
-    n1 = _make_simple_network()
-    _solve_and_detach(n1)
-
-    n2 = pypsa.Network()
-    n2.add("Bus", "bus1")
-    n2.set_snapshots(n1.snapshots)
-
+def test_merge_output_true(solved_network, merge_other):
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
-        result = n1.merge(n2, merge_output=True)
+        result = solved_network.merge(merge_other, merge_output=True)
 
     assert result.has_output is True
 
 
-def test_merge_output_explicit_suppresses_warning():
-    """Setting merge_output explicitly (True or False) suppresses FutureWarning."""
-    n1 = _make_simple_network()
-    _solve_and_detach(n1)
+def test_merge_output_false_inplace(solved_network, merge_other):
+    solved_network.merge(merge_other, inplace=True, merge_output=False)
+    assert solved_network.has_output is False
 
-    n2 = pypsa.Network()
-    n2.add("Bus", "bus1")
-    n2.set_snapshots(n1.snapshots)
 
+def test_merge_output_true_inplace(solved_network, merge_other):
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
-        n1.merge(n2, merge_output=True)
+        solved_network.merge(merge_other, inplace=True, merge_output=True)
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", FutureWarning)
-        n1.merge(n2, merge_output=False)
-
-
-def test_merge_output_false_inplace():
-    """merge(inplace=True, merge_output=False) clears output on self."""
-    n1 = _make_simple_network()
-    _solve_and_detach(n1)
-    assert n1.has_output is True
-
-    n2 = pypsa.Network()
-    n2.add("Bus", "bus1")
-    n2.set_snapshots(n1.snapshots)
-
-    n1.merge(n2, inplace=True, merge_output=False)
-    assert n1.has_output is False
-
-
-def test_has_output_static_only():
-    """has_output detects static output attribute changes without solve."""
-    n = _make_simple_network()
-    assert n.has_output is False
-    # Manually set a static output attribute
-    n.c.generators.static["p_nom_opt"] = 50.0
-    assert n.has_output is True
-
-
-def test_reset_after_pf():
-    """reset() clears power flow results."""
-    n = _make_simple_network()
-    n.pf()
-    assert n.has_output is True
-    n.reset()
-    assert n.has_output is False
-    # Input data should be preserved
-    assert "gen0" in n.c.generators.static.index
-    assert n.c.generators.static.loc["gen0", "p_nom"] == 100
+    assert solved_network.has_output is True
 
 
 def test_merge_other_has_output():
-    """Merging warns when only the other network has output."""
     n1 = pypsa.Network()
     n1.add("Bus", "bus0")
     n1.set_snapshots([0, 1, 2])
 
-    n2 = _make_simple_network()
-    n2.add("Bus", "bus1")  # need disjoint buses
-    n2.c.buses.static.rename(index={"bus0": "bus2"}, inplace=True)
-    # Give n2 output by setting a static output attr
+    n2 = pypsa.Network()
+    n2.add("Bus", "bus2")
+    n2.add("Generator", "gen0", bus="bus2", p_nom=100)
+    n2.set_snapshots([0, 1, 2])
     n2.c.generators.static["p_nom_opt"] = 42.0
 
     with pytest.warns(FutureWarning, match="merge_output"):
         n1.merge(n2)
-
-
-def test_merge_output_true_inplace():
-    """merge(inplace=True, merge_output=True) preserves output on self."""
-    n1 = _make_simple_network()
-    _solve_and_detach(n1)
-    assert n1.has_output is True
-
-    n2 = pypsa.Network()
-    n2.add("Bus", "bus1")
-    n2.set_snapshots(n1.snapshots)
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", FutureWarning)
-        n1.merge(n2, inplace=True, merge_output=True)
-
-    assert n1.has_output is True
-
-
-def test_output_attrs_property():
-    """output_attrs returns correct attribute names."""
-    n = _make_simple_network()
-    output = n.c.generators.output_attrs
-    assert "p_nom_opt" in output
-    # Input attrs should not be in output
-    assert "p_nom" not in output
-
-
-def test_merge_no_warn_asserts_result():
-    """Merging networks without output data succeeds with correct result."""
-    n1 = _make_simple_network()
-    n2 = pypsa.Network()
-    n2.add("Bus", "bus1")
-    n2.set_snapshots(n1.snapshots)
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", FutureWarning)
-        result = n1.merge(n2)
-
-    assert "bus0" in result.c.buses.static.index
-    assert "bus1" in result.c.buses.static.index
