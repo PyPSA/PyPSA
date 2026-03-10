@@ -22,6 +22,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add `merge_output` parameter to `Network.merge()` to control whether output data is included in the merged network. Defaults to `None` which warns and includes output data; will default to `False` in version 2.
 
+- Add configurable numerical tolerance for consistency checks via the new `params.consistency.numerical_tolerance` option (default `1e-9`). This prevents false warnings from floating-point noise when comparing attributes like `p_min_pu` vs `p_max_pu`, `p_nom_min` vs `p_nom_max`, and `e_sum_min` vs `e_sum_max`.
+
 - New Process component mirroring the behavior of a multi-port Link component with explicit rates (efficiency equivalent to the Link) at each bus, including `bus0`. The component allows to flexibly change the reference unit used for associated costs by adjusting the rates. (<!-- md:pr 1333 -->)
 
 - Add weighted-time delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior. For the Process component the corresponding attributes have explicit numbering (`delay0`, `delay1`, `delay2`, ... and `cyclic_delay0`, `cyclic_delay1`). (<!-- md:pr 1569 -->)

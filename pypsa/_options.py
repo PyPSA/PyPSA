@@ -477,6 +477,14 @@ options._add_option(
     "Setting False sets n.objective_constant to zero and improves LP numerical "
     "conditioning. None defaults to True with a FutureWarning (changes to False in v2.0).",
 )
+
+options._add_option(
+    "params.consistency.numerical_tolerance",
+    1e-9,
+    "Tolerance for numerical comparisons in consistency checks (e.g. p_min_pu > p_max_pu). "
+    "Values within this tolerance of the boundary are not flagged as inconsistent. "
+    "Set to 0 to disable tolerance and flag any violation.",
+)
 # Warnings category
 options._add_option(
     "warnings.components_store_iter",
