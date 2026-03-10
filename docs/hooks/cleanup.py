@@ -6,13 +6,6 @@ from __future__ import annotations
 
 import re
 
-try:
-    import importlib.util
-
-    GRIFFE_AVAILABLE = importlib.util.find_spec("griffe") is not None
-except ImportError:
-    GRIFFE_AVAILABLE = False
-
 
 def on_page_markdown(markdown, page, config, files):
     # Remove # doctest: +SKIP from code blocks
