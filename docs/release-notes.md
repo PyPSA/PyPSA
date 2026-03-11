@@ -33,7 +33,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- Fix `ruff check` errors in documentation hooks. (<!-- md:pr 1612 -->)
 
 - Fix call to `DataFrame/Series.groupby()` in pandas 3.0, dropping the `axis` argument (<!-- md:pr 1596 -->)
 
