@@ -5,6 +5,7 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
+
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -15,17 +16,25 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
+- Add configurable numerical tolerance for consistency checks via the new `params.consistency.numerical_tolerance` option (default `1e-9`). This prevents false warnings from floating-point noise when comparing attributes like `p_min_pu` vs `p_max_pu`, `p_nom_min` vs `p_nom_max`, and `e_sum_min` vs `e_sum_max`.
+
 - New Process component mirroring the behavior of a multi-port Link component with explicit rates (efficiency equivalent to the Link) at each bus, including `bus0`. The component allows to flexibly change the reference unit used for associated costs by adjusting the rates. (<!-- md:pr 1333 -->)
 
 - Add weighted-time delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior. For the Process component the corresponding attributes have explicit numbering (`delay0`, `delay1`, `delay2`, ... and `cyclic_delay0`, `cyclic_delay1`). (<!-- md:pr 1569 -->)
 
-### Bug Fixes
+- New parameter `meshed_thresholds` in `n.optimize` for controlling groups of buses in nodal-balance constraints. Use this to save memory in the optimization definition for large networks with many interconnected buses. (<!-- md:pr 1591 -->)
 
-- Fix call to `DataFrame/Series.groupby()` in pandas 3.0, dropping the `axis` argument (<!-- md:pr 1596 -->)
+### Deprecations
+
+- Deprecate `pypsa.optimization.common.get_strongly_meshed_buses` in favor of `get_bus_counts`. The old `meshed_threshold` model kwarg is deprecated; use `meshed_thresholds=[...]` in [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] or [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
 ### Documentation
+- Add a `groupby` argument to statistics map plotting, allowing custom bus grouping (defaults to `['bus', 'carrier']`). (<!-- md:pr 1592 -->)
 
-- New example notebook modeling oligopolistic behavior in energy markets using Cournot-Nash equilibrium with the fictitious objective approach. See [:material-notebook-multiple: notebook](./examples/imperfect-competition.ipynb).
+### Bug Fixes
+
+
+- Fix call to `DataFrame/Series.groupby()` in pandas 3.0, dropping the `axis` argument (<!-- md:pr 1596 -->)
 
 - Fix ordering of additional port columns (`bus2`, `bus3`, `efficiency2`, etc.) in multi-port component defaults — they now appear right after their base attribute instead of at the end.
 
@@ -34,6 +43,12 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fixed output of `n.controllable_branches()` to include controllable branches instead of passive branches. (<!-- md:pr 1578 -->)
 
 - Fix `expand_series` losing index name on the resulting DataFrame with pandas >= 3.0, which caused xarray alignment errors in multi-investment period optimization. (<!-- md:pr 1581 -->)
+
+- Fix transmission flows not being displayed on energy balance map plots when `bus_carrier` is specified. The map plot now explicitly requests `at_port=0`, avoiding cancellation from summing both ports. (<!-- md:pr 1592 -->)
+
+### Documentation
+
+- New example notebook modeling oligopolistic behavior in energy markets using Cournot-Nash equilibrium with the fictitious objective approach. See [:material-notebook-multiple: notebook](./examples/imperfect-competition.ipynb).
 
 ## [**v1.1.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.1.2) <small>23rd February 2026</small> { id="v1.1.2" }
 
