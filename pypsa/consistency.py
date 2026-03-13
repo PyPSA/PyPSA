@@ -18,6 +18,7 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa._options import options
+from pypsa.common import UnexpectedError
 from pypsa.constants import RE_PORTS_FILTER
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
@@ -74,8 +75,16 @@ def check_for_unknown_buses(
     for attr in _bus_columns(component.static):
         missing = ~component.static[attr].astype(str).isin(n.c.buses.names)
         # if bus2, bus3... contain empty strings do not warn
-        if component.name in n.branch_components and int(attr[-1]) > 1:
-            missing &= component.static[attr] != ""
+        if component.name in n.branch_components:
+            # extract port number from column name
+            port_match = re.search("\\d+$", attr)
+            if port_match is None:
+                msg = f"Attribute name '{attr}' of {component.name} must contain port number"
+                raise UnexpectedError(msg)
+            port = int(port_match[0])
+
+            if port > 1:
+                missing &= component.static[attr] != ""
         # if bus contains empty strings for global constraints do not warn
         if component.name == "GlobalConstraint":
             missing &= component.static[attr] != ""
