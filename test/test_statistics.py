@@ -567,3 +567,11 @@ def test_market_value_withdrawing_load_sign():
     )
     np.testing.assert_allclose(mv.loc["load"], expected, rtol=1e-10)
     assert mv.loc["load"] < 0
+
+
+def test_market_value_grouped_branches_is_finite(ac_dc_network_r):
+    n = ac_dc_network_r
+    mv = n.statistics.market_value(nice_names=False, round=None, drop_zero=False)
+
+    assert np.isfinite(mv.loc[("Link", "DC")])
+    assert np.isfinite(mv.loc[("Line", "AC")])

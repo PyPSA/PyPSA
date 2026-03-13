@@ -322,9 +322,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     Optimal Capacity  ...  Market Value
     Generator gas          982.03448  ...   1559.511099
               wind        7292.13406  ...    589.813549
-    Line      AC          5613.82931  ...    -43.277041
-    Link      DC          4003.90110  ...      0.132018
-    Load      load           0.00000  ...           NaN
+    Line      AC          5613.82931  ...      0.022593
+    Link      DC          4003.90110  ...      0.059051
+    Load      load           0.00000  ...   -633.512009
     <BLANKLINE>
     [5 rows x 12 columns]
 
@@ -2742,7 +2742,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 sign = (
                     -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
                 )
-                p = sign * get_operation(n, c)
+                p = (sign * get_operation(n, c)).abs()
                 weights = n.snapshot_weightings.generators
                 return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
