@@ -17,6 +17,7 @@ from pypsa.clustering.spatial import (
 
 pytest.importorskip("sklearn")
 
+
 def test_aggregate_generators(ac_dc_network):
     n = ac_dc_network
     busmap = pd.Series("all", n.c.buses.static.index)
