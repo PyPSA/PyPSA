@@ -542,3 +542,28 @@ def test_market_value_generator(multiport_network):
     price = np.array([50.0, 40.0, 45.0])
     expected = (p * price).mean() / p.mean()
     np.testing.assert_allclose(mv.loc["AC"], expected, rtol=1e-6)
+
+
+def test_market_value_withdrawing_load_sign():
+    n = pypsa.Network()
+    n.set_snapshots([0, 1])
+    n.add("Carrier", "AC")
+    n.add("Carrier", "load")
+    n.add("Bus", "b", carrier="AC")
+    n.add("Load", "l", bus="b", carrier="load", p_set=[10.0, 20.0])
+    n.c.loads.dynamic["p"] = n.c.loads.dynamic["p_set"].copy()
+
+    marginal_price = pd.DataFrame({"b": [50.0, 100.0]}, index=n.snapshots)
+    marginal_price.columns.name = "name"
+    n.c.buses.dynamic["marginal_price"] = marginal_price
+
+    mv = n.statistics.market_value(
+        components="Load", nice_names=False, round=None, drop_zero=False
+    )
+
+    expected = (
+        -(np.array([10.0, 20.0]) * np.array([50.0, 100.0])).mean()
+        / np.array([10.0, 20.0]).mean()
+    )
+    np.testing.assert_allclose(mv.loc["load"], expected, rtol=1e-10)
+    assert mv.loc["load"] < 0
