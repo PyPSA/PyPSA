@@ -81,6 +81,22 @@ jobs:
         name: Packages
         path: dist
 
+    - name: Install base package and dependencies
+      if: matrix.api == 'new_api' && matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest'
+      run: |
+        # this install base pypsa without additional features
+        # to ensure that pandas 3 is tested
+        python -m pip install uv
+        uv sync --extra test --no-install-project
+        uv pip install "$(ls dist/*.whl)" pypower
+
+    - name: Run unit tests (new API for Pandas 3)
+      if: matrix.api == 'new_api' && matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest'
+      run: >
+        uv run pytest
+        --new-components-api
+        --mpl
+
     - name: Install package and dependencies
       if: matrix.python-version != '3.14'
       run: |
