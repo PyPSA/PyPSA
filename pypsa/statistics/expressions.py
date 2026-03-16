@@ -2738,7 +2738,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             rev = self.revenue(**revenue_kwargs)
 
             @pass_empty_series_if_keyerror
-            def ref_func(n: Network, c: str, port: str) -> pd.Series:
+            def func(n: Network, c: str, port: str) -> pd.Series:
                 sign = (
                     -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
                 )
@@ -2747,7 +2747,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
             denom = self._aggregate_components(
-                ref_func,
+                func,
                 components=components,
                 agg=groupby_method,
                 aggregate_across_components=aggregate_across_components,

@@ -436,44 +436,16 @@ def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
     assert result.empty
 
 
-@pytest.fixture
-def multiport_network():
-    n = pypsa.Network()
-    n.set_snapshots([0, 1, 2])
-    for c in ["AC", "H2", "electrolysis"]:
-        n.add("Carrier", c)
-    n.add("Bus", "elec", carrier="AC")
-    n.add("Bus", "h2", carrier="H2")
-    n.add("Generator", "gen", bus="elec", carrier="AC", p_nom=200, marginal_cost=10)
-    n.add(
-        "Link",
-        "electrolysis",
-        bus0="elec",
-        bus1="h2",
-        carrier="electrolysis",
-        p_nom=100,
-        efficiency=0.7,
-    )
-    n.add("Load", "h2_load", bus="h2", carrier="H2", p_set=50)
-
-    def _df(data):
-        df = pd.DataFrame(data, index=n.snapshots)
-        df.columns.name = "name"
-        return df
-
-    p = _df({"electrolysis": [80.0, 60.0, 70.0]})
-    n.c.links.dynamic["p"] = p
-    n.c.links.dynamic["p0"] = p.copy()
-    n.c.links.dynamic["p1"] = -p * 0.7
-    n.c.generators.dynamic["p"] = _df({"gen": [130.0, 110.0, 120.0]})
-    n.c.loads.dynamic["p"] = _df({"h2_load": [50.0, 50.0, 50.0]})
-    n.c.buses.dynamic["marginal_price"] = _df(
-        {"elec": [50.0, 40.0, 45.0], "h2": [100.0, 90.0, 95.0]}
-    )
-    return n
+P_PROC = np.array([80.0, 60.0, 70.0])
+P_GEN = np.array([130.0, 110.0, 120.0])
+PRICE_ELEC = np.array([50.0, 40.0, 45.0])
+PRICE_H2 = np.array([100.0, 90.0, 95.0])
+PRICE_HEAT = np.array([30.0, 25.0, 28.0])
+RATE1 = 0.7
+RATE2 = 0.2
 
 
-def test_get_operation(ac_dc_network_r, multiport_network):
+def test_get_operation(ac_dc_network_r, multiport_process_network):
     n = ac_dc_network_r
     pd.testing.assert_frame_equal(get_operation(n, "Link"), n.c.links.dynamic["p0"])
     pd.testing.assert_frame_equal(get_operation(n, "Line"), n.c.lines.dynamic["p0"])
@@ -481,66 +453,60 @@ def test_get_operation(ac_dc_network_r, multiport_network):
         get_operation(n, "Generator"), n.c.generators.dynamic["p"]
     )
     pd.testing.assert_frame_equal(
-        get_operation(multiport_network, "Link"),
-        multiport_network.c.links.dynamic["p"],
+        get_operation(multiport_process_network, "Process"),
+        multiport_process_network.c.processes.dynamic["p"],
     )
 
 
-def test_get_operation_process():
-    n = pypsa.Network()
-    n.set_snapshots([0, 1])
-    n.add("Bus", "b0", carrier="AC")
-    n.add("Bus", "b1", carrier="H2")
-    n.add("Process", "proc", bus0="b0", bus1="b1", rate0=-1.0, rate1=0.7)
-    p = pd.DataFrame({"proc": [50.0, 30.0]}, index=n.snapshots)
-    n.c.processes.dynamic["p"] = p
-    n.c.processes.dynamic["p0"] = -p
-    pd.testing.assert_frame_equal(get_operation(n, "Process"), p)
-
-
-def test_market_value_multiport(multiport_network):
-    n = multiport_network
+def test_market_value_multiport(multiport_process_network):
+    n = multiport_process_network
     mv = n.statistics.market_value(nice_names=False, round=None, drop_zero=False)
 
-    p = np.array([80.0, 60.0, 70.0])
-    price_elec = np.array([50.0, 40.0, 45.0])
-    price_h2 = np.array([100.0, 90.0, 95.0])
-    rev_per_t = (-p * price_elec) + (p * 0.7 * price_h2)
-    expected = rev_per_t.mean() / p.mean()
-    np.testing.assert_allclose(mv.loc[("Link", "electrolysis")], expected, rtol=1e-10)
+    rev_per_t = (
+        (-P_PROC * PRICE_ELEC)
+        + (P_PROC * RATE1 * PRICE_H2)
+        + (P_PROC * RATE2 * PRICE_HEAT)
+    )
+    expected = rev_per_t.mean() / P_PROC.mean()
+    np.testing.assert_allclose(mv.loc[("Process", "electrolyser")], expected, rtol=1e-6)
 
 
-def test_market_value_with_bus_carrier(multiport_network):
-    n = multiport_network
-    p = np.array([80.0, 60.0, 70.0])
+def test_market_value_with_bus_carrier(multiport_process_network):
+    n = multiport_process_network
 
     mv_ac = n.statistics.market_value(
         bus_carrier="AC", nice_names=False, round=None, drop_zero=False
     )
-    expected_ac = (-p * np.array([50.0, 40.0, 45.0])).mean() / p.mean()
+    expected_ac = (-P_PROC * PRICE_ELEC).mean() / P_PROC.mean()
     np.testing.assert_allclose(
-        mv_ac.loc[("Link", "electrolysis")], expected_ac, rtol=1e-6
+        mv_ac.loc[("Process", "electrolyser")], expected_ac, rtol=1e-6
     )
 
     mv_h2 = n.statistics.market_value(
         bus_carrier="H2", nice_names=False, round=None, drop_zero=False
     )
-    p1 = p * 0.7
-    price_h2 = np.array([100.0, 90.0, 95.0])
-    expected_h2 = (p1 * price_h2).mean() / p1.mean()
+    p1 = P_PROC * RATE1
+    expected_h2 = (p1 * PRICE_H2).mean() / p1.mean()
     np.testing.assert_allclose(
-        mv_h2.loc[("Link", "electrolysis")], expected_h2, rtol=1e-6
+        mv_h2.loc[("Process", "electrolyser")], expected_h2, rtol=1e-6
+    )
+
+    mv_heat = n.statistics.market_value(
+        bus_carrier="heat", nice_names=False, round=None, drop_zero=False
+    )
+    p2 = P_PROC * RATE2
+    expected_heat = (p2 * PRICE_HEAT).mean() / p2.mean()
+    np.testing.assert_allclose(
+        mv_heat.loc[("Process", "electrolyser")], expected_heat, rtol=1e-6
     )
 
 
-def test_market_value_generator(multiport_network):
-    n = multiport_network
+def test_market_value_generator(multiport_process_network):
+    n = multiport_process_network
     mv = n.statistics.market_value(
         components="Generator", nice_names=False, round=None, drop_zero=False
     )
-    p = np.array([130.0, 110.0, 120.0])
-    price = np.array([50.0, 40.0, 45.0])
-    expected = (p * price).mean() / p.mean()
+    expected = (P_GEN * PRICE_ELEC).mean() / P_GEN.mean()
     np.testing.assert_allclose(mv.loc["AC"], expected, rtol=1e-6)
 
 
@@ -561,10 +527,9 @@ def test_market_value_withdrawing_load_sign():
         components="Load", nice_names=False, round=None, drop_zero=False
     )
 
-    expected = (
-        -(np.array([10.0, 20.0]) * np.array([50.0, 100.0])).mean()
-        / np.array([10.0, 20.0]).mean()
-    )
+    p_load = np.array([10.0, 20.0])
+    price_load = np.array([50.0, 100.0])
+    expected = -(p_load * price_load).mean() / p_load.mean()
     np.testing.assert_allclose(mv.loc["load"], expected, rtol=1e-10)
     assert mv.loc["load"] < 0
 

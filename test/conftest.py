@@ -255,6 +255,52 @@ def networks_including_solved(request):
 
 
 @pytest.fixture
+def multiport_process_network():
+    n = pypsa.Network()
+    n.set_snapshots([0, 1, 2])
+    for c in ["AC", "H2", "heat", "electrolyser"]:
+        n.add("Carrier", c)
+    n.add("Bus", "elec", carrier="AC")
+    n.add("Bus", "h2", carrier="H2")
+    n.add("Bus", "heat", carrier="heat")
+    n.add("Generator", "gen", bus="elec", carrier="AC", p_nom=200, marginal_cost=10)
+    n.add(
+        "Process",
+        "electrolyser",
+        bus0="elec",
+        bus1="h2",
+        bus2="heat",
+        carrier="electrolyser",
+        rate0=-1,
+        rate1=0.7,
+        rate2=0.2,
+        p_nom=100,
+    )
+    n.add("Load", "h2_load", bus="h2", carrier="H2", p_set=50)
+
+    def _df(data):
+        df = pd.DataFrame(data, index=n.snapshots)
+        df.columns.name = "name"
+        return df
+
+    p = _df({"electrolyser": [80.0, 60.0, 70.0]})
+    n.c.processes.dynamic["p"] = p
+    n.c.processes.dynamic["p0"] = p.copy()
+    n.c.processes.dynamic["p1"] = -p * 0.7
+    n.c.processes.dynamic["p2"] = -p * 0.2
+    n.c.generators.dynamic["p"] = _df({"gen": [130.0, 110.0, 120.0]})
+    n.c.loads.dynamic["p"] = _df({"h2_load": [50.0, 50.0, 50.0]})
+    n.c.buses.dynamic["marginal_price"] = _df(
+        {
+            "elec": [50.0, 40.0, 45.0],
+            "h2": [100.0, 90.0, 95.0],
+            "heat": [30.0, 25.0, 28.0],
+        }
+    )
+    return n
+
+
+@pytest.fixture
 def network_collection(ac_dc_network_r):
     return pypsa.NetworkCollection(
         [ac_dc_network_r],
