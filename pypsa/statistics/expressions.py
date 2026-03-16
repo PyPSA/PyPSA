@@ -2653,7 +2653,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
           divided by the reference operational variable. Units are
           `currency/MWh` of the component's reference carrier (e.g., €/MWh_el
           for electrolysis consuming electricity at bus0).
-        - **With `bus_carrier`**: Returns revenue at the specified bus carrier's
+        - **With `bus_carrier`**: Returns revenue at the specified bus carriers'
           ports divided by the energy balance at those ports. Units are
           `currency/MWh_{bus_carrier}`.
 
