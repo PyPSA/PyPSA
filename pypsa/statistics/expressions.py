@@ -370,17 +370,49 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return pd.concat(dfs, axis=1)
 
     @staticmethod
+    def _weighted_sum_per_network(df: pd.DataFrame, weights: pd.Series) -> pd.Series:
+        """Compute weighted sums per network for collection statistics.
+
+        Splits the MultiIndex-indexed weights and MultiIndex-columned DataFrame
+        by network key and computes `weights @ df` independently per network.
+        """
+        n_network_levels = weights.index.nlevels - 1
+        network_names = weights.index.names[:n_network_levels]
+        network_keys = weights.index.droplevel(-1).unique()
+
+        if not weights.index.is_monotonic_increasing:
+            weights = weights.sort_index()
+        if not df.columns.is_monotonic_increasing:
+            df = df.sort_index(axis=1)
+
+        results = {}
+        for key in network_keys:
+            sub_weights = weights.loc[key]
+            sub_df = df[key].reindex(sub_weights.index).fillna(0)
+            results[key] = sub_weights @ sub_df
+
+        result = pd.concat(results)
+        for i, name in enumerate(network_names):
+            result.index = result.index.set_names(name, level=i)
+        return result
+
+    @staticmethod
     def _aggregate_with_weights(
         df: pd.DataFrame,
         weights: pd.Series,
         agg: str | Callable,
     ) -> pd.Series | pd.DataFrame:
-        if agg == "sum":
-            if isinstance(weights.index, pd.MultiIndex):
-                return df.multiply(weights, axis=0).groupby(level=0).sum().T
+        if agg != "sum":
+            return df.agg(agg)
+
+        if not isinstance(weights.index, pd.MultiIndex):
             return weights @ df
-        # Todo: here we leave out the weights, is that correct?
-        return df.agg(agg)
+
+        is_collection = isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1
+        if is_collection:
+            return StatisticsAccessor._weighted_sum_per_network(df, weights)
+
+        return df.multiply(weights, axis=0).groupby(level=0).sum().T
 
     def _aggregate_components_groupby(
         self, vals: pd.DataFrame, grouping: dict, agg: Callable | str, c: str

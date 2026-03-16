@@ -4,6 +4,7 @@
 
 """Tests for NetworkCollection statistics with various groupers."""
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -562,3 +563,85 @@ def test_network_collection_bus_carrier_filter(
         collection_result_first.sort_index(),
         check_names=False,
     )
+
+
+def _make_optimized_network(
+    name: str,
+    snapshots: pd.DatetimeIndex,
+    p_set: list[float],
+    weightings: list[float] | None = None,
+) -> pypsa.Network:
+    """Create and optimize a simple single-bus network."""
+    n = pypsa.Network()
+    n.name = name
+    n.set_snapshots(snapshots)
+    if weightings is not None:
+        n.snapshot_weightings.loc[:, :] = weightings
+    n.add("Bus", "bus0", carrier="AC")
+    n.add("Carrier", ["AC", "gas"])
+    n.add("Generator", "gen0", bus="bus0", carrier="gas", p_nom=100, marginal_cost=10)
+    n.add("Load", "load0", bus="bus0", p_set=p_set)
+    n.optimize()
+    return n
+
+
+def _assert_collection_matches_individuals(
+    nc: pypsa.NetworkCollection,
+    networks: dict[str, pypsa.Network],
+) -> None:
+    """Assert that collection statistics match individual network statistics."""
+    for method in ["supply", "opex", "energy_balance"]:
+        nc_result = getattr(nc.statistics, method)()
+        assert not nc_result.empty
+
+        for label, n in networks.items():
+            individual = getattr(n.statistics, method)()
+            from_collection = nc_result.xs(label, level="network")
+            np.testing.assert_allclose(
+                from_collection.sort_index().values,
+                individual.sort_index().values,
+                err_msg=f"{method} mismatch for network '{label}'",
+            )
+
+
+def test_network_collection_different_snapshots():
+    """Test NetworkCollection statistics with disjoint snapshots."""
+    n1 = _make_optimized_network(
+        "hourly",
+        pd.date_range("2020-01-01", periods=3, freq="h"),
+        p_set=[50, 60, 70],
+    )
+    n2 = _make_optimized_network(
+        "segmented",
+        pd.date_range("2020-01-01 03:00", periods=2, freq="h"),
+        p_set=[80, 90],
+    )
+    nc = pypsa.NetworkCollection([n1, n2])
+    _assert_collection_matches_individuals(nc, {"hourly": n1, "segmented": n2})
+
+    full = nc.statistics()
+    assert not full.empty
+    assert "Supply" in full.columns
+    assert "Operational Expenditure" in full.columns
+
+
+def test_network_collection_overlapping_snapshots():
+    """Test NetworkCollection statistics with partially overlapping snapshots."""
+    sns = pd.date_range("2020-01-01", periods=4, freq="h")
+    n1 = _make_optimized_network("net1", sns[:3], p_set=[50, 60, 70])
+    n2 = _make_optimized_network("net2", sns[1:], p_set=[60, 70, 80])
+    nc = pypsa.NetworkCollection([n1, n2])
+    _assert_collection_matches_individuals(nc, {"net1": n1, "net2": n2})
+
+
+def test_network_collection_different_snapshot_weightings():
+    """Test NetworkCollection statistics with non-uniform snapshot weightings."""
+    sns = pd.date_range("2020-01-01", periods=3, freq="h")
+    n1 = _make_optimized_network("weighted", sns, p_set=[50, 60, 70], weightings=[2])
+    n2 = _make_optimized_network(
+        "uniform",
+        pd.date_range("2020-01-01 03:00", periods=2, freq="h"),
+        p_set=[80, 90],
+    )
+    nc = pypsa.NetworkCollection([n1, n2])
+    _assert_collection_matches_individuals(nc, {"weighted": n1, "uniform": n2})

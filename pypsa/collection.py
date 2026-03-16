@@ -477,9 +477,7 @@ class NetworkCollection:
 
         """
         if len(self.networks) <= 1:
-            return  # No validation needed for single network or empty collection
-
-        # TODO: Implement basic validation of network compatibility
+            return
 
 
 _all_components = (
@@ -517,7 +515,8 @@ def _get_method_patterns() -> dict[str, str]:
         rf"({_component_classes}.capital_cost)|"
         rf"({_component_classes}.annuity)|"
         rf"static|"
-        rf"get_active_assets"
+        rf"get_active_assets|"
+        rf"snapshot_weightings"
         rf")$",
         # ---------------
         "horizontal_concat": rf"^("
@@ -530,7 +529,6 @@ def _get_method_patterns() -> dict[str, str]:
         "return_from_first": r"^("
         r"\S+_components|"
         r"snapshots|"
-        r"snapshot_weightings|"
         r"bus_carrier_unit|"
         rf"({_component_classes}\.(name|ports|_as_port|_as_ports))|"
         r")$",
