@@ -83,6 +83,35 @@ def component_name(request):
     return request.param
 
 
+def mock_single_bus_dispatch(
+    name: str,
+    snapshots: pd.DatetimeIndex,
+    p_set: list[float],
+    weightings: list[float] | None = None,
+    marginal_cost: float = 10,
+) -> pypsa.Network:
+    """Create a single-bus network with hard-set dispatch results (no solver)."""
+    n = pypsa.Network()
+    n.name = name
+    n.set_snapshots(snapshots)
+    if weightings is not None:
+        n.snapshot_weightings.loc[:, :] = weightings
+    n.add("Bus", "bus0", carrier="AC")
+    n.add("Carrier", ["AC", "gas"])
+    n.add(
+        "Generator",
+        "gen0",
+        bus="bus0",
+        carrier="gas",
+        p_nom=100,
+        marginal_cost=marginal_cost,
+    )
+    n.add("Load", "load0", bus="bus0", p_set=p_set)
+    n.c.generators.dynamic["p"].loc[:, "gen0"] = p_set
+    n.c.buses.dynamic["marginal_price"].loc[:, "bus0"] = marginal_cost
+    return n
+
+
 # Example Networks
 
 
