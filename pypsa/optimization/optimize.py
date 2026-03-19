@@ -735,6 +735,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # Handle StorageUnit p_set separately (fixes p_dispatch - p_store = p_set)
         define_fixed_operation_constraints(n, sns, "StorageUnit", "p")
+        # Handle Store p_set
+        define_fixed_operation_constraints(n, sns, "Store", "p")
 
         thresholds = (
             sorted(set(meshed_thresholds))
