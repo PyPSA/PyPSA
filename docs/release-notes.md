@@ -24,6 +24,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - New parameter `meshed_thresholds` in `n.optimize` for controlling groups of buses in nodal-balance constraints. Use this to save memory in the optimization definition for large networks with many interconnected buses. (<!-- md:pr 1591 -->)
 
+- `p_set` on `Store` components is now supported in lopf optimisation. (<!-- md:pr 1623 -->)
+
 ### Deprecations
 
 - Deprecate `pypsa.optimization.common.get_strongly_meshed_buses` in favor of `get_bus_counts`. The old `meshed_threshold` model kwarg is deprecated; use `meshed_thresholds=[...]` in [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] or [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
