@@ -134,3 +134,26 @@ def test_storage_unit_p_set():
 
     # Check that p = p_dispatch - p_store equals p_set
     equal(n.c.storage_units.dynamic.p["storage"].values, [-10, 0, 5, 0], decimal=5)
+
+
+def test_store_p_set():
+    """Test p_set for Store components."""
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=10)
+    n.add("Load", "load", bus="bus", p_set=[20, 30, 25, 35])
+
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=100,
+        p_set=[-10, 0, 5, 0],  # negative=charge, positive=discharge
+        e_initial=10,
+    )
+
+    n.optimize()
+
+    equal(n.c.stores.dynamic.p["store"].values, [-10, 0, 5, 0], decimal=5)
