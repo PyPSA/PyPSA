@@ -48,6 +48,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix `apply_cmap` failing for `pandas.StringDtype` when using pandas 3.0 (<!-- md:pr 1613 -->)
 
+- Fix identification of port number when checking for missing buses as part of consistency checks (<!-- md:pr 1619 -->)
+
 ### Documentation
 
 - New example notebook modeling oligopolistic behavior in energy markets using Cournot-Nash equilibrium with the fictitious objective approach. See [:material-notebook-multiple: notebook](./examples/imperfect-competition.ipynb).
