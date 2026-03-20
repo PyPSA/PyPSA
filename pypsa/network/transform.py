@@ -374,7 +374,7 @@ class NetworkTransformMixin(_NetworkABC):
         self,
         class_name: str,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
     ) -> None:
         """Remove a single component or a list of components from the network.
 
@@ -386,8 +386,8 @@ class NetworkTransformMixin(_NetworkABC):
             Component class name
         name : str, int, list-like or pandas.Index
             Component name(s)
-        suffix : str, default=''
-            Suffix to be added to the component name(s)
+        suffix : str or list-like, default=''
+            Suffix(es) to be added to the component name(s)
 
         Examples
         --------
@@ -423,6 +423,9 @@ class NetworkTransformMixin(_NetworkABC):
 
         Remove multiple components:
         >>> n.remove("Bus", ["bus0", "bus1"])
+
+        Remove multiple components with diferent suffixes:
+        >>> n.remove("Bus", "bus", ["0", "1"])
 
         >>> n.components.buses.static
         Empty DataFrame
