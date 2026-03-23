@@ -33,7 +33,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- Fix `get_operation` to correctly return the reference operational variable (`p`) for Link and Process components instead of `p0`. For Process components, `p ≠ p0` so this was a bug.
+- Fix `get_operation` to correctly return the reference operational variable (`p`) for Link and Process components instead of `p0`.
 
 - Fix `market_value` to correctly handle multi-port components (Links, Processes) by using total revenue across all ports divided by the reference operational variable when no `bus_carrier` is specified, and using `energy_balance` instead of `supply` when `bus_carrier` is specified.
 
