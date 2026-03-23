@@ -465,25 +465,49 @@ def test_market_value_multiport(multiport_process_network):
 
 
 @pytest.mark.parametrize(
-    ("bus_carrier", "port", "bus", "sign"),
+    ("bus_carrier", "port", "bus"),
     [
-        ("AC", "p0", "elec", -1),
-        ("H2", "p1", "h2", 1),
-        ("heat", "p2", "heat", 1),
+        ("AC", "p0", "elec"),
+        ("H2", "p1", "h2"),
+        ("heat", "p2", "heat"),
     ],
 )
 def test_market_value_with_bus_carrier(
-    multiport_process_network, bus_carrier, port, bus, sign
+    multiport_process_network, bus_carrier, port, bus
 ):
     n = multiport_process_network
     mv = n.statistics.market_value(
         bus_carrier=bus_carrier, nice_names=False, round=None, drop_zero=False
     )
 
+    reference_operation = n.c.processes.dynamic["p"]["electrolyser"]
     operation = n.c.processes.dynamic[port]["electrolyser"]
     prices = n.c.buses.dynamic["marginal_price"][bus]
-    expected = (sign * operation * prices).mean() / operation.mean()
+    expected = -(operation * prices).mean() / reference_operation.mean()
     np.testing.assert_allclose(mv.loc[("Process", "electrolyser")], expected, rtol=1e-6)
+
+
+def test_market_value_bus_carrier_additivity(multiport_process_network):
+    n = multiport_process_network
+    mv_total = n.statistics.market_value(groupby=False, nice_names=False, round=None)
+    mv_ac = n.statistics.market_value(
+        groupby=False, bus_carrier="AC", nice_names=False, round=None
+    )
+    mv_h2 = n.statistics.market_value(
+        groupby=False, bus_carrier="H2", nice_names=False, round=None
+    )
+    mv_heat = n.statistics.market_value(
+        groupby=False, bus_carrier="heat", nice_names=False, round=None
+    )
+
+    expected = (
+        mv_ac.loc[("Process", "electrolyser")]
+        + mv_h2.loc[("Process", "electrolyser")]
+        + mv_heat.loc[("Process", "electrolyser")]
+    )
+    np.testing.assert_allclose(
+        mv_total.loc[("Process", "electrolyser")], expected, rtol=1e-6
+    )
 
 
 def test_market_value_generator(multiport_process_network):

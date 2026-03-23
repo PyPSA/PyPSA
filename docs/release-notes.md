@@ -35,7 +35,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix `get_operation` to correctly return the reference operational variable (`p`) for Link and Process components instead of `p0`.
 
-- Fix `market_value` to correctly handle multi-port components (Links, Processes) by using total revenue across all ports divided by the reference operational variable when no `bus_carrier` is specified, and using `energy_balance` instead of `supply` when `bus_carrier` is specified.
+- Fix `market_value` to correctly handle multi-port components (Links, Processes) by always normalizing revenue with the reference operational variable while allowing `bus_carrier` to filter the revenue contribution in the numerator.
 
 - Fix `ruff check` errors in documentation hooks. (<!-- md:pr 1612 -->)
 

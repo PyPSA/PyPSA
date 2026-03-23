@@ -2644,18 +2644,19 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **market value** of components in the network.
 
-        Currency is currency/MWh or currency/unit_{bus_carrier} where
-        unit_{bus_carrier} is the unit of the bus carrier.
+        Currency is given per unit of the component's reference operational
+        variable.
 
-        The behavior depends on whether `bus_carrier` is specified:
+        The market value is always calculated relative to the component's
+        reference operational variable from
+        [get_operation][pypsa.statistics.expressions.get_operation]. Filters such as
+        `bus_carrier` and `at_port` only restrict the revenue contribution in the
+        numerator.
 
         - **Default (no `bus_carrier`)**: Returns total revenue across all ports
-          divided by the reference operational variable. Units are
-          `currency/MWh` of the component's reference carrier (e.g., €/MWh_el
-          for electrolysis consuming electricity at bus0).
+          divided by the reference operational variable.
         - **With `bus_carrier`**: Returns revenue at the specified bus carriers'
-          ports divided by the energy balance at those ports. Units are
-          `currency/MWh_{bus_carrier}`.
+          ports divided by the same reference operational variable.
 
         Parameters
         ----------
@@ -2731,38 +2732,35 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             "round": round,
         }
 
-        if bus_carrier is not None:
-            df = self.revenue(**kwargs) / self.energy_balance(**kwargs).abs()
-        else:
-            revenue_kwargs = {**kwargs, "at_port": "all"}
-            rev = self.revenue(**revenue_kwargs)
+        revenue_kwargs = {**kwargs, "at_port": at_port}
+        if bus_carrier is None and at_port == "all":
+            revenue_kwargs["at_port"] = "all"
+        rev = self.revenue(**revenue_kwargs)
 
-            @pass_empty_series_if_keyerror
-            def func(n: Network, c: str, port: str) -> pd.Series:
-                sign = (
-                    -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
-                )
-                p = (sign * get_operation(n, c)).abs()
-                weights = n.snapshot_weightings.generators
-                return self._aggregate_timeseries(p, weights, agg=groupby_time)
+        @pass_empty_series_if_keyerror
+        def func(n: Network, c: str, port: str) -> pd.Series:
+            sign = -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
+            p = (sign * get_operation(n, c)).abs()
+            weights = n.snapshot_weightings.generators
+            return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
-            denom = self._aggregate_components(
-                func,
-                components=components,
-                agg=groupby_method,
-                aggregate_across_components=aggregate_across_components,
-                groupby=groupby,
-                at_port=[0],
-                carrier=carrier,
-                bus_carrier=None,
-                nice_names=nice_names,
-                drop_zero=False,
-                round=None,
-            )
-            df = rev / denom.abs()
+        denom = self._aggregate_components(
+            func,
+            components=components,
+            agg=groupby_method,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port=[0],
+            carrier=carrier,
+            bus_carrier=None,
+            nice_names=nice_names,
+            drop_zero=False,
+            round=None,
+        )
+        df = rev / denom.abs()
 
         df.attrs["name"] = "Market Value"
-        df.attrs["unit"] = "currency / MWh"
+        df.attrs["unit"] = "currency / operational unit"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
