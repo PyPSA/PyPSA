@@ -71,6 +71,32 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
     c.dynamic[attr] = result.fillna(0.0)
 
 
+def get_bus_counts(n: Network) -> pd.Series:
+    """Count how often each bus appears in component bus columns.
+
+    Parameters
+    ----------
+    n : Network
+        The network to analyze.
+
+    Returns
+    -------
+    pandas.Series
+        Bus usage counts indexed by bus name.
+
+    """
+    all_buses = pd.Series(
+        hstack([ravel(c.static.filter(regex=RE_PORTS.pattern)) for c in n.components])
+    )
+    all_buses = all_buses[all_buses != ""]
+    return all_buses.value_counts()
+
+
+@deprecated(
+    deprecated_in="1.1.3",
+    removed_in="2.0.0",
+    details="Use `get_bus_counts(n).loc[lambda s: s > threshold].index` instead.",
+)
 def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     """Get the buses which are strongly meshed in the network.
 
@@ -86,11 +112,7 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     pandas series of all meshed buses.
 
     """
-    all_buses = pd.Series(
-        hstack([ravel(c.static.filter(regex=RE_PORTS.pattern)) for c in n.components])
-    )
-    all_buses = all_buses[all_buses != ""]
-    counts = all_buses.value_counts()
+    counts = get_bus_counts(n)
     results = counts.index[counts > threshold].rename("Bus")
     results = results.sort_values()
     return results

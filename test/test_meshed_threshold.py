@@ -3,9 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 import pandas as pd
+import pytest
 
 import pypsa
-from pypsa.optimization.common import get_strongly_meshed_buses
+from pypsa.optimization.common import get_bus_counts, get_strongly_meshed_buses
 
 
 def test_meshed_threshold():
@@ -117,11 +118,61 @@ def test_meshed_threshold():
             )
 
     expected_retCode = pd.Index([], name="Bus-meshed")
-    retCode = get_strongly_meshed_buses(network)
+    with pytest.deprecated_call():
+        retCode = get_strongly_meshed_buses(network)
 
     assert len(retCode) == len(expected_retCode)
 
     expected_retCode = pd.Index(["Country1"], name="Bus-meshed")
-    retCode = get_strongly_meshed_buses(network, threshold=10)
+    with pytest.deprecated_call():
+        retCode = get_strongly_meshed_buses(network, threshold=10)
 
     assert len(retCode) == len(expected_retCode)
+
+
+def test_get_bus_counts_basic():
+    n = pypsa.Network()
+    n.add("Bus", "b0")
+    n.add("Bus", "b1")
+    n.add("Generator", "g", bus="b0", p_nom=1)
+    n.add("Load", "l", bus="b0", p_set=1)
+    n.add("Link", "k", bus0="b0", bus1="b1", p_nom=1)
+
+    counts = get_bus_counts(n)
+
+    assert counts["b0"] == 3
+    assert counts["b1"] == 1
+
+
+def test_get_strongly_meshed_buses_deprecated():
+    n = pypsa.Network()
+    n.add("Bus", "b0")
+
+    with pytest.deprecated_call():
+        get_strongly_meshed_buses(n)
+
+
+def test_meshed_thresholds_skip_isolated_buses():
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Bus", "b0")
+    n.add("Bus", "b1")
+    n.add("Generator", "g", bus="b0", p_nom=1, marginal_cost=1)
+    n.add("Load", "l", bus="b0", p_set=1)
+
+    n.optimize.create_model()
+
+    names_dim = n.model.constraints["Bus-nodal_balance"].coords["name"].to_index()
+    assert "b0" in names_dim
+    assert "b1" not in names_dim
+
+
+def test_meshed_threshold_backward_compatibility_warning():
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Bus", "b0")
+    n.add("Generator", "g", bus="b0", p_nom=1, marginal_cost=1)
+    n.add("Load", "l", bus="b0", p_set=1)
+
+    with pytest.warns(FutureWarning, match="meshed_threshold"):
+        n.optimize.create_model(meshed_threshold=10)

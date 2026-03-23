@@ -269,10 +269,10 @@ def aggregateoneport(
     capacity = static.columns.intersection({"p_nom", "e_nom"})
     if len(capacity):
         capacity_weights = (
-            static[capacity[0]].groupby(grouper, axis=0).transform(normed_or_uniform)
+            static[capacity[0]].groupby(grouper).transform(normed_or_uniform)
         )
     if "weight" in static.columns:
-        weights = static.weight.groupby(grouper, axis=0).transform(normed_or_uniform)
+        weights = static.weight.groupby(grouper).transform(normed_or_uniform)
 
     for k, v in static_strategies.items():
         if v == "weighted_average":
@@ -446,7 +446,7 @@ def aggregatelines(
     length_factor = (static.length / orig_length).where(orig_length > 0, static.length)
     v_nom = pd.concat(
         [static.bus0.map(buses.v_nom), static.bus1.map(buses.v_nom)], axis=1
-    ).max(1)
+    ).max(axis=1)
     voltage_factor = (orig_v_nom / v_nom) ** 2
     capacity_weights = static.groupby(grouper).s_nom.transform(normed_or_uniform)
 

@@ -53,7 +53,7 @@ def test_operational_limit_storage_hvdc(storage_hvdc_network):
 
     soc_diff = (
         n.c.storage_units.static.state_of_charge_initial.sum()
-        - n.c.storage_units.dynamic.state_of_charge.sum(1).iloc[-1]
+        - n.c.storage_units.dynamic.state_of_charge.sum(axis=1).iloc[-1]
     )
     assert soc_diff.round(3) == limit
 
