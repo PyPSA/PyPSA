@@ -539,6 +539,27 @@ def test_check_for_unknown_buses(caplog, strict):
     assert_log_or_error_in_consistency(n, caplog, strict=strict)
 
 
+def test_check_for_unknown_buses_empty_double_digit(caplog):
+    """Test check_for_unknown_buses: empty buses on double-digit ports OK, invalid buses warn."""
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    # Link with empty bus10 and bus11 - no warning
+    busmap = {f"bus{i}": "" for i in range(12)}
+    busmap["bus0"] = "bus0"
+    busmap["bus1"] = "bus1"
+    caplog.clear()
+    n.add("Link", "link1", **busmap)
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Link with unknown buses in bus10 - should warn
+    busmap["bus10"] = "invalid"
+    caplog.clear()
+    n.add("Link", "link2", **busmap)
+    assert any("buses which are not defined" in r.message for r in caplog.records)
+
+
 def test_check_for_unknown_buses_when_adding(caplog):
     """Test check_for_unknown_buses: empty buses in GlobalConstraint/Links OK, invalid buses warn."""
     n = pypsa.Network()

@@ -374,7 +374,7 @@ def test_unit_commitment_rolling_horizon():
 
 def test_linearized_unit_commitment():
     n = pypsa.Network()
-    n.snapshots = pd.date_range("2022-01-01", "2022-02-09", freq="d")
+    n.snapshots = pd.date_range("2022-01-01", "2022-02-09", freq="D")
 
     load = np.zeros(len(n.snapshots))
     load[:5] = 5

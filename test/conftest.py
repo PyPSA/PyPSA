@@ -311,10 +311,7 @@ def network_collection(ac_dc_network_r):
 # Pandapower networks
 @pytest.fixture(scope="module")
 def pandapower_custom_network():
-    try:
-        import pandapower as pp
-    except ImportError:
-        pytest.skip("pandapower not installed")
+    pp = pytest.importorskip("pandapower", reason="pandapower not installed")
     net = pp.create_empty_network()
     bus1 = pp.create_bus(net, vn_kv=20.0, name="Bus 1")
     bus2 = pp.create_bus(net, vn_kv=0.4, name="Bus 2")

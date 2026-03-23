@@ -24,6 +24,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - New parameter `meshed_thresholds` in `n.optimize` for controlling groups of buses in nodal-balance constraints. Use this to save memory in the optimization definition for large networks with many interconnected buses. (<!-- md:pr 1591 -->)
 
+- `p_set` on `Store` components is now supported in lopf optimisation. (<!-- md:pr 1623 -->)
+
 ### Deprecations
 
 - Deprecate `pypsa.optimization.common.get_strongly_meshed_buses` in favor of `get_bus_counts`. The old `meshed_threshold` model kwarg is deprecated; use `meshed_thresholds=[...]` in [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] or [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
@@ -50,6 +52,10 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix `expand_series` losing index name on the resulting DataFrame with pandas >= 3.0, which caused xarray alignment errors in multi-investment period optimization. (<!-- md:pr 1581 -->)
 
 - Fix transmission flows not being displayed on energy balance map plots when `bus_carrier` is specified. The map plot now explicitly requests `at_port=0`, avoiding cancellation from summing both ports. (<!-- md:pr 1592 -->)
+
+- Fix `apply_cmap` failing for `pandas.StringDtype` when using pandas 3.0 (<!-- md:pr 1613 -->)
+
+- Fix identification of port number when checking for missing buses as part of consistency checks (<!-- md:pr 1619 -->)
 
 ### Documentation
 
