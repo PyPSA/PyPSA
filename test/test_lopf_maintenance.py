@@ -240,6 +240,76 @@ def test_no_maintenance_without_flag(basic_network):
     )
 
 
+def test_mixed_fixed_generators_with_maintenance(basic_network):
+    n = basic_network
+    n.add(
+        "Generator",
+        "maint",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=10,
+        maintainable=True,
+        maintenance_duration=2,
+    )
+    n.add("Generator", "plain", bus="bus", p_nom=100, marginal_cost=20)
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    status = n.optimize()
+    assert status[0] == "ok"
+    assert n.c.generators.dynamic.maintenance["maint"].sum() == 2
+
+
+def test_mixed_committable_generators_with_maintenance(basic_network):
+    n = basic_network
+    n.add(
+        "Generator",
+        "maint",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=10,
+        committable=True,
+        maintainable=True,
+        maintenance_duration=2,
+    )
+    n.add(
+        "Generator", "plain", bus="bus", p_nom=100, marginal_cost=20, committable=True
+    )
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    status = n.optimize()
+    assert status[0] == "ok"
+    assert n.c.generators.dynamic.maintenance["maint"].sum() == 2
+
+
+def test_mixed_extendable_generators_with_maintenance(basic_network):
+    n = basic_network
+    n.add(
+        "Generator",
+        "maint",
+        bus="bus",
+        p_nom_extendable=True,
+        p_nom_max=100,
+        capital_cost=1,
+        marginal_cost=10,
+        maintainable=True,
+        maintenance_duration=2,
+    )
+    n.add(
+        "Generator",
+        "plain",
+        bus="bus",
+        p_nom_extendable=True,
+        p_nom_max=100,
+        capital_cost=1,
+        marginal_cost=20,
+    )
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    status = n.optimize()
+    assert status[0] == "ok"
+    assert n.c.generators.dynamic.maintenance["maint"].sum() == pytest.approx(2)
+
+
 def test_single_snapshot_duration(basic_network):
     n = basic_network
     n.add(

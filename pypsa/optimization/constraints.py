@@ -120,8 +120,14 @@ def define_operational_constraints_for_non_extendables(
     if not maint_fix_i.empty:
         alpha = c.da.maintenance_pu.sel(name=maint_fix_i)
         m = n.model[f"{c.name}-maintenance"].sel(name=maint_fix_i)
-        lhs_upper = lhs_upper + upper * alpha * m
-        lhs_lower = lhs_lower + lower * alpha * m
+        maint_upper = (upper.sel(name=maint_fix_i) * alpha * m).reindex(
+            name=fix_i, fill_value=0
+        )
+        maint_lower = (lower.sel(name=maint_fix_i) * alpha * m).reindex(
+            name=fix_i, fill_value=0
+        )
+        lhs_upper = lhs_upper + maint_upper
+        lhs_lower = lhs_lower + maint_lower
 
     n.model.add_constraints(
         lhs_lower, ">=", lower, name=f"{c.name}-fix-{attr}-lower", mask=active
@@ -203,8 +209,14 @@ def define_operational_constraints_for_extendables(
             maint_ext_i = maint_ext_i.unique(level="name")
         alpha = c.da.maintenance_pu.sel(name=maint_ext_i)
         z = n.model[f"{c.name}-maintenance_capacity"].sel(name=maint_ext_i)
-        lhs_upper = lhs_upper + max_pu * alpha * z
-        lhs_lower = lhs_lower + min_pu * alpha * z
+        maint_upper = (max_pu.sel(name=maint_ext_i) * alpha * z).reindex(
+            name=ext_i, fill_value=0
+        )
+        maint_lower = (min_pu.sel(name=maint_ext_i) * alpha * z).reindex(
+            name=ext_i, fill_value=0
+        )
+        lhs_upper = lhs_upper + maint_upper
+        lhs_lower = lhs_lower + maint_lower
 
     n.model.add_constraints(
         lhs_lower, ">=", 0, name=f"{c.name}-ext-{attr}-lower", mask=active
@@ -333,8 +345,14 @@ def define_operational_constraints_for_committables(
         if not maint_com_ext_i.empty:
             alpha = c.da.maintenance_pu.sel(name=maint_com_ext_i)
             z = n.model[f"{c.name}-maintenance_capacity"].sel(name=maint_com_ext_i)
-            lhs_lower_ext = lhs_lower_ext + min_pu_ext * alpha * z
-            lhs_upper_cap = lhs_upper_cap + max_pu_ext * alpha * z
+            maint_lower = (min_pu_ext.sel(name=maint_com_ext_i) * alpha * z).reindex(
+                name=com_ext_i, fill_value=0
+            )
+            maint_upper = (max_pu_ext.sel(name=maint_com_ext_i) * alpha * z).reindex(
+                name=com_ext_i, fill_value=0
+            )
+            lhs_lower_ext = lhs_lower_ext + maint_lower
+            lhs_upper_cap = lhs_upper_cap + maint_upper
 
         n.model.add_constraints(
             lhs_lower_ext,
@@ -394,8 +412,14 @@ def define_operational_constraints_for_committables(
         if not maint_com_fix_i.empty:
             alpha = c.da.maintenance_pu.sel(name=maint_com_fix_i)
             m = n.model[f"{c.name}-maintenance"].sel(name=maint_com_fix_i)
-            lhs_lower_fix = lhs_lower_fix + lower_p_fix * alpha * m
-            lhs_upper_fix = lhs_upper_fix + upper_p_fix * alpha * m
+            maint_lower = (lower_p_fix.sel(name=maint_com_fix_i) * alpha * m).reindex(
+                name=com_fix_i, fill_value=0
+            )
+            maint_upper = (upper_p_fix.sel(name=maint_com_fix_i) * alpha * m).reindex(
+                name=com_fix_i, fill_value=0
+            )
+            lhs_lower_fix = lhs_lower_fix + maint_lower
+            lhs_upper_fix = lhs_upper_fix + maint_upper
 
         n.model.add_constraints(
             lhs_lower_fix,
