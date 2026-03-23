@@ -436,15 +436,6 @@ def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
     assert result.empty
 
 
-P_PROC = np.array([80.0, 60.0, 70.0])
-P_GEN = np.array([130.0, 110.0, 120.0])
-PRICE_ELEC = np.array([50.0, 40.0, 45.0])
-PRICE_H2 = np.array([100.0, 90.0, 95.0])
-PRICE_HEAT = np.array([30.0, 25.0, 28.0])
-RATE1 = 0.7
-RATE2 = 0.2
-
-
 def test_get_operation(ac_dc_network_r, multiport_process_network):
     n = ac_dc_network_r
     pd.testing.assert_frame_equal(get_operation(n, "Link"), n.c.links.dynamic["p0"])
@@ -462,43 +453,37 @@ def test_market_value_multiport(multiport_process_network):
     n = multiport_process_network
     mv = n.statistics.market_value(nice_names=False, round=None, drop_zero=False)
 
-    rev_per_t = (
-        (-P_PROC * PRICE_ELEC)
-        + (P_PROC * RATE1 * PRICE_H2)
-        + (P_PROC * RATE2 * PRICE_HEAT)
+    operation = n.c.processes.dynamic["p"]["electrolyser"]
+    prices = n.c.buses.dynamic["marginal_price"]
+    rev_per_t = -(
+        n.c.processes.dynamic["p0"]["electrolyser"] * prices["elec"]
+        + n.c.processes.dynamic["p1"]["electrolyser"] * prices["h2"]
+        + n.c.processes.dynamic["p2"]["electrolyser"] * prices["heat"]
     )
-    expected = rev_per_t.mean() / P_PROC.mean()
+    expected = rev_per_t.mean() / operation.mean()
     np.testing.assert_allclose(mv.loc[("Process", "electrolyser")], expected, rtol=1e-6)
 
 
-def test_market_value_with_bus_carrier(multiport_process_network):
+@pytest.mark.parametrize(
+    ("bus_carrier", "port", "bus", "sign"),
+    [
+        ("AC", "p0", "elec", -1),
+        ("H2", "p1", "h2", 1),
+        ("heat", "p2", "heat", 1),
+    ],
+)
+def test_market_value_with_bus_carrier(
+    multiport_process_network, bus_carrier, port, bus, sign
+):
     n = multiport_process_network
-
-    mv_ac = n.statistics.market_value(
-        bus_carrier="AC", nice_names=False, round=None, drop_zero=False
-    )
-    expected_ac = (-P_PROC * PRICE_ELEC).mean() / P_PROC.mean()
-    np.testing.assert_allclose(
-        mv_ac.loc[("Process", "electrolyser")], expected_ac, rtol=1e-6
+    mv = n.statistics.market_value(
+        bus_carrier=bus_carrier, nice_names=False, round=None, drop_zero=False
     )
 
-    mv_h2 = n.statistics.market_value(
-        bus_carrier="H2", nice_names=False, round=None, drop_zero=False
-    )
-    p1 = P_PROC * RATE1
-    expected_h2 = (p1 * PRICE_H2).mean() / p1.mean()
-    np.testing.assert_allclose(
-        mv_h2.loc[("Process", "electrolyser")], expected_h2, rtol=1e-6
-    )
-
-    mv_heat = n.statistics.market_value(
-        bus_carrier="heat", nice_names=False, round=None, drop_zero=False
-    )
-    p2 = P_PROC * RATE2
-    expected_heat = (p2 * PRICE_HEAT).mean() / p2.mean()
-    np.testing.assert_allclose(
-        mv_heat.loc[("Process", "electrolyser")], expected_heat, rtol=1e-6
-    )
+    operation = n.c.processes.dynamic[port]["electrolyser"]
+    prices = n.c.buses.dynamic["marginal_price"][bus]
+    expected = (sign * operation * prices).mean() / operation.mean()
+    np.testing.assert_allclose(mv.loc[("Process", "electrolyser")], expected, rtol=1e-6)
 
 
 def test_market_value_generator(multiport_process_network):
@@ -506,7 +491,9 @@ def test_market_value_generator(multiport_process_network):
     mv = n.statistics.market_value(
         components="Generator", nice_names=False, round=None, drop_zero=False
     )
-    expected = (P_GEN * PRICE_ELEC).mean() / P_GEN.mean()
+    operation = n.c.generators.dynamic["p"]["gen"]
+    prices = n.c.buses.dynamic["marginal_price"]["elec"]
+    expected = (operation * prices).mean() / operation.mean()
     np.testing.assert_allclose(mv.loc["AC"], expected, rtol=1e-6)
 
 
