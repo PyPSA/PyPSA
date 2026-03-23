@@ -322,8 +322,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     Optimal Capacity  ...  Market Value
     Generator gas          982.03448  ...   1559.511099
               wind        7292.13406  ...    589.813549
-    Line      AC          5613.82931  ...      0.022593
-    Link      DC          4003.90110  ...      0.059051
+    Line      AC          5613.82931  ...    -21.114555
+    Link      DC          4003.90110  ...      0.066009
     Load      load           0.00000  ...   -633.512009
     <BLANKLINE>
     [5 rows x 12 columns]
