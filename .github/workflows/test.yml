@@ -53,6 +53,10 @@ jobs:
           api: new_api
         - os: windows-latest
           api: new_api
+        include:
+        - python-version: '3.13'
+          os: ubuntu-latest
+          api: pandas3
 
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
@@ -81,22 +85,6 @@ jobs:
         name: Packages
         path: dist
 
-    - name: Install base package and dependencies
-      if: matrix.api == 'new_api' && matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest'
-      run: |
-        # this install base pypsa without additional features
-        # to ensure that pandas 3 is tested
-        python -m pip install uv
-        uv sync --extra test --no-install-project
-        uv pip install "$(ls dist/*.whl)" pypower
-
-    - name: Run unit tests (new API for Pandas 3)
-      if: matrix.api == 'new_api' && matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest'
-      run: >
-        uv run pytest
-        --new-components-api
-        --mpl
-
     - name: Install package and dependencies
       if: matrix.python-version != '3.14'
       run: |
@@ -111,12 +99,23 @@ jobs:
         uv sync --extra dev --no-install-project
         uv pip install "$(ls dist/*.whl)"
 
+    - name: Install pandas 3
+      if: matrix.api == 'pandas3'
+      run: uv pip install 'pandas>=3.0'
+
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
       run: >
         uv run pytest  --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
+
+    - name: Run unit tests (pandas 3)
+      if: matrix.api == 'pandas3'
+      run: >
+        uv run --no-sync pytest  --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results
+        --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
+        && uv run --no-sync coverage xml
 
     - name: Run unit tests (new API)
       if: matrix.api == 'new_api'
