@@ -36,6 +36,7 @@ def test_890():
     """
     See https://github.com/PyPSA/PyPSA/issues/890.
     """
+    pytest.importorskip("sklearn")
     n = pypsa.examples.scigrid_de()
     n.calculate_dependent_values()
 

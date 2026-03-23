@@ -139,7 +139,7 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_de: GIZ](https://www.giz.de/en/html/index.html)**, the German Agency for International Cooperation (Deutsche Gesellschaft für Internationale Zusammenarbeit), published and supported several studies based on PyPSA for the [integration of renewables into the Vietnamese power system](http://gizenergy.org.vn/media/app/media/Research%20Cooperation%20Project%20Fact%20Sheet_final.pdf), [power sector analysis for Thailand](https://static.agora-energiewende.de/fileadmin/Partnerpublikationen/2021/CASE_Beyond_Net_Zero_Empowering_Climate_Mitigation/Towards_a_collective_vision_of_Thai_energy_transition_full_report.pdf) within the CASE programme, [the future of the Indonesian power system](https://energynautics.com/en/pypsa/) within the 1000 Islands programme, and the [Brazilian electricity system](https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf).
 
-* **[:flag_ca: Canada Energy Regulator (CER)](https://www.cer-rec.gc.ca/en/)**, an agency of the Government of Canada, used PyPSA for its [Canada's Energy Future 2023 report](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2023/appendix-3/).
+* **[:flag_ca: Canada Energy Regulator (CER)](https://www.cer-rec.gc.ca/en/)**, an agency of the Government of Canada, used PyPSA for its [Canada's Energy Future 2023](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2023/appendix-3/) and [Canada's Energy Future 2026 report](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2026/canada-energy-futures-2026.pdf) report.
 
 ## Non-Governmental and Non-Profit Organisations
 
