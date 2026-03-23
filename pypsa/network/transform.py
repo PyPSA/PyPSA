@@ -425,7 +425,8 @@ class NetworkTransformMixin(_NetworkABC):
         >>> n.remove("Bus", ["bus0", "bus1"])
 
         Remove multiple components with diferent suffixes:
-        >>> n.remove("Bus", "bus", ["0", "1"])
+        >>> n.add("Bus", ["bus3", "bus4"])
+        >>> n.remove("Bus", "bus", ["3", "4"])
 
         >>> n.components.buses.static
         Empty DataFrame
