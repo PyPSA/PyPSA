@@ -370,12 +370,19 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return pd.concat(dfs, axis=1)
 
     @staticmethod
-    def _weighted_sum_per_network(df: pd.DataFrame, weights: pd.Series) -> pd.Series:
-        """Compute weighted sums per network for collection statistics.
+    def _aligned_weighted_sum(df: pd.DataFrame, weights: pd.Series) -> pd.Series:
+        """Compute aligned weighted sums.
 
-        Splits the MultiIndex-indexed weights and MultiIndex-columned DataFrame
-        by network key and computes `weights @ df` independently per network.
+        For simple indices, computes `weights @ df` directly. For
+        MultiIndex-indexed weights and MultiIndex-columned DataFrames,
+        splits by network key and computes `weights @ df` per network.
         """
+        is_collection = isinstance(weights.index, pd.MultiIndex) and isinstance(
+            df.columns, pd.MultiIndex
+        )
+        if not is_collection:
+            return weights @ df
+
         n_network_levels = weights.index.nlevels - 1
         network_names = weights.index.names[:n_network_levels]
         network_keys = weights.index.droplevel(-1).unique()
@@ -405,14 +412,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         if agg != "sum":
             return df.agg(agg)
 
-        if not isinstance(weights.index, pd.MultiIndex):
-            return weights @ df
-
         is_collection = isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1
         if is_collection:
-            return StatisticsAccessor._weighted_sum_per_network(df, weights)
+            return StatisticsAccessor._aligned_weighted_sum(df, weights)
 
-        return df.multiply(weights, axis=0).groupby(level=0).sum().T
+        if isinstance(weights.index, pd.MultiIndex):
+            return df.multiply(weights, axis=0).groupby(level=0).sum().T
+
+        return weights @ df
 
     def _aggregate_components_groupby(
         self, vals: pd.DataFrame, grouping: dict, agg: Callable | str, c: str
@@ -2827,8 +2834,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             msg = f"Weighting '{weighting}' is not supported. Use 'load' or 'time'."
             raise ValueError(msg)
 
-        a = sns_weights @ (weights * prices)
-        b = sns_weights @ weights
+        wp = weights * prices
+        a = self._aligned_weighted_sum(wp, sns_weights)
+        b = self._aligned_weighted_sum(weights, sns_weights)
         df = a / b
 
         if groupby == "bus_carrier":
