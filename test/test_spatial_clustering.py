@@ -15,6 +15,8 @@ from pypsa.clustering.spatial import (
     normed_or_uniform,
 )
 
+pytest.importorskip("sklearn")
+
 
 def test_aggregate_generators(ac_dc_network):
     n = ac_dc_network
