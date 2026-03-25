@@ -369,23 +369,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         return pd.concat(dfs, axis=1)
 
-    @staticmethod
-    def _aligned_weighted_sum(df: pd.DataFrame, weights: pd.Series) -> pd.Series:
+    def _aligned_weighted_sum(self, df: pd.DataFrame, weights: pd.Series) -> pd.Series:
         """Compute aligned weighted sums.
 
         For simple indices, computes `weights @ df` directly. For
-        MultiIndex-indexed weights and MultiIndex-columned DataFrames,
-        splits by network key and computes `weights @ df` per network.
+        NetworkCollections, splits by network key and computes
+        `weights @ df` per network.
         """
-        is_collection = isinstance(weights.index, pd.MultiIndex) and isinstance(
-            df.columns, pd.MultiIndex
-        )
-        if not is_collection:
+        if not self._n.is_collection:
             return weights @ df
 
-        n_network_levels = weights.index.nlevels - 1
-        network_names = weights.index.names[:n_network_levels]
-        network_keys = weights.index.droplevel(-1).unique()
+        network_names = self._n._index_names
+        network_keys = self._n.index
 
         if not weights.index.is_monotonic_increasing:
             weights = weights.sort_index()
@@ -403,8 +398,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             result.index = result.index.set_names(name, level=i)
         return result
 
-    @staticmethod
     def _aggregate_with_weights(
+        self,
         df: pd.DataFrame,
         weights: pd.Series,
         agg: str | Callable,
@@ -412,9 +407,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         if agg != "sum":
             return df.agg(agg)
 
-        is_collection = isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1
-        if is_collection:
-            return StatisticsAccessor._aligned_weighted_sum(df, weights)
+        if self._n.is_collection:
+            return self._aligned_weighted_sum(df, weights)
 
         if isinstance(weights.index, pd.MultiIndex):
             return df.multiply(weights, axis=0).groupby(level=0).sum().T
