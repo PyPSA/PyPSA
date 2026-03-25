@@ -369,8 +369,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         return pd.concat(dfs, axis=1)
 
-    def _aligned_weighted_sum(self, df: pd.DataFrame, weights: pd.Series) -> pd.Series:
-        """Compute aligned weighted sums.
+    def _weighted_sum_per_network(
+        self, df: pd.DataFrame, weights: pd.Series
+    ) -> pd.Series:
+        """Compute weighted sums per network if the network is a collection.
 
         For simple indices, computes `weights @ df` directly. For
         NetworkCollections, splits by network key and computes
@@ -381,11 +383,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         network_names = self._n._index_names
         network_keys = self._n.index
-
-        if not weights.index.is_monotonic_increasing:
-            weights = weights.sort_index()
-        if not df.columns.is_monotonic_increasing:
-            df = df.sort_index(axis=1)
 
         results = {}
         for key in network_keys:
@@ -408,7 +405,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             return df.agg(agg)
 
         if self._n.is_collection:
-            return self._aligned_weighted_sum(df, weights)
+            return self._weighted_sum_per_network(df, weights)
 
         if isinstance(weights.index, pd.MultiIndex):
             return df.multiply(weights, axis=0).groupby(level=0).sum().T
@@ -2829,8 +2826,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             raise ValueError(msg)
 
         wp = weights * prices
-        a = self._aligned_weighted_sum(wp, sns_weights)
-        b = self._aligned_weighted_sum(weights, sns_weights)
+        a = self._weighted_sum_per_network(wp, sns_weights)
+        b = self._weighted_sum_per_network(weights, sns_weights)
         df = a / b
 
         if groupby == "bus_carrier":
