@@ -2,7 +2,10 @@
 #
 # SPDX-License-Identifier: MIT
 
+import pandas as pd
 from numpy.testing import assert_almost_equal as equal
+
+import pypsa
 
 
 def test_optimize_security_constrained(scipy_network):
@@ -82,3 +85,15 @@ def test_optimize_security_constrained(scipy_network):
         name for name in n.model.dual.data_vars if "security" in name
     ]
     assert len(security_constraints) == 4, "Should have four security constraint duals"
+
+
+def test_optimize_security_constrained_multiindex_branch_outages():
+    """See https://github.com/PyPSA/PyPSA/issues/1631."""
+    n = pypsa.Network()
+    n.add("Bus", "bus1")
+    n.add("Generator", "gen1", bus="bus1", marginal_cost=10)
+    branch_outages = pd.MultiIndex.from_tuples([("Generator", "gen1")])
+
+    status, _ = n.optimize.optimize_security_constrained(branch_outages=branch_outages)
+
+    assert status == "ok"

@@ -53,6 +53,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix identification of port number when checking for missing buses as part of consistency checks (<!-- md:pr 1619 -->)
 
+- Fix `optimize_security_constrained` not supporting MultiIndex `branch_outages` (<!-- md:pr 1637 -->)
+
 ### Documentation
 
 - New example notebook modeling oligopolistic behavior in energy markets using Cournot-Nash equilibrium with the fictitious objective approach. See [:material-notebook-multiple: notebook](./examples/imperfect-competition.ipynb).
