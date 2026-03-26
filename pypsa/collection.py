@@ -477,7 +477,9 @@ class NetworkCollection:
 
         """
         if len(self.networks) <= 1:
-            return
+            return  # No validation needed for single network or empty collection
+
+        # TODO: Implement basic validation of network compatibility
 
 
 _all_components = (
