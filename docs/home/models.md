@@ -23,6 +23,7 @@ open source and actively maintained. Below is a list of some known models.
 - **[:flag_es: PyPSA-Spain](https://github.com/cristobal-GC/pypsa-spain)**: Spanish energy system model, maintained by Polytechnic University of Madrid
 - **[:flag_gb: PyPSA-UK](https://github.com/ember-climate/pypsa-uk)**: United Kingdom power system model, maintained by [Ember](https://ember-energy.org/)
 - **[:flag_gb: PyPSA-GB](https://github.com/andrewlyden/PyPSA-GB)**: Great Britain power system model, maintained by the University of Edinburgh
+- **[:flag_gb: GBPower](https://github.com/LukasFrankenQ/GBPower)**: Operation-only present time Great Britain power system model, maintained by Lukas Franken
 - **[:flag_gb: PyPSA-FES](https://github.com/centrefornetzero/pypsa-fes)**: Great Britain power system model, maintained by Octopus Energy's [Centre for Net Zero](https://www.centrefornetzero.org)
 - **[:flag_at: PyPSA-AT](https://github.com/AGGM-AG/pypsa-at)**: Austrian power and gas system model, maintained by [Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/en/)
 - **[:flag_eu: PyPSA-IEI](https://github.com/Fraunhofer-IEG/PyPSA-IEI)**: European energy system model, maintained by [Fraunhofer IEG](https://www.ieg.fraunhofer.de/en.html), [Fraunhofer ISI](https://www.isi.fraunhofer.de/en.html), and [d-fine](https://www.d-fine.com/en/)
