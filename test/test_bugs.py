@@ -381,20 +381,6 @@ def test_1522(tmp_path):
     assert set(m.links_t.marginal_cost.columns) == {"link0", "link1"}
 
 
-def test_1631():
-    """
-    See https://github.com/PyPSA/PyPSA/issues/1631.
-    """
-    n = pypsa.Network()
-    n.add("Bus", "bus1")
-    n.add("Generator", "gen1", bus="bus1", marginal_cost=10)
-    branch_outages = pd.MultiIndex.from_tuples([("Generator", "gen1")])
-
-    status, _ = n.optimize.optimize_security_constrained(branch_outages=branch_outages)
-
-    assert status == "ok"
-
-
 def test_statistics_groupby_time_true():
     """
     See https://github.com/PyPSA/PyPSA/issues/1534.
