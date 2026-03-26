@@ -528,6 +528,9 @@ def _get_method_patterns() -> dict[str, str]:
         rf"get_switchable_as_dense"
         rf")$",
         # ---------------
+        # TODO: `snapshots` uses return_from_first, which assumes all
+        # networks share the same snapshots. Mid-term, we need a way to
+        # enforce or convert to common dimensions across networks.
         "return_from_first": r"^("
         r"\S+_components|"
         r"snapshots|"
