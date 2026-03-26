@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pandas as pd
 
@@ -381,8 +381,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         if not self._n.is_collection:
             return weights @ df
 
-        network_names = self._n._index_names
-        network_keys = self._n.index
+        n = cast("NetworkCollection", self._n)
+        network_names = n._index_names
+        network_keys = n.index
 
         results = {}
         for key in network_keys:
