@@ -91,8 +91,11 @@ def test_optimize_security_constrained_multiindex_branch_outages():
     """See https://github.com/PyPSA/PyPSA/issues/1631."""
     n = pypsa.Network()
     n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add("Line", "line1", bus0="bus1", bus1="bus2")
+    # Add a component with an assigned cost, as required to create the objective function:
     n.add("Generator", "gen1", bus="bus1", marginal_cost=10)
-    branch_outages = pd.MultiIndex.from_tuples([("Generator", "gen1")])
+    branch_outages = pd.MultiIndex.from_tuples([("Line", "line1")])
 
     status, _ = n.optimize.optimize_security_constrained(branch_outages=branch_outages)
 
