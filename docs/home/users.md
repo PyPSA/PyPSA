@@ -97,7 +97,7 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_de: Fraunhofer Institute for Systems and Innovation Research (ISI)](https://www.isi.fraunhofer.de/)** uses a PyPSA-Eur-based approach for infrastructure analysis in Europe, e.g. in [Integrated Infrastructure Planning and 2050 Climate Neutrality: Deriving Future-Proof European Energy Infrastructures](https://www.agora-energiewende.org/publications/integrated-infrastructure-planning-and-2050-climate-neutrality) on future-proof European energy infrastructures jointly with Fraunhofer IEG and d-fine.
 
-- **[:flag_us: Union of Concerned Scientists (UCS)](https://www.ucs.org/)**: used PyPSA to assess the storage needs for Illionois electricity system.
+- **[:flag_us: Union of Concerned Scientists (UCS)](https://www.ucs.org/)**: used PyPSA to assess the storage needs for Illinois electricity system.
 
 ## Companies
 
