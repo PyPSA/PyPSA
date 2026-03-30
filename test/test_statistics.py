@@ -454,105 +454,94 @@ class TestGetOperation:
         )
 
 
-def test_market_value_multiport(multiport_process_network):
-    n = multiport_process_network
-    mv = n.statistics.market_value(nice_names=False, round=None, drop_zero=False)
+class TestMarketValue:
+    mv_kwargs = {"nice_names": False, "round": None, "drop_zero": False}
 
-    operation = n.c.processes.dynamic["p"]["electrolyser"]
-    prices = n.c.buses.dynamic["marginal_price"]
-    rev_per_t = -(
-        n.c.processes.dynamic["p0"]["electrolyser"] * prices["elec"]
-        + n.c.processes.dynamic["p1"]["electrolyser"] * prices["h2"]
-        + n.c.processes.dynamic["p2"]["electrolyser"] * prices["heat"]
+    def test_multiport(self, multiport_process_network):
+        n = multiport_process_network
+        mv = n.statistics.market_value(**self.mv_kwargs)
+
+        operation = n.c.processes.dynamic["p"]["electrolyser"]
+        prices = n.c.buses.dynamic["marginal_price"]
+        rev_per_t = -(
+            n.c.processes.dynamic["p0"]["electrolyser"] * prices["elec"]
+            + n.c.processes.dynamic["p1"]["electrolyser"] * prices["h2"]
+            + n.c.processes.dynamic["p2"]["electrolyser"] * prices["heat"]
+        )
+        expected = rev_per_t.mean() / operation.mean()
+        np.testing.assert_allclose(
+            mv.loc[("Process", "electrolyser")], expected, rtol=1e-6
+        )
+
+    @pytest.mark.parametrize(
+        ("bus_carrier", "port", "bus"),
+        [
+            ("AC", "p0", "elec"),
+            ("H2", "p1", "h2"),
+            ("heat", "p2", "heat"),
+        ],
     )
-    expected = rev_per_t.mean() / operation.mean()
-    np.testing.assert_allclose(mv.loc[("Process", "electrolyser")], expected, rtol=1e-6)
+    def test_with_bus_carrier(self, multiport_process_network, bus_carrier, port, bus):
+        n = multiport_process_network
+        mv = n.statistics.market_value(bus_carrier=bus_carrier, **self.mv_kwargs)
 
+        reference_operation = n.c.processes.dynamic["p"]["electrolyser"]
+        operation = n.c.processes.dynamic[port]["electrolyser"]
+        prices = n.c.buses.dynamic["marginal_price"][bus]
+        expected = -(operation * prices).mean() / reference_operation.mean()
+        np.testing.assert_allclose(
+            mv.loc[("Process", "electrolyser")], expected, rtol=1e-6
+        )
 
-@pytest.mark.parametrize(
-    ("bus_carrier", "port", "bus"),
-    [
-        ("AC", "p0", "elec"),
-        ("H2", "p1", "h2"),
-        ("heat", "p2", "heat"),
-    ],
-)
-def test_market_value_with_bus_carrier(
-    multiport_process_network, bus_carrier, port, bus
-):
-    n = multiport_process_network
-    mv = n.statistics.market_value(
-        bus_carrier=bus_carrier, nice_names=False, round=None, drop_zero=False
-    )
+    def test_bus_carrier_additivity(self, multiport_process_network):
+        n = multiport_process_network
+        mv_kw = {**self.mv_kwargs, "groupby": False}
+        mv_total = n.statistics.market_value(**mv_kw)
+        mv_ac = n.statistics.market_value(bus_carrier="AC", **mv_kw)
+        mv_h2 = n.statistics.market_value(bus_carrier="H2", **mv_kw)
+        mv_heat = n.statistics.market_value(bus_carrier="heat", **mv_kw)
 
-    reference_operation = n.c.processes.dynamic["p"]["electrolyser"]
-    operation = n.c.processes.dynamic[port]["electrolyser"]
-    prices = n.c.buses.dynamic["marginal_price"][bus]
-    expected = -(operation * prices).mean() / reference_operation.mean()
-    np.testing.assert_allclose(mv.loc[("Process", "electrolyser")], expected, rtol=1e-6)
+        expected = (
+            mv_ac.loc[("Process", "electrolyser")]
+            + mv_h2.loc[("Process", "electrolyser")]
+            + mv_heat.loc[("Process", "electrolyser")]
+        )
+        np.testing.assert_allclose(
+            mv_total.loc[("Process", "electrolyser")], expected, rtol=1e-6
+        )
 
+    def test_generator(self, multiport_process_network):
+        n = multiport_process_network
+        mv = n.statistics.market_value(components="Generator", **self.mv_kwargs)
+        operation = n.c.generators.dynamic["p"]["gen"]
+        prices = n.c.buses.dynamic["marginal_price"]["elec"]
+        expected = (operation * prices).mean() / operation.mean()
+        np.testing.assert_allclose(mv.loc["AC"], expected, rtol=1e-6)
 
-def test_market_value_bus_carrier_additivity(multiport_process_network):
-    n = multiport_process_network
-    mv_total = n.statistics.market_value(groupby=False, nice_names=False, round=None)
-    mv_ac = n.statistics.market_value(
-        groupby=False, bus_carrier="AC", nice_names=False, round=None
-    )
-    mv_h2 = n.statistics.market_value(
-        groupby=False, bus_carrier="H2", nice_names=False, round=None
-    )
-    mv_heat = n.statistics.market_value(
-        groupby=False, bus_carrier="heat", nice_names=False, round=None
-    )
+    def test_withdrawing_load_sign(self):
+        n = pypsa.Network()
+        n.set_snapshots([0, 1])
+        n.add("Carrier", "AC")
+        n.add("Carrier", "load")
+        n.add("Bus", "b", carrier="AC")
+        n.add("Load", "l", bus="b", carrier="load", p_set=[10.0, 20.0])
+        n.c.loads.dynamic["p"] = n.c.loads.dynamic["p_set"].copy()
 
-    expected = (
-        mv_ac.loc[("Process", "electrolyser")]
-        + mv_h2.loc[("Process", "electrolyser")]
-        + mv_heat.loc[("Process", "electrolyser")]
-    )
-    np.testing.assert_allclose(
-        mv_total.loc[("Process", "electrolyser")], expected, rtol=1e-6
-    )
+        marginal_price = pd.DataFrame({"b": [50.0, 100.0]}, index=n.snapshots)
+        marginal_price.columns.name = "name"
+        n.c.buses.dynamic["marginal_price"] = marginal_price
 
+        mv = n.statistics.market_value(components="Load", **self.mv_kwargs)
 
-def test_market_value_generator(multiport_process_network):
-    n = multiport_process_network
-    mv = n.statistics.market_value(
-        components="Generator", nice_names=False, round=None, drop_zero=False
-    )
-    operation = n.c.generators.dynamic["p"]["gen"]
-    prices = n.c.buses.dynamic["marginal_price"]["elec"]
-    expected = (operation * prices).mean() / operation.mean()
-    np.testing.assert_allclose(mv.loc["AC"], expected, rtol=1e-6)
+        p_load = np.array([10.0, 20.0])
+        price_load = np.array([50.0, 100.0])
+        expected = -(p_load * price_load).mean() / p_load.mean()
+        np.testing.assert_allclose(mv.loc["load"], expected, rtol=1e-10)
+        assert mv.loc["load"] < 0
 
+    def test_grouped_branches_is_finite(self, ac_dc_network_r):
+        n = ac_dc_network_r
+        mv = n.statistics.market_value(**self.mv_kwargs)
 
-def test_market_value_withdrawing_load_sign():
-    n = pypsa.Network()
-    n.set_snapshots([0, 1])
-    n.add("Carrier", "AC")
-    n.add("Carrier", "load")
-    n.add("Bus", "b", carrier="AC")
-    n.add("Load", "l", bus="b", carrier="load", p_set=[10.0, 20.0])
-    n.c.loads.dynamic["p"] = n.c.loads.dynamic["p_set"].copy()
-
-    marginal_price = pd.DataFrame({"b": [50.0, 100.0]}, index=n.snapshots)
-    marginal_price.columns.name = "name"
-    n.c.buses.dynamic["marginal_price"] = marginal_price
-
-    mv = n.statistics.market_value(
-        components="Load", nice_names=False, round=None, drop_zero=False
-    )
-
-    p_load = np.array([10.0, 20.0])
-    price_load = np.array([50.0, 100.0])
-    expected = -(p_load * price_load).mean() / p_load.mean()
-    np.testing.assert_allclose(mv.loc["load"], expected, rtol=1e-10)
-    assert mv.loc["load"] < 0
-
-
-def test_market_value_grouped_branches_is_finite(ac_dc_network_r):
-    n = ac_dc_network_r
-    mv = n.statistics.market_value(nice_names=False, round=None, drop_zero=False)
-
-    assert np.isfinite(mv.loc[("Link", "DC")])
-    assert np.isfinite(mv.loc[("Line", "AC")])
+        assert np.isfinite(mv.loc[("Link", "DC")])
+        assert np.isfinite(mv.loc[("Line", "AC")])
