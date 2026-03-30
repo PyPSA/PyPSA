@@ -31,7 +31,9 @@ SPDX-License-Identifier: CC-BY-4.0
 - Deprecate `pypsa.optimization.common.get_strongly_meshed_buses` in favor of `get_bus_counts`. The old `meshed_threshold` model kwarg is deprecated; use `meshed_thresholds=[...]` in [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] or [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
 ### Documentation
+
 - Add a `groupby` argument to statistics map plotting, allowing custom bus grouping (defaults to `['bus', 'carrier']`). (<!-- md:pr 1592 -->)
+- Add an example of how to apply operational limits on assets over user-defined periods of time.
 
 ### Bug Fixes
 
