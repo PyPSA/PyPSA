@@ -254,7 +254,7 @@ def networks_including_solved(request):
 # Network collections
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def multiport_process_network():
     n = pypsa.Network()
     n.set_snapshots([0, 1, 2])
