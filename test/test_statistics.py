@@ -436,14 +436,17 @@ def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
     assert result.empty
 
 
-def test_get_operation(ac_dc_network_r, multiport_process_network):
-    n = ac_dc_network_r
-    pd.testing.assert_frame_equal(get_operation(n, "Link"), n.c.links.dynamic["p0"])
-    pd.testing.assert_frame_equal(get_operation(n, "Line"), n.c.lines.dynamic["p0"])
-    pd.testing.assert_frame_equal(
-        get_operation(n, "Generator"), n.c.generators.dynamic["p"]
-    )
-    pd.testing.assert_frame_equal(
+class TestGetOperation:
+    @pytest.mark.parametrize(("component", "expected_attr"), [("Link", "p0"), ("Line", "p0"), ("Generator", "p"), ("Store", "e")])
+    def test_get_operation(self, ac_dc_network_r, component, expected_attr):
+        n = ac_dc_network_r
+        pd.testing.assert_frame_equal(
+            get_operation(n, component),
+            n.components[component].dynamic[expected_attr]
+         )
+         
+    def test_get_operation_multi_port(self, multiport_process_network):
+        pd.testing.assert_frame_equal(
         get_operation(multiport_process_network, "Process"),
         multiport_process_network.c.processes.dynamic["p"],
     )
