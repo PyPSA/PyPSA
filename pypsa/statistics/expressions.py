@@ -10,6 +10,7 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any, Literal, cast
 
+import numpy as np
 import pandas as pd
 
 from pypsa._options import options
@@ -2784,6 +2785,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=False,
             round=None,
         )
+        if denom.empty:
+            rev[:] = np.nan
+            return rev
         df = rev / denom
 
         df.attrs["name"] = "Market Value"
