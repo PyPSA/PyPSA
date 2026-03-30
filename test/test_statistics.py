@@ -437,19 +437,21 @@ def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
 
 
 class TestGetOperation:
-    @pytest.mark.parametrize(("component", "expected_attr"), [("Link", "p0"), ("Line", "p0"), ("Generator", "p"), ("Store", "e")])
+    @pytest.mark.parametrize(
+        ("component", "expected_attr"),
+        [("Link", "p0"), ("Line", "p0"), ("Generator", "p"), ("Store", "e")],
+    )
     def test_get_operation(self, ac_dc_network_r, component, expected_attr):
         n = ac_dc_network_r
         pd.testing.assert_frame_equal(
-            get_operation(n, component),
-            n.components[component].dynamic[expected_attr]
-         )
-         
+            get_operation(n, component), n.components[component].dynamic[expected_attr]
+        )
+
     def test_get_operation_multi_port(self, multiport_process_network):
         pd.testing.assert_frame_equal(
-        get_operation(multiport_process_network, "Process"),
-        multiport_process_network.c.processes.dynamic["p"],
-    )
+            get_operation(multiport_process_network, "Process"),
+            multiport_process_network.c.processes.dynamic["p"],
+        )
 
 
 def test_market_value_multiport(multiport_process_network):
