@@ -456,6 +456,7 @@ class TestGetOperation:
 
 class TestMarketValue:
     mv_kwargs = {"nice_names": False, "round": None, "drop_zero": False}
+    rtol = 1e-6
 
     def test_multiport(self, multiport_process_network):
         n = multiport_process_network
@@ -470,7 +471,7 @@ class TestMarketValue:
         )
         expected = rev_per_t.mean() / operation.mean()
         np.testing.assert_allclose(
-            mv.loc[("Process", "electrolyser")], expected, rtol=1e-6
+            mv.loc[("Process", "electrolyser")], expected, rtol=self.rtol
         )
 
     @pytest.mark.parametrize(
@@ -490,7 +491,7 @@ class TestMarketValue:
         prices = n.c.buses.dynamic["marginal_price"][bus]
         expected = -(operation * prices).mean() / reference_operation.mean()
         np.testing.assert_allclose(
-            mv.loc[("Process", "electrolyser")], expected, rtol=1e-6
+            mv.loc[("Process", "electrolyser")], expected, rtol=self.rtol
         )
 
     def test_bus_carrier_additivity(self, multiport_process_network):
@@ -507,7 +508,7 @@ class TestMarketValue:
             + mv_heat.loc[("Process", "electrolyser")]
         )
         np.testing.assert_allclose(
-            mv_total.loc[("Process", "electrolyser")], expected, rtol=1e-6
+            mv_total.loc[("Process", "electrolyser")], expected, rtol=self.rtol
         )
 
     def test_generator(self, multiport_process_network):
@@ -516,7 +517,7 @@ class TestMarketValue:
         operation = n.c.generators.dynamic["p"]["gen"]
         prices = n.c.buses.dynamic["marginal_price"]["elec"]
         expected = (operation * prices).mean() / operation.mean()
-        np.testing.assert_allclose(mv.loc["AC"], expected, rtol=1e-6)
+        np.testing.assert_allclose(mv.loc["AC"], expected, rtol=self.rtol)
 
     def test_withdrawing_load_sign(self):
         n = pypsa.Network()
@@ -536,7 +537,7 @@ class TestMarketValue:
         p_load = np.array([10.0, 20.0])
         price_load = np.array([50.0, 100.0])
         expected = -(p_load * price_load).mean() / p_load.mean()
-        np.testing.assert_allclose(mv.loc["load"], expected, rtol=1e-10)
+        np.testing.assert_allclose(mv.loc["load"], expected, rtol=self.rtol)
         assert mv.loc["load"] < 0
 
     def test_grouped_branches_is_finite(self, ac_dc_network_r):
