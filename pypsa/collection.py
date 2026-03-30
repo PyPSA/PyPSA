@@ -517,7 +517,8 @@ def _get_method_patterns() -> dict[str, str]:
         rf"({_component_classes}.capital_cost)|"
         rf"({_component_classes}.annuity)|"
         rf"static|"
-        rf"get_active_assets"
+        rf"get_active_assets|"
+        rf"snapshot_weightings"
         rf")$",
         # ---------------
         "horizontal_concat": rf"^("
@@ -527,10 +528,12 @@ def _get_method_patterns() -> dict[str, str]:
         rf"get_switchable_as_dense"
         rf")$",
         # ---------------
+        # TODO: `snapshots` uses return_from_first, which assumes all
+        # networks share the same snapshots. Mid-term, we need a way to
+        # enforce or convert to common dimensions across networks.
         "return_from_first": r"^("
         r"\S+_components|"
         r"snapshots|"
-        r"snapshot_weightings|"
         r"bus_carrier_unit|"
         rf"({_component_classes}\.(name|ports|_as_port|_as_ports))|"
         r")$",

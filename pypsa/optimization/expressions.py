@@ -83,8 +83,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     def _concat_periods(self, exprs: dict[str, LinearExpression], c: str) -> Any:
         return ln.merge(list(exprs.values()), dim=c)
 
-    @staticmethod
     def _aggregate_with_weights(
+        self,
         expr: LinearExpression,
         weights: pd.Series,
         agg: str | Callable,

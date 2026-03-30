@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pandas as pd
 
@@ -369,18 +369,49 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         return pd.concat(dfs, axis=1)
 
-    @staticmethod
+    def _weighted_sum_per_network(
+        self, df: pd.DataFrame, weights: pd.Series
+    ) -> pd.Series:
+        """Compute weighted sums per network if the network is a collection.
+
+        For simple indices, computes `weights @ df` directly. For
+        NetworkCollections, splits by network key and computes
+        `weights @ df` per network.
+        """
+        if not self._n.is_collection:
+            return weights @ df
+
+        n = cast("NetworkCollection", self._n)
+        network_names = n._index_names
+        network_keys = n.index
+
+        results = {}
+        for key in network_keys:
+            sub_weights = weights.loc[key]
+            sub_df = df[key].reindex(sub_weights.index).fillna(0)
+            results[key] = sub_weights @ sub_df
+
+        result = pd.concat(results)
+        for i, name in enumerate(network_names):
+            result.index = result.index.set_names(name, level=i)
+        return result
+
     def _aggregate_with_weights(
+        self,
         df: pd.DataFrame,
         weights: pd.Series,
         agg: str | Callable,
     ) -> pd.Series | pd.DataFrame:
-        if agg == "sum":
-            if isinstance(weights.index, pd.MultiIndex):
-                return df.multiply(weights, axis=0).groupby(level=0).sum().T
-            return weights @ df
-        # Todo: here we leave out the weights, is that correct?
-        return df.agg(agg)
+        if agg != "sum":
+            return df.agg(agg)
+
+        if self._n.is_collection:
+            return self._weighted_sum_per_network(df, weights)
+
+        if isinstance(weights.index, pd.MultiIndex):
+            return df.multiply(weights, axis=0).groupby(level=0).sum().T
+
+        return weights @ df
 
     def _aggregate_components_groupby(
         self, vals: pd.DataFrame, grouping: dict, agg: Callable | str, c: str
@@ -2795,8 +2826,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             msg = f"Weighting '{weighting}' is not supported. Use 'load' or 'time'."
             raise ValueError(msg)
 
-        a = sns_weights @ (weights * prices)
-        b = sns_weights @ weights
+        wp = weights * prices
+        a = self._weighted_sum_per_network(wp, sns_weights)
+        b = self._weighted_sum_per_network(weights, sns_weights)
         df = a / b
 
         if groupby == "bus_carrier":

@@ -24,6 +24,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - New parameter `meshed_thresholds` in `n.optimize` for controlling groups of buses in nodal-balance constraints. Use this to save memory in the optimization definition for large networks with many interconnected buses. (<!-- md:pr 1591 -->)
 
+- `p_set` on `Store` components is now supported in lopf optimisation. (<!-- md:pr 1623 -->)
+
 ### Deprecations
 
 - Deprecate `pypsa.optimization.common.get_strongly_meshed_buses` in favor of `get_bus_counts`. The old `meshed_threshold` model kwarg is deprecated; use `meshed_thresholds=[...]` in [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] or [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
@@ -35,6 +37,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix `NetworkCollection` statistic functions failing or returning wrong results when networks have different snapshots or snapshot weightings. (<!-- md:pr 1636 -->)
 
 - Fix call to `DataFrame/Series.groupby()` in pandas 3.0, dropping the `axis` argument (<!-- md:pr 1596 -->)
 
@@ -51,6 +54,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix `apply_cmap` failing for `pandas.StringDtype` when using pandas 3.0 (<!-- md:pr 1613 -->)
 
 - Fix identification of port number when checking for missing buses as part of consistency checks (<!-- md:pr 1619 -->)
+
+- Fix `optimize_security_constrained` not supporting MultiIndex `branch_outages` (<!-- md:pr 1637 -->)
 
 ### Documentation
 
