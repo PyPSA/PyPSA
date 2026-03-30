@@ -2732,15 +2732,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             "round": round,
         }
 
-        revenue_kwargs = {**kwargs, "at_port": at_port}
-        if bus_carrier is None and at_port == "all":
-            revenue_kwargs["at_port"] = "all"
-        rev = self.revenue(**revenue_kwargs)
+        rev = self.revenue(**kwargs)
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            sign = -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
-            p = (sign * get_operation(n, c)).abs()
+            p = get_operation(n, c).abs()
             weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
@@ -2757,7 +2753,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=False,
             round=None,
         )
-        df = rev / denom.abs()
+        df = rev / denom
 
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / operational unit"
