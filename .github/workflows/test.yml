@@ -123,7 +123,7 @@ jobs:
 
     - name: Upload code coverage report
       if: ${{ !cancelled() }}
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: >
@@ -179,7 +179,7 @@ jobs:
 
     - name: Upload code coverage report
       if: ${{ !cancelled() }}
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: >
