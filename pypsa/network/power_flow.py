@@ -713,7 +713,7 @@ def find_cycles(
     include_inactive: bool = False,
     minimum_cycle_basis: bool = False,
 ) -> None:
-    """Find the minimum cycle basis in the sub_network and record it in sub_network.C.
+    """Find a cycle basis in the sub_network and record it in sub_network.C.
 
     networkx collects the cycles with more than 2 edges; then the 2-edge
     cycles from the MultiGraph must be collected separately (for cases
@@ -747,6 +747,10 @@ def find_cycles(
 
     branches_i = branches_bus0.index
 
+    if branches_bus0.empty:
+        sub_network.C = dok_matrix((0, 0))
+        return
+
     # reduce to a non-multi-graph for cycles with > 2 edges
     mgraph = sub_network.graph(
         weight=weight, inf_weight=inf_weight, include_inactive=include_inactive
@@ -754,7 +758,7 @@ def find_cycles(
     graph = nx.Graph(mgraph)
 
     if minimum_cycle_basis:
-        cycles = nx.minimum_cycle_basis(graph, weight=weight)
+        cycles = nx.minimum_cycle_basis(graph, weight="weight" if weight else None)
     else:
         cycles = nx.cycle_basis(graph)
 
