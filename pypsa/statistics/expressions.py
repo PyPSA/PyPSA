@@ -2680,8 +2680,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         variable.
 
         The market value is always calculated relative to the component's
-        reference operational variable from
-        [get_operation][pypsa.statistics.expressions.get_operation]. Filters such as
+        reference operational variable from `get_operation`. Filters such as
         `bus_carrier` and `at_port` only restrict the revenue contribution in the
         numerator.
 
