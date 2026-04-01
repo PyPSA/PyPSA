@@ -6,6 +6,7 @@ import doctest
 import importlib
 import json
 import pkgutil
+import re
 import sys
 from pathlib import Path
 
@@ -38,7 +39,7 @@ def test_docs_flag(pytestconfig):
 sub_network_parent = pypsa.examples.ac_dc_meshed().determine_network_topology()
 # Warning: Keep in sync with settings in doc/conf.py
 n = pypsa.examples.ac_dc_meshed()
-n.optimize()
+n.optimize(include_objective_constant=True)
 
 # Create another network with shuffled load time series for collection comparisons
 n_shuffled_load = pypsa.examples.ac_dc_meshed()
@@ -50,7 +51,7 @@ df_shuffled = pd.DataFrame(
 )
 n_shuffled_load.loads_t.p_set = df_shuffled
 n_shuffled_load.name = "AC-DC-Meshed-Shuffled-Load"
-n_shuffled_load.optimize()
+n_shuffled_load.optimize(include_objective_constant=True)
 
 # Remove solver model to allow copying
 n.model.solver_model = None
@@ -183,9 +184,14 @@ def test_notebooks(test_docs_flag, pytestconfig):
     expected_tags = ["injected-warnings", "hide-cell"]
     expected_source = [
         "# General notebook settings\n",
+        "import logging\n",
         "import warnings\n",
         "\n",
-        'warnings.filterwarnings("error", category=DeprecationWarning)',
+        "import pypsa\n",
+        "\n",
+        'warnings.filterwarnings("error", category=DeprecationWarning)\n',
+        'logging.getLogger("gurobipy").propagate = False\n',
+        "pypsa.options.params.optimize.log_to_console = False",
     ]
     expected_cell = {
         "cell_type": "code",
@@ -239,3 +245,29 @@ def test_notebooks(test_docs_flag, pytestconfig):
             f"{len(failed_notebooks)} notebook(s) have missing or incorrect warning filters. "
             f"Run `pytest test/test_docs.py::test_notebooks --test-docs --fix-notebooks` and commit the changes."
         )
+
+
+def _collect_go_urls():
+    """Collect all unique go.pypsa.org URLs from the project."""
+    pattern = re.compile(r"https://go\.pypsa\.org/[a-zA-Z0-9_-]+")
+    urls = set()
+    for fpath in Path("pypsa").glob("**/*.py"):
+        urls.update(pattern.findall(fpath.read_text(encoding="utf-8")))
+    for fpath in Path("docs").glob("**/*.md"):
+        urls.update(pattern.findall(fpath.read_text(encoding="utf-8")))
+    return sorted(urls)
+
+
+@pytest.mark.parametrize("url", _collect_go_urls())
+def test_go_links(url, test_docs_flag):
+    """Test that all go.pypsa.org short-links are configured (not 404)."""
+    if not test_docs_flag:
+        pytest.skip("Need --test-docs option to run documentation tests")
+    import http.client
+
+    path = url.removeprefix("https://go.pypsa.org")
+    conn = http.client.HTTPSConnection("go.pypsa.org")
+    conn.request("HEAD", path)
+    code = conn.getresponse().status
+    conn.close()
+    assert code in range(200, 400), f"{url} returned {code}"

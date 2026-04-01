@@ -139,7 +139,7 @@ def generate_directions_halton(
 
     """
     n = len(keys)
-    halton_sampler = Halton(n, rng=np.random.default_rng(seed))
+    halton_sampler = Halton(n, seed=seed)
     directions: list[np.ndarray] = []
     while len(directions) < n_directions:
         # Sample a point, then transform from unit cube to cube around origin.
@@ -215,7 +215,7 @@ class OptimizationAbstractMGAMixin:
                 if isinstance(coeffs, dict):
                     coeffs = pd.Series(coeffs)
                 if attr == nominal_attrs[c] and isinstance(coeffs, pd.Series):
-                    coeffs = coeffs.reindex(self._n.c[c].extendables)
+                    coeffs = coeffs.reindex(self._n.c[c].extendables, fill_value=0)
                     coeffs.index.name = ""
                 elif isinstance(coeffs, pd.Series):
                     coeffs = coeffs.reindex(columns=self._n.c[c].static.index)
@@ -306,7 +306,7 @@ class OptimizationAbstractMGAMixin:
         model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
-            `https://`go.pypsa.org/options-params` for more information.
+            `https://go.pypsa.org/options-params` for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -456,7 +456,7 @@ class OptimizationAbstractMGAMixin:
         model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
-            `https://`go.pypsa.org/options-params` for more information.
+            `https://go.pypsa.org/options-params` for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 

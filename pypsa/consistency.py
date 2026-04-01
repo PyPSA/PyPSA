@@ -10,13 +10,16 @@ Mainly used in the `Network.consistency_check()` method.
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 
 from pypsa._options import options
-from pypsa.constants import RE_PORTS_FILTER
+from pypsa.constants import RE_PORTS_FILTER, RE_PORTS_GE_2
+from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
 
@@ -26,6 +29,7 @@ if TYPE_CHECKING:
     from pypsa import Network
     from pypsa.components import Components
     from pypsa.type_utils import NetworkType
+
 
 logger = logging.getLogger(__name__)
 
@@ -64,13 +68,13 @@ def check_for_unknown_buses(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][]
+    [pypsa.Network.consistency_check][], [pypsa.Network.sanitize][]
 
     """
     for attr in _bus_columns(component.static):
         missing = ~component.static[attr].astype(str).isin(n.c.buses.names)
         # if bus2, bus3... contain empty strings do not warn
-        if component.name in n.branch_components and int(attr[-1]) > 1:
+        if component.name in n.branch_components and RE_PORTS_GE_2.match(attr):
             missing &= component.static[attr] != ""
         # if bus contains empty strings for global constraints do not warn
         if component.name == "GlobalConstraint":
@@ -78,7 +82,9 @@ def check_for_unknown_buses(
         if missing.any():
             _log_or_raise(
                 strict,
-                "The following %s have buses which are not defined:\n%s",
+                "The following %s have buses which are not defined. Add them using "
+                "n.add() or run n.sanitize() to add them automatically. Components "
+                "with undefined buses:\n%s",
                 component.list_name,
                 component.static.index[missing],
             )
@@ -135,7 +141,7 @@ def check_for_unknown_carriers(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][]
+    [pypsa.Network.consistency_check][], [pypsa.Network.sanitize][]
 
 
     """
@@ -148,7 +154,8 @@ def check_for_unknown_carriers(
         if missing.any():
             _log_or_raise(
                 strict,
-                "The following %s have carriers which are not defined:\n%s",
+                "The following %s have carriers which are not defined. Run n.sanitize()"
+                " to add them. Components with undefined carriers:\n%s",
                 component.list_name,
                 component.static.index[missing],
             )
@@ -280,6 +287,9 @@ def check_static_power_attributes(
     Activate strict mode in general consistency check by passing `['static_power_attrs']`
     the `strict` argument.
 
+    A numerical tolerance from `params.consistency.numerical_tolerance` is applied
+    when comparing minimum and maximum expansion limits.
+
     Parameters
     ----------
     n : pypsa.Network
@@ -302,7 +312,10 @@ def check_static_power_attributes(
         )
         if len(static_attr):
             attr = static_attr[0]
-            bad = component.static[attr + "_max"] < component.static[attr + "_min"]
+            tol = options.params.consistency.numerical_tolerance
+            bad = (
+                component.static[attr + "_max"] < component.static[attr + "_min"] - tol
+            )
             if bad.any():
                 _log_or_raise(
                     strict,
@@ -334,6 +347,9 @@ def check_time_series_power_attributes(
 
     Activate strict mode in general consistency check by passing `['time_series_power_attrs']`
     the `strict` argument.
+
+    A numerical tolerance from `params.consistency.numerical_tolerance` is applied
+    when comparing minimum and maximum operational limits.
 
     Parameters
     ----------
@@ -408,8 +424,9 @@ def check_time_series_power_attributes(
                         min_pu.index[np.isinf(min_pu[col])],
                     )
 
+            tol = options.params.consistency.numerical_tolerance
             diff = max_pu - min_pu
-            diff = diff[diff < 0].dropna(axis=1, how="all")
+            diff = diff[diff < -tol].dropna(axis=1, how="all")
             for col in diff.columns:
                 _log_or_raise(
                     strict,
@@ -421,11 +438,13 @@ def check_time_series_power_attributes(
                 )
 
 
-def check_assets(n: NetworkType, component: Components, strict: bool = False) -> None:
-    """Check if assets are only committable or extendable, but not both.
+def check_dispatch_delays(
+    n: NetworkType, component: Components, strict: bool = False
+) -> None:
+    """Check that delay attributes are valid for Link and Process components.
 
-    Activate strict mode in general consistency check by passing `['assets']` to the
-    `strict` argument.
+    Validates that delay values are non-negative and do not exceed the number
+    of snapshots in the optimization horizon.
 
     Parameters
     ----------
@@ -441,17 +460,118 @@ def check_assets(n: NetworkType, component: Components, strict: bool = False) ->
     [pypsa.Network.consistency_check][]
 
     """
-    if component.name in {"Generator", "Link"}:
-        committables = component.committables
-        extendables = component.extendables
-        intersection = committables.intersection(extendables)
-        if not intersection.empty:
+    if component.name not in ("Link", "Process") or component.static.empty:
+        return
+
+    if isinstance(n.snapshots, pd.MultiIndex):
+        total_horizon = min(
+            float(n.snapshot_weightings.generators.loc[p].sum())
+            for p in n.snapshots.unique(level=0)
+        )
+    else:
+        total_horizon = float(n.snapshot_weightings.generators.sum())
+    delay_pattern = re.compile(r"^delay\d*$")
+    delay_cols = [col for col in component.static.columns if delay_pattern.match(col)]
+    for col in delay_cols:
+        values = component.static[col]
+        negative = values[values < 0]
+        if not negative.empty:
             _log_or_raise(
                 strict,
-                "Assets can only be committable or extendable."
-                " Found assets in component %s which are both:\n\n\t%s",
+                "Negative delay values in column '%s' of %s for assets:\n\n\t%s",
+                col,
                 component.name,
-                ", ".join(intersection),
+                ", ".join(negative.index.astype(str)),
+            )
+        too_large = values[values >= total_horizon]
+        if not too_large.empty:
+            _log_or_raise(
+                strict,
+                "Delay values in column '%s' of %s equal or exceed the total"
+                " snapshot horizon (%.1f) for assets:\n\n\t%s",
+                col,
+                component.name,
+                total_horizon,
+                ", ".join(too_large.index.astype(str)),
+            )
+
+
+@deprecated(
+    deprecated_in="1.2.0",
+    removed_in="2.0.0",
+    details="Use `check_dispatch_delays` instead.",
+)
+def check_link_delays(
+    n: NetworkType, component: Components, strict: bool = False
+) -> None:
+    """Check that delay attributes are valid for Link and Process components.
+
+    **Deprecated since 1.2:** Use `check_dispatch_delays` instead.
+    """
+    return check_dispatch_delays(n, component, strict)
+
+
+def check_cost_consistency(component: Components, strict: bool = False) -> None:
+    """Check if both overnight_cost and capital_cost are set for the same asset.
+
+    When both are specified, overnight_cost takes precedence and capital_cost is
+    ignored.
+
+    Activate strict mode in general consistency check by passing `['cost_consistency']`
+    to the `strict` argument.
+
+    Parameters
+    ----------
+    component : pypsa.Component
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    `pypsa.Network.consistency_check`
+
+    """
+    static = component.static
+    if not {"capital_cost", "overnight_cost"}.issubset(static.columns):
+        return
+    has_overnight = static["overnight_cost"].notna()
+    has_capital = static["capital_cost"] != 0
+
+    both_set = has_overnight & has_capital
+    if both_set.any():
+        assets = static.index[both_set].tolist()
+        _log_or_raise(
+            strict,
+            "Component %s has assets with both 'overnight_cost' and 'capital_cost' "
+            "set: %s. When 'overnight_cost' is provided, it takes precedence and "
+            "'capital_cost' is ignored. Consider setting capital_cost=0 for these assets.",
+            component.name,
+            ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
+        )
+
+    if "discount_rate" in static.columns:
+        missing_discount_rate = has_overnight & static["discount_rate"].isna()
+        if missing_discount_rate.any():
+            assets = static.index[missing_discount_rate].tolist()
+            _log_or_raise(
+                True,
+                "Component %s has assets with 'overnight_cost' set but missing "
+                "'discount_rate': %s. Provide discount_rate for annuitization.",
+                component.name,
+                ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
+            )
+
+    if "lifetime" in static.columns:
+        missing_lifetime_rate = has_overnight & static["lifetime"].isna()
+        if missing_lifetime_rate.any():
+            assets = static.index[missing_lifetime_rate].tolist()
+            _log_or_raise(
+                True,
+                "Component %s has assets with 'overnight_cost' set but missing "
+                "'lifetime': %s. Provide lifetime for annuitization.",
+                component.name,
+                ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
             )
 
 
@@ -460,7 +580,11 @@ def check_generators(component: Components, strict: bool = False) -> None:
 
     This function performs the following checks on generator components:
     1. Ensures that committable generators are not both up and down before the simulation.
-    2. Verifies that the minimum total energy to be produced (e_sum_min) is not greater than the maximum total energy to be produced (e_sum_max).
+    2. Verifies that the minimum total energy to be produced (e_sum_min) is not greater
+       than the maximum total energy to be produced (e_sum_max).
+
+    A numerical tolerance from `params.consistency.numerical_tolerance` is applied
+    when comparing `e_sum_min` and `e_sum_max`.
 
     Activate strict mode in general consistency check by passing `['generators']` to the
     the `strict` argument.
@@ -471,8 +595,6 @@ def check_generators(component: Components, strict: bool = False) -> None:
         The generator component to be checked.
     strict : bool, optional
         If True, raise an error instead of logging a warning.
-
-
 
     See Also
     --------
@@ -492,9 +614,22 @@ def check_generators(component: Components, strict: bool = False) -> None:
                 " up and down before the simulation: %s. This could cause an infeasibility.",
                 bad_uc_gens,
             )
+        bad_uc_gens = component.static.index[
+            component.static.committable
+            & (component.static.up_time_before == 0)
+            & (component.static.p_init.notnull())
+        ]
+        if not bad_uc_gens.empty:
+            _log_or_raise(
+                strict,
+                "The following committable generators were down "
+                "before the simulation and have a p_init value. The latter will be ignored: %s.",
+                bad_uc_gens,
+            )
 
+        tol = options.params.consistency.numerical_tolerance
         bad_e_sum_gens = component.static.index[
-            component.static.e_sum_min > component.static.e_sum_max
+            component.static.e_sum_min > component.static.e_sum_max + tol
         ]
         if not bad_e_sum_gens.empty:
             _log_or_raise(
@@ -712,6 +847,10 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
     strict : bool, optional
         If True, raise an error instead of logging a warning.
 
+    See Also
+    --------
+    [pypsa.Network.consistency_check][], [pypsa.Network.sanitize][]
+
     """
     missing_colors = n.c.carriers.static[
         n.c.carriers.static.color.isna() | n.c.carriers.static.color.eq("")
@@ -719,7 +858,8 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
     if not missing_colors.empty:
         _log_or_raise(
             strict,
-            "The following carriers are missing colors:\n%s",
+            "The following carriers are missing colors. Run n.sanitize()"
+            " to assign them. Carriers missing colors:\n%s",
             missing_colors.index,
         )
 
@@ -748,7 +888,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         strict : list, optional
             If some checks should raise an error instead of logging a warning, pass a list
             of strings with the names of the checks to be strict about. If 'all' is passed,
-            all checks will be strict. The default is no strict checks.
+            all checks will be strict. By default, 'dispatch_delays' is always strict.
 
         Raises
         ------
@@ -757,7 +897,7 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         """
         if strict is None:
-            strict = []
+            strict = ["dispatch_delays"]
 
         strict_options = [
             "unknown_buses",
@@ -768,8 +908,9 @@ class NetworkConsistencyMixin(_NetworkABC):
             "nans_for_component_default_attrs",
             "zero_impedances",
             "zero_s_nom",
-            "assets",
             "generators",
+            "cost_consistency",
+            "dispatch_delays",
             "disconnected_buses",
             "investment_periods",
             "shapes",
@@ -777,6 +918,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "scenarios_sum",
             "scenario_invariant_attrs",
             "line_types",
+            "transformer_types",
             "slack_bus_consistency",
         ]
 
@@ -799,7 +941,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         for c in self.components:
             # Checks all components
             check_for_unknown_buses(self, c, "unknown_buses" in strict)
-            check_for_unknown_carriers(self, c, "unkown_carriers" in strict)
+            check_for_unknown_carriers(self, c, "unknown_carriers" in strict)
             check_time_series(self, c, "time_series" in strict)
             check_static_power_attributes(self, c, "static_power_attrs" in strict)
             check_time_series_power_attributes(
@@ -812,10 +954,12 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_impedances(self, c, "zero_impedances" in strict)
             # Checks transformers
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
-            # Checks generators and links
-            check_assets(self, c, "assets" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
+            # Checks cost attributes consistency
+            check_cost_consistency(c)
+            # Checks dispatch delay attributes
+            check_dispatch_delays(self, c, "dispatch_delays" in strict)
 
             if check_dtypes:
                 check_dtypes_(c, "dtypes" in strict)
@@ -827,6 +971,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         check_scenarios_sum_to_one(self, "scenarios_sum" in strict)
         check_scenario_invariant_attributes(self, "scenario_invariant_attrs" in strict)
         check_line_types_consistency(self, "line_types" in strict)
+        check_transformer_types_consistency(self, "transformer_types" in strict)
         check_stochastic_slack_bus_consistency(self, "slack_bus_consistency" in strict)
 
         # Optional runtime verification
@@ -878,6 +1023,30 @@ class NetworkConsistencyMixin(_NetworkABC):
             self,  # type: ignore
             strict="missing_carrier_colors" in strict,
         )
+
+    def sanitize(self) -> None:
+        """Sanitize the network to ensure data integrity.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        This method performs a set of operations to heal the networks data integrity.
+        For a full list of operations which are done, check the See Also section below.
+
+        See Also
+        --------
+        [pypsa.components.Buses.add_missing_buses][],
+        [pypsa.components.Carriers.add_missing_carriers][],
+        [pypsa.components.Carriers.assign_colors][]
+
+        """
+        logger.info("Sanitizing network...")
+
+        self.c.buses.add_missing_buses()
+
+        self.c.carriers.add_missing_carriers()
+        self.c.carriers.assign_colors()
+
+        logger.info("Network sanitization complete.")
 
 
 def check_scenarios_sum_to_one(n: NetworkType, strict: bool = False) -> None:
@@ -945,11 +1114,18 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
         # but we ensure consistent slack bus selection separately
         "type",
         "p_nom_extendable",  # changes mathematical problem
+        "s_nom_extendable",
+        "e_nom_extendable",
+        "p_nom_mod",  # modular investment is first-stage decision
+        "s_nom_mod",
+        "e_nom_mod",
         "committable",  # changes mathematical problem
         "sign",
         "carrier",
         "weight",
         "p_nom_opt",  # optimization result
+        "s_nom_opt",
+        "e_nom_opt",
         "build_year",
         "lifetime",
         "active",  # theoretically can be different, but problematic with "Line"
@@ -1039,6 +1215,53 @@ def check_line_types_consistency(n: NetworkType, strict: bool = False) -> None:
                 )
 
 
+def check_transformer_types_consistency(n: NetworkType, strict: bool = False) -> None:
+    """Check that transformer_types are identical across all scenarios.
+
+    In stochastic networks, transformer_types must be identical across all scenarios
+    since they define physical characteristics of transformers.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if not n.has_scenarios:
+        return
+
+    # Check transformer_types consistency across scenarios
+    if not n.c.transformer_types.static.empty and len(n.scenarios) > 1:
+        # Get reference transformer_types from first scenario
+        reference_scenario = n.scenarios[0]
+        reference_transformer_types = n.c.transformer_types.static.xs(
+            reference_scenario, level="scenario"
+        )
+
+        # Check each other scenario
+        for scenario in n.scenarios[1:]:
+            scenario_transformer_types = n.c.transformer_types.static.xs(
+                scenario, level="scenario"
+            )
+
+            # Check if DataFrames are equal
+            if not reference_transformer_types.equals(scenario_transformer_types):
+                _log_or_raise(
+                    strict,
+                    "transformer_types must be identical across all scenarios. "
+                    "Found differences between scenario '%s' and '%s'. "
+                    "transformer_types define physical characteristics and cannot vary across scenarios.",
+                    reference_scenario,
+                    scenario,
+                )
+
+
 def check_stochastic_slack_bus_consistency(
     n: NetworkType, strict: bool = False
 ) -> None:
@@ -1098,3 +1321,137 @@ def check_stochastic_slack_bus_consistency(
                         scenario,
                         current_slack_buses,
                     )
+
+
+def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
+    """Check if optimized capacities exceed big-M bounds for committable extendables.
+
+    For committable+extendable components, the big-M formulation uses p_nom_max
+    as an upper bound. If the optimized capacity exceeds this bound, the unit
+    commitment constraints may not be binding correctly.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    for c in n.c[["Generator", "Link"]]:
+        if c.static.empty:
+            continue
+
+        com_i = c.committables.difference(c.inactive_assets)
+        if com_i.empty:
+            continue
+
+        ext_i = c.extendables.difference(c.inactive_assets)
+        com_ext_i = com_i.intersection(ext_i)
+        if com_ext_i.empty:
+            continue
+
+        nom_attr = nominal_attrs[c.name]
+
+        p_nom_max_da = c.da[f"{nom_attr}_max"].sel(name=com_ext_i)
+        valid_mask = np.isfinite(p_nom_max_da) & (p_nom_max_da > 0)
+        if not valid_mask.any().item():
+            continue
+        p_nom_max_da = p_nom_max_da.where(valid_mask, drop=True)
+
+        p_nom_opt_da = c.da[f"{nom_attr}_opt"].sel(name=p_nom_max_da.coords["name"])
+
+        if p_nom_opt_da.size == 0:
+            continue
+
+        _, max_pu_da = c.get_bounds_pu(attr="p")
+        max_pu_da = max_pu_da.sel(name=p_nom_max_da.coords["name"])
+        reduce_dims = [dim for dim in max_pu_da.dims if dim != "name"]
+        if reduce_dims:
+            max_pu_da = max_pu_da.max(dim=reduce_dims)
+
+        p_nom_max_series = p_nom_max_da.to_series()
+        p_nom_opt_series = p_nom_opt_da.to_series()
+        max_pu_series = max_pu_da.to_series()
+
+        max_pu_series = max_pu_series.reindex(p_nom_max_series.index)
+        big_m_series = p_nom_max_series * max_pu_series
+        big_m_series = big_m_series.dropna()
+        if big_m_series.empty:
+            continue
+
+        aligned_opt = p_nom_opt_series.reindex(big_m_series.index)
+        aligned_opt = aligned_opt.dropna()
+        if aligned_opt.empty:
+            continue
+
+        exceeded_mask = aligned_opt > big_m_series.loc[aligned_opt.index]
+        exceeded_mask &= aligned_opt > 0
+
+        if not exceeded_mask.any():
+            continue
+
+        details = []
+        for label, exceeded in exceeded_mask.items():
+            if not exceeded:
+                continue
+            limit = big_m_series.loc[label]
+            opt_val = aligned_opt.loc[label]
+            label = "/".join(str(part) for part in label)
+            details.append(f"{label} (p_nom_opt={opt_val:.3g}, big_M={limit:.3g})")
+
+        if details:
+            _log_or_raise(
+                strict,
+                "Optimized capacities exceed big-M bounds for committable extendable %s: %s.",
+                c.name.lower(),
+                ", ".join(details),
+            )
+
+
+def check_no_modular_committables(n: Network) -> None:
+    """Check that no modular committable components exist.
+
+    Raises ValueError if linearized_unit_commitment is used with modular
+    committable components, as this combination is semantically invalid.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    modular_committables: list[str] = []
+
+    for c in n.components:
+        com_i = c.committables
+        if com_i.empty:
+            continue
+        com_i = com_i.difference(c.inactive_assets)
+        mod_com_i = com_i.intersection(c.modulars)
+        if not mod_com_i.empty:
+            modular_committables.extend(f"{c.name}:{name}" for name in mod_com_i)
+
+    if modular_committables:
+        components_str = ", ".join(modular_committables[:5])
+        if len(modular_committables) > 5:
+            components_str += f", ... ({len(modular_committables)} total)"
+        msg = (
+            f"linearized_unit_commitment=True cannot be used with modular "
+            f"committable components: {components_str}. "
+            f"Modular components use integer status variables representing the "
+            f"number of committed modules, which cannot be meaningfully relaxed "
+            f"to continuous values. Use standard unit commitment "
+            f"(linearized_unit_commitment=False) or remove modular sizing "
+            f"(set p_nom_mod=0). "
+            f"See https://go.pypsa.org/modular-committable"
+        )
+        raise ValueError(msg)

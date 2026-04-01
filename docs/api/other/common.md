@@ -15,7 +15,6 @@ SPDX-License-Identifier: CC-BY-4.0
           - "!URL_CREATE_ISSUE"
           - "!check_optional_dependency"
           - "!deprecated_common_kwargs"
-          - "!deprecated_in_next_major"
           - "!deprecated_kwargs"
           - "!deprecated_namespace"
           - "!pass_empty_series_if_keyerror"

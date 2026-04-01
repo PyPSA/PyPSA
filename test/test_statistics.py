@@ -11,6 +11,20 @@ from pypsa.statistics import groupers
 from pypsa.statistics.expressions import StatisticsAccessor
 
 
+def test_stats_alias(ac_dc_network):
+    """Test that n.stats works as an alias for n.statistics."""
+    n = ac_dc_network
+    assert n.stats is n.statistics
+    df_stats = n.stats()
+    df_statistics = n.statistics()
+    pd.testing.assert_frame_equal(df_stats, df_statistics)
+    stats_installed_capacity = n.stats.installed_capacity()
+    statistics_installed_capacity = n.statistics.installed_capacity()
+    pd.testing.assert_series_equal(
+        stats_installed_capacity, statistics_installed_capacity
+    )
+
+
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 def test_all_methods(ac_dc_network_r, stat_func):
     df = getattr(ac_dc_network_r.statistics, stat_func)
@@ -232,6 +246,17 @@ def test_bus_carrier_selection_with_list(ac_dc_network_r):
     assert not df.empty
 
 
+@pytest.mark.parametrize(
+    "stat_func",
+    ["capex", "optimal_capacity", "installed_capacity"],
+)
+def test_bus_carrier_searches_all_ports(ac_dc_network_r, stat_func):
+    n = ac_dc_network_r
+    result = getattr(n.statistics, stat_func)(bus_carrier="DC")
+    components = result.index.get_level_values("component")
+    assert "Link" in components
+
+
 def test_storage_capacity(ac_dc_network_r):
     n = ac_dc_network_r
     df = n.statistics.installed_capacity(storage=True)
@@ -345,3 +370,67 @@ def test_prices(ac_dc_network_r):
     # Test groupby bus_carrier
     grouped = n.statistics.prices(groupby="bus_carrier")
     assert set(grouped.index) == set(n.c.buses.static.carrier.unique())
+
+
+@pytest.fixture
+def network_with_nice_name():
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Carrier", "rural heat", nice_name="residential rural heat")
+    n.add("Bus", "heat bus", carrier="rural heat", unit="MW")
+    n.add(
+        "Load",
+        "heat load",
+        bus="heat bus",
+        carrier="rural heat",
+        p_set=[1.0],
+    )
+    n.c.loads.dynamic.p = n.c.loads.dynamic.p_set.copy()
+    return n
+
+
+def test_energy_balance_bus_carrier_filter():
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Carrier", "rural heat")
+    n.add("Bus", "heat bus", carrier="rural heat", unit="MW")
+    n.add(
+        "Load",
+        "heat load",
+        bus="heat bus",
+        carrier="rural heat",
+        p_set=[1.0],
+    )
+    n.c.loads.dynamic.p = n.c.loads.dynamic.p_set.copy()
+
+    result = n.statistics.energy_balance(bus_carrier="rural heat")
+    assert not result.empty
+    assert "bus_carrier" in result.index.names
+    assert "rural heat" in result.index.get_level_values("bus_carrier")
+
+
+def test_energy_balance_bus_carrier_nice_name_filter(network_with_nice_name):
+    n = network_with_nice_name
+
+    displayed = n.statistics.energy_balance(nice_names=True)
+    assert "residential rural heat" in displayed.index.get_level_values("bus_carrier")
+
+    result = n.statistics.energy_balance(
+        bus_carrier="residential rural heat", nice_names=True
+    )
+    assert not result.empty
+    assert "residential rural heat" in result.index.get_level_values("bus_carrier")
+
+
+def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
+    n = network_with_nice_name
+
+    result = n.statistics.energy_balance(
+        carrier="residential rural heat", nice_names=True
+    )
+    assert not result.empty
+
+    result = n.statistics.energy_balance(
+        carrier="residential rural heat", nice_names=False
+    )
+    assert result.empty

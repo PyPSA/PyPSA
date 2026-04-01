@@ -16,7 +16,9 @@ from pypsa.common import (
     _check_for_update,
     as_index,
     equals,
+    generate_colors,
     list_as_string,
+    normalize_carrier_nice_names,
 )
 from pypsa.definitions.structures import Dict
 
@@ -437,3 +439,92 @@ class TestDict:
         d_deep["b"].append(6)
         assert d["b"] == [2, 3]
         assert d_deep["b"] == [2, 3, 6]
+
+
+class TestGenerateColors:
+    """Test generate_colors function."""
+
+    def test_generate_colors_basic(self):
+        """Test basic color generation."""
+        colors = generate_colors(3, "tab10")
+        assert len(colors) == 3
+        assert all(c.startswith("#") for c in colors)
+        # Colors should be different
+        assert len(set(colors)) == 3
+
+    def test_generate_colors_single(self):
+        """Test generating a single color."""
+        colors = generate_colors(1, "tab10")
+        assert len(colors) == 1
+        assert colors[0].startswith("#")
+
+    def test_generate_colors_zero(self):
+        """Test generating zero colors."""
+        colors = generate_colors(0, "tab10")
+        assert len(colors) == 0
+        assert colors == []
+
+    def test_generate_colors_cycling(self):
+        """Test that colors cycle when more colors than palette."""
+        colors = generate_colors(15, "tab10")
+        assert len(colors) == 15
+        assert all(c.startswith("#") for c in colors)
+        # First 10 colors should be unique, then they repeat
+        assert colors[0] == colors[10]
+        assert colors[1] == colors[11]
+
+    def test_generate_colors_different_palettes(self):
+        """Test different palette options."""
+        tab10_colors = generate_colors(3, "tab10")
+        tab20_colors = generate_colors(3, "tab20")
+        set1_colors = generate_colors(3, "Set1")
+
+        # Different palettes should give different colors
+        assert tab10_colors != set1_colors
+        # All should be valid hex colors
+        assert all(c.startswith("#") for c in tab10_colors)
+        assert all(c.startswith("#") for c in tab20_colors)
+        assert all(c.startswith("#") for c in set1_colors)
+        # Invalid palette raises
+        with pytest.raises(ValueError):
+            generate_colors(3, "nonexistent_palette")
+
+    def test_generate_colors_continuous_palette(self):
+        """Test with a continuous colormap."""
+        colors = generate_colors(5, "viridis")
+        assert len(colors) == 5
+        assert all(c.startswith("#") for c in colors)
+
+
+class TestNormalizeCarrierNiceNames:
+    nice_names = pd.Series(
+        ["Natural Gas", "Electricity", ""],
+        index=["gas", "electricity", "oil"],
+    )
+
+    def test_none(self):
+        assert normalize_carrier_nice_names(self.nice_names, None) is None
+
+    def test_string_nice_name(self):
+        assert normalize_carrier_nice_names(self.nice_names, "Natural Gas") == "gas"
+
+    def test_string_canonical_passthrough(self):
+        assert normalize_carrier_nice_names(self.nice_names, "gas") == "gas"
+
+    def test_list(self):
+        result = normalize_carrier_nice_names(
+            self.nice_names, ["Natural Gas", "Electricity"]
+        )
+        assert result == ["gas", "electricity"]
+
+    def test_duplicate_nice_names_skipped(self):
+        dupes = pd.Series(["Same", "Same"], index=["a", "b"])
+        assert normalize_carrier_nice_names(dupes, "Same") == "Same"
+
+    def test_empty_nice_names(self):
+        empty = pd.Series(["", ""], index=["a", "b"])
+        assert normalize_carrier_nice_names(empty, "a") == "a"
+
+    def test_tuple_passthrough(self):
+        result = normalize_carrier_nice_names(self.nice_names, ("gas", "oil"))
+        assert result == ("gas", "oil")

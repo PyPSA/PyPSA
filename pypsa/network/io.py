@@ -29,7 +29,7 @@ from pyproj import CRS
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.consistency import check_for_unknown_buses
-from pypsa.descriptors import _update_linkports_component_attrs
+from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_base__
 
@@ -908,6 +908,7 @@ class _ImporterNetCDF(_Importer):
             return None
         df = pd.DataFrame()
         for attr in self.ds.data_vars.keys():
+            attr = str(attr)
             if attr.startswith(t) and attr[i : i + 2] != "t_":
                 loaded_df = self.ds[attr].to_pandas()
                 if isinstance(loaded_df, pd.DataFrame):
@@ -926,6 +927,7 @@ class _ImporterNetCDF(_Importer):
         """Get dynamic components data."""
         t = list_name + "_t_"
         for attr in self.ds.data_vars.keys():
+            attr = str(attr)
             if attr.startswith(t):
                 try:
                     df = self.ds[attr].to_pandas()
@@ -1018,9 +1020,11 @@ class _ExporterNetCDF(_Exporter):
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save a dynamic components data."""
-        df = df.rename_axis(
-            index="snapshots", columns={"name": list_name + "_t_" + attr + "_i"}
-        )
+        new_col_name = list_name + "_t_" + attr + "_i"
+        if isinstance(df.columns, pd.MultiIndex):  # stochastic
+            df = df.rename_axis(index="snapshots", columns=["scenario", new_col_name])
+        else:
+            df = df.rename_axis(index="snapshots", columns=new_col_name)
         self.ds[list_name + "_t_" + attr] = df.stack(
             level=df.columns.names, future_stack=True
         ).to_xarray()
@@ -1085,7 +1089,7 @@ def _sort_attrs(
         return axis_labels
 
     remaining = axis_labels.difference(attrs_index, sort=False)
-    target = existing.append(remaining)
+    target = existing.union(remaining, sort=False)
 
     if axis_labels.equals(target):
         return axis_labels
@@ -1397,8 +1401,8 @@ class NetworkIOMixin(_NetworkABC):
                     return
                 continue
 
-            if component == "Link":
-                _update_linkports_component_attrs(self, where=df)
+            if component in ("Link", "Process"):
+                _update_ports_component_attrs(self, where=df, c_name=component)
 
             self._import_components_from_df(df, component)
 
@@ -1758,13 +1762,12 @@ class NetworkIOMixin(_NetworkABC):
             If True, overwrite existing components.
 
         """
-        attrs = self.components[cls_name]["defaults"]
+        if cls_name in ("Link", "Process"):
+            _update_ports_component_attrs(self, where=df, c_name=cls_name)
 
+        attrs = self.components[cls_name]["defaults"]
         static_attrs = attrs[attrs.static].drop("name")
         non_static_attrs = attrs[~attrs.static]
-
-        if cls_name == "Link":
-            _update_linkports_component_attrs(self, where=df)
 
         # Clean dataframe and ensure correct types
         df = pd.DataFrame(df)

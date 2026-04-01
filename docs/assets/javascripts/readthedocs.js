@@ -25,4 +25,5 @@ ${ config.versions.active.map(
 </div>`;
 
     document.querySelector(".md-header__topic").insertAdjacentHTML("beforeend", versioning);
-    });
+    },
+    { once: true });

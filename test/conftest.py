@@ -14,7 +14,13 @@ from shapely.geometry import Polygon
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
 
-pypsa.options.debug.runtime_verification = True
+
+@pytest.fixture(autouse=True)
+def _set_test_options():
+    """Ensure test-specific options are set before each test."""
+    pypsa.options.debug.runtime_verification = True
+    pypsa.options.params.optimize.include_objective_constant = True
+    return
 
 
 @pytest.fixture(autouse=True)
@@ -259,10 +265,7 @@ def network_collection(ac_dc_network_r):
 # Pandapower networks
 @pytest.fixture(scope="module")
 def pandapower_custom_network():
-    try:
-        import pandapower as pp
-    except ImportError:
-        pytest.skip("pandapower not installed")
+    pp = pytest.importorskip("pandapower", reason="pandapower not installed")
     net = pp.create_empty_network()
     bus1 = pp.create_bus(net, vn_kv=20.0, name="Bus 1")
     bus2 = pp.create_bus(net, vn_kv=0.4, name="Bus 2")
@@ -322,7 +325,7 @@ def stochastic_benchmark_network():
     FOM, DR, LIFE = 3.0, 0.03, 25
 
     for cfg in TECH.values():
-        cfg["fixed_cost"] = (pypsa.common.annuity(DR, LIFE) + FOM / 100) * cfg["inv"]
+        cfg["fixed_cost"] = (pypsa.costs.annuity(DR, LIFE) + FOM / 100) * cfg["inv"]
 
     # Load time series data from URL - same as in the original script
     ts = pd.read_csv(TS_URL, index_col=0, parse_dates=True).resample(FREQ).asfreq()

@@ -69,6 +69,7 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_th: Asian Institute of Technology](https://ait.ac.th/)** in the [South and South-East Asia Multidisciplinary Applied Research Network on Transforming Societies of Global South (SMARTS)](https://ait.ac.th/centre/smartscenter/) and the **[:flag_bd: International University of Business Agriculture and Technology (IUBAT), Dhaka](https://eee.iubat.edu/)** developed an adaptation of PyPSA-Earth, called PyPSA-BD to support the energy transition in Bangladesh [<https://doi.org/10.1016/j.ref.2024.100655>](https://doi.org/10.1016/j.ref.2024.100655)
 
+- **[:flag_ca: Simon Fraser University](https://www.sfu.ca/)** at the [ΔE+ (Delta-E-plus)](https://www.sfu.ca/fas/research/fas-research-labs/delta-e/) uses PyPSA to explores the synergies and trade-offs at the nexus of energy+ to support effective policy development.
 
 ## Research Institutes
 
@@ -94,6 +95,10 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_de: Forschungszentrum Jülich (FZJ)](https://www.fz-juelich.de/)** used PyPSA for network calculations.
 
+- **[:flag_de: Fraunhofer Institute for Systems and Innovation Research (ISI)](https://www.isi.fraunhofer.de/)** uses a PyPSA-Eur-based approach for infrastructure analysis in Europe, e.g. in [Integrated Infrastructure Planning and 2050 Climate Neutrality: Deriving Future-Proof European Energy Infrastructures](https://www.agora-energiewende.org/publications/integrated-infrastructure-planning-and-2050-climate-neutrality) on future-proof European energy infrastructures jointly with Fraunhofer IEG and d-fine.
+
+- **[:flag_us: Union of Concerned Scientists (UCS)](https://www.ucs.org/)**: used PyPSA to assess the storage needs for Illinois electricity system.
+
 ## Companies
 
 * **[:flag_de: TransnetBW](https://www.transnetbw.de/)**, the electricity transmission system operator in southwest Germany, **[:flag_de: ONTRAS](https://www.ontras.com/)**, the gas transmission system operator in eastern Germany and **[:flag_de: d-fine](https://www.d-fine.com/)**, a consultancy firm, used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see [Stromnetz 2050](https://www.transnetbw.de/de/stromnetz2050/), for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen [Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050](https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf), and for their 2022 study [Energy System 2050 - Towards a decarbonised Europe](https://www.energysystem2050.net/).
@@ -102,13 +107,13 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_at: Austrian Power Grid (APG)](https://www.apg.at/)**, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in [this talk](https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf) and [this project description](https://www.apg.at/projekte/zusammen-2040/).
 
-- **[:flag_at: Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/)** develops and maintains a high-resolution, sector-coupled energy system model based on PyPSA-DE and PyPSA-EUR. The model is used to analyse long-term energy system projections up to 2050 and serves as a supplementary tool for AGGM’s bi-annual report, the Langfristige Integrierte Planung (LFiP).
+- **[:flag_at: Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/)** develops and maintains a high-resolution, sector-coupled energy system model for [Austria](https://github.com/AGGM-AG/pypsa-at) based on PyPSA-DE and PyPSA-EUR. The model is used to analyse long-term energy system projections up to 2050 and serves as a supplementary tool for AGGM’s bi-annual report, the Langfristige Integrierte Planung (LFiP).
 
 - **[:flag_nl: TenneT](https://www.tennet.eu/)**, the Dutch TSO, used PyPSA for [research](https://arxiv.org/abs/2104.13047) on ancillary services acquisition using agent-based modelling.
 
-* **[:flag_za: Meridian Economics](https://meridianeconomics.co.za/)**, a consultancy based in South Africa, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa. Studies published in June 2022 were on [load shedding in 2021](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf) and [a plan to resolve load shedding](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-B-The-Game-Plan-01.pdf)
+* **[:flag_za: Meridian Economics](https://meridianeconomics.co.za/)**, a consultancy based in South Africa, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa. Studies published in June 2022 were on [load shedding in 2021](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf) and [a plan to resolve load shedding](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-B-The-Game-Plan-01.pdf). [Updated study in 2025](https://meridianeconomics.co.za/publications/re-thinking-the-future-of-south-africas-coal-fleet-the-value-of-flexibility/) including different types of flexibility of coal plant operation and retirement.
 
-* **[:flag_de: Energynautics GmbH](https://energynautics.com/)**, a grid integration consultancy in Germany, used PyPSA for a study of decentral electricity and heat integration in power grids in a study for the Rhineland-Palatinate state government in 2021: [Pilotprojekt Dezentralisierung: Stärkere Dezentralisierung des bundesdeutschen Strom-Wärme-Systems: Rechtliche und organisatorische Rahmenbedingungen sowie infrastrukturelle Folgen](https://mkuem.rlp.de/fileadmin/mulewf/Themen/Energie_und_Strahlenschutz/Energie/Endbericht_Pilotprojekt_Dezentralisierung_2021_v2.pdf) ([summary in English](https://energynautics.com/en/decentrality-study-for-rhineland-palatinate-completed/))
+* **[:flag_de: Energynautics GmbH](https://energynautics.com/)**, a grid integration consultancy in Germany, used PyPSA for a study of decentral electricity and heat integration in power grids in a study for the Rhineland-Palatinate state government in 2021: [Pilotprojekt Dezentralisierung: Stärkere Dezentralisierung des bundesdeutschen Strom-Wärme-Systems: Rechtliche und organisatorische Rahmenbedingungen sowie infrastrukturelle Folgen](https://open.rlp.de/de/suchergebnisse/dataset/pilotprojekt-dezentralisierung-des-bundesdeutschen-strom-warme-systems-februar-2021) ([summary in English](https://energynautics.com/en/decentrality-study-for-rhineland-palatinate-completed/))
 
 * **[:flag_nl: Witteveen+Bos](https://www.witteveenbos.com/about-us/)**, a Dutch engineering and consultancy company, used PyPSA in 2022 to consult the Ministry of Economic Affairs and Climate Policy in Netherlands: [Scenario study on nuclear energy](https://eriskgroup.com/wp-content/uploads/2022/10/Scenario-study-nuclear-energy-Conclusions-and-Summary.pdf)
 
@@ -122,6 +127,11 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_us: spire](https://www.spireenergy.com/)**
 
+* **[:flag_in: Serentica](https://www.serenticaglobal.com/)**, an Indian independent power producer (IPP) and project developer, uses PyPSA to create and assess round-the-clock power purchase agreements (PPAs). See [YouTube](https://www.youtube.com/watch?v=Yz-6ZH3oFWA&list=PLz1RcE1NdLlHsbQoUXxJOVQ8IdEv9Ks5Z&index=8).
+
+* **[:flag_jp: Tokyo Electric Power Services Company (TEPSCO)](https://www.tepsco.co.jp/english/)**, provides wide-ranging engineering services; planning, study, design, construction supervision and after care. See [Linkedin.com](https://www.linkedin.com/posts/takashi-yanase-850462a0_i-built-and-ran-a-preliminary-model-of-japan-activity-7401253510639648768-F3EB?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAp_3N8BMuXs2_8w1fGMmfRzJESnpY7vzI4).
+
+* **[:flag_de: d-fine](https://www.d-fine.com/)**: uses a PyPSA-Eur-based approach for infrastructure analysis in Europe, e.g. in [Integrated Infrastructure Planning and 2050 Climate Neutrality: Deriving Future-Proof European Energy Infrastructures](https://www.agora-energiewende.org/publications/integrated-infrastructure-planning-and-2050-climate-neutrality) on future-proof European energy infrastructures (jointly with Fraunhofer IEG and Fraunhofer ISI.
 
 ## Governmental Organisation
 
@@ -131,7 +141,7 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_de: GIZ](https://www.giz.de/en/html/index.html)**, the German Agency for International Cooperation (Deutsche Gesellschaft für Internationale Zusammenarbeit), published and supported several studies based on PyPSA for the [integration of renewables into the Vietnamese power system](http://gizenergy.org.vn/media/app/media/Research%20Cooperation%20Project%20Fact%20Sheet_final.pdf), [power sector analysis for Thailand](https://static.agora-energiewende.de/fileadmin/Partnerpublikationen/2021/CASE_Beyond_Net_Zero_Empowering_Climate_Mitigation/Towards_a_collective_vision_of_Thai_energy_transition_full_report.pdf) within the CASE programme, [the future of the Indonesian power system](https://energynautics.com/en/pypsa/) within the 1000 Islands programme, and the [Brazilian electricity system](https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf).
 
-* **[:flag_ca: Canada Energy Regulator (CER)](https://www.cer-rec.gc.ca/en/)**, an agency of the Government of Canada, used PyPSA for its [Canada's Energy Future 2023 report](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2023/appendix-3/).
+* **[:flag_ca: Canada Energy Regulator (CER)](https://www.cer-rec.gc.ca/en/)**, an agency of the Government of Canada, used PyPSA for its [Canada's Energy Future 2023](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2023/appendix-3/) and [Canada's Energy Future 2026 report](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2026/canada-energy-futures-2026.pdf) report.
 
 ## Non-Governmental and Non-Profit Organisations
 
@@ -154,3 +164,5 @@ The following universities, research institutes, companies, governmental and non
 * **[:flag_eu:/:flag_us: RAND Europe](https://www.rand.org/randeurope.html)** used PyPSA in a 2024 report [The use of AI for improving energy security](https://www.rand.org/pubs/research_reports/RRA2907-2.html) to explore the extent to which different AI applications can improve energy security in Europe.
 
 * **[:flag_gb: ClimateXChange](https://www.climatexchange.org.uk/)** commissioned a report for the Scottish Government on [Electricity system security of supply in Scotland](https://www.climatexchange.org.uk/projects/electricity-system-security-of-supply-in-scotland/) using PyPSA-GB.
+
+- **[:flag_kr: PLANiT Institute](https://planit.institute)** A non-profit research institute based in Seoul developed [PyPSA_KR](https://github.com/PLANiT-Institute/PyPSA_KR), a comprehensive power system analysis toolkit for modeling and optimizing electricity networks in South Korea with multi-node network modeling at different granularities, and [pyPPA](https://github.com/PLANiT-Institute/pyPPA), a Power Purchase Agreement modeling and optimization framework for evaluating renewable energy procurement strategies.

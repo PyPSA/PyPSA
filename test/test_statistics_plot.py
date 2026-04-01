@@ -11,7 +11,14 @@ import pytest
 import seaborn as sns
 
 from pypsa.consistency import ConsistencyError
-from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
+from pypsa.plot.statistics.charts import (
+    CHART_TYPES,
+    ChartGenerator,
+    adjust_collection_bar_defaults,
+    prepare_bar_data,
+)
+from pypsa.plot.statistics.maps import MapPlotGenerator
+from pypsa.plot.statistics.plotter import StatisticPlotter
 from pypsa.statistics.expressions import StatisticsAccessor
 
 # Set random seed for reproducibility
@@ -20,6 +27,17 @@ np.random.seed(42)  # noqa: NPY002
 plt.rcdefaults()
 plt.rcParams["figure.figsize"] = [8, 6]
 plt.rcParams["figure.dpi"] = 100
+
+
+def _multi_period_sample() -> pd.DataFrame:
+    """Return deterministic sample data with investment period columns."""
+    index = pd.MultiIndex.from_product(
+        [["Generator"], ["wind"]], names=["component", "carrier"]
+    )
+    periods = pd.Index([2020, 2030], name="period")
+    data = pd.DataFrame([[1.0, 2.0]], index=index, columns=periods)
+    data.attrs = {"name": "Sample", "unit": "MW"}
+    return data
 
 
 @pytest.mark.skipif(
@@ -212,6 +230,52 @@ def test_networks_area_plot(network_collection, stat_func):
     plt.close(fig)
 
 
+def test_prepare_bar_data_stacks_periods(ac_dc_network_r):
+    network = ac_dc_network_r.copy()
+    periods = pd.Index([2020, 2030], name="period")
+    network.investment_periods = periods
+
+    data = _multi_period_sample()
+    stacked = prepare_bar_data(network, "bar", data)
+
+    assert isinstance(stacked, pd.Series)
+    assert "period" in stacked.index.names
+    assert set(stacked.index.get_level_values("period")) == {"2020", "2030"}
+    assert stacked.attrs == data.attrs
+
+
+def test_adjust_defaults_for_multi_investment(ac_dc_network_r):
+    network = ac_dc_network_r.copy()
+    periods = pd.Index([2020, 2030], name="period")
+    network.investment_periods = periods
+
+    color, stacked, order = adjust_collection_bar_defaults(
+        network, "bar", None, True, None
+    )
+
+    assert color == "period"
+    assert stacked is False
+    assert list(order) == list(periods)
+
+
+def test_statistic_plotter_multi_investment_defaults(ac_dc_network_r):
+    network = ac_dc_network_r.copy()
+    network.investment_periods = pd.Index([2020, 2030], name="period")
+    sample = _multi_period_sample()
+
+    def fake_statistic(**kwargs):
+        return sample
+
+    fake_statistic.__name__ = "installed_capacity"
+
+    plotter = StatisticPlotter(fake_statistic, network)
+    fig, ax, g = plotter.bar()
+
+    assert "period" in g.data.columns
+    assert set(g.data["period"].unique()) == {"2020", "2030"}
+    plt.close(fig)
+
+
 def test_networks_query_filtering(network_collection):
     plotter = ChartGenerator(network_collection)
     data = network_collection.statistics.energy_balance()
@@ -235,3 +299,33 @@ def test_networks_stacking(network_collection):
 def test_networks_plot_map(network_collection):
     with pytest.raises(NotImplementedError):
         network_collection.statistics.energy_balance.plot.map()
+
+
+def test_statistics_map_transmission_flow_bus_carrier_non_zero(
+    ac_dc_network_r, monkeypatch
+):
+    captured: dict[str, pd.Series | int] = {}
+
+    def fake_draw_map(self, **kwargs):
+        captured["line_flow"] = kwargs.get("line_flow", 0)
+        captured["link_flow"] = kwargs.get("link_flow", 0)
+
+    monkeypatch.setattr(MapPlotGenerator, "draw_map", fake_draw_map)
+
+    ac_dc_network_r.statistics.energy_balance.plot.map(
+        bus_carrier="AC",
+        transmission_flow=True,
+        geomap=False,
+        draw_legend_circles=False,
+        draw_legend_lines=False,
+        draw_legend_arrows=False,
+        draw_legend_patches=False,
+    )
+
+    line_flow = captured.get("line_flow", 0)
+    link_flow = captured.get("link_flow", 0)
+
+    line_non_zero = isinstance(line_flow, pd.Series) and (line_flow.abs() > 0).any()
+    link_non_zero = isinstance(link_flow, pd.Series) and (link_flow.abs() > 0).any()
+
+    assert line_non_zero or link_non_zero

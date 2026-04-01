@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import pypsa
 from pypsa.clustering.spatial import (
     aggregateoneport,
     busmap_by_hac,
@@ -13,6 +14,8 @@ from pypsa.clustering.spatial import (
     get_clustering_from_busmap,
     normed_or_uniform,
 )
+
+pytest.importorskip("sklearn")
 
 
 def test_aggregate_generators(ac_dc_network):
@@ -169,15 +172,32 @@ def test_cluster_accessor(scipy_network):
     prepare_network_for_aggregation(n)
 
     weighting = pd.Series(1, n.c.buses.static.index)
-    busmap = n.cluster.busmap_by_kmeans(
+    busmap = n.cluster.spatial.busmap_by_kmeans(
         bus_weightings=weighting, n_clusters=50, random_state=42
     )
-    buses = n.cluster.cluster_by_busmap(busmap).buses
+    buses = n.cluster.spatial.cluster_by_busmap(busmap).buses
 
-    buses_direct = n.cluster.cluster_spatially_by_kmeans(
+    buses_direct = n.cluster.spatial.cluster_by_kmeans(
         bus_weightings=weighting, n_clusters=50, random_state=42
     ).buses
     assert buses.equals(buses_direct)
+
+
+def test_cluster_accessor_deprecated(scipy_network):
+    n = scipy_network
+    prepare_network_for_aggregation(n)
+
+    weighting = pd.Series(1, n.c.buses.static.index)
+    with pytest.warns(DeprecationWarning, match="n.cluster.spatial"):
+        busmap = n.cluster.busmap_by_kmeans(
+            bus_weightings=weighting, n_clusters=50, random_state=42
+        )
+    with pytest.warns(DeprecationWarning, match="n.cluster.spatial"):
+        n.cluster.cluster_by_busmap(busmap)
+    with pytest.warns(DeprecationWarning, match="n.cluster.spatial"):
+        n.cluster.cluster_spatially_by_kmeans(
+            bus_weightings=weighting, n_clusters=50, random_state=42
+        )
 
 
 def test_custom_line_groupers(scipy_network):
@@ -195,3 +215,70 @@ def test_custom_line_groupers(scipy_network):
     nc = C.n
     assert len(nc.buses) == 20
     assert (n.c.lines.static.groupby(linemap).build_year.nunique() == 1).all()
+
+
+def test_clustering_multiport_links():
+    """Test that clustering correctly remaps all bus ports in multi-port links.
+
+    See https://github.com/PyPSA/PyPSA/issues/1439
+    """
+
+    # Create network with multilink
+    n = pypsa.Network()
+    n.add("Bus", "gas")
+    n.add("Bus", "heat")
+    n.add("Bus", "power A")
+    n.add("Bus", "power B")
+    n.add("Bus", "power C")
+    n.add(
+        "Link",
+        "CHP",
+        bus0="gas",
+        bus1="heat",
+        bus2="power A",
+        efficiency=0.6,
+        efficiency2=0.3,
+    )
+
+    # Create busmap that clusters power buses together
+    busmap = pd.Series(
+        ["gas", "heat", "power", "power", "power"],
+        index=["gas", "heat", "power A", "power B", "power C"],
+    )
+
+    # Apply clustering
+    C = get_clustering_from_busmap(n, busmap)
+    n = C.n
+
+    # Assert that bus2 is correctly remapped to "power"
+    assert n.c.links.static.loc["CHP", "bus2"] == "power", (
+        f"bus2 should be remapped to 'power', got {n.c.links.static.loc['CHP', 'bus2']}"
+    )
+
+    # Assert that the old bus "power A" no longer exists
+    assert "power A" not in n.c.buses.static.index, "Old bus 'power A' should not exist"
+
+    # Assert all buses referenced by the link exist in the clustered network
+    for col in ["bus0", "bus1", "bus2"]:
+        bus_name = n.c.links.static.loc["CHP", col]
+        assert bus_name in n.c.buses.static.index, (
+            f"{col}={bus_name} not found in buses"
+        )
+
+    # Assert total number of buses is correct
+    assert len(n.c.buses.static) == 3, f"Expected 3 buses, got {len(n.c.buses.static)}"
+
+
+def test_aggregate_one_ports_no_time_series():
+    """Test that empty time series stay empty after clustering."""
+    n = pypsa.Network()
+    n.set_snapshots(range(3))
+    n.add("Bus", ["a", "b"])
+    n.add("StorageUnit", "su", bus="a", p_nom=100)
+
+    assert n.storage_units_t.p.empty
+
+    busmap = pd.Series("x", n.buses.index)
+    C = get_clustering_from_busmap(n, busmap, aggregate_one_ports=["StorageUnit"])
+
+    assert C.n.storage_units_t.p.empty

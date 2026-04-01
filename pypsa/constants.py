@@ -9,6 +9,7 @@ import re
 DEFAULT_EPSG = 4326
 DEFAULT_TIMESTAMP = "now"
 EARTH_RADIUS = 6378137.0  # equitorial radius in meters
+HOURS_PER_YEAR = 8760.0
 
 RE_PORTS = re.compile(r"^bus(\d*)$")
 # Pattern for filtering bus columns without capture groups

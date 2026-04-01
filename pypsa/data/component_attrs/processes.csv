@@ -1,0 +1,57 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+bus0,string,n/a,n/a,Name of first bus to which process is attached.,Input (required)
+bus1,string,n/a,n/a,"Name of second bus to which process is attached. Further buses (`bus2`, `bus3`, etc.) are automatically expanded as needed.",Input (required)
+type,string,n/a,n/a,Placeholder for process type. Not implemented.,Input (optional)
+carrier,string,n/a,,"Carrier of the process describing its technology (e.g. gas boiler, electrolyser, HVDC process).",Input (optional)
+rate0,static or series,per unit,-1,"Rate of energy transfer at `bus0` relative to internal power `p`. Can be time-dependent (e.g. to represent temperature-dependent heat pump COP).  `Rate`s for further buses (e.g. `bus2`, `bus3`, etc.) are automatically expanded as needed (e.g. `rate2`, `rate3`, etc.).",Input (optional)
+rate1,static or series,per unit,1,"Rate of energy transfer at `bus1` relative to internal power `p`. Can be time-dependent (e.g. to represent temperature-dependent heat pump COP).  `Rate`s for further buses (e.g. `bus2`, `bus3`, etc.) are automatically expanded as needed (e.g. `rate2`, `rate3`, etc.).",Input (optional)
+active,boolean,n/a,True,"Whether to consider the component in basic functionality or not",Input (optional)
+build_year,int,year,0,Build year,Input (optional)
+lifetime,float,years,inf,Lifetime,Input (optional)
+p_nom,float,MW,0,Limit of power which can pass through process (in units of `bus0`). Ignored if `p_nom_extendable=True`.,Input (optional)
+p_nom_mod,float,MW,0,Unit size of process module (e.g. fixed blocks of 100 MW).,Input (optional)
+p_nom_extendable,boolean,n/a,False,Switch to allow capacity `p_nom` to be extended.,Input (optional)
+p_nom_min,float,MW,0,"If `p_nom_extendable=True`, set its minimum value.",Input (optional)
+p_nom_max,float,MW,inf,"If `p_nom_extendable=True`, set its maximum value.",Input (optional)
+p_nom_set,float,MW,n/a,"If `p_nom` is extendable in optimization, set its value.",Input (optional)
+p_set,static or series,MW,n/a,The dispatch set point for `p0` of the process (for optimisation and power flow).,Input (optional)
+p_init,static,MW,n/a,Active power used as a starting point for limiting the ramp in the very first snapshot (for optimisation),Input (optional)
+p_min_pu,static or series,per unit of p_nom,0.,Minimal dispatch per unit of `p_nom` for the process. Can also be negative.,Input (optional)
+p_max_pu,static or series,per unit of p_nom,1.,Maximal dispatch per unit of `p_nom` for the process. Can also be negative.,Input (optional)
+capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW (unit of `bus0`, e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified. Any `length` factor must already be included.",Input (optional)
+overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW (unit of `bus0`). If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
+discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
+fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW (unit of `bus0`), added to annuitized investment cost.",Input (optional)
+marginal_cost,static or series,currency/MWh,0.,Marginal cost of 1 MWh consumption from `bus0` (e.g. including variable operation and maintenance costs of an electrolyser but excluding electricity costs).,Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost for 1 MWh of consumption from `bus0`.,Input (optional)
+stand_by_cost,static or series,currency/h,0.,Stand-by cost for operating the process. This cost is incurred whenever the status is 1 (including when dispatch decision is zero).,Input (optional)
+length,float,km,0,"Length of the process. Useful for calculating `capital_cost` for HVDC connections.",Input (optional)
+terrain_factor,float,per unit,1,Terrain factor for increasing `capital_cost` calculated from `length`.,Input (optional)
+committable,boolean,n/a,False,Apply unit commitment constraints. This is only possible with `p_nom_extendable=False`.,Input (optional)
+start_up_cost,float,currency,0,Cost to start up the process. Only used if `committable=True`.,Input (optional)
+shut_down_cost,float,currency,0,Cost to shut down the process. Only used if `committable=True`.,Input (optional)
+min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1.  Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
+min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0.  Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
+up_time_before,int,snapshots,1,Number of snapshots that the process was online before network.snapshots start. Only read if `committable=True` and `min_up_time>0`. Does not consider snapshot weightings.,Input (optional)
+down_time_before,int,snapshots,0,Number of snapshots that the process was offline before network.snapshots start. Only read if `committable=True` and `min_down_time>0`. Does not consider snapshot weightings.,Input (optional)
+ramp_limit_up,static or series,per unit,NaN,"Maximum increase from one snapshot to the next, per unit of `p_nom`. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
+ramp_limit_down,static or series,per unit,NaN,"Maximum decrease from one snapshot to the next, per unit of `p_nom`. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
+ramp_limit_start_up,float,per unit,NaN,"Maximum increase at start up, per unit of `p_nom`. Only used if `committable=True`. Ignored if NaN.",Input (optional)
+ramp_limit_shut_down,float,per unit,NaN,"Maximum decrease at shut down, per unit of `p_nom`. Only used if `committable=True`. Ignored if NaN.",Input (optional)
+delay0,int,snapshot weighting units,0,"Delay of energy delivery to `bus0` in units of `n.snapshot_weightings.generators`. Energy withdrawn at snapshot `t` arrives at the first snapshot whose cumulative generator weighting start is at least `delay0` units later. Auto-expanded as `delay2`, `delay3`, etc. for additional ports.",Input (optional)
+cyclic_delay0,boolean,n/a,True,"Whether delayed energy wraps cyclically from end to start of the optimization period. If False, energy is lost at the tail and first snapshots receive nothing from delayed processes. Auto-expanded as `cyclic_delay2`, `cyclic_delay3`, etc. for additional ports.",Input (optional)
+delay1,int,snapshot weighting units,0,"Delay of energy delivery to `bus1` in units of `n.snapshot_weightings.generators`. Energy withdrawn at snapshot `t` arrives at the first snapshot whose cumulative generator weighting start is at least `delay1` units later. Auto-expanded as `delay2`, `delay3`, etc. for additional ports.",Input (optional)
+cyclic_delay1,boolean,n/a,True,"Whether delayed energy wraps cyclically from end to start of the optimization period. If False, energy is lost at the tail and first snapshots receive nothing from delayed processes. Auto-expanded as `cyclic_delay2`, `cyclic_delay3`, etc. for additional ports.",Input (optional)
+p,series,MW,0.,Power in component.,Output
+p0,series,MW,0.,Power at `bus0` (positive if process is withdrawing from `bus0`).,Output
+p1,series,MW,0.,Power at `bus1` (positive if process is withdrawing from `bus1`).,Output
+p_nom_opt,float,MW,0,Optimised nominal capacity.,Output
+status,series,n/a,1.,"Status in the snapshot (1 is on, 0 is off). Only returned if `committable=True`.",Output
+start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only returned if `committable=True`.",Output
+shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no).  Only returned if `committable=True`.",Output
+mu_lower,series,currency/MW,n/a,Shadow price of lower `p_nom` limit  $-F \\leq f$. Always non-negative.,Output
+mu_upper,series,currency/MW,n/a,Shadow price of upper `p_nom` limit $f \\leq F$. Always non-negative.,Output
+mu_p_set,series,currency/MWh,n/a,Shadow price of fixed dispatch `p_set`,Output
+mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
+mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output

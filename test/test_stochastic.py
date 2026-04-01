@@ -85,6 +85,31 @@ def test_calculate_dependent_values(ac_dc_stochastic: pypsa.Network):
     assert n.c.lines.static.x_pu_eff.notnull().all()
 
 
+def test_apply_transformer_types_with_scenarios():
+    """
+    Test that apply_transformer_types works correctly with broadcasted transformer
+    types in stochastic networks.
+
+    @TODO update test once properties are implemented and types are no longer broadcasted.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220, carrier="AC")
+    n.add("Bus", "bus2", v_nom=110, carrier="AC")
+    n.add("Transformer", "trafo", bus0="bus1", bus1="bus2", type="100 MVA 220/110 kV")
+
+    # Set up scenarios - this broadcasts transformer_types with scenario index
+    n.set_scenarios(["low", "high"])
+
+    # This should not raise "type does not exist in n.transformer_types"
+    n.calculate_dependent_values()
+
+    # Verify transformer parameters were correctly computed from type
+    trafo = n.c.transformers.static
+    assert trafo.s_nom.notnull().all()
+    assert trafo.x.notnull().all()
+    assert trafo.r.notnull().all()
+
+
 def test_determine_network_topology(ac_dc_stochastic: pypsa.Network):
     """
     Test the determination of network topology in a stochastic network.
@@ -274,6 +299,50 @@ def test_solved_network_simple(stochastic_benchmark_network):
 
     # Compare objective value
     equal(n.objective, n_r.objective, decimal=2)
+
+
+def test_solved_network_simple_modular(stochastic_benchmark_network):
+    """
+    Solve the stochastic problem with modular expansion constraints.
+    Tests that p_nom_mod works correctly with scenarios.
+    """
+    n = stochastic_benchmark_network
+
+    # GAS_PRICES = {"low": 40, "med": 70, "high": 100}
+    n.c.generators.static.loc[("medium", "gas"), "marginal_cost"] = (
+        70 / n.c.generators.static.loc[("medium", "gas"), "efficiency"]
+    )
+    n.c.generators.static.loc[("high", "gas"), "marginal_cost"] = (
+        100 / n.c.generators.static.loc[("high", "gas"), "efficiency"]
+    )
+
+    # Set modular expansion
+    for scenario in n.scenarios:
+        n.c.generators.static.loc[(scenario, "gas"), "p_nom_mod"] = 0.7
+        n.c.generators.static.loc[(scenario, "lignite"), "p_nom_mod"] = 0.7
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    # Check that modular constraints are satisfied
+    # p_nom_opt should be a multiple of p_nom_mod (0.7)
+    for gen in ["gas", "lignite"]:
+        p_nom_opt = n.c.generators.static.loc[("low", gen), "p_nom_opt"]
+        p_nom_mod = n.c.generators.static.loc[("low", gen), "p_nom_mod"]
+        n_modules = round(p_nom_opt / p_nom_mod)
+        assert abs(p_nom_opt - n_modules * p_nom_mod) < 1e-4, (
+            f"{gen} p_nom_opt={p_nom_opt} is not a multiple of p_nom_mod={p_nom_mod}"
+        )
+
+    # Check first-stage decision
+    for gen in n.c.generators.static.loc["low", :].index:
+        low_cap = n.c.generators.static.loc[("low", gen), "p_nom_opt"]
+        medium_cap = n.c.generators.static.loc[("medium", gen), "p_nom_opt"]
+        high_cap = n.c.generators.static.loc[("high", gen), "p_nom_opt"]
+        assert low_cap == medium_cap == high_cap, (
+            f"{gen} has different capacities across scenarios: "
+            f"low={low_cap}, medium={medium_cap}, high={high_cap}"
+        )
 
 
 def test_solved_network_multiperiod():

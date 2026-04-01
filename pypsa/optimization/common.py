@@ -9,9 +9,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pandas as pd
+from deprecation import deprecated
 from numpy import hstack, ravel
 
-from pypsa.common import deprecated_in_next_major
 from pypsa.constants import RE_PORTS
 
 if TYPE_CHECKING:
@@ -20,7 +20,9 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 
-@deprecated_in_next_major(
+@deprecated(
+    deprecated_in="1.0.0",
+    removed_in="2.0.0",
     details="Use xarray functionality instead (e.g. `ds.sel({dim: index}).rename({dim: index.name})`).",
 )
 def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
@@ -53,14 +55,48 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
     else:
         c.dynamic[attr].loc[df.index, df.columns] = df
 
-    c.dynamic[attr] = (
-        c.dynamic[attr]
-        .reindex(n.snapshots, level="snapshot", axis=0)
-        .reindex(c.names, level="name", axis=1)
-        .fillna(0.0)
+    # Reindex to match network snapshots and component names
+    result = c.dynamic[attr].reindex(n.snapshots, level="snapshot", axis=0)
+    if n.has_scenarios:
+        expected_columns = pd.MultiIndex.from_product(
+            [n.scenarios, c.names], names=["scenario", "name"]
+        )
+        result = result.reindex(columns=expected_columns)
+    else:
+        # Preserve auxiliary dimensions (e.g. contingencies), using level="name"
+        # Note that we don't have a case to preserve auxiliary dimensions
+        # with stochastic dimension currently
+        result = result.reindex(c.names, level="name", axis=1)
+
+    c.dynamic[attr] = result.fillna(0.0)
+
+
+def get_bus_counts(n: Network) -> pd.Series:
+    """Count how often each bus appears in component bus columns.
+
+    Parameters
+    ----------
+    n : Network
+        The network to analyze.
+
+    Returns
+    -------
+    pandas.Series
+        Bus usage counts indexed by bus name.
+
+    """
+    all_buses = pd.Series(
+        hstack([ravel(c.static.filter(regex=RE_PORTS.pattern)) for c in n.components])
     )
+    all_buses = all_buses[all_buses != ""]
+    return all_buses.value_counts()
 
 
+@deprecated(
+    deprecated_in="1.1.3",
+    removed_in="2.0.0",
+    details="Use `get_bus_counts(n).loc[lambda s: s > threshold].index` instead.",
+)
 def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     """Get the buses which are strongly meshed in the network.
 
@@ -76,11 +112,7 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     pandas series of all meshed buses.
 
     """
-    all_buses = pd.Series(
-        hstack([ravel(c.static.filter(regex=RE_PORTS.pattern)) for c in n.components])
-    )
-    all_buses = all_buses[all_buses != ""]
-    counts = all_buses.value_counts()
+    counts = get_bus_counts(n)
     results = counts.index[counts > threshold].rename("Bus")
     results = results.sort_values()
     return results

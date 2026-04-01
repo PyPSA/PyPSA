@@ -416,7 +416,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         if branch_outages is None:
             branch_outages = all_passive_branches
-        elif isinstance(branch_outages, (list | pd.Index)):
+        elif isinstance(branch_outages, (list | pd.Index)) and not isinstance(
+            branch_outages, pd.MultiIndex
+        ):
             branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])
 
             if diff := set(branch_outages) - set(all_passive_branches):
@@ -603,12 +605,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 status,
                 condition,
             )
-            return {"status": status, "terminantion_condition": condition}
+            return {"status": status, "termination_condition": condition}
 
-        for c in n.one_port_components:
+        for c in n.one_port_components | {"Process", "Link"}:
             n.c[c].dynamic["p_set"] = n.c[c].dynamic["p"]
-        for c in ("Link",):
-            n.c[c].dynamic["p_set"] = n.c[c].dynamic["p0"]
 
         n.c.generators.static.control = "PV"
         for sub_network in n.c.sub_networks.static.obj:
@@ -633,4 +633,4 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             slack_weights=slack_weights,
         )
 
-        return dict(status=status, terminantion_condition=condition, **res)
+        return dict(status=status, termination_condition=condition, **res)
