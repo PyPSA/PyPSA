@@ -5,16 +5,20 @@
 import sys
 
 import numpy as np
+import pandas as pd
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
 from pypsa.constants import DEFAULT_TIMESTAMP
 
+PANDAS_3 = int(pd.__version__.split(".")[0]) >= 3
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 12), reason="Test requires Python 3.12 or higher"
 )
+@pytest.mark.skipif(PANDAS_3, reason="pandapower does not yet support pandas 3")
 @pytest.mark.parametrize("use_pandapower_index", [True, False])
 @pytest.mark.parametrize("extra_line_data", [True, False])
 def test_pandapower_custom_case(

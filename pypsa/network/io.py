@@ -273,10 +273,14 @@ class _ImporterCSV(_Importer):
             fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
         )
 
-        # Convert NaN to empty strings for object dtype columns to handle custom attributes
-        object_cols = [col for col in df.columns if df[col].dtype == "object"]
-        if object_cols:
-            df[object_cols] = df[object_cols].fillna("")
+        # Convert NaN to empty strings for string columns to handle custom attributes
+        str_cols = [
+            col
+            for col in df.columns
+            if df[col].dtype == "object" or isinstance(df[col].dtype, pd.StringDtype)
+        ]
+        if str_cols:
+            df[str_cols] = df[str_cols].fillna("")
 
         return df
 
@@ -526,10 +530,15 @@ class _ImporterExcel(_Importer):
             if len(df.columns) == 0 and len(df.index) > 0 and df.index[0] == "name":
                 df = df.iloc[1:]  # Remove the first row which contains the index name
 
-            # Convert NaN to empty strings for object dtype columns to handle custom attributes
-            object_cols = [col for col in df.columns if df[col].dtype == "object"]
-            if object_cols:
-                df[object_cols] = df[object_cols].fillna("")
+            # Convert NaN to empty strings for string columns to handle custom attributes
+            str_cols = [
+                col
+                for col in df.columns
+                if df[col].dtype == "object"
+                or isinstance(df[col].dtype, pd.StringDtype)
+            ]
+            if str_cols:
+                df[str_cols] = df[str_cols].fillna("")
 
         except (ValueError, KeyError):
             return None

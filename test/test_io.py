@@ -106,6 +106,7 @@ class TestCSVDir:
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
         )
 
     def test_csv_io_shapes(self, ac_dc_shapes, tmpdir):
