@@ -434,3 +434,131 @@ def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
         carrier="residential rural heat", nice_names=False
     )
     assert result.empty
+
+
+@pytest.fixture(scope="module")
+def multi_invest_network():
+    n = pypsa.Network(snapshots=range(10))
+    n.investment_periods = [2020, 2030, 2040]
+    n.investment_period_weightings.loc[2020, "years"] = 10
+    n.investment_period_weightings.loc[2020, "objective"] = 10
+    n.investment_period_weightings.loc[2030, "years"] = 15
+    n.investment_period_weightings.loc[2030, "objective"] = 15
+    n.investment_period_weightings.loc[2040, "years"] = 5
+    n.investment_period_weightings.loc[2040, "objective"] = 5
+    n.add("Carrier", "wind")
+    n.add("Carrier", "gas")
+    n.add("Bus", "elec")
+    n.add(
+        "Generator",
+        "wind-2020",
+        bus="elec",
+        carrier="wind",
+        capital_cost=100,
+        marginal_cost=0,
+        p_nom_extendable=True,
+        build_year=2020,
+        lifetime=30,
+    )
+    n.add(
+        "Generator",
+        "gas-2020",
+        bus="elec",
+        carrier="gas",
+        capital_cost=50,
+        marginal_cost=30,
+        p_nom_extendable=True,
+        p_nom_min=10,
+        build_year=2020,
+        lifetime=20,
+    )
+    n.add(
+        "Generator",
+        "gas-2040",
+        bus="elec",
+        carrier="gas",
+        capital_cost=40,
+        marginal_cost=25,
+        p_nom_extendable=True,
+        build_year=2040,
+        lifetime=20,
+    )
+    load = pd.DataFrame({"load": range(100, 100 + len(n.snapshots))}, index=n.snapshots)
+    n.add("Load", "load", bus="elec", p_set=load["load"])
+    n.optimize(solver_name="highs", multi_investment_periods=True)
+    return n
+
+
+class TestMultiInvest:
+    @pytest.fixture(scope="class")
+    def capex(self, multi_invest_network):
+        return multi_invest_network.statistics.capex()
+
+    @pytest.fixture(scope="class")
+    def capex_ungrouped(self, multi_invest_network):
+        return multi_invest_network.statistics.capex(groupby=False)
+
+    @pytest.fixture(scope="class")
+    def opex(self, multi_invest_network):
+        return multi_invest_network.statistics.opex()
+
+    @pytest.fixture(scope="class")
+    def opex_ungrouped(self, multi_invest_network):
+        return multi_invest_network.statistics.opex(groupby=False)
+
+    @pytest.fixture(scope="class")
+    def system_cost(self, multi_invest_network):
+        return multi_invest_network.statistics.system_cost()
+
+    def test_capex_structure(self, capex):
+        assert isinstance(capex, pd.DataFrame)
+        assert list(capex.columns) == [2020, 2030, 2040]
+        assert (capex.fillna(0) >= 0).all().all()
+
+    def test_capex_weighted(self, multi_invest_network, capex):
+        weights = multi_invest_network.investment_period_weightings["objective"]
+        annualized_2020 = capex[2020].dropna() / weights[2020]
+        annualized_2030 = capex[2030].dropna() / weights[2030]
+        pd.testing.assert_series_equal(
+            annualized_2020, annualized_2030, rtol=1e-3, check_names=False
+        )
+
+    def test_capex_active_assets_filtering(self, capex_ungrouped):
+        assert pd.isna(capex_ungrouped.loc[("Generator", "gas-2040"), 2020])
+        assert capex_ungrouped.loc[("Generator", "gas-2040"), 2040] > 0.0
+
+    def test_opex_structure(self, opex):
+        assert isinstance(opex, pd.DataFrame)
+        assert list(opex.columns) == [2020, 2030, 2040]
+        assert not opex.empty
+        assert (opex.fillna(0) >= 0).all().all()
+
+    def test_opex_matches_marginal_cost(self, multi_invest_network, opex_ungrouped):
+        n = multi_invest_network
+        pw = n.investment_period_weightings["objective"]
+        sw = n.snapshot_weightings.objective
+        for period in n.investment_periods:
+            active = n.c.generators.get_active_assets(period)
+            mc = n.c.generators.static.loc[active, "marginal_cost"]
+            mc = mc[mc > 0]
+            p = n.c.generators.dynamic.p.loc[period, mc.index]
+            expected = (p * mc).multiply(sw.loc[period], axis=0).sum() * pw[period]
+            actual = (
+                opex_ungrouped.loc["Generator"]
+                .reindex(expected.index)[period]
+                .fillna(0)
+            )
+            pd.testing.assert_series_equal(
+                actual, expected, rtol=1e-3, atol=1e-6, check_names=False
+            )
+
+    def test_system_cost_equals_capex_plus_opex(self, capex, opex, system_cost):
+        expected = capex.add(opex, fill_value=0).reindex(system_cost.index)
+        pd.testing.assert_frame_equal(expected, system_cost, atol=1e-3)
+
+    def test_system_cost_consistent_with_objective(
+        self, multi_invest_network, system_cost
+    ):
+        assert np.nansum(system_cost.values) == pytest.approx(
+            multi_invest_network.objective, rel=1e-3
+        )
