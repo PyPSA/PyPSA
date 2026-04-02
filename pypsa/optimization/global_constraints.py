@@ -337,6 +337,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
 
             if not gens.empty:
                 gens = gens.loc[scenario]
+                # TODO-1603: grab segment efficiencies if available and calculate em_pu accordingly
                 efficiency = (
                     n.c.generators._as_dynamic("efficiency")
                     .loc[:, scenario]

@@ -137,6 +137,8 @@ def _resolve_include_objective_constant(
     return value
 
 
+# TODO-1603: move to own module and add other piecewise constraint options (from those available in linopy)
+# + methods to automatically decide on piecewise method to use
 def _add_piecewise_tangent_constraints(
     m: Model,
     c: Any,
