@@ -10,6 +10,7 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any, Literal, cast
 
+import numpy as np
 import pandas as pd
 
 from pypsa._options import options
@@ -32,12 +33,35 @@ logger = logging.getLogger(__name__)
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
-    """Get the operation data for a network component."""
-    if c in n.branch_components:
+    """Get the reference operation data for a network component.
+
+    For passive branches (Lines, Transformers), returns `p0` since no reference
+    `p` attribute exists. For all other components with power output (Links,
+    Processes, one-port components), returns `p` which is the reference
+    operational variable. For Stores, returns `e` (energy level).
+
+    Parameters
+    ----------
+    n : Network
+        The PyPSA network instance.
+    c : str
+        The component name (e.g., 'Generator', 'Link', 'Line', 'Store').
+
+    Returns
+    -------
+    pd.DataFrame
+        Time series of the reference operational variable for the component.
+
+    """
+    if c in n.passive_branch_components:
         return n.c[c].dynamic.p0
     if c == "Store":
         return n.c[c].dynamic.e
-    return n.c[c].dynamic.p
+    p = n.c[c].dynamic.p
+    if p.empty and c in n.branch_components:
+        # Fallback for legacy networks where only p0 is stored (for Links)
+        return n.c[c].dynamic.p0
+    return p
 
 
 def port_efficiency(
@@ -299,9 +323,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     Optimal Capacity  ...  Market Value
     Generator gas          982.03448  ...   1559.511099
               wind        7292.13406  ...    589.813549
-    Line      AC          5613.82931  ...    -43.277041
-    Link      DC          4003.90110  ...      0.132018
-    Load      load           0.00000  ...           NaN
+    Line      AC          5613.82931  ...    -21.114555
+    Link      DC          4003.90110  ...      0.066009
+    Load      load           0.00000  ...   -633.512009
     <BLANKLINE>
     [5 rows x 12 columns]
 
@@ -2661,8 +2685,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **market value** of components in the network.
 
-        Curreny is currency/MWh or currency/unit_{bus_carrier} where unit_{bus_carrier}
-        is the unit of the bus carrier.
+        Currency is given per unit of the component's reference operational
+        variable.
+
+        The market value is always calculated relative to the component's
+        reference operational variable from `get_operation`. Filters such as
+        `bus_carrier` and `at_port` only restrict the revenue contribution in the
+        numerator.
+
+        - **Default (no `bus_carrier`)**: Returns total revenue across all ports
+          divided by the reference operational variable.
+        - **With `bus_carrier`**: Returns revenue at the specified bus carriers'
+          ports divided by the same reference operational variable.
 
         Parameters
         ----------
@@ -2737,9 +2771,35 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             "drop_zero": drop_zero,
             "round": round,
         }
-        df = self.revenue(**kwargs) / self.supply(**kwargs)
+
+        rev = self.revenue(**kwargs)
+
+        @pass_empty_series_if_keyerror
+        def func(n: Network, c: str, port: str) -> pd.Series:
+            p = get_operation(n, c).abs()
+            weights = n.snapshot_weightings.generators
+            return self._aggregate_timeseries(p, weights, agg=groupby_time)
+
+        denom = self._aggregate_components(
+            func,
+            components=components,
+            agg=groupby_method,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port=[0],
+            carrier=carrier,
+            bus_carrier=None,
+            nice_names=nice_names,
+            drop_zero=False,
+            round=None,
+        )
+        if denom.empty:
+            rev[:] = np.nan
+            return rev
+        df = rev / denom
+
         df.attrs["name"] = "Market Value"
-        df.attrs["unit"] = "currency / MWh"
+        df.attrs["unit"] = "currency / operational unit"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
