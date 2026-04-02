@@ -20,15 +20,15 @@ sign,float,n/a,1,"Sign denoting the orientation of the dispatch variable (e.g. p
 carrier,string,n/a,n/a,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in optimisation",Input (optional)
 marginal_cost,static or series,currency/MWh,0.,Marginal cost of production of 1 MWh.,Input (optional),p_pu
 marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost of production of 1 MWh.,Input (optional)
-active,boolean,n/a,True,Whether to consider the component in optimization or not,Input (optional)
+active,boolean,n/a,True,"Whether to consider the component in optimization or not",Input (optional)
 build_year,int,year,0,Build year of the generator.,Input (optional)
 lifetime,float,years,inf,Lifetime of the generator.,Input (optional)
-capital_cost,float,currency/MW,0,Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly in optimization unless `overnight_cost` is specified.,Input (optional),p_nom
-overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
-discount_rate,float,per unit,NaN,Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).,Input (optional)
+capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly in optimization unless `overnight_cost` is specified.",Input (optional),p_nom
+overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional),p_nom
+discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional)
-efficiency,static or series,per unit,1,Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.,Input (optional),p_pu
-committable,boolean,n/a,False,Apply unit commitment constraints. This is only possible with `p_nom_extendable=False`.,Input (optional)
+efficiency,static or series,per unit,1,"Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.",Input (optional),p_pu
+committable,boolean,n/a,False,Apply unit commitment constraints.,Input (optional)
 start_up_cost,float,currency,0,Cost to start up the generator. Only used if `committable=True`.,Input (optional)
 shut_down_cost,float,currency,0,Cost to shut down the generator. Only used if `committable=True`.,Input (optional)
 stand_by_cost,static or series,currency/h,0.,Stand-by cost for running the generator. This cost is incurred whenever the status is 1 (including when the dispatch decision is zero).,Input (optional)
@@ -40,7 +40,7 @@ ramp_limit_up,static or series,per unit,NaN,"Maximum active power increase from 
 ramp_limit_down,static or series,per unit,NaN,"Maximum active power decrease from one snapshot to the next, per unit of the nominal power. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
 ramp_limit_start_up,float,per unit,NaN,"Maximum active power increase at start up, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional)
 ramp_limit_shut_down,float,per unit,NaN,"Maximum active power decrease at shut down, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional)
-weight,float,n/a,1,Weighting of a generator. Only used for network clustering.,Input (optional)
+weight,float,n/a,1,"Weighting of a generator. Only used for network clustering.",Input (optional)
 p,series,MW,0.,Active power at bus (positive if net generation),Output
 q,series,MVar,0.,Reactive power (positive if net generation),Output
 p_nom_opt,float,MW,0.,Optimised nominal capacity.,Output

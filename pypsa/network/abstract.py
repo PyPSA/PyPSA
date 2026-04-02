@@ -88,6 +88,12 @@ class _NetworkABC(ABC):
 
     @property
     @abstractmethod
+    def controllable_branch_components(self) -> set[str]:
+        """Read only placeholder."""
+        ...
+
+    @property
+    @abstractmethod
     def one_port_components(self) -> set[str]:
         """Read only placeholder."""
         ...

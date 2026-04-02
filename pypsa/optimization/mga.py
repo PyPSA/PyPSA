@@ -139,7 +139,7 @@ def generate_directions_halton(
 
     """
     n = len(keys)
-    halton_sampler = Halton(n, rng=np.random.default_rng(seed))
+    halton_sampler = Halton(n, seed=seed)
     directions: list[np.ndarray] = []
     while len(directions) < n_directions:
         # Sample a point, then transform from unit cube to cube around origin.

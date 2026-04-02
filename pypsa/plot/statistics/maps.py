@@ -86,6 +86,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         boundaries: tuple[float, float, float, float] | None = None,
         title: str = "",
         carrier: str | None = None,
+        groupby: str | list[str] | None = None,
         transmission_flow: bool = False,
         bus_area_fraction: float = 0.02,
         branch_area_fraction: float = 0.02,
@@ -103,7 +104,10 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         nice_names: bool = True,
         **kwargs: Any,
     ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
-        """Plot network statistics on a map."""
+        """Plot network statistics on a map.
+
+        If ``groupby`` is None, bus statistics are grouped by ``["bus", "carrier"]``.
+        """
         if func.__name__ == "prices":
             msg = "Plotting 'prices' on a map is not yet implemented."
             raise NotImplementedError(msg)
@@ -112,6 +116,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         n.consistency_check_plots()
         boundaries = boundaries or self.boundaries
         (x_min, x_max, y_min, y_max) = boundaries  # type: ignore
+        groupby = groupby or ["bus", "carrier"]
 
         # Get non-transmission carriers
         # TODO solve circular import by refactoring to descriptors.py
@@ -133,7 +138,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
             )
             bus_size = func(
                 bus_carrier=bus_carrier,
-                groupby=["bus", "carrier"],
+                groupby=groupby,
                 carrier=list(non_transmission_carriers),
                 nice_names=False,
                 aggregate_across_components=True,
@@ -155,7 +160,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         # Handle transmission flows or branch widths
         if transmission_flow:
             branch_flows = n.statistics.transmission(
-                groupby=False, bus_carrier=bus_carrier, nice_names=False
+                groupby=False, bus_carrier=bus_carrier, nice_names=False, at_port=0
             )
             branch_flows = MapPlotGenerator.aggregate_flow_by_connection(
                 branch_flows, n.branches()

@@ -1791,6 +1791,8 @@ def add_legend_arrows(
 
 def round_to_significant_digits(x: float, n: int = 2) -> int | float:
     """Round a number to n significant figures."""
+    if np.isnan(x):
+        return x
     if x == 0:
         return 0
     magnitude = int(np.floor(np.log10(abs(x))))

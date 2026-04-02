@@ -44,7 +44,7 @@ jobs:
     steps:
     - name: Generate token for PyPSA Bot
       id: generate-token
-      uses: actions/create-github-app-token@v2
+      uses: actions/create-github-app-token@v3
       with:
         app-id: ${{ vars.PYPSA_BOT_ID }}
         private-key: ${{ secrets.PYPSA_BOT_PRIVATE_KEY }}
@@ -55,7 +55,7 @@ jobs:
 
     - name: Find the branch for commit/ tag
       run: |
-        branch=$(git branch -r --contains ${{ github.sha }} | grep -v 'HEAD' | head -n 1 | sed 's|origin/||' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        branch=$(git branch -r --points-at ${{ github.sha }} | grep -v 'HEAD' | head -n 1 | sed 's|origin/||' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         echo "Branch found: $branch"
         echo "BRANCH_NAME=$branch" >> $GITHUB_ENV
 
@@ -167,7 +167,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-    - uses: actions/download-artifact@v7
+    - uses: actions/download-artifact@v8
       with:
         name: Packages
         path: dist

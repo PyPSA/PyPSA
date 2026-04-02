@@ -42,7 +42,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
-    - uses: dorny/paths-filter@v3
+    - uses: dorny/paths-filter@v4
       id: filter
       with:
         filters: |
@@ -82,7 +82,7 @@ jobs:
 
     - name: Setup Pixi
       if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
-      uses: prefix-dev/setup-pixi@v0.9.4
+      uses: prefix-dev/setup-pixi@v0.9.5
       with:
         pixi-version: v0.59.0
         cache: true
@@ -135,7 +135,7 @@ jobs:
 
     - name: Upload artifacts
       if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: results-pypsa-eur-${{ matrix.version }}
         path: |
@@ -237,7 +237,7 @@ jobs:
 
   #   - name: Upload artifacts
   #     if: env.pinned == 'false'
-  #     uses: actions/upload-artifact@v6
+  #     uses: actions/upload-artifact@v7
   #     with:
   #       name: results-pypsa-de-${{ matrix.version }}
   #       path: |

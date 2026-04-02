@@ -1,4 +1,4 @@
-name,co2_emissions
-gas,0.24
-wind,0.0
-battery,0.0
+name,co2_emissions,color,nice_name
+gas,0.24,,
+wind,0.0,,
+battery,0.0,,

@@ -115,15 +115,21 @@ optimize.solver_options:
     Default: {}
     Description: Default value for the 'solver_options' parameter in optimization module.
 optimize.log_to_console:
-    Default: True
-    Description: Whether to print solver output to console. See linopy's Model.solve()
-    	documentation at https://linopy.readthedocs.io for details.
+    Default: None
+    Description: Whether to print solver output to console. Passed as a solver option
+    	to linopy's Model.solve(). When None, solver default behavior is used.
+    	Note: not all solvers support this option (e.g. HiGHS does, CPLEX does not).
 optimize.include_objective_constant:
     Default: None
     Description: Include capital costs of existing capacity on extendable assets in the
         objective. Setting False sets n.objective_constant to zero and improves LP
         numerical conditioning. None defaults to True with a FutureWarning (changes to
         False in v2.0).
+consistency.numerical_tolerance:
+    Default: 1e-09
+    Description: Tolerance for numerical comparisons in consistency checks (e.g. p_min_pu > p_max_pu).
+    	Values within this tolerance of the boundary are not flagged as inconsistent.
+    	Set to 0 to disable tolerance and flag any violation.
 ```
 
 ### Warnings options

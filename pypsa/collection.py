@@ -484,8 +484,8 @@ class NetworkCollection:
 
 _all_components = (
     r"sub_networks|buses|carriers|global_constraints|lines|line_types|"
-    r"transformers|transformer_types|links|loads|generators|storage_units|"
-    r"stores|shunt_impedances|shapes"
+    r"transformers|transformer_types|links|processes|loads|generators|"
+    r"storage_units|stores|shunt_impedances|shapes"
 )
 
 
@@ -493,8 +493,8 @@ def _get_method_patterns() -> dict[str, str]:
     new_api = options.api.new_components_api
     _all_component_names = (
         r"SubNetwork|Bus|Carrier|GlobalConstraint|Line|LineType|"
-        "Transformer|TransformerType|Link|Load|Generator|StorageUnit|"
-        "Store|ShuntImpedance|Shape"
+        "Transformer|TransformerType|Link|Process|Load|Generator|"
+        "StorageUnit|Store|ShuntImpedance|Shape"
     )
 
     _component_classes = (
@@ -517,7 +517,8 @@ def _get_method_patterns() -> dict[str, str]:
         rf"({_component_classes}.capital_cost)|"
         rf"({_component_classes}.annuity)|"
         rf"static|"
-        rf"get_active_assets"
+        rf"get_active_assets|"
+        rf"snapshot_weightings"
         rf")$",
         # ---------------
         "horizontal_concat": rf"^("
@@ -527,11 +528,14 @@ def _get_method_patterns() -> dict[str, str]:
         rf"get_switchable_as_dense"
         rf")$",
         # ---------------
+        # TODO: `snapshots` uses return_from_first, which assumes all
+        # networks share the same snapshots. Mid-term, we need a way to
+        # enforce or convert to common dimensions across networks.
         "return_from_first": r"^("
         r"\S+_components|"
         r"snapshots|"
-        r"snapshot_weightings|"
         r"bus_carrier_unit|"
+        rf"({_component_classes}\.(name|ports|_as_port|_as_ports))|"
         r")$",
         # ---------------
         "index_concat": r"^("
