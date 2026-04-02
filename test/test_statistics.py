@@ -562,6 +562,8 @@ class TestMultiInvest:
         assert np.nansum(system_cost.values) == pytest.approx(
             multi_invest_network.objective, rel=1e-3
         )
+
+
 class TestGetOperation:
     @pytest.mark.parametrize(
         ("component", "expected_attr"),
