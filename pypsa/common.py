@@ -383,9 +383,13 @@ def equals(
             # (object vs StringDtype, datetime64[ns] vs datetime64[us])
             try:
                 if isinstance(a, pd.DataFrame):
-                    pd_testing.assert_frame_equal(a, b, check_index_type=False)
+                    pd_testing.assert_frame_equal(
+                        a, b, check_dtype=False, check_index_type=False
+                    )
                 elif isinstance(a, pd.Series):
-                    pd_testing.assert_series_equal(a, b, check_index_type=False)
+                    pd_testing.assert_series_equal(
+                        a, b, check_dtype=False, check_index_type=False
+                    )
                 else:
                     pd_testing.assert_index_equal(a, b, exact=False)
             except AssertionError:

@@ -425,6 +425,7 @@ class TestExcelIO:
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
