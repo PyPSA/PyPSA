@@ -140,7 +140,7 @@ def test_supply_withdrawal(ac_dc_network_r):
 def test_opex():
     n = pypsa.Network()
     n.set_snapshots([0, 1, 2])
-    n.snapshot_weightings.loc[:, :] = 2
+    n.snapshot_weightings.iloc[:, :] = 2
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=[0, 0, 5])
     n.add(

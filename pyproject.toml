@@ -62,6 +62,12 @@ gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
 dotenv = ["python-dotenv"]
 tsam = ["tsam"]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mpl",
+    "coverage",
+]
 dev = [
     "pytest",
     "pytest-cov",

@@ -151,6 +151,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         if check_if_empty(expr):
             return expr
         group = expr.indexes["group"].to_frame().drop(columns="component").squeeze()
+        group.index = pd.Index(expr.indexes["group"], name="group")
         return expr.groupby(group).sum()
 
     def _get_operational_variable(self, c: str) -> Variable | LinearExpression:
