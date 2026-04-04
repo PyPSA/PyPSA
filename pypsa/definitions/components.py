@@ -74,3 +74,20 @@ class ComponentType:
         """Get representation of component type."""
         # TODO make this actually for the REPL
         return f"'{self.name}' Component Type"
+
+    @property
+    def segments_attrs(self) -> dict[str, str]:
+        """Mapping of segments y-attribute to x-axis coordinate attribute.
+
+        Derived from the ``segments_x`` column in the component's attribute CSV.
+        Only attributes with a non-null ``segments_x`` value are included.
+
+        Returns
+        -------
+        dict[str, str]
+            e.g. ``{"efficiency": "p_pu", "marginal_cost": "p_pu"}``
+
+        """
+        if "segments_x" not in self.defaults.columns:
+            return {}
+        return self.defaults["segments_x"].dropna().to_dict()

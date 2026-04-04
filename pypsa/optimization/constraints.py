@@ -1096,6 +1096,8 @@ def define_nodal_balance_constraints(
     for component in ("Process", "Link"):
         c = n.c[component]
         for bus_col, coeff, names, delay, is_cyclic in _iter_balance_args(c, sns):
+            # TODO-1603: handle case where the coeff is "efficiency" (links) and is piecewise linearised
+            # requires an auxiliary variable for the product of flow and efficiency, fixed by a piecewise constraint with `p_pu` (m[f"{c.name}-p"]/p_nom) as the x-value.
             if delay <= 0:
                 expr = coeff * m[f"{c.name}-p"]
             else:

@@ -1,10 +1,10 @@
-attribute,type,unit,default,description,status
+attribute,type,unit,default,description,status,segments_x
 name,string,n/a,n/a,Unique name,Input (required)
 bus0,string,n/a,n/a,Name of origin bus to which link is attached.,Input (required)
 bus1,string,n/a,n/a,"Name of first destination bus to which link is attached. Further destination buses (`bus2`, `bus3`, etc.) are automatically expanded as needed.",Input (required)
 type,string,n/a,n/a,Placeholder for link type. Not implemented.,Input (optional)
 carrier,string,n/a,,"Carrier of the link describing its technology (e.g. gas boiler, electrolyser, HVDC link).",Input (optional)
-efficiency,static or series,per unit,1,"Efficiency of energy transfer from `bus0` to `bus1`. Can be time-dependent (e.g. to represent temperature-dependent heat pump COP).  Further efficiency attributes for further buses (e.g. `bus2`, `bus3`, etc.) are automatically expanded as needed (e.g. `efficiency2`, `efficiency3`, etc.).",Input (optional)
+efficiency,static or series,per unit,1,"Efficiency of energy transfer from `bus0` to `bus1`. Can be time-dependent (e.g. to represent temperature-dependent heat pump COP).  Further efficiency attributes for further buses (e.g. `bus2`, `bus3`, etc.) are automatically expanded as needed (e.g. `efficiency2`, `efficiency3`, etc.).",Input (optional),p_pu
 active,boolean,n/a,True,"Whether to consider the component in basic functionality or not",Input (optional)
 build_year,int,year,0,Build year,Input (optional)
 lifetime,float,years,inf,Lifetime,Input (optional)
@@ -18,11 +18,11 @@ p_set,static or series,MW,n/a,The dispatch set point for `p0` of the link (for o
 p_init,static,MW,n/a,Active power used as a starting point for limiting the ramp in the very first snapshot (for optimisation),Input (optional)
 p_min_pu,static or series,per unit of p_nom,0.,Minimal dispatch per unit of `p_nom` for the link. Can also be negative.,Input (optional)
 p_max_pu,static or series,per unit of p_nom,1.,Maximal dispatch per unit of `p_nom` for the link. Can also be negative.,Input (optional)
-capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW (unit of `bus0`, e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified. Any `length` factor must already be included.",Input (optional)
-overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW (unit of `bus0`). If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
+capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW (unit of `bus0`, e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified. Any `length` factor must already be included.",Input (optional),p_nom
+overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW (unit of `bus0`). If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional),p_nom
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW (unit of `bus0`), added to annuitized investment cost.",Input (optional)
-marginal_cost,static or series,currency/MWh,0.,Marginal cost of 1 MWh consumption from `bus0` (e.g. including variable operation and maintenance costs of an electrolyser but excluding electricity costs).,Input (optional)
+marginal_cost,static or series,currency/MWh,0.,Marginal cost of 1 MWh consumption from `bus0` (e.g. including variable operation and maintenance costs of an electrolyser but excluding electricity costs).,Input (optional),p_pu
 marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost for 1 MWh of consumption from `bus0`.,Input (optional)
 stand_by_cost,static or series,currency/h,0.,Stand-by cost for operating the link. This cost is incurred whenever the status is 1 (including when dispatch decision is zero).,Input (optional)
 length,float,km,0,"Length of the link. Useful for calculating `capital_cost` for HVDC connections.",Input (optional)

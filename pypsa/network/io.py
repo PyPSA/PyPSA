@@ -29,7 +29,10 @@ from pyproj import CRS
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.consistency import check_for_unknown_buses
-from pypsa.descriptors import _update_ports_component_attrs
+from pypsa.descriptors import (
+    _update_ports_component_attrs,
+    nominal_attrs,
+)
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_base__
 
@@ -1966,6 +1969,102 @@ class NetworkIOMixin(_NetworkABC):
         dynamic[attr].loc[self.snapshots, df.columns] = df.loc[
             self.snapshots, df.columns
         ]
+
+    def _import_segments_from_df(
+        self,
+        df: pd.DataFrame,
+        cls_name: str,
+        attr: str,
+        overwrite: bool = False,
+    ) -> None:
+        """Import piecewise segment data from a pandas DataFrame.
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            DataFrame whose columns are ``[x_attr, attr]`` (the x-axis coordinate
+            and the y-axis attribute) and whose index is the segment number.
+            This is the per-component form as passed to ``network.add()``.
+        cls_name : str
+            Component class name, e.g. ``"Generator"``.
+        attr : str
+            Piecewise y-axis attribute name, e.g. ``"efficiency"``.
+        component_name : str
+            Name of the individual component.
+        overwrite : bool, default False
+            If True, replace existing segment data for the component.
+
+        """
+        nom_attr = nominal_attrs.get(cls_name)
+        segments_attrs = self.c[cls_name].ctype.segments_attrs
+        if attr not in segments_attrs:
+            msg = (
+                f"'{attr}' is not a recognised segments attribute for {cls_name}. "
+                f"Known segments attributes: {list(segments_attrs)}."
+            )
+            raise ValueError(msg)
+
+        x_attr = segments_attrs[attr]
+
+        if x_attr == nom_attr.replace("_nom", "_pu"):
+            new_names = (
+                df.columns.unique("name")
+                if isinstance(df.columns, pd.MultiIndex)
+                else pd.Index([])
+            )
+            extendable_i = self.c[cls_name].extendables
+            bad = new_names.intersection(extendable_i)
+            if not bad.empty:
+                msg = (
+                    f"Piecewise '{attr}' segments are not supported for extendable "
+                    f"components (fixed p_nom required). Extendable components: "
+                    f"{bad.tolist()}."
+                )
+                raise ValueError(msg)
+
+        # df must have MultiIndex columns (name, attribute) with x_attr and attr present
+        if not isinstance(df.columns, pd.MultiIndex):
+            msg = (
+                "Pass a MultiIndex-columned DataFrame to _import_segments_from_df "
+                "with levels ['name', 'attribute']. Use network.add() for the "
+                "user-facing interface."
+            )
+            raise TypeError(msg)
+
+        segments = self.c[cls_name].segments
+
+        if attr not in segments:
+            segments[attr] = pd.DataFrame(
+                index=pd.Index([], name="segment", dtype=int),
+                columns=pd.MultiIndex.from_tuples([], names=["name", "attribute"]),
+                dtype=float,
+            )
+
+        existing = segments[attr]
+
+        attribute_values = set(df.columns.get_level_values("attribute"))
+        if x_attr not in attribute_values or attr not in attribute_values:
+            msg = (
+                f"DataFrame for piecewise attribute '{attr}' must have attribute "
+                f"level values ['{x_attr}', '{attr}']. Got: {sorted(attribute_values)}."
+            )
+            raise ValueError(msg)
+
+        df.index.name = "segment"
+        df.columns.names = ["name", "attribute"]
+
+        if overwrite:
+            # Drop existing entries for the new components
+            new_names = df.columns.unique("name")
+            keep = ~existing.columns.get_level_values("name").isin(new_names)
+            existing = existing.loc[:, keep]
+
+        # Align segment indices: union of existing and new
+        all_segments = existing.index.union(df.index)
+        existing = existing.reindex(all_segments)
+        df = df.reindex(all_segments)
+
+        segments[attr] = pd.concat([existing, df], axis=1)
 
     def import_from_pypower_ppc(
         self, ppc: dict, overwrite_zero_s_nom: float | None = None
