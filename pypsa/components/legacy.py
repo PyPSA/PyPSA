@@ -88,7 +88,7 @@ class Component:
         else:
             ctype_ = ctype  # type: ignore
 
-        component_class = _CLASS_MAPPING.get(ctype_.name, None)
+        component_class = _CLASS_MAPPING.get(ctype_.name)
         instance: Components
         if component_class is not None:
             instance = component_class(ctype=ctype_)
