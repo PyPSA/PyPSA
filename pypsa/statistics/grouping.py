@@ -412,7 +412,10 @@ class Groupers:
             Series with the component names.
 
         """
-        return n.c[c].static.index.to_series().rename("name")
+        idx = n.c[c].static.index
+        # Handle MultiIndex in NetworkCollection
+        values = idx.get_level_values("name") if isinstance(idx, pd.MultiIndex) else idx
+        return pd.Series(values, index=idx, name="name")
 
 
 groupers = Groupers()
