@@ -311,11 +311,12 @@ def test_collection_repr(network1, network2, network3):
     assert "... and 5 more" in repr_str
 
 
-def test_collection_init_with_paths():
+def test_collection_init_with_paths(tmp_path):
     """Test initialization with string paths and Path objects."""
-    # Use example networks from the examples directory
-    example_path1 = "examples/networks/ac-dc-meshed/ac-dc-meshed.nc"
-    example_path2 = "examples/networks/scigrid-de/scigrid-de.nc"
+    example_path1 = str(tmp_path / "ac_dc_meshed.nc")
+    example_path2 = str(tmp_path / "scigrid_de.nc")
+    pypsa.examples.ac_dc_meshed().export_to_netcdf(example_path1)
+    pypsa.examples.scigrid_de().export_to_netcdf(example_path2)
 
     # Test with list of strings
     collection = pypsa.NetworkCollection([example_path1, example_path2])
@@ -346,10 +347,11 @@ def test_collection_init_with_paths():
     assert list(collection_dict.networks.index) == ["net1", "net2"]
 
 
-def test_collection_init_mixed_networks_and_strings(network1):
+def test_collection_init_mixed_networks_and_strings(network1, tmp_path):
     """Test initialization with mixed Network objects and strings."""
     network1.name = "manual_net"
-    example_path = "examples/networks/ac-dc-meshed/ac-dc-meshed.nc"
+    example_path = str(tmp_path / "ac_dc_meshed.nc")
+    pypsa.examples.ac_dc_meshed().export_to_netcdf(example_path)
 
     # Test with mixed list
     collection = pypsa.NetworkCollection([network1, example_path])

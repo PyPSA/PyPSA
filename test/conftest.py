@@ -359,7 +359,7 @@ def stochastic_benchmark_network():
     GAS_PRICE = 40  # Default scenario
     FREQ = "3h"
     LOAD_MW = 1
-    TS_URL = "https://tubcloud.tu-berlin.de/s/pKttFadrbTKSJKF/download/time-series-lecture-2.csv"
+    TS_URL = "https://data.pypsa.org/tests/pypsa/time-series-lecture-2.csv"
 
     # Technology specs
     TECH = {
