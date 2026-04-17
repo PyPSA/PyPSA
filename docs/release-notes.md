@@ -26,6 +26,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - `p_set` on `Store` components is now supported in lopf optimisation. (<!-- md:pr 1623 -->)
 
+- Support for calculating minimum cycle basis.
+
 ### Deprecations
 
 - Deprecate `pypsa.optimization.common.get_strongly_meshed_buses` in favor of `get_bus_counts`. The old `meshed_threshold` model kwarg is deprecated; use `meshed_thresholds=[...]` in [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] or [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].

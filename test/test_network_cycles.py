@@ -5,6 +5,7 @@
 import numpy as np
 
 import pypsa
+from pypsa.network.power_flow import find_cycles
 
 
 def test_simple_cycle() -> None:
@@ -358,3 +359,72 @@ def test_weighted_cycles_dc_network() -> None:
             r_value = n.c.lines.static.at[line, "r_pu_eff"]
             weighted_val = cycles_weighted.loc[line_idx, col]
             assert np.isclose(weighted_val, r_value * unweighted_val)
+
+
+def test_minimum_cycle_basis_respects_weights() -> None:
+    """Test weighted minimum cycle basis selection."""
+    n = pypsa.Network()
+
+    for i in range(4):
+        n.add("Bus", f"bus{i}", v_nom=220)
+
+    n.add("Line", "line0-1", bus0="bus0", bus1="bus1", x=1, s_nom=100)
+    n.add("Line", "line1-2", bus0="bus1", bus1="bus2", x=1, s_nom=100)
+    n.add("Line", "line2-3", bus0="bus2", bus1="bus3", x=1, s_nom=100)
+    n.add("Line", "line3-0", bus0="bus3", bus1="bus0", x=1, s_nom=100)
+    n.add("Line", "line0-2", bus0="bus0", bus1="bus2", x=100, s_nom=100)
+
+    n.determine_network_topology()
+    n.calculate_dependent_values()
+
+    sub_network = n.c.sub_networks.static.obj.iloc[0]
+    find_cycles(sub_network, weight="x_pu", minimum_cycle_basis=True)
+
+    cycle_sizes = np.sort(np.count_nonzero(sub_network.C.toarray(), axis=0))
+    assert cycle_sizes.tolist() == [3, 4]
+
+
+def test_find_cycles_include_inactive() -> None:
+    """Test optional inclusion of inactive branches in cycle search."""
+    n = pypsa.Network()
+
+    for i in range(3):
+        n.add("Bus", f"bus{i}", v_nom=220)
+
+    n.add("Line", "line0-1", bus0="bus0", bus1="bus1", x=0.1, s_nom=100)
+    n.add("Line", "line1-2", bus0="bus1", bus1="bus2", x=0.1, s_nom=100, active=False)
+    n.add("Line", "line2-0", bus0="bus2", bus1="bus0", x=0.1, s_nom=100)
+
+    n.determine_network_topology()
+    n.calculate_dependent_values()
+
+    sub_network = n.c.sub_networks.static.obj.iloc[0]
+
+    find_cycles(sub_network, include_inactive=False)
+    assert sub_network.C.shape[1] == 0
+
+    find_cycles(sub_network, include_inactive=True)
+    assert sub_network.C.shape[1] == 1
+
+
+def test_find_cycles_inf_weight() -> None:
+    """Test optional inclusion of infinite-weight branches in cycle search."""
+    n = pypsa.Network()
+
+    for i in range(3):
+        n.add("Bus", f"bus{i}", v_nom=220)
+
+    n.add("Line", "line0-1", bus0="bus0", bus1="bus1", x=0.1, s_nom=100)
+    n.add("Line", "line1-2", bus0="bus1", bus1="bus2", x=np.inf, s_nom=100)
+    n.add("Line", "line2-0", bus0="bus2", bus1="bus0", x=0.1, s_nom=100)
+
+    n.determine_network_topology()
+    n.calculate_dependent_values()
+
+    sub_network = n.c.sub_networks.static.obj.iloc[0]
+
+    find_cycles(sub_network, weight="x_pu", inf_weight=False)
+    assert sub_network.C.shape[1] == 0
+
+    find_cycles(sub_network, weight="x_pu", inf_weight=1.0)
+    assert sub_network.C.shape[1] == 1
