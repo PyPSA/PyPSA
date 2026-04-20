@@ -479,7 +479,14 @@ class NetworkCollection:
         if len(self.networks) <= 1:
             return  # No validation needed for single network or empty collection
 
-        # TODO: Implement basic validation of network compatibility
+        has_periods = [n.has_investment_periods for n in self.networks]
+        if any(has_periods) and not all(has_periods):
+            msg = (
+                "NetworkCollection cannot mix networks with and without investment "
+                "periods. All member networks must either have investment periods "
+                "or none of them must."
+            )
+            raise ValueError(msg)
 
 
 _all_components = (
@@ -534,6 +541,7 @@ def _get_method_patterns() -> dict[str, str]:
         "return_from_first": r"^("
         r"\S+_components|"
         r"snapshots|"
+        r"has_investment_periods|"
         r"bus_carrier_unit|"
         rf"({_component_classes}\.(name|ports|_as_port|_as_ports))|"
         r")$",

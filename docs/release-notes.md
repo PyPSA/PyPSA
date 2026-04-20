@@ -16,8 +16,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
-- Apply `investment_period_weightings["objective"]` to capex, installed capex, and opex statistics for multi-investment-period networks, consistent with the optimization objective weighting.
-
 - Add configurable numerical tolerance for consistency checks via the new `params.consistency.numerical_tolerance` option (default `1e-9`). This prevents false warnings from floating-point noise when comparing attributes like `p_min_pu` vs `p_max_pu`, `p_nom_min` vs `p_nom_max`, and `e_sum_min` vs `e_sum_max`.
 
 - New Process component mirroring the behavior of a multi-port Link component with explicit rates (efficiency equivalent to the Link) at each bus, including `bus0`. The component allows to flexibly change the reference unit used for associated costs by adjusting the rates. (<!-- md:pr 1333 -->)
@@ -38,6 +36,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - Add an example of how to apply operational limits on assets over user-defined periods of time.
 
 ### Bug Fixes
+
+- Fix `capex`, `installed_capex`, and `opex` statistics to apply `investment_period_weightings["objective"]` for multi-investment-period networks, consistent with the optimization objective weighting.
 
 - Fix `get_operation` to correctly return the reference operational variable (`p`) for Link and Process components instead of `p0`. (<!-- md:pr 1614 -->)
 

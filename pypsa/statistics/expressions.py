@@ -762,7 +762,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         )
         if self.is_multi_indexed and isinstance(df, pd.DataFrame):
             weights = self._n.investment_period_weightings["objective"]
-            df = df.multiply(weights, level="periods")
+            df = df.multiply(weights, level="period")
         df.attrs["name"] = "Capital Expenditure"
         df.attrs["unit"] = "currency"
         return df
@@ -876,7 +876,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         )
         if self.is_multi_indexed and isinstance(df, pd.DataFrame):
             weights = self._n.investment_period_weightings["objective"]
-            df = df.multiply(weights)
+            df = df.multiply(weights, level="period")
         df.attrs["name"] = "Capital Expenditure Fixed"
         df.attrs["unit"] = "currency"
         return df
@@ -1691,7 +1691,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         )
         if self.is_multi_indexed and isinstance(df, pd.DataFrame):
             weights = self._n.investment_period_weightings["objective"]
-            df = df.multiply(weights)
+            df = df.multiply(weights, level="period")
         df.attrs["name"] = "Operational Expenditure"
         df.attrs["unit"] = "currency"
         return df
