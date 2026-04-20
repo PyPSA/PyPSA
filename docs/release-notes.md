@@ -65,6 +65,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix `optimize_security_constrained` not supporting MultiIndex `branch_outages` (<!-- md:pr 1637 -->)
 
+- Fix compatibility with pandas 3 (<!-- md:pr 1617 -->)
+
 ### Documentation
 
 - New example notebook modeling oligopolistic behavior in energy markets using Cournot-Nash equilibrium with the fictitious objective approach. See [:material-notebook-multiple: notebook](./examples/imperfect-competition.ipynb).

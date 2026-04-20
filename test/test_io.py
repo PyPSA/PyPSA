@@ -106,6 +106,7 @@ class TestCSVDir:
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
         )
 
     def test_csv_io_shapes(self, ac_dc_shapes, tmpdir):
@@ -424,11 +425,13 @@ class TestExcelIO:
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
             ac_dc_periods.snapshot_weightings[m.snapshot_weightings.columns],
             check_dtype=False,  # TODO Remove once validation layer leads to safer types
+            check_index_type=False,
         )
 
     def test_excel_io_shapes(self, ac_dc_shapes, tmpdir):
