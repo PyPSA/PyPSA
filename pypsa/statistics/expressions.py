@@ -760,7 +760,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
-        if self._n.has_investment_periods and isinstance(df, pd.DataFrame):
+        if self._n.has_investment_periods and not df.empty:
             weights = self._n.investment_period_weightings["objective"]
             df = df.multiply(weights, level="period")
         df.attrs["name"] = "Capital Expenditure"
@@ -874,7 +874,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
-        if self._n.has_investment_periods and isinstance(df, pd.DataFrame):
+        if self._n.has_investment_periods and not df.empty:
             weights = self._n.investment_period_weightings["objective"]
             df = df.multiply(weights, level="period")
         df.attrs["name"] = "Capital Expenditure Fixed"
@@ -1689,7 +1689,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
-        if self._n.has_investment_periods and isinstance(df, pd.DataFrame):
+        if self._n.has_investment_periods and not df.empty:
             weights = self._n.investment_period_weightings["objective"]
             df = df.multiply(weights, level="period")
         df.attrs["name"] = "Operational Expenditure"

@@ -542,6 +542,9 @@ def _get_method_patterns() -> dict[str, str]:
         r"\S+_components|"
         r"snapshots|"
         r"has_investment_periods|"
+        r"investment_period_weightings|"
+        r"investment_periods|"
+        r"periods|"
         r"bus_carrier_unit|"
         rf"({_component_classes}\.(name|ports|_as_port|_as_ports))|"
         r")$",
