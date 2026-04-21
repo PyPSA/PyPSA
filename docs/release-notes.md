@@ -69,6 +69,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix compatibility with pandas 3 (<!-- md:pr 1617 -->)
 
+- Fix spurious `model`/`objective`/`objective_constant` warnings emitted during network export, and clarify the `n.model` warning to distinguish "not optimized yet" from "loaded from file". (<!-- md:pr 1659 -->)
+
 ### Documentation
 
 - New example notebook modeling oligopolistic behavior in energy markets using Cournot-Nash equilibrium with the fictitious objective approach. See [:material-notebook-multiple: notebook](./examples/imperfect-competition.ipynb).

@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+import logging
+import warnings
 from pathlib import Path
 
 import geopandas as gpd
@@ -13,6 +15,27 @@ from shapely.geometry import Polygon
 
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
+
+
+@pytest.fixture
+def no_warnings():
+    """Fail if any Python warning or logging warning is emitted."""
+    allowed = {"does not exist, creating it"}
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        warnings.filterwarnings("default", category=ResourceWarning)
+        handler = logging.Handler()
+        handler.setLevel(logging.WARNING)
+        handler.emit = lambda record: (
+            None
+            if any(s in record.getMessage() for s in allowed)
+            else (_ for _ in ()).throw(
+                AssertionError(f"Unexpected log warning: {record.getMessage()}")
+            )
+        )
+        logging.root.addHandler(handler)
+        yield
+        logging.root.removeHandler(handler)
 
 
 @pytest.fixture(autouse=True)
