@@ -7,27 +7,21 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import warnings
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
+from urllib.request import urlopen, urlretrieve
 
-from packaging.version import parse as parse_version
+from platformdirs import user_cache_dir
 
+from pypsa._options import options
 from pypsa.networks import Network
 from pypsa.version import __version_base__
 
 logger = logging.getLogger(__name__)
 
-
-def _repo_url(
-    master: bool = False, url: str = "https://github.com/PyPSA/PyPSA/raw/"
-) -> str:
-    if master or parse_version(__version_base__) < parse_version(
-        "0.35.0"
-    ):  # Feature was added in 0.35.0
-        return f"{url}master/"
-    return f"{url}v{__version_base__}/"
+_EXAMPLES_BASE_URL = "https://data.pypsa.org/networks/examples"
 
 
 def _check_url_availability(url: str) -> bool:
@@ -41,10 +35,26 @@ def _check_url_availability(url: str) -> bool:
         return False
 
 
-def _retrieve_if_not_local(path: str | Path) -> Network:
-    if not (Path.cwd() / path).exists():
-        path = _repo_url() + str(path)
-        Path.cwd()
+def _cache_root() -> Path:
+    """Return the cache root for example networks."""
+    return Path(user_cache_dir("pypsa")) / "examples"
+
+
+def _load_example(name: str) -> Network:
+    url = f"{_EXAMPLES_BASE_URL}/v{__version_base__}/{name}.nc"
+    cache = _cache_root() / f"v{__version_base__}" / f"{name}.nc"
+
+    if not cache.exists():
+        if not options.get_option("general.allow_network_requests"):
+            msg = (
+                f"Network requests are disabled. Enable "
+                f"`pypsa.options.general.allow_network_requests` or manually "
+                f"place the example file at {cache}."
+            )
+            raise ValueError(msg)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        logger.info("Downloading %s to %s", url, cache)
+        urlretrieve(url, cache)  # noqa: S310
 
     # Suppress warning which occurs due to numpy version mismatch
     with warnings.catch_warnings():
@@ -53,7 +63,14 @@ def _retrieve_if_not_local(path: str | Path) -> Network:
             message="numpy.ndarray size changed, may indicate binary incompatibility",
             category=RuntimeWarning,
         )
-        return Network(path)
+        return Network(str(cache))
+
+
+def clear_cache() -> None:
+    """Delete the local cache of example networks."""
+    cache = _cache_root()
+    if cache.exists():
+        shutil.rmtree(cache)
 
 
 def ac_dc_meshed() -> Network:
@@ -83,7 +100,7 @@ def ac_dc_meshed() -> Network:
     Snapshots: 10
 
     """
-    return _retrieve_if_not_local("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
+    return _load_example("ac_dc_meshed")
 
 
 def storage_hvdc() -> Network:
@@ -114,7 +131,7 @@ def storage_hvdc() -> Network:
     Snapshots: 12
 
     """
-    return _retrieve_if_not_local("examples/networks/storage-hvdc/storage-hvdc.nc")
+    return _load_example("storage_hvdc")
 
 
 def scigrid_de() -> Network:
@@ -144,7 +161,7 @@ def scigrid_de() -> Network:
     Snapshots: 24
 
     """
-    return _retrieve_if_not_local("examples/networks/scigrid-de/scigrid-de.nc")
+    return _load_example("scigrid_de")
 
 
 def model_energy() -> Network:
@@ -181,7 +198,7 @@ def model_energy() -> Network:
     [^1]: See https://model.energy/
 
     """
-    return _retrieve_if_not_local("examples/networks/model-energy/model-energy.nc")
+    return _load_example("model_energy")
 
 
 def stochastic_network() -> Network:
@@ -209,10 +226,7 @@ def stochastic_network() -> Network:
     Scenarios: 3
 
     """
-    n = _retrieve_if_not_local(
-        "examples/networks/stochastic-network/stochastic-network.nc"
-    )
-    return n
+    return _load_example("stochastic_network")
 
 
 def carbon_management() -> Network:
@@ -251,16 +265,4 @@ def carbon_management() -> Network:
     <BLANKLINE>
 
     """
-    primary_url = (
-        "https://tubcloud.tu-berlin.de/s/4nsj6XSAbnq8skc/download/carbon-management.nc"
-    )
-
-    if _check_url_availability(primary_url):
-        return Network(primary_url)
-    else:
-        msg = (
-            "The carbon management example is currently unavailable. Please check "
-            "your internet connection and make sure you are on the latest version of "
-            "PyPSA."
-        )
-        raise RuntimeError(msg)
+    return _load_example("carbon_management")

@@ -232,7 +232,7 @@ class TestNetcdf:
         )
 
     def test_netcdf_from_url(self):
-        url = "https://github.com/PyPSA/PyPSA/raw/master/examples/networks/scigrid-de/scigrid-de.nc"
+        url = "https://data.pypsa.org/networks/examples/latest/scigrid_de.nc"
         pypsa.Network(url)
 
     def test_netcdf_io_no_compression(self, scipy_network, tmpdir):
@@ -569,41 +569,18 @@ def test_io_equality(networks_including_solved, tmp_path):
         assert custom_equals(n, n5, ignore_attrs=ignore)
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Only check once since it is an optional test when examples are updated.",
-)
 @pytest.mark.parametrize(
     "example_network",
     [
-        "ac-dc-meshed",
-        "storage-hvdc",
-        "scigrid-de",
-        "model-energy",
-    ],
-)
-def test_examples_against_master(tmp_path, example_network):
-    # Test examples are unchanged
-    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
-    # Test examples vs master
-    example_network = pypsa.Network(
-        f"https://github.com/PyPSA/PyPSA/raw/master/examples/networks/{example_network}/{example_network}.nc"
-    )
-    assert n.equals(example_network, log_mode="strict")
-
-
-@pytest.mark.parametrize(
-    "example_network",
-    [
-        "ac-dc-meshed",
-        "storage-hvdc",
-        "scigrid-de",
-        "model-energy",
+        "ac_dc_meshed",
+        "storage_hvdc",
+        "scigrid_de",
+        "model_energy",
     ],
 )
 def test_examples_consistency(tmp_path, example_network):
-    # Test examples are unchanged
-    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
+    # Round-trip example networks through CSV export/import to catch schema drift
+    n = getattr(pypsa.examples, example_network)()
     n.export_to_csv_folder(tmp_path / "network")
     n2 = pypsa.Network(tmp_path / "network")
     assert n.equals(n2, log_mode="strict")
