@@ -44,9 +44,8 @@ def test_carbon_management():
 def seeded_cache(monkeypatch, tmp_path):
     """Seed a cache directory with a dummy network file."""
     monkeypatch.setattr(pypsa.examples, "_cache_root", lambda: tmp_path)
-    url = f"{pypsa.examples._EXAMPLES_BASE_URL}/latest/ac_dc_meshed.nc"
-    monkeypatch.setattr(pypsa.examples, "_example_url", lambda name: url)
-    cache = tmp_path / "latest" / "ac_dc_meshed.nc"
+    version = pypsa.version.__version_base__
+    cache = tmp_path / f"v{version}" / "ac_dc_meshed.nc"
     cache.parent.mkdir(parents=True)
     pypsa.Network().export_to_netcdf(str(cache))
     return tmp_path
@@ -67,7 +66,6 @@ def test_clear_cache(seeded_cache):
 def test_cache_miss_network_disabled(monkeypatch, tmp_path):
     """Test that cache miss with network requests disabled raises ValueError."""
     monkeypatch.setattr(pypsa.examples, "_cache_root", lambda: tmp_path)
-    monkeypatch.setattr(pypsa.examples, "_check_url_availability", lambda url: False)
 
     pypsa.options.general.allow_network_requests = False
     try:
@@ -77,6 +75,10 @@ def test_cache_miss_network_disabled(monkeypatch, tmp_path):
         pypsa.options.general.allow_network_requests = True
 
 
+@pytest.mark.skipif(
+    not pypsa.examples._check_url_availability("https://data.pypsa.org"),
+    reason="No internet connection",
+)
 def test_check_url_availability():
     """Test _check_url_availability function."""
     from pypsa.examples import _check_url_availability

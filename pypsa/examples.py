@@ -35,22 +35,14 @@ def _check_url_availability(url: str) -> bool:
         return False
 
 
-def _example_url(name: str) -> str:
-    """Resolve the bucket URL for an example network."""
-    versioned = f"{_EXAMPLES_BASE_URL}/v{__version_base__}/{name}.nc"
-    if _check_url_availability(versioned):
-        return versioned
-    return f"{_EXAMPLES_BASE_URL}/latest/{name}.nc"
-
-
 def _cache_root() -> Path:
     """Return the cache root for example networks."""
     return Path(user_cache_dir("pypsa")) / "examples"
 
 
 def _load_example(name: str) -> Network:
-    url = _example_url(name)
-    cache = _cache_root() / url.removeprefix(_EXAMPLES_BASE_URL + "/")
+    url = f"{_EXAMPLES_BASE_URL}/v{__version_base__}/{name}.nc"
+    cache = _cache_root() / f"v{__version_base__}" / f"{name}.nc"
 
     if not cache.exists():
         if not options.get_option("general.allow_network_requests"):

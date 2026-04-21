@@ -313,8 +313,8 @@ def test_collection_repr(network1, network2, network3):
 
 def test_collection_init_with_paths(tmp_path):
     """Test initialization with string paths and Path objects."""
-    example_path1 = str(tmp_path / "ac_dc_meshed.nc")
-    example_path2 = str(tmp_path / "scigrid_de.nc")
+    example_path1 = tmp_path / "ac_dc_meshed.nc"
+    example_path2 = tmp_path / "scigrid_de.nc"
     pypsa.examples.ac_dc_meshed().export_to_netcdf(example_path1)
     pypsa.examples.scigrid_de().export_to_netcdf(example_path2)
 
