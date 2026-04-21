@@ -1140,62 +1140,39 @@ class NetworkIOMixin(_NetworkABC):
         """
         # exportable component types
         allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
+        skip_attrs = {
+            "component_attrs",
+            "df",
+            "pnl",
+            "static",
+            "dynamic",
+            "iterate_components",
+            "_name",
+            "_pypsa_version",
+        }
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
-                category=DeprecationWarning,
-            )
-
-            _attrs = {
-                attr: getattr(self, attr)
-                for attr in dir(self)
-                if (
-                    not attr.startswith("__")
-                    and attr
-                    not in {
-                        "component_attrs",
-                        "df",
-                        "pnl",
-                        "static",
-                        "dynamic",
-                        "iterate_components",
-                    }  # Skip deprecated methods
-                    and isinstance(getattr(self, attr), allowed_types)
-                )
-            }
         _attrs = {}
         for attr in dir(self):
-            if not attr.startswith("__") and attr not in {
-                "component_attrs",
-                "df",
-                "pnl",
-                "static",
-                "dynamic",
-                "iterate_components",
-            }:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore",
-                        message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
-                        category=DeprecationWarning,
-                    )
-                    value = getattr(self, attr)
-                if isinstance(value, allowed_types):
-                    # TODO: This needs to be refactored with NetworkData class
-                    # Skip properties without setter, but not 'pypsa_version'
-                    prop = getattr(self.__class__, attr, None)
-                    if (
-                        isinstance(prop, property)
-                        and prop.fset is None
-                        and attr not in ["pypsa_version"]
-                    ):
-                        continue
-                    # Skip `_name` since it is writable
-                    if attr in ["_name", "_pypsa_version"]:
-                        continue
-                    _attrs[attr] = value
+            if attr.startswith("__") or attr in skip_attrs:
+                continue
+            # Skip read-only properties (except pypsa_version) without invoking
+            # their getters, which may emit warnings (e.g. model, objective).
+            prop = getattr(self.__class__, attr, None)
+            if (
+                isinstance(prop, property)
+                and prop.fset is None
+                and attr != "pypsa_version"
+            ):
+                continue
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
+                    category=DeprecationWarning,
+                )
+                value = getattr(self, attr)
+            if isinstance(value, allowed_types):
+                _attrs[attr] = value
         exporter.save_attributes(_attrs)
 
         crs = {}
