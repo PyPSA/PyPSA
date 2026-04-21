@@ -7,6 +7,7 @@ import logging
 import pytest
 
 import pypsa
+from pypsa.version import __version_base__
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,7 @@ def test_carbon_management():
 def seeded_cache(monkeypatch, tmp_path):
     """Seed a cache directory with a dummy network file."""
     monkeypatch.setattr(pypsa.examples, "_cache_root", lambda: tmp_path)
-    version = pypsa.version.__version_base__
-    cache = tmp_path / f"v{version}" / "ac_dc_meshed.nc"
+    cache = tmp_path / f"v{__version_base__}" / "ac_dc_meshed.nc"
     cache.parent.mkdir(parents=True)
     pypsa.Network().export_to_netcdf(str(cache))
     return tmp_path
