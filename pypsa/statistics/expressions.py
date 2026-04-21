@@ -456,12 +456,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             if isinstance(vals, pd.Series):
                 vals = vals.rename("value").to_frame()
                 was_series = True
-            # Pass grouping data as Series to avoid name collisions with index levels
-            groupby_keys = [
-                *keep_levels,
-                *[grouping_df[col] for col in grouping_df.columns],
+            if "name" in grouping_df.columns:
+                keep_levels.append("name")
+            extra_keys = [
+                grouping_df[col]
+                for col in grouping_df.columns
+                if col not in keep_levels
             ]
-            res = vals.groupby(groupby_keys).agg(agg)
+            res = vals.groupby([*keep_levels, *extra_keys]).agg(agg)
             return res["value"] if was_series else res
         return vals.groupby(**grouping).agg(agg)
 
