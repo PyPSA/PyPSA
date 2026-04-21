@@ -37,6 +37,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix `capex`, `installed_capex`, and `opex` statistics to apply `investment_period_weightings["objective"]` for multi-investment-period networks, consistent with the optimization objective weighting.
+
 - Fix `get_operation` to correctly return the reference operational variable (`p`) for Link and Process components instead of `p0`. (<!-- md:pr 1614 -->)
 
 - Fix `market_value` to correctly handle multi-port components (Links, Processes) by always normalizing revenue with the reference operational variable while allowing `bus_carrier` to filter the revenue contribution in the numerator. (<!-- md:pr 1614 -->)
