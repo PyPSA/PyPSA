@@ -1170,6 +1170,11 @@ class NetworkIOMixin(_NetworkABC):
                     message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
                     category=DeprecationWarning,
                 )
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r".*the API for how to access components data has changed.*",
+                    category=DeprecationWarning,
+                )
                 value = getattr(self, attr)
             if isinstance(value, allowed_types):
                 _attrs[attr] = value
