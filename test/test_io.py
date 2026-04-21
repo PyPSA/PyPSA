@@ -70,7 +70,7 @@ class TestCSVDir:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_csv_io(self, scipy_network, tmpdir, meta):
+    def test_csv_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "csv_export"
         scipy_network.meta = meta
         scipy_network.export_to_csv_folder(fn)
@@ -172,7 +172,7 @@ class TestNetcdf:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_netcdf_io(self, scipy_network, tmpdir, meta):
+    def test_netcdf_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "netcdf_export.nc"
         scipy_network.meta = meta
         scipy_network.export_to_netcdf(fn)
@@ -311,7 +311,7 @@ class TestHDF5:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_hdf5_io(self, scipy_network, tmpdir, meta):
+    def test_hdf5_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "hdf5_export.h5"
         scipy_network.meta = meta
         scipy_network.export_to_hdf5(fn)
@@ -397,7 +397,7 @@ class TestExcelIO:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_excel_io(self, scipy_network, tmpdir, meta):
+    def test_excel_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "excel_export.xlsx"
         scipy_network.meta = meta
         scipy_network.export_to_excel(fn)
