@@ -47,6 +47,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix `NetworkCollection` statistic functions failing or returning wrong results when networks have different snapshots or snapshot weightings. (<!-- md:pr 1636 -->)
 
+- Fix `NetworkCollection` statistics failing when using `groupby="name"`. (<!-- md:pr 1653 -->)
+
 - Fix call to `DataFrame/Series.groupby()` in pandas 3.0, dropping the `axis` argument (<!-- md:pr 1596 -->)
 
 - Fix ordering of additional port columns (`bus2`, `bus3`, `efficiency2`, etc.) in multi-port component defaults — they now appear right after their base attribute instead of at the end.

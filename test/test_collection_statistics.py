@@ -309,6 +309,35 @@ def test_network_collection_multiple_groupers(optimized_network_collection_from_
     assert "bus_carrier" in result2.index.names
 
 
+def test_network_collection_name_grouper(optimized_network_collection_from_ac_dc):
+    """Test grouping by component name on a NetworkCollection.
+
+    See https://github.com/PyPSA/PyPSA/issues/1624.
+    """
+    nc = optimized_network_collection_from_ac_dc
+
+    # Both scalar and list form of groupby should work
+    result_scalar = nc.statistics.opex(groupby="name")
+    result_list = nc.statistics.opex(groupby=["name"])
+
+    for result in (result_scalar, result_list):
+        assert not result.empty
+        assert "scenario" in result.index.names
+        assert "component" in result.index.names
+        assert "name" in result.index.names
+        names = result.index.get_level_values("name")
+        assert all(isinstance(v, str) for v in names), (
+            f"Expected scalar string names, got: {list(names)[:3]}"
+        )
+        assert "Manchester Wind" in set(names)
+
+    # Combining name with another grouper must also work
+    combined = nc.statistics.installed_capacity(groupby=["carrier", "name"])
+    assert not combined.empty
+    assert "carrier" in combined.index.names
+    assert "name" in combined.index.names
+
+
 def test_network_collection_multiindex_scenarios(ac_dc_network_r):
     """Test NetworkCollection with MultiIndex scenarios."""
     # Create multiple copies of the already optimized network
