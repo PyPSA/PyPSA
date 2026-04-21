@@ -456,11 +456,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             if isinstance(vals, pd.Series):
                 vals = vals.rename("value").to_frame()
                 was_series = True
-            res = (
-                vals.assign(**grouping_df)
-                .groupby([*keep_levels, *grouping_df.columns])
-                .agg(agg)
-            )
+            if "name" in grouping_df.columns:
+                keep_levels.append("name")
+            extra_keys = [
+                grouping_df[col]
+                for col in grouping_df.columns
+                if col not in keep_levels
+            ]
+            res = vals.groupby([*keep_levels, *extra_keys]).agg(agg)
             return res["value"] if was_series else res
         return vals.groupby(**grouping).agg(agg)
 
@@ -760,6 +763,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
+        if self._n.has_investment_periods and not df.empty:
+            weights = self._n.investment_period_weightings["objective"]
+            df = df.multiply(weights, level="period")
         df.attrs["name"] = "Capital Expenditure"
         df.attrs["unit"] = "currency"
         return df
@@ -871,6 +877,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
+        if self._n.has_investment_periods and not df.empty:
+            weights = self._n.investment_period_weightings["objective"]
+            df = df.multiply(weights, level="period")
         df.attrs["name"] = "Capital Expenditure Fixed"
         df.attrs["unit"] = "currency"
         return df
@@ -1683,6 +1692,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
+        if self._n.has_investment_periods and not df.empty:
+            weights = self._n.investment_period_weightings["objective"]
+            df = df.multiply(weights, level="period")
         df.attrs["name"] = "Operational Expenditure"
         df.attrs["unit"] = "currency"
         return df
