@@ -911,6 +911,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "generators",
             "cost_consistency",
             "dispatch_delays",
+            "maintenance",
             "disconnected_buses",
             "investment_periods",
             "shapes",
@@ -956,6 +957,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
+            check_maintenance_attributes(self, c, "maintenance" in strict)
             # Checks cost attributes consistency
             check_cost_consistency(c)
             # Checks dispatch delay attributes
@@ -1411,6 +1413,77 @@ def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
                 c.name.lower(),
                 ", ".join(details),
             )
+
+
+def check_maintenance_attributes(
+    n: NetworkType, component: Components, strict: bool = False
+) -> None:
+    """Check maintainable components have valid maintenance parameters.
+
+    Parameters
+    ----------
+    n : NetworkType
+        The network to check.
+    component : Components
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if "maintainable" not in component.static:
+        return
+
+    maintainable = component.static[component.static.maintainable]
+    if maintainable.empty:
+        return
+
+    bad_duration = maintainable[maintainable.maintenance_duration <= 0]
+    if not bad_duration.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintainable=True but maintenance_duration <= 0,"
+            " which will cause infeasibility:\n%s",
+            component.list_name,
+            bad_duration.index,
+        )
+
+    bad_events = maintainable[maintainable.maintenance_events <= 0]
+    if not bad_events.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintainable=True but maintenance_events <= 0,"
+            " which will cause infeasibility:\n%s",
+            component.list_name,
+            bad_events.index,
+        )
+
+    n_snapshots = len(n.snapshots)
+    bad_horizon = maintainable[maintainable.maintenance_duration > n_snapshots]
+    if not bad_horizon.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintenance_duration > number of snapshots (%d),"
+            " which will cause infeasibility:\n%s",
+            component.list_name,
+            n_snapshots,
+            bad_horizon.index,
+        )
+
+    total = maintainable.maintenance_duration * maintainable.maintenance_events
+    bad_total = maintainable[total > n_snapshots]
+    if not bad_total.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintenance_duration * maintenance_events > number"
+            " of snapshots (%d), which will cause infeasibility:\n%s",
+            component.list_name,
+            n_snapshots,
+            bad_total.index,
+        )
 
 
 def check_no_modular_committables(n: Network) -> None:

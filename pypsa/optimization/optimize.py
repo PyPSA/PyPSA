@@ -32,6 +32,7 @@ from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
+    define_maintenance_constraints,
     define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
@@ -58,6 +59,9 @@ from pypsa.optimization.global_constraints import (
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
+    define_maintenance_capacity_variables,
+    define_maintenance_start_variables,
+    define_maintenance_variables,
     define_modular_variables,
     define_nominal_variables,
     define_operational_variables,
@@ -699,6 +703,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_status_variables(n, sns, c, linearized_unit_commitment)
             define_start_up_variables(n, sns, c, linearized_unit_commitment)
             define_shut_down_variables(n, sns, c, linearized_unit_commitment)
+            define_maintenance_variables(n, sns, c)
+            define_maintenance_start_variables(n, sns, c)
+            define_maintenance_capacity_variables(n, sns, c)
             define_committability_variables_constraints_with_fixed_upper_limit(
                 n, sns, c, attr
             )
@@ -723,6 +730,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             )
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
+            define_maintenance_constraints(n, sns, c)
             define_operational_constraints_for_non_extendables(
                 n, sns, c, attr, transmission_losses
             )

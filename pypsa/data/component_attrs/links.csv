@@ -28,6 +28,10 @@ stand_by_cost,static or series,currency/h,0.,Stand-by cost for operating the lin
 length,float,km,0,"Length of the link. Useful for calculating `capital_cost` for HVDC connections.",Input (optional)
 terrain_factor,float,per unit,1,Terrain factor for increasing `capital_cost` calculated from `length`.,Input (optional)
 committable,boolean,n/a,False,Apply unit commitment constraints.,Input (optional)
+maintainable,boolean,n/a,False,Apply maintenance scheduling constraints.,Input (optional)
+maintenance_duration,int,snapshots,0,Consecutive snapshots per maintenance event. Only if `maintainable=True`.,Input (optional)
+maintenance_pu,float,per unit,1.0,Fraction of capacity unavailable during maintenance (0-1). Only if `maintainable=True`.,Input (optional)
+maintenance_events,int,n/a,1,Number of maintenance events per optimization horizon. Only if `maintainable=True`.,Input (optional)
 start_up_cost,float,currency,0,Cost to start up the link. Only used if `committable=True`.,Input (optional)
 shut_down_cost,float,currency,0,Cost to shut down the link. Only used if `committable=True`.,Input (optional)
 min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1.  Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
@@ -47,6 +51,7 @@ p_nom_opt,float,MW,0,Optimised nominal capacity.,Output
 status,series,n/a,1.,"Status in the snapshot (1 is on, 0 is off). Only returned if `committable=True`.",Output
 start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only returned if `committable=True`.",Output
 shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no).  Only returned if `committable=True`.",Output
+maintenance,series,n/a,0,Maintenance status (1=in maintenance). Only returned if `maintainable=True`.,Output
 mu_lower,series,currency/MW,n/a,Shadow price of lower `p_nom` limit  $-F \\leq f$. Always non-negative.,Output
 mu_upper,series,currency/MW,n/a,Shadow price of upper `p_nom` limit $f \\leq F$. Always non-negative.,Output
 mu_p_set,series,currency/MWh,n/a,Shadow price of fixed dispatch `p_set`,Output
