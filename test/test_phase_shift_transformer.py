@@ -37,25 +37,26 @@ import pytest
 pypsa = pytest.importorskip("pypsa")
 
 
-def _build(phase_shift: float = 0.0, extendable: bool = False,
-           phase_shift_min: float = -20.0,
-           phase_shift_max: float = 20.0) -> pypsa.Network:
+def _build(
+    phase_shift: float = 0.0,
+    extendable: bool = False,
+    phase_shift_min: float = -20.0,
+    phase_shift_max: float = 20.0,
+) -> pypsa.Network:
     n = pypsa.Network()
     n.set_snapshots([0, 1])
     n.add("Carrier", "AC")
     n.add("Bus", "A", v_nom=1.0, carrier="AC")
     n.add("Bus", "B", v_nom=1.0, carrier="AC")
-    n.add("Generator", "gen_A", bus="A", p_nom=100, marginal_cost=10.0,
-          carrier="AC")
+    n.add("Generator", "gen_A", bus="A", p_nom=100, marginal_cost=10.0, carrier="AC")
     n.add("Load", "load_B", bus="B", p_set=[50.0, 50.0])
-    n.add("Line", "L1", bus0="A", bus1="B", x=0.01, r=1e-6, s_nom=100,
-          carrier="AC")
+    n.add("Line", "L1", bus0="A", bus1="B", x=0.01, r=1e-6, s_nom=100, carrier="AC")
     n.add(
         "Transformer",
         "T1",
         bus0="A",
         bus1="B",
-        x=1.0,   # x_pu = x / s_nom = 0.01
+        x=1.0,  # x_pu = x / s_nom = 0.01
         r=1e-6,
         s_nom=100,
         phase_shift=phase_shift,
@@ -94,10 +95,12 @@ class TestStaticPhaseShiftInKVL:
         n_neg = _build(phase_shift=-10.0)
         n_neg.optimize(solver_name="highs")
         # The dominant branch flips between +10 and -10 cases
-        sign_pos = np.sign(n_pos.lines_t.p0["L1"].iloc[0]
-                           - n_pos.transformers_t.p0["T1"].iloc[0])
-        sign_neg = np.sign(n_neg.lines_t.p0["L1"].iloc[0]
-                           - n_neg.transformers_t.p0["T1"].iloc[0])
+        sign_pos = np.sign(
+            n_pos.lines_t.p0["L1"].iloc[0] - n_pos.transformers_t.p0["T1"].iloc[0]
+        )
+        sign_neg = np.sign(
+            n_neg.lines_t.p0["L1"].iloc[0] - n_neg.transformers_t.p0["T1"].iloc[0]
+        )
         assert sign_pos * sign_neg == -1.0
 
 
