@@ -61,6 +61,7 @@ from pypsa.optimization.variables import (
     define_modular_variables,
     define_nominal_variables,
     define_operational_variables,
+    define_phase_shift_variables,
     define_shut_down_variables,
     define_spillage_variables,
     define_start_up_variables,
@@ -705,6 +706,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
+        define_phase_shift_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -939,6 +941,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 if c.name in n.passive_branch_components and attr == "s":
                     _set_dynamic_data(n, c.name, "p0", df)
                     _set_dynamic_data(n, c.name, "p1", -df)
+
+                elif c.name == "Transformer" and attr == "phase_shift":
+                    # Per-snapshot optimised PST angle; preserve static input
+                    # `phase_shift` and write results to `phase_shift_opt`.
+                    _set_dynamic_data(n, c.name, "phase_shift_opt", df)
 
                 elif c.name == "Link" and attr == "p":
                     _set_dynamic_data(n, c.name, "p", df)

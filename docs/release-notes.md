@@ -6,13 +6,21 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Features
+
+- Phase-shifting transformers (PSTs, also known as _dwarsregeltransformatoren_) are now fully supported in linear optimal power flow. The new `phase_shift_extendable` attribute on `Transformer` makes the voltage phase-angle shift a per-snapshot decision variable bounded by `phase_shift_min` and `phase_shift_max` (degrees); the optimiser re-taps the PST each snapshot to redistribute flow around cycles, modelling TSO operational tap control. Optimised values are written to `n.transformers_t["phase_shift_opt"]`. Closes issue #456.
+
+### Bug Fixes
+
+- Static `phase_shift` on `Transformer` components is now included in the cycle-based Kirchhoff Voltage Law constraint in `n.optimize()`. Previously the phase shift was silently dropped in LOPF (only `n.lpf()` and `n.pf()` respected it), causing optimisation results to diverge from subsequent non-linear power-flow verification. Fixes issue #1220.
 
 
 ## [**v1.2.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.0) <small>21st April 2026</small> { id="v1.2.0" }
