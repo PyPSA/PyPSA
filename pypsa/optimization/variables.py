@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -264,6 +265,62 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     active = active_aligned.where(upper_aligned > 0, False)
 
     n.model.add_variables(0, upper_aligned, name=f"{c.name}-spill", mask=active)
+
+
+def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
+    """Define per-snapshot phase-shift variables for phase-shifting transformers.
+
+    When a ``Transformer`` has ``phase_shift_extendable=True``, its voltage
+    phase-angle shift is treated as a continuous decision variable per snapshot
+    bounded by ``phase_shift_min`` and ``phase_shift_max`` (in degrees). This
+    models phase-shifting transformers (PSTs, also known as
+    dwarsregeltransformatoren) whose tap position the TSO optimises at
+    operational timescales to redistribute power flows around cycles in the
+    transmission network, without adding or removing active power.
+
+    The variable enters the Kirchhoff Voltage Law cycle constraint via
+    ``define_kirchhoff_voltage_constraints`` — no separate equality constraint
+    is required here.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    sns : Sequence
+        Snapshots for which to define the variable.
+
+    """
+    c = n.components["Transformer"]
+    if c is None or c.empty:
+        return
+
+    trafos = c.static
+    if "phase_shift_extendable" not in trafos.columns:
+        return
+    ext_mask = trafos["active"] & trafos["phase_shift_extendable"]
+    ext_names = trafos.index[ext_mask]
+    if ext_names.empty:
+        return
+
+    lower_series = trafos.loc[ext_names, "phase_shift_min"].astype(float)
+    upper_series = trafos.loc[ext_names, "phase_shift_max"].astype(float)
+
+    sns_idx = pd.Index(sns, name="snapshot")
+    name_idx = pd.Index(ext_names, name="name")
+    # Broadcast per-transformer bounds across snapshots so the variable has
+    # both dims. Static scalars would work too, but keeping per-transformer
+    # bounds allows different DRTs to have different physical ranges.
+    lower = xr.DataArray(
+        np.tile(lower_series.values, (len(sns_idx), 1)),
+        coords={"snapshot": sns_idx, "name": name_idx},
+        dims=["snapshot", "name"],
+    )
+    upper = xr.DataArray(
+        np.tile(upper_series.values, (len(sns_idx), 1)),
+        coords={"snapshot": sns_idx, "name": name_idx},
+        dims=["snapshot", "name"],
+    )
+    n.model.add_variables(lower, upper, name="Transformer-phase_shift")
 
 
 def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:

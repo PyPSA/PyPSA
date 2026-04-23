@@ -23,7 +23,10 @@ num_parallel,float,n/a,1,"When `type` is set, this is the number of parallel tra
 tap_ratio,float,per unit,1,Ratio of per unit voltages at each bus for tap changed. Ignored if type defined.,Input (optional)
 tap_side,int,n/a,0,"Defines if tap changer is modelled at the primary 0 side (usually high-voltage) or the secondary 1 side (usually low voltage) (must be 0 or 1, defaults to 0). Ignored if type defined.",Input (optional)
 tap_position,int,n/a,0,"If the transformer has a `type`, determines position relative to the neutral tap position.",Input (optional)
-phase_shift,float,Degrees,0,Voltage phase angle shift. Ignored if type defined.,Input (optional)
+phase_shift,float,Degrees,0,"Voltage phase angle shift. Ignored if type defined. In linear optimal power flow (LOPF) this value enters the Kirchhoff Voltage Law cycle constraint; when `phase_shift_extendable=True` it is treated as a per-snapshot decision variable bounded by `phase_shift_min` and `phase_shift_max`.",Input (optional)
+phase_shift_extendable,boolean,n/a,False,"Switch to allow `phase_shift` to be optimised per snapshot (e.g. to represent a phase-shifting transformer / dwarsregeltransformator whose tap the TSO optimises in operation).",Input (optional)
+phase_shift_min,float,Degrees,-inf,"If `phase_shift_extendable=True`, the minimum phase shift angle (typically negative). Ignored otherwise.",Input (optional)
+phase_shift_max,float,Degrees,inf,"If `phase_shift_extendable=True`, the maximum phase shift angle (typically positive). Ignored otherwise.",Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
 build_year,int,year,0,Build year of transformer.,Input (optional)
 lifetime,float,years,inf,Lifetime of transformer.,Input (optional)
@@ -41,5 +44,6 @@ b_pu,float,per unit,0,Per unit shunt susceptance calculated by `n.calculate_depe
 x_pu_eff,float,per unit,0,"Effective per unit series reactance for linear power flow, calculated by `n.calculate_dependent_values()` from `x`, `tap_ratio` for transformers and `n.buses.v_nom`.",Output
 r_pu_eff,float,per unit,0,"Effective per unit series resistance for linear power flow, calculated by `n.calculate_dependent_values()` from `x`, `tap_ratio` for transformers and `n.buses.v_nom`.",Output
 s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
+phase_shift_opt,series,Degrees,0,"Optimised phase shift angle per snapshot, set by LOPF when `phase_shift_extendable=True`. Equal to the static `phase_shift` (broadcast to all snapshots) otherwise.",Output
 mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit. Always non-negative.,Output
 mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit. Always non-negative.,Output
