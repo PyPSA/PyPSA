@@ -2044,7 +2044,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
-        at_port: PortsLike | None = None,
+        at_port: PortsLike = "bus0",
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -2074,9 +2074,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `False`: No grouping, return all components individually
             - string or list of strings: Group by column names from [c.static][pypsa.Components]
             - callable: Function that takes network and component name as arguments
-        at_port : PortsLike | None, default=None
+        at_port : PortsLike, default="bus0"
             Which ports to consider:
-            - None: Automatically set to "all" if bus_carrier is specified, otherwise "bus0"
             - "all": All ports of components
             - "bus0": Consider only first port
             - str or list of str: Specific ports to include (e.g., "bus1", "bus2")
@@ -2122,9 +2121,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         if components is None:
             components = n.branch_components
-
-        if at_port is None and bus_carrier is not None:
-            at_port = "bus0"
 
         transmission_branches = get_transmission_branches(n, bus_carrier)
 
