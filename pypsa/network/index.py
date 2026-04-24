@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 
 from pypsa._options import options
+from pypsa.common import _is_datetime_like
 from pypsa.constants import HOURS_PER_YEAR
 from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
@@ -101,6 +102,10 @@ class NetworkIndexMixin(_NetworkABC):
                 raise ValueError(msg)
             sns = snapshots.rename(["period", "timestep"])
             sns.name = "snapshot"
+        elif isinstance(snapshots, pd.Index):
+            # Preserve subclass (e.g. DatetimeIndex, CFTimeIndex) instead of
+            # collapsing to a generic object Index via pd.Index(...).
+            sns = snapshots.rename("snapshot")
         else:
             sns = pd.Index(snapshots, name="snapshot")
 
@@ -112,9 +117,9 @@ class NetworkIndexMixin(_NetworkABC):
             sns, fill_value=default_snapshot_weightings
         )
 
-        if isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
+        if _is_datetime_like(sns) and weightings_from_timedelta:
             hours_per_step = (
-                snapshots.to_series()
+                sns.to_series()
                 .diff(periods=1)
                 .shift(-1)
                 .ffill()  # fill last value by assuming same as the one before
@@ -123,9 +128,10 @@ class NetworkIndexMixin(_NetworkABC):
             self._snapshots_data = pd.DataFrame(
                 dict.fromkeys(self._snapshots_data.columns, hours_per_step), index=sns
             )
-        elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
+        elif not _is_datetime_like(sns) and weightings_from_timedelta:
             logger.info(
-                "Skipping `weightings_from_timedelta` as `snapshots`is not of type `pd.DatetimeIndex`."
+                "Skipping `weightings_from_timedelta` as `snapshots` is not a "
+                "datetime-like index (pd.DatetimeIndex or xarray.CFTimeIndex)."
             )
 
         for component in self.all_components:

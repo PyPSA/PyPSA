@@ -6,13 +6,17 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Bug Fixes
+
+- `Network.set_snapshots` now preserves `xarray.CFTimeIndex` inputs (CF calendars such as `noleap` and `360_day`, standard for CMIP6 climate datasets) instead of collapsing them to a generic object index, and correctly computes `weightings_from_timedelta` for them. See [#1090](https://github.com/PyPSA/PyPSA/issues/1090).
 
 
 ## [**v1.2.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.0) <small>21st April 2026</small> { id="v1.2.0" }

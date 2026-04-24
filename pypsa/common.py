@@ -22,6 +22,7 @@ import pandas.testing as pd_testing
 from deprecation import deprecated
 from packaging import version
 from pandas.api.types import is_list_like
+from xarray import CFTimeIndex
 
 from pypsa._options import options
 from pypsa.definitions.structures import Dict
@@ -33,6 +34,16 @@ if TYPE_CHECKING:
     from pypsa.type_utils import NetworkType
 
 logger = logging.getLogger(__name__)
+
+
+def _is_datetime_like(idx: Any) -> bool:
+    """Return True if `idx` is a datetime-like index.
+
+    Covers `pd.DatetimeIndex` and `xarray.CFTimeIndex` (CF calendars such as
+    `noleap` or `360_day`). CFTimeIndex is a `pd.Index` subclass but not a
+    `pd.DatetimeIndex` subclass, so a plain `isinstance` check misses it.
+    """
+    return isinstance(idx, (pd.DatetimeIndex, CFTimeIndex))
 
 
 class UnexpectedError(AssertionError):

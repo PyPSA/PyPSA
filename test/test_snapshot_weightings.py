@@ -47,3 +47,25 @@ def test_default_snapshot_weightings(time_index):
     df_actual = n.snapshot_weightings
 
     pd.testing.assert_frame_equal(df_true, df_actual)
+
+
+@pytest.mark.parametrize("calendar", ["noleap", "360_day"])
+def test_snapshot_weightings_with_timedelta_cftime(calendar):
+    """See GH#1090 — CFTimeIndex must be treated as datetime-like."""
+    xr = pytest.importorskip("xarray")
+    pytest.importorskip("cftime")
+
+    sns = xr.date_range(
+        "2015-01-01", periods=4, freq="2h", use_cftime=True, calendar=calendar
+    )
+    n = pypsa.Network()
+    n.set_snapshots(sns, weightings_from_timedelta=True)
+
+    # Calendar metadata must survive set_snapshots.
+    from xarray import CFTimeIndex
+
+    assert isinstance(n.snapshots, CFTimeIndex)
+    assert n.snapshots.calendar == calendar
+
+    # 2h freq → 2.0 hours per step.
+    assert (n.snapshot_weightings["objective"] == 2.0).all()
