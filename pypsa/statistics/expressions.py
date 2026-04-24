@@ -2123,6 +2123,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         if components is None:
             components = n.branch_components
 
+        if at_port is None and bus_carrier is not None:
+            at_port = "bus0"
+
         transmission_branches = get_transmission_branches(n, bus_carrier)
 
         @pass_empty_series_if_keyerror
