@@ -6,13 +6,17 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Bug Fixes
+
+- Fix `n.statistics.transmission()` returning zero flows when `bus_carrier` is set. (<!-- md:pr 1662 -->)
 
 
 ## [**v1.2.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.0) <small>21st April 2026</small> { id="v1.2.0" }
