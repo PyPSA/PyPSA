@@ -744,8 +744,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             comp = n.c[c]
             capacity = comp.static[f"{nominal_attrs[c]}_opt"]
             if cost_attribute == "capital_cost":
-                return capacity * comp.capital_cost
-            return capacity * comp.static[cost_attribute]
+                capex = capacity * comp.capital_cost
+            capex = capacity * comp.static[cost_attribute]
+            return capex + comp.static.get(cost_attribute + "_piecewise_opt", 0)
 
         df = self._aggregate_components(
             func,
@@ -1644,7 +1645,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     cost = n.get_switchable_as_dense(c, cost_type)
                     p = n.c[c].dynamic[attr]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
-                    opex = var * cost
+                    opex = var * cost + n.c[c].dynamic.get(f"{cost_type}_piecewise", 0)
                     term = self._aggregate_timeseries(opex, weights, agg=groupby_time)
                     result.append(term)
 

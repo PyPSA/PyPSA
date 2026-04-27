@@ -41,3 +41,4 @@ r_pu_eff,float,per unit,0,"Effective per unit series resistance for linear power
 s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
 mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit $-F \\leq f$. Always non-negative.,Output
 mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit $f \\leq F$. Always non-negative.,Output
+capital_cost_piecewise_opt,float,currency,0.,Optimised capital cost when using piecewise linearisation.,Output

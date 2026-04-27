@@ -220,7 +220,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 return None
 
             costs = c.static[cost_attribute][capacity.indexes["name"]]
-            return capacity * costs
+
+            if f"{component}-{cost_attribute}_piecewise" in m.variables:
+                add_capex = m.variables[f"{component}-{cost_attribute}_piecewise"]
+                capacity = capacity.drop_sel(name=add_capex.coords["name"])
+            else:
+                add_capex = 0
+
+            return capacity * costs + add_capex
 
         return self._aggregate_components(
             func,
@@ -359,7 +366,17 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 return None
             var = n.model.variables[f"{c}-{attr}"]
             sns = var.indexes["snapshot"]
-            opex = var * n.get_switchable_as_dense(c, "marginal_cost").loc[sns]
+
+            if f"{c}-{attr}_piecewise" in n.model.variables:
+                add_opex = n.model.variables[f"{c}-{attr}_piecewise"]
+                var = var.drop_sel(name=add_opex.coords["name"])
+            else:
+                add_opex = 0
+
+            opex = (
+                var * n.get_switchable_as_dense(c, "marginal_cost").loc[sns] + add_opex
+            )
+
             weights = n.snapshot_weightings.objective.loc[sns]
             return self._aggregate_timeseries(opex, weights, agg=groupby_time)
 

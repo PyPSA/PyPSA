@@ -55,6 +55,7 @@ from pypsa.optimization.global_constraints import (
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
+from pypsa.optimization.piecewise import define_piecewise_cost
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -135,120 +136,6 @@ def _resolve_include_objective_constant(
         )
         value = True
     return value
-
-
-# TODO-1603: move to own module and add other piecewise constraint options (from those available in linopy)
-# + methods to automatically decide on piecewise method to use
-def _add_piecewise_tangent_constraints(
-    m: Model,
-    c: Any,
-    x_var: Any,
-    y_attr: str,
-    aux_var_name: str,
-    constraint_name_prefix: str,
-    active_names: pd.Index,
-) -> Any:
-    """Add an auxiliary variable and tangent constraints for a piecewise linear curve.
-
-    For a convex curve y(x), the tangent at each breakpoint k gives:
-
-        aux >= y_k + slope_k * (x - x_k)
-
-    which is equivalent to the lower envelope of all tangents and stays LP.
-
-    Derives the segment DataFrame, x-axis attribute, component names with segment
-    data, and the optional p_nom scale factor from the component ``c`` directly.
-
-    For ``marginal_cost``, components that are extendable are rejected with a
-    ``ValueError`` (piecewise marginal cost requires fixed ``p_nom``).
-
-    Parameters
-    ----------
-    m : linopy.Model
-        Model
-    c : pypsa.Components
-        Component instance; used to read ``segments``, ``extendables``,
-        ``static``, and ``ctype.segments_attrs``.
-    x_var : linopy.Variable
-        The optimisation variable for the x-axis (e.g. dispatch ``p`` or capacity
-        ``p_nom``).  Should cover at least ``active_names``.
-    y_attr : str
-        Y-axis attribute name, e.g. ``"marginal_cost"`` or ``"capital_cost"``.
-    aux_var_name : str
-        Name for the auxiliary linopy variable.
-    constraint_name_prefix : str
-        Prefix for tangent constraint names; segment index is appended.
-    active_names : pd.Index
-        Active component names to consider (e.g. ``c.active_assets`` or
-        ``c.extendables``).
-
-    Returns
-    -------
-    aux_var : linopy.Variable or None
-        Auxiliary variable equalling the piecewise function at the optimum,
-        or None if no segment data exists. The ``name`` coordinate contains
-        exactly the component names that have segment data.
-
-    """
-    seg_df = c.segments.get(y_attr)
-    if seg_df is None or seg_df.empty:
-        return None
-
-    seg_names = seg_df.columns.unique("name").intersection(active_names)
-    if seg_names.empty:
-        return None
-
-    x_attr = c.ctype.segments_attrs[y_attr]
-
-    seg_df = seg_df[seg_names]
-
-    # y_attr stores the marginal value (slope) at each breakpoint.
-    x_da = xr.DataArray(seg_df.xs(x_attr, level="attribute", axis=1))
-    y_da = xr.DataArray(seg_df.xs(y_attr, level="attribute", axis=1))
-
-    # For per-unit x-axes (p_pu, e_pu), scale to absolute values and reject extendables.
-    nom_attr = nominal_attrs.get(c.name)
-    if nom_attr and x_attr == nom_attr.replace("_nom", "_pu"):
-        bad = seg_names.intersection(c.extendables)
-        if not bad.empty:
-            msg = (
-                f"Piecewise '{y_attr}' segments on a per-unit x-axis are not supported "
-                f"for extendable components (fixed {nom_attr} required). "
-                f"Extendable components: {bad.tolist()}."
-            )
-            raise ValueError(msg)
-        x_da = x_da * xr.DataArray(c.static.loc[seg_names, nom_attr], dims="name")
-
-    # integrate to a total curve
-    x_arr = x_da.values
-    y_arr = y_da.values
-    dx = np.diff(x_arr, axis=0, prepend=x_arr[:1])
-    dx[0] = 0
-    y_avg = (y_arr + np.roll(y_arr, 1, axis=0)) / 2
-    y_avg[0] = y_arr[0]
-    total_y_da = xr.DataArray(np.cumsum(dx * y_avg, axis=0), coords=x_da.coords)
-
-    extra_dims = [d for d in x_var.dims if d != "name"]
-    coords = [x_var.coords[d].values for d in extra_dims] + [seg_names]
-    dims = extra_dims + ["name"]
-    aux_var = m.add_variables(lower=0, coords=coords, dims=dims, name=aux_var_name)
-
-    x_var_sel = x_var.sel(name=seg_names)
-
-    for seg_idx in seg_df.index:
-        x_k = x_da.sel(segment=seg_idx).drop_vars("segment")
-        y_k = total_y_da.sel(segment=seg_idx).drop_vars("segment")
-        slope_k = y_da.sel(segment=seg_idx).drop_vars("segment")
-
-        # aux >= y_k + slope_k * (x - x_k)
-        # => aux - slope_k * x >= y_k - slope_k * x_k
-        rhs = y_k - slope_k * x_k
-        m.add_constraints(
-            aux_var - slope_k * x_var_sel >= rhs,
-            name=f"{constraint_name_prefix}-{seg_idx}",
-        )
-
-    return aux_var
 
 
 def define_objective(
@@ -378,13 +265,12 @@ def define_objective(
 
             # Piecewise marginal cost via tangent constraints.
             p = m[var_name].sel(snapshot=sns)
-            seg_cost_var = _add_piecewise_tangent_constraints(
+            seg_cost_var = define_piecewise_cost(
                 m,
                 c,
                 p,
                 y_attr=cost_type,
                 aux_var_name=f"{c.name}-{cost_type}_piecewise",
-                constraint_name_prefix=f"{c.name}-{cost_type}_piecewise_tangent",
                 active_names=c.active_assets,
             )
 
@@ -453,13 +339,12 @@ def define_objective(
 
         # Piecewise capital cost via tangent constraints
         caps = m[f"{c.name}-{attr}"]
-        seg_cc_var = _add_piecewise_tangent_constraints(
+        seg_cc_var = define_piecewise_cost(
             m,
             c,
             caps,
             y_attr="capital_cost",
             aux_var_name=f"{c.name}-capital_cost_piecewise",
-            constraint_name_prefix=f"{c.name}-capital_cost_piecewise_tangent",
             active_names=ext_i,
         )
 
@@ -1083,6 +968,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             # Skip auxiliary CVaR variables
             if name.startswith("CVaR"):
                 continue
+            if any(
+                i in variable.dims
+                for i in ["_breakpoint", "_segment", "_breakpoint_seg"]
+            ):
+                continue
 
             # Log variables without component-attribute naming
             if "-" not in name:
@@ -1159,7 +1049,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 pass
             else:
                 c.static.update(df.rename(attr + "_opt"), overwrite=True)
-
         # If nominal capacity was no variable set optimal value to nominal
         for c_name, attr in lookup.query("nominal").index:
             c = n.components[c_name]

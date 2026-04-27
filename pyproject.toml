@@ -271,3 +271,11 @@ ignore = [
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"
+
+[tool.uv.sources]
+linopy = { git = "https://github.com/pypsa/linopy" }
+
+[dependency-groups]
+dev = [
+    "linopy>0.6.7",
+]

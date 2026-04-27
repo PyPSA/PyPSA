@@ -24,7 +24,7 @@ active,boolean,n/a,True,"Whether to consider the component in optimization or no
 build_year,int,year,0,Build year of the generator.,Input (optional)
 lifetime,float,years,inf,Lifetime of the generator.,Input (optional)
 capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly in optimization unless `overnight_cost` is specified.",Input (optional),p_nom
-overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional),p_nom
+overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional)
 efficiency,static or series,per unit,1,"Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.",Input (optional),p_pu
@@ -52,3 +52,5 @@ mu_lower,series,currency/MWh,n/a,Shadow price of lower `p_nom` limit,Output
 mu_p_set,series,currency/MWh,n/a,Shadow price of fixed power generation `p_set`,Output
 mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
 mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
+capital_cost_piecewise_opt,float,currency,0.,Optimised capital cost when using piecewise linearisation.,Output
+marginal_cost_piecewise,series,currency,0.,Optimised marginal cost when using piecewise linearisation.,Output

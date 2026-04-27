@@ -49,3 +49,5 @@ mu_upper,series,currency/MWh,n/a,Shadow price of upper p_nom limit,Output
 mu_lower,series,currency/MWh,n/a,Shadow price of lower p_nom limit,Output
 mu_state_of_charge_set,series,currency/MWh,n/a,Shadow price of fixed state of charge state_of_charge_set,Output
 mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations,Output
+capital_cost_piecewise_opt,float,currency,0.,Optimised capital cost when using piecewise linearisation.,Output
+marginal_cost_piecewise,series,currency,0.,Optimised marginal cost when using piecewise linearisation.,Output
