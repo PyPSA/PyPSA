@@ -210,20 +210,23 @@ class OptimizationAbstractMGAMixin:
         """
         m = model or self._n.model
         expr = []
-        for c, attrs in weights.items():
+        for c_name, attrs in weights.items():
+            c = self._n.components[c_name]
             for attr, coeffs in attrs.items():
                 if isinstance(coeffs, dict):
                     coeffs = pd.Series(coeffs)
-                if attr == nominal_attrs[c] and isinstance(coeffs, pd.Series):
-                    coeffs = coeffs.reindex(self._n.c[c].extendables, fill_value=0)
+                if attr == nominal_attrs.get(c.list_name) and isinstance(
+                    coeffs, pd.Series
+                ):
+                    coeffs = coeffs.reindex(c.extendables, fill_value=0)
                     coeffs.index.name = ""
                 elif isinstance(coeffs, pd.Series):
-                    coeffs = coeffs.reindex(columns=self._n.c[c].static.index)
+                    coeffs = coeffs.reindex(columns=c.static.index)
                 elif isinstance(coeffs, pd.DataFrame):
                     coeffs = coeffs.reindex(
-                        columns=self._n.c[c].static.index, index=self._n.snapshots
+                        columns=c.static.index, index=self._n.snapshots
                     )
-                expr.append(m[f"{c}-{attr}"] * coeffs)
+                expr.append(m[f"{c.name}-{attr}"] * coeffs)
         return merge(expr)
 
     def _add_near_opt_constraint(

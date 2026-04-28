@@ -19,6 +19,8 @@ from pypsa.common import (
     deprecated_kwargs,
     pass_empty_series_if_keyerror,
 )
+from pypsa.components import Links, Processes, StorageUnits, Stores
+from pypsa.components.categories import Branch, OnePort, Passive
 from pypsa.descriptors import nominal_attrs
 from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_port
@@ -27,12 +29,15 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
     from pypsa import Network, NetworkCollection
+    from pypsa.components import Components
     from pypsa.components.components import PortsLike
+    from pypsa.types import ComponentsLike
 
 logger = logging.getLogger(__name__)
 
 
-def get_operation(n: Network, c: str) -> pd.DataFrame:
+@deprecated_kwargs(deprecated_in="1.3", removed_in="2.0", c="component")
+def get_operation(n: Network, component: ComponentsLike) -> pd.DataFrame:
     """Get the reference operation data for a network component.
 
     For passive branches (Lines, Transformers), returns `p0` since no reference
@@ -44,8 +49,9 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
     ----------
     n : Network
         The PyPSA network instance.
-    c : str
-        The component name (e.g., 'Generator', 'Link', 'Line', 'Store').
+    component : ComponentsLike
+        The component name (e.g., 'Generator', 'Link', 'Line', 'Store') or a
+        `Components` instance.
 
     Returns
     -------
@@ -53,42 +59,47 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
         Time series of the reference operational variable for the component.
 
     """
-    if c in n.passive_branch_components:
-        return n.c[c].dynamic.p0
-    if c == "Store":
-        return n.c[c].dynamic.e
-    p = n.c[c].dynamic.p
-    if p.empty and c in n.branch_components:
+    c = n.c[component]
+    if isinstance(c, Passive) and isinstance(c, Branch):
+        return c.dynamic.p0
+    if isinstance(c, Stores):
+        return c.dynamic.e
+    p = c.dynamic.p
+    if p.empty and isinstance(c, Branch):
         # Fallback for legacy networks where only p0 is stored (for Links)
-        return n.c[c].dynamic.p0
+        return c.dynamic.p0
     return p
 
 
+@deprecated_kwargs(deprecated_in="1.3", removed_in="2.0", c_name="component")
 def port_efficiency(
-    n: Network, c_name: str, port: int | str = 0, dynamic: bool = False
+    n: Network,
+    component: ComponentsLike,
+    port: int | str = 0,
+    dynamic: bool = False,
 ) -> pd.Series | pd.DataFrame:
     """Get the efficiency of a component at a specific port."""
-    c = n.c[c_name]
+    c = n.c[component]
     port = c._as_port(port)
 
     ones = pd.Series(1, index=c.static.index)
-    if c.name in n.one_port_components:
+    if isinstance(c, OnePort):
         return ones
-    elif c.name in n.passive_branch_components:
+    elif isinstance(c, Passive) and isinstance(c, Branch):
         return -ones if port == 0 else ones
-    elif c.name == "Link":
+    elif isinstance(c, Links):
         if port == 0:
             return -ones
 
         key = "efficiency" if port == 1 else f"efficiency{port}"
         if dynamic and key in c.static:
-            return n.get_switchable_as_dense(c.name, key)
+            return c._as_dynamic(key)
 
         return c.static.get(key, ones)
-    elif c.name == "Process":
+    elif isinstance(c, Processes):
         key = f"rate{port}"
         if dynamic and key in c.static:
-            return n.get_switchable_as_dense(c.name, key)
+            return c._as_dynamic(key)
 
         return c.static.get(key, ones)
     else:
@@ -100,10 +111,9 @@ def get_transmission_branches(
     n: Network | NetworkCollection, bus_carrier: str | Sequence[str] | None = None
 ) -> pd.MultiIndex:
     """Get list of assets which transport between buses of the carrier `bus_carrier`."""
-    # Check if this is a NetworkCollection (has MultiIndex buses)
-    is_network_collection = isinstance(n.c.buses.static.carrier.index, pd.MultiIndex)
+    from pypsa.collection import NetworkCollection  # noqa: PLC0415
 
-    if is_network_collection:
+    if isinstance(n, NetworkCollection):
         # For NetworkCollection, process each network separately and combine results
         network_results: list[tuple[str, pd.Index]] = []
 
@@ -114,11 +124,10 @@ def get_transmission_branches(
         )
         bus_carrier_map = bus_carrier_map[~bus_carrier_map.index.duplicated()]
 
-        for c in n.branch_components:
-            bus_map = (
-                n.c[c]
-                .static.filter(like="bus")
-                .apply(lambda ds: ds.map(bus_carrier_map))
+        for ref_c in n.networks.iloc[0].components.filter(branch=True):
+            c = n.c[ref_c.name]
+            bus_map = c.static.filter(like="bus").apply(
+                lambda ds: ds.map(bus_carrier_map)
             )
             if isinstance(bus_carrier, str):
                 bus_carrier_list = [bus_carrier]
@@ -132,7 +141,7 @@ def get_transmission_branches(
                     bus_map.eq(carrier).astype(int).sum(axis=1)[lambda ds: ds > 1].index
                 )
                 # Keep the full MultiIndex for NetworkCollection
-                network_results.extend((c, idx) for idx in matching_idx)
+                network_results.extend((ref_c.name, idx) for idx in matching_idx)
 
         # Create MultiIndex with network levels + component and name
         if network_results:
@@ -167,11 +176,9 @@ def get_transmission_branches(
         index = {}
         bus_carrier_map = n.c.buses.static.carrier
 
-        for c in n.branch_components:
-            bus_map = (
-                n.c[c]
-                .static.filter(like="bus")
-                .apply(lambda ds: ds.map(bus_carrier_map))
+        for c in n.components.filter(branch=True):
+            bus_map = c.static.filter(like="bus").apply(
+                lambda ds: ds.map(bus_carrier_map)
             )
             if isinstance(bus_carrier, str):
                 bus_carrier = [bus_carrier]
@@ -183,21 +190,21 @@ def get_transmission_branches(
                     bus_map.eq(carrier).astype(int).sum(axis=1)[lambda ds: ds > 1].index
                 )
                 res |= set(matching_idx)
-            index[c] = pd.Index(res)
+            index[c.name] = pd.Index(res)
         return pd.MultiIndex.from_tuples(
-            [(c, i) for c, idx in index.items() for i in idx],
+            [(name, i) for name, idx in index.items() for i in idx],
             names=["component", "name"],
         )
 
 
 def get_transmission_carriers(
-    n: Network, bus_carrier: str | Sequence[str] | None = None
+    n: Network | NetworkCollection, bus_carrier: str | Sequence[str] | None = None
 ) -> pd.MultiIndex:
     """Get the carriers which transport between buses of the carrier `bus_carrier`."""
-    branches = get_transmission_branches(n, bus_carrier)
+    from pypsa.collection import NetworkCollection  # noqa: PLC0415
 
-    # Check if this is a NetworkCollection
-    is_network_collection = isinstance(n.c.buses.static.carrier.index, pd.MultiIndex)
+    branches = get_transmission_branches(n, bus_carrier)
+    is_network_collection = isinstance(n, NetworkCollection)
 
     if is_network_collection and len(branches) > 0:
         # For NetworkCollection, branches has structure: (network_levels..., component, name)
@@ -385,11 +392,15 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         "prices",
     ]
 
-    def _get_component_index(self, df: pd.DataFrame | pd.Series, c: str) -> pd.Index:
+    def _get_component_index(
+        self, df: pd.DataFrame | pd.Series, c: Components
+    ) -> pd.Index:
         return df.index
 
     def _concat_periods(
-        self, dfs: list[pd.DataFrame] | dict[str, pd.DataFrame], c: str
+        self,
+        dfs: list[pd.DataFrame] | dict[str, pd.DataFrame],
+        c: Components,
     ) -> pd.DataFrame:
         return pd.concat(dfs, axis=1)
 
@@ -438,11 +449,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return weights @ df
 
     def _aggregate_components_groupby(
-        self, vals: pd.DataFrame, grouping: dict, agg: Callable | str, c: str
+        self, vals: pd.DataFrame, grouping: dict, agg: Callable | str, c: Components
     ) -> pd.DataFrame:
         if isinstance(vals.index, pd.MultiIndex):
             levels = vals.index.names
-            keep_levels = [l for l in levels if l not in ["name", c]]
+            keep_levels = [l for l in levels if l not in ["name", c.name]]
             grouping_df = grouping["by"]
             if isinstance(grouping_df, pd.Series):
                 grouping_df = grouping_df.to_frame()
@@ -544,7 +555,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         removed_in="2.0",
         comps="components",
         aggregate_groups="groupby_method",
-        aggregate_time="groupby_time",
     )
     def __call__(
         self,
@@ -743,12 +753,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            comp = n.c[c]
-            capacity = comp.static[f"{nominal_attrs[c]}_opt"]
+        def func(n: Network, c: Components, port: str) -> pd.Series:
+            capacity = c.static[f"{nominal_attrs[c.list_name]}_opt"]
             if cost_attribute == "capital_cost":
-                return capacity * comp.capital_cost
-            return capacity * comp.static[cost_attribute]
+                return capacity * c.capital_cost
+            return capacity * c.static[cost_attribute]
 
         df = self._aggregate_components(
             func,
@@ -859,10 +868,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            comp = n.c[c]
-            capacity = comp.static[nominal_attrs[c]]
-            return capacity * comp.capital_cost
+        def func(n: Network, c: Components, port: str) -> pd.Series:
+            capacity = c.static[nominal_attrs[c.list_name]]
+            return capacity * c.capital_cost
 
         df = self._aggregate_components(
             func,
@@ -1064,10 +1072,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            comp = n.c[c]
-            capacity = comp.static[f"{nominal_attrs[c]}_opt"]
-            return capacity * comp.overnight_cost
+        def func(n: Network, c: Components, port: str) -> pd.Series:
+            capacity = c.static[f"{nominal_attrs[c.list_name]}_opt"]
+            return capacity * c.overnight_cost
 
         df = self._aggregate_components(
             func,
@@ -1148,9 +1155,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            static = n.c[c].static
-            capacity = static[f"{nominal_attrs[c]}_opt"]
+        def func(n: Network, c: Components, port: str) -> pd.Series:
+            static = c.static
+            capacity = static[f"{nominal_attrs[c.list_name]}_opt"]
             fom_cost = static["fom_cost"]
             return capacity * fom_cost
 
@@ -1267,13 +1274,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         resolved_at_port = resolve_at_port(at_port, bus_carrier)
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
+        def func(n: Network, c: Components, port: str) -> pd.Series:
             efficiency = port_efficiency(n, c, port=port)
-            if n.c[c]._as_ports(resolved_at_port) == [0]:
+            if c._as_ports(resolved_at_port) == [0]:
                 efficiency = abs(efficiency)
-            col = n.c[c].static[f"{nominal_attrs[c]}_opt"] * efficiency
-            if storage and (c == "StorageUnit"):
-                col = col * n.c[c].static.max_hours
+            col = c.static[f"{nominal_attrs[c.list_name]}_opt"] * efficiency
+            if storage and isinstance(c, StorageUnits):
+                col = col * c.static.max_hours
             return col
 
         df = self._aggregate_components(
@@ -1389,13 +1396,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         resolved_at_port = resolve_at_port(at_port, bus_carrier)
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
+        def func(n: Network, c: Components, port: str) -> pd.Series:
             efficiency = port_efficiency(n, c, port=port)
-            if n.c[c]._as_ports(resolved_at_port) == [0]:
+            if c._as_ports(resolved_at_port) == [0]:
                 efficiency = abs(efficiency)
-            col = n.c[c].static[f"{nominal_attrs[c]}"] * efficiency
-            if storage and (c == "StorageUnit"):
-                col = col * n.c[c].static.max_hours
+            col = c.static[f"{nominal_attrs[c.list_name]}"] * efficiency
+            if storage and isinstance(c, StorageUnits):
+                col = col * c.static.max_hours
             return col
 
         df = self._aggregate_components(
@@ -1636,11 +1643,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             cost_types_ = list(cost_types)
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
+        def func(n: Network, c: Components, port: str) -> pd.Series:
             result = []
             weights = n.snapshot_weightings.objective
             weights_one = pd.Series(1.0, index=weights.index)
-            com_i = n.components[c].committables
+            com_i = c.committables
 
             for cost_type in [
                 "marginal_cost",
@@ -1648,10 +1655,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 "marginal_cost_quadratic",
                 "spill_cost",
             ]:
-                if cost_type in cost_types_ and cost_type in n.c[c].static:
-                    attr = lookup.query(cost_type).loc[c].index.item() + port
-                    cost = n.get_switchable_as_dense(c, cost_type)
-                    p = n.c[c].dynamic[attr]
+                if cost_type in cost_types_ and cost_type in c.static:
+                    attr = lookup.query(cost_type).loc[c.list_name].index.item() + port
+                    cost = c._as_dynamic(cost_type)
+                    p = c.dynamic[attr]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
                     opex = var * cost
                     term = self._aggregate_timeseries(opex, weights, agg=groupby_time)
@@ -1665,11 +1672,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             for cost_type, attr in mapping.items():
                 if (
                     cost_type in cost_types_
-                    and cost_type in n.c[c].static
+                    and cost_type in c.static
                     and not com_i.empty
                 ):
-                    cost = n.get_switchable_as_dense(c, cost_type, inds=com_i)
-                    var = n.c[c].dynamic[attr].loc[:, com_i]
+                    cost = c._as_dynamic(cost_type, inds=com_i)
+                    var = c.dynamic[attr].loc[:, com_i]
                     opex = var * cost
                     w = weights if attr == "status" else weights_one
                     term = self._aggregate_timeseries(opex, w, agg=groupby_time)
@@ -2120,14 +2127,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         n = self._n
 
         if components is None:
-            components = n.branch_components
+            components = ["Line", "Transformer", "Link", "Process"]
 
         transmission_branches = get_transmission_branches(n, bus_carrier)
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            idx = transmission_branches.get_loc_level(c, level="component")[1]
-            p = n.c[c].dynamic[f"p{port}"][idx]
+        def func(n: Network, c: Components, port: str) -> pd.Series:
+            idx = transmission_branches.get_loc_level(c.name, level="component")[1]
+            p = c.dynamic[f"p{port}"][idx]
             weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
@@ -2264,10 +2271,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             )
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            sign = -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
+        def func(n: Network, c: Components, port: str) -> pd.Series:
+            sign = -1.0 if isinstance(c, Branch) else c.static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators
-            p = sign * n.c[c].dynamic[f"p{port}"]
+            p = sign * c.dynamic[f"p{port}"]
             if direction == "supply":
                 p = p.clip(lower=0)
             elif direction == "withdrawal":
@@ -2385,11 +2392,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            p = (
-                n.get_switchable_as_dense(c, "p_max_pu") * n.c[c].static.p_nom_opt
-                - n.c[c].dynamic.p
-            ).clip(lower=0)
+        def func(n: Network, c: Components, port: str) -> pd.Series:
+            p = (c._as_dynamic("p_max_pu") * c.static.p_nom_opt - c.dynamic.p).clip(
+                lower=0
+            )
             weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
@@ -2498,7 +2504,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         # TODO: Why not just take p_max_pu, s_max_pu, etc. directly from the network?
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
+        def func(n: Network, c: Components, port: str) -> pd.Series:
             p = get_operation(n, c).abs()
             weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
@@ -2621,10 +2627,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             direction = "both"
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            sign = -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
-            df = sign * n.c[c].dynamic[f"p{port}"]
-            buses = n.c[c].static[f"bus{port}"][df.columns]
+        def func(n: Network, c: Components, port: str) -> pd.Series:
+            sign = -1.0 if isinstance(c, Branch) else c.static.get("sign", 1.0)
+            df = sign * c.dynamic[f"p{port}"]
+            buses = c.static[f"bus{port}"][df.columns]
             # catch multiindex case
             buses = (
                 buses.to_frame("bus")
@@ -2777,7 +2783,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         rev = self.revenue(**kwargs)
 
         @pass_empty_series_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
+        def func(n: Network, c: Components, port: str) -> pd.Series:
             p = get_operation(n, c).abs()
             weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=groupby_time)

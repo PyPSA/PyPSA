@@ -11,6 +11,7 @@ import pandas as pd
 
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
+from pypsa.components.types import all_components as component_types
 
 
 @patch_add_docstring
@@ -31,6 +32,8 @@ class Shapes(Components):
     Empty 'Shape' Components
 
     """
+
+    _ctype = component_types["shapes"]
 
     def add(
         self,

@@ -1,0 +1,39 @@
+attribute,type,dtype,unit,default,description,status,dynamic,nullable
+name,string,str,,,Unique name,Input (required),False,False
+bus,string,str,,,Name of bus to which store is attached.,Input (required),False,False
+type,string,str,,,Placeholder for store type. Not yet implemented.,Input (optional),False,True
+carrier,string,str,,,Carrier of the store.,Input (optional),False,True
+e_nom,float,float,MWh,0,Nominal energy capacity (i.e. limit on `e`). Ignored if `e_nom_extendable=True`.,Input (optional),False,False
+e_nom_mod,float,float,MWh,0,Nominal energy capacity of the store module. Introduces integer variables if set.,Input (optional),False,False
+e_nom_extendable,boolean,bool,,False,Switch to allow capacity `e_nom` to be extended in optimisation.,Input (optional),False,False
+e_nom_min,float,float,MWh,0,"If `e_nom_extendable=True`, set the minimum value of `e_nom_opt`.",Input (optional),False,False
+e_nom_max,float,float,MWh,inf,"If `e_nom_extendable=True`, set the maximum value of `e_nom_opt`.",Input (optional),False,False
+e_nom_set,float,float,MWh,,"If `e_nom_extendable=True`, set the value of `e_nom_opt`.",Input (optional),False,True
+e_min_pu,static or series,float,per unit,0,Minimal value of `e` relative to `e_nom` for the optimisation.,Input (optional),True,False
+e_max_pu,static or series,float,per unit,1,Maximal value of `e` relative to `e_nom` for the optimisation.,Input (optional),True,False
+e_initial,float,float,MWh,0,Energy before the snapshots in the optimisation.,Input (optional),False,False
+e_initial_per_period,boolean,bool,,False,"Switch: if True, then at the beginning of each investment period `e` is set to `e_initial`.",Input (optional),False,False
+e_cyclic,boolean,bool,,False,"Switch: if True, then `e_initial` is ignored and the initial energy is set to the final energy for the group of snapshots in the optimisation.",Input (optional),False,False
+e_cyclic_per_period,boolean,bool,,False,"Switch: if True, then the cyclic constraints are applied to each investment period separately.",Input (optional),False,False
+p_set,static or series,float,MW,,Active power set point (for optimisation and power flow),Input (optional),True,True
+q_set,static or series,float,MVar,0,Reactive power set point (for power flow only),Input (optional),True,False
+e_set,static or series,float,MWh,,Fixed energy filling level set point (for optimisation only),Input (optional),True,True
+sign,float,float,,1,Sign denoting orientation of the energy variable (`e`).,Input (optional),False,False
+marginal_cost,static or series,float,currency/MWh,0,Marginal cost applied to both charging and discharging of 1 MWh.,Input (optional),True,False
+marginal_cost_quadratic,static or series,float,currency/MWh,0,Quadratic marginal cost of applied to charging and discharging of 1 MWh.,Input (optional),True,False
+marginal_cost_storage,static or series,float,currency/MWh/h,0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional),True,False
+capital_cost,float,float,currency/MWh,0,Fixed period costs of extending `e_nom` by 1 MWh (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified.,Input (optional),False,False
+overnight_cost,float,float,currency/MWh,,"Overnight (upfront) investment cost per MWh. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional),False,True
+discount_rate,float,float,per unit,,Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).,Input (optional),False,True
+fom_cost,float,float,currency/MWh,0,"Fixed period operation and maintenance costs per MWh, added to annuitized investment cost.",Input (optional),False,False
+standing_loss,static or series,float,per unit,0,Losses per hour to energy level.,Input (optional),True,False
+active,boolean,bool,,True,Whether to consider the component in optimisation or not,Input (optional),False,False
+build_year,int,int,year,0,Build year,Input (optional),False,False
+lifetime,float,float,years,inf,Lifetime,Input (optional),False,False
+p,series,float,MW,0,Power at bus (positive if net supply),Output,True,False
+q,series,float,MVar,0,Reactive power (positive if net supply),Output,True,False
+e,series,float,MWh,0,Energy level of store as calculated by the optimisation.,Output,True,False
+e_nom_opt,float,float,MWh,0,Optimised nominal energy capacity outputed by optimisation.,Output,False,False
+mu_upper,series,float,currency/MWh,,Shadow price of upper `e_nom` limit,Output,True,True
+mu_lower,series,float,currency/MWh,,Shadow price of lower `e_nom` limit,Output,True,True
+mu_energy_balance,series,float,currency/MWh,,Shadow price of storage consistency equations (i.e. water values),Output,True,True

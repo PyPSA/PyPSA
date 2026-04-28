@@ -9,17 +9,13 @@ import pytest
 
 from pypsa import Components, Network
 from pypsa.components.legacy import Component
-from pypsa.components.types import get as get_component_type
 
 
-def test_components_non_implemented():
-    """Test that the components module raises an ImportError if imported directly."""
-    ct = get_component_type("Generator")
-    with pytest.raises(NotImplementedError):
-        Components(ctype=ct, names=["Generator"])
+def test_components_cannot_instantiate_directly():
+    """Test that Components base class cannot be instantiated directly."""
     n = Network()
-    with pytest.raises(NotImplementedError):
-        Components(ctype=ct, n=n)
+    with pytest.raises(TypeError, match="Cannot instantiate"):
+        Components(n=n)
 
 
 @pytest.fixture

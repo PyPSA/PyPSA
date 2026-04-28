@@ -10,11 +10,12 @@ from typing import Any
 import pandas as pd
 
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components.components import Components
+from pypsa.components.categories import OnePort, Passive
+from pypsa.components.types import all_components as component_types
 
 
 @patch_add_docstring
-class ShuntImpedances(Components):
+class ShuntImpedances(Passive, OnePort):
     """Shunt impedances components class.
 
     This class is used for shunt impedance components. All functionality specific to
@@ -31,6 +32,8 @@ class ShuntImpedances(Components):
     Empty 'ShuntImpedance' Components
 
     """
+
+    _ctype = component_types["shunt_impedances"]
 
     def add(
         self,

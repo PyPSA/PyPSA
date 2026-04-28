@@ -1,0 +1,10 @@
+attribute,type,dtype,unit,default,description,status,dynamic,nullable
+name,string,str,,,Unique name,Input (required),False,False
+f_nom,float,float,Hz,50.,Nominal frequency,Input (required),False,False
+r_per_length,float,float,Ohm per km,0.,Series resistance per length,Input (required),False,False
+x_per_length,float,float,Ohm per km,0.,Series reactance per length,Input (required),False,False
+c_per_length,float,float,nF per km,0.,Shunt capacitance per length,Input (optional),False,False
+i_nom,float,float,kA,0.,Nominal current,Input (optional),False,False
+mounting,string,str,,ol,"Can be ""ol"" for overhead line or ""cs"" for cable",Input (optional),False,False
+cross_section,float,float,mm2,0.,Wire cross-section,Input (optional),False,False
+references,string,str,,,References for electrical parameters,Input (optional),False,True

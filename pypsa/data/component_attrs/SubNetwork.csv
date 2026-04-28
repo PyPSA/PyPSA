@@ -1,0 +1,4 @@
+attribute,type,dtype,unit,default,description,status,dynamic,nullable
+name,string,str,,,Unique name assigned based on order of sub-network in list of sub-networks.,Output,False,True
+carrier,string,str,,AC,Carrier determined from the buses in the sub-network.,Output,False,False
+slack_bus,string,str,,,Name of slack bus.,Output,False,True

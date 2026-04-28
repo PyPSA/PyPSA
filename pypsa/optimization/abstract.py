@@ -223,8 +223,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             return lines_err
 
         def save_optimal_capacities(n: Network, iteration: int, status: str) -> None:
-            for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-                n.c[c].static[f"{attr}_opt_{iteration}"] = n.c[c].static[f"{attr}_opt"]
+            for list_name, attr in pd.Series(nominal_attrs)[
+                [c.list_name for c in n.components.filter(branch=True)]
+            ].items():
+                n.c[list_name].static[f"{attr}_opt_{iteration}"] = n.c[
+                    list_name
+                ].static[f"{attr}_opt"]
             setattr(n, f"status_{iteration}", status)
             setattr(n, f"objective_{iteration}", n.objective)
             n.iteration = iteration
@@ -279,8 +283,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             link_threshold = {}
 
         if track_iterations:
-            for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-                n.c[c].static[f"{attr}_opt_0"] = n.c[c].static[f"{attr}"]
+            for list_name, attr in pd.Series(nominal_attrs)[
+                [c.list_name for c in n.components.filter(branch=True)]
+            ].items():
+                n.c[list_name].static[f"{attr}_opt_0"] = n.c[list_name].static[
+                    f"{attr}"
+                ]
 
         iteration = 1
         diff = msq_threshold
@@ -607,8 +615,11 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             )
             return {"status": status, "termination_condition": condition}
 
-        for c in n.one_port_components | {"Process", "Link"}:
-            n.c[c].dynamic["p_set"] = n.c[c].dynamic["p"]
+        for c in (
+            *n.components.filter(one_port=True),
+            *n.components.filter(branch=True, controllable=True),
+        ):
+            c.dynamic["p_set"] = c.dynamic["p"]
 
         n.c.generators.static.control = "PV"
         for sub_network in n.c.sub_networks.static.obj:

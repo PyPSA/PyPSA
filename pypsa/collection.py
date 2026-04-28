@@ -531,6 +531,7 @@ def _get_method_patterns() -> dict[str, str]:
         "horizontal_concat": rf"^("
         rf"({'(' + _all_components + ')_t' if not new_api else ''})|"
         rf"({_component_classes}.dynamic)|"
+        rf"({_component_classes}._as_dynamic)|"
         rf"dynamic|"
         rf"get_switchable_as_dense"
         rf")$",
@@ -546,7 +547,7 @@ def _get_method_patterns() -> dict[str, str]:
         r"investment_periods|"
         r"periods|"
         r"bus_carrier_unit|"
-        rf"({_component_classes}\.(name|ports|_as_port|_as_ports))|"
+        rf"({_component_classes}\.(name|list_name|ports|_as_port|_as_ports))|"
         r")$",
         # ---------------
         "index_concat": r"^("
@@ -601,6 +602,23 @@ class MemberProxy:
                 return True
         return False
 
+    @property  # type: ignore[misc]
+    def __class__(self) -> type:
+        """Return wrapped Components class so isinstance() sees through the proxy.
+
+        Same is done for SubNetworkComponents. Falls back to MemberProxy if
+        the accessor does not resolve to a Components instance.
+        """
+        from pypsa.components.components import Components  # noqa: PLC0415
+
+        try:
+            first = self.accessor_func(self.collection.networks.iloc[0])
+        except Exception:
+            return MemberProxy
+        if isinstance(first, Components):
+            return type(first)
+        return MemberProxy
+
     def __init__(
         self,
         collection: NetworkCollection,
@@ -654,7 +672,7 @@ class MemberProxy:
             self.collection, lambda n: getattr(self.accessor_func(n), name), new_path
         )
 
-    def __getitem__(self, name: str) -> Any:
+    def __getitem__(self, name: "str | MemberProxy") -> Any:
         """Handle attribute access on the accessor.
 
         This method handles three cases:
@@ -662,6 +680,8 @@ class MemberProxy:
         2. The attribute is a method (returns a function that aggregates results)
         3. The attribute is a property (returns a ResultWrapper of property values)
         """
+        if isinstance(name, MemberProxy):
+            return name
         # Get the attribute from the first accessor to determine its type
         if len(self.collection.networks) == 0:
             msg = f"Cannot access attribute '{name}' on empty collection"
@@ -673,6 +693,15 @@ class MemberProxy:
         # For any attribute, create a new accessor function that chains the attribute access
         return MemberProxy(
             self.collection, lambda n: getattr(self.accessor_func(n), name), new_path
+        )
+
+    def _get(self, name: str) -> "MemberProxy":
+        """Look up a component by PascalCase or list_name without a warning."""
+        new_path = f"{self.accessor_path}['{name}']" if self.accessor_path else name
+        return MemberProxy(
+            self.collection,
+            lambda n: self.accessor_func(n)._get(name),
+            new_path,
         )
 
     def get_processor(self) -> Any:

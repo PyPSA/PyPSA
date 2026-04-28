@@ -13,7 +13,8 @@ import pandas as pd
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components.components import Components
+from pypsa.components.categories import Controllable, OnePort
+from pypsa.components.types import all_components as component_types
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class Generators(Components):
+class Generators(Controllable, OnePort):
     """Generators components class.
 
     This class is used for generator components. All functionality specific to
@@ -43,6 +44,8 @@ class Generators(Components):
     Components: 6
 
     """
+
+    _ctype = component_types["generators"]
 
     _operational_variables = ["p"]
 

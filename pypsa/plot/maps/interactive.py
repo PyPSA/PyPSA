@@ -18,7 +18,7 @@ import pydeck as pdk
 import pyproj
 
 from pypsa.common import _convert_to_series, deprecated_kwargs
-from pypsa.components.common import as_components
+from pypsa.components._types import Lines, Links, Transformers
 from pypsa.plot.maps.common import (
     _is_cartopy_available,
     add_jitter,
@@ -44,6 +44,7 @@ from pypsa.plot.maps.common import (
 )
 
 if TYPE_CHECKING:
+    from pypsa.components.components import Components
     from pypsa.networks import Network
 
 
@@ -254,11 +255,11 @@ def iplot(
     shapes = []
     shape_traces = []
 
-    for c in n.components:
+    for c in n.components.filter(branch=True):
         if c.name not in branch_components:
             continue
-        b_widths = as_branch_series(branch_width[c.name], "width", c.name, n)
-        b_colors = as_branch_series(branch_color[c.name], "color", c.name, n)
+        b_widths = as_branch_series(branch_width[c.name], "width", c, n)
+        b_colors = as_branch_series(branch_color[c.name], "color", c, n)
         b_text = branch_text[c.name]
 
         if b_text is None:
@@ -587,7 +588,7 @@ class PydeckPlotter:
     # Data wrangling
     def prepare_component_data(
         self,
-        component: str,
+        c: "Components",
         default_columns: list[str] | None = None,
         extra_columns: list[str] | None = None,
     ) -> pd.DataFrame:
@@ -595,8 +596,8 @@ class PydeckPlotter:
 
         Parameters
         ----------
-        component : str
-            Name of the component type, e.g. "Bus", "Line", "Link", "Transformer".
+        c : Components
+            The component type, e.g. Buses, Lines, Links, Transformers.
         default_columns : list of str, optional
             List of default columns to include for the component.
         extra_columns : list of str, optional
@@ -608,7 +609,7 @@ class PydeckPlotter:
             DataFrame containing the prepared data for the component.
 
         """
-        df = as_components(self._n, component).static
+        df = c.static
         if default_columns is None:
             default_columns = []
 
@@ -623,7 +624,7 @@ class PydeckPlotter:
 
             if missing_columns:
                 msg = (
-                    f"Columns {missing_columns} not found in {component}. "
+                    f"Columns {missing_columns} not found in {c.name}. "
                     f"Using only valid columns: {valid_columns}."
                 )
                 logger.warning(msg)
@@ -685,7 +686,9 @@ class PydeckPlotter:
         if bus_size_factor < 0:
             raise ValueError(msg)
 
-        bus_data = self.prepare_component_data("Bus", extra_columns=bus_columns)
+        bus_data = self.prepare_component_data(
+            self._n.c.buses, extra_columns=bus_columns
+        )
 
         valid_idx = self._x.index.intersection(bus_data.index)
         bus_data = bus_data.loc[valid_idx].copy()
@@ -718,7 +721,7 @@ class PydeckPlotter:
 
         # 7. Create tooltips if requested
         if tooltip:
-            self.create_tooltips("Bus")
+            self.create_tooltips(self._n.c.buses)
 
         # 8. Create Pydeck layer
         layer = pdk.Layer(
@@ -908,7 +911,7 @@ class PydeckPlotter:
         """
         EPS = 1e-6  # Small epsilon to avoid numerical issues
         bus_data = self.prepare_component_data(
-            "Bus",
+            self._n.c.buses,
             extra_columns=bus_columns,
         )
 
@@ -977,7 +980,10 @@ class PydeckPlotter:
 
             if bus_split_circle and np.any(values < 0):
                 if np.any(pos_mask) and bus_radius_pos[bus] > 0:
-                    colors = [carrier_rgba[bus][c] for c in carrier_order[pos_mask]]
+                    colors = [
+                        carrier_rgba[bus][carrier]
+                        for carrier in carrier_order[pos_mask]
+                    ]
                     labels = list(carrier_order[pos_mask])
                     vals = values[pos_mask].round(3)
 
@@ -995,7 +1001,10 @@ class PydeckPlotter:
                     polygons.extend(poly_pos)
 
                 if np.any(neg_mask) and bus_radius_neg[bus] > 0:
-                    colors = [carrier_rgba[bus][c] for c in carrier_order[neg_mask]]
+                    colors = [
+                        carrier_rgba[bus][carrier]
+                        for carrier in carrier_order[neg_mask]
+                    ]
                     labels = list(carrier_order[neg_mask])
                     vals = (-values[neg_mask]).round(3)
                     poly_neg = PydeckPlotter._make_pie(
@@ -1011,7 +1020,9 @@ class PydeckPlotter:
                     )
                     polygons.extend(poly_neg)
             elif np.any(pos_mask) and bus_radius_pos[bus] > 0:
-                colors = [carrier_rgba[bus][c] for c in carrier_order[pos_mask]]
+                colors = [
+                    carrier_rgba[bus][carrier] for carrier in carrier_order[pos_mask]
+                ]
                 labels = list(carrier_order[pos_mask])
                 vals = values[pos_mask].round(3)
                 poly_pos = PydeckPlotter._make_pie(
@@ -1059,15 +1070,15 @@ class PydeckPlotter:
 
     def init_branch_component_data(
         self,
-        c_name: str,
+        c: "Components",
         branch_columns: list | None = None,
     ) -> None:
         """Initialize data for a specific branch component type.
 
         Parameters
         ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer
+        c : Components
+            The branch component type, e.g. Lines, Links, Transformers.
         branch_columns : list, default None
             List of branch columns to include. Specify additional columns to include in the tooltip.
 
@@ -1076,14 +1087,14 @@ class PydeckPlotter:
         None
 
         """
-        if as_components(self._n, c_name).empty:
-            msg = f"No data found for component '{c_name}'. Skipping layer creation."
+        if c.empty:
+            msg = f"No data found for component '{c.name}'. Skipping layer creation."
             logger.warning(msg)
             return
 
         # Prepare data for lines
         c_data = self.prepare_component_data(
-            c_name,
+            c,
             default_columns=["bus0", "bus1"],
             extra_columns=branch_columns,
         )
@@ -1093,26 +1104,26 @@ class PydeckPlotter:
         if not valid.all():
             dropped = (~valid).sum()
             logger.warning(
-                "Dropping %d row(s) in '%s' with missing buses", dropped, c_name
+                "Dropping %d row(s) in '%s' with missing buses", dropped, c.name
             )
             c_data = c_data[valid]
 
             if c_data.empty:
                 return
 
-        self._component_data[c_name] = c_data
+        self._component_data[c.name] = c_data
 
     def create_branch_paths(
         self,
-        c_name: str,
+        c: "Components",
         geometry: bool = False,
     ) -> None:
         """Create path geometries for a specific branch component type.
 
         Parameters
         ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer".
+        c : Components
+            The branch component type, e.g. Lines, Links, Transformers.
         geometry : bool, default False
             Whether to use the geometry column of the branch components.
 
@@ -1121,8 +1132,8 @@ class PydeckPlotter:
         None
 
         """
-        c_data = self._component_data[c_name]
-        static_data = as_components(self._n, c_name).static
+        c_data = self._component_data[c.name]
+        static_data = c.static
 
         # Build path column as list of [lon, lat] pairs for each line
         # Assuming x, y are aligned
@@ -1144,7 +1155,7 @@ class PydeckPlotter:
 
     def create_branch_color(
         self,
-        c_name: str,
+        c: "Components",
         branch_color: str | dict | pd.Series = "rosybrown",
         branch_cmap: str | mcolors.Colormap = "viridis",
         branch_cmap_norm: mcolors.Normalize | None = None,
@@ -1154,8 +1165,8 @@ class PydeckPlotter:
 
         Parameters
         ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer
+        c : Components
+            The branch component type, e.g. Lines, Links, Transformers.
         branch_color : str/dict/pandas.Series
             Colors for the branch component, defaults to 'rosybrown'.
         branch_cmap : str/matplotlib.colors.Colormap, default 'viridis'
@@ -1170,7 +1181,7 @@ class PydeckPlotter:
         None
 
         """
-        c_data = self._component_data[c_name]
+        c_data = self._component_data[c.name]
         create_rgba_colors(
             df=c_data,
             color=branch_color,
@@ -1183,21 +1194,21 @@ class PydeckPlotter:
     # Add branch layer
     def create_branch_layer(
         self,
-        c_name: str,
+        c: "Components",
     ) -> None:
         """Add a line layer of Pydeck type PathLayer to the interactive map.
 
         Parameters
         ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer".
+        c : Components
+            The branch component type, e.g. Lines, Links, Transformers.
 
         Returns
         -------
         None
 
         """
-        c_data = self._component_data[c_name]
+        c_data = self._component_data[c.name]
 
         # Create PathLayer, use "path" column for get_path
         layer = pdk.Layer(
@@ -1213,11 +1224,11 @@ class PydeckPlotter:
             },  # To prevent z-fighting issues/flickering in 3D space
         )
 
-        self._layers[c_name] = layer
+        self._layers[c.name] = layer
 
     def init_arrow_data(
         self,
-        c_name: str,
+        c: "Components",
         branch_flow: float | dict | pd.Series = 0,
         arrow_size_factor: float = 1.5,
     ) -> None:
@@ -1225,8 +1236,8 @@ class PydeckPlotter:
 
         Parameters
         ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer
+        c : Components
+            The branch component type, e.g. Lines, Links, Transformers.
         branch_flow : float/dict/pandas.Series
             Flow values for the branch component, defaults to 0.
             If not 0, arrows will be drawn on the lines.
@@ -1238,36 +1249,32 @@ class PydeckPlotter:
         None
 
         """
-        c_data = self._component_data[c_name]
+        c_data = self._component_data[c.name]
 
         # Arrow layer
         branch_flow = _convert_to_series(branch_flow, c_data.index)
         branch_flow = branch_flow * 1e3  # Convert flow from km to m
         flows_are_zero = branch_flow.eq(0).all()
 
-        if (
-            not as_components(self._n, c_name).empty
-            and not flows_are_zero
-            and arrow_size_factor != 0
-        ):
+        if not c.empty and not flows_are_zero and arrow_size_factor != 0:
             c_data["flow"] = c_data.index.map(branch_flow)
 
     def create_arrows(
         self,
-        c_name: str,
+        c: "Components",
         arrow_size_factor: float = 1.5,
     ) -> None:
         """Create and scale arrows for a specific branch component type.
 
         Parameters
         ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer".
+        c : Components
+            The branch component type, e.g. Lines, Links, Transformers.
         arrow_size_factor : float, default 1.5
             Factor to scale the arrow size. If 0, no arrows will be drawn.
 
         """
-        c_data = self._component_data[c_name]
+        c_data = self._component_data[c.name]
 
         def center_segment(path: list[list[float]]) -> tuple[list[float], list[float]]:
             """Return the two “center” points of a path for arrow placement."""
@@ -1293,7 +1300,7 @@ class PydeckPlotter:
 
     def create_arrow_color(
         self,
-        c_name: str,
+        c: "Components",
         arrow_color: str | dict | pd.Series | None = None,
         arrow_cmap: str | mcolors.Colormap = "viridis",
         arrow_cmap_norm: mcolors.Normalize | None = None,
@@ -1303,8 +1310,8 @@ class PydeckPlotter:
 
         Parameters
         ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer
+        c : Components
+            The branch component type, e.g. Lines, Links, Transformers.
         arrow_color : str/dict/pandas.Series/None
             Colors for the arrows, defaults to None.
             If None, the branch color is used for the arrows.
@@ -1320,7 +1327,7 @@ class PydeckPlotter:
         None
 
         """
-        c_data = self._component_data[c_name]
+        c_data = self._component_data[c.name]
         create_rgba_colors(
             df=c_data,
             color=arrow_color,
@@ -1333,21 +1340,21 @@ class PydeckPlotter:
 
     def create_arrow_layer(
         self,
-        c_name: str,
+        c: "Components",
     ) -> None:
         """Create arrow PolygonLayer for a specific branch component type.
 
         Parameters
         ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer
+        c : Components
+            The branch component type, e.g. Lines, Links, Transformers.
 
         Returns
         -------
         None
 
         """
-        c_data = self._component_data[c_name]
+        c_data = self._component_data[c.name]
 
         layer = pdk.Layer(
             "PolygonLayer",
@@ -1360,11 +1367,11 @@ class PydeckPlotter:
                 "depthTest": False
             },  # To prevent z-fighting issues/flickering in 3D space
         )
-        self._layers[f"{c_name}_arrows"] = layer
+        self._layers[f"{c.name}_arrows"] = layer
 
     def scale_branch_param(
         self,
-        c_name: str,
+        c: "Components",
         branch_param_name: str,
         branch_param: float | dict | pd.Series = 2,
         branch_param_factor: float = 1,
@@ -1377,8 +1384,8 @@ class PydeckPlotter:
 
         Parameters
         ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer
+        c : Components
+            The branch component type, e.g. Lines, Links, Transformers.
         branch_param_name : str
             Name of the branch parameter to be scaled, e.g. "width", "flow".
         branch_param : float/dict/pandas.Series/None
@@ -1400,7 +1407,7 @@ class PydeckPlotter:
         None
 
         """
-        c_data = self._component_data[c_name]
+        c_data = self._component_data[c.name]
 
         branch_param_series: pd.Series = _convert_to_series(branch_param, c_data.index)
 
@@ -1434,15 +1441,15 @@ class PydeckPlotter:
 
     def create_tooltips(
         self,
-        c_name: str,
+        c: "Components",
         columns: list | None = None,
     ) -> None:
         """Create tooltip HTML for a specific branch component type.
 
         Parameters
         ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer".
+        c : Components
+            The component type, e.g. Buses, Lines, Links, Transformers.
         columns : list, default None
             List of branch columns to include. If None, all columns are used.
 
@@ -1451,7 +1458,7 @@ class PydeckPlotter:
         None
 
         """
-        c_data = self._component_data[c_name]
+        c_data = self._component_data[c.name]
         if columns is None:
             columns = list(c_data.columns)
 
@@ -1603,8 +1610,11 @@ class PydeckPlotter:
             absolute=True,
         )  # If elements empty, global_flow_max is None
 
-        for c in branch_components or n.branch_components:
-            if c == "Line":
+        for c_name in branch_components or [
+            c.list_name for c in n.components.filter(branch=True)
+        ]:
+            c = n.components[c_name]
+            if isinstance(c, Lines):
                 branch_flow = line_flow
                 branch_color = line_color
                 branch_cmap = line_cmap
@@ -1612,7 +1622,7 @@ class PydeckPlotter:
                 branch_alpha = line_alpha
                 branch_width = line_width
                 branch_columns = line_columns
-            elif c == "Link":
+            elif isinstance(c, Links):
                 branch_flow = link_flow
                 branch_color = link_color
                 branch_cmap = link_cmap
@@ -1620,7 +1630,7 @@ class PydeckPlotter:
                 branch_alpha = link_alpha
                 branch_width = link_width
                 branch_columns = link_columns
-            elif c == "Transformer":
+            elif isinstance(c, Transformers):
                 branch_flow = transformer_flow
                 branch_color = transformer_color
                 branch_cmap = transformer_cmap
@@ -1629,12 +1639,12 @@ class PydeckPlotter:
                 branch_width = transformer_width
                 branch_columns = transformer_columns
 
-            if as_components(n, c).empty:
+            if c.empty:
                 continue
 
             # Branch lines
             self.init_branch_component_data(
-                c_name=c,
+                c=c,
                 branch_columns=branch_columns,
             )
             self.create_branch_paths(
@@ -1642,14 +1652,14 @@ class PydeckPlotter:
                 geometry=geometry,
             )
             self.create_branch_color(
-                c_name=c,
+                c=c,
                 branch_color=branch_color,
                 branch_cmap=branch_cmap,
                 branch_cmap_norm=branch_cmap_norm,
                 branch_alpha=branch_alpha,
             )
             self.scale_branch_param(
-                c_name=c,
+                c=c,
                 branch_param_name="width",
                 branch_param=branch_width,
                 branch_param_factor=branch_width_factor,
@@ -1660,20 +1670,20 @@ class PydeckPlotter:
             )
             if tooltip:
                 self.create_tooltips(
-                    c_name=c,
+                    c=c,
                 )
             self.create_branch_layer(
-                c_name=c,
+                c=c,
             )
 
             # Branch arrows
             self.init_arrow_data(
-                c_name=c,
+                c=c,
                 branch_flow=branch_flow,
                 arrow_size_factor=arrow_size_factor,
             )
             self.scale_branch_param(
-                c_name=c,
+                c=c,
                 branch_param_name="flow",
                 branch_param=branch_flow,
                 branch_param_factor=branch_width_factor,
@@ -1683,11 +1693,11 @@ class PydeckPlotter:
                 auto_scale=auto_scale,
             )
             self.create_arrows(
-                c_name=c,
+                c=c,
                 arrow_size_factor=arrow_size_factor,
             )
             self.create_arrow_color(
-                c_name=c,
+                c=c,
                 arrow_color=arrow_color,
                 arrow_cmap=arrow_cmap,
                 arrow_cmap_norm=arrow_cmap_norm,
@@ -1695,11 +1705,11 @@ class PydeckPlotter:
             )
             if tooltip:
                 self.create_tooltips(
-                    c_name=c,
+                    c=c,
                     columns=["flow"],
                 )
             self.create_arrow_layer(
-                c_name=c,
+                c=c,
             )
 
     def add_geomap_layer(

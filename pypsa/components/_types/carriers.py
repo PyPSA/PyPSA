@@ -14,6 +14,7 @@ import pandas as pd
 from pypsa.common import generate_colors
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
+from pypsa.components.types import all_components as component_types
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -43,6 +44,8 @@ class Carriers(Components):
     Components: 6
 
     """
+
+    _ctype = component_types["carriers"]
 
     def add(
         self,
@@ -100,7 +103,7 @@ class Carriers(Components):
                 # Only carriers without colors
                 mask = (self.static["color"] == "") | self.static["color"].isna()
                 filtered_static = self.static[mask]
-                if self.n_save.has_scenarios:
+                if self.n.has_scenarios:
                     target_carriers = filtered_static.index.get_level_values(
                         "name"
                     ).unique()
@@ -127,8 +130,8 @@ class Carriers(Components):
 
         for carrier, color in zip(target_carriers, colors, strict=False):
             # Update color for all scenarios
-            if self.n_save.has_scenarios:
-                for scenario in self.n_save.scenarios:
+            if self.n.has_scenarios:
+                for scenario in self.n.scenarios:
                     self.static.loc[(scenario, carrier), "color"] = color
             else:
                 self.static.loc[carrier, "color"] = color
@@ -179,7 +182,7 @@ class Carriers(Components):
         """
         # Get all unique carrier values
         all_carriers = set()
-        for c in self.n_save.c.values():
+        for c in self.n.c.values():
             all_carriers.update(c.unique_carriers)
 
         existing_carriers = set(self.names)

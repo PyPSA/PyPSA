@@ -1,0 +1,51 @@
+attribute,type,dtype,unit,default,description,status,dynamic,nullable
+name,string,str,,,Unique name,Input (required),False,False
+bus,string,str,,,Name of bus to which storage unit is attached.,Input (required),False,False
+control,string,str,,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional),False,False
+type,string,str,,,Placeholder for storage unit type. Not yet implemented.,Input (optional),False,True
+p_nom,float,float,MW,0,Nominal power for limits on `p` in optimisation. Ignored if `p_nom_extendable=True`.,Input (optional),False,False
+p_nom_mod,float,float,MW,0,Nominal power of the storage unit module. Introduces integer variables if set.,Input (optional),False,False
+p_nom_extendable,boolean,bool,,False,Switch to allow capacity `p_nom` to be extended in optimisation.,Input (optional),False,False
+p_nom_min,float,float,MW,0,"If `p_nom_extendable=True`, set the minimum value of `p_nom_opt`.",Input (optional),False,False
+p_nom_max,float,float,MW,inf,"If `p_nom_extendable=True`, set the maximum value of `p_nom_opt`.",Input (optional),False,False
+p_nom_set,float,float,MW,,"If `p_nom_extendable=True`, set the value of `p_nom_opt`.",Input (optional),False,True
+p_min_pu,static or series,float,per unit,-1,The minimum output for each snapshot per unit of `p_nom` for the optimisation. Negative sign implies storing mode withdrawing power from bus.,Input (optional),True,False
+p_max_pu,static or series,float,per unit,1,The maximum output for each snapshot per unit of `p_nom` for the optimisation. Positive sign implies discharging mode injecting power into bus.,Input (optional),True,False
+p_set,static or series,float,MW,,Active power set point. Sets p directly in power flow. In LOPF optimisation constrains net power (p_dispatch - p_store),Input (optional),True,True
+q_set,static or series,float,MVar,0,Reactive power set point (for power flow only),Input (optional),True,False
+p_dispatch_set,static or series,float,MW,,Active power dispatch set point (for optimisation only),Input (optional),True,True
+p_store_set,static or series,float,MW,,Active power charging set point (for optimisation only),Input (optional),True,True
+sign,float,float,,1,Sign denoting the orientation of the dispatch variable.,Input (optional),False,False
+carrier,string,str,,,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in optimisation",Input (optional),False,True
+spill_cost,static or series,float,currency/MWh,0,Cost of spilling 1 MWh,Input (optional),True,False
+marginal_cost,static or series,float,currency/MWh,0,Marginal cost of production (discharge) of 1 MWh.,Input (optional),True,False
+marginal_cost_quadratic,static or series,float,currency/MWh,0,Quadratic marginal cost of production (discharge) of 1 MWh.,Input (optional),True,False
+marginal_cost_storage,static or series,float,currency/MWh/h,0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional),True,False
+capital_cost,float,float,currency/MW,0,Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified.,Input (optional),False,False
+overnight_cost,float,float,currency/MW,,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional),False,True
+discount_rate,float,float,per unit,,Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).,Input (optional),False,True
+fom_cost,float,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional),False,False
+active,boolean,bool,,True,Whether to consider the component in optimisation or not,Input (optional),False,False
+build_year,int,int,year,0,Build year,Input (optional),False,False
+lifetime,float,float,years,inf,Lifetime,Input (optional),False,False
+state_of_charge_initial,float,float,MWh,0,State of charge before the snapshots in the optimisation.,Input (optional),False,False
+state_of_charge_initial_per_period,boolean,bool,,False,"Switch: if True, the state of charge at the beginning of an investment period is set to `state_of_charge_initial`.",Input (optional),False,False
+state_of_charge_set,static or series,float,MWh,,State of charge set points for snapshots in the optimisation.,Input (optional),True,True
+cyclic_state_of_charge,boolean,bool,,False,"Switch: if True, then `state_of_charge_initial` is ignored and the initial state of charge is set to the final state of charge for the group of snapshots in the optimisation (`soc[-1] = soc[len(snapshots)-1]`).",Input (optional),False,False
+cyclic_state_of_charge_per_period,boolean,bool,,False,"Switch: if True, the cyclic constraints are applied to each investment period separately.",Input (optional),False,False
+max_hours,float,float,hours,1,Maximum state of charge capacity in terms of hours at full output power capacity `p_nom`,Input (optional),False,False
+efficiency_store,static or series,float,per unit,1,Efficiency of storage on the way into the storage.,Input (optional),True,False
+efficiency_dispatch,static or series,float,per unit,1,Efficiency of storage on the way out of the storage.,Input (optional),True,False
+standing_loss,static or series,float,per unit,0,Losses per hour to state of charge.,Input (optional),True,False
+inflow,static or series,float,MW,0,Inflow to the state of charge (e.g. due to river inflow in hydro reservoir).,Input (optional),True,False
+p,series,float,MW,0,Active power at bus (positive if net generation),Output,True,False
+p_dispatch,series,float,MW,0,Active power dispatch at bus,Output,True,False
+p_store,series,float,MW,0,Active power charging at bus,Output,True,False
+q,series,float,MVar,0,Reactive power (positive if net generation),Output,True,False
+state_of_charge,series,float,MWh,,State of charge as calculated by the optimisation.,Output,True,True
+spill,series,float,MW,0,Spillage for each snapshot (e.g. hydro-dam letting water flow over the spillway without generating electricity).,Output,True,False
+p_nom_opt,float,float,MW,0,Optimised nominal power.,Output,False,False
+mu_upper,series,float,currency/MWh,,Shadow price of upper p_nom limit,Output,True,True
+mu_lower,series,float,currency/MWh,,Shadow price of lower p_nom limit,Output,True,True
+mu_state_of_charge_set,series,float,currency/MWh,,Shadow price of fixed state of charge state_of_charge_set,Output,True,True
+mu_energy_balance,series,float,currency/MWh,,Shadow price of storage consistency equations,Output,True,True

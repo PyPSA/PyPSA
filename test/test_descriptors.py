@@ -143,18 +143,16 @@ def test_additional_ports_process():
 
 
 def test_update_ports_component_attrs():
-    from pypsa.descriptors import _update_ports_component_attrs
-
     n = pypsa.Network()
 
-    process_defaults = n.components["Process"]["defaults"]
+    process_defaults = n.components.processes["defaults"]
     assert "bus2" not in process_defaults.index
     assert "rate2" not in process_defaults.index
     assert "p2" not in process_defaults.index
     assert "delay2" not in process_defaults.index
     assert "cyclic_delay2" not in process_defaults.index
 
-    link_defaults = n.components["Link"]["defaults"]
+    link_defaults = n.components.links["defaults"]
     assert "bus2" not in link_defaults.index
     assert "efficiency2" not in link_defaults.index
     assert "p2" not in link_defaults.index
@@ -188,7 +186,8 @@ def test_update_ports_component_attrs():
         p_nom=10,
     )
 
-    _update_ports_component_attrs(n)
+    for c in n.components.filter(branch=True, controllable=True):
+        c._update_port_attrs()
 
     process_defaults = n.components["Process"]["defaults"]
     assert "bus2" in process_defaults.index

@@ -19,8 +19,13 @@ from linopy.solvers import available_solvers
 
 from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
+from pypsa.components._types import (
+    GlobalConstraints,
+    Links,
+    Processes,
+)
 from pypsa.components.array import _from_xarray
-from pypsa.components.common import as_components
+from pypsa.components.categories import Branch, Passive
 from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
@@ -71,7 +76,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from pypsa import Network, SubNetwork
-    from pypsa.components import Links, Processes
+    from pypsa.components import Components
 logger = logging.getLogger(__name__)
 
 
@@ -188,12 +193,11 @@ def define_objective(
 
     # constant for already done investment
     if include_objective_constant:
-        nom_attr = nominal_attrs.items()
         constant: xr.DataArray | float = 0
         terms = []
 
-        for c_name, attr in nom_attr:
-            c = as_components(n, c_name)
+        for c in n.components[list(nominal_attrs)]:
+            attr = nominal_attrs[c.list_name]
             ext_i = c.extendables.difference(c.inactive_assets)
 
             if ext_i.empty:
@@ -252,8 +256,8 @@ def define_objective(
 
     # marginal costs, marginal storage cost, and spill cost
     for cost_type in ["marginal_cost", "marginal_cost_storage", "spill_cost"]:
-        for c_name, attr in lookup.query(cost_type).index:
-            c = as_components(n, c_name)
+        for list_name, attr in lookup.query(cost_type).index:
+            c = n.components[list_name]
 
             if c.static.empty:
                 continue
@@ -272,8 +276,8 @@ def define_objective(
             opex_terms.append((operation * cost).sum(dim=["name", "snapshot"]))
 
     # marginal cost quadratic
-    for c_name, attr in lookup.query("marginal_cost_quadratic").index:
-        c = as_components(n, c_name)
+    for list_name, attr in lookup.query("marginal_cost_quadratic").index:
+        c = n.components[list_name]
 
         if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
             continue
@@ -291,8 +295,7 @@ def define_objective(
         is_quadratic = True
 
     # stand-by cost
-    for c_name in ["Generator", "Link", "Process"]:
-        c = as_components(n, c_name)
+    for c in n.components[["generators", "links", "processes"]]:
         com_i = c.committables.difference(c.inactive_assets)
 
         if com_i.empty:
@@ -310,8 +313,8 @@ def define_objective(
         opex_terms.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
 
     # investment
-    for c_name, attr in nominal_attrs.items():
-        c = as_components(n, c_name)
+    for c in n.components[list(nominal_attrs)]:
+        attr = nominal_attrs[c.list_name]
         ext_i = c.extendables.difference(c.inactive_assets)
 
         if ext_i.empty:
@@ -335,8 +338,8 @@ def define_objective(
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
-    for c_name, attr in lookup.query("variable in @keys").index:
-        c = as_components(n, c_name)
+    for list_name, attr in lookup.query("variable in @keys").index:
+        c = n.components[list_name]
         com_i = c.committables.difference(c.inactive_assets)
 
         if com_i.empty:
@@ -690,11 +693,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
         # Define variables
-        for c, attr in lookup.query("nominal").index:
+        for list_name, attr in lookup.query("nominal").index:
+            c = n.components[list_name]
             define_nominal_variables(n, c, attr)
             define_modular_variables(n, c, attr)
 
-        for c, attr in lookup.query("not nominal and not handle_separately").index:
+        for list_name, attr in lookup.query(
+            "not nominal and not handle_separately"
+        ).index:
+            c = n.components[list_name]
             define_operational_variables(n, sns, c, attr)
             define_status_variables(n, sns, c, linearized_unit_commitment)
             define_start_up_variables(n, sns, c, linearized_unit_commitment)
@@ -704,17 +711,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             )
 
         define_spillage_variables(n, sns)
-        define_operational_variables(n, sns, "Store", "p")
+        define_operational_variables(n, sns, n.c.stores, "p")
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
 
         if transmission_losses:
-            for c in n.passive_branch_components:
+            for c in n.components.filter(branch=True, passive=True):
                 define_loss_variables(n, sns, c)
 
         # Define constraints
-        for c, attr in lookup.query("nominal").index:
+        for list_name, attr in lookup.query("nominal").index:
+            c = n.components[list_name]
             define_nominal_constraints_for_extendables(n, c, attr)
             define_fixed_nominal_constraints(n, c, attr)
             define_modular_constraints(n, c, attr)
@@ -722,7 +730,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 n, sns, c, attr
             )
 
-        for c, attr in lookup.query("not nominal and not handle_separately").index:
+        for list_name, attr in lookup.query(
+            "not nominal and not handle_separately"
+        ).index:
+            c = n.components[list_name]
             define_operational_constraints_for_non_extendables(
                 n, sns, c, attr, transmission_losses
             )
@@ -734,9 +745,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_fixed_operation_constraints(n, sns, c, attr)
 
         # Handle StorageUnit p_set separately (fixes p_dispatch - p_store = p_set)
-        define_fixed_operation_constraints(n, sns, "StorageUnit", "p")
+        define_fixed_operation_constraints(n, sns, n.c.storage_units, "p")
         # Handle Store p_set
-        define_fixed_operation_constraints(n, sns, "Store", "p")
+        define_fixed_operation_constraints(n, sns, n.c.stores, "p")
 
         thresholds = (
             sorted(set(meshed_thresholds))
@@ -765,7 +776,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_kirchhoff_voltage_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
-        define_total_supply_constraints(n, sns)
+        define_total_supply_constraints(n, sns, n.c.generators)
 
         if transmission_losses:
             if isinstance(transmission_losses, bool):
@@ -794,7 +805,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 )
                 raise ValueError(msg)
 
-            for c in n.passive_branch_components:
+            for c in n.components.filter(branch=True, passive=True):
                 if mode == "secants":
                     define_secant_loss_constraints(n, sns, c, **transmission_losses)
                 elif mode == "tangents":
@@ -924,7 +935,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 continue
 
             _c_name, attr = name.split("-", 1)
-            if not hasattr(n.c, _c_name):
+            try:
+                c = n.c._get(_c_name)
+            except ValueError:
                 # Custom variables might correspond to a designated component
                 logger.info(
                     "The variable '%s' could not be mapped to the network component because the component '%s' does not exist.",
@@ -932,23 +945,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _c_name,
                 )
                 continue
-            c = n.c[_c_name]
             df = _from_xarray(sol, c)
 
             if "snapshot" in sol.dims:
-                if c.name in n.passive_branch_components and attr == "s":
-                    _set_dynamic_data(n, c.name, "p0", df)
-                    _set_dynamic_data(n, c.name, "p1", -df)
+                if isinstance(c, Branch) and isinstance(c, Passive) and attr == "s":
+                    _set_dynamic_data(n, c, "p0", df)
+                    _set_dynamic_data(n, c, "p1", -df)
 
-                elif c.name == "Link" and attr == "p":
-                    _set_dynamic_data(n, c.name, "p", df)
-                    _set_dynamic_data(n, c.name, "p0", df)
+                elif isinstance(c, Links) and attr == "p":
+                    _set_dynamic_data(n, c, "p", df)
+                    _set_dynamic_data(n, c, "p0", df)
 
                     for i in ["1"] + c.additional_ports:
                         i_suffix = "" if i == "1" else i
-                        eff = n.get_switchable_as_dense(
-                            "Link", f"efficiency{i_suffix}", sns
-                        )
+                        eff = c._as_dynamic(f"efficiency{i_suffix}", sns)
                         port_df = -df * eff
                         _apply_delay_shift(
                             port_df,
@@ -958,16 +968,16 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                             sns,
                             n,
                         )
-                        _set_dynamic_data(n, c.name, f"p{i}", port_df)
+                        _set_dynamic_data(n, c, f"p{i}", port_df)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
                         ] = float(c.defaults.loc[f"p{i}", "default"])
 
-                elif c.name == "Process" and attr == "p":
-                    _set_dynamic_data(n, c.name, "p", df)
+                elif isinstance(c, Processes) and attr == "p":
+                    _set_dynamic_data(n, c, "p", df)
 
                     for i in c.ports:
-                        rate = n.get_switchable_as_dense(c.name, f"rate{i}", sns)
+                        rate = c._as_dynamic(f"rate{i}", sns)
                         port_df = -df * rate
                         _apply_delay_shift(
                             port_df,
@@ -977,13 +987,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                             sns,
                             n,
                         )
-                        _set_dynamic_data(n, c.name, f"p{i}", port_df)
+                        _set_dynamic_data(n, c, f"p{i}", port_df)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
                         ] = float(c.defaults.loc[f"p{i}", "default"])
 
                 else:
-                    _set_dynamic_data(n, c.name, attr, df)
+                    _set_dynamic_data(n, c, attr, df)
             # Ignore `n_mod`
             elif attr == "n_mod":
                 pass
@@ -991,8 +1001,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 c.static.update(df.rename(attr + "_opt"), overwrite=True)
 
         # If nominal capacity was no variable set optimal value to nominal
-        for c_name, attr in lookup.query("nominal").index:
-            c = n.components[c_name]
+        for list_name, attr in lookup.query("nominal").index:
+            c = n.components[list_name]
             fix_i = c.fixed
             if n.has_scenarios:
                 fix_i = pd.MultiIndex.from_product([n.scenarios, fix_i])
@@ -1035,15 +1045,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             # GlobalConstraints refer instead to the component name, e.g. "GlobalConstraint-X"
             try:
                 prefix, suffix = constraint_name.split("-", 1)
-                c = self._n.components[prefix]
-            except (ValueError, KeyError):
+                c = self._n.components._get(prefix)
+            except ValueError:
                 unassigned_constraints.append(constraint_name)
                 continue
 
             # Add placeholder for custom constraints, marked as GlobalConstraint
             # TODO This should go to an actual custom constraint
             if (
-                c.name == "GlobalConstraint"
+                isinstance(c, GlobalConstraints)
                 and suffix not in c.static.index
                 and assign_all_duals
             ):
@@ -1069,7 +1079,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     dual_spec = suffix
                 # Don't try to split GlobalConstraint names, since they refer to
                 # component name instead of attribute name
-                if c.name == "GlobalConstraint":
+                if isinstance(c, GlobalConstraints):
                     dual_spec = suffix
 
                 # Handle special cases for dual attribute name
@@ -1089,11 +1099,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     continue
 
                 # Assign dynamic duals to component
-                _set_dynamic_data(self._n, c.name, dual_attr_name, dual_df)
+                _set_dynamic_data(self._n, c, dual_attr_name, dual_df)
 
             # SCALAR DUALS (constraints without snapshot dimension)
             # else:
-            elif c.name == "GlobalConstraint" and suffix in c.static.index:
+            elif isinstance(c, GlobalConstraints) and suffix in c.static.index:
                 if c.has_scenarios:
                     raise NotImplementedError()
 
@@ -1131,9 +1141,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # load
         if len(n.loads):
-            _set_dynamic_data(
-                n, "Load", "p", n.get_switchable_as_dense("Load", "p_set", sns)
-            )
+            _set_dynamic_data(n, n.c.loads, "p", n.c.loads._as_dynamic("p_set", sns))
 
         # line losses
         if "Line-loss" in n.model.variables:
@@ -1143,25 +1151,25 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # recalculate injection
         ca = [
-            ("Generator", "p", "bus"),
-            ("Store", "p", "bus"),
-            ("Load", "p", "bus"),
-            ("StorageUnit", "p", "bus"),
+            ("generators", "p", "bus"),
+            ("stores", "p", "bus"),
+            ("loads", "p", "bus"),
+            ("storage_units", "p", "bus"),
         ]
-        for c in n.controllable_branch_components:
-            ca.extend([(c, f"p{i}", f"bus{i}") for i in n.c[c].ports])
+        for c in n.components.filter(branch=True, controllable=True):
+            ca.extend([(c.list_name, f"p{i}", f"bus{i}") for i in c.ports])
 
-        def sign(c: str) -> int:
-            return n.c[c].static.get("sign", -1)  # -1 is the sign for 'Link'
+        def sign(c: Components) -> int:
+            return c.static.get("sign", -1)  # -1 is the sign for 'Link'
 
         n.c.buses.dynamic.p = (
             pd.concat(
                 [
-                    n.c[c]
+                    n.components[list_name]
                     .dynamic[attr]
-                    .mul(sign(c))
-                    .rename(columns=n.c[c].static[group], level="name")
-                    for c, attr, group in ca
+                    .mul(sign(n.components[list_name]))
+                    .rename(columns=n.components[list_name].static[group], level="name")
+                    for list_name, attr, group in ca
                 ],
                 axis=1,
             )
@@ -1202,8 +1210,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         afterwards.
         """
         n = self._n
-        for c, attr in nominal_attrs.items():
-            c = n.components[c]
+        for c in n.components[list(nominal_attrs)]:
+            attr = nominal_attrs[c.list_name]
             ext_i = c.extendables.difference(c.inactive_assets)
             c.static.loc[ext_i, attr] = c.static.loc[ext_i, attr + "_opt"]
             c.static[attr + "_extendable"] = False
@@ -1214,10 +1222,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         Use this function when the optimal dispatch should be used as an
         starting point for power flow calculation (`Network.pf`).
         """
-        for c in self._n.one_port_components:
-            self._n.components[c].dynamic.p_set = self._n.components[c].dynamic.p
-        for c in self._n.controllable_branch_components:
-            self._n.components[c].dynamic.p_set = self._n.components[c].dynamic.p0
+        for c in self._n.components.filter(one_port=True):
+            c.dynamic.p_set = c.dynamic.p
+        for c in self._n.components.filter(branch=True, controllable=True):
+            c.dynamic.p_set = c.dynamic.p0
 
     def add_load_shedding(
         self,
@@ -1251,12 +1259,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         """
         if "Load" not in self._n.c.carriers.static.index:
-            self._n.add("Carrier", "Load")
+            self._n.c.carriers.add("Load")
         if buses is None:
             buses = self._n.c.buses.static.index
 
-        return self._n.add(
-            "Generator",
+        return self._n.c.generators.add(
             buses,
             suffix,
             bus=buses,

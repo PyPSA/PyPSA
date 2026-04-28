@@ -10,11 +10,12 @@ from typing import Any
 import pandas as pd
 
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components.components import Components
+from pypsa.components.categories import Controllable, OnePort
+from pypsa.components.types import all_components as component_types
 
 
 @patch_add_docstring
-class Loads(Components):
+class Loads(Controllable, OnePort):
     """Loads components class.
 
     This class is used for load components. All functionality specific to
@@ -34,6 +35,8 @@ class Loads(Components):
     Components: 6
 
     """
+
+    _ctype = component_types["loads"]
 
     def add(
         self,

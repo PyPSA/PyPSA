@@ -8,17 +8,25 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from deprecation import deprecated
+
 from pypsa.components.components import Components
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
 if TYPE_CHECKING:
-    from pypsa.type_utils import NetworkType
+    from pypsa.types import NetworkType
 
 
+@deprecated(
+    deprecated_in="1.3.0",
+    removed_in="2.0.0",
+    details="Use `n.components[value]` instead.",
+)
 def as_components(n: NetworkType, value: str | Components) -> Components:
     """Get component instance from string.
 
-    <!-- md:badge-version v0.33.0 -->
+    !!! warning "Deprecated in <!-- md:badge-version v1.3.0 -->"
+        Use `n.components[value]` instead.
 
     E.g. pass 'Generator', 'generators' or Components class instance to get the
     corresponding Components class instance.

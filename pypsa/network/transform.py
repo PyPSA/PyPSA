@@ -21,16 +21,16 @@ import pandas as pd
 from Levenshtein import distance
 
 from pypsa._options import options
-from pypsa.components.common import as_components
+from pypsa.components._types import Buses, SubNetworks
 from pypsa.components.types import all_standard_attrs_set
 from pypsa.network.abstract import _NetworkABC
-from pypsa.type_utils import is_1d_list_like
+from pypsa.types import is_1d_list_like
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
 
-    from pypsa.components.components import Components
     from pypsa.networks import Network
+    from pypsa.types import ComponentsLike
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,7 @@ class NetworkTransformMixin(_NetworkABC):
         if return_names is None:
             return_names = options.params.add.return_names
 
-        c = as_components(self, class_name)
+        c = self.components._get(class_name)
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name)
 
@@ -349,7 +349,7 @@ class NetworkTransformMixin(_NetworkABC):
 
         # Broadcast to scenarios if network has scenario structure
         # Skip SubNetwork components, they are handled internally in determine_topology
-        if self.has_scenarios and c.name != "SubNetwork":
+        if self.has_scenarios and not isinstance(c, SubNetworks):
             static_df = pd.concat(
                 dict.fromkeys(self.scenarios, static_df), names=["scenario"]
             )
@@ -430,7 +430,7 @@ class NetworkTransformMixin(_NetworkABC):
         Index: []
 
         """
-        c = as_components(self, class_name)
+        c = self.components._get(class_name)
 
         # Process name/names to pandas.Index of strings and add suffix
         names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
@@ -479,17 +479,21 @@ class NetworkTransformMixin(_NetworkABC):
             Merged network, or None if inplace=True
 
         """
-        to_skip = {"Network", "SubNetwork", "LineType", "TransformerType"}
+        to_skip = {"sub_networks", "line_types", "transformer_types"}
         if components_to_skip:
-            to_skip.update(components_to_skip)
-        to_iterate = other.all_components - to_skip
+            to_skip.update(
+                self.components._get(c).list_name for c in components_to_skip
+            )
         # ensure buses are merged first
-        to_iterate_list = ["Bus"] + sorted(to_iterate - {"Bus"})
+        to_iterate_list = ["buses"] + sorted(
+            c.list_name
+            for c in other.components.values()
+            if c.list_name not in to_skip and not isinstance(c, Buses)
+        )
         for c in other.components:
-            if c.name not in to_iterate_list:
+            if c.list_name not in to_iterate_list:
                 continue
-            # for c in other.iterate_components(to_iterate_list):
-            if not c.static.index.intersection(self.c[c.name].static.index).empty:
+            if not c.static.index.intersection(self.c[c.list_name].static.index).empty:
                 msg = f"Component {c.name} has overlapping indices, cannot merge networks."
                 raise ValueError(msg)
         if with_time:
@@ -524,18 +528,16 @@ class NetworkTransformMixin(_NetworkABC):
                 new.srid,
             )
         for c in other.components:
-            if c.name not in to_iterate_list:
+            if c.list_name not in to_iterate_list:
                 continue
-            new.add(c.name, c.static.index, **c.static)
+            new.c[c.list_name].add(c.static.index, **c.static)
             if with_time:
                 for k, v in c.dynamic.items():
                     new._import_series_from_df(v, c.name, k)
 
         return None if inplace else new
 
-    def rename_component_names(
-        self, component: str | Components, **kwargs: str
-    ) -> None:
+    def rename_component_names(self, component: ComponentsLike, **kwargs: str) -> None:
         """Rename component names.
 
         Rename components of component type and also update all cross-references of
@@ -574,5 +576,5 @@ class NetworkTransformMixin(_NetworkABC):
         Name: bus, dtype: object
 
         """
-        c = as_components(self, component)
+        c = self.components._get(component)
         c.rename_component_names(**kwargs)

@@ -1,0 +1,54 @@
+attribute,type,dtype,unit,default,description,status,dynamic,nullable
+name,string,str,,,Unique name,Input (required),False,False
+bus,string,str,,,Name of bus to which generator is attached,Input (required),False,False
+control,string,str,,PQ,"P,Q,V control strategy for power flow, must be ""PQ"", ""PV"" or ""Slack"". Only relevant for ""AC"" and ""DC"" buses.",Input (optional),False,False
+type,string,str,,,Placeholder for generator type. Not implemented.,Input (optional),False,True
+p_nom,float,float,MW,0,Nominal power for limits  on `p` in optimization. Ignored if `p_nom_extendable=True`.,Input (optional),False,False
+p_nom_mod,float,float,MW,0,Nominal power of the generator module (e.g. fixed unit size of a nuclear power plant). Introduces integer variables if set.,Input (optional),False,False
+p_nom_extendable,boolean,bool,,False,Switch to allow capacity `p_nom` to be extended in optimization.,Input (optional),False,False
+p_nom_min,float,float,MW,0,"If `p_nom` is extendable in optimization, set its minimum value.",Input (optional),False,False
+p_nom_max,float,float,MW,inf,"If `p_nom` is extendable in optimization, set its maximum value (e.g. limited by technical potential).",Input (optional),False,False
+p_nom_set,float,float,MW,,"If `p_nom` is extendable in optimization, set its value.",Input (optional),False,True
+p_min_pu,static or series,float,per unit,0.,"The minimum output for each snapshot per unit of `p_nom` for the optimization (e.g. a minimal dispatch level for conventional power plants). Note that if `committable=False` and `p_min_pu>0`, this represents a must-run condition.",Input (optional),True,False
+p_max_pu,static or series,float,per unit,1,The maximum output for each snapshot per unit of `p_nom` for the optimization (e.g. changing availability of renewable generators due to weather conditions or a de-rating of conventional power plants).,Input (optional),True,False
+p_set,static or series,float,MW,,Active power set point (for optimisation and power flow),Input (optional),True,True
+p_init,float,float,MW,,Active power used as a starting point for limiting the ramp in the very first snapshot (for optimisation),Input (optional),False,True
+e_sum_min,float,float,MWh,-inf,The minimum total energy produced during a single optimization horizon.,Input (optional),False,False
+e_sum_max,float,float,MWh,inf,The maximum total energy produced during a single optimization horizon.,Input (optional),False,False
+q_set,static or series,float,MVar,0.,Reactive power set point (for power flow),Input (optional),True,False
+sign,float,float,,1,"Sign denoting the orientation of the dispatch variable (e.g. positive for generation, negative for consumption).",Input (optional),False,False
+carrier,string,str,,,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in optimisation",Input (optional),False,True
+marginal_cost,static or series,float,currency/MWh,0.,Marginal cost of production of 1 MWh.,Input (optional),True,False
+marginal_cost_quadratic,static or series,float,currency/MWh,0.,Quadratic marginal cost of production of 1 MWh.,Input (optional),True,False
+active,boolean,bool,,True,Whether to consider the component in optimization or not,Input (optional),False,False
+build_year,int,int,year,0,Build year of the generator.,Input (optional),False,False
+lifetime,float,float,years,inf,Lifetime of the generator.,Input (optional),False,False
+capital_cost,float,float,currency/MW,0,Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly in optimization unless `overnight_cost` is specified.,Input (optional),False,False
+overnight_cost,float,float,currency/MW,,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional),False,True
+discount_rate,float,float,per unit,,Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).,Input (optional),False,True
+fom_cost,float,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional),False,False
+efficiency,static or series,float,per unit,1,Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.,Input (optional),True,False
+committable,boolean,bool,,False,Apply unit commitment constraints.,Input (optional),False,False
+start_up_cost,float,float,currency,0,Cost to start up the generator. Only used if `committable=True`.,Input (optional),False,False
+shut_down_cost,float,float,currency,0,Cost to shut down the generator. Only used if `committable=True`.,Input (optional),False,False
+stand_by_cost,static or series,float,currency/h,0.,Stand-by cost for running the generator. This cost is incurred whenever the status is 1 (including when the dispatch decision is zero).,Input (optional),True,False
+min_up_time,int,int,snapshots,0,Minimum number of snapshots for status to be 1. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional),False,False
+min_down_time,int,int,snapshots,0,Minimum number of snapshots for status to be 0. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional),False,False
+up_time_before,int,int,snapshots,1,Number of snapshots that the generator was online before `n.snapshots` start. Only used if `committable=True` and `min_up_time>0`. Does not consider snapshot weightings.,Input (optional),False,False
+down_time_before,int,int,snapshots,0,Number of snapshots that the generator was offline before `n.snapshots` start. Only used if `committable=True` and `min_down_time>0`. Does not consider snapshot weightings.,Input (optional),False,False
+ramp_limit_up,static or series,float,per unit,,"Maximum active power increase from one snapshot to the next, per unit of the nominal power. Ignored if NaN. Does not consider snapshot weightings.",Input (optional),True,True
+ramp_limit_down,static or series,float,per unit,,"Maximum active power decrease from one snapshot to the next, per unit of the nominal power. Ignored if NaN. Does not consider snapshot weightings.",Input (optional),True,True
+ramp_limit_start_up,float,float,per unit,,"Maximum active power increase at start up, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional),False,True
+ramp_limit_shut_down,float,float,per unit,,"Maximum active power decrease at shut down, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional),False,True
+weight,float,float,,1,Weighting of a generator. Only used for network clustering.,Input (optional),False,False
+p,series,float,MW,0.,Active power at bus (positive if net generation),Output,True,False
+q,series,float,MVar,0.,Reactive power (positive if net generation),Output,True,False
+p_nom_opt,float,float,MW,0.,Optimised nominal capacity.,Output,False,False
+status,series,float,,1,"Status in the snapshot (1 is on, 0 is off). Only returned if `committable=True`.",Output,True,False
+start_up,series,float,,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only returned if `committable=True`.",Output,True,False
+shut_down,series,float,,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no).  Only returned if `committable=True`.",Output,True,False
+mu_upper,series,float,currency/MWh,,Shadow price of upper `p_nom` limit,Output,True,True
+mu_lower,series,float,currency/MWh,,Shadow price of lower `p_nom` limit,Output,True,True
+mu_p_set,series,float,currency/MWh,,Shadow price of fixed power generation `p_set`,Output,True,True
+mu_ramp_limit_up,series,float,currency/MWh,,Shadow price of upper ramp up limit,Output,True,True
+mu_ramp_limit_down,series,float,currency/MWh,,Shadow price of lower ramp down limit,Output,True,True

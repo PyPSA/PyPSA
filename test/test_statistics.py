@@ -34,6 +34,8 @@ def test_all_methods(ac_dc_network_r, stat_func):
 def test_default_solved(ac_dc_network_r):
     df = ac_dc_network_r.statistics()
     assert not df.empty
+    components = df.index.get_level_values(0).unique()
+    assert all(c[0].isupper() for c in components)
 
     df = ac_dc_network_r.statistics.energy_balance()
     assert not df.empty
@@ -275,31 +277,60 @@ def test_storage_capacity(ac_dc_network_r):
     assert df.sum() == 5
 
 
-def test_single_component(ac_dc_network_r):
+@pytest.mark.parametrize(
+    ("components", "expected_label"),
+    [
+        ("Generator", "Generator"),
+        ("generators", "generators"),
+    ],
+)
+def test_single_component(ac_dc_network_r, components, expected_label):
     n = ac_dc_network_r
-    df = n.statistics.installed_capacity(components="Generator")
+    df = n.statistics.installed_capacity(components=components)
     assert not df.empty
     assert df.index.nlevels == 1
 
 
-def test_aggregate_across_components(ac_dc_network_r):
+@pytest.mark.parametrize(
+    ("components", "expected_labels"),
+    [
+        (["Generator", "Line"], ["Generator", "Line"]),
+        (["generators", "lines"], ["generators", "lines"]),
+    ],
+)
+def test_component_name_format_in_output(ac_dc_network_r, components, expected_labels):
+    n = ac_dc_network_r
+    df = n.statistics.installed_capacity(components=components)
+    assert not df.empty
+    output_components = df.index.get_level_values("component").unique().tolist()
+    for label in expected_labels:
+        if label in output_components:
+            assert label in output_components
+
+
+def test_no_warning_on_pascal_case_components(ac_dc_network_r):
     import warnings
 
     n = ac_dc_network_r
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        df = n.statistics.installed_capacity(
-            components=["Generator", "Line"], aggregate_across_components=True
-        )
-        assert not df.empty
-        assert "component" not in df.index.names
+        warnings.simplefilter("error", DeprecationWarning)
+        n.statistics.installed_capacity(components=["Generator", "Line"])
 
-        df = n.statistics.supply(
-            components=["Generator", "Line"],
-            aggregate_across_components=True,
-            groupby_time=False,
-        )
-        assert not df.empty
+
+def test_aggregate_across_components(ac_dc_network_r):
+    n = ac_dc_network_r
+    df = n.statistics.installed_capacity(
+        components=["Generator", "Line"], aggregate_across_components=True
+    )
+    assert not df.empty
+    assert "component" not in df.index.names
+
+    df = n.statistics.supply(
+        components=["Generator", "Line"],
+        aggregate_across_components=True,
+        groupby_time=False,
+    )
+    assert not df.empty
     assert "component" not in df.index.names
 
 

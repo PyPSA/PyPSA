@@ -11,9 +11,12 @@ from __future__ import annotations
 
 import logging
 import re
+import warnings
 from typing import TYPE_CHECKING, Any
 
-from pypsa.deprecations import COMPONENT_ALIAS_DICT
+from pypsa.components.types import all_components
+
+_COMPONENT_ALIAS_DICT = {ct.name: ct.list_name for ct in all_components.values()}
 
 if TYPE_CHECKING:
     from pypsa.components._types.buses import Buses
@@ -32,6 +35,7 @@ if TYPE_CHECKING:
     from pypsa.components._types.sub_networks import SubNetworks
     from pypsa.components._types.transformer_types import TransformerTypes
     from pypsa.components._types.transformers import Transformers
+    from pypsa.components.components import Components
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +97,7 @@ class ComponentsStore(dict):
             raise AttributeError(msg)
         self[name] = value
 
-    def __getitem__(self, item: str | list | set) -> Any:
+    def __getitem__(self, item: str | list | set | Components) -> Any:
         """Index single and multiple items from the dictionary.
 
         Similar behavior to pandas.DataFrame.__getitem__.
@@ -126,15 +130,31 @@ class ComponentsStore(dict):
         Components: 6
 
         """
+        from pypsa.components.components import Components  # noqa: PLC0415
+
+        if isinstance(item, Components):
+            return item
         if isinstance(item, (list | set)):
             return [self[key] for key in item]
-        if item in COMPONENT_ALIAS_DICT:
-            # TODO: Activate when changing logic
-            # Accessing components in n.components using capitalized singular "
-            # name is deprecated. Use lowercase list name instead: "
-            # '{COMPONENT_ALIAS_DICT[item]}' instead of '{item}'.
-            return super().__getitem__(COMPONENT_ALIAS_DICT[item])
-        return super().__getitem__(item)
+        if item in _COMPONENT_ALIAS_DICT:
+            warnings.warn(
+                f"Accessing components by PascalCase name '{item}' is deprecated. "
+                f"Use '{_COMPONENT_ALIAS_DICT[item]}' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return super().__getitem__(_COMPONENT_ALIAS_DICT[item])
+        try:
+            return super().__getitem__(item)
+        except KeyError:
+            msg = f"'{item}' is not a valid component type."
+            raise ValueError(msg) from None
+
+    def _get(self, item: str | Any) -> Any:
+        """Look up a component without emitting a deprecation warning."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            return self[item]
 
     def __getattr__(self, item: str) -> Any:
         """Get attribute from the dictionary.
@@ -150,7 +170,7 @@ class ComponentsStore(dict):
         """
         try:
             return self[item]
-        except KeyError as e:
+        except (KeyError, ValueError) as e:
             msg = f"Network has no components '{item}'"
             raise AttributeError(msg) from e
 
@@ -189,3 +209,63 @@ class ComponentsStore(dict):
             "notes for more information."
         )
         raise DeprecationWarning(msg)
+
+    def filter(
+        self,
+        *,
+        branch: bool | None = None,
+        one_port: bool | None = None,
+        passive: bool | None = None,
+        controllable: bool | None = None,
+        standard_type: bool | None = None,
+    ) -> list:
+        """Filter components by category.
+
+        <!-- md:badge-version v1.3.0 -->
+
+        Each keyword matches a boolean property on
+        [`Components`][pypsa.Components]. Pass `True` to require the
+        property, `False` to require its negation, or omit the keyword to
+        ignore that category. Multiple keywords combine with AND.
+
+        Parameters
+        ----------
+        branch : bool, optional
+            Match [`Components.is_branch`][pypsa.Components.is_branch].
+        one_port : bool, optional
+            Match [`Components.is_one_port`][pypsa.Components.is_one_port].
+        passive : bool, optional
+            Match [`Components.is_passive`][pypsa.Components.is_passive].
+        controllable : bool, optional
+            Match [`Components.is_controllable`][pypsa.Components.is_controllable].
+        standard_type : bool, optional
+            Match [`Components.is_standard_type`][pypsa.Components.is_standard_type].
+
+        Returns
+        -------
+        list
+            Matching Components instances, in store order.
+
+        Examples
+        --------
+        >>> for c in n.components.filter(branch=True):
+        ...     print(c.list_name)
+        >>> for c in n.components.filter(branch=True, controllable=True):
+        ...     print(c.list_name)
+
+        """
+        kwarg_to_attr = {
+            "branch": ("is_branch", branch),
+            "one_port": ("is_one_port", one_port),
+            "passive": ("is_passive", passive),
+            "controllable": ("is_controllable", controllable),
+            "standard_type": ("is_standard_type", standard_type),
+        }
+        predicates = [
+            (attr, want) for attr, want in kwarg_to_attr.values() if want is not None
+        ]
+        return [
+            c
+            for c in self.values()
+            if all(getattr(c, attr) is want for attr, want in predicates)
+        ]

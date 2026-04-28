@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING, Any
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components._types.mixin.multiports import _Multiport
+from pypsa.components.categories import Controllable, MultiPort
+from pypsa.components.types import all_components as component_types
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class Links(_Multiport):
+class Links(Controllable, MultiPort):
     """Links components class.
 
     This class is used for link components. All functionality specific to
@@ -41,6 +42,8 @@ class Links(_Multiport):
     Components: 4
 
     """
+
+    _ctype = component_types["links"]
 
     _operational_variables = ["p"]
     _unsuffixed_attrs = {"efficiency", "delay", "cyclic_delay"}

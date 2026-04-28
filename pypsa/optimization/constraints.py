@@ -18,8 +18,8 @@ from numpy import inf, isfinite, maximum, sqrt, tile
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
-from pypsa.components._types.mixin.multiports import _Multiport
-from pypsa.components.common import as_components
+from pypsa.components._types.storage_units import StorageUnits
+from pypsa.components.categories import Branch, Controllable, MultiPort, Passive
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
 
@@ -29,6 +29,8 @@ if TYPE_CHECKING:
     from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
+    from pypsa.components import Generators, Lines, Transformers
+    from pypsa.components.components import Components
 
     ArgItem = list[str | int | float | DataArray]
 
@@ -44,7 +46,7 @@ lookup = pd.read_csv(
 def define_operational_constraints_for_non_extendables(
     n: Network,
     sns: pd.Index,
-    component: str,
+    c: Components,
     attr: str,
     transmission_losses: bool | int | dict = False,
 ) -> None:
@@ -68,8 +70,8 @@ def define_operational_constraints_for_non_extendables(
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    component : str
-        Name of the network component (e.g. "Generator", "Link")
+    c : Components
+        Component instance
     attr : str
         Name of the attribute to constrain (e.g. "p" for active power)
     transmission_losses : int | dict
@@ -88,7 +90,6 @@ def define_operational_constraints_for_non_extendables(
         Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
 
     """
-    c = as_components(n, component)
     fix_i = c.fixed.difference(c.committables).difference(c.inactive_assets)
 
     if fix_i.empty:
@@ -109,7 +110,7 @@ def define_operational_constraints_for_non_extendables(
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=fix_i)
 
-    if c.name in n.passive_branch_components and transmission_losses:
+    if isinstance(c, Branch) and isinstance(c, Passive) and transmission_losses:
         loss = n.model[f"{c.name}-loss"].sel(name=fix_i)
         lhs_lower = dispatch - loss
         lhs_upper = dispatch + loss
@@ -127,7 +128,7 @@ def define_operational_constraints_for_non_extendables(
 def define_operational_constraints_for_extendables(
     n: Network,
     sns: pd.Index,
-    component: str,
+    c: Components,
     attr: str,
     transmission_losses: bool | int | dict = False,
 ) -> None:
@@ -150,8 +151,8 @@ def define_operational_constraints_for_extendables(
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    component : str
-        Name of the network component (e.g. "Generator", "Link")
+    c : Components
+        Component instance
     attr : str
         Name of the attribute to constrain (e.g. "p" for active power)
     transmission_losses : int | dict
@@ -159,7 +160,6 @@ def define_operational_constraints_for_extendables(
         constraints for passive branches.
 
     """
-    c = as_components(n, component)
     sns = as_index(n, sns, "snapshots")
 
     ext_i = c.extendables.difference(c.inactive_assets)
@@ -179,13 +179,13 @@ def define_operational_constraints_for_extendables(
         max_pu = max_pu.sel(snapshot=sns)
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=ext_i)
-    capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"].sel(name=ext_i)
+    capacity = n.model[f"{c.name}-{nominal_attrs[c.list_name]}"].sel(name=ext_i)
     active = c.da.active.sel(name=ext_i, snapshot=sns)
 
     lhs_lower = dispatch - min_pu * capacity
     lhs_upper = dispatch - max_pu * capacity
 
-    if c.name in n.passive_branch_components and transmission_losses:
+    if isinstance(c, Branch) and isinstance(c, Passive) and transmission_losses:
         loss = n.model[f"{c.name}-loss"].sel(name=ext_i)
         lhs_lower = lhs_lower - loss
         lhs_upper = lhs_upper + loss
@@ -199,7 +199,7 @@ def define_operational_constraints_for_extendables(
 
 
 def define_operational_constraints_for_committables(
-    n: Network, sns: pd.Index, component: str
+    n: Network, sns: pd.Index, c: Components
 ) -> None:
     """Define operational constraints for committable components.
 
@@ -217,8 +217,8 @@ def define_operational_constraints_for_committables(
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    component : str
-        Name of the network component ("Generator" or "Link")
+    c : Components
+        Component instance
 
     Notes
     -----
@@ -239,7 +239,6 @@ def define_operational_constraints_for_committables(
         no. 5, pp. 3854-3865, 2017, https://doi.org/10.1109/TPWRS.2017.2735026
 
     """
-    c = as_components(n, component)
     com_i = c.committables.difference(c.inactive_assets)
 
     if com_i.empty:
@@ -594,7 +593,7 @@ def define_operational_constraints_for_committables(
 
 
 def define_nominal_constraints_for_extendables(
-    n: Network, component: str, attr: str
+    n: Network, c: Components, attr: str
 ) -> None:
     """Define capacity constraints for extendable components.
 
@@ -613,8 +612,8 @@ def define_nominal_constraints_for_extendables(
     ----------
     n : pypsa.Network
         Network instance containing the model and component data
-    component : str
-        Name of the network component (e.g. "Generator", "StorageUnit")
+    c : Components
+        Component instance
     attr : str
         Name of the capacity attribute (e.g. "p_nom" for nominal power)
 
@@ -625,7 +624,6 @@ def define_nominal_constraints_for_extendables(
     infinite values in constraints.
 
     """
-    c = as_components(n, component)
     ext_i = c.extendables.difference(c.inactive_assets)
 
     if ext_i.empty:
@@ -662,7 +660,7 @@ def _define_ramp_limit_big_m(
     m = n.model
     var_attr = "p"
     nom_attr = c._operational_attrs["nom"]
-    hist_attr = "p0" if c.name in n.branch_components else "p"
+    hist_attr = "p0" if isinstance(c, Branch) else "p"
     is_rolling_horizon = (sns[0] != n.snapshots[0]) & (not c.dynamic[hist_attr].empty)
     filter_first_sn = DataArray([1] + [0] * (len(sns) - 1), coords=[sns])
 
@@ -724,7 +722,7 @@ def _define_ramp_limit_big_m(
 
 
 def define_ramp_limit_constraints(
-    n: Network, sns: pd.Index, component: str, attr: str
+    n: Network, sns: pd.Index, c: Components, attr: str
 ) -> None:
     """Define ramp rate limit constraints for components.
 
@@ -741,8 +739,8 @@ def define_ramp_limit_constraints(
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    component : str
-        Name of the network component (e.g. "Generator")
+    c : Components
+        Component instance
     attr : str
         Name of the dispatch attribute (e.g. "p" for active power)
 
@@ -759,10 +757,9 @@ def define_ramp_limit_constraints(
 
     """
     m = n.model
-    c = n.c[component]
     var_attr = "p"
     nom_attr = c._operational_attrs["nom"]
-    hist_attr = "p0" if component in n.branch_components else "p"
+    hist_attr = "p0" if isinstance(c, Branch) else "p"
 
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(c.static.columns):
         return
@@ -888,14 +885,14 @@ def define_ramp_limit_constraints(
 
 
 def _get_delay_config(
-    c: _Multiport,
+    c: MultiPort,
 ) -> dict[str, tuple[pd.Series | int, pd.Series | bool]]:
     """Get delay and cyclic_delay configuration for each output port.
 
     Parameters
     ----------
-    c : _Multiport
-        _Multiport component (Link or Process).
+    c : MultiPort
+        MultiPort component (Link or Process).
 
     Returns
     -------
@@ -918,14 +915,14 @@ def _get_delay_config(
 
 
 def _iter_balance_args(
-    c: _Multiport, sns: Sequence
+    c: MultiPort, sns: Sequence
 ) -> Iterator[tuple[str, Any, pd.Index, int, bool]]:
     """Iterate over all balance arguments, separating immediate and delayed.
 
     Parameters
     ----------
-    c : _Multiport
-        _Multiport component (Link or Process).
+    c : MultiPort
+        MultiPort component (Link or Process).
     sns : Sequence
         Snapshot index.
 
@@ -1038,31 +1035,30 @@ def define_nodal_balance_constraints(
         sns_coords = {"snapshot": sns}
 
     args: list[Any] = [
-        ["Generator", "p", "bus", 1],
-        ["Store", "p", "bus", 1],
-        ["StorageUnit", "p_dispatch", "bus", 1],
-        ["StorageUnit", "p_store", "bus", -1],
-        ["Line", "s", "bus0", -1],
-        ["Line", "s", "bus1", 1],
-        ["Transformer", "s", "bus0", -1],
-        ["Transformer", "s", "bus1", 1],
-        ["Link", "p", "bus0", -1],
+        [n.c.generators, "p", "bus", 1],
+        [n.c.stores, "p", "bus", 1],
+        [n.c.storage_units, "p_dispatch", "bus", 1],
+        [n.c.storage_units, "p_store", "bus", -1],
+        [n.c.lines, "s", "bus0", -1],
+        [n.c.lines, "s", "bus1", 1],
+        [n.c.transformers, "s", "bus0", -1],
+        [n.c.transformers, "s", "bus1", 1],
+        [n.c.links, "p", "bus0", -1],
     ]
 
     if transmission_losses:
         args.extend(
             [
-                ["Line", "loss", "bus0", -0.5],
-                ["Line", "loss", "bus1", -0.5],
-                ["Transformer", "loss", "bus0", -0.5],
-                ["Transformer", "loss", "bus1", -0.5],
+                [n.c.lines, "loss", "bus0", -0.5],
+                [n.c.lines, "loss", "bus1", -0.5],
+                [n.c.transformers, "loss", "bus0", -0.5],
+                [n.c.transformers, "loss", "bus1", -0.5],
             ]
         )
 
     exprs = []
 
-    for component, attr, column, sign in args:
-        c = n.c[component]
+    for c, attr, column, sign in args:
         if c.static.empty:
             continue
 
@@ -1083,8 +1079,9 @@ def define_nodal_balance_constraints(
 
         #  drop non-existent multiport buses which are ''
         if (
-            c.name in n.controllable_branch_components
-            and isinstance(c, _Multiport)
+            isinstance(c, Branch)
+            and isinstance(c, Controllable)
+            and isinstance(c, MultiPort)
             and column in ["bus" + i for i in c.additional_ports]
         ):
             cbuses = cbuses[cbuses != ""]
@@ -1093,8 +1090,7 @@ def define_nodal_balance_constraints(
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
 
-    for component in ("Process", "Link"):
-        c = n.c[component]
+    for c in n.c[["processes", "links"]]:
         for bus_col, coeff, names, delay, is_cyclic in _iter_balance_args(c, sns):
             if delay <= 0:
                 expr = coeff * m[f"{c.name}-p"]
@@ -1131,7 +1127,7 @@ def define_nodal_balance_constraints(
     lhs = merge(exprs, join="outer").reindex(name=buses)
 
     # Prepare the RHS
-    loads = as_components(n, "Load")
+    loads = n.c.loads
 
     if loads.static.empty:
         rhs = DataArray(
@@ -1226,11 +1222,12 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
             continue
 
         exprs = []
-        for c in C.index.unique("type"):
-            C_branch = DataArray(C.loc[c])
-            flow = m[f"{c}-s"].sel(
+        for c_type in C.index.unique("type"):
+            C_branch = DataArray(C.loc[c_type])
+            c = n.c._get(c_type)
+            flow = m[f"{c_type}-s"].sel(
                 snapshot=snapshots,
-                name=C_branch.indexes["name"].difference(n.c[c].inactive_assets),
+                name=C_branch.indexes["name"].difference(c.inactive_assets),
             )
             exprs.append(flow @ C_branch * 1e5)
         lhs.append(sum(exprs))
@@ -1242,7 +1239,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         m.add_constraints(con, name="Kirchhoff-Voltage-Law", mask=mask)
 
 
-def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:
+def define_fixed_nominal_constraints(n: Network, c: Components, attr: str) -> None:
     """Define constraints for fixing component capacities to specified values.
 
     Sets constraints to fix nominal (capacity) variables of components to values
@@ -1255,8 +1252,8 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     ----------
     n : pypsa.Network
         Network instance containing the model and component data
-    component : str
-        Name of the network component (e.g. "Generator", "StorageUnit")
+    c : Components
+        Component instance
     attr : str
         Name of the capacity attribute (e.g. "p_nom" for nominal power)
 
@@ -1266,7 +1263,6 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     values in their '{attr}_set' attribute.
 
     """
-    c = as_components(n, component)
     if attr + "_set" not in c.static:
         return
 
@@ -1275,15 +1271,15 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     if fix.empty:
         return
 
-    dim = f"{component}-{attr}_set_i"
+    dim = f"{c.name}-{attr}_set_i"
     fix = fix.rename_axis(dim)
 
-    var = n.model[f"{component}-{attr}"]
+    var = n.model[f"{c.name}-{attr}"]
     var = reindex(var, var.dims[0], fix.index)
-    n.model.add_constraints(var, "=", fix, name=f"{component}-{attr}_set")
+    n.model.add_constraints(var, "=", fix, name=f"{c.name}-{attr}_set")
 
 
-def define_modular_constraints(n: Network, component: str, attr: str) -> None:
+def define_modular_constraints(n: Network, c: Components, attr: str) -> None:
     """Define constraints for modular capacity expansion.
 
     Sets constraints ensuring that the optimal capacity of a component is
@@ -1304,8 +1300,8 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     ----------
     n : pypsa.Network
         Network instance containing the model and component data
-    component : str
-        Name of the network component (e.g. "Generator", "StorageUnit")
+    c : Components
+        Component instance
     attr : str
         Name of the capacity attribute (e.g. "p_nom" for nominal power)
 
@@ -1320,7 +1316,6 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
 
     """
     m = n.model
-    c = as_components(n, component)
 
     # Get components that are both extendable and modular
     mod_i = c.extendables.intersection(c.modulars)
@@ -1345,7 +1340,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
 
 
 def define_committability_variables_constraints_with_fixed_upper_limit(
-    n: Network, sns: pd.Index, component: str, attr: str
+    n: Network, sns: pd.Index, c: Components, attr: str
 ) -> None:
     """Define upper limit constraints for committable unit status variables with fixed limits.
 
@@ -1366,8 +1361,8 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    component : str
-        Name of the network component (e.g. "Generator", "Link")
+    c : Components
+        Component instance
     attr : str
         Name of the capacity attribute (e.g. "p_nom" for nominal power)
 
@@ -1387,7 +1382,6 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
     committable components to have discrete capacity expansion.
 
     """
-    c = as_components(n, component)
     m = n.model
 
     # Get committable, modular, and non-extendable component indices
@@ -1415,7 +1409,7 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
         if not non_integers_n_mod_i.empty:
             msg = (
                 f"For non-extendable but committable assets, if both {nom_attr} and {mod_attr} are declared, "
-                f"{nom_attr} must be a multiple of {mod_attr}. Found assets in component {component} "
+                f"{nom_attr} must be a multiple of {mod_attr}. Found assets in component {c.name} "
                 f"that do not respect this criterion:\n\n\t{', '.join(non_integers_n_mod_i)}"
             )
             raise ValueError(msg)
@@ -1440,32 +1434,32 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
 
     active = c.da.active.sel(snapshot=sns, name=inter_i) if n._multi_invest else None
 
-    status = m.variables[f"{component}-status"].loc[sns, inter_i]
+    status = m.variables[f"{c.name}-status"].loc[sns, inter_i]
     m.add_constraints(
-        status, "<=", rhs, name=f"{component}-status-{attr}-fixed-upper", mask=active
+        status, "<=", rhs, name=f"{c.name}-status-{attr}-fixed-upper", mask=active
     )
 
-    start_up = m.variables[f"{component}-start_up"].loc[sns, inter_i]
+    start_up = m.variables[f"{c.name}-start_up"].loc[sns, inter_i]
     m.add_constraints(
         start_up,
         "<=",
         rhs,
-        name=f"{component}-start_up-{attr}-fixed-upper",
+        name=f"{c.name}-start_up-{attr}-fixed-upper",
         mask=active,
     )
 
-    shut_down = m.variables[f"{component}-shut_down"].loc[sns, inter_i]
+    shut_down = m.variables[f"{c.name}-shut_down"].loc[sns, inter_i]
     m.add_constraints(
         shut_down,
         "<=",
         rhs,
-        name=f"{component}-shut_down-{attr}-fixed-upper",
+        name=f"{c.name}-shut_down-{attr}-fixed-upper",
         mask=active,
     )
 
 
 def define_committability_variables_constraints_with_variable_upper_limit(
-    n: Network, sns: pd.Index, component: str, attr: str
+    n: Network, sns: pd.Index, c: Components, attr: str
 ) -> None:
     """Define upper limit constraints for committable unit status variables with variable limits.
 
@@ -1481,8 +1475,8 @@ def define_committability_variables_constraints_with_variable_upper_limit(
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    component : str
-        Name of the network component (e.g. "Generator", "Link")
+    c : Components
+        Component instance
     attr : str
         Name of the capacity attribute (e.g. "p_nom" for nominal power)
 
@@ -1493,7 +1487,6 @@ def define_committability_variables_constraints_with_variable_upper_limit(
     The number of committed units is constrained by the optimized number of modules.
 
     """
-    c = as_components(n, component)
     m = n.model
 
     # Get committable, extendable, and modular component indices
@@ -1508,29 +1501,29 @@ def define_committability_variables_constraints_with_variable_upper_limit(
 
     active = c.da.active.sel(snapshot=sns, name=inter_i) if n._multi_invest else None
 
-    n_mod = m[f"{component}-n_mod"].loc[inter_i]
+    n_mod = m[f"{c.name}-n_mod"].loc[inter_i]
 
-    status = m.variables[f"{component}-status"].loc[sns, inter_i]
+    status = m.variables[f"{c.name}-status"].loc[sns, inter_i]
     lhs = ((1, status), (-1, n_mod))
     m.add_constraints(
-        lhs, "<=", 0, name=f"{component}-status-{attr}-variable-upper", mask=active
+        lhs, "<=", 0, name=f"{c.name}-status-{attr}-variable-upper", mask=active
     )
 
-    start_up = m.variables[f"{component}-start_up"].loc[sns, inter_i]
+    start_up = m.variables[f"{c.name}-start_up"].loc[sns, inter_i]
     lhs = ((1, start_up), (-1, n_mod))
     m.add_constraints(
-        lhs, "<=", 0, name=f"{component}-start_up-{attr}-variable-upper", mask=active
+        lhs, "<=", 0, name=f"{c.name}-start_up-{attr}-variable-upper", mask=active
     )
 
-    shut_down = m.variables[f"{component}-shut_down"].loc[sns, inter_i]
+    shut_down = m.variables[f"{c.name}-shut_down"].loc[sns, inter_i]
     lhs = ((1, shut_down), (-1, n_mod))
     m.add_constraints(
-        lhs, "<=", 0, name=f"{component}-shut_down-{attr}-variable-upper", mask=active
+        lhs, "<=", 0, name=f"{c.name}-shut_down-{attr}-variable-upper", mask=active
     )
 
 
 def define_fixed_operation_constraints(
-    n: Network, sns: pd.Index, component: str, attr: str
+    n: Network, sns: pd.Index, c: Components, attr: str
 ) -> None:
     """Define constraints for fixing operational variables to specified values.
 
@@ -1546,8 +1539,8 @@ def define_fixed_operation_constraints(
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    component : str
-        Name of the network component (e.g. "Generator", "StorageUnit")
+    c : Components
+        Component instance
     attr : str
         Name of the dispatch attribute (e.g. "p" for active power)
 
@@ -1564,7 +1557,6 @@ def define_fixed_operation_constraints(
     Positive p_set means net discharge, negative means net charge.
 
     """
-    c = as_components(n, component)
     attr_set = f"{attr}_set"
 
     if attr_set not in c.dynamic.keys() or c.dynamic[attr_set].empty:
@@ -1578,7 +1570,7 @@ def define_fixed_operation_constraints(
     active = c.da.active.sel(snapshot=sns, name=fix.coords["name"].values)
     mask = active & (~fix.isnull())
 
-    if component == "StorageUnit" and attr == "p":
+    if isinstance(c, StorageUnits) and attr == "p":
         p_dispatch = n.model["StorageUnit-p_dispatch"]
         p_store = n.model["StorageUnit-p_store"]
         lhs = p_dispatch - p_store
@@ -1635,9 +1627,8 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     """
     m = n.model
-    component = "StorageUnit"
     dim = "snapshot"
-    c = as_components(n, component)
+    c = n.c.storage_units
     active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     if c.static.empty:
@@ -1656,16 +1647,16 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=c.active_assets)
     eff_store = c.da.efficiency_store.sel(snapshot=sns, name=c.active_assets)
 
-    soc = m[f"{component}-state_of_charge"]
+    soc = m[f"{c.name}-state_of_charge"]
 
     lhs = [
         (-1, soc),
-        (-1 / eff_dispatch * eh, m[f"{component}-p_dispatch"]),
-        (eff_store * eh, m[f"{component}-p_store"]),
+        (-1 / eff_dispatch * eh, m[f"{c.name}-p_dispatch"]),
+        (eff_store * eh, m[f"{c.name}-p_store"]),
     ]
 
-    if f"{component}-spill" in m.variables:
-        lhs += [(-eh, m[f"{component}-spill"])]
+    if f"{c.name}-spill" in m.variables:
+        lhs += [(-eh, m[f"{c.name}-spill"])]
 
     # We create a mask `include_previous_soc` which excludes the first snapshot
     # for non-cyclic assets
@@ -1776,7 +1767,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
 
-    m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
+    m.add_constraints(lhs, "=", rhs, name=f"{c.name}-energy_balance", mask=active)
 
 
 def define_store_constraints(n: Network, sns: pd.Index) -> None:
@@ -1831,9 +1822,8 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     """
     m = n.model
-    component = "Store"
     dim = "snapshot"
-    c = as_components(n, component)
+    c = n.c.stores
     active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     if c.static.empty:
@@ -1850,8 +1840,8 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     # standing efficiency
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
 
-    e = m[f"{component}-e"]
-    p = m[f"{component}-p"]
+    e = m[f"{c.name}-e"]
+    p = m[f"{c.name}-p"]
 
     # Define LHS expression
     lhs = [(-1, e), (-eh, p)]
@@ -1951,13 +1941,13 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     # For snapshots where we don't include previous_e, we need to account for initial values
     rhs = -e_init.where(~include_previous_e, 0)
 
-    m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
+    m.add_constraints(lhs, "=", rhs, name=f"{c.name}-energy_balance", mask=active)
 
 
 def define_tangent_loss_constraints(
     n: Network,
     sns: pd.Index,
-    component: str,
+    c: Lines | Transformers,
     segments: int,
 ) -> None:
     """Approximate transmission losses using piecewise linear tangents.
@@ -1976,8 +1966,8 @@ def define_tangent_loss_constraints(
         Network instance containing the model and branch data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    component : str
-        Name of the passive branch component (e.g. "Line", "Transformer")
+    c : Components
+        Component instance
     segments : int
         Number of tangent segments to use in the piecewise linearization
         of the quadratic loss function. Higher values increase accuracy
@@ -1995,9 +1985,7 @@ def define_tangent_loss_constraints(
         msg = f"'segments' must be a positive integer, got {segments!r}"
         raise ValueError(msg)
 
-    c = n.components[component]
-
-    if c.static.empty or component not in n.passive_branch_components:
+    if c.static.empty:
         return
 
     active = c.da.active.sel(snapshot=sns, name=c.active_assets)
@@ -2050,7 +2038,7 @@ def define_tangent_loss_constraints(
 def define_secant_loss_constraints(
     n: Network,
     sns: pd.Index,
-    component: str,
+    c: Lines | Transformers,
     atol: float = 1,
     rtol: float = 0.1,
     max_segments: int = 20,
@@ -2074,8 +2062,8 @@ def define_secant_loss_constraints(
         Network instance containing the model and branch data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    component : str
-        Name of the passive branch component (e.g. "Line", "Transformer")
+    c : Components
+        Component instance
     atol : float, default 1
         Absolute error tolerance between the quadratic loss curve and its
         piecewise linear approximation; controls segment density for small
@@ -2102,9 +2090,7 @@ def define_secant_loss_constraints(
         msg = f"'max_segments' must be >= 1, got {max_segments}"
         raise ValueError(msg)
 
-    c = n.components[component]
-
-    if c.static.empty or component not in n.passive_branch_components:
+    if c.static.empty:
         return
 
     active = c.da.active.sel(snapshot=sns, name=c.active_assets)
@@ -2198,9 +2184,7 @@ def define_secant_loss_constraints(
         )
 
 
-def define_total_supply_constraints(
-    n: Network, sns: Sequence, component: str = "Generator"
-) -> None:
+def define_total_supply_constraints(n: Network, sns: Sequence, c: Generators) -> None:
     """Define energy sum constraints for generators.
 
     Creates constraints limiting the total energy generated by each generator
@@ -2226,8 +2210,8 @@ def define_total_supply_constraints(
         Network instance containing the model and component data
     sns : Sequence
         Set of snapshots for which to define the constraints
-    component : str, default "Generator"
-        Name of the network component to apply the constraints to
+    c : Components
+        Component instance
 
     Notes
     -----
@@ -2242,7 +2226,6 @@ def define_total_supply_constraints(
     """
     sns_ = as_index(n, sns, "snapshots")
     m = n.model
-    c = as_components(n, component)
 
     if c.static.empty:
         return

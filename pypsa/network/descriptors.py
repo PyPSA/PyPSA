@@ -21,11 +21,13 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa.common import normalize_carrier_nice_names
-from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from pypsa.components.components import Components
+    from pypsa.types import ComponentsLike
 
 
 logger = logging.getLogger(__name__)
@@ -111,7 +113,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
 
     def get_switchable_as_dense(
         self,
-        component: str,
+        component: ComponentsLike,
         attr: str,
         snapshots: Sequence | None = None,
         inds: pd.Index | None = None,
@@ -123,8 +125,8 @@ class NetworkDescriptorsMixin(_NetworkABC):
 
         Parameters
         ----------
-        component : string
-            Component object name, e.g. 'Generator' or 'Link'
+        component : ComponentsLike
+            Component object or name, e.g. 'Generator' or 'Link'
         attr : string
             Attribute name
         snapshots : pandas.Index
@@ -145,11 +147,12 @@ class NetworkDescriptorsMixin(_NetworkABC):
         2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
 
         """
-        return as_components(self, component)._as_dynamic(attr, snapshots, inds)
+        c: Components = self.c[component]
+        return c._as_dynamic(attr, snapshots, inds)
 
     def get_switchable_as_iter(
         self,
-        component: str,
+        component: ComponentsLike,
         attr: str,
         snapshots: Sequence,
         inds: pd.Index | None = None,
@@ -161,8 +164,8 @@ class NetworkDescriptorsMixin(_NetworkABC):
 
         Parameters
         ----------
-        component : string
-            Component object name, e.g. 'Generator' or 'Link'
+        component : ComponentsLike
+            Component object or name, e.g. 'Generator' or 'Link'
         attr : string
             Attribute name
         snapshots : pandas.Index
@@ -188,8 +191,9 @@ class NetworkDescriptorsMixin(_NetworkABC):
         dtype: float64
 
         """
-        static = self.c[component].static
-        dynamic = self.c[component].dynamic
+        c: Components = self.c[component]
+        static = c.static
+        dynamic = c.dynamic
 
         index = static.index
         varying_i = dynamic[attr].columns

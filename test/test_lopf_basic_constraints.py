@@ -98,7 +98,9 @@ def describe_upper_dispatch_constraints(n):
     description = {}
     key = " Upper Limit"
     for c, attr in nominal_attrs.items():
-        dispatch_attr = "p0" if c in ["Line", "Transformer", "Link"] else attr[0]
+        dispatch_attr = (
+            "p0" if c in ["lines", "transformers", "links", "processes"] else attr[0]
+        )
         description[c + key] = pd.Series(
             {
                 "min": (
@@ -117,7 +119,7 @@ def describe_lower_dispatch_constraints(n):
     description = {}
     key = " Lower Limit"
     for c, attr in nominal_attrs.items():
-        if c in ["Line", "Transformer", "Link"]:
+        if c in ["lines", "transformers", "links", "processes"]:
             dispatch_attr = "p0"
             description[c] = pd.Series(
                 {

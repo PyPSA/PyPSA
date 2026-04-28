@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING, Any
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components._types.mixin.multiports import _Multiport
+from pypsa.components.categories import Controllable, MultiPort
+from pypsa.components.types import all_components as component_types
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class Processes(_Multiport):
+class Processes(Controllable, MultiPort):
     """Processes components class.
 
     This class is used for process components. All functionality specific to
@@ -38,6 +39,8 @@ class Processes(_Multiport):
     Empty 'Process' Components
 
     """
+
+    _ctype = component_types["processes"]
 
     _operational_variables = ["p"]
     _unsuffixed_attrs: set[str] = set()

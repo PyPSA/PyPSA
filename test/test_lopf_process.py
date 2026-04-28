@@ -84,8 +84,8 @@ def test_process_component_basics(n):
     assert "0" in n.c.processes.ports
     assert "1" in n.c.processes.ports
 
-    assert "Process" in nominal_attrs
-    assert nominal_attrs["Process"] == "p_nom"
+    assert "processes" in nominal_attrs
+    assert nominal_attrs["processes"] == "p_nom"
 
     assert ("Process", "electrolyser") in n.branches().index
 

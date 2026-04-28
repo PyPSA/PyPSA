@@ -82,7 +82,9 @@ def test_remove_misspelled_component(ac_dc_network):
     """
     n = ac_dc_network
     misspelled_component = "Liness"
-    with pytest.raises(AttributeError, match=f"components '{misspelled_component}'"):
+    with pytest.raises(
+        ValueError, match=f"'{misspelled_component}' is not a valid component type"
+    ):
         n.remove(misspelled_component, ["0", "1"])
 
 
@@ -96,7 +98,9 @@ def test_add_misspelled_component(n_5bus):
     be logged.
     """
     misspelled_component = "Generatro"
-    with pytest.raises(AttributeError, match=f"components '{misspelled_component}'"):
+    with pytest.raises(
+        ValueError, match=f"'{misspelled_component}' is not a valid component type"
+    ):
         n_5bus.add(
             misspelled_component,
             ["g_1", "g_2"],

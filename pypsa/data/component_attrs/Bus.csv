@@ -1,0 +1,20 @@
+attribute,type,dtype,unit,default,description,status,dynamic,nullable
+name,string,str,,,Unique name,Input (required),False,False
+v_nom,float,float,kV,1,Nominal voltage,Input (optional),False,False
+type,string,str,,,Placeholder for bus type. Not implemented.,Input (optional),False,True
+x,float,float,,0,Longitude; the Spatial Reference System Identifier (SRID) is set in `n.srid`.,Input (optional),False,False
+y,float,float,,0,Latitude; the Spatial Reference System Identifier (SRID) is set in `n.srid`.,Input (optional),False,False
+carrier,string,str,,AC,"Carrier, such as ""AC"", ""DC"", ""heat"" or ""gas"".",Input (optional),False,False
+unit,string,str,,,"Unit of the bus' carrier if the implicitly assumed unit (""MW"") is inappropriate (e.g. ""t/h""). Only descriptive. Does not influence any PyPSA functions.",Input (optional),False,True
+location,string,str,,,Location of the bus. Does not influence the optimisation model but can be used for aggregation with `n.statistics`.,Input (optional),False,True
+v_mag_pu_set,static or series,float,per unit,1,"Voltage magnitude set point, per unit of `v_nom`.",Input (optional),True,False
+v_mag_pu_min,float,float,per unit,0,"Minimum desired voltage, per unit of `v_nom`. Placeholder attribute not currently used by any functions.",Input (optional),False,False
+v_mag_pu_max,float,float,per unit,inf,"Maximum desired voltage, per unit of `v_nom`.  Placeholder attribute not currently used by any functions.",Input (optional),False,False
+control,string,str,,PQ,"P,Q,V control strategy for power flow, must be ""PQ"", ""PV"" or ""Slack"". Note that this attribute is an output inherited from the controls of the generators attached to the bus. Do not set by hand.",Output,False,False
+generator,string,str,,,Name of slack generator attached to slack bus.,Output,False,True
+sub_network,string,str,,,Name of connected sub-network to which bus belongs. This attribute is set by `n.determine_network_topology()`. Do not set by hand.,Output,False,True
+p,series,float,MW,0.,active power at bus (positive if net generation at bus),Output,True,False
+q,series,float,MVar,0.,reactive power (positive if net generation at bus),Output,True,False
+v_mag_pu,series,float,per unit,1.,"Voltage magnitude, per unit of `v_nom`",Output,True,False
+v_ang,series,float,radians,0.,Voltage angle,Output,True,False
+marginal_price,series,float,currency/MWh,0.,Shadow price from energy balance constraint,Output,True,False

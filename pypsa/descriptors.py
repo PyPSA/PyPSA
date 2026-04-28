@@ -7,21 +7,16 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import replace
-from itertools import product
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-import pandas as pd
 from deprecation import deprecated
 
-from pypsa.components._types.mixin.multiports import _Multiport
-from pypsa.constants import RE_PORTS_GE_2
-
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Sequence
+
+    import pandas as pd
 
     from pypsa import Network, SubNetwork
-    from pypsa.type_utils import NetworkType
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +40,7 @@ def get_switchable_as_dense(
     Use `n.get_switchable_as_dense` instead.
 
     """
-    return n.get_switchable_as_dense(component, attr, snapshots, inds)
+    return n.c[component]._as_dynamic(attr, snapshots, inds)
 
 
 @deprecated(
@@ -72,13 +67,13 @@ def get_switchable_as_iter(
 
 # Perhaps this should rather go into components.py
 nominal_attrs = {
-    "Generator": "p_nom",
-    "Line": "s_nom",
-    "Transformer": "s_nom",
-    "Link": "p_nom",
-    "Process": "p_nom",
-    "Store": "e_nom",
-    "StorageUnit": "p_nom",
+    "generators": "p_nom",
+    "lines": "s_nom",
+    "transformers": "s_nom",
+    "links": "p_nom",
+    "processes": "p_nom",
+    "stores": "e_nom",
+    "storage_units": "p_nom",
 }
 
 
@@ -230,103 +225,3 @@ def get_bounds_pu(
         min_bounds.sel(**sel_kwargs).to_dataframe().unstack(level=0),
         max_bounds.sel(**sel_kwargs).to_dataframe().unstack(level=0),
     )
-
-
-def _update_ports_doc_changes(s: Any, i: int, j: str) -> Any:
-    """Update components documentation for multiport components.
-
-    Additional ports require the following changes:
-    1. Replaces every occurrence of the substring `j` with `i`.
-    2. Make attribute required
-
-    Parameters
-    ----------
-    s : An
-        String to update.
-    i : int
-        Integer to replace `j` with.
-    j : string
-        Substring to replace.
-
-    Returns
-    -------
-    Any : Updated string or original value if not a string.
-
-    """
-    if not isinstance(s, str) or len(s) == 1:
-        return s
-    return s.replace(j, str(i)).replace("required", "optional")
-
-
-def _update_ports_component_attrs(
-    n: NetworkType,
-    where: Iterable[str] | None = None,
-    c_name: str | list[str] | None = None,
-) -> None:
-    """Update multiport component attributes to add the additional ports.
-
-    Parameters
-    ----------
-    n : Network
-        Network instance to which additional ports will be added.
-    where : Iterable[str] or None, optional
-        Filters for specific subsets of data by providing an iterable of tags
-        or identifiers. If None, no filtering is applied and additional
-        ports are considered for all connectors.
-    c_name : str or list[str] or None
-        Component name(s) to apply to. If None, applied to controlled branch components.
-
-    """
-    if c_name is None:
-        c_name = list(n.controllable_branch_components)
-
-    if not isinstance(c_name, list):
-        c_name = [c_name]
-
-    for c in n.c[c_name]:
-        if not isinstance(c, _Multiport):
-            msg = f"Only implemented for Link and Process, not: {c_name}"
-            raise NotImplementedError(msg)
-
-        if where is None:
-            ports = list(c.additional_ports)
-        else:
-            ports = [
-                match.group(1) for col in where if (match := RE_PORTS_GE_2.search(col))
-            ]
-        ports.sort(reverse=True)
-
-        static_attrs = ["bus", "delay", "cyclic_delay"]
-        dynamic_attrs = [c._coefficient_attr, "p"]
-        unsuffixed_attrs = c._unsuffixed_attrs
-
-        c.ctype = replace(c.ctype, defaults=c.defaults.copy(deep=True))
-        defaults = c.defaults
-
-        for i, attr in product(ports, static_attrs + dynamic_attrs):
-            target = f"{attr}{i}"
-            if target in defaults.index:
-                continue
-            j = "" if attr in unsuffixed_attrs else "1"
-            base_attr = attr + j
-            if base_attr not in defaults.index:
-                continue
-            defaults.loc[target] = defaults.loc[base_attr].apply(
-                _update_ports_doc_changes, args=("1", i)
-            )
-            # Reorder so target appears right after base_attr
-            base_attr_index = defaults.index.get_loc(base_attr)
-            target_index = defaults.index.get_loc(target)
-            new_order = list(defaults.index)
-            new_order.pop(target_index)
-            new_order.insert(base_attr_index + 1, target)
-            defaults = defaults.reindex(new_order)
-            if attr in dynamic_attrs and target not in c.dynamic:
-                df = pd.DataFrame(
-                    index=n.snapshots, columns=c.static.index[:0], dtype=float
-                )
-                c.dynamic[target] = df
-            elif attr in static_attrs and target not in c.static.columns:
-                c.static[target] = defaults.loc[target, "default"]
-
-        c.ctype = replace(c.ctype, defaults=defaults)

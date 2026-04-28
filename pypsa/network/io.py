@@ -14,7 +14,7 @@ import tempfile
 import warnings
 from abc import abstractmethod
 from functools import partial
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 from urllib.request import urlretrieve
 
 import geopandas as gpd
@@ -28,8 +28,9 @@ from pyproj import CRS
 
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
+from pypsa.components._types import Buses, Shapes, SubNetworks
+from pypsa.components.categories import MultiPort, StandardType
 from pypsa.consistency import check_for_unknown_buses
-from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_base__
 
@@ -1201,24 +1202,24 @@ class NetworkIOMixin(_NetworkABC):
             exporter.save_scenarios(self.scenario_weightings)
 
         exported_components = []
-        for component in self.all_components:
-            c = self.components[component]
-            list_name = c["list_name"]
-            attrs = c["defaults"]
+        for c in self.components.values():
+            list_name = c.list_name
+            attrs = c.defaults
 
             static = c.static
             dynamic = c.dynamic
 
-            if component == "Shape":
+            if isinstance(c, Shapes):
                 static = pd.DataFrame(static).assign(
                     geometry=static["geometry"].to_wkt()
                 )
 
-            if not export_standard_types and component in self.standard_type_components:
+            if not export_standard_types and isinstance(c, StandardType):
+                std_types = cast("pd.DataFrame", c.standard_types)
                 if isinstance(static.index, pd.MultiIndex):
-                    static = static.drop(c["standard_types"].index, level="name")
+                    static = static.drop(std_types.index, level="name")
                 else:
-                    static = static.drop(c["standard_types"].index)
+                    static = static.drop(std_types.index)
 
             col_export = []
             for col in static.columns:
@@ -1247,7 +1248,7 @@ class NetworkIOMixin(_NetworkABC):
 
             static_export = static[col_export].copy()
             # Stored SubNetwork obj column is not serializable
-            if "obj" in col_export and component == "SubNetwork":
+            if "obj" in col_export and isinstance(c, SubNetworks):
                 static_export["obj"] = np.nan
 
             exporter.save_static(list_name, static_export)
@@ -1380,38 +1381,37 @@ class NetworkIOMixin(_NetworkABC):
         imported_components = []
 
         # now read in other components; make sure buses and carriers come first
-        for component in ["Bus", "Carrier"] + sorted(
-            self.all_components - {"Bus", "Carrier"}
-        ):
-            list_name = self.components[component]["list_name"]
-
-            df = importer.get_static(list_name)
+        priority = [self.c.buses, self.c.carriers]
+        rest = sorted(
+            [c for c in self.components.values() if c not in priority],
+            key=lambda c: c.list_name,
+        )
+        for c in priority + rest:
+            df = importer.get_static(c.list_name)
             if df is None:
-                if component == "Bus":
+                if isinstance(c, Buses):
                     logger.error("Error, no buses found")
                     return
                 continue
 
-            if component in ("Link", "Process"):
-                _update_ports_component_attrs(self, where=df, c_name=component)
+            if isinstance(c, MultiPort):
+                c._update_port_attrs(where=df)
 
-            self._import_components_from_df(df, component)
+            self._import_components_from_df(df, c.name)
 
             if not skip_time:
-                for attr, df in importer.get_series(list_name):
+                for attr, df in importer.get_series(c.list_name):
                     df.set_index(self.snapshots, inplace=True)
-                    self._import_series_from_df(df, component, attr)
+                    self._import_series_from_df(df, c.name, attr)
 
-            logger.debug(getattr(self, list_name))
+            logger.debug(getattr(self, c.list_name))
 
-            imported_components.append(list_name)
+            imported_components.append(c.list_name)
 
-        for component in self.standard_type_components:
-            if self.has_scenarios and not isinstance(
-                self.components[component].static.index, pd.MultiIndex
-            ):
-                self.components[component].static = pd.concat(
-                    dict.fromkeys(self.scenarios, self.components[component].static),
+        for c in self.components.filter(standard_type=True):
+            if self.has_scenarios and not isinstance(c.static.index, pd.MultiIndex):
+                c.static = pd.concat(
+                    dict.fromkeys(self.scenarios, c.static),
                     names=["scenario"],
                 )
 
@@ -1753,10 +1753,11 @@ class NetworkIOMixin(_NetworkABC):
             If True, overwrite existing components.
 
         """
-        if cls_name in ("Link", "Process"):
-            _update_ports_component_attrs(self, where=df, c_name=cls_name)
+        c = self.c._get(cls_name)
+        if isinstance(c, MultiPort):
+            c._update_port_attrs(where=df)
 
-        attrs = self.components[cls_name]["defaults"]
+        attrs = c.defaults
         static_attrs = attrs[attrs.static].drop("name")
         non_static_attrs = attrs[~attrs.static]
 
@@ -1776,24 +1777,23 @@ class NetworkIOMixin(_NetworkABC):
             if k not in df.columns:
                 df[k] = static_attrs.at[k, "default"]
             else:
-                if static_attrs.at[k, "type"] == "string":
+                if static_attrs.at[k, "dtype"] == "str":
                     df[k] = df[k].replace({np.nan: ""})
-                if static_attrs.at[k, "type"] == "int":
+                if static_attrs.at[k, "dtype"] == "int":
                     df[k] = df[k].fillna(0)
-                if df[k].dtype != static_attrs.at[k, "typ"]:
-                    if static_attrs.at[k, "type"] == "geometry":
-                        geometry = df[k].replace({"": None, np.nan: None})
-                        from shapely.geometry.base import BaseGeometry  # noqa: PLC0415
+                if static_attrs.at[k, "dtype"] == "object":
+                    geometry = df[k].replace({"": None, np.nan: None})
+                    from shapely.geometry.base import BaseGeometry  # noqa: PLC0415
 
-                        if geometry.apply(lambda x: isinstance(x, BaseGeometry)).all():
-                            df[k] = gpd.GeoSeries(geometry)
-                        else:
-                            df[k] = gpd.GeoSeries.from_wkt(geometry)
+                    if geometry.apply(lambda x: isinstance(x, BaseGeometry)).all():
+                        df[k] = gpd.GeoSeries(geometry)
                     else:
-                        df[k] = df[k].astype(static_attrs.at[k, "typ"])
+                        df[k] = gpd.GeoSeries.from_wkt(geometry)
+                elif df[k].dtype != static_attrs.at[k, "dtype"]:
+                    df[k] = df[k].astype(static_attrs.at[k, "dtype"])
 
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
-        old_static = self.c[cls_name].static
+        old_static = c.static
         new_static = df.drop(non_static_attrs_in_df, axis=1)
 
         # Handle duplicates
@@ -1803,7 +1803,7 @@ class NetworkIOMixin(_NetworkABC):
                 logger.warning(
                     "The following %s are already defined and will be skipped "
                     "(use overwrite=True to overwrite): %s",
-                    self.components[cls_name]["list_name"],
+                    c.list_name,
                     ", ".join(duplicated_components),
                 )
                 new_static = new_static.drop(duplicated_components)
@@ -1814,7 +1814,7 @@ class NetworkIOMixin(_NetworkABC):
         if not old_static.empty:
             new_static = pd.concat((old_static, new_static), sort=False)
 
-        if cls_name == "Shape":
+        if isinstance(c, Shapes):
             new_static = gpd.GeoDataFrame(new_static, crs=self.crs)
 
         # Align index (component names) and columns (attributes)
@@ -1834,11 +1834,11 @@ class NetworkIOMixin(_NetworkABC):
             if not isinstance(new_static.index, pd.MultiIndex)
             else ["scenario", "name"]
         )
-        self.components[cls_name].static = new_static
+        c.static = new_static
 
         # Now deal with time-dependent properties
 
-        dynamic = self.c[cls_name].dynamic
+        dynamic = c.dynamic
 
         for k in non_static_attrs_in_df:
             # If reading in outputs, fill the outputs
@@ -1851,10 +1851,10 @@ class NetworkIOMixin(_NetworkABC):
                 new_components = df.index.difference(duplicated_components)
                 dynamic[k].loc[:, new_components] = df.loc[new_components, k].values
 
-        self.components[cls_name].dynamic = dynamic
+        c.dynamic = dynamic
 
         # Run consistency checks
-        check_for_unknown_buses(self, self.c[cls_name])
+        check_for_unknown_buses(self, c)
 
     def _import_series_from_df(
         self,
@@ -1878,9 +1878,9 @@ class NetworkIOMixin(_NetworkABC):
             If True, overwrite existing time series.
 
         """
-        static = self.c[cls_name].static
-        dynamic = self.c[cls_name].dynamic
-        list_name = self.components[cls_name]["list_name"]
+        c = self.c._get(cls_name)
+        static = c.static
+        dynamic = c.dynamic
 
         if not overwrite:
             try:
@@ -1902,11 +1902,11 @@ class NetworkIOMixin(_NetworkABC):
                 diff,
                 attr,
                 cls_name,
-                list_name,
+                c.list_name,
             )
 
         # Get all attributes for the component
-        attrs = self.components[cls_name]["defaults"]
+        attrs = c.defaults
 
         # Add all unknown attributes to the dataframe without any checks
         expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
@@ -2179,18 +2179,18 @@ class NetworkIOMixin(_NetworkABC):
         # 1 startup shutdown n x1 y1 ... xn yn
         # 2 startup shutdown n c(n-1) ... c0
 
-        for component in [
-            "Bus",
-            "Load",
-            "Generator",
-            "Line",
-            "Transformer",
-            "ShuntImpedance",
+        for list_name in [
+            "buses",
+            "loads",
+            "generators",
+            "lines",
+            "transformers",
+            "shunt_impedances",
         ]:
             self.add(
-                component,
-                pdf[self.components[component]["list_name"]].index,
-                **pdf[self.components[component]["list_name"]],
+                list_name,
+                pdf[list_name].index,
+                **pdf[list_name],
             )
 
         self.c.generators.static["control"] = self.c.generators.static.bus.map(
@@ -2408,7 +2408,7 @@ class NetworkIOMixin(_NetworkABC):
             "Transformer",
             "ShuntImpedance",
         ]:
-            self.add(component_name, d[component_name].index, **d[component_name])
+            self.c[component_name].add(d[component_name].index, **d[component_name])
 
         # amalgamate buses connected by closed switches
 
@@ -2420,15 +2420,15 @@ class NetworkIOMixin(_NetworkABC):
         to_replace = pd.Series(bus_switches.stays.values, bus_switches.goes.values)
 
         for i in to_replace.index:
-            self.remove("Bus", i)
+            self.remove("buses", i)
 
-        for component in self.components[["Generator", "Load", "ShuntImpedance"]]:
-            if component.empty:
+        for c in self.components[["generators", "loads", "shunt_impedances"]]:
+            if c.empty:
                 continue
-            component.static.replace({"bus": to_replace}, inplace=True)
+            c.static.replace({"bus": to_replace}, inplace=True)
 
-        for component in self.components[["Line", "Transformer"]]:
-            if component.empty:
+        for c in self.components[["lines", "transformers"]]:
+            if c.empty:
                 continue
-            component.static.replace({"bus0": to_replace}, inplace=True)
-            component.static.replace({"bus1": to_replace}, inplace=True)
+            c.static.replace({"bus0": to_replace}, inplace=True)
+            c.static.replace({"bus1": to_replace}, inplace=True)

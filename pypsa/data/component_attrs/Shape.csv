@@ -1,0 +1,6 @@
+attribute,type,dtype,unit,default,description,status,dynamic,nullable
+name,string,str,,,Unique name,Input (required),False,False
+geometry,geometry,object,,,Geometry,Input (optional),False,True
+component,string,str,,,Component type,Input (optional),False,True
+idx,string,str,,,Name of the component in index.,Input (optional),False,True
+type,string,str,,,Type of geometry,Input (optional),False,True
