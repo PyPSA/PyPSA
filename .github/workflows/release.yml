@@ -10,8 +10,13 @@ on:
     - v*.*.*
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
   publish-examples:
     name: Publish example networks to bucket
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
@@ -94,6 +99,7 @@ jobs:
 
   build:
     name: Build and verify package
+    needs: [publish-examples]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
