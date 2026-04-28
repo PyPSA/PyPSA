@@ -69,7 +69,7 @@ default_components = component_types_df.index.to_list()
 
 all_components: dict[str, ComponentType] = {}
 for _name, _row in component_types_df.iterrows():
-    _attrs_file = _ATTRS_PATH / f"{_name}.csv"
+    _attrs_file = _ATTRS_PATH / f"{_row.list_name}.csv"
     if not _attrs_file.exists():
         msg = (
             f"Could not find {_attrs_file}. For each component, there must be "
@@ -82,7 +82,7 @@ for _name, _row in component_types_df.iterrows():
         description=_row.description,
         category=_row.category if pd.notna(_row.category) else "",
         defaults=_process_defaults(pd.read_csv(_attrs_file, index_col=0)),
-        standard_types=_load_standard_types(_name),
+        standard_types=_load_standard_types(_row.list_name),
     )
 
 all_standard_attrs_set = {
