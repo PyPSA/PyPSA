@@ -55,7 +55,7 @@ from pypsa.optimization.global_constraints import (
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
-from pypsa.optimization.piecewise import define_piecewise
+from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -139,7 +139,10 @@ def _resolve_include_objective_constant(
 
 
 def define_objective(
-    n: Network, sns: pd.Index, include_objective_constant: bool
+    n: Network,
+    sns: pd.Index,
+    include_objective_constant: bool,
+    piecewise_options: list[PiecewiseOptions],
 ) -> None:
     """Define and write the optimization objective function.
 
@@ -168,6 +171,9 @@ def define_objective(
         Snapshots (and, for multi-investment, periods) over which to build the objective.
     include_objective_constant : bool
         Whether to include the objective constant as a variable in the objective function.
+    piecewise_options : list[PiecewiseOptions], optional
+        Options to override defaults in piecewise constraint formulation.
+        List is of the form ``[PiecewiseOptions(...), ...]``.
 
     Notes
     -----
@@ -265,6 +271,10 @@ def define_objective(
 
             # Piecewise marginal cost via tangent constraints.
             p = m[var_name].sel(snapshot=sns)
+            extra_options = filter(
+                lambda p: p.component == c.name and p.attribute == cost_type,
+                piecewise_options,
+            )
             seg_cost_var = define_piecewise(
                 m,
                 c,
@@ -274,6 +284,7 @@ def define_objective(
                 aux_var_name=f"{c.name}-{cost_type}_piecewise",
                 active_names=c.active_assets,
                 operator="<=",
+                extra_options=extra_options,
             )
             if seg_cost_var is not None:
                 linear_names = c.active_assets.difference(seg_cost_var.indexes["name"])
@@ -339,15 +350,16 @@ def define_objective(
 
         caps = m[f"{c.name}-{attr}"]
         y_attr = "capital_cost"
+        extra_options = piecewise_options.get(y_attr, {}) if piecewise_options else {}
         seg_cc_var = define_piecewise(
             m,
             c,
             x_var=caps,
-            y_var=None,
             seg_attr=y_attr,
             aux_var_name=f"{c.name}-{y_attr}_piecewise",
             active_names=ext_i,
             operator="<=",
+            extra_options=extra_options,
         )
         if seg_cc_var is not None:
             linear_names = ext_i.difference(seg_cc_var.indexes["name"])
@@ -514,6 +526,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
+        piecewise_options: list[PiecewiseOptions | dict] | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -583,6 +596,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
+        piecewise_options : PiecewiseOptions | dict, optional
+            Options to override defaults in piecewise constraint formulation.
+            Dict is of the form ``{attribute: {option_name: option_value, ...}}`` or
+            ``{attribute: {component_i: {option_name: option_value, ...}, ...}}``.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -627,6 +644,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             include_objective_constant=include_objective_constant,
             committable_big_m=committable_big_m,
             meshed_thresholds=meshed_thresholds,
+            piecewise_options=piecewise_options,
             **model_kwargs,
         )
         if extra_functionality:
@@ -663,6 +681,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
+        piecewise_options: list[PiecewiseOptions | dict] | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -705,6 +724,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
+        piecewise_options : list[PiecewiseOptions], optional
+            Options to override defaults in piecewise constraint formulation.
+            List is of the form ``[PiecewiseOptions(...), ...]``.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -718,6 +740,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._linearized_uc = int(linearized_unit_commitment)
         n._multi_invest = int(multi_investment_periods)
         n._committable_big_m = committable_big_m
+        piecewise_options = list(
+            {
+                PiecewiseOptions(**opt) if isinstance(opt, dict) else opt
+                for opt in (piecewise_options or [])
+            }
+        )
 
         if linearized_unit_commitment:
             check_no_modular_committables(n)
@@ -814,6 +842,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     transmission_losses=transmission_losses,
                     buses=buses,
                     suffix=suffix,
+                    piecewise_options=piecewise_options,
                 )
             prev = t
 
@@ -867,7 +896,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
 
-        define_objective(n, sns, include_objective_constant)
+        define_objective(n, sns, include_objective_constant, piecewise_options)
 
         return n.model
 

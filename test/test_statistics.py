@@ -2,13 +2,18 @@
 #
 # SPDX-License-Identifier: MIT
 
+
 import numpy as np
 import pandas as pd
 import pytest
 
 import pypsa
 from pypsa.statistics import groupers
-from pypsa.statistics.expressions import StatisticsAccessor, get_operation
+from pypsa.statistics.expressions import (
+    StatisticsAccessor,
+    get_operation,
+    port_efficiency,
+)
 
 
 def test_stats_alias(ac_dc_network):
@@ -546,3 +551,184 @@ class TestMarketValue:
 
         assert np.isfinite(mv.loc[("Link", "DC")])
         assert np.isfinite(mv.loc[("Line", "AC")])
+
+
+class TestPortEfficiency:
+    """Tests for port_efficiency, including the segment parameter."""
+
+    @pytest.fixture(scope="class")
+    def base_network(self):
+        idx = pd.Index([0, 1, 2])
+        n = pypsa.Network()
+        n.set_snapshots(idx)
+        n.add("Bus", ["bus0", "bus1", "bus2", "bus3"], carrier="AC")
+        n.add("Generator", "gen", bus="bus0", p_nom=100)
+        return n
+
+    @pytest.fixture(scope="class")
+    def static_link_eff(self, base_network):
+        """Minimal network with a multi-port Link and piecewise efficiency."""
+        n = base_network.copy()
+        n.add(
+            "Link",
+            "link_static",
+            bus0="bus0",
+            bus1="bus1",
+            bus2="bus2",
+            efficiency=0.8,
+            efficiency2=0.5,
+        )
+        return n
+
+    @pytest.fixture(scope="class")
+    def dynamic_link_eff(self, base_network):
+        """Minimal network with a multi-port Link and piecewise efficiency."""
+        n = base_network.copy()
+        n.add(
+            "Link",
+            "link_dyn",
+            bus0="bus0",
+            bus1="bus1",
+            bus2="bus2",
+            efficiency=pd.Series([0.7, 0.8, 0.9], index=n.snapshots),
+            efficiency2=pd.Series([0.1, 0.2, 0.3], index=n.snapshots),
+        )
+        return n
+
+    @pytest.fixture(scope="class")
+    def segment_link_eff(self, base_network):
+        """Network with a Link whose efficiency is defined piecewise per segment."""
+        n = base_network.copy()
+        n.add(
+            "Link",
+            "link_seg",
+            bus0="bus0",
+            bus1="bus1",
+            p_nom=100,
+            efficiency={0.0: 0.4, 0.5: 0.5, 1.0: 0.6},
+        )
+        return n
+
+    def mixed_link_eff(self, base_network):
+        """Network with a Link whose efficiency is defined piecewise per segment."""
+        n = base_network.copy()
+        n.add(
+            "Link",
+            "link_mix",
+            bus0="bus0",
+            bus1="bus1",
+            bus2="bus2",
+            bus3="bus3",
+            p_nom=100,
+            efficiency=0.5,
+            efficiency2={0.0: 0.4, 0.5: 0.5, 1.0: 0.6},
+            efficiency3=pd.Series([0.1, 0.2, 0.3], index=n.snapshots),
+        )
+        return n
+
+    # --- one-port components ---
+
+    def test_one_port_returns_ones(self, base_network):
+        result = port_efficiency(base_network, "Generator", port=0)
+        assert (result == 1).all()
+
+    def test_one_port_segment_flag_ignored(self, base_network):
+        """segment=True on a one-port component still returns ones (not an error)."""
+        result = port_efficiency(base_network, "Generator", port=0, segment=True)
+        assert (result == 1).all()
+
+    # --- passive branches ---
+
+    def test_passive_branch_port0_returns_minus_ones(self, ac_dc_network):
+        result = port_efficiency(ac_dc_network, "Line", port=0)
+        assert (result == -1).all()
+
+    def test_passive_branch_port1_returns_ones(self, ac_dc_network):
+        result = port_efficiency(ac_dc_network, "Line", port=1)
+        assert (result == 1).all()
+
+    # --- Link static efficiency ---
+
+    def test_static_link_port0_returns_minus_ones(self, static_link_eff):
+        result = port_efficiency(static_link_eff, "Link", port=0)
+        assert (result == -1).all()
+
+    def test_static_link_port1_returns_efficiency(self, static_link_eff):
+        result = port_efficiency(static_link_eff, "Link", port=1)
+        assert result["link_static"] == pytest.approx(0.8)
+
+    def test_static_link_port2_returns_efficiency2(self, static_link_eff):
+        result = port_efficiency(static_link_eff, "Link", port=2)
+        assert result["link_static"] == pytest.approx(0.5)
+
+    def test_static_link_segment_and_dynamic_raises(self, static_link_eff):
+        with pytest.raises(ValueError, match="segment and dynamic"):
+            port_efficiency(static_link_eff, "Link", port=1, segment=True, dynamic=True)
+
+    # --- Link dynamic efficiency ---
+
+    def test_dynamic_link_port1_returns_dataframe(self, dynamic_link_eff):
+        result = port_efficiency(dynamic_link_eff, "Link", port=1, dynamic=True)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_dynamic_link_port1_values(self, dynamic_link_eff):
+        result = port_efficiency(dynamic_link_eff, "Link", port=1, dynamic=True)
+        expected = dynamic_link_eff.c.links.dynamic["efficiency"]
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_dynamic_link_port2_returns_dataframe(self, dynamic_link_eff):
+        result = port_efficiency(dynamic_link_eff, "Link", port=2, dynamic=True)
+        expected = dynamic_link_eff.c.links.dynamic["efficiency2"]
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_dynamic_link_port2_values(self, dynamic_link_eff):
+        result = port_efficiency(dynamic_link_eff, "Link", port=2, dynamic=True)
+        expected = dynamic_link_eff.c.links.dynamic["efficiency2"]
+        pd.testing.assert_frame_equal(result, expected)
+
+    # --- Link segment efficiency ---
+
+    def test_segment_and_dynamic_raises(self, segment_link_eff):
+        with pytest.raises(ValueError, match="segment and dynamic"):
+            port_efficiency(
+                segment_link_eff, "Link", port=1, segment=True, dynamic=True
+            )
+
+    def test_segment_link_returns_dataframe(self, segment_link_eff):
+        """When a Link has piecewise efficiency, segment=True returns a DataFrame."""
+        result = port_efficiency(segment_link_eff, "Link", port=1, segment=True)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_segment_link_values_within_breakpoints(self, segment_link_eff):
+        """Segment efficiency values should lie within the piecewise bounds."""
+        result = port_efficiency(segment_link_eff, "Link", port=1, segment=True)
+        expected = segment_link_eff.c.links.segments["efficiency"]
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_segment_link_no_segment_returns_series(self, segment_link_eff):
+        """Without segment=True, port_efficiency falls back to the static value."""
+        result = port_efficiency(segment_link_eff, "Link", port=1, segment=False)
+        expected = pd.Series(
+            1.0, index=segment_link_eff.c.links.static.index, name="efficiency"
+        )
+        pd.testing.assert_series_equal(result, expected)
+
+    # --- mixed efficiency (parametrized over all combinations) ---
+
+    def test_mixed_link_port0_always_minus_one(self, mixed_link_eff):
+        result = port_efficiency(mixed_link_eff, "Link", port=0)
+        assert (result == -1).all()
+
+    @pytest.mark.parametrize("segment", [True, False])
+    @pytest.mark.parametrize("dynamic", [True, False])
+    def test_mixed_link_port1_static(self, mixed_link_eff):
+        result = port_efficiency(mixed_link_eff, "Link", port=1)
+        assert result.item() == 0.5
+
+    def test_mixed_link_port2_segmented(self, mixed_link_eff):
+        result = port_efficiency(mixed_link_eff, "Link", port=2)
+        assert isinstance(result, (pd.Series, pd.DataFrame))
+
+    def test_mixed_link_port3_dynamic(self, mixed_link_eff):
+        result = port_efficiency(mixed_link_eff, "Link", port=2)
+        assert isinstance(result, (pd.Series, pd.DataFrame))

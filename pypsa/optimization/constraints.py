@@ -22,7 +22,7 @@ from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
-from pypsa.optimization.piecewise import define_piecewise
+from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -978,6 +978,7 @@ def _iter_balance_args(
 def define_nodal_balance_constraints(
     n: Network,
     sns: pd.Index,
+    piecewise_options: list[PiecewiseOptions],
     transmission_losses: bool | int | dict = False,
     buses: Sequence | None = None,
     suffix: str = "",
@@ -1016,6 +1017,8 @@ def define_nodal_balance_constraints(
         Subset of buses for which to define constraints; if None, all buses are used
     suffix : str, default ""
         Optional suffix to append to constraint names and dimensions
+    piecewise_options : dict | None, default None
+        Options to override default piecewise constraint settings.
 
     Notes
     -----
@@ -1128,15 +1131,19 @@ def define_nodal_balance_constraints(
             cbuses = cbuses[cbuses != ""]
             port = bus_col.replace("bus", "")
             piecewise_constraint_name = f"{c.name}-p{port}_piecewise"
+            extra_options = filter(
+                lambda p: p.component == c.name and p.attribute == coeff.name,
+                piecewise_options,
+            )
             piecewise_var = define_piecewise(
                 n.model,
                 c,
                 x_var=var,
-                y_var=None,
                 seg_attr=coeff.name,
                 aux_var_name=piecewise_constraint_name,
                 active_names=names,
                 operator="==",
+                extra_options=extra_options,
             )
             if piecewise_var is not None:
                 names = names.difference(piecewise_var.coords["name"].values)

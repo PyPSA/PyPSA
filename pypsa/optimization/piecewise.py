@@ -7,16 +7,16 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal
+from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Any, Literal
 
+import pandas as pd
 import xarray as xr
 from linopy import Model, Variable, breakpoints, piecewise
 from linopy.constants import BREAKPOINT_DIM
 
 from pypsa.descriptors import nominal_attrs
-
-if TYPE_CHECKING:
-    import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +24,28 @@ OPS_T = Literal["<=", ">=", "=="]
 OPS: dict[OPS_T, str] = {"<=": "__le__", ">=": "__ge__", "==": "__eq__"}
 
 
+@dataclass(eq=True, frozen=True)
+class PiecewiseOptions:
+    """Options for piecewise constraint formulation."""
+
+    component: str
+    attribute: str
+    operator: OPS_T
+    name: str | None = None
+    method: str = "auto"
+
+
 def define_piecewise(
     m: Model,
     c: Any,
     x_var: Any,
-    y_var: Any | None,
     seg_attr: str,
     aux_var_name: str,
     active_names: pd.Index,
     operator: OPS_T,
+    extra_options: Iterable[PiecewiseOptions],
+    y_var: Any | None = None,
+    method: str = "auto",
 ) -> Variable | None:
     """Add variable(s) and constraint(s) necessary to define a constraint along a piecewise linear curve.
 
@@ -48,9 +61,6 @@ def define_piecewise(
         ``static``, and ``ctype.segments_attrs``.
     x_var : linopy.Variable
         The optimisation variable for the x-axis of the piecewise constraint.
-    y_var : linopy.Variable or None
-        The optimisation variable for the y-axis of the piecewise constraint.
-        If None, a new auxiliary variable will be created and used instead.
     seg_attr : str
         The piecewise attribute name, e.g. ``"marginal_cost"`` or ``"capital_cost"``.
     aux_var_name : str
@@ -59,6 +69,17 @@ def define_piecewise(
         Active component names to consider (e.g. ``c.active_assets`` or ``c.extendables``).
     operator : {"<=", ">=", "=="}
         The operator to use in the piecewise constraint, of the form ``<x-axis var> <operator> <y-axis var>``.
+    y_var : linopy.Variable or None, optional
+        The optimisation variable for the y-axis of the piecewise constraint.
+        If None, a new auxiliary variable will be created and used instead.
+    extra_options : Iterable[PiecewiseOptions]
+        Extra options to pass to the piecewise constraint formulation.
+        If multiple instance of piecewise options are provided for the same component and attribute,
+        then multiple piecewise constraints will be created with each of the specified options.
+        If empty, default settings will be used.
+    method : str, optional
+        The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_constraints method.
+        Default is "auto" (also the linopy default).
 
     Returns
     -------
@@ -82,10 +103,37 @@ def define_piecewise(
         y_var_sel = y_var.sel(name=seg_names)
     x_var_sel = x_var.sel(name=seg_names)
 
-    piecewise_func = piecewise(x_var_sel, x_breakpoints, y_breakpoints)
-    m.add_piecewise_constraints(
-        getattr(piecewise_func, OPS[operator])(y_var_sel), name=aux_var_name
-    )
+    for option in extra_options:
+        if isinstance(option.name, str):
+            valid_names = pd.Index([option.name], name="name")
+            aux_var_name_option = f"{aux_var_name}_{option.name}"
+        else:
+            valid_names = seg_names
+            aux_var_name_option = aux_var_name
+        _add_piecewise_constraint(
+            m,
+            x_var_sel,
+            y_var_sel,
+            x_breakpoints,
+            y_breakpoints,
+            aux_var_name_option,
+            option.method,
+            option.operator,
+            valid_names,
+        )
+        seg_names = seg_names.difference(valid_names)
+    if not seg_names.empty:
+        _add_piecewise_constraint(
+            m,
+            x_var_sel,
+            y_var_sel,
+            x_breakpoints,
+            y_breakpoints,
+            aux_var_name,
+            method,
+            operator,
+            seg_names,
+        )
     return y_var_sel
 
 
@@ -118,6 +166,30 @@ def get_segmented_names(
     return seg_names
 
 
+def _add_piecewise_constraint(
+    m: Model,
+    x_var: Variable,
+    y_var: Variable,
+    x_breakpoints: xr.DataArray,
+    y_breakpoints: xr.DataArray,
+    aux_var_name: str,
+    method: str,
+    operator: OPS_T,
+    valid_names: pd.Index,
+) -> None:
+    """Create a piecewise constraint for a given set of component names."""
+    x_var_sel = x_var.sel(name=valid_names)
+    y_var_sel = y_var.sel(name=valid_names)
+    x_breakpoints_sel = x_breakpoints.sel(name=valid_names)
+    y_breakpoints_sel = y_breakpoints.sel(name=valid_names)
+    piecewise_func = piecewise(x_var_sel, x_breakpoints_sel, y_breakpoints_sel)
+    m.add_piecewise_constraints(
+        getattr(piecewise_func, OPS[operator])(y_var_sel),
+        name=aux_var_name,
+        method=method,
+    )
+
+
 def _get_breakpoints(
     c: Any, seg_attr: str, seg_names: pd.Index
 ) -> tuple[xr.DataArray, xr.DataArray]:
@@ -143,8 +215,8 @@ def _get_breakpoints(
         nom_attr_da = xr.DataArray(c.static.loc[seg_names, nom_attr], dims="name")
         if (
             bad := (nom_attr_da == 0)
-            or (nom_attr_da.isnull())
-            or (nom_attr_da == float("inf"))
+            | (nom_attr_da.isnull())
+            | (nom_attr_da == float("inf"))
         ).any():
             bad_entries = nom_attr_da.where(bad).to_series().dropna().index.tolist()
             msg = (
