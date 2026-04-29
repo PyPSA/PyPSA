@@ -8,7 +8,7 @@ import pytest
 
 import pypsa
 from pypsa.statistics import groupers
-from pypsa.statistics.expressions import StatisticsAccessor
+from pypsa.statistics.expressions import StatisticsAccessor, get_operation
 
 
 def test_stats_alias(ac_dc_network):
@@ -140,7 +140,7 @@ def test_supply_withdrawal(ac_dc_network_r):
 def test_opex():
     n = pypsa.Network()
     n.set_snapshots([0, 1, 2])
-    n.snapshot_weightings.loc[:, :] = 2
+    n.snapshot_weightings.iloc[:, :] = 2
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=[0, 0, 5])
     n.add(
@@ -434,3 +434,243 @@ def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
         carrier="residential rural heat", nice_names=False
     )
     assert result.empty
+
+
+@pytest.fixture(scope="module")
+def multi_invest_network():
+    n = pypsa.Network(snapshots=range(10))
+    n.investment_periods = [2020, 2030, 2040]
+    n.investment_period_weightings.loc[2020, "years"] = 10
+    n.investment_period_weightings.loc[2020, "objective"] = 10
+    n.investment_period_weightings.loc[2030, "years"] = 15
+    n.investment_period_weightings.loc[2030, "objective"] = 15
+    n.investment_period_weightings.loc[2040, "years"] = 5
+    n.investment_period_weightings.loc[2040, "objective"] = 5
+    n.add("Carrier", "wind")
+    n.add("Carrier", "gas")
+    n.add("Bus", "elec")
+    n.add(
+        "Generator",
+        "wind-2020",
+        bus="elec",
+        carrier="wind",
+        capital_cost=100,
+        marginal_cost=0,
+        p_nom_extendable=True,
+        build_year=2020,
+        lifetime=30,
+    )
+    n.add(
+        "Generator",
+        "gas-2020",
+        bus="elec",
+        carrier="gas",
+        capital_cost=50,
+        marginal_cost=30,
+        p_nom_extendable=True,
+        p_nom_min=10,
+        build_year=2020,
+        lifetime=20,
+    )
+    n.add(
+        "Generator",
+        "gas-2040",
+        bus="elec",
+        carrier="gas",
+        capital_cost=40,
+        marginal_cost=25,
+        p_nom_extendable=True,
+        build_year=2040,
+        lifetime=20,
+    )
+    load = pd.DataFrame({"load": range(100, 100 + len(n.snapshots))}, index=n.snapshots)
+    n.add("Load", "load", bus="elec", p_set=load["load"])
+    n.optimize(solver_name="highs", multi_investment_periods=True)
+    return n
+
+
+class TestMultiInvest:
+    @pytest.fixture(scope="class")
+    def capex(self, multi_invest_network):
+        return multi_invest_network.statistics.capex()
+
+    @pytest.fixture(scope="class")
+    def capex_ungrouped(self, multi_invest_network):
+        return multi_invest_network.statistics.capex(groupby=False)
+
+    @pytest.fixture(scope="class")
+    def opex(self, multi_invest_network):
+        return multi_invest_network.statistics.opex()
+
+    @pytest.fixture(scope="class")
+    def opex_ungrouped(self, multi_invest_network):
+        return multi_invest_network.statistics.opex(groupby=False)
+
+    @pytest.fixture(scope="class")
+    def system_cost(self, multi_invest_network):
+        return multi_invest_network.statistics.system_cost()
+
+    def test_capex_structure(self, capex):
+        assert isinstance(capex, pd.DataFrame)
+        assert list(capex.columns) == [2020, 2030, 2040]
+        assert (capex.fillna(0) >= 0).all().all()
+
+    def test_capex_weighted(self, multi_invest_network, capex):
+        weights = multi_invest_network.investment_period_weightings["objective"]
+        annualized_2020 = capex[2020].dropna() / weights[2020]
+        annualized_2030 = capex[2030].dropna() / weights[2030]
+        pd.testing.assert_series_equal(
+            annualized_2020, annualized_2030, rtol=1e-3, check_names=False
+        )
+
+    def test_capex_active_assets_filtering(self, capex_ungrouped):
+        assert pd.isna(capex_ungrouped.loc[("Generator", "gas-2040"), 2020])
+        assert capex_ungrouped.loc[("Generator", "gas-2040"), 2040] > 0.0
+
+    def test_opex_structure(self, opex):
+        assert isinstance(opex, pd.DataFrame)
+        assert list(opex.columns) == [2020, 2030, 2040]
+        assert not opex.empty
+        assert (opex.fillna(0) >= 0).all().all()
+
+    def test_opex_matches_marginal_cost(self, multi_invest_network, opex_ungrouped):
+        n = multi_invest_network
+        pw = n.investment_period_weightings["objective"]
+        sw = n.snapshot_weightings.objective
+        for period in n.investment_periods:
+            active = n.c.generators.get_active_assets(period)
+            mc = n.c.generators.static.loc[active, "marginal_cost"]
+            mc = mc[mc > 0]
+            p = n.c.generators.dynamic.p.loc[period, mc.index]
+            expected = (p * mc).multiply(sw.loc[period], axis=0).sum() * pw[period]
+            actual = (
+                opex_ungrouped.loc["Generator"]
+                .reindex(expected.index)[period]
+                .fillna(0)
+            )
+            pd.testing.assert_series_equal(
+                actual, expected, rtol=1e-3, atol=1e-6, check_names=False
+            )
+
+    def test_system_cost_equals_capex_plus_opex(self, capex, opex, system_cost):
+        expected = capex.add(opex, fill_value=0).reindex(system_cost.index)
+        pd.testing.assert_frame_equal(expected, system_cost, atol=1e-3)
+
+    def test_system_cost_consistent_with_objective(
+        self, multi_invest_network, system_cost
+    ):
+        assert np.nansum(system_cost.values) == pytest.approx(
+            multi_invest_network.objective, rel=1e-3
+        )
+
+
+class TestGetOperation:
+    @pytest.mark.parametrize(
+        ("component", "expected_attr"),
+        [("Link", "p0"), ("Line", "p0"), ("Generator", "p"), ("Store", "e")],
+    )
+    def test_get_operation(self, ac_dc_network_r, component, expected_attr):
+        n = ac_dc_network_r
+        pd.testing.assert_frame_equal(
+            get_operation(n, component), n.components[component].dynamic[expected_attr]
+        )
+
+    def test_get_operation_multi_port(self, multiport_process_network):
+        pd.testing.assert_frame_equal(
+            get_operation(multiport_process_network, "Process"),
+            multiport_process_network.c.processes.dynamic["p"],
+        )
+
+
+class TestMarketValue:
+    mv_kwargs = {"nice_names": False, "round": None, "drop_zero": False}
+    rtol = 1e-6
+
+    def test_multiport(self, multiport_process_network):
+        n = multiport_process_network
+        mv = n.statistics.market_value(**self.mv_kwargs)
+
+        operation = n.c.processes.dynamic["p"]["electrolyser"]
+        prices = n.c.buses.dynamic["marginal_price"]
+        rev_per_t = -(
+            n.c.processes.dynamic["p0"]["electrolyser"] * prices["elec"]
+            + n.c.processes.dynamic["p1"]["electrolyser"] * prices["h2"]
+            + n.c.processes.dynamic["p2"]["electrolyser"] * prices["heat"]
+        )
+        expected = rev_per_t.mean() / operation.mean()
+        np.testing.assert_allclose(
+            mv.loc[("Process", "electrolyser")], expected, rtol=self.rtol
+        )
+
+    @pytest.mark.parametrize(
+        ("bus_carrier", "port", "bus"),
+        [
+            ("AC", "p0", "elec"),
+            ("H2", "p1", "h2"),
+            ("heat", "p2", "heat"),
+        ],
+    )
+    def test_with_bus_carrier(self, multiport_process_network, bus_carrier, port, bus):
+        n = multiport_process_network
+        mv = n.statistics.market_value(bus_carrier=bus_carrier, **self.mv_kwargs)
+
+        reference_operation = n.c.processes.dynamic["p"]["electrolyser"]
+        operation = n.c.processes.dynamic[port]["electrolyser"]
+        prices = n.c.buses.dynamic["marginal_price"][bus]
+        expected = -(operation * prices).mean() / reference_operation.mean()
+        np.testing.assert_allclose(
+            mv.loc[("Process", "electrolyser")], expected, rtol=self.rtol
+        )
+
+    def test_bus_carrier_additivity(self, multiport_process_network):
+        n = multiport_process_network
+        mv_kw = {**self.mv_kwargs, "groupby": False}
+        mv_total = n.statistics.market_value(**mv_kw)
+        mv_ac = n.statistics.market_value(bus_carrier="AC", **mv_kw)
+        mv_h2 = n.statistics.market_value(bus_carrier="H2", **mv_kw)
+        mv_heat = n.statistics.market_value(bus_carrier="heat", **mv_kw)
+
+        expected = (
+            mv_ac.loc[("Process", "electrolyser")]
+            + mv_h2.loc[("Process", "electrolyser")]
+            + mv_heat.loc[("Process", "electrolyser")]
+        )
+        np.testing.assert_allclose(
+            mv_total.loc[("Process", "electrolyser")], expected, rtol=self.rtol
+        )
+
+    def test_generator(self, multiport_process_network):
+        n = multiport_process_network
+        mv = n.statistics.market_value(components="Generator", **self.mv_kwargs)
+        operation = n.c.generators.dynamic["p"]["gen"]
+        prices = n.c.buses.dynamic["marginal_price"]["elec"]
+        expected = (operation * prices).mean() / operation.mean()
+        np.testing.assert_allclose(mv.loc["AC"], expected, rtol=self.rtol)
+
+    def test_withdrawing_load_sign(self):
+        n = pypsa.Network()
+        n.set_snapshots([0, 1])
+        n.add("Carrier", "AC")
+        n.add("Carrier", "load")
+        n.add("Bus", "b", carrier="AC")
+        n.add("Load", "l", bus="b", carrier="load", p_set=[10.0, 20.0])
+        n.c.loads.dynamic["p"] = n.c.loads.dynamic["p_set"].copy()
+
+        marginal_price = pd.DataFrame({"b": [50.0, 100.0]}, index=n.snapshots)
+        marginal_price.columns.name = "name"
+        n.c.buses.dynamic["marginal_price"] = marginal_price
+
+        mv = n.statistics.market_value(components="Load", **self.mv_kwargs)
+
+        p_load = np.array([10.0, 20.0])
+        price_load = np.array([50.0, 100.0])
+        expected = -(p_load * price_load).mean() / p_load.mean()
+        np.testing.assert_allclose(mv.loc["load"], expected, rtol=self.rtol)
+        assert mv.loc["load"] < 0
+
+    def test_grouped_branches_is_finite(self, ac_dc_network_r):
+        n = ac_dc_network_r
+        mv = n.statistics.market_value(**self.mv_kwargs)
+
+        assert np.isfinite(mv.loc[("Link", "DC")])
+        assert np.isfinite(mv.loc[("Line", "AC")])

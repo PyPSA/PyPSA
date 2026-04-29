@@ -130,6 +130,7 @@ nav:
     - examples/transformer-example.ipynb
     - examples/reserve-power.ipynb
     - examples/transport-delay.ipynb
+    - examples/periodic-operational-limits.ipynb
   - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
     - examples/gsa.ipynb
@@ -210,7 +211,6 @@ theme:
   - search.suggest
   - search.highlight
   - search.share
-  - announce.dismiss
 
   palette:
   - media: "(prefers-color-scheme: light)"

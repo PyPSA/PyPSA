@@ -14,27 +14,46 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Bug Fixes
+
+- Fix `n.statistics.transmission()` returning zero flows when `bus_carrier` is set. (<!-- md:pr 1662 -->)
+
+
+## [**v1.2.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.0) <small>21st April 2026</small> { id="v1.2.0" }
+
 ### Features
 
-- Add configurable numerical tolerance for consistency checks via the new `params.consistency.numerical_tolerance` option (default `1e-9`). This prevents false warnings from floating-point noise when comparing attributes like `p_min_pu` vs `p_max_pu`, `p_nom_min` vs `p_nom_max`, and `e_sum_min` vs `e_sum_max`.
+- New [Process](./user-guide/components/processes.md) components mirroring the behavior of multi-port [Link](./user-guide/components/links.md) components with explicit rates (efficiency equivalent to the Link) at each bus, including `bus0`. The component allows to flexibly change the reference unit used for associated costs by adjusting the rates. (<!-- md:pr 1333 -->)
 
-- New Process component mirroring the behavior of a multi-port Link component with explicit rates (efficiency equivalent to the Link) at each bus, including `bus0`. The component allows to flexibly change the reference unit used for associated costs by adjusting the rates. (<!-- md:pr 1333 -->)
+- Add weighted-time delays for [Link](./user-guide/components/links.md) outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior. For [Process](./user-guide/components/processes.md) components the corresponding attributes have explicit numbering (`delay0`, `delay1`, `delay2`, ... and `cyclic_delay0`, `cyclic_delay1`). See [:material-notebook-multiple: notebook](./examples/transport-delay.ipynb). (<!-- md:pr 1569 -->)
 
-- Add weighted-time delays for Link outputs via new attributes `delay` and `cyclic_delay` (auto-expanded as `delay2`, `delay3`, ... and `cyclic_delay2`, `cyclic_delay3`, ... for additional ports). Delay is interpreted in units of `snapshot_weightings.generators`, with cyclic or non-cyclic boundary behavior. For the Process component the corresponding attributes have explicit numbering (`delay0`, `delay1`, `delay2`, ... and `cyclic_delay0`, `cyclic_delay1`). (<!-- md:pr 1569 -->)
+- Add configurable numerical tolerance for consistency checks via the new [`params.consistency.numerical_tolerance`](./user-guide/options.md) option (default `1e-9`). This prevents false warnings from floating-point noise when comparing attributes like `p_min_pu` vs `p_max_pu`, `p_nom_min` vs `p_nom_max`, and `e_sum_min` vs `e_sum_max`. (<!-- md:pr 1609 -->)
 
-- New parameter `meshed_thresholds` in `n.optimize` for controlling groups of buses in nodal-balance constraints. Use this to save memory in the optimization definition for large networks with many interconnected buses. (<!-- md:pr 1591 -->)
+- New parameter `meshed_thresholds` in [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] for controlling groups of buses in nodal-balance constraints. Use this to save memory in the optimization definition for large networks with many interconnected buses. (<!-- md:pr 1591 -->)
 
-- `p_set` on `Store` components is now supported in lopf optimisation. (<!-- md:pr 1623 -->)
-
-### Deprecations
-
-- Deprecate `pypsa.optimization.common.get_strongly_meshed_buses` in favor of `get_bus_counts`. The old `meshed_threshold` model kwarg is deprecated; use `meshed_thresholds=[...]` in [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] or [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
+- `p_set` on [Store](./user-guide/components/stores.md) components is now supported in lopf optimisation. (<!-- md:pr 1623 -->)
 
 ### Documentation
-- Add a `groupby` argument to statistics map plotting, allowing custom bus grouping (defaults to `['bus', 'carrier']`). (<!-- md:pr 1592 -->)
+
+- New example notebook modeling oligopolistic behavior in energy markets using Cournot-Nash equilibrium with the fictitious objective approach. See [:material-notebook-multiple: notebook](./examples/imperfect-competition.ipynb).
+
+- Add an example of how to apply operational limits on assets over user-defined periods of time. See [:material-notebook-multiple: notebook](./examples/periodic-operational-limits.ipynb).
 
 ### Bug Fixes
 
+- Add a `groupby` argument to statistics map plotting, allowing custom bus grouping (defaults to `['bus', 'carrier']`). (<!-- md:pr 1592 -->)
+
+- Fix `capex`, `installed_capex`, and `opex` statistics to apply `investment_period_weightings["objective"]` for multi-investment-period networks, consistent with the optimization objective weighting. (<!-- md:pr 1646 -->)
+
+- Fix `get_operation` to correctly return the reference operational variable (`p`) for [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components instead of `p0`. (<!-- md:pr 1614 -->)
+
+- Fix `market_value` to correctly handle multi-port components ([Links](./user-guide/components/links.md), [Processes](./user-guide/components/processes.md)) by always normalizing revenue with the reference operational variable while allowing `bus_carrier` to filter the revenue contribution in the numerator. (<!-- md:pr 1614 -->)
+
+- Fix `ruff check` errors in documentation hooks. (<!-- md:pr 1612 -->)
+
+- Fix `NetworkCollection` statistic functions failing or returning wrong results when networks have different snapshots or snapshot weightings. (<!-- md:pr 1636 -->)
+
+- Fix `NetworkCollection` statistics failing when using `groupby="name"`. (<!-- md:pr 1653 -->)
 
 - Fix call to `DataFrame/Series.groupby()` in pandas 3.0, dropping the `axis` argument (<!-- md:pr 1596 -->)
 
@@ -54,9 +73,9 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix `optimize_security_constrained` not supporting MultiIndex `branch_outages` (<!-- md:pr 1637 -->)
 
-### Documentation
+- Fix compatibility with pandas 3 (<!-- md:pr 1617 -->)
 
-- New example notebook modeling oligopolistic behavior in energy markets using Cournot-Nash equilibrium with the fictitious objective approach. See [:material-notebook-multiple: notebook](./examples/imperfect-competition.ipynb).
+- Fix spurious `model`/`objective`/`objective_constant` warnings emitted during network export, and clarify the `n.model` warning to distinguish "not optimized yet" from "loaded from file". (<!-- md:pr 1659 -->)
 
 ## [**v1.1.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.1.2) <small>23rd February 2026</small> { id="v1.1.2" }
 

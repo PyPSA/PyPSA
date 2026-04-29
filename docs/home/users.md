@@ -97,6 +97,8 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_de: Fraunhofer Institute for Systems and Innovation Research (ISI)](https://www.isi.fraunhofer.de/)** uses a PyPSA-Eur-based approach for infrastructure analysis in Europe, e.g. in [Integrated Infrastructure Planning and 2050 Climate Neutrality: Deriving Future-Proof European Energy Infrastructures](https://www.agora-energiewende.org/publications/integrated-infrastructure-planning-and-2050-climate-neutrality) on future-proof European energy infrastructures jointly with Fraunhofer IEG and d-fine.
 
+- **[:flag_us: Union of Concerned Scientists (UCS)](https://www.ucs.org/)**: used PyPSA to assess the storage needs for Illinois electricity system.
+
 ## Companies
 
 * **[:flag_de: TransnetBW](https://www.transnetbw.de/)**, the electricity transmission system operator in southwest Germany, **[:flag_de: ONTRAS](https://www.ontras.com/)**, the gas transmission system operator in eastern Germany and **[:flag_de: d-fine](https://www.d-fine.com/)**, a consultancy firm, used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see [Stromnetz 2050](https://www.transnetbw.de/de/stromnetz2050/), for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen [Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050](https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf), and for their 2022 study [Energy System 2050 - Towards a decarbonised Europe](https://www.energysystem2050.net/).
