@@ -54,18 +54,17 @@ These constraints are set in the function `define_kirchhoff_voltage_constraints(
     However, the extension [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] covers this through an
     iterative process as done Hagspiel et al. (2014)[^2] .
 
+## Linear Loss Approximation
 
-## Loss Approximation
-
-The AC transmission losses $\psi_{l,t}$ are approximated using a tangent-based linearization of the loss parabola:
+The AC transmission losses $\psi_{l,t}$ for line $l$ at timestep $t$ are given by the loss parabola
 
 $$
-\psi_{l,t} = r_{l} p_{l,t}^2
+\psi_{l,t} = r_{l} p_{l,t}^2,
 $$
 
-where $r_l$ is the resistance, following Neumann et al. (2022)[^3].
+where $r_l$ is the resistance of line $l$, following Neumann et al. (2022)[^3].
 
-The approximation uses piecewise linear constraints:
+In PyPSA this non-linear function is linearized with piecewise linear constraints:
 
 $$
 0 \leq \psi_{l,t} \leq r_{l} (\bar{p}_{l,t} \overline{P}_{l})^2 \quad \forall l,t
@@ -79,10 +78,80 @@ $$
 \psi_{l,t} \geq -m_k \cdot p_{l,t} + a_k \quad \forall l,t,\ k = 1, \dots, n
 $$
 
-For each segment $k$ of the total $n$ segments, the slope $m_k$ and offset $a_k$ are derived as:
+where $\bar{p}_{l,t}$ is the maximum per-unit powerflow at time $t$ and $\overline{P}_{l}^2$ is the (maximum) line capacity. The index $k$ denotes the segments of the linear approximation with a total of $n$ segments, with offsets $a_k$ and with slopes $m_k$.
+
+The losses also modify the [power balance](energy-balance.md) by adding the following term to its left-hand side:
 
 $$
-\psi_{l,t}(k) = r_{l} \left(\frac{k}{n} \cdot \bar{p}_{l,t} \overline{P}_{l}) \right)^2
+-0.5 \cdot \sum_{l} |K_{n,l}| \cdot \psi_{l,t} \quad \forall n,t
+$$
+
+splitting losses equally between both connection points.
+
+The dispatch limits of $p_{\ell,t}$ are now subtracted by $\psi_{l,t}$.
+
+
+Two linearization methods are available in PyPSA: the tangent-based approximation ([`define_tangent_loss_constraints()`][pypsa.optimization.constraints.define_tangent_loss_constraints]) and the secant-based approximation with error control ([`define_secant_loss_constraints()`][pypsa.optimization.constraints.define_secant_loss_constraints]).
+
+The transmission loss approximation is not activated by default, but must be enabled in [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
+
+```py
+# Secant-based approximation with error control
+n.optimize(transmission_losses=True)
+# Or with custom tolerances
+n.optimize(transmission_losses={"mode": "secants", "atol": 1, "rtol": 0.1})
+# Tangent-based approximation
+n.optimize(transmission_losses={"mode": "tangents", "segments": 3})
+```
+
+When passing a dict, the `mode` key selects the method. Additional keys are forwarded to the corresponding constraint function:
+
+- **Secant mode** (`"secants"`, see [`define_secant_loss_constraints()`][pypsa.optimization.constraints.define_secant_loss_constraints]): `atol`, `rtol`, `max_segments`.
+- **Tangent mode** (`"tangents"`, see [`define_tangent_loss_constraints()`][pypsa.optimization.constraints.define_tangent_loss_constraints]): `segments`.
+
+!!! hint "Hint: Calculating transmission losses"
+
+    The losses can be calculated with `n.lines_t.p0 + n.lines_t.p1`.
+
+??? note "Mapping of symbols to component attributes"
+
+| Symbol            | Attribute                                                                                                                                   | Type                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| $p_{l,t}$       | `n.lines_t.p0` or `n.transformers_t.p0`                                                                                                 | Decision variable             |
+| $\psi_{l,t}$    | `n.lines_t.losses` or `n.transformers_t.losses`                                                                                         | Decision variable             |
+| $\bar{p}_{l,t}$ | `n.lines_t.s_max_pu` or `n.transformers_t.s_max_pu`                                                                                     | Parameter                     |
+| $\bar{P}_{l}$   | `n.lines.s_nom_opt` and `n.transformers.s_nom_opt` (if extendable) or `n.lines.s_nom` or `n.transformers.s_nom` (if non-extendable) | Decision variable / Parameter |
+| $x_l$           | `n.lines.x_pu_eff` or `n.transformers.x_pu_eff`                                                                                         | Parameter                     |
+| $r_l$           | `n.lines.r_pu_eff` or `n.transformers.r_pu_eff`                                                                                         | Parameter                     |
+| $C_{l,c}$       | Cycle matrix calculated by `find_cycles()`                                                                                                | Parameter                     |
+| $K_{n,l}$       | Incidence matrix calculated by [`n.incidence_matrix()`][pypsa.networks.SubNetwork.incidence_matrix]                                       | Parameter                     |
+
+### Secant-Based Linearization with Error Control
+
+The secant-based linearization is designed to overestimate the AC line losses and is guaranteed to stay within the error bounds defined by the specified absolute (`atol`) and relative (`rtol`) error tolerances. The slope $m_k$ and offset $a_k$ are derived as
+
+$$
+m_{k, l} = r_l (\rho_{k-1} + \rho_{k})
+$$
+
+$$
+a_{k, l} = - r_l \rho_{k-1} \rho_{k}
+$$
+
+where $\rho_k$ are suitably chosen points on the loss parabola. For details on how these points are derived see the [original PR](https://github.com/PyPSA/PyPSA/pull/1495).
+
+### Tangent-Based Linearization
+
+!!! hint "Warning: Depending on parameters, some lines can be lossless when the tangent-based linearization is used"
+    - The tangent-based approximation is designed to underestimate losses
+    - Its segments depend on `s_nom_max`
+    - The first segment models zero losses
+    - If a line has `s_nom_max > 2 * n_segments * s_nom_opt` then that line is lossless, since all flows stay in the first segment of the approximation.
+
+For the tangent-based linearization the slope $m_k$ and offset $a_k$ are derived as:
+
+$$
+\psi_{l,t}(k) = r_{l} \left(\frac{k}{n} \cdot \bar{p}_{l,t} \overline{P}_{l} \right)^2
 $$
 
 $$
@@ -93,46 +162,10 @@ $$
 a_k = \psi_{l,t}(k) - m_k \left(\frac{k}{n} \cdot \bar{p}_{l,t} \overline{P}_{l} \right)
 $$
 
-The losses also modify the [power balance](energy-balance.md) by adding the term to its left-hand side
-
-$$
--0.5 \cdot \sum_{l} |K_{n,l}| \cdot \psi_{l,t} \quad \forall n,t
-$$
-
-splitting losses equally between both connection points.
-
-The dispatch limits of $p_{\ell,t}$ are now subtracted by $\psi_{l,t}$.
-
-These constraints are set in the function `define_loss_constraints()`.
-
-The transmission loss approximation is not activated by default, but must be
-enabled by providing a number of tangents in [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
-
-``` py
-n.optimize(transmission_losses=3)
-```
-
-The higher the number of tangents, the more accurate the approximation, but also
-the more constraints are added to the optimisation problem. Typically, 2-4
-tangents are sufficient for a reasonably accurate approximation.
-
-!!! hint "Hint: Calculating transmission losses"
-
-    The losses can be calculated with `n.lines_t.p0 + n.lines_t.p1`.
+The higher the number of tangents, the more accurate the approximation, but also the more constraints are added to the optimisation problem. Typically, 2-4 tangents are sufficient for a reasonably accurate approximation.
 
 
-??? note "Mapping of symbols to component attributes"
-
-    | Symbol | Attribute | Type |
-    |-------------------|-----------|-------------|
-    | $p_{l,t}$     | `n.lines_t.p0` or `n.transformers_t.p0` | Decision variable |
-    | $\psi_{l,t}$ | `n.lines_t.losses` or `n.transformers_t.losses` | Decision variable |
-    | $\bar{p}_{l,t}$ | `n.lines_t.s_max_pu` or `n.transformers_t.s_max_pu` | Parameter |#
-    | $\bar{P}_{l}$ | `n.lines.s_nom_opt` and `n.transformers.s_nom_opt` (if extendable) or `n.lines.s_nom` or `n.transformers.s_nom` (if non-extendable) | Decision variable / Parameter |
-    | $x_l$         | `n.lines.x_pu_eff` or `n.transformers.x_pu_eff` | Parameter |
-    | $r_l$         | `n.lines.r_pu_eff` or `n.transformers.r_pu_eff` | Parameter |
-    | $C_{l,c}$         | Cycle matrix calculated by `find_cycles()` | Parameter |
-    | $K_{n,l}$         | Incidence matrix calculated by [`n.incidence_matrix()`][pypsa.networks.SubNetwork.incidence_matrix] | Parameter |
+More details on this implementation can be found in Neumann et al. (2022)[^3].
 
 ## Examples
 

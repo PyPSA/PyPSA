@@ -365,6 +365,7 @@ def equals(
 
     if ignored_classes is not None and isinstance(a, tuple(ignored_classes)):
         return True
+    from pypsa.components.components import Components  # noqa: PLC0415
     from pypsa.components.store import ComponentsStore  # noqa: PLC0415
 
     # Classes with equality methods
@@ -378,14 +379,26 @@ def equals(
             return True
         if not a.equals(b):
             # TODO: Resolve with data validation PR
-            # Check if dtypes are equal
+            # Fallback with dtype tolerance for pandas 2 vs 3 differences
+            # (object vs StringDtype, datetime64[ns] vs datetime64[us])
             try:
-                pd_testing.assert_frame_equal(
-                    a, b, check_dtype=False, check_exact=False
-                )
+                if isinstance(a, pd.DataFrame):
+                    pd_testing.assert_frame_equal(
+                        a, b, check_dtype=False, check_index_type=False
+                    )
+                elif isinstance(a, pd.Series):
+                    pd_testing.assert_series_equal(
+                        a, b, check_dtype=False, check_index_type=False
+                    )
+                else:
+                    pd_testing.assert_index_equal(a, b, exact=False)
             except AssertionError:
                 msg = f"pandas objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
                 return handle_diff(msg)
+
+    elif isinstance(a, Components):
+        if not a.equals(b, log_mode=log_mode):
+            return False
 
     elif isinstance(a, ComponentsStore):
         for k, v in a.items():
@@ -555,36 +568,6 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
 
     """
     return deprecated_kwargs(network="n", deprecated_in="0.31", removed_in="1.0")(f)
-
-
-def deprecated_in_next_major(details: str) -> Callable:
-    """Wrap the @deprecated decorator to only require specifying the details.
-
-    Deprecates the function in the next major version and removes it in the
-    following major version. Currently set to deprecate in version 1.0 and remove
-    in version 2.0.
-
-    Parameters
-    ----------
-    details : str
-        Details about the deprecation.
-
-    Returns
-    -------
-    Callable
-        A decorator that marks the function as deprecated.
-
-    """
-
-    def decorator(func: Callable) -> Callable:
-        return deprecated(
-            deprecated_in="1.0rc1",
-            removed_in="2.0",
-            current_version=__version_base__,
-            details=details,
-        )(func)
-
-    return decorator
 
 
 def deprecated_namespace(
@@ -870,7 +853,9 @@ def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
     c   3.0   3.0
 
     """
-    return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+    result = ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+    result.index.name = ser.index.name
+    return result
 
 
 def _scenarios_not_implemented(func: Callable) -> Callable:
@@ -878,8 +863,7 @@ def _scenarios_not_implemented(func: Callable) -> Callable:
 
     @functools.wraps(func)
     def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-        # Check if self is the network or has an 'n' attribute pointing to the network
-        network = getattr(self, "n", self)
+        network = getattr(self, "_n", self)
         if network.has_scenarios:
             msg = f"Method '{func.__name__}' is not yet implemented for stochastic networks."
             raise ValueError(msg)
@@ -956,3 +940,47 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     from pypsa.costs import annuity as costs_annuity  # noqa: PLC0415
 
     return costs_annuity(r, n)
+
+
+def normalize_carrier_nice_names(
+    nice_name_series: pd.Series,
+    carrier: str | Sequence[str] | None,
+) -> str | Sequence[str] | None:
+    """Normalize carrier nice names to carrier names.
+
+    Parameters
+    ----------
+    nice_name_series : pd.Series
+        Series with carrier names as index and nice names as values
+        (i.e. ``n.c.carriers.static.nice_name``).
+    carrier : str | Sequence[str] | None
+        Carrier name(s) to normalize.
+
+    Returns
+    -------
+    str | Sequence[str] | None
+        Normalized carrier name(s).
+
+    """
+    if carrier is None:
+        return None
+
+    if isinstance(carrier, str):
+        carriers = [carrier]
+        scalar = True
+    elif isinstance(carrier, list):
+        carriers = carrier
+        scalar = False
+    else:
+        return carrier
+
+    nice_names = nice_name_series[nice_name_series != ""]
+    if nice_names.empty:
+        return carrier
+
+    unique_nice_names = nice_names[~nice_names.duplicated(keep=False)]
+    nice_name_to_carrier = pd.Series(
+        unique_nice_names.index, index=unique_nice_names.values
+    )
+    normalized = [nice_name_to_carrier.get(name, name) for name in carriers]
+    return normalized[0] if scalar else normalized

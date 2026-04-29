@@ -465,9 +465,10 @@ options._add_option(
 )
 options._add_option(
     "params.optimize.log_to_console",
-    True,
-    "Whether to print solver output to console. See linopy's Model.solve()\n\t"
-    "documentation at https://linopy.readthedocs.io for details.",
+    None,
+    "Whether to print solver output to console. Passed as a solver option\n\t"
+    "to linopy's Model.solve(). When None, solver default behavior is used.\n\t"
+    "Note: not all solvers support this option (e.g. HiGHS does, CPLEX does not).",
 )
 options._add_option(
     "params.optimize.include_objective_constant",
@@ -477,6 +478,13 @@ options._add_option(
     "conditioning. None defaults to True with a FutureWarning (changes to False in v2.0).",
 )
 
+options._add_option(
+    "params.consistency.numerical_tolerance",
+    1e-9,
+    "Tolerance for numerical comparisons in consistency checks (e.g. p_min_pu > p_max_pu). "
+    "Values within this tolerance of the boundary are not flagged as inconsistent. "
+    "Set to 0 to disable tolerance and flag any violation.",
+)
 # Warnings category
 options._add_option(
     "warnings.components_store_iter",

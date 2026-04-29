@@ -17,6 +17,7 @@ from pypsa.plot.statistics.charts import (
     adjust_collection_bar_defaults,
     prepare_bar_data,
 )
+from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.plotter import StatisticPlotter
 from pypsa.statistics.expressions import StatisticsAccessor
 
@@ -298,3 +299,33 @@ def test_networks_stacking(network_collection):
 def test_networks_plot_map(network_collection):
     with pytest.raises(NotImplementedError):
         network_collection.statistics.energy_balance.plot.map()
+
+
+def test_statistics_map_transmission_flow_bus_carrier_non_zero(
+    ac_dc_network_r, monkeypatch
+):
+    captured: dict[str, pd.Series | int] = {}
+
+    def fake_draw_map(self, **kwargs):
+        captured["line_flow"] = kwargs.get("line_flow", 0)
+        captured["link_flow"] = kwargs.get("link_flow", 0)
+
+    monkeypatch.setattr(MapPlotGenerator, "draw_map", fake_draw_map)
+
+    ac_dc_network_r.statistics.energy_balance.plot.map(
+        bus_carrier="AC",
+        transmission_flow=True,
+        geomap=False,
+        draw_legend_circles=False,
+        draw_legend_lines=False,
+        draw_legend_arrows=False,
+        draw_legend_patches=False,
+    )
+
+    line_flow = captured.get("line_flow", 0)
+    link_flow = captured.get("link_flow", 0)
+
+    line_non_zero = isinstance(line_flow, pd.Series) and (line_flow.abs() > 0).any()
+    link_non_zero = isinstance(link_flow, pd.Series) and (link_flow.abs() > 0).any()
+
+    assert line_non_zero or link_non_zero

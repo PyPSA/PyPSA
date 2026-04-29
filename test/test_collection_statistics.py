@@ -4,6 +4,7 @@
 
 """Tests for NetworkCollection statistics with various groupers."""
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -60,6 +61,35 @@ def simple_network():
     # Add a link between AC and DC buses
     n.add("Link", "ac_dc_link", bus0="bus_ac1", bus1="bus_dc1", p_nom=40)
 
+    return n
+
+
+def mock_single_bus_dispatch(
+    name: str,
+    snapshots: pd.DatetimeIndex,
+    p_set: list[float],
+    weightings: list[float] | None = None,
+    marginal_cost: float = 10,
+) -> pypsa.Network:
+    """Create a single-bus network with hard-set dispatch results (no solver)."""
+    n = pypsa.Network()
+    n.name = name
+    n.set_snapshots(snapshots)
+    if weightings is not None:
+        n.snapshot_weightings.loc[:, :] = weightings
+    n.add("Bus", "bus0", carrier="AC")
+    n.add("Carrier", ["AC", "gas"])
+    n.add(
+        "Generator",
+        "gen0",
+        bus="bus0",
+        carrier="gas",
+        p_nom=100,
+        marginal_cost=marginal_cost,
+    )
+    n.add("Load", "load0", bus="bus0", p_set=p_set)
+    n.c.generators.dynamic["p"].loc[:, "gen0"] = p_set
+    n.c.buses.dynamic["marginal_price"].loc[:, "bus0"] = marginal_cost
     return n
 
 
@@ -277,6 +307,35 @@ def test_network_collection_multiple_groupers(optimized_network_collection_from_
     assert not result2.empty
     assert "carrier" in result2.index.names
     assert "bus_carrier" in result2.index.names
+
+
+def test_network_collection_name_grouper(optimized_network_collection_from_ac_dc):
+    """Test grouping by component name on a NetworkCollection.
+
+    See https://github.com/PyPSA/PyPSA/issues/1624.
+    """
+    nc = optimized_network_collection_from_ac_dc
+
+    # Both scalar and list form of groupby should work
+    result_scalar = nc.statistics.opex(groupby="name")
+    result_list = nc.statistics.opex(groupby=["name"])
+
+    for result in (result_scalar, result_list):
+        assert not result.empty
+        assert "scenario" in result.index.names
+        assert "component" in result.index.names
+        assert "name" in result.index.names
+        names = result.index.get_level_values("name")
+        assert all(isinstance(v, str) for v in names), (
+            f"Expected scalar string names, got: {list(names)[:3]}"
+        )
+        assert "Manchester Wind" in set(names)
+
+    # Combining name with another grouper must also work
+    combined = nc.statistics.installed_capacity(groupby=["carrier", "name"])
+    assert not combined.empty
+    assert "carrier" in combined.index.names
+    assert "name" in combined.index.names
 
 
 def test_network_collection_multiindex_scenarios(ac_dc_network_r):
@@ -562,3 +621,65 @@ def test_network_collection_bus_carrier_filter(
         collection_result_first.sort_index(),
         check_names=False,
     )
+
+
+def _assert_collection_matches_individuals(
+    nc: pypsa.NetworkCollection,
+    networks: dict[str, pypsa.Network],
+) -> None:
+    """Assert that collection statistics match individual network statistics."""
+    for method in ["supply", "opex", "energy_balance"]:
+        nc_result = getattr(nc.statistics, method)()
+        assert not nc_result.empty
+
+        for label, n in networks.items():
+            individual = getattr(n.statistics, method)()
+            from_collection = nc_result.xs(label, level="network")
+            np.testing.assert_allclose(
+                from_collection.sort_index().values,
+                individual.sort_index().values,
+                err_msg=f"{method} mismatch for network '{label}'",
+            )
+
+
+def test_network_collection_different_snapshots():
+    """Test NetworkCollection statistics with disjoint snapshots."""
+    n1 = mock_single_bus_dispatch(
+        "hourly",
+        pd.date_range("2020-01-01", periods=3, freq="h"),
+        p_set=[50, 60, 70],
+    )
+    n2 = mock_single_bus_dispatch(
+        "segmented",
+        pd.date_range("2020-01-01 03:00", periods=2, freq="h"),
+        p_set=[80, 90],
+    )
+    nc = pypsa.NetworkCollection([n1, n2])
+    _assert_collection_matches_individuals(nc, {"hourly": n1, "segmented": n2})
+
+    full = nc.statistics()
+    assert not full.empty
+    assert "Supply" in full.columns
+    assert "Operational Expenditure" in full.columns
+
+
+def test_network_collection_overlapping_snapshots():
+    """Test NetworkCollection statistics with partially overlapping snapshots."""
+    sns = pd.date_range("2020-01-01", periods=4, freq="h")
+    n1 = mock_single_bus_dispatch("net1", sns[:3], p_set=[50, 60, 70])
+    n2 = mock_single_bus_dispatch("net2", sns[1:], p_set=[60, 70, 80])
+    nc = pypsa.NetworkCollection([n1, n2])
+    _assert_collection_matches_individuals(nc, {"net1": n1, "net2": n2})
+
+
+def test_network_collection_different_snapshot_weightings():
+    """Test NetworkCollection statistics with non-uniform snapshot weightings."""
+    sns = pd.date_range("2020-01-01", periods=3, freq="h")
+    n1 = mock_single_bus_dispatch("weighted", sns, p_set=[50, 60, 70], weightings=[2])
+    n2 = mock_single_bus_dispatch(
+        "uniform",
+        pd.date_range("2020-01-01 03:00", periods=2, freq="h"),
+        p_set=[80, 90],
+    )
+    nc = pypsa.NetworkCollection([n1, n2])
+    _assert_collection_matches_individuals(nc, {"weighted": n1, "uniform": n2})

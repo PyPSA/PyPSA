@@ -12,7 +12,9 @@ import warnings
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
-from pypsa.common import deprecated_in_next_major, equals
+from deprecation import deprecated
+
+from pypsa.common import equals
 from pypsa.components.components import Components
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
@@ -95,6 +97,7 @@ class Network(
     # Optimization
     _multi_invest: int
     _linearized_uc: int
+    _committable_big_m: float | None
     iteration: int
 
     # ----------------
@@ -164,6 +167,8 @@ class Network(
         self._model: linopy.Model | None = None
         self._objective: float | None = None
         self._objective_constant: float | None = None
+        self._multi_invest: int = 0
+        self._committable_big_m: float | None = None
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -688,7 +693,9 @@ class Network(
         """
         if self._model is None:
             logger.warning(
-                "The network has not been optimized yet and no model is stored."
+                "No linopy model is stored on this network. "
+                "The network may not have been optimized yet, or it was loaded "
+                "from a file (models are not serialized on export)."
             )
         return self._model
 
@@ -1006,6 +1013,7 @@ class Network(
             "_meta",
             "_linearized_uc",
             "_multi_invest",
+            "_committable_big_m",
             "_objective",
             "_objective_constant",
             "now",
@@ -1033,7 +1041,7 @@ class Network(
 
         <!-- md:badge-version v0.3.0 -->
 
-        Branches are Lines, Links and Transformers.
+        Branches are Links, Processes, Lines and Transformers.
 
         !!! note
 
@@ -1127,7 +1135,7 @@ class Network(
 
         <!-- md:badge-version v0.3.0 -->
 
-        Controllable branches are Links.
+        Controllable branches are Links and Processes.
 
         !!! note
 
@@ -1137,17 +1145,14 @@ class Network(
         Examples
         --------
         >>> n.controllable_branches() # doctest: +ELLIPSIS
-                        active    b  b_pu  ...         x      x_pu  x_pu_eff
-        component name                     ...
-        Line      0       True  0.0   0.0  ...  0.796878  0.000006  0.000006
-                1       True  0.0   0.0  ...  0.391560  0.000003  0.000003
-                2       True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                3       True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                4       True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
-                6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
+                                     active  build_year  ... type up_time_before
+        component name                                   ...
+        Link      Norwich Converter    True           0  ...                   1
+                  Norway Converter     True           0  ...                   1
+                  Bremen Converter     True           0  ...                   1
+                  DC link              True           0  ...                   1
         <BLANKLINE>
-        [7 rows x 41 columns]
+        [4 rows x 47 columns]
 
         See Also
         --------
@@ -1156,7 +1161,7 @@ class Network(
 
         """
         comps = list(
-            set(self.passive_branch_components) - set(self._empty_components())
+            set(self.controllable_branch_components) - set(self._empty_components())
         )
         names = (
             ["component", "scenario", "name"]
@@ -1352,7 +1357,9 @@ class Network(
         # Reindex to include all branches (even those not in cycles)
         return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `n.components.<component>` instead.",
     )
     def component(self, c_name: str) -> Component:
@@ -1365,7 +1372,11 @@ class Network(
         """
         return self.components[c_name]
 
-    @deprecated_in_next_major(details="Use `for component in n.components` instead.")
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `for component in n.components` instead.",
+    )
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True
     ) -> Iterator[Component]:
@@ -1631,7 +1642,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         branches = self.n.passive_branches()
         return branches[branches.sub_network == self.name]
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.<c_name>` instead.",
     )
     def component(self, c_name: str) -> SubNetworkComponents:
@@ -1648,7 +1661,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.components[c_name]
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.<c_name>.static` instead.",
     )
     def df(self, c_name: str) -> pd.DataFrame:
@@ -1665,7 +1680,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c[c_name].static
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.<c_name>.static` instead.",
     )
     def static(self, c_name: str) -> pd.DataFrame:
@@ -1682,7 +1699,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.components[c_name].static
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.<c_name>.dynamic` instead.",
     )
     def pnl(self, c_name: str) -> Dict:
@@ -1699,7 +1718,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c[c_name].dynamic
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.<c_name>.dynamic` instead.",
     )
     def dynamic(self, c_name: str) -> Dict:
@@ -1716,7 +1737,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.components[c_name].dynamic
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.buses.static.index` instead.",
     )
     def buses_i(self) -> pd.Index:
@@ -1733,7 +1756,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.buses.static.index
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.lines.static.index` instead.",
     )
     def lines_i(self) -> pd.Index:
@@ -1750,7 +1775,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.lines.static.index
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.transformers.static.index` instead.",
     )
     def transformers_i(self) -> pd.Index:
@@ -1767,7 +1794,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.transformers.static.index
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.generators.static.index` instead.",
     )
     def generators_i(self) -> pd.Index:
@@ -1784,7 +1813,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.generators.static.index
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.loads.static.index` instead.",
     )
     def loads_i(self) -> pd.Index:
@@ -1801,7 +1832,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.loads.static.index
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.shunt_impedances.static.index` instead.",
     )
     def shunt_impedances_i(self) -> pd.Index:
@@ -1818,7 +1851,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.shunt_impedances.static.index
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.storage_units.static.index` instead.",
     )
     def storage_units_i(self) -> pd.Index:
@@ -1835,7 +1870,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.storage_units.static.index
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.stores.index.static` instead.",
     )
     def stores_i(self) -> pd.Index:
@@ -1852,7 +1889,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.stores.static.index
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.buses.static` instead.",
     )
     def buses(self) -> pd.DataFrame:
@@ -1869,7 +1908,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.buses.static
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.generators.static` instead.",
     )
     def generators(self) -> pd.DataFrame:
@@ -1886,7 +1927,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.generators.static
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.loads.static` instead.",
     )
     def loads(self) -> pd.DataFrame:
@@ -1903,7 +1946,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.loads.static
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.shunt_impedances.static` instead.",
     )
     def shunt_impedances(self) -> pd.DataFrame:
@@ -1920,7 +1965,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.shunt_impedances.static
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `sub_network.components.storage_units.static` instead.",
     )
     def storage_units(self) -> pd.DataFrame:
@@ -1937,7 +1984,9 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.storage_units.static
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `!!! deprecated.components.stores.static` instead.",
     )
     def stores(self) -> pd.DataFrame:
@@ -1949,7 +1998,11 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.c.stores.static
 
-    @deprecated_in_next_major(details="Use `self.components` instead.")
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `self.components` instead.",
+    )
     # Deprecate: Use `self.iterate_components` instead
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True

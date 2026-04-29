@@ -15,13 +15,38 @@ from typing import TYPE_CHECKING, Any, Literal
 import pandas as pd
 
 from pypsa._options import options
-from pypsa.constants import RE_PORTS
+from pypsa.common import normalize_carrier_nice_names
 from pypsa.statistics.grouping import groupers
 
 if TYPE_CHECKING:
     from pypsa import Network, NetworkCollection
+    from pypsa.components.components import PortsLike
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_at_port(
+    at_port: PortsLike | None,
+    bus_carrier: str | Sequence[str] | None = None,
+) -> PortsLike:
+    """Resolve `at_port` default: "all" when `bus_carrier` is set, otherwise 0."""
+    if at_port is False:
+        warnings.warn(
+            f"Passing `at_port={at_port}` is deprecated. Use `at_port=0` instead. Deprecated in version 1.1. Will be removed in version 2.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return 0
+    if at_port is True:
+        warnings.warn(
+            'Passing `at_port=True` is deprecated. Use `at_port="all"` instead. Deprecated in version 1.1. Will be removed in version 2.0.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return "all"
+    if at_port is None:
+        return "all" if bus_carrier else [0]
+    return at_port
 
 
 class AbstractStatisticsAccessor(ABC):
@@ -46,7 +71,7 @@ class AbstractStatisticsAccessor(ABC):
         n: Network | NetworkCollection,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
-        port: str | None = None,
+        port: str,
         nice_names: bool = False,
     ) -> dict:
         by = None
@@ -76,9 +101,8 @@ class AbstractStatisticsAccessor(ABC):
         # TODO could be moved to Network
         return isinstance(self._n.snapshots, pd.MultiIndex)
 
-    @classmethod
     def _aggregate_timeseries(
-        cls, obj: Any, weights: pd.Series, agg: str | Callable | bool = "sum"
+        self, obj: Any, weights: pd.Series, agg: str | Callable | bool = "sum"
     ) -> Any:
         """Calculate the weighted sum or average of a DataFrame or Series."""
         if not agg:
@@ -94,7 +118,7 @@ class AbstractStatisticsAccessor(ABC):
                 weights = weights / weights.sum()
             agg = "sum"
 
-        return cls._aggregate_with_weights(obj, weights, agg)
+        return self._aggregate_with_weights(obj, weights, agg)
 
     # The following methods are implemented in the concrete classes
     @abstractmethod
@@ -136,7 +160,7 @@ class AbstractStatisticsAccessor(ABC):
         components: Collection[str] | str | None = None,
         groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         aggregate_across_components: bool = False,
-        at_port: str | Sequence[str] | bool | None = None,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = True,
@@ -154,49 +178,43 @@ class AbstractStatisticsAccessor(ABC):
         if nice_names is None:
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
-        for c in components:
-            if n.c[c].static.empty:
+        if nice_names:
+            nice_name_series = n.c.carriers.static.nice_name
+            bus_carrier = normalize_carrier_nice_names(nice_name_series, bus_carrier)
+            carrier = normalize_carrier_nice_names(nice_name_series, carrier)
+
+        at_port = resolve_at_port(at_port, bus_carrier)
+
+        for cn in components:
+            c = n.c[cn]
+            if c.static.empty:
                 continue
 
-            ports = [
-                match.group(1)
-                for col in n.c[c].static
-                if (match := RE_PORTS.search(str(col)))
-            ]
-            if not at_port:
-                ports = [ports[0]]
-
             values = []
-            for port in ports:
-                vals = func(n, c, port)
+            for port in c._as_ports(at_port):
+                try:
+                    port_suffix = c.ports[port]
+                except IndexError:
+                    continue
+                vals = func(n, cn, port_suffix)
                 if self._aggregate_components_skip_iteration(vals):
                     continue
 
-                vals = self._filter_active_assets(n, c, vals)  # for multiinvest
-                vals = self._filter_bus_carrier(n, c, port, bus_carrier, vals)
-                vals = self._filter_carrier(n, c, carrier, vals)
+                vals = self._filter_active_assets(n, cn, vals)  # for multiinvest
+                vals = self._filter_bus_carrier(n, cn, port_suffix, bus_carrier, vals)
+                vals = self._filter_carrier(n, cn, carrier, vals)
 
                 if self._aggregate_components_skip_iteration(vals):
                     continue
 
                 if groupby is not False:
-                    if groupby is None:
-                        warnings.warn(
-                            "Passing `groupby=None` is deprecated. Drop the "
-                            "argument to get the default grouping (by carrier), which "
-                            "was also the previous default behavior. Deprecated in "
-                            "version 0.34 and will be removed in version 1.0.",
-                            DeprecationWarning,
-                            stacklevel=2,
-                        )
-                        groupby = "carrier"
                     grouping = self._get_grouping(
-                        n, c, groupby, port=port, nice_names=nice_names
+                        n, cn, groupby, port=port_suffix, nice_names=nice_names
                     )
-                    vals = self._aggregate_components_groupby(vals, grouping, agg, c)
+                    vals = self._aggregate_components_groupby(vals, grouping, agg, cn)
                 # Avoid having 'component' as index name in multiindex
                 elif isinstance(vals, pd.DataFrame | pd.Series):
-                    vals = vals.rename_axis(c, axis=0)
+                    vals = vals.rename_axis("name", axis=0)
                 values.append(vals)
 
             if not values:
@@ -204,7 +222,7 @@ class AbstractStatisticsAccessor(ABC):
 
             df = self._aggregate_components_concat_values(values, agg)
 
-            d[c] = df
+            d[cn] = df
         df = self._aggregate_components_concat_data(d, is_one_component)
         if not df.empty:
             df = self._apply_option_kwargs(
@@ -256,14 +274,14 @@ class AbstractStatisticsAccessor(ABC):
             return obj
 
         idx = self._get_component_index(obj, c)
-        ports = n.c[c].static.loc[idx, f"bus{port}"]
+        buses = n.c[c].static.loc[idx, f"bus{port}"]
 
         # Handle MultiIndex (Collection and Stochastic Networks)
         bus_carriers = n.c.buses.static.carrier
         if isinstance(bus_carriers.index, pd.MultiIndex):
             bus_carriers = bus_carriers.groupby(level="name").first()
 
-        port_carriers = ports.map(bus_carriers)
+        port_carriers = buses.map(bus_carriers)
         if isinstance(bus_carrier, str):
             if bus_carrier in bus_carriers.unique():
                 mask = port_carriers == bus_carrier
@@ -276,7 +294,7 @@ class AbstractStatisticsAccessor(ABC):
             raise TypeError(msg)
         # links may have empty ports which results in NaNs
         mask = mask.where(mask.notnull(), False)
-        return obj.loc[ports.index[mask]]
+        return obj.loc[buses.index[mask]]
 
     def _filter_carrier(
         self,

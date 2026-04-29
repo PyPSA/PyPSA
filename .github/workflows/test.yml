@@ -53,6 +53,10 @@ jobs:
           api: new_api
         - os: windows-latest
           api: new_api
+        include:
+        - python-version: '3.13'
+          os: ubuntu-latest
+          api: pandas3
 
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
@@ -76,7 +80,7 @@ jobs:
         brew install hdf5
 
     - name: Download package
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: Packages
         path: dist
@@ -95,12 +99,23 @@ jobs:
         uv sync --extra dev --no-install-project
         uv pip install "$(ls dist/*.whl)"
 
+    - name: Install pandas 3
+      if: matrix.api == 'pandas3'
+      run: uv pip install 'pandas>=3.0'
+
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
       run: >
         uv run pytest  --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
+
+    - name: Run unit tests (pandas 3)
+      if: matrix.api == 'pandas3'
+      run: >
+        uv run --no-sync pytest  --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results
+        --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
+        && uv run --no-sync coverage xml
 
     - name: Run unit tests (new API)
       if: matrix.api == 'new_api'
@@ -113,7 +128,7 @@ jobs:
 
     - name: Upload artifacts
       if: matrix.api == 'default' && matrix.os == 'macos-latest' && matrix.python-version == '3.13'
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: results-plotting
         path: |
@@ -123,7 +138,7 @@ jobs:
 
     - name: Upload code coverage report
       if: ${{ !cancelled() }}
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: >
@@ -159,7 +174,7 @@ jobs:
         python-version: 3.13
 
     - name: Download package
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: Packages
         path: dist
@@ -179,7 +194,7 @@ jobs:
 
     - name: Upload code coverage report
       if: ${{ !cancelled() }}
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: >
@@ -215,7 +230,7 @@ jobs:
         python-version: 3.13
 
     - name: Download package
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: Packages
         path: dist

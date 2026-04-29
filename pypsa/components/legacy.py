@@ -18,6 +18,7 @@ from pypsa.components._types import (
     LineTypes,
     Links,
     Loads,
+    Processes,
     Shapes,
     ShuntImpedances,
     StorageUnits,
@@ -47,6 +48,7 @@ _CLASS_MAPPING = {
     "LineType": LineTypes,
     "Link": Links,
     "Load": Loads,
+    "Process": Processes,
     "Shape": Shapes,
     "ShuntImpedance": ShuntImpedances,
     "StorageUnit": StorageUnits,
@@ -86,7 +88,7 @@ class Component:
         else:
             ctype_ = ctype  # type: ignore
 
-        component_class = _CLASS_MAPPING.get(ctype_.name, None)
+        component_class = _CLASS_MAPPING.get(ctype_.name)
         instance: Components
         if component_class is not None:
             instance = component_class(ctype=ctype_)

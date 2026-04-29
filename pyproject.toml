@@ -32,9 +32,9 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy",
     "scipy",
-    "pandas>=0.24,<3.0.0",
-    "xarray",
-    "netcdf4!=1.7.4",  # See https://github.com/PyPSA/PyPSA/issues/1510
+    "pandas>=2.0",
+    "xarray<2026.4",  # See https://github.com/PyPSA/linopy/pull/647
+    "netcdf4",
     "linopy>=0.6.1",
     "matplotlib",
     "plotly",
@@ -47,6 +47,7 @@ dependencies = [
     "validators",
     "highspy",
     "levenshtein>=0.27.1",
+    "platformdirs",
 ]
 
 [project.urls]
@@ -63,6 +64,12 @@ gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
 dotenv = ["python-dotenv"]
 tsam = ["tsam"]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mpl",
+    "coverage",
+]
 dev = [
     "pytest",
     "pytest-cov",

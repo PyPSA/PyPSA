@@ -29,7 +29,7 @@ from pyproj import CRS
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.consistency import check_for_unknown_buses
-from pypsa.descriptors import _update_linkports_component_attrs
+from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_base__
 
@@ -273,10 +273,14 @@ class _ImporterCSV(_Importer):
             fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
         )
 
-        # Convert NaN to empty strings for object dtype columns to handle custom attributes
-        object_cols = [col for col in df.columns if df[col].dtype == "object"]
-        if object_cols:
-            df[object_cols] = df[object_cols].fillna("")
+        # Convert NaN to empty strings for string columns to handle custom attributes
+        str_cols = [
+            col
+            for col in df.columns
+            if df[col].dtype == "object" or isinstance(df[col].dtype, pd.StringDtype)
+        ]
+        if str_cols:
+            df[str_cols] = df[str_cols].fillna("")
 
         return df
 
@@ -526,10 +530,15 @@ class _ImporterExcel(_Importer):
             if len(df.columns) == 0 and len(df.index) > 0 and df.index[0] == "name":
                 df = df.iloc[1:]  # Remove the first row which contains the index name
 
-            # Convert NaN to empty strings for object dtype columns to handle custom attributes
-            object_cols = [col for col in df.columns if df[col].dtype == "object"]
-            if object_cols:
-                df[object_cols] = df[object_cols].fillna("")
+            # Convert NaN to empty strings for string columns to handle custom attributes
+            str_cols = [
+                col
+                for col in df.columns
+                if df[col].dtype == "object"
+                or isinstance(df[col].dtype, pd.StringDtype)
+            ]
+            if str_cols:
+                df[str_cols] = df[str_cols].fillna("")
 
         except (ValueError, KeyError):
             return None
@@ -1089,7 +1098,7 @@ def _sort_attrs(
         return axis_labels
 
     remaining = axis_labels.difference(attrs_index, sort=False)
-    target = existing.append(remaining)
+    target = existing.union(remaining, sort=False)
 
     if axis_labels.equals(target):
         return axis_labels
@@ -1131,62 +1140,44 @@ class NetworkIOMixin(_NetworkABC):
         """
         # exportable component types
         allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
+        skip_attrs = {
+            "component_attrs",
+            "df",
+            "pnl",
+            "static",
+            "dynamic",
+            "iterate_components",
+            "_name",
+            "_pypsa_version",
+        }
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
-                category=DeprecationWarning,
-            )
-
-            _attrs = {
-                attr: getattr(self, attr)
-                for attr in dir(self)
-                if (
-                    not attr.startswith("__")
-                    and attr
-                    not in {
-                        "component_attrs",
-                        "df",
-                        "pnl",
-                        "static",
-                        "dynamic",
-                        "iterate_components",
-                    }  # Skip deprecated methods
-                    and isinstance(getattr(self, attr), allowed_types)
-                )
-            }
         _attrs = {}
         for attr in dir(self):
-            if not attr.startswith("__") and attr not in {
-                "component_attrs",
-                "df",
-                "pnl",
-                "static",
-                "dynamic",
-                "iterate_components",
-            }:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore",
-                        message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
-                        category=DeprecationWarning,
-                    )
-                    value = getattr(self, attr)
-                if isinstance(value, allowed_types):
-                    # TODO: This needs to be refactored with NetworkData class
-                    # Skip properties without setter, but not 'pypsa_version'
-                    prop = getattr(self.__class__, attr, None)
-                    if (
-                        isinstance(prop, property)
-                        and prop.fset is None
-                        and attr not in ["pypsa_version"]
-                    ):
-                        continue
-                    # Skip `_name` since it is writable
-                    if attr in ["_name", "_pypsa_version"]:
-                        continue
-                    _attrs[attr] = value
+            if attr.startswith("__") or attr in skip_attrs:
+                continue
+            # Skip read-only properties (except pypsa_version) without invoking
+            # their getters, which may emit warnings (e.g. model, objective).
+            prop = getattr(self.__class__, attr, None)
+            if (
+                isinstance(prop, property)
+                and prop.fset is None
+                and attr != "pypsa_version"
+            ):
+                continue
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
+                    category=DeprecationWarning,
+                )
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r".*the API for how to access components data has changed.*",
+                    category=DeprecationWarning,
+                )
+                value = getattr(self, attr)
+            if isinstance(value, allowed_types):
+                _attrs[attr] = value
         exporter.save_attributes(_attrs)
 
         crs = {}
@@ -1401,8 +1392,8 @@ class NetworkIOMixin(_NetworkABC):
                     return
                 continue
 
-            if component == "Link":
-                _update_linkports_component_attrs(self, where=df)
+            if component in ("Link", "Process"):
+                _update_ports_component_attrs(self, where=df, c_name=component)
 
             self._import_components_from_df(df, component)
 
@@ -1762,13 +1753,12 @@ class NetworkIOMixin(_NetworkABC):
             If True, overwrite existing components.
 
         """
-        attrs = self.components[cls_name]["defaults"]
+        if cls_name in ("Link", "Process"):
+            _update_ports_component_attrs(self, where=df, c_name=cls_name)
 
+        attrs = self.components[cls_name]["defaults"]
         static_attrs = attrs[attrs.static].drop("name")
         non_static_attrs = attrs[~attrs.static]
-
-        if cls_name == "Link":
-            _update_linkports_component_attrs(self, where=df)
 
         # Clean dataframe and ensure correct types
         df = pd.DataFrame(df)

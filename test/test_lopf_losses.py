@@ -11,10 +11,11 @@ def test_optimize_losses(scipy_network, transmission_losses):
     n.c.lines.static.s_max_pu = 0.7
     n.c.lines.static.loc[["316", "527", "602"], "s_nom"] = 1715
 
-    n.optimize(
-        snapshots=n.snapshots[0],
-        transmission_losses=transmission_losses,
-    )
+    with pytest.warns(FutureWarning, match="transmission_losses"):
+        n.optimize(
+            snapshots=n.snapshots[0],
+            transmission_losses=transmission_losses,
+        )
 
     gen = (
         n.c.generators.dynamic.p.iloc[0].sum()

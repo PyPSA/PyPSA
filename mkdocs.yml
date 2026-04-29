@@ -43,6 +43,7 @@ nav:
       - Generator: user-guide/components/generators.md
       - Load: user-guide/components/loads.md
       - Link: user-guide/components/links.md
+      - Process: user-guide/components/processes.md
       - Store: user-guide/components/stores.md
       - Storage Unit: user-guide/components/storage-units.md
       - Line: user-guide/components/lines.md
@@ -85,6 +86,7 @@ nav:
     - Network Collection: user-guide/collection.md
     - Options: user-guide/options.md
     - Logging: user-guide/logging.ipynb
+    - Warnings: user-guide/warnings.md
 
 - Examples:
   - Overview: examples/examples.md
@@ -109,6 +111,8 @@ nav:
     - examples/mga.ipynb
     - examples/near-opt-space.ipynb
     - examples/modular-expansion.ipynb
+    - examples/committable-extendable.ipynb
+    - examples/modular-committable.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
     - examples/islanded-methanol-production.ipynb
@@ -120,10 +124,13 @@ nav:
   - Advanced Topics:
     - examples/scigrid-redispatch.ipynb
     - examples/demand-elasticity.ipynb
+    - examples/imperfect-competition.ipynb
     - examples/generation-investment-screening-curve.ipynb
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer-example.ipynb
     - examples/reserve-power.ipynb
+    - examples/transport-delay.ipynb
+    - examples/periodic-operational-limits.ipynb
   - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
     - examples/gsa.ipynb
@@ -141,6 +148,7 @@ nav:
       - IO: api/networks/io.md
       - Power Flow: api/networks/power-flow.md
       - Optimize: api/networks/optimize.md
+      - Constraints: api/networks/constraints.md
       - Cluster: api/networks/cluster.md
       - Statistics: api/networks/statistics.md
       - Plotting: api/networks/plot.md
@@ -161,6 +169,7 @@ nav:
       - Line: api/components/types/lines.md
       - Transformer: api/components/types/transformers.md
       - Link: api/components/types/links.md
+      - Process: api/components/types/processes.md
       - Shapes: api/components/types/shapes.md
     - Utilities: api/components/common.md
   - Other:
@@ -202,7 +211,6 @@ theme:
   - search.suggest
   - search.highlight
   - search.share
-  - announce.dismiss
 
   palette:
   - media: "(prefers-color-scheme: light)"
@@ -339,6 +347,7 @@ plugins:
               - pypsa.components._types.global_constraints.GlobalConstraints.add
               - pypsa.components._types.lines.Lines.add
               - pypsa.components._types.links.Links.add
+              - pypsa.components._types.processes.Processes.add
               - pypsa.components._types.shapes.Shapes.add
               - pypsa.components._types.storage_units.StorageUnits.add
               - pypsa.components._types.stores.Stores.add
@@ -364,15 +373,6 @@ plugins:
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.box
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.violin
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.histogram
-              # Clustering Accessor
-              - pypsa.clustering.ClusteringAccessor.busmap_by_greedy_modularity
-              - pypsa.clustering.ClusteringAccessor.busmap_by_hac
-              - pypsa.clustering.ClusteringAccessor.busmap_by_kmeans
-              - pypsa.clustering.ClusteringAccessor.cluster_by_busmap
-              - pypsa.clustering.ClusteringAccessor.cluster_spatially_by_greedy_modularity
-              - pypsa.clustering.ClusteringAccessor.cluster_spatially_by_hac
-              - pypsa.clustering.ClusteringAccessor.cluster_spatially_by_kmeans
-              - pypsa.clustering.ClusteringAccessor.get_clustering_from_busmap
 
 # This will rebuild and execute the notebooks during any modifications when running `mkdocs serve`
 # For local development, this can be commented out/ filtered to only include the notebooks of interest

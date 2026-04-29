@@ -20,8 +20,9 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any
 
+from deprecation import deprecated
+
 from pypsa._options import options
-from pypsa.common import deprecated_in_next_major
 from pypsa.components.legacy import Component
 from pypsa.components.store import ComponentsStore
 from pypsa.components.types import (
@@ -113,7 +114,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Frankfurt Wind    Frankfurt   Slack  ...
         Frankfurt Gas     Frankfurt      PQ  ...
         <BLANKLINE>
-        [6 rows x 41 columns]
+        [6 rows x 42 columns]
         >>> n.generators is n.components.generators.static
         True
 
@@ -274,6 +275,21 @@ class NetworkComponentsMixin(_NetworkABC):
         if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.links.static = value
+
+    @property
+    def processes(self) -> Any:
+        """Access to static data of [pypsa.components.Processes][]."""
+        return (
+            self.c.processes.static
+            if not options.api.new_components_api
+            else self.c.processes
+        )
+
+    @processes.setter
+    def processes(self, value: pd.DataFrame) -> None:
+        if options.api.new_components_api:
+            raise AttributeError(_STATIC_SETTER_WARNING)
+        self.c.processes.static = value
 
     @property
     def loads(self) -> Any:
@@ -685,10 +701,10 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.controllable_branch_components)
-        ['Link']
+        ['Link', 'Process']
 
         """
-        return {"Link"}
+        return {"Link", "Process"}
 
     @property
     def controllable_one_port_components(self) -> set[str]:
@@ -757,7 +773,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.branch_components)
-        ['Line', 'Link', 'Transformer']
+        ['Line', 'Link', 'Process', 'Transformer']
 
         """
         return self.passive_branch_components | self.controllable_branch_components
@@ -769,7 +785,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.all_components)
-        ['Bus', 'Carrier', 'Generator', 'GlobalConstraint', 'Line', 'LineType', 'Link', 'Load', 'Shape', 'ShuntImpedance', 'StorageUnit', 'Store', 'SubNetwork', 'Transformer', 'TransformerType']
+        ['Bus', 'Carrier', 'Generator', 'GlobalConstraint', 'Line', 'LineType', 'Link', 'Load', 'Process', 'Shape', 'ShuntImpedance', 'StorageUnit', 'Store', 'SubNetwork', 'Transformer', 'TransformerType']
 
         """
         return {
@@ -788,6 +804,7 @@ class NetworkComponentsMixin(_NetworkABC):
             "LineType",
             "Bus",
             "Load",
+            "Process",
         }
 
     @property
@@ -803,7 +820,9 @@ class NetworkComponentsMixin(_NetworkABC):
         return []
 
     @property
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `self.components.<component>.defaults` instead.",
     )
     def component_attrs(self) -> pd.DataFrame:
@@ -828,8 +847,10 @@ class NetworkComponentsMixin(_NetworkABC):
         """
         return Dict({value.name: value.defaults for value in self.components})
 
-    @deprecated_in_next_major(
-        details="Use `self.components[<component>].static` instead."
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `self.components[<component>].static` instead.",
     )
     def df(self, component_name: str) -> pd.DataFrame:
         """Alias for [`n.static`][pypsa.Network.static].
@@ -854,8 +875,10 @@ class NetworkComponentsMixin(_NetworkABC):
         """
         return self.components[component_name].static
 
-    @deprecated_in_next_major(
-        details="Use `self.components.<component>.static` instead."
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `self.components.<component>.static` instead.",
     )
     def static(self, component_name: str) -> pd.DataFrame:
         """Return the DataFrame of static components for component_name.
@@ -880,7 +903,9 @@ class NetworkComponentsMixin(_NetworkABC):
         """
         return self.components[component_name].static
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `self.components.<component>.dynamic` instead.",
     )
     def pnl(self, component_name: str) -> Dict:
@@ -906,7 +931,9 @@ class NetworkComponentsMixin(_NetworkABC):
         """
         return self.components[component_name].dynamic
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `self.components.<component>.dynamic` instead.",
     )
     def dynamic(self, component_name: str) -> Dict:

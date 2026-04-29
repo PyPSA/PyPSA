@@ -21,15 +21,17 @@ from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
+from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
-from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
+from pypsa.optimization.common import _set_dynamic_data, get_bus_counts
 from pypsa.optimization.constraints import (
+    define_committability_variables_constraints_with_fixed_upper_limit,
+    define_committability_variables_constraints_with_variable_upper_limit,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
-    define_loss_constraints,
     define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
@@ -37,8 +39,10 @@ from pypsa.optimization.constraints import (
     define_operational_constraints_for_extendables,
     define_operational_constraints_for_non_extendables,
     define_ramp_limit_constraints,
+    define_secant_loss_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
+    define_tangent_loss_constraints,
     define_total_supply_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
@@ -67,6 +71,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from pypsa import Network, SubNetwork
+    from pypsa.components import Links, Processes
 logger = logging.getLogger(__name__)
 
 
@@ -74,6 +79,40 @@ lookup = pd.read_csv(
     Path(__file__).parent / ".." / "data" / "variables.csv",
     index_col=["component", "variable"],
 )
+
+
+def _apply_delay_shift(
+    port_df: pd.DataFrame,
+    c: Links | Processes,
+    delay_col: str,
+    cyclic_col: str,
+    sns: pd.Index,
+    n: Network,
+) -> None:
+    """Time-shift port_df values in-place for delayed components."""
+    static = c.static
+    if delay_col not in static.columns:
+        return
+    delayed = static[static[delay_col] > 0]
+    if delayed.empty:
+        return
+    if cyclic_col in static.columns:
+        grp_cols = [delay_col, cyclic_col]
+    else:
+        delayed = delayed.assign(_cyclic=True)
+        grp_cols = [delay_col, "_cyclic"]
+    delay_weightings = n.snapshot_weightings.generators.loc[sns]
+    for (d, cyc), grp in delayed.groupby(grp_cols):
+        cols = grp.index
+        src_pos, valid = c.get_delay_source_indexer(
+            sns,
+            delay_weightings,
+            int(d),
+            bool(cyc),
+        )
+        delayed_values = port_df[cols].to_numpy()[src_pos, :]
+        delayed_values[~valid, :] = 0.0
+        port_df[cols] = delayed_values
 
 
 def _resolve_include_objective_constant(
@@ -128,10 +167,6 @@ def define_objective(
         Snapshots (and, for multi-investment, periods) over which to build the objective.
     include_objective_constant : bool
         Whether to include the objective constant as a variable in the objective function.
-
-    Returns
-    -------
-    None
 
     Notes
     -----
@@ -256,7 +291,7 @@ def define_objective(
         is_quadratic = True
 
     # stand-by cost
-    for c_name in ["Generator", "Link"]:
+    for c_name in ["Generator", "Link", "Process"]:
         c = as_components(n, c_name)
         com_i = c.committables.difference(c.inactive_assets)
 
@@ -412,7 +447,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         self,
         snapshots: Sequence | None = None,
         multi_investment_periods: bool = False,
-        transmission_losses: int = 0,
+        transmission_losses: bool | int | dict = False,
         linearized_unit_commitment: bool = False,
         model_kwargs: dict | None = None,
         extra_functionality: Callable | None = None,
@@ -422,6 +457,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         log_to_console: bool | None = None,
         compute_infeasibilities: bool = False,
         include_objective_constant: bool | None = None,
+        committable_big_m: float | None = None,
+        meshed_thresholds: Sequence[int] | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -434,11 +471,19 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
             investment periods. Then, snapshots should be a `pd.MultiIndex`.
-        transmission_losses : int, default 0
-            Whether an approximation of transmission losses should be included
-            in the linearised power flow formulation. A passed number will denote
-            the number of tangents used for the piecewise linear approximation.
-            Defaults to 0, which ignores losses.
+        transmission_losses : bool | int | dict, default False
+            Include piecewise linear approximation of transmission losses for
+            passive branches:
+
+            - ``True``: secant-based approximation with default tolerances
+            - ``int``: *(deprecated)* tangent-based with that many segments
+            - ``dict``: explicit config with key ``mode`` ("secants" or
+              "tangents") and mode-specific options. Secant options:
+              ``atol`` (default 1), ``rtol`` (default 0.1),
+              ``max_segments`` (default 20). Tangent options: ``segments``
+              (required).
+
+            See `https://go.pypsa.org/transmission-losses` for details.
         linearized_unit_commitment : bool, default False
             Whether to optimise using the linearised unit commitment formulation or not.
         model_kwargs : dict, optional
@@ -463,10 +508,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         log_to_console : bool, optional
-            Whether the solver prints its progress to the console. This is passed
-            to linopy's `Model.solve()` method. Defaults to module wide option
-            (default: True). See `https://go.pypsa.org/options-params` for more
-            information.
+            Whether the solver prints its progress to the console. Passed as a
+            solver option to linopy's `Model.solve()` method. When None,
+            solver default behavior is used. Note: not all solvers support
+            this option (e.g. HiGHS does, CPLEX does not). See
+            `https://go.pypsa.org/options-params` for more information.
         compute_infeasibilities : bool, default False
             Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
             of an infeasible solution. Requires Gurobi.
@@ -475,6 +521,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             infrastructure) as a variable in the objective function. Setting to False
             improves LP numerical conditioning. Defaults to module wide option. See
             `pypsa.options.params.optimize.describe()` for more information.
+        committable_big_m : float | None, default None
+            Big-M value for committable+extendable constraints. If None, PyPSA infers
+            a scale from the network (e.g. peak load). Otherwise this numeric bound
+            is used when no component-specific limit (p_nom_max) is available.
+        meshed_thresholds : Sequence[int] | None, default: None
+            Thresholds for splitting buses into nodal-balance constraint groups by
+            bus connectivity count. Defaults to ``[30, 100, 400]``.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -517,13 +570,16 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             linearized_unit_commitment,
             consistency_check=False,
             include_objective_constant=include_objective_constant,
+            committable_big_m=committable_big_m,
+            meshed_thresholds=meshed_thresholds,
             **model_kwargs,
         )
         if extra_functionality:
             extra_functionality(n, sns)
+        if log_to_console is not None:
+            kwargs["log_to_console"] = log_to_console
         status, condition = m.solve(
             solver_name=solver_name,
-            log_to_console=log_to_console,
             **solver_options,
             **kwargs,
         )
@@ -546,10 +602,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         self,
         snapshots: Sequence | None = None,
         multi_investment_periods: bool = False,
-        transmission_losses: int = 0,
+        transmission_losses: int | dict | bool = False,
         linearized_unit_commitment: bool = False,
         consistency_check: bool = True,
         include_objective_constant: bool | None = None,
+        committable_big_m: float | None = None,
+        meshed_thresholds: Sequence[int] | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -564,9 +622,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         multi_investment_periods : bool, default: False
             Whether to optimise as a single investment period or to optimize in multiple
             investment periods. Then, snapshots should be a `pd.MultiIndex`.
-        transmission_losses : int, default: 0
-            Whether an approximation of transmission losses should be included
-            in the linearised power flow formulation.
+        transmission_losses : bool | int | dict, default False
+            Include piecewise linear approximation of transmission losses for
+            passive branches:
+            - ``True``: secant-based approximation with default tolerances
+            - ``int``: *(deprecated)* tangent-based with that many segments
+            - ``dict``: explicit config with key ``mode`` ("secants" or
+              "tangents") and mode-specific options. Secant options:
+              ``atol`` (default 1), ``rtol`` (default 0.1),
+              ``max_segments`` (default 20). Tangent options: ``segments``
+              (required).
+
+            See `https://go.pypsa.org/transmission-losses` for details.
         linearized_unit_commitment : bool, default: False
             Whether to optimise using the linearised unit commitment formulation or not.
         consistency_check : bool, default: True
@@ -576,6 +643,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             infrastructure) as a variable in the objective function. Setting to False
             improves LP numerical conditioning. Defaults to module wide option. See
             `pypsa.options.params.optimize.describe()` for more information.
+        committable_big_m : float | None, default: None
+            Big-M value for committable+extendable constraints. If None, PyPSA infers
+            a scale from the network (e.g. peak load). Otherwise this numeric bound
+            is used when no component-specific limit (p_nom_max) is available.
+        meshed_thresholds : Sequence[int] | None, default: None
+            Thresholds for splitting buses into nodal-balance constraint groups by
+            bus connectivity count. Defaults to ``[30, 100, 400]``.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -588,12 +662,28 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         sns = as_index(n, snapshots, "snapshots")
         n._linearized_uc = int(linearized_unit_commitment)
         n._multi_invest = int(multi_investment_periods)
+        n._committable_big_m = committable_big_m
+
+        if linearized_unit_commitment:
+            check_no_modular_committables(n)
+
         if consistency_check:
             n.consistency_check()
 
         include_objective_constant = _resolve_include_objective_constant(
             include_objective_constant
         )
+
+        if "meshed_threshold" in kwargs:
+            meshed_threshold = kwargs.pop("meshed_threshold")
+            warnings.warn(
+                "`meshed_threshold` is deprecated and will be removed in PyPSA 2.0. "
+                "Use `meshed_thresholds=[meshed_threshold]` instead.",
+                FutureWarning,
+                stacklevel=2,
+            )
+            if meshed_thresholds is None:
+                meshed_thresholds = [meshed_threshold]
 
         kwargs.setdefault("force_dim_names", True)
         n._model = Model(**kwargs)
@@ -609,6 +699,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_status_variables(n, sns, c, linearized_unit_commitment)
             define_start_up_variables(n, sns, c, linearized_unit_commitment)
             define_shut_down_variables(n, sns, c, linearized_unit_commitment)
+            define_committability_variables_constraints_with_fixed_upper_limit(
+                n, sns, c, attr
+            )
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
@@ -625,6 +718,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_nominal_constraints_for_extendables(n, c, attr)
             define_fixed_nominal_constraints(n, c, attr)
             define_modular_constraints(n, c, attr)
+            define_committability_variables_constraints_with_variable_upper_limit(
+                n, sns, c, attr
+            )
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
             define_operational_constraints_for_non_extendables(
@@ -639,31 +735,32 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # Handle StorageUnit p_set separately (fixes p_dispatch - p_store = p_set)
         define_fixed_operation_constraints(n, sns, "StorageUnit", "p")
+        # Handle Store p_set
+        define_fixed_operation_constraints(n, sns, "Store", "p")
 
-        meshed_threshold = kwargs.get("meshed_threshold", 45)
-        strongly_meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)
-        weakly_meshed_buses = n.c.buses.names.difference(strongly_meshed_buses)
-
-        if not strongly_meshed_buses.empty and not weakly_meshed_buses.empty:
-            # Write constraint for buses many terms and for buses with a few terms
-            # separately. This reduces memory usage for large networks.
-            define_nodal_balance_constraints(
-                n,
-                sns,
-                transmission_losses=transmission_losses,
-                buses=weakly_meshed_buses,
-            )
-            define_nodal_balance_constraints(
-                n,
-                sns,
-                transmission_losses=transmission_losses,
-                buses=strongly_meshed_buses,
-                suffix="-meshed",
-            )
-        else:
-            define_nodal_balance_constraints(
-                n, sns, transmission_losses=transmission_losses
-            )
+        thresholds = (
+            sorted(set(meshed_thresholds))
+            if meshed_thresholds is not None
+            else [30, 100, 400]
+        )
+        bus_counts = get_bus_counts(n).reindex(n.c.buses.names, fill_value=0)
+        prev: float = 0
+        for t in thresholds + [float("inf")]:
+            if t == float("inf"):
+                mask = bus_counts > prev
+            else:
+                mask = (bus_counts > prev) & (bus_counts <= t)
+            buses = bus_counts.index[mask]
+            suffix = f"-meshed-{prev}" if prev > 0 else ""
+            if not buses.empty:
+                define_nodal_balance_constraints(
+                    n,
+                    sns,
+                    transmission_losses=transmission_losses,
+                    buses=buses,
+                    suffix=suffix,
+                )
+            prev = t
 
         define_kirchhoff_voltage_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
@@ -671,8 +768,40 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_total_supply_constraints(n, sns)
 
         if transmission_losses:
+            if isinstance(transmission_losses, bool):
+                transmission_losses = {"mode": "secants"}
+            elif isinstance(transmission_losses, int):
+                equivalent = {"mode": "tangents", "segments": transmission_losses}
+                warnings.warn(
+                    "Passing an int for `transmission_losses` is deprecated "
+                    "and will be removed in PyPSA 2.0. Explicitly pass "
+                    f"{equivalent} (current behavior) or use the new "
+                    "secant-based losses via `transmission_losses=True`.",
+                    FutureWarning,
+                    stacklevel=2,
+                )
+                transmission_losses = {
+                    "mode": "tangents",
+                    "segments": transmission_losses,
+                }
+            # Don't mutate passed dict
+            transmission_losses = dict(transmission_losses)
+            mode = transmission_losses.pop("mode", "secants")
+            if mode == "tangents" and "segments" not in transmission_losses:
+                msg = (
+                    "The 'tangents' mode requires a 'segments' key, e.g. "
+                    "transmission_losses={'mode': 'tangents', 'segments': 3}"
+                )
+                raise ValueError(msg)
+
             for c in n.passive_branch_components:
-                define_loss_constraints(n, sns, c, transmission_losses)
+                if mode == "secants":
+                    define_secant_loss_constraints(n, sns, c, **transmission_losses)
+                elif mode == "tangents":
+                    define_tangent_loss_constraints(n, sns, c, **transmission_losses)
+                else:
+                    msg = f"Unknown transmission_losses mode: {mode!r}"
+                    raise ValueError(msg)
 
         # Define global constraints
         define_primary_energy_limit(n, sns)
@@ -715,10 +844,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             (default: {}). Can also be passed via `**kwargs`. See
             `https://go.pypsa.org/options-params` for more information.
         log_to_console : bool, optional
-            Whether the solver prints its progress to the console. This is passed
-            to linopy's `Model.solve()` method. Defaults to module wide option
-            (default: True). See `https://go.pypsa.org/options-params` for more
-            information.
+            Whether the solver prints its progress to the console. Passed as a
+            solver option to linopy's `Model.solve()` method. When None,
+            solver default behavior is used. Note: not all solvers support
+            this option (e.g. HiGHS does, CPLEX does not). See
+            `https://go.pypsa.org/options-params` for more information.
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
@@ -750,9 +880,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if extra_functionality:
             extra_functionality(n, n.snapshots)
         m = n.model
+        if log_to_console is not None:
+            kwargs["log_to_console"] = log_to_console
         status, condition = m.solve(
             solver_name=solver_name,
-            log_to_console=log_to_console,
             **solver_options,
             **kwargs,
         )
@@ -810,14 +941,43 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p1", -df)
 
                 elif c.name == "Link" and attr == "p":
+                    _set_dynamic_data(n, c.name, "p", df)
                     _set_dynamic_data(n, c.name, "p0", df)
 
-                    for i in ["1"] + n.c.links.additional_ports:
-                        i_eff = "" if i == "1" else i
+                    for i in ["1"] + c.additional_ports:
+                        i_suffix = "" if i == "1" else i
                         eff = n.get_switchable_as_dense(
-                            "Link", f"efficiency{i_eff}", sns
+                            "Link", f"efficiency{i_suffix}", sns
                         )
-                        _set_dynamic_data(n, c.name, f"p{i}", -df * eff)
+                        port_df = -df * eff
+                        _apply_delay_shift(
+                            port_df,
+                            c,
+                            f"delay{i_suffix}",
+                            f"cyclic_delay{i_suffix}",
+                            sns,
+                            n,
+                        )
+                        _set_dynamic_data(n, c.name, f"p{i}", port_df)
+                        c.dynamic[f"p{i}"].loc[
+                            sns, c.static.index[c.static[f"bus{i}"] == ""]
+                        ] = float(c.defaults.loc[f"p{i}", "default"])
+
+                elif c.name == "Process" and attr == "p":
+                    _set_dynamic_data(n, c.name, "p", df)
+
+                    for i in c.ports:
+                        rate = n.get_switchable_as_dense(c.name, f"rate{i}", sns)
+                        port_df = -df * rate
+                        _apply_delay_shift(
+                            port_df,
+                            c,
+                            f"delay{i}",
+                            f"cyclic_delay{i}",
+                            sns,
+                            n,
+                        )
+                        _set_dynamic_data(n, c.name, f"p{i}", port_df)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
                         ] = float(c.defaults.loc[f"p{i}", "default"])
@@ -954,6 +1114,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n = self._n
         sns = n.model.parameters.snapshots.to_index()
 
+        check_big_m_exceeded(n)
+
         # correct prices with objective weightings
         if n._multi_invest:
             period_weighting = n.investment_period_weightings.objective
@@ -985,10 +1147,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             ("Store", "p", "bus"),
             ("Load", "p", "bus"),
             ("StorageUnit", "p", "bus"),
-            ("Link", "p0", "bus0"),
-            ("Link", "p1", "bus1"),
         ]
-        ca.extend([("Link", f"p{i}", f"bus{i}") for i in n.c.links.additional_ports])
+        for c in n.controllable_branch_components:
+            ca.extend([(c, f"p{i}", f"bus{i}") for i in n.c[c].ports])
 
         def sign(c: str) -> int:
             return n.c[c].static.get("sign", -1)  # -1 is the sign for 'Link'

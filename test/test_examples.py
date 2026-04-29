@@ -7,6 +7,7 @@ import logging
 import pytest
 
 import pypsa
+from pypsa.version import __version_base__
 
 logger = logging.getLogger(__name__)
 
@@ -40,16 +41,52 @@ def test_carbon_management():
         pytest.skip("Test failed but converted to warning")
 
 
+@pytest.fixture
+def seeded_cache(monkeypatch, tmp_path):
+    """Seed a cache directory with a dummy network file."""
+    monkeypatch.setattr(pypsa.examples, "_cache_root", lambda: tmp_path)
+    cache = tmp_path / f"v{__version_base__}" / "ac_dc_meshed.nc"
+    cache.parent.mkdir(parents=True)
+    pypsa.Network().export_to_netcdf(str(cache))
+    return tmp_path
+
+
+def test_caching(seeded_cache):
+    """Test that cached example is loaded from disk without network."""
+    n = pypsa.examples.ac_dc_meshed()
+    assert isinstance(n, pypsa.Network)
+
+
+def test_clear_cache(seeded_cache):
+
+    pypsa.examples.clear_cache()
+    assert not seeded_cache.exists()
+
+
+def test_cache_miss_network_disabled(monkeypatch, tmp_path):
+    """Test that cache miss with network requests disabled raises ValueError."""
+    monkeypatch.setattr(pypsa.examples, "_cache_root", lambda: tmp_path)
+
+    pypsa.options.general.allow_network_requests = False
+    try:
+        with pytest.raises(ValueError, match="Network requests are disabled"):
+            pypsa.examples.ac_dc_meshed()
+    finally:
+        pypsa.options.general.allow_network_requests = True
+
+
+@pytest.mark.skipif(
+    not pypsa.examples._check_url_availability("https://data.pypsa.org"),
+    reason="No internet connection",
+)
 def test_check_url_availability():
     """Test _check_url_availability function."""
     from pypsa.examples import _check_url_availability
 
-    # Test invalid URL formats
     assert not _check_url_availability("invalid-url")
     assert not _check_url_availability("ftp://example.com")
     assert not _check_url_availability("")
-    assert not _check_url_availability("https://google.com/invalid-url")
-
-    # Test valid URL format (should return True for valid URLs)
-    assert _check_url_availability("https://google.com")
-    assert _check_url_availability("https://google.com/search?q=pypsa")
+    assert not _check_url_availability("https://data.pypsa.org/nonexistent")
+    assert _check_url_availability(
+        "https://data.pypsa.org/networks/examples/latest/ac_dc_meshed.nc"
+    )
