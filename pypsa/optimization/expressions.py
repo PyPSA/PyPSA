@@ -530,12 +530,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             var = self._get_operational_variable(c)
             sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
-            efficiency = port_efficiency(n, c, port=port, dynamic=True)
-            if isinstance(efficiency, pd.DataFrame):
-                efficiency = efficiency.loc[sns]
+            dynamic_efficiency = port_efficiency(n, c, port=port, dynamic=True)
+            if isinstance(dynamic_efficiency, pd.DataFrame):
+                dynamic_efficiency = dynamic_efficiency.loc[sns]
             sign = n.c[c].static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators.loc[sns]
-            coeffs = DataArray(efficiency * sign)
+            coeffs = DataArray(dynamic_efficiency * sign)
             if direction == "supply":
                 coeffs = coeffs.clip(min=0)
             elif direction == "withdrawal":
@@ -546,7 +546,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             elif direction != "both":
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
-            p = var.where(coeffs != 0) * coeffs
+            # TODO-1603: work out sign of seg_var depending on direction
+            segment_efficiency = port_efficiency(n, c, port=port, segment=True)
+            if isinstance(segment_efficiency, pd.DataFrame):
+                seg_var = n.model.variables[f"{c}-p{port}_piecewise"]
+                coeffs.loc[{"name": seg_var.coords["name"]}] = 0
+            else:
+                seg_var = 0
+            p = var.where(coeffs != 0) * coeffs + seg_var
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         return self._aggregate_components(

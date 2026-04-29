@@ -65,11 +65,18 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
 
 
 def port_efficiency(
-    n: Network, c_name: str, port: int | str = 0, dynamic: bool = False
+    n: Network,
+    c_name: str,
+    port: int | str = 0,
+    dynamic: bool = False,
+    segment: bool = False,
 ) -> pd.Series | pd.DataFrame:
     """Get the efficiency of a component at a specific port."""
     c = n.c[c_name]
     port = c._as_port(port)
+    if segment and dynamic:
+        err = "Cannot request segment and dynamic efficiencies together."
+        raise ValueError(err)
 
     ones = pd.Series(1, index=c.static.index)
     if c.name in n.one_port_components:
@@ -81,12 +88,25 @@ def port_efficiency(
             return -ones
 
         key = "efficiency" if port == 1 else f"efficiency{port}"
+        if (
+            segment
+            and (seg_attr := c.segments.get(key)) is not None
+            and not seg_attr.empty
+        ):
+            return seg_attr
+
         if dynamic and key in c.static:
             return n.get_switchable_as_dense(c.name, key)
 
         return c.static.get(key, ones)
     elif c.name == "Process":
         key = f"rate{port}"
+        if (
+            segment
+            and (seg_attr := c.segment.get(key)) is not None
+            and not seg_attr.empty
+        ):
+            return seg_attr
         if dynamic and key in c.static:
             return n.get_switchable_as_dense(c.name, key)
 

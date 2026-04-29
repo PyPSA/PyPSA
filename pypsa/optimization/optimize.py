@@ -55,7 +55,7 @@ from pypsa.optimization.global_constraints import (
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
-from pypsa.optimization.piecewise import define_piecewise_cost
+from pypsa.optimization.piecewise import define_piecewise
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -265,20 +265,20 @@ def define_objective(
 
             # Piecewise marginal cost via tangent constraints.
             p = m[var_name].sel(snapshot=sns)
-            seg_cost_var = define_piecewise_cost(
+            seg_cost_var = define_piecewise(
                 m,
                 c,
-                p,
-                y_attr=cost_type,
+                x_var=p,
+                y_var=None,
+                seg_attr=cost_type,
                 aux_var_name=f"{c.name}-{cost_type}_piecewise",
                 active_names=c.active_assets,
+                operator="<=",
             )
-
-            linear_names = (
-                c.active_assets
-                if seg_cost_var is None
-                else c.active_assets.difference(seg_cost_var.indexes["name"])
-            )
+            if seg_cost_var is not None:
+                linear_names = c.active_assets.difference(seg_cost_var.indexes["name"])
+            else:
+                linear_names = c.active_assets
 
             # Linear marginal cost for non-piecewise components
             if not linear_names.empty:
@@ -337,22 +337,22 @@ def define_objective(
         if ext_i.empty:
             continue
 
-        # Piecewise capital cost via tangent constraints
         caps = m[f"{c.name}-{attr}"]
-        seg_cc_var = define_piecewise_cost(
+        y_attr = "capital_cost"
+        seg_cc_var = define_piecewise(
             m,
             c,
-            caps,
-            y_attr="capital_cost",
-            aux_var_name=f"{c.name}-capital_cost_piecewise",
+            x_var=caps,
+            y_var=None,
+            seg_attr=y_attr,
+            aux_var_name=f"{c.name}-{y_attr}_piecewise",
             active_names=ext_i,
+            operator="<=",
         )
-
-        linear_names = (
-            ext_i
-            if seg_cc_var is None
-            else ext_i.difference(seg_cc_var.indexes["name"])
-        )
+        if seg_cc_var is not None:
+            linear_names = ext_i.difference(seg_cc_var.indexes["name"])
+        else:
+            linear_names = ext_i
 
         # Linear capital cost for non-piecewise components
         if not linear_names.empty:
@@ -1006,10 +1006,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
                     for i in ["1"] + c.additional_ports:
                         i_suffix = "" if i == "1" else i
-                        eff = n.get_switchable_as_dense(
-                            "Link", f"efficiency{i_suffix}", sns
-                        )
+                        eff_attr = f"efficiency{i_suffix}"
+                        eff = n.get_switchable_as_dense("Link", eff_attr, sns)
                         port_df = -df * eff
+                        if not c.segments[eff_attr].empty:
+                            df_piecewise = _from_xarray(
+                                m.variables[f"{_c_name}-{attr}{i}_piecewise"].solution,
+                                c,
+                            )
+                            port_df.update(-df_piecewise)
                         _apply_delay_shift(
                             port_df,
                             c,
@@ -1027,8 +1032,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p", df)
 
                     for i in c.ports:
-                        rate = n.get_switchable_as_dense(c.name, f"rate{i}", sns)
+                        rate_attr = f"rate{i}"
+                        rate = n.get_switchable_as_dense(c.name, rate_attr, sns)
                         port_df = -df * rate
+                        if not c.segments[rate_attr].empty:
+                            df_piecewise = _from_xarray(
+                                m.variables[f"{_c_name}-{attr}{i}_piecewise"].solution,
+                                c,
+                            )
+                            port_df.update(-df_piecewise)
                         _apply_delay_shift(
                             port_df,
                             c,

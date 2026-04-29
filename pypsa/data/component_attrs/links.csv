@@ -54,3 +54,4 @@ mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Out
 mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
 capital_cost_piecewise_opt,float,currency,0.,Optimised capital cost when using piecewise linearisation.,Output
 marginal_cost_piecewise,series,currency,0.,Optimised marginal cost when using piecewise linearisation.,Output
+p_piecewise,series,currency,0.,Optimised dispatch at remote bus,Output
