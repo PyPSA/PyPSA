@@ -7,14 +7,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
-import pandas as pd
 import xarray as xr
 from linopy import Model, Variable, breakpoints, piecewise
 from linopy.constants import BREAKPOINT_DIM
 
 from pypsa.descriptors import nominal_attrs
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 logger = logging.getLogger(__name__)
 
