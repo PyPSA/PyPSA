@@ -351,8 +351,10 @@ def define_primary_energy_limit(
                     p = p.sel(scenario=scenario, drop=True)
 
                 extra_options = filter(
-                    lambda p: p.component == n.c.generators.name
-                    and p.attribute == "efficiency",
+                    lambda p: (
+                        p.component == n.c.generators.name
+                        and p.attribute == "efficiency"
+                    ),
                     piecewise_options,
                 )
                 seg_primary_energy = define_piecewise(
