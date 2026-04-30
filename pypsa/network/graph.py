@@ -75,11 +75,15 @@ class NetworkGraphMixin:
         from pypsa import Network, SubNetwork  # noqa: PLC0415
 
         if branch_components is not None:
-            branch_components = set(branch_components)
+            branch_components = {
+                n.components._get(c).list_name for c in branch_components
+            }
         elif isinstance(n, Network):
-            branch_components = n.branch_components
+            branch_components = [c.list_name for c in n.components.filter(branch=True)]
         elif isinstance(n, SubNetwork):
-            branch_components = n.n.passive_branch_components
+            branch_components = [
+                c.list_name for c in n.n.components.filter(branch=True, passive=True)
+            ]
         else:
             msg = "graph must be called with a Network or a SubNetwork"
             raise TypeError(msg)
@@ -169,11 +173,15 @@ class NetworkGraphMixin:
             raise TypeError(msg)
 
         if branch_components is not None:
-            branch_components = set(branch_components)
+            branch_components = {
+                n.components._get(c).list_name for c in branch_components
+            }
         elif isinstance(n, Network):
-            branch_components = n.branch_components
+            branch_components = [c.list_name for c in n.components.filter(branch=True)]
         elif isinstance(n, SubNetwork):
-            branch_components = n.n.passive_branch_components
+            branch_components = [
+                c.list_name for c in n.n.components.filter(branch=True, passive=True)
+            ]
         else:
             msg = " must be called with a Network or a SubNetwork"
             raise TypeError(msg)
@@ -190,7 +198,7 @@ class NetworkGraphMixin:
 
         # Build adjacency matrix component by component
         for c in n.components:
-            if c.name not in branch_components:
+            if c.list_name not in branch_components:
                 continue
             active = c.get_active_assets(investment_period)
             sel = c.static[active].index.unique("name")
@@ -262,11 +270,17 @@ class NetworkGraphMixin:
         from pypsa.networks import Network, SubNetwork  # noqa: PLC0415
 
         if branch_components is not None:
-            branch_components = set(branch_components)
+            branch_components = {
+                self.components._get(c).list_name for c in branch_components
+            }
         elif isinstance(self, Network):
-            branch_components = self.branch_components
+            branch_components = {
+                c.list_name for c in self.components.filter(branch=True)
+            }
         elif isinstance(self, SubNetwork):
-            branch_components = self.n.passive_branch_components
+            branch_components = {
+                c.list_name for c in self.n.components.filter(branch=True, passive=True)
+            }
         else:
             msg = " must be called with a Network or a SubNetwork"
             raise TypeError(msg)
@@ -279,7 +293,7 @@ class NetworkGraphMixin:
         bus0_inds_list = []
         bus1_inds_list = []
         for c in self.components:
-            if c.name not in branch_components:
+            if c.list_name not in branch_components:
                 continue
             sel = c.static.query("active").index
             no_branches += len(c.static.loc[sel])

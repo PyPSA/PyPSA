@@ -23,6 +23,7 @@ from shapely.geometry import LineString
 from shapely.wkt import loads
 
 from pypsa.common import _convert_to_series, deprecated_kwargs
+from pypsa.components._types import Lines, Links, Transformers
 from pypsa.constants import DEFAULT_EPSG
 from pypsa.geo import (
     compute_bbox,
@@ -42,7 +43,7 @@ if TYPE_CHECKING:
     from cartopy.mpl.geoaxes import GeoAxesSubplot
     from matplotlib.legend import Legend
 
-    from pypsa.components.components import Components
+    from pypsa.components.categories import Branch
     from pypsa.networks import Network
 
 
@@ -554,7 +555,7 @@ class MapPlotter:
     def _flow_ds_from_arg(
         self,
         flow: pd.Series | str | float | Callable | None,
-        c_name: str,
+        c: Branch,
     ) -> pd.Series | None:
         """Convert flow argument to pandas Series.
 
@@ -562,8 +563,8 @@ class MapPlotter:
         ----------
         flow : Series|str|int|float|callable|None
             Flow data to convert
-        c_name : str
-            Name of the network component
+        c : Components
+            The network component
 
         Returns
         -------
@@ -575,13 +576,13 @@ class MapPlotter:
             return flow
 
         if flow in self.n.snapshots:
-            return self.n.c[c_name].dynamic.p0.loc[flow]
+            return c.dynamic.p0.loc[flow]
 
         if isinstance(flow, str) or callable(flow):
-            return self.n.c[c_name].dynamic.p0.agg(flow, axis=0)
+            return c.dynamic.p0.agg(flow, axis=0)
 
         if isinstance(flow, int | float):
-            return pd.Series(flow, index=self.n.components[c_name].static.index)
+            return pd.Series(flow, index=c.static.index)
 
         if flow is not None:
             msg = f"The 'flow' argument must be a pandas.Series, a string, a float or a callable, got {type(flow)}."
@@ -591,7 +592,7 @@ class MapPlotter:
 
     def get_branch_collection(
         self,
-        c: Components,
+        c: Branch,
         widths: float | pd.Series,
         colors: str | pd.Series,
         alpha: float | pd.Series,
@@ -626,7 +627,7 @@ class MapPlotter:
 
     def _get_branch_collection_lines(
         self,
-        c: Components,
+        c: Branch,
         widths: pd.Series,
         colors: pd.Series,
         alpha: pd.Series,
@@ -665,7 +666,7 @@ class MapPlotter:
 
     def _get_branch_collection_patches(
         self,
-        c: Components,
+        c: Branch,
         widths: pd.Series,
         colors: pd.Series,
         alpha: pd.Series,
@@ -783,7 +784,7 @@ class MapPlotter:
 
     def get_flow_collection(
         self,
-        c: Components,
+        c: Branch,
         flow: pd.Series,
         widths: pd.Series,
         colors: pd.Series,
@@ -1161,34 +1162,34 @@ class MapPlotter:
 
         # Plot branches and flows
         if branch_components is None:
-            branch_components = n.branch_components
+            branch_components = [c.list_name for c in n.components.filter(branch=True)]
 
         branch_collections = {}
         flow_collections = {}
 
         for c in n.components:
-            if c.name not in branch_components:
+            if c.list_name not in branch_components:
                 continue
             # Get branch collection
-            if c.name == "Line":
+            if isinstance(c, Lines):
                 widths = line_width
                 colors = line_color
                 alpha = line_alpha
-                flow = self._flow_ds_from_arg(line_flow, c.name)
+                flow = self._flow_ds_from_arg(line_flow, c)
                 cmap = line_cmap
                 cmap_norm = line_cmap_norm
-            elif c.name == "Link":
+            elif isinstance(c, Links):
                 widths = link_width
                 colors = link_color
                 alpha = link_alpha
-                flow = self._flow_ds_from_arg(link_flow, c.name)
+                flow = self._flow_ds_from_arg(link_flow, c)
                 cmap = link_cmap
                 cmap_norm = link_cmap_norm
-            elif c.name == "Transformer":
+            elif isinstance(c, Transformers):
                 widths = transformer_width
                 colors = transformer_color
                 alpha = transformer_alpha
-                flow = self._flow_ds_from_arg(transformer_flow, c.name)
+                flow = self._flow_ds_from_arg(transformer_flow, c)
                 cmap = transformer_cmap
                 cmap_norm = transformer_cmap_norm
 
@@ -1211,7 +1212,7 @@ class MapPlotter:
             if flow is not None:
                 if auto_scale_branches:
                     rough_scale = (
-                        sum([len(n.c[c].static) for c in branch_components]) + 100
+                        sum(len(n.c[bc].static) for bc in branch_components) + 100
                     )
                     data["flow"] = (
                         data.flow.mul(abs(data.widths), fill_value=0) / rough_scale
@@ -1558,7 +1559,7 @@ def add_legend_patches(
         msg = "Colors and labels must have the same length."
         raise ValueError(msg)
 
-    handles = [Patch(facecolor=c, **patch_kw) for c in colors]
+    handles = [Patch(facecolor=color, **patch_kw) for color in colors]
 
     legend = ax.legend(handles, labels, **legend_kw)
 

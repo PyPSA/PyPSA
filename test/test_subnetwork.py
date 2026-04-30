@@ -65,22 +65,22 @@ def test_df(scipy_subnetwork: SubNetwork) -> None:
     assert not buses.empty
     assert buses.index.isin(scipy_subnetwork.n.c.buses.static.index).all()
 
-    component_names = ["Line", "Transformer", "Generator", "Load"]
+    component_names = ["lines", "transformers", "generators", "loads"]
     for c_name in component_names:
         df = scipy_subnetwork.components[c_name].static
         assert not df.empty
         assert df.index.isin(scipy_subnetwork.n.c[c_name].static.index).all()
 
     with pytest.raises(ValueError):
-        scipy_subnetwork.components["Link"].static
+        scipy_subnetwork.components["links"].static
 
     with pytest.raises(ValueError):
-        scipy_subnetwork.components["GlobalConstraint"].static
+        scipy_subnetwork.components["global_constraints"].static
 
 
 def test_incidence_matrix(ac_dc_subnetwork: SubNetwork) -> None:
-    lines = ac_dc_subnetwork.components["Line"].static
-    buses = ac_dc_subnetwork.components["Bus"].static
+    lines = ac_dc_subnetwork.components.lines.static
+    buses = ac_dc_subnetwork.components.buses.static
     A = ac_dc_subnetwork.incidence_matrix()
     assert A.shape == (len(buses), len(lines))
 

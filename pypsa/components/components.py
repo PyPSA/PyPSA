@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import geopandas as gpd
 import numpy as np
@@ -42,7 +42,7 @@ from pypsa.definitions.structures import Dict
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Sequence
+    from collections.abc import Callable, Collection
     from typing import Literal
 
     from pypsa import Network
@@ -73,10 +73,8 @@ class ComponentsData:
 
     Attributes
     ----------
-    ctype : ComponentType
-        Component type information containing all default values and attributes. #TODO
-    n : Network | None
-        Network to which the component might be attached.
+    n : Network
+        Network to which the component is attached.
     static : pd.DataFrame
         Static data of components as a pandas DataFrame. Columns are the attributes
         and the index is the component name.
@@ -87,8 +85,7 @@ class ComponentsData:
 
     """
 
-    ctype: ComponentType
-    n: Network | None
+    n: Network
     static: pd.DataFrame
     """
     Dataframe with static data for all components of this type.
@@ -135,40 +132,45 @@ class Components(
     Components inherits from it, adds logic and methods, but does not store any data
     itself.
 
+
     """
 
-    def __init__(
-        self,
-        ctype: ComponentType,
-        n: Network | None = None,
-        names: str | int | Sequence[int | str] | None = None,
-        suffix: str = "",
-    ) -> None:
+    _ctype: ClassVar[ComponentType]
+
+    is_branch: bool = False
+    is_one_port: bool = False
+    is_passive: bool = False
+    is_controllable: bool = False
+    is_standard_type: bool = False
+
+    def __init__(self, n: Network) -> None:
         """Initialize Components object.
+
+        Do not call directly. Access a component via `n.components.generators`
+        or `n.components["generators"]`.
 
         Parameters
         ----------
-        ctype : ComponentType
-            Component type information.
-        n : Network, optional
-            Network object to attach to, by default None.
-        names : str, int, Sequence[int | str], optional
-            Names of components to attach to, by default None.
-        suffix : str, optional
-            Suffix to add to component names, by default "".
+        n : Network
+            Network to attach the components to.
 
         """
-        if names is not None:
-            msg = "Adding components during initialisation is not yet supported."
-            raise NotImplementedError(msg)
-        if n is not None:
+        if not hasattr(self.__class__, "_ctype"):
             msg = (
-                "Attaching components to Network during initialisation is not yet "
-                "supported."
+                f"Cannot instantiate '{self.__class__.__name__}' directly. "
+                "Use a component subclass (e.g. Generators, Buses) instead."
             )
-            raise NotImplementedError(msg)
-        static, dynamic = self._get_data_containers(ctype)
-        ComponentsData.__init__(self, ctype, n=None, static=static, dynamic=dynamic)
+            raise TypeError(msg)
+        if n._components is not None and self.list_name in n._components.keys():
+            msg = (
+                f"Network already has '{self.list_name}' attached. "
+                f"Use `n.components.{self.list_name}` "
+                f"(or `n.c.{self.list_name}`) instead of constructing "
+                f"a new `{self.__class__.__name__}` instance."
+            )
+            raise RuntimeError(msg)
+        static, dynamic = self._get_data_containers()
+        ComponentsData.__init__(self, n=n, static=static, dynamic=dynamic)
         ComponentsArrayMixin.__init__(self)
 
     def __str__(self) -> str:
@@ -182,7 +184,7 @@ class Components(
         "'Generator' Components"
 
         """
-        return f"'{self.ctype.name}' Components"
+        return f"'{self.name}' Components"
 
     def __repr__(self) -> str:
         """Get representation of component.
@@ -203,11 +205,7 @@ class Components(
         if not num_components:
             return f"Empty {self}"
         text = f"{self}\n" + "-" * len(str(self)) + "\n"
-
-        # Add attachment status
-        if self.attached:
-            text += f"Attached to {str(self.n)}\n"
-
+        text += f"Attached to {str(self.n)}\n"
         text += f"Components: {len(self.static)}"
 
         return text
@@ -339,19 +337,18 @@ class Components(
         True
 
         """
-        return (
-            equals(self.ctype, other.ctype, log_mode=log_mode, path="c.ctype")
-            and equals(self.static, other.static, log_mode=log_mode, path="c.static")
-            and equals(self.dynamic, other.dynamic, log_mode=log_mode, path="c.dynamic")
-        )
+        if not isinstance(other, type(self)):
+            return False
+        return equals(
+            self.static, other.static, log_mode=log_mode, path="c.static"
+        ) and equals(self.dynamic, other.dynamic, log_mode=log_mode, path="c.dynamic")
 
-    @staticmethod
-    def _get_data_containers(ct: ComponentType) -> tuple[pd.DataFrame, Dict]:
-        static_dtypes = ct.defaults.loc[ct.defaults.static, "dtype"].drop(["name"])
-        if ct.name == "Shape":
-            crs = CRS.from_epsg(
-                DEFAULT_EPSG
-            )  # if n is None else n.crs #TODO attach mechanism
+    def _get_data_containers(self) -> tuple[pd.DataFrame, Dict]:
+        from pypsa.components._types.shapes import Shapes  # noqa: PLC0415
+
+        static_dtypes = self.defaults.loc[self.defaults.static, "dtype"].drop("name")
+        if isinstance(self, Shapes):
+            crs = CRS.from_epsg(DEFAULT_EPSG)
             static = gpd.GeoDataFrame(
                 {k: gpd.GeoSeries(dtype=d) for k, d in static_dtypes.items()},
                 columns=static_dtypes.index,
@@ -367,10 +364,8 @@ class Components(
         # # it's currently hard to imagine non-float series,
         # but this could be generalised
         dynamic = Dict()
-        snapshots = pd.Index(
-            [DEFAULT_TIMESTAMP]
-        )  # if n is None else n.snapshots #TODO attach mechanism
-        for k in ct.defaults.index[ct.defaults.varying]:
+        snapshots = pd.Index([DEFAULT_TIMESTAMP])
+        for k in self.defaults.index[self.defaults.varying]:
             df = pd.DataFrame(index=snapshots, columns=[], dtype=float)
             df.index.name = "snapshot"
             df.columns.name = "name"
@@ -394,7 +389,7 @@ class Components(
         >>> n.components.transformers.standard_types
 
         """
-        return self.ctype.standard_types
+        return self._ctype.standard_types
 
     @property
     def name(self) -> str:
@@ -413,7 +408,7 @@ class Components(
         'Generator'
 
         """
-        return self.ctype.name
+        return self._ctype.name
 
     @property
     def list_name(self) -> str:
@@ -432,7 +427,7 @@ class Components(
         'generators'
 
         """
-        return self.ctype.list_name
+        return self._ctype.list_name
 
     @property
     def description(self) -> str:
@@ -451,7 +446,7 @@ class Components(
         'Power generator for the bus carrier it attaches to.'
 
         """
-        return self.ctype.description
+        return self._ctype.description
 
     @property
     def category(self) -> str:
@@ -470,7 +465,7 @@ class Components(
         'controllable_one_port'
 
         """
-        return self.ctype.category
+        return self._ctype.category
 
     @property
     def type(self) -> str:
@@ -488,7 +483,7 @@ class Components(
             Category of component.
 
         """
-        return self.ctype.category
+        return self.category
 
     @property
     @deprecated(
@@ -508,7 +503,7 @@ class Components(
             like type, unit, default value and description as columns.
 
         """
-        return self.ctype.defaults
+        return self.defaults
 
     @property
     def defaults(self) -> pd.DataFrame:
@@ -534,7 +529,7 @@ class Components(
         p_nom       float   MW     0.0          Nominal power for limits in optimization.  Input (optional)    True    False  <class 'float'>  float64
 
         """
-        return self.ctype.defaults
+        return self._ctype.defaults
 
     @property
     def empty(self) -> bool:
@@ -561,47 +556,43 @@ class Components(
         return self.static.empty
 
     @property
+    @deprecated(
+        deprecated_in="1.3.0",
+        removed_in="2.0.0",
+        details="Components are always attached to a Network. Use `c.n` instead.",
+    )
     def attached(self) -> bool:
         """Check if component is attached to a Network.
 
-        <!-- md:badge-version v0.33.0 -->
-
-        Some functionality of the component is only available when attached to a
-        Network.
+        !!! warning "Deprecated in <!-- md:badge-version v1.3.0 -->"
+            Components are always attached to a Network. Use `c.n` instead.
 
         Returns
         -------
         bool
-            True if component is attached to a Network, otherwise False.
-
-        Examples
-        --------
-        >>> n.components.generators.attached
-        True
+            Always True.
 
         """
-        return self.n is not None
+        return True
 
     @property
+    @deprecated(
+        deprecated_in="1.3.0",
+        removed_in="2.0.0",
+        details="Use `c.n` instead.",
+    )
     def n_save(self) -> Any:
-        """A save property to access the network (component must be attached).
+        """Access the network the component is attached to.
 
-        <!-- md:badge-version v0.33.0 -->
+        !!! warning "Deprecated in <!-- md:badge-version v1.3.0 -->"
+            Use `c.n` instead.
 
         Returns
         -------
         Network
             Network to which the component is attached.
 
-        Raises
-        ------
-        AttributeError
-            If component is not attached to a Network.
-
         """
-        if not self.attached:
-            msg = "Component must be attached to a Network."
-            raise AttributeError(msg)
         return self.n
 
     @property
@@ -942,11 +933,10 @@ class Components(
             msg = f"Component {self.name} has no nominal operational attribute."
             raise AttributeError(msg)
 
-        if self.n is not None:
-            # Peak total load over time provides a natural system-scale bound.
-            load = self.n.get_switchable_as_dense("Load", "p_set")
-            peak_load = load.sum(axis=1).abs().max()
-            candidates.append(float(peak_load))
+        # Peak total load over time provides a natural system-scale bound.
+        load = self.n.c.loads._as_dynamic("p_set")
+        peak_load = load.sum(axis=1).abs().max()
+        candidates.append(float(peak_load))
 
         nom_attr = self._operational_attrs["nom"]
         nom_series = self.static[nom_attr]
@@ -1066,7 +1056,7 @@ class Components(
         `pypsa.Network.nyears`
 
         """
-        return self.n_save.nyears
+        return self.n.nyears
 
     @property
     def annuity(self) -> pd.Series:
@@ -1188,6 +1178,14 @@ class SubNetworkComponents:
         self._wrapped_data = wrapped_data
         self._wrapper_func = wrapped_get
 
+    @property  # type: ignore[misc]
+    def __class__(self) -> type:
+        """Return the wrapped components class so isinstance() sees through the proxy.
+
+        Same is done for MemberProxy in NetworkCollection.
+        """
+        return type(self._wrapped_data)
+
     def __getattr__(self, item: str) -> Any:
         """Delegate attribute access to the wrapped data object.
 
@@ -1252,7 +1250,7 @@ class SubNetworkComponents:
         "'Generator' SubNetworkComponents"
 
         """
-        return f"'{self.ctype.name}' SubNetworkComponents"
+        return f"'{self.name}' SubNetworkComponents"
 
     def __repr__(self) -> str:
         """Get representation of sub-network components.
@@ -1270,11 +1268,7 @@ class SubNetworkComponents:
         if not num_components:
             return f"Empty {self}"
         text = f"{self}\n" + "-" * len(str(self)) + "\n"
-
-        # Add attachment status
-        if self.attached:
-            text += f"Attached to Sub-Network of {str(self.n)}\n"
-
+        text += f"Attached to Sub-Network of {str(self.n)}\n"
         text += f"Components: {len(self._wrapped_data.static)}"
 
         return text

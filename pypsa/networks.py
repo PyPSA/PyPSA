@@ -38,6 +38,8 @@ from pypsa.clustering import ClusteringAccessor
 from pypsa.common import (
     as_index,
 )
+from pypsa.components._types import Buses
+from pypsa.components.categories import Branch, OnePort, Passive, StandardType
 from pypsa.components.components import SubNetworkComponents
 from pypsa.components.store import ComponentsStore
 from pypsa.consistency import NetworkConsistencyMixin
@@ -958,31 +960,33 @@ class Network(
         investment_periods_ = as_index(self, investment_periods, "investment_periods")
 
         # Setup new network
-        n = self.__class__(ignore_standard_types=ignore_standard_types)
+        n_new = self.__class__(ignore_standard_types=ignore_standard_types)
 
-        # Copy components
-        other_comps = sorted(self.all_components - {"Bus", "Carrier"})
-        # Needs to copy buses and carriers first, since there are dependencies on them
-        for component in self.components[["Bus", "Carrier"] + other_comps]:
+        # Copy components — buses and carriers first, since there are dependencies
+        priority = [self.c.buses, self.c.carriers]
+        rest = sorted(
+            (
+                c
+                for c in self.components.values()
+                if c.list_name not in ("buses", "carriers")
+            ),
+            key=lambda c: c.list_name,
+        )
+        for c in priority + rest:
             # Drop the standard types to avoid them being read in twice
-            if (
-                not ignore_standard_types
-                and component.name in self.standard_type_components
-            ):
-                static = component.static.drop(
-                    n.components[component.name]["standard_types"].index
-                )
+            if not ignore_standard_types and isinstance(c, StandardType):
+                static = c.static.drop(n_new.c[c.list_name].standard_types.index)
             else:
-                static = component.static
-            n.add(component.name, static.index, **static)
+                static = c.static
+            n_new.c[c.list_name].add(static.index, **static)
 
         # Copy time-varying data, if given
 
         if len(snapshots_) > 0:
-            n.set_snapshots(snapshots_)
+            n_new.set_snapshots(snapshots_)
             # Apply time-varying data
             for component in self.components:
-                dynamic = getattr(n.c, component.list_name).dynamic
+                dynamic = getattr(n_new.c, component.list_name).dynamic
                 for k in component.dynamic:
                     # Check if all snapshots_ are in the index
                     if set(snapshots_).issubset(component.dynamic[k].index):
@@ -992,11 +996,11 @@ class Network(
 
             # Apply investment periods
             if not investment_periods_.empty:
-                n.set_investment_periods(investment_periods_)
+                n_new.set_investment_periods(investment_periods_)
 
             # Add weightings
-            n.snapshot_weightings = self.snapshot_weightings.loc[snapshots_].copy()
-            n.investment_period_weightings = self.investment_period_weightings.loc[
+            n_new.snapshot_weightings = self.snapshot_weightings.loc[snapshots_].copy()
+            n_new.investment_period_weightings = self.investment_period_weightings.loc[
                 investment_periods_
             ].copy()
 
@@ -1013,9 +1017,9 @@ class Network(
             "now",
         ]:
             if hasattr(self, attr):
-                setattr(n, attr, getattr(self, attr))
+                setattr(n_new, attr, getattr(self, attr))
 
-        return n
+        return n_new
 
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
@@ -1068,15 +1072,15 @@ class Network(
         [pypsa.Network.controllable_branches][]
 
         """
-        comps = list(set(self.branch_components) - set(self._empty_components()))
+        comps = sorted(self.components.filter(branch=True), key=lambda c: c.name)
         names = (
             ["component", "scenario", "name"]
             if self.has_scenarios
             else ["component", "name"]
         )
         return pd.concat(
-            (self.c[c].static for c in comps),
-            keys=comps,
+            (c.static for c in comps),
+            keys=[c.name for c in comps],
             sort=True,
             names=names,
         )
@@ -1110,7 +1114,7 @@ class Network(
 
         """
         comps = sorted(
-            set(self.passive_branch_components) - set(self._empty_components())
+            self.components.filter(branch=True, passive=True), key=lambda c: c.name
         )
         names = (
             ["component", "scenario", "name"]
@@ -1118,8 +1122,8 @@ class Network(
             else ["component", "name"]
         )
         return pd.concat(
-            (self.c[c].static for c in comps),
-            keys=comps,
+            (c.static for c in comps),
+            keys=[c.name for c in comps],
             sort=True,
             names=names,
         )
@@ -1154,8 +1158,8 @@ class Network(
         [pypsa.Network.passive_branches][]
 
         """
-        comps = list(
-            set(self.controllable_branch_components) - set(self._empty_components())
+        comps = sorted(
+            self.components.filter(branch=True, controllable=True), key=lambda c: c.name
         )
         names = (
             ["component", "scenario", "name"]
@@ -1163,8 +1167,8 @@ class Network(
             else ["component", "name"]
         )
         return pd.concat(
-            (self.c[c].static for c in comps),
-            keys=comps,
+            (c.static for c in comps),
+            keys=[c.name for c in comps],
             sort=True,
             names=names,
         )
@@ -1185,7 +1189,9 @@ class Network(
         branches.
         """
         adjacency_matrix = self.adjacency_matrix(
-            branch_components=self.passive_branch_components,
+            branch_components=[
+                c.list_name for c in self.components.filter(branch=True, passive=True)
+            ],
             investment_period=investment_period,
             return_dataframe=True,
         )
@@ -1243,7 +1249,7 @@ class Network(
                     bus_carrier.loc[buses].value_counts(),
                 )
 
-            self.add("SubNetwork", str(i), carrier=carrier)
+            self.c.sub_networks.add(str(i), carrier=carrier)
 
         # add objects
         self.c.sub_networks.static["obj"] = [
@@ -1255,7 +1261,7 @@ class Network(
         )[self.c.buses.static.columns]
 
         for c in self.components:
-            if c.name not in self.passive_branch_components:
+            if not (isinstance(c, Branch) and isinstance(c, Passive)):
                 continue
             c.static["sub_network"] = c.static.bus0.map(sub_network_map)
 
@@ -1389,7 +1395,7 @@ class Network(
 
         """
         if components is None:
-            components = self.all_components
+            components = [c.list_name for c in self.components.values()]
 
         return (
             self.c[c_name]
@@ -1477,11 +1483,6 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         'Generator' SubNetworkComponents
         ...
 
-        Or with the component name instead of list notation:
-        >>> sub_network.components['Generator'] # doctest: +ELLIPSIS
-        'Generator' SubNetworkComponents
-        ...
-
         See Also
         --------
         [pypsa.Network.components][]
@@ -1491,9 +1492,11 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         def filter_down(key: str, c: Components) -> Any:
             value = c[key]
             if key == "static":
-                if c.name in {"Bus"} | self.n.passive_branch_components:
+                if isinstance(c, Buses) or (
+                    isinstance(c, Branch) and isinstance(c, Passive)
+                ):
                     return value[value.sub_network == self.name]
-                if c.name in self.n.one_port_components:
+                if isinstance(c, OnePort):
                     buses = self.c.buses.static.index.unique("name")
                     return value[value.bus.isin(buses)]
                 msg = f"Component {c.name} not supported for sub-networks"
@@ -1618,8 +1621,10 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         types = []
         names = []
-        for c in self.components[sorted(self.n.passive_branch_components)]:
-            static = c.static
+        for c in sorted(
+            self.n.components.filter(branch=True, passive=True), key=lambda c: c.name
+        ):
+            static = self.components[c.list_name].static
             idx = static.query("active").index if active_only else static.index
             types += len(idx) * [c.name]
             names += list(idx)
@@ -2023,7 +2028,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
 
         """
         if components is None:
-            components = self.n.all_components
+            components = [c.list_name for c in self.n.components.values()]
 
         return (
             self.components[c_name]

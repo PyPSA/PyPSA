@@ -295,7 +295,7 @@ class Groupers:
 
         """
         bus = f"bus{port}"
-        buses_carrier = self.carrier(n, "Bus", nice_names=nice_names)
+        buses_carrier = self.carrier(n, "buses", nice_names=nice_names)
         component_buses = n.c[c].static[bus]
 
         return self._map_with_multiindex(component_buses, buses_carrier).rename(

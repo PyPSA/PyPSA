@@ -75,17 +75,26 @@ def n_multiport_solved(n_multiport):
 
 
 def test_process_component_basics(n):
-    assert "Process" in n.all_components
-    assert "Process" in n.branch_components
-    assert "Process" in n.controllable_branch_components
-    assert "Process" not in n.passive_branch_components
+    assert n.c.processes in n.components.values()
+    assert n.c.processes.is_branch
+    assert n.c.processes.is_controllable
+    assert not n.c.processes.is_passive
+
+    with pytest.warns(DeprecationWarning, match="all_components"):
+        assert "Process" in n.all_components
+    with pytest.warns(DeprecationWarning, match="branch_components"):
+        assert "Process" in n.branch_components
+    with pytest.warns(DeprecationWarning, match="controllable_branch_components"):
+        assert "Process" in n.controllable_branch_components
+    with pytest.warns(DeprecationWarning, match="passive_branch_components"):
+        assert "Process" not in n.passive_branch_components
 
     assert "electrolyser" in n.c.processes.static.index
     assert "0" in n.c.processes.ports
     assert "1" in n.c.processes.ports
 
-    assert "Process" in nominal_attrs
-    assert nominal_attrs["Process"] == "p_nom"
+    assert "processes" in nominal_attrs
+    assert nominal_attrs["processes"] == "p_nom"
 
     assert ("Process", "electrolyser") in n.branches().index
 

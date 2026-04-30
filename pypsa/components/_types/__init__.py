@@ -25,21 +25,25 @@ from pypsa.components._types.sub_networks import SubNetworks
 from pypsa.components._types.transformer_types import TransformerTypes
 from pypsa.components._types.transformers import Transformers
 
-__all__ = [
-    "Buses",
-    "Carriers",
-    "Generators",
-    "GlobalConstraints",
-    "LineTypes",
-    "Lines",
-    "Links",
-    "Loads",
-    "Processes",
-    "Shapes",
-    "ShuntImpedances",
-    "StorageUnits",
-    "SubNetworks",
-    "Stores",
-    "TransformerTypes",
-    "Transformers",
+_ALL_COMPONENTS = [
+    Buses,
+    Carriers,
+    Generators,
+    GlobalConstraints,
+    LineTypes,
+    Lines,
+    Links,
+    Loads,
+    Processes,
+    Shapes,
+    ShuntImpedances,
+    StorageUnits,
+    Stores,
+    SubNetworks,
+    TransformerTypes,
+    Transformers,
 ]
+
+_COMPONENT_CLASSES = {cls._ctype.name: cls for cls in _ALL_COMPONENTS}
+
+__all__ = [cls.__name__ for cls in _ALL_COMPONENTS]

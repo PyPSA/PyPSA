@@ -82,7 +82,9 @@ def test_remove_misspelled_component(ac_dc_network):
     """
     n = ac_dc_network
     misspelled_component = "Liness"
-    with pytest.raises(AttributeError, match=f"components '{misspelled_component}'"):
+    with pytest.raises(
+        ValueError, match=f"'{misspelled_component}' is not a valid component type"
+    ):
         n.remove(misspelled_component, ["0", "1"])
 
 
@@ -96,7 +98,9 @@ def test_add_misspelled_component(n_5bus):
     be logged.
     """
     misspelled_component = "Generatro"
-    with pytest.raises(AttributeError, match=f"components '{misspelled_component}'"):
+    with pytest.raises(
+        ValueError, match=f"'{misspelled_component}' is not a valid component type"
+    ):
         n_5bus.add(
             misspelled_component,
             ["g_1", "g_2"],
@@ -383,12 +387,12 @@ def test_multiple_add_defaults(n_5bus):
     # TODO: Improve tests since component is the same now
     assert (
         n_5bus.c.generators.static.loc[gen_names[0], "control"]
-        == n_5bus.components.Generator.defaults.loc["control", "default"]
+        == n_5bus.components.generators.defaults.loc["control", "default"]
     )
 
     assert (
         n_5bus.c.loads.static.loc[line_names[0], "p_set"]
-        == n_5bus.components.Load.defaults.loc["p_set", "default"]
+        == n_5bus.components.loads.defaults.loc["p_set", "default"]
     )
 
 
@@ -574,7 +578,21 @@ def test_components_referencing(ac_dc_network):
         assert id(ac_dc_network.c.buses.dynamic) == id(
             ac_dc_network.components.buses.dynamic
         )
-        assert id(ac_dc_network.components.buses) == id(ac_dc_network.components.Bus)
+        with pytest.warns(DeprecationWarning, match="PascalCase"):
+            assert id(ac_dc_network.components.buses) == id(
+                ac_dc_network.components.Bus
+            )
+        with pytest.warns(DeprecationWarning, match="PascalCase"):
+            assert id(ac_dc_network.c.generators) == id(ac_dc_network.c["Generator"])
+
+
+def test_dynamic_accessor_deprecation():
+    with pypsa.option_context("api.new_components_api", True):
+        n = pypsa.examples.ac_dc_meshed()
+        with pytest.warns(DeprecationWarning, match="generators"):
+            _ = n.generators_t
+        with pytest.warns(DeprecationWarning, match="generators"):
+            n.generators_t = n.c.generators.dynamic
 
 
 @pytest.mark.parametrize("use_component", [True, False])

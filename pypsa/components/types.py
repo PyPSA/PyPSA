@@ -4,199 +4,98 @@
 
 """Components types module.
 
-Contains module wide component types. Default types are loaded from the package data.
-Additional types can be added by the user.
+Loads default component types from package data CSVs at import time.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from pypsa.common import list_as_string
 from pypsa.definitions.components import ComponentType
-from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
-# TODO better path handeling, integrate custom components
-_components_path = Path(__file__).parent.parent / "data" / "components.csv"
-_attrs_path = Path(__file__).parent.parent / "data" / "component_attrs"
-_standard_types_path = Path(__file__).parent.parent / "data" / "standard_types"
+_DATA = Path(__file__).parent.parent / "data"
+_COMPONENTS_PATH = _DATA / "components.csv"
+_ATTRS_PATH = _DATA / "component_attrs"
+_STANDARD_TYPES_PATH = _DATA / "standard_types"
 
-component_types_df = pd.read_csv(_components_path, index_col=0)
+_BOOL_MAP = {
+    "True": True,
+    "true": True,
+    True: True,
+    "False": False,
+    "false": False,
+    False: False,
+}
+
+
+def _process_defaults(defaults_df: pd.DataFrame) -> pd.DataFrame:
+    """Process a defaults DataFrame from CSV.
+
+    Derives ``static``/``varying`` flags from the ``type`` column, coerces
+    ``dynamic``/``nullable`` to ``bool``, and casts ``default`` values to
+    their declared dtypes.
+    """
+    df = defaults_df.copy()
+    df["default"] = df["default"].astype(object)
+
+    df["static"] = df["type"] != "series"
+    df["varying"] = df["type"].isin({"series", "static or series"})
+    df["dynamic"] = df["dynamic"].map(_BOOL_MAP).astype(bool)
+    df["nullable"] = df["nullable"].map(_BOOL_MAP).astype(bool)
+
+    bool_b = df["dtype"] == "bool"
+    if bool_b.any():
+        df.loc[bool_b, "default"] = df.loc[bool_b, "default"].isin({True, "True"})
+
+    str_b = df["dtype"] == "str"
+    df.loc[str_b, "default"] = df.loc[str_b, "default"].fillna("")
+    for dtype_name, pytype in (("str", str), ("float", float), ("int", int)):
+        mask = (df["dtype"] == dtype_name) & df["default"].notna()
+        if mask.any():
+            df.loc[mask, "default"] = df.loc[mask, "default"].astype(pytype)
+    return df
+
+
+def _load_standard_types(name: str) -> pd.DataFrame | None:
+    path = _STANDARD_TYPES_PATH / f"{name}.csv"
+    return pd.read_csv(path, index_col=0) if path.exists() else None
+
+
+component_types_df = pd.read_csv(_COMPONENTS_PATH, index_col=0)
 default_components = component_types_df.index.to_list()
 
-all_components = {}
-
-
-def add_component_type(
-    name: str,
-    list_name: str,
-    description: str,
-    category: str,
-    defaults_df: pd.DataFrame,
-    standard_types_df: pd.DataFrame | None = None,
-) -> None:
-    """Add component type to package wide component types library.
-
-    The function is used to add the package default components but can also be used to
-    add custom components, which then again can be used during the network creation.
-
-    Parameters
-    ----------
-    name : str
-        Name of the component type. Must be unique.
-    list_name : str
-        List name of the component type.
-    description : str
-        Description of the component type.
-    category : str
-        Category of the component type.
-    defaults_df : pandas.DataFrame
-        Default attributes of the component type. Pass as a DataFrame with the same
-        structure as the default components in `/pypsa/data/default_components/`.
-    standard_types_df : pandas.DataFrame, optional
-        Standard types of the component type.
-
-
-    Examples
-    --------
-    >>> import pandas as pd
-
-    >>> defaults_data = {
-    ...     "attribute": ["name", "attribute_a"],
-    ...     "type": ["string", "float"],
-    ...     "unit": ["n/a", "n/a"],
-    ...     "default": ["n/a", 1],
-    ...     "description": ["Unique name", "Some custom attribute"],
-    ...     "status": ["Input (required)", "Input (optional)"]
-    ... }
-    >>> defaults_df = pd.DataFrame(defaults_data)
-    >>> pypsa.components.types.add_component_type(
-    ...     name="CustomComponent",
-    ...     list_name="custom_components",
-    ...     description="A custom component example",
-    ...     category="custom",
-    ...     defaults_df=defaults_df,
-    ... )
-    >>> # Check created component type
-    >>> pypsa.components.types.get("custom_components")
-    'CustomComponent' Component Type
-
-    """
-    if name in all_components:
-        msg = f"Component type '{name}' already exists."
-        raise ValueError(msg)
-
-    # Format attributes
-    defaults_df["default"] = defaults_df.default.astype(object)
-    defaults_df["static"] = defaults_df["type"] != "series"
-    defaults_df["varying"] = defaults_df["type"].isin({"series", "static or series"})
-    defaults_df["typ"] = (
-        defaults_df["type"]
-        .map({"boolean": bool, "int": int, "string": str, "geometry": "geometry"})
-        .fillna(float)
-    )
-    defaults_df["dtype"] = (
-        defaults_df["type"]
-        .map(
-            {
-                "boolean": np.dtype(bool),
-                "int": np.dtype(int),
-                "string": np.dtype("O"),
-            }
+all_components: dict[str, ComponentType] = {}
+for _name, _row in component_types_df.iterrows():
+    _attrs_file = _ATTRS_PATH / f"{_row.list_name}.csv"
+    if not _attrs_file.exists():
+        msg = (
+            f"Could not find {_attrs_file}. For each component, there must be "
+            "a corresponding file for its attributes."
         )
-        .fillna(np.dtype(float))
+        raise FileNotFoundError(msg)
+    all_components[_row.list_name] = ComponentType(
+        name=_name,
+        list_name=_row.list_name,
+        description=_row.description,
+        category=_row.category if pd.notna(_row.category) else "",
+        defaults=_process_defaults(pd.read_csv(_attrs_file, index_col=0)),
+        standard_types=_load_standard_types(_row.list_name),
     )
 
-    bool_b = defaults_df.type == "boolean"
-    if bool_b.any():
-        defaults_df.loc[bool_b, "default"] = defaults_df.loc[bool_b, "default"].isin(
-            {True, "True"}
-        )
+all_standard_attrs_set = {
+    attr for ct in all_components.values() for attr in ct.defaults.index
+}
 
-    str_b = defaults_df.typ.apply(lambda x: x is str)
-    defaults_df.loc[str_b, "default"] = defaults_df.loc[str_b, "default"].fillna("")
-    for typ in (str, float, int):
-        typ_b = defaults_df.typ == typ
-        defaults_df.loc[typ_b, "default"] = defaults_df.loc[typ_b, "default"].astype(
-            typ
-        )
-
-    # Initialize Component
-    all_components[list_name] = ComponentType(
-        name=name,
-        list_name=list_name,
-        description=description,
-        category=category,
-        defaults=defaults_df,
-        standard_types=standard_types_df,
-    )
-
-
-def _load_default_component_types(
-    component_df: pd.DataFrame, attrs_path: Path, standard_types_path: Path
-) -> None:
-    """Load default component types from package data.
-
-    Function is called during package import and should not be used otherwise.
-
-    Parameters
-    ----------
-    component_df : pandas.DataFrame
-        DataFrame which lists all default components. E.g. `/pypsa/data/components.csv`.
-    attrs_path : pathlib.Path
-        Path to the default attributes dir. E.g. `/pypsa/data/default_components/`.
-    standard_types_path : pathlib.Path
-        Path to the standard types dir. E.g. `/pypsa/data/standard_types/`.
-
-    """
-    for c_name, row in component_df.iterrows():
-        # Read in defaults attributes
-        attrs_file_path = attrs_path / f"{row.list_name}.csv"
-        if not attrs_file_path.exists():
-            msg = (
-                f"Could not find {attrs_path}. For each component, there must be a "
-                "corresponding file for its attributes."
-            )
-            raise FileNotFoundError(msg)
-        attrs = pd.read_csv(attrs_file_path, index_col=0, na_values="n/a")
-
-        # Read in standard types
-        types_paths = standard_types_path / f"{row.list_name}.csv"
-        if not types_paths.exists():
-            standard_types = None
-        else:
-            standard_types = pd.read_csv(types_paths, index_col=0)
-
-        add_component_type(
-            name=c_name,
-            list_name=row.list_name,
-            description=row.description,
-            category=row.category,
-            defaults_df=attrs,
-            standard_types_df=standard_types,
-        )
+_NAME_TO_LIST_NAME = dict(
+    zip(component_types_df.index, component_types_df.list_name, strict=True)
+)
 
 
 def get(name: str) -> ComponentType:
-    """Get component type instance from package wide component types library.
-
-    The function is used to get the package default components but can also be used to
-    get custom components. During network creation, the type instance is not needed but
-    to pass a component type name as a string to the network constructor, a custom
-    component must be added to the package wide component types library first.
-
-    Parameters
-    ----------
-    name : str
-        Name of the component type.
-
-    Returns
-    -------
-    pypsa.components.types.ComponentType
-        Component type instance.
+    """Get component type by name (PascalCase) or list_name.
 
     Examples
     --------
@@ -204,26 +103,12 @@ def get(name: str) -> ComponentType:
     'Generator' Component Type
 
     """
-    if name in COMPONENT_ALIAS_DICT:
-        name = COMPONENT_ALIAS_DICT[name]
+    key = _NAME_TO_LIST_NAME.get(name, name) if name not in all_components else name
     try:
-        return all_components[name]
+        return all_components[key]
     except KeyError as e:
         msg = (
-            f"Component type '{name}' not found. If you use a custom component, make "
-            f"sure to have it added. Available types are: "
+            f"Component type '{name}' not found. Available types: "
             f"{list_as_string(all_components)}."
         )
         raise ValueError(msg) from e
-
-
-# Load default component types
-_load_default_component_types(
-    component_df=component_types_df,
-    attrs_path=_attrs_path,
-    standard_types_path=_standard_types_path,
-)
-
-all_standard_attrs_set = {
-    attr for component in all_components.values() for attr in component.defaults.index
-}

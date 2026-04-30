@@ -646,7 +646,7 @@ class TemporalClusteringMixin:
                 if not df.empty and attr not in exclude_attrs:
                     for col in df.columns:
                         dfs.append(df[[col]])
-                        col_attrs.append((c.name, attr, col))
+                        col_attrs.append((c.list_name, attr, col))
 
         if not dfs:
             msg = "No time-varying data found for segmentation"

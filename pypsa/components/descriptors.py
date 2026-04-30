@@ -139,7 +139,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         # logical AND with active attribute
         active = {}
         for period in np.atleast_1d(investment_period):
-            if period not in self.n_save.investment_periods:
+            if period not in self.n.investment_periods:
                 msg = "Investment period not in `n.investment_periods`"
                 raise ValueError(msg)
             active[period] = self.static.eval(
@@ -312,7 +312,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
                3         False  False
 
         """
-        sns_ = as_index(self.n_save, sns, "snapshots")
+        sns_ = as_index(self.n, sns, "snapshots")
 
         if self.has_investment_periods:
             active_assets_per_period = {

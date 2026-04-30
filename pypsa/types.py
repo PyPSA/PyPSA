@@ -4,7 +4,9 @@
 
 """Typing utilities."""
 
-from typing import Any, TypeVar
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -12,7 +14,11 @@ from pandas.api.types import is_list_like
 
 from pypsa.network.abstract import _NetworkABC
 
+if TYPE_CHECKING:
+    from pypsa.components.components import Components
+
 NetworkType = TypeVar("NetworkType", bound=_NetworkABC)
+ComponentsLike: TypeAlias = Union[str, "Components"]
 
 
 def is_1d_list_like(x: Any) -> bool:
@@ -30,15 +36,15 @@ def is_1d_list_like(x: Any) -> bool:
 
     Examples
     --------
-    >>> pypsa.type_utils.is_1d_list_like([1, 2, 3])
+    >>> pypsa.types.is_1d_list_like([1, 2, 3])
     True
-    >>> pypsa.type_utils.is_1d_list_like(np.array([1, 2, 3]))
+    >>> pypsa.types.is_1d_list_like(np.array([1, 2, 3]))
     True
-    >>> pypsa.type_utils.is_1d_list_like(np.array([[1, 2], [3, 4]]))
+    >>> pypsa.types.is_1d_list_like(np.array([[1, 2], [3, 4]]))
     False
-    >>> pypsa.type_utils.is_1d_list_like(pd.DataFrame({'a': [1, 2]}))
+    >>> pypsa.types.is_1d_list_like(pd.DataFrame({'a': [1, 2]}))
     False
-    >>> pypsa.type_utils.is_1d_list_like(pd.Series([1, 2, 3]))
+    >>> pypsa.types.is_1d_list_like(pd.Series([1, 2, 3]))
     True
 
     """

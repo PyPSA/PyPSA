@@ -6,6 +6,7 @@
 
 from typing import Any
 
+from pypsa.components import categories
 from pypsa.components._types import (
     Buses,
     Carriers,
@@ -26,6 +27,7 @@ from pypsa.components._types import (
 )
 from pypsa.components.components import Components
 from pypsa.components.legacy import Component
+from pypsa.types import ComponentsLike
 
 
 def __getattr__(name: str) -> Any:
@@ -40,6 +42,7 @@ def __getattr__(name: str) -> Any:
 
 __all__ = [
     "Component",
+    "ComponentsLike",
     "Components",
     "Buses",
     "Carriers",
@@ -57,4 +60,5 @@ __all__ = [
     "Processes",
     "TransformerTypes",
     "Transformers",
+    "categories",
 ]

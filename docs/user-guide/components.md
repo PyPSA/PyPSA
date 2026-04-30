@@ -36,7 +36,7 @@ Access a single component:
 'Generator' Components
 ----------------------
 ...
->>> c = n.components["Generator"] # also subscriptable
+>>> c = n.components["generators"] # also subscriptable
 >>> c  # doctest: +ELLIPSIS
 'Generator' Components
 ----------------------
@@ -111,8 +111,8 @@ The current components API works as follows:
 To get access to the full functionality of [pypsa.Components][] the long namespace must be used or assigned to a variable. For example, to rename a component across all dataframes ([pypsa.Components.rename_component_names][]) or add components with attribute type hints ([pypsa.components.Generators.add][]), the following code must be run:
 
 ``` py
->>> n.components["Generator"].rename_component_names(bus1="bus_renamed")  # doctest: +SKIP
->>> c = n.components["Generator"]
+>>> n.components["generators"].rename_component_names(bus1="bus_renamed")  # doctest: +SKIP
+>>> c = n.components["generators"]
 >>> c.add(name="New Gen", bus="bus_renamed", p_nom=100, carrier="wind")  # doctest: +SKIP
 ```
 

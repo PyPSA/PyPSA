@@ -16,6 +16,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from pypsa.components.abstract import _ComponentsABC
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -26,7 +28,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ComponentsTransformMixin:
+class ComponentsTransformMixin(_ComponentsABC):
     """Mixin class for components descriptors methods.
 
     Class inherits to [pypsa.Components][]. All attributes and methods can be used
@@ -148,14 +150,7 @@ class ComponentsTransformMixin:
         [pypsa.Network.add][]
 
         """
-        if not self.attached:
-            msg = (
-                "Currently new components can only be added when the components "
-                "are already attached to a network."
-            )
-            raise NotImplementedError(msg)
-
-        return self.n_save.add(
+        return self.n.add(
             self.name,
             name,
             suffix=suffix,
@@ -209,10 +204,9 @@ class ComponentsTransformMixin:
         for k, v in self.dynamic.items():  # Modify in place
             self.dynamic[k] = v.rename(columns=kwargs)
 
-        # Rename cross references in network (if attached to one)
-        if self.attached:
-            for component in self.n_save.components:
-                col_name = self.name.lower()  # TODO: Generalize
-                cols = [f"{col_name}{port}" for port in component.ports]
-                if cols and not component.static.empty:
-                    component.static[cols] = component.static[cols].replace(kwargs)
+        # Rename cross references in network
+        for component in self.n.components:
+            col_name = self.name.lower()  # TODO: Generalize
+            cols = [f"{col_name}{port}" for port in component.ports]
+            if cols and not component.static.empty:
+                component.static[cols] = component.static[cols].replace(kwargs)

@@ -1,11 +1,11 @@
-attribute,type,unit,default,description,status
-name,string,n/a,n/a,Unique name,Input (required)
-bus,string,n/a,n/a,Name of bus to which load is attached.,Input (required)
-carrier,string,n/a,n/a,Carrier of the load.,Input (optional)
-type,string,n/a,n/a,Placeholder for load type. Not implemented.,Input (optional)
-p_set,static or series,MW,0,Active power consumption (positive if the load is consuming power).,Input (optional)
-q_set,static or series,MVar,0,Reactive power consumption (positive if the load is inductive).,Input (optional)
-sign,float,n/a,-1,Sign (opposite sign to generator),Input (optional)
-p,series,MW,0,Active power at bus (positive if net load),Output
-q,series,MVar,0,Reactive power (positive if net load),Output
-active,boolean,n/a,True,Whether to consider the component in optimisation or not.,Input (optional)
+attribute,type,dtype,unit,default,description,status,dynamic,nullable
+name,string,str,,,Unique name,Input (required),False,False
+bus,string,str,,,Name of bus to which load is attached.,Input (required),False,False
+carrier,string,str,,,Carrier of the load.,Input (optional),False,True
+type,string,str,,,Placeholder for load type. Not implemented.,Input (optional),False,True
+p_set,static or series,float,MW,0,Active power consumption (positive if the load is consuming power).,Input (optional),True,False
+q_set,static or series,float,MVar,0,Reactive power consumption (positive if the load is inductive).,Input (optional),True,False
+sign,float,float,,-1,Sign (opposite sign to generator),Input (optional),False,False
+p,series,float,MW,0,Active power at bus (positive if net load),Output,True,False
+q,series,float,MVar,0,Reactive power (positive if net load),Output,True,False
+active,boolean,bool,,True,Whether to consider the component in optimisation or not.,Input (optional),False,False

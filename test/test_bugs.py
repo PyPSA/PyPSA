@@ -44,13 +44,9 @@ def test_890():
     n = pypsa.examples.scigrid_de()
     n.calculate_dependent_values()
 
-    n.c.lines.static = n.c.lines.static.reindex(
-        columns=n.components["Line"]["defaults"].index[1:]
-    )
+    n.c.lines.static = n.c.lines.static.reindex(columns=n.c.lines["defaults"].index[1:])
     n.c.lines.static["type"] = np.nan
-    n.c.buses.static = n.c.buses.static.reindex(
-        columns=n.components["Bus"]["defaults"].index[1:]
-    )
+    n.c.buses.static = n.c.buses.static.reindex(columns=n.c.buses["defaults"].index[1:])
     n.c.buses.static["frequency"] = 50
 
     n.set_investment_periods([2020, 2030])

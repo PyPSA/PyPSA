@@ -105,7 +105,7 @@ def test_pypower_case():
 
     # compare branch flows
     for c in n.components:
-        if c.name not in n.passive_branch_components:
+        if not (c.is_branch and c.is_passive):
             continue
         for si in ["p0", "p1", "q0", "q1"]:
             si_pypsa = getattr(c.dynamic, si).loc[DEFAULT_TIMESTAMP].values

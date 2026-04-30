@@ -12,11 +12,12 @@ import xarray as xr
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components.components import Components
+from pypsa.components.categories import Controllable, OnePort
+from pypsa.components.types import all_components as component_types
 
 
 @patch_add_docstring
-class StorageUnits(Components):
+class StorageUnits(Controllable, OnePort):
     """StorageUnits components class.
 
     This class is used for storage unit components. All functionality specific to
@@ -33,6 +34,8 @@ class StorageUnits(Components):
     Empty 'StorageUnit' Components
 
     """
+
+    _ctype = component_types["storage_units"]
 
     _operational_variables = ["p_dispatch", "p_store", "state_of_charge"]
 

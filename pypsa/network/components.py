@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from deprecation import deprecated
 
 from pypsa._options import options
-from pypsa.components.legacy import Component
+from pypsa.components._types import _COMPONENT_CLASSES
 from pypsa.components.store import ComponentsStore
 from pypsa.components.types import (
     component_types_df,
@@ -36,6 +36,10 @@ from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
     import pandas as pd
+
+    from pypsa import Network
+
+
 logger = logging.getLogger(__name__)
 
 # TODO Change to UserWarning when they are all resolved and raised
@@ -74,12 +78,8 @@ class NetworkComponentsMixin(_NetworkABC):
 
     def _read_in_default_standard_types(self) -> None:
         """Read in the default standard types from the data folder."""
-        for std_type in self.standard_type_components:
-            self.add(
-                std_type,
-                self.components[std_type].ctype.standard_types.index,
-                **self.components[std_type].ctype.standard_types,
-            )
+        for c in self.components.filter(standard_type=True):
+            c.add(c.standard_types.index, **c.standard_types)
 
     @property
     def components(self) -> ComponentsStore:
@@ -130,7 +130,9 @@ class NetworkComponentsMixin(_NetworkABC):
             for c_name in components:
                 ctype = get_component_type(c_name)
 
-                self._components[ctype.list_name] = Component(ctype=ctype, n=self)
+                self._components[ctype.list_name] = _COMPONENT_CLASSES[c_name](
+                    n=cast("Network", self)
+                )
         return self._components
 
     @property
@@ -695,97 +697,129 @@ class NetworkComponentsMixin(_NetworkABC):
         self.c.shapes.dynamic = value
 
     @property
+    @deprecated(
+        deprecated_in="1.3.0",
+        removed_in="2.0.0",
+        details="Use `n.components.filter(branch=True, controllable=True)`, which returns a list of `Components` instead of a set of component names.",
+    )
     def controllable_branch_components(self) -> set[str]:
         """Controllable branch components of the network as set of strings.
 
-        Examples
-        --------
-        >>> sorted(n.controllable_branch_components)
-        ['Link', 'Process']
+        !!! warning "Deprecated in <!-- md:badge-version v1.3.0 -->"
+
+            Use `n.components.filter(branch=True, controllable=True)`, which returns a list of `Components` instead of a set of component names.
 
         """
         return {"Link", "Process"}
 
     @property
+    @deprecated(
+        deprecated_in="1.3.0",
+        removed_in="2.0.0",
+        details="Use `n.components.filter(one_port=True, controllable=True)`, which returns a list of `Components` instead of a set of component names.",
+    )
     def controllable_one_port_components(self) -> set[str]:
         """Controllable one port components of the network as set of strings.
 
-        Examples
-        --------
-        >>> sorted(n.controllable_one_port_components)
-        ['Generator', 'Load', 'StorageUnit', 'Store']
+        !!! warning "Deprecated in <!-- md:badge-version v1.3.0 -->"
+
+            Use `n.components.filter(one_port=True, controllable=True)`, which returns a list of `Components` instead of a set of component names.
 
         """
         return {"StorageUnit", "Store", "Generator", "Load"}
 
     @property
+    @deprecated(
+        deprecated_in="1.3.0",
+        removed_in="2.0.0",
+        details="Use `n.components.filter(branch=True, passive=True)`, which returns a list of `Components` instead of a set of component names.",
+    )
     def passive_branch_components(self) -> set[str]:
         """Passive branch components of the network as set of strings.
 
-        Examples
-        --------
-        >>> sorted(n.passive_branch_components)
-        ['Line', 'Transformer']
+        !!! warning "Deprecated in <!-- md:badge-version v1.3.0 -->"
+
+            Use `n.components.filter(branch=True, passive=True)`, which returns a list of `Components` instead of a set of component names.
 
         """
         return {"Transformer", "Line"}
 
     @property
+    @deprecated(
+        deprecated_in="1.3.0",
+        removed_in="2.0.0",
+        details="Use `n.components.filter(one_port=True, passive=True)`, which returns a list of `Components` instead of a set of component names.",
+    )
     def passive_one_port_components(self) -> set[str]:
         """Passive one port components of the network as set of strings.
 
-        Examples
-        --------
-        >>> sorted(n.passive_one_port_components)
-        ['ShuntImpedance']
+        !!! warning "Deprecated in <!-- md:badge-version v1.3.0 -->"
+
+            Use `n.components.filter(one_port=True, passive=True)`, which returns a list of `Components` instead of a set of component names.
 
         """
         return {"ShuntImpedance"}
 
     @property
+    @deprecated(
+        deprecated_in="1.3.0",
+        removed_in="2.0.0",
+        details="Use `n.components.filter(standard_type=True)`, which returns a list of `Components` instead of a set of component names.",
+    )
     def standard_type_components(self) -> set[str]:
         """Standard type components of the network as set of strings.
 
-        Examples
-        --------
-        >>> sorted(n.standard_type_components)
-        ['LineType', 'TransformerType']
+        !!! warning "Deprecated in <!-- md:badge-version v1.3.0 -->"
+
+            Use `n.components.filter(standard_type=True)`, which returns a list of `Components` instead of a set of component names.
 
         """
         return {"LineType", "TransformerType"}
 
     @property
+    @deprecated(
+        deprecated_in="1.3.0",
+        removed_in="2.0.0",
+        details="Use `n.components.filter(one_port=True)`, which returns a list of `Components` instead of a set of component names.",
+    )
     def one_port_components(self) -> set[str]:
         """One port components of the network as set of strings.
 
-        Examples
-        --------
-        >>> sorted(n.one_port_components)
-        ['Generator', 'Load', 'ShuntImpedance', 'StorageUnit', 'Store']
+        !!! warning "Deprecated in <!-- md:badge-version v1.3.0 -->"
+
+            Use `n.components.filter(one_port=True)`, which returns a list of `Components` instead of a set of component names.
 
         """
-        return self.passive_one_port_components | self.controllable_one_port_components
+        return {"ShuntImpedance", "StorageUnit", "Store", "Generator", "Load"}
 
     @property
+    @deprecated(
+        deprecated_in="1.3.0",
+        removed_in="2.0.0",
+        details="Use `n.components.filter(branch=True)`, which returns a list of `Components` instead of a set of component names.",
+    )
     def branch_components(self) -> set[str]:
         """Branch components of the network as set of strings.
 
-        Examples
-        --------
-        >>> sorted(n.branch_components)
-        ['Line', 'Link', 'Process', 'Transformer']
+        !!! warning "Deprecated in <!-- md:badge-version v1.3.0 -->"
+
+            Use `n.components.filter(branch=True)`, which returns a list of `Components` instead of a set of component names.
 
         """
-        return self.passive_branch_components | self.controllable_branch_components
+        return {"Transformer", "Line", "Link", "Process"}
 
     @property
+    @deprecated(
+        deprecated_in="1.3.0",
+        removed_in="2.0.0",
+        details="Use `n.components.values()` instead, which returns a list of `Components` instead of a set of component names.",
+    )
     def all_components(self) -> set[str]:
         """All components of the network as set of strings.
 
-        Examples
-        --------
-        >>> sorted(n.all_components)
-        ['Bus', 'Carrier', 'Generator', 'GlobalConstraint', 'Line', 'LineType', 'Link', 'Load', 'Process', 'Shape', 'ShuntImpedance', 'StorageUnit', 'Store', 'SubNetwork', 'Transformer', 'TransformerType']
+        !!! warning "Deprecated in <!-- md:badge-version v1.3.0 -->"
+
+            Use `n.components.values()`, which returns a list of `Components` instead of a set of component names.
 
         """
         return {

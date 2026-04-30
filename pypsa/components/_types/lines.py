@@ -14,7 +14,8 @@ import pandas as pd
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components.components import Components
+from pypsa.components.categories import Branch, Passive
+from pypsa.components.types import all_components as component_types
 from pypsa.geo import haversine_pts
 
 if TYPE_CHECKING:
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class Lines(Components):
+class Lines(Passive, Branch):
     """Lines components class.
 
     This class is used for line components. All functionality specific to
@@ -44,6 +45,8 @@ class Lines(Components):
     Components: 7
 
     """
+
+    _ctype = component_types["lines"]
 
     _operational_variables = ["s"]
 
@@ -128,14 +131,14 @@ class Lines(Components):
                 haversine_pts(
                     a=np.array(
                         [
-                            self.static.bus0.map(self.n_save.buses.x),
-                            self.static.bus0.map(self.n_save.buses.y),
+                            self.static.bus0.map(self.n.c.buses.static["x"]),
+                            self.static.bus0.map(self.n.c.buses.static["y"]),
                         ]
                     ).T,
                     b=np.array(
                         [
-                            self.static.bus1.map(self.n_save.buses.x),
-                            self.static.bus1.map(self.n_save.buses.y),
+                            self.static.bus1.map(self.n.c.buses.static["x"]),
+                            self.static.bus1.map(self.n.c.buses.static["y"]),
                         ]
                     ).T,
                 )

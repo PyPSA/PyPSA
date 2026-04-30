@@ -11,7 +11,8 @@ import pandas as pd
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components.components import Components
+from pypsa.components.categories import Branch, Passive
+from pypsa.components.types import all_components as component_types
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class Transformers(Components):
+class Transformers(Passive, Branch):
     """Transformers components class.
 
     This class is used for transformer components. All functionality specific to
@@ -38,6 +39,8 @@ class Transformers(Components):
     Empty 'Transformer' Components
 
     """
+
+    _ctype = component_types["transformers"]
 
     _operational_variables = ["s"]
 

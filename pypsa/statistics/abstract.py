@@ -20,6 +20,7 @@ from pypsa.statistics.grouping import groupers
 
 if TYPE_CHECKING:
     from pypsa import Network, NetworkCollection
+    from pypsa.components import Components
     from pypsa.components.components import PortsLike
 
 logger = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ class AbstractStatisticsAccessor(ABC):
     def _get_grouping(
         self,
         n: Network | NetworkCollection,
-        c: str,
+        c: Components,
         groupby: Callable | Sequence[str] | str | bool,
         port: str,
         nice_names: bool = False,
@@ -78,11 +79,11 @@ class AbstractStatisticsAccessor(ABC):
         level = None
         if callable(groupby):
             try:
-                by = groupby(n, c, port=port, nice_names=nice_names)
+                by = groupby(n, c.list_name, port=port, nice_names=nice_names)
             except TypeError:
-                by = groupby(n, c, nice_names=nice_names)
+                by = groupby(n, c.list_name, nice_names=nice_names)
         elif isinstance(groupby, (str | list)):
-            by = groupers[groupby](n, c, port=port, nice_names=nice_names)
+            by = groupers[groupby](n, c.list_name, port=port, nice_names=nice_names)
         elif groupby is not False:
             msg = f"Argument `groupby` must be a string, list, callable, or False, got {repr(groupby)}."
             raise ValueError(msg)
@@ -174,7 +175,17 @@ class AbstractStatisticsAccessor(ABC):
         if is_one_component := isinstance(components, str):
             components = [components]
         if components is None:
-            components = sorted(n.branch_components | n.one_port_components)
+            components = [
+                "Generator",
+                "Line",
+                "Link",
+                "Load",
+                "Process",
+                "ShuntImpedance",
+                "StorageUnit",
+                "Store",
+                "Transformer",
+            ]
         if nice_names is None:
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
@@ -185,8 +196,8 @@ class AbstractStatisticsAccessor(ABC):
 
         at_port = resolve_at_port(at_port, bus_carrier)
 
-        for cn in components:
-            c = n.c[cn]
+        for component_name in components:
+            c = n.c._get(component_name)
             if c.static.empty:
                 continue
 
@@ -196,22 +207,22 @@ class AbstractStatisticsAccessor(ABC):
                     port_suffix = c.ports[port]
                 except IndexError:
                     continue
-                vals = func(n, cn, port_suffix)
+                vals = func(n, c, port_suffix)
                 if self._aggregate_components_skip_iteration(vals):
                     continue
 
-                vals = self._filter_active_assets(n, cn, vals)  # for multiinvest
-                vals = self._filter_bus_carrier(n, cn, port_suffix, bus_carrier, vals)
-                vals = self._filter_carrier(n, cn, carrier, vals)
+                vals = self._filter_active_assets(n, c, vals)  # for multiinvest
+                vals = self._filter_bus_carrier(n, c, port_suffix, bus_carrier, vals)
+                vals = self._filter_carrier(n, c, carrier, vals)
 
                 if self._aggregate_components_skip_iteration(vals):
                     continue
 
                 if groupby is not False:
                     grouping = self._get_grouping(
-                        n, cn, groupby, port=port_suffix, nice_names=nice_names
+                        n, c, groupby, port=port_suffix, nice_names=nice_names
                     )
-                    vals = self._aggregate_components_groupby(vals, grouping, agg, cn)
+                    vals = self._aggregate_components_groupby(vals, grouping, agg, c)
                 # Avoid having 'component' as index name in multiindex
                 elif isinstance(vals, pd.DataFrame | pd.Series):
                     vals = vals.rename_axis("name", axis=0)
@@ -222,7 +233,7 @@ class AbstractStatisticsAccessor(ABC):
 
             df = self._aggregate_components_concat_values(values, agg)
 
-            d[cn] = df
+            d[component_name] = df
         df = self._aggregate_components_concat_data(d, is_one_component)
         if not df.empty:
             df = self._apply_option_kwargs(
@@ -244,7 +255,7 @@ class AbstractStatisticsAccessor(ABC):
         return False
 
     def _filter_active_assets(
-        self, n: Network | NetworkCollection, c: str, obj: Any
+        self, n: Network | NetworkCollection, c: Components, obj: Any
     ) -> Any:
         """For static values iterate over periods and concat values."""
         if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
@@ -252,19 +263,19 @@ class AbstractStatisticsAccessor(ABC):
         idx = self._get_component_index(obj, c)
 
         if not self.is_multi_indexed:
-            mask = n.c[c].get_active_assets()
+            mask = c.get_active_assets()
             return obj.loc[mask.index[mask].intersection(idx)]
 
         per_period = {}
         for p in n.investment_periods:
-            mask = n.c[c].get_active_assets(p)
+            mask = c.get_active_assets(p)
             per_period[p] = obj.loc[mask.index[mask].intersection(idx)]
         return self._concat_periods(per_period, c)
 
     def _filter_bus_carrier(
         self,
         n: Network | NetworkCollection,
-        c: str,
+        c: Components,
         port: str,
         bus_carrier: str | Sequence[str] | None,
         obj: Any,
@@ -274,7 +285,7 @@ class AbstractStatisticsAccessor(ABC):
             return obj
 
         idx = self._get_component_index(obj, c)
-        buses = n.c[c].static.loc[idx, f"bus{port}"]
+        buses = c.static.loc[idx, f"bus{port}"]
 
         # Handle MultiIndex (Collection and Stochastic Networks)
         bus_carriers = n.c.buses.static.carrier
@@ -299,16 +310,16 @@ class AbstractStatisticsAccessor(ABC):
     def _filter_carrier(
         self,
         n: Network | NetworkCollection,
-        c: str,
+        c: Components,
         carrier: str | Sequence[str] | None,
         obj: Any,
     ) -> Any:
         """Filter the DataFrame for components which have the specified carrier."""
-        if carrier is None or "carrier" not in n.c[c].static:
+        if carrier is None or "carrier" not in c.static:
             return obj
 
         idx = self._get_component_index(obj, c)
-        carriers = n.c[c].static.loc[idx, "carrier"]
+        carriers = c.static.loc[idx, "carrier"]
 
         if isinstance(carrier, str):
             if carrier in carriers.unique():

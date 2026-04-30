@@ -335,7 +335,7 @@ def map_dataframe_pandas_plot(
             # Ensure columns are ordered according to the hue order
             if color_order:
                 # Get only the columns that exist in this facet
-                available_cols = [c for c in color_order if c in pivoted.columns]
+                available_cols = [col for col in color_order if col in pivoted.columns]
                 if available_cols:  # Only reorder if we have columns
                     pivoted = pivoted[available_cols]
 
@@ -844,7 +844,7 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         """
         filtered = ["value", "name", "snapshot", "scenario", "period"]
-        filtered_cols = [c for c in args if c not in filtered and c is not None]
+        filtered_cols = [col for col in args if col not in filtered and col is not None]
 
         stats_kwargs: dict[str, str | bool | list] = {}
 

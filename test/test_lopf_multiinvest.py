@@ -357,7 +357,7 @@ def test_simple_network_store_cyclic_per_period(n_sts):
 
 
 def test_global_constraint_primary_energy_storage(n_sus):
-    c = n_sus.components["StorageUnit"]
+    c = n_sus.components["storage_units"]
     n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
     c.static["state_of_charge_initial"] = 200
     c.static["cyclic_state_of_charge"] = False
@@ -376,7 +376,7 @@ def test_global_constraint_primary_energy_storage(n_sus):
 
 
 def test_global_constraint_primary_energy_store(n_sts):
-    c = n_sts.components["Store"]
+    c = n_sts.components["stores"]
     n_sts.add("Carrier", "emitting_carrier", co2_emissions=100)
     c.static["e_initial"] = 200
     c.static["e_cyclic"] = False
@@ -403,7 +403,7 @@ def test_global_constraint_primary_energy_storage_stochastic(n_sus):
     global constraints work correctly when scenarios are present.
     """
 
-    c = "StorageUnit"
+    c = "storage_units"
 
     n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
     n_sus.c[c].static["state_of_charge_initial"] = 200

@@ -160,8 +160,8 @@ def n():
 
 
 def test_attribution_assignment(n):
-    assert "bus2" in n.components["Link"]["defaults"].index
-    assert n.components["Link"]["defaults"].loc["bus2", "default"] == ""
+    assert "bus2" in n.c.links["defaults"].index
+    assert n.c.links["defaults"].loc["bus2", "default"] == ""
 
 
 def test_optimize(n):

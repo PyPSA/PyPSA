@@ -12,7 +12,10 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from pypsa.components._types._patch import patch_add_docstring
+from pypsa.components._types.global_constraints import GlobalConstraints
+from pypsa.components.categories import Branch
 from pypsa.components.components import Components
+from pypsa.components.types import all_components as component_types
 from pypsa.constants import RE_PORTS_FILTER
 
 if TYPE_CHECKING:
@@ -42,6 +45,8 @@ class Buses(Components):
     Components: 9
 
     """
+
+    _ctype = component_types["buses"]
 
     def add(
         self,
@@ -93,20 +98,20 @@ class Buses(Components):
         """
         # Collect all unknown buses from all components
         all_buses = set()
-        for c in self.n_save.c.values():
+        for c in self.n.c.values():
             if c.static.empty:
                 continue
             bus_cols = c.static.columns[c.static.columns.str.contains(RE_PORTS_FILTER)]
             for attr in bus_cols:
                 buses = c.static[attr].astype(str)
                 # Filter empty strings for branch components (bus2, bus3 can be empty)
-                if c.name in self.n_save.branch_components and int(attr[-1]) > 1:
+                if isinstance(c, Branch) and int(attr[-1]) > 1:
                     buses = buses[buses != ""]
                 # Filter empty strings for global constraints
-                if c.name == "GlobalConstraint":
+                if isinstance(c, GlobalConstraints):
                     buses = buses[buses != ""]
 
-                missing = ~buses.isin(self.n_save.c.buses.names)
+                missing = ~buses.isin(self.n.c.buses.names)
                 all_buses.update(buses[missing & (buses != "") & (buses != "nan")])
 
         missing_buses = sorted(all_buses)

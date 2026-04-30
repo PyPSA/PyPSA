@@ -6,57 +6,19 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any
 
-from pypsa.common import UnexpectedError
-from pypsa.components._types import (
-    Buses,
-    Carriers,
-    Generators,
-    GlobalConstraints,
-    Lines,
-    LineTypes,
-    Links,
-    Loads,
-    Processes,
-    Shapes,
-    ShuntImpedances,
-    StorageUnits,
-    Stores,
-    SubNetworks,
-    Transformers,
-    TransformerTypes,
-)
 from pypsa.components.types import get as get_component_type
 
 if TYPE_CHECKING:
     import pandas as pd
 
-    from pypsa.components.components import Components
     from pypsa.definitions.components import ComponentType
     from pypsa.definitions.structures import Dict
 
 # Legacy Component Class
 # -----------------------------------
-
-_CLASS_MAPPING = {
-    "Bus": Buses,
-    "Carrier": Carriers,
-    "Generator": Generators,
-    "GlobalConstraint": GlobalConstraints,
-    "Line": Lines,
-    "LineType": LineTypes,
-    "Link": Links,
-    "Load": Loads,
-    "Process": Processes,
-    "Shape": Shapes,
-    "ShuntImpedance": ShuntImpedances,
-    "StorageUnit": StorageUnits,
-    "Store": Stores,
-    "SubNetwork": SubNetworks,
-    "Transformer": Transformers,
-    "TransformerType": TransformerTypes,
-}
 
 
 class Component:
@@ -78,9 +40,18 @@ class Component:
         static: pd.DataFrame | None = None,
         dynamic: Dict | None = None,
     ) -> Any:
-        # Deprecation warnings
+        warnings.warn(
+            "Component() is deprecated as of 1.3.0 and will be removed in 2.0.0."
+            " Components cannot be initialized directly and are always"
+            " attached to a Network. Access via `n.components.<component>`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if (name and ctype is not None) or (not name and ctype is None):
-            msg = "One out of 'name' or 'ct' must be given."
+            msg = "One out of 'name' or 'ctype' must be given."
+            raise ValueError(msg)
+        if n is None:
+            msg = "Legacy `Component` requires a Network via `n=`."
             raise ValueError(msg)
 
         if name:
@@ -88,16 +59,7 @@ class Component:
         else:
             ctype_ = ctype  # type: ignore
 
-        component_class = _CLASS_MAPPING.get(ctype_.name)
-        instance: Components
-        if component_class is not None:
-            instance = component_class(ctype=ctype_)
-        else:
-            msg = f"Component type '{ctype_.name}' not found."
-            raise UnexpectedError(msg)
-
-        if n is not None:
-            instance.n = n
+        instance = n.components[ctype_.list_name]
         if static is not None:
             instance.static = static
         if dynamic is not None:
