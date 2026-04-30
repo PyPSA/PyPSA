@@ -14,6 +14,8 @@ old/
 !/docs/**/*.ipynb
 
 
+benchmark
+
 test/.cache/
 .cache/
 

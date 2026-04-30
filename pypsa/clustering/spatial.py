@@ -18,13 +18,14 @@ import scipy.sparse as sp
 from packaging.version import Version, parse
 from pandas import Series
 
-from pypsa.common import _scenarios_not_implemented
+from pypsa.common import _scenarios_not_implemented, deprecated_kwargs
 from pypsa.geo import haversine_pts
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable
 
     from pypsa import Network
+    from pypsa.types import ComponentsLike
 
 logger = logging.getLogger(__name__)
 
@@ -117,15 +118,16 @@ def normed_or_uniform(x: pd.Series) -> pd.Series:
     return pd.Series(1.0 / len(x), x.index)
 
 
-def make_consense(component: str, attr: str) -> Callable:
+@deprecated_kwargs(deprecated_in="1.3", removed_in="2.0", component="component_name")
+def make_consense(component_name: str, attr: str) -> Callable:
     """Return a function to verify attribute values of a cluster in a component.
 
     The values should either be the same or all null.
 
     Parameters
     ----------
-    component : str
-        The name of the component.
+    component_name : str
+        The name of the component type.
     attr : str
         The name of the attribute to verify.
 
@@ -145,7 +147,7 @@ def make_consense(component: str, attr: str) -> Callable:
         v = x.iat[0]
         if not (x == v).all() and not x.isnull().all():
             msg = (
-                f"In {component} cluster {x.name}, the values of attribute "
+                f"In {component_name} cluster {x.name}, the values of attribute "
                 f"{attr} do not agree:\n{x}"
             )
             raise ValueError(msg)
@@ -154,7 +156,8 @@ def make_consense(component: str, attr: str) -> Callable:
     return consense
 
 
-def align_strategies(strategies: dict, keys: Iterable, component: str) -> dict:
+@deprecated_kwargs(deprecated_in="1.3", removed_in="2.0", component="component_name")
+def align_strategies(strategies: dict, keys: Iterable, component_name: str) -> dict:
     """Aligns the given strategies with the given keys.
 
     Parameters
@@ -163,8 +166,8 @@ def align_strategies(strategies: dict, keys: Iterable, component: str) -> dict:
         The strategies to align.
     keys : list
         The keys to align the strategies with.
-    component : str
-        The component to align the strategies with.
+    component_name : str
+        The name of the component type to align the strategies with.
 
     Returns
     -------
@@ -173,7 +176,7 @@ def align_strategies(strategies: dict, keys: Iterable, component: str) -> dict:
 
     """
     strategies |= {
-        k: make_consense(component, k) for k in set(keys).difference(strategies)
+        k: make_consense(component_name, k) for k in set(keys).difference(strategies)
     }
     return {k: strategies[k] for k in keys}
 
@@ -206,7 +209,7 @@ def flatten_multiindex(m: pd.MultiIndex, join: str = " ") -> pd.Index:
 def aggregateoneport(
     n: Network,
     busmap: dict,
-    component: str,
+    component: ComponentsLike,
     carriers: Iterable | None = None,
     buses: Iterable | None = None,
     with_time: bool = True,
@@ -220,8 +223,8 @@ def aggregateoneport(
         The network containing the generators.
     busmap : dict
         A dictionary mapping old bus IDs to new bus IDs.
-    component : str
-        The component to aggregate.
+    component : str | Components
+        The component to aggregate (name or Components instance).
     carriers : list, optional
         List of carriers to be considered (default is all carriers).
     buses : list, optional
@@ -241,9 +244,9 @@ def aggregateoneport(
     """
     if custom_strategies is None:
         custom_strategies = {}
-    c = component
-    static = n.c[c].static
-    attrs = n.components[c]["defaults"]
+    c = n.c[component]
+    static = c.static
+    attrs = c.defaults
     if "carrier" in static.columns:
         if carriers is None:
             carriers = static.carrier.unique()
@@ -258,10 +261,10 @@ def aggregateoneport(
     static = static.assign(bus=static.bus.map(busmap))
 
     output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
-    columns = [c for c in static.columns if c not in output_columns]
+    columns = [col for col in static.columns if col not in output_columns]
 
     strategies = {**DEFAULT_ONE_PORT_STRATEGIES, **custom_strategies}
-    static_strategies = align_strategies(strategies, columns, c)
+    static_strategies = align_strategies(strategies, columns, c.name)
 
     grouper = (
         [static.bus, static.carrier] if "carrier" in static.columns else static.bus
@@ -286,9 +289,9 @@ def aggregateoneport(
             static_strategies[k] = "min"
 
     aggregated = static.groupby(grouper).agg(static_strategies)
-    aggregated.index = flatten_multiindex(aggregated.index).rename(c)
+    aggregated.index = flatten_multiindex(aggregated.index).rename(c.list_name)
 
-    non_aggregated = n.c[c].static[~to_aggregate]
+    non_aggregated = c.static[~to_aggregate]
     non_aggregated = non_aggregated.assign(bus=non_aggregated.bus.map(busmap))
 
     static = pd.concat([aggregated, non_aggregated], sort=False)
@@ -296,13 +299,13 @@ def aggregateoneport(
 
     dynamic = {}
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.c[c].dynamic, c)
-        for attr, data in n.c[c].dynamic.items():
+        dynamic_strategies = align_strategies(strategies, c.dynamic, c.name)
+        for attr, data in c.dynamic.items():
             if data.empty:
                 dynamic[attr] = data
                 continue
             strategy = dynamic_strategies[attr]
-            data = n.get_switchable_as_dense(c, attr)
+            data = c._as_dynamic(attr)
             aggregated = data.loc[:, to_aggregate]
 
             if strategy == "weighted_average":
@@ -316,7 +319,9 @@ def aggregateoneport(
                 aggregated = aggregated.T.groupby(grouper).min().T
             else:
                 aggregated = aggregated.T.groupby(grouper).agg(strategy).T
-            aggregated.columns = flatten_multiindex(aggregated.columns).rename(c)
+            aggregated.columns = flatten_multiindex(aggregated.columns).rename(
+                c.list_name
+            )
 
             non_aggregated = data.loc[:, ~to_aggregate]
 
@@ -352,17 +357,17 @@ def aggregatebuses(
     """
     if custom_strategies is None:
         custom_strategies = {}
-    c = "Bus"
-    attrs = n.components[c]["defaults"]
+    c = n.c.buses
+    attrs = c.defaults
 
     output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
-    columns = [c for c in n.c.buses.static.columns if c not in output_columns]
+    columns = [col for col in c.static.columns if col not in output_columns]
 
     strategies = {**DEFAULT_BUS_STRATEGIES, **custom_strategies}
-    strategies = align_strategies(strategies, columns, c)
+    strategies = align_strategies(strategies, columns, c.name)
 
-    aggregated = n.c.buses.static.groupby(busmap).agg(strategies)
-    aggregated.index = flatten_multiindex(aggregated.index).rename(c)
+    aggregated = c.static.groupby(busmap).agg(strategies)
+    aggregated.index = flatten_multiindex(aggregated.index).rename(c.list_name)
 
     return aggregated
 
@@ -407,8 +412,8 @@ def aggregatelines(
         custom_strategies = {}
     if bus_strategies is None:
         bus_strategies = {}
-    attrs = n.components["Line"]["defaults"]
-    static = n.c["Line"].static
+    attrs = n.c.lines.defaults
+    static = n.c.lines.static
     idx = static.index[static.bus0.map(busmap) != static.bus1.map(busmap)]
     static = static.loc[idx]
 
@@ -418,7 +423,9 @@ def aggregatelines(
     bus_strategies = {**DEFAULT_BUS_STRATEGIES, **bus_strategies}
     cols = ["x", "y", "v_nom"]
     buses = (
-        n.c.buses.static[cols].groupby(busmap).agg({c: bus_strategies[c] for c in cols})
+        n.c.buses.static[cols]
+        .groupby(busmap)
+        .agg({col: bus_strategies[col] for col in cols})
     )
 
     static = static.assign(bus0=static.bus0.map(busmap), bus1=static.bus1.map(busmap))
@@ -427,7 +434,7 @@ def aggregatelines(
     static.loc[reverse_order, ["bus0", "bus1"]] = reverse_values
 
     output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
-    columns = [c for c in static.columns if c not in output_columns]
+    columns = [col for col in static.columns if col not in output_columns]
 
     strategies = {**DEFAULT_LINE_STRATEGIES, **custom_strategies}
     static_strategies = align_strategies(strategies, columns, "Line")
@@ -468,7 +475,9 @@ def aggregatelines(
 
     dynamic = {}
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.c["Line"].dynamic, "Line")
+        dynamic_strategies = align_strategies(
+            strategies, n.c.lines.dynamic, n.c.lines.name
+        )
 
         for attr, data in n.c.lines.dynamic.items():
             if data.empty:
@@ -476,7 +485,7 @@ def aggregatelines(
                 continue
 
             strategy = dynamic_strategies[attr]
-            data = n.get_switchable_as_dense("Line", attr, inds=idx)
+            data = n.c.lines._as_dynamic(attr, inds=idx)
 
             if strategy == "capacity_weighted_average":
                 data = data * capacity_weights
@@ -636,7 +645,7 @@ class SpatialClusteringMixin:
             buses_i = n.c.buses.static.index
 
         if branch_components is None:
-            branch_components = n.branch_components
+            branch_components = [c.list_name for c in n.components.filter(branch=True)]
 
         if feature is None:
             logger.warning(
@@ -723,8 +732,8 @@ class SpatialClusteringMixin:
             G, best_n=n_clusters, cutoff=n_clusters, weight="weight"
         )
         busmap = pd.Series(buses_i, buses_i)
-        for c in np.arange(len(communities)):
-            busmap.loc[list(communities[c])] = str(c)
+        for i in np.arange(len(communities)):
+            busmap.loc[list(communities[i])] = str(i)
         busmap.index = busmap.index.astype(str)
 
         return busmap
@@ -957,8 +966,8 @@ class SpatialClusteringMixin:
 
         clustered = n.__class__()
 
-        clustered.add("Bus", buses.index, **buses)
-        clustered.add("Line", lines.index, **lines)
+        clustered.c.buses.add(buses.index, **buses)
+        clustered.c.lines.add(lines.index, **lines)
 
         # Carry forward global constraints to clustered n.
         clustered.c.global_constraints.static = n.c.global_constraints.static
@@ -975,7 +984,7 @@ class SpatialClusteringMixin:
                 if not df.empty:
                     clustered._import_series_from_df(df, "Line", attr)
 
-        one_port_components = n.one_port_components.copy()
+        one_port_components = {c.name for c in n.components.filter(one_port=True)}
 
         if aggregate_generators_weighted:
             # TODO: Remove this in favour of the more general approach below.
@@ -983,46 +992,47 @@ class SpatialClusteringMixin:
             generators, generators_dynamic = aggregateoneport(
                 n,
                 busmap,
-                "Generator",
+                n.c.generators,
                 carriers=aggregate_generators_carriers,
                 buses=aggregate_generators_buses,
                 with_time=with_time,
                 custom_strategies=generator_strategies,
             )
-            clustered.add("Generator", generators.index, **generators)
+            clustered.c.generators.add(generators.index, **generators)
             if with_time:
                 for attr, df in generators_dynamic.items():
                     if not df.empty:
                         clustered._import_series_from_df(df, "Generator", attr)
 
         for one_port in aggregate_one_ports:
-            one_port_components.remove(one_port)
+            one_port_c = n.c[one_port]
+            one_port_components.remove(one_port_c.name)
             new_static, new_dynamic = aggregateoneport(
                 n,
                 busmap,
-                component=one_port,
+                component=one_port_c,
                 with_time=with_time,
                 custom_strategies=one_port_strategies.get(one_port, {}),
             )
-            clustered.add(one_port, new_static.index, **new_static)
+            clustered.c[one_port_c.list_name].add(new_static.index, **new_static)
             for attr, df in new_dynamic.items():
                 if not df.empty:
-                    clustered._import_series_from_df(df, one_port, attr)
+                    clustered._import_series_from_df(df, one_port_c.name, attr)
 
         # Collect remaining one ports
 
-        for c in n.components:
+        for c in n.components.filter(one_port=True):
             if c.name not in one_port_components:
                 continue
             remaining_one_port_data = c.static.assign(
                 bus=c.static.bus.map(busmap)
             ).dropna(subset=["bus"])
-            clustered.add(
-                c.name, remaining_one_port_data.index, **remaining_one_port_data
+            clustered.c[c.list_name].add(
+                remaining_one_port_data.index, **remaining_one_port_data
             )
 
         if with_time:
-            for c in n.components:
+            for c in n.components.filter(one_port=True):
                 if c.name not in one_port_components:
                     continue
                 for attr, df in c.dynamic.items():
@@ -1060,14 +1070,14 @@ class SpatialClusteringMixin:
                 new_links.length / n.c.links.static.length
             ).fillna(1)
 
-        clustered.add("Link", new_links.index, **new_links)
+        clustered.c.links.add(new_links.index, **new_links)
 
         if with_time:
             for attr, df in n.c.links.dynamic.items():
                 if not df.empty:
                     clustered._import_series_from_df(df, "Link", attr)
 
-        clustered.add("Carrier", n.c.carriers.static.index, **n.c.carriers.static)
+        clustered.c.carriers.add(n.c.carriers.static.index, **n.c.carriers.static)
 
         clustered.determine_network_topology()
 

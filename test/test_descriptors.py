@@ -30,7 +30,7 @@ def test_get_switchable_as_dense(network):
     n.add("Generator", "gen0", bus="bus0", p_nom=100)
 
     for attr, val in [("p_max_pu", 1.0), ("p_nom", 100)]:
-        df = n.get_switchable_as_dense("Generator", attr)
+        df = n.get_switchable_as_dense("generators", attr)
         assert isinstance(df, pd.DataFrame)
         assert df.index.equals(n.snapshots)
         assert df.columns.equals(pd.Index(["gen0"]))
@@ -42,7 +42,7 @@ def test_get_switchable_as_iter(network):
     n.add("Bus", "bus0")
     n.add("Generator", "gen0", bus="bus0", p_nom=100)
 
-    iter_df = n.get_switchable_as_iter("Generator", "p_max_pu", n.snapshots)
+    iter_df = n.get_switchable_as_iter("generators", "p_max_pu", n.snapshots)
     df = pd.concat(iter_df, axis=1).T
     assert isinstance(df, pd.DataFrame)
     assert len(df) == len(n.snapshots)
@@ -55,7 +55,7 @@ def test_allocate_series_dataframes(network):
     n.add("Generator", "gen0", bus="bus0")
     n.add("Load", "load0", bus="bus0")
 
-    allocate_series_dataframes(n, {"Generator": ["p"], "Load": ["p"]})
+    allocate_series_dataframes(n, {"generators": ["p"], "loads": ["p"]})
 
     assert "p" in n.c.generators.dynamic
     assert "p" in n.c.loads.dynamic
@@ -143,18 +143,16 @@ def test_additional_ports_process():
 
 
 def test_update_ports_component_attrs():
-    from pypsa.descriptors import _update_ports_component_attrs
-
     n = pypsa.Network()
 
-    process_defaults = n.components["Process"]["defaults"]
+    process_defaults = n.components.processes["defaults"]
     assert "bus2" not in process_defaults.index
     assert "rate2" not in process_defaults.index
     assert "p2" not in process_defaults.index
     assert "delay2" not in process_defaults.index
     assert "cyclic_delay2" not in process_defaults.index
 
-    link_defaults = n.components["Link"]["defaults"]
+    link_defaults = n.components.links["defaults"]
     assert "bus2" not in link_defaults.index
     assert "efficiency2" not in link_defaults.index
     assert "p2" not in link_defaults.index
@@ -188,16 +186,17 @@ def test_update_ports_component_attrs():
         p_nom=10,
     )
 
-    _update_ports_component_attrs(n)
+    for c in n.components.filter(branch=True, controllable=True):
+        c._update_port_attrs()
 
-    process_defaults = n.components["Process"]["defaults"]
+    process_defaults = n.c.processes["defaults"]
     assert "bus2" in process_defaults.index
     assert "rate2" in process_defaults.index
     assert "p2" in process_defaults.index
     assert "delay2" in process_defaults.index
     assert "cyclic_delay2" in process_defaults.index
 
-    link_defaults = n.components["Link"]["defaults"]
+    link_defaults = n.c.links["defaults"]
     assert "bus2" in link_defaults.index
     assert "efficiency2" in link_defaults.index
     assert "p2" in link_defaults.index
@@ -225,7 +224,7 @@ def test_update_ports_column_ordering():
         p_nom=10,
     )
 
-    defaults = n.components["Link"]["defaults"]
+    defaults = n.c.links["defaults"]
     idx = list(defaults.index)
 
     # bus2 and bus3 should come right after bus1
@@ -271,7 +270,7 @@ def test_update_ports_column_ordering_process():
         p_nom=10,
     )
 
-    defaults = n.components["Process"]["defaults"]
+    defaults = n.c.processes["defaults"]
     idx = list(defaults.index)
 
     # bus2 should come right after bus1
@@ -331,7 +330,7 @@ def test_get_bounds_pu():
         deprecated_result = get_bounds_pu(n, "Generator", n.snapshots, attr="p")
 
     # Get bounds from component method directly
-    component_bounds = n.components["Generator"].get_bounds_pu(attr="p")
+    component_bounds = n.c.generators.get_bounds_pu(attr="p")
     component_result = (
         component_bounds[0].sel(snapshot=n.snapshots).to_dataframe().unstack(level=0),
         component_bounds[1].sel(snapshot=n.snapshots).to_dataframe().unstack(level=0),

@@ -16,6 +16,37 @@ from pypsa.components.types import get as get_component_type
 _T = TypeVar("_T", bound=Components)
 
 
+def _format_str_dtype(value: Any) -> Any:
+    """Convert string representations from CSV cells to properly typed Python values.
+
+    Handles booleans, numeric types, and special float values (inf, nan).
+    Non-string values are returned as-is.
+    """
+    if not isinstance(value, str):
+        return value
+    if value in ("True", "true"):
+        return True
+    if value in ("False", "false"):
+        return False
+    if value in ("inf", "Inf"):
+        return float("inf")
+    if value in ("-inf", "-Inf"):
+        return float("-inf")
+    if value in ("nan", "NaN", ""):
+        return float("nan")
+    try:
+        int_val = int(value)
+        if str(int_val) == value:
+            return int_val
+    except ValueError:
+        pass
+    try:
+        return float(value)
+    except ValueError:
+        pass
+    return value
+
+
 def create_docstring_parameters(component_name: str) -> str:
     """Create docstring parameters section for all attributes of component.
 
@@ -42,39 +73,20 @@ def create_docstring_parameters(component_name: str) -> str:
     )
     ct = get_component_type(component_name)
     for attribute, row in ct.defaults.iterrows():
-        attr_type = row["type"]
         description = row["description"]
 
-        # Skip name attribute since it is not a additional parameter
         if attribute == "name":
             continue
 
-        # Map the type to Python types
-        if attr_type == "string":
-            py_type = "str"
-        elif attr_type == "float":
-            py_type = "float"
-        elif attr_type == "boolean":
-            py_type = "bool"
-        elif attr_type == "int":
-            py_type = "int"
-        elif "static or series" in attr_type:
-            py_type = "float or pandas.Series"
-        else:
-            py_type = attr_type
-        if attr_type == "series":
-            py_type = "pandas.Series"
-            is_dynamic = True
-        else:
-            is_dynamic = False
+        dtype = row["dtype"]
+        default_arg = f"'{row['default']}'" if dtype == "str" else row["default"]
 
-        param_header = f"{attribute} : {py_type} or SeriesLike[{py_type}]"
-        if is_dynamic:
-            param_header += f" or ArrayLike[{py_type}]"
-        default_arg = row["default"]
-        if attr_type == "string":
-            default_arg = f"'{default_arg}'"
-        param_header += f", default={default_arg}\n"
+        if row["dynamic"]:
+            param_header = (
+                f"{attribute} : {dtype} or pandas.Series, default={default_arg}\n"
+            )
+        else:
+            param_header = f"{attribute} : {dtype}, default={default_arg}\n"
 
         # Format the parameter line
         docstring += param_header

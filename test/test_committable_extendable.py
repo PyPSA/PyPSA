@@ -62,7 +62,7 @@ def add_com_ext_link(n, name="link", **overrides):
 
 def assert_power_balance(n, tol=1e-3):
     total_load = n.loads_t.p_set.sum().sum()
-    total_gen = n.c["Generator"].dynamic["p"].sum().sum()
+    total_gen = n.c.generators.dynamic["p"].sum().sum()
     assert abs(total_load - total_gen) < tol
 
 
@@ -88,8 +88,8 @@ def test_committable_extendable_modular_generator(base_network):
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
-    p_nom_opt = n.c["Generator"].static.loc["modular_gas", "p_nom_opt"]
-    p_nom_mod = n.c["Generator"].static.loc["modular_gas", "p_nom_mod"]
+    p_nom_opt = n.c.generators.static.loc["modular_gas", "p_nom_opt"]
+    p_nom_mod = n.c.generators.static.loc["modular_gas", "p_nom_mod"]
 
     assert p_nom_opt > 0
     n_modules = p_nom_opt / p_nom_mod
@@ -121,8 +121,8 @@ def test_committable_extendable_modular_link(two_bus_network):
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
-    p_nom_opt = n.c["Link"].static.loc["modular_link", "p_nom_opt"]
-    p_nom_mod = n.c["Link"].static.loc["modular_link", "p_nom_mod"]
+    p_nom_opt = n.c.links.static.loc["modular_link", "p_nom_opt"]
+    p_nom_mod = n.c.links.static.loc["modular_link", "p_nom_mod"]
     n_modules = p_nom_opt / p_nom_mod
 
     assert p_nom_opt > 0
@@ -141,15 +141,15 @@ def test_committable_extendable_generator(base_network):
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
-    assert n.c["Generator"].static.loc["gas_gen", "p_nom_opt"] > 0
+    assert n.c.generators.static.loc["gas_gen", "p_nom_opt"] > 0
     assert "Generator-status" in n.model.variables
     assert "Generator-start_up" in n.model.variables
     assert "Generator-shut_down" in n.model.variables
 
     status_values = n.model.variables["Generator-status"].solution
-    dispatch_values = n.c["Generator"].dynamic["p"]["gas_gen"]
-    p_nom_opt = n.c["Generator"].static.loc["gas_gen", "p_nom_opt"]
-    p_min_pu = n.c["Generator"].static.loc["gas_gen", "p_min_pu"]
+    dispatch_values = n.c.generators.dynamic["p"]["gas_gen"]
+    p_nom_opt = n.c.generators.static.loc["gas_gen", "p_nom_opt"]
+    p_min_pu = n.c.generators.static.loc["gas_gen", "p_min_pu"]
     min_power = p_min_pu * p_nom_opt
 
     for t in range(4):
@@ -194,14 +194,14 @@ def test_committable_extendable_multiple_generators(base_network):
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
-    assert n.c["Generator"].static.loc["gas_ext", "p_nom_opt"] >= 0
-    assert n.c["Generator"].static.loc["gas_com_ext", "p_nom_opt"] >= 0
+    assert n.c.generators.static.loc["gas_ext", "p_nom_opt"] >= 0
+    assert n.c.generators.static.loc["gas_com_ext", "p_nom_opt"] >= 0
 
     if "Generator-status" in n.model.variables:
         status_vars = n.model.variables["Generator-status"]
-        committable_gens = (
-            n.c["Generator"].static.loc[n.c["Generator"].static["committable"]].index
-        )
+        committable_gens = n.c.generators.static.loc[
+            n.c.generators.static["committable"]
+        ].index
         for gen in committable_gens:
             assert gen in status_vars.coords["name"].values
 
@@ -317,10 +317,10 @@ def test_committable_extendable_can_switch_off():
 
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
-    assert n.c["Generator"].static.loc["uc_gen", "p_nom_opt"] > 0
+    assert n.c.generators.static.loc["uc_gen", "p_nom_opt"] > 0
 
-    status_values = n.c["Generator"].dynamic["status"]["uc_gen"]
-    dispatch_values = n.c["Generator"].dynamic["p"]["uc_gen"]
+    status_values = n.c.generators.dynamic["status"]["uc_gen"]
+    dispatch_values = n.c.generators.dynamic["p"]["uc_gen"]
 
     assert status_values.iloc[0] > 0.5
     assert dispatch_values.iloc[0] == pytest.approx(100, rel=1e-6, abs=1e-6)
@@ -341,9 +341,9 @@ def test_big_m_warning_emitted(caplog):
         p_nom_max=100,
     )
 
-    n.c["Generator"].static.loc["uc_gen", "p_nom_opt"] = 60
-    n.c["Generator"].static.loc["uc_gen", "p_max_pu"] = 0.2
-    n.c["Generator"].dynamic["p_max_pu"]["uc_gen"] = 0.2
+    n.c.generators.static.loc["uc_gen", "p_nom_opt"] = 60
+    n.c.generators.static.loc["uc_gen", "p_max_pu"] = 0.2
+    n.c.generators.dynamic["p_max_pu"]["uc_gen"] = 0.2
 
     caplog.set_level("WARNING", logger="pypsa.consistency")
     check_big_m_exceeded(n)
@@ -488,12 +488,12 @@ def test_committable_extendable_with_ramp_limits():
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
-    p_nom_opt = n.c["Generator"].static.loc["slow_baseload", "p_nom_opt"]
+    p_nom_opt = n.c.generators.static.loc["slow_baseload", "p_nom_opt"]
     assert p_nom_opt > 0
 
-    dispatch = n.c["Generator"].dynamic["p"]["slow_baseload"]
-    ramp_up = n.c["Generator"].static.loc["slow_baseload", "ramp_limit_up"]
-    ramp_down = n.c["Generator"].static.loc["slow_baseload", "ramp_limit_down"]
+    dispatch = n.c.generators.dynamic["p"]["slow_baseload"]
+    ramp_up = n.c.generators.static.loc["slow_baseload", "ramp_limit_up"]
+    ramp_down = n.c.generators.static.loc["slow_baseload", "ramp_limit_down"]
 
     for t in range(1, len(dispatch)):
         ramp = dispatch.iloc[t] - dispatch.iloc[t - 1]
@@ -522,10 +522,10 @@ def test_committable_extendable_link_with_ramp_limits(two_bus_network):
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
-    p_nom_opt = n.c["Link"].static.loc["ramp_link", "p_nom_opt"]
+    p_nom_opt = n.c.links.static.loc["ramp_link", "p_nom_opt"]
     assert p_nom_opt > 0
 
-    dispatch = n.c["Link"].dynamic["p0"]["ramp_link"]
+    dispatch = n.c.links.dynamic["p0"]["ramp_link"]
     for t in range(1, len(dispatch)):
         ramp = dispatch.iloc[t] - dispatch.iloc[t - 1]
         assert ramp <= 0.5 * p_nom_opt + 1e-6
@@ -542,7 +542,7 @@ def test_committable_extendable_linearized_uc(base_network):
 
     status, _ = n.optimize(solver_name="highs", linearized_unit_commitment=True)
     assert status == "ok"
-    assert n.c["Generator"].static.loc["gas_com_ext", "p_nom_opt"] > 0
+    assert n.c.generators.static.loc["gas_com_ext", "p_nom_opt"] > 0
 
 
 def test_committable_extendable_linearized_vs_milp():
@@ -689,8 +689,8 @@ def test_ramp_big_m_startup_shutdown_limits():
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
-    p = n.c["Generator"].dynamic["p"]["gen"]
-    p_nom_opt = n.c["Generator"].static.loc["gen", "p_nom_opt"]
+    p = n.c.generators.dynamic["p"]["gen"]
+    p_nom_opt = n.c.generators.static.loc["gen", "p_nom_opt"]
     status_var = n.model.variables["Generator-status"].solution.sel(name="gen")
     start_up_var = n.model.variables["Generator-start_up"].solution.sel(name="gen")
     shut_down_var = n.model.variables["Generator-shut_down"].solution.sel(name="gen")
@@ -764,7 +764,7 @@ def test_ramp_big_m_with_explicit_big_m():
 
     status, _ = n.optimize(solver_name="highs", committable_big_m=1000)
     assert status == "ok"
-    assert n.c["Generator"].static.loc["gen", "p_nom_opt"] > 0
+    assert n.c.generators.static.loc["gen", "p_nom_opt"] > 0
 
     con_up_run = n.model.constraints["Generator-p-ramp_limit_up-run-bigM"]
     con_down_run = n.model.constraints["Generator-p-ramp_limit_down-run-bigM"]

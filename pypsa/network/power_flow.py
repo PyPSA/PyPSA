@@ -23,8 +23,9 @@ from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
 from pypsa.common import as_index, deprecated_common_kwargs
+from pypsa.components._types import Transformers
+from pypsa.components.categories import Branch, Controllable, OnePort, Passive
 from pypsa.definitions.structures import Dict
-from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
@@ -69,21 +70,25 @@ def imag(X: pd.Series) -> pd.Series:
 
 
 def _allocate_pf_outputs(n: Network, linear: bool = False) -> None:
-    to_allocate = {
-        "Generator": ["p"],
-        "Load": ["p"],
-        "StorageUnit": ["p"],
-        "Store": ["p"],
-        "ShuntImpedance": ["p"],
-        "Bus": ["p", "v_ang", "v_mag_pu"],
-        **{c: ["p" + port for port in n.c[c].ports] for c in n.branch_components},
+    to_allocate: dict[str, list[str]] = {
+        "generators": ["p"],
+        "loads": ["p"],
+        "storage_units": ["p"],
+        "stores": ["p"],
+        "shunt_impedances": ["p"],
+        "buses": ["p", "v_ang", "v_mag_pu"],
+        **{
+            c.list_name: ["p" + port for port in c.ports]
+            for c in n.components.filter(branch=True)
+        },
     }
 
+    passive = {c.list_name for c in n.components.filter(branch=True, passive=True)}
     if not linear:
         for component, attrs in to_allocate.items():
             if "p" in attrs:
                 attrs.append("q")
-            if "p0" in attrs and component in n.passive_branch_components:
+            if "p0" in attrs and component in passive:
                 attrs.extend(["q0", "q1"])
 
     allocate_series_dataframes(n, to_allocate)
@@ -98,15 +103,14 @@ def _calculate_controllable_nodal_power_balance(
     for power in ("q", "p"):
         # allow all one ports to dispatch as set
         for c in sub_network.components:
-            if c.name not in network.controllable_one_port_components:
+            if not (isinstance(c, OnePort) and isinstance(c, Controllable)):
                 continue
-            c_n_set = network.get_switchable_as_dense(
-                c.name,
+            c_n_set = c._as_dynamic(
                 power + "_set",
                 snapshots,
                 c.static.query("active").index,
             )
-            network.c[c.name].dynamic[power].loc[
+            network.c[c.list_name].dynamic[power].loc[
                 snapshots, c.static.query("active").index
             ] = c_n_set
 
@@ -121,7 +125,7 @@ def _calculate_controllable_nodal_power_balance(
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0.0)
             )
-            for c in sub_network.components[network.controllable_one_port_components]
+            for c in sub_network.components.filter(one_port=True, controllable=True)
             if not c.empty
         )
 
@@ -132,7 +136,7 @@ def _calculate_controllable_nodal_power_balance(
                 .T.groupby(c.static[f"bus{str(i)}"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0)
-                for c in network.components[network.controllable_branch_components]
+                for c in network.components.filter(branch=True, controllable=True)
                 for i in [int(col[3:]) for col in c.static.columns if col[:3] == "bus"]
                 if not c.empty
             )
@@ -164,11 +168,11 @@ def _network_prepare_and_run_pf(
 
     # deal with links
     if not n.c.links.static.empty:
-        p_set = n.get_switchable_as_dense("Link", "p_set", sns)
+        p_set = n.c.links._as_dynamic("p_set", sns)
         n.c.links.dynamic.p0.loc[sns] = p_set.loc[sns]
         for i in ["1"] + n.c.links.additional_ports:
             eff_name = "efficiency" if i == "1" else f"efficiency{i}"
-            efficiency = n.get_switchable_as_dense("Link", eff_name, sns)
+            efficiency = n.c.links._as_dynamic(eff_name, sns)
             links = n.c.links.static.index[n.c.links.static[f"bus{i}"] != ""]
             n.c.links.dynamic[f"p{i}"].loc[sns, links] = (
                 -n.c.links.dynamic.p0.loc[sns, links] * efficiency.loc[sns, links]
@@ -176,9 +180,9 @@ def _network_prepare_and_run_pf(
 
     # deal with processes
     if not n.c.processes.static.empty:
-        p_set = n.get_switchable_as_dense("Process", "p_set", sns)
+        p_set = n.c.processes._as_dynamic("p_set", sns)
         for i in n.c.processes.ports:
-            rate = n.get_switchable_as_dense("Process", f"rate{i}", sns)
+            rate = n.c.processes._as_dynamic(f"rate{i}", sns)
             processes = n.c.processes.static.index[
                 n.c.processes.static[f"bus{i}"] != ""
             ]
@@ -250,17 +254,16 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
 
     Examples
     --------
-    >>> allocate_series_dataframes(n, {'Generator': ['p'], 'Load': ['p']})
+    >>> allocate_series_dataframes(n, {'generators': ['p'], 'loads': ['p']})
 
     """
     for component, attributes in series.items():
-        static = n.c[component].static
-        dynamic = n.c[component].dynamic
+        c = n.c[component]
 
         for attr in attributes:
-            dynamic[attr] = dynamic[attr].reindex(
-                columns=static.index,
-                fill_value=n.components[component]["defaults"].at[attr, "default"],
+            c.dynamic[attr] = c.dynamic[attr].reindex(
+                columns=c.static.index,
+                fill_value=c.defaults.at[attr, "default"],
             )
 
 
@@ -360,7 +363,7 @@ def sub_network_pf_singlebus(
 
     _calculate_controllable_nodal_power_balance(sub_network, n, sns, buses_o)
 
-    v_mag_pu_set = n.get_switchable_as_dense("Bus", "v_mag_pu_set", sns)
+    v_mag_pu_set = n.c.buses._as_dynamic("v_mag_pu_set", sns)
     n.c.buses.dynamic.v_mag_pu.loc[sns, sub_network.slack_bus] = v_mag_pu_set.loc[
         :, sub_network.slack_bus
     ]
@@ -379,9 +382,7 @@ def sub_network_pf_singlebus(
                     .fillna(0)
                 )
             elif slack_weights == "p_set":
-                generators_t_p_choice = n.get_switchable_as_dense(
-                    "Generator", slack_weights, sns
-                )
+                generators_t_p_choice = n.c.generators._as_dynamic(slack_weights, sns)
                 if generators_t_p_choice.isna().all().all():
                     msg = (
                         f"Invalid slack weights! Generator attribute {slack_weights}"
@@ -624,7 +625,7 @@ def aggregate_multi_graph(sub_network: SubNetwork) -> None:
 
             # remove all but first line
             for line in line_objs[1:]:
-                n.remove("Line", line[1])
+                n.remove("lines", line[1])
 
             rep = line_objs[0]
 
@@ -706,8 +707,7 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
             sign = +1 if branches_bus0.iat[branch_i] == cycle[i] else -1
             sub_network.C[branch_i, j] += sign
 
-    # counter for multis
-    c = len(cycles)
+    multi_counter = len(cycles)
 
     # add multi-graph 2-edge cycles for multiple branches between same pairs of buses
     for u, v in graph.edges():
@@ -720,9 +720,9 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
                 sign = (
                     -1 if branches_bus0.iat[b_i] == branches_bus0.iat[first_i] else +1
                 )
-                sub_network.C[first_i, c] = 1
-                sub_network.C[b_i, c] = sign
-                c += 1
+                sub_network.C[first_i, multi_counter] = 1
+                sub_network.C[b_i, multi_counter] = sign
+                multi_counter += 1
 
 
 @deprecated_common_kwargs
@@ -810,7 +810,8 @@ class NetworkPowerFlowMixin(_NetworkABC):
             self.c.stores.static.bus.map(buses.carrier)
         )
 
-        _update_ports_component_attrs(self)
+        for c in self.components.filter(branch=True, controllable=True):
+            c._update_port_attrs()
 
     def lpf(
         n: Network, snapshots: Sequence | None = None, skip_pre: bool = False
@@ -936,8 +937,8 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         p0_base = pd.concat(
             {
-                c: self.c[c].dynamic.p0.loc[snapshot]
-                for c in self.passive_branch_components
+                c.name: c.dynamic.p0.loc[snapshot]
+                for c in self.components.filter(branch=True, passive=True)
             },
             names=["component", "name"],
         )
@@ -1105,7 +1106,7 @@ class SubNetworkPowerFlowMixin:
             [
                 (c.static.loc[c.static.query("active").index, attribute]).values
                 for c in self.components
-                if c.name in n.passive_branch_components
+                if isinstance(c, Branch) and isinstance(c, Passive)
             ]
         )
         # susceptances
@@ -1131,11 +1132,11 @@ class SubNetworkPowerFlowMixin:
                     (c.static.loc[c.static.query("active").index, "phase_shift"]).values
                     * np.pi
                     / 180.0
-                    if c.name == "Transformer"
+                    if isinstance(c, Transformers)
                     else np.zeros((len(c.static.query("active").index),))
                 )
                 for c in self.components
-                if c.name in n.passive_branch_components
+                if isinstance(c, Branch) and isinstance(c, Passive)
             ]
         )
         self.p_branch_shift = np.multiply(
@@ -1508,7 +1509,7 @@ class SubNetworkPowerFlowMixin:
             return J
 
         # Set what we know: slack V and v_mag_pu for PV buses
-        v_mag_pu_set = n.get_switchable_as_dense("Bus", "v_mag_pu_set", sns)
+        v_mag_pu_set = n.c.buses._as_dynamic("v_mag_pu_set", sns)
         n.c.buses.dynamic.v_mag_pu.loc[sns, self.pvs] = v_mag_pu_set.loc[:, self.pvs]
         n.c.buses.dynamic.v_mag_pu.loc[sns, self.slack_bus] = v_mag_pu_set.loc[
             :, self.slack_bus
@@ -1524,9 +1525,7 @@ class SubNetworkPowerFlowMixin:
 
         if distribute_slack:
             if isinstance(slack_weights, str) and slack_weights == "p_set":
-                generators_t_p_choice = n.get_switchable_as_dense(
-                    "Generator", slack_weights, sns
-                )
+                generators_t_p_choice = n.c.generators._as_dynamic(slack_weights, sns)
                 bus_generation = generators_t_p_choice.rename(
                     columns=n.c.generators.static.bus
                 )
@@ -1639,7 +1638,7 @@ class SubNetworkPowerFlowMixin:
         branch_bus0 = []
         branch_bus1 = []
         for c in self.components:
-            if c.name not in n.passive_branch_components:
+            if not (isinstance(c, Branch) and isinstance(c, Passive)):
                 continue
             branch_bus0 += list(c.static.query("active").bus0)
             branch_bus1 += list(c.static.query("active").bus1)
@@ -1655,14 +1654,14 @@ class SubNetworkPowerFlowMixin:
         s0 = pd.DataFrame(v0 * np.conj(i0), columns=branches_i, index=sns)
         s1 = pd.DataFrame(v1 * np.conj(i1), columns=branches_i, index=sns)
         for c in self.components:
-            if c.name not in n.passive_branch_components:
+            if not (isinstance(c, Branch) and isinstance(c, Passive)):
                 continue
             s0t = s0.loc[:, c.name]
             s1t = s1.loc[:, c.name]
-            n.c[c.name].dynamic.p0.loc[sns, s0t.columns] = s0t.values.real
-            n.c[c.name].dynamic.q0.loc[sns, s0t.columns] = s0t.values.imag
-            n.c[c.name].dynamic.p1.loc[sns, s1t.columns] = s1t.values.real
-            n.c[c.name].dynamic.q1.loc[sns, s1t.columns] = s1t.values.imag
+            n.c[c.list_name].dynamic.p0.loc[sns, s0t.columns] = s0t.values.real
+            n.c[c.list_name].dynamic.q0.loc[sns, s0t.columns] = s0t.values.imag
+            n.c[c.list_name].dynamic.p1.loc[sns, s1t.columns] = s1t.values.real
+            n.c[c.list_name].dynamic.q1.loc[sns, s1t.columns] = s1t.values.imag
 
         s_calc = np.empty((len(sns), len(buses_o)), dtype=complex)
         for i in range(len(sns)):
@@ -1702,8 +1701,8 @@ class SubNetworkPowerFlowMixin:
             )
             for bus, group in self.c.generators.static.groupby("bus"):
                 if isinstance(slack_weights, str) and slack_weights == "p_set":
-                    generators_t_p_choice = n.get_switchable_as_dense(
-                        "Generator", slack_weights, sns
+                    generators_t_p_choice = n.c.generators._as_dynamic(
+                        slack_weights, sns
                     )
                     bus_generator_shares = (
                         generators_t_p_choice.loc[sns, group.index]
@@ -1797,14 +1796,14 @@ class SubNetworkPowerFlowMixin:
 
         # allow all one ports to dispatch as set
         for c in self.components:
-            if c.name not in n.controllable_one_port_components:
+            if not (isinstance(c, OnePort) and isinstance(c, Controllable)):
                 continue
-            c_p_set = n.get_switchable_as_dense(
-                c.name, "p_set", sns, c.static.query("active").index
-            )
+            c_p_set = c._as_dynamic("p_set", sns, c.static.query("active").index)
             # power flow calculations require a starting point for the algorithm, while p_set default is n/a
             c_p_set = c_p_set.fillna(0)
-            n.c[c.name].dynamic.p.loc[sns, c.static.query("active").index] = c_p_set
+            n.c[c.list_name].dynamic.p.loc[sns, c.static.query("active").index] = (
+                c_p_set
+            )
 
         # set the power injection at each node
         n.c.buses.dynamic.p.loc[sns, buses_o] = sum(
@@ -1818,7 +1817,7 @@ class SubNetworkPowerFlowMixin:
                     .sum()
                     .T.reindex(columns=buses_o, fill_value=0.0)
                 )
-                for c in [x for x in self.components if x.name in n.one_port_components]
+                for c in [x for x in self.components if isinstance(x, OnePort)]
             ]
             + [
                 -c.dynamic[f"p{str(i)}"]
@@ -1826,7 +1825,7 @@ class SubNetworkPowerFlowMixin:
                 .T.groupby(c.static[f"bus{str(i)}"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0)
-                for c in n.components[n.controllable_branch_components]
+                for c in n.components.filter(branch=True, controllable=True)
                 for i in [int(col[3:]) for col in c.static.columns if col[:3] == "bus"]
                 if not c.empty
             ]
@@ -1845,11 +1844,11 @@ class SubNetworkPowerFlowMixin:
             )
 
             for c in self.components:
-                if c.name not in n.passive_branch_components:
+                if not (isinstance(c, Branch) and isinstance(c, Passive)):
                     continue
                 f = flows.loc[:, c.name]
-                n.c[c.name].dynamic.p0.loc[sns, f.columns] = f
-                n.c[c.name].dynamic.p1.loc[sns, f.columns] = -f
+                n.c[c.list_name].dynamic.p0.loc[sns, f.columns] = f
+                n.c[c.list_name].dynamic.p1.loc[sns, f.columns] = -f
 
         if n.c.sub_networks.static.at[self.name, "carrier"] == "DC":
             n.c.buses.dynamic.v_mag_pu.loc[sns, buses_o] = 1 + v_diff

@@ -16,6 +16,7 @@ from linopy.expressions import merge
 from numpy import isnan
 from xarray import DataArray
 
+from pypsa.components.categories import Branch, OnePort
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
@@ -53,22 +54,21 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
         busdim = f"Bus-{carrier}-{period}"
         lhs_per_bus_list = []
 
-        for c, attr in nominal_attrs.items():
-            var = f"{c}-{attr}"
-            static = n.c[c].static
+        for c in n.components[list(nominal_attrs)]:
+            attr = nominal_attrs[c.list_name]
+            var = f"{c.name}-{attr}"
+            static = c.static
 
             if "carrier" not in static:
                 continue
 
-            ext_i = n.c[c].extendables.intersection(
-                static.index[static.carrier == carrier]
-            )
-            ext_i = n.c[c].filter_by_active_assets(ext_i, period)
+            ext_i = c.extendables.intersection(static.index[static.carrier == carrier])
+            ext_i = c.filter_by_active_assets(ext_i, period)
 
             if ext_i.empty:
                 continue
 
-            bus = "bus0" if c in n.branch_components else "bus"
+            bus = "bus0" if isinstance(c, Branch) else "bus"
             busmap = static.loc[ext_i, bus].rename(busdim).to_xarray()
             expr = m[var].loc[ext_i].groupby(busmap).sum()
             lhs_per_bus_list.append(expr)
@@ -153,17 +153,16 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
 
         lhs = []
 
-        for c, attr in nominal_attrs.items():
-            var = f"{c}-{attr}"
-            static = n.c[c].static
+        for c in n.components[list(nominal_attrs)]:
+            attr = nominal_attrs[c.list_name]
+            var = f"{c.name}-{attr}"
+            static = c.static
 
-            if c not in n.one_port_components or "carrier" not in static:
+            if not isinstance(c, OnePort) or "carrier" not in static:
                 continue
 
-            ext_i = n.c[c].extendables.intersection(
-                static.index[static.carrier == carrier]
-            )
-            ext_i = n.c[c].filter_by_active_assets(ext_i, period)
+            ext_i = c.extendables.intersection(static.index[static.carrier == carrier])
+            ext_i = c.filter_by_active_assets(ext_i, period)
 
             if ext_i.empty:
                 continue
@@ -216,9 +215,10 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         return
 
     lhs_list = []
-    for c, attr in nominal_attrs.items():
-        var = f"{c}-{attr}"
-        static = n.c[c].static
+    for c in n.components[list(nominal_attrs)]:
+        attr = nominal_attrs[c.list_name]
+        var = f"{c.name}-{attr}"
+        static = c.static
 
         if "carrier" not in static:
             continue
@@ -226,7 +226,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         component_carriers = static.loc[:, "carrier"]
 
         if n.has_scenarios:
-            unique_component_names = n.components[c].names
+            unique_component_names = c.names
             carrier_map = component_carriers.groupby(level="name").first()
         else:
             unique_component_names = static.index
@@ -234,16 +234,14 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
 
         carriers_match = unique_component_names[carrier_map.isin(carrier_i)]
         limited_names = carriers_match.intersection(
-            n.c[c].filter_by_active_assets(n.c[c].extendables)
+            c.filter_by_active_assets(c.extendables)
         )
 
         if limited_names.empty:
             continue
 
         # Get active assets for the limited components
-        active = pd.concat(
-            {p: n.components[c].get_active_assets(p) for p in periods}, axis=1
-        )
+        active = pd.concat({p: c.get_active_assets(p) for p in periods}, axis=1)
 
         if n.has_scenarios:
             active = active.groupby(level="name").first()
@@ -723,7 +721,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
 
             lhs = []
             # fmt: off
-            car = [substr(c.strip()) for c in  # noqa: F841
+            car = [substr(carrier.strip()) for carrier in  # noqa: F841
                    glc.carrier_attribute.split(",")]
             # fmt: on
             period = glc.investment_period
@@ -736,8 +734,8 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
             else:
                 period_filter = None
 
-            for c in n.components[["Line", "Link"]]:
-                attr = nominal_attrs[c.name]
+            for c in n.components[["lines", "links"]]:
+                attr = nominal_attrs[c.list_name]
 
                 # Filter by carrier, handling scenarios (MultiIndex) if present
                 if n.has_scenarios and isinstance(c.static.index, pd.MultiIndex):
@@ -817,7 +815,7 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
     for name, glc in glcs.iterrows():
         lhs = []
         # fmt: off
-        car = [substr(c.strip()) for c in  # noqa: F841
+        car = [substr(carrier.strip()) for carrier in  # noqa: F841
                glc.carrier_attribute.split(",")]
         # fmt: on
         period = glc.investment_period
@@ -833,8 +831,8 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
             period_filter = None
             weights = 1
 
-        for c in n.components[["Line", "Link"]]:
-            attr = nominal_attrs[c.name]
+        for c in n.components[["lines", "links"]]:
+            attr = nominal_attrs[c.list_name]
 
             ext_i = c.extendables.intersection(c.static.query("carrier in @car").index)
             ext_i = c.filter_by_active_assets(ext_i, period_filter)

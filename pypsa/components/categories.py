@@ -2,12 +2,15 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""MultiPort components module."""
+"""Component category markers and multi-port mixin."""
 
 from __future__ import annotations
 
 import logging
 from abc import abstractmethod
+from dataclasses import replace
+from itertools import product
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -18,14 +21,57 @@ from pypsa.constants import RE_PORTS_GE_2
 logger = logging.getLogger(__name__)
 
 
-class _Multiport(Components):
-    """_Multiport components class.
+class Branch(Components):
+    """Marker for branch components: lines, transformers, links, processes.
 
-    This class is used for shared functionality for components with multiple ports.
+    <!-- md:badge-version v1.3.0 -->
+    """
 
-    See Also
-    --------
-    [pypsa.Components][]
+    is_branch: bool = True
+
+
+class OnePort(Components):
+    """Marker for one_port components: generators, loads, stores, storage_units, shunt_impedances.
+
+    <!-- md:badge-version v1.3.0 -->
+    """
+
+    is_one_port: bool = True
+
+
+class Passive(Components):
+    """Marker for passive components: lines, transformers, shunt_impedances.
+
+    <!-- md:badge-version v1.3.0 -->
+    """
+
+    is_passive: bool = True
+
+
+class Controllable(Components):
+    """Marker for controllable components: generators, loads, stores, storage_units, links, processes.
+
+    <!-- md:badge-version v1.3.0 -->
+    """
+
+    is_controllable: bool = True
+
+
+class StandardType(Components):
+    """Marker for standard_type components: line_types, transformer_types.
+
+    <!-- md:badge-version v1.3.0 -->
+    """
+
+    is_standard_type: bool = True
+
+
+class MultiPort(Branch):
+    """Branch component with dynamic 2+ port handling.
+
+    <!-- md:badge-version v1.3.0 -->
+
+    `Links` and `Processes` may carry `bus2`, `bus3` (..) beyond the required `bus0`/`bus1`.
 
     """
 
@@ -197,11 +243,89 @@ class _Multiport(Components):
             offset = 0
             for period in snapshots.unique("period"):
                 w = weightings[snapshots.get_loc(period)].to_numpy().astype(float)
-                p_src, p_valid = _Multiport._delay_positions(w, delay, is_cyclic)
+                p_src, p_valid = MultiPort._delay_positions(w, delay, is_cyclic)
                 src[offset : offset + len(w)] = p_src + offset
                 valid[offset : offset + len(w)] = p_valid
                 offset += len(w)
             return src, valid
 
         w = weightings.reindex(snapshots).astype(float).to_numpy()
-        return _Multiport._delay_positions(w, delay, is_cyclic)
+        return MultiPort._delay_positions(w, delay, is_cyclic)
+
+    def _update_port_attrs(self, where: list[str] | None = None) -> None:
+        """Update component defaults to include additional port attributes.
+
+        Discovers extra ports (bus2, bus3, …) and adds the corresponding
+        static and dynamic attributes to the component's defaults, static
+        data, and dynamic data.
+
+        Parameters
+        ----------
+        where : list[str] or None, optional
+            Column names to scan for port suffixes. If None, uses
+            `self.additional_ports`.
+
+        """
+        if where is None:
+            ports = list(self.additional_ports)
+        else:
+            ports = [
+                match.group(1) for col in where if (match := RE_PORTS_GE_2.search(col))
+            ]
+        ports.sort(reverse=True)
+
+        static_attrs = ["bus", "delay", "cyclic_delay"]
+        dynamic_attrs = [self._coefficient_attr, "p"]
+        unsuffixed_attrs = self._unsuffixed_attrs
+
+        # Todo resolve with validation PR
+        self._ctype = replace(  # type: ignore[misc]  # per-instance ctype override
+            self._ctype, defaults=self.defaults.copy(deep=True)
+        )
+        defaults = self.defaults
+
+        for i, attr in product(ports, static_attrs + dynamic_attrs):
+            target = f"{attr}{i}"
+            if target in defaults.index:
+                continue
+            j = "" if attr in unsuffixed_attrs else "1"
+            base_attr = attr + j
+            if base_attr not in defaults.index:
+                continue
+            defaults.loc[target] = defaults.loc[base_attr].apply(
+                _update_ports_doc_changes, args=("1", i)
+            )
+            base_attr_index = defaults.index.get_loc(base_attr)
+            target_index = defaults.index.get_loc(target)
+            new_order = list(defaults.index)
+            new_order.pop(target_index)
+            new_order.insert(base_attr_index + 1, target)
+            defaults = defaults.reindex(new_order)
+            if attr in dynamic_attrs and target not in self.dynamic:
+                df = pd.DataFrame(
+                    index=self.n.snapshots,
+                    columns=self.static.index[:0],
+                    dtype=float,
+                )
+                self.dynamic[target] = df
+            elif attr in static_attrs and target not in self.static.columns:
+                self.static[target] = defaults.loc[target, "default"]
+
+        self._ctype = replace(self._ctype, defaults=defaults)  # type: ignore[misc]
+
+
+def _update_ports_doc_changes(s: Any, i: int, j: str) -> Any:
+    """Update component docs for multiport attributes."""
+    if not isinstance(s, str) or len(s) == 1:
+        return s
+    return s.replace(j, str(i)).replace("required", "optional")
+
+
+__all__ = [
+    "Branch",
+    "Controllable",
+    "MultiPort",
+    "OnePort",
+    "Passive",
+    "StandardType",
+]

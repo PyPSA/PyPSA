@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     import cartopy.feature
 
     from pypsa import Network
+    from pypsa.components.categories import Branch
 
 logger = logging.getLogger(__name__)
 
@@ -67,17 +68,17 @@ def convert_matplotlib_color_to_plotly(
 
     """
 
-    def _convert_single_color(c: Any) -> Any:
-        if not isinstance(c, str):
-            return c
-        if c.startswith(("#", "rgb")):
-            return c
-        if c.lower() in mcolors.CSS4_COLORS:
-            return c
+    def _convert_single_color(value: Any) -> Any:
+        if not isinstance(value, str):
+            return value
+        if value.startswith(("#", "rgb")):
+            return value
+        if value.lower() in mcolors.CSS4_COLORS:
+            return value
         try:
-            return mcolors.to_hex(mcolors.to_rgb(c))
+            return mcolors.to_hex(mcolors.to_rgb(value))
         except (ValueError, AttributeError):
-            return c
+            return value
 
     if isinstance(color, pd.Series):
         return color.map(_convert_single_color)
@@ -88,12 +89,12 @@ def convert_matplotlib_color_to_plotly(
 
 
 def as_branch_series(  # noqa
-    ser: pd.Series | dict | list, arg: str, c_name: str, n: "Network"
+    ser: pd.Series | dict | list, arg: str, c: "Branch", n: "Network"
 ) -> pd.Series:
-    ser = pd.Series(ser, index=n.components[c_name].static.index)
+    ser = pd.Series(ser, index=c.static.index)
     if ser.isnull().any():
-        msg = f"{c_name}_{arg}s does not specify all "
-        f"entries. Missing values for {c_name}: {list(ser[ser.isnull()].index)}"
+        msg = f"{c.name}_{arg}s does not specify all "
+        f"entries. Missing values for {c.name}: {list(ser[ser.isnull()].index)}"
         raise ValueError(msg)
     return ser
 
@@ -238,7 +239,7 @@ def to_rgba255(
         List of RGBA values as integers in the range 0-255.
 
     """
-    rgb = [round(c * 255) for c in mcolors.to_rgb(color)]
+    rgb = [round(channel * 255) for channel in mcolors.to_rgb(color)]
     a = round(alpha * 255)
     return rgb + [a]
 
@@ -259,7 +260,7 @@ def to_rgba255_css(color: str, alpha: float = 1.0) -> str:
         CSS rgba() string.
 
     """
-    rgb = [round(c * 255) for c in mcolors.to_rgb(color)]
+    rgb = [round(channel * 255) for channel in mcolors.to_rgb(color)]
     return f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {alpha:.2f})"
 
 

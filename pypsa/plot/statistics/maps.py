@@ -112,6 +112,9 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
             msg = "Plotting 'prices' on a map is not yet implemented."
             raise NotImplementedError(msg)
         n = self._n
+        if n.is_collection:
+            msg = "Map plots for NetworkCollection are not yet implemented."
+            raise NotImplementedError(msg)
         colors = self.get_carrier_colors(nice_names=False)
         n.consistency_check_plots()
         boundaries = boundaries or self.boundaries
@@ -174,7 +177,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         else:
             branch_flow_scaled = {}
             branch_width = func(
-                components=n.branch_components,
+                components=[c.list_name for c in n.components.filter(branch=True)],
                 bus_carrier=bus_carrier,
                 groupby=False,
                 carrier=list(trans_carriers),
@@ -322,7 +325,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
             add_legend_patches(
                 self.ax,  # type: ignore
-                colors=[colors[c] for c in carriers],
+                colors=[colors[carrier] for carrier in carriers],
                 labels=labels,
                 legend_kw={
                     "bbox_to_anchor": (1, 1),

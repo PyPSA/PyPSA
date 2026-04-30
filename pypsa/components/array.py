@@ -150,12 +150,12 @@ class _XarrayAccessor:
     def __str__(self) -> str:
         """Get string representation of the xarray accessor."""
         component = self._get_component()
-        return f"'{component.ctype.name}' XarrayAccessor"
+        return f"'{component.name}' XarrayAccessor"
 
     def __repr__(self) -> str:
         """Get representation of the xarray accessor."""
         component = self._get_component()
-        return f"'{component.ctype.name}' XarrayAccessor"
+        return f"'{component.name}' XarrayAccessor"
 
 
 class ComponentsArrayMixin(_ComponentsABC):
@@ -251,7 +251,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         [2 rows x 6 columns]
 
         """
-        sns = as_index(self.n_save, snapshots, "snapshots")
+        sns = as_index(self.n, snapshots, "snapshots")
         index = self.static.index
 
         static = self.static.get(attr, pd.Series([], index=index[:0]))
@@ -340,7 +340,7 @@ class ComponentsArrayMixin(_ComponentsABC):
             )
             # xr.unstack can leave .dims and .coords in different orders
             # Make sure dimensions match
-            res = res.transpose(*[c for c in res.coords if c in res.dims])
+            res = res.transpose(*[coord for coord in res.coords if coord in res.dims])
 
         # Set attibute name as DataArray name
         res.name = attr

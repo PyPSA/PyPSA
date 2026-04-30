@@ -1,43 +1,43 @@
-attribute,type,unit,default,description,status
-name,string,n/a,n/a,Unique name,Input (required)
-bus0,string,n/a,n/a,Name of origin bus to which branch is attached.,Input (required)
-bus1,string,n/a,n/a,Name of destination bus to which branch is attached.,Input (required)
-type,string,n/a,n/a,"Name of line standard type. If this is not an empty string """", the line standard type impedance parameters are multiplied with the `length` and divided/multiplied by `num_parallel` to compute `x`, `r`, etc. This will override any values set in `r`, `x, and `b`. If the string is empty, values manually provided for `r`, `x`, etc. are taken.",Input (optional)
-x,float,Ohm,0,"Series reactance, must be non-zero for AC branch for linearised power flow equations. If the line has series inductance $L$ in Henries then $x = 2\\pi f L$ where $f$ is the frequency in Hertz. Series impedance $z = r + jx$ must be non-zero for non-linear power flow calculations. Ignored if `type` defined.",Input (required)
-r,float,Ohm,0,"Series resistance, must be non-zero for DC branch for linearised power flow equations. Series impedance $z = r + jx$ must be non-zero for the non-linear power flow. Ignored if `type` defined.",Input (required)
-g,float,Siemens,0,Shunt conductivity. Shunt admittance is $y = g + jb$.,Input (optional)
-b,float,Siemens,0,Shunt susceptance. If the line has shunt capacitance $C$ in Farads then $b = 2\\pi f C$ where $f$ is the frequency in Hertz. Shunt admittance is $y = g + jb$. Ignored if `type` defined.,Input (optional)
-s_nom,float,MVA,0,Limit of apparent power which can pass through branch in either direction. Ignored if `s_nom_extendable=True`.,Input (optional)
-s_nom_mod,float,MVA,0,Modular unit size of line expansion of `s_nom` (e.g. fixed rating of added circuit). Introduces integer variables.,Input (optional)
-s_nom_extendable,boolean,n/a,False,Switch to allow capacity `s_nom` to be extended in optimisation.,Input (optional)
-s_nom_min,float,MVA,0,"If `s_nom_extendable=True`, set the minimum value of `s_nom_opt`.",Input (optional)
-s_nom_max,float,MVA,inf,"If `s_nom_extendable=True`, set the maximum value of `s_nom_opt`.",Input (optional)
-s_nom_set,float,MVA,n/a,"If `s_nom` is extendable in optimization, set the value of `s_nom_opt`.",Input (optional)
-s_max_pu,static or series,per unit,1,"The maximum allowed absolute apparent power flow per unit of `s_nom` for the optimisation (e.g. can set `s_max_pu<1` to approximate $N-1$ contingency factor, or can be time-varying to represent weather-dependent dynamic line rating for overhead lines).",Input (optional)
-capital_cost,float,currency/MVA,0,"Fixed period costs of extending `s_nom` by 1 MVA (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified. Any `length` factor must already be included.",Input (optional)
-overnight_cost,float,currency/MVA,NaN,"Overnight (upfront) investment cost per MVA. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
-discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
-fom_cost,float,currency/MVA,0,"Fixed period operation and maintenance cost per MVA, added to annuitized investment cost.",Input (optional)
-active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
-build_year,int,year,0,Build year of line.,Input (optional)
-lifetime,float,years,inf,Lifetime of line.,Input (optional)
-length,float,km,0,"Length of line used when `type` is set. Also useful for calculating `capital_cost`.",Input (optional)
-carrier,string,"n/a","","Type of current. ""AC"" is the only valid value for lines.",Input (optional)
-terrain_factor,float,per unit,1,"Terrain factor for increasing `length` for `capital_cost` calculation.",Input (optional)
-num_parallel,float,n/a,1,"When `type` is set, this is the number of parallel circuits. Can also be fractional. If `type` is empty """" this value is ignored.",Input (optional)
-v_ang_min,float,degrees,-inf,Minimum voltage angle difference across the line.  Placeholder attribute not currently used.,Input (optional)
-v_ang_max,float,degrees,inf,Maximum voltage angle difference across the line. Placeholder attribute not currently used.,Input (optional)
-sub_network,string,n/a,n/a,"Name of sub-network to which lines belongs, as calculated by `n.determine_network_topology()`. Do not set by hand.",Output
-p0,series,MW,0,Active power at `bus0` (positive if branch is withdrawing power from `bus0`).,Output
-q0,series,MVar,0,Reactive power at `bus0` (positive if branch is withdrawing power from `bus0`).,Output
-p1,series,MW,0,Active power at `bus1` (positive if branch is withdrawing power from `bus1`).,Output
-q1,series,MVar,0,Reactive power at `bus1` (positive if branch is withdrawing power from `bus1`).,Output
-x_pu,float,per unit,0,Per unit series reactance calculated by `n.calculate_dependent_values()` from `x` and `n.buses.v_nom`.,Output
-r_pu,float,per unit,0,Per unit series resistance calculated by `n.calculate_dependent_values()` from `r` and `n.buses.v_nom`.,Output
-g_pu,float,per unit,0,Per unit shunt conductivity calculated by `n.calculate_dependent_values()` from `g` and `n.buses.v_nom`.,Output
-b_pu,float,per unit,0,Per unit shunt susceptance calculated by `n.calculate_dependent_values()` from `b` and `n.buses.v_nom`.,Output
-x_pu_eff,float,per unit,0,"Effective per unit series reactance for linear power flow, calculated by `n.calculate_dependent_values()` from `x` and `n.buses.v_nom`",Output
-r_pu_eff,float,per unit,0,"Effective per unit series resistance for linear power flow, calculated by `n.calculate_dependent_values()` from `r` and `n.buses.v_nom`",Output
-s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
-mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit $-F \\leq f$. Always non-negative.,Output
-mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit $f \\leq F$. Always non-negative.,Output
+attribute,type,dtype,unit,default,description,status,dynamic,nullable
+name,string,str,,,Unique name,Input (required),False,False
+bus0,string,str,,,Name of origin bus to which branch is attached.,Input (required),False,False
+bus1,string,str,,,Name of destination bus to which branch is attached.,Input (required),False,False
+type,string,str,,,"Name of line standard type. If this is not an empty string """", the line standard type impedance parameters are multiplied with the `length` and divided/multiplied by `num_parallel` to compute `x`, `r`, etc. This will override any values set in `r`, `x, and `b`. If the string is empty, values manually provided for `r`, `x`, etc. are taken.",Input (optional),False,True
+x,float,float,Ohm,0,"Series reactance, must be non-zero for AC branch for linearised power flow equations. If the line has series inductance $L$ in Henries then $x = 2\\pi f L$ where $f$ is the frequency in Hertz. Series impedance $z = r + jx$ must be non-zero for non-linear power flow calculations. Ignored if `type` defined.",Input (required),False,False
+r,float,float,Ohm,0,"Series resistance, must be non-zero for DC branch for linearised power flow equations. Series impedance $z = r + jx$ must be non-zero for the non-linear power flow. Ignored if `type` defined.",Input (required),False,False
+g,float,float,Siemens,0,Shunt conductivity. Shunt admittance is $y = g + jb$.,Input (optional),False,False
+b,float,float,Siemens,0,Shunt susceptance. If the line has shunt capacitance $C$ in Farads then $b = 2\\pi f C$ where $f$ is the frequency in Hertz. Shunt admittance is $y = g + jb$. Ignored if `type` defined.,Input (optional),False,False
+s_nom,float,float,MVA,0,Limit of apparent power which can pass through branch in either direction. Ignored if `s_nom_extendable=True`.,Input (optional),False,False
+s_nom_mod,float,float,MVA,0,Modular unit size of line expansion of `s_nom` (e.g. fixed rating of added circuit). Introduces integer variables.,Input (optional),False,False
+s_nom_extendable,boolean,bool,,False,Switch to allow capacity `s_nom` to be extended in optimisation.,Input (optional),False,False
+s_nom_min,float,float,MVA,0,"If `s_nom_extendable=True`, set the minimum value of `s_nom_opt`.",Input (optional),False,False
+s_nom_max,float,float,MVA,inf,"If `s_nom_extendable=True`, set the maximum value of `s_nom_opt`.",Input (optional),False,False
+s_nom_set,float,float,MVA,,"If `s_nom` is extendable in optimization, set the value of `s_nom_opt`.",Input (optional),False,True
+s_max_pu,static or series,float,per unit,1,"The maximum allowed absolute apparent power flow per unit of `s_nom` for the optimisation (e.g. can set `s_max_pu<1` to approximate $N-1$ contingency factor, or can be time-varying to represent weather-dependent dynamic line rating for overhead lines).",Input (optional),True,False
+capital_cost,float,float,currency/MVA,0,Fixed period costs of extending `s_nom` by 1 MVA (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified. Any `length` factor must already be included.,Input (optional),False,False
+overnight_cost,float,float,currency/MVA,,"Overnight (upfront) investment cost per MVA. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional),False,True
+discount_rate,float,float,per unit,,Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).,Input (optional),False,True
+fom_cost,float,float,currency/MVA,0,"Fixed period operation and maintenance cost per MVA, added to annuitized investment cost.",Input (optional),False,False
+active,boolean,bool,,True,Whether to consider the component in optimisation or not,Input (optional),False,False
+build_year,int,int,year,0,Build year of line.,Input (optional),False,False
+lifetime,float,float,years,inf,Lifetime of line.,Input (optional),False,False
+length,float,float,km,0,Length of line used when `type` is set. Also useful for calculating `capital_cost`.,Input (optional),False,False
+carrier,string,str,,,"Type of current. ""AC"" is the only valid value for lines.",Input (optional),False,True
+terrain_factor,float,float,per unit,1,Terrain factor for increasing `length` for `capital_cost` calculation.,Input (optional),False,False
+num_parallel,float,float,,1,"When `type` is set, this is the number of parallel circuits. Can also be fractional. If `type` is empty """" this value is ignored.",Input (optional),False,False
+v_ang_min,float,float,degrees,-inf,Minimum voltage angle difference across the line.  Placeholder attribute not currently used.,Input (optional),False,False
+v_ang_max,float,float,degrees,inf,Maximum voltage angle difference across the line. Placeholder attribute not currently used.,Input (optional),False,False
+sub_network,string,str,,,"Name of sub-network to which lines belongs, as calculated by `n.determine_network_topology()`. Do not set by hand.",Output,False,True
+p0,series,float,MW,0,Active power at `bus0` (positive if branch is withdrawing power from `bus0`).,Output,True,False
+q0,series,float,MVar,0,Reactive power at `bus0` (positive if branch is withdrawing power from `bus0`).,Output,True,False
+p1,series,float,MW,0,Active power at `bus1` (positive if branch is withdrawing power from `bus1`).,Output,True,False
+q1,series,float,MVar,0,Reactive power at `bus1` (positive if branch is withdrawing power from `bus1`).,Output,True,False
+x_pu,float,float,per unit,0,Per unit series reactance calculated by `n.calculate_dependent_values()` from `x` and `n.buses.v_nom`.,Output,False,False
+r_pu,float,float,per unit,0,Per unit series resistance calculated by `n.calculate_dependent_values()` from `r` and `n.buses.v_nom`.,Output,False,False
+g_pu,float,float,per unit,0,Per unit shunt conductivity calculated by `n.calculate_dependent_values()` from `g` and `n.buses.v_nom`.,Output,False,False
+b_pu,float,float,per unit,0,Per unit shunt susceptance calculated by `n.calculate_dependent_values()` from `b` and `n.buses.v_nom`.,Output,False,False
+x_pu_eff,float,float,per unit,0,"Effective per unit series reactance for linear power flow, calculated by `n.calculate_dependent_values()` from `x` and `n.buses.v_nom`",Output,False,False
+r_pu_eff,float,float,per unit,0,"Effective per unit series resistance for linear power flow, calculated by `n.calculate_dependent_values()` from `r` and `n.buses.v_nom`",Output,False,False
+s_nom_opt,float,float,MVA,0,Optimised nominal capacity for apparent power.,Output,False,False
+mu_lower,series,float,currency/MVA,0,Shadow price of lower `s_nom` limit $-F \\leq f$. Always non-negative.,Output,True,False
+mu_upper,series,float,currency/MVA,0,Shadow price of upper `s_nom` limit $f \\leq F$. Always non-negative.,Output,True,False

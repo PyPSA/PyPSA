@@ -9,7 +9,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components.components import Components
+from pypsa.components.categories import StandardType
+from pypsa.components.types import all_components as component_types
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class LineTypes(Components):
+class LineTypes(StandardType):
     """Line types components class.
 
     This class is used for line type components. All functionality specific to
@@ -38,6 +39,8 @@ class LineTypes(Components):
     Components: 59
 
     """
+
+    _ctype = component_types["line_types"]
 
     def add(
         self,

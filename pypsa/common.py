@@ -30,7 +30,7 @@ from pypsa.version import __version_base__
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from pypsa.type_utils import NetworkType
+    from pypsa.types import NetworkType
 
 logger = logging.getLogger(__name__)
 

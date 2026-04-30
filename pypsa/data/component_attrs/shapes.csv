@@ -1,6 +1,6 @@
-"attribute","type","unit","default","description","status"
-"name","string","n/a","n/a","Unique name","Input (required)"
-"geometry","geometry","n/a","n/a","Geometry","Input (optional)"
-"component","string","n/a","n/a","Component type","Input (optional)"
-"idx","string","n/a","n/a","Name of the component in index.","Input (optional)"
-"type","string","n/a","n/a","Type of geometry","Input (optional)"
+attribute,type,dtype,unit,default,description,status,dynamic,nullable
+name,string,str,,,Unique name,Input (required),False,False
+geometry,geometry,object,,,Geometry,Input (optional),False,True
+component,string,str,,,Component type,Input (optional),False,True
+idx,string,str,,,Name of the component in index.,Input (optional),False,True
+type,string,str,,,Type of geometry,Input (optional),False,True

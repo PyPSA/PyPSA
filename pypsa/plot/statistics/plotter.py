@@ -497,10 +497,6 @@ class StatisticPlotter(_StatisticPlotterBase):
         tuple(matplotlib.figure.Figure, matplotlib.axes.Axes)
             The figure and axes of the plot.
 
-        Examples
-        --------
-        >>> fig, ax = n.statistics.installed_capacity.plot.map(geomap=True, title="Installed Capacity")
-
         """
         plot_kwargs = {
             "ax": ax,

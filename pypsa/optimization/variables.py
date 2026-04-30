@@ -16,12 +16,14 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pypsa import Network
+    from pypsa.components import Lines, Transformers
+    from pypsa.components.components import Components
 
 logger = logging.getLogger(__name__)
 
 
 def define_operational_variables(
-    n: Network, sns: Sequence, c_name: str, attr: str
+    n: Network, sns: Sequence, c: Components, attr: str
 ) -> None:
     """Initialize variables for power dispatch for a given component and a given attribute.
 
@@ -31,13 +33,12 @@ def define_operational_variables(
         Network instance
     sns : Sequence
         Snapshots
-    c_name : str
-        name of the network component
+    c : Components
+        Component instance
     attr : str
         name of the attribute, e.g. 'p'
 
     """
-    c = n.components[c_name]
     if c.empty:
         return
 
@@ -47,7 +48,7 @@ def define_operational_variables(
 
 
 def define_status_variables(
-    n: Network, sns: Sequence, c_name: str, is_linearized: bool = False
+    n: Network, sns: Sequence, c: Components, is_linearized: bool = False
 ) -> None:
     """Initialize variables for unit status decisions.
 
@@ -61,13 +62,12 @@ def define_status_variables(
         Network instance
     sns : Sequence
         Snapshots
-    c_name : str
-        name of the network component
+    c : Components
+        Component instance
     is_linearized : bool, default False
         Whether the unit commitment should be linearized
 
     """
-    c = n.components[c_name]
     com_i = c.committables.difference(c.inactive_assets)
 
     if com_i.empty:
@@ -98,7 +98,7 @@ def define_status_variables(
 
 
 def define_start_up_variables(
-    n: Network, sns: Sequence, c_name: str, is_linearized: bool = False
+    n: Network, sns: Sequence, c: Components, is_linearized: bool = False
 ) -> None:
     """Initialize variables for unit start-up decisions.
 
@@ -112,13 +112,12 @@ def define_start_up_variables(
         Network instance
     sns : Sequence
         Snapshots
-    c_name : str
-        name of the network component
+    c : Components
+        Component instance
     is_linearized : bool, default False
         Whether the unit commitment should be linearized
 
     """
-    c = n.components[c_name]
     com_i = c.committables.difference(c.inactive_assets)
 
     if com_i.empty:
@@ -149,7 +148,7 @@ def define_start_up_variables(
 
 
 def define_shut_down_variables(
-    n: Network, sns: Sequence, c_name: str, is_linearized: bool = False
+    n: Network, sns: Sequence, c: Components, is_linearized: bool = False
 ) -> None:
     """Initialize variables for unit shut-down decisions.
 
@@ -163,13 +162,12 @@ def define_shut_down_variables(
         Network instance
     sns : Sequence
         Snapshots
-    c_name : str
-        name of the network component
+    c : Components
+        Component instance
     is_linearized : bool, default False
         Whether the unit commitment should be linearized
 
     """
-    c = n.components[c_name]
     com_i = c.committables.difference(c.inactive_assets)
 
     if com_i.empty:
@@ -199,20 +197,19 @@ def define_shut_down_variables(
     )
 
 
-def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
+def define_nominal_variables(n: Network, c: Components, attr: str) -> None:
     """Initialize variables for nominal capacities.
 
     Parameters
     ----------
     n : pypsa.Network
         Network instance
-    c_name : str
-        name of network component of which the nominal capacity should be defined
+    c : Components
+        Component instance
     attr : str
         name of the variable, e.g. 'p_nom'
 
     """
-    c = n.components[c_name]
     ext_i = c.extendables.difference(c.inactive_assets)
     if ext_i.empty:
         return
@@ -222,7 +219,7 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
     n.model.add_variables(coords=[ext_i], name=f"{c.name}-{attr}")
 
 
-def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
+def define_modular_variables(n: Network, c: Components, attr: str) -> None:
     """Initialize variables 'attr' for a given component c to allow a modular expansion of the attribute 'attr_nom'.
 
     It allows to define 'n_opt', the optimal number of installed modules.
@@ -231,13 +228,12 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     ----------
     n : pypsa.Network
         Network instance
-    c_name : str
-        name of network component of which the nominal capacity should be defined
+    c : Components
+        Component instance
     attr : str
         name of the variable to be handled attached to modular constraints, e.g. 'p_nom'
 
     """
-    c = n.components[c_name]
     mod_i = c.extendables.intersection(c.modulars).difference(c.inactive_assets)
 
     if mod_i.empty:
@@ -248,8 +244,7 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
 
 def define_spillage_variables(n: Network, sns: Sequence) -> None:
     """Define the spillage variables for storage units."""
-    c_name = "StorageUnit"
-    c = n.components[c_name]
+    c = n.c.storage_units
 
     if c.empty:
         return
@@ -266,7 +261,7 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     n.model.add_variables(0, upper_aligned, name=f"{c.name}-spill", mask=active)
 
 
-def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
+def define_loss_variables(n: Network, sns: Sequence, c: Lines | Transformers) -> None:
     """Initialize variables for transmission losses.
 
     Parameters
@@ -275,12 +270,11 @@ def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
         Network instance
     sns : Sequence
         Snapshots
-    c_name : str
-        name of the network component
+    c : pypsa.components.Lines | pypsa.components.Transformers
+        Component instance
 
     """
-    c = n.components[c_name]
-    if c.empty or c.name not in n.passive_branch_components:
+    if c.empty:
         return
 
     active = c.da.active.sel(name=c.active_assets, snapshot=sns)

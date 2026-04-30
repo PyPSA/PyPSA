@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
+from pypsa.components.types import all_components as component_types
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -38,6 +39,8 @@ class SubNetworks(Components):
     Components: 3
 
     """
+
+    _ctype = component_types["sub_networks"]
 
     def add(
         self,

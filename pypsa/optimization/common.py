@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     import xarray as xr
 
     from pypsa import Network
+    from pypsa.components import Components
 
 
 @deprecated(
@@ -46,9 +47,8 @@ def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
     return ds.sel({dim: index}).rename({dim: index.name})
 
 
-def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -> None:
+def _set_dynamic_data(n: Network, c: Components, attr: str, df: pd.DataFrame) -> None:
     """Update values in time-dependent attribute from new dataframe."""
-    c = n.components[component]
     if (attr not in c.dynamic) or (c.dynamic[attr].empty):
         c.dynamic[attr] = df.reindex(n.snapshots)
 

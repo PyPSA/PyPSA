@@ -16,7 +16,6 @@ from xarray import DataArray
 
 import pypsa
 from pypsa.common import expand_series
-from pypsa.components.common import as_components
 
 
 def test_stoch_example():
@@ -45,7 +44,7 @@ def test_network_properties():
     # Check probabilities sum to 1
     assert abs(n.scenario_weightings["weight"].sum() - 1.0) < 1e-10
 
-    p_set = n.get_switchable_as_dense("Load", "p_set")
+    p_set = n.get_switchable_as_dense("loads", "p_set")
 
     assert p_set.columns.names == ["scenario", "name"]
 
@@ -731,7 +730,7 @@ def test_store_stochastic_dimensions():
 
     n.set_scenarios(["s1", "s2"])
 
-    c = as_components(n, "Store")
+    c = n.c.stores
     sns = n.snapshots
 
     # This should work without errors

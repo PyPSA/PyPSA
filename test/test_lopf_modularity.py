@@ -76,15 +76,15 @@ def test_modular_committable_with_ramp_limits():
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
-    p_nom_opt = n.c["Generator"].static.loc["modgen", "p_nom_opt"]
-    p_nom_mod = n.c["Generator"].static.loc["modgen", "p_nom_mod"]
+    p_nom_opt = n.c.generators.static.loc["modgen", "p_nom_opt"]
+    p_nom_mod = n.c.generators.static.loc["modgen", "p_nom_mod"]
     assert p_nom_opt > 0
     assert p_nom_opt % p_nom_mod == 0
 
-    p = n.c["Generator"].dynamic["p"]["modgen"]
-    u = n.c["Generator"].dynamic["status"]["modgen"]
-    ru = n.c["Generator"].static.loc["modgen", "ramp_limit_up"]
-    rd = n.c["Generator"].static.loc["modgen", "ramp_limit_down"]
+    p = n.c.generators.dynamic["p"]["modgen"]
+    u = n.c.generators.dynamic["status"]["modgen"]
+    ru = n.c.generators.static.loc["modgen", "ramp_limit_up"]
+    rd = n.c.generators.static.loc["modgen", "ramp_limit_down"]
 
     constraints = list(n.model.constraints)
     assert "Generator-p-ramp_limit_up" in constraints

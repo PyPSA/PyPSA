@@ -11,7 +11,7 @@ Only defines a base class for all Components helper classes which inherit to
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -22,8 +22,8 @@ if TYPE_CHECKING:
 
 
 class _ComponentsABC(ABC):
-    ctype: ComponentType
-    n: Network | None
+    _ctype: ClassVar[ComponentType]
+    n: Network
     static: pd.DataFrame
     dynamic: Dict
 

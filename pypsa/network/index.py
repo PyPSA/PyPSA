@@ -21,6 +21,9 @@ import numpy as np
 import pandas as pd
 
 from pypsa._options import options
+from pypsa.components._types.buses import Buses
+from pypsa.components._types.sub_networks import SubNetworks
+from pypsa.components.categories import Branch, OnePort, StandardType
 from pypsa.constants import HOURS_PER_YEAR
 from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
@@ -128,9 +131,9 @@ class NetworkIndexMixin(_NetworkABC):
                 "Skipping `weightings_from_timedelta` as `snapshots`is not of type `pd.DatetimeIndex`."
             )
 
-        for component in self.all_components:
-            dynamic = self.c[component].dynamic
-            attrs = self.components[component]["defaults"]
+        for c in self.components.values():
+            dynamic = c.dynamic
+            attrs = c.defaults
 
             for k in dynamic:
                 if dynamic[k].empty:  # avoid expensive reindex operation
@@ -350,8 +353,8 @@ class NetworkIndexMixin(_NetworkABC):
                 "converting snapshots to a pandas.MultiIndex."
             )
             names = ["period", "timestep"]
-            for component in self.all_components:
-                dynamic = self.c[component].dynamic
+            for c in self.components.values():
+                dynamic = c.dynamic
 
                 for k in dynamic:
                     dynamic[k] = pd.concat(
@@ -775,7 +778,7 @@ class NetworkIndexMixin(_NetworkABC):
         scenarios_.index = scenarios_.index.astype(str)
         scenarios_.index.name = "scenario"
 
-        for c in self.components.values():  # Loop all components, not just empty ones
+        for c in self.components.values():
             c.static = pd.concat(
                 dict.fromkeys(scenarios_.index, c.static), names=["scenario"]
             )
@@ -1166,64 +1169,53 @@ class NetworkIndexMixin(_NetworkABC):
             selected_snapshots = pd.Index([selected_snapshots])
 
         # Setup new network
-        n = self.__class__()
+        n_new = self.__class__()
 
-        n.add(
-            "Bus",
+        n_new.c.buses.add(
             pd.DataFrame(self.c.buses.static.loc[buses]).assign(sub_network="").index,
             **pd.DataFrame(self.c.buses.static.loc[buses]).assign(sub_network=""),
         )
 
-        buses_i = n.c.buses.static.index
+        buses_i = n_new.c.buses.static.index
 
-        rest_components = (
-            self.all_components
-            - self.standard_type_components
-            - self.one_port_components
-            - self.branch_components
-        )
-        for c in rest_components - {"Bus", "SubNetwork"}:
-            n.add(c, self.components[c].static.index, **self.components[c].static)
+        for c in self.components.values():
+            if isinstance(c, (Buses, SubNetworks, Branch, OnePort, StandardType)):
+                continue
+            n_new.c[c.list_name].add(c.static.index, **c.static)
 
-        for c in self.standard_type_components:
+        for c in self.components.filter(standard_type=True):
+            static = pd.DataFrame(c.static.drop(c.standard_types.index))
+            n_new.c[c.list_name].add(static.index, **static)
+
+        for c in self.components.filter(one_port=True):
+            static = pd.DataFrame(c.static.loc[lambda df: df.bus.isin(buses_i)])
+            n_new.c[c.list_name].add(static.index, **static)
+
+        for c in self.components.filter(branch=True):
             static = pd.DataFrame(
-                self.components[c].static.drop(
-                    self.components[c]["standard_types"].index
-                )
+                c.static.loc[lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)]
             )
-            n.add(c, static.index, **static)
+            n_new.c[c.list_name].add(static.index, **static)
 
-        for c in self.one_port_components:
-            static = pd.DataFrame(self.c[c].static.loc[lambda df: df.bus.isin(buses_i)])
-            n.add(c, static.index, **static)
-
-        for c in self.branch_components:
-            static = pd.DataFrame(
-                self.c[c].static.loc[
-                    lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
-                ]
-            )
-            n.add(c, static.index, **static)
-
-        n.set_snapshots(selected_snapshots)
-        for c in self.all_components:
-            c = n.c[c]
+        n_new.set_snapshots(selected_snapshots)
+        for c in self.components.values():
             i = c.static.index
+            nc = n_new.c[c.list_name]
             try:
-                ndynamic = n.c[c.name].dynamic
-                dynamic = self.c[c.name].dynamic
+                ndynamic = nc.dynamic
+                dynamic = c.dynamic
 
                 for k in dynamic:
                     ndynamic[k] = dynamic[k].loc[
-                        n.snapshots, i.intersection(dynamic[k].columns)
+                        n_new.snapshots, i.intersection(dynamic[k].columns)
                     ]
             except AttributeError:
                 pass
 
         # catch all remaining attributes of network
         for attr in ["name", "_crs"]:
-            setattr(n, attr, getattr(self, attr))
+            setattr(n_new, attr, getattr(self, attr))
 
-        n.snapshot_weightings = self.snapshot_weightings.loc[n.snapshots]
+        n_new.snapshot_weightings = self.snapshot_weightings.loc[n_new.snapshots]
 
-        return n  # type: ignore[return-value]
+        return n_new  # type: ignore[return-value]
