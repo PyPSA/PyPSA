@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 import numpy as np
 import pandas as pd
-from numpy import ones, r_, isinf
+from numpy import isinf, ones, r_
 from numpy.linalg import norm
 from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, issparse
 from scipy.sparse import hstack as shstack

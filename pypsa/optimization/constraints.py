@@ -14,7 +14,7 @@ import linopy
 import pandas as pd
 import xarray as xr
 from linopy import merge
-from numpy import inf, isinf, isfinite, maximum, sqrt, tile
+from numpy import inf, isfinite, isinf, maximum, sqrt, tile
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
