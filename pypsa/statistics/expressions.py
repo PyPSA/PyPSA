@@ -125,7 +125,7 @@ def get_transmission_branches(
         bus_carrier_map = bus_carrier_map[~bus_carrier_map.index.duplicated()]
 
         for ref_c in n.networks.iloc[0].components.filter(branch=True):
-            c = n.c[ref_c.name]
+            c = n.c[ref_c.list_name]
             bus_map = c.static.filter(like="bus").apply(
                 lambda ds: ds.map(bus_carrier_map)
             )
@@ -221,7 +221,7 @@ def get_transmission_carriers(
             try:
                 # Build the full index for this component
                 full_component_idx = network_part + (component_name,)
-                carrier = n.c[component].static.carrier.loc[full_component_idx]
+                carrier = n.c._get(component).static.carrier.loc[full_component_idx]
                 network_results.append(network_part + (component, carrier))
             except KeyError:
                 # Component not found, skip
@@ -245,9 +245,9 @@ def get_transmission_carriers(
         carriers = {}
         for c in branches.unique(0):
             idx = branches[branches.get_loc(c)].get_level_values(1)
-            if "carrier" not in n.c[c].static:
+            if "carrier" not in n.c._get(c).static:
                 continue
-            carriers[c] = n.c[c].static.carrier[idx].unique()
+            carriers[c] = n.c._get(c).static.carrier[idx].unique()
         return pd.MultiIndex.from_tuples(
             [(c, i) for c, idx in carriers.items() for i in idx],
             names=["component", "carrier"],

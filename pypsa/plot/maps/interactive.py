@@ -234,7 +234,7 @@ def iplot(
         bus_trace["marker"]["colorbar"] = bus_colorbar
 
     if branch_components is None:
-        branch_components = n.branch_components
+        branch_components = [c.name for c in n.components.filter(branch=True)]
 
     branch_color = {
         "Line": convert_matplotlib_color_to_plotly(line_color),
@@ -2004,7 +2004,7 @@ class PydeckPlotter:
 
         # Branch layers
         if branch_components is None:
-            branch_components = n.branch_components
+            branch_components = [c.list_name for c in n.components.filter(branch=True)]
 
         self.add_branch_and_arrow_layer(
             branch_components=branch_components,

@@ -1005,8 +1005,8 @@ class SpatialClusteringMixin:
                         clustered._import_series_from_df(df, "Generator", attr)
 
         for one_port in aggregate_one_ports:
-            one_port_components.remove(one_port)
             one_port_c = n.c[one_port]
+            one_port_components.remove(one_port_c.name)
             new_static, new_dynamic = aggregateoneport(
                 n,
                 busmap,
@@ -1014,10 +1014,10 @@ class SpatialClusteringMixin:
                 with_time=with_time,
                 custom_strategies=one_port_strategies.get(one_port, {}),
             )
-            clustered.c[one_port].add(new_static.index, **new_static)
+            clustered.c[one_port_c.list_name].add(new_static.index, **new_static)
             for attr, df in new_dynamic.items():
                 if not df.empty:
-                    clustered._import_series_from_df(df, one_port, attr)
+                    clustered._import_series_from_df(df, one_port_c.name, attr)
 
         # Collect remaining one ports
 

@@ -2246,21 +2246,21 @@ class NetworkIOMixin(_NetworkABC):
         )
 
         d = {
-            "Bus": pd.DataFrame(
+            "buses": pd.DataFrame(
                 {"v_nom": net.bus.vn_kv.values, "v_mag_pu_set": 1.0},
                 index=net.bus.name,
             )
         }
 
-        d["Bus"].loc[net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"] = (
+        d["buses"].loc[net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"] = (
             net.gen.vm_pu.values  # fmt: skip
         )
 
-        d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"] = (
+        d["buses"].loc[net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"] = (
             net.ext_grid.vm_pu.values  # fmt: skip
         )
 
-        d["Load"] = pd.DataFrame(
+        d["loads"] = pd.DataFrame(
             {
                 "p_set": (net.load.scaling * net.load.p_mw).values,
                 "q_set": (net.load.scaling * net.load.q_mvar).values,
@@ -2302,12 +2302,12 @@ class NetworkIOMixin(_NetworkABC):
         )
 
         # concat all generators and index according to option
-        d["Generator"] = pd.concat(
+        d["generators"] = pd.concat(
             [_tmp_gen, _tmp_sgen, _tmp_ext_grid], ignore_index=use_pandapower_index
         )
 
         if extra_line_data is False:
-            d["Line"] = pd.DataFrame(
+            d["lines"] = pd.DataFrame(
                 {
                     "type": net.line.std_type.values,
                     "bus0": net.bus.name.loc[net.line.from_bus].values,
@@ -2328,7 +2328,7 @@ class NetworkIOMixin(_NetworkABC):
             u = net.bus.vn_kv.loc[net.line.from_bus].values
             s_nom = u * net.line.max_i_ka.values
 
-            d["Line"] = pd.DataFrame(
+            d["lines"] = pd.DataFrame(
                 {
                     "r": r,
                     "x": x,
@@ -2344,7 +2344,7 @@ class NetworkIOMixin(_NetworkABC):
 
         # check, if the trafo is based on a standard-type:
         if net.trafo.std_type.any():
-            d["Transformer"] = pd.DataFrame(
+            d["transformers"] = pd.DataFrame(
                 {
                     "type": net.trafo.std_type.values,
                     "bus0": net.bus.name.loc[net.trafo.hv_bus].values,
@@ -2370,7 +2370,7 @@ class NetworkIOMixin(_NetworkABC):
             )
             b = np.sqrt(y**2 - g**2)
 
-            d["Transformer"] = pd.DataFrame(
+            d["transformers"] = pd.DataFrame(
                 {
                     "phase_shift": net.trafo.shift_degree.values,
                     "s_nom": s_nom,
@@ -2384,13 +2384,13 @@ class NetworkIOMixin(_NetworkABC):
                 },
                 index=net.trafo.name,
             )
-        d["Transformer"] = d["Transformer"].fillna(0)
+        d["transformers"] = d["transformers"].fillna(0)
 
         # documented at https://docs.pypsa.org/latest/user-guide/components/shunt-impedances
         g_shunt = net.shunt.p_mw.values / net.shunt.vn_kv.values**2
         b_shunt = net.shunt.q_mvar.values / net.shunt.vn_kv.values**2
 
-        d["ShuntImpedance"] = pd.DataFrame(
+        d["shunt_impedances"] = pd.DataFrame(
             {
                 "bus": net.bus.name.loc[net.shunt.bus].values,
                 "g": g_shunt,
@@ -2398,17 +2398,17 @@ class NetworkIOMixin(_NetworkABC):
             },
             index=net.shunt.name,
         )
-        d["ShuntImpedance"] = d["ShuntImpedance"].fillna(0)
+        d["shunt_impedances"] = d["shunt_impedances"].fillna(0)
 
-        for component_name in [
-            "Bus",
-            "Load",
-            "Generator",
-            "Line",
-            "Transformer",
-            "ShuntImpedance",
-        ]:
-            self.c[component_name].add(d[component_name].index, **d[component_name])
+        for c in (
+            "buses",
+            "loads",
+            "generators",
+            "lines",
+            "transformers",
+            "shunt_impedances",
+        ):
+            self.c[c].add(d[c].index, **d[c])
 
         # amalgamate buses connected by closed switches
 

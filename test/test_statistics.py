@@ -277,18 +277,13 @@ def test_storage_capacity(ac_dc_network_r):
     assert df.sum() == 5
 
 
-@pytest.mark.parametrize(
-    ("components", "expected_label"),
-    [
-        ("Generator", "Generator"),
-        ("generators", "generators"),
-    ],
-)
-def test_single_component(ac_dc_network_r, components, expected_label):
+@pytest.mark.parametrize("components", ["Generator", "generators"])
+def test_single_component(ac_dc_network_r, components):
     n = ac_dc_network_r
     df = n.statistics.installed_capacity(components=components)
     assert not df.empty
     assert df.index.nlevels == 1
+    assert df.index.name == "carrier"
 
 
 @pytest.mark.parametrize(
@@ -304,8 +299,7 @@ def test_component_name_format_in_output(ac_dc_network_r, components, expected_l
     assert not df.empty
     output_components = df.index.get_level_values("component").unique().tolist()
     for label in expected_labels:
-        if label in output_components:
-            assert label in output_components
+        assert label in output_components
 
 
 def test_no_warning_on_pascal_case_components(ac_dc_network_r):
@@ -318,20 +312,26 @@ def test_no_warning_on_pascal_case_components(ac_dc_network_r):
 
 
 def test_aggregate_across_components(ac_dc_network_r):
-    n = ac_dc_network_r
-    df = n.statistics.installed_capacity(
-        components=["Generator", "Line"], aggregate_across_components=True
-    )
-    assert not df.empty
-    assert "component" not in df.index.names
+    import warnings
 
-    df = n.statistics.supply(
-        components=["Generator", "Line"],
-        aggregate_across_components=True,
-        groupby_time=False,
-    )
-    assert not df.empty
-    assert "component" not in df.index.names
+    n = ac_dc_network_r
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        df = n.statistics.installed_capacity(
+            components=["Generator", "Line"], aggregate_across_components=True
+        )
+        assert not df.empty
+        assert "component" not in df.index.names
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        df = n.statistics.supply(
+            components=["Generator", "Line"],
+            aggregate_across_components=True,
+            groupby_time=False,
+        )
+        assert not df.empty
+        assert "component" not in df.index.names
 
 
 def test_multiindexed(ac_dc_periods):
@@ -598,17 +598,17 @@ class TestMultiInvest:
 class TestGetOperation:
     @pytest.mark.parametrize(
         ("component", "expected_attr"),
-        [("Link", "p0"), ("Line", "p0"), ("Generator", "p"), ("Store", "e")],
+        [("links", "p0"), ("lines", "p0"), ("generators", "p"), ("stores", "e")],
     )
     def test_get_operation(self, ac_dc_network_r, component, expected_attr):
         n = ac_dc_network_r
         pd.testing.assert_frame_equal(
-            get_operation(n, component), n.components[component].dynamic[expected_attr]
+            get_operation(n, component), n.c[component].dynamic[expected_attr]
         )
 
     def test_get_operation_multi_port(self, multiport_process_network):
         pd.testing.assert_frame_equal(
-            get_operation(multiport_process_network, "Process"),
+            get_operation(multiport_process_network, "processes"),
             multiport_process_network.c.processes.dynamic["p"],
         )
 

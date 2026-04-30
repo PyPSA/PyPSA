@@ -422,7 +422,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         at_port = resolve_at_port(at_port, bus_carrier)
 
         if components is None:
-            components = self._n.branch_components
+            components = [c.name for c in self._n.components.filter(branch=True)]
 
         transmission_branches = get_transmission_branches(self._n, bus_carrier)
 

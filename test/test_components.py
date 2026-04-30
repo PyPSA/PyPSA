@@ -21,17 +21,17 @@ def test_components_cannot_instantiate_directly():
 @pytest.fixture
 def legacy_component():
     n = Network()
-    # Create a sample component object
     data = {"active": [True, False, True], "other_attr": [1, 2, 3]}
     static = pd.DataFrame(data, index=["asset1", "asset2", "asset3"])
     dynamic = {"time_series": pd.DataFrame({"value": [0.1, 0.2, 0.3]})}
 
-    component = Component(
-        name="Generator",
-        n=n,
-        static=static,
-        dynamic=dynamic,
-    )
+    with pytest.warns(DeprecationWarning, match="Component\\(\\) is deprecated"):
+        component = Component(
+            name="Generator",
+            n=n,
+            static=static,
+            dynamic=dynamic,
+        )
     return component
 
 

@@ -28,7 +28,7 @@ def describe_storage_unit_contraints(n):
     if sus_i.empty:
         return None
     sns = n.snapshots
-    c = "StorageUnit"
+    c = "storage_units"
     dynamic = n.c[c].dynamic
 
     eh = expand_series(n.snapshot_weightings.stores[sns], sus_i)
@@ -74,7 +74,7 @@ def describe_nodal_balance_constraint(n):
             [
                 n.c[c].dynamic[f"p{inout}"].rename(columns=n.c[c].static[f"bus{inout}"])
                 for inout in (0, 1)
-                for c in ("Line", "Transformer")
+                for c in ("lines", "transformers")
             ],
             axis=1,
         )
@@ -157,7 +157,7 @@ def describe_store_contraints(n):
     if stores_i.empty:
         return None
     sns = n.snapshots
-    c = "Store"
+    c = "stores"
     dynamic = n.c[c].dynamic
 
     eh = expand_series(n.snapshot_weightings.stores[sns], stores_i)

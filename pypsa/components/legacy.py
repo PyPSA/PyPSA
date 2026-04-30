@@ -6,9 +6,8 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any
-
-from deprecation import deprecated
 
 from pypsa.components.types import get as get_component_type
 
@@ -33,11 +32,6 @@ class Component:
     """
 
     # ruff: noqa: D102
-    @deprecated(
-        deprecated_in="1.3.0",
-        removed_in="2.0.0",
-        details="Use `n.components.<component>` instead.",
-    )
     def __new__(
         cls,
         name: str | None = None,
@@ -46,6 +40,13 @@ class Component:
         static: pd.DataFrame | None = None,
         dynamic: Dict | None = None,
     ) -> Any:
+        warnings.warn(
+            "Component() is deprecated as of 1.3.0 and will be removed in 2.0.0."
+            " Components cannot be initialized directly and are always"
+            " attached to a Network. Access via `n.components.<component>`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if (name and ctype is not None) or (not name and ctype is None):
             msg = "One out of 'name' or 'ctype' must be given."
             raise ValueError(msg)

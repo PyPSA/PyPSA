@@ -42,7 +42,7 @@ def test_mga():
     opt_capacity = n.c.generators.static.p_nom_opt
     opt_cost = (n.statistics.capex() + n.statistics.opex()).sum()
 
-    weights = {"Generator": {"p_nom": {"coal": 1}}}
+    weights = {"generators": {"p_nom": {"coal": 1}}}
     slack = 0.05
     n.optimize.optimize_mga(slack=0.05, weights=weights)
 
@@ -77,8 +77,8 @@ def test_mga_in_direction():
 
     # Define dimensions for the MGA
     dimensions = {
-        "cap1": {"Generator": {"p_nom": {"gen1": 1}}},
-        "cap2": {"Generator": {"p_nom": {"gen2": 1}}},
+        "cap1": {"generators": {"p_nom": {"gen1": 1}}},
+        "cap2": {"generators": {"p_nom": {"gen2": 1}}},
     }
 
     # Test with a simple direction
@@ -94,8 +94,8 @@ def test_mga_in_direction():
     assert n.meta["slack"] == slack
     assert n.meta["direction"] == direction
     assert n.meta["dimensions"] == {
-        "cap1": {"Generator": {"p_nom": {"gen1": 1}}},
-        "cap2": {"Generator": {"p_nom": {"gen2": 1}}},
+        "cap1": {"generators": {"p_nom": {"gen1": 1}}},
+        "cap2": {"generators": {"p_nom": {"gen2": 1}}},
     }
 
     # Assert that the capacity of gen1 is less than gen2
@@ -119,7 +119,7 @@ def test_mga_in_direction():
     with pytest.raises(ValueError):
         n_unsolved.optimize.optimize_mga_in_direction(
             direction={"some_gen_cap": 1},
-            dimensions={"some_gen_cap": {"Generator": {"p_nom": {"some_gen": 1}}}},
+            dimensions={"some_gen_cap": {"generators": {"p_nom": {"some_gen": 1}}}},
         )
 
     # Test inconsistent direction/dimensions keys
@@ -128,7 +128,7 @@ def test_mga_in_direction():
     ):
         n.optimize.optimize_mga_in_direction(
             direction={"cap1": -1},
-            dimensions={"cap2": {"Generator": {"p_nom": {"gen2": 1}}}},
+            dimensions={"cap2": {"generators": {"p_nom": {"gen2": 1}}}},
         )
 
 
@@ -156,8 +156,8 @@ def test_mga_in_multiple_directions():
 
     # Define dimensions for the MGA
     dimensions = {
-        "coal_cap": {"Generator": {"p_nom": {"coal": 1}}},
-        "gas_cap": {"Generator": {"p_nom": {"gas": 1}}},
+        "coal_cap": {"generators": {"p_nom": {"coal": 1}}},
+        "gas_cap": {"generators": {"p_nom": {"gas": 1}}},
     }
 
     # Generate some example directions

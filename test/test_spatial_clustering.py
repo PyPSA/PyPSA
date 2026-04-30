@@ -21,7 +21,7 @@ pytest.importorskip("sklearn")
 def test_aggregate_generators(ac_dc_network):
     n = ac_dc_network
     busmap = pd.Series("all", n.c.buses.static.index)
-    df, dynamic = aggregateoneport(n, busmap, "Generator")
+    df, dynamic = aggregateoneport(n, busmap, "generators")
 
     assert (
         df.loc["all gas", "p_nom"]
@@ -52,7 +52,9 @@ def test_aggregate_generators_custom_strategies(ac_dc_network):
     busmap = pd.Series("all", n.c.buses.static.index)
 
     strategies = {"p_max_pu": "max", "p_nom_max": "weighted_min"}
-    df, dynamic = aggregateoneport(n, busmap, "Generator", custom_strategies=strategies)
+    df, dynamic = aggregateoneport(
+        n, busmap, "generators", custom_strategies=strategies
+    )
 
     assert (
         df.loc["all gas", "p_nom"]
@@ -84,7 +86,7 @@ def test_aggregate_generators_consent_error(ac_dc_network):
     busmap = pd.Series("all", n.c.buses.static.index)
 
     with pytest.raises(ValueError):
-        df, dynamic = aggregateoneport(n, busmap, "Generator")
+        df, dynamic = aggregateoneport(n, busmap, "generators")
 
 
 def test_aggregate_storage_units(ac_dc_network):
@@ -112,7 +114,7 @@ def test_aggregate_storage_units(ac_dc_network):
     )
 
     busmap = pd.Series("all", n.c.buses.static.index)
-    df, dynamic = aggregateoneport(n, busmap, "StorageUnit")
+    df, dynamic = aggregateoneport(n, busmap, "storage_units")
     capacity_norm = normed_or_uniform(n.c.storage_units.static.p_nom)
 
     assert df.loc["all", "p_nom"] == n.c.storage_units.static.p_nom.sum()
@@ -138,13 +140,9 @@ def test_aggregate_storage_units_consent_error(ac_dc_network):
 
 
 def prepare_network_for_aggregation(n):
-    n.c.lines.static = n.c.lines.static.reindex(
-        columns=n.components["Line"]["defaults"].index[1:]
-    )
+    n.c.lines.static = n.c.lines.static.reindex(columns=n.c.lines["defaults"].index[1:])
     n.c.lines.static["type"] = np.nan
-    n.c.buses.static = n.c.buses.static.reindex(
-        columns=n.components["Bus"]["defaults"].index[1:]
-    )
+    n.c.buses.static = n.c.buses.static.reindex(columns=n.c.buses["defaults"].index[1:])
     n.c.buses.static["frequency"] = 50
 
 
@@ -279,6 +277,6 @@ def test_aggregate_one_ports_no_time_series():
     assert n.storage_units_t.p.empty
 
     busmap = pd.Series("x", n.buses.index)
-    C = get_clustering_from_busmap(n, busmap, aggregate_one_ports=["StorageUnit"])
+    C = get_clustering_from_busmap(n, busmap, aggregate_one_ports=["storage_units"])
 
     assert C.n.storage_units_t.p.empty

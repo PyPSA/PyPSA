@@ -70,21 +70,25 @@ def imag(X: pd.Series) -> pd.Series:
 
 
 def _allocate_pf_outputs(n: Network, linear: bool = False) -> None:
-    to_allocate = {
-        "Generator": ["p"],
-        "Load": ["p"],
-        "StorageUnit": ["p"],
-        "Store": ["p"],
-        "ShuntImpedance": ["p"],
-        "Bus": ["p", "v_ang", "v_mag_pu"],
-        **{c: ["p" + port for port in n.c[c].ports] for c in n.branch_components},
+    to_allocate: dict[str, list[str]] = {
+        "generators": ["p"],
+        "loads": ["p"],
+        "storage_units": ["p"],
+        "stores": ["p"],
+        "shunt_impedances": ["p"],
+        "buses": ["p", "v_ang", "v_mag_pu"],
+        **{
+            c.list_name: ["p" + port for port in c.ports]
+            for c in n.components.filter(branch=True)
+        },
     }
 
+    passive = {c.list_name for c in n.components.filter(branch=True, passive=True)}
     if not linear:
         for component, attrs in to_allocate.items():
             if "p" in attrs:
                 attrs.append("q")
-            if "p0" in attrs and component in n.passive_branch_components:
+            if "p0" in attrs and component in passive:
                 attrs.extend(["q0", "q1"])
 
     allocate_series_dataframes(n, to_allocate)
@@ -254,13 +258,12 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
 
     """
     for component, attributes in series.items():
-        static = n.c[component].static
-        dynamic = n.c[component].dynamic
+        c = n.c[component]
 
         for attr in attributes:
-            dynamic[attr] = dynamic[attr].reindex(
-                columns=static.index,
-                fill_value=n.components[component]["defaults"].at[attr, "default"],
+            c.dynamic[attr] = c.dynamic[attr].reindex(
+                columns=c.static.index,
+                fill_value=c.defaults.at[attr, "default"],
             )
 
 
