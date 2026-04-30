@@ -575,6 +575,7 @@ class TestPortEfficiency:
             return "efficiency"
         if component == "Process":
             return "rate"
+        raise ValueError(f"Unexpected component type: {component}")
 
     @pytest.fixture(scope="class")
     def eff1(self, eff_param, component):
