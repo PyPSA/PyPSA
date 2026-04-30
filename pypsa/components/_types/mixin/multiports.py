@@ -72,12 +72,12 @@ class _Multiport(Components):
         ...
 
     @abstractmethod
-    def _port_suffix(self, port: str) -> str:
+    def _port_suffix(self, port: str | int) -> str:
         """Return the attribute suffix for a given port.
 
         Parameters
         ----------
-        port : str
+        port : str | int
             Port identifier.
 
         Returns

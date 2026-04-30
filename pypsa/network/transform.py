@@ -255,6 +255,16 @@ class NetworkTransformMixin(_NetworkABC):
                 return s
             return s + suffix
 
+        if c.name in ("Process", "Link"):
+            # Enable default lookup for attributes with port suffixes, e.g. efficiency1, rate2.
+            coeff_attr_map = {
+                f"{c._coefficient_attr}{attr.removeprefix('bus')}": f"{c._coefficient_attr}{c._port_suffix('1')}"
+                for attr in custom_attrs
+                if attr.startswith("bus")
+            }
+        else:
+            coeff_attr_map = {}
+
         for k, v in kwargs.items():
             # If index/ columnes are passed (pd.DataFrame or pd.Series)
             # - cast names index to string and add suffix
@@ -265,7 +275,7 @@ class NetworkTransformMixin(_NetworkABC):
             # attributes (e.g. ["p_pu", "efficiency"]), not component names.
             # These are identified by the attribute name being in segments_attrs and
             # the value being a DataFrame whose columns include the x-axis attribute.
-            if x_attr := segments_attrs.get(k):
+            if x_attr := segments_attrs.get(coeff_attr_map.get(k, k)):
                 # Intercept segments shorthand: dict {x_value: y_value}
                 if isinstance(v, dict):
                     v = pd.DataFrame({x_attr: list(v.keys()), k: list(v.values())})

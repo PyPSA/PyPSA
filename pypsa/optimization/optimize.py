@@ -1029,13 +1029,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p0", df)
                     _set_dynamic_data(n, c.name, "p1", -df)
 
-                elif c.name == "Link" and attr == "p":
+                elif c.name in ("Link", "Process") and attr == "p":
                     _set_dynamic_data(n, c.name, "p", df)
-                    _set_dynamic_data(n, c.name, "p0", df)
+                    if c.name == "Link":
+                        _set_dynamic_data(n, c.name, "p0", df)
+                        ports = ["1"] + c.additional_ports
+                    elif c.name == "Process":
+                        ports = c.ports
 
-                    for i in ["1"] + c.additional_ports:
-                        i_suffix = "" if i == "1" else i
-                        eff_attr = f"efficiency{i_suffix}"
+                    for i in ports:
+                        i_suffix = c._port_suffix(i)
+                        eff_attr = f"{c._coefficient_attr}{i_suffix}"
                         eff = n.get_switchable_as_dense("Link", eff_attr, sns)
                         port_df = -df * eff
                         if not c.segments[eff_attr].empty:
@@ -1049,32 +1053,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                             c,
                             f"delay{i_suffix}",
                             f"cyclic_delay{i_suffix}",
-                            sns,
-                            n,
-                        )
-                        _set_dynamic_data(n, c.name, f"p{i}", port_df)
-                        c.dynamic[f"p{i}"].loc[
-                            sns, c.static.index[c.static[f"bus{i}"] == ""]
-                        ] = float(c.defaults.loc[f"p{i}", "default"])
-
-                elif c.name == "Process" and attr == "p":
-                    _set_dynamic_data(n, c.name, "p", df)
-
-                    for i in c.ports:
-                        rate_attr = f"rate{i}"
-                        rate = n.get_switchable_as_dense(c.name, rate_attr, sns)
-                        port_df = -df * rate
-                        if not c.segments[rate_attr].empty:
-                            df_piecewise = _from_xarray(
-                                m.variables[f"{_c_name}-{attr}{i}_piecewise"].solution,
-                                c,
-                            )
-                            port_df.update(-df_piecewise)
-                        _apply_delay_shift(
-                            port_df,
-                            c,
-                            f"delay{i}",
-                            f"cyclic_delay{i}",
                             sns,
                             n,
                         )

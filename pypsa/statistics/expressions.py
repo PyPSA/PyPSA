@@ -86,8 +86,7 @@ def port_efficiency(
     elif c.name == "Link":
         if port == 0:
             return -ones
-
-        key = "efficiency" if port == 1 else f"efficiency{port}"
+        key = f"{c._coefficient_attr}{c._port_suffix(port)}"
         if (
             segment
             and (seg_attr := c.segments.get(key)) is not None
@@ -100,10 +99,10 @@ def port_efficiency(
 
         return c.static.get(key, ones)
     elif c.name == "Process":
-        key = f"rate{port}"
+        key = f"{c._coefficient_attr}{c._port_suffix(port)}"
         if (
             segment
-            and (seg_attr := c.segment.get(key)) is not None
+            and (seg_attr := c.segments.get(key)) is not None
             and not seg_attr.empty
         ):
             return seg_attr
