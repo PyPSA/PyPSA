@@ -303,6 +303,12 @@ class NetworkTransformMixin(_NetworkABC):
                         v.index.name = "segment"
                         segments[k] = v
                         continue
+            elif isinstance(v, dict):
+                msg = (
+                    "Dictionaries are not supported as dynamic attribute values. "
+                    "Please use pandas.Series or pandas.DataFrame instead."
+                )
+                raise NotImplementedError(msg)
 
             if isinstance(v, pd.Series) and single_component:
                 if not v.index.equals(self.snapshots):
@@ -355,13 +361,6 @@ class NetworkTransformMixin(_NetworkABC):
                         f"({len(self.snapshots)}, {len(names)})."
                     )
                     raise ValueError(msg)
-
-            if isinstance(v, dict):
-                msg = (
-                    "Dictionaries are not supported as attribute values. Please use "
-                    "pandas.Series or pandas.DataFrame instead."
-                )
-                raise NotImplementedError(msg)
 
             # Handle addition of single component
             if single_component:
