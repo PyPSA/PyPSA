@@ -250,8 +250,14 @@ class ComponentsStore(dict):
         --------
         >>> for c in n.components.filter(branch=True):
         ...     print(c.list_name)
+        links
+        lines
+        processes
+        transformers
         >>> for c in n.components.filter(branch=True, controllable=True):
         ...     print(c.list_name)
+        links
+        processes
 
         """
         kwarg_to_attr = {

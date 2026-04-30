@@ -254,7 +254,7 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
 
     Examples
     --------
-    >>> allocate_series_dataframes(n, {'Generator': ['p'], 'Load': ['p']})
+    >>> allocate_series_dataframes(n, {'generators': ['p'], 'loads': ['p']})
 
     """
     for component, attributes in series.items():
