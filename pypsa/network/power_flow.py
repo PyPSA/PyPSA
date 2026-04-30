@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 import numpy as np
 import pandas as pd
-from numpy import ones, r_
+from numpy import ones, r_, isinf
 from numpy.linalg import norm
 from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, issparse
 from scipy.sparse import hstack as shstack
@@ -761,6 +761,10 @@ class NetworkPowerFlowMixin(_NetworkABC):
         self.c.lines.static["r_pu"] = self.c.lines.static.r / (
             self.c.lines.static.v_nom**2
         )
+        if isinf(self.c.lines.static["r_pu"]).any():
+            logger.warning(
+                "Warning, some lines have infinite per unit resistance. This may cause issues with power flow convergence. Consider removing these lines."
+            )
         self.c.lines.static["b_pu"] = (
             self.c.lines.static.b * self.c.lines.static.v_nom**2
         )

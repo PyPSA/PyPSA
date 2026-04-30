@@ -14,7 +14,7 @@ import linopy
 import pandas as pd
 import xarray as xr
 from linopy import merge
-from numpy import inf, isfinite, maximum, sqrt, tile
+from numpy import inf, isinf, isfinite, maximum, sqrt, tile
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
@@ -2159,7 +2159,9 @@ def define_secant_loss_constraints(
         stepfactor_k = maximum(stepfactor_atol, stepfactor_rtol)
         breakpoint_factors_list.append(breakpoint_factors_list[-1] * stepfactor_k)
         if k >= max_segments:
-            msg = f"Secant loop hit max_segments; check atol/rtol or line parameters; current inputs would result in {2 * max_segments} additional constraints per line"
+            msg = f"Secant loop hit max_segments; check atol/rtol or line parameters; current inputs would result in {2 * max_segments} additional constraints per line."
+            if isinf(r_pu_eff).any():
+                msg += " Hint: Found Inf in r_pu_eff values, which may indicate a line with zero capacity, which should probably be removed from the network."
             raise RuntimeError(msg)
 
     # make a separate array of factors for every line
