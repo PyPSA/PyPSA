@@ -742,7 +742,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._linearized_uc = int(linearized_unit_commitment)
         n._multi_invest = int(multi_investment_periods)
         n._committable_big_m = committable_big_m
-        piecewise_options = list(
+        piecewise_options: list[PiecewiseOptions] = list(
             {
                 PiecewiseOptions(**opt) if isinstance(opt, dict) else opt
                 for opt in (piecewise_options or [])
@@ -890,7 +890,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     raise ValueError(msg)
 
         # Define global constraints
-        define_primary_energy_limit(n, sns)
+        define_primary_energy_limit(n, sns, piecewise_options)
         define_transmission_expansion_cost_limit(n, sns)
         define_transmission_volume_expansion_limit(n, sns)
         define_tech_capacity_expansion_limit(n, sns)

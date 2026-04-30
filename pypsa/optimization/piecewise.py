@@ -47,6 +47,7 @@ def define_piecewise(
     operator: OPS_T,
     marginal_attr: bool,
     extra_options: Iterable[PiecewiseOptions],
+    invert_attr: bool = False,
     y_var: Any | None = None,
     method: str = "auto",
 ) -> Variable | None:
@@ -84,6 +85,10 @@ def define_piecewise(
         If multiple instance of piecewise options are provided for the same component and attribute,
         then multiple piecewise constraints will be created with each of the specified options.
         If empty, default settings will be used.
+    invert_attr : bool, optional
+        Whether to invert the piecewise attribute values before multiplying by the x-axis variable.
+        If True, y_attr -> 1 / y_attr.
+        Default is False.
     method : str, optional
         The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_constraints method.
         Default is "auto" (also the linopy default).
@@ -103,7 +108,7 @@ def define_piecewise(
         )
         return None
     x_breakpoints, y_breakpoints = _get_breakpoints(
-        c, seg_attr, seg_names, marginal_attr
+        c, seg_attr, seg_names, marginal_attr, invert_attr
     )
 
     if y_var is None:
@@ -200,7 +205,11 @@ def _add_piecewise_constraint(
 
 
 def _get_breakpoints(
-    c: Any, seg_attr: str, seg_names: pd.Index, marginal_attr: bool
+    c: Any,
+    seg_attr: str,
+    seg_names: pd.Index,
+    marginal_attr: bool,
+    invert_attr: bool = False,
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Convert segmented data to linopy breakpoints for piecewise constraint."""
     seg_df = c.segments[seg_attr][seg_names]
@@ -210,6 +219,8 @@ def _get_breakpoints(
     # seg_attr stores the marginal value (slope) at each breakpoint.
     x_da = _to_da(seg_df, x_attr)
     y_da = _to_da(seg_df, seg_attr)
+    if invert_attr:
+        y_da = 1 / y_da
 
     # For per-unit x-axes (p_pu, e_pu), scale to absolute values and reject extendables.
     nom_attr = nominal_attrs.get(c.name)
