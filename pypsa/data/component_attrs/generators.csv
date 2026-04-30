@@ -52,5 +52,5 @@ mu_lower,series,currency/MWh,n/a,Shadow price of lower `p_nom` limit,Output
 mu_p_set,series,currency/MWh,n/a,Shadow price of fixed power generation `p_set`,Output
 mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
 mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
-capital_cost_piecewise_opt,float,currency,0.,Optimised capital cost when using piecewise linearisation.,Output
-marginal_cost_piecewise,series,currency,0.,Optimised marginal cost when using piecewise linearisation.,Output
+capital_cost_opt,float,currency/MW,0.,Optimised capital cost when using piecewise linearisation.,Output
+marginal_cost_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output

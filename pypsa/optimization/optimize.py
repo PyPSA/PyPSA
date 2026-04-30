@@ -1022,6 +1022,22 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 )
                 continue
             c = n.c[_c_name]
+            if attr.endswith("_piecewise"):
+                attr = attr.removesuffix("_piecewise")
+                if (x_attr := c.ctype.segments_attrs.get(attr)) is not None:
+                    # Piecewise variables are auxiliary and need to be processed before being passed back as a solution.
+                    x_sol = m.variables[
+                        f"{c.name}-{x_attr.removesuffix('_pu')}"
+                    ].solution
+                    sol = sol / x_sol
+
+                    if "snapshot" in sol.dims:
+                        attr += "_opt"
+                else:
+                    # If not explicitly linked to an attribute, we will process it elsewhere.
+                    # E.g. piecewise efficiency gets linked to a `p` piecewise variable, which we handle in dynamic data processing below.
+                    continue
+
             df = _from_xarray(sol, c)
 
             if "snapshot" in sol.dims:
