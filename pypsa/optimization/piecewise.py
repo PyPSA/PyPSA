@@ -7,9 +7,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
 import xarray as xr
@@ -18,6 +17,8 @@ from linopy.constants import BREAKPOINT_DIM
 
 from pypsa.descriptors import nominal_attrs
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 logger = logging.getLogger(__name__)
 
 OPS_T = Literal["<=", ">=", "=="]
@@ -33,6 +34,7 @@ class PiecewiseOptions:
     operator: OPS_T
     name: str | None = None
     method: str = "auto"
+    marginal_attr: bool = False
 
 
 def define_piecewise(
@@ -43,6 +45,7 @@ def define_piecewise(
     aux_var_name: str,
     active_names: pd.Index,
     operator: OPS_T,
+    marginal_attr: bool,
     extra_options: Iterable[PiecewiseOptions],
     y_var: Any | None = None,
     method: str = "auto",
@@ -69,6 +72,10 @@ def define_piecewise(
         Active component names to consider (e.g. ``c.active_assets`` or ``c.extendables``).
     operator : {"<=", ">=", "=="}
         The operator to use in the piecewise constraint, of the form ``<x-axis var> <operator> <y-axis var>``.
+    marginal_attr : bool
+        Whether the y-axis breakpoints represent marginal values.
+        If True, the integral of the piecewise curve will be used to define y breakpoints.
+        If False, the nominal values at each x breakpoint will be used to define y breakpoints.
     y_var : linopy.Variable or None, optional
         The optimisation variable for the y-axis of the piecewise constraint.
         If None, a new auxiliary variable will be created and used instead.
@@ -95,7 +102,9 @@ def define_piecewise(
             c.name,
         )
         return None
-    x_breakpoints, y_breakpoints = _get_breakpoints(c, seg_attr, seg_names)
+    x_breakpoints, y_breakpoints = _get_breakpoints(
+        c, seg_attr, seg_names, marginal_attr
+    )
 
     if y_var is None:
         y_var_sel = _create_y_var(m, x_var, seg_names, aux_var_name)
@@ -191,7 +200,7 @@ def _add_piecewise_constraint(
 
 
 def _get_breakpoints(
-    c: Any, seg_attr: str, seg_names: pd.Index
+    c: Any, seg_attr: str, seg_names: pd.Index, marginal_attr: bool
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Convert segmented data to linopy breakpoints for piecewise constraint."""
     seg_df = c.segments[seg_attr][seg_names]
@@ -226,7 +235,11 @@ def _get_breakpoints(
             )
             raise ValueError(msg)
         x_da = x_da * nom_attr_da
-        # We assume that the y-axis data will have also been given _pu, so we scale it too.
+    if marginal_attr:
+        y_da = ((y_da * x_da) - (y_da * x_da.shift({BREAKPOINT_DIM: 1}))).cumsum(
+            BREAKPOINT_DIM
+        )
+    else:
         y_da *= x_da
 
     x_breakpoints = breakpoints(x_da)

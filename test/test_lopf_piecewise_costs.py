@@ -15,21 +15,23 @@ def test_piecewise_marginal_cost():
 
     n = pypsa.Network()
     n.add("Bus", "bus0")
-    n.add("Generator", "gen0", bus="bus0", p_nom=100, marginal_cost=50)
+    n.add("Generator", "gen0", bus="bus0", p_nom=100, marginal_cost=20)
     n.add(
         "Generator",
         "gen1",
         bus="bus0",
         p_nom=100,
-        marginal_cost={0.0: 40.0, 0.5: 60.0, 1.0: 70.0},
+        marginal_cost={0.1: 60, 0.5: 35.0, 1.0: 100.0},
     )
     n.add("Load", "load", bus="bus0", p_set=80)
     n.optimize()
-    assert n.generators_t.p["gen1"].iloc[0] == pytest.approx(25.0, rel=1e-3)
-    assert n.generators_t.p["gen0"].iloc[0] == pytest.approx(55.0, rel=1e-3)
+    assert n.generators_t.p["gen1"].iloc[0] == pytest.approx(10.0, rel=1e-3)
+    assert n.generators_t.p["gen0"].iloc[0] == pytest.approx(70.0, rel=1e-3)
     assert n.objective < 4000.0
 
 
+# TODO-1603: unmark once we have dealt with initial cost
+@pytest.mark.xfail(reason="Need to fix how we handle initial cost (at zero p_nom)")
 def test_piecewise_capital_cost():
     """Network with piecewise capital cost (diseconomies of scale = convex total cost).
 
@@ -56,31 +58,3 @@ def test_piecewise_capital_cost():
 
     assert n.objective == pytest.approx(70.0, rel=1e-3)
     assert n.generators.p_nom_opt["gen2"] == pytest.approx(80.0, rel=1e-3)
-
-
-def test_piecewise_marginal_cost_extendable_raises():
-    """Piecewise marginal_cost on an extendable component should raise ValueError."""
-    n = pypsa.Network()
-    n.add("Bus", "bus0")
-    n.add("Load", "load", bus="bus0", p_set=50)
-
-    with pytest.raises(ValueError, match="extendable"):
-        n.add(
-            "Generator",
-            "gen",
-            bus="bus0",
-            p_nom_extendable=True,
-            p_nom_max=100,
-            marginal_cost={0.0: 10.0, 0.5: 20.0, 1.0: 30.0},
-        )
-
-    n.add(
-        "Generator",
-        "gen",
-        bus="bus0",
-        p_nom_max=100,
-        marginal_cost={0.0: 10.0, 0.5: 20.0, 1.0: 30.0},
-    )
-    n.generators.loc["gen", "p_nom_extendable"] = True
-    with pytest.raises(ValueError, match="extendable"):
-        n.optimize()

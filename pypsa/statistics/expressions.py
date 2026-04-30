@@ -1674,9 +1674,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 if cost_type in cost_types_ and cost_type in n.c[c].static:
                     attr = lookup.query(cost_type).loc[c].index.item() + port
                     cost = n.get_switchable_as_dense(c, cost_type)
+                    cost_segmented_opt = n.c[c].dynamic.get(f"{cost_type}_opt")
+                    if cost_segmented_opt is None or cost_segmented_opt.empty:
+                        cost_segmented_opt = 0
                     p = n.c[c].dynamic[attr]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
-                    opex = var * (cost + n.c[c].dynamic.get(f"{cost_type}_opt", 0))
+                    opex = var * (cost + cost_segmented_opt)
                     term = self._aggregate_timeseries(opex, weights, agg=groupby_time)
                     result.append(term)
 

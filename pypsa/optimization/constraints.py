@@ -1143,6 +1143,7 @@ def define_nodal_balance_constraints(
                 aux_var_name=piecewise_constraint_name,
                 active_names=names,
                 operator="==",
+                marginal_attr=False,
                 extra_options=extra_options,
             )
             if piecewise_var is not None:
