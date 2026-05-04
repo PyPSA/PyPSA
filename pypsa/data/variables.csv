@@ -3,6 +3,7 @@ Generator,p,True,True,False,False,False,False
 Generator,status,False,False,False,False,False,True
 Generator,start_up,False,False,False,False,False,True
 Generator,shut_down,False,False,False,False,False,True
+Generator,maintenance,False,False,False,False,False,True
 Generator,p_nom,False,False,False,False,True,False
 Generator,n_mod,False,False,False,False,False,True
 Line,s,False,False,False,False,False,False
@@ -15,6 +16,7 @@ Link,p,True,True,False,False,False,False
 Link,status,False,False,False,False,False,True
 Link,start_up,False,False,False,False,False,True
 Link,shut_down,False,False,False,False,False,True
+Link,maintenance,False,False,False,False,False,True
 Link,p_nom,False,False,False,False,True,False
 Link,n_mod,False,False,False,False,False,True
 Process,p,True,True,False,False,False,False
