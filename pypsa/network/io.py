@@ -1808,7 +1808,7 @@ class NetworkIOMixin(_NetworkABC):
                 )
                 new_static = new_static.drop(duplicated_components)
             else:
-                old_static = old_static.drop(duplicated_components)
+                self.remove(cls_name, duplicated_components)
 
         # Concatenate to new dataframe
         if not old_static.empty:
