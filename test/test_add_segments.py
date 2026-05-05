@@ -90,7 +90,7 @@ def _build_extendable_params(base_kwargs_by_comp: dict[str, dict]) -> tuple[list
             p = pytest.param(comp, kw, attr, id=f"{comp}-{attr}")
             if x_attr != nom:
                 pu_raises.append(p)
-            elif x_attr == nom:
+            else:
                 nom_allowed.append(p)
     return pu_raises, nom_allowed
 
