@@ -2161,7 +2161,7 @@ def define_secant_loss_constraints(
         if k >= max_segments:
             msg = f"Secant loop hit max_segments; check atol/rtol or line parameters; current inputs would result in {2 * max_segments} additional constraints per line."
             if isinf(r_pu_eff).any():
-                msg += " Hint: Found Inf in r_pu_eff values, which may indicate a line with zero capacity, which should probably be removed from the network."
+                msg += " Identified infinite `r_pu_eff` in lines likely caused by a line with `s_nom=0`. Consider removing this line."
             raise RuntimeError(msg)
 
     # make a separate array of factors for every line
