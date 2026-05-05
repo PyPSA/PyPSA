@@ -1696,7 +1696,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 ):
                     cost = n.get_switchable_as_dense(c, cost_type, inds=com_i)
                     var = n.c[c].dynamic[attr].loc[:, com_i]
-                    opex = var * (cost + n.c[c].dynamic.get(f"{cost_type}_opt", 0))
+                    cost_segmented_opt = n.c[c].dynamic.get(f"{cost_type}_opt", 0)
+                    opex = var * (cost + cost_segmented_opt)
                     w = weights if attr == "status" else weights_one
                     term = self._aggregate_timeseries(opex, w, agg=groupby_time)
                     result.append(term)
