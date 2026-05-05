@@ -306,6 +306,19 @@ def test_add_overwrite_varying(n_5bus_7sn, caplog):
     assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[:5]] == p).all().all()
 
 
+def test_add_overwrite_clears_stale_dynamic():
+    """Regression for #1628: overwrite=True must clear pre-existing dynamic
+    columns even if the new call does not re-supply them.
+    """
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "b")
+    n.add("Generator", "g", bus="b", marginal_cost=[10.0, 20.0, 30.0])
+    assert "g" in n.c.generators.dynamic.marginal_cost.columns
+
+    n.add("Generator", "g", bus="b", marginal_cost=5.0, overwrite=True)
+    assert "g" not in n.c.generators.dynamic.marginal_cost.columns
+
+
 def test_add_stochastic():
     """Test adding components to stochastic networks."""
     n = pypsa.Network(snapshots=range(5))
