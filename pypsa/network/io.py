@@ -1988,7 +1988,7 @@ class NetworkIOMixin(_NetworkABC):
 
         x_attr = segments_attrs[attr]
 
-        if x_attr == nom_attr.replace("_nom", "_pu"):
+        if nom_attr and x_attr == nom_attr.replace("_nom", "_pu"):
             new_names = (
                 df.columns.unique("name")
                 if isinstance(df.columns, pd.MultiIndex)

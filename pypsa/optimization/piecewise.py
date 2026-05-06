@@ -7,13 +7,14 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
 import xarray as xr
-from linopy import Model, Variable, breakpoints, piecewise
-from linopy.constants import BREAKPOINT_DIM
+from linopy import Model, Variable, breakpoints
+from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, EvolvingAPIWarning
 
 from pypsa.descriptors import nominal_attrs
 
@@ -22,12 +23,14 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 OPS_T = Literal["<=", ">=", "=="]
-OPS: dict[OPS_T, str] = {"<=": "__le__", ">=": "__ge__", "==": "__eq__"}
 
 
 @dataclass(eq=True, frozen=True)
 class PiecewiseOptions:
-    """Options for piecewise constraint formulation."""
+    """Options for piecewise constraint formulation.
+
+    The operator is interpreted as ``y operator f(x)``.
+    """
 
     component: str
     attribute: str
@@ -49,7 +52,7 @@ def define_piecewise(
     extra_options: Iterable[PiecewiseOptions],
     invert_attr: bool = False,
     y_var: Any | None = None,
-    method: str = "auto",
+    method: PWL_METHOD = "auto",
 ) -> Variable | None:
     """Add variable(s) and constraint(s) necessary to define a constraint along a piecewise linear curve.
 
@@ -72,7 +75,7 @@ def define_piecewise(
     active_names : pd.Index
         Active component names to consider (e.g. ``c.active_assets`` or ``c.extendables``).
     operator : {"<=", ">=", "=="}
-        The operator to use in the piecewise constraint, of the form ``<x-axis var> <operator> <y-axis var>``.
+        The operator for the piecewise constraint, interpreted as ``y <operator> f(x)``.
     marginal_attr : bool
         Whether the y-axis breakpoints represent marginal values.
         If True, the integral of the piecewise curve will be used to define y breakpoints.
@@ -90,7 +93,7 @@ def define_piecewise(
         If True, y_attr -> 1 / y_attr.
         Default is False.
     method : str, optional
-        The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_constraints method.
+        The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_formulation method.
         Default is "auto" (also the linopy default).
 
     Returns
@@ -112,42 +115,39 @@ def define_piecewise(
     )
 
     if y_var is None:
-        y_var_sel = _create_y_var(m, x_var, seg_names, aux_var_name)
-    else:
-        y_var_sel = y_var.sel(name=seg_names)
-    x_var_sel = x_var.sel(name=seg_names)
+        y_var = _create_y_var(m, x_var, seg_names, aux_var_name)
+    y_var_sel = y_var.sel(name=seg_names)
 
-    for option in extra_options:
-        if isinstance(option.name, str):
-            valid_names = pd.Index([option.name], name="name")
-            aux_var_name_option = f"{aux_var_name}_{option.name}"
+    for option in [*extra_options, None]:
+        if option is None:
+            names, aux, opt_method, opt_op = (
+                seg_names,
+                aux_var_name,
+                method,
+                operator,
+            )
+        elif option.name:
+            names = pd.Index([option.name], name="name")
+            aux = f"{aux_var_name}_{option.name}"
+            opt_method, opt_op = option.method, option.operator
         else:
-            valid_names = seg_names
-            aux_var_name_option = aux_var_name
-        _add_piecewise_constraint(
-            m,
-            x_var_sel,
-            y_var_sel,
-            x_breakpoints,
-            y_breakpoints,
-            aux_var_name_option,
-            option.method,
-            option.operator,
-            valid_names,
-        )
-        seg_names = seg_names.difference(valid_names)
-    if not seg_names.empty:
-        _add_piecewise_constraint(
-            m,
-            x_var_sel,
-            y_var_sel,
-            x_breakpoints,
-            y_breakpoints,
-            aux_var_name,
-            method,
-            operator,
-            seg_names,
-        )
+            names, aux = seg_names, aux_var_name
+            opt_method, opt_op = option.method, option.operator
+        if names.empty:
+            continue
+        if opt_method == "lp" and opt_op == "==":
+            msg = "method 'lp' requires PyPSA operator '<=' or '>='."
+            raise ValueError(msg)
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
+            m.add_piecewise_formulation(
+                (y_var.sel(name=names), y_breakpoints.sel(name=names), opt_op),
+                (x_var.sel(name=names), x_breakpoints.sel(name=names)),
+                method=opt_method,
+                name=aux,
+            )
+        seg_names = seg_names.difference(names)
     return y_var_sel
 
 
@@ -177,31 +177,10 @@ def get_segmented_names(
         return None
 
     seg_names = seg_df.columns.unique("name").intersection(active_names)
-    return seg_names
-
-
-def _add_piecewise_constraint(
-    m: Model,
-    x_var: Variable,
-    y_var: Variable,
-    x_breakpoints: xr.DataArray,
-    y_breakpoints: xr.DataArray,
-    aux_var_name: str,
-    method: str,
-    operator: OPS_T,
-    valid_names: pd.Index,
-) -> None:
-    """Create a piecewise constraint for a given set of component names."""
-    x_var_sel = x_var.sel(name=valid_names)
-    y_var_sel = y_var.sel(name=valid_names)
-    x_breakpoints_sel = x_breakpoints.sel(name=valid_names)
-    y_breakpoints_sel = y_breakpoints.sel(name=valid_names)
-    piecewise_func = piecewise(x_var_sel, x_breakpoints_sel, y_breakpoints_sel)
-    m.add_piecewise_constraints(
-        getattr(piecewise_func, OPS[operator])(y_var_sel),
-        name=aux_var_name,
-        method=method,
-    )
+    valid_names = [name for name in seg_names if seg_df[name].notna().any().any()]
+    if not valid_names:
+        return None
+    return pd.Index(valid_names, name=seg_names.name)
 
 
 def _get_breakpoints(
@@ -215,10 +194,11 @@ def _get_breakpoints(
     seg_df = c.segments[seg_attr][seg_names]
 
     x_attr = c.ctype.segments_attrs[seg_attr]
+    seg_df = _normalize_segments(seg_df, x_attr, seg_attr)
 
-    # seg_attr stores the marginal value (slope) at each breakpoint.
     x_da = _to_da(seg_df, x_attr)
     y_da = _to_da(seg_df, seg_attr)
+    valid_breakpoints = x_da.notnull() & y_da.notnull()
     if invert_attr:
         y_da = 1 / y_da
 
@@ -246,16 +226,51 @@ def _get_breakpoints(
             )
             raise ValueError(msg)
         x_da = x_da * nom_attr_da
-    if marginal_attr:
-        y_da = ((y_da * x_da) - (y_da * x_da.shift({BREAKPOINT_DIM: 1}))).cumsum(
-            BREAKPOINT_DIM
-        )
-    else:
-        y_da *= x_da
-
+    x_da = x_da.where(valid_breakpoints)
     x_breakpoints = breakpoints(x_da)
-    y_breakpoints = breakpoints(y_da)
+    if marginal_attr:
+        # y_da[i] is the marginal between x[i-1] and x[i]; shift to linopy's slope
+        # convention where slopes[i] is the slope between x_points[i] and x_points[i+1].
+        slopes = y_da.shift({BREAKPOINT_DIM: -1})
+        y_breakpoints = breakpoints(slopes=slopes, x_points=x_da, y0=0.0)
+    else:
+        y_breakpoints = breakpoints((y_da * x_da).where(valid_breakpoints))
     return x_breakpoints, y_breakpoints
+
+
+def _normalize_segments(seg_df: pd.DataFrame, x_attr: str, y_attr: str) -> pd.DataFrame:
+    """Sort segment rows by x-coordinate and align ragged curves with trailing NaNs."""
+    curves = []
+    for name in seg_df.columns.unique("name"):
+        curve = seg_df[name].reindex(columns=[x_attr, y_attr])
+        row_has_data = curve.notna().any(axis=1)
+        has_later_data = row_has_data.iloc[::-1].cummax().iloc[::-1]
+        non_trailing_missing = ~row_has_data & has_later_data
+        if non_trailing_missing.any():
+            bad = non_trailing_missing[non_trailing_missing].index.tolist()
+            msg = (
+                f"Piecewise '{y_attr}' segments for component '{name}' contain "
+                f"non-trailing missing breakpoint rows: {bad}."
+            )
+            raise ValueError(msg)
+        incomplete = row_has_data & curve.isna().any(axis=1)
+        if incomplete.any():
+            bad = incomplete[incomplete].index.tolist()
+            msg = (
+                f"Piecewise '{y_attr}' segments for component '{name}' have "
+                f"incomplete breakpoint data at rows: {bad}."
+            )
+            raise ValueError(msg)
+        curve = curve.loc[row_has_data].sort_values(x_attr, kind="mergesort")
+        curve = curve.reset_index(drop=True)
+        curve.columns = pd.MultiIndex.from_product(
+            [[name], [x_attr, y_attr]], names=["name", "attribute"]
+        )
+        curves.append(curve)
+
+    normalized = pd.concat(curves, axis=1)
+    normalized.index.name = "segment"
+    return normalized
 
 
 def _create_y_var(

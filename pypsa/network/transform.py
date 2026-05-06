@@ -21,6 +21,7 @@ import pandas as pd
 from Levenshtein import distance
 
 from pypsa._options import options
+from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
 from pypsa.components.types import all_standard_attrs_set
 from pypsa.descriptors import nominal_attrs
@@ -255,7 +256,7 @@ class NetworkTransformMixin(_NetworkABC):
                 return s
             return s + suffix
 
-        if c.name in ("Process", "Link"):
+        if isinstance(c, _Multiport):
             # Enable default lookup for attributes with port suffixes, e.g. efficiency1, rate2.
             coeff_attr_map = {
                 f"{c._coefficient_attr}{attr.removeprefix('bus')}": f"{c._coefficient_attr}{c._port_suffix('1')}"

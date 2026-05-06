@@ -376,6 +376,7 @@ def define_primary_energy_limit(
                 else:
                     seg_primary_energy = 0
                     linear_names = gens.index
+                primary_energy = 0
                 if not linear_names.empty:
                     efficiency = (
                         n.c.generators._as_dynamic("efficiency")
