@@ -206,7 +206,7 @@ on [Zenodo](https://zenodo.org/) with a release-specific DOI:
 
 ## Licence
 
-Copyright [PyPSA Contributors](https://docs.pypsa.org/latest/developers.html)
+Copyright [PyPSA Contributors](https://docs.pypsa.org/latest/contributing/contributors/)
 
 PyPSA is licensed under the open source [MIT License](LICENSES/MIT.txt).
 The documentation is licensed under [CC-BY-4.0](LICENSES/CC-BY-4.0.txt).
