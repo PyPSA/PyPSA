@@ -300,8 +300,8 @@ def define_objective(
             if var_name not in m.variables and cost_type == "spill_cost":
                 continue
 
-            cost = c.da.marginal_cost.where(c.da.active).sel(
-                snapshot=sns, name=active_names
+            cost = (
+                c.da[cost_type].where(c.da.active).sel(snapshot=sns, name=active_names)
             )
             if cost.size > 0 and not (cost == 0).all():
                 operation = m[var_name].sel(snapshot=sns, name=active_names)
