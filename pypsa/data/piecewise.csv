@@ -14,4 +14,3 @@ StorageUnit,p_pu,efficiency_store,p_store_piecewise,false
 Store,e_pu,marginal_cost,marginal_cost_piecewise,false
 Store,e_nom,capital_cost,capital_cost_piecewise,true
 Transformer,s_nom,capital_cost,capital_cost_piecewise,true
-
