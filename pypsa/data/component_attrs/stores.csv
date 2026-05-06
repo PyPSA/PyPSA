@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status,segments_x
+attribute,type,unit,default,description,status,piecewise_x
 name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,Name of bus to which store is attached.,Input (required)
 type,string,n/a,n/a,Placeholder for store type. Not yet implemented.,Input (optional)
@@ -19,7 +19,7 @@ p_set,static or series,MW,n/a,Active power set point (for optimisation and power
 q_set,static or series,MVar,0,Reactive power set point (for power flow only),Input (optional)
 e_set,static or series,MWh,NaN,Fixed energy filling level set point (for optimisation only),Input (optional)
 sign,float,n/a,1,Sign denoting orientation of the energy variable (`e`).,Input (optional)
-marginal_cost,static or series,currency/MWh,0,Marginal cost applied to both charging and discharging of 1 MWh.,Input (optional),e_pu
+marginal_cost,static or piecewise or series,currency/MWh,0,Marginal cost applied to both charging and discharging of 1 MWh.,Input (optional),e_pu
 marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost of applied to charging and discharging of 1 MWh.,Input (optional)
 marginal_cost_storage,static or series,currency/MWh/h,0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional)
 capital_cost,float,currency/MWh,0,"Fixed period costs of extending `e_nom` by 1 MWh (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified.",Input (optional),e_nom

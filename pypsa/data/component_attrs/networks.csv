@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status,segments_x
+attribute,type,unit,default,description,status,piecewise_x
 name,string,n/a,n/a,Unique name,Input (required)
 snapshots,list or pandas.Index,n/a,"[""now""]","List of snapshots or time steps. All time-dependent series quantities are indexed by `network.snapshots`. To reset the snapshots, call `network.set_snapshots(new)`.",Input (optional)
 snapshot_weightings,pandas.DataFrame, hours ,1,"The weightings applied to each snapshot, so that snapshots can represent more than one hour or fractions of one hour. The objective weightings are used to weight snapshots in the objective function. The store weightings determine the state of charge change for stores and storage units. The generator weightings are used when calculating global constraints and energy balances.",Input (optional)

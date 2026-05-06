@@ -76,11 +76,11 @@ class ComponentType:
         return f"'{self.name}' Component Type"
 
     @property
-    def segments_attrs(self) -> dict[str, str]:
-        """Mapping of segments y-attribute to x-axis coordinate attribute.
+    def piecewise_attrs(self) -> dict[str, str]:
+        """Mapping of piecewise y-attribute to x-axis coordinate attribute.
 
-        Derived from the ``segments_x`` column in the component's attribute CSV.
-        Only attributes with a non-null ``segments_x`` value are included.
+        Derived from the ``piecewise_x`` column in the component's attribute CSV.
+        Only attributes with a non-null ``piecewise_x`` value are included.
 
         Returns
         -------
@@ -88,6 +88,6 @@ class ComponentType:
             e.g. ``{"efficiency": "p_pu", "marginal_cost": "p_pu"}``
 
         """
-        if "segments_x" not in self.defaults.columns:
+        if "piecewise_x" not in self.defaults.columns:
             return {}
-        return self.defaults["segments_x"].dropna().to_dict()
+        return self.defaults["piecewise_x"].dropna().to_dict()

@@ -1952,20 +1952,20 @@ class NetworkIOMixin(_NetworkABC):
             self.snapshots, df.columns
         ]
 
-    def _import_segments_from_df(
+    def _import_piecewise_from_df(
         self,
         df: pd.DataFrame,
         cls_name: str,
         attr: str,
         overwrite: bool = False,
     ) -> None:
-        """Import piecewise segment data from a pandas DataFrame.
+        """Import piecewise breakpoint data from a pandas DataFrame.
 
         Parameters
         ----------
         df : pandas.DataFrame
             DataFrame whose columns are ``[x_attr, attr]`` (the x-axis coordinate
-            and the y-axis attribute) and whose index is the segment number.
+            and the y-axis attribute) and whose index is the breakpoint number.
             This is the per-component form as passed to ``network.add()``.
         cls_name : str
             Component class name, e.g. ``"Generator"``.
@@ -1974,19 +1974,19 @@ class NetworkIOMixin(_NetworkABC):
         component_name : str
             Name of the individual component.
         overwrite : bool, default False
-            If True, replace existing segment data for the component.
+            If True, replace existing breakpoint data for the component.
 
         """
         nom_attr = nominal_attrs.get(cls_name)
-        segments_attrs = self.c[cls_name].ctype.segments_attrs
-        if attr not in segments_attrs:
+        piecewise_attrs = self.c[cls_name].ctype.piecewise_attrs
+        if attr not in piecewise_attrs:
             msg = (
-                f"'{attr}' is not a recognised segments attribute for {cls_name}. "
-                f"Known segments attributes: {list(segments_attrs)}."
+                f"'{attr}' is not a recognised piecewise attribute for {cls_name}. "
+                f"Known piecewise attributes: {list(piecewise_attrs)}."
             )
             raise ValueError(msg)
 
-        x_attr = segments_attrs[attr]
+        x_attr = piecewise_attrs[attr]
 
         if x_attr == nom_attr.replace("_nom", "_pu"):
             new_names = (
@@ -1998,7 +1998,7 @@ class NetworkIOMixin(_NetworkABC):
             bad = new_names.intersection(extendable_i)
             if not bad.empty:
                 msg = (
-                    f"Piecewise '{attr}' segments are not supported for extendable "
+                    f"Piecewise '{attr}' breakpoints are not supported for extendable "
                     f"components (fixed p_nom required). Extendable components: "
                     f"{bad.tolist()}."
                 )
@@ -2007,22 +2007,22 @@ class NetworkIOMixin(_NetworkABC):
         # df must have MultiIndex columns (name, attribute) with x_attr and attr present
         if not isinstance(df.columns, pd.MultiIndex):
             msg = (
-                "Pass a MultiIndex-columned DataFrame to _import_segments_from_df "
+                "Pass a MultiIndex-columned DataFrame to _import_piecewise_from_df "
                 "with levels ['name', 'attribute']. Use network.add() for the "
                 "user-facing interface."
             )
             raise TypeError(msg)
 
-        segments = self.c[cls_name].segments
+        piecewise = self.c[cls_name].piecewise
 
-        if attr not in segments:
-            segments[attr] = pd.DataFrame(
-                index=pd.Index([], name="segment", dtype=int),
+        if attr not in piecewise:
+            piecewise[attr] = pd.DataFrame(
+                index=pd.Index([], name="breakpoint", dtype=int),
                 columns=pd.MultiIndex.from_tuples([], names=["name", "attribute"]),
                 dtype=float,
             )
 
-        existing = segments[attr]
+        existing = piecewise[attr]
 
         attribute_values = set(df.columns.get_level_values("attribute"))
         if x_attr not in attribute_values or attr not in attribute_values:
@@ -2032,7 +2032,7 @@ class NetworkIOMixin(_NetworkABC):
             )
             raise ValueError(msg)
 
-        df.index.name = "segment"
+        df.index.name = "breakpoint"
         df.columns.names = ["name", "attribute"]
 
         if overwrite:
@@ -2041,12 +2041,12 @@ class NetworkIOMixin(_NetworkABC):
             keep = ~existing.columns.get_level_values("name").isin(new_names)
             existing = existing.loc[:, keep]
 
-        # Align segment indices: union of existing and new
-        all_segments = existing.index.union(df.index)
-        existing = existing.reindex(all_segments)
-        df = df.reindex(all_segments)
+        # Align piecewise indices: union of existing and new
+        all_piecewise = existing.index.union(df.index)
+        existing = existing.reindex(all_piecewise)
+        df = df.reindex(all_piecewise)
 
-        segments[attr] = pd.concat([existing, df], axis=1)
+        piecewise[attr] = pd.concat([existing, df], axis=1)
 
     def import_from_pypower_ppc(
         self, ppc: dict, overwrite_zero_s_nom: float | None = None
