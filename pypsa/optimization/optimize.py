@@ -22,6 +22,7 @@ from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
+from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
@@ -258,52 +259,55 @@ def define_objective(
     weight = xr.DataArray(weighting.values, coords={"snapshot": sns}, dims=["snapshot"])
 
     # marginal costs, marginal storage cost, and spill cost
+
     for cost_type in ["marginal_cost", "marginal_cost_storage", "spill_cost"]:
         for c_name, attr in lookup.query(cost_type).index:
             c = as_components(n, c_name)
 
             if c.static.empty:
                 continue
+            active_names = c.active_assets
+            pw_attrs = PIECEWISE_ATTRS.query("component == @c_name and y == @cost_type")
+            for _, pw_attr in pw_attrs.iterrows():
+                var_name = f"{pw_attr.component}-{pw_attr.x.replace('_pu', '')}"
+                if var_name not in m.variables:
+                    continue
+
+                x_var = m[var_name].sel(snapshot=sns)
+                extra_options = filter(
+                    lambda p: p.component == c.name and p.attribute == cost_type,
+                    piecewise_options,
+                )
+                pw_cost_var = define_piecewise(
+                    m,
+                    c,
+                    x_var=x_var,
+                    y_var=None,
+                    pw_attr=cost_type,
+                    aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
+                    active_names=c.active_assets,
+                    operator="<=",
+                    marginal_attr=True,
+                    extra_options=extra_options,
+                )
+                if pw_cost_var is not None:
+                    opex_terms.append(
+                        (pw_cost_var * weight).sum(dim=["name", "snapshot"])
+                    )
+                    active_names = active_names.difference(pw_cost_var.indexes["name"])
 
             var_name = f"{c.name}-{attr}"
             if var_name not in m.variables and cost_type == "spill_cost":
                 continue
 
-            # Piecewise marginal cost via tangent constraints.
-            p = m[var_name].sel(snapshot=sns)
-            extra_options = filter(
-                lambda p: p.component == c.name and p.attribute == cost_type,
-                piecewise_options,
+            cost = c.da.marginal_cost.where(c.da.active).sel(
+                snapshot=sns, name=active_names
             )
-            pw_cost_var = define_piecewise(
-                m,
-                c,
-                x_var=p,
-                y_var=None,
-                pw_attr=cost_type,
-                aux_var_name=f"{c.name}-{cost_type}_piecewise",
-                active_names=c.active_assets,
-                operator="<=",
-                marginal_attr=True,
-                extra_options=extra_options,
-            )
-            if pw_cost_var is not None:
-                linear_names = c.active_assets.difference(pw_cost_var.indexes["name"])
-            else:
-                linear_names = c.active_assets
-
-            # Linear marginal cost for non-piecewise components
-            if not linear_names.empty:
-                cost = c.da.marginal_cost.where(c.da.active).sel(
-                    snapshot=sns, name=linear_names
+            if cost.size > 0 and not (cost == 0).all():
+                operation = m[var_name].sel(snapshot=sns, name=active_names)
+                opex_terms.append(
+                    (operation * cost * weight).sum(dim=["name", "snapshot"])
                 )
-                if cost.size > 0 and not (cost == 0).all():
-                    cost = cost * weight
-                    operation = m[var_name].sel(snapshot=sns, name=linear_names)
-                    opex_terms.append((operation * cost).sum(dim=["name", "snapshot"]))
-
-            if pw_cost_var is not None:
-                opex_terms.append((pw_cost_var * weight).sum(dim=["name", "snapshot"]))
 
     # marginal cost quadratic
     for c_name, attr in lookup.query("marginal_cost_quadratic").index:
@@ -351,58 +355,50 @@ def define_objective(
         if ext_i.empty:
             continue
 
-        caps = m[f"{c.name}-{attr}"]
-        y_attr = "capital_cost"
-        extra_options = piecewise_options.get(y_attr, {}) if piecewise_options else {}
-        pw_cc_var = define_piecewise(
-            m,
-            c,
-            x_var=caps,
-            pw_attr=y_attr,
-            aux_var_name=f"{c.name}-{y_attr}_piecewise",
-            active_names=ext_i,
-            operator="<=",
-            marginal_attr=True,
-            extra_options=extra_options,
-        )
-        if pw_cc_var is not None:
-            linear_names = ext_i.difference(pw_cc_var.indexes["name"])
+        if n._multi_invest:
+            sum_dim = ["name", "period"]
+            cost_weight = (
+                c.da.active.to_series().groupby(sum_dim).any() * period_weighting
+            ).to_xarray()
         else:
-            linear_names = ext_i
+            sum_dim = ["name"]
+            cost_weight = c.da.active.sel(name=ext_i).any(dim="snapshot")
 
+        y_attr = "capital_cost"
+        pw_attr = PIECEWISE_ATTRS.query(
+            "component == @c_name and y == @y_attr"
+        ).squeeze()
+        if not pw_attr.empty:
+            x_var = m[f"{c.name}-{pw_attr.x}"]
+            extra_options = filter(
+                lambda p: p.component == c.name and p.attribute == y_attr,
+                piecewise_options,
+            )
+            pw_cc_var = define_piecewise(
+                m,
+                c,
+                x_var=x_var,
+                pw_attr=y_attr,
+                aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
+                active_names=ext_i,
+                operator="<=",
+                marginal_attr=True,
+                extra_options=extra_options,
+            )
+            if pw_cc_var is not None:
+                ext_i = ext_i.difference(pw_cc_var.indexes["name"])
+                periodic_cost = periodic_cost.sel(name=ext_i)
+                capex_terms.append((pw_cc_var * cost_weight).sum(dim=sum_dim))
+
+        periodic_cost = c.periodized_cost.sel(name=ext_i)
         # Linear capital cost for non-piecewise components
-        if not linear_names.empty:
-            periodic_cost = c.periodized_cost.sel(name=linear_names)
-            if periodic_cost.size > 0 and not (periodic_cost == 0).all():
-                if n._multi_invest:
-                    weighted_cost = sum(
-                        c.da.active.sel(period=period, name=linear_names).any(
-                            dim="timestep"
-                        )
-                        * periodic_cost
-                        * period_weighting.loc[period]
-                        for period in periods
-                    )
-                else:
-                    active = c.da.active.sel(name=linear_names).any(dim="snapshot")
-                    weighted_cost = active * periodic_cost
-
-                caps_lin = m[f"{c.name}-{attr}"].sel(name=linear_names)
-                capex_terms.append((caps_lin * weighted_cost).sum(dim=["name"]))
-
-        if pw_cc_var is not None:
-            pw_names = pw_cc_var.indexes["name"]
-            if n._multi_invest:
-                weighted_cc = sum(
-                    c.da.active.sel(period=period, name=pw_names).any(dim="timestep")
-                    * period_weighting.loc[period]
-                    for period in periods
-                )
-            else:
-                weighted_cc = (
-                    c.da.active.sel(name=pw_names).any(dim="snapshot").astype(float)
-                )
-            capex_terms.append((pw_cc_var * weighted_cc).sum(dim=["name"]))
+        if not ext_i.empty and (
+            periodic_cost.size > 0 and not (periodic_cost == 0).all()
+        ):
+            caps_lin = m[f"{c.name}-{attr}"].sel(name=ext_i)
+            capex_terms.append(
+                (caps_lin * cost_weight * periodic_cost).sum(dim=sum_dim)
+            )
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -1028,17 +1024,16 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 )
                 continue
             c = n.c[_c_name]
-            if attr.endswith("_piecewise"):
-                attr = attr.removesuffix("_piecewise")
-                if (x_attr := c.ctype.piecewise_attrs.get(attr)) is not None:
-                    # Piecewise variables are auxiliary and need to be processed before being passed back as a solution.
-                    x_sol = m.variables[
-                        f"{c.name}-{x_attr.removesuffix('_pu')}"
-                    ].solution
-                    sol = sol / x_sol
+            pw_attrs = PIECEWISE_ATTRS.query(
+                "component == @c.name and aux_variable == @attr"
+            ).squeeze()
+            # Piecewise variables are auxiliary and need to be processed before being passed back as a solution.
+            if not pw_attrs.empty:
+                x_var = m.variables[f"{c.name}-{pw_attrs.x.removesuffix('_pu')}"]
+                sol = sol / x_var.solution
 
-                    if "snapshot" in sol.dims:
-                        attr += "_opt"
+                if "snapshot" in sol.dims:
+                    pw_attrs.y += "_opt"
                 else:
                     # If not explicitly linked to an attribute, we will process it elsewhere.
                     # E.g. piecewise efficiency gets linked to a `p` piecewise variable, which we handle in dynamic data processing below.

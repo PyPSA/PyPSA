@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status,piecewise_x
+attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 v_nom,float,kV,1,Nominal voltage,Input (optional)
 type,string,n/a,n/a,Placeholder for bus type. Not implemented.,Input (optional)

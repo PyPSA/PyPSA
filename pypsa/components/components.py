@@ -35,7 +35,7 @@ from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, RE_PORTS
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, PIECEWISE_ATTRS, RE_PORTS
 from pypsa.costs import annuity, periodized_cost
 from pypsa.definitions.structures import Dict
 
@@ -397,7 +397,9 @@ class Components(
         # Piecewise breakpoint data: one empty DataFrame per piecewise attribute
         # defined by the piecewise_x column in the component's attribute CSV.
         piecewise = Dict()
-        for y_attr in ct.piecewise_attrs:
+        for y_attr in PIECEWISE_ATTRS.query(
+            "component == @name", local_dict={"name": ct.name}
+        ).y.unique():
             cols = pd.MultiIndex.from_tuples([], names=["name", "attribute"])
             df = pd.DataFrame(
                 index=pd.Index([], name="breakpoint", dtype=int),

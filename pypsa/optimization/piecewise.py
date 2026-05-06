@@ -15,6 +15,7 @@ import xarray as xr
 from linopy import Model, Variable, breakpoints, piecewise
 from linopy.constants import BREAKPOINT_DIM
 
+from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
@@ -212,18 +213,19 @@ def _get_breakpoints(
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Convert piecewise data to linopy breakpoints for piecewise constraint."""
     piecewise_df = c.piecewise[pw_attr][pw_names]
-
-    x_attr = c.ctype.piecewise_attrs[pw_attr]
+    piecewise_attrs = PIECEWISE_ATTRS.query(
+        "component == @c.name and y == @pw_attr"
+    ).squeeze()
 
     # pw_attr stores the marginal value (slope) at each breakpoint.
-    x_da = _to_da(piecewise_df, x_attr)
+    x_da = _to_da(piecewise_df, piecewise_attrs.x)
     y_da = _to_da(piecewise_df, pw_attr)
     if invert_attr:
         y_da = 1 / y_da
 
     # For per-unit x-axes (p_pu, e_pu), scale to absolute values and reject extendables.
     nom_attr = nominal_attrs.get(c.name)
-    if nom_attr and x_attr == nom_attr.replace("_nom", "_pu"):
+    if not piecewise_attrs.allow_extendable:
         if not (bad := pw_names.intersection(c.extendables)).empty:
             msg = (
                 f"Piecewise '{pw_attr}' breakpoints on a per-unit x-axis are not supported "

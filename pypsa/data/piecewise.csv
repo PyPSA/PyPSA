@@ -1,0 +1,17 @@
+component,x,y,aux_variable,allow_extendable
+Generator,p_pu,marginal_cost,marginal_cost_piecewise,false
+Generator,p_nom,capital_cost,capital_cost_piecewise,true
+Generator,p_pu,efficiency,p_primary_piecewise,false
+Line,s_nom,capital_cost,capital_cost_piecewise,true
+Link,p_pu,marginal_cost,marginal_cost_piecewise,false
+Link,p_nom,capital_cost,capital_cost_piecewise,true
+Link,p_pu,efficiency,p1_piecewise,false
+Process,p_pu,rate1,p1_piecewise,false
+StorageUnit,p_pu,marginal_cost,marginal_cost_piecewise,false
+StorageUnit,p_nom,capital_cost,capital_cost_piecewise,true
+StorageUnit,p_pu,efficiency_dispatch,p_dispatch_piecewise,false
+StorageUnit,p_pu,efficiency_store,p_store_piecewise,false
+Store,e_pu,marginal_cost,marginal_cost_piecewise,false
+Store,e_nom,capital_cost,capital_cost_piecewise,true
+Transformer,s_nom,capital_cost,capital_cost_piecewise,true
+

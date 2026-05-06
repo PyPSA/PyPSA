@@ -74,20 +74,3 @@ class ComponentType:
         """Get representation of component type."""
         # TODO make this actually for the REPL
         return f"'{self.name}' Component Type"
-
-    @property
-    def piecewise_attrs(self) -> dict[str, str]:
-        """Mapping of piecewise y-attribute to x-axis coordinate attribute.
-
-        Derived from the ``piecewise_x`` column in the component's attribute CSV.
-        Only attributes with a non-null ``piecewise_x`` value are included.
-
-        Returns
-        -------
-        dict[str, str]
-            e.g. ``{"efficiency": "p_pu", "marginal_cost": "p_pu"}``
-
-        """
-        if "piecewise_x" not in self.defaults.columns:
-            return {}
-        return self.defaults["piecewise_x"].dropna().to_dict()

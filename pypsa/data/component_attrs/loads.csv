@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status,piecewise_x
+attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,Name of bus to which load is attached.,Input (required)
 carrier,string,n/a,n/a,Carrier of the load.,Input (optional)

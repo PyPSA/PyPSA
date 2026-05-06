@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from abc import abstractmethod
 
 import numpy as np
@@ -205,3 +206,13 @@ class _Multiport(Components):
 
         w = weightings.reindex(snapshots).astype(float).to_numpy()
         return _Multiport._delay_positions(w, delay, is_cyclic)
+
+    def _get_base_coeff(self, attr: str) -> str:
+        """Get base coefficient related to  for a given attribute."""
+        base_coeff_attr = self._coefficient_attr
+        if attr == base_coeff_attr + self._port_suffix("1") or re.match(
+            rf"^{base_coeff_attr}\d+$", attr
+        ):
+            return base_coeff_attr + self._port_suffix("1")
+        else:
+            return attr
