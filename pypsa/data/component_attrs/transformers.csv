@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status,segments_x
+attribute,type,unit,default,description,status,piecewise_x
 name,string,n/a,n/a,Unique name,Input (required)
 bus0,string,n/a,n/a,Name of origin bus (typically higher voltage) to which transformer is attached.,Input (required)
 bus1,string,n/a,n/a,Name of destination bus (typically lower voltage) to which transformer is attached.,Input (required)

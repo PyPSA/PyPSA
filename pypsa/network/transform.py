@@ -210,10 +210,10 @@ class NetworkTransformMixin(_NetworkABC):
         names = names.astype(str) + suffix
 
         names_str = "name" if single_component else "names"
-        # Read kwargs into static, time-varying, and segment attributes
+        # Read kwargs into static, time-varying, and piecewise attributes
         series = {}
         static = {}
-        segments = {}  # {attr: DataFrame with columns [x_attr, attr], index = segment}
+        piecewise = {}  # {attr: DataFrame with columns [x_attr, attr], index = breakpoints}
 
         # Check if names are unique
         if not names.is_unique:
@@ -222,7 +222,7 @@ class NetworkTransformMixin(_NetworkABC):
 
         # Check custom attributes
         standard_attrs = set(c.defaults.index)
-        segments_attrs = c.ctype.segments_attrs
+        piecewise_attrs = c.ctype.piecewise_attrs
         custom_attrs = set(kwargs.keys()) - standard_attrs
         if custom_attrs:
             # Raise warning if user adds a custom attribute which is a standard attribute
@@ -272,12 +272,12 @@ class NetworkTransformMixin(_NetworkABC):
             # - check if passed index/ columns align
             msg = "{} has an index which does not align with the passed {}."
 
-            # Intercept segment data: a DataFrame whose columns are the curve
+            # Intercept piecewise breakpoint data: a DataFrame whose columns are the curve
             # attributes (e.g. ["p_pu", "efficiency"]), not component names.
-            # These are identified by the attribute name being in segments_attrs and
+            # These are identified by the attribute name being in piecewise_attrs and
             # the value being a DataFrame whose columns include the x-axis attribute.
-            if x_attr := segments_attrs.get(coeff_attr_map.get(k, k)):
-                # Intercept segments shorthand: dict {x_value: y_value}
+            if x_attr := piecewise_attrs.get(coeff_attr_map.get(k, k)):
+                # Intercept piecewise shorthand: dict {x_value: y_value}
                 if isinstance(v, dict):
                     v = pd.DataFrame({x_attr: list(v.keys()), k: list(v.values())})
                 if isinstance(v, pd.DataFrame):
@@ -287,11 +287,11 @@ class NetworkTransformMixin(_NetworkABC):
                             raise ValueError(msg.format(f"Dataframe {k}", names_str))
                         if v.columns.unique(1).equals([x_attr, k]):
                             msg_seg = (
-                                f"Segment Dataframe {k} must have column labels "
+                                f"Piecewise Dataframe {k} must have column labels "
                                 f"consisting of {x_attr} and {k}"
                             )
                             raise ValueError(msg_seg)
-                        segments[k] = v
+                        piecewise[k] = v
                         continue
                     elif set(v.columns) == {x_attr, k}:
                         # Build a MultiIndex-columned DataFrame: broadcast the curve to all names
@@ -301,8 +301,8 @@ class NetworkTransformMixin(_NetworkABC):
                             axis=1,
                         )
                         v.columns.names = ["name", "attribute"]
-                        v.index.name = "segment"
-                        segments[k] = v
+                        v.index.name = "breakpoint"
+                        piecewise[k] = v
                         continue
             elif isinstance(v, dict):
                 msg = (
@@ -404,21 +404,21 @@ class NetworkTransformMixin(_NetworkABC):
                 for k, v in series.items()
             }
 
-        # Validate segments before modifying any state: reject piecewise per-unit
+        # Validate piecewise before modifying any state: reject piecewise per-unit
         # attributes (e.g. marginal_cost with x_attr=p_pu) on extendable components.
         nom_attr = nominal_attrs.get(class_name)
-        for attr, seg_df in segments.items():
-            x_attr = segments_attrs.get(attr)
+        for attr, piecewise_df in piecewise.items():
+            x_attr = piecewise_attrs.get(attr)
             if (
                 nom_attr
                 and x_attr == nom_attr.replace("_nom", "_pu")
                 and (ext := static_df.get(f"{nom_attr}_extendable")) is not None
             ):
-                seg_names = seg_df.columns.unique("name")
-                bad = seg_names[ext.loc[seg_names]]
+                pw_names = piecewise_df.columns.unique("name")
+                bad = pw_names[ext.loc[pw_names]]
                 if not bad.empty:
                     msg = (
-                        f"Piecewise '{attr}' segments are not supported for extendable "
+                        f"Piecewise '{attr}' breakpoints are not supported for extendable "
                         f"components (fixed {nom_attr} required). Extendable components: "
                         f"{bad.tolist()}."
                     )
@@ -430,9 +430,9 @@ class NetworkTransformMixin(_NetworkABC):
         for k, v in series.items():
             self._import_series_from_df(v, c.name, k, overwrite=overwrite)
 
-        # Load segment data
-        for k, v in segments.items():
-            self._import_segments_from_df(v, c.name, k, overwrite=overwrite)
+        # Load piecewise breakpoint data
+        for k, v in piecewise.items():
+            self._import_piecewise_from_df(v, c.name, k, overwrite=overwrite)
 
         if return_names:
             return names

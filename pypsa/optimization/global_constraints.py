@@ -357,11 +357,11 @@ def define_primary_energy_limit(
                     ),
                     piecewise_options,
                 )
-                seg_primary_energy = define_piecewise(
+                pw_primary_energy = define_piecewise(
                     m,
                     n.c.generators,
                     x_var=p,
-                    seg_attr="efficiency",
+                    pw_attr="efficiency",
                     aux_var_name=f"{n.c.generators.name}_p_primary_piecewise",
                     active_names=gens.index,
                     operator="==",
@@ -369,12 +369,12 @@ def define_primary_energy_limit(
                     extra_options=extra_options,
                     invert_attr=True,
                 )
-                if seg_primary_energy is not None:
+                if pw_primary_energy is not None:
                     linear_names = gens.index.difference(
-                        seg_primary_energy.indexes["name"]
+                        pw_primary_energy.indexes["name"]
                     )
                 else:
-                    seg_primary_energy = 0
+                    pw_primary_energy = 0
                     linear_names = gens.index
                 primary_energy = 0
                 if not linear_names.empty:
@@ -385,7 +385,7 @@ def define_primary_energy_limit(
                     )
                     primary_energy = p.sel(name=linear_names) / efficiency
                 expr = (
-                    (primary_energy + seg_primary_energy)
+                    (primary_energy + pw_primary_energy)
                     * weightings.generators[sns_sel]
                     * gens.carrier.map(emissions)
                 ).sum()

@@ -547,14 +547,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             elif direction != "both":
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
-            # TODO-1603: work out sign of seg_var depending on direction
-            segment_efficiency = port_efficiency(n, c, port=port, segment=True)
-            if isinstance(segment_efficiency, pd.DataFrame):
-                seg_var = n.model.variables[f"{c}-p{port}_piecewise"]
-                coeffs.loc[{"name": seg_var.coords["name"]}] = 0
+            # TODO-1603: work out sign of pw_var depending on direction
+            piecewise_efficiency = port_efficiency(n, c, port=port, piecewise=True)
+            if isinstance(piecewise_efficiency, pd.DataFrame):
+                pw_var = n.model.variables[f"{c}-p{port}_piecewise"]
+                coeffs.loc[{"name": pw_var.coords["name"]}] = 0
             else:
-                seg_var = 0
-            p = var.where(coeffs != 0) * coeffs + seg_var
+                pw_var = 0
+            p = var.where(coeffs != 0) * coeffs + pw_var
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         return self._aggregate_components(

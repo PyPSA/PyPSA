@@ -115,21 +115,21 @@ class ComponentsData:
     --------
     >>> c.dynamic
     """
-    segments: Dict
+    piecewise: Dict
     """
-    Piecewise linear segment data for all components of this type.
+    Piecewise linear breakpoint data for all components of this type.
 
     Dict-like container keyed by y-axis attribute name (e.g. 'efficiency',
     'marginal_cost', 'capital_cost'). Each value is a DataFrame with:
 
-    - index: segment number (int, 0-based), ``index.name = "segment"``
+    - index: breakpoint number (int, 0-based), ``index.name = "breakpoint"``
     - columns: MultiIndex ``(name, attribute)`` where ``attribute`` holds both
       the x-axis coordinate (e.g. ``p_pu``, ``p_nom``) and the y-axis attribute,
       ``columns.names = ["name", "attribute"]``
 
     Examples
     --------
-    >>> c.segments.efficiency
+    >>> c.piecewise.efficiency
     """
 
 
@@ -183,9 +183,9 @@ class Components(
                 "supported."
             )
             raise NotImplementedError(msg)
-        static, dynamic, segments = self._get_data_containers(ctype)
+        static, dynamic, piecewise = self._get_data_containers(ctype)
         ComponentsData.__init__(
-            self, ctype, n=None, static=static, dynamic=dynamic, segments=segments
+            self, ctype, n=None, static=static, dynamic=dynamic, piecewise=piecewise
         )
         ComponentsArrayMixin.__init__(self)
 
@@ -394,17 +394,19 @@ class Components(
             df.columns.name = "name"
             dynamic[k] = df
 
-        # Piecewise segment data: one empty DataFrame per piecewise attribute
-        # defined by the segments_x column in the component's attribute CSV.
-        segments = Dict()
-        for y_attr in ct.segments_attrs:
+        # Piecewise breakpoint data: one empty DataFrame per piecewise attribute
+        # defined by the piecewise_x column in the component's attribute CSV.
+        piecewise = Dict()
+        for y_attr in ct.piecewise_attrs:
             cols = pd.MultiIndex.from_tuples([], names=["name", "attribute"])
             df = pd.DataFrame(
-                index=pd.Index([], name="segment", dtype=int), columns=cols, dtype=float
+                index=pd.Index([], name="breakpoint", dtype=int),
+                columns=cols,
+                dtype=float,
             )
-            segments[y_attr] = df
+            piecewise[y_attr] = df
 
-        return static, dynamic, segments
+        return static, dynamic, piecewise
 
     @property
     def standard_types(self) -> pd.DataFrame | None:

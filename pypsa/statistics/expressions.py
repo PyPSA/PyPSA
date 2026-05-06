@@ -69,13 +69,13 @@ def port_efficiency(
     c_name: str,
     port: int | str = 0,
     dynamic: bool = False,
-    segment: bool = False,
+    piecewise: bool = False,
 ) -> pd.Series | pd.DataFrame:
     """Get the efficiency of a component at a specific port."""
     c = n.c[c_name]
     port = c._as_port(port)
-    if segment and dynamic:
-        err = "Cannot request segment and dynamic efficiencies together."
+    if piecewise and dynamic:
+        err = "Cannot request piecewise and dynamic efficiencies together."
         raise ValueError(err)
 
     ones = pd.Series(1, index=c.static.index)
@@ -88,11 +88,11 @@ def port_efficiency(
             return -ones
         key = f"{c._coefficient_attr}{c._port_suffix(port)}"
         if (
-            segment
-            and (seg_attr := c.segments.get(key)) is not None
-            and not seg_attr.empty
+            piecewise
+            and (pw_attr := c.piecewise.get(key)) is not None
+            and not pw_attr.empty
         ):
-            return seg_attr
+            return pw_attr
 
         if dynamic and key in c.static:
             return n.get_switchable_as_dense(c.name, key)
@@ -101,11 +101,11 @@ def port_efficiency(
     elif c.name == "Process":
         key = f"{c._coefficient_attr}{c._port_suffix(port)}"
         if (
-            segment
-            and (seg_attr := c.segments.get(key)) is not None
-            and not seg_attr.empty
+            piecewise
+            and (pw_attr := c.piecewise.get(key)) is not None
+            and not pw_attr.empty
         ):
-            return seg_attr
+            return pw_attr
         if dynamic and key in c.static:
             return n.get_switchable_as_dense(c.name, key)
 
@@ -1674,12 +1674,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 if cost_type in cost_types_ and cost_type in n.c[c].static:
                     attr = lookup.query(cost_type).loc[c].index.item() + port
                     cost = n.get_switchable_as_dense(c, cost_type)
-                    cost_segmented_opt = n.c[c].dynamic.get(f"{cost_type}_opt")
-                    if cost_segmented_opt is None or cost_segmented_opt.empty:
-                        cost_segmented_opt = 0
+                    cost_piecewise_opt = n.c[c].dynamic.get(f"{cost_type}_opt")
+                    if cost_piecewise_opt is None or cost_piecewise_opt.empty:
+                        cost_piecewise_opt = 0
                     p = n.c[c].dynamic[attr]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
-                    opex = var * (cost + cost_segmented_opt)
+                    opex = var * (cost + cost_piecewise_opt)
                     term = self._aggregate_timeseries(opex, weights, agg=groupby_time)
                     result.append(term)
 

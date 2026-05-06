@@ -1139,7 +1139,7 @@ def define_nodal_balance_constraints(
                 n.model,
                 c,
                 x_var=var,
-                seg_attr=coeff.name,
+                pw_attr=coeff.name,
                 aux_var_name=piecewise_constraint_name,
                 active_names=names,
                 operator="==",
@@ -1694,7 +1694,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     except ValueError:
         pass
 
-    # TODO-1603: grab segment efficiencies if available
+    # TODO-1603: grab piecewise efficiencies if available
     # efficiencies as xarray DataArrays
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
     eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=c.active_assets)

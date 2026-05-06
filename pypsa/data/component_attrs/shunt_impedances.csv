@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status,segments_x
+attribute,type,unit,default,description,status,piecewise_x
 name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,Name of bus to which shunt impedance is attached.,Input (required)
 g,float,Siemens,0.,Shunt conductivity.,Input (optional)

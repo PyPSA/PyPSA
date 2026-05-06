@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status,segments_x
+attribute,type,unit,default,description,status,piecewise_x
 name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,Name of bus to which storage unit is attached.,Input (required)
 control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
@@ -18,7 +18,7 @@ p_store_set,static or series,MW,NaN,Active power charging set point (for optimis
 sign,float,n/a,1,Sign denoting the orientation of the dispatch variable.,Input (optional)
 carrier,string,n/a,n/a,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in optimisation",Input (optional)
 spill_cost,static or series,currency/MWh,0,Cost of spilling 1 MWh,Input (optional)
-marginal_cost,static or series,currency/MWh,0,Marginal cost of production (discharge) of 1 MWh.,Input (optional),p_pu
+marginal_cost,static or piecewise or series,currency/MWh,0,Marginal cost of production (discharge) of 1 MWh.,Input (optional),p_pu
 marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost of production (discharge) of 1 MWh.,Input (optional)
 marginal_cost_storage,static or series,currency/MWh/h,0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional)
 capital_cost,float,currency/MW,0,Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified.,Input (optional),p_nom

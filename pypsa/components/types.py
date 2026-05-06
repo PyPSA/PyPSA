@@ -92,7 +92,7 @@ def add_component_type(
     # Format attributes
     defaults_df["default"] = defaults_df.default.astype(object)
     defaults_df["static"] = defaults_df["type"] != "series"
-    defaults_df["varying"] = defaults_df["type"].isin({"series", "static or series"})
+    defaults_df["varying"] = defaults_df["type"].str.contains("series")
     defaults_df["typ"] = (
         defaults_df["type"]
         .map({"boolean": bool, "int": int, "string": str, "geometry": "geometry"})
