@@ -9,20 +9,18 @@ from __future__ import annotations
 import logging
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import xarray as xr
 from linopy import Model, Variable, breakpoints
-from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, EvolvingAPIWarning
+from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, SIGNS, EvolvingAPIWarning
 
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 logger = logging.getLogger(__name__)
-
-OPS_T = Literal["<=", ">=", "=="]
 
 
 @dataclass(eq=True, frozen=True)
@@ -34,7 +32,7 @@ class PiecewiseOptions:
 
     component: str
     attribute: str
-    operator: OPS_T
+    operator: SIGNS
     name: str | None = None
     method: str = "auto"
     marginal_attr: bool = False
@@ -47,7 +45,7 @@ def define_piecewise(
     seg_attr: str,
     aux_var_name: str,
     active_names: pd.Index,
-    operator: OPS_T,
+    operator: SIGNS,
     marginal_attr: bool,
     extra_options: Iterable[PiecewiseOptions],
     invert_attr: bool = False,
