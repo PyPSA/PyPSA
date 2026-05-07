@@ -154,35 +154,35 @@ For simple changes, you can also edit the documentation directly on GitHub:
 2. Make your changes in the file.
 3. Commit your changes and create a pull request.
 
-## AI-Assisted Contributions
+## AI-based Contributions
 
-We welcome contributions that are AI-assisted, but with clear expectations:
+We do not impose general restrictions on the use of AI for contributions.
+But we require that all contributions, whether AI-assisted or not, adhere to the same standards of quality, relevance, and maintainability.
+This means that a human must always be involved in the validation of contributions and you as contributor are responsible for the content and quality of your contributions, regardless of how they were generated.
 
-**AI tools are helpful when used responsibly:**
-- AI can help with routine refactoring, documentation improvements, and boilerplate code
-- AI-assisted contributions must have **human validation and responsibility**
-- The human submitter is responsible for all changes: correctness, testing, and alignment with project goals
+More detailed we expect AI-assisted contributions to fulfill the following criteria:
 
-**Guidelines for AI-assisted work:**
-
-1. **Disclose AI use**: Mention in your PR description that AI tools were used
-2. **Focus on value**: Avoid verbose, unfocused PRs that create review burden without clear benefit
-   - Combine related changes into coherent, minimal PRs
-   - One typo fix or isolated style cleanup does not warrant a PR—batch with related improvements
-3. **Validate thoroughly**: Test changes end-to-end before submitting
+1. **Disclose AI use** if AI contributed significantly to the content of the issue, discussion, or pull request (PR).
+2. **Focus on value**: Avoid verbose contributions and focus your contribution with with a specific goal in mind.
+3. **Avoid slop**: Don't use overly verbose solutions for simple problems and use separate PRs for separate issues, even if they are tangentially related.
+4. **Validate thoroughly**: Test changes end-to-end before submitting
    - Run the test suite locally: `pytest`
    - Verify your changes work as intended
    - Check that no existing tests break
-4. **Coordinate first**: For larger changes, discuss your idea in an issue before investing time
-5. **Minimize review burden**: A well-validated, focused PR is more likely to be merged quickly
+5. **Coordinate first**: For larger changes, discuss your idea in an issue before investing time.
+6. **Minimize review burden**: A well-validated, focused PR is more likely to be merged quickly.
+7. **Include a cake**: If your contribution is AI-assisted, please include a small cake emoji (🎂) in the PR description to help maintainers identify it.
 
-**What we discourage:**
+We may close AI-based contributions without further review if we consider them to bind up excessive maintainer time.
+Examples include, but are not limited to:
 - Fully AI-written PRs with minimal human review
-- Verbose, multi-part contributions that solve tangential issues
+- Overly verbose, multi-part contributions that solve tangential issues
 - "Drive-by" changes that don't meaningfully improve the project
 - Large refactoring that isn't coordinated with maintainers
+- Changes that are not aligned with the project's goals or roadmap
 
-**Remember**: The PyPSA project has limited maintainer capacity. Help us by submitting focused, well-tested, minimal PRs that respect everyone's time.
+The PyPSA project has limited maintainer capacity.
+Help us by keeping your contributions focused, well-tested and aligned with the project goals, to respect everyone's time and token budget.
 
 ## Examples
 
