@@ -18,14 +18,14 @@ p_store_set,static or series,MW,NaN,Active power charging set point (for optimis
 sign,float,n/a,1,Sign denoting the orientation of the dispatch variable.,Input (optional)
 carrier,string,n/a,n/a,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in optimisation",Input (optional)
 spill_cost,static or series,currency/MWh,0,Cost of spilling 1 MWh,Input (optional)
-marginal_cost,static or series,currency/MWh,0,Marginal cost of production (discharge) of 1 MWh.,Input (optional)
+marginal_cost,static or piecewise or series,currency/MWh,0,Marginal cost of production (discharge) of 1 MWh.,Input (optional)
 marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost of production (discharge) of 1 MWh.,Input (optional)
 marginal_cost_storage,static or series,currency/MWh/h,0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional)
-capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified.",Input (optional)
+capital_cost,float,currency/MW,0,Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified.,Input (optional)
 overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
-discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
+discount_rate,float,per unit,NaN,Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).,Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional)
-active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
+active,boolean,n/a,True,Whether to consider the component in optimisation or not,Input (optional)
 build_year,int,year,0,Build year,Input (optional)
 lifetime,float,years,inf,Lifetime,Input (optional)
 state_of_charge_initial,float,MWh,0,State of charge before the snapshots in the optimisation.,Input (optional)
@@ -37,7 +37,7 @@ max_hours,float,hours,1,Maximum state of charge capacity in terms of hours at fu
 efficiency_store,static or series,per unit,1,Efficiency of storage on the way into the storage.,Input (optional)
 efficiency_dispatch,static or series,per unit,1,Efficiency of storage on the way out of the storage.,Input (optional)
 standing_loss,static or series,per unit,0,Losses per hour to state of charge.,Input (optional)
-inflow,static or series,MW,0,"Inflow to the state of charge (e.g. due to river inflow in hydro reservoir).",Input (optional)
+inflow,static or series,MW,0,Inflow to the state of charge (e.g. due to river inflow in hydro reservoir).,Input (optional)
 p,series,MW,0,Active power at bus (positive if net generation),Output
 p_dispatch,series,MW,0,Active power dispatch at bus,Output
 p_store,series,MW,0,Active power charging at bus,Output
@@ -49,3 +49,5 @@ mu_upper,series,currency/MWh,n/a,Shadow price of upper p_nom limit,Output
 mu_lower,series,currency/MWh,n/a,Shadow price of lower p_nom limit,Output
 mu_state_of_charge_set,series,currency/MWh,n/a,Shadow price of fixed state of charge state_of_charge_set,Output
 mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations,Output
+capital_cost_opt,float,currency/MW,0.,Optimised capital cost when using piecewise linearisation.,Output
+marginal_cost_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output

@@ -22,6 +22,7 @@ from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
+from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -951,7 +952,9 @@ def _iter_balance_args(
 
     for port in c._output_ports:
         suffix = c._port_suffix(port)
-        coeff = c.da[f"{c._coefficient_attr}{suffix}"].sel(snapshot=sns)
+        coeff = (
+            c.da[f"{c._coefficient_attr}{suffix}"].where(c.da.active).sel(snapshot=sns)
+        )
         delays, cyclics = delay_config[suffix]
 
         for (d, cyc), group in c.static.assign(_delay=delays, _cyclic=cyclics).groupby(
@@ -977,6 +980,7 @@ def _iter_balance_args(
 def define_nodal_balance_constraints(
     n: Network,
     sns: pd.Index,
+    piecewise_options: list[PiecewiseOptions],
     transmission_losses: bool | int | dict = False,
     buses: Sequence | None = None,
     suffix: str = "",
@@ -1015,6 +1019,8 @@ def define_nodal_balance_constraints(
         Subset of buses for which to define constraints; if None, all buses are used
     suffix : str, default ""
         Optional suffix to append to constraint names and dimensions
+    piecewise_options : list[PiecewiseOptions]
+        Options to override default piecewise constraint settings.
 
     Notes
     -----
@@ -1060,6 +1066,7 @@ def define_nodal_balance_constraints(
         )
 
     exprs = []
+    piecewise_y_vars = {}
 
     for component, attr, column, sign in args:
         c = n.c[component]
@@ -1090,14 +1097,18 @@ def define_nodal_balance_constraints(
             cbuses = cbuses[cbuses != ""]
 
         expr = expr.sel(name=cbuses.coords["name"].values)
+        if component in ("Process", "Link"):
+            piecewise_y_vars[c.name] = expr
         if expr.size:
-            exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
+            exprs.append(_groupby_bus(expr, cbuses))
 
     for component in ("Process", "Link"):
         c = n.c[component]
+
         for bus_col, coeff, names, delay, is_cyclic in _iter_balance_args(c, sns):
             if delay <= 0:
-                expr = coeff * m[f"{c.name}-p"]
+                var = m[f"{c.name}-p"]
+
             else:
                 src_snapshot_pos, valid = c.get_delay_source_indexer(
                     sns,
@@ -1112,7 +1123,7 @@ def define_nodal_balance_constraints(
                 shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(
                     sns_coords
                 )
-                expr = coeff.sel(name=names) * (shifted_p * valid_mask)
+                var = shifted_p * valid_mask
 
             cbuses = c._as_xarray(bus_col)
             cbuses = cbuses.sel(name=names)
@@ -1120,13 +1131,35 @@ def define_nodal_balance_constraints(
                 cbuses = cbuses.isel(scenario=0, drop=True)
             cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
             cbuses = cbuses[cbuses != ""]
+            port = bus_col.replace("bus", "")
+            piecewise_constraint_name = f"{c.name}-p{port}_piecewise"
+            extra_options = filter(
+                lambda p: p.component == c.name and p.attribute == coeff.name,
+                piecewise_options,
+            )
+            piecewise_var = define_piecewise(
+                n.model,
+                c,
+                x_var=var,
+                pw_attr=coeff.name,
+                aux_var_name=piecewise_constraint_name,
+                active_names=names,
+                operator="==",
+                marginal_attr=False,
+                extra_options=extra_options,
+            )
+            if piecewise_var is not None:
+                names = names.difference(piecewise_var.coords["name"].values)
+            else:
+                piecewise_var = 0
+            expr = coeff.sel(name=names) * var + piecewise_var
 
             if not cbuses.size:
                 continue
 
             expr = expr.sel(name=cbuses.coords["name"].values)
             if expr.size:
-                exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
+                exprs.append(_groupby_bus(expr, cbuses))
 
     lhs = merge(exprs, join="outer").reindex(name=buses)
 
@@ -1168,6 +1201,18 @@ def define_nodal_balance_constraints(
         mask = None
 
     n.model.add_constraints(lhs, "=", rhs, name=f"Bus{suffix}-nodal_balance", mask=mask)
+
+
+def _groupby_bus(
+    expr: linopy.LinearExpression, bus_mapping: DataArray, **sel: Any
+) -> linopy.LinearExpression:
+    """Group an expression by bus using a provided bus mapping."""
+    return (
+        expr.sel(**sel)
+        .groupby(bus_mapping.sel(**sel).rename("Bus"))
+        .sum()
+        .rename(Bus="name")
+    )
 
 
 def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
@@ -1651,6 +1696,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     except ValueError:
         pass
 
+    # TODO-1603: grab piecewise efficiencies if available
     # efficiencies as xarray DataArrays
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
     eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=c.active_assets)

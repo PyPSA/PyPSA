@@ -35,7 +35,7 @@ from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, RE_PORTS
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, PIECEWISE_ATTRS, RE_PORTS
 from pypsa.costs import annuity, periodized_cost
 from pypsa.definitions.structures import Dict
 
@@ -115,6 +115,22 @@ class ComponentsData:
     --------
     >>> c.dynamic
     """
+    piecewise: Dict
+    """
+    Piecewise linear breakpoint data for all components of this type.
+
+    Dict-like container keyed by y-axis attribute name (e.g. 'efficiency',
+    'marginal_cost', 'capital_cost'). Each value is a DataFrame with:
+
+    - index: breakpoint number (int, 0-based), ``index.name = "breakpoint"``
+    - columns: MultiIndex ``(name, attribute)`` where ``attribute`` holds both
+      the x-axis coordinate (e.g. ``p_pu``, ``p_nom``) and the y-axis attribute,
+      ``columns.names = ["name", "attribute"]``
+
+    Examples
+    --------
+    >>> c.piecewise.efficiency
+    """
 
 
 class Components(
@@ -167,8 +183,10 @@ class Components(
                 "supported."
             )
             raise NotImplementedError(msg)
-        static, dynamic = self._get_data_containers(ctype)
-        ComponentsData.__init__(self, ctype, n=None, static=static, dynamic=dynamic)
+        static, dynamic, piecewise = self._get_data_containers(ctype)
+        ComponentsData.__init__(
+            self, ctype, n=None, static=static, dynamic=dynamic, piecewise=piecewise
+        )
         ComponentsArrayMixin.__init__(self)
 
     def __str__(self) -> str:
@@ -346,7 +364,7 @@ class Components(
         )
 
     @staticmethod
-    def _get_data_containers(ct: ComponentType) -> tuple[pd.DataFrame, Dict]:
+    def _get_data_containers(ct: ComponentType) -> tuple[pd.DataFrame, Dict, Dict]:
         static_dtypes = ct.defaults.loc[ct.defaults.static, "dtype"].drop(["name"])
         if ct.name == "Shape":
             crs = CRS.from_epsg(
@@ -376,7 +394,21 @@ class Components(
             df.columns.name = "name"
             dynamic[k] = df
 
-        return static, dynamic
+        # Piecewise breakpoint data: one empty DataFrame per piecewise attribute
+        # defined by the piecewise_x column in the component's attribute CSV.
+        piecewise = Dict()
+        for y_attr in PIECEWISE_ATTRS.query(
+            "component == @name", local_dict={"name": ct.name}
+        ).y.unique():
+            cols = pd.MultiIndex.from_tuples([], names=["name", "attribute"])
+            df = pd.DataFrame(
+                index=pd.Index([], name="breakpoint", dtype=int),
+                columns=cols,
+                dtype=float,
+            )
+            piecewise[y_attr] = df
+
+        return static, dynamic, piecewise
 
     @property
     def standard_types(self) -> pd.DataFrame | None:

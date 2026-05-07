@@ -221,7 +221,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 return None
 
             costs = c.static[cost_attribute][capacity.indexes["name"]]
-            return capacity * costs
+
+            if f"{component}-{cost_attribute}_piecewise" in m.variables:
+                add_capex = m.variables[f"{component}-{cost_attribute}_piecewise"]
+                capacity = capacity.drop_sel(name=add_capex.coords["name"])
+            else:
+                add_capex = 0
+
+            return capacity * costs + add_capex
 
         return self._aggregate_components(
             func,
@@ -360,7 +367,17 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 return None
             var = n.model.variables[f"{c}-{attr}"]
             sns = var.indexes["snapshot"]
-            opex = var * n.get_switchable_as_dense(c, "marginal_cost").loc[sns]
+
+            if f"{c}-{attr}_piecewise" in n.model.variables:
+                add_opex = n.model.variables[f"{c}-{attr}_piecewise"]
+                var = var.drop_sel(name=add_opex.coords["name"])
+            else:
+                add_opex = 0
+
+            opex = (
+                var * n.get_switchable_as_dense(c, "marginal_cost").loc[sns] + add_opex
+            )
+
             weights = n.snapshot_weightings.objective.loc[sns]
             return self._aggregate_timeseries(opex, weights, agg=groupby_time)
 
@@ -514,12 +531,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             var = self._get_operational_variable(c)
             sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
-            efficiency = port_efficiency(n, c, port=port, dynamic=True)
-            if isinstance(efficiency, pd.DataFrame):
-                efficiency = efficiency.loc[sns]
+            dynamic_efficiency = port_efficiency(n, c, port=port, dynamic=True)
+            if isinstance(dynamic_efficiency, pd.DataFrame):
+                dynamic_efficiency = dynamic_efficiency.loc[sns]
             sign = n.c[c].static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators.loc[sns]
-            coeffs = DataArray(efficiency * sign)
+            coeffs = DataArray(dynamic_efficiency * sign)
             if direction == "supply":
                 coeffs = coeffs.clip(min=0)
             elif direction == "withdrawal":
@@ -530,7 +547,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             elif direction != "both":
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
-            p = var.where(coeffs != 0) * coeffs
+            # TODO-1603: work out sign of pw_var depending on direction
+            piecewise_efficiency = port_efficiency(n, c, port=port, piecewise=True)
+            if isinstance(piecewise_efficiency, pd.DataFrame):
+                pw_var = n.model.variables[f"{c}-p{port}_piecewise"]
+                coeffs.loc[{"name": pw_var.coords["name"]}] = 0
+            else:
+                pw_var = 0
+            p = var.where(coeffs != 0) * coeffs + pw_var
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         return self._aggregate_components(

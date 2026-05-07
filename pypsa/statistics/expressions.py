@@ -65,11 +65,18 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
 
 
 def port_efficiency(
-    n: Network, c_name: str, port: int | str = 0, dynamic: bool = False
+    n: Network,
+    c_name: str,
+    port: int | str = 0,
+    dynamic: bool = False,
+    piecewise: bool = False,
 ) -> pd.Series | pd.DataFrame:
     """Get the efficiency of a component at a specific port."""
     c = n.c[c_name]
     port = c._as_port(port)
+    if piecewise and dynamic:
+        err = "Cannot request piecewise and dynamic efficiencies together."
+        raise ValueError(err)
 
     ones = pd.Series(1, index=c.static.index)
     if c.name in n.one_port_components:
@@ -79,14 +86,26 @@ def port_efficiency(
     elif c.name == "Link":
         if port == 0:
             return -ones
+        key = f"{c._coefficient_attr}{c._port_suffix(port)}"
+        if (
+            piecewise
+            and (pw_attr := c.piecewise.get(key)) is not None
+            and not pw_attr.empty
+        ):
+            return pw_attr
 
-        key = "efficiency" if port == 1 else f"efficiency{port}"
         if dynamic and key in c.static:
             return n.get_switchable_as_dense(c.name, key)
 
         return c.static.get(key, ones)
     elif c.name == "Process":
-        key = f"rate{port}"
+        key = f"{c._coefficient_attr}{c._port_suffix(port)}"
+        if (
+            piecewise
+            and (pw_attr := c.piecewise.get(key)) is not None
+            and not pw_attr.empty
+        ):
+            return pw_attr
         if dynamic and key in c.static:
             return n.get_switchable_as_dense(c.name, key)
 
@@ -747,8 +766,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             comp = n.c[c]
             capacity = comp.static[f"{nominal_attrs[c]}_opt"]
             if cost_attribute == "capital_cost":
-                return capacity * comp.capital_cost
-            return capacity * comp.static[cost_attribute]
+                attr_vals = comp.capital_cost
+            else:
+                attr_vals = comp.static[cost_attribute]
+            piecewise_costs = comp.static.get(cost_attribute + "_opt", 0)
+            capex = capacity * (attr_vals + piecewise_costs)
+            return capex
 
         df = self._aggregate_components(
             func,
@@ -1651,9 +1674,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 if cost_type in cost_types_ and cost_type in n.c[c].static:
                     attr = lookup.query(cost_type).loc[c].index.item() + port
                     cost = n.get_switchable_as_dense(c, cost_type)
+                    cost_piecewise_opt = n.c[c].dynamic.get(f"{cost_type}_opt")
+                    if cost_piecewise_opt is None or cost_piecewise_opt.empty:
+                        cost_piecewise_opt = 0
                     p = n.c[c].dynamic[attr]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
-                    opex = var * cost
+                    opex = var * (cost + cost_piecewise_opt)
                     term = self._aggregate_timeseries(opex, weights, agg=groupby_time)
                     result.append(term)
 
@@ -1670,7 +1696,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 ):
                     cost = n.get_switchable_as_dense(c, cost_type, inds=com_i)
                     var = n.c[c].dynamic[attr].loc[:, com_i]
-                    opex = var * cost
+                    cost_segmented_opt = n.c[c].dynamic.get(f"{cost_type}_opt", 0)
+                    opex = var * (cost + cost_segmented_opt)
                     w = weights if attr == "status" else weights_one
                     term = self._aggregate_timeseries(opex, w, agg=groupby_time)
                     result.append(term)

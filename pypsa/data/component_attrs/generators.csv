@@ -18,7 +18,7 @@ e_sum_max,float,MWh,inf,The maximum total energy produced during a single optimi
 q_set,static or series,MVar,0.,Reactive power set point (for power flow),Input (optional)
 sign,float,n/a,1,"Sign denoting the orientation of the dispatch variable (e.g. positive for generation, negative for consumption).",Input (optional)
 carrier,string,n/a,n/a,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in optimisation",Input (optional)
-marginal_cost,static or series,currency/MWh,0.,Marginal cost of production of 1 MWh.,Input (optional)
+marginal_cost,static or piecewise or series,currency/MWh,0.,Marginal cost of production of 1 MWh.,Input (optional)
 marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost of production of 1 MWh.,Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in optimization or not",Input (optional)
 build_year,int,year,0,Build year of the generator.,Input (optional)
@@ -27,7 +27,7 @@ capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 M
 overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional)
-efficiency,static or series,per unit,1,"Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.",Input (optional)
+efficiency,static or piecewise or series,per unit,1,"Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.",Input (optional)
 committable,boolean,n/a,False,Apply unit commitment constraints.,Input (optional)
 start_up_cost,float,currency,0,Cost to start up the generator. Only used if `committable=True`.,Input (optional)
 shut_down_cost,float,currency,0,Cost to shut down the generator. Only used if `committable=True`.,Input (optional)
@@ -52,3 +52,5 @@ mu_lower,series,currency/MWh,n/a,Shadow price of lower `p_nom` limit,Output
 mu_p_set,series,currency/MWh,n/a,Shadow price of fixed power generation `p_set`,Output
 mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
 mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
+capital_cost_opt,float,currency/MW,0.,Optimised capital cost when using piecewise linearisation.,Output
+marginal_cost_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output

@@ -35,7 +35,7 @@ dependencies = [
     "pandas>=2.0",
     "xarray<2026.4",  # See https://github.com/PyPSA/linopy/pull/647
     "netcdf4",
-    "linopy>=0.6.1",
+    "linopy @ git+https://github.com/pypsa/linopy",
     "matplotlib",
     "plotly",
     "pydeck>=0.6",
@@ -134,6 +134,7 @@ filterwarnings = [
     # Ignore linopy warnings
     "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
     "ignore:In a future version of xarray the default value for join will change:FutureWarning",
+    "ignore::linopy.constants.EvolvingAPIWarning",
 ]
 markers = [
     "mpl_image_compare",

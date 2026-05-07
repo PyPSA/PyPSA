@@ -5,7 +5,7 @@ bus1,string,n/a,n/a,"Name of second bus to which process is attached. Further bu
 type,string,n/a,n/a,Placeholder for process type. Not implemented.,Input (optional)
 carrier,string,n/a,,"Carrier of the process describing its technology (e.g. gas boiler, electrolyser, HVDC process).",Input (optional)
 rate0,static or series,per unit,-1,"Rate of energy transfer at `bus0` relative to internal power `p`. Can be time-dependent (e.g. to represent temperature-dependent heat pump COP).  `Rate`s for further buses (e.g. `bus2`, `bus3`, etc.) are automatically expanded as needed (e.g. `rate2`, `rate3`, etc.).",Input (optional)
-rate1,static or series,per unit,1,"Rate of energy transfer at `bus1` relative to internal power `p`. Can be time-dependent (e.g. to represent temperature-dependent heat pump COP).  `Rate`s for further buses (e.g. `bus2`, `bus3`, etc.) are automatically expanded as needed (e.g. `rate2`, `rate3`, etc.).",Input (optional)
+rate1,static or piecewise or series,per unit,1,"Rate of energy transfer at `bus1` relative to internal power `p`. Can be time-dependent (e.g. to represent temperature-dependent heat pump COP).  `Rate`s for further buses (e.g. `bus2`, `bus3`, etc.) are automatically expanded as needed (e.g. `rate2`, `rate3`, etc.).",Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in basic functionality or not",Input (optional)
 build_year,int,year,0,Build year,Input (optional)
 lifetime,float,years,inf,Lifetime,Input (optional)
@@ -23,7 +23,7 @@ capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 M
 overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW (unit of `bus0`). If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW (unit of `bus0`), added to annuitized investment cost.",Input (optional)
-marginal_cost,static or series,currency/MWh,0.,Marginal cost of 1 MWh consumption from `bus0` (e.g. including variable operation and maintenance costs of an electrolyser but excluding electricity costs).,Input (optional)
+marginal_cost,static or piecewise or series,currency/MWh,0.,Marginal cost of 1 MWh consumption from `bus0` (e.g. including variable operation and maintenance costs of an electrolyser but excluding electricity costs).,Input (optional)
 marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost for 1 MWh of consumption from `bus0`.,Input (optional)
 stand_by_cost,static or series,currency/h,0.,Stand-by cost for operating the process. This cost is incurred whenever the status is 1 (including when dispatch decision is zero).,Input (optional)
 length,float,km,0,"Length of the process. Useful for calculating `capital_cost` for HVDC connections.",Input (optional)
@@ -55,3 +55,4 @@ mu_upper,series,currency/MW,n/a,Shadow price of upper `p_nom` limit $f \\leq F$.
 mu_p_set,series,currency/MWh,n/a,Shadow price of fixed dispatch `p_set`,Output
 mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
 mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
+p_piecewise,series,MWh,0.,Optimised dispatch at remote bus.,Output
