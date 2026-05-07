@@ -286,7 +286,7 @@ def define_objective(
                     pw_attr=cost_type,
                     aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
                     active_names=c.active_assets,
-                    operator=">=",
+                    sign=">=",
                     marginal_attr=True,
                     extra_options=extra_options,
                 )
@@ -381,7 +381,7 @@ def define_objective(
                 pw_attr=y_attr,
                 aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
                 active_names=ext_i,
-                operator=">=",
+                sign=">=",
                 marginal_attr=True,
                 extra_options=extra_options,
             )

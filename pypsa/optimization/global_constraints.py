@@ -364,7 +364,7 @@ def define_primary_energy_limit(
                     pw_attr="efficiency",
                     aux_var_name=f"{n.c.generators.name}_p_primary_piecewise",
                     active_names=gens.index,
-                    operator="==",
+                    sign="==",
                     marginal_attr=False,
                     extra_options=extra_options,
                     invert_attr=True,

@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
 import xarray as xr
@@ -30,12 +30,12 @@ logger = logging.getLogger(__name__)
 class PiecewiseOptions:
     """Options for piecewise constraint formulation.
 
-    The operator is interpreted as ``y operator f(x)``.
+    The sign is interpreted as ``y <sign> f(x)``.
     """
 
     component: str
     attribute: str
-    operator: SIGNS
+    sign: Literal[tuple(SIGNS)]
     name: str | None = None
     method: str = "auto"
     marginal_attr: bool = False
@@ -48,7 +48,7 @@ def define_piecewise(
     pw_attr: str,
     aux_var_name: str,
     active_names: pd.Index,
-    operator: SIGNS,
+    sign: Literal[tuple(SIGNS)],
     marginal_attr: bool,
     extra_options: Iterable[PiecewiseOptions],
     invert_attr: bool = False,
@@ -74,8 +74,8 @@ def define_piecewise(
         Name for the auxiliary linopy variable (if created) and the prefix for the constraint(s) defining the piecewise cost.
     active_names : pd.Index
         Active component names to consider (e.g. ``c.active_assets`` or ``c.extendables``).
-    operator : {"<=", ">=", "=="}
-        The operator for the piecewise constraint, interpreted as ``y <operator> f(x)``.
+    sign : {"<=", ">=", "=="}
+        The sign for the piecewise constraint, interpreted as ``y <sign> f(x)``.
     marginal_attr : bool
         Whether the y-axis breakpoints represent marginal values.
         If True, the integral of the piecewise curve will be used to define y breakpoints.
@@ -120,26 +120,26 @@ def define_piecewise(
 
     for option in [*extra_options, None]:
         if option is None:
-            names, aux, opt_method, opt_op = (
+            names, aux, opt_method, opt_sign = (
                 pw_names,
                 aux_var_name,
                 method,
-                operator,
+                sign,
             )
         elif option.name:
             names = pd.Index([option.name], name="name")
             aux = f"{aux_var_name}_{option.name}"
-            opt_method, opt_op = option.method, option.operator
+            opt_method, opt_sign = option.method, option.sign
         else:
             names, aux = pw_names, aux_var_name
-            opt_method, opt_op = option.method, option.operator
+            opt_method, opt_sign = option.method, option.sign
         if names.empty:
             continue
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
             m.add_piecewise_formulation(
-                (y_var.sel(name=names), y_breakpoints.sel(name=names), opt_op),
+                (y_var.sel(name=names), y_breakpoints.sel(name=names), opt_sign),
                 (x_var.sel(name=names), x_breakpoints.sel(name=names)),
                 method=opt_method,
                 name=aux,
