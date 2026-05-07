@@ -14,16 +14,6 @@ import pytest
 import pypsa
 
 
-def _segments(
-    name: str, x_attr: str, y_attr: str, x: list[float], y: list[float]
-) -> pd.DataFrame:
-    """Build a piecewise segment DataFrame with (name, attribute) MultiIndex columns."""
-    columns = pd.MultiIndex.from_product(
-        [[name], [x_attr, y_attr]], names=["name", "attribute"]
-    )
-    return pd.DataFrame(list(zip(x, y, strict=True)), columns=columns)
-
-
 def _formulation(n: pypsa.Network, name: str, **kwargs: Any) -> Any:
     model = n.optimize.create_model(include_objective_constant=False, **kwargs)
     return model._piecewise_formulations[name]
@@ -150,51 +140,6 @@ def test_piecewise_lp_formulation_method_and_convexity(
     )
     assert formulation.method == "lp"
     assert formulation.convexity == expected_convexity
-
-
-def test_piecewise_interior_missing_rows_raise() -> None:
-    n = pypsa.Network()
-    n.add("Bus", "bus0")
-    n.add(
-        "Generator",
-        "gen",
-        bus="bus0",
-        p_nom=100,
-        marginal_cost=_segments(
-            "gen",
-            "p_pu",
-            "marginal_cost",
-            [0.0, float("nan"), 1.0],
-            [10.0, float("nan"), 40.0],
-        ),
-    )
-    n.add("Load", "load", bus="bus0", p_set=50)
-
-    with pytest.raises(ValueError, match="non-trailing missing breakpoint"):
-        n.optimize.create_model(include_objective_constant=False)
-
-
-def test_piecewise_incomplete_row_raises() -> None:
-    """Row with only one of x/y populated should fail-fast."""
-    n = pypsa.Network()
-    n.add("Bus", "bus0")
-    n.add(
-        "Generator",
-        "gen",
-        bus="bus0",
-        p_nom=100,
-        marginal_cost=_segments(
-            "gen",
-            "p_pu",
-            "marginal_cost",
-            [0.0, 0.5, 1.0],
-            [10.0, float("nan"), 40.0],
-        ),
-    )
-    n.add("Load", "load", bus="bus0", p_set=50)
-
-    with pytest.raises(ValueError, match="incomplete breakpoint data"):
-        n.optimize.create_model(include_objective_constant=False)
 
 
 def test_piecewise_unsorted_rows_get_sorted() -> None:

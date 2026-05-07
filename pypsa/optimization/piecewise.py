@@ -225,8 +225,6 @@ def _get_breakpoints(
     x_da = x_da.where(valid_breakpoints)
     x_breakpoints = breakpoints(x_da)
     if marginal_attr:
-        # y_da[i] is the marginal between x[i-1] and x[i]; shift to linopy's slope
-        # convention where slopes[i] is the slope between x_points[i] and x_points[i+1].
         slopes = y_da.shift({BREAKPOINT_DIM: -1})
         y_breakpoints = breakpoints(slopes=slopes, x_points=x_da, y0=0.0)
     else:
