@@ -374,7 +374,7 @@ def define_objective(
                 lambda p: p.component == c.name and p.attribute == y_attr,
                 piecewise_options,
             )
-            pw_cc_var = define_piecewise(
+            piecewise_var = define_piecewise(
                 m,
                 c,
                 x_var=x_var,
@@ -385,9 +385,9 @@ def define_objective(
                 marginal_attr=True,
                 extra_options=extra_options,
             )
-            if pw_cc_var is not None:
-                ext_i = ext_i.difference(pw_cc_var.indexes["name"])
-                capex_terms.append((pw_cc_var * cost_weight).sum(dim=sum_dim))
+            if piecewise_var is not None:
+                ext_i = ext_i.difference(piecewise_var.indexes["name"])
+                capex_terms.append((piecewise_var * cost_weight).sum(dim=sum_dim))
 
         periodic_cost = c.periodized_cost.sel(name=ext_i)
         # Linear capital cost for non-piecewise components

@@ -16,6 +16,7 @@ from linopy.expressions import merge
 from numpy import isnan
 from xarray import DataArray
 
+from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import define_piecewise
 
@@ -357,35 +358,39 @@ def define_primary_energy_limit(
                     ),
                     piecewise_options,
                 )
-                pw_primary_energy = define_piecewise(
-                    m,
-                    n.c.generators,
-                    x_var=p,
-                    pw_attr="efficiency",
-                    aux_var_name=f"{n.c.generators.name}_p_primary_piecewise",
-                    active_names=gens.index,
-                    sign="==",
-                    marginal_attr=False,
-                    extra_options=extra_options,
-                    invert_attr=True,
-                )
-                if pw_primary_energy is not None:
-                    linear_names = gens.index.difference(
-                        pw_primary_energy.indexes["name"]
+                pw_attr = PIECEWISE_ATTRS.query(
+                    "component == 'Generator' and y == 'efficiency'"
+                ).squeeze()
+                linear_names = gens.index
+                to_sum = []
+                if not pw_attr.empty:
+                    piecewise_var = define_piecewise(
+                        m,
+                        n.c.generators,
+                        x_var=p,
+                        pw_attr="efficiency",
+                        aux_var_name=f"{n.c.generators.name}-{pw_attr.aux_variable}",
+                        active_names=gens.index,
+                        sign="==",
+                        marginal_attr=False,
+                        extra_options=extra_options,
+                        invert_attr=True,
                     )
-                else:
-                    pw_primary_energy = 0
-                    linear_names = gens.index
-                primary_energy = 0
+                    if piecewise_var is not None:
+                        to_sum.append(piecewise_var)
+                        linear_names = linear_names.difference(
+                            piecewise_var.indexes["name"]
+                        )
+
                 if not linear_names.empty:
                     efficiency = (
                         n.c.generators._as_dynamic("efficiency")
                         .loc[:, scenario]
                         .loc[sns[sns_sel], linear_names]
                     )
-                    primary_energy = p.sel(name=linear_names) / efficiency
+                    to_sum.append(p.sel(name=linear_names) / efficiency)
                 expr = (
-                    (primary_energy + pw_primary_energy)
+                    sum(to_sum)
                     * weightings.generators[sns_sel]
                     * gens.carrier.map(emissions)
                 ).sum()

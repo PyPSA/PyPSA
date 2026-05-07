@@ -20,6 +20,7 @@ from xarray import DataArray, concat, where
 from pypsa.common import as_index, expand_series
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
+from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
@@ -1132,26 +1133,35 @@ def define_nodal_balance_constraints(
             cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
             cbuses = cbuses[cbuses != ""]
             port = bus_col.replace("bus", "")
-            piecewise_constraint_name = f"{c.name}-p{port}_piecewise"
-            extra_options = filter(
-                lambda p: p.component == c.name and p.attribute == coeff.name,
-                piecewise_options,
+            search_attr = (
+                c._get_base_coeff(coeff.name)
+                if isinstance(c, _Multiport)
+                else coeff.name
             )
-            piecewise_var = define_piecewise(
-                n.model,
-                c,
-                x_var=var,
-                pw_attr=coeff.name,
-                aux_var_name=piecewise_constraint_name,
-                active_names=names,
-                sign="==",
-                marginal_attr=False,
-                extra_options=extra_options,
-            )
-            if piecewise_var is not None:
-                names = names.difference(piecewise_var.coords["name"].values)
-            else:
-                piecewise_var = 0
+            pw_attr = PIECEWISE_ATTRS.query(
+                "component == @name and y == @y",
+                local_dict={"name": c.name, "y": search_attr},
+            ).squeeze()
+            p_piecewise = 0
+            if not pw_attr.empty:
+                extra_options = filter(
+                    lambda p: p.component == c.name and p.attribute == coeff.name,
+                    piecewise_options,
+                )
+                piecewise_var = define_piecewise(
+                    n.model,
+                    c,
+                    x_var=var,
+                    pw_attr=coeff.name,
+                    aux_var_name=f"{c.name}-{pw_attr.aux_variable.format(port=port)}",
+                    active_names=names,
+                    sign="==",
+                    marginal_attr=False,
+                    extra_options=extra_options,
+                )
+                if piecewise_var is not None:
+                    p_piecewise += piecewise_var
+                    names = names.difference(piecewise_var.coords["name"].values)
             expr = coeff.sel(name=names) * var + piecewise_var
 
             if not cbuses.size:

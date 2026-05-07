@@ -5,8 +5,8 @@ Generator,p_pu,efficiency,p_primary_piecewise,false
 Line,s_nom,capital_cost,capital_cost_piecewise,true
 Link,p_pu,marginal_cost,marginal_cost_piecewise,false
 Link,p_nom,capital_cost,capital_cost_piecewise,true
-Link,p_pu,efficiency,p1_piecewise,false
-Process,p_pu,rate1,p1_piecewise,false
+Link,p_pu,efficiency,p{port}_piecewise,false
+Process,p_pu,rate1,p{port}_piecewise,false
 StorageUnit,p_pu,marginal_cost,marginal_cost_piecewise,false
 StorageUnit,p_nom,capital_cost,capital_cost_piecewise,true
 StorageUnit,p_pu,efficiency_dispatch,p_dispatch_piecewise,false

@@ -42,7 +42,7 @@ def test_piecewise_efficiency_uses_equality_formulation(
     model = piecewise_efficiency_network.optimize.create_model(
         include_objective_constant=False
     )
-    formulation = model._piecewise_formulations["Generator_p_primary_piecewise"]
+    formulation = model._piecewise_formulations["Generator-p_primary_piecewise"]
     assert formulation.method == "incremental"
 
 

@@ -259,7 +259,12 @@ def _normalize_breakpoints(
             (curve.name, x_attr), axis=1, kind="mergesort"
         )
 
-    return piecewise_df.T.groupby(level="name", group_keys=False).apply(__normalize).T
+    return (
+        piecewise_df.T.groupby(level="name", group_keys=False)
+        .apply(__normalize)
+        .T.reset_index(drop=True)
+        .rename_axis(index="breakpoint")
+    )
 
 
 def _create_y_var(
@@ -275,7 +280,7 @@ def _create_y_var(
 
 def _to_da(piecewise_df: pd.DataFrame, attr: str) -> xr.DataArray:
     """Convert input to DataArray with given coords and dims."""
-    da = xr.DataArray(piecewise_df.xs(attr, level="attribute")).rename(
+    da = xr.DataArray(piecewise_df.xs(attr, level="attribute", axis=1)).rename(
         breakpoint=BREAKPOINT_DIM
     )
     return da
