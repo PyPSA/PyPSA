@@ -13,11 +13,13 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import xarray as xr
-from linopy import Model, Variable, breakpoints
+from linopy import Model, Slopes, Variable, breakpoints
 from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, SIGNS, EvolvingAPIWarning
 
 from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
+
+warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -226,7 +228,7 @@ def _get_breakpoints(
     x_breakpoints = breakpoints(x_da)
     if marginal_attr:
         slopes = y_da.shift({BREAKPOINT_DIM: -1})
-        y_breakpoints = breakpoints(slopes=slopes, x_points=x_da, y0=0.0)
+        y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
     else:
         y_breakpoints = breakpoints((y_da * x_da).where(valid_breakpoints))
     return x_breakpoints, y_breakpoints
