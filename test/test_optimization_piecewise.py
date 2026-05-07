@@ -35,7 +35,9 @@ def _piecewise_df(
     frames = {
         n: pd.DataFrame(rows, columns=[x_attr, y_attr]) for n, rows in curves.items()
     }
-    return pd.concat(frames, axis=1, names=["name", "attribute"])
+    return pd.concat(frames, axis=1, names=["name", "attribute"]).rename_axis(
+        index="breakpoint"
+    )
 
 
 class TestNormalizeBreakpoints:

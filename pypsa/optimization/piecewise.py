@@ -192,10 +192,10 @@ def _get_breakpoints(
     ).squeeze()
 
     # pw_attr stores the marginal value (slope) at each breakpoint.
-    piecewise_df = _normalize_breakpoints(piecewise_df, piecewise_attrs)
+    normalised_piecewise_df = _normalize_breakpoints(piecewise_df, piecewise_attrs)
 
-    x_da = _to_da(piecewise_df, piecewise_attrs.x)
-    y_da = _to_da(piecewise_df, pw_attr)
+    x_da = _to_da(normalised_piecewise_df, piecewise_attrs.x)
+    y_da = _to_da(normalised_piecewise_df, pw_attr)
     valid_breakpoints = x_da.notnull() & y_da.notnull()
     if invert_attr:
         y_da = 1 / y_da
@@ -235,41 +235,31 @@ def _get_breakpoints(
 
 
 def _normalize_breakpoints(
-    piecewise_df: pd.DataFrame, piecewise_attrs: pd.Series[str]
+    piecewise_df: pd.DataFrame, piecewise_attrs: pd.Series
 ) -> pd.DataFrame:
     """Sort segment rows by x-coordinate and align ragged curves with trailing NaNs."""
     x_attr, y_attr = piecewise_attrs.x, piecewise_attrs.y
 
-    def _validate(curve: pd.DataFrame, name: str) -> pd.Series:
-        filled = curve.notna().any(axis=1)
+    def __normalize(curve: pd.DataFrame) -> pd.DataFrame:
+        filled = curve.notna().any()
         has_later = filled.iloc[::-1].cummax().iloc[::-1]
         if (gap := ~filled & has_later).any():
             msg = (
-                f"Piecewise '{y_attr}' segments for component '{name}' contain "
+                f"Piecewise '{y_attr}' segments for component '{curve.name}' contain "
                 f"non-trailing missing breakpoint rows: {gap[gap].index.tolist()}."
             )
             raise ValueError(msg)
-        if (partial := filled & curve.isna().any(axis=1)).any():
+        if (partial := filled & curve.isna().any()).any():
             msg = (
-                f"Piecewise '{y_attr}' segments for component '{name}' have "
+                f"Piecewise '{y_attr}' segments for component '{curve.name}' have "
                 f"incomplete breakpoint data at rows: {partial[partial].index.tolist()}."
             )
             raise ValueError(msg)
-        return filled
-
-    def _per_curve(name: str) -> pd.DataFrame:
-        curve = piecewise_df[name].reindex(columns=[x_attr, y_attr])
-        filled = _validate(curve, name)
-        return (
-            curve.loc[filled]
-            .sort_values(x_attr, kind="mergesort")
-            .reset_index(drop=True)
+        return curve.loc[:, filled].sort_values(
+            (curve.name, x_attr), axis=1, kind="mergesort"
         )
 
-    normalized_dict = {n: _per_curve(n) for n in piecewise_df.columns.unique("name")}
-    normalized = pd.concat(normalized_dict, axis=1, names=["name", "attribute"])
-    normalized.index.name = "breakpoint"
-    return normalized
+    return piecewise_df.T.groupby(level="name", group_keys=False).apply(__normalize).T
 
 
 def _create_y_var(
@@ -285,7 +275,7 @@ def _create_y_var(
 
 def _to_da(piecewise_df: pd.DataFrame, attr: str) -> xr.DataArray:
     """Convert input to DataArray with given coords and dims."""
-    da = xr.DataArray(piecewise_df.xs(attr, level="attribute", axis=1)).rename(
+    da = xr.DataArray(piecewise_df.xs(attr, level="attribute")).rename(
         breakpoint=BREAKPOINT_DIM
     )
     return da
