@@ -1,11 +1,11 @@
-attribute,type,unit,default,description,status,piecewise_x
+attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 bus0,string,n/a,n/a,Name of first bus to which process is attached.,Input (required)
 bus1,string,n/a,n/a,"Name of second bus to which process is attached. Further buses (`bus2`, `bus3`, etc.) are automatically expanded as needed.",Input (required)
 type,string,n/a,n/a,Placeholder for process type. Not implemented.,Input (optional)
 carrier,string,n/a,,"Carrier of the process describing its technology (e.g. gas boiler, electrolyser, HVDC process).",Input (optional)
 rate0,static or series,per unit,-1,"Rate of energy transfer at `bus0` relative to internal power `p`. Can be time-dependent (e.g. to represent temperature-dependent heat pump COP).  `Rate`s for further buses (e.g. `bus2`, `bus3`, etc.) are automatically expanded as needed (e.g. `rate2`, `rate3`, etc.).",Input (optional)
-rate1,static or piecewise or series,per unit,1,"Rate of energy transfer at `bus1` relative to internal power `p`. Can be time-dependent (e.g. to represent temperature-dependent heat pump COP).  `Rate`s for further buses (e.g. `bus2`, `bus3`, etc.) are automatically expanded as needed (e.g. `rate2`, `rate3`, etc.).",Input (optional),p_pu
+rate1,static or piecewise or series,per unit,1,"Rate of energy transfer at `bus1` relative to internal power `p`. Can be time-dependent (e.g. to represent temperature-dependent heat pump COP).  `Rate`s for further buses (e.g. `bus2`, `bus3`, etc.) are automatically expanded as needed (e.g. `rate2`, `rate3`, etc.).",Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in basic functionality or not",Input (optional)
 build_year,int,year,0,Build year,Input (optional)
 lifetime,float,years,inf,Lifetime,Input (optional)

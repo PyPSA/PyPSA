@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status,piecewise_x
+attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 type,string,n/a,primary_energy,"Type of constraint (e.g. ""primary energy"", ""tech_capacity_expansion_limit"", ""operational_limit"", ""transmission_volume_expansion_limit"", ""transmission_expansion_cost_limit"")",Input (optional)
 investment_period,float,n/a,NaN,"Investment period for which the constraint is applied. If not specified, the constraint is applied to all investment periods together.",Input (optional)

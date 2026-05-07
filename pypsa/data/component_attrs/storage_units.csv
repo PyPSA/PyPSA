@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status,piecewise_x
+attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,Name of bus to which storage unit is attached.,Input (required)
 control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
@@ -18,10 +18,10 @@ p_store_set,static or series,MW,NaN,Active power charging set point (for optimis
 sign,float,n/a,1,Sign denoting the orientation of the dispatch variable.,Input (optional)
 carrier,string,n/a,n/a,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in optimisation",Input (optional)
 spill_cost,static or series,currency/MWh,0,Cost of spilling 1 MWh,Input (optional)
-marginal_cost,static or piecewise or series,currency/MWh,0,Marginal cost of production (discharge) of 1 MWh.,Input (optional),p_pu
+marginal_cost,static or piecewise or series,currency/MWh,0,Marginal cost of production (discharge) of 1 MWh.,Input (optional)
 marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost of production (discharge) of 1 MWh.,Input (optional)
 marginal_cost_storage,static or series,currency/MWh/h,0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional)
-capital_cost,float,currency/MW,0,Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified.,Input (optional),p_nom
+capital_cost,float,currency/MW,0,Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified.,Input (optional)
 overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
 discount_rate,float,per unit,NaN,Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).,Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional)
@@ -34,8 +34,8 @@ state_of_charge_set,static or series,MWh,NaN,State of charge set points for snap
 cyclic_state_of_charge,boolean,n/a,False,"Switch: if True, then `state_of_charge_initial` is ignored and the initial state of charge is set to the final state of charge for the group of snapshots in the optimisation (`soc[-1] = soc[len(snapshots)-1]`).",Input (optional)
 cyclic_state_of_charge_per_period,boolean,n/a,False,"Switch: if True, the cyclic constraints are applied to each investment period separately.",Input (optional)
 max_hours,float,hours,1,Maximum state of charge capacity in terms of hours at full output power capacity `p_nom`,Input (optional)
-efficiency_store,static or series,per unit,1,Efficiency of storage on the way into the storage.,Input (optional),p_pu
-efficiency_dispatch,static or series,per unit,1,Efficiency of storage on the way out of the storage.,Input (optional),p_pu
+efficiency_store,static or series,per unit,1,Efficiency of storage on the way into the storage.,Input (optional)
+efficiency_dispatch,static or series,per unit,1,Efficiency of storage on the way out of the storage.,Input (optional)
 standing_loss,static or series,per unit,0,Losses per hour to state of charge.,Input (optional)
 inflow,static or series,MW,0,Inflow to the state of charge (e.g. due to river inflow in hydro reservoir).,Input (optional)
 p,series,MW,0,Active power at bus (positive if net generation),Output

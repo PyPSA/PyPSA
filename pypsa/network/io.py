@@ -28,10 +28,11 @@ from pyproj import CRS
 
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
+from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.consistency import check_for_unknown_buses
+from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import (
     _update_ports_component_attrs,
-    nominal_attrs,
 )
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_base__
@@ -1842,7 +1843,6 @@ class NetworkIOMixin(_NetworkABC):
         # Now deal with time-dependent properties
 
         dynamic = self.c[cls_name].dynamic
-
         for k in non_static_attrs_in_df:
             # If reading in outputs, fill the outputs
             dynamic[k] = dynamic[k].reindex(
@@ -1957,6 +1957,7 @@ class NetworkIOMixin(_NetworkABC):
         df: pd.DataFrame,
         cls_name: str,
         attr: str,
+        is_extendable: pd.Series | None = None,
         overwrite: bool = False,
     ) -> None:
         """Import piecewise breakpoint data from a pandas DataFrame.
@@ -1973,36 +1974,32 @@ class NetworkIOMixin(_NetworkABC):
             Piecewise y-axis attribute name, e.g. ``"efficiency"``.
         component_name : str
             Name of the individual component.
+        is_extendable : pd.Series or None, default None
+            If Series, a boolean series where True = extendable.
+            if None, it is inferred from the component's extendables.
         overwrite : bool, default False
             If True, replace existing breakpoint data for the component.
 
         """
-        nom_attr = nominal_attrs.get(cls_name)
-        piecewise_attrs = self.c[cls_name].ctype.piecewise_attrs
-        if attr not in piecewise_attrs:
+        idx_name = "breakpoint"
+        col_names = ["name", "attribute"]
+        c = self.c[cls_name]
+        search_attr = c._get_base_coeff(attr) if isinstance(c, _Multiport) else attr
+        pw_attr = PIECEWISE_ATTRS.query(
+            "component == @name and y == @search_attr",
+            local_dict={"name": cls_name, "search_attr": search_attr},
+        ).squeeze()
+        if pw_attr.empty:
+            valid_attrs = (
+                PIECEWISE_ATTRS.query("component == @cls_name").y.unique().tolist()
+            )
             msg = (
                 f"'{attr}' is not a recognised piecewise attribute for {cls_name}. "
-                f"Known piecewise attributes: {list(piecewise_attrs)}."
+                f"Known piecewise attributes: {valid_attrs}."
             )
             raise ValueError(msg)
 
-        x_attr = piecewise_attrs[attr]
-
-        if nom_attr and x_attr == nom_attr.replace("_nom", "_pu"):
-            new_names = (
-                df.columns.unique("name")
-                if isinstance(df.columns, pd.MultiIndex)
-                else pd.Index([])
-            )
-            extendable_i = self.c[cls_name].extendables
-            bad = new_names.intersection(extendable_i)
-            if not bad.empty:
-                msg = (
-                    f"Piecewise '{attr}' breakpoints are not supported for extendable "
-                    f"components (fixed p_nom required). Extendable components: "
-                    f"{bad.tolist()}."
-                )
-                raise ValueError(msg)
+        x_attr = pw_attr.x
 
         # df must have MultiIndex columns (name, attribute) with x_attr and attr present
         if not isinstance(df.columns, pd.MultiIndex):
@@ -2013,27 +2010,43 @@ class NetworkIOMixin(_NetworkABC):
             )
             raise TypeError(msg)
 
+        df.index.name = idx_name
+        df.columns.names = col_names
+
+        if not pw_attr.allow_extendable:
+            new_names = df.columns.unique("name")
+            extendable_i = self.c[cls_name].extendables
+            if is_extendable is not None:
+                extendable_i = is_extendable[is_extendable].index
+            else:
+                extendable_i = self.c[cls_name].extendables
+            bad = new_names.intersection(extendable_i)
+            if not bad.empty:
+                msg = (
+                    f"Piecewise '{attr}' breakpoints are not supported for extendable "
+                    f"components (fixed p_nom required). Extendable components: "
+                    f"{bad.tolist()}."
+                )
+                raise ValueError(msg)
+
         piecewise = self.c[cls_name].piecewise
 
         if attr not in piecewise:
             piecewise[attr] = pd.DataFrame(
-                index=pd.Index([], name="breakpoint", dtype=int),
-                columns=pd.MultiIndex.from_tuples([], names=["name", "attribute"]),
+                index=pd.Index([], name=idx_name, dtype=int),
+                columns=pd.MultiIndex.from_tuples([], names=col_names),
                 dtype=float,
             )
 
         existing = piecewise[attr]
 
-        attribute_values = set(df.columns.get_level_values("attribute"))
-        if x_attr not in attribute_values or attr not in attribute_values:
+        attribute_values = df.columns.unique("attribute")
+        if not attribute_values.symmetric_difference([x_attr, attr]).empty:
             msg = (
                 f"DataFrame for piecewise attribute '{attr}' must have attribute "
                 f"level values ['{x_attr}', '{attr}']. Got: {sorted(attribute_values)}."
             )
             raise ValueError(msg)
-
-        df.index.name = "breakpoint"
-        df.columns.names = ["name", "attribute"]
 
         if overwrite:
             # Drop existing entries for the new components

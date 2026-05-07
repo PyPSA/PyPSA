@@ -952,7 +952,9 @@ def _iter_balance_args(
 
     for port in c._output_ports:
         suffix = c._port_suffix(port)
-        coeff = c.da[f"{c._coefficient_attr}{suffix}"].sel(snapshot=sns)
+        coeff = (
+            c.da[f"{c._coefficient_attr}{suffix}"].where(c.da.active).sel(snapshot=sns)
+        )
         delays, cyclics = delay_config[suffix]
 
         for (d, cyc), group in c.static.assign(_delay=delays, _cyclic=cyclics).groupby(

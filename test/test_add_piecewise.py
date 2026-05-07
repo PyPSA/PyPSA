@@ -6,9 +6,6 @@
 
 Coverage
 --------
-* Each component type for which ``piecewise_x`` is defined in
-  ``ComponentType.piecewise_attrs`` (Generator, Line, Link, Process, StorageUnit,
-  Store, Transformer), parametrised over both the component and the attribute.
 * Components are split into those that define a single ``bus`` and those
   that define ``bus0`` / ``bus1``.
 * Multi-port attributes for Link (``efficiency2``) and Process (``rate2``).
@@ -24,7 +21,7 @@ import pandas as pd
 import pytest
 
 import pypsa
-from pypsa.components.types import get as _get_ctype
+from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
 
 # ---------------------------------------------------------------------------
@@ -54,14 +51,16 @@ def _build_params(base_kwargs_by_comp: dict[str, dict]) -> list:
     """Build ``(comp, base_kwargs, attr, x_attr)`` pytest.param entries.
 
     Attributes and their x-axis coordinate are read from
-    ``ComponentType.piecewise_attrs``.
+    PIECEWISE_ATTRS.
     """
     params = []
     for comp, base_kw in base_kwargs_by_comp.items():
-        for attr, x_attr in _get_ctype(comp).piecewise_attrs.items():
-            params.append(
-                pytest.param(comp, base_kw, attr, x_attr, id=f"{comp}-{attr}")
-            )
+        params.extend(
+            [
+                pytest.param(comp, base_kw, attr.y, attr.x, id=f"{comp}-{attr.y}")
+                for _, attr in PIECEWISE_ATTRS.query("component == @comp").iterrows()
+            ]
+        )
     return params
 
 
@@ -86,9 +85,9 @@ def _build_extendable_params(base_kwargs_by_comp: dict[str, dict]) -> tuple[list
     for comp, base_kw in base_kwargs_by_comp.items():
         nom = nominal_attrs[comp]
         kw = {**base_kw, f"{nom}_extendable": True}
-        for attr, x_attr in _get_ctype(comp).piecewise_attrs.items():
-            p = pytest.param(comp, kw, attr, id=f"{comp}-{attr}")
-            if x_attr != nom:
+        for _, attr in PIECEWISE_ATTRS.query("component == @comp").iterrows():
+            p = pytest.param(comp, kw, attr.y, id=f"{comp}-{attr.y}")
+            if attr.x != nom:
                 pu_raises.append(p)
             else:
                 nom_allowed.append(p)
@@ -148,7 +147,7 @@ def base_network() -> pypsa.Network:
 
 @pytest.mark.parametrize(("comp", "base_kwargs", "attr", "x_attr"), ALL_PARAMS)
 class TestPiecewise:
-    """Piecewise attrs from ComponentType.piecewise_attrs; parametrised over all components."""
+    """Piecewise attrs from PIECEWISE_ATTRS; parametrised over all components."""
 
     def test_dict_input(self, base_network, comp, base_kwargs, attr, x_attr):
         n = base_network

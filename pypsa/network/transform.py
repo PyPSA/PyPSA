@@ -24,6 +24,7 @@ from pypsa._options import options
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
 from pypsa.components.types import all_standard_attrs_set
+from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.type_utils import is_1d_list_like
@@ -222,7 +223,6 @@ class NetworkTransformMixin(_NetworkABC):
 
         # Check custom attributes
         standard_attrs = set(c.defaults.index)
-        piecewise_attrs = c.ctype.piecewise_attrs
         custom_attrs = set(kwargs.keys()) - standard_attrs
         if custom_attrs:
             # Raise warning if user adds a custom attribute which is a standard attribute
@@ -256,28 +256,27 @@ class NetworkTransformMixin(_NetworkABC):
                 return s
             return s + suffix
 
-        if isinstance(c, _Multiport):
-            # Enable default lookup for attributes with port suffixes, e.g. efficiency1, rate2.
-            coeff_attr_map = {
-                f"{c._coefficient_attr}{attr.removeprefix('bus')}": f"{c._coefficient_attr}{c._port_suffix('1')}"
-                for attr in custom_attrs
-                if attr.startswith("bus")
-            }
-        else:
-            coeff_attr_map = {}
-
         for k, v in kwargs.items():
-            # If index/ columnes are passed (pd.DataFrame or pd.Series)
+            # If index/ columns are passed (pd.DataFrame or pd.Series)
             # - cast names index to string and add suffix
             # - check if passed index/ columns align
             msg = "{} has an index which does not align with the passed {}."
+
+            # Enable default lookup for attributes with port suffixes, e.g. efficiency1, rate2.
+            search_attr = c._get_base_coeff(k) if isinstance(c, _Multiport) else k
 
             # Intercept piecewise breakpoint data: a DataFrame whose columns are the curve
             # attributes (e.g. ["p_pu", "efficiency"]), not component names.
             # These are identified by the attribute name being in piecewise_attrs and
             # the value being a DataFrame whose columns include the x-axis attribute.
-            if x_attr := piecewise_attrs.get(coeff_attr_map.get(k, k)):
+            if not (
+                pw_attr := PIECEWISE_ATTRS.query(
+                    "component == @name and y == @y",
+                    local_dict={"y": search_attr, "name": c.name},
+                ).squeeze()
+            ).empty:
                 # Intercept piecewise shorthand: dict {x_value: y_value}
+                x_attr = pw_attr.x
                 if isinstance(v, dict):
                     v = pd.DataFrame({x_attr: list(v.keys()), k: list(v.values())})
                 if isinstance(v, pd.DataFrame):
@@ -403,36 +402,26 @@ class NetworkTransformMixin(_NetworkABC):
                 )
                 for k, v in series.items()
             }
+            piecewise = {
+                k: pd.concat(
+                    dict.fromkeys(self.scenarios, v), names=["scenario"], axis=1
+                )
+                for k, v in piecewise.items()
+            }
 
-        # Validate piecewise before modifying any state: reject piecewise per-unit
-        # attributes (e.g. marginal_cost with x_attr=p_pu) on extendable components.
+        # Load piecewise breakpoint data
         nom_attr = nominal_attrs.get(class_name)
-        for attr, piecewise_df in piecewise.items():
-            x_attr = piecewise_attrs.get(attr)
-            if (
-                nom_attr
-                and x_attr == nom_attr.replace("_nom", "_pu")
-                and (ext := static_df.get(f"{nom_attr}_extendable")) is not None
-            ):
-                pw_names = piecewise_df.columns.unique("name")
-                bad = pw_names[ext.loc[pw_names]]
-                if not bad.empty:
-                    msg = (
-                        f"Piecewise '{attr}' breakpoints are not supported for extendable "
-                        f"components (fixed {nom_attr} required). Extendable components: "
-                        f"{bad.tolist()}."
-                    )
-                    raise ValueError(msg)
+        is_extendable = static_df.get(f"{nom_attr}_extendable")
+        for k, v in piecewise.items():
+            self._import_piecewise_from_df(
+                v, c.name, k, is_extendable=is_extendable, overwrite=overwrite
+            )
 
         self._import_components_from_df(static_df, c.name, overwrite=overwrite)
 
         # Load time-varying attributes as components
         for k, v in series.items():
             self._import_series_from_df(v, c.name, k, overwrite=overwrite)
-
-        # Load piecewise breakpoint data
-        for k, v in piecewise.items():
-            self._import_piecewise_from_df(v, c.name, k, overwrite=overwrite)
 
         if return_names:
             return names

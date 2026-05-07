@@ -1,4 +1,4 @@
-attribute,type,unit,default,description,status,piecewise_x
+attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 f_nom,float,Hz,50.,Nominal frequency,Input (required)
 s_nom,float,MVA,0.,Rated apparent power,Input (required)
