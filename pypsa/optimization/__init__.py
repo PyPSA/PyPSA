@@ -13,4 +13,5 @@ __all__ = [
     "optimize",
     "variables",
     "OptimizationAccessor",
+    "SMSppAccessor",
 ]

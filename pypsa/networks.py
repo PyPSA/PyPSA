@@ -66,6 +66,7 @@ if TYPE_CHECKING:
 
     from pypsa.components.legacy import Component
 
+from pypsa.optimization.smspp import SMSppAccessor
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +186,10 @@ class Network(
         self.plot: PlotAccessor = PlotAccessor(self)
         """
         Network [plotting functionality][pypsa.plot.PlotAccessor] accessor.
+        """
+        self.smspp: SMSppAccessor = SMSppAccessor(self)
+        """
+        Network [optimization functionality][pypsa.optimization.SMSppAccessor]
         """
 
         NetworkComponentsMixin.__init__(self)
@@ -533,6 +538,7 @@ class Network(
             PlotAccessor,
             AbstractStatisticsAccessor,
             linopy.Model,
+            SMSppAccessor,
         ]
         not_equal = False
         if isinstance(other, self.__class__):
