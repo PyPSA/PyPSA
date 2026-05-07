@@ -190,7 +190,7 @@ def _get_breakpoints(
     ).squeeze()
 
     # pw_attr stores the marginal value (slope) at each breakpoint.
-    piecewise_df = _normalize_segments(piecewise_df, piecewise_attrs)
+    piecewise_df = _normalize_breakpoints(piecewise_df, piecewise_attrs)
 
     x_da = _to_da(piecewise_df, piecewise_attrs.x)
     y_da = _to_da(piecewise_df, pw_attr)
@@ -234,43 +234,41 @@ def _get_breakpoints(
     return x_breakpoints, y_breakpoints
 
 
-def _normalize_segments(
+def _normalize_breakpoints(
     piecewise_df: pd.DataFrame, piecewise_attrs: pd.Series[str]
 ) -> pd.DataFrame:
     """Sort segment rows by x-coordinate and align ragged curves with trailing NaNs."""
-    curves = []
-    for name in piecewise_df.columns.unique("name"):
-        curve = piecewise_df[name].reindex(
-            columns=[piecewise_attrs.x, piecewise_attrs.y]
-        )
-        row_has_data = curve.notna().any(axis=1)
-        has_later_data = row_has_data.iloc[::-1].cummax().iloc[::-1]
-        non_trailing_missing = ~row_has_data & has_later_data
-        if non_trailing_missing.any():
-            bad = non_trailing_missing[non_trailing_missing].index.tolist()
-            msg = (
-                f"Piecewise '{piecewise_attrs.y}' segments for component '{name}' contain "
-                f"non-trailing missing breakpoint rows: {bad}."
-            )
-            raise ValueError(msg)
-        incomplete = row_has_data & curve.isna().any(axis=1)
-        if incomplete.any():
-            bad = incomplete[incomplete].index.tolist()
-            msg = (
-                f"Piecewise '{piecewise_attrs.y}' segments for component '{name}' have "
-                f"incomplete breakpoint data at rows: {bad}."
-            )
-            raise ValueError(msg)
-        curve = curve.loc[row_has_data].sort_values(piecewise_attrs.x, kind="mergesort")
-        curve = curve.reset_index(drop=True)
-        curve.columns = pd.MultiIndex.from_product(
-            [[name], [piecewise_attrs.x, piecewise_attrs.y]],
-            names=["name", "attribute"],
-        )
-        curves.append(curve)
+    x_attr, y_attr = piecewise_attrs.x, piecewise_attrs.y
 
-    normalized = pd.concat(curves, axis=1)
-    normalized.index.name = "segment"
+    def _validate(curve: pd.DataFrame, name: str) -> pd.Series:
+        filled = curve.notna().any(axis=1)
+        has_later = filled.iloc[::-1].cummax().iloc[::-1]
+        if (gap := ~filled & has_later).any():
+            msg = (
+                f"Piecewise '{y_attr}' segments for component '{name}' contain "
+                f"non-trailing missing breakpoint rows: {gap[gap].index.tolist()}."
+            )
+            raise ValueError(msg)
+        if (partial := filled & curve.isna().any(axis=1)).any():
+            msg = (
+                f"Piecewise '{y_attr}' segments for component '{name}' have "
+                f"incomplete breakpoint data at rows: {partial[partial].index.tolist()}."
+            )
+            raise ValueError(msg)
+        return filled
+
+    def _per_curve(name: str) -> pd.DataFrame:
+        curve = piecewise_df[name].reindex(columns=[x_attr, y_attr])
+        filled = _validate(curve, name)
+        return (
+            curve.loc[filled]
+            .sort_values(x_attr, kind="mergesort")
+            .reset_index(drop=True)
+        )
+
+    normalized_dict = {n: _per_curve(n) for n in piecewise_df.columns.unique("name")}
+    normalized = pd.concat(normalized_dict, axis=1, names=["name", "attribute"])
+    normalized.index.name = "breakpoint"
     return normalized
 
 
@@ -288,6 +286,6 @@ def _create_y_var(
 def _to_da(piecewise_df: pd.DataFrame, attr: str) -> xr.DataArray:
     """Convert input to DataArray with given coords and dims."""
     da = xr.DataArray(piecewise_df.xs(attr, level="attribute", axis=1)).rename(
-        segment=BREAKPOINT_DIM
+        breakpoint=BREAKPOINT_DIM
     )
     return da
