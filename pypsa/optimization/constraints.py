@@ -1019,7 +1019,7 @@ def define_nodal_balance_constraints(
         Subset of buses for which to define constraints; if None, all buses are used
     suffix : str, default ""
         Optional suffix to append to constraint names and dimensions
-    piecewise_options : dict | None, default None
+    piecewise_options : list[PiecewiseOptions]
         Options to override default piecewise constraint settings.
 
     Notes

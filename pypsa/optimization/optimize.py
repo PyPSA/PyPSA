@@ -286,7 +286,7 @@ def define_objective(
                     pw_attr=cost_type,
                     aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
                     active_names=c.active_assets,
-                    operator="<=",
+                    operator=">=",
                     marginal_attr=True,
                     extra_options=extra_options,
                 )
@@ -381,13 +381,12 @@ def define_objective(
                 pw_attr=y_attr,
                 aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
                 active_names=ext_i,
-                operator="<=",
+                operator=">=",
                 marginal_attr=True,
                 extra_options=extra_options,
             )
             if pw_cc_var is not None:
                 ext_i = ext_i.difference(pw_cc_var.indexes["name"])
-                periodic_cost = periodic_cost.sel(name=ext_i)
                 capex_terms.append((pw_cc_var * cost_weight).sum(dim=sum_dim))
 
         periodic_cost = c.periodized_cost.sel(name=ext_i)
@@ -596,10 +595,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
-        piecewise_options : PiecewiseOptions | dict, optional
+        piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
-            Dict is of the form ``{attribute: {option_name: option_value, ...}}`` or
-            ``{attribute: {component_i: {option_name: option_value, ...}, ...}}``.
+            Each operator is interpreted as ``y operator f(x)``.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -724,9 +722,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
-        piecewise_options : list[PiecewiseOptions], optional
+        piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
-            List is of the form ``[PiecewiseOptions(...), ...]``.
+            Each operator is interpreted as ``y operator f(x)``.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 

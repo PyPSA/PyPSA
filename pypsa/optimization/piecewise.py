@@ -7,32 +7,35 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import xarray as xr
-from linopy import Model, Variable, breakpoints, piecewise
-from linopy.constants import BREAKPOINT_DIM
+from linopy import Model, Slopes, Variable, breakpoints
+from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, SIGNS, EvolvingAPIWarning
 
 from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
+
+warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 logger = logging.getLogger(__name__)
 
-OPS_T = Literal["<=", ">=", "=="]
-OPS: dict[OPS_T, str] = {"<=": "__le__", ">=": "__ge__", "==": "__eq__"}
-
 
 @dataclass(eq=True, frozen=True)
 class PiecewiseOptions:
-    """Options for piecewise constraint formulation."""
+    """Options for piecewise constraint formulation.
+
+    The operator is interpreted as ``y operator f(x)``.
+    """
 
     component: str
     attribute: str
-    operator: OPS_T
+    operator: SIGNS
     name: str | None = None
     method: str = "auto"
     marginal_attr: bool = False
@@ -45,12 +48,12 @@ def define_piecewise(
     pw_attr: str,
     aux_var_name: str,
     active_names: pd.Index,
-    operator: OPS_T,
+    operator: SIGNS,
     marginal_attr: bool,
     extra_options: Iterable[PiecewiseOptions],
     invert_attr: bool = False,
     y_var: Any | None = None,
-    method: str = "auto",
+    method: PWL_METHOD = "auto",
 ) -> Variable | None:
     """Add variable(s) and constraint(s) necessary to define a constraint along a piecewise linear curve.
 
@@ -72,7 +75,7 @@ def define_piecewise(
     active_names : pd.Index
         Active component names to consider (e.g. ``c.active_assets`` or ``c.extendables``).
     operator : {"<=", ">=", "=="}
-        The operator to use in the piecewise constraint, of the form ``<x-axis var> <operator> <y-axis var>``.
+        The operator for the piecewise constraint, interpreted as ``y <operator> f(x)``.
     marginal_attr : bool
         Whether the y-axis breakpoints represent marginal values.
         If True, the integral of the piecewise curve will be used to define y breakpoints.
@@ -90,7 +93,7 @@ def define_piecewise(
         If True, y_attr -> 1 / y_attr.
         Default is False.
     method : str, optional
-        The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_constraints method.
+        The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_formulation method.
         Default is "auto" (also the linopy default).
 
     Returns
@@ -100,7 +103,7 @@ def define_piecewise(
 
     """
     pw_names = get_piecewise_names(c, pw_attr, active_names)
-    if pw_names is None:
+    if pw_names.empty:
         logger.debug(
             "No piecewise breakpoints defined for '%s' on component '%s'. Skipping piecewise constraint.",
             pw_attr,
@@ -112,48 +115,40 @@ def define_piecewise(
     )
 
     if y_var is None:
-        y_var_sel = _create_y_var(m, x_var, pw_names, aux_var_name)
-    else:
-        y_var_sel = y_var.sel(name=pw_names)
-    x_var_sel = x_var.sel(name=pw_names)
+        y_var = _create_y_var(m, x_var, pw_names, aux_var_name)
+    y_var_sel = y_var.sel(name=pw_names)
 
-    for option in extra_options:
-        if isinstance(option.name, str):
-            valid_names = pd.Index([option.name], name="name")
-            aux_var_name_option = f"{aux_var_name}_{option.name}"
+    for option in [*extra_options, None]:
+        if option is None:
+            names, aux, opt_method, opt_op = (
+                pw_names,
+                aux_var_name,
+                method,
+                operator,
+            )
+        elif option.name:
+            names = pd.Index([option.name], name="name")
+            aux = f"{aux_var_name}_{option.name}"
+            opt_method, opt_op = option.method, option.operator
         else:
-            valid_names = pw_names
-            aux_var_name_option = aux_var_name
-        _add_piecewise_constraint(
-            m,
-            x_var_sel,
-            y_var_sel,
-            x_breakpoints,
-            y_breakpoints,
-            aux_var_name_option,
-            option.method,
-            option.operator,
-            valid_names,
-        )
-        pw_names = pw_names.difference(valid_names)
-    if not pw_names.empty:
-        _add_piecewise_constraint(
-            m,
-            x_var_sel,
-            y_var_sel,
-            x_breakpoints,
-            y_breakpoints,
-            aux_var_name,
-            method,
-            operator,
-            pw_names,
-        )
+            names, aux = pw_names, aux_var_name
+            opt_method, opt_op = option.method, option.operator
+        if names.empty:
+            continue
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
+            m.add_piecewise_formulation(
+                (y_var.sel(name=names), y_breakpoints.sel(name=names), opt_op),
+                (x_var.sel(name=names), x_breakpoints.sel(name=names)),
+                method=opt_method,
+                name=aux,
+            )
+        pw_names = pw_names.difference(names)
     return y_var_sel
 
 
-def get_piecewise_names(
-    c: Any, pw_attr: str, active_names: pd.Index
-) -> pd.Index | None:
+def get_piecewise_names(c: Any, pw_attr: str, active_names: pd.Index) -> pd.Index:
     """Get component names with a given piecewise attribute.
 
     Parameters
@@ -167,40 +162,19 @@ def get_piecewise_names(
 
     Returns
     -------
-    pd.Index | None:
-        If there are piecewise curves defined for the given attribute, returns a pd.Index of component names that have piecewise curves and are in ``active_names``.
-        Otherwise, returns None.
+    pd.Index:
+        If there are piecewise curves defined for the given attribute, returns a pd.Index of component
+        names that have piecewise curves and are in ``active_names``.
 
     """
     piecewise_df = c.piecewise.get(pw_attr)
     if piecewise_df is None or piecewise_df.empty:
-        return None
+        return pd.Index([], name="name")
 
-    pw_names = piecewise_df.columns.unique("name").intersection(active_names)
-    return pw_names
-
-
-def _add_piecewise_constraint(
-    m: Model,
-    x_var: Variable,
-    y_var: Variable,
-    x_breakpoints: xr.DataArray,
-    y_breakpoints: xr.DataArray,
-    aux_var_name: str,
-    method: str,
-    operator: OPS_T,
-    valid_names: pd.Index,
-) -> None:
-    """Create a piecewise constraint for a given set of component names."""
-    x_var_sel = x_var.sel(name=valid_names)
-    y_var_sel = y_var.sel(name=valid_names)
-    x_breakpoints_sel = x_breakpoints.sel(name=valid_names)
-    y_breakpoints_sel = y_breakpoints.sel(name=valid_names)
-    piecewise_func = piecewise(x_var_sel, x_breakpoints_sel, y_breakpoints_sel)
-    m.add_piecewise_constraints(
-        getattr(piecewise_func, OPS[operator])(y_var_sel),
-        name=aux_var_name,
-        method=method,
+    return (
+        piecewise_df.dropna(how="all", axis=1)
+        .columns.unique("name")
+        .intersection(active_names)
     )
 
 
@@ -218,8 +192,11 @@ def _get_breakpoints(
     ).squeeze()
 
     # pw_attr stores the marginal value (slope) at each breakpoint.
+    piecewise_df = _normalize_breakpoints(piecewise_df, piecewise_attrs)
+
     x_da = _to_da(piecewise_df, piecewise_attrs.x)
     y_da = _to_da(piecewise_df, pw_attr)
+    valid_breakpoints = x_da.notnull() & y_da.notnull()
     if invert_attr:
         y_da = 1 / y_da
 
@@ -247,16 +224,52 @@ def _get_breakpoints(
             )
             raise ValueError(msg)
         x_da = x_da * nom_attr_da
-    if marginal_attr:
-        y_da = ((y_da * x_da) - (y_da * x_da.shift({BREAKPOINT_DIM: 1}))).cumsum(
-            BREAKPOINT_DIM
-        )
-    else:
-        y_da *= x_da
-
+    x_da = x_da.where(valid_breakpoints)
     x_breakpoints = breakpoints(x_da)
-    y_breakpoints = breakpoints(y_da)
+    if marginal_attr:
+        slopes = y_da.shift({BREAKPOINT_DIM: -1})
+        y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
+    else:
+        y_breakpoints = breakpoints((y_da * x_da).where(valid_breakpoints))
     return x_breakpoints, y_breakpoints
+
+
+def _normalize_breakpoints(
+    piecewise_df: pd.DataFrame, piecewise_attrs: pd.Series[str]
+) -> pd.DataFrame:
+    """Sort segment rows by x-coordinate and align ragged curves with trailing NaNs."""
+    x_attr, y_attr = piecewise_attrs.x, piecewise_attrs.y
+
+    def _validate(curve: pd.DataFrame, name: str) -> pd.Series:
+        filled = curve.notna().any(axis=1)
+        has_later = filled.iloc[::-1].cummax().iloc[::-1]
+        if (gap := ~filled & has_later).any():
+            msg = (
+                f"Piecewise '{y_attr}' segments for component '{name}' contain "
+                f"non-trailing missing breakpoint rows: {gap[gap].index.tolist()}."
+            )
+            raise ValueError(msg)
+        if (partial := filled & curve.isna().any(axis=1)).any():
+            msg = (
+                f"Piecewise '{y_attr}' segments for component '{name}' have "
+                f"incomplete breakpoint data at rows: {partial[partial].index.tolist()}."
+            )
+            raise ValueError(msg)
+        return filled
+
+    def _per_curve(name: str) -> pd.DataFrame:
+        curve = piecewise_df[name].reindex(columns=[x_attr, y_attr])
+        filled = _validate(curve, name)
+        return (
+            curve.loc[filled]
+            .sort_values(x_attr, kind="mergesort")
+            .reset_index(drop=True)
+        )
+
+    normalized_dict = {n: _per_curve(n) for n in piecewise_df.columns.unique("name")}
+    normalized = pd.concat(normalized_dict, axis=1, names=["name", "attribute"])
+    normalized.index.name = "breakpoint"
+    return normalized
 
 
 def _create_y_var(
