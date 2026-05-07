@@ -154,6 +154,36 @@ For simple changes, you can also edit the documentation directly on GitHub:
 2. Make your changes in the file.
 3. Commit your changes and create a pull request.
 
+## AI-Assisted Contributions
+
+We welcome contributions that are AI-assisted, but with clear expectations:
+
+**AI tools are helpful when used responsibly:**
+- AI can help with routine refactoring, documentation improvements, and boilerplate code
+- AI-assisted contributions must have **human validation and responsibility**
+- The human submitter is responsible for all changes: correctness, testing, and alignment with project goals
+
+**Guidelines for AI-assisted work:**
+
+1. **Disclose AI use**: Mention in your PR description that AI tools were used
+2. **Focus on value**: Avoid verbose, unfocused PRs that create review burden without clear benefit
+   - Combine related changes into coherent, minimal PRs
+   - One typo fix or isolated style cleanup does not warrant a PR—batch with related improvements
+3. **Validate thoroughly**: Test changes end-to-end before submitting
+   - Run the test suite locally: `pytest`
+   - Verify your changes work as intended
+   - Check that no existing tests break
+4. **Coordinate first**: For larger changes, discuss your idea in an issue before investing time
+5. **Minimize review burden**: A well-validated, focused PR is more likely to be merged quickly
+
+**What we discourage:**
+- Fully AI-written PRs with minimal human review
+- Verbose, multi-part contributions that solve tangential issues
+- "Drive-by" changes that don't meaningfully improve the project
+- Large refactoring that isn't coordinated with maintainers
+
+**Remember**: The PyPSA project has limited maintainer capacity. Help us by submitting focused, well-tested, minimal PRs that respect everyone's time.
+
 ## Examples
 
 Nice examples are always welcome.
