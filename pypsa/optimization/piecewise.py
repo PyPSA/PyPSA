@@ -101,7 +101,7 @@ def define_piecewise(
 
     """
     pw_names = get_piecewise_names(c, pw_attr, active_names)
-    if pw_names is None:
+    if pw_names.empty:
         logger.debug(
             "No piecewise breakpoints defined for '%s' on component '%s'. Skipping piecewise constraint.",
             pw_attr,
@@ -133,9 +133,6 @@ def define_piecewise(
             opt_method, opt_op = option.method, option.operator
         if names.empty:
             continue
-        if opt_method == "lp" and opt_op == "==":
-            msg = "method 'lp' requires PyPSA operator '<=' or '>='."
-            raise ValueError(msg)
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
@@ -149,9 +146,7 @@ def define_piecewise(
     return y_var_sel
 
 
-def get_piecewise_names(
-    c: Any, pw_attr: str, active_names: pd.Index
-) -> pd.Index | None:
+def get_piecewise_names(c: Any, pw_attr: str, active_names: pd.Index) -> pd.Index:
     """Get component names with a given piecewise attribute.
 
     Parameters
@@ -165,20 +160,20 @@ def get_piecewise_names(
 
     Returns
     -------
-    pd.Index | None:
-        If there are piecewise curves defined for the given attribute, returns a pd.Index of component names that have piecewise curves and are in ``active_names``.
-        Otherwise, returns None.
+    pd.Index:
+        If there are piecewise curves defined for the given attribute, returns a pd.Index of component
+        names that have piecewise curves and are in ``active_names``.
 
     """
     piecewise_df = c.piecewise.get(pw_attr)
     if piecewise_df is None or piecewise_df.empty:
-        return None
+        return pd.Index([], name="name")
 
-    pw_names = piecewise_df.columns.unique("name").intersection(active_names)
-    valid_names = [name for name in pw_names if piecewise_df[name].notna().any().any()]
-    if not valid_names:
-        return None
-    return pd.Index(valid_names, name=pw_names.name)
+    return (
+        piecewise_df.dropna(how="all", axis=1)
+        .columns.unique("name")
+        .intersection(active_names)
+    )
 
 
 def _get_breakpoints(
@@ -195,9 +190,7 @@ def _get_breakpoints(
     ).squeeze()
 
     # pw_attr stores the marginal value (slope) at each breakpoint.
-    piecewise_df = _normalize_segments(
-        piecewise_df, piecewise_attrs.x, piecewise_attrs.y
-    )
+    piecewise_df = _normalize_segments(piecewise_df, piecewise_attrs)
 
     x_da = _to_da(piecewise_df, piecewise_attrs.x)
     y_da = _to_da(piecewise_df, pw_attr)
@@ -241,18 +234,22 @@ def _get_breakpoints(
     return x_breakpoints, y_breakpoints
 
 
-def _normalize_segments(seg_df: pd.DataFrame, x_attr: str, y_attr: str) -> pd.DataFrame:
+def _normalize_segments(
+    piecewise_df: pd.DataFrame, piecewise_attrs: pd.Series[str]
+) -> pd.DataFrame:
     """Sort segment rows by x-coordinate and align ragged curves with trailing NaNs."""
     curves = []
-    for name in seg_df.columns.unique("name"):
-        curve = seg_df[name].reindex(columns=[x_attr, y_attr])
+    for name in piecewise_df.columns.unique("name"):
+        curve = piecewise_df[name].reindex(
+            columns=[piecewise_attrs.x, piecewise_attrs.y]
+        )
         row_has_data = curve.notna().any(axis=1)
         has_later_data = row_has_data.iloc[::-1].cummax().iloc[::-1]
         non_trailing_missing = ~row_has_data & has_later_data
         if non_trailing_missing.any():
             bad = non_trailing_missing[non_trailing_missing].index.tolist()
             msg = (
-                f"Piecewise '{y_attr}' segments for component '{name}' contain "
+                f"Piecewise '{piecewise_attrs.y}' segments for component '{name}' contain "
                 f"non-trailing missing breakpoint rows: {bad}."
             )
             raise ValueError(msg)
@@ -260,14 +257,15 @@ def _normalize_segments(seg_df: pd.DataFrame, x_attr: str, y_attr: str) -> pd.Da
         if incomplete.any():
             bad = incomplete[incomplete].index.tolist()
             msg = (
-                f"Piecewise '{y_attr}' segments for component '{name}' have "
+                f"Piecewise '{piecewise_attrs.y}' segments for component '{name}' have "
                 f"incomplete breakpoint data at rows: {bad}."
             )
             raise ValueError(msg)
-        curve = curve.loc[row_has_data].sort_values(x_attr, kind="mergesort")
+        curve = curve.loc[row_has_data].sort_values(piecewise_attrs.x, kind="mergesort")
         curve = curve.reset_index(drop=True)
         curve.columns = pd.MultiIndex.from_product(
-            [[name], [x_attr, y_attr]], names=["name", "attribute"]
+            [[name], [piecewise_attrs.x, piecewise_attrs.y]],
+            names=["name", "attribute"],
         )
         curves.append(curve)
 

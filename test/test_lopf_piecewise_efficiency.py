@@ -49,7 +49,7 @@ def test_piecewise_efficiency_uses_equality_formulation(
 def test_piecewise_efficiency_rejects_lp_equality(
     piecewise_efficiency_network: pypsa.Network,
 ) -> None:
-    with pytest.raises(ValueError, match="method 'lp' requires PyPSA operator"):
+    with pytest.raises(ValueError, match="method='lp' requires exactly one tuple"):
         piecewise_efficiency_network.optimize.create_model(
             include_objective_constant=False,
             piecewise_options=[
