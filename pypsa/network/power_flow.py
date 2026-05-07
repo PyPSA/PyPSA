@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 import numpy as np
 import pandas as pd
-from numpy import ones, r_
+from numpy import isinf, ones, r_
 from numpy.linalg import norm
 from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, issparse
 from scipy.sparse import hstack as shstack
@@ -758,9 +758,17 @@ class NetworkPowerFlowMixin(_NetworkABC):
         self.c.lines.static["x_pu"] = self.c.lines.static.x / (
             self.c.lines.static.v_nom**2
         )
+        if isinf(self.c.lines.static["x_pu"]).any():
+            logger.warning(
+                "Some lines have infinite per unit reactance `x_pu`. This may cause issues with power flow convergence. Consider removing these lines."
+            )
         self.c.lines.static["r_pu"] = self.c.lines.static.r / (
             self.c.lines.static.v_nom**2
         )
+        if isinf(self.c.lines.static["r_pu"]).any():
+            logger.warning(
+                "Some lines have infinite per unit resistance `r_pu`. This may cause issues with power flow convergence. Consider removing these lines."
+            )
         self.c.lines.static["b_pu"] = (
             self.c.lines.static.b * self.c.lines.static.v_nom**2
         )
@@ -774,9 +782,17 @@ class NetworkPowerFlowMixin(_NetworkABC):
         self.c.transformers.static["x_pu"] = (
             self.c.transformers.static.x / self.c.transformers.static.s_nom
         )
+        if isinf(self.c.transformers.static["x_pu"]).any():
+            logger.warning(
+                "Some transformers have infinite per unit reactance `x_pu`. This may cause issues with power flow convergence. Consider removing these transformers."
+            )
         self.c.transformers.static["r_pu"] = (
             self.c.transformers.static.r / self.c.transformers.static.s_nom
         )
+        if isinf(self.c.transformers.static["r_pu"]).any():
+            logger.warning(
+                "Some transformers have infinite per unit resistance `r_pu`. This may cause issues with power flow convergence. Consider removing these transformers."
+            )
         self.c.transformers.static["b_pu"] = (
             self.c.transformers.static.b * self.c.transformers.static.s_nom
         )
