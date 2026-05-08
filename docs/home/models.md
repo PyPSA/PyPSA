@@ -42,6 +42,7 @@ open source and actively maintained. Below is a list of some known models.
 - **[:flag_br: PyPSA-Brazil](https://gitlab.com/dlr-ve/esy/open-brazil-energy-data/open-brazilian-energy-data)**: Brazilian power system model (see [paper](https://doi.org/10.1038/s41597-023-01992-9)), developed by the German Aerospace Center (DLR)
 - **[:flag_ca: PyPSA-BC](https://github.com/DeltaE/PyPSA_BC)**: BC PyPSA work for the PICS Decarbonization project, maintained by Simon Fraser University
 - **[:flag_us: pypsa-illinois](https://github.com/ucsusa/pypsa-illinois)**: Using PyPSA to model the Illinois electricity system for storage requirement analysis maintained by Union of Concerned Scientists (UCS).
+- **[:flag_ar: pypsa-ar](https://github.com/FTDT-PyPSA/PyPSA-AR)**: Reproducible model of the Argentine high-voltage power grid using PyPSA maintained by Fundación Torcuato Di Tella (FTDT).
 
 ### Africa
 - **[:flag_za: PyPSA-RSA](https://github.com/MeridianEconomics/pypsa-rsa)**: South-African electricity model, maintained by [Meridian Economics](https://meridianeconomics.co.za/)
