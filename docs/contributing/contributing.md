@@ -158,8 +158,9 @@ For simple changes, you can also edit the documentation directly on GitHub:
 
 We do not impose general restrictions on the use of AI for contributions.
 But we require that all contributions, whether AI-assisted or not, adhere to the same standards of quality, relevance, and maintainability.
-This boild down to:
-1. Write the contribution yourself and avoid sloppy AI walls of text.
+This boils down to:
+
+1. PR and issue descriptions should read like you wrote them. Keep them concise and human. Any potentially verbose AI-generated content should be marked, e.g. in a collapsed `<details>` block. Please don't mix both.
 2. Take responsibility for the content and quality of your contribution, even if you used AI.
 3. Before you submit large contributions, coordinate with the maintainers to ensure they align with the project's goals and roadmap.
 4. Minimize the review burden on us by keeping your contributions focused, don't solve multiple tangential issues in one PR.
