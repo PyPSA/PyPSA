@@ -166,3 +166,5 @@ The following universities, research institutes, companies, governmental and non
 * **[:flag_gb: ClimateXChange](https://www.climatexchange.org.uk/)** commissioned a report for the Scottish Government on [Electricity system security of supply in Scotland](https://www.climatexchange.org.uk/projects/electricity-system-security-of-supply-in-scotland/) using PyPSA-GB.
 
 - **[:flag_kr: PLANiT Institute](https://planit.institute)** A non-profit research institute based in Seoul developed [PyPSA_KR](https://github.com/PLANiT-Institute/PyPSA_KR), a comprehensive power system analysis toolkit for modeling and optimizing electricity networks in South Korea with multi-node network modeling at different granularities, and [pyPPA](https://github.com/PLANiT-Institute/pyPPA), a Power Purchase Agreement modeling and optimization framework for evaluating renewable energy procurement strategies.
+
+- **[:flag_ar: FTDT (Fundación Torcuato Di Tella)](https://ftdt.cc/)** A non-profit research institute based in Argentina developed [PyPSA-AR](https://github.com/FTDT-PyPSA/PyPSA-AR), a comprehensive power system  model of the Argentine high-voltage power grid.
