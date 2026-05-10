@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pathlib import Path
-
     from pypsa import Network
 
 logger = logging.getLogger(__name__)
@@ -25,19 +24,17 @@ logger = logging.getLogger(__name__)
 
 def _require_smspp_deps() -> None:
     """Ensure optional SMS++ dependencies are available at runtime."""
-    missing: list[str] = []
+    try:
+        import pypsa2smspp  # noqa: F401
+        import pysmspp  # noqa: F401
 
-    if find_spec("pypsa2smspp") is None:
-        missing.append("pypsa2smspp")
+        if not pysmspp.is_smspp_installed():
+            logger.warning("pySMSpp detects that SMS++ is not installed. SMS++ pipeline will not work.")
 
-    if find_spec("pysmspp") is None and find_spec("pySMSpp") is None:
-        missing.append("pySMSpp (import: pysmspp)")
-
-    if missing:
+    except ImportError:
         raise ImportError(
-            "SMS++ backend requires optional dependencies. Missing: "
-            + ", ".join(missing)
-            + ". Install with: pip install 'pypsa[smspp]'"
+            "SMS++ backend requires optional dependencies (pypsa2smspp and pysmspp)."
+            + " Install with: pip install 'pypsa[smspp]'"
         )
 
 
@@ -52,7 +49,6 @@ class SMSppAccessor:
         self,
         config: str | Path | dict[str, Any] | None = None,
         verbose: bool = False,
-        network: Network | None = None,
         **kwargs: Any,
     ) -> Network:
         """Run the SMS++ pipeline via pypsa2smspp and return the resulting Network.
@@ -78,12 +74,8 @@ class SMSppAccessor:
         """
         _require_smspp_deps()
 
-        module = import_module("pypsa2smspp")
-        Transformation = module.Transformation
+        from pypsa2smspp import Transformation
 
-        n_in = self._n if network is None else network
-
-        # Do not coerce to str: Transformation now supports None and possibly dict overrides
         logger.info("Running SMS++ pipeline with config: %s", config)
         tr = Transformation(config)
-        return tr.run(n_in, verbose=verbose)
+        return tr.run(self._n, verbose=verbose)
