@@ -11,12 +11,11 @@ optimization pipeline via `pypsa2smspp.Transformation`.
 from __future__ import annotations
 
 import logging
-from importlib import import_module
-from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pathlib import Path
+
     from pypsa import Network
 
 logger = logging.getLogger(__name__)
@@ -25,17 +24,19 @@ logger = logging.getLogger(__name__)
 def _require_smspp_deps() -> None:
     """Ensure optional SMS++ dependencies are available at runtime."""
     try:
-        import pypsa2smspp  # noqa: F401
-        import pysmspp  # noqa: F401
+        import pypsa2smspp  # noqa: F401, PLC0415
+        import pysmspp  # noqa: PLC0415
 
         if not pysmspp.is_smspp_installed():
-            logger.warning("pySMSpp detects that SMS++ is not installed. SMS++ pipeline will not work.")
+            logger.warning(
+                "pySMSpp detects that SMS++ is not installed. SMS++ pipeline will not work."
+            )
 
-    except ImportError:
+    except ImportError as err:
         raise ImportError(
             "SMS++ backend requires optional dependencies (pypsa2smspp and pysmspp)."
             + " Install with: pip install 'pypsa[smspp]'"
-        )
+        ) from err
 
 
 class SMSppAccessor:
@@ -74,7 +75,7 @@ class SMSppAccessor:
         """
         _require_smspp_deps()
 
-        from pypsa2smspp import Transformation
+        from pypsa2smspp import Transformation  # noqa: PLC0415
 
         logger.info("Running SMS++ pipeline with config: %s", config)
         tr = Transformation(config)
