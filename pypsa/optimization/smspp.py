@@ -75,8 +75,8 @@ class SMSppAccessor:
         """
         _require_smspp_deps()
 
-        from pypsa2smspp import Transformation  # noqa: PLC0415
+        import pypsa2smspp  # noqa: PLC0415
 
         logger.info("Running SMS++ pipeline with config: %s", config)
-        tr = Transformation(config)
+        tr = pypsa2smspp.Transformation(config)
         return tr.run(self._n, verbose=verbose)
