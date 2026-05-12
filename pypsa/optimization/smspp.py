@@ -48,7 +48,7 @@ class SMSppAccessor:
 
     def __call__(
         self,
-        config: str | Path | dict[str, Any] | None = None,
+        solver_options: str | Path | dict[str, Any] | None = None,
         verbose: bool = False,
         **kwargs: Any,
     ) -> Network:
@@ -77,6 +77,5 @@ class SMSppAccessor:
 
         import pypsa2smspp  # noqa: PLC0415
 
-        logger.info("Running SMS++ pipeline with config: %s", config)
-        tr = pypsa2smspp.Transformation(config)
+        tr = pypsa2smspp.Transformation(solver_options)
         return tr.run(self._n, verbose=verbose)

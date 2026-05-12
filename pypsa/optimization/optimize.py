@@ -66,6 +66,7 @@ from pypsa.optimization.variables import (
     define_start_up_variables,
     define_status_variables,
 )
+from pypsa.optimization.smspp import SMSppAccessor
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -442,6 +443,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """Initialize the optimization accessor."""
         self._n = n
         self.expressions = StatisticExpressionsAccessor(self._n)
+        self.smspp = SMSppAccessor(self._n)
 
     def __call__(
         self,
@@ -552,6 +554,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             solver_options = options.params.optimize.solver_options.copy()
         if log_to_console is None:
             log_to_console = options.params.optimize.log_to_console
+        if str(solver_name).lower() == "smspp":
+            return self.smspp(solver_options=solver_options)
 
         include_objective_constant = _resolve_include_objective_constant(
             include_objective_constant
