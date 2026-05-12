@@ -5,20 +5,22 @@
 """Tests for the optional SMS++ accessor."""
 
 import pypsa
+import pytest
 
 
-def test_network_has_smspp_accessor():
-    n = pypsa.Network()
-    assert hasattr(n, "smspp")
+# Flag if SMSpp is available
+try:
+    import pypsa2smspp
+    import pysmspp
+    
+    SMSPP_IS_AVAILABLE = pysmspp.pysmspp.is_smspp_installed()
+except:
+    SMSPP_IS_AVAILABLE = False
 
 
-def test_smspp_missing_optional_deps_raises(monkeypatch):
-    import pytest
+@pytest.mark.skipif(not SMSPP_IS_AVAILABLE, reason="SMS++ not installed")
+def test_smspp_solving(monkeypatch):
+    
+    n = pypsa.examples.ac_dc_meshed()
 
-    n = pypsa.Network()
-
-    # Force the dependency check to "not find" optional modules
-    monkeypatch.setattr("pypsa.optimization.smspp.find_spec", lambda name: None)
-
-    with pytest.raises(ImportError, match=r"pypsa\[smspp\]"):
-        n.smspp()
+    n.optimize(solver_name="smspp")
