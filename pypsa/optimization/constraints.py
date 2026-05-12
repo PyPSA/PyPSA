@@ -1162,7 +1162,7 @@ def define_nodal_balance_constraints(
                 if piecewise_var is not None:
                     p_piecewise += piecewise_var
                     names = names.difference(piecewise_var.coords["name"].values)
-            expr = coeff.sel(name=names) * var + piecewise_var
+            expr = var * coeff.sel(name=names) + p_piecewise
 
             if not cbuses.size:
                 continue

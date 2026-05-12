@@ -8,13 +8,18 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import linopy
 import numpy as np
 import pandas as pd
 import pytest
+import xarray as xr
 
 from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.optimization.piecewise import (
+    _create_y_var,
+    _get_breakpoints,
     _normalize_breakpoints,
+    _to_da,
     get_piecewise_names,
 )
 
@@ -149,3 +154,182 @@ class TestGetPiecewiseNames:
         c = SimpleNamespace(piecewise=piecewise)
         result = get_piecewise_names(c, "marginal_cost", active)
         assert result.name == "name"
+
+
+class TestGetBreakpoints:
+    @pytest.fixture
+    def component(self) -> SimpleNamespace:
+        return SimpleNamespace(
+            piecewise={
+                y: _piecewise_df(
+                    {"gen": [(0.0, 10.0), (0.5, 20.0), (1.0, 40.0)]}, x_attr=x, y_attr=y
+                )
+                for x, y in [("p_pu", "marginal_cost"), ("p_nom", "capital_cost")]
+            },
+            static=pd.DataFrame(
+                index=["gen"], data={"p_nom": [100.0], "p_nom_extendable": [False]}
+            ),
+            name="Generator",
+            extendables=pd.Index([], name="name"),
+        )
+
+    @pytest.fixture
+    def component_extendable(self, component):
+        component.extendables = pd.Index(["gen"], name="name")
+        return component
+
+    @pytest.fixture
+    def pw_names(self) -> pd.Series:
+        return pd.Index(["gen"], name="name")
+
+    @pytest.mark.parametrize("marginal_attr", [True, False])
+    @pytest.mark.parametrize("invert_attr", [True, False])
+    def test_allow_extendables_x(
+        self, component_extendable, pw_names, marginal_attr, invert_attr
+    ) -> None:
+        """Test expected x breakpoints are returned for extendable components when x_attr is nominal."""
+        x_breakpoints, _ = _get_breakpoints(
+            component_extendable, "capital_cost", pw_names, marginal_attr, invert_attr
+        )
+        expected_x = [0, 0.5, 1.0]
+        assert np.allclose(x_breakpoints.to_series().values, expected_x)
+
+    @pytest.mark.parametrize("marginal_attr", [True, False])
+    @pytest.mark.parametrize("invert_attr", [True, False])
+    def test_not_allow_extendables_x(
+        self, component, pw_names, marginal_attr, invert_attr
+    ) -> None:
+        """Test expected x breakpoints are returned for non-extendable components when x_attr is per-unit."""
+        x_breakpoints, _ = _get_breakpoints(
+            component, "marginal_cost", pw_names, marginal_attr, invert_attr
+        )
+        expected_x = [0, 50, 100]
+        assert np.allclose(x_breakpoints.to_series().values, expected_x)
+
+    def test_marginal_attr(self, component, pw_names) -> None:
+        """Test expected y breakpoints are returned when marginal_attr is True."""
+        _, y_breakpoints = _get_breakpoints(
+            component, "marginal_cost", pw_names, marginal_attr=True, invert_attr=False
+        )
+        assert np.allclose(y_breakpoints.sel(name="gen"), [0, 1000, 3000])
+
+    def test_not_marginal_attr(self, component, pw_names) -> None:
+        """Test expected y breakpoints are returned when marginal_attr is False."""
+        _, y_breakpoints = _get_breakpoints(
+            component, "marginal_cost", pw_names, marginal_attr=False, invert_attr=False
+        )
+        assert np.allclose(y_breakpoints.sel(name="gen"), [0, 1000, 4000])
+
+    def test_invert_attr(self, component, pw_names) -> None:
+        """Test expected y breakpoints are returned when invert_attr is True."""
+        _, y_breakpoints = _get_breakpoints(
+            component, "marginal_cost", pw_names, marginal_attr=False, invert_attr=True
+        )
+        assert np.allclose(y_breakpoints.sel(name="gen"), [0, 2.5, 2.5])
+
+    def test_invert_marginal_attr(self, component, pw_names) -> None:
+        """Test expected y breakpoints are returned when invert_attr and marginal_attr are True."""
+        _, y_breakpoints = _get_breakpoints(
+            component, "marginal_cost", pw_names, marginal_attr=True, invert_attr=True
+        )
+        assert np.allclose(y_breakpoints.sel(name="gen"), [0, 2.5, 3.75])
+
+    def test_not_allow_extendables_extendable(
+        self, component_extendable, pw_names
+    ) -> None:
+        """Test that ValueError is raised when x_attr is per-unit for extendable components."""
+        expected = r"Piecewise 'marginal_cost' breakpoints on a per-unit x-axis are not supported for extendable components (fixed p_nom required). Extendable components: ['gen']."
+        with pytest.raises(ValueError) as excinfo:
+            _get_breakpoints(
+                component_extendable,
+                "marginal_cost",
+                pw_names,
+                marginal_attr=False,
+                invert_attr=False,
+            )
+        assert str(excinfo.value) == expected
+
+    @pytest.mark.parametrize("p_nom", [np.nan, np.inf, 0.0])
+    def test_not_allow_extendables_missing_nom(
+        self, component, pw_names, p_nom
+    ) -> None:
+        """Test that ValueError is raised when x_attr is per-unit for components with badly formatted nominal attribute."""
+        expected = r"Piecewise 'marginal_cost' breakpoints on a per-unit x-axis cannot be scaled to absolute values for components with non-positive, non-finite or missing p_nom. Problematic components: ['gen']."
+        component.static["p_nom"] = p_nom
+        with pytest.raises(ValueError) as excinfo:
+            _get_breakpoints(
+                component,
+                "marginal_cost",
+                pw_names,
+                marginal_attr=False,
+                invert_attr=False,
+            )
+        assert str(excinfo.value) == expected
+
+
+class TestCreateYVar:
+    @pytest.fixture(scope="class")
+    def pw_names(self) -> pd.Series:
+        return pd.Index(["gen1"], name="name")
+
+    @pytest.fixture(scope="class")
+    def snapshots(self):
+        return pd.Index([1, 2, 3], name="snapshot")
+
+    @pytest.fixture(scope="class")
+    def linopy_model(self, snapshots):
+        m = linopy.Model()
+        m.add_variables(
+            name="x_static", coords=[pd.Index(["gen1", "gen2"], name="name")]
+        )
+        m.add_variables(
+            name="x_dynamic",
+            coords=[pd.Index(["gen1", "gen2"], name="name"), snapshots],
+        )
+        return m
+
+    @pytest.fixture(scope="class")
+    def y_var_static(self, linopy_model, pw_names) -> linopy.Variable:
+        return _create_y_var(
+            linopy_model, linopy_model["x_static"], pw_names, "foo-static"
+        )
+
+    @pytest.fixture(scope="class")
+    def y_var_dynamic(self, linopy_model, pw_names) -> linopy.Variable:
+        return _create_y_var(
+            linopy_model, linopy_model["x_dynamic"], pw_names, "foo-dynamic"
+        )
+
+    @pytest.mark.parametrize("y_var_name", ["y_var_static", "y_var_dynamic"])
+    def test_y_var_name(self, request, y_var_name):
+        """Test that created y variable has expected name."""
+        y_var = request.getfixturevalue(y_var_name)
+        assert y_var.name == f"foo-{y_var_name.removeprefix('y_var_')}"
+
+    @pytest.mark.parametrize("y_var_name", ["y_var_static", "y_var_dynamic"])
+    def test_y_var_lb(self, request, y_var_name):
+        """Test that created y variable has expected lower bound."""
+        y_var = request.getfixturevalue(y_var_name)
+        assert (y_var.lower == 0).all()
+
+    def test_y_var_dims_static(self, y_var_static, pw_names):
+        """Test that static y variable has expected coords."""
+        assert y_var_static.coords.equals(xr.Coordinates(coords={"name": pw_names}))
+
+    def test_y_var_dims_dynamic(self, y_var_dynamic, pw_names, snapshots):
+        """Test that dynamic y variable has expected coords."""
+        assert y_var_dynamic.coords.equals(
+            xr.Coordinates(coords={"name": pw_names, "snapshot": snapshots})
+        )
+
+
+class TestToDa:
+    @pytest.fixture
+    def da(self) -> pd.DataFrame:
+        df = _piecewise_df({"gen1": [(0.0, 10.0), (0.5, 20.0), (1.0, 40.0)]})
+        da = _to_da(df, "marginal_cost")
+        return da
+
+    def test_to_da(self, da):
+        """Test that DataFrame is converted to DataArray with expected dims."""
+        assert set(da.dims) == {linopy.constants.BREAKPOINT_DIM, "name"}

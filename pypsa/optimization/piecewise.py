@@ -28,23 +28,29 @@ logger = logging.getLogger(__name__)
 
 @dataclass(eq=True, frozen=True)
 class PiecewiseOptions:
-    """Options for piecewise constraint formulation.
-
-    The sign is interpreted as ``y <sign> f(x)``.
-    """
+    """Options for piecewise constraint formulation."""
 
     component: str
+    """PyPSA component name."""
     attribute: str
+    """Component attribute for which piecewise data is defined."""
     sign: Literal[tuple(SIGNS)]
-    name: str | None = None
+    """Sign for the piecewise constraint, interpreted as y <sign> f(x)."""
+    name: str | list[str] | None = None
+    """Optional filter for a component name to apply the piecewise constraint to, e.g. a specific generator."""
     method: str = "auto"
+    """The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_formulation method."""
     marginal_attr: bool = False
+    """Whether the y-axis breakpoints represent marginal values.
+
+    If True, the integral of the piecewise curve will be used to define y breakpoints.
+    If False, the nominal values at each x breakpoint will be used to define y breakpoints."""
 
 
 def define_piecewise(
     m: Model,
     c: Any,
-    x_var: Any,
+    x_var: Variable,
     pw_attr: str,
     aux_var_name: str,
     active_names: pd.Index,
@@ -127,7 +133,10 @@ def define_piecewise(
                 sign,
             )
         elif option.name:
-            names = pd.Index([option.name], name="name")
+            names = pd.Index(
+                [option.name] if isinstance(option.name, str) else option.name,
+                name="name",
+            )
             aux = f"{aux_var_name}_{option.name}"
             opt_method, opt_sign = option.method, option.sign
         else:
@@ -183,7 +192,7 @@ def _get_breakpoints(
     pw_attr: str,
     pw_names: pd.Index,
     marginal_attr: bool,
-    invert_attr: bool = False,
+    invert_attr: bool,
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Convert piecewise data to linopy breakpoints for piecewise constraint."""
     piecewise_df = c.piecewise[pw_attr][pw_names]
@@ -216,7 +225,7 @@ def _get_breakpoints(
             | (nom_attr_da.isnull())
             | (nom_attr_da == float("inf"))
         ).any():
-            bad_entries = nom_attr_da.where(bad).to_series().dropna().index.tolist()
+            bad_entries = nom_attr_da.to_series()[bad.to_series()].index.tolist()
             msg = (
                 f"Piecewise '{pw_attr}' breakpoints on a per-unit x-axis cannot be scaled to "
                 f"absolute values for components with non-positive, non-finite or missing {nom_attr}. "
@@ -268,7 +277,7 @@ def _normalize_breakpoints(
 
 
 def _create_y_var(
-    m: Model, x_var: Any, pw_names: pd.Index, aux_var_name: str
+    m: Model, x_var: Variable, pw_names: pd.Index, aux_var_name: str
 ) -> Variable:
     """Create auxiliary y variable for piecewise constraint."""
     extra_dims = [d for d in x_var.dims if d != "name"]
