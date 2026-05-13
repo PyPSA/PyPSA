@@ -56,7 +56,7 @@ def test_piecewise_efficiency_rejects_lp_equality(
                 {
                     "component": "Generator",
                     "attribute": "efficiency",
-                    "operator": "==",
+                    "sign": "==",
                     "method": "lp",
                 }
             ],

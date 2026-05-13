@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 # TODO: update to pydantic once pydantic is a pypsa dependency.
-@dataclass(eq=True)
+@dataclass(eq=True, frozen=True)
 class PiecewiseOptions:
     """Options for piecewise constraint formulation."""
 
@@ -37,7 +37,7 @@ class PiecewiseOptions:
     """Component attribute for which piecewise data is defined."""
     sign: Literal[tuple(SIGNS)]
     """Sign for the piecewise constraint, interpreted as y <sign> f(x)."""
-    name: list[str] = field(default_factory=list)
+    name: tuple[str] = field(default_factory=tuple)
     """Optional filter for a component name to apply the piecewise constraint to, e.g. a specific generator."""
     method: str = "auto"
     """The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_formulation method."""
@@ -49,13 +49,14 @@ class PiecewiseOptions:
 
     def __post_init__(self) -> None:
         """Ensure that name is stored as a list for consistent processing later."""
-        self.name = (
-            []
+        list_names = (
+            tuple()
             if self.name is None
-            else [self.name]
+            else (self.name,)
             if isinstance(self.name, str)
-            else list(self.name)
+            else tuple(self.name)
         )
+        object.__setattr__(self, "name", list_names)
 
 
 def define_piecewise(

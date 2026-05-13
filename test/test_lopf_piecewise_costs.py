@@ -106,7 +106,7 @@ def test_piecewise_marginal_cost() -> None:
                 {
                     "component": "Generator",
                     "attribute": "capital_cost",
-                    "operator": ">=",
+                    "sign": ">=",
                     "method": "lp",
                 }
             ],
@@ -119,7 +119,7 @@ def test_piecewise_marginal_cost() -> None:
                 {
                     "component": "Generator",
                     "attribute": "marginal_cost",
-                    "operator": "<=",
+                    "sign": "<=",
                     "method": "lp",
                 }
             ],
