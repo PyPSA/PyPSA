@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@dataclass(eq=True, frozen=True)
+# TODO: update to pydantic once pydantic is a pypsa dependency.
+@dataclass(eq=True)
 class PiecewiseOptions:
     """Options for piecewise constraint formulation."""
 
@@ -36,7 +37,7 @@ class PiecewiseOptions:
     """Component attribute for which piecewise data is defined."""
     sign: Literal[tuple(SIGNS)]
     """Sign for the piecewise constraint, interpreted as y <sign> f(x)."""
-    name: str | list[str] | None = None
+    name: list[str] = field(default_factory=list)
     """Optional filter for a component name to apply the piecewise constraint to, e.g. a specific generator."""
     method: str = "auto"
     """The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_formulation method."""
@@ -45,6 +46,16 @@ class PiecewiseOptions:
 
     If True, the integral of the piecewise curve will be used to define y breakpoints.
     If False, the nominal values at each x breakpoint will be used to define y breakpoints."""
+
+    def __post_init__(self) -> None:
+        """Ensure that name is stored as a list for consistent processing later."""
+        self.name = (
+            []
+            if self.name is None
+            else [self.name]
+            if isinstance(self.name, str)
+            else list(self.name)
+        )
 
 
 def define_piecewise(
@@ -123,8 +134,8 @@ def define_piecewise(
     if y_var is None:
         y_var = _create_y_var(m, x_var, pw_names, aux_var_name)
     y_var_sel = y_var.sel(name=pw_names)
-
-    for option in [*extra_options, None]:
+    sorted_options = sorted(extra_options, key=lambda x: x.name, reverse=True)
+    for option in [*sorted_options, None]:
         if option is None:
             names, aux, opt_method, opt_sign = (
                 pw_names,
@@ -136,8 +147,11 @@ def define_piecewise(
             names = pd.Index(
                 [option.name] if isinstance(option.name, str) else option.name,
                 name="name",
+            ).intersection(pw_names)
+            aux_suffix = (
+                "_".join(names) if len(names) <= 3 else f"{names[0]}_..._{names[-1]}"
             )
-            aux = f"{aux_var_name}_{option.name}"
+            aux = f"{aux_var_name}_{aux_suffix}"
             opt_method, opt_sign = option.method, option.sign
         else:
             names, aux = pw_names, aux_var_name
