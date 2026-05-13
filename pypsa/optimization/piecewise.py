@@ -50,7 +50,7 @@ class PiecewiseOptions:
     def __post_init__(self) -> None:
         """Ensure that name is stored as a list for consistent processing later."""
         list_names = (
-            tuple()
+            ()
             if self.name is None
             else (self.name,)
             if isinstance(self.name, str)
