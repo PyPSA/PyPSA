@@ -77,5 +77,5 @@ class SMSppAccessor:
 
         import pypsa2smspp  # noqa: PLC0415
 
-        tr = pypsa2smspp.Transformation(solver_options)
+        tr = pypsa2smspp.Transformation(**solver_options)
         return tr.run(self._n, verbose=verbose)

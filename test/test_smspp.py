@@ -4,23 +4,29 @@
 
 """Tests for the optional SMS++ accessor."""
 
-import pypsa
 import pytest
 
+import pypsa
 
-# Flag if SMSpp is available
-try:
-    import pypsa2smspp
-    import pysmspp
-    
-    SMSPP_IS_AVAILABLE = pysmspp.pysmspp.is_smspp_installed()
-except:
-    SMSPP_IS_AVAILABLE = False
+pytest.importorskip("pypsa2smspp")
+pysmspp = pytest.importorskip("pysmspp")
+
+SMSPP_IS_AVAILABLE = pysmspp.is_smspp_installed()
 
 
 @pytest.mark.skipif(not SMSPP_IS_AVAILABLE, reason="SMS++ not installed")
-def test_smspp_solving(monkeypatch):
-    
-    n = pypsa.examples.ac_dc_meshed()
+def test_smspp_solving():
+    nsms = pypsa.examples.ac_dc_meshed()
 
-    n.optimize(solver_name="smspp")
+    # global constraints not yet supported
+    nsms.remove("GlobalConstraint", nsms.global_constraints.index)
+
+    # create base case on a fresh copy
+    norig = nsms.copy()
+    norig.optimize(solver_name="highs")
+
+    nsms.optimize(solver_name="smspp")
+
+    assert nsms.objective + nsms.objective_constant == pytest.approx(
+        norig.objective + norig.objective_constant, rel=1e-3
+    )

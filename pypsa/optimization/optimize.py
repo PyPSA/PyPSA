@@ -55,6 +55,7 @@ from pypsa.optimization.global_constraints import (
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
+from pypsa.optimization.smspp import SMSppAccessor
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -66,7 +67,6 @@ from pypsa.optimization.variables import (
     define_start_up_variables,
     define_status_variables,
 )
-from pypsa.optimization.smspp import SMSppAccessor
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
