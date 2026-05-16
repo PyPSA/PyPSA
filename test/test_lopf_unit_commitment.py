@@ -628,6 +628,53 @@ def test_dynamic_ramp_rates():
 
 
 @pytest.mark.parametrize("direction", ["up", "down"])
+def test_generator_ramp_constraints_unsorted_names(direction):
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1675
+
+    With one fixed and one extendable generator on the same component,
+    a non-alphabetical insertion order used to leak the extendable's
+    p_nom variable into the fixed generator's ramp constraint.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2025-01-01", periods=3, freq="h"))
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=100)
+
+    # Fixed generator's name sorts AFTER the extendable's; this ordering
+    # is what triggered the bug.
+    n.add(
+        "Generator",
+        "fixed_lignite",
+        bus="bus",
+        p_nom=944,
+        marginal_cost=30,
+        **{f"ramp_limit_{direction}": 0.04},
+    )
+    n.add(
+        "Generator",
+        "ext_gas",
+        bus="bus",
+        p_nom_extendable=True,
+        marginal_cost=95,
+        capital_cost=52_000,
+    )
+
+    n.optimize.create_model()
+
+    con = n.model.constraints[f"Generator-p-ramp_limit_{direction}"]
+    p_nom_ext_label = int(
+        n.model.variables["Generator-p_nom"].labels.sel(name="ext_gas")
+    )
+    vars_for_fixed = con.vars.sel(name="fixed_lignite").values
+    assert (vars_for_fixed != p_nom_ext_label).all(), (
+        f"ramp_{direction} for 'fixed_lignite' references the extendable's "
+        f"p_nom variable (issue #1675)"
+    )
+
+
+@pytest.mark.parametrize("direction", ["up", "down"])
 def test_generator_ramp_constraints_mask_nan(direction):
     """
     See https://github.com/PyPSA/PyPSA/issues/1493
