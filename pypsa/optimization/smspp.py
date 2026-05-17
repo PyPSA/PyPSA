@@ -15,9 +15,10 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pypsa import Network
     from pypsa2smspp import Transformation
     from pysmspp import SMSNetwork, SMSPPSolverTool
+
+    from pypsa import Network
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,11 @@ class SMSppAccessor:
         self._n = n
         self.transformation: Transformation | None = None
         self.sms_network: SMSNetwork | None = None
-        self.result: SMSPPSolverTool | None = None  # TODO: to revise with a Result object when available
+        self.result: (
+            SMSPPSolverTool | None
+        ) = (  # TODO: to revise type hinting with a Result object when available
+            None
+        )
 
     def __call__(
         self,
