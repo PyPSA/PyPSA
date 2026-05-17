@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pypsa import Network
+    from pypsa2smspp import Transformation
+    from pysmspp import SMSNetwork, SMSPPSolverTool
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +45,9 @@ class SMSppAccessor:
     def __init__(self, n: Network) -> None:
         """Initialize the accessor with a bound network."""
         self._n = n
-        self.transformation: Any | None = None
-        self.sms_network: Any | None = None
-        self.result: Any | None = None
+        self.transformation: Transformation | None = None
+        self.sms_network: SMSNetwork | None = None
+        self.result: SMSPPSolverTool | None = None  # TODO: to revise with a Result object when available
 
     def __call__(
         self,
@@ -82,7 +84,7 @@ class SMSppAccessor:
         solver_options: dict[str, Any] | None = None,
         verbose: bool = False,
         **kwargs: Any,
-    ) -> Any:
+    ) -> SMSNetwork:
         """Create the SMS++ model from the bound PyPSA network."""
         _require_smspp_deps()
 
@@ -98,7 +100,7 @@ class SMSppAccessor:
         self.sms_network = self.transformation.create_model(self._n, verbose=verbose)
         return self.sms_network
 
-    def optimize(self, verbose: bool = False) -> Any:
+    def optimize(self, verbose: bool = False) -> SMSPPSolverTool:
         """Optimize the SMS++ model created by :meth:`create_model`."""
         if self.transformation is None:
             msg = "Call `create_model` before `optimize`."
