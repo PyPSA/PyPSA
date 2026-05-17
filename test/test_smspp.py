@@ -7,10 +7,13 @@
 import importlib.machinery
 import sys
 import types
+from types import SimpleNamespace
+from typing import ClassVar
 
 import pytest
 
 import pypsa
+from pypsa.optimization.smspp import SMSppAccessor, _require_smspp_deps
 
 
 class FakeSMSppResult:
@@ -28,7 +31,7 @@ class FakeSMSNetwork:
 class FakeTransformation:
     """Fake pypsa2smspp Transformation recording the pipeline order."""
 
-    instances = []
+    instances: ClassVar[list["FakeTransformation"]] = []
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -53,7 +56,7 @@ class FakeTransformation:
         return n
 
 
-def install_fake_smspp(monkeypatch, tmp_path):
+def install_fake_smspp(monkeypatch, tmp_path, smspp_installed=True):
     """Install fake pypsa2smspp and pysmspp modules for unit tests."""
     package_dir = tmp_path / "pypsa2smspp"
     data_dir = package_dir / "data"
@@ -73,13 +76,29 @@ def install_fake_smspp(monkeypatch, tmp_path):
     fake_pysmspp = types.ModuleType("pysmspp")
 
     def is_smspp_installed():
-        return True
+        return smspp_installed
 
     fake_pysmspp.is_smspp_installed = is_smspp_installed
 
     FakeTransformation.instances = []
     monkeypatch.setitem(sys.modules, "pypsa2smspp", fake_pypsa2smspp)
     monkeypatch.setitem(sys.modules, "pysmspp", fake_pysmspp)
+
+
+def test_smspp_requires_optional_dependencies(monkeypatch):
+    monkeypatch.setitem(sys.modules, "pypsa2smspp", None)
+    monkeypatch.setitem(sys.modules, "pysmspp", None)
+
+    with pytest.raises(ImportError, match="pypsa\\[smspp\\]"):
+        _require_smspp_deps()
+
+
+def test_smspp_warns_when_smspp_is_not_installed(monkeypatch, tmp_path, caplog):
+    install_fake_smspp(monkeypatch, tmp_path, smspp_installed=False)
+
+    pypsa.Network().optimize.smspp.create_model()
+
+    assert "SMS++ pipeline will not work" in caplog.text
 
 
 def test_smspp_accessor_runs_staged_pipeline(monkeypatch, tmp_path):
@@ -99,6 +118,30 @@ def test_smspp_accessor_runs_staged_pipeline(monkeypatch, tmp_path):
     assert n._smspp_inverse_objective == 12.0
 
 
+def test_smspp_staged_methods_require_previous_steps(monkeypatch, tmp_path):
+    install_fake_smspp(monkeypatch, tmp_path)
+
+    accessor = pypsa.Network().optimize.smspp
+
+    with pytest.raises(ValueError, match="create_model"):
+        accessor.optimize()
+
+    with pytest.raises(ValueError, match="create_model"):
+        accessor.retrieve_solution()
+
+    accessor.create_model()
+
+    with pytest.raises(ValueError, match="optimize"):
+        accessor.retrieve_solution()
+
+
+def test_smspp_rejects_non_mapping_solver_options(monkeypatch, tmp_path):
+    install_fake_smspp(monkeypatch, tmp_path)
+
+    with pytest.raises(TypeError, match="solver_options"):
+        pypsa.Network().optimize.smspp.create_model(solver_options="bad")
+
+
 def test_optimize_smspp_returns_status_tuple(monkeypatch, tmp_path):
     install_fake_smspp(monkeypatch, tmp_path)
 
@@ -108,6 +151,15 @@ def test_optimize_smspp_returns_status_tuple(monkeypatch, tmp_path):
 
     assert (status, condition) == ("ok", "10 (Success)")
     assert FakeTransformation.instances[0].kwargs == {}
+
+
+def test_smspp_status_mapping_variants():
+    assert SMSppAccessor._status_condition(("ok", "optimal")) == ("ok", "optimal")
+    assert SMSppAccessor._status_condition(object()) == ("ok", "optimal")
+    assert SMSppAccessor._status_condition(SimpleNamespace(status="Failure")) == (
+        "failed",
+        "Failure",
+    )
 
 
 def test_smspp_solving():
