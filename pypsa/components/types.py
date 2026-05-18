@@ -27,7 +27,7 @@ _standard_types_path = Path(__file__).parent.parent / "data" / "standard_types"
 component_types_df = pd.read_csv(_components_path, index_col=0)
 default_components = component_types_df.index.to_list()
 
-all_components = {}
+all_components: dict[str, ComponentType] = {}
 
 
 def add_component_type(
