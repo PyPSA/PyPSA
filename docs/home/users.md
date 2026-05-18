@@ -99,6 +99,8 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_us: Union of Concerned Scientists (UCS)](https://www.ucs.org/)**: used PyPSA to assess the storage needs for Illinois electricity system.
 
+- **[:flag_ca: Natural Resources Canada (NRCan)](https://natural-resources.canada.ca/science-data/science-research/research-centres/canmetenergy)**: used PyPSA create a workflow-based modeling framework for power system analysis in Canada.
+
 ## Companies
 
 * **[:flag_de: TransnetBW](https://www.transnetbw.de/)**, the electricity transmission system operator in southwest Germany, **[:flag_de: ONTRAS](https://www.ontras.com/)**, the gas transmission system operator in eastern Germany and **[:flag_de: d-fine](https://www.d-fine.com/)**, a consultancy firm, used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see [Stromnetz 2050](https://www.transnetbw.de/de/stromnetz2050/), for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen [Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050](https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf), and for their 2022 study [Energy System 2050 - Towards a decarbonised Europe](https://www.energysystem2050.net/).
@@ -166,3 +168,5 @@ The following universities, research institutes, companies, governmental and non
 * **[:flag_gb: ClimateXChange](https://www.climatexchange.org.uk/)** commissioned a report for the Scottish Government on [Electricity system security of supply in Scotland](https://www.climatexchange.org.uk/projects/electricity-system-security-of-supply-in-scotland/) using PyPSA-GB.
 
 - **[:flag_kr: PLANiT Institute](https://planit.institute)** A non-profit research institute based in Seoul developed [PyPSA_KR](https://github.com/PLANiT-Institute/PyPSA_KR), a comprehensive power system analysis toolkit for modeling and optimizing electricity networks in South Korea with multi-node network modeling at different granularities, and [pyPPA](https://github.com/PLANiT-Institute/pyPPA), a Power Purchase Agreement modeling and optimization framework for evaluating renewable energy procurement strategies.
+
+- **[:flag_ar: FTDT (Fundación Torcuato Di Tella)](https://ftdt.cc/)** A non-profit research institute based in Argentina developed [PyPSA-AR](https://github.com/FTDT-PyPSA/PyPSA-AR), a comprehensive power system  model of the Argentine high-voltage power grid.

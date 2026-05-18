@@ -6,13 +6,23 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Documentation
+
+- Updated our contribution guidelines outline what we expect from AI-based contributions. See [AI-based Contributions](https://docs.pypsa.org/latest/contributing/contributing/#ai-based-contributions) in our documentation for more details. (<!-- md:pr 1672 -->)
+
+### Bug Fixes
+
+- Fix `n.statistics.transmission()` returning zero flows when `bus_carrier` is set. (<!-- md:pr 1662 -->)
+
+- Fix `n.add(..., overwrite=True)` leaving stale time-varying (dynamic) attributes from the previously existing component, which silently shadowed the new static values at solve time. `overwrite=True` now behaves consistently with `n.remove(...)` followed by `n.add(...)`. See [#1628](https://github.com/PyPSA/PyPSA/issues/1628).
 
 
 ## [**v1.2.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.0) <small>21st April 2026</small> { id="v1.2.0" }
