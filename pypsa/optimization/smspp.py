@@ -117,7 +117,7 @@ class SMSppAccessor:
     def optimize(self, verbose: bool = False) -> SMSPPSolverTool:
         """Optimize the SMS++ model created by :meth:`create_model`."""
         if self.transformation is None:
-            msg = "Call `create_model` before `optimize`."
+            msg = "No SMS++ transformation is available. Call `n.optimize.smspp.create_model()` first."
             raise ValueError(msg)
 
         self.result = self.transformation.optimize(verbose=verbose)
