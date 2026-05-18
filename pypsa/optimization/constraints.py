@@ -851,7 +851,7 @@ def define_ramp_limit_constraints(
         if is_com_fix.any():
             ds_ext = filter_first_sn * (1 - s_init_ext)
             rhs = rhs + limit_start.sel(name=ext_main_names) * p_nom_ext_var * ds_ext
-        # Restore original name order; addition above re-sorts it (see #1675).
+        # Adding a partial name expression sorts the name dim. This should be guarded more heavily in a future linopy release
         rhs = rhs.sel(name=idx)
     mask_up = mask & ~no_up_limit & non_com_ext
     m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_up", mask=mask_up)
@@ -867,7 +867,7 @@ def define_ramp_limit_constraints(
         if is_com_fix.any():
             ds_ext = filter_first_sn * (1 - s_init_ext)
             rhs = rhs + limit_shut.sel(name=ext_main_names) * p_nom_ext_var * ds_ext
-        # Restore original name order; addition above re-sorts it (see #1675).
+        # Adding a partial name expression sorts the name dim. This should be guarded more heavily in a future linopy release
         rhs = rhs.sel(name=idx)
     mask_down = mask & ~no_down_limit & non_com_ext
     m.add_constraints(
