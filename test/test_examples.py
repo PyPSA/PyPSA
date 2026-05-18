@@ -75,6 +75,30 @@ def test_cache_miss_network_disabled(monkeypatch, tmp_path):
         pypsa.options.general.allow_network_requests = True
 
 
+def test_cache_miss_404_falls_back_to_latest(monkeypatch, tmp_path, caplog):
+    """404 on versioned URL falls back to latest/ with warning."""
+    from urllib.error import HTTPError
+
+    monkeypatch.setattr(pypsa.examples, "_cache_root", lambda: tmp_path)
+    calls = []
+
+    def fake_urlretrieve(url, cache):
+        calls.append(url)
+        if f"/v{__version_base__}/" in url:
+            raise HTTPError(url, 404, "Not Found", {}, None)
+        pypsa.Network().export_to_netcdf(str(cache))
+
+    monkeypatch.setattr(pypsa.examples, "urlretrieve", fake_urlretrieve)
+    with caplog.at_level(logging.WARNING, logger="pypsa.examples"):
+        pypsa.examples.ac_dc_meshed()
+
+    assert [f"/v{__version_base__}/" in calls[0], "/latest/" in calls[1]] == [
+        True,
+        True,
+    ]
+    assert any("404" in r.message for r in caplog.records)
+
+
 @pytest.mark.skipif(
     not pypsa.examples._check_url_availability("https://data.pypsa.org"),
     reason="No internet connection",
