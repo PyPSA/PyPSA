@@ -34,6 +34,8 @@ where `solver_name` is a string and `solver_options` is a dictionary of solver-s
 
 A call to this function will formulate the optimisation problem with the [Linopy](https://linopy.readthedocs.io) library, solve it by interfacing with the solver, and store the results in the network object `n`.
 
+Alternatively, with `solver_name="smspp"`, PyPSA can use the optional [SMS++ backend](smspp.md) through `pypsa2smspp` and `pySMSpp` packages that interface [SMS++](https://gitlab.com/smspp/smspp-project) with PyPSA. SMS++ is a high-performance, open-source modeling system to unlock mathematical decomposition in optimization problems.
+
 !!! note "Problem Extensions"
 
     While most types of optimisation problems are dynamically formulated by [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] depending on data inputs, some features require different optimization functions to be called. For instance, to optimise dispatch in a sequential rolling horizon with myopic operational foresight,
