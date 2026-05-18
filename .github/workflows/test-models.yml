@@ -148,6 +148,79 @@ jobs:
       if: always()
       run: df -h
 
+  test-smspp:
+    name: SMS++
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+        - "3.13"
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    env:
+      MPLBACKEND: Agg  # https://github.com/orgs/community/discussions/26434
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0 # Needed for setuptools_scm
+
+    - uses: dorny/paths-filter@v4
+      id: filter
+      with:
+        filters: |
+          src:
+            - 'pypsa/**'
+            - 'test/test_smspp.py'
+            - 'pyproject.toml'
+            - '.github/workflows/test-models.yml'
+
+    - name: Skip - no SMS++ changes
+      if: steps.filter.outputs.src != 'true' && github.event_name != 'schedule'
+      run: echo "Skipping tests because no SMS++ source changes detected"
+
+    - name: Setup Pixi
+      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
+      uses: prefix-dev/setup-pixi@v0.9.5
+      with:
+        pixi-version: v0.68.1
+        run-install: false
+
+    - name: Create SMS++ test environment
+      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
+      run: |
+        mkdir smspp-env
+        cd smspp-env
+        # Keep the native SMS++ runtime in conda-forge through pixi.
+        pixi init --channel conda-forge
+        pixi add python=${{ matrix.python-version }} smspp-project uv
+
+    - name: Install PyPSA and Python dependencies
+      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
+      working-directory: smspp-env
+      run: |
+        # Keep Python package installation aligned with the uv-based PyPSA CI.
+        pixi run uv pip install --system "${GITHUB_WORKSPACE}[dev,smspp]"
+
+    - name: List environment
+      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
+      working-directory: smspp-env
+      run: |
+        pixi list
+        pixi run uv pip list
+
+    - name: Test package with SMS++
+      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
+      working-directory: smspp-env
+      run: |
+        pixi run pytest "${GITHUB_WORKSPACE}/test/test_smspp.py"
+
 # Temporarily disabled until PyPSA-DE issues are resolved. This is not a problem of PyPSA.
   # test-pypsa-de:
   #   name: PyPSA-DE
