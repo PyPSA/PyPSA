@@ -30,7 +30,8 @@ conda install -c conda-forge smspp-project
 The PyPSA extra depends on `pypsa2smspp>=0.0.3` and `pysmspp`. The native
 `smspp-project` package provides the SMS++ executables used by `pySMSpp`.
 
-See also the [:material-notebook: SMS++ optimization example](../../examples/smspp-optimization.ipynb).
+See also the
+[:material-notebook: SMS++ optimization example](../../examples/smspp-optimization.ipynb).
 
 ## One-Step Usage
 
@@ -62,6 +63,10 @@ status, condition = n.optimize(
     },
 )
 ```
+
+As with other solver calls, keyword arguments can also be passed directly to
+`n.optimize()`; direct keyword arguments take precedence over entries in
+`solver_options`.
 
 These options are interpreted by `pypsa2smspp`, not by Linopy. See the
 [pypsa2smspp examples](https://github.com/SPSUnipi/pypsa2smspp/tree/main/docs/examples)

@@ -4,7 +4,7 @@
 
 """Optional SMS++ optimization pipeline integration.
 
-This module provides an accessor `Network.smspp` which runs an external
+This module provides the `n.optimize.smspp` accessor, which runs an external
 optimization pipeline via `pypsa2smspp.Transformation`.
 """
 
@@ -48,23 +48,19 @@ class SMSppAccessor:
         self._n = n
         self.transformation: Transformation | None = None
         self.sms_network: SMSNetwork | None = None
-        self.result: (
-            SMSPPSolverTool | None
-        ) = (  # TODO: to revise type hinting with a Result object when available
-            None
-        )
+        self.result: SMSPPSolverTool | None = None
 
     def __call__(
         self,
-        solver_options: dict[str, Any] | None = None,
+        solver_options: Mapping[str, Any] | None = None,
         verbose: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
-        """Run the SMS++ pipeline via pypsa2smspp.
+        """Run the full SMS++ pipeline via pypsa2smspp.
 
         Parameters
         ----------
-        solver_options : dict[str, Any] | None, default None
+        solver_options : mapping, optional
             Keyword arguments forwarded to ``pypsa2smspp.Transformation``.
         verbose : bool, default False
             Verbosity forwarded to pypsa2smspp stages.
@@ -86,11 +82,23 @@ class SMSppAccessor:
 
     def create_model(
         self,
-        solver_options: dict[str, Any] | None = None,
+        solver_options: Mapping[str, Any] | None = None,
         verbose: bool = False,
         **kwargs: Any,
     ) -> SMSNetwork:
-        """Create the SMS++ model from the bound PyPSA network."""
+        """Create the SMS++ model from the bound PyPSA network.
+
+        Parameters
+        ----------
+        solver_options : mapping, optional
+            Keyword arguments forwarded to ``pypsa2smspp.Transformation``.
+        verbose : bool, default False
+            Verbosity forwarded to the pypsa2smspp conversion step.
+        **kwargs : Any
+            Additional keyword arguments forwarded to
+            ``pypsa2smspp.Transformation``.
+
+        """
         _require_smspp_deps()
 
         import pypsa2smspp  # noqa: PLC0415
@@ -100,6 +108,7 @@ class SMSppAccessor:
             kwargs,
         )
         self.transformation = pypsa2smspp.Transformation(**transformation_kwargs)
+        self.sms_network = None
         self.result = None
 
         self.sms_network = self.transformation.create_model(self._n, verbose=verbose)
@@ -162,6 +171,6 @@ class SMSppAccessor:
             return "ok", "optimal"
 
         condition = str(status)
-        if "success" in condition.lower():
+        if condition.lower() in {"ok", "optimal"} or "success" in condition.lower():
             return "ok", condition
         return "failed", condition

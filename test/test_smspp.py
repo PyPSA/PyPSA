@@ -106,6 +106,9 @@ def test_smspp_accessor_runs_staged_pipeline(monkeypatch, tmp_path):
 
     n = pypsa.Network()
 
+    assert not hasattr(n, "smspp")
+    assert isinstance(n.optimize.smspp, SMSppAccessor)
+
     status, condition = n.optimize.smspp(solver_options={"name": "custom"})
 
     assert (status, condition) == ("ok", "10 (Success)")
@@ -162,7 +165,7 @@ def test_smspp_status_mapping_variants():
     )
 
 
-def test_smspp_solving():
+def test_smspp_solving(tmp_path):
     pytest.importorskip("pypsa2smspp")
     pysmspp = pytest.importorskip("pysmspp")
     if not pysmspp.is_smspp_installed():
@@ -177,7 +180,16 @@ def test_smspp_solving():
     norig = nsms.copy()
     norig.optimize(solver_name="highs")
 
-    nsms.optimize(solver_name="smspp")
+    status, condition = nsms.optimize(
+        solver_name="smspp",
+        solver_options={
+            "workdir": str(tmp_path),
+            "name": "test_case",
+        },
+    )
+
+    assert status == "ok"
+    assert condition
 
     assert nsms.objective + nsms.objective_constant == pytest.approx(
         norig.objective + norig.objective_constant, rel=1e-3
