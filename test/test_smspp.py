@@ -121,21 +121,23 @@ def test_smspp_accessor_runs_staged_pipeline(monkeypatch, tmp_path):
     assert n._smspp_inverse_objective == 12.0
 
 
-def test_smspp_staged_methods_require_previous_steps(monkeypatch, tmp_path):
+def test_smspp_solve_model_requires_created_model(monkeypatch, tmp_path):
     install_fake_smspp(monkeypatch, tmp_path)
 
     accessor = pypsa.Network().optimize.smspp
 
     with pytest.raises(ValueError, match="create_model"):
-        accessor.optimize()
-
-    with pytest.raises(ValueError, match="create_model"):
-        accessor.retrieve_solution()
+        accessor.solve_model()
 
     accessor.create_model()
+    status, condition = accessor.solve_model()
 
-    with pytest.raises(ValueError, match="optimize"):
-        accessor.retrieve_solution()
+    assert (status, condition) == ("ok", "10 (Success)")
+    assert FakeTransformation.instances[0].calls == [
+        "create_model",
+        "optimize",
+        "retrieve_solution",
+    ]
 
 
 def test_smspp_rejects_non_mapping_solver_options(monkeypatch, tmp_path):

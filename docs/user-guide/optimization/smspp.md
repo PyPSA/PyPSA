@@ -87,11 +87,10 @@ sms_network = smspp.create_model(
     }
 )
 
-result = smspp.optimize()
-status, condition = smspp.retrieve_solution()
+status, condition = smspp.solve_model()
 ```
 
-After `retrieve_solution()`, optimized component values such as dispatch and
+After `solve_model()`, optimized component values such as dispatch and
 optimized capacities are available on the PyPSA network in the usual result
 fields.
 

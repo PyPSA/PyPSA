@@ -77,8 +77,7 @@ class SMSppAccessor:
 
         """
         self.create_model(solver_options=solver_options, verbose=verbose, **kwargs)
-        self.solve_model(verbose=verbose)
-        return self.retrieve_solution(verbose=verbose)
+        return self.solve_model(verbose=verbose)
 
     def create_model(
         self,
@@ -114,23 +113,13 @@ class SMSppAccessor:
         self.sms_network = self.transformation.create_model(self._n, verbose=verbose)
         return self.sms_network
 
-    def solve_model(self, verbose: bool = False) -> SMSPPSolverTool:
-        """Optimize the SMS++ model created by :meth:`create_model`."""
+    def solve_model(self, verbose: bool = False) -> tuple[str, str]:
+        """Solve the SMS++ model and retrieve its solution."""
         if self.transformation is None:
             msg = "No SMS++ transformation is available. Call `n.optimize.smspp.create_model()` first."
             raise ValueError(msg)
 
         self.result = self.transformation.optimize(verbose=verbose)
-        return self.result
-
-    def retrieve_solution(self, verbose: bool = False) -> tuple[str, str]:
-        """Retrieve the SMS++ solution and assign it to the bound PyPSA network."""
-        if self.transformation is None:
-            msg = "Call `create_model` before `retrieve_solution`."
-            raise ValueError(msg)
-        if self.result is None:
-            msg = "Call `solve_model` before `retrieve_solution`."
-            raise ValueError(msg)
 
         self.transformation.retrieve_solution(
             self._n,
