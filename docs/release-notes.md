@@ -6,13 +6,17 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Bug Fixes
+
+- Fix silent miscount in [`n.add`][pypsa.Network.add] and [`n.remove`][pypsa.Network.remove] when both `name` and `suffix` were lists of equal length: previously the two were paired one-by-one, producing fewer components than expected with no warning. This now raises `ValueError`. Also fix a `TypeError` in `n.add` when `suffix` was a list and any kwarg was a `pd.Series` or `pd.DataFrame`. See [#1650](https://github.com/PyPSA/PyPSA/issues/1650).
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
 
