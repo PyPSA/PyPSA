@@ -404,3 +404,29 @@ def test_define_fixed_operational_constraints_extendable():
     assert n.c.generators.dynamic.p["gen0"].eq(5).all()
     assert n.c.generators.dynamic.p["gen1"].eq(5).all()
     assert n.c.generators.dynamic.p["gen2"].eq(0).all()
+
+
+def test_define_fixed_operational_constraints_infinite_p_nom():
+    """Non-extendable generator with p_nom=inf and p_min_pu=0 must not produce NaN bounds.
+
+    Without the inf*0 fallback, the lower bound would be NaN and the solve would fail.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add(
+        "Generator",
+        "gen_inf",
+        bus="bus0",
+        p_nom=float("inf"),
+        p_min_pu=0,
+        p_max_pu=1,
+        marginal_cost=1,
+    )
+
+    n.optimize.create_model()
+    lower = n.model.constraints["Generator-fix-p-lower"].rhs
+    assert (lower == 0).all()
+
+    n.optimize.solve_model()
+    assert n.c.generators.dynamic.p["gen_inf"].eq(10).all()
