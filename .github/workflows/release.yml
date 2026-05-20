@@ -10,13 +10,8 @@ on:
     - v*.*.*
 
 jobs:
-  test:
-    uses: ./.github/workflows/test.yml
-    secrets: inherit
-
   publish-examples:
     name: Publish example networks to bucket
-    needs: [test]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
@@ -97,9 +92,14 @@ jobs:
             print(f"repointed {dst_key} -> {src_key}")
       shell: python
 
+  test:
+    needs: [publish-examples]
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
   build:
     name: Build and verify package
-    needs: [publish-examples]
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6

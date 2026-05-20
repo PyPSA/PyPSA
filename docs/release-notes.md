@@ -6,13 +6,13 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-## Upcoming Release
+<!--## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
 
