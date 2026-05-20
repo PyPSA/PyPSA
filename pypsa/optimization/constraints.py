@@ -1144,8 +1144,12 @@ def define_nodal_balance_constraints(
             dims=["snapshot", "name"],
         )
     else:
-        loads_values = loads.da.p_set.where(
+        loads_values = (-1 *loads.da.p_set.where(
             loads.da.active.sel(name=loads.active_assets, snapshot=sns)
+            )
+        * loads.da.sign.where(
+            loads.da.active.sel(name=loads.active_assets, snapshot=sns)
+            )
         )
         loads_values = loads_values.reindex(name=loads.static.index.unique("name"))
         load_buses = loads._as_xarray("bus").rename("Bus")
