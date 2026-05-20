@@ -307,6 +307,10 @@ plugins:
     default_handler: python
     handlers:
       python:
+        import:
+          - https://docs.python.org/3/objects.inv
+          - https://pandas.pydata.org/docs/objects.inv
+          - https://linopy.readthedocs.io/en/latest/objects.inv
         options:
           docstring_style: numpy
           docstring_options:
