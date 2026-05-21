@@ -31,6 +31,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix [`n.add(..., overwrite=True)`][pypsa.Network.add] leaving stale dynamic attributes from the previously existing component, which silently shadowed the new static values at solve time. `overwrite=True` now behaves consistently with [`n.remove(...)`][pypsa.Network.remove] followed by `n.add(...)`. (<!-- md:pr 1666 -->)
 
+- Fix the sign of loads not being taken into account in the nodal balance constraint when calling `n.optimize()´.
+
 
 ## [**v1.2.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.0) <small>21st April 2026</small> { id="v1.2.0" }
 
