@@ -256,6 +256,7 @@ def test_rolling_horizon_linearized_uc_with_ramp_limits():
     assert (ramping.values <= ramp_limits.values[None, :] + 1e-5).all()
 
 
+@pytest.mark.filterwarnings("ignore:Dtype inference on a pandas object:FutureWarning")
 def test_rolling_horizon_ac_dc_meshed_arrow_strings_1656():
     """Rolling horizon on the stock ac_dc_meshed example under Arrow-backed strings.
 
