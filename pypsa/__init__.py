@@ -29,6 +29,7 @@ from pypsa import (
     optimization,
     plot,
     statistics,
+    utils,
 )
 from pypsa._options import (
     option_context,
@@ -37,6 +38,7 @@ from pypsa._options import (
 from pypsa.collection import NetworkCollection
 from pypsa.components.components import Components
 from pypsa.networks import Network, SubNetwork
+from pypsa.utils import apply_outage_schedule
 from pypsa.version import (
     __version__,
     __version_base__,
@@ -77,6 +79,8 @@ __all__ = [
     "NetworkCollection",
     "SubNetwork",
     "Components",
+    "utils",
+    "apply_outage_schedule",
 ]
 
 

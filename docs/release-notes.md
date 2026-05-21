@@ -14,6 +14,12 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Features
+
+- New helper [`pypsa.apply_outage_schedule`][pypsa.utils.apply_outage_schedule] writes exogenous outage windows (e.g. ENTSO-E unavailability reports, planned maintenance records, validation replays) onto a network by composing a derate factor into `generators_t.p_max_pu` and `links_t.p_max_pu`/`p_min_pu`. Overlapping windows on the same asset collapse by `min(p_max_pu)`. Orthogonal to the maintenance-optimization work in #1576 (deterministic schedule vs. MILP variables).
+
+### Bug Fixes
+
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly.
 
 
