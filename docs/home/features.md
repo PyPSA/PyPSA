@@ -146,7 +146,7 @@ Interactive **network visualization** of SciGRID example network clustered by fe
 Interactive area plot of **electricity balance time series** in a highly-renewable sector-coupled example network, showing temporal generation (positive values) and consumption (negative values) of different technologies:
 
 <div style="width: 100%; height: 550px;">
-    <iframe src="../../../assets/interactive/carbon_management-energy_balance-area_iplot-AC-bus_carrier.html"
+    <iframe src="../../assets/interactive/carbon_management-energy_balance-area_iplot-AC-bus_carrier.html"
             width="100%" height="100%" frameborder="0" style="border: 0px solid #ccc;">
     </iframe>
 </div>
