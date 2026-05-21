@@ -16,6 +16,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly.
 
+- Coerce Arrow-backed string indices, columns, and values to `object` dtype on import (NetCDF, CSV, HDF5, Excel). Loading networks under pandas with PyArrow-backed strings (`pd.options.future.infer_string = True` or pandas `>= 3.0`) previously produced `ArrowStringArray` indices that silently broke downstream xarray/linopy operations in `optimize()` and copy-based redispatch patterns.
+
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
 
