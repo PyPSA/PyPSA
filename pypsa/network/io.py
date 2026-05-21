@@ -62,7 +62,9 @@ def _coerce_arrow_strings(df: pd.DataFrame) -> pd.DataFrame:
     def _coerce_axis(axis: pd.Index) -> pd.Index:
         if isinstance(axis, pd.MultiIndex):
             new_levels = [
-                level.astype(object) if isinstance(level.values, arrow_string_array) else level
+                level.astype(object)
+                if isinstance(level.values, arrow_string_array)
+                else level
                 for level in axis.levels
             ]
             if any(nl is not ol for nl, ol in zip(new_levels, axis.levels)):

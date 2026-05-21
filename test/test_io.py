@@ -312,9 +312,9 @@ class TestNetcdf:
                 )
             for key, dyn_df in c.dynamic.items():
                 if isinstance(dyn_df, pd.DataFrame) and not dyn_df.empty:
-                    assert not isinstance(
-                        dyn_df.columns.values, arrow_string_array
-                    ), f"{c.name}.dynamic[{key!r}].columns is ArrowStringArray"
+                    assert not isinstance(dyn_df.columns.values, arrow_string_array), (
+                        f"{c.name}.dynamic[{key!r}].columns is ArrowStringArray"
+                    )
 
     @pytest.mark.skipif(
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
