@@ -47,6 +47,39 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _coerce_arrow_strings(df: pd.DataFrame) -> pd.DataFrame:
+    """Coerce Arrow-backed string indices, columns and values to ``object`` dtype.
+
+    Loading from NetCDF under pandas with PyArrow-backed strings
+    (``pd.options.future.infer_string = True`` or pandas >= 3.0) yields
+    ``ArrowStringArray`` indices and columns. Downstream xarray/linopy
+    operations expect object-dtype strings and may silently misbehave on
+    Arrow-backed ones (see https://github.com/PyPSA/PyPSA/issues/1585).
+    Coercing to ``object`` matches the CSV/HDF5 import paths.
+    """
+    arrow_string_array = pd.arrays.ArrowStringArray
+
+    def _coerce_axis(axis: pd.Index) -> pd.Index:
+        if isinstance(axis, pd.MultiIndex):
+            new_levels = [
+                level.astype(object) if isinstance(level.values, arrow_string_array) else level
+                for level in axis.levels
+            ]
+            if any(nl is not ol for nl, ol in zip(new_levels, axis.levels)):
+                axis = axis.set_levels(new_levels)
+            return axis
+        if isinstance(axis.values, arrow_string_array):
+            return axis.astype(object).rename(axis.name)
+        return axis
+
+    df.index = _coerce_axis(df.index)
+    df.columns = _coerce_axis(df.columns)
+    for col in df.columns:
+        if isinstance(df[col].values, arrow_string_array):
+            df[col] = df[col].astype(object)
+    return df
+
+
 def _get_safe_excel_sheet_name(sheet_name: str) -> str:
     """Convert sheet name to/from safe version for Excel's 31-character limit.
 
@@ -930,7 +963,7 @@ class _ImporterNetCDF(_Importer):
                 scenario_index = self.ds.coords["scenario"].to_index()
                 index = pd.MultiIndex.from_product([scenario_index, index])
             df = pd.DataFrame(index=index)
-        return df
+        return _coerce_arrow_strings(df)
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         """Get dynamic components data."""
@@ -951,7 +984,7 @@ class _ImporterNetCDF(_Importer):
                     )
                     df.columns.names = ["scenario", "name"]
 
-                yield attr[len(t) :], df
+                yield attr[len(t) :], _coerce_arrow_strings(df)
 
     def finish(self) -> None:
         """Finish the import process."""
@@ -1834,6 +1867,10 @@ class NetworkIOMixin(_NetworkABC):
             if not isinstance(new_static.index, pd.MultiIndex)
             else ["scenario", "name"]
         )
+        # Coerce Arrow-backed strings (introduced by astype(str) under
+        # ``future.infer_string=True`` or pandas >= 3.0) to ``object`` so
+        # downstream xarray/linopy ops behave consistently. See issue #1585.
+        new_static = _coerce_arrow_strings(new_static)
         self.components[cls_name].static = new_static
 
         # Now deal with time-dependent properties
@@ -1893,6 +1930,8 @@ class NetworkIOMixin(_NetworkABC):
             df.columns.names = ["scenario", "name"]
         else:
             df.columns.names = ["name"]
+        # See issue #1585 — drop Arrow-backed strings before downstream ops.
+        df = _coerce_arrow_strings(df)
 
         # Check if components exist in static df
         diff = df.columns.difference(static.index)

@@ -107,6 +107,7 @@ class TestCSVDir:
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
             check_index_type=False,
+            check_column_type=False,
         )
 
     def test_csv_io_shapes(self, ac_dc_shapes, tmpdir):
@@ -198,9 +199,14 @@ class TestNetcdf:
         fn = tmpdir / "netcdf_export.nc"
         ac_dc_periods.export_to_netcdf(fn)
         m = pypsa.Network(fn)
+        # NetCDF reload coerces Arrow-backed string columns to object dtype to
+        # keep downstream xarray/linopy ops stable (issue #1585); the in-memory
+        # fixture may still hold StringDtype columns from pandas auto-inference.
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
+            check_column_type=False,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
@@ -276,6 +282,40 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=True)
         pypsa.Network(fn)
 
+    def test_netcdf_io_no_arrow_string_arrays(self, tmpdir):
+        """Loaded NetCDFs must not yield Arrow-backed string indices/columns.
+
+        Regression test for https://github.com/PyPSA/PyPSA/issues/1585:
+        Arrow-backed string arrays break ``optimize()`` downstream.
+        """
+        arrow_string_array = pd.arrays.ArrowStringArray
+        fn = tmpdir / "arrow_strings.nc"
+
+        n = pypsa.Network()
+        n.set_snapshots(pd.date_range("2025-01-01", periods=4, freq="h"))
+        n.add("Bus", "bus0")
+        n.add("Generator", "gen0", bus="bus0", p_nom=100, marginal_cost=10)
+        n.add("Load", "load0", bus="bus0", p_set=50)
+        n.export_to_netcdf(fn)
+
+        with pd.option_context("future.infer_string", True):
+            m = pypsa.Network(fn)
+
+        for c in m.components:
+            df = c.static
+            assert not isinstance(df.index.values, arrow_string_array), (
+                f"{c.name}.static.index is ArrowStringArray"
+            )
+            for col in df.columns:
+                assert not isinstance(df[col].values, arrow_string_array), (
+                    f"{c.name}.static[{col!r}] is ArrowStringArray"
+                )
+            for key, dyn_df in c.dynamic.items():
+                if isinstance(dyn_df, pd.DataFrame) and not dyn_df.empty:
+                    assert not isinstance(
+                        dyn_df.columns.values, arrow_string_array
+                    ), f"{c.name}.dynamic[{key!r}].columns is ArrowStringArray"
+
     @pytest.mark.skipif(
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
         reason="Unstable test in CI. Remove with 1.0",
@@ -331,6 +371,8 @@ class TestHDF5:
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
+            check_column_type=False,
         )
 
     def test_hdf5_io_shapes(self, ac_dc_shapes, tmpdir):
