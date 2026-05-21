@@ -84,6 +84,7 @@ nav:
       - Maps (Static): user-guide/plotting/static-map.ipynb
       - Maps (Interactive): user-guide/plotting/explore.ipynb
     - Network Collection: user-guide/collection.md
+    - Seasonal Line Ratings: user-guide/seasonal-line-ratings.md
     - Options: user-guide/options.md
     - Logging: user-guide/logging.ipynb
     - Warnings: user-guide/warnings.md
