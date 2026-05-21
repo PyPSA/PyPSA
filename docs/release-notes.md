@@ -14,7 +14,11 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Bug Fixes
+
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly.
+
+- Include static `phase_shift` on [Transformer](./user-guide/components/transformers.md) components in the cycle-based Kirchhoff Voltage Law constraint in [`n.optimize()`][pypsa.Network.optimize]. Previously the phase shift term was silently dropped in LOPF (only [`n.lpf()`][pypsa.Network.lpf] and [`n.pf()`][pypsa.Network.pf] respected it), so optimisation results diverged from a subsequent non-linear power-flow verification. Fixes issue #1220.
 
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }

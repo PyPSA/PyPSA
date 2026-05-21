@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
+import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import merge
@@ -1225,8 +1226,10 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     m = n.model
     n.calculate_dependent_values()
 
+    deg_to_rad = np.pi / 180.0
     periods = sns.unique("period") if n._multi_invest else [None]
-    lhs = []
+    lhs_parts = []
+    rhs_parts = []
     for period in periods:
         snapshots = sns if period is None else sns[sns.get_loc(period)]
         C = n.cycle_matrix(investment_period=period, apply_weights=True)
@@ -1241,11 +1244,39 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
                 name=C_branch.indexes["name"].difference(n.c[c].inactive_assets),
             )
             exprs.append(flow @ C_branch * 1e5)
-        lhs.append(sum(exprs))
+        lhs_parts.append(sum(exprs))
 
-    if lhs:
-        lhs = merge(lhs, dim="snapshot")
-        con = lhs == 0
+        # Static phase_shift on Transformer components enters the cycle KVL as
+        # a constant on the RHS: around each cycle k,
+        #     sum_l C_lk * (x_l * flow_l + phase_shift_l_rad) = 0
+        # The unweighted cycle matrix carries the cycle-direction sign.
+        # Previously this term was dropped in LOPF, so static phase shifts
+        # were silently ignored (only n.lpf()/n.pf() honoured them). Fixes #1220.
+        if "Transformer" in C.index.unique("type"):
+            trafos = n.c.Transformer.static
+            C_unw = n.cycle_matrix(investment_period=period, apply_weights=False)
+            C_trafos = C_unw.loc["Transformer"]
+            active = trafos.index[trafos["active"] & trafos.index.isin(C_trafos.index)]
+            ps_deg = trafos.loc[active, "phase_shift"].astype(float)
+            nonzero = active[ps_deg.values != 0.0]
+            if len(nonzero):
+                C_ps = DataArray(C_trafos.loc[nonzero])
+                ps_rad = DataArray(
+                    (ps_deg.loc[nonzero] * deg_to_rad).values,
+                    coords={"name": nonzero},
+                    dims=["name"],
+                )
+                rhs_parts.append(-(ps_rad @ C_ps) * 1e5)
+
+    if lhs_parts:
+        lhs = merge(lhs_parts, dim="snapshot")
+        if rhs_parts:
+            rhs = (
+                merge(rhs_parts, dim="snapshot") if len(rhs_parts) > 1 else rhs_parts[0]
+            )
+            con = lhs == rhs
+        else:
+            con = lhs == 0
         mask = con.rhs.notnull()
         m.add_constraints(con, name="Kirchhoff-Voltage-Law", mask=mask)
 
