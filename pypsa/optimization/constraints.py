@@ -14,7 +14,7 @@ import linopy
 import pandas as pd
 import xarray as xr
 from linopy import merge
-from numpy import inf, isfinite, isinf, maximum, sqrt, tile
+from numpy import concatenate, inf, isfinite, isinf, maximum, sqrt, tile
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
@@ -648,6 +648,24 @@ def define_nominal_constraints_for_extendables(
         )
 
 
+def _period_boundary_mask(sns: pd.Index | pd.MultiIndex) -> DataArray:
+    """Flag first snapshot of each investment period beyond the horizon start.
+
+    For a flat snapshot index returns an all-False array. For a
+    ``(period, timestep)`` MultiIndex returns ``True`` at the first timestep of
+    every investment period except the very first one (which is already
+    handled by rolling-horizon ``p_init`` substitution). Used to drop ramp
+    constraints that would otherwise spuriously link dispatch across
+    investment periods (issue #1669).
+    """
+    if isinstance(sns, pd.MultiIndex) and "period" in sns.names:
+        periods = sns.get_level_values("period").to_numpy()
+        is_period_first = concatenate([[False], periods[1:] != periods[:-1]])
+    else:
+        is_period_first = [False] * len(sns)
+    return DataArray(is_period_first, coords=[sns])
+
+
 def _define_ramp_limit_big_m(
     n: Network,
     sns: pd.Index | pd.MultiIndex,
@@ -694,8 +712,14 @@ def _define_ramp_limit_big_m(
 
     lhs_delta = p - p_prev_ce
     mask = mask.sel(name=idx)
-    mask_up = mask & ~no_up_limit.sel(name=idx)
-    mask_down = mask & ~no_down_limit.sel(name=idx)
+    # Drop ramp constraints at investment-period boundaries where the asset was
+    # inactive in the previous period (issue #1669). For continuously active
+    # assets the cross-period link is preserved.
+    is_period_boundary = _period_boundary_mask(sns)
+    prev_active = mask.shift(snapshot=1).fillna(False).astype(bool)
+    keep = ~is_period_boundary | prev_active
+    mask_up = mask & ~no_up_limit.sel(name=idx) & keep
+    mask_down = mask & ~no_down_limit.sel(name=idx) & keep
 
     lu = limit_up.sel(name=idx)
     ld = limit_down.sel(name=idx)
@@ -857,7 +881,13 @@ def define_ramp_limit_constraints(
             rhs = rhs + limit_start.sel(name=ext_main_names) * p_nom_ext_var * ds_ext
         # Adding a partial name expression sorts the name dim. This should be guarded more heavily in a future linopy release
         rhs = rhs.sel(name=idx)
-    mask_up = mask & ~no_up_limit & non_com_ext
+    # Drop ramp at investment-period boundaries where the asset was inactive
+    # in the previous period (issue #1669); cross-period links for
+    # continuously active assets are preserved.
+    is_period_boundary = _period_boundary_mask(sns)
+    prev_active = mask.shift(snapshot=1).fillna(False).astype(bool)
+    keep_period = ~is_period_boundary | prev_active
+    mask_up = mask & ~no_up_limit & non_com_ext & keep_period
     m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_up", mask=mask_up)
 
     lhs = p - p_prev
@@ -873,7 +903,7 @@ def define_ramp_limit_constraints(
             rhs = rhs + limit_shut.sel(name=ext_main_names) * p_nom_ext_var * ds_ext
         # Adding a partial name expression sorts the name dim. This should be guarded more heavily in a future linopy release
         rhs = rhs.sel(name=idx)
-    mask_down = mask & ~no_down_limit & non_com_ext
+    mask_down = mask & ~no_down_limit & non_com_ext & keep_period
     m.add_constraints(
         lhs >= rhs, name=f"{c.name}-{attr}-ramp_limit_down", mask=mask_down
     )

@@ -1132,3 +1132,85 @@ def test_operational_limit_with_investment_period_storage():
     # Total operational value for 2030 should respect the limit
     total_2030 = soc_delta
     assert total_2030 <= 25 + 1e-6  # Allow small numerical tolerance
+
+
+def test_ramp_limit_masked_at_period_boundaries():
+    """Ramp constraints must not link dispatch across investment periods.
+
+    Regression test for issue #1669: PyPSA previously created a ramp
+    constraint at the first snapshot of every investment period beyond the
+    horizon start, including for generators that had not yet been built.
+    Because the previous-period dispatch of an inactive generator is zero,
+    the spurious constraint reduced to ``p[period_first] <= ramp_limit_up
+    * p_nom``, rendering models with ``p_min_pu * p_nom > ramp_limit_up *
+    p_nom`` (e.g. nuclear) infeasible.
+
+    The fix masks ramp constraints at investment-period boundaries where the
+    asset was inactive in the prior period; cross-period links for
+    continuously active assets are preserved.
+    """
+    n = pypsa.Network()
+
+    snapshots = pd.MultiIndex.from_product(
+        [
+            [2030, 2035, 2040],
+            pd.date_range("2018-01-01", periods=2, freq="h"),
+        ],
+        names=["period", "timestep"],
+    )
+
+    n.set_snapshots(snapshots)
+    n.investment_periods = pd.Index([2030, 2035, 2040])
+    n.investment_period_weightings.objective = 1.0
+    n.investment_period_weightings.years = 1.0
+
+    n.c.carriers.add(["AC", "nuclear"])
+    n.c.buses.add("elec", carrier="AC")
+    # Load above the nuclear minimum stable output so the model is feasible
+    # once the ramp bug is fixed (without the fix it is infeasible regardless).
+    n.c.loads.add("load", bus="elec", p_set=60.0)
+
+    for period in n.investment_periods:
+        n.c.generators.add(
+            f"nuclear/{period}",
+            bus="elec",
+            carrier="nuclear",
+            p_nom=100.0,
+            p_min_pu=0.5,  # exceeds ramp_limit_up, triggers the bug
+            marginal_cost=10.0,
+            ramp_limit_up=0.05,
+            ramp_limit_down=0.05,
+            build_year=period,
+            lifetime=5,  # each unit only active during its own investment period
+        )
+
+    m = n.optimize.create_model(
+        include_objective_constant=False,
+        multi_investment_periods=True,
+    )
+
+    cons_up = m.constraints["Generator-p-ramp_limit_up"]
+
+    # `mask` convention: True = constraint enforced, False = dropped.
+    # Each generator is active only during its own investment period
+    # (lifetime=5). Ramp constraint at the first snapshot of each period must
+    # be dropped because the unit was inactive in the previous period (this
+    # is the issue #1669 bug).
+    active_2030 = cons_up.sel(name="nuclear/2030").mask.values.astype(bool)
+    assert list(active_2030) == [False, True, False, False, False, False]
+
+    active_2035 = cons_up.sel(name="nuclear/2035").mask.values.astype(bool)
+    # Index 2 = (2035, t0): period-first, previously buggy, now dropped.
+    assert list(active_2035) == [False, False, False, True, False, False]
+
+    active_2040 = cons_up.sel(name="nuclear/2040").mask.values.astype(bool)
+    # Index 4 = (2040, t0): period-first, previously buggy, now dropped.
+    assert list(active_2040) == [False, False, False, False, False, True]
+
+    # Solve must be feasible now; previously infeasible due to the bug.
+    status, condition = n.optimize(
+        solver_name="highs",
+        multi_investment_periods=True,
+    )
+    assert status == "ok"
+    assert condition == "optimal"

@@ -15,6 +15,7 @@ SPDX-License-Identifier: CC-BY-4.0
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly.
+- Fix ramp limit constraints in multi-investment-period models. Previously the constraint at the first snapshot of each investment period (after the horizon start) linked dispatch to the last snapshot of the prior period, which collapsed to `p <= ramp_limit_up * p_nom` for newly built assets and could make pathway-planning models infeasible when `p_min_pu * p_nom > ramp_limit_up * p_nom` (e.g. nuclear with high `p_min_pu` and tight ramps). Ramp constraints are now dropped at period boundaries where the asset was inactive in the previous period; cross-period ramps for continuously active assets are preserved.
 
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
