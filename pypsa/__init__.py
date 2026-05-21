@@ -29,7 +29,9 @@ from pypsa import (
     optimization,
     plot,
     statistics,
+    utils,
 )
+from pypsa.utils import apply_seasonal_line_ratings
 from pypsa._options import (
     option_context,
     options,
@@ -77,6 +79,8 @@ __all__ = [
     "NetworkCollection",
     "SubNetwork",
     "Components",
+    "utils",
+    "apply_seasonal_line_ratings",
 ]
 
 
