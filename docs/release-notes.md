@@ -6,13 +6,16 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.-->
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+- Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly.
+
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
 
