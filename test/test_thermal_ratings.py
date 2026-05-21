@@ -69,9 +69,7 @@ def test_apply_seasonal_southern_hemisphere():
     """summer_months override flips the broadcast."""
     n = _make_network()
     ratings = pd.DataFrame({"summer": [800], "winter": [1000]}, index=["a-b"])
-    apply_seasonal_line_ratings(
-        n, ratings, summer_months=(10, 11, 12, 1, 2, 3)
-    )
+    apply_seasonal_line_ratings(n, ratings, summer_months=(10, 11, 12, 1, 2, 3))
 
     s = n.lines_t.s_max_pu["a-b"]
     nh_summer = s[s.index.month.isin([4, 5, 6, 7, 8, 9])]
@@ -110,9 +108,7 @@ def test_apply_seasonal_compose_with_existing_dynamic_series():
     """Pre-existing per-snapshot s_max_pu composes element-wise."""
     n = _make_network()
     # Half-and-half pre-existing dynamic margin.
-    pre = pd.Series(
-        np.where(n.snapshots.hour < 12, 0.9, 0.8), index=n.snapshots
-    )
+    pre = pd.Series(np.where(n.snapshots.hour < 12, 0.9, 0.8), index=n.snapshots)
     n.lines_t.s_max_pu["a-b"] = pre
     ratings = pd.DataFrame({"summer": [800], "winter": [1000]}, index=["a-b"])
     apply_seasonal_line_ratings(n, ratings, compose=True)
@@ -192,9 +188,7 @@ def test_apply_seasonal_solve_runs():
         n = _make_network(periods=48)  # 2-day horizon
         n.add("Generator", "g", bus="a", p_nom=500, marginal_cost=10)
         n.add("Load", "ld", bus="b", p_set=400)
-        ratings = pd.DataFrame(
-            {"summer": [800], "winter": [1000]}, index=["a-b"]
-        )
+        ratings = pd.DataFrame({"summer": [800], "winter": [1000]}, index=["a-b"])
         apply_seasonal_line_ratings(n, ratings)
         status, condition = n.optimize()
         assert status == "ok"

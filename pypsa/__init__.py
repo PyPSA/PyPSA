@@ -31,7 +31,6 @@ from pypsa import (
     statistics,
     utils,
 )
-from pypsa.utils import apply_seasonal_line_ratings
 from pypsa._options import (
     option_context,
     options,
@@ -39,6 +38,7 @@ from pypsa._options import (
 from pypsa.collection import NetworkCollection
 from pypsa.components.components import Components
 from pypsa.networks import Network, SubNetwork
+from pypsa.utils import apply_seasonal_line_ratings
 from pypsa.version import (
     __version__,
     __version_base__,

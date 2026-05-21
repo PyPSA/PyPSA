@@ -14,9 +14,10 @@ broadcast mechanism only. Source-of-truth selection (which lines to include,
 whether grid upgrades replace the rating, hemisphere-specific summer months)
 is left to the caller.
 
-See also
+See Also
 --------
 PyPSA GH #1693 for the discussion that motivated this helper.
+
 """
 
 from __future__ import annotations
@@ -97,6 +98,7 @@ def apply_seasonal_line_ratings(
     1000.0
     >>> n.lines_t.s_max_pu['a-b'].iloc[3000]  # mid-summer hour
     0.8
+
     """
     if not isinstance(n.snapshots, pd.DatetimeIndex):
         msg = (
@@ -146,9 +148,7 @@ def apply_seasonal_line_ratings(
     # Broadcast s_max_pu. Compose multiplicatively with any pre-existing
     # per-snapshot entry so callers retain N-1 margins.
     if compose:
-        existing = n.lines_t.s_max_pu.reindex(
-            index=n.snapshots, columns=ratings.index
-        )
+        existing = n.lines_t.s_max_pu.reindex(index=n.snapshots, columns=ratings.index)
         static = n.lines.loc[ratings.index, "s_max_pu"].to_numpy()
         existing = existing.fillna(pd.Series(static, index=ratings.index))
         n.lines_t.s_max_pu[ratings.index] = (existing * seasonal).to_numpy()
