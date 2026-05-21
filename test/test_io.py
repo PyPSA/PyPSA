@@ -282,6 +282,9 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=True)
         pypsa.Network(fn)
 
+    @pytest.mark.filterwarnings(
+        "ignore:Dtype inference on a pandas object:FutureWarning"
+    )
     def test_netcdf_io_no_arrow_string_arrays(self, tmpdir):
         """Loaded NetCDFs must not yield Arrow-backed string indices/columns.
 
