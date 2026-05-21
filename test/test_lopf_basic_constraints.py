@@ -406,7 +406,6 @@ def test_define_fixed_operational_constraints_extendable():
     assert n.c.generators.dynamic.p["gen2"].eq(0).all()
 
 
-
 def test_nodal_balance_respects_load_sign():
     """
     The sign attribute of Load components must be considered in the
@@ -456,6 +455,7 @@ def test_nodal_balance_load_sign_rhs_values():
     # sign=+1: RHS contribution = -p_set * (+1) = -p_set
     assert rhs.sel(name="B2").item() == -30.0
 
+
 def test_define_fixed_operational_constraints_infinite_p_nom():
     """Non-extendable generator with p_nom=inf and p_min_pu=0 must not produce NaN bounds.
 
@@ -480,4 +480,3 @@ def test_define_fixed_operational_constraints_infinite_p_nom():
 
     n.optimize.solve_model()
     assert n.c.generators.dynamic.p["gen_inf"].eq(10).all()
-
