@@ -34,6 +34,10 @@ from pypsa._options import (
     option_context,
     options,
 )
+from pypsa._outage_schedule import (
+    apply_outage_schedule,
+    build_factor_series_per_asset,
+)
 from pypsa.collection import NetworkCollection
 from pypsa.components.components import Components
 from pypsa.networks import Network, SubNetwork
@@ -77,6 +81,8 @@ __all__ = [
     "NetworkCollection",
     "SubNetwork",
     "Components",
+    "apply_outage_schedule",
+    "build_factor_series_per_asset",
 ]
 
 

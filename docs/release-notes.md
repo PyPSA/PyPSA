@@ -16,6 +16,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly.
 
+### Features
+
+- Add `pypsa.apply_outage_schedule` to write user-supplied outage windows onto a built network. Sets time-varying `p_max_pu` for [Generator](./user-guide/components/generators.md) components and both `p_max_pu` and `p_min_pu` for [Link](./user-guide/components/links.md) components (asymmetric reverse direction is clamped to the static `p_min_pu`). Overlapping rows on the same asset collapse by `min(p_max_pu)` per snapshot. Complements endogenous maintenance scheduling: use this helper when the schedule is already known (validation runs, what-if studies, REMIT replay) and the solver does not need to choose timing.
+
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
 
