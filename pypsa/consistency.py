@@ -49,6 +49,28 @@ def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
     logger.warning(message, *args)
 
 
+def _normalize_static_string_dtypes(n: NetworkType) -> None:
+    """Cast every component's `static` string-typed index and columns to object.
+
+    Under pandas >= 2.1 with `future.infer_string=True` (the default since
+    pandas 3.0), CSV/parquet-loaded component data becomes
+    ArrowStringArray-backed. xarray rejects Arrow-backed pandas arrays as
+    `.sel()` indexers, breaking dozens of call sites in the optimization
+    module (e.g. `cbuses.sel(name=c.active_assets)` in
+    `define_nodal_balance_constraints`, where `cbuses` is built from
+    bus-column values). See GH #1585 / #1656.
+
+    Called from `Network.sanitize()` and from `Network.optimize` before model
+    construction, so the invariant holds for both manual and implicit flows.
+    """
+    for c in n.components:
+        if c.static.index.dtype != object:
+            c.static.index = c.static.index.astype(object)
+        for col in c.static.columns:
+            if str(c.static[col].dtype) in ("str", "string"):
+                c.static[col] = c.static[col].astype(object)
+
+
 def check_for_unknown_buses(
     n: NetworkType, component: Components, strict: bool = False
 ) -> None:
@@ -1045,6 +1067,8 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         self.c.carriers.add_missing_carriers()
         self.c.carriers.assign_colors()
+
+        _normalize_static_string_dtypes(self)
 
         logger.info("Network sanitization complete.")
 

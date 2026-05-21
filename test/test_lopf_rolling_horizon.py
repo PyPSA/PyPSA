@@ -253,3 +253,38 @@ def test_rolling_horizon_linearized_uc_with_ramp_limits():
     static = n.c.generators.static.loc[committable_gens]
     ramp_limits = static.eval("ramp_limit_up * p_nom_opt")
     assert (ramping.values <= ramp_limits.values[None, :] + 1e-5).all()
+
+
+def test_rolling_horizon_ac_dc_meshed_arrow_string():
+    """Regression test for GH #1585 / #1656.
+
+    Under pandas >= 2.1 with `future.infer_string=True` (the default), CSV-loaded
+    component static indexes become ArrowStringArray-backed. xarray rejects these
+    as `.sel()` indexers, breaking `optimize()` and therefore
+    `optimize_with_rolling_horizon` on every example shipped with PyPSA.
+
+    Network.sanitize() now normalises component static indexes to object dtype.
+    """
+    import pandas as pd
+
+    prev = pd.get_option("future.infer_string")
+    pd.set_option("future.infer_string", True)
+    try:
+        n = pypsa.examples.ac_dc_meshed()
+        # Confirm precondition: Arrow-backed index would have broken .sel().
+        assert str(n.c.generators.static.index.dtype) in ("str", "string", "object")
+        n.sanitize()
+        # Post-sanitize invariant: object dtype on every component static
+        # index and on every string-typed column (sources of `.sel(name=...)`
+        # indexers downstream).
+        for c in n.components:
+            assert c.static.index.dtype == object, (
+                f"{c.name}.static.index dtype is {c.static.index.dtype}, expected object"
+            )
+            for col in c.static.columns:
+                assert str(c.static[col].dtype) not in ("str", "string"), (
+                    f"{c.name}.static[{col}] dtype is {c.static[col].dtype}, expected object"
+                )
+        n.optimize.optimize_with_rolling_horizon(horizon=4, overlap=1)
+    finally:
+        pd.set_option("future.infer_string", prev)

@@ -21,7 +21,11 @@ from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
-from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
+from pypsa.consistency import (
+    _normalize_static_string_dtypes,
+    check_big_m_exceeded,
+    check_no_modular_committables,
+)
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
@@ -663,6 +667,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._linearized_uc = int(linearized_unit_commitment)
         n._multi_invest = int(multi_investment_periods)
         n._committable_big_m = committable_big_m
+
+        # Cast Arrow-backed string indexes/columns to object so xarray can
+        # accept them as `.sel(name=...)` indexers. See GH #1585 / #1656.
+        _normalize_static_string_dtypes(n)
 
         if linearized_unit_commitment:
             check_no_modular_committables(n)
