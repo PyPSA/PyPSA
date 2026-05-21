@@ -288,10 +288,7 @@ def apply_outage_schedule(
     if unknown:
         preview = unknown[:5]
         ellipsis = "..." if len(unknown) > 5 else ""
-        msg = (
-            f"{len(unknown)} outage asset_id(s) not in network: "
-            f"{preview}{ellipsis}"
-        )
+        msg = f"{len(unknown)} outage asset_id(s) not in network: {preview}{ellipsis}"
         if on_unknown == "raise":
             raise KeyError(msg)
         if on_unknown == "warn":
