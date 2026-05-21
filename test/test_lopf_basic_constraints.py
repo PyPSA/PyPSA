@@ -404,3 +404,53 @@ def test_define_fixed_operational_constraints_extendable():
     assert n.c.generators.dynamic.p["gen0"].eq(5).all()
     assert n.c.generators.dynamic.p["gen1"].eq(5).all()
     assert n.c.generators.dynamic.p["gen2"].eq(0).all()
+
+
+def test_nodal_balance_respects_load_sign():
+    """
+    The sign attribute of Load components must be considered in the
+    nodal balance constraint. With sign=-1 (default), a load consumes
+    power; with sign=+1, it represents a fixed supply injection.
+
+    Verifies both:
+      1. The nodal balance constraint RHS equals -p_set * sign.
+      2. The solved generator dispatch matches the resulting net demand.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "B1")
+    n.add("Generator", "gen", bus="B1", p_nom=200, marginal_cost=10)
+    n.add("Load", "L_consume", bus="B1", p_set=100, sign=-1)
+    n.add("Load", "L_supply", bus="B1", p_set=100, sign=1)
+
+    n.optimize(solver_name="highs")
+
+    # Constraint RHS check: -p_set * sign per load, summed per bus
+    # Expected for bus B1: -(100 * -1) + -(100 * 1) = 100 - 100 = 0
+    rhs = n.model.constraints["Bus-nodal_balance"].rhs.sel(name="B1")
+    assert (rhs == 0).all().item()
+
+    # Generator stays idle
+    assert n.c.generators.dynamic.p["gen"].abs().max() < TOLERANCE
+    assert n.objective < TOLERANCE
+
+
+def test_nodal_balance_load_sign_rhs_values():
+    """
+    Verify the per-load contribution to the nodal balance RHS for both
+    sign conventions, independently of solver behavior.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "B1")
+    n.add("Bus", "B2")
+    n.add("Generator", "gen1", bus="B1", p_nom=500, marginal_cost=1)
+    n.add("Generator", "gen2", bus="B2", p_nom=500, marginal_cost=1)
+    n.add("Load", "L_default", bus="B1", p_set=80)  # default sign = -1
+    n.add("Load", "L_supply", bus="B2", p_set=30, sign=1)
+
+    n.optimize.create_model()
+
+    rhs = n.model.constraints["Bus-nodal_balance"].rhs
+    # Default sign=-1: RHS contribution = -p_set * (-1) = +p_set
+    assert rhs.sel(name="B1").item() == 80.0
+    # sign=+1: RHS contribution = -p_set * (+1) = -p_set
+    assert rhs.sel(name="B2").item() == -30.0
