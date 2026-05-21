@@ -33,9 +33,9 @@ dependencies = [
     "numpy",
     "scipy",
     "pandas>=2.0",
-    "xarray<2026.4",  # See https://github.com/PyPSA/linopy/pull/647
+    "xarray",
     "netcdf4",
-    "linopy>=0.6.1",
+    "linopy>=0.7.0",
     "matplotlib",
     "plotly",
     "pydeck>=0.6",

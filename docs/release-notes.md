@@ -16,6 +16,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly.
 
+- Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. The xarray API change (rejecting `Dataset` as `data_vars` to the `Dataset()` constructor) was fixed in [linopy PR #647](https://github.com/PyPSA/linopy/pull/647), released in linopy 0.7.0. With the new floor, the xarray cap is no longer needed.
+
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
 
