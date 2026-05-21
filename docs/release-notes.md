@@ -14,15 +14,22 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+- Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly.
+
+
+## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
+
 ### Documentation
 
 - Updated our contribution guidelines outline what we expect from AI-based contributions. See [AI-based Contributions](https://docs.pypsa.org/latest/contributing/contributing/#ai-based-contributions) in our documentation for more details. (<!-- md:pr 1672 -->)
 
 ### Bug Fixes
 
-- Fix `n.statistics.transmission()` returning zero flows when `bus_carrier` is set. (<!-- md:pr 1662 -->)
+- Fix ramp limit constraints leaking another [Generator](./user-guide/components/generators.md)'s `p_nom` variable into the constraint when a component held both fixed and extendable generators. (<!-- md:pr 1677 -->)
 
-- Fix `n.add(..., overwrite=True)` leaving stale time-varying (dynamic) attributes from the previously existing component, which silently shadowed the new static values at solve time. `overwrite=True` now behaves consistently with `n.remove(...)` followed by `n.add(...)`. See [#1628](https://github.com/PyPSA/PyPSA/issues/1628).
+- Fix [`n.statistics.transmission()`][pypsa.statistics.StatisticsAccessor.transmission] returning zero flows when `bus_carrier` is set. (<!-- md:pr 1662 -->)
+
+- Fix [`n.add(..., overwrite=True)`][pypsa.Network.add] leaving stale dynamic attributes from the previously existing component, which silently shadowed the new static values at solve time. `overwrite=True` now behaves consistently with [`n.remove(...)`][pypsa.Network.remove] followed by `n.add(...)`. (<!-- md:pr 1666 -->)
 
 
 ## [**v1.2.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.0) <small>21st April 2026</small> { id="v1.2.0" }
