@@ -67,7 +67,9 @@ def _coerce_arrow_strings(df: pd.DataFrame) -> pd.DataFrame:
                 else level
                 for level in axis.levels
             ]
-            if any(nl is not ol for nl, ol in zip(new_levels, axis.levels)):
+            if any(
+                nl is not ol for nl, ol in zip(new_levels, axis.levels, strict=True)
+            ):
                 axis = axis.set_levels(new_levels)
             return axis
         if isinstance(axis.values, arrow_string_array):
