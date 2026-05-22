@@ -14,6 +14,8 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+- [`optimize_with_rolling_horizon`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] now tracks Generator `e_sum_max` budgets across iterations by reducing the remaining budget in each window by the energy already committed in previous windows (excluding overlap that is re-optimised).
+
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly.
 
 - Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. The xarray API change (rejecting `Dataset` as `data_vars` to the `Dataset()` constructor) was fixed in [linopy PR #647](https://github.com/PyPSA/linopy/pull/647), released in linopy 0.7.0. With the new floor, the xarray cap is no longer needed.

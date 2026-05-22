@@ -498,6 +498,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
     ) -> Network:
         """Optimizes the network in a rolling horizon fashion.
 
+        Generator `e_sum_max` budgets are tracked across iterations: the remaining
+        budget in each window is reduced by the weighted energy already produced
+        in previously committed snapshots (excluding overlap that is re-optimised).
+
         Parameters
         ----------
         snapshots : list-like
@@ -519,6 +523,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             raise ValueError(msg)
 
         starting_points = range(0, len(snapshots), horizon - overlap)
+        track_e_sum_max = (n.c.generators.static.e_sum_max < np.inf).any()
+        if track_e_sum_max:
+            e_sum_max_orig = n.c.generators.static.e_sum_max.copy()
+
         for i, start in enumerate(starting_points):
             end = min(len(snapshots), start + horizon)
             sns = snapshots[start:end]
@@ -541,6 +549,15 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                             snapshots[start - 1]
                         ].values
                     )
+                if track_e_sum_max:
+                    committed = snapshots[:start]
+                    weights = n.snapshot_weightings.generators.loc[committed]
+                    generated = (
+                        n.c.generators.dynamic.p.loc[committed]
+                        .multiply(weights, axis=0)
+                        .sum()
+                    )
+                    n.c.generators.static["e_sum_max"] = e_sum_max_orig - generated
 
             status, condition = n.optimize(sns, **kwargs)
             if status != "ok":
@@ -549,6 +566,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                     status,
                     condition,
                 )
+
+        if track_e_sum_max:
+            n.c.generators.static["e_sum_max"] = e_sum_max_orig
         return n
 
     def optimize_and_run_non_linear_powerflow(
