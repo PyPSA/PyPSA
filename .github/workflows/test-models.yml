@@ -120,7 +120,10 @@ jobs:
     - name: Install package from ref
       if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
       run: |
+        # Allow upgrading internal packages without exclude-newer cap
+        sed -i '/^exclude-newer\s*=/d' pixi.toml
         pixi remove ${{ env.PACKAGE_NAME }}
+        pixi upgrade linopy
         pixi add --pypi --git https://github.com/${{ github.repository }}.git ${{ github.event.repository.name }} --rev ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
     - name: Run snakemake test workflows
