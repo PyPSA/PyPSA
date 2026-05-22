@@ -222,6 +222,46 @@ def test_rolling_horizon_committable_overlap_matches_full_run():
     assert (ramping >= -static.eval("ramp_limit_down * p_nom_opt")).all().all()
 
 
+def test_rolling_horizon_e_sum_max():
+    n = get_network(committable=False)
+
+    # Total unconstrained dispatch for coal in a single-shot run as reference
+    n_ref = n.copy()
+    n_ref.optimize()
+    full_coal = n_ref.c.generators.dynamic.p["coal"].sum()
+
+    # Cap coal generation below the unconstrained level
+    budget = 0.5 * full_coal
+    n.c.generators.static.loc["coal", "e_sum_max"] = budget
+
+    n.optimize.optimize_with_rolling_horizon(horizon=3)
+
+    weights = n.snapshot_weightings.generators
+    coal_total = (n.c.generators.dynamic.p["coal"] * weights).sum()
+    assert coal_total <= budget + 1e-6
+
+    # Static attribute is restored after the run
+    assert n.c.generators.static.loc["coal", "e_sum_max"] == budget
+
+
+def test_rolling_horizon_e_sum_max_with_overlap():
+    n = get_network(committable=False)
+
+    n_ref = n.copy()
+    n_ref.optimize()
+    full_coal = n_ref.c.generators.dynamic.p["coal"].sum()
+
+    budget = 0.5 * full_coal
+    n.c.generators.static.loc["coal", "e_sum_max"] = budget
+
+    n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=1)
+
+    weights = n.snapshot_weightings.generators
+    coal_total = (n.c.generators.dynamic.p["coal"] * weights).sum()
+    assert coal_total <= budget + 1e-6
+    assert n.c.generators.static.loc["coal", "e_sum_max"] == budget
+
+
 def test_rolling_horizon_linearized_uc_with_ramp_limits():
     """
     Test rolling horizon with linearized UC and ramp limits on committables.
