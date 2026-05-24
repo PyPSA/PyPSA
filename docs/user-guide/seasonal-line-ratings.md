@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 Transmission lines have different thermal capacities in summer and winter, because conductor ampacity is cooling-limited. TenneT, RTE, National Grid, and CAISO all publish per-line summer / winter ratings derived from IEEE 738 / IEC 61597 conductor models.
 
-The helper [`apply_seasonal_line_ratings`][pypsa.apply_seasonal_line_ratings] broadcasts a per-line `(summer, winter)` rating table onto `n.lines.s_nom` and `n.lines_t.s_max_pu` so the seasonal envelope is visible to the optimiser.
+The [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] method broadcasts a per-line `(summer, winter)` rating table onto `n.lines.s_nom` and `n.lines_t.s_max_pu` so the seasonal envelope is visible to the optimiser.
 
 ## When to use it
 
@@ -31,7 +31,7 @@ ratings = pd.DataFrame(
     {"summer": [800], "winter": [1000]},
     index=["a-b"],
 )
-pypsa.apply_seasonal_line_ratings(n, ratings)
+n.c.lines.apply_seasonal_rating(ratings)
 
 # s_nom is set to the winter envelope; summer hours get a 0.8 factor.
 float(n.lines.at["a-b", "s_nom"])         # 1000.0
@@ -42,11 +42,11 @@ n.lines_t.s_max_pu["a-b"].iloc[3000]      # 0.8 (mid-summer hour)
 
 ## Composing with an N-1 margin
 
-By default the helper multiplies the seasonal factor into any pre-existing `s_max_pu` so N-1 margins survive:
+By default the method multiplies the seasonal factor into any pre-existing `s_max_pu` so N-1 margins survive:
 
 ```python
 n.lines.at["a-b", "s_max_pu"] = 0.9   # static N-1 margin
-pypsa.apply_seasonal_line_ratings(n, ratings, compose=True)
+n.c.lines.apply_seasonal_rating(ratings, compose=True)
 
 # Summer hour:  0.9 * 0.8 = 0.72
 # Winter hour:  0.9 * 1.0 = 0.9
@@ -59,24 +59,24 @@ Pre-existing dynamic series in `n.lines_t.s_max_pu` compose element-wise. Pass `
 The default `summer_months=(4, 5, 6, 7, 8, 9)` is northern-hemisphere. Override for SH networks:
 
 ```python
-pypsa.apply_seasonal_line_ratings(
-    n, ratings, summer_months=(10, 11, 12, 1, 2, 3),
+n.c.lines.apply_seasonal_rating(
+    ratings, summer_months=(10, 11, 12, 1, 2, 3),
 )
 ```
 
 ## Convention: summer is the lower rating
 
-The helper treats `min(summer, winter)` as the derating factor regardless of which column is smaller, so data that flips the convention still works. But the published-TSO convention is **summer = lower rating** (warmer ambient air, lower cooling, lower ampacity). Stick to it unless you have a specific reason.
+The method treats `min(summer, winter)` as the derating factor regardless of which column is smaller, so data that flips the convention still works. But the published-TSO convention is **summer = lower rating** (warmer ambient air, lower cooling, lower ampacity). Stick to it unless you have a specific reason.
 
 ## Out of scope
 
-The helper is intentionally policy-light:
+The method is intentionally policy-light:
 
 - It does not load JAO / TenneT / RTE feeds; the caller assembles `ratings`.
 - It does not detect grid upgrades or replace ratings when a line is reinforced.
 - It does not implement dynamic line rating (DLR) from weather time series.
 
-These belong upstream of the helper. Pass in whatever rating table your data pipeline produces.
+These belong upstream of the method. Pass in whatever rating table your data pipeline produces.
 
 ## Raises
 
