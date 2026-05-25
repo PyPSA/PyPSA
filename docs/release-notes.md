@@ -6,17 +6,23 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-## Upcoming Release
+## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
 
+<!--
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+-->
 
-- Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly.
+### Bug Fixes
 
-- Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. The xarray API change (rejecting `Dataset` as `data_vars` to the `Dataset()` constructor) was fixed in [linopy PR #647](https://github.com/PyPSA/linopy/pull/647), released in linopy 0.7.0. With the new floor, the xarray cap is no longer needed.
+- Fix the sign of [Loads](./user-guide/components/loads.md) not being taken into account in the nodal balance constraint when calling [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. (<!-- md:pr 1685 -->)
+
+- Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly. (<!-- md:pr 1683 -->)
+
+- Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. (<!-- md:pr 1686 -->)
 
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
@@ -32,8 +38,6 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix [`n.statistics.transmission()`][pypsa.statistics.StatisticsAccessor.transmission] returning zero flows when `bus_carrier` is set. (<!-- md:pr 1662 -->)
 
 - Fix [`n.add(..., overwrite=True)`][pypsa.Network.add] leaving stale dynamic attributes from the previously existing component, which silently shadowed the new static values at solve time. `overwrite=True` now behaves consistently with [`n.remove(...)`][pypsa.Network.remove] followed by `n.add(...)`. (<!-- md:pr 1666 -->)
-
-- Fix the sign of loads not being taken into account in the nodal balance constraint when calling `n.optimize()´.
 
 
 ## [**v1.2.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.0) <small>21st April 2026</small> { id="v1.2.0" }
