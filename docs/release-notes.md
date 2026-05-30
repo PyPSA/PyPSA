@@ -6,15 +6,20 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
+## Upcoming Release
 
-<!--
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Bug Fixes
+
+- Fix `n.optimize()` silently ignoring a static `p_set` on [Generator](./user-guide/components/generators.md), [StorageUnit](./user-guide/components/storage-units.md), [Store](./user-guide/components/stores.md), [Link](./user-guide/components/links.md), and [Process](./user-guide/components/processes.md) components. `lpf()` already honoured both static and dynamic `p_set`; the optimizer now matches the documented `static or series` semantics. See [#1701](https://github.com/PyPSA/PyPSA/issues/1701).
+
+
+## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
 
 ### Bug Fixes
 
