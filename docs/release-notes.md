@@ -16,6 +16,11 @@ SPDX-License-Identifier: CC-BY-4.0
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 -->
 
+### Features
+
+Added compatibility with stricter dimension alignment handling in (upcoming)linopy `>=0.8`.
+
+
 ### Bug Fixes
 
 - Fix the sign of [Loads](./user-guide/components/loads.md) not being taken into account in the nodal balance constraint when calling [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. (<!-- md:pr 1685 -->)
