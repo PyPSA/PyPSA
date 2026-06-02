@@ -23,6 +23,9 @@ Added compatibility with stricter dimension alignment handling in (upcoming)lino
 
 ### Bug Fixes
 
+- Avoid redundant traces and legends in interactive statistics bar plots when
+  the color dimension duplicates an axis. (<!-- md:pr -->)
+
 - Fix the sign of [Loads](./user-guide/components/loads.md) not being taken into account in the nodal balance constraint when calling [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. (<!-- md:pr 1685 -->)
 
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly. (<!-- md:pr 1683 -->)
