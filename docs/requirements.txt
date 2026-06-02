@@ -13,7 +13,7 @@ babel==2.18.0
     # via
     #   mkdocs-git-revision-date-localized-plugin
     #   mkdocs-material
-backrefs==6.1
+backrefs==7.0
     # via mkdocs-material
 beautifulsoup4==4.14.3
     # via nbconvert
@@ -27,7 +27,7 @@ cairosvg==2.8.2
     # via pypsa
 cartopy==0.25.0
     # via pypsa
-certifi==2026.1.4
+certifi==2026.4.22
     # via
     #   netcdf4
     #   pyogrio
@@ -41,7 +41,7 @@ cftime==1.6.5
     # via netcdf4
 charset-normalizer==3.4.4
     # via requests
-click==8.3.1
+click==8.4.0
     # via
     #   dask
     #   mkdocs
@@ -60,7 +60,7 @@ comm==0.2.3
     # via ipykernel
 contourpy==1.3.3
     # via matplotlib
-cssselect2==0.8.0
+cssselect2==0.9.0
     # via cairosvg
 cycler==0.12.1
     # via matplotlib
@@ -68,7 +68,7 @@ dask==2026.1.2
     # via linopy
 debugpy==1.8.20
     # via ipykernel
-decorator==5.2.1
+decorator==5.3.1
     # via ipython
 defusedxml==0.7.1
     # via
@@ -86,9 +86,9 @@ executing==2.2.1
     # via stack-data
 fastjsonschema==2.21.2
     # via nbformat
-fonttools==4.61.1
+fonttools==4.63.0
     # via matplotlib
-fsspec==2026.1.0
+fsspec==2026.4.0
     # via dask
 geopandas==1.1.2
     # via pypsa
@@ -96,17 +96,17 @@ ghp-import==2.1.0
     # via mkdocs
 gitdb==4.0.12
     # via gitpython
-gitpython==3.1.46
+gitpython==3.1.50
     # via mkdocs-git-revision-date-localized-plugin
-griffe==1.15.0
+griffelib==2.0.2
     # via mkdocstrings-python
-gurobipy==13.0.1
+gurobipy==13.0.2
     # via pypsa
-highspy==1.12.0
+highspy==1.14.0
     # via
     #   pypsa
     #   tsam
-idna==3.11
+idna==3.15
     # via requests
 importlib-metadata==8.7.1 ; python_full_version < '3.12'
     # via dask
@@ -114,11 +114,11 @@ iniconfig==2.3.0
     # via pytest
 ipykernel==6.31.0
     # via mkdocs-jupyter
-ipython==9.10.0
+ipython==9.13.0
     # via ipykernel
 ipython-pygments-lexers==1.1.1
     # via ipython
-jedi==0.19.2
+jedi==0.20.0
     # via ipython
 jinja2==3.1.6
     # via
@@ -146,17 +146,17 @@ jupyter-core==5.9.1
     #   nbformat
 jupyterlab-pygments==0.3.0
     # via nbconvert
-jupytext==1.19.1
+jupytext==1.19.3
     # via mkdocs-jupyter
 kiwisolver==1.4.9
     # via matplotlib
 levenshtein==0.27.3
     # via pypsa
-linopy @ git+https://github.com/pypsa/linopy@a9584d23fa0bbdd1f3b6c8f9938043c5c2601570
+linopy==0.7.0
     # via pypsa
 locket==1.0.0
     # via partd
-lxml==6.0.2
+lxml==6.1.1
     # via mkdocs-video
 markdown==3.10.1
     # via
@@ -165,7 +165,7 @@ markdown==3.10.1
     #   mkdocs-material
     #   mkdocstrings
     #   pymdown-extensions
-markdown-it-py==4.0.0
+markdown-it-py==4.2.0
     # via
     #   jupytext
     #   mdit-py-plugins
@@ -176,17 +176,18 @@ markupsafe==3.0.3
     #   mkdocs-autorefs
     #   mkdocstrings
     #   nbconvert
-matplotlib==3.10.8
+    #   properdocs
+matplotlib==3.10.9
     # via
     #   cartopy
     #   pypsa
     #   salib
     #   seaborn
-matplotlib-inline==0.2.1
+matplotlib-inline==0.2.2
     # via
     #   ipykernel
     #   ipython
-mdit-py-plugins==0.5.0
+mdit-py-plugins==0.6.1
     # via jupytext
 mdurl==0.1.2
     # via markdown-it-py
@@ -194,7 +195,7 @@ mergedeep==1.3.4
     # via
     #   mkdocs
     #   mkdocs-get-deps
-mistune==3.2.0
+mistune==3.2.1
     # via nbconvert
 mkdocs==1.6.1
     # via
@@ -218,7 +219,7 @@ mkdocs-ezlinks-plugin==0.1.14
     # via pypsa
 mkdocs-get-deps==0.2.0
     # via mkdocs
-mkdocs-git-revision-date-localized-plugin==1.5.1
+mkdocs-git-revision-date-localized-plugin==1.5.2
     # via pypsa
 mkdocs-jupyter==0.25.1
     # via pypsa
@@ -240,7 +241,7 @@ mkdocstrings-python==2.0.1
     # via pypsa
 multiprocess==0.70.19
     # via salib
-narwhals==2.16.0
+narwhals==2.21.2
     # via plotly
 nbclient==0.10.4
     # via nbconvert
@@ -261,7 +262,7 @@ networkx==3.6.1
     #   tsam
 numexpr==2.14.1
     # via linopy
-numpy==2.4.2
+numpy==2.4.6
     # via
     #   bottleneck
     #   cartopy
@@ -315,12 +316,14 @@ pandas==2.3.3
     #   xarray
 pandocfilters==1.5.1
     # via nbconvert
-parso==0.8.5
+parso==0.8.7
     # via jedi
 partd==1.4.2
     # via dask
-pathspec==1.0.4
-    # via mkdocs
+pathspec==1.1.1
+    # via
+    #   mkdocs
+    #   properdocs
 pexpect==4.9.0 ; sys_platform != 'emscripten' and sys_platform != 'win32'
     # via ipython
 pillow==12.1.0
@@ -337,16 +340,18 @@ plotly==6.5.2
     # via pypsa
 pluggy==1.6.0
     # via pytest
-ply==3.11
-    # via pyomo
-polars==1.37.1
+polars==1.40.1
     # via linopy
-polars-runtime-32==1.37.1
+polars-runtime-32==1.40.1
     # via polars
 prompt-toolkit==3.0.52
     # via ipython
+properdocs==1.6.7
+    # via mkdocs-redirects
 psutil==7.2.2
-    # via ipykernel
+    # via
+    #   ipykernel
+    #   ipython
 ptyprocess==0.7.0 ; sys_platform != 'emscripten' and sys_platform != 'win32'
     # via pexpect
 pure-eval==0.2.3
@@ -365,7 +370,7 @@ pygments==2.19.2
     #   pytest
 pygtrie==2.5.0
     # via mkdocs-ezlinks-plugin
-pymdown-extensions==10.20.1
+pymdown-extensions==10.21.3
     # via
     #   mkdocs-material
     #   mkdocstrings
@@ -379,7 +384,7 @@ pyproj==3.7.2
     # via
     #   cartopy
     #   geopandas
-pyshp==3.0.3
+pyshp==3.0.5
     # via cartopy
 pytest==9.0.2
     # via pypsa
@@ -391,7 +396,7 @@ python-dateutil==2.9.0.post0
     #   jupyter-client
     #   matplotlib
     #   pandas
-pytz==2025.2
+pytz==2026.2
     # via pandas
 pyyaml==6.0.3
     # via
@@ -414,7 +419,7 @@ referencing==0.37.0
     # via
     #   jsonschema
     #   jsonschema-specifications
-requests==2.32.5
+requests==2.34.2
     # via mkdocs-material
 rpds-py==0.30.0
     # via
@@ -467,7 +472,7 @@ tqdm==4.67.2
     # via
     #   linopy
     #   tsam
-traitlets==5.14.3
+traitlets==5.15.0
     # via
     #   ipykernel
     #   ipython
@@ -484,17 +489,19 @@ typing-extensions==4.15.0
     #   beautifulsoup4
     #   ipython
     #   referencing
-tzdata==2025.3
+tzdata==2026.2
     # via
     #   mkdocs-git-revision-date-localized-plugin
     #   pandas
-urllib3==2.6.3
+urllib3==2.7.0
     # via requests
 validators==0.35.0
     # via pypsa
 watchdog==6.0.0
-    # via mkdocs
-wcwidth==0.5.3
+    # via
+    #   mkdocs
+    #   properdocs
+wcwidth==0.7.0
     # via prompt-toolkit
 webencodings==0.5.1
     # via
@@ -505,5 +512,5 @@ xarray==2026.1.0
     # via
     #   linopy
     #   pypsa
-zipp==3.23.0 ; python_full_version < '3.12'
+zipp==4.1.0 ; python_full_version < '3.12'
     # via importlib-metadata

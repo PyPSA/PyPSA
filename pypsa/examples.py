@@ -42,6 +42,7 @@ def _cache_root() -> Path:
 
 def _load_example(name: str) -> Network:
     url = f"{_EXAMPLES_BASE_URL}/v{__version_base__}/{name}.nc"
+    fallback_url = f"{_EXAMPLES_BASE_URL}/latest/{name}.nc"
     cache = _cache_root() / f"v{__version_base__}" / f"{name}.nc"
 
     if not cache.exists():
@@ -54,7 +55,13 @@ def _load_example(name: str) -> Network:
             raise ValueError(msg)
         cache.parent.mkdir(parents=True, exist_ok=True)
         logger.info("Downloading %s to %s", url, cache)
-        urlretrieve(url, cache)  # noqa: S310
+        try:
+            urlretrieve(url, cache)  # noqa: S310
+        except HTTPError as err:
+            if err.code != 404:
+                raise
+            logger.warning("404 at %s; using %s", url, fallback_url)
+            urlretrieve(fallback_url, cache)  # noqa: S310
 
     # Suppress warning which occurs due to numpy version mismatch
     with warnings.catch_warnings():

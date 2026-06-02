@@ -665,7 +665,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             and compute_infeasibilities
             and "gurobi" in available_solvers
         ):
-            n.model.print_infeasibilities()
+            logger.info(n.model.format_infeasibilities())
 
         return status, condition
 

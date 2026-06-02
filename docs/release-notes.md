@@ -6,17 +6,43 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-## Upcoming Release
+## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
 
+<!--
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+-->
+
+### Features
+
+Added compatibility with stricter dimension alignment handling in (upcoming)linopy `>=0.8`.
+
 
 ### Bug Fixes
 
-- Fix `n.statistics.transmission()` returning zero flows when `bus_carrier` is set. (<!-- md:pr 1662 -->)
+- Fix the sign of [Loads](./user-guide/components/loads.md) not being taken into account in the nodal balance constraint when calling [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. (<!-- md:pr 1685 -->)
+
+- Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly. (<!-- md:pr 1683 -->)
+
+- Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. (<!-- md:pr 1686 -->)
+
+
+## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
+
+### Documentation
+
+- Updated our contribution guidelines outline what we expect from AI-based contributions. See [AI-based Contributions](https://docs.pypsa.org/latest/contributing/contributing/#ai-based-contributions) in our documentation for more details. (<!-- md:pr 1672 -->)
+
+### Bug Fixes
+
+- Fix ramp limit constraints leaking another [Generator](./user-guide/components/generators.md)'s `p_nom` variable into the constraint when a component held both fixed and extendable generators. (<!-- md:pr 1677 -->)
+
+- Fix [`n.statistics.transmission()`][pypsa.statistics.StatisticsAccessor.transmission] returning zero flows when `bus_carrier` is set. (<!-- md:pr 1662 -->)
+
+- Fix [`n.add(..., overwrite=True)`][pypsa.Network.add] leaving stale dynamic attributes from the previously existing component, which silently shadowed the new static values at solve time. `overwrite=True` now behaves consistently with [`n.remove(...)`][pypsa.Network.remove] followed by `n.add(...)`. (<!-- md:pr 1666 -->)
 
 
 ## [**v1.2.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.0) <small>21st April 2026</small> { id="v1.2.0" }
