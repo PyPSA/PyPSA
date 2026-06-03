@@ -2805,6 +2805,214 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    def co2_emissions(  # noqa: D417
+        self,
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
+        aggregate_across_components: bool = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+    ) -> pd.DataFrame:
+        """Calculate the **CO2 emissions** of components in the network in tonnes.
+
+        Emissions are computed from the dispatch time series of each asset and
+        the ``co2_emissions`` attribute of its carrier (tCO₂/MWh_thermal).  For
+        generators the fuel input is derived by dividing dispatch by efficiency;
+        for all other component types the dispatch power is used directly.
+
+        Parameters
+        ----------
+        components : str | Sequence[str] | None, default=None
+            Components to include. Defaults to
+            ``['Generator', 'StorageUnit', 'Store', 'Link']``.
+        groupby_method : Callable | str, default="sum"
+            Function to aggregate groups when using the ``groupby`` parameter.
+        aggregate_across_components : bool, default=False
+            Whether to aggregate across components.
+        groupby : str | Sequence[str] | Callable, default="carrier"
+            How to group components:
+            - ``False``: No grouping, return all components individually.
+            - string or list of strings: Group by column names from static data.
+            - callable: Function that takes network and component name.
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier.
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of connected buses.
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result.
+        round : int | None, default=None
+            Number of decimal places to round the result to.
+
+        Other Parameters
+        ----------------
+        groupby_time : str | bool, default="sum"
+            Aggregation over time. Disable with ``False`` to return the full
+            time series in tCO₂/h.
+
+        Returns
+        -------
+        pd.DataFrame
+            Total CO₂ emissions (tCO₂) grouped by ``groupby``, or the full
+            time series when ``groupby_time=False``.
+
+        Examples
+        --------
+        >>> n.statistics.co2_emissions()
+        Series([], dtype: float64)
+
+        """
+
+        @pass_empty_series_if_keyerror
+        def func(n: Network, c: str, port: str) -> pd.Series:
+            if "carrier" not in n.c[c].static.columns:
+                return pd.Series(dtype=float)
+            if "co2_emissions" not in n.c.carriers.static.columns:
+                return pd.Series(dtype=float)
+
+            co2_per_carrier = n.c.carriers.static["co2_emissions"]
+            asset_co2 = n.c[c].static["carrier"].map(co2_per_carrier).fillna(0.0)
+            emitting = asset_co2[asset_co2 != 0].index
+            if emitting.empty:
+                return pd.Series(dtype=float)
+
+            weights = n.snapshot_weightings.generators
+
+            if c in n.branch_components:
+                p_key = f"p{port}"
+                p = n.c[c].dynamic.get(p_key, pd.DataFrame())
+            else:
+                sign = n.c[c].static.get("sign", 1.0)
+                p = (sign * n.c[c].dynamic.get("p", pd.DataFrame())).clip(lower=0)
+
+            if p.empty:
+                return pd.Series(dtype=float)
+
+            p = p.reindex(columns=emitting, fill_value=0.0)
+            co2_factor = asset_co2.reindex(emitting)
+
+            # Generators: fuel consumption = dispatch / efficiency
+            if c == "Generator" and "efficiency" in n.c[c].static.columns:
+                eff = n.get_switchable_as_dense(c, "efficiency").reindex(
+                    columns=emitting, fill_value=1.0
+                )
+                fuel = p.div(eff.clip(lower=1e-9))
+            else:
+                fuel = p
+
+            co2_ts = fuel.multiply(co2_factor, axis=1)
+            return self._aggregate_timeseries(co2_ts, weights, agg=groupby_time)
+
+        default_components = ["Generator", "StorageUnit", "Store", "Link"]
+        df = self._aggregate_components(
+            func,
+            components=components if components is not None else default_components,
+            agg=groupby_method,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port=None,
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
+        )
+
+        df.attrs["name"] = "CO2 Emissions"
+        df.attrs["unit"] = "t_co2"
+        return df
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    def carbon_intensity(  # noqa: D417
+        self,
+        components: str | Sequence[str] | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
+        elec_bus_carrier: str | Sequence[str] = "AC",
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+    ) -> pd.DataFrame:
+        """Calculate the **carbon intensity** of generation assets (tCO₂/MWh_el).
+
+        Carbon intensity is defined as CO₂ emissions divided by electrical
+        energy supplied.  The denominator (electricity supply) is restricted to
+        buses with carrier ``elec_bus_carrier`` (default ``"AC"``).  Only
+        carriers with both non-zero emissions and non-zero supply are returned.
+
+        Parameters
+        ----------
+        components : str | Sequence[str] | None, default=None
+            Components to include. Defaults to Generator, StorageUnit, Store,
+            Link.
+        groupby : str | Sequence[str] | Callable, default="carrier"
+            How to group components.
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier.
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of connected buses (for the CO₂ emissions side).
+        elec_bus_carrier : str | Sequence[str], default="AC"
+            Bus carrier used to identify the electricity supply denominator.
+            Change to ``"DC"`` for DC-only systems or provide a list for
+            mixed-carrier systems.
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result.
+        round : int | None, default=None
+            Number of decimal places to round the result to.
+
+        Returns
+        -------
+        pd.DataFrame
+            Carbon intensity (tCO₂/MWh_el) per group.
+
+        Examples
+        --------
+        >>> n.statistics.carbon_intensity()
+        Series([], dtype: float64)
+
+        """
+        co2 = self.co2_emissions(
+            components=components,
+            groupby=groupby,
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=False,
+            round=None,
+        )
+
+        gen_supply = self.supply(
+            components=components,
+            groupby=groupby,
+            carrier=carrier,
+            bus_carrier=elec_bus_carrier,
+            nice_names=nice_names,
+            drop_zero=False,
+            round=None,
+        )
+
+        co2, gen_supply = co2.align(gen_supply, fill_value=0.0)
+        df = co2.div(gen_supply.replace(0.0, np.nan)).dropna()
+
+        df.attrs["name"] = "Carbon Intensity"
+        df.attrs["unit"] = "t_co2 / MWh_el"
+        return self._apply_option_kwargs(
+            df,
+            drop_zero=drop_zero,
+            round=round,
+            nice_names=False,
+        )
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def prices(  # noqa: D417
         self,
         groupby: bool = False,

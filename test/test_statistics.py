@@ -674,3 +674,95 @@ class TestMarketValue:
 
         assert np.isfinite(mv.loc[("Link", "DC")])
         assert np.isfinite(mv.loc[("Line", "AC")])
+
+
+def _make_co2_network():
+    """Small two-generator network with CO2-emitting and zero-emission carriers."""
+    n = pypsa.Network()
+    n.set_snapshots([0, 1, 2])
+    n.snapshot_weightings.iloc[:, :] = 1  # 1 h per snapshot
+
+    n.add("Carrier", "gas", co2_emissions=0.2)    # 0.2 tCO2/MWh_thermal
+    n.add("Carrier", "solar", co2_emissions=0.0)  # zero emissions
+
+    n.add("Bus", "bus", carrier="AC")
+    n.add("Load", "load", bus="bus", p_set=[5, 8, 3])
+
+    # gas generator: efficiency 0.5 → fuel input = 2 × dispatch
+    n.add(
+        "Generator",
+        "gas_gen",
+        bus="bus",
+        carrier="gas",
+        p_nom=20,
+        efficiency=0.5,
+        marginal_cost=50,
+    )
+    # solar generator: zero emissions
+    n.add(
+        "Generator",
+        "solar_gen",
+        bus="bus",
+        carrier="solar",
+        p_nom=10,
+        marginal_cost=0,
+        p_max_pu=[0.5, 1.0, 0.0],
+    )
+    n.optimize()
+    return n
+
+
+def test_co2_emissions_values():
+    """co2_emissions returns correct tCO2 for each carrier."""
+    n = _make_co2_network()
+    emissions = n.statistics.co2_emissions(groupby=False)
+
+    # gas_gen dispatch per snapshot: clipped supply from optimization
+    gas_p = n.c.generators.dynamic["p"]["gas_gen"]
+    gas_eff = n.c.generators.static.loc["gas_gen", "efficiency"]
+    expected_gas = (gas_p / gas_eff * 0.2 * 1).sum()  # tCO2
+
+    assert "gas_gen" in emissions.index.get_level_values(-1)
+    np.testing.assert_allclose(
+        emissions.loc[("Generator", "gas_gen")], expected_gas, rtol=1e-6
+    )
+
+    # solar has zero co2_emissions factor → should not appear
+    assert "solar_gen" not in emissions.index.get_level_values(-1)
+
+
+def test_co2_emissions_units():
+    """co2_emissions result carries the correct attrs."""
+    n = _make_co2_network()
+    result = n.statistics.co2_emissions()
+    assert result.attrs.get("unit") == "t_co2"
+    assert result.attrs.get("name") == "CO2 Emissions"
+
+
+def test_co2_emissions_groupby_carrier():
+    """co2_emissions default groupby='carrier' produces a carrier-level index."""
+    n = _make_co2_network()
+    result = n.statistics.co2_emissions()
+    assert "gas" in result.index.get_level_values(-1)
+    assert "solar" not in result.index.get_level_values(-1)
+    assert (result >= 0).all()
+
+
+def test_carbon_intensity_positive_and_leq_emissions_factor():
+    """carbon_intensity is positive and bounded by the raw emission factor / efficiency."""
+    n = _make_co2_network()
+    ci = n.statistics.carbon_intensity(elec_bus_carrier="AC")
+
+    assert ci.attrs.get("unit") == "t_co2 / MWh_el"
+    assert (ci >= 0).all()
+
+    # Theoretical max for gas carrier: co2_factor / efficiency = 0.2/0.5 = 0.4 tCO2/MWh_el
+    gas_ci = ci.loc["gas"] if "gas" in ci.index else ci.iloc[0]
+    assert gas_ci <= 0.4 + 1e-6
+
+
+def test_carbon_intensity_zero_for_clean_carriers():
+    """Carriers with zero co2_emissions should not appear in carbon_intensity."""
+    n = _make_co2_network()
+    ci = n.statistics.carbon_intensity(elec_bus_carrier="AC")
+    assert "solar" not in ci.index
