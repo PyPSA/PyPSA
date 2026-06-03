@@ -326,7 +326,8 @@ def test_define_generator_constraints():
     )
 
 
-def test_define_fixed_operational_constraints_positive():
+@pytest.mark.parametrize("static", [False, True])
+def test_define_fixed_operational_constraints_positive(static):
     """
     Test fixed operational constraints: fix to a positive value
     """
@@ -337,25 +338,10 @@ def test_define_fixed_operational_constraints_positive():
     n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
     n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9)
 
-    n.c.generators.dynamic.p_set["gen2"] = 10
-
-    n.optimize()
-
-    assert n.c.generators.dynamic.p["gen2"].eq(10).all()
-    assert n.c.generators.dynamic.p["gen0"].eq(0).all()
-
-
-def test_define_fixed_operational_constraints_static():
-    """
-    Test fixed operational constraints: a static (scalar) p_set is honoured,
-    matching the dynamic form. Regression for #1701.
-    """
-    n = pypsa.Network()
-    n.add("Bus", "bus0")
-    n.add("Load", "load0", bus="bus0", p_set=10)
-    n.add("Generator", "gen0", bus="bus0", p_nom=4, marginal_cost=0)
-    n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
-    n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9, p_set=8)
+    if static:
+        n.c.generators.static.loc["gen2", "p_set"] = 8
+    else:
+        n.c.generators.dynamic.p_set["gen2"] = 8
 
     n.optimize()
 
