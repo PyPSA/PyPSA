@@ -682,7 +682,7 @@ def _make_co2_network():
     n.set_snapshots([0, 1, 2])
     n.snapshot_weightings.iloc[:, :] = 1  # 1 h per snapshot
 
-    n.add("Carrier", "gas", co2_emissions=0.2)    # 0.2 tCO2/MWh_thermal
+    n.add("Carrier", "gas", co2_emissions=0.2)  # 0.2 tCO2/MWh_thermal
     n.add("Carrier", "solar", co2_emissions=0.0)  # zero emissions
 
     n.add("Bus", "bus", carrier="AC")
