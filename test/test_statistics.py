@@ -832,3 +832,40 @@ def test_co2_emissions_storage_unit():
     result = n.statistics.co2_emissions(components=["StorageUnit"], groupby=False)
     # StorageUnit with emitting carrier should appear (may be zero if not dispatching)
     assert isinstance(result, pd.Series)
+
+
+def test_co2_emissions_carrier_filter():
+    """carrier= kwarg filters to only the specified carrier."""
+    n = _make_co2_network()
+    result = n.statistics.co2_emissions(carrier="gas")
+    assert not result.empty
+    # Only the gas carrier should appear
+    idx_carriers = result.index.get_level_values(-1)
+    assert all(c == "gas" for c in idx_carriers)
+
+
+def test_co2_emissions_components_filter():
+    """components= kwarg restricts to the given component type."""
+    n = _make_co2_network()
+    # Generator only — should include gas_gen
+    result = n.statistics.co2_emissions(components=["Generator"], groupby=False)
+    assert ("Generator", "gas_gen") in result.index
+
+
+def test_carbon_intensity_custom_bus_carrier():
+    """elec_bus_carrier parameter is passed through correctly."""
+    n = _make_co2_network()
+    # Passing the correct carrier should produce results
+    ci_ac = n.statistics.carbon_intensity(elec_bus_carrier="AC")
+    # Passing a non-matching carrier should return empty (no supply on that carrier)
+    ci_dc = n.statistics.carbon_intensity(elec_bus_carrier="DC")
+    assert not ci_ac.empty
+    assert ci_dc.empty
+
+
+def test_co2_emissions_drop_zero_false():
+    """drop_zero=False keeps zero-valued entries in the result."""
+    n = _make_co2_network()
+    result_default = n.statistics.co2_emissions()
+    result_keep = n.statistics.co2_emissions(drop_zero=False)
+    assert len(result_keep) >= len(result_default)
