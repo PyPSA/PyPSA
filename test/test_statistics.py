@@ -772,10 +772,12 @@ def test_co2_emissions_no_co2_column():
     """co2_emissions returns empty when no carrier has a co2_emissions attribute."""
     n = pypsa.Network()
     n.set_snapshots([0, 1])
-    n.add("Carrier", "wind")           # no co2_emissions column at all
+    n.add("Carrier", "wind")  # no co2_emissions column at all
     n.add("Bus", "bus", carrier="AC")
     n.add("Generator", "wind_gen", bus="bus", carrier="wind", p_nom=10, marginal_cost=0)
-    n.c.generators.dynamic["p"] = pd.DataFrame({"wind_gen": [5.0, 8.0]}, index=n.snapshots)
+    n.c.generators.dynamic["p"] = pd.DataFrame(
+        {"wind_gen": [5.0, 8.0]}, index=n.snapshots
+    )
     result = n.statistics.co2_emissions(groupby=False)
     assert result.empty
 
