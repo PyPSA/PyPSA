@@ -20,6 +20,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 Added compatibility with stricter dimension alignment handling in (upcoming)linopy `>=0.8`.
 
+- Add [`n.statistics.co2_emissions()`][pypsa.statistics.StatisticsAccessor.co2_emissions] to compute total CO₂ emissions (tCO₂) per component, derived from dispatch, carrier emission factors, and generator efficiencies. (<!-- md:pr --> #520)
+
+- Add [`n.statistics.carbon_intensity()`][pypsa.statistics.StatisticsAccessor.carbon_intensity] to compute carbon intensity (tCO₂/MWh_el) per carrier as the ratio of CO₂ emissions to electrical supply. (<!-- md:pr --> #520)
+
 
 ### Bug Fixes
 
