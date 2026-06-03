@@ -766,3 +766,63 @@ def test_carbon_intensity_zero_for_clean_carriers():
     n = _make_co2_network()
     ci = n.statistics.carbon_intensity(elec_bus_carrier="AC")
     assert "solar" not in ci.index
+
+
+def test_co2_emissions_no_co2_column():
+    """co2_emissions returns empty when no carrier has a co2_emissions attribute."""
+    n = pypsa.Network()
+    n.set_snapshots([0, 1])
+    n.add("Carrier", "wind")           # no co2_emissions column at all
+    n.add("Bus", "bus", carrier="AC")
+    n.add("Generator", "wind_gen", bus="bus", carrier="wind", p_nom=10, marginal_cost=0)
+    n.c.generators.dynamic["p"] = pd.DataFrame({"wind_gen": [5.0, 8.0]}, index=n.snapshots)
+    result = n.statistics.co2_emissions(groupby=False)
+    assert result.empty
+
+
+def test_co2_emissions_all_zero_emissions():
+    """co2_emissions returns empty when all carriers have co2_emissions=0."""
+    n = pypsa.Network()
+    n.set_snapshots([0, 1])
+    n.add("Carrier", "wind", co2_emissions=0.0)
+    n.add("Bus", "bus", carrier="AC")
+    n.add("Generator", "wind_gen", bus="bus", carrier="wind", p_nom=10)
+    n.optimize()
+    result = n.statistics.co2_emissions(groupby=False)
+    assert result.empty
+
+
+def test_co2_emissions_groupby_time_false():
+    """co2_emissions with groupby_time=False returns a per-snapshot time series."""
+    n = _make_co2_network()
+    result = n.statistics.co2_emissions(groupby=False, groupby_time=False)
+    # Result should be a DataFrame with snapshots as rows
+    assert hasattr(result, "shape")
+    assert len(result) == len(n.snapshots)
+
+
+def test_co2_emissions_storage_unit():
+    """co2_emissions covers the non-Generator (else: fuel = p) branch via StorageUnit."""
+    n = pypsa.Network()
+    n.set_snapshots([0, 1, 2])
+    n.snapshot_weightings.iloc[:, :] = 1
+
+    # A carrier with CO2 emissions on a StorageUnit (unusual but valid)
+    n.add("Carrier", "gas_store", co2_emissions=0.1)
+    n.add("Bus", "bus", carrier="AC")
+    n.add(
+        "StorageUnit",
+        "gas_su",
+        bus="bus",
+        carrier="gas_store",
+        p_nom=5,
+        max_hours=2,
+        marginal_cost=5,
+    )
+    n.add("Load", "load", bus="bus", p_set=[2, 3, 1])
+    n.add("Generator", "backup", bus="bus", carrier="AC", p_nom=10, marginal_cost=1)
+    n.optimize()
+
+    result = n.statistics.co2_emissions(components=["StorageUnit"], groupby=False)
+    # StorageUnit with emitting carrier should appear (may be zero if not dispatching)
+    assert isinstance(result, pd.Series)
