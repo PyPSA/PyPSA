@@ -788,19 +788,23 @@ def test_co2_emissions_all_zero_emissions():
     n.set_snapshots([0, 1])
     n.add("Carrier", "wind", co2_emissions=0.0)
     n.add("Bus", "bus", carrier="AC")
-    n.add("Generator", "wind_gen", bus="bus", carrier="wind", p_nom=10)
-    n.optimize()
+    n.add("Generator", "wind_gen", bus="bus", carrier="wind", p_nom=10, marginal_cost=0)
+    # Set dispatch directly — no solver needed to test the emission filter
+    n.c.generators.dynamic["p"] = pd.DataFrame(
+        {"wind_gen": [5.0, 8.0]}, index=n.snapshots
+    )
     result = n.statistics.co2_emissions(groupby=False)
     assert result.empty
 
 
 def test_co2_emissions_groupby_time_false():
-    """co2_emissions with groupby_time=False returns a per-snapshot time series."""
+    """co2_emissions with groupby_time=False returns components×snapshots DataFrame."""
     n = _make_co2_network()
     result = n.statistics.co2_emissions(groupby=False, groupby_time=False)
-    # Result should be a DataFrame with snapshots as rows
+    # _aggregate_timeseries with agg=False returns obj.T → components as rows,
+    # snapshots as columns.
     assert hasattr(result, "shape")
-    assert len(result) == len(n.snapshots)
+    assert result.shape[1] == len(n.snapshots)  # columns = snapshots
 
 
 def test_co2_emissions_storage_unit():
