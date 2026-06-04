@@ -1139,7 +1139,6 @@ def define_nodal_balance_constraints(
                 cbuses = cbuses.isel(scenario=0, drop=True)
             cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
             cbuses = cbuses[cbuses != ""]
-            port = bus_col.replace("bus", "")
             pw_attr = c._piecewise_attrs.query(
                 "y == @search_attr", local_dict={"search_attr": coeff.name}
             ).squeeze()
