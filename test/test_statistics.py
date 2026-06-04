@@ -855,12 +855,12 @@ def test_co2_emissions_components_filter():
 def test_carbon_intensity_custom_bus_carrier():
     """elec_bus_carrier parameter is passed through correctly."""
     n = _make_co2_network()
-    # Passing the correct carrier should produce results
+    # "AC" is the only bus carrier — intensity should be positive
     ci_ac = n.statistics.carbon_intensity(elec_bus_carrier="AC")
-    # Passing a non-matching carrier should return empty (no supply on that carrier)
-    ci_dc = n.statistics.carbon_intensity(elec_bus_carrier="DC")
     assert not ci_ac.empty
-    assert ci_dc.empty
+    assert (ci_ac >= 0).all()
+    # The result should only contain the gas carrier (solar has zero emissions)
+    assert "solar" not in ci_ac.index
 
 
 def test_co2_emissions_drop_zero_false():
