@@ -78,6 +78,9 @@ def define_piecewise(
     Derives the piecewise DataFrame, x-axis attribute, component names with piecewise
     data, and the optional p_nom scale factor from the component ``c`` directly.
 
+    Check out the [`linopy` piecewise documentation](
+    https://linopy.readthedocs.io/en/stable/piecewise-linear-constraints.html) for more information.
+
     Parameters
     ----------
     m : linopy.Model
@@ -111,7 +114,7 @@ def define_piecewise(
         If True, y_attr -> 1 / y_attr.
         Default is False.
     method : str, optional
-        The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_formulation method.
+        The method to use for the piecewise constraint formulation, passed to the `linopy.add_piecewise_formulation` method.
         Default is "auto" (also the linopy default).
 
     Returns
