@@ -111,7 +111,10 @@ class TestNormalizeBreakpoints:
 
 class TestGetPiecewiseNames:
     def test_missing_attribute_returns_empty(self) -> None:
-        c = SimpleNamespace(piecewise={}, _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"))
+        c = SimpleNamespace(
+            piecewise={},
+            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
+        )
         result = get_piecewise_names(c, "marginal_cost", pd.Index(["gen"], name="name"))
         assert result.empty
         assert result.name == "name"
@@ -123,7 +126,10 @@ class TestGetPiecewiseNames:
                 "gen1": [(float("nan"), float("nan")), (float("nan"), float("nan"))],
             }
         )
-        c = SimpleNamespace(piecewise={"marginal_cost": df}, _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"))
+        c = SimpleNamespace(
+            piecewise={"marginal_cost": df},
+            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
+        )
         active = pd.Index(["gen0", "gen1"], name="name")
         result = get_piecewise_names(c, "marginal_cost", active)
         assert result.tolist() == ["gen0"]
@@ -136,7 +142,10 @@ class TestGetPiecewiseNames:
                 "gen2": [(0.0, 3.0), (1.0, 15.0)],
             }
         )
-        c = SimpleNamespace(piecewise={"marginal_cost": df}, _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"))
+        c = SimpleNamespace(
+            piecewise={"marginal_cost": df},
+            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
+        )
         active = pd.Index(["gen0", "gen2"], name="name")
         result = get_piecewise_names(c, "marginal_cost", active)
         assert sorted(result.tolist()) == ["gen0", "gen2"]
@@ -155,7 +164,10 @@ class TestGetPiecewiseNames:
     def test_result_is_named_name_index(
         self, piecewise: dict, active: pd.Index
     ) -> None:
-        c = SimpleNamespace(piecewise=piecewise, _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"))
+        c = SimpleNamespace(
+            piecewise=piecewise,
+            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
+        )
         result = get_piecewise_names(c, "marginal_cost", active)
         assert result.name == "name"
 
@@ -175,7 +187,7 @@ class TestGetBreakpoints:
             ),
             name="Generator",
             extendables=pd.Index([], name="name"),
-            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'")
+            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
         )
 
     @pytest.fixture
@@ -368,7 +380,7 @@ class TestDefinePiecewise:
             ),
             name="Generator",
             extendables=pd.Index(["gen_extendable"], name="name"),
-            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'")
+            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
         )
         component.piecewise["efficiency"] = pd.DataFrame()
         return component

@@ -20,7 +20,6 @@ from xarray import DataArray, concat, where
 from pypsa.common import as_index, expand_series
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
-from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
@@ -1142,8 +1141,7 @@ def define_nodal_balance_constraints(
             cbuses = cbuses[cbuses != ""]
             port = bus_col.replace("bus", "")
             pw_attr = c._piecewise_attrs.query(
-                "y == @search_attr",
-                local_dict={"search_attr": coeff.name}
+                "y == @search_attr", local_dict={"search_attr": coeff.name}
             ).squeeze()
             p_piecewise = 0
             if not pw_attr.empty:

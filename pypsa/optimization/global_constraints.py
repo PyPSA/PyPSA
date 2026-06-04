@@ -16,7 +16,6 @@ from linopy.expressions import merge
 from numpy import isnan
 from xarray import DataArray
 
-from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import define_piecewise
 

@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-from functools import cached_property
 import logging
 import re
 from abc import abstractmethod
@@ -70,13 +69,27 @@ class _Multiport(Components):
             DataFrame with piecewise attributes for this component.
 
         """
-        filtered_attrs = PIECEWISE_ATTRS.query("component == @name", local_dict={"name": self.name})
+        filtered_attrs = PIECEWISE_ATTRS.query(
+            "component == @name", local_dict={"name": self.name}
+        )
         del_rows = []
         for idx, row in filtered_attrs.iterrows():
             if row["y"] == self._coefficient_attr:
-                extra_rows = [pd.Series({**row, **{"aux_variable": row.aux_variable.format(port=i), "y": row.y + self._port_suffix(i)}}) for i in self._output_ports]
+                extra_rows = [
+                    pd.Series(
+                        {
+                            **row,
+                            "aux_variable": row.aux_variable.format(port=i),
+                            "y": row.y + self._port_suffix(i),
+                        }
+                    )
+                    for i in self._output_ports
+                ]
                 del_rows.append(idx)
-        formatted_attrs = pd.concat([filtered_attrs.drop(index=del_rows), pd.DataFrame(extra_rows)], ignore_index=True)
+        formatted_attrs = pd.concat(
+            [filtered_attrs.drop(index=del_rows), pd.DataFrame(extra_rows)],
+            ignore_index=True,
+        )
         return formatted_attrs
 
     @property

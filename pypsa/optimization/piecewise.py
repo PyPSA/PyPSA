@@ -16,7 +16,6 @@ import xarray as xr
 from linopy import Model, Slopes, Variable, breakpoints
 from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, SIGNS, EvolvingAPIWarning
 
-from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
 
 warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
@@ -214,9 +213,7 @@ def _get_breakpoints(
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Convert piecewise data to linopy breakpoints for piecewise constraint."""
     piecewise_df = c.piecewise[pw_attr][pw_names]
-    piecewise_attrs = c._piecewise_attrs.query(
-        "y == @pw_attr"
-    ).squeeze()
+    piecewise_attrs = c._piecewise_attrs.query("y == @pw_attr").squeeze()
 
     # pw_attr stores the marginal value (slope) at each breakpoint.
     normalised_piecewise_df = _normalize_breakpoints(piecewise_df, piecewise_attrs)

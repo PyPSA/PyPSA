@@ -13,17 +13,17 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-from pypsa.components._types.mixin.multiports import _Multiport
 import xarray as xr
 from linopy import Model, merge
+from linopy.constants import BREAKPOINT_DIM, LP_PIECE_DIM, PWL_LINK_DIM, SEGMENT_DIM
 from linopy.solvers import available_solvers
-from linopy.constants import BREAKPOINT_DIM, SEGMENT_DIM, LP_PIECE_DIM, PWL_LINK_DIM
+
 from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
+from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
-from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
@@ -366,9 +366,7 @@ def define_objective(
             cost_weight = c.da.active.sel(name=ext_i).any(dim="snapshot")
 
         y_attr = "capital_cost"
-        pw_attr = c._piecewise_attrs.query(
-            "y == @y_attr"
-        ).squeeze()
+        pw_attr = c._piecewise_attrs.query("y == @y_attr").squeeze()
         if not pw_attr.empty:
             x_var = m[f"{c.name}-{pw_attr.x}"]
             extra_options = filter(
@@ -1020,9 +1018,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 )
                 continue
             c = n.c[_c_name]
-            pw_attrs = c._piecewise_attrs.query(
-                "aux_variable == @attr"
-            ).squeeze()
+            pw_attrs = c._piecewise_attrs.query("aux_variable == @attr").squeeze()
             # Piecewise variables are auxiliary and need to be processed before being passed back as a solution.
             if not pw_attrs.empty:
                 if isinstance(c, _Multiport) and pw_attrs.y == c._coefficient_attr:
