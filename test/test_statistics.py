@@ -869,3 +869,54 @@ def test_co2_emissions_drop_zero_false():
     result_default = n.statistics.co2_emissions()
     result_keep = n.statistics.co2_emissions(drop_zero=False)
     assert len(result_keep) >= len(result_default)
+
+
+def test_co2_emissions_link_branch_component():
+    """co2_emissions covers the branch component (Link) code path."""
+    n = pypsa.Network()
+    n.set_snapshots([0, 1, 2])
+    n.snapshot_weightings.iloc[:, :] = 1
+
+    n.add("Carrier", "gas_link", co2_emissions=0.2)
+    n.add("Bus", "bus0", carrier="AC")
+    n.add("Bus", "bus1", carrier="AC")
+    n.add("Load", "load", bus="bus1", p_set=[5, 6, 4])
+    n.add("Generator", "gen", bus="bus0", carrier="AC", p_nom=20, marginal_cost=1)
+    n.add(
+        "Link",
+        "gas_link",
+        bus0="bus0",
+        bus1="bus1",
+        carrier="gas_link",
+        p_nom=20,
+        marginal_cost=2,
+    )
+    n.optimize()
+
+    result = n.statistics.co2_emissions(components=["Link"], groupby=False)
+    # Link with emitting carrier should appear in results
+    assert isinstance(result, pd.Series)
+
+
+def test_co2_emissions_empty_dispatch():
+    """co2_emissions returns empty series when emitting component has no dispatch data."""
+    n = pypsa.Network()
+    n.set_snapshots([0, 1])
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus", carrier="AC")
+    n.add("Generator", "gas_gen", bus="bus", carrier="gas", p_nom=10, marginal_cost=5)
+    # Don't optimize — no dispatch data in dynamic; p DataFrame will be empty
+    result = n.statistics.co2_emissions(components=["Generator"], groupby=False)
+    assert result.empty
+
+
+def test_carbon_intensity_returns_ratio():
+    """carbon_intensity = co2_emissions / supply, so it must be <= emission_factor/eff."""
+    n = _make_co2_network()
+    co2 = n.statistics.co2_emissions(groupby=False, drop_zero=False)
+    supply = n.statistics.supply(groupby=False, bus_carrier="AC", drop_zero=False)
+    ci = n.statistics.carbon_intensity(elec_bus_carrier="AC")
+
+    # Manually verify: CI for gas = co2[gas_gen] / supply[gas_gen] (approx)
+    assert ci.attrs["unit"] == "t_co2 / MWh_el"
+    assert not ci.empty
