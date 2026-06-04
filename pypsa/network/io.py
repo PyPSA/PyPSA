@@ -2145,7 +2145,6 @@ class NetworkIOMixin(_NetworkABC):
 
         if not pw_attr.allow_extendable:
             new_names = df.columns.unique("name")
-            extendable_i = self.c[cls_name].extendables
             if is_extendable is not None:
                 extendable_i = is_extendable[is_extendable].index
             else:
