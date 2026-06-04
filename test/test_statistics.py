@@ -906,7 +906,9 @@ def test_co2_emissions_no_solver_returns_nan():
     n.add("Bus", "bus", carrier="AC")
     n.add("Generator", "gas_gen", bus="bus", carrier="gas", p_nom=10, marginal_cost=5)
     # Without optimization, dispatch data is NaN — co2_emissions returns NaN per asset
-    result = n.statistics.co2_emissions(components=["Generator"], groupby=False, drop_zero=False)
+    result = n.statistics.co2_emissions(
+        components=["Generator"], groupby=False, drop_zero=False
+    )
     # The generator exists and its carrier has co2_emissions, so it appears
     # but dispatch is NaN → result value is NaN (not a clean zero or a number)
     assert ("Generator", "gas_gen") in result.index or result.isna().any()
