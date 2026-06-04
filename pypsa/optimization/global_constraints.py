@@ -358,8 +358,8 @@ def define_primary_energy_limit(
                     ),
                     piecewise_options,
                 )
-                pw_attr = PIECEWISE_ATTRS.query(
-                    "component == 'Generator' and y == 'efficiency'"
+                pw_attr = n.c.generators._piecewise_attrs.query(
+                    "y == 'efficiency'"
                 ).squeeze()
                 linear_names = gens.index
                 to_sum = []

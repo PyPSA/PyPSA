@@ -35,6 +35,7 @@ class ComponentsTransformMixin:
 
     static: pd.DataFrame
     dynamic: Dict
+    piecewise: Dict
     attached: Any
     n_save: Any
     name: Any

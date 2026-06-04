@@ -19,6 +19,7 @@ Generic functionality is implemented in the abstract module.
 
 from __future__ import annotations
 
+from functools import cached_property
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -409,6 +410,18 @@ class Components(
             piecewise[y_attr] = df
 
         return static, dynamic, piecewise
+    @cached_property
+    def _piecewise_attrs(self) -> pd.DataFrame:
+        """Get the piecewise attributes for this component.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with piecewise attributes for this component.
+
+        """
+        filtered_attrs = PIECEWISE_ATTRS.query("component == @name", local_dict={"name": self.name})
+        return filtered_attrs
 
     @property
     def standard_types(self) -> pd.DataFrame | None:

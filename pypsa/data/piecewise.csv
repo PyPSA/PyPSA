@@ -8,7 +8,7 @@ Link,p_nom,capital_cost,capital_cost_piecewise,true
 Link,p_pu,efficiency,p{port}_piecewise,false
 Process,p_pu,marginal_cost,marginal_cost_piecewise,false
 Process,p_nom,capital_cost,capital_cost_piecewise,true
-Process,p_pu,rate1,p{port}_piecewise,false
+Process,p_pu,rate,p{port}_piecewise,false
 StorageUnit,p_pu,marginal_cost,marginal_cost_piecewise,false
 StorageUnit,p_nom,capital_cost,capital_cost_piecewise,true
 Store,e_pu,marginal_cost,marginal_cost_piecewise,false

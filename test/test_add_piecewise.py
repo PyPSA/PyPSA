@@ -55,12 +55,13 @@ def _build_params(base_kwargs_by_comp: dict[str, dict]) -> list:
     """
     params = []
     for comp, base_kw in base_kwargs_by_comp.items():
-        params.extend(
-            [
-                pytest.param(comp, base_kw, attr.y, attr.x, id=f"{comp}-{attr.y}")
-                for _, attr in PIECEWISE_ATTRS.query("component == @comp").iterrows()
-            ]
-        )
+        for _, attr in PIECEWISE_ATTRS.query("component == @comp").iterrows():
+            if comp == "Process" and attr.y == "rate":
+                y = "rate1"
+            else:
+                y = attr.y
+            to_append = pytest.param(comp, base_kw, y, attr.x, id=f"{comp}-{y}")
+            params.append(to_append)
     return params
 
 

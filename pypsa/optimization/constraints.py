@@ -1141,14 +1141,9 @@ def define_nodal_balance_constraints(
             cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
             cbuses = cbuses[cbuses != ""]
             port = bus_col.replace("bus", "")
-            search_attr = (
-                c._get_base_coeff(coeff.name)
-                if isinstance(c, _Multiport)
-                else coeff.name
-            )
-            pw_attr = PIECEWISE_ATTRS.query(
-                "component == @name and y == @y",
-                local_dict={"name": c.name, "y": search_attr},
+            pw_attr = c._piecewise_attrs.query(
+                "y == @search_attr",
+                local_dict={"search_attr": coeff.name}
             ).squeeze()
             p_piecewise = 0
             if not pw_attr.empty:
@@ -1161,7 +1156,7 @@ def define_nodal_balance_constraints(
                     c,
                     x_var=var,
                     pw_attr=coeff.name,
-                    aux_var_name=f"{c.name}-{pw_attr.aux_variable.format(port=port)}",
+                    aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
                     active_names=names,
                     sign="==",
                     marginal_attr=False,

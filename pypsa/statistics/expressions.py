@@ -769,7 +769,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 attr_vals = comp.capital_cost
             else:
                 attr_vals = comp.static[cost_attribute]
-            piecewise_costs = comp.static.get(cost_attribute + "_opt", 0)
+            piecewise_costs = comp.static.get(cost_attribute + "_piecewise_opt", 0)
             capex = capacity * (attr_vals + piecewise_costs)
             return capex
 
@@ -1674,7 +1674,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 if cost_type in cost_types_ and cost_type in n.c[c].static:
                     attr = lookup.query(cost_type).loc[c].index.item() + port
                     cost = n.get_switchable_as_dense(c, cost_type)
-                    cost_piecewise_opt = n.c[c].dynamic.get(f"{cost_type}_opt")
+                    cost_piecewise_opt = n.c[c].dynamic.get(f"{cost_type}_piecewise_opt")
                     if cost_piecewise_opt is None or cost_piecewise_opt.empty:
                         cost_piecewise_opt = 0
                     p = n.c[c].dynamic[attr]
@@ -1696,8 +1696,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 ):
                     cost = n.get_switchable_as_dense(c, cost_type, inds=com_i)
                     var = n.c[c].dynamic[attr].loc[:, com_i]
-                    cost_segmented_opt = n.c[c].dynamic.get(f"{cost_type}_opt", 0)
-                    opex = var * (cost + cost_segmented_opt)
+                    cost_piecewise_opt = n.c[c].dynamic.get(f"{cost_type}_piecewise_opt", 0)
+                    opex = var * (cost + cost_piecewise_opt)
                     w = weights if attr == "status" else weights_one
                     term = self._aggregate_timeseries(opex, w, agg=groupby_time)
                     result.append(term)
