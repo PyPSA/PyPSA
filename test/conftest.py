@@ -434,3 +434,12 @@ def stochastic_benchmark_network():
     n.set_scenarios({"low": 0.4, "medium": 0.3, "high": 0.3})
 
     return n
+
+
+@pytest.fixture
+def piecewise_network() -> pypsa.Network:
+    n = pypsa.Network()
+    n.add("Bus", ["bus0", "bus1"])
+    n.add("Generator", "gen", bus="bus0", p_nom=100, marginal_cost={0.0: 0.4, 1.0: 0.5})
+    n.add("Link", "link", bus0="bus0", bus1="bus1", efficiency={0.0: 0.4, 1.0: 0.5})
+    return n
