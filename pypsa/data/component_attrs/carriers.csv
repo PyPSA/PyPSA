@@ -5,3 +5,7 @@ color,string,n/a,n/a,Color for plotting (e.g. `matplotlib` [named colors](https:
 nice_name,string,n/a,n/a,Descriptive name for statistics and visualisations (e.g. "Natural Gas" for carrier `gas`),Input (optional)
 max_growth,float,MW,inf,Maximum new installed capacity per investment period,Input (optional)
 max_relative_growth,float,nan,0,Maximum capacity ratio for new installed capacity per investment period,Input (optional)
+learning_rate,float,per unit,0,"Endogenous learning rate: relative capital cost reduction per doubling of cumulative installed capacity. A value of 0 disables learning for the carrier.",Input (optional)
+initial_cost,float,currency/MW,0,"Only used with endogenous learning. Specific investment cost at the initial (global) capacity, i.e. the starting point of the learning curve.",Input (optional)
+global_capacity,float,MW,0,"Only used with endogenous learning. Cumulative capacity already installed today, used as the lower bound and reference point of the learning curve.",Input (optional)
+max_capacity,float,MW,0,"Only used with endogenous learning. Maximum cumulative installable capacity, i.e. the end point of the piecewise linearisation of the learning curve.",Input (optional)

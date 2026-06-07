@@ -55,6 +55,7 @@ from pypsa.optimization.global_constraints import (
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
+from pypsa.optimization.learning import define_learning
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -459,6 +460,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
+        learning: bool = False,
+        time_delay: bool = False,
+        learning_segments: int = 5,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -528,6 +532,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
+        learning : bool, default False
+            Whether to enable endogenous technology learning. Requires
+            ``multi_investment_periods=True``. The specific investment cost of any
+            carrier with a positive ``learning_rate`` then decreases with its
+            cumulative installed capacity (see `pypsa.optimization.learning`).
+        time_delay : bool, default False
+            Only used with ``learning=True``. If True, price each period's build at
+            the start-of-period specific cost (learning benefits only future
+            periods); if False, use the chord integral of the cumulative cost curve.
+        learning_segments : int, default 5
+            Only used with ``learning=True``. Number of line segments for the
+            piecewise linearisation of the cumulative cost curve.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -572,6 +588,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             include_objective_constant=include_objective_constant,
             committable_big_m=committable_big_m,
             meshed_thresholds=meshed_thresholds,
+            learning=learning,
+            time_delay=time_delay,
+            learning_segments=learning_segments,
             **model_kwargs,
         )
         if extra_functionality:
@@ -608,6 +627,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
+        learning: bool = False,
+        time_delay: bool = False,
+        learning_segments: int = 5,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -650,6 +672,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
+        learning : bool, default: False
+            Whether to enable endogenous technology learning. Requires
+            ``multi_investment_periods=True``. The specific investment cost of any
+            carrier with a positive ``learning_rate`` then decreases with its
+            cumulative installed capacity (see `pypsa.optimization.learning`).
+        time_delay : bool, default: False
+            Only used with ``learning=True``. If True, price each period's build at
+            the start-of-period specific cost (learning benefits only future
+            periods); if False, use the chord integral of the cumulative cost curve.
+        learning_segments : int, default: 5
+            Only used with ``learning=True``. Number of line segments for the
+            piecewise linearisation of the cumulative cost curve.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -813,6 +847,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_growth_limit(n, sns)
 
         define_objective(n, sns, include_objective_constant)
+
+        if learning:
+            define_learning(n, sns, segments=learning_segments, time_delay=time_delay)
 
         return n.model
 
