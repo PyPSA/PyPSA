@@ -261,12 +261,20 @@ class _ImporterCSV(_Importer):
         )
 
         # Convert snapshot and timestep to datetime (if possible)
-        if "snapshot" in df and df.snapshot.iloc[0] != "now":
+        if (
+            "snapshot" in df
+            and df.snapshot.iloc[0] != "now"
+            and df.snapshot.dtype.kind != "i"
+        ):
             try:
                 df["snapshot"] = pd.to_datetime(df.snapshot)
             except (ValueError, ParserError):
                 pass
-        if "timestep" in df and df.timestep.iloc[0] != "now":
+        if (
+            "timestep" in df
+            and df.timestep.iloc[0] != "now"
+            and df.timestep.dtype.kind != "i"
+        ):
             try:
                 df["timestep"] = pd.to_datetime(df.timestep)
             except (ValueError, ParserError):
@@ -546,12 +554,20 @@ class _ImporterExcel(_Importer):
             return None
         df = df.set_index(df.columns[0])
         # Convert snapshot and timestep to datetime (if possible)
-        if "snapshot" in df and df.snapshot.iloc[0] != "now":
+        if (
+            "snapshot" in df
+            and df.snapshot.iloc[0] != "now"
+            and df.snapshot.dtype.kind != "i"
+        ):
             try:
                 df["snapshot"] = pd.to_datetime(df.snapshot)
             except (ValueError, ParserError):
                 pass
-        if "timestep" in df and df.timestep.iloc[0] != "now":
+        if (
+            "timestep" in df
+            and df.timestep.iloc[0] != "now"
+            and df.timestep.dtype.kind != "i"
+        ):
             try:
                 df["timestep"] = pd.to_datetime(df.timestep)
             except (ValueError, ParserError):
@@ -1037,19 +1053,13 @@ class _ImporterNetCDF(_Importer):
         for attr in self.ds.data_vars.keys():
             attr = str(attr)
             if attr.startswith(t):
-                try:
-                    df = self.ds[attr].to_pandas()
-                    # df.index.name = "name"
-                    df.columns.name = "name"
-                # Handle multi-indexed (scenarios)
-                except ValueError:
-                    df = (
-                        self.ds[attr]
-                        .stack(combined=("scenario", attr + "_i"))
-                        .to_pandas()
-                    )
-                    df.columns.names = ["scenario", "name"]
-
+                df = (
+                    self.ds[attr]
+                    .rename({attr + "_i": "name"})
+                    .to_series()
+                    .unstack("snapshots")
+                    .T
+                )
                 yield attr[len(t) :], df
 
     def get_piecewise(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:

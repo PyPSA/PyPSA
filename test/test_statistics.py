@@ -686,7 +686,7 @@ class TestStatisticsWithPiecewise:
 
     @pytest.fixture(scope="class")
     def piecewise_network_solved(self, piecewise_network):
-        piecewise_network.optimize()
+        piecewise_network.optimize(include_objective_constant=False)
         return piecewise_network
 
     def test_stats_capex(self, piecewise_network_solved):

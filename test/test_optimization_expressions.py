@@ -279,14 +279,14 @@ def test_concrete_at_port(prepared_network):
 class TestExpressionsWithPiecewise:
     @pytest.fixture(scope="class")
     def piecewise_network_built(self, piecewise_network):
-        piecewise_network.optimize.create_model()
+        piecewise_network.optimize.create_model(include_objective_constant=False)
         return piecewise_network
 
     def test_expressions_capex(self, piecewise_network_built):
         n = piecewise_network_built
         expr = n.optimize.expressions.capex().unstack("group")
         assert isinstance(expr, LinearExpression)
-        assert str(expr.sel(component="StorageUnit")).endswith(
+        assert str(expr.sel(component="StorageUnit", carrier="-")).endswith(
             "+10 StorageUnit-p_nom[storage0] + 1 StorageUnit-capital_cost_piecewise[storage1]"
         )
         assert "piecewise" not in str(expr.sel(component=["Link", "Generator"]))
@@ -295,15 +295,15 @@ class TestExpressionsWithPiecewise:
         n = piecewise_network_built
         expr = n.optimize.expressions.opex().unstack("group")
         assert isinstance(expr, LinearExpression)
-        assert str(expr.sel(component="Generator")).endswith(
-            "+0.6 Generator-p[0, gen0] + 0.6 Generator-p[1, gen0] + 1 Generator-marginal_cost_piecewise[0, gen1] + 1 Generator-marginal_cost_piecewise[1, gen1]"
+        assert str(expr.sel(component="Generator", carrier="-")).endswith(
+            "+0.6 Generator-p[0, gen1] + 0.6 Generator-p[1, gen1] + 1 Generator-marginal_cost_piecewise[0, gen0] + 1 Generator-marginal_cost_piecewise[1, gen0]"
         )
         assert "piecewise" not in str(expr.sel(component=["Link", "StorageUnit"]))
 
     def test_expressions_energy_balance(self, piecewise_network_built):
         n = piecewise_network_built
         expr = n.optimize.expressions.energy_balance().unstack("group")
-        assert str(expr.sel(component="Link")).endswith(
+        assert str(expr.sel(component="Link", carrier="AC")).endswith(
             "-1 Link-p[0, link] - 1 Link-p[1, link] + 1 Link-p1_piecewise[0, link] + 1 Link-p1_piecewise[1, link]"
         )
         assert "piecewise" not in str(
