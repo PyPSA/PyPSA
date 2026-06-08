@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import pandas as pd
 import xarray as xr
 from linopy import Model, Slopes, Variable, breakpoints
-from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, SIGNS, EvolvingAPIWarning
+from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, EvolvingAPIWarning
 
 from pypsa.descriptors import nominal_attrs
 
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 logger = logging.getLogger(__name__)
 SIGNS_T = Literal["=", "<=", ">="]
+
 
 # TODO: update to pydantic once pydantic is a pypsa dependency.
 @dataclass(eq=True, frozen=True)

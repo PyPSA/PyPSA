@@ -5,8 +5,8 @@
 """Tests for piecewise linear part-load efficiency curves in the optimisation."""
 
 from __future__ import annotations
-import pandas as pd
 
+import pandas as pd
 import pytest
 
 import pypsa
@@ -109,8 +109,8 @@ def test_piecewise_efficiency_gen() -> None:
     assert n.generators_t.p["gen1"].item() == pytest.approx(50.0, rel=1e-3)
     assert n.generators_t.p["gen0"].item() == pytest.approx(30.0, rel=1e-3)
 
-class TestPiecewiseMultiPort2Bus:
 
+class TestPiecewiseMultiPort2Bus:
     @pytest.fixture
     def base_network(self) -> pypsa.Network:
         n = pypsa.Network()
@@ -135,59 +135,76 @@ class TestPiecewiseMultiPort2Bus:
 
     @pytest.fixture
     def expected_p1(self) -> pd.Series:
-        return pd.Series({0: 50, # output of 20 units at bus1 requires 50% load rate (40% efficient)
-                1: 62.5, # output of 30 units at bus1 requires 62.5% load rate (48% efficient)
-                2: 75 # output of 30 units at bus1 requires 75% load rate (53% efficient)
-                }, name="multiport1").rename_axis(index="snapshot")
+        return pd.Series(
+            {
+                0: 50,  # output of 20 units at bus1 requires 50% load rate (40% efficient)
+                1: 62.5,  # output of 30 units at bus1 requires 62.5% load rate (48% efficient)
+                2: 75,  # output of 30 units at bus1 requires 75% load rate (53% efficient)
+            },
+            name="multiport1",
+        ).rename_axis(index="snapshot")
+
     @pytest.fixture
     def expected_p0(self) -> pd.Series:
         """TODO: update values once rate0 is working correctly."""
-        return pd.Series({0: 50,
-                1: 62.5,
-                2: 75
-                }, name="multiport1").rename_axis(index="snapshot")
+        return pd.Series({0: 50, 1: 62.5, 2: 75}, name="multiport1").rename_axis(
+            index="snapshot"
+        )
+
     @pytest.fixture
-    def piecewise_two_port_link_network(self, base_network: pypsa.Network, base_multiport_attrs: dict) -> tuple[pypsa.Network, str]:
+    def piecewise_two_port_link_network(
+        self, base_network: pypsa.Network, base_multiport_attrs: dict
+    ) -> tuple[pypsa.Network, str]:
         base_network.add(
-            "Link",
-            efficiency={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
-            **base_multiport_attrs
+            "Link", efficiency={0.1: 0.3, 0.5: 0.4, 1.0: 0.6}, **base_multiport_attrs
         )
         return base_network, "links"
+
     @pytest.fixture
-    def piecewise_two_port_process_network_r0(self, base_network: pypsa.Network, base_multiport_attrs: dict) -> tuple[pypsa.Network, str]:
+    def piecewise_two_port_process_network_r0(
+        self, base_network: pypsa.Network, base_multiport_attrs: dict
+    ) -> tuple[pypsa.Network, str]:
         base_network.add(
             "Process",
             rate0={0.1: -1 / 0.3, 0.5: -1 / 0.4, 1.0: -1 / 0.6},
             rate1=1,
-            **base_multiport_attrs
-        )
-        return base_network, "processes"
-    @pytest.fixture
-    def piecewise_two_port_process_network_r1(self, base_network: pypsa.Network, base_multiport_attrs: dict) -> tuple[pypsa.Network, str]:
-        base_network.add(
-            "Process",
-            rate1={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
-            **base_multiport_attrs
+            **base_multiport_attrs,
         )
         return base_network, "processes"
 
-    @pytest.mark.parametrize("fixture_name", ["piecewise_two_port_link_network", "piecewise_two_port_process_network_r1"])
-    def test_piecewise_efficiency_two_port_out(self, request, fixture_name: str, expected_p1: pd.Series) -> None:
+    @pytest.fixture
+    def piecewise_two_port_process_network_r1(
+        self, base_network: pypsa.Network, base_multiport_attrs: dict
+    ) -> tuple[pypsa.Network, str]:
+        base_network.add(
+            "Process", rate1={0.1: 0.3, 0.5: 0.4, 1.0: 0.6}, **base_multiport_attrs
+        )
+        return base_network, "processes"
+
+    @pytest.mark.parametrize(
+        "fixture_name",
+        ["piecewise_two_port_link_network", "piecewise_two_port_process_network_r1"],
+    )
+    def test_piecewise_efficiency_two_port_out(
+        self, request, fixture_name: str, expected_p1: pd.Series
+    ) -> None:
         n, comp = request.getfixturevalue(fixture_name)
         n.optimize()
         pd.testing.assert_series_equal(n.c[comp].dynamic.p.squeeze(), expected_p1)
 
-    @pytest.mark.xfail(reason="rate0 formulation is not working correctly in the piecewise case")
+    @pytest.mark.xfail(
+        reason="rate0 formulation is not working correctly in the piecewise case"
+    )
     @pytest.mark.parametrize("fixture_name", ["piecewise_two_port_process_network_r0"])
-    def test_piecewise_efficiency_two_port_in(self, request, fixture_name: str, expected_p0: pd.Series) -> None:
+    def test_piecewise_efficiency_two_port_in(
+        self, request, fixture_name: str, expected_p0: pd.Series
+    ) -> None:
         n, comp = request.getfixturevalue(fixture_name)
         n.optimize(solver_name="gurobi")
         pd.testing.assert_series_equal(n.c[comp].dynamic.p.squeeze(), expected_p0)
 
 
 class TestPiecewiseMultiPort3Bus:
-
     @pytest.fixture
     def base_network(self) -> pypsa.Network:
         n = pypsa.Network()
@@ -216,33 +233,46 @@ class TestPiecewiseMultiPort3Bus:
 
     @pytest.fixture
     def expected_p1(self) -> pd.Series:
-        return pd.Series({0: 50, # output of 20 units at bus1 requires 50% load rate (40% efficient)
-                1: 62.5, # output of 30 units at bus1 requires 62.5% load rate (48% efficient)
-                2: 75 # output of 30 units at bus1 requires 75% load rate (53% efficient)
-                }, name="multiport1").rename_axis(index="snapshot")
+        return pd.Series(
+            {
+                0: 50,  # output of 20 units at bus1 requires 50% load rate (40% efficient)
+                1: 62.5,  # output of 30 units at bus1 requires 62.5% load rate (48% efficient)
+                2: 75,  # output of 30 units at bus1 requires 75% load rate (53% efficient)
+            },
+            name="multiport1",
+        ).rename_axis(index="snapshot")
 
     @pytest.fixture
-    def piecewise_two_port_link_network(self, base_network: pypsa.Network, base_multiport_attrs: dict) -> tuple[pypsa.Network, str]:
+    def piecewise_two_port_link_network(
+        self, base_network: pypsa.Network, base_multiport_attrs: dict
+    ) -> tuple[pypsa.Network, str]:
         base_network.add(
             "Link",
             efficiency=0.5,
             efficiency2={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
-            **base_multiport_attrs
+            **base_multiport_attrs,
         )
         return base_network, "links"
 
     @pytest.fixture
-    def piecewise_two_port_process_network_r1(self, base_network: pypsa.Network, base_multiport_attrs: dict) -> tuple[pypsa.Network, str]:
+    def piecewise_two_port_process_network_r1(
+        self, base_network: pypsa.Network, base_multiport_attrs: dict
+    ) -> tuple[pypsa.Network, str]:
         base_network.add(
             "Process",
             rate1=0.5,
             rate2={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
-            **base_multiport_attrs
+            **base_multiport_attrs,
         )
         return base_network, "processes"
 
-    @pytest.mark.parametrize("fixture_name", ["piecewise_two_port_link_network", "piecewise_two_port_process_network_r1"])
-    def test_piecewise_efficiency_two_port_out(self, request, fixture_name: str, expected_p1: pd.Series) -> None:
+    @pytest.mark.parametrize(
+        "fixture_name",
+        ["piecewise_two_port_link_network", "piecewise_two_port_process_network_r1"],
+    )
+    def test_piecewise_efficiency_two_port_out(
+        self, request, fixture_name: str, expected_p1: pd.Series
+    ) -> None:
         n, comp = request.getfixturevalue(fixture_name)
         n.optimize()
         pd.testing.assert_series_equal(n.c[comp].dynamic.p.squeeze(), expected_p1)
