@@ -715,19 +715,25 @@ class Components(
         --------
         >>> c = n.components.generators
         >>> c.ds  # doctest: +ELLIPSIS
-        <xarray.Dataset> Size: ...
-        Dimensions:                  (name: 6, snapshot: 10)
+        <xarray.Dataset> Size: 7kB
+        Dimensions:                     (name: 6, snapshot: 10)
         Coordinates:
-          * name                     (name) object ... 'Manchester Wind' ... 'Frankfu...
-          * snapshot                 (snapshot) datetime64[ns] ... 2015-01-01 ... 201...
-        Data variables: (12/43)
-            bus                      (name) object ... 'Manchester' ... 'Frankfurt'
-            control                  (name) object ... 'Slack' 'PQ' ... 'Slack' 'PQ'
-            type                     (name) object ... '' '' '' '' '' ''
-            p_nom                    (name) float64 ... 80.0 5e+04 100.0 ... 110.0 8e+04
-            p_nom_mod                (name) float64 ... 0.0 0.0 0.0 0.0 0.0 0.0
-            p_nom_extendable         (name) bool ... True True True True True True
-            ...
+          * name                        (name) object 48B 'Manchester Wind' ... 'Fran...
+          * snapshot                    (snapshot) datetime64[ns] 80B 2015-01-01 ... ...
+        Data variables: (12/44)
+            bus                         (name) object 48B 'Manchester' ... 'Frankfurt'
+            control                     (name) object 48B 'Slack' 'PQ' ... 'Slack' 'PQ'
+            type                        (name) object 48B '' '' '' '' '' ''
+            p_nom                       (name) float64 48B 80.0 5e+04 ... 110.0 8e+04
+            p_nom_mod                   (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
+            p_nom_extendable            (name) bool 6B True True True True True True
+            ...                          ...
+            ramp_limit_start_up         (name) float64 48B nan nan nan nan nan nan
+            ramp_limit_shut_down        (name) float64 48B nan nan nan nan nan nan
+            weight                      (name) float64 48B 1.0 1.0 1.0 1.0 1.0 1.0
+            p_nom_opt                   (name) float64 48B 4.091e+03 -0.0 ... 982.0
+            capital_cost_piecewise_opt  (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
+            p                           (snapshot, name) float64 480B 742.0 ... 483.2
 
         """
         data = {}
