@@ -1155,7 +1155,7 @@ def define_nodal_balance_constraints(
                     pw_attr=coeff.name,
                     aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
                     active_names=names,
-                    sign="==",
+                    sign="=",
                     marginal_attr=False,
                     extra_options=extra_options,
                 )

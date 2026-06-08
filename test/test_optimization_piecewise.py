@@ -399,7 +399,7 @@ class TestDefinePiecewise:
         options = PiecewiseOptions(
             component="Generator",
             attribute="marginal_cost",
-            sign="==",
+            sign="=",
         )
         return options
 

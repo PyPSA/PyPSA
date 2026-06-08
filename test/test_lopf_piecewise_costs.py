@@ -87,7 +87,7 @@ def test_piecewise_marginal_cost() -> None:
     n.optimize()
     assert n.generators_t.p["gen1"].iloc[0] == pytest.approx(10.0, rel=1e-3)
     assert n.generators_t.p["gen0"].iloc[0] == pytest.approx(70.0, rel=1e-3)
-    assert n.objective < 4000.0
+    assert n.objective < 4000.0 if n.objective is not None else False
 
 
 @pytest.mark.parametrize(

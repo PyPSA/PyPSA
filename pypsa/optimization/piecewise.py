@@ -23,7 +23,7 @@ warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
 if TYPE_CHECKING:
     from collections.abc import Iterable
 logger = logging.getLogger(__name__)
-
+SIGNS_T = Literal["=", "<=", ">="]
 
 # TODO: update to pydantic once pydantic is a pypsa dependency.
 @dataclass(eq=True, frozen=True)
@@ -34,9 +34,9 @@ class PiecewiseOptions:
     """PyPSA component name."""
     attribute: str
     """Component attribute for which piecewise data is defined."""
-    sign: Literal[tuple(SIGNS)]
+    sign: SIGNS_T
     """Sign for the piecewise constraint, interpreted as y <sign> f(x)."""
-    name: tuple[str] = field(default_factory=tuple)
+    name: tuple[str, ...] = field(default_factory=tuple)
     """Optional filter for a component name to apply the piecewise constraint to, e.g. a specific generator."""
     method: str = "auto"
     """The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_formulation method."""
@@ -65,7 +65,7 @@ def define_piecewise(
     pw_attr: str,
     aux_var_name: str,
     active_names: pd.Index,
-    sign: Literal[tuple(SIGNS)],
+    sign: SIGNS_T,
     marginal_attr: bool,
     extra_options: Iterable[PiecewiseOptions],
     invert_attr: bool = False,
@@ -94,7 +94,7 @@ def define_piecewise(
         Name for the auxiliary linopy variable (if created) and the prefix for the constraint(s) defining the piecewise cost.
     active_names : pd.Index
         Active component names to consider (e.g. ``c.active_assets`` or ``c.extendables``).
-    sign : {"<=", ">=", "=="}
+    sign : SIGNS_T
         The sign for the piecewise constraint, interpreted as ``y <sign> f(x)``.
     marginal_attr : bool
         Whether the y-axis breakpoints represent marginal values.
