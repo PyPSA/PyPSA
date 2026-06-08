@@ -3,11 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 import pandas as pd
-
-import pypsa
 import pytest
 from linopy import LinearExpression
 
+import pypsa
 from pypsa.statistics import groupers
 
 TOLERANCE = 1e-2
@@ -276,6 +275,7 @@ def test_concrete_at_port(prepared_network):
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
 
+
 class TestExpressionsWithPiecewise:
     @pytest.fixture(scope="class")
     def piecewise_network_built(self, piecewise_network):
@@ -286,18 +286,26 @@ class TestExpressionsWithPiecewise:
         n = piecewise_network_built
         expr = n.optimize.expressions.capex().unstack("group")
         assert isinstance(expr, LinearExpression)
-        assert str(expr.sel(component="StorageUnit")).endswith("+10 StorageUnit-p_nom[storage0] + 1 StorageUnit-capital_cost_piecewise[storage1]")
+        assert str(expr.sel(component="StorageUnit")).endswith(
+            "+10 StorageUnit-p_nom[storage0] + 1 StorageUnit-capital_cost_piecewise[storage1]"
+        )
         assert "piecewise" not in str(expr.sel(component=["Link", "Generator"]))
 
     def test_expressions_opex(self, piecewise_network_built):
         n = piecewise_network_built
         expr = n.optimize.expressions.opex().unstack("group")
         assert isinstance(expr, LinearExpression)
-        assert str(expr.sel(component="Generator")).endswith("+0.6 Generator-p[0, gen0] + 0.6 Generator-p[1, gen0] + 1 Generator-marginal_cost_piecewise[0, gen1] + 1 Generator-marginal_cost_piecewise[1, gen1]")
-        assert not "piecewise" in str(expr.sel(component=["Link", "StorageUnit"]))
+        assert str(expr.sel(component="Generator")).endswith(
+            "+0.6 Generator-p[0, gen0] + 0.6 Generator-p[1, gen0] + 1 Generator-marginal_cost_piecewise[0, gen1] + 1 Generator-marginal_cost_piecewise[1, gen1]"
+        )
+        assert "piecewise" not in str(expr.sel(component=["Link", "StorageUnit"]))
 
     def test_expressions_energy_balance(self, piecewise_network_built):
         n = piecewise_network_built
         expr = n.optimize.expressions.energy_balance().unstack("group")
-        assert str(expr.sel(component="Link")).endswith("-1 Link-p[0, link] - 1 Link-p[1, link] + 1 Link-p1_piecewise[0, link] + 1 Link-p1_piecewise[1, link]")
-        assert not "piecewise" in str(expr.sel(component=["Generator", "StorageUnit", "Load"]))
+        assert str(expr.sel(component="Link")).endswith(
+            "-1 Link-p[0, link] - 1 Link-p[1, link] + 1 Link-p1_piecewise[0, link] + 1 Link-p1_piecewise[1, link]"
+        )
+        assert "piecewise" not in str(
+            expr.sel(component=["Generator", "StorageUnit", "Load"])
+        )

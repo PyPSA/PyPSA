@@ -683,6 +683,7 @@ class TestMarketValue:
 
 class TestStatisticsWithPiecewise:
     """Tests for piecewise variables affecting statistics."""
+
     @pytest.fixture(scope="class")
     def piecewise_network_solved(self, piecewise_network):
         piecewise_network.optimize()
@@ -708,6 +709,8 @@ class TestStatisticsWithPiecewise:
         supply = piecewise_network_solved.stats.supply(groupby=["name"])
         withdrawal = piecewise_network_solved.stats.withdrawal(groupby=["name"])
         assert supply.loc[("Link", "link")] < withdrawal.loc[("Link", "link")]
+
+
 class TestPortEfficiency:
     """Tests for port_efficiency, including the piecewise parameter."""
 
