@@ -681,6 +681,33 @@ class TestMarketValue:
         assert np.isfinite(mv.loc[("Line", "AC")])
 
 
+class TestStatisticsWithPiecewise:
+    """Tests for piecewise variables affecting statistics."""
+    @pytest.fixture(scope="class")
+    def piecewise_network_solved(self, piecewise_network):
+        piecewise_network.optimize()
+        return piecewise_network
+
+    def test_stats_capex(self, piecewise_network_solved):
+        """Piecewise capital cost of StorageUnit shows in capex statistic."""
+        stat = piecewise_network_solved.stats.capex(groupby=["name"])
+        assert stat.loc[("StorageUnit", "storage1")] > 0
+
+    def test_stats_opex(self, piecewise_network_solved):
+        """Piecewise marginal cost of Generator shows in opex statistic."""
+        stat = piecewise_network_solved.stats.opex(groupby=["name"])
+        assert stat.loc[("Generator", "gen0")] > 0
+
+    def test_stats_energy_balance(self, piecewise_network_solved):
+        """Piecewise efficiency of Link shows in energy balance statistic."""
+        stat = piecewise_network_solved.stats.energy_balance(groupby=["name"])
+        assert stat.loc[("Link", "link")] < 0
+
+    def test_stats_withdrawal_supply(self, piecewise_network_solved):
+        """Piecewise efficiency of Link shows between supply and withdrawal."""
+        supply = piecewise_network_solved.stats.supply(groupby=["name"])
+        withdrawal = piecewise_network_solved.stats.withdrawal(groupby=["name"])
+        assert supply.loc[("Link", "link")] < withdrawal.loc[("Link", "link")]
 class TestPortEfficiency:
     """Tests for port_efficiency, including the piecewise parameter."""
 

@@ -222,8 +222,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             costs = c.static[cost_attribute][capacity.indexes["name"]]
 
-            if f"{component}-{cost_attribute}_piecewise" in m.variables:
-                add_capex = m.variables[f"{component}-{cost_attribute}_piecewise"]
+            piecewise_attr = n.c[component]._piecewise_attrs.query("y == @cost_attribute").squeeze()
+            aux_var = f"{component}-{piecewise_attr.aux_variable}" if not piecewise_attr.empty else None
+            if aux_var in m.variables:
+                add_capex = m.variables[aux_var]
                 capacity = capacity.drop_sel(name=add_capex.coords["name"])
             else:
                 add_capex = 0
@@ -368,8 +370,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             var = n.model.variables[f"{c}-{attr}"]
             sns = var.indexes["snapshot"]
 
-            if f"{c}-{attr}_piecewise" in n.model.variables:
-                add_opex = n.model.variables[f"{c}-{attr}_piecewise"]
+            piecewise_attr = n.c[c]._piecewise_attrs.query("y == 'marginal_cost'").squeeze()
+            aux_var = f"{c}-{piecewise_attr.aux_variable}" if not piecewise_attr.empty else None
+            if aux_var in n.model.variables:
+                add_opex = n.model.variables[aux_var]
                 var = var.drop_sel(name=add_opex.coords["name"])
             else:
                 add_opex = 0
