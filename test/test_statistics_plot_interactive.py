@@ -124,6 +124,15 @@ def test_iplot_stacked_parameter(ac_dc_network_r, stacked):
     assert isinstance(fig, go.Figure)
 
 
+def test_iplot_bar_drops_redundant_axis_color(ac_dc_network_r):
+    """Bar charts should not split traces when color duplicates an axis."""
+    fig = ac_dc_network_r.statistics.energy_balance.iplot.bar()
+
+    assert isinstance(fig, go.Figure)
+    assert len(fig.data) == 1
+    assert fig.data[0].showlegend is False
+
+
 def test_iplot_category_orders(ac_dc_network_r):
     """Test creating a plot with specified category orders."""
     # Create plot with specified orders if applicable columns exist
