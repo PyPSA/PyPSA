@@ -188,9 +188,11 @@ class TestPiecewiseCostsResults:
         )
         n.add("Load", "load", bus="bus0", p_set=80)
         n.optimize()
-        assert n.generators_t.p.squeeze().equals(pd.Series({"gen0": 30.0, "gen1": 50}))
+        assert n.c.generators.dynamic.p.squeeze().equals(
+            pd.Series({"gen0": 30.0, "gen1": 50})
+        )
         # expected: gen1 overall marginal cost is (0.1 * 60 + 0.4 * 35) / 0.5 = 40
-        assert n.generators_t.marginal_cost_piecewise_opt.squeeze().equals(
+        assert n.c.generators.dynamic.marginal_cost_piecewise_opt.squeeze().equals(
             pd.Series({"gen0": 0.0, "gen1": 40.0})
         )
 
@@ -222,8 +224,10 @@ class TestPiecewiseCostsResults:
         n.add("Load", "load", bus="bus0", p_set=150)
         n.optimize()
 
-        assert n.generators.p_nom_opt.equals(pd.Series({"gen0": 100.0, "gen1": 50}))
+        assert n.c.generators.static.p_nom_opt.equals(
+            pd.Series({"gen0": 100.0, "gen1": 50})
+        )
         # expected: gen1 overall capital cost is (0.1 * 1 + 0.4 * 1.5) / 0.5 = 1.4
-        assert n.generators.capital_cost_piecewise_opt.equals(
+        assert n.c.generators.static.capital_cost_piecewise_opt.equals(
             pd.Series({"gen0": 0.0, "gen1": 1.4})
         )

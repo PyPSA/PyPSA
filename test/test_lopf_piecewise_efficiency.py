@@ -134,31 +134,13 @@ class TestPiecewiseMultiPort2Bus:
         }
 
     @pytest.fixture
-    def expected_p1(self) -> pd.Series:
-        return pd.Series(
-            {
-                0: 50,  # output of 20 units at bus1 requires 50% load rate (40% efficient)
-                1: 62.5,  # output of 30 units at bus1 requires 62.5% load rate (48% efficient)
-                2: 75,  # output of 30 units at bus1 requires 75% load rate (53% efficient)
-            },
-            name="multiport1",
-        ).rename_axis(index="snapshot")
-
-    @pytest.fixture
-    def expected_p0(self) -> pd.Series:
-        """TODO: update values once rate0 is working correctly."""
-        return pd.Series({0: 50, 1: 62.5, 2: 75}, name="multiport1").rename_axis(
-            index="snapshot"
-        )
-
-    @pytest.fixture
     def piecewise_two_port_link_network(
         self, base_network: pypsa.Network, base_multiport_attrs: dict
     ) -> tuple[pypsa.Network, str]:
         base_network.add(
             "Link", efficiency={0.1: 0.3, 0.5: 0.4, 1.0: 0.6}, **base_multiport_attrs
         )
-        return base_network, "links"
+        return base_network, "Link"
 
     @pytest.fixture
     def piecewise_two_port_process_network_r0(
@@ -170,7 +152,7 @@ class TestPiecewiseMultiPort2Bus:
             rate1=1,
             **base_multiport_attrs,
         )
-        return base_network, "processes"
+        return base_network, "Process"
 
     @pytest.fixture
     def piecewise_two_port_process_network_r1(
@@ -179,29 +161,44 @@ class TestPiecewiseMultiPort2Bus:
         base_network.add(
             "Process", rate1={0.1: 0.3, 0.5: 0.4, 1.0: 0.6}, **base_multiport_attrs
         )
-        return base_network, "processes"
+        return base_network, "Process"
 
     @pytest.mark.parametrize(
         "fixture_name",
         ["piecewise_two_port_link_network", "piecewise_two_port_process_network_r1"],
     )
     def test_piecewise_efficiency_two_port_out(
-        self, request, fixture_name: str, expected_p1: pd.Series
+        self, request, fixture_name: str
     ) -> None:
         n, comp = request.getfixturevalue(fixture_name)
         n.optimize()
-        pd.testing.assert_series_equal(n.c[comp].dynamic.p.squeeze(), expected_p1)
+        expected_p = pd.Series(
+            {
+                0: 50,  # output of 20 units at bus1 requires 50% load rate (40% efficient)
+                1: 62.5,  # output of 30 units at bus1 requires 62.5% load rate (48% efficient)
+                2: 75,  # output of 30 units at bus1 requires 75% load rate (53% efficient)
+            },
+            name="multiport1",
+        ).rename_axis(index="snapshot")
+        pd.testing.assert_series_equal(n.c[comp].dynamic.p.squeeze(), expected_p)
+
+        expected_p1 = (
+            -1 * n.model.variables[f"{comp}-p1_piecewise"].solution.to_pandas()
+        )
+        pd.testing.assert_frame_equal(n.c[comp].dynamic.p1, expected_p1)
 
     @pytest.mark.xfail(
         reason="rate0 formulation is not working correctly in the piecewise case"
     )
     @pytest.mark.parametrize("fixture_name", ["piecewise_two_port_process_network_r0"])
-    def test_piecewise_efficiency_two_port_in(
-        self, request, fixture_name: str, expected_p0: pd.Series
-    ) -> None:
+    def test_piecewise_efficiency_two_port_in(self, request, fixture_name: str) -> None:
         n, comp = request.getfixturevalue(fixture_name)
         n.optimize(solver_name="gurobi")
-        pd.testing.assert_series_equal(n.c[comp].dynamic.p.squeeze(), expected_p0)
+        # TODO: update expected when the issue with rate0 formulation is resolved.
+        expected_p = pd.Series({0: 50, 1: 62.5, 2: 75}, name="multiport1").rename_axis(
+            index="snapshot"
+        )
+        pd.testing.assert_series_equal(n.c[comp].dynamic.p.squeeze(), expected_p)
 
 
 class TestPiecewiseMultiPort3Bus:
@@ -232,17 +229,6 @@ class TestPiecewiseMultiPort3Bus:
         }
 
     @pytest.fixture
-    def expected_p1(self) -> pd.Series:
-        return pd.Series(
-            {
-                0: 50,  # output of 20 units at bus1 requires 50% load rate (40% efficient)
-                1: 62.5,  # output of 30 units at bus1 requires 62.5% load rate (48% efficient)
-                2: 75,  # output of 30 units at bus1 requires 75% load rate (53% efficient)
-            },
-            name="multiport1",
-        ).rename_axis(index="snapshot")
-
-    @pytest.fixture
     def piecewise_two_port_link_network(
         self, base_network: pypsa.Network, base_multiport_attrs: dict
     ) -> tuple[pypsa.Network, str]:
@@ -252,7 +238,7 @@ class TestPiecewiseMultiPort3Bus:
             efficiency2={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
             **base_multiport_attrs,
         )
-        return base_network, "links"
+        return base_network, "Link"
 
     @pytest.fixture
     def piecewise_two_port_process_network_r1(
@@ -264,15 +250,31 @@ class TestPiecewiseMultiPort3Bus:
             rate2={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
             **base_multiport_attrs,
         )
-        return base_network, "processes"
+        return base_network, "Process"
 
     @pytest.mark.parametrize(
         "fixture_name",
         ["piecewise_two_port_link_network", "piecewise_two_port_process_network_r1"],
     )
     def test_piecewise_efficiency_two_port_out(
-        self, request, fixture_name: str, expected_p1: pd.Series
+        self, request, fixture_name: str
     ) -> None:
         n, comp = request.getfixturevalue(fixture_name)
         n.optimize()
-        pd.testing.assert_series_equal(n.c[comp].dynamic.p.squeeze(), expected_p1)
+        expected_p = pd.Series(
+            {
+                0: 50,  # output of 20 units at bus1 requires 50% load rate (40% efficient)
+                1: 62.5,  # output of 30 units at bus1 requires 62.5% load rate (48% efficient)
+                2: 75,  # output of 30 units at bus1 requires 75% load rate (53% efficient)
+            },
+            name="multiport1",
+        ).rename_axis(index="snapshot")
+        pd.testing.assert_series_equal(n.c[comp].dynamic.p.squeeze(), expected_p)
+
+        expected_p1 = -1 * expected_p / 2
+        pd.testing.assert_series_equal(n.c[comp].dynamic.p1.squeeze(), expected_p1)
+
+        expected_p2 = (
+            -1 * n.model.variables[f"{comp}-p2_piecewise"].solution.to_pandas()
+        )
+        pd.testing.assert_frame_equal(n.c[comp].dynamic.p2, expected_p2)
