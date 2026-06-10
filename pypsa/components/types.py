@@ -11,6 +11,10 @@ Additional types can be added by the user.
 from __future__ import annotations
 
 import importlib.resources as pkg_resources
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import numpy as np
 import pandas as pd
