@@ -10,7 +10,7 @@ Additional types can be added by the user.
 
 from __future__ import annotations
 
-from pathlib import Path
+import importlib.resources as pkg_resources
 
 import numpy as np
 import pandas as pd
@@ -20,9 +20,10 @@ from pypsa.definitions.components import ComponentType
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
 # TODO better path handeling, integrate custom components
-_components_path = Path(__file__).parent.parent / "data" / "components.csv"
-_attrs_path = Path(__file__).parent.parent / "data" / "component_attrs"
-_standard_types_path = Path(__file__).parent.parent / "data" / "standard_types"
+_pypsa_data = pkg_resources.files("pypsa") / "data"
+_components_path = _pypsa_data / "components.csv"
+_attrs_path = _pypsa_data / "component_attrs"
+_standard_types_path = _pypsa_data / "standard_types"
 
 component_types_df = pd.read_csv(_components_path, index_col=0)
 default_components = component_types_df.index.to_list()

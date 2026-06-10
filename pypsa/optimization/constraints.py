@@ -6,8 +6,8 @@
 
 from __future__ import annotations
 
+import importlib.resources as pkg_resources
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
@@ -35,8 +35,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # TODO move to constants.py
+PYPSA_DIR = pkg_resources.files("pypsa")
 lookup = pd.read_csv(
-    Path(__file__).parent / ".." / "data" / "variables.csv",
+    PYPSA_DIR / "data" / "variables.csv",
     index_col=["component", "variable"],
 )
 
