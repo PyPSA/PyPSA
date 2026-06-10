@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
@@ -15,6 +16,39 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pypsa import Network
+
+
+class _Unset:
+    """Sentinel marking a parameter the user did not provide.
+
+    Distinguishes "not provided" (apply the schema default) from an explicit
+    ``None`` (a deliberate user choice, e.g. ``color=None`` to disable coloring).
+    """
+
+    def __repr__(self) -> str:
+        return "UNSET"
+
+
+UNSET: Any = _Unset()
+
+
+_SUBSCRIPT = str.maketrans("0123456789+-=()aeoxhklmnpst", "₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑₒₓₕₖₗₘₙₚₛₜ")
+_SUPERSCRIPT = str.maketrans("0123456789+-=()ni", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿⁱ")
+_MATHTEXT_SUB = re.compile(r"\$_\{?([^${}]+)\}?\$")
+_MATHTEXT_SUP = re.compile(r"\$\^\{?([^${}]+)\}?\$")
+
+
+def sanitize_mathtext(label: Any) -> Any:
+    """Convert LaTeX ``$_X$``/``$^X$`` to Unicode sub-/superscripts.
+
+    Plotly 6 renders mathtext via MathJax, which drops surrounding text in
+    legends. Replacing the mathtext with Unicode glyphs keeps labels intact.
+    Non-string or non-mathtext labels are returned unchanged.
+    """
+    if not isinstance(label, str) or "$" not in label:
+        return label
+    label = _MATHTEXT_SUB.sub(lambda m: m.group(1).translate(_SUBSCRIPT), label)
+    return _MATHTEXT_SUP.sub(lambda m: m.group(1).translate(_SUPERSCRIPT), label)
 
 
 class PlotsGenerator(ABC):

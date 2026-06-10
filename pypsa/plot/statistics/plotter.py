@@ -10,6 +10,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Literal
 
 from pypsa.common import deprecated_kwargs
+from pypsa.plot.statistics.base import UNSET
 from pypsa.plot.statistics.charts import (
     CHART_TYPES,
     ChartGenerator,
@@ -22,6 +23,18 @@ from pypsa.plot.statistics.schema import (
     apply_parameter_schema,
     get_relevant_plot_values,
 )
+
+# Statistics-function parameters that may be passed through the plot accessors
+# and must be routed into the statistics call instead of the plotting backend.
+_ROUTABLE_STATS_KWARGS = {
+    "components",
+    "groupby_method",
+    "at_port",
+    "drop_zero",
+    "round",
+    "direction",
+    "weighting",
+}
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -89,6 +102,11 @@ class _StatisticPlotterBase:
 
         plotter = ChartGenerator(self._n)
 
+        # Route statistics-function kwargs out of the plotting backend kwargs
+        for key in list(extra_kwargs):
+            if key in _ROUTABLE_STATS_KWARGS:
+                stats_kwargs[key] = extra_kwargs.pop(key)
+
         # Create context for schema application
         periods = _get_periods(self._n)
         has_scenarios = self._n.has_scenarios
@@ -105,12 +123,25 @@ class _StatisticPlotterBase:
             stats_name, chart_type, plot_kwargs, context
         )
 
+        # Forward requested filter values as facet order so empty facets stay
+        # visible instead of being silently dropped.
+        for axis, order_key in (("facet_col", "col_order"), ("facet_row", "row_order")):
+            facet_val = plot_kwargs.get(axis)
+            requested = stats_kwargs.get(facet_val) if facet_val else None
+            if (
+                facet_val in ("carrier", "bus_carrier")
+                and plot_kwargs.get(order_key) is None
+                and isinstance(requested, (list, tuple))
+            ):
+                plot_kwargs[order_key] = list(requested)
+
         # Use helper for filtering
         relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
             *relevant_plot_kwargs,
             method_name=stats_name,
+            chart_type=chart_type,
         )
 
         # Add provided kwargs
@@ -235,7 +266,7 @@ class StatisticPlotter(_StatisticPlotterBase):
         chart_type: str,
         x: str | None = None,
         y: str | None = None,
-        color: str | None = None,
+        color: str | None = UNSET,
         facet_col: str | None = None,
         facet_row: str | None = None,
         stacked: bool = True,
@@ -250,6 +281,7 @@ class StatisticPlotter(_StatisticPlotterBase):
         aspect: float | None = None,
         row_order: Sequence[str] | None = None,
         col_order: Sequence[str] | None = None,
+        col_wrap: int | None = None,
         hue_order: Sequence[str] | None = None,
         hue_kws: dict[str, Any] | None = None,
         despine: bool = True,
@@ -366,6 +398,7 @@ class StatisticPlotter(_StatisticPlotterBase):
             "aspect": aspect,
             "row_order": row_order,
             "col_order": col_order,
+            "col_wrap": col_wrap,
             "hue_order": hue_order,
             "hue_kws": hue_kws,
             "despine": despine,
@@ -635,7 +668,7 @@ class StatisticInteractivePlotter(_StatisticPlotterBase):
         chart_type: str,
         x: str | None = None,
         y: str | None = None,
-        color: str | None = None,
+        color: str | None = UNSET,
         facet_col: str | None = None,
         facet_row: str | None = None,
         stacked: bool = True,
@@ -700,7 +733,8 @@ class StatisticInteractivePlotter(_StatisticPlotterBase):
         sharey : bool | None, default: None
             Whether to share y axes across all facets. If None, will be True when y is "value".
         height : int, default: 500
-            Height of the plot in pixels.
+            Height of the plot in pixels. Automatically increased when a
+            categorical y-axis holds many entries so every bar keeps its label.
         width : int, default: 800
             Width of the plot in pixels.
         row_order : Sequence[str] | None, default: None

@@ -371,6 +371,18 @@ def test_prices(ac_dc_network_r):
     grouped = n.statistics.prices(groupby="bus_carrier")
     assert set(grouped.index) == set(n.c.buses.static.carrier.unique())
 
+    # Test groupby static bus attributes
+    by_country = n.statistics.prices(groupby="country")
+    assert by_country.index.name == "country"
+    assert set(by_country.index) <= set(n.c.buses.static.country.unique())
+
+    full_ts = n.statistics.prices(groupby=["name", "country"], groupby_time=False)
+    assert full_ts.index.names == ["name", "country"]
+    assert len(full_ts) == len(n.buses)
+
+    with pytest.raises(ValueError, match="not supported"):
+        n.statistics.prices(groupby="not_an_attribute")
+
 
 @pytest.fixture
 def network_with_nice_name():

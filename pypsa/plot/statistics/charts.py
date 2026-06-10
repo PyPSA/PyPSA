@@ -15,7 +15,24 @@ import plotly.express as px
 import plotly.graph_objects as go
 import seaborn as sns
 
-from pypsa.plot.statistics.base import PlotsGenerator
+from pypsa.plot.statistics.base import UNSET, PlotsGenerator, sanitize_mathtext
+
+DISTRIBUTION_TYPES = ["box", "violin", "histogram"]
+
+# Statistics functions that support a ``groupby_time`` argument.
+GROUPBY_TIME_STATS = {
+    "opex",
+    "system_cost",
+    "supply",
+    "withdrawal",
+    "transmission",
+    "energy_balance",
+    "curtailment",
+    "capacity_factor",
+    "revenue",
+    "market_value",
+    "prices",
+}
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -78,7 +95,7 @@ def adjust_collection_bar_defaults(
     # Handle 2-level multiindex: use second level for grouped bars
     elif len(index_names) >= 2:
         second_index_name = index_names[1]
-        if color is None:
+        if color is UNSET:
             color = second_index_name
         if stacked and color == second_index_name:
             stacked = False
@@ -90,7 +107,7 @@ def adjust_collection_bar_defaults(
     # Handle single-level index
     elif len(index_names) == 1:
         index_name = index_names[0]
-        if color is None:
+        if color is UNSET:
             color = index_name
         if stacked and color == index_name:
             stacked = False
@@ -102,7 +119,7 @@ def adjust_collection_bar_defaults(
     periods = _get_periods(network)
     if periods is not None:
         period_name = periods.name or "period"
-        if color is None:
+        if color is UNSET:
             color = period_name
         if stacked and color == period_name:
             stacked = False
@@ -234,9 +251,10 @@ def facet_iter(
 
     for i, row_val in enumerate(row_vals):
         for j, col_val in enumerate(col_vals):
-            # Get the axis for this facet
+            # Get the axis for this facet. With col_wrap the axes grid is
+            # flattened to 1-D in column-major facet order.
             if g.axes.ndim == 1:
-                ax = g.axes[i if len(g.axes) > 1 else j]
+                ax = g.axes[j if len(col_vals) > 1 else i]
             else:
                 ax = g.axes[i, j]
 
@@ -423,6 +441,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         aspect: float = 2,
         row_order: Sequence[str] | None = None,
         col_order: Sequence[str] | None = None,
+        col_wrap: int | None = None,
         hue_order: Sequence[str] | None = None,
         hue_kws: dict[str, Any] | None = None,
         despine: bool = True,
@@ -454,6 +473,15 @@ class ChartGenerator(PlotsGenerator, ABC):
         if sharey is None:
             sharey = y == "value"
 
+        # Scale facet height with the number of categorical rows per facet so
+        # distribution plots stay legible on networks with many buses/carriers.
+        if kind in DISTRIBUTION_TYPES and y == "name":
+            if facet_row:
+                n_rows = ldata.groupby(facet_row, observed=True)["name"].nunique().max()
+            else:
+                n_rows = ldata["name"].nunique()
+            height = max(height, min(0.3 * n_rows + 1, 30))
+
         # Always use FacetGrid for consistency
         g = sns.FacetGrid(
             ldata,
@@ -466,6 +494,7 @@ class ChartGenerator(PlotsGenerator, ABC):
             aspect=aspect,
             row_order=row_order,
             col_order=col_order,
+            col_wrap=col_wrap,
             hue_order=hue_order,
             hue_kws=hue_kws,
             despine=despine,
@@ -509,9 +538,15 @@ class ChartGenerator(PlotsGenerator, ABC):
             )
         # Other plot types remain the same
         elif kind == "scatter":
-            g.map_dataframe(sns.scatterplot, x=x, y=y, hue=color, **kwargs)
+            plot_kwargs = {"x": x, "y": y, "hue": color, **kwargs}
+            if color is not None:
+                plot_kwargs["palette"] = palette
+            g.map_dataframe(sns.scatterplot, **plot_kwargs)
         elif kind == "line":
-            g.map_dataframe(sns.lineplot, x=x, y=y, hue=color, **kwargs)
+            plot_kwargs = {"x": x, "y": y, "hue": color, **kwargs}
+            if color is not None:
+                plot_kwargs["palette"] = palette
+            g.map_dataframe(sns.lineplot, **plot_kwargs)
         elif kind in ["box", "violin"]:
             # FacetGrid adds color internally, remove to avoid conflict with hue
             kwargs.pop("color", None)
@@ -521,10 +556,12 @@ class ChartGenerator(PlotsGenerator, ABC):
                 plot_kwargs["palette"] = palette
             g.map_dataframe(plot_func, **plot_kwargs)
         elif kind == "histogram":
-            if y is None:
-                g.map_dataframe(sns.histplot, x=x, hue=color, **kwargs)
-            else:
-                g.map_dataframe(sns.histplot, x=x, y=y, hue=color, **kwargs)
+            plot_kwargs = {"x": x, "hue": color, **kwargs}
+            if y is not None:
+                plot_kwargs["y"] = y
+            if color is not None:
+                plot_kwargs["palette"] = palette
+            g.map_dataframe(sns.histplot, **plot_kwargs)
         else:
             msg = f"Unsupported plot type: {kind}"
             raise ValueError(msg)
@@ -606,6 +643,12 @@ class ChartGenerator(PlotsGenerator, ABC):
             ldata = ldata.query(query)
         ldata = self._validate(ldata)
 
+        # Replace LaTeX mathtext in labels with Unicode so Plotly legends render
+        # the full text (Plotly 6 otherwise drops text around MathJax glyphs).
+        ldata = ldata.apply(
+            lambda col: col.map(sanitize_mathtext) if col.dtype == "object" else col
+        )
+
         # Aggregate scenarios and calculate error bars for bar plots
         # Only aggregate if we have actual stochastic scenarios (not just a column named 'scenario')
         aggregated_with_std = None
@@ -623,6 +666,7 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         # Get carrier colors for the plot
         carrier_colors = self.get_carrier_colors(nice_names=nice_names)
+        carrier_colors = {sanitize_mathtext(k): v for k, v in carrier_colors.items()}
 
         # Set up labels dictionary for axis labels
         if labels is None:
@@ -644,10 +688,14 @@ class ChartGenerator(PlotsGenerator, ABC):
             ldata[x] = pd.Categorical(
                 ldata[x], categories=ldata[x].unique(), ordered=True
             )
+        label_every_row = False
         if y != "value" and ldata[y].dtype.name == "object":
-            ldata.loc[:, y] = pd.Categorical(
+            ldata[y] = pd.Categorical(
                 ldata[y], categories=ldata[y].unique(), ordered=True
             )
+            scaled_height = 20 * ldata[y].nunique() + 100
+            height = max(height, min(scaled_height, 2000))
+            label_every_row = scaled_height <= 2000
 
         if kind == "bar" and color in {x, y}:
             color = None
@@ -820,9 +868,12 @@ class ChartGenerator(PlotsGenerator, ABC):
         )
 
         if not sharex and sharex is not None:
-            fig.update_xaxes(matches=None)
+            fig.update_xaxes(matches=None, showticklabels=True)
         if not sharey and sharey is not None:
-            fig.update_yaxes(matches=None)
+            fig.update_yaxes(matches=None, showticklabels=True)
+
+        if label_every_row:
+            fig.update_yaxes(dtick=1)
 
         return fig
 
@@ -830,6 +881,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         self,
         *args: Any,
         method_name: str = "",  # make required
+        chart_type: str = "",
     ) -> dict[str, Any]:
         """Extract plotting specification rules including groupby columns and component aggregation.
 
@@ -839,6 +891,9 @@ class ChartGenerator(PlotsGenerator, ABC):
             Arguments representing x, y, color, facet_col, facet_row parameters
         method_name : str, optional
             Name of the statistics function to allow for specific rules
+        chart_type : str, optional
+            Name of the chart type to allow for specific rules (e.g. distributions
+            need the full time series).
 
         Returns
         -------
@@ -855,11 +910,13 @@ class ChartGenerator(PlotsGenerator, ABC):
         filtered_cols = list(set(filtered_cols))  # Remove duplicates
         if filtered_cols:
             stats_kwargs["groupby"] = filtered_cols
-        if method_name == "prices":
-            stats_kwargs.pop("groupby", None)  # prices does not support groupby
 
         # `aggregate_across_components`
-        if method_name != "prices":
+        if method_name == "prices":
+            # Distribution plots keep per-bus rows; groupers become index levels.
+            if chart_type in DISTRIBUTION_TYPES and filtered_cols:
+                stats_kwargs["groupby"] = ["name", *filtered_cols]
+        else:
             stats_kwargs["aggregate_across_components"] = "component" not in args
 
         # `groupby_time` is only relevant for time series data
@@ -870,5 +927,13 @@ class ChartGenerator(PlotsGenerator, ABC):
                 stats_kwargs["groupby_time"] = "sum"
             else:
                 stats_kwargs["groupby_time"] = False
+
+        # Distribution plots need the full time series, not its aggregate.
+        if (
+            chart_type in DISTRIBUTION_TYPES
+            and method_name in GROUPBY_TIME_STATS
+            and "groupby_time" not in stats_kwargs
+        ):
+            stats_kwargs["groupby_time"] = False
 
         return stats_kwargs

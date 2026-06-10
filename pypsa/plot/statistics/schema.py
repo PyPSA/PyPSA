@@ -29,7 +29,16 @@ The module contains the following configuration dictionaries:
    Statistic and plot-type specific overrides for parameter defaults.
 """
 
+from pypsa.plot.statistics.base import UNSET
 from pypsa.plot.statistics.charts import CHART_TYPES
+
+# Parameters for which an explicit ``None`` is a meaningful value (disable the
+# feature) and must not be replaced by the schema default.
+_NONE_DISABLES = {"color"}
+
+# Excluded parameters that are always populated by the plotter signature and
+# should therefore be dropped silently rather than raising.
+_STRUCTURAL_EXCLUDED = {"nice_names"}
 
 # Base defaults for all parameters
 DEFAULTS = {
@@ -291,6 +300,13 @@ def apply_parameter_schema(
     for param, value in kwargs.items():
         # Check if parameter is explicitly excluded for this statistic
         if param in EXCLUDED_PARAMS.get(stats_name, []):
+            if value not in (None, UNSET) and param not in _STRUCTURAL_EXCLUDED:
+                hint = " Use 'bus_carrier' instead." if param == "carrier" else ""
+                msg = (
+                    f"'{param}' is not a supported parameter for the "
+                    f"'{stats_name}' statistic.{hint}"
+                )
+                raise ValueError(msg)
             to_remove.append(param)
             continue
 
@@ -302,8 +318,9 @@ def apply_parameter_schema(
             to_remove.append(param)
             continue
 
-        # Apply default if value is None
-        if value is None:
+        # Apply the schema default for unprovided parameters. An explicit None is
+        # only overridden when it is not a meaningful "disable" value.
+        if value is UNSET or (value is None and param not in _NONE_DISABLES):
             kwargs[param] = schema[stats_name][plot_name][param]["default"]
 
     for param in to_remove:
@@ -337,7 +354,7 @@ def get_relevant_plot_values(plot_kwargs: dict, context: dict | None = None) -> 
     values = [
         v
         for k, v in plot_kwargs.items()
-        if k in relevant_keys and v not in index_names and v is not None
+        if k in relevant_keys and v not in index_names and v not in (None, UNSET)
     ]
     if period_name is not None:
         values = [value for value in values if value != period_name]
