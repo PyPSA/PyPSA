@@ -117,7 +117,7 @@ class TestPiecewiseMultiPort2Bus:
         n.set_snapshots(range(3))
         n.add("Bus", ["bus0", "bus1"])
         n.add("Carrier", "gas")
-        n.add("Generator", "gen0", carrier="gas", bus="bus0", p_nom=100)
+        n.add("Generator", "gen0", carrier="gas", bus="bus0", p_nom=150)
         n.add("Load", "load", bus="bus1", p_set=[20, 30, 40])
         return n
 
@@ -187,18 +187,29 @@ class TestPiecewiseMultiPort2Bus:
         )
         pd.testing.assert_frame_equal(n.c[comp].dynamic.p1, expected_p1)
 
-    @pytest.mark.xfail(
-        reason="rate0 formulation is not working correctly in the piecewise case"
-    )
     @pytest.mark.parametrize("fixture_name", ["piecewise_two_port_process_network_r0"])
     def test_piecewise_efficiency_two_port_in(self, request, fixture_name: str) -> None:
         n, comp = request.getfixturevalue(fixture_name)
-        n.optimize(solver_name="gurobi")
-        # TODO: update expected when the issue with rate0 formulation is resolved.
-        expected_p = pd.Series({0: 50, 1: 62.5, 2: 75}, name="multiport1").rename_axis(
-            index="snapshot"
-        )
+        status, _ = n.optimize(solver_name="gurobi")
+        assert status == "ok"
+        expected_p = pd.Series(
+            {0: 20.0, 1: 30.0, 2: 40.0}, name="multiport1"
+        ).rename_axis(index="snapshot")
         pd.testing.assert_series_equal(n.c[comp].dynamic.p.squeeze(), expected_p)
+
+        # withdrawal is linearised in p between breakpoints (10, 100/3) and (50, 125),
+        expected_p0 = pd.Series(
+            {
+                0: 56.25,  # chord at p=20
+                1: 79.1667,  # chord at p=30
+                2: 102.083,  # chord at p=40
+            },
+            name="multiport1",
+        ).rename_axis(index="snapshot")
+        pd.testing.assert_series_equal(n.c[comp].dynamic.p0.squeeze(), expected_p0)
+
+        expected_p1 = -1 * expected_p
+        pd.testing.assert_series_equal(n.c[comp].dynamic.p1.squeeze(), expected_p1)
 
 
 class TestPiecewiseMultiPort3Bus:

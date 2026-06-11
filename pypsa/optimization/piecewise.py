@@ -293,13 +293,16 @@ def _normalize_breakpoints(
 
 
 def _create_y_var(
-    m: Model, x_var: Variable, pw_names: pd.Index, aux_var_name: str
+    m: Model,
+    x_var: Variable,
+    pw_names: pd.Index,
+    aux_var_name: str,
 ) -> Variable:
     """Create auxiliary y variable for piecewise constraint."""
     extra_dims = [d for d in x_var.dims if d != "name"]
     coords = [x_var.coords[d].values for d in extra_dims] + [pw_names]
     dims = extra_dims + ["name"]
-    y_var = m.add_variables(lower=0, coords=coords, dims=dims, name=aux_var_name)
+    y_var = m.add_variables(coords=coords, dims=dims, name=aux_var_name)
     return y_var
 
 

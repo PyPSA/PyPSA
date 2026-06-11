@@ -325,9 +325,9 @@ class TestCreateYVar:
 
     @pytest.mark.parametrize("y_var_name", ["y_var_static", "y_var_dynamic"])
     def test_y_var_lb(self, request, y_var_name):
-        """Test that created y variable has expected lower bound."""
+        """Test that created y variable is unbounded below."""
         y_var = request.getfixturevalue(y_var_name)
-        assert (y_var.lower == 0).all()
+        assert (y_var.lower == -float("inf")).all()
 
     def test_y_var_dims_static(self, y_var_static, pw_names):
         """Test that static y variable has expected coords."""
