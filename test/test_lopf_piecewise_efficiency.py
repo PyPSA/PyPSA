@@ -190,7 +190,7 @@ class TestPiecewiseMultiPort2Bus:
     @pytest.mark.parametrize("fixture_name", ["piecewise_two_port_process_network_r0"])
     def test_piecewise_efficiency_two_port_in(self, request, fixture_name: str) -> None:
         n, comp = request.getfixturevalue(fixture_name)
-        status, _ = n.optimize(solver_name="gurobi")
+        status, _ = n.optimize()
         assert status == "ok"
         expected_p = pd.Series(
             {0: 20.0, 1: 30.0, 2: 40.0}, name="multiport1"
