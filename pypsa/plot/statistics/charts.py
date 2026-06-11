@@ -649,6 +649,9 @@ class ChartGenerator(PlotsGenerator, ABC):
                 ldata[y], categories=ldata[y].unique(), ordered=True
             )
 
+        if kind == "bar" and color in {x, y}:
+            color = None
+
         # Prepare color mapping if color column is provided
         if color and color_discrete_map is None and color in ldata.columns:
             color_values = ldata[color].unique()
