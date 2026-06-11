@@ -1074,7 +1074,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             elif attr == "n_mod":
                 pass
             else:
-                c.static.update(df.rename(attr + "_opt"), overwrite=True)
+                c.static.update(
+                    df.replace(-0.0, 0.0).rename(attr + "_opt"), overwrite=True
+                )
         # If nominal capacity was no variable set optimal value to nominal
         for c_name, attr in lookup.query("nominal").index:
             c = n.components[c_name]
