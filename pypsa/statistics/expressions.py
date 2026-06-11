@@ -2813,7 +2813,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         bus_carrier: Sequence[str] | str | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-    ) -> pd.Series:
+    ) -> pd.Series | pd.DataFrame:
         """Calculate the average marginal prices in the network per bus.
 
         Currency is currency/MWh or currency/unit_{bus_carrier} where
@@ -2833,7 +2833,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - `"bus_carrier"`, `"name"` or any static bus attribute (e.g.
               `"country"`), or a list thereof: Prices are aggregated per group
             with weights applied. The groupby method can not be set. See
-            `weighting` for different weighting options. Defaults to False.
+            `weighting` for different weighting options. With
+            `groupby_time=False` no aggregation is applied; the groupers only
+            become index levels of the per-bus time series. Defaults to False.
         weighting : str, optional
             Type of weighting to use. If 'load' the prices are weighted by the
             load of the buses and if time they are weighted by snapshot
@@ -2855,8 +2857,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Returns
         -------
-        pd.DataFrame
-            Time-averaged or load-weighted prices per bus or bus carrier.
+        pd.Series | pd.DataFrame
+            Weighted prices per bus or group (Series), or the full per-bus
+            time series if `groupby_time=False` (DataFrame).
 
         Examples
         --------
@@ -2882,7 +2885,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         for key in keys:
             col = "carrier" if key == "bus_carrier" else key
             if col == "name":
-                grouper = buses.index.to_series()
+                grouper = buses.index.get_level_values("name").to_series(
+                    index=buses.index
+                )
             elif col in buses.columns:
                 grouper = buses[col]
             else:
@@ -2903,11 +2908,16 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         if not groupby_time:
             df = prices.T
-            if len(groupers) == 1:
-                df.index = pd.Index(groupers[0].reindex(df.index))
-            elif groupers:
-                arrays = [g.reindex(df.index) for g in groupers]
-                df.index = pd.MultiIndex.from_arrays(arrays)
+            if groupers:
+                # Keep collection index levels (e.g. network) and replace the
+                # bus name level with the requested groupers.
+                kept = [
+                    df.index.get_level_values(level)
+                    for level in df.index.names
+                    if level != "name"
+                ]
+                aligned = [g.reindex(df.index) for g in groupers]
+                df = df.set_index(kept + aligned)
             return df
 
         if weighting == "load":

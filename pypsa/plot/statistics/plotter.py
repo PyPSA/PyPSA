@@ -15,6 +15,7 @@ from pypsa.plot.statistics.charts import (
     CHART_TYPES,
     ChartGenerator,
     _get_periods,
+    _stats_function_params,
     adjust_collection_bar_defaults,
     prepare_bar_data,
 )
@@ -23,18 +24,6 @@ from pypsa.plot.statistics.schema import (
     apply_parameter_schema,
     get_relevant_plot_values,
 )
-
-# Statistics-function parameters that may be passed through the plot accessors
-# and must be routed into the statistics call instead of the plotting backend.
-_ROUTABLE_STATS_KWARGS = {
-    "components",
-    "groupby_method",
-    "at_port",
-    "drop_zero",
-    "round",
-    "direction",
-    "weighting",
-}
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -101,10 +90,12 @@ class _StatisticPlotterBase:
             raise ValueError(msg)
 
         plotter = ChartGenerator(self._n)
+        stats_name = self._bound_method.__name__
 
         # Route statistics-function kwargs out of the plotting backend kwargs
+        stats_params = _stats_function_params(self._n, stats_name)
         for key in list(extra_kwargs):
-            if key in _ROUTABLE_STATS_KWARGS:
+            if key in stats_params:
                 stats_kwargs[key] = extra_kwargs.pop(key)
 
         # Create context for schema application
@@ -118,13 +109,13 @@ class _StatisticPlotterBase:
         }
 
         # Apply schema to plotting kwargs
-        stats_name = self._bound_method.__name__
         plot_kwargs = apply_parameter_schema(
             stats_name, chart_type, plot_kwargs, context
         )
 
         # Forward requested filter values as facet order so empty facets stay
-        # visible instead of being silently dropped.
+        # visible instead of being silently dropped. Statistics label carriers
+        # by their nice names, so map the requested values accordingly.
         for axis, order_key in (("facet_col", "col_order"), ("facet_row", "row_order")):
             facet_val = plot_kwargs.get(axis)
             requested = stats_kwargs.get(facet_val) if facet_val else None
@@ -133,7 +124,10 @@ class _StatisticPlotterBase:
                 and plot_kwargs.get(order_key) is None
                 and isinstance(requested, (list, tuple))
             ):
-                plot_kwargs[order_key] = list(requested)
+                labels = plotter.get_carrier_labels(
+                    nice_names=plot_kwargs.get("nice_names", True)
+                )
+                plot_kwargs[order_key] = [labels.get(v, v) for v in requested]
 
         # Use helper for filtering
         relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
@@ -345,6 +339,9 @@ class StatisticPlotter(_StatisticPlotterBase):
         col_order : Sequence[str] | None, default: None
             Order to organize the columns of the grid. If None, the order is determined by
             the data.
+        col_wrap : int | None, default: None
+            Wrap the column facets at this width so they span multiple rows.
+            Incompatible with `facet_row`.
         hue_order : Sequence[str] | None, default: None
             Order for the levels of the hue variable. If None, the order is determined by
             the data.

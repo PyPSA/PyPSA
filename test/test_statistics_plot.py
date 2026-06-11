@@ -125,17 +125,18 @@ def test_to_long_format_dynamic_multi(network_collection):
 
 def test_derive_statistic_parameters(ac_dc_network_r):
     """Test derivation of statistic parameters"""
-    # TODO rewrite once function is updated
     plotter = ChartGenerator(ac_dc_network_r)
 
     # Test with default parameters
-    stats_kwargs = plotter.derive_statistic_parameters("carrier", "value", "carrier")
+    stats_kwargs = plotter.derive_statistic_parameters(
+        "carrier", "value", "carrier", method_name="installed_capacity"
+    )
     assert stats_kwargs["groupby"] == ["carrier"]
     assert stats_kwargs["aggregate_across_components"]
 
     # Test with default parameters
     stats_kwargs = plotter.derive_statistic_parameters(
-        "carrier", "value", "bus_carrier"
+        "carrier", "value", "bus_carrier", method_name="installed_capacity"
     )
     assert set(stats_kwargs["groupby"]) == {"bus_carrier", "carrier"}
     assert stats_kwargs["aggregate_across_components"]
@@ -335,7 +336,7 @@ def test_statistics_map_transmission_flow_bus_carrier_non_zero(
 class TestStatisticsPlotIssue1719:
     """Regression tests for the statistics plotting bug collection (issue #1719)."""
 
-    @pytest.mark.parametrize("kind", ["box", "violin"])
+    @pytest.mark.parametrize("kind", ["box", "violin", "histogram"])
     def test_distribution_defaults_to_time_series(self, ac_dc_network_r, kind):
         """#4: distribution plots use the full time series, not its aggregate."""
         plotter = ChartGenerator(ac_dc_network_r)
@@ -432,4 +433,27 @@ class TestStatisticsPlotIssue1719:
         )
         assert g.axes.ndim == 1
         assert len(g.axes) == 2
+        plt.close(fig)
+
+    def test_col_wrap_draws_each_facet(self, ac_dc_network_r):
+        """#11: with col_wrap each wrapped facet receives its own data."""
+        fig, _, g = ac_dc_network_r.statistics.energy_balance.plot.area(
+            facet_col="bus_carrier", col_wrap=1
+        )
+        assert g.axes.ndim == 1
+        assert all(len(ax.collections) + len(ax.lines) > 0 for ax in g.axes)
+        plt.close(fig)
+
+    def test_facet_order_maps_nice_names(self, ac_dc_network_r):
+        """#8: forwarded facet order matches nice-named statistics output."""
+        n = ac_dc_network_r.copy()
+        carriers = n.c.carriers.static
+        carriers.loc["wind", "nice_name"] = "Onshore Wind"
+        carriers.loc["gas", "nice_name"] = "Fossil Gas"
+
+        fig, _, g = n.statistics.installed_capacity.plot.bar(
+            carrier=["wind", "gas"], facet_col="carrier"
+        )
+        assert list(g.col_names) == ["Onshore Wind", "Fossil Gas"]
+        assert sum(len(ax.patches) for ax in g.axes.flat) > 0
         plt.close(fig)

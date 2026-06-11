@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import inspect
 from abc import ABC
 from typing import TYPE_CHECKING, Any
 
@@ -19,20 +20,13 @@ from pypsa.plot.statistics.base import UNSET, PlotsGenerator, sanitize_mathtext
 
 DISTRIBUTION_TYPES = ["box", "violin", "histogram"]
 
-# Statistics functions that support a ``groupby_time`` argument.
-GROUPBY_TIME_STATS = {
-    "opex",
-    "system_cost",
-    "supply",
-    "withdrawal",
-    "transmission",
-    "energy_balance",
-    "curtailment",
-    "capacity_factor",
-    "revenue",
-    "market_value",
-    "prices",
-}
+# Per-row height scaling for categorical axes: inches (static) / pixels (interactive).
+ROW_HEIGHT_IN = 0.3
+BASE_HEIGHT_IN = 1
+MAX_HEIGHT_IN = 30
+ROW_HEIGHT_PX = 20
+BASE_HEIGHT_PX = 100
+MAX_HEIGHT_PX = 2000
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -50,6 +44,20 @@ CHART_TYPES = [
     "violin",
     "histogram",
 ]
+
+SEABORN_PLOT_FUNCS = {
+    "scatter": sns.scatterplot,
+    "line": sns.lineplot,
+    "box": sns.boxplot,
+    "violin": sns.violinplot,
+    "histogram": sns.histplot,
+}
+
+
+def _stats_function_params(network: Any, method_name: str) -> set[str]:
+    """Return the parameter names of a statistics function's signature."""
+    wrapper = getattr(type(network.statistics), method_name)
+    return set(inspect.signature(wrapper.func).parameters) - {"self"}
 
 
 def _get_periods(network: Any) -> pd.Index | None:
@@ -480,7 +488,9 @@ class ChartGenerator(PlotsGenerator, ABC):
                 n_rows = ldata.groupby(facet_row, observed=True)["name"].nunique().max()
             else:
                 n_rows = ldata["name"].nunique()
-            height = max(height, min(0.3 * n_rows + 1, 30))
+            height = max(
+                height, min(ROW_HEIGHT_IN * n_rows + BASE_HEIGHT_IN, MAX_HEIGHT_IN)
+            )
 
         # Always use FacetGrid for consistency
         g = sns.FacetGrid(
@@ -537,31 +547,16 @@ class ChartGenerator(PlotsGenerator, ABC):
                 **kwargs,
             )
         # Other plot types remain the same
-        elif kind == "scatter":
-            plot_kwargs = {"x": x, "y": y, "hue": color, **kwargs}
-            if color is not None:
-                plot_kwargs["palette"] = palette
-            g.map_dataframe(sns.scatterplot, **plot_kwargs)
-        elif kind == "line":
-            plot_kwargs = {"x": x, "y": y, "hue": color, **kwargs}
-            if color is not None:
-                plot_kwargs["palette"] = palette
-            g.map_dataframe(sns.lineplot, **plot_kwargs)
-        elif kind in ["box", "violin"]:
-            # FacetGrid adds color internally, remove to avoid conflict with hue
-            kwargs.pop("color", None)
-            plot_func = sns.boxplot if kind == "box" else sns.violinplot
-            plot_kwargs = {"x": x, "y": y, "hue": color, **kwargs}
-            if color is not None:
-                plot_kwargs["palette"] = palette
-            g.map_dataframe(plot_func, **plot_kwargs)
-        elif kind == "histogram":
+        elif kind in SEABORN_PLOT_FUNCS:
+            if kind in ["box", "violin"]:
+                # FacetGrid adds color internally, remove to avoid conflict with hue
+                kwargs.pop("color", None)
             plot_kwargs = {"x": x, "hue": color, **kwargs}
-            if y is not None:
+            if kind != "histogram" or y is not None:
                 plot_kwargs["y"] = y
             if color is not None:
                 plot_kwargs["palette"] = palette
-            g.map_dataframe(sns.histplot, **plot_kwargs)
+            g.map_dataframe(SEABORN_PLOT_FUNCS[kind], **plot_kwargs)
         else:
             msg = f"Unsupported plot type: {kind}"
             raise ValueError(msg)
@@ -600,7 +595,11 @@ class ChartGenerator(PlotsGenerator, ABC):
         col_order: Sequence[str] | None,
         color_order: Sequence[str] | None,
     ) -> dict[str, Sequence[str]]:
-        """Create a filtered dictionary of category orders for Plotly Express."""
+        """Create a filtered dictionary of category orders for Plotly Express.
+
+        Order values are sanitized like the plotted data so LaTeX carrier
+        names still match.
+        """
         category_orders = {}
         if facet_row is not None and row_order is not None:
             category_orders[facet_row] = row_order
@@ -608,7 +607,10 @@ class ChartGenerator(PlotsGenerator, ABC):
             category_orders[facet_col] = col_order
         if color is not None and color_order is not None:
             category_orders[color] = color_order
-        return category_orders
+        return {
+            key: [sanitize_mathtext(v) if isinstance(v, str) else v for v in order]
+            for key, order in category_orders.items()
+        }
 
     def iplot(
         self,
@@ -693,9 +695,9 @@ class ChartGenerator(PlotsGenerator, ABC):
             ldata[y] = pd.Categorical(
                 ldata[y], categories=ldata[y].unique(), ordered=True
             )
-            scaled_height = 20 * ldata[y].nunique() + 100
-            height = max(height, min(scaled_height, 2000))
-            label_every_row = scaled_height <= 2000
+            scaled_height = ROW_HEIGHT_PX * ldata[y].nunique() + BASE_HEIGHT_PX
+            height = max(height, min(scaled_height, MAX_HEIGHT_PX))
+            label_every_row = scaled_height <= MAX_HEIGHT_PX
 
         if kind == "bar" and color in {x, y}:
             color = None
@@ -880,7 +882,7 @@ class ChartGenerator(PlotsGenerator, ABC):
     def derive_statistic_parameters(
         self,
         *args: Any,
-        method_name: str = "",  # make required
+        method_name: str,
         chart_type: str = "",
     ) -> dict[str, Any]:
         """Extract plotting specification rules including groupby columns and component aggregation.
@@ -889,7 +891,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         ----------
         *args : tuple of (str | None)
             Arguments representing x, y, color, facet_col, facet_row parameters
-        method_name : str, optional
+        method_name : str
             Name of the statistics function to allow for specific rules
         chart_type : str, optional
             Name of the chart type to allow for specific rules (e.g. distributions
@@ -897,42 +899,36 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         Returns
         -------
-        tuple
-            List of groupby columns and boolean for component aggregation
+        dict
+            Statistics function kwargs (`groupby`,
+            `aggregate_across_components`, `groupby_time`) derived from the
+            plot arguments.
 
         """
         filtered = ["value", "name", "snapshot", "scenario", "period"]
         filtered_cols = [c for c in args if c not in filtered and c is not None]
 
         stats_kwargs: dict[str, str | bool | list] = {}
+        stats_params = _stats_function_params(self._n, method_name)
+        has_components = "aggregate_across_components" in stats_params
 
         # `groupby`
         filtered_cols = list(set(filtered_cols))  # Remove duplicates
         if filtered_cols:
+            # Component-less statistics (e.g. prices) keep per-bus rows in
+            # distribution plots; groupers become additional index levels.
+            if chart_type in DISTRIBUTION_TYPES and not has_components:
+                filtered_cols = ["name", *filtered_cols]
             stats_kwargs["groupby"] = filtered_cols
 
         # `aggregate_across_components`
-        if method_name == "prices":
-            # Distribution plots keep per-bus rows; groupers become index levels.
-            if chart_type in DISTRIBUTION_TYPES and filtered_cols:
-                stats_kwargs["groupby"] = ["name", *filtered_cols]
-        else:
+        if has_components:
             stats_kwargs["aggregate_across_components"] = "component" not in args
 
-        # `groupby_time` is only relevant for time series data
-        if "snapshot" in args:
-            derived_agg_time: str | bool = "snapshot" not in args  # Check in args tuple
-            if derived_agg_time:
-                # Convert to list since groupby_time expects a list of strings
-                stats_kwargs["groupby_time"] = "sum"
-            else:
-                stats_kwargs["groupby_time"] = False
-
-        # Distribution plots need the full time series, not its aggregate.
-        if (
-            chart_type in DISTRIBUTION_TYPES
-            and method_name in GROUPBY_TIME_STATS
-            and "groupby_time" not in stats_kwargs
+        # `groupby_time`: time series axes and distribution plots need the
+        # full time series, not its aggregate.
+        if "groupby_time" in stats_params and (
+            "snapshot" in args or chart_type in DISTRIBUTION_TYPES
         ):
             stats_kwargs["groupby_time"] = False
 

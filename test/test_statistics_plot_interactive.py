@@ -376,11 +376,15 @@ class TestInteractivePlotIssue1719:
 
     def test_empty_facets_stay_visible(self, ac_dc_network_r):
         """#8: requested facet values without data are still rendered."""
-        fig = ac_dc_network_r.statistics.installed_capacity.iplot.bar(
-            bus_carrier=["AC", "DC"], facet_col="bus_carrier"
+        n = ac_dc_network_r.copy()
+        n.add("Carrier", "H2", color="#123456")
+        n.add("Bus", "h2 bus", carrier="H2")
+
+        fig = n.statistics.installed_capacity.iplot.bar(
+            bus_carrier=["AC", "H2"], facet_col="bus_carrier"
         )
         facets = {a.text for a in fig.layout.annotations if a.text}
-        assert facets == {"bus_carrier=AC", "bus_carrier=DC"}
+        assert facets == {"bus_carrier=AC", "bus_carrier=H2"}
 
     def test_unshared_axes_keep_tick_labels(self, ac_dc_network_r):
         """#9: sharex=False keeps tick labels on all faceted subplots."""
