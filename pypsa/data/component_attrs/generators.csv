@@ -30,7 +30,7 @@ fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per M
 efficiency,static or series,per unit,1,"Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.",Input (optional)
 committable,boolean,n/a,False,Apply unit commitment constraints.,Input (optional)
 maintainable,boolean,n/a,False,Apply maintenance scheduling constraints.,Input (optional)
-maintenance_duration,int,snapshots,0,Consecutive snapshots per maintenance event. Only if `maintainable=True`.,Input (optional)
+maintenance_duration,int,snapshots,0,Consecutive snapshots per maintenance event during which capacity reduction is applied. Only if `maintainable=True`.,Input (optional)
 maintenance_pu,float,per unit,1.0,Fraction of capacity unavailable during maintenance (0-1). Only if `maintainable=True`.,Input (optional)
 maintenance_events,int,n/a,1,Number of required maintenance events per optimization horizon. Only if `maintainable=True`.,Input (optional)
 start_up_cost,float,currency,0,Cost to start up the generator. Only used if `committable=True`.,Input (optional)
