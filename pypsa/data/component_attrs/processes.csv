@@ -39,6 +39,10 @@ ramp_limit_up,static or series,per unit,NaN,"Maximum increase from one snapshot 
 ramp_limit_down,static or series,per unit,NaN,"Maximum decrease from one snapshot to the next, per unit of `p_nom`. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
 ramp_limit_start_up,float,per unit,NaN,"Maximum increase at start up, per unit of `p_nom`. Only used if `committable=True`. Ignored if NaN.",Input (optional)
 ramp_limit_shut_down,float,per unit,NaN,"Maximum decrease at shut down, per unit of `p_nom`. Only used if `committable=True`. Ignored if NaN.",Input (optional)
+maintainable,boolean,n/a,False,Apply maintenance scheduling constraints.,Input (optional)
+maintenance_duration,float,hours,0,Elapsed time per maintenance event. Each event covers consecutive snapshots whose weightings sum to at least this value. Only if `maintainable=True`.,Input (optional)
+maintenance_pu,float,per unit,1.0,Fraction of capacity unavailable during maintenance (0-1). Only if `maintainable=True`.,Input (optional)
+maintenance_events,int,n/a,1,Number of maintenance events per optimization horizon. Only if `maintainable=True`.,Input (optional)
 delay0,int,snapshot weighting units,0,"Delay of energy delivery to `bus0` in units of `n.snapshot_weightings.generators`. Energy withdrawn at snapshot `t` arrives at the first snapshot whose cumulative generator weighting start is at least `delay0` units later. Auto-expanded as `delay2`, `delay3`, etc. for additional ports.",Input (optional)
 cyclic_delay0,boolean,n/a,True,"Whether delayed energy wraps cyclically from end to start of the optimization period. If False, energy is lost at the tail and first snapshots receive nothing from delayed processes. Auto-expanded as `cyclic_delay2`, `cyclic_delay3`, etc. for additional ports.",Input (optional)
 delay1,int,snapshot weighting units,0,"Delay of energy delivery to `bus1` in units of `n.snapshot_weightings.generators`. Energy withdrawn at snapshot `t` arrives at the first snapshot whose cumulative generator weighting start is at least `delay1` units later. Auto-expanded as `delay2`, `delay3`, etc. for additional ports.",Input (optional)
@@ -50,6 +54,8 @@ p_nom_opt,float,MW,0,Optimised nominal capacity.,Output
 status,series,n/a,1.,"Status in the snapshot (1 is on, 0 is off). Only returned if `committable=True`.",Output
 start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only returned if `committable=True`.",Output
 shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no).  Only returned if `committable=True`.",Output
+maintenance,series,n/a,0,Maintenance status (1=in maintenance). Only returned if `maintainable=True`.,Output
+maintenance_start,series,n/a,0,"Whether a maintenance event begins in the snapshot (1 is yes, 0 is no). Only returned if `maintainable=True`.",Output
 mu_lower,series,currency/MW,n/a,Shadow price of lower `p_nom` limit  $-F \\leq f$. Always non-negative.,Output
 mu_upper,series,currency/MW,n/a,Shadow price of upper `p_nom` limit $f \\leq F$. Always non-negative.,Output
 mu_p_set,series,currency/MWh,n/a,Shadow price of fixed dispatch `p_set`,Output

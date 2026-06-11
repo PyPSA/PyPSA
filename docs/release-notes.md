@@ -26,6 +26,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - `p_set` on `Store` components is now supported in lopf optimisation. (<!-- md:pr 1623 -->)
 
+- Add maintenance scheduling optimization for `Generator`, `Link` and `Process` components via the new attributes `maintainable`, `maintenance_duration` (elapsed time honoring snapshot weightings), `maintenance_events` and `maintenance_pu`. The timing of maintenance windows is co-optimized with dispatch, unit commitment and capacity expansion using binary maintenance start variables. (<!-- md:pr 1576 -->)
+
 ### Deprecations
 
 - Deprecate `pypsa.optimization.common.get_strongly_meshed_buses` in favor of `get_bus_counts`. The old `meshed_threshold` model kwarg is deprecated; use `meshed_thresholds=[...]` in [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] or [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].

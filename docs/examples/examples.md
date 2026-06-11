@@ -39,7 +39,7 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
 -   :material-notebook:{ .lg .middle } **Maintenance Scheduling**
 
-    Schedules optimal maintenance windows for generators and links with contiguous downtime blocks, partial outages, and multiple events.
+    Schedules optimal maintenance windows for generators, links and processes with contiguous downtime blocks, partial outages, and multiple events.
 
     [:octicons-arrow-right-24: Go to example](maintenance-scheduling.ipynb)
 

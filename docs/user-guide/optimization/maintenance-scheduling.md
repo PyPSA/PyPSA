@@ -6,11 +6,15 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Maintenance Scheduling
 
-Maintenance scheduling constraints are implemented for the [`Generator`][pypsa.components.Generators] and [`Link`][pypsa.components.Links]
-components. For components marked as `maintainable=True`, new binary maintenance variables
-$m_{*,t} \in \{0,1\}$ are introduced, which indicate whether the component is
-undergoing maintenance (1) or available (0) in period $t$. This turns the model into a mixed-integer
-linear programme (MILP).
+Maintenance scheduling constraints are implemented for the [`Generator`][pypsa.components.Generators], [`Link`][pypsa.components.Links]
+and [`Process`][pypsa.components.Processes] components. The `Process` component follows the same formulation as the `Link`,
+applied to its internal power $p$. For components marked as `maintainable=True`, two new variables are
+introduced: binary maintenance start variables $ms_{*,t} \in \{0,1\}$, indicating
+that a maintenance event begins in snapshot $t$, and continuous maintenance status
+variables $m_{*,t} \in [0,1]$, indicating whether the component is undergoing
+maintenance (1) or available (0). The integrality of $m$ is implied through the
+window coverage equality below, so only $ms$ enters the model as a binary. This
+turns the model into a mixed-integer linear programme (MILP).
 
 ## Dispatch Coupling
 
@@ -34,7 +38,7 @@ During maintenance, the available capacity is reduced by a fraction $\alpha$ (`m
 
 ### Extendable Components
 
-For extendable components, the dispatch coupling involves the bilinear product $\hat{g}_{n,s} \cdot m_{n,s,t}$. Since $\hat{g}_{n,s}$ is a continuous variable (the optimised capacity), this product is linearised using a McCormick envelope with the auxiliary variable $z_{n,s,t} \approx \hat{g}_{n,s} \cdot m_{n,s,t}$:
+For extendable components, the dispatch coupling involves the bilinear product $\hat{g}_{n,s} \cdot m_{n,s,t}$. Since $\hat{g}_{n,s}$ is a continuous variable (the optimised capacity), this product is linearised using a McCormick envelope with the auxiliary variable $z_{n,s,t} = \hat{g}_{n,s} \cdot m_{n,s,t}$:
 
 === "Generator"
 
@@ -58,7 +62,7 @@ The McCormick envelope bounds on $z$ are:
 | $z_{*,t} \leq \hat{g}^{\max}_{*} \cdot m_{*,t}$ | `*-maintcap_upper_nommax` |
 | $z_{*,t} \geq \hat{g}_{*} + \hat{g}^{\max}_{*} \cdot m_{*,t} - \hat{g}^{\max}_{*}$ | `*-maintcap_lower_nommax` |
 
-Together with $z \geq 0$, these form the convex hull of $z = \hat{g} \cdot m$ for $m \in \{0,1\}$ and $0 \leq \hat{g} \leq \hat{g}^{\max}$.
+Together with $z \geq 0$, these form the convex hull of $z = \hat{g} \cdot m$ for $m \in \{0,1\}$ and $0 \leq \hat{g} \leq \hat{g}^{\max}$. Since $m$ only takes integral values in any feasible solution, the linearisation is exact. It requires a finite `p_nom_max`. The auxiliary variable $z$ is internal and not written to the network outputs.
 
 ### Committable Components
 
@@ -88,27 +92,37 @@ $$\sum_{t} ms_{*,t} = E$$
 
 Constraint name: `*-maint-event-count`
 
-## Total Duration
+## Maintenance Windows
 
-The total weighted time in maintenance equals the duration per event $d$ times the number of events $E$, where $w_t$ are the snapshot weightings:
+The duration per event $d$ (`maintenance_duration`) is given in elapsed time. For
+each potential start snapshot $t'$, the coverage window $\text{cov}(t')$ is the
+minimal run of consecutive snapshots whose weightings $w_t$ accumulate to at
+least $d$:
 
-$$\sum_{t} w_t \cdot m_{*,t} = d \cdot E$$
+$$\text{cov}(t') = \{t', \dots, k(t')\}, \quad k(t') = \min\Big\{k : \sum_{t=t'}^{k} w_t \ge d\Big\}$$
 
-Constraint name: `*-maint-total-duration`
+The maintenance status equals the sum of all start events whose window covers the snapshot:
 
-## Contiguity
+$$m_{*,t} = \sum_{t' :\, t \in \text{cov}(t')} ms_{*,t'}$$
 
-Each maintenance snapshot must be covered by a maintenance start event within the previous $d$ snapshots, enforcing contiguous maintenance blocks:
+Together with $m \leq 1$, this single equality enforces contiguous maintenance
+blocks, forbids overlapping events and implies the integrality of $m$.
 
-$$m_{*,t} \leq \sum_{t'=t-d+1}^{t} ms_{*,t'}$$
+Constraint name: `*-maint-window`
 
-Constraint name: `*-maint-duration`
+!!! note "Round-up semantics"
 
-## Horizon Restriction
+    Each event lasts *at least* $d$ elapsed hours, overshooting by less than the
+    weighting of the last covered snapshot. For uniform hourly snapshots and
+    integer $d$, the duration is exact.
 
-Maintenance cannot start in the last $d-1$ snapshots (to ensure there are enough remaining snapshots to complete the maintenance block):
+## Start Validity
 
-$$\sum_{t \in \text{last}(d-1)} ms_{*,t} \leq 0$$
+Maintenance cannot start where the coverage window does not fit, i.e. where the
+remaining weighted horizon is shorter than $d$ or where the window would span
+snapshots in which the component is inactive:
+
+$$ms_{*,t'} = 0 \quad \forall t' : \text{cov}(t') \text{ incomplete or partially inactive}$$
 
 Constraint name: `*-maint-start-horizon`
 
@@ -117,6 +131,14 @@ These constraints are defined in the functions `define_maintenance_variables()`,
 !!! note "Combination with other features"
 
     Maintenance scheduling can be combined with `committable=True` (unit commitment) and `p_nom_extendable=True` (capacity expansion). When all three are active, dispatch bounds use the big-M formulation with the McCormick auxiliary variable $z$.
+
+!!! warning "Caveats"
+
+    - For committable components, the current dispatch bounds effectively force
+      the commitment status to $u_{*,t} = 1$ while in maintenance, so start-up
+      costs and minimum up/down times interact with maintenance events.
+    - In rolling-horizon optimisation, the event count applies per horizon chunk
+      and in-progress events are not carried over across chunk boundaries.
 
 ??? note "Mapping of symbols to component attributes"
 
@@ -127,7 +149,7 @@ These constraints are defined in the functions `define_maintenance_variables()`,
         | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
         | $m_{n,s,t}$       | `n.generators_t.maintenance` | Decision variable |
         | $ms_{n,s,t}$      | `n.generators_t.maintenance_start` | Decision variable |
-        | $z_{n,s,t}$       | `n.generators_t.maintenance_capacity` | Decision variable |
+        | $z_{n,s,t}$       | internal, not written to outputs | Decision variable |
         | $\hat{g}_{n,s}$   | `n.generators.p_nom` | Parameter |
         | $\hat{g}^{\max}_{n,s}$ | `n.generators.p_nom_max` | Parameter |
         | $\underline{g}_{n,s,t}$ | `n.generators_t.p_min_pu` | Parameter |
@@ -143,7 +165,7 @@ These constraints are defined in the functions `define_maintenance_variables()`,
         | $f_{l,t}$         | `n.links_t.p`  | Decision variable |
         | $m_{l,t}$         | `n.links_t.maintenance`  | Decision variable |
         | $ms_{l,t}$        | `n.links_t.maintenance_start`  | Decision variable |
-        | $z_{l,t}$         | `n.links_t.maintenance_capacity`  | Decision variable |
+        | $z_{l,t}$         | internal, not written to outputs  | Decision variable |
         | $\hat{f}_{l}$     | `n.links.p_nom`  | Parameter |
         | $\hat{f}^{\max}_{l}$ | `n.links.p_nom_max` | Parameter |
         | $\underline{f}_{l,t}$| `n.links_t.p_min_pu`  | Parameter |

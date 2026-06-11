@@ -14,7 +14,18 @@ import linopy
 import pandas as pd
 import xarray as xr
 from linopy import merge
-from numpy import inf, isfinite, maximum, sqrt, tile
+from numpy import (
+    arange,
+    concatenate,
+    inf,
+    isfinite,
+    maximum,
+    minimum,
+    searchsorted,
+    sqrt,
+    tile,
+    unique,
+)
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
@@ -246,7 +257,7 @@ def define_operational_constraints_for_committables(
     sns : pd.Index
         Set of snapshots for which to define the constraints
     component : str
-        Name of the network component ("Generator" or "Link")
+        Name of the network component ("Generator", "Link" or "Process")
 
     Notes
     -----
@@ -653,9 +664,11 @@ def define_operational_constraints_for_committables(
 def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) -> None:
     """Define maintenance scheduling constraints.
 
-    Adds event count, duration/contiguity, and horizon restriction constraints
-    for maintainable components. Dispatch coupling is handled by the existing
-    operational constraint functions.
+    Adds event count, window coverage and start validity constraints for
+    maintainable components. Each maintenance event covers the minimal run of
+    consecutive snapshots whose weightings sum to at least
+    ``maintenance_duration`` (elapsed time). Dispatch coupling is handled by
+    the existing operational constraint functions.
 
     Parameters
     ----------
@@ -664,7 +677,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     sns : pd.Index
         Set of snapshots for which to define the constraints
     component : str
-        Name of the network component ("Generator" or "Link")
+        Name of the network component ("Generator", "Link" or "Process")
 
     """
     c = n.c[component]
@@ -673,7 +686,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     if maint_i.empty:
         return
 
-    weightings = n.snapshot_weightings.generators
+    weightings = n.snapshot_weightings.generators.loc[sns].values
     maintenance = n.model[f"{c.name}-maintenance"]
     maintenance_start = n.model[f"{c.name}-maintenance_start"]
     active = c.da.active.sel(name=maint_i, snapshot=sns)
@@ -686,28 +699,45 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
         name=f"{c.name}-maint-event-count",
     )
 
-    n.model.add_constraints(
-        maintenance @ weightings == duration * events,
-        name=f"{c.name}-maint-total-duration",
-    )
+    cum = weightings.cumsum()
+    cum_prev = cum - weightings
+    T = len(sns)
 
-    expr = []
+    coverage = []
+    valid = xr.zeros_like(active)
     for g in maint_i:
+        d = duration.sel(name=g).item()
+        # first snapshot index at which the window starting at t' has
+        # accumulated at least d hours (relative tolerance for float weights)
+        window_end = searchsorted(cum, cum_prev + d - 1e-6 * d, side="left")
+
+        act = active.sel(name=g).values
+        inactive_cum = concatenate([[0], (~act).cumsum()])
+        end_clipped = minimum(window_end, T - 1)
+        fully_active = inactive_cum[end_clipped + 1] - inactive_cum[arange(T)] == 0
+        valid.loc[{"name": g}] = (window_end < T) & fully_active & act
+
+        window_start = searchsorted(window_end, arange(T), side="left")
+        length = arange(T) - window_start + 1
         ms = maintenance_start.loc[:, g]
-        d = duration.sel(name=g).item()
-        expr.append(ms.rolling(snapshot=d, min_periods=1).sum())
-    lhs = -maintenance + merge(expr, dim="name")
-    n.model.add_constraints(lhs <= 0, name=f"{c.name}-maint-duration", mask=active)
+        parts = [
+            ms.rolling(snapshot=int(r), min_periods=1)
+            .sum()
+            .sel(snapshot=sns[length == r])
+            for r in unique(length)
+        ]
+        coverage.append(merge(parts, dim="snapshot"))
 
-    expr = []
-    for g in maint_i:
-        d = duration.sel(name=g).item()
-        if d > 1 and d <= len(sns):
-            forbidden_sns = sns[-(d - 1) :]
-            expr.append(maintenance_start.loc[forbidden_sns, g].to_linexpr())
-    if expr:
-        lhs = merge(expr, dim="name")
-        n.model.add_constraints(lhs <= 0, name=f"{c.name}-maint-start-horizon")
+    lhs = -maintenance + merge(coverage, dim="name")
+    n.model.add_constraints(lhs == 0, name=f"{c.name}-maint-window", mask=active)
+
+    forbidden = active & ~valid
+    if forbidden.any():
+        n.model.add_constraints(
+            maintenance_start.to_linexpr() == 0,
+            name=f"{c.name}-maint-start-horizon",
+            mask=forbidden,
+        )
 
     ext_i = c.extendables.difference(c.inactive_assets)
     maint_ext_i = maint_i.intersection(ext_i)

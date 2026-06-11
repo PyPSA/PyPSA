@@ -1446,7 +1446,7 @@ def check_maintenance_attributes(
         _log_or_raise(
             strict,
             "The following %s have maintainable=True but maintenance_duration <= 0,"
-            " which will cause infeasibility:\n%s",
+            " which is invalid for maintenance scheduling:\n%s",
             component.list_name,
             bad_duration.index,
         )
@@ -1456,33 +1456,45 @@ def check_maintenance_attributes(
         _log_or_raise(
             strict,
             "The following %s have maintainable=True but maintenance_events <= 0,"
-            " which will cause infeasibility:\n%s",
+            " so no maintenance will be scheduled:\n%s",
             component.list_name,
             bad_events.index,
         )
 
-    n_snapshots = len(n.snapshots)
-    bad_horizon = maintainable[maintainable.maintenance_duration > n_snapshots]
+    horizon_hours = n.snapshot_weightings.generators.sum()
+    bad_horizon = maintainable[maintainable.maintenance_duration > horizon_hours]
     if not bad_horizon.empty:
         _log_or_raise(
             strict,
-            "The following %s have maintenance_duration > number of snapshots (%d),"
-            " which will cause infeasibility:\n%s",
+            "The following %s have maintenance_duration > total weighted snapshot"
+            " hours (%s), which will cause infeasibility:\n%s",
             component.list_name,
-            n_snapshots,
+            horizon_hours,
             bad_horizon.index,
         )
 
     total = maintainable.maintenance_duration * maintainable.maintenance_events
-    bad_total = maintainable[total > n_snapshots]
+    bad_total = maintainable[total > horizon_hours]
     if not bad_total.empty:
         _log_or_raise(
             strict,
-            "The following %s have maintenance_duration * maintenance_events > number"
-            " of snapshots (%d), which will cause infeasibility:\n%s",
+            "The following %s have maintenance_duration * maintenance_events > total"
+            " weighted snapshot hours (%s), which will cause infeasibility:\n%s",
             component.list_name,
-            n_snapshots,
+            horizon_hours,
             bad_total.index,
+        )
+
+    ext = maintainable[maintainable.p_nom_extendable]
+    bad_max = ext[np.isinf(ext.p_nom_max)]
+    if not bad_max.empty:
+        _log_or_raise(
+            strict,
+            "The following extendable maintainable %s have infinite p_nom_max,"
+            " which is required to be finite for linearizing the maintenance"
+            " capacity reduction:\n%s",
+            component.list_name,
+            bad_max.index,
         )
 
 

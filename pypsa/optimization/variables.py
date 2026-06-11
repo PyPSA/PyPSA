@@ -200,7 +200,10 @@ def define_shut_down_variables(
 
 
 def define_maintenance_variables(n: Network, sns: Sequence, c_name: str) -> None:
-    """Initialize binary variables for maintenance status.
+    """Initialize continuous maintenance status variables in [0, 1].
+
+    Integrality is implied through the binary maintenance start variables and
+    the window coverage equality in define_maintenance_constraints.
 
     Parameters
     ----------
@@ -209,7 +212,7 @@ def define_maintenance_variables(n: Network, sns: Sequence, c_name: str) -> None
     sns : Sequence
         Set of snapshots for which to define the variables
     c_name : str
-        Name of the network component ("Generator" or "Link")
+        Name of the network component ("Generator", "Link" or "Process")
 
     """
     c = n.c[c_name]
@@ -220,7 +223,11 @@ def define_maintenance_variables(n: Network, sns: Sequence, c_name: str) -> None
 
     active = c.da.active.sel(name=maint_i, snapshot=sns)
     n.model.add_variables(
-        coords=active.coords, name=f"{c.name}-maintenance", mask=active, binary=True
+        lower=0,
+        upper=1,
+        coords=active.coords,
+        name=f"{c.name}-maintenance",
+        mask=active,
     )
 
 
@@ -234,7 +241,7 @@ def define_maintenance_start_variables(n: Network, sns: Sequence, c_name: str) -
     sns : Sequence
         Set of snapshots for which to define the variables
     c_name : str
-        Name of the network component ("Generator" or "Link")
+        Name of the network component ("Generator", "Link" or "Process")
 
     """
     c = n.c[c_name]
@@ -268,7 +275,7 @@ def define_maintenance_capacity_variables(
     sns : Sequence
         Set of snapshots for which to define the variables
     c_name : str
-        Name of the network component ("Generator" or "Link")
+        Name of the network component ("Generator", "Link" or "Process")
 
     """
     c = n.c[c_name]
