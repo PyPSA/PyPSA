@@ -141,6 +141,7 @@ def stochastic_network():
 def ac_dc_solved():
     n = pypsa.examples.ac_dc_meshed()
     n.optimize()
+    n.model.solver_model = None
     return n
 
 
