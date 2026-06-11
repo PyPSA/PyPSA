@@ -16,11 +16,9 @@ import xarray as xr
 from linopy import merge
 from numpy import (
     arange,
-    concatenate,
     inf,
     isfinite,
     maximum,
-    minimum,
     searchsorted,
     sqrt,
     tile,
@@ -699,36 +697,39 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
         name=f"{c.name}-maint-event-count",
     )
 
-    cum = weightings.cumsum()
-    cum_prev = cum - weightings
     T = len(sns)
+    cum = weightings.cumsum()
+    cum_prev = xr.DataArray(cum - weightings, dims="snapshot")
+    t_idx = xr.DataArray(arange(T), dims="snapshot")
 
-    coverage = []
-    valid = xr.zeros_like(active)
-    for g in maint_i:
-        d = duration.sel(name=g).item()
-        # first snapshot index at which the window starting at t' has
-        # accumulated at least d hours (relative tolerance for float weights)
-        window_end = searchsorted(cum, cum_prev + d - 1e-6 * d, side="left")
+    # first snapshot index at which the window starting at t' has accumulated
+    # at least maintenance_duration hours (relative tolerance for float weights)
+    target = duration * (1 - 1e-6) + cum_prev
+    window_end = xr.apply_ufunc(lambda v: searchsorted(cum, v), target)
 
-        act = active.sel(name=g).values
-        inactive_cum = concatenate([[0], (~act).cumsum()])
-        end_clipped = minimum(window_end, T - 1)
-        fully_active = inactive_cum[end_clipped + 1] - inactive_cum[arange(T)] == 0
-        valid.loc[{"name": g}] = (window_end < T) & fully_active & act
+    inactive_cum = (~active).cumsum("snapshot")
+    end_inactive = inactive_cum.isel(snapshot=window_end.clip(max=T - 1))
+    window_inactive = end_inactive - inactive_cum + ~active
+    valid = active & (window_end < T) & (window_inactive == 0)
 
-        window_start = searchsorted(window_end, arange(T), side="left")
-        length = arange(T) - window_start + 1
-        ms = maintenance_start.loc[:, g]
-        parts = [
-            ms.rolling(snapshot=int(r), min_periods=1)
-            .sum()
-            .sel(snapshot=sns[length == r])
-            for r in unique(length)
-        ]
-        coverage.append(merge(parts, dim="snapshot"))
+    # snapshots covering row t form the interval [window_start(t), t]; rows
+    # truncated at the horizon start take any width >= t + 1 via min_periods
+    window_start = xr.apply_ufunc(
+        searchsorted,
+        window_end,
+        t_idx,
+        input_core_dims=[["snapshot"], ["snapshot"]],
+        output_core_dims=[["snapshot"]],
+        vectorize=True,
+    )
+    width = t_idx - window_start + 1
+    width = width.where(window_start > 0, width.max("snapshot"))
 
-    lhs = -maintenance + merge(coverage, dim="name")
+    coverage = [
+        maintenance_start.rolling(snapshot=int(w), min_periods=1).sum() * (width == w)
+        for w in unique(width.values)
+    ]
+    lhs = -maintenance + merge(coverage)
     n.model.add_constraints(lhs == 0, name=f"{c.name}-maint-window", mask=active)
 
     forbidden = active & ~valid
