@@ -231,3 +231,98 @@ class TestPiecewiseCostsResults:
         assert n.c.generators.static.capital_cost_piecewise_opt.equals(
             pd.Series({"gen0": 0.0, "gen1": 1.4})
         )
+
+
+def test_storage_unit_piecewise_marginal_cost() -> None:
+    """Regression: StorageUnit piecewise marginal cost applies to the dispatch variable."""
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", "bus0")
+    n.add("Generator", "gen0", bus="bus0", p_nom=100, marginal_cost=50)
+    n.add(
+        "StorageUnit",
+        "su0",
+        bus="bus0",
+        p_nom=100,
+        max_hours=1,
+        state_of_charge_initial=100,
+        marginal_cost={0.0: 10.0, 1.0: 10.0},
+    )
+    n.add("Load", "load", bus="bus0", p_set=50)
+    status, _ = n.optimize()
+    assert status == "ok"
+    assert "StorageUnit-marginal_cost_piecewise" in n.model.variables
+    assert n.objective == pytest.approx(10 * 50 * 2, rel=1e-6)
+    assert n.c.storage_units.dynamic.p["su0"].sum() == pytest.approx(100.0, rel=1e-6)
+
+
+def test_store_piecewise_marginal_cost_applies_to_dispatch() -> None:
+    """Store piecewise marginal cost prices dispatch ``p``, not the storage level."""
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", "bus0")
+    n.add("Generator", "gen0", bus="bus0", p_nom=100, marginal_cost=50)
+    n.add(
+        "Store",
+        "store0",
+        bus="bus0",
+        e_nom=100,
+        e_initial=100,
+        marginal_cost={0.0: 10.0, 1.0: 10.0},
+    )
+    n.add("Load", "load", bus="bus0", p_set=50)
+    status, _ = n.optimize()
+    assert status == "ok"
+    assert "Store-marginal_cost_piecewise" in n.model.variables
+    assert n.objective == pytest.approx(10 * 50 * 2, rel=1e-6)
+    assert n.c.stores.dynamic.p["store0"].sum() == pytest.approx(100.0, rel=1e-6)
+
+
+def test_multi_invest_piecewise_capital_cost() -> None:
+    """A constant-slope piecewise capital cost matches its linear equivalent."""
+
+    def build(piecewise: bool) -> pypsa.Network:
+        n = pypsa.Network(snapshots=range(2))
+        n.investment_periods = [2020, 2030]
+        n.add("Bus", "bus0")
+        capital_cost: Any = {0.0: 2.0, 100.0: 2.0} if piecewise else 2.0
+        n.add(
+            "Generator",
+            "gen0",
+            bus="bus0",
+            p_nom_extendable=True,
+            p_nom_max=100,
+            build_year=2020,
+            lifetime=30,
+            capital_cost=capital_cost,
+            marginal_cost=1,
+        )
+        n.add("Load", "load", bus="bus0", p_set=50)
+        n.optimize(multi_investment_periods=True)
+        return n
+
+    n_pw = build(piecewise=True)
+    n_lin = build(piecewise=False)
+    assert n_pw.objective == pytest.approx(n_lin.objective)
+    assert n_pw.c.generators.static.p_nom_opt.item() == pytest.approx(
+        n_lin.c.generators.static.p_nom_opt.item()
+    )
+
+
+def test_piecewise_capital_cost_with_overnight_cost_raises() -> None:
+    """Defining overnight_cost next to a piecewise capital_cost curve is ambiguous."""
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus0")
+    n.add(
+        "Generator",
+        "gen0",
+        bus="bus0",
+        p_nom_extendable=True,
+        p_nom_max=100,
+        capital_cost={0.0: 2.0, 100.0: 2.0},
+        overnight_cost=1000,
+        lifetime=20,
+    )
+    n.add("Load", "load", bus="bus0", p_set=50)
+    with pytest.raises(ValueError, match="overnight_cost"):
+        n.optimize.create_model(include_objective_constant=False)

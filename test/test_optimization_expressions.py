@@ -309,3 +309,33 @@ class TestExpressionsWithPiecewise:
         assert "piecewise" not in str(
             expr.sel(component=["Generator", "StorageUnit", "Load"])
         )
+
+    def test_expressions_supply_withdrawal(self, piecewise_network_built):
+        """A positive piecewise port counts as supply, never as withdrawal."""
+        n = piecewise_network_built
+        supply = n.optimize.expressions.supply().unstack("group")
+        assert "Link-p1_piecewise" in str(supply.sel(component="Link", carrier="AC"))
+        withdrawal = n.optimize.expressions.withdrawal().unstack("group")
+        assert "piecewise" not in str(withdrawal.sel(component="Link", carrier="AC"))
+
+    def test_supply_withdrawal_with_negative_piecewise_port(self):
+        """A negative piecewise port counts as withdrawal, reported positive."""
+        n = pypsa.Network()
+        n.set_snapshots(range(2))
+        n.add("Bus", ["bus0", "bus1"])
+        n.add("Generator", "gen0", bus="bus0", p_nom=150, marginal_cost=5)
+        n.add(
+            "Process",
+            "proc",
+            bus0="bus0",
+            bus1="bus1",
+            p_nom=100,
+            rate0={0.1: -1 / 0.3, 0.5: -1 / 0.4, 1.0: -1 / 0.6},
+            rate1=1,
+        )
+        n.add("Load", "load", bus="bus1", p_set=[20, 30])
+        n.optimize.create_model(include_objective_constant=False)
+        withdrawal = n.optimize.expressions.withdrawal().unstack("group")
+        supply = n.optimize.expressions.supply().unstack("group")
+        assert "-1 Process-p0_piecewise" in str(withdrawal.sel(component="Process"))
+        assert "p0_piecewise" not in str(supply.sel(component="Process"))

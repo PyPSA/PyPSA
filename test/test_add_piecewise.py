@@ -232,6 +232,13 @@ class TestPiecewiseErrors:
         with pytest.raises(NotImplementedError, match="Dictionaries are not supported"):
             n.add("Generator", "gen", bus="bus_ac", p_nom={0: 100})
 
+    def test_multiindex_df_wrong_attribute_labels_raises(self, base_network):
+        """MultiIndex input with wrong attribute-level labels is rejected."""
+        n = base_network
+        mi_df = _make_multiindex_df("WRONG_X", "marginal_cost", ["gen"])
+        with pytest.raises(ValueError, match="must have column labels"):
+            n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=mi_df)
+
     @pytest.mark.parametrize(
         ("comp", "extendable_kwargs", "attr"), EXTENDABLE_PU_RAISES_PARAMS
     )
@@ -253,3 +260,27 @@ class TestPiecewiseErrors:
         n = base_network
         n.add(comp, "c1", **extendable_kwargs, **{attr: CURVE_DICT})
         assert not n.components[comp].piecewise[attr].empty
+
+
+def test_remove_drops_piecewise_data(base_network):
+    """Removed components must not leave stale piecewise curves behind."""
+    n = base_network
+    n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=CURVE_DICT)
+    n.remove("Generator", "gen")
+    assert n.c.generators.piecewise["marginal_cost"].empty
+    n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=5.0)
+    assert n.c.generators.piecewise["marginal_cost"].empty
+
+
+class TestPiecewiseScenarios:
+    def test_add_piecewise_on_stochastic_network_raises(self, base_network):
+        n = base_network
+        n.set_scenarios({"low": 0.5, "high": 0.5})
+        with pytest.raises(NotImplementedError, match="not yet supported"):
+            n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=CURVE_DICT)
+
+    def test_set_scenarios_with_piecewise_data_raises(self, base_network):
+        n = base_network
+        n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=CURVE_DICT)
+        with pytest.raises(NotImplementedError, match="not yet supported"):
+            n.set_scenarios({"low": 0.5, "high": 0.5})

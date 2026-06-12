@@ -2105,15 +2105,13 @@ class NetworkIOMixin(_NetworkABC):
         Parameters
         ----------
         df : pandas.DataFrame
-            DataFrame whose columns are ``[x_attr, attr]`` (the x-axis coordinate
-            and the y-axis attribute) and whose index is the breakpoint number.
-            This is the per-component form as passed to ``network.add()``.
+            DataFrame with MultiIndex columns ``(name, attribute)`` where the
+            attribute level holds ``[x_attr, attr]`` (the x-axis coordinate and
+            the y-axis attribute) and whose index is the breakpoint number.
         cls_name : str
             Component class name, e.g. ``"Generator"``.
         attr : str
             Piecewise y-axis attribute name, e.g. ``"efficiency"``.
-        component_name : str
-            Name of the individual component.
         is_extendable : pd.Series or None, default None
             If Series, a boolean series where True = extendable.
             if None, it is inferred from the component's extendables.

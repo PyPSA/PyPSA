@@ -18,8 +18,6 @@ from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, EvolvingAPIWarning
 
 from pypsa.descriptors import nominal_attrs
 
-warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
-
 if TYPE_CHECKING:
     from collections.abc import Iterable
 logger = logging.getLogger(__name__)
@@ -37,7 +35,7 @@ class PiecewiseOptions:
     """Component attribute for which piecewise data is defined."""
     sign: SIGNS_T
     """Sign for the piecewise constraint, interpreted as y <sign> f(x)."""
-    name: tuple[str, ...] = field(default_factory=tuple)
+    name: str | Iterable[str] | None = field(default_factory=tuple)
     """Optional filter for a component name to apply the piecewise constraint to, e.g. a specific generator."""
     method: str = "auto"
     """The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_formulation method."""
@@ -48,7 +46,7 @@ class PiecewiseOptions:
     If False, the nominal values at each x breakpoint will be used to define y breakpoints."""
 
     def __post_init__(self) -> None:
-        """Ensure that name is stored as a list for consistent processing later."""
+        """Ensure that name is stored as a tuple for consistent processing later."""
         list_names = (
             ()
             if self.name is None
@@ -138,7 +136,9 @@ def define_piecewise(
     if y_var is None:
         y_var = _create_y_var(m, x_var, pw_names, aux_var_name)
     y_var_sel = y_var.sel(name=pw_names)
-    sorted_options = sorted(extra_options, key=lambda x: x.name, reverse=True)
+    sorted_options = sorted(
+        extra_options, key=lambda x: tuple(x.name or ()), reverse=True
+    )
     for option in [*sorted_options, None]:
         if option is None:
             names, aux, opt_method, opt_sign = (
@@ -148,10 +148,7 @@ def define_piecewise(
                 sign,
             )
         elif option.name:
-            names = pd.Index(
-                [option.name] if isinstance(option.name, str) else option.name,
-                name="name",
-            ).intersection(pw_names)
+            names = pd.Index(option.name, name="name").intersection(pw_names)
             aux_suffix = (
                 "_".join(names) if len(names) <= 3 else f"{names[0]}_..._{names[-1]}"
             )
@@ -250,12 +247,14 @@ def _get_breakpoints(
             raise ValueError(msg)
         x_da = x_da * nom_attr_da
     x_da = x_da.where(valid_breakpoints)
-    x_breakpoints = breakpoints(x_da)
-    if marginal_attr:
-        slopes = y_da.shift({BREAKPOINT_DIM: -1})
-        y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
-    else:
-        y_breakpoints = breakpoints((y_da * x_da).where(valid_breakpoints))
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
+        x_breakpoints = breakpoints(x_da)
+        if marginal_attr:
+            slopes = y_da.shift({BREAKPOINT_DIM: -1})
+            y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
+        else:
+            y_breakpoints = breakpoints((y_da * x_da).where(valid_breakpoints))
     return x_breakpoints, y_breakpoints
 
 

@@ -144,7 +144,7 @@ def define_objective(
     n: Network,
     sns: pd.Index,
     include_objective_constant: bool,
-    piecewise_options: list[PiecewiseOptions],
+    piecewise_options: list[PiecewiseOptions] | None = None,
 ) -> None:
     """Define and write the optimization objective function.
 
@@ -184,6 +184,8 @@ def define_objective(
     - For a stochastic problem, scenario probabilities are applied as weightings to all cost (includes *both* investment terms).
 
     """
+    if piecewise_options is None:
+        piecewise_options = []
     weighted_cost: xr.DataArray | int
     m = n.model
     # Separate lists to distinguish CAPEX and OPEX terms
@@ -385,7 +387,17 @@ def define_objective(
                 extra_options=extra_options,
             )
             if piecewise_var is not None:
-                ext_i = ext_i.difference(piecewise_var.indexes["name"])
+                pw_names = piecewise_var.indexes["name"]
+                overnight = c.static["overnight_cost"].loc[pw_names]
+                if overnight.notna().any():
+                    bad = overnight[overnight.notna()].index.tolist()
+                    msg = (
+                        f"Components {bad} of type {c.name} define both a piecewise "
+                        "'capital_cost' curve and 'overnight_cost'. The piecewise "
+                        "curve must already be periodized; remove 'overnight_cost'."
+                    )
+                    raise ValueError(msg)
+                ext_i = ext_i.difference(pw_names)
                 capex_terms.append((piecewise_var * cost_weight).sum(dim=sum_dim))
 
         periodic_cost = c.periodized_cost.sel(name=ext_i)
@@ -1021,7 +1033,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             pw_attrs = c._piecewise_attrs.query("aux_variable == @attr").squeeze()
             # Piecewise variables are auxiliary and need to be processed before being passed back as a solution.
             if not pw_attrs.empty:
-                if isinstance(c, _Multiport) and pw_attrs.y == c._coefficient_attr:
+                if (
+                    isinstance(c, _Multiport)
+                    and c._get_base_coeff(pw_attrs.y) == c._coefficient_attr
+                ):
                     # We deal with these variables below when processing the `p` attr.
                     continue
                 x_var = m.variables[f"{c.name}-{pw_attrs.x.removesuffix('_pu')}"]

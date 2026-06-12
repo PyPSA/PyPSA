@@ -362,6 +362,9 @@ class Components(
             equals(self.ctype, other.ctype, log_mode=log_mode, path="c.ctype")
             and equals(self.static, other.static, log_mode=log_mode, path="c.static")
             and equals(self.dynamic, other.dynamic, log_mode=log_mode, path="c.dynamic")
+            and equals(
+                self.piecewise, other.piecewise, log_mode=log_mode, path="c.piecewise"
+            )
         )
 
     @staticmethod

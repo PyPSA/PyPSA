@@ -103,7 +103,7 @@ class TestCSVDir:
         fn = tmpdir / "csv_piecewise"
         piecewise_network.export_to_csv_folder(fn)
         imported = pypsa.Network(fn)
-        custom_equals(piecewise_network, imported)
+        assert custom_equals(piecewise_network, imported)
 
     def test_csv_io_multiindexed(self, ac_dc_periods, tmpdir):
         fn = tmpdir / "csv_export"
@@ -194,7 +194,7 @@ class TestNetcdf:
         ds = piecewise_network.export_to_netcdf(path=None)
         imported = pypsa.Network()
         imported.import_from_netcdf(ds)
-        custom_equals(piecewise_network, imported)
+        assert custom_equals(piecewise_network, imported)
 
     def test_netcdf_io_datetime(self, tmpdir):
         fn = tmpdir / "temp.nc"
@@ -340,7 +340,7 @@ class TestHDF5:
         fn = tmpdir / "hdf5_piecewise.h5"
         piecewise_network.export_to_hdf5(fn)
         imported = pypsa.Network(fn)
-        custom_equals(piecewise_network, imported)
+        assert custom_equals(piecewise_network, imported)
 
     def test_hdf5_io_multiindexed(self, ac_dc_periods, tmpdir):
         fn = tmpdir / "hdf5_export.h5"
@@ -431,7 +431,7 @@ class TestExcelIO:
         fn = tmpdir / "excel_piecewise.xlsx"
         piecewise_network.export_to_excel(fn)
         imported = pypsa.Network(fn)
-        custom_equals(piecewise_network, imported)
+        assert custom_equals(piecewise_network, imported)
 
     def test_excel_io_datetime(self, tmpdir):
         fn = tmpdir / "temp.xlsx"

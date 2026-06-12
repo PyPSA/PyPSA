@@ -988,10 +988,10 @@ def _iter_balance_args(
 def define_nodal_balance_constraints(
     n: Network,
     sns: pd.Index,
-    piecewise_options: list[PiecewiseOptions],
     transmission_losses: bool | int | dict = False,
     buses: Sequence | None = None,
     suffix: str = "",
+    piecewise_options: list[PiecewiseOptions] | None = None,
 ) -> None:
     """Define energy balance constraints at each node.
 
@@ -1027,7 +1027,7 @@ def define_nodal_balance_constraints(
         Subset of buses for which to define constraints; if None, all buses are used
     suffix : str, default ""
         Optional suffix to append to constraint names and dimensions
-    piecewise_options : list[PiecewiseOptions]
+    piecewise_options : list[PiecewiseOptions], optional
         Options to override default piecewise constraint settings.
 
     Notes
@@ -1042,6 +1042,8 @@ def define_nodal_balance_constraints(
 
     """
     m = n.model
+    if piecewise_options is None:
+        piecewise_options = []
     if buses is None:
         buses = n.c.buses.static.index.unique("name")
 
@@ -1074,7 +1076,6 @@ def define_nodal_balance_constraints(
         )
 
     exprs = []
-    piecewise_y_vars = {}
 
     for component, attr, column, sign in args:
         c = n.c[component]
@@ -1105,13 +1106,12 @@ def define_nodal_balance_constraints(
             cbuses = cbuses[cbuses != ""]
 
         expr = expr.sel(name=cbuses.coords["name"].values)
-        if component in ("Process", "Link"):
-            piecewise_y_vars[c.name] = expr
         if expr.size:
             exprs.append(_groupby_bus(expr, cbuses))
 
     for component in ("Process", "Link"):
         c = n.c[component]
+        port_pw_vars: dict[str, Any] = {}
 
         for bus_col, coeff, names, delay, is_cyclic in _iter_balance_args(c, sns):
             if delay <= 0:
@@ -1139,29 +1139,46 @@ def define_nodal_balance_constraints(
                 cbuses = cbuses.isel(scenario=0, drop=True)
             cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
             cbuses = cbuses[cbuses != ""]
-            pw_attr = c._piecewise_attrs.query(
-                "y == @search_attr", local_dict={"search_attr": coeff.name}
-            ).squeeze()
-            p_piecewise = 0
-            if not pw_attr.empty:
-                extra_options = filter(
-                    lambda p: p.component == c.name and p.attribute == coeff.name,
-                    piecewise_options,
-                )
-                piecewise_var = define_piecewise(
-                    n.model,
-                    c,
-                    x_var=var,
-                    pw_attr=coeff.name,
-                    aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
-                    active_names=names,
-                    sign="=",
-                    marginal_attr=False,
-                    extra_options=extra_options,
-                )
-                if piecewise_var is not None:
-                    p_piecewise += piecewise_var
-                    names = names.difference(piecewise_var.coords["name"].values)
+
+            if coeff.name not in port_pw_vars:
+                pw_attr = c._piecewise_attrs.query(
+                    "y == @search_attr", local_dict={"search_attr": coeff.name}
+                ).squeeze()
+                if pw_attr.empty:
+                    port_pw_vars[coeff.name] = None
+                else:
+                    extra_options = filter(
+                        lambda opt: (
+                            opt.component == c.name and opt.attribute == coeff.name
+                        ),
+                        piecewise_options,
+                    )
+                    port_pw_vars[coeff.name] = define_piecewise(
+                        n.model,
+                        c,
+                        x_var=m[f"{c.name}-p"],
+                        pw_attr=coeff.name,
+                        aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
+                        active_names=c.active_assets,
+                        sign="=",
+                        marginal_attr=False,
+                        extra_options=extra_options,
+                    )
+
+            piecewise_var = port_pw_vars[coeff.name]
+            p_piecewise: Any = 0
+            if piecewise_var is not None:
+                pw_names = names.intersection(piecewise_var.indexes["name"])
+                if not pw_names.empty:
+                    p_piecewise = piecewise_var.sel(name=pw_names)
+                    if delay > 0:
+                        p_piecewise = (
+                            p_piecewise.isel(snapshot=src_snapshot_pos).assign_coords(
+                                sns_coords
+                            )
+                            * valid_mask
+                        )
+                    names = names.difference(pw_names)
             expr = var * coeff.sel(name=names) + p_piecewise
 
             if not cbuses.size:

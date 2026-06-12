@@ -284,7 +284,7 @@ class NetworkTransformMixin(_NetworkABC):
                         v = v.rename(columns=add_suffix, level=0)
                         if not v.columns.unique(0).equals(names):
                             raise ValueError(msg.format(f"Dataframe {k}", names_str))
-                        if v.columns.unique(1).equals([x_attr, k]):
+                        if set(v.columns.unique(1)) != {x_attr, k}:
                             msg_seg = (
                                 f"Piecewise Dataframe {k} must have column labels "
                                 f"consisting of {x_attr} and {k}"
@@ -393,6 +393,12 @@ class NetworkTransformMixin(_NetworkABC):
         # Broadcast to scenarios if network has scenario structure
         # Skip SubNetwork components, they are handled internally in determine_topology
         if self.has_scenarios and c.name != "SubNetwork":
+            if piecewise:
+                msg = (
+                    "Piecewise attribute data is not yet supported for stochastic "
+                    "networks (scenarios)."
+                )
+                raise NotImplementedError(msg)
             static_df = pd.concat(
                 dict.fromkeys(self.scenarios, static_df), names=["scenario"]
             )
@@ -401,12 +407,6 @@ class NetworkTransformMixin(_NetworkABC):
                     dict.fromkeys(self.scenarios, v), names=["scenario"], axis=1
                 )
                 for k, v in series.items()
-            }
-            piecewise = {
-                k: pd.concat(
-                    dict.fromkeys(self.scenarios, v), names=["scenario"], axis=1
-                )
-                for k, v in piecewise.items()
             }
 
         # Load piecewise breakpoint data
@@ -500,6 +500,11 @@ class NetworkTransformMixin(_NetworkABC):
         # Drop from time-varying components
         for df in c.dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
+
+        # Drop piecewise breakpoint data
+        for df in c.piecewise.values():
+            stale = df.columns[df.columns.get_level_values("name").isin(names)]
+            df.drop(columns=stale, inplace=True)
 
     def merge(
         self,

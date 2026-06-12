@@ -17,7 +17,7 @@ Common non-linear relationships found in energy systems include:
 
 A limited set of component attributes can be defined using piecewise curves:
 
-{{ read_csv('../../../pypsa/components/piecewise.csv') }}
+{{ read_csv('../../../pypsa/data/piecewise.csv') }}
 
 For each, they can be defined when using [pypsa.Network.add][] by either providing an appropriately formatted dictionary or [pandas.DataFrame][].
 If a dictionary, keys should be x-values and values should be y-values at each of the _breakpoints_ of the curve being described.
