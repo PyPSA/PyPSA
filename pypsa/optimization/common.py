@@ -53,7 +53,7 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
         c.dynamic[attr] = df.reindex(n.snapshots)
 
     else:
-        c.dynamic[attr].update(df)
+        c.dynamic[attr] = df.combine_first(c.dynamic[attr])
 
     # Reindex to match network snapshots and component names
     result = c.dynamic[attr].reindex(n.snapshots, level="snapshot", axis=0)
