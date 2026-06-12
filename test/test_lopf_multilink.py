@@ -167,3 +167,35 @@ def test_attribution_assignment(n):
 def test_optimize(n):
     status, condition = n.optimize()
     assert status == "ok"
+
+
+def test_reoptimize_added_links_fills_all_ports():
+    """Ports of links added after a first optimize must be filled on re-optimize.
+
+    See https://github.com/PyPSA/PyPSA/issues/1723.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(3))
+    n.add("Bus", ["gas", "elec", "heat"])
+    n.add("Generator", "gas", bus="gas", p_nom=1e4, marginal_cost=1)
+    n.add("Load", "elec", bus="elec", p_set=35)
+    n.add("Link", "boiler", bus0="gas", bus1="elec", efficiency=0.5, p_nom=1e4)
+    n.optimize()
+
+    n.add("Load", "heat", bus="heat", p_set=30)
+    n.add(
+        "Link",
+        "CHP",
+        bus0="gas",
+        bus1="elec",
+        bus2="heat",
+        efficiency=0.4,
+        efficiency2=0.4,
+        p_nom=1e4,
+    )
+    status, _ = n.optimize()
+    assert status == "ok"
+
+    assert (n.links_t.p0["CHP"] > 0).all()
+    assert (n.links_t.p1["CHP"] < 0).all()
+    assert (n.links_t.p2["CHP"] < 0).all()

@@ -23,6 +23,11 @@ Added compatibility with stricter dimension alignment handling in (upcoming)lino
 
 ### Bug Fixes
 
+- Fix dynamic optimization results (e.g. `links_t.p0`) not being filled for
+  components added between two `n.optimize()` calls. `_set_dynamic_data` only
+  updated columns already present, leaving newly added components at zero.
+  (<!-- md:pr 1723 -->)
+
 - Avoid redundant traces and legends in interactive statistics bar plots when
   the color dimension duplicates an axis. (<!-- md:pr -->)
 
