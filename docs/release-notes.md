@@ -6,15 +6,20 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
+## Upcoming Release
 
-<!--
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Bug Fixes
+
+- Fix `n.optimize()` silently ignoring a static `p_set` attribute. (<!-- md:pr 1703 -->)
+
+
+## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
 
 ### Features
 
