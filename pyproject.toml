@@ -74,6 +74,7 @@ dev = [
     "pytest-cov",
     "pytest-mpl",
     "coverage",
+    "matplotlib<3.11", # remove when uv.lock is tracked
     "pypower",
     "pandapower>=2.14.11",
     "scikit-learn",
