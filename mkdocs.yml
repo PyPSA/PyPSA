@@ -126,6 +126,7 @@ nav:
     - examples/demand-elasticity.ipynb
     - examples/imperfect-competition.ipynb
     - examples/cfd-ppa-settlement.ipynb
+    - examples/cfd-multi-year-settlement.ipynb
     - examples/generation-investment-screening-curve.ipynb
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer-example.ipynb
