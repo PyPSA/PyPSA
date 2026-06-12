@@ -58,11 +58,12 @@ The McCormick envelope bounds on $z$ are:
 
 | Constraint | Name |
 |-------------------|------------------|
-| $z_{*,t} \leq \hat{g}_{*}$ | `*-maintcap_upper` |
+| $z_{*,t} \leq \hat{g}_{*} - \hat{g}^{\min}_{*} \cdot (1 - m_{*,t})$ | `*-maintcap_upper` |
 | $z_{*,t} \leq \hat{g}^{\max}_{*} \cdot m_{*,t}$ | `*-maintcap_upper_nommax` |
-| $z_{*,t} \geq \hat{g}_{*} + \hat{g}^{\max}_{*} \cdot m_{*,t} - \hat{g}^{\max}_{*}$ | `*-maintcap_lower_nommax` |
+| $z_{*,t} \geq \hat{g}_{*} + \hat{g}^{\max}_{*} \cdot (m_{*,t} - 1)$ | `*-maintcap_lower_nommax` |
+| $z_{*,t} \geq \hat{g}^{\min}_{*} \cdot m_{*,t}$ | `*-maintcap_lower_nommin` (only added where $\hat{g}^{\min} > 0$) |
 
-Together with $z \geq 0$, these form the convex hull of $z = \hat{g} \cdot m$ for $m \in \{0,1\}$ and $0 \leq \hat{g} \leq \hat{g}^{\max}$. Since $m$ only takes integral values in any feasible solution, the linearisation is exact. It requires a finite `p_nom_max`. The auxiliary variable $z$ is internal and not written to the network outputs.
+Together with $z \geq 0$, these form the convex hull of $z = \hat{g} \cdot m$ for $m \in \{0,1\}$ and $\hat{g}^{\min} \leq \hat{g} \leq \hat{g}^{\max}$. Since $m$ only takes integral values in any feasible solution, the linearisation is exact. It requires a finite `p_nom_max`. The auxiliary variable $z$ is internal and not written to the network outputs.
 
 ### Committable Components
 
@@ -151,6 +152,7 @@ These constraints are defined in the functions `define_maintenance_variables()`,
         | $ms_{n,s,t}$      | `n.generators_t.maintenance_start` | Decision variable |
         | $z_{n,s,t}$       | internal, not written to outputs | Decision variable |
         | $\hat{g}_{n,s}$   | `n.generators.p_nom` | Parameter |
+        | $\hat{g}^{\min}_{n,s}$ | `n.generators.p_nom_min` | Parameter |
         | $\hat{g}^{\max}_{n,s}$ | `n.generators.p_nom_max` | Parameter |
         | $\underline{g}_{n,s,t}$ | `n.generators_t.p_min_pu` | Parameter |
         | $\bar{g}_{n,s,t}$ | `n.generators_t.p_max_pu` | Parameter |
@@ -167,6 +169,7 @@ These constraints are defined in the functions `define_maintenance_variables()`,
         | $ms_{l,t}$        | `n.links_t.maintenance_start`  | Decision variable |
         | $z_{l,t}$         | internal, not written to outputs  | Decision variable |
         | $\hat{f}_{l}$     | `n.links.p_nom`  | Parameter |
+        | $\hat{f}^{\min}_{l}$ | `n.links.p_nom_min` | Parameter |
         | $\hat{f}^{\max}_{l}$ | `n.links.p_nom_max` | Parameter |
         | $\underline{f}_{l,t}$| `n.links_t.p_min_pu`  | Parameter |
         | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu`  | Parameter |

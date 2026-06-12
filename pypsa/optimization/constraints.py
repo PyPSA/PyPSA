@@ -750,13 +750,16 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     if not maint_ext_i.empty:
         nom_attr = c._operational_attrs["nom"]
         p_nom = n.model[f"{c.name}-{nom_attr}"].sel(name=maint_ext_i)
+        p_nom_min = c.da[f"{nom_attr}_min"].sel(name=maint_ext_i)
         p_nom_max = c.da[f"{nom_attr}_max"].sel(name=maint_ext_i)
         m = maintenance.sel(name=maint_ext_i)
         z = n.model[f"{c.name}-maintenance_capacity"].sel(name=maint_ext_i)
         active_me = active.sel(name=maint_ext_i)
 
         n.model.add_constraints(
-            z <= p_nom, name=f"{c.name}-maintcap_upper", mask=active_me
+            z + p_nom_min <= p_nom + p_nom_min * m,
+            name=f"{c.name}-maintcap_upper",
+            mask=active_me,
         )
         n.model.add_constraints(
             z <= p_nom_max * m,
@@ -768,6 +771,13 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
             name=f"{c.name}-maintcap_lower_nommax",
             mask=active_me,
         )
+        lower_min = active_me & (p_nom_min > 0)
+        if lower_min.any():
+            n.model.add_constraints(
+                z >= p_nom_min * m,
+                name=f"{c.name}-maintcap_lower_nommin",
+                mask=lower_min,
+            )
 
 
 def define_nominal_constraints_for_extendables(
