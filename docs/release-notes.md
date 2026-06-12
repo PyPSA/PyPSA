@@ -21,7 +21,15 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
 
+### Features
+
+Added compatibility with stricter dimension alignment handling in (upcoming)linopy `>=0.8`.
+
+
 ### Bug Fixes
+
+- Avoid redundant traces and legends in interactive statistics bar plots when
+  the color dimension duplicates an axis. (<!-- md:pr -->)
 
 - Fix the sign of [Loads](./user-guide/components/loads.md) not being taken into account in the nodal balance constraint when calling [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. (<!-- md:pr 1685 -->)
 
