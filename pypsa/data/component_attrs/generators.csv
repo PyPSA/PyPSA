@@ -32,7 +32,7 @@ committable,boolean,n/a,False,Apply unit commitment constraints.,Input (optional
 maintainable,boolean,n/a,False,Apply maintenance scheduling constraints.,Input (optional)
 maintenance_duration,float,hours,0,Elapsed time per maintenance event. Each event covers consecutive snapshots whose weightings sum to at least this value. Only if `maintainable=True`.,Input (optional)
 maintenance_pu,float,per unit,1.0,Fraction of capacity unavailable during maintenance (0-1). Only if `maintainable=True`.,Input (optional)
-maintenance_events,int,n/a,1,Number of maintenance events per optimization horizon. Only if `maintainable=True`.,Input (optional)
+maintenance_events,int,n/a,1,Number of required maintenance events per optimization horizon. Only if `maintainable=True`.,Input (optional)
 start_up_cost,float,currency,0,Cost to start up the generator. Only used if `committable=True`.,Input (optional)
 shut_down_cost,float,currency,0,Cost to shut down the generator. Only used if `committable=True`.,Input (optional)
 stand_by_cost,static or series,currency/h,0.,Stand-by cost for running the generator. This cost is incurred whenever the status is 1 (including when the dispatch decision is zero).,Input (optional)
