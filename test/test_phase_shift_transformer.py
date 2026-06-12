@@ -34,7 +34,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-pypsa = pytest.importorskip("pypsa")
+import pypsa
 
 
 def _build(
@@ -87,6 +87,12 @@ class TestStaticPhaseShiftInKVL:
         T1 = n.transformers_t.p0["T1"].iloc[0]
         assert L1 + T1 == pytest.approx(50.0, abs=0.1)
         assert abs(L1 - T1) == pytest.approx(expected_delta, abs=0.1)
+        # Absolute direction: +phi moves flow OFF the shifted transformer (T1)
+        # onto the parallel line (L1), per PyPSA's P = (theta0 - theta1 - phi)/x
+        # convention (power_flow.SubNetwork.calculate_B_H). This pins the sign,
+        # which the abs()/sign-flip asserts above are invariant to (the #1220
+        # failure mode).
+        assert L1 > T1
 
     def test_negative_phase_shift_reverses_sign(self):
         """-10 deg swaps which branch carries more flow vs +10 deg."""
@@ -177,3 +183,51 @@ class TestMixedStaticAndExtendable:
         # Extendable var present, static input unchanged
         assert "Transformer-phase_shift" in n.model.variables
         assert n.transformers.at["T1", "phase_shift"] == 5.0
+
+
+class TestLOPFMatchesLinearPowerFlow:
+    """Issue #1220 regression: LOPF flows must match n.lpf().
+
+    ``n.lpf()`` is the authoritative DC oracle and respected ``phase_shift``
+    even before this PR, so it is the cleanest sign/magnitude check for the
+    cycle-KVL term. Pinning LOPF to it locks the convention
+    ``P = (theta0 - theta1 - phi) / x`` (Verboomen 2008 eq. 3 with the PyPSA
+    sign, i.e. phi_PyPSA = -alpha_Verboomen) and guards against a wrong-sign
+    "fix" silently reopening #1220.
+    """
+
+    @pytest.mark.parametrize("phase_shift", [-15.0, -5.0, 0.0, 5.0, 15.0])
+    def test_lopf_flows_match_lpf(self, phase_shift):
+        n = _build(phase_shift=phase_shift)
+        n.optimize(solver_name="highs")
+        lopf_L1 = n.lines_t.p0["L1"].copy()
+        lopf_T1 = n.transformers_t.p0["T1"].copy()
+        # Run the DC oracle on an independent network with identical inputs
+        # (lpf() on a network that has already been optimised mutates shared
+        # _t state and is not the path under test here).
+        ref = _build(phase_shift=phase_shift)
+        ref.lpf()
+        np.testing.assert_allclose(
+            ref.lines_t.p0["L1"].values, lopf_L1.values, atol=1e-3
+        )
+        np.testing.assert_allclose(
+            ref.transformers_t.p0["T1"].values, lopf_T1.values, atol=1e-3
+        )
+
+    def test_extendable_result_consistent_with_lpf(self):
+        """Lock the extendable (LHS variable) path to the static (RHS) path.
+
+        Solve with an extendable PST, read back the optimised angle, then feed
+        that angle as a static input to a fresh network and confirm n.lpf()
+        reproduces the LOPF flow. Proves the variable term carries the same
+        sign and scaling as the static term.
+        """
+        n = _build(extendable=True, phase_shift_min=-20.0, phase_shift_max=20.0)
+        n.optimize(solver_name="highs")
+        opt_angle = float(n.transformers_t.phase_shift_opt["T1"].iloc[0])
+        lopf_L1 = n.lines_t.p0["L1"].copy()
+        check = _build(phase_shift=opt_angle)
+        check.lpf()
+        np.testing.assert_allclose(
+            check.lines_t.p0["L1"].values, lopf_L1.values, atol=1e-2
+        )
