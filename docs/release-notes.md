@@ -23,6 +23,10 @@ Added compatibility with stricter dimension alignment handling in (upcoming)lino
 
 ### Bug Fixes
 
+- Fix optimization results being silently zeroed for components which are not
+  yet present in the existing dynamic result data. Regression introduced in
+  `v1.2.0`. (<!-- md:pr 1723 -->)
+
 - Avoid redundant traces and legends in interactive statistics bar plots when
   the color dimension duplicates an axis. (<!-- md:pr -->)
 
