@@ -257,18 +257,18 @@ class NetworkTransformMixin(_NetworkABC):
             elif isinstance(v, pd.Series):
                 # Cast names index to string + suffix
                 v = v.rename(
-                    index=lambda s: str(s)
-                    if str(s).endswith(suffix)
-                    else str(s) + suffix
+                    index=lambda s: (
+                        str(s) if str(s).endswith(suffix) else str(s) + suffix
+                    )
                 )
                 if not v.index.equals(names):
                     raise ValueError(msg.format(f"Series {k}", names_str))
             if isinstance(v, pd.DataFrame):
                 # Cast names columns to string + suffix
                 v = v.rename(
-                    columns=lambda s: str(s)
-                    if str(s).endswith(suffix)
-                    else str(s) + suffix
+                    columns=lambda s: (
+                        str(s) if str(s).endswith(suffix) else str(s) + suffix
+                    )
                 )
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))

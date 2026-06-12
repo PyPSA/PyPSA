@@ -70,7 +70,7 @@ class TestCSVDir:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_csv_io(self, scipy_network, tmpdir, meta):
+    def test_csv_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "csv_export"
         scipy_network.meta = meta
         scipy_network.export_to_csv_folder(fn)
@@ -106,6 +106,7 @@ class TestCSVDir:
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
         )
 
     def test_csv_io_shapes(self, ac_dc_shapes, tmpdir):
@@ -171,7 +172,7 @@ class TestNetcdf:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_netcdf_io(self, scipy_network, tmpdir, meta):
+    def test_netcdf_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "netcdf_export.nc"
         scipy_network.meta = meta
         scipy_network.export_to_netcdf(fn)
@@ -231,7 +232,7 @@ class TestNetcdf:
         )
 
     def test_netcdf_from_url(self):
-        url = "https://github.com/PyPSA/PyPSA/raw/master/examples/networks/scigrid-de/scigrid-de.nc"
+        url = "https://data.pypsa.org/networks/examples/latest/scigrid_de.nc"
         pypsa.Network(url)
 
     def test_netcdf_io_no_compression(self, scipy_network, tmpdir):
@@ -310,7 +311,7 @@ class TestHDF5:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_hdf5_io(self, scipy_network, tmpdir, meta):
+    def test_hdf5_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "hdf5_export.h5"
         scipy_network.meta = meta
         scipy_network.export_to_hdf5(fn)
@@ -396,7 +397,7 @@ class TestExcelIO:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_excel_io(self, scipy_network, tmpdir, meta):
+    def test_excel_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "excel_export.xlsx"
         scipy_network.meta = meta
         scipy_network.export_to_excel(fn)
@@ -424,11 +425,13 @@ class TestExcelIO:
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
             ac_dc_periods.snapshot_weightings[m.snapshot_weightings.columns],
             check_dtype=False,  # TODO Remove once validation layer leads to safer types
+            check_index_type=False,
         )
 
     def test_excel_io_shapes(self, ac_dc_shapes, tmpdir):
@@ -566,41 +569,18 @@ def test_io_equality(networks_including_solved, tmp_path):
         assert custom_equals(n, n5, ignore_attrs=ignore)
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Only check once since it is an optional test when examples are updated.",
-)
 @pytest.mark.parametrize(
     "example_network",
     [
-        "ac-dc-meshed",
-        "storage-hvdc",
-        "scigrid-de",
-        "model-energy",
-    ],
-)
-def test_examples_against_master(tmp_path, example_network):
-    # Test examples are unchanged
-    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
-    # Test examples vs master
-    example_network = pypsa.Network(
-        f"https://github.com/PyPSA/PyPSA/raw/master/examples/networks/{example_network}/{example_network}.nc"
-    )
-    assert n.equals(example_network, log_mode="strict")
-
-
-@pytest.mark.parametrize(
-    "example_network",
-    [
-        "ac-dc-meshed",
-        "storage-hvdc",
-        "scigrid-de",
-        "model-energy",
+        "ac_dc_meshed",
+        "storage_hvdc",
+        "scigrid_de",
+        "model_energy",
     ],
 )
 def test_examples_consistency(tmp_path, example_network):
-    # Test examples are unchanged
-    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
+    # Round-trip example networks through CSV export/import to catch schema drift
+    n = getattr(pypsa.examples, example_network)()
     n.export_to_csv_folder(tmp_path / "network")
     n2 = pypsa.Network(tmp_path / "network")
     assert n.equals(n2, log_mode="strict")

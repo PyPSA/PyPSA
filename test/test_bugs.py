@@ -2,6 +2,10 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""
+Historic bugfix tests file. Prefer adding new tests elsewhere.
+"""
+
 import pickle
 from pathlib import Path
 

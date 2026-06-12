@@ -301,7 +301,7 @@ class OptionsNode:
                 continue
 
             # PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS -> general.allow_network_requests
-            option_path = env_var[len(prefix) :].replace("__", ".").lower()
+            option_path = env_var.removeprefix(prefix).replace("__", ".").lower()
 
             lower_value = env_value.lower()
             # Handle common booleans

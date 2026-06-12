@@ -151,7 +151,7 @@ Load      load                     NaN  ...                  NaN
 ```
 
 !!! note
-    Time aggregation automatically accounts for snapshot weightings.
+    Time aggregation automatically accounts for snapshot weightings when using `"sum"` or `"mean"`. Other aggregation methods like `"std"` or `"median"` do not apply snapshot weightings.
 
 ### Output Formatting
 

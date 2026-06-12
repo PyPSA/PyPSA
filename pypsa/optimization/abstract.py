@@ -416,7 +416,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         if branch_outages is None:
             branch_outages = all_passive_branches
-        elif isinstance(branch_outages, (list | pd.Index)):
+        elif isinstance(branch_outages, (list | pd.Index)) and not isinstance(
+            branch_outages, pd.MultiIndex
+        ):
             branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])
 
             if diff := set(branch_outages) - set(all_passive_branches):
@@ -532,12 +534,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 if not n.c.stores.static.empty:
                     n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
                         snapshots[start - 1]
-                    ]
+                    ].values
                 if not n.c.storage_units.static.empty:
                     n.c.storage_units.static.state_of_charge_initial = (
                         n.c.storage_units.dynamic.state_of_charge.loc[
                             snapshots[start - 1]
-                        ]
+                        ].values
                     )
 
             status, condition = n.optimize(sns, **kwargs)

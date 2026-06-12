@@ -365,6 +365,7 @@ def equals(
 
     if ignored_classes is not None and isinstance(a, tuple(ignored_classes)):
         return True
+    from pypsa.components.components import Components  # noqa: PLC0415
     from pypsa.components.store import ComponentsStore  # noqa: PLC0415
 
     # Classes with equality methods
@@ -378,14 +379,26 @@ def equals(
             return True
         if not a.equals(b):
             # TODO: Resolve with data validation PR
-            # Check if dtypes are equal
+            # Fallback with dtype tolerance for pandas 2 vs 3 differences
+            # (object vs StringDtype, datetime64[ns] vs datetime64[us])
             try:
-                pd_testing.assert_frame_equal(
-                    a, b, check_dtype=False, check_exact=False
-                )
+                if isinstance(a, pd.DataFrame):
+                    pd_testing.assert_frame_equal(
+                        a, b, check_dtype=False, check_index_type=False
+                    )
+                elif isinstance(a, pd.Series):
+                    pd_testing.assert_series_equal(
+                        a, b, check_dtype=False, check_index_type=False
+                    )
+                else:
+                    pd_testing.assert_index_equal(a, b, exact=False)
             except AssertionError:
                 msg = f"pandas objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
                 return handle_diff(msg)
+
+    elif isinstance(a, Components):
+        if not a.equals(b, log_mode=log_mode):
+            return False
 
     elif isinstance(a, ComponentsStore):
         for k, v in a.items():

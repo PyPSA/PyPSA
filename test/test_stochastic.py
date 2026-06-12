@@ -493,13 +493,11 @@ def test_single_scenario():
 
         # Set scenario-specific load data (same as deterministic)
         n.c.loads.dynamic.p_set = pd.DataFrame(
+            {("scenario", "load1"): [100.0, 120.0, 110.0]},
             index=n.snapshots,
-            columns=pd.MultiIndex.from_product(
-                [n.scenarios, ["load1"]], names=["scenario", "name"]
-            ),
         )
-        n.c.loads.dynamic.p_set.loc[:, ("scenario", "load1")] = pd.Series(
-            [100.0, 120.0, 110.0], dtype=float
+        n.c.loads.dynamic.p_set.columns = pd.MultiIndex.from_tuples(
+            n.c.loads.dynamic.p_set.columns, names=["scenario", "name"]
         )
 
         # Solve stochastic problem

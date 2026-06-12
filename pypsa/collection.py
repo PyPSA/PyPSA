@@ -479,7 +479,14 @@ class NetworkCollection:
         if len(self.networks) <= 1:
             return  # No validation needed for single network or empty collection
 
-        # TODO: Implement basic validation of network compatibility
+        has_periods = [n.has_investment_periods for n in self.networks]
+        if any(has_periods) and not all(has_periods):
+            msg = (
+                "NetworkCollection cannot mix networks with and without investment "
+                "periods. All member networks must either have investment periods "
+                "or none of them must."
+            )
+            raise ValueError(msg)
 
 
 _all_components = (
@@ -517,7 +524,8 @@ def _get_method_patterns() -> dict[str, str]:
         rf"({_component_classes}.capital_cost)|"
         rf"({_component_classes}.annuity)|"
         rf"static|"
-        rf"get_active_assets"
+        rf"get_active_assets|"
+        rf"snapshot_weightings"
         rf")$",
         # ---------------
         "horizontal_concat": rf"^("
@@ -527,10 +535,16 @@ def _get_method_patterns() -> dict[str, str]:
         rf"get_switchable_as_dense"
         rf")$",
         # ---------------
+        # TODO: `snapshots` uses return_from_first, which assumes all
+        # networks share the same snapshots. Mid-term, we need a way to
+        # enforce or convert to common dimensions across networks.
         "return_from_first": r"^("
         r"\S+_components|"
         r"snapshots|"
-        r"snapshot_weightings|"
+        r"has_investment_periods|"
+        r"investment_period_weightings|"
+        r"investment_periods|"
+        r"periods|"
         r"bus_carrier_unit|"
         rf"({_component_classes}\.(name|ports|_as_port|_as_ports))|"
         r")$",

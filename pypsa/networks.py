@@ -687,7 +687,9 @@ class Network(
         """
         if self._model is None:
             logger.warning(
-                "The network has not been optimized yet and no model is stored."
+                "No linopy model is stored on this network. "
+                "The network may not have been optimized yet, or it was loaded "
+                "from a file (models are not serialized on export)."
             )
         return self._model
 
