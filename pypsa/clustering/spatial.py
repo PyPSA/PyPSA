@@ -29,11 +29,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _sum_keep_na(s: Series) -> float:
+    """Sum keeping all nan groups as nan instead of collapsing them to 0."""
+    return s.sum(min_count=1)
+
+
 DEFAULT_ONE_PORT_STRATEGIES = {
     "p": "sum",
     "q": "sum",
-    "p_set": "sum",
-    "q_set": "sum",
+    "p_set": _sum_keep_na,
+    "q_set": _sum_keep_na,
     "p_nom": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
     "p_nom_max": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
     "p_nom_min": "sum",
