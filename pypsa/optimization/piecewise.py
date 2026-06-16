@@ -41,8 +41,8 @@ class PiecewiseOptions:
     """Optional filter for a component name to apply the piecewise constraint to, e.g. a specific generator."""
     method: str = "auto"
     """The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_formulation method."""
-    marginal_attr: bool = False
-    """Whether the y-axis breakpoints represent marginal values.
+    cumulative_attr: bool = False
+    """Whether the y-axis breakpoints represent marginal values which should be integrated to define y breakpoints.
 
     If True, the integral of the piecewise curve will be used to define y breakpoints.
     If False, the nominal values at each x breakpoint will be used to define y breakpoints."""
@@ -67,7 +67,7 @@ def define_piecewise(
     aux_var_name: str,
     active_names: pd.Index,
     sign: SIGNS_T,
-    marginal_attr: bool,
+    cumulative_attr: bool,
     extra_options: Iterable[PiecewiseOptions],
     invert_attr: bool = False,
     y_var: Any | None = None,
@@ -97,7 +97,7 @@ def define_piecewise(
         Active component names to consider (e.g. ``c.active_assets`` or ``c.extendables``).
     sign : SIGNS_T
         The sign for the piecewise constraint, interpreted as ``y <sign> f(x)``.
-    marginal_attr : bool
+    cumulative_attr : bool
         Whether the y-axis breakpoints represent marginal values.
         If True, the integral of the piecewise curve will be used to define y breakpoints.
         If False, the nominal values at each x breakpoint will be used to define y breakpoints.
@@ -132,7 +132,7 @@ def define_piecewise(
         )
         return None
     x_breakpoints, y_breakpoints = _get_breakpoints(
-        c, pw_attr, pw_names, marginal_attr, invert_attr
+        c, pw_attr, pw_names, cumulative_attr, invert_attr
     )
 
     if y_var is None:
@@ -209,7 +209,7 @@ def _get_breakpoints(
     c: Any,
     pw_attr: str,
     pw_names: pd.Index,
-    marginal_attr: bool,
+    cumulative_attr: bool,
     invert_attr: bool,
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Convert piecewise data to linopy breakpoints for piecewise constraint."""
@@ -251,7 +251,7 @@ def _get_breakpoints(
         x_da = x_da * nom_attr_da
     x_da = x_da.where(valid_breakpoints)
     x_breakpoints = breakpoints(x_da)
-    if marginal_attr:
+    if cumulative_attr:
         slopes = y_da.shift({BREAKPOINT_DIM: -1})
         y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
     else:

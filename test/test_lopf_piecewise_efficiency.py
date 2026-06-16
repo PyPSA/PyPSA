@@ -71,7 +71,7 @@ def test_piecewise_efficiency_co2_constraint_with_only_segmented_gens(
     ``linear_names`` is empty and ``primary_energy`` must still be initialised."""
     n = piecewise_efficiency_network
     n.optimize()
-    assert n.generators_t.p["gen"].iloc[0] == pytest.approx(50.0, rel=1e-3)
+    assert n.c.generators.dynamic.p["gen"].iloc[0] == pytest.approx(50.0, rel=1e-3)
 
 
 def test_piecewise_efficiency_gen() -> None:
@@ -106,8 +106,8 @@ def test_piecewise_efficiency_gen() -> None:
     )
     n.add("Load", "load", bus="bus0", p_set=80)
     n.optimize()
-    assert n.generators_t.p["gen1"].item() == pytest.approx(50.0, rel=1e-3)
-    assert n.generators_t.p["gen0"].item() == pytest.approx(30.0, rel=1e-3)
+    assert n.c.generators.dynamic.p["gen1"].item() == pytest.approx(50.0, rel=1e-3)
+    assert n.c.generators.dynamic.p["gen0"].item() == pytest.approx(30.0, rel=1e-3)
 
 
 class TestPiecewiseMultiPort2Bus:

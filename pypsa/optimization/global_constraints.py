@@ -371,7 +371,7 @@ def define_primary_energy_limit(
                         aux_var_name=f"{n.c.generators.name}-{pw_attr.aux_variable}",
                         active_names=gens.index,
                         sign="=",
-                        marginal_attr=False,
+                        cumulative_attr=False,
                         extra_options=extra_options,
                         invert_attr=True,
                     )
