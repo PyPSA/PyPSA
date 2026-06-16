@@ -10,7 +10,7 @@ If you have non-linear relationships between two decision variables, you may wan
 Common non-linear relationships found in energy systems include:
 
 - **marginal cost curves**: Where the marginal cost of generating a unit of energy changes as the quantity of energy generated changes.
-- **capital cost curves**: Where the capital cost of investing in a unit of nominal capacity changes as the quantity nominal capacity changes.
+- **capital cost curves**: Where the capital cost of investing in the next unit of nominal capacity changes as the quantity nominal capacity changes.
 - **part-load efficiency curves**: Where the efficiency of energy generation / conversion changes as the load rate ($\frac{\text{generation}{\text{nominal capacity}}$) changes.
 
 ## Defining piecewise data in PyPSA
@@ -80,5 +80,4 @@ So, at a 50% load rate, this asset is operating at 50% of its nameplate capacity
 
 Therefore, the piecewise curve in this instance is _not_ integrated up to the operating point; instead, it is taken at face value at each operating point.
 
-We assume that part-load efficiencies are not merit order curves.
-It could be reasonable to also assign this curve type to marginal operating or capital costs where those curves describe costs for a single asset.
+We assume that part-load efficiency curves are direct. A cost curve can also be direct where its values are meant to be read at the operating point rather than accumulated.
