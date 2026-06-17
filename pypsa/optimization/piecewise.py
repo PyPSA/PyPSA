@@ -35,7 +35,7 @@ class PiecewiseOptions:
     """Component attribute for which piecewise data is defined."""
     sign: SIGNS_T
     """Sign for the piecewise constraint, interpreted as y <sign> f(x)."""
-    name: str | Iterable[str] | None = field(default_factory=tuple)
+    name: tuple[str, ...] = field(default_factory=tuple)
     """Optional filter for a component name to apply the piecewise constraint to, e.g. a specific generator."""
     method: str = "auto"
     """The method to use for the piecewise constraint formulation, passed to linopy's add_piecewise_formulation method."""
@@ -136,9 +136,7 @@ def define_piecewise(
     if y_var is None:
         y_var = _create_y_var(m, x_var, pw_names, aux_var_name)
     y_var_sel = y_var.sel(name=pw_names)
-    sorted_options = sorted(
-        extra_options, key=lambda x: tuple(x.name or ()), reverse=True
-    )
+    sorted_options = sorted(extra_options, key=lambda x: x.name, reverse=True)
     for option in [*sorted_options, None]:
         if option is None:
             names, aux, opt_method, opt_sign = (

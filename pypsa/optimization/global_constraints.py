@@ -307,13 +307,10 @@ def define_primary_energy_limit(
     unique_names = glcs.index.unique("name")
 
     gen_c = n.c.generators
+    var_name = "Generator-p"
     pw_attr_eff = gen_c._piecewise_attrs.query("y == 'efficiency'").squeeze()
     primary_energy_pw_var = None
-    if (
-        not unique_names.empty
-        and not pw_attr_eff.empty
-        and "Generator-p" in m.variables
-    ):
+    if not unique_names.empty and not pw_attr_eff.empty and var_name in m.variables:
         extra_options = filter(
             lambda opt: opt.component == gen_c.name and opt.attribute == "efficiency",
             piecewise_options,
@@ -321,7 +318,7 @@ def define_primary_energy_limit(
         primary_energy_pw_var = define_piecewise(
             m,
             gen_c,
-            x_var=m["Generator-p"],
+            x_var=m[var_name],
             pw_attr="efficiency",
             aux_var_name=f"{gen_c.name}-{pw_attr_eff.aux_variable}",
             active_names=gen_c.active_assets,
@@ -370,7 +367,7 @@ def define_primary_energy_limit(
             if not gens.empty:
                 gens = gens.loc[scenario]
 
-                p = m["Generator-p"].sel(name=gens.index, snapshot=sns[sns_sel])
+                p = m[var_name].sel(name=gens.index, snapshot=sns[sns_sel])
 
                 if n.has_scenarios:
                     p = p.sel(scenario=scenario, drop=True)
@@ -385,8 +382,6 @@ def define_primary_energy_limit(
                         pw_var = primary_energy_pw_var.sel(
                             name=pw_names, snapshot=sns[sns_sel]
                         )
-                        if n.has_scenarios:
-                            pw_var = pw_var.sel(scenario=scenario, drop=True)
                         to_sum.append(pw_var)
                         linear_names = linear_names.difference(pw_names)
 

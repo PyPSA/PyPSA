@@ -927,10 +927,10 @@ def _get_delay_config(
     return config
 
 
-def _iter_balance_args(
+def _iter_balance_coeffs(
     c: _Multiport, sns: Sequence
-) -> Iterator[tuple[str, Any, pd.Index, int, bool]]:
-    """Iterate over all balance arguments, separating immediate and delayed.
+) -> Iterator[tuple[str, Any, pd.Index, str]]:
+    """Iterate over all balance arguments to get coefficient values per port.
 
     Parameters
     ----------
@@ -947,43 +947,65 @@ def _iter_balance_args(
         Coefficient values for the component
     names : pd.Index
         Component names with this delay configuration
-    delay : int
-        Delay in time units (0 for immediate, >0 for delayed)
-    is_cyclic : bool
-        Whether delay wraps around the horizon
 
     """
     if c.empty:
         return
 
     active = c.active_assets
-    delay_config = _get_delay_config(c)
 
     for port in c._output_ports:
         suffix = c._port_suffix(port)
         coeff = (
             c.da[f"{c._coefficient_attr}{suffix}"].where(c.da.active).sel(snapshot=sns)
         )
-        delays, cyclics = delay_config[suffix]
+        if not active.empty:
+            yield (f"bus{port}", coeff.sel(name=active), active, suffix)
 
-        for (d, cyc), group in c.static.assign(_delay=delays, _cyclic=cyclics).groupby(
-            ["_delay", "_cyclic"]
-        ):
-            delay_int = int(d)
 
-            names = group.index
-            if isinstance(names, pd.MultiIndex):
-                names = names.get_level_values("name").unique()
-            names = names.intersection(active)
+def _iter_balance_delay(
+    c: _Multiport, active: pd.Index, suffix: str
+) -> Iterator[tuple[pd.Index, int, bool]]:
+    """Iterate over all balance arguments, separating immediate and delayed.
 
-            if not names.empty:
-                yield (
-                    f"bus{port}",
-                    coeff.sel(name=names),
-                    names,
-                    delay_int,
-                    bool(cyc),
-                )
+    Parameters
+    ----------
+    c : _Multiport
+        _Multiport component (Link or Process).
+    active : pd.Index
+        Active component names
+    suffix : str
+        Port suffix (e.g., "", "1", "2") for which to get delay configuration
+
+    Yields
+    ------
+    names : pd.Index
+        Component names with this delay configuration
+    delay : int
+        Delay in time units (0 for immediate, >0 for delayed)
+    is_cyclic : bool
+        Whether delay wraps around the horizon
+
+    """
+    delay_config = _get_delay_config(c)
+    delays, cyclics = delay_config[suffix]
+
+    for (d, cyc), group in c.static.assign(_delay=delays, _cyclic=cyclics).groupby(
+        ["_delay", "_cyclic"]
+    ):
+        delay_int = int(d)
+
+        names = group.index
+        if isinstance(names, pd.MultiIndex):
+            names = names.get_level_values("name").unique()
+        names = names.intersection(active)
+
+        if not names.empty:
+            yield (
+                names,
+                delay_int,
+                bool(cyc),
+            )
 
 
 def _apply_delay_shift(
@@ -1156,11 +1178,9 @@ def define_nodal_balance_constraints(
     for component in ("Process", "Link"):
         c = n.c[component]
 
-        for bus_col, coeff, names, delay, is_cyclic in _iter_balance_args(c, sns):
+        for bus_col, coeff, names, port_suffix in _iter_balance_coeffs(c, sns):
             var = m[f"{c.name}-p"]
 
-            if delay > 0:
-                var = _apply_delay_shift(n, sns, c, var, names, delay, is_cyclic)
             cbuses = c._as_xarray(bus_col)
             cbuses = cbuses.sel(name=names)
             if n.has_scenarios:
@@ -1187,14 +1207,32 @@ def define_nodal_balance_constraints(
                     cumulative_attr=False,
                     extra_options=extra_options,
                 )
-                if piecewise_var is not None:
-                    piecewise_names = piecewise_var.coords["name"].values
+            if piecewise_var is not None:
+                piecewise_names = piecewise_var.coords["name"].values
+                for d_names, delay, is_cyclic in _iter_balance_delay(
+                    c, names, port_suffix
+                ):
                     if delay > 0:
-                        piecewise_var = _apply_delay_shift(
-                            n, sns, c, piecewise_var, piecewise_names, delay, is_cyclic
+                        p_piecewise += _apply_delay_shift(
+                            n,
+                            sns,
+                            c,
+                            piecewise_var,
+                            d_names.intersection(piecewise_names),
+                            delay,
+                            is_cyclic,
                         )
-                    p_piecewise += piecewise_var
-                    names = names.difference(piecewise_names)
+                    else:
+                        p_piecewise += piecewise_var.sel(
+                            name=d_names.intersection(piecewise_names)
+                        )
+
+                names = names.difference(piecewise_names)
+
+            for d_names, delay, is_cyclic in _iter_balance_delay(c, names, port_suffix):
+                if delay > 0:
+                    var = _apply_delay_shift(n, sns, c, var, d_names, delay, is_cyclic)
+
             expr = var * coeff.sel(name=names) + p_piecewise
 
             if not cbuses.size:

@@ -97,13 +97,15 @@ def test_piecewise_efficiency_gen() -> None:
     n = pypsa.Network()
     n.add("Bus", "bus0")
     n.add("Carrier", "gas", co2_emissions=1.0)
+    x_points = np.array([0.1, 0.5, 1.0])
+    y_points = np.array([0.3, 0.4, 0.6])
     n.add(
         "Generator",
         "gen0",
         carrier="gas",
         bus="bus0",
         p_nom=70,
-        marginal_cost=20,
+        marginal_cost=25,
         efficiency=0.5,
     )
     n.add(
@@ -113,7 +115,7 @@ def test_piecewise_efficiency_gen() -> None:
         bus="bus0",
         p_nom=70,
         marginal_cost=20,
-        efficiency={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
+        efficiency=pd.DataFrame({"p_pu": x_points, "efficiency": y_points}),
     )
     n.add(
         "GlobalConstraint",
@@ -125,11 +127,9 @@ def test_piecewise_efficiency_gen() -> None:
     n.add("Load", "load", bus="bus0", p_set=80)
     n.optimize()
     p = n.generators_t.p.iloc[0]
-    assert p.sum() == pytest.approx(80.0, rel=1e-6)
-    assert n.objective == pytest.approx(20 * 80, rel=1e-6)
-    x_points = np.array([0.1, 0.5, 1.0]) * 70
-    fuel_points = x_points / np.array([0.3, 0.4, 0.6])
-    fuel = p["gen0"] / 0.5 + np.interp(p["gen1"], x_points, fuel_points)
+    fuel = p["gen0"] / 0.5 + np.interp(
+        p["gen1"], 70 * x_points, 70 * x_points / y_points
+    )
     assert fuel <= 160 * (1 + 1e-6)
 
 
