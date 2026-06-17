@@ -328,7 +328,7 @@ def define_primary_energy_limit(
             aux_var_name=f"{gen_c.name}-{pw_attr_eff.aux_variable}",
             active_names=gen_c.active_assets,
             sign="=",
-            marginal_attr=False,
+            cumulative_attr=False,
             extra_options=extra_options,
             invert_attr=True,
         )

@@ -1139,46 +1139,29 @@ def define_nodal_balance_constraints(
                 cbuses = cbuses.isel(scenario=0, drop=True)
             cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
             cbuses = cbuses[cbuses != ""]
-
-            if coeff.name not in port_pw_vars:
-                pw_attr = c._piecewise_attrs.query(
-                    "y == @search_attr", local_dict={"search_attr": coeff.name}
-                ).squeeze()
-                if pw_attr.empty:
-                    port_pw_vars[coeff.name] = None
-                else:
-                    extra_options = filter(
-                        lambda opt: (
-                            opt.component == c.name and opt.attribute == coeff.name
-                        ),
-                        piecewise_options,
-                    )
-                    port_pw_vars[coeff.name] = define_piecewise(
-                        n.model,
-                        c,
-                        x_var=m[f"{c.name}-p"],
-                        pw_attr=coeff.name,
-                        aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
-                        active_names=c.active_assets,
-                        sign="=",
-                        marginal_attr=False,
-                        extra_options=extra_options,
-                    )
-
-            piecewise_var = port_pw_vars[coeff.name]
-            p_piecewise: Any = 0
-            if piecewise_var is not None:
-                pw_names = names.intersection(piecewise_var.indexes["name"])
-                if not pw_names.empty:
-                    p_piecewise = piecewise_var.sel(name=pw_names)
-                    if delay > 0:
-                        p_piecewise = (
-                            p_piecewise.isel(snapshot=src_snapshot_pos).assign_coords(
-                                sns_coords
-                            )
-                            * valid_mask
-                        )
-                    names = names.difference(pw_names)
+            pw_attr = c._piecewise_attrs.query(
+                "y == @search_attr", local_dict={"search_attr": coeff.name}
+            ).squeeze()
+            p_piecewise = 0
+            if not pw_attr.empty:
+                extra_options = filter(
+                    lambda p: p.component == c.name and p.attribute == coeff.name,
+                    piecewise_options,
+                )
+                piecewise_var = define_piecewise(
+                    n.model,
+                    c,
+                    x_var=var,
+                    pw_attr=coeff.name,
+                    aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
+                    active_names=names,
+                    sign="=",
+                    cumulative_attr=False,
+                    extra_options=extra_options,
+                )
+                if piecewise_var is not None:
+                    p_piecewise += piecewise_var
+                    names = names.difference(piecewise_var.coords["name"].values)
             expr = var * coeff.sel(name=names) + p_piecewise
 
             if not cbuses.size:
@@ -1638,7 +1621,8 @@ def define_fixed_operation_constraints(
     c = as_components(n, component)
     attr_set = f"{attr}_set"
 
-    if attr_set not in c.dynamic.keys() or c.dynamic[attr_set].empty:
+    # Those internal guards should be removed and for Lines/ Transformers which are passive, the method should not even be called (clean up needed everywhere)
+    if attr_set not in c.dynamic.keys():
         return
 
     fix = c.da[attr_set].sel(snapshot=sns, name=c.active_assets)
@@ -1722,8 +1706,6 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     except ValueError:
         pass
 
-    # TODO-1603: grab piecewise efficiencies if available
-    # efficiencies as xarray DataArrays
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
     eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=c.active_assets)
     eff_store = c.da.efficiency_store.sel(snapshot=sns, name=c.active_assets)

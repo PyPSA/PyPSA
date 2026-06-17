@@ -74,6 +74,7 @@ dev = [
     "pytest-cov",
     "pytest-mpl",
     "coverage",
+    "matplotlib<3.11", # remove when uv.lock is tracked
     "pypower",
     "pandapower>=2.14.11",
     "scikit-learn",
@@ -135,6 +136,9 @@ filterwarnings = [
     "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
     "ignore:In a future version of xarray the default value for join will change:FutureWarning",
     "ignore::linopy.constants.EvolvingAPIWarning",
+
+    # Ignore pandas<3.0.3 usage of the deprecated `locs` attribute of matplotlib>=3.11
+    "ignore:The locs attribute was deprecated:DeprecationWarning",
 ]
 markers = [
     "mpl_image_compare",

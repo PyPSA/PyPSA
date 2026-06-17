@@ -132,7 +132,7 @@ class TestPiecewiseCostsDefine:
             n.add("Generator", "gen", bus="bus0", p_nom=100, marginal_cost=costs)
             n.add("Load", "load", bus="bus0", p_set=50)
             n.optimize()
-            results.append((n.objective, n.generators_t.p["gen"].iloc[0]))
+            results.append((n.objective, n.c.generators.dynamic.p["gen"].iloc[0]))
 
         assert results[0] == pytest.approx(results[1], rel=1e-6)
 
@@ -168,9 +168,9 @@ class TestPiecewiseCostsDefine:
         n.add("Load", "load", bus="bus0", p_set=80)
         n.optimize()
 
-        assert n.generators_t.p["gen0"].iloc[0] + n.generators_t.p["gen1"].iloc[0] == (
-            pytest.approx(80.0, rel=1e-3)
-        )
+        assert n.c.generators.dynamic.p["gen0"].iloc[0] + n.c.generators.dynamic.p[
+            "gen1"
+        ].iloc[0] == (pytest.approx(80.0, rel=1e-3))
 
 
 class TestPiecewiseCostsResults:

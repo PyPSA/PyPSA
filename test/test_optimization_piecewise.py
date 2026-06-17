@@ -199,55 +199,67 @@ class TestGetBreakpoints:
     def pw_names(self) -> pd.Series:
         return pd.Index(["gen"], name="name")
 
-    @pytest.mark.parametrize("marginal_attr", [True, False])
+    @pytest.mark.parametrize("cumulative_attr", [True, False])
     @pytest.mark.parametrize("invert_attr", [True, False])
     def test_allow_extendables_x(
-        self, component_extendable, pw_names, marginal_attr, invert_attr
+        self, component_extendable, pw_names, cumulative_attr, invert_attr
     ) -> None:
         """Test expected x breakpoints are returned for extendable components when x_attr is nominal."""
         x_breakpoints, _ = _get_breakpoints(
-            component_extendable, "capital_cost", pw_names, marginal_attr, invert_attr
+            component_extendable, "capital_cost", pw_names, cumulative_attr, invert_attr
         )
         expected_x = [0, 0.5, 1.0]
         assert np.allclose(x_breakpoints.to_series().values, expected_x)
 
-    @pytest.mark.parametrize("marginal_attr", [True, False])
+    @pytest.mark.parametrize("cumulative_attr", [True, False])
     @pytest.mark.parametrize("invert_attr", [True, False])
     def test_not_allow_extendables_x(
-        self, component, pw_names, marginal_attr, invert_attr
+        self, component, pw_names, cumulative_attr, invert_attr
     ) -> None:
         """Test expected x breakpoints are returned for non-extendable components when x_attr is per-unit."""
         x_breakpoints, _ = _get_breakpoints(
-            component, "marginal_cost", pw_names, marginal_attr, invert_attr
+            component, "marginal_cost", pw_names, cumulative_attr, invert_attr
         )
         expected_x = [0, 50, 100]
         assert np.allclose(x_breakpoints.to_series().values, expected_x)
 
-    def test_marginal_attr(self, component, pw_names) -> None:
-        """Test expected y breakpoints are returned when marginal_attr is True."""
+    def test_cumulative_attr(self, component, pw_names) -> None:
+        """Test expected y breakpoints are returned when cumulative_attr is True."""
         _, y_breakpoints = _get_breakpoints(
-            component, "marginal_cost", pw_names, marginal_attr=True, invert_attr=False
+            component,
+            "marginal_cost",
+            pw_names,
+            cumulative_attr=True,
+            invert_attr=False,
         )
         assert np.allclose(y_breakpoints.sel(name="gen"), [0, 1000, 3000])
 
-    def test_not_marginal_attr(self, component, pw_names) -> None:
-        """Test expected y breakpoints are returned when marginal_attr is False."""
+    def test_not_cumulative_attr(self, component, pw_names) -> None:
+        """Test expected y breakpoints are returned when cumulative_attr is False."""
         _, y_breakpoints = _get_breakpoints(
-            component, "marginal_cost", pw_names, marginal_attr=False, invert_attr=False
+            component,
+            "marginal_cost",
+            pw_names,
+            cumulative_attr=False,
+            invert_attr=False,
         )
         assert np.allclose(y_breakpoints.sel(name="gen"), [0, 1000, 4000])
 
     def test_invert_attr(self, component, pw_names) -> None:
         """Test expected y breakpoints are returned when invert_attr is True."""
         _, y_breakpoints = _get_breakpoints(
-            component, "marginal_cost", pw_names, marginal_attr=False, invert_attr=True
+            component,
+            "marginal_cost",
+            pw_names,
+            cumulative_attr=False,
+            invert_attr=True,
         )
         assert np.allclose(y_breakpoints.sel(name="gen"), [0, 2.5, 2.5])
 
-    def test_invert_marginal_attr(self, component, pw_names) -> None:
-        """Test expected y breakpoints are returned when invert_attr and marginal_attr are True."""
+    def test_invert_cumulative_attr(self, component, pw_names) -> None:
+        """Test expected y breakpoints are returned when invert_attr and cumulative_attr are True."""
         _, y_breakpoints = _get_breakpoints(
-            component, "marginal_cost", pw_names, marginal_attr=True, invert_attr=True
+            component, "marginal_cost", pw_names, cumulative_attr=True, invert_attr=True
         )
         assert np.allclose(y_breakpoints.sel(name="gen"), [0, 2.5, 3.75])
 
@@ -261,7 +273,7 @@ class TestGetBreakpoints:
                 component_extendable,
                 "marginal_cost",
                 pw_names,
-                marginal_attr=False,
+                cumulative_attr=False,
                 invert_attr=False,
             )
         assert str(excinfo.value) == expected
@@ -278,7 +290,7 @@ class TestGetBreakpoints:
                 component,
                 "marginal_cost",
                 pw_names,
-                marginal_attr=False,
+                cumulative_attr=False,
                 invert_attr=False,
             )
         assert str(excinfo.value) == expected
@@ -409,7 +421,7 @@ class TestDefinePiecewise:
             "m": linopy_model,
             "c": component,
             "sign": piecewise_options.sign,
-            "marginal_attr": piecewise_options.marginal_attr,
+            "cumulative_attr": piecewise_options.cumulative_attr,
             "method": piecewise_options.method,
             "extra_options": [],
         }

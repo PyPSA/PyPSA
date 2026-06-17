@@ -26,3 +26,14 @@ SPDX-License-Identifier: CC-BY-4.0
         summary: false
         members:
             - "option_context"
+
+::: pypsa.optimization.piecewise
+    options:
+        heading_level: 2
+        show_root_heading: False
+        show_root_toc_entry: False
+        summary: false
+        members:
+            - "PiecewiseOptions"
+        filters:
+            - "!^_[^_]"

@@ -10,10 +10,15 @@ If you have non-linear relationships between two decision variables, you may wan
 Common non-linear relationships found in energy systems include:
 
 - **marginal cost curves**: Where the marginal cost of generating a unit of energy changes as the quantity of energy generated changes.
-- **capital cost curves**: Where the capital cost of investing in a unit of nominal capacity changes as the quantity nominal capacity changes.
-- **part-load efficiency curves**: Where the efficiency of energy generation / conversion changes as the load rate ($\frac{\text{generation}{\text{nominal capacity}}$) changes.
+- **capital cost curves**: Where the capital cost of investing in the next unit of nominal capacity changes as the quantity nominal capacity changes.
+- **part-load efficiency curves**: Where the efficiency of energy generation / conversion changes as the load rate ($\frac{\text{generation}{\text{nominal capacity}}}$) changes.
 
-## Defining piecewise data in PyPSA
+!!! info "See Also"
+
+    - [:material-notebook: PyPSA piecewise example](../../examples/piecewise-constraints.ipynb)
+    - [Linopy piecewise documentation](https://linopy.readthedocs.io/en/latest/piecewise-linear-constraints.html)
+
+## Defining piecewise data
 
 A limited set of component attributes can be defined using piecewise curves:
 
@@ -28,18 +33,44 @@ If a DataFrame, the index should be breakpoint number, the columns should be the
     A breakpoint is a point along the piecewise curve where two straight lines of different gradients meet.
     We define breakpoints in terms of integer values (breakpoint 0, 1, 2, etc.).
 
-## Inspecting piecewise data in PyPSA
+## Inspecting piecewise data
 
 Piecewise data is stored in a component `piecewise` dictionary-like object, much like `dynamic` data.
 For instance, to access marginal_cost piecewise data for generators, you can call `n.c.generators.piecewise.marginal_cost`.
-The returned [pandas.DataFrame][] will be of the same form as when [defining an input attribute as a DataFrame](#defining-piecewise-data-in-pypsa), with an added column level with the names of the components for which you've defined piecewise data.
+The returned [pandas.DataFrame][] will be of the same form as when [defining an input attribute as a DataFrame](#defining-piecewise-data), with an added column level with the names of the components for which you've defined piecewise data.
 
-## Configuring piecewise formulations in PyPSA
+## Piecewise formulations
 
-When applying the piecewise constraints to the optimisation problem, we make some assumptions about how they should be formulated.
-For the most part, we leave [linopy][] to decide on the best formulation and define the piecewise constraints in such a way that the simplest form of the constraint can feasibly be chosen.
+When applying the piecewise constraints to the optimisation problem, each will be formulated by [linopy][] in the [format deemed to be "cheapest" for solving the problem](https://linopy.readthedocs.io/en/latest/piecewise-linear-constraints.html#formulation-methods).
+As of writing, this could be in the form of:
 
-Our assumptions, and the `linopy` defaults, can be overridden when calling [pypsa.Network.optimize][] by using the `piecewise_options` list argument.
+- [An LP (chord-line) formulation](https://linopy.readthedocs.io/en/latest/piecewise-linear-constraints.html#lp-chord-line-formulation)
+- [An Incremental (Delta) formulation](https://linopy.readthedocs.io/en/latest/piecewise-linear-constraints.html#incremental-delta-formulation)
+- [SOS2 (Convex combination)](https://linopy.readthedocs.io/en/latest/piecewise-linear-constraints.html#sos2-convex-combination)
+- [Disjunctive (Disaggregated convex combi nation)](https://linopy.readthedocs.io/en/latest/piecewise-linear-constraints.html#disjunctive-disaggregated-convex-combination)
+
+Each formulation will create a piecewise auxiliary decision variable of the form `<component>-<aux_variable>` in the optimisation problem (see the table [above](#defining-piecewise-data) for all possible `component` and `aux_variable` combinations).
+For instance, a piecewise capital cost constraint applied to a generator will yield the variable `Generator-capital_cost_piecewise`, accessible at `n.model.variables["Generator-capital_cost_piecewise"]`.
+
+Depending on the formulation used, [linopy][] will also create additional auxiliary variables and constraints.
+For instance, the incremental (delta) formulation will lead to the auxiliary variables `<component>-<aux_variable>_delta` and `<component>-<aux_variable>_binary` and the constraints:
+
+```py
+<component>-<aux_variable>_delta_bound
+<component>-<aux_variable>_fill_order
+<component>-<aux_variable>_binary_order
+<component>-<aux_variable>_link
+```
+
+These additional constraints and auxiliary variables will not find their way into the PyPSA network results or statistics.
+You will, however, have access to the results `capital_cost_piecewise_opt` (static) and `marginal_cost_piecewise_opt` (dynamic) if applying piecewise costs.
+Piecewise efficiencies will be applied directly to the appropriate dynamic result attribute (e.g. `p2` for a `Link` if the piecewise curve is applied to `efficiency2`).
+
+You can override the default [linopy][] formulation by [configuring your own piecewise options](#configuring-piecewise-formulations).
+
+### Configuring piecewise formulations
+
+Our assumptions, and the `linopy` defaults, can be overridden when calling [n.optimize][pypsa.Network.optimize] by using the `piecewise_options` list argument.
 Each dictionary in the list defines a formulation variation.
 The options that you can override are defined in [pypsa.optimization.piecewise.PiecewiseOptions][].
 
@@ -55,30 +86,39 @@ The options that you can override are defined in [pypsa.optimization.piecewise.P
     n.optimize(piecewise_options=[{"component": "Generator", "attribute": "marginal_cost", "sign": "=="}])
     ```
 
-## Merit order vs. spot curves
+## Cumulative vs direct curves
 
 Piecewise curves can be used in two different contexts in energy system modelling.
-The choice is [configurable](#configuring-piecewise-formulations-in-pypsa) but you should understand the difference before considering overriding defaults.
+The choice is [configurable](#configuring-piecewise-formulations) but you should understand the difference before considering overriding defaults.
 
-### Merit order curves
+!!! info
 
-Here, one PyPSA component might represent a fleet of assets (e.g. a single `CCGT` generator represents 100 real assets in the given zone).
-If the assets have different marginal costs, you would want to operate them from least to most expensive as you increase total generation.
-In our example, a 50% load rate would mean the 50 least expensive assets are operating at 100% load since they incur the least cost in operation.
+    The default curve type can be overwritten using the boolean piecewise option `cumulative_attr` (True = cumulative, False = direct).
+    See [pypsa.optimization.piecewise.PiecewiseOptions][] for more information.
 
-The piecewise curve in this instance is based on combining the increasing marginal costs of the fleet in increasing order.
-We start by paying the cheaper costs and then build up to paying the most expensive cost.
-The marginal operating cost at the optimal dispatch rate _is_ the marginal cost of the generator, but the total operating cost is the integral of operating costs along the piecewise curve up to that point.
+### Cumulative curves
 
-We assume that piecewise marginal operating and capital cost curves are merit order curves.
+Here, the y-value at each point on the curve represents an _incremental_ contribution, so the total operating point $X$ is the integral of the curve up to $X$.
+We assume that piecewise marginal operating and capital cost curves are cumulative.
 
-### Non-merit order curves
+!!! example
 
-Here, one PyPSA component might represent a single asset with a non-linear operating characteristic.
-Unlike merit order curves, we do not care about the nature of the curve except at the point we are operating.
-So, at a 50% load rate, this asset is operating at 50% of its nameplate capacity and it doesn't matter what the piecewise curve says about its characteristics at 10%, 25%, etc. load rate.
+    For an increasing marginal cost curve, the increments are dispatched in cost order.
+    A PyPSA `CCGT` generator might represent many individual assets, each with different marginal costs.
+    At a 50% load rate, the cheapest half run at full output and the rest stay off, since that is the least-cost operating schedule.
+    The value at $X$ is then the marginal cost of the generator at 50% load rate, the cost of the last increment.
+    The total operating cost is the integral along the curve up to $X$.
 
-Therefore, the piecewise curve in this instance is _not_ integrated up to the operating point; instead, it is taken at face value at each operating point.
+### Direct curves
 
-We assume that part-load efficiencies are not merit order curves.
-It could be reasonable to also assign this curve type to marginal operating or capital costs where those curves describe costs for a single asset.
+Here, the curve is read at the operating point and no integration takes place.
+The value at the operating rate $X$ is the realised value directly, evaluated point by point rather than accumulated from the rates below it.
+
+We assume that part-load efficiency curves are direct.
+A cost curve can also be direct where its values are meant to be read at the operating point rather than accumulated.
+In such a case, the total cost is the curve value at $X$ multiplied by $𝑋$.
+
+!!! example
+
+    Consider a component with a part-load efficiency curve:
+    at a 50% load rate the asset operates at 50% of its nameplate capacity and the efficiency is the curve value at 50%, regardless of its efficiency at other load rates.

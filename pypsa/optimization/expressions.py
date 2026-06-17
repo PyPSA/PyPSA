@@ -565,7 +565,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 raise ValueError(msg)
             piecewise_efficiency = port_efficiency(n, c, port=port, piecewise=True)
             if isinstance(piecewise_efficiency, pd.DataFrame):
-                pw_var = n.model.variables[f"{c}-p{port}_piecewise"]
+                pw_var = sign * n.model.variables[f"{c}-p{port}_piecewise"]
+                pw_var = -1 * pw_var if direction == "withdrawal" else pw_var
                 coeffs.loc[{"name": pw_var.coords["name"]}] = 0
                 if direction != "both":
                     # Classify piecewise ports like linear ones: by the sign of
@@ -599,6 +600,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                         )
             else:
                 pw_var = 0
+
             p = var.where(coeffs != 0) * coeffs + pw_var
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 

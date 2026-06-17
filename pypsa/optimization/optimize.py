@@ -290,7 +290,7 @@ def define_objective(
                     aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
                     active_names=c.active_assets,
                     sign=">=",
-                    marginal_attr=True,
+                    cumulative_attr=True,
                     extra_options=extra_options,
                 )
                 if pw_cost_var is not None:
@@ -383,7 +383,7 @@ def define_objective(
                 aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
                 active_names=ext_i,
                 sign=">=",
-                marginal_attr=True,
+                cumulative_attr=True,
                 extra_options=extra_options,
             )
             if piecewise_var is not None:
