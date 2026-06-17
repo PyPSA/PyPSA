@@ -27,6 +27,7 @@ from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
+    from linopy import LinearExpression, Variable
     from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
@@ -926,10 +927,10 @@ def _get_delay_config(
     return config
 
 
-def _iter_balance_args(
+def _iter_balance_coeffs(
     c: _Multiport, sns: Sequence
-) -> Iterator[tuple[str, Any, pd.Index, int, bool]]:
-    """Iterate over all balance arguments, separating immediate and delayed.
+) -> Iterator[tuple[str, Any, pd.Index, str]]:
+    """Iterate over all balance arguments to get coefficient values per port.
 
     Parameters
     ----------
@@ -946,43 +947,116 @@ def _iter_balance_args(
         Coefficient values for the component
     names : pd.Index
         Component names with this delay configuration
-    delay : int
-        Delay in time units (0 for immediate, >0 for delayed)
-    is_cyclic : bool
-        Whether delay wraps around the horizon
 
     """
     if c.empty:
         return
 
     active = c.active_assets
-    delay_config = _get_delay_config(c)
 
     for port in c._output_ports:
         suffix = c._port_suffix(port)
         coeff = (
             c.da[f"{c._coefficient_attr}{suffix}"].where(c.da.active).sel(snapshot=sns)
         )
-        delays, cyclics = delay_config[suffix]
+        if not active.empty:
+            yield (f"bus{port}", coeff.sel(name=active), active, suffix)
 
-        for (d, cyc), group in c.static.assign(_delay=delays, _cyclic=cyclics).groupby(
-            ["_delay", "_cyclic"]
-        ):
-            delay_int = int(d)
 
-            names = group.index
-            if isinstance(names, pd.MultiIndex):
-                names = names.get_level_values("name").unique()
-            names = names.intersection(active)
+def _iter_balance_delay(
+    c: _Multiport, active: pd.Index, suffix: str
+) -> Iterator[tuple[pd.Index, int, bool]]:
+    """Iterate over all balance arguments, separating immediate and delayed.
 
-            if not names.empty:
-                yield (
-                    f"bus{port}",
-                    coeff.sel(name=names),
-                    names,
-                    delay_int,
-                    bool(cyc),
-                )
+    Parameters
+    ----------
+    c : _Multiport
+        _Multiport component (Link or Process).
+    active : pd.Index
+        Active component names
+    suffix : str
+        Port suffix (e.g., "", "1", "2") for which to get delay configuration
+
+    Yields
+    ------
+    names : pd.Index
+        Component names with this delay configuration
+    delay : int
+        Delay in time units (0 for immediate, >0 for delayed)
+    is_cyclic : bool
+        Whether delay wraps around the horizon
+
+    """
+    delay_config = _get_delay_config(c)
+    delays, cyclics = delay_config[suffix]
+
+    for (d, cyc), group in c.static.assign(_delay=delays, _cyclic=cyclics).groupby(
+        ["_delay", "_cyclic"]
+    ):
+        delay_int = int(d)
+
+        names = group.index
+        if isinstance(names, pd.MultiIndex):
+            names = names.get_level_values("name").unique()
+        names = names.intersection(active)
+
+        if not names.empty:
+            yield (
+                names,
+                delay_int,
+                bool(cyc),
+            )
+
+
+def _apply_delay_shift(
+    n: Network,
+    sns: pd.Index,
+    c: _Multiport,
+    in_var: Variable,
+    names: pd.Index,
+    delay: int,
+    is_cyclic: bool,
+) -> LinearExpression:
+    """Apply delay shift to a mulitport dispatch variable.
+
+    Parameters
+    ----------
+    n : Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    c : _Multiport
+        _Multiport component (Link or Process)
+    in_var : Variable
+        Input variable to be shifted
+    names : pd.Index
+        Names of components for which to apply the delay shift
+    delay : int
+        Delay in time units (0 for immediate, >0 for delayed)
+    is_cyclic : bool
+        Whether delay wraps around the horizon
+
+    Returns
+    -------
+    LinearExpression
+
+    """
+    sns_coords: xr.Coordinates | dict[str, Any]
+    if isinstance(sns, pd.MultiIndex):
+        sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
+    else:
+        sns_coords = {"snapshot": sns}
+    src_snapshot_pos, valid = c.get_delay_source_indexer(
+        sns,
+        n.snapshot_weightings.generators.loc[sns],
+        delay,
+        is_cyclic,
+    )
+    valid_mask = DataArray(valid.astype(float), dims=["snapshot"], coords=sns_coords)
+    comp_p = in_var.sel(name=names)
+    shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(sns_coords)
+    var = shifted_p * valid_mask
+    return var
 
 
 def define_nodal_balance_constraints(
@@ -1021,14 +1095,14 @@ def define_nodal_balance_constraints(
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
+    piecewise_options : list[PiecewiseOptions]
+        Options to override default piecewise constraint settings.
     transmission_losses : int | dict, default 0
         If truthy, transmission losses are considered in the power balance.
     buses : Sequence | None, default None
         Subset of buses for which to define constraints; if None, all buses are used
     suffix : str, default ""
         Optional suffix to append to constraint names and dimensions
-    piecewise_options : list[PiecewiseOptions]
-        Options to override default piecewise constraint settings.
 
     Notes
     -----
@@ -1044,12 +1118,6 @@ def define_nodal_balance_constraints(
     m = n.model
     if buses is None:
         buses = n.c.buses.static.index.unique("name")
-
-    sns_coords: xr.Coordinates | dict[str, Any]
-    if isinstance(sns, pd.MultiIndex):
-        sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
-    else:
-        sns_coords = {"snapshot": sns}
 
     args: list[Any] = [
         ["Generator", "p", "bus", 1],
@@ -1074,7 +1142,6 @@ def define_nodal_balance_constraints(
         )
 
     exprs = []
-    piecewise_y_vars = {}
 
     for component, attr, column, sign in args:
         c = n.c[component]
@@ -1105,33 +1172,14 @@ def define_nodal_balance_constraints(
             cbuses = cbuses[cbuses != ""]
 
         expr = expr.sel(name=cbuses.coords["name"].values)
-        if component in ("Process", "Link"):
-            piecewise_y_vars[c.name] = expr
         if expr.size:
             exprs.append(_groupby_bus(expr, cbuses))
 
     for component in ("Process", "Link"):
         c = n.c[component]
 
-        for bus_col, coeff, names, delay, is_cyclic in _iter_balance_args(c, sns):
-            if delay <= 0:
-                var = m[f"{c.name}-p"]
-
-            else:
-                src_snapshot_pos, valid = c.get_delay_source_indexer(
-                    sns,
-                    n.snapshot_weightings.generators.loc[sns],
-                    delay,
-                    is_cyclic,
-                )
-                valid_mask = DataArray(
-                    valid.astype(float), dims=["snapshot"], coords=sns_coords
-                )
-                comp_p = m[f"{c.name}-p"].sel(name=names)
-                shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(
-                    sns_coords
-                )
-                var = shifted_p * valid_mask
+        for bus_col, coeff, names, port_suffix in _iter_balance_coeffs(c, sns):
+            var = m[f"{c.name}-p"]
 
             cbuses = c._as_xarray(bus_col)
             cbuses = cbuses.sel(name=names)
@@ -1151,7 +1199,7 @@ def define_nodal_balance_constraints(
                 piecewise_var = define_piecewise(
                     n.model,
                     c,
-                    x_var=var,
+                    x_var=m[f"{c.name}-p"],
                     pw_attr=coeff.name,
                     aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
                     active_names=names,
@@ -1159,9 +1207,32 @@ def define_nodal_balance_constraints(
                     cumulative_attr=False,
                     extra_options=extra_options,
                 )
-                if piecewise_var is not None:
-                    p_piecewise += piecewise_var
-                    names = names.difference(piecewise_var.coords["name"].values)
+            if piecewise_var is not None:
+                piecewise_names = piecewise_var.coords["name"].values
+                for d_names, delay, is_cyclic in _iter_balance_delay(
+                    c, names, port_suffix
+                ):
+                    if delay > 0:
+                        p_piecewise += _apply_delay_shift(
+                            n,
+                            sns,
+                            c,
+                            piecewise_var,
+                            d_names.intersection(piecewise_names),
+                            delay,
+                            is_cyclic,
+                        )
+                    else:
+                        p_piecewise += piecewise_var.sel(
+                            name=d_names.intersection(piecewise_names)
+                        )
+
+                names = names.difference(piecewise_names)
+
+            for d_names, delay, is_cyclic in _iter_balance_delay(c, names, port_suffix):
+                if delay > 0:
+                    var = _apply_delay_shift(n, sns, c, var, d_names, delay, is_cyclic)
+
             expr = var * coeff.sel(name=names) + p_piecewise
 
             if not cbuses.size:

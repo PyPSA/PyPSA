@@ -563,7 +563,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             elif direction != "both":
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
-
             piecewise_efficiency = port_efficiency(n, c, port=port, piecewise=True)
             if isinstance(piecewise_efficiency, pd.DataFrame):
                 pw_var = sign * n.model.variables[f"{c}-p{port}_piecewise"]

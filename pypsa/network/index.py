@@ -775,6 +775,17 @@ class NetworkIndexMixin(_NetworkABC):
         scenarios_.index = scenarios_.index.astype(str)
         scenarios_.index.name = "scenario"
 
+        if any(
+            not df.empty
+            for c in self.components.values()
+            for df in c.piecewise.values()
+        ):
+            msg = (
+                "Setting scenarios on a network with piecewise attribute data is "
+                "not yet supported."
+            )
+            raise NotImplementedError(msg)
+
         for c in self.components.values():  # Loop all components, not just empty ones
             c.static = pd.concat(
                 dict.fromkeys(scenarios_.index, c.static), names=["scenario"]

@@ -2105,15 +2105,13 @@ class NetworkIOMixin(_NetworkABC):
         Parameters
         ----------
         df : pandas.DataFrame
-            DataFrame whose columns are ``[x_attr, attr]`` (the x-axis coordinate
-            and the y-axis attribute) and whose index is the breakpoint number.
-            This is the per-component form as passed to ``network.add()``.
+            DataFrame with MultiIndex columns ``(name, attribute)`` where the
+            attribute level holds ``[x_attr, attr]`` (the x-axis coordinate and
+            the y-axis attribute) and whose index is the breakpoint number.
         cls_name : str
             Component class name, e.g. ``"Generator"``.
         attr : str
             Piecewise y-axis attribute name, e.g. ``"efficiency"``.
-        component_name : str
-            Name of the individual component.
         is_extendable : pd.Series or None, default None
             If Series, a boolean series where True = extendable.
             if None, it is inferred from the component's extendables.
@@ -2167,7 +2165,13 @@ class NetworkIOMixin(_NetworkABC):
                     f"{bad.tolist()}."
                 )
                 raise ValueError(msg)
-
+        if search_attr in ["rate", "efficiency"]:
+            curve = df.xs(attr, level="attribute", axis=1)
+            is_pos = ((curve >= 0) | curve.isna()).all()
+            is_neg = ((curve <= 0) | curve.isna()).all()
+            if not (bad := curve.columns[~(is_pos | is_neg)]).empty:
+                msg = f"Cannot mix positive and negative values for piecewise {attr} curves of {c} components {bad.tolist()}"
+                raise NotImplementedError(msg)
         piecewise = self.c[cls_name].piecewise
 
         if attr not in piecewise:

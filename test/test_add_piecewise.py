@@ -232,6 +232,60 @@ class TestPiecewiseErrors:
         with pytest.raises(NotImplementedError, match="Dictionaries are not supported"):
             n.add("Generator", "gen", bus="bus_ac", p_nom={0: 100})
 
+    def test_multiindex_df_wrong_attribute_labels_raises_x(self, base_network):
+        """MultiIndex input with wrong attribute-level labels is rejected."""
+        n = base_network
+        mi_df = _make_multiindex_df("WRONG_X", "marginal_cost", ["gen"])
+        with pytest.raises(
+            ValueError, match="Piecewise marginal_cost Dataframe has attribute column"
+        ):
+            n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=mi_df)
+
+    def test_multiindex_df_wrong_attribute_labels_raises_y(self, base_network):
+        """MultiIndex input with wrong name-level labels is rejected."""
+        n = base_network
+        mi_df = _make_multiindex_df("p_pu", "WRONG_Y", ["gen"])
+        with pytest.raises(
+            ValueError, match="Piecewise marginal_cost Dataframe has attribute column"
+        ):
+            n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=mi_df)
+
+    def test_multiindex_df_wrong_attribute_labels_raises_name(self, base_network):
+        """MultiIndex input with wrong attribute-level labels is rejected."""
+        n = base_network
+        mi_df = _make_multiindex_df("p_pu", "marginal_cost", ["WRONG_NAME"])
+        with pytest.raises(
+            ValueError, match="Piecewise marginal_cost Dataframe has name column"
+        ):
+            n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=mi_df)
+
+    @pytest.mark.parametrize(
+        ("component", "attr"),
+        [
+            ("Process", "rate0"),
+            ("Process", "rate1"),
+            ("Link", "efficiency"),
+            ("Link", "efficiency2"),
+        ],
+    )
+    def test_multiport_pos_neg_mix_raises(self, base_network, component, attr):
+        """Multi-port piecewise attrs must not mix positive and negative values."""
+        n = base_network
+        curve = pd.DataFrame({"p_pu": [0.0, 0.5, 1.0], attr: [1.0, -0.7, 0.4]})
+        with pytest.raises(
+            NotImplementedError,
+            match=f"Cannot mix positive and negative values for piecewise {attr} curves",
+        ):
+            n.add(
+                component,
+                "foo",
+                bus0="bus_ac",
+                bus1="bus_ac2",
+                bus2="bus_dc",
+                p_nom=100,
+                **{attr: curve},
+            )
+
     @pytest.mark.parametrize(
         ("comp", "extendable_kwargs", "attr"), EXTENDABLE_PU_RAISES_PARAMS
     )
@@ -253,3 +307,27 @@ class TestPiecewiseErrors:
         n = base_network
         n.add(comp, "c1", **extendable_kwargs, **{attr: CURVE_DICT})
         assert not n.components[comp].piecewise[attr].empty
+
+
+def test_remove_drops_piecewise_data(base_network):
+    """Removed components must not leave stale piecewise curves behind."""
+    n = base_network
+    n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=CURVE_DICT)
+    n.remove("Generator", "gen")
+    assert n.c.generators.piecewise["marginal_cost"].empty
+    n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=5.0)
+    assert n.c.generators.piecewise["marginal_cost"].empty
+
+
+class TestPiecewiseScenarios:
+    def test_add_piecewise_on_stochastic_network_raises(self, base_network):
+        n = base_network
+        n.set_scenarios({"low": 0.5, "high": 0.5})
+        with pytest.raises(NotImplementedError, match="not yet supported"):
+            n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=CURVE_DICT)
+
+    def test_set_scenarios_with_piecewise_data_raises(self, base_network):
+        n = base_network
+        n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=CURVE_DICT)
+        with pytest.raises(NotImplementedError, match="not yet supported"):
+            n.set_scenarios({"low": 0.5, "high": 0.5})

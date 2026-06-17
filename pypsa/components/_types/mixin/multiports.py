@@ -72,10 +72,11 @@ class _Multiport(Components):
         filtered_attrs = PIECEWISE_ATTRS.query(
             "component == @name", local_dict={"name": self.name}
         )
+        extra_rows: list[pd.Series] = []
         del_rows = []
         for idx, row in filtered_attrs.iterrows():
             if row["y"] == self._coefficient_attr:
-                extra_rows = [
+                extra_rows.extend(
                     pd.Series(
                         {
                             **row,
@@ -84,13 +85,14 @@ class _Multiport(Components):
                         }
                     )
                     for i in self._output_ports
-                ]
+                )
                 del_rows.append(idx)
-        formatted_attrs = pd.concat(
+        if not del_rows:
+            return filtered_attrs
+        return pd.concat(
             [filtered_attrs.drop(index=del_rows), pd.DataFrame(extra_rows)],
             ignore_index=True,
         )
-        return formatted_attrs
 
     @property
     @abstractmethod

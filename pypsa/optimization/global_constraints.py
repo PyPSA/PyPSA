@@ -306,6 +306,28 @@ def define_primary_energy_limit(
 
     unique_names = glcs.index.unique("name")
 
+    gen_c = n.c.generators
+    var_name = "Generator-p"
+    pw_attr_eff = gen_c._piecewise_attrs.query("y == 'efficiency'").squeeze()
+    primary_energy_pw_var = None
+    if not unique_names.empty and not pw_attr_eff.empty and var_name in m.variables:
+        extra_options = filter(
+            lambda opt: opt.component == gen_c.name and opt.attribute == "efficiency",
+            piecewise_options,
+        )
+        primary_energy_pw_var = define_piecewise(
+            m,
+            gen_c,
+            x_var=m[var_name],
+            pw_attr="efficiency",
+            aux_var_name=f"{gen_c.name}-{pw_attr_eff.aux_variable}",
+            active_names=gen_c.active_assets,
+            sign="=",
+            cumulative_attr=False,
+            extra_options=extra_options,
+            invert_attr=True,
+        )
+
     for name in unique_names:
         if n.has_scenarios:
             glc_group = glcs.xs(name, level="name")
@@ -345,41 +367,23 @@ def define_primary_energy_limit(
             if not gens.empty:
                 gens = gens.loc[scenario]
 
-                p = m["Generator-p"].sel(name=gens.index, snapshot=sns[sns_sel])
+                p = m[var_name].sel(name=gens.index, snapshot=sns[sns_sel])
 
                 if n.has_scenarios:
                     p = p.sel(scenario=scenario, drop=True)
 
-                extra_options = filter(
-                    lambda p: (
-                        p.component == n.c.generators.name
-                        and p.attribute == "efficiency"
-                    ),
-                    piecewise_options,
-                )
-                pw_attr = n.c.generators._piecewise_attrs.query(
-                    "y == 'efficiency'"
-                ).squeeze()
                 linear_names = gens.index
                 to_sum = []
-                if not pw_attr.empty:
-                    piecewise_var = define_piecewise(
-                        m,
-                        n.c.generators,
-                        x_var=p,
-                        pw_attr="efficiency",
-                        aux_var_name=f"{n.c.generators.name}-{pw_attr.aux_variable}",
-                        active_names=gens.index,
-                        sign="=",
-                        cumulative_attr=False,
-                        extra_options=extra_options,
-                        invert_attr=True,
+                if primary_energy_pw_var is not None:
+                    pw_names = gens.index.intersection(
+                        primary_energy_pw_var.indexes["name"]
                     )
-                    if piecewise_var is not None:
-                        to_sum.append(piecewise_var)
-                        linear_names = linear_names.difference(
-                            piecewise_var.indexes["name"]
+                    if not pw_names.empty:
+                        pw_var = primary_energy_pw_var.sel(
+                            name=pw_names, snapshot=sns[sns_sel]
                         )
+                        to_sum.append(pw_var)
+                        linear_names = linear_names.difference(pw_names)
 
                 if not linear_names.empty:
                     efficiency = (

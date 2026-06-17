@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -74,19 +75,38 @@ def test_piecewise_efficiency_co2_constraint_with_only_segmented_gens(
     assert n.c.generators.dynamic.p["gen"].iloc[0] == pytest.approx(50.0, rel=1e-3)
 
 
+def test_piecewise_efficiency_two_primary_energy_constraints(
+    piecewise_efficiency_network: pypsa.Network,
+) -> None:
+    """Regression: multiple primary-energy constraints share one piecewise aux variable."""
+    n = piecewise_efficiency_network
+    n.add(
+        "GlobalConstraint",
+        "co2_limit2",
+        sense="<=",
+        carrier_attribute="co2_emissions",
+        constant=170,
+    )
+    status, _ = n.optimize()
+    assert status == "ok"
+    assert n.generators_t.p["gen"].iloc[0] == pytest.approx(50.0, rel=1e-3)
+
+
 def test_piecewise_efficiency_gen() -> None:
-    """We get a somewhat arbitrary solution as the optimisation problem aims to hit the CO2 limit exactly."""
+    """gen0 is cheaper but cannot meet all load without hitting co2 limit. Gen1 comes in based on its piecewise curve rate."""
     n = pypsa.Network()
     n.add("Bus", "bus0")
     n.add("Carrier", "gas", co2_emissions=1.0)
+    x_points = np.array([0.1, 0.5, 1.0])
+    y_points = np.array([0.3, 0.4, 0.6])
     n.add(
         "Generator",
         "gen0",
         carrier="gas",
         bus="bus0",
         p_nom=70,
-        marginal_cost=20,
-        efficiency=0.5,
+        marginal_cost=15,
+        efficiency=0.35,
     )
     n.add(
         "Generator",
@@ -95,7 +115,7 @@ def test_piecewise_efficiency_gen() -> None:
         bus="bus0",
         p_nom=70,
         marginal_cost=20,
-        efficiency={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
+        efficiency=pd.DataFrame({"p_pu": x_points, "efficiency": y_points}),
     )
     n.add(
         "GlobalConstraint",
@@ -106,8 +126,11 @@ def test_piecewise_efficiency_gen() -> None:
     )
     n.add("Load", "load", bus="bus0", p_set=80)
     n.optimize()
-    assert n.c.generators.dynamic.p["gen1"].item() == pytest.approx(50.0, rel=1e-3)
-    assert n.c.generators.dynamic.p["gen0"].item() == pytest.approx(30.0, rel=1e-3)
+    p = n.generators_t.p.iloc[0]
+    fuel = p["gen0"] / 0.35 + np.interp(
+        p["gen1"], 70 * x_points, 70 * x_points / y_points
+    )
+    assert fuel <= 160 * (1 + 1e-6)
 
 
 class TestPiecewiseMultiPort2Bus:
@@ -211,6 +234,30 @@ class TestPiecewiseMultiPort2Bus:
         expected_p1 = -1 * expected_p
         pd.testing.assert_series_equal(n.c[comp].dynamic.p1.squeeze(), expected_p1)
 
+    def test_piecewise_efficiency_with_delay(
+        self, base_network: pypsa.Network, base_multiport_attrs: dict
+    ) -> None:
+        """Regression: piecewise port relations are defined once on the undelayed
+        dispatch variable; mixed delay groups must not collide and the delayed
+        group shifts the auxiliary variable in time."""
+        n = base_network
+        n.add(
+            "Process",
+            rate1={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
+            delay1=1,
+            **base_multiport_attrs,
+        )
+        n.add(
+            "Process",
+            rate1={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
+            **{**base_multiport_attrs, "name": "multiport2"},
+        )
+        status, _ = n.optimize()
+        assert status == "ok"
+        load = pd.Series([20.0, 30.0, 40.0]).rename_axis(index="snapshot")
+        supply = -n.c.processes.dynamic.p1.sum(axis=1)
+        pd.testing.assert_series_equal(supply, load, check_names=False)
+
 
 class TestPiecewiseMultiPort3Bus:
     @pytest.fixture
@@ -289,3 +336,5 @@ class TestPiecewiseMultiPort3Bus:
             -1 * n.model.variables[f"{comp}-p2_piecewise"].solution.to_pandas()
         )
         pd.testing.assert_frame_equal(n.c[comp].dynamic.p2, expected_p2)
+        # The auxiliary variable feeds p2; it must not leak as its own output.
+        assert "p2_piecewise_opt" not in n.c[comp].dynamic

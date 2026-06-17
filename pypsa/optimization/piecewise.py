@@ -18,8 +18,6 @@ from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, EvolvingAPIWarning
 
 from pypsa.descriptors import nominal_attrs
 
-warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
-
 if TYPE_CHECKING:
     from collections.abc import Iterable
 logger = logging.getLogger(__name__)
@@ -48,7 +46,7 @@ class PiecewiseOptions:
     If False, the nominal values at each x breakpoint will be used to define y breakpoints."""
 
     def __post_init__(self) -> None:
-        """Ensure that name is stored as a list for consistent processing later."""
+        """Ensure that name is stored as a tuple for consistent processing later."""
         list_names = (
             ()
             if self.name is None
@@ -148,10 +146,7 @@ def define_piecewise(
                 sign,
             )
         elif option.name:
-            names = pd.Index(
-                [option.name] if isinstance(option.name, str) else option.name,
-                name="name",
-            ).intersection(pw_names)
+            names = pd.Index(option.name, name="name").intersection(pw_names)
             aux_suffix = (
                 "_".join(names) if len(names) <= 3 else f"{names[0]}_..._{names[-1]}"
             )
@@ -250,12 +245,14 @@ def _get_breakpoints(
             raise ValueError(msg)
         x_da = x_da * nom_attr_da
     x_da = x_da.where(valid_breakpoints)
-    x_breakpoints = breakpoints(x_da)
-    if cumulative_attr:
-        slopes = y_da.shift({BREAKPOINT_DIM: -1})
-        y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
-    else:
-        y_breakpoints = breakpoints((y_da * x_da).where(valid_breakpoints))
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
+        x_breakpoints = breakpoints(x_da)
+        if cumulative_attr:
+            slopes = y_da.shift({BREAKPOINT_DIM: -1})
+            y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
+        else:
+            y_breakpoints = breakpoints((y_da * x_da).where(valid_breakpoints))
     return x_breakpoints, y_breakpoints
 
 
@@ -299,10 +296,8 @@ def _create_y_var(
     aux_var_name: str,
 ) -> Variable:
     """Create auxiliary y variable for piecewise constraint."""
-    extra_dims = [d for d in x_var.dims if d != "name"]
-    coords = [x_var.coords[d].values for d in extra_dims] + [pw_names]
-    dims = extra_dims + ["name"]
-    y_var = m.add_variables(coords=coords, dims=dims, name=aux_var_name)
+    coords = x_var.coords.drop_dims("name", errors="ignore").assign(name=pw_names)
+    y_var = m.add_variables(coords=coords, name=aux_var_name)
     return y_var
 
 
