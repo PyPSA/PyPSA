@@ -93,7 +93,7 @@ def test_piecewise_efficiency_two_primary_energy_constraints(
 
 
 def test_piecewise_efficiency_gen() -> None:
-    """The dispatch split is cost-degenerate, so only assert properties unique to the optimum."""
+    """gen0 is cheaper but cannot meet all load without hitting co2 limit. Gen1 comes in based on its piecewise curve rate."""
     n = pypsa.Network()
     n.add("Bus", "bus0")
     n.add("Carrier", "gas", co2_emissions=1.0)
@@ -105,8 +105,8 @@ def test_piecewise_efficiency_gen() -> None:
         carrier="gas",
         bus="bus0",
         p_nom=70,
-        marginal_cost=25,
-        efficiency=0.5,
+        marginal_cost=15,
+        efficiency=0.35,
     )
     n.add(
         "Generator",
@@ -127,7 +127,7 @@ def test_piecewise_efficiency_gen() -> None:
     n.add("Load", "load", bus="bus0", p_set=80)
     n.optimize()
     p = n.generators_t.p.iloc[0]
-    fuel = p["gen0"] / 0.5 + np.interp(
+    fuel = p["gen0"] / 0.35 + np.interp(
         p["gen1"], 70 * x_points, 70 * x_points / y_points
     )
     assert fuel <= 160 * (1 + 1e-6)
