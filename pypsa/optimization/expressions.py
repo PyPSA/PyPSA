@@ -568,36 +568,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 pw_var = sign * n.model.variables[f"{c}-p{port}_piecewise"]
                 pw_var = -1 * pw_var if direction == "withdrawal" else pw_var
                 coeffs.loc[{"name": pw_var.coords["name"]}] = 0
-                if direction != "both":
-                    # Classify piecewise ports like linear ones: by the sign of
-                    # the (curve) coefficients. Withdrawal is reported positive.
-                    comp = n.c[c]
-                    key = f"{comp._coefficient_attr}{comp._port_suffix(port)}"
-                    curve = piecewise_efficiency.xs(key, level="attribute", axis=1)
-                    is_pos = ((curve >= 0) | curve.isna()).all()
-                    is_neg = ((curve <= 0) | curve.isna()).all()
-                    if not (is_pos | is_neg).all():
-                        bad = curve.columns[~(is_pos | is_neg)].tolist()
-                        msg = (
-                            f"Piecewise curves of {c} components {bad} at port "
-                            f"{port} mix positive and negative values; cannot "
-                            "split into supply and withdrawal."
-                        )
-                        raise NotImplementedError(msg)
-                    sign_factor = is_pos.astype(float) - is_neg.astype(float)
-                    if direction == "supply":
-                        factor = sign_factor.clip(lower=0.0)
-                    else:
-                        factor = sign_factor.clip(upper=0.0)
-                    factor = factor.reindex(pw_var.indexes["name"]).loc[
-                        lambda s: s != 0
-                    ]
-                    if factor.empty:
-                        pw_var = 0
-                    else:
-                        pw_var = pw_var.sel(name=factor.index) * DataArray(
-                            factor.rename_axis("name")
-                        )
             else:
                 pw_var = 0
 

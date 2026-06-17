@@ -2165,7 +2165,13 @@ class NetworkIOMixin(_NetworkABC):
                     f"{bad.tolist()}."
                 )
                 raise ValueError(msg)
-
+        if search_attr in ["rate", "efficiency"]:
+            curve = df.xs(attr, level="attribute", axis=1)
+            is_pos = ((curve >= 0) | curve.isna()).all()
+            is_neg = ((curve <= 0) | curve.isna()).all()
+            if not (bad := curve.columns[~(is_pos | is_neg)]).empty:
+                msg = f"Cannot mix positive and negative values for piecewise {attr} curves of {c} components {bad.tolist()}"
+                raise NotImplementedError(msg)
         piecewise = self.c[cls_name].piecewise
 
         if attr not in piecewise:
