@@ -272,7 +272,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
 
 
 def define_primary_energy_limit(
-    n: Network, sns: pd.Index, piecewise_options: list[PiecewiseOptions] | None = None
+    n: Network, sns: pd.Index, piecewise_options: list[PiecewiseOptions]
 ) -> None:
     """Define primary energy constraints.
 
@@ -285,13 +285,11 @@ def define_primary_energy_limit(
         The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
-    piecewise_options : list[PiecewiseOptions], optional
+    piecewise_options : list[PiecewiseOptions]
         Options to override defaults in piecewise constraint formulation.
         List is of the form ``[PiecewiseOptions(...), ...]``.
 
     """
-    if piecewise_options is None:
-        piecewise_options = []
     m = n.model
     weightings = n.snapshot_weightings.loc[sns]
     glcs = n.c.global_constraints.static.query('type == "primary_energy"')

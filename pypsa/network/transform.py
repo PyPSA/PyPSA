@@ -257,11 +257,6 @@ class NetworkTransformMixin(_NetworkABC):
             return s + suffix
 
         for k, v in kwargs.items():
-            # If index/ columns are passed (pd.DataFrame or pd.Series)
-            # - cast names index to string and add suffix
-            # - check if passed index/ columns align
-            msg = "{} has an index which does not align with the passed {}."
-
             # Enable default lookup for attributes with port suffixes, e.g. efficiency1, rate2.
             search_attr = c._get_base_coeff(k) if isinstance(c, _Multiport) else k
 
@@ -280,17 +275,19 @@ class NetworkTransformMixin(_NetworkABC):
                 if isinstance(v, dict):
                     v = pd.DataFrame({x_attr: list(v.keys()), k: list(v.values())})
                 if isinstance(v, pd.DataFrame):
+                    pw_msg = "Piecewise {k} Dataframe has {lvl} column level which does not align with the passed {lvl}s: {diff}."
                     if isinstance(v.columns, pd.MultiIndex):
                         v = v.rename(columns=add_suffix, level=0)
-                        if not v.columns.unique(0).equals(names):
-                            raise ValueError(msg.format(f"Dataframe {k}", names_str))
-                        if set(v.columns.unique(1)) != {x_attr, k}:
-                            msg_seg = (
-                                f"Piecewise Dataframe {k} must have column labels "
-                                f"consisting of {x_attr} and {k}"
+                        lvls = v.columns.levels
+                        if not (diff := lvls[0].difference(names)).empty:
+                            raise ValueError(pw_msg.format(k=k, lvl="name", diff=diff))
+                        if not (
+                            diff := lvls[1].symmetric_difference([x_attr, k])
+                        ).empty:
+                            raise ValueError(
+                                pw_msg.format(k=k, lvl="attribute", diff=diff)
                             )
-                            raise ValueError(msg_seg)
-                        piecewise[k] = v
+                        piecewise[k] = v.reindex(columns=[x_attr, k], level=1)
                         continue
                     elif set(v.columns) == {x_attr, k}:
                         # Build a MultiIndex-columned DataFrame: broadcast the curve to all names
@@ -310,6 +307,10 @@ class NetworkTransformMixin(_NetworkABC):
                 )
                 raise NotImplementedError(msg)
 
+            # If index/ columns are passed (pd.DataFrame or pd.Series)
+            # - cast names index to string and add suffix
+            # - check if passed index/ columns align
+            msg = "{} has an index which does not align with the passed {}."
             if isinstance(v, pd.Series) and single_component:
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"Series {k}", "network snapshots"))

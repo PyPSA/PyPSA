@@ -232,11 +232,22 @@ class TestPiecewiseErrors:
         with pytest.raises(NotImplementedError, match="Dictionaries are not supported"):
             n.add("Generator", "gen", bus="bus_ac", p_nom={0: 100})
 
-    def test_multiindex_df_wrong_attribute_labels_raises(self, base_network):
+    def test_multiindex_df_wrong_attribute_labels_raises_x(self, base_network):
         """MultiIndex input with wrong attribute-level labels is rejected."""
         n = base_network
         mi_df = _make_multiindex_df("WRONG_X", "marginal_cost", ["gen"])
-        with pytest.raises(ValueError, match="must have column labels"):
+        with pytest.raises(
+            ValueError, match="Piecewise marginal_cost Dataframe has name column"
+        ):
+            n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=mi_df)
+
+    def test_multiindex_df_wrong_attribute_labels_raises_y(self, base_network):
+        """MultiIndex input with wrong attribute-level labels is rejected."""
+        n = base_network
+        mi_df = _make_multiindex_df("p_pu", "WRONG_Y", ["gen"])
+        with pytest.raises(
+            ValueError, match="Piecewise marginal_cost Dataframe has attribute column"
+        ):
             n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=mi_df)
 
     @pytest.mark.parametrize(

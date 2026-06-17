@@ -27,6 +27,7 @@ from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
+    from linopy import LinearExpression, Variable
     from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
@@ -985,13 +986,64 @@ def _iter_balance_args(
                 )
 
 
+def _apply_delay_shift(
+    n: Network,
+    sns: pd.Index,
+    c: _Multiport,
+    in_var: Variable,
+    names: pd.Index,
+    delay: int,
+    is_cyclic: bool,
+) -> LinearExpression:
+    """Apply delay shift to a mulitport dispatch variable.
+
+    Parameters
+    ----------
+    n : Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    c : _Multiport
+        _Multiport component (Link or Process)
+    in_var : Variable
+        Input variable to be shifted
+    names : pd.Index
+        Names of components for which to apply the delay shift
+    delay : int
+        Delay in time units (0 for immediate, >0 for delayed)
+    is_cyclic : bool
+        Whether delay wraps around the horizon
+
+    Returns
+    -------
+    LinearExpression
+
+    """
+    sns_coords: xr.Coordinates | dict[str, Any]
+    if isinstance(sns, pd.MultiIndex):
+        sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
+    else:
+        sns_coords = {"snapshot": sns}
+    src_snapshot_pos, valid = c.get_delay_source_indexer(
+        sns,
+        n.snapshot_weightings.generators.loc[sns],
+        delay,
+        is_cyclic,
+    )
+    valid_mask = DataArray(valid.astype(float), dims=["snapshot"], coords=sns_coords)
+    comp_p = in_var.sel(name=names)
+    shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(sns_coords)
+    var = shifted_p * valid_mask
+    return var
+
+
 def define_nodal_balance_constraints(
     n: Network,
     sns: pd.Index,
+    piecewise_options: list[PiecewiseOptions],
     transmission_losses: bool | int | dict = False,
     buses: Sequence | None = None,
     suffix: str = "",
-    piecewise_options: list[PiecewiseOptions] | None = None,
 ) -> None:
     """Define energy balance constraints at each node.
 
@@ -1021,14 +1073,14 @@ def define_nodal_balance_constraints(
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
+    piecewise_options : list[PiecewiseOptions]
+        Options to override default piecewise constraint settings.
     transmission_losses : int | dict, default 0
         If truthy, transmission losses are considered in the power balance.
     buses : Sequence | None, default None
         Subset of buses for which to define constraints; if None, all buses are used
     suffix : str, default ""
         Optional suffix to append to constraint names and dimensions
-    piecewise_options : list[PiecewiseOptions], optional
-        Options to override default piecewise constraint settings.
 
     Notes
     -----
@@ -1042,16 +1094,8 @@ def define_nodal_balance_constraints(
 
     """
     m = n.model
-    if piecewise_options is None:
-        piecewise_options = []
     if buses is None:
         buses = n.c.buses.static.index.unique("name")
-
-    sns_coords: xr.Coordinates | dict[str, Any]
-    if isinstance(sns, pd.MultiIndex):
-        sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
-    else:
-        sns_coords = {"snapshot": sns}
 
     args: list[Any] = [
         ["Generator", "p", "bus", 1],
@@ -1111,28 +1155,12 @@ def define_nodal_balance_constraints(
 
     for component in ("Process", "Link"):
         c = n.c[component]
-        port_pw_vars: dict[str, Any] = {}
 
         for bus_col, coeff, names, delay, is_cyclic in _iter_balance_args(c, sns):
-            if delay <= 0:
-                var = m[f"{c.name}-p"]
+            var = m[f"{c.name}-p"]
 
-            else:
-                src_snapshot_pos, valid = c.get_delay_source_indexer(
-                    sns,
-                    n.snapshot_weightings.generators.loc[sns],
-                    delay,
-                    is_cyclic,
-                )
-                valid_mask = DataArray(
-                    valid.astype(float), dims=["snapshot"], coords=sns_coords
-                )
-                comp_p = m[f"{c.name}-p"].sel(name=names)
-                shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(
-                    sns_coords
-                )
-                var = shifted_p * valid_mask
-
+            if delay > 0:
+                var = _apply_delay_shift(n, sns, c, var, names, delay, is_cyclic)
             cbuses = c._as_xarray(bus_col)
             cbuses = cbuses.sel(name=names)
             if n.has_scenarios:
@@ -1151,7 +1179,7 @@ def define_nodal_balance_constraints(
                 piecewise_var = define_piecewise(
                     n.model,
                     c,
-                    x_var=var,
+                    x_var=m[f"{c.name}-p"],
                     pw_attr=coeff.name,
                     aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
                     active_names=names,
@@ -1160,8 +1188,13 @@ def define_nodal_balance_constraints(
                     extra_options=extra_options,
                 )
                 if piecewise_var is not None:
+                    piecewise_names = piecewise_var.coords["name"].values
+                    if delay > 0:
+                        piecewise_var = _apply_delay_shift(
+                            n, sns, c, piecewise_var, piecewise_names, delay, is_cyclic
+                        )
                     p_piecewise += piecewise_var
-                    names = names.difference(piecewise_var.coords["name"].values)
+                    names = names.difference(piecewise_names)
             expr = var * coeff.sel(name=names) + p_piecewise
 
             if not cbuses.size:

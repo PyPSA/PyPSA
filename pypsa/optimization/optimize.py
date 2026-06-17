@@ -144,7 +144,7 @@ def define_objective(
     n: Network,
     sns: pd.Index,
     include_objective_constant: bool,
-    piecewise_options: list[PiecewiseOptions] | None = None,
+    piecewise_options: list[PiecewiseOptions],
 ) -> None:
     """Define and write the optimization objective function.
 
@@ -173,7 +173,7 @@ def define_objective(
         Snapshots (and, for multi-investment, periods) over which to build the objective.
     include_objective_constant : bool
         Whether to include the objective constant as a variable in the objective function.
-    piecewise_options : list[PiecewiseOptions], optional
+    piecewise_options : list[PiecewiseOptions]
         Options to override defaults in piecewise constraint formulation.
         List is of the form ``[PiecewiseOptions(...), ...]``.
 
@@ -184,8 +184,6 @@ def define_objective(
     - For a stochastic problem, scenario probabilities are applied as weightings to all cost (includes *both* investment terms).
 
     """
-    if piecewise_options is None:
-        piecewise_options = []
     weighted_cost: xr.DataArray | int
     m = n.model
     # Separate lists to distinguish CAPEX and OPEX terms
