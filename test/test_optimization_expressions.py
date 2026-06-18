@@ -300,6 +300,50 @@ class TestExpressionsWithPiecewise:
         )
         assert "piecewise" not in str(expr.sel(component=["Link", "StorageUnit"]))
 
+    def test_supply_minus_withdrawal_equals_energy_balance(self):
+        """supply - withdrawal must reconstruct the net energy balance at the optimum."""
+        n = pypsa.Network()
+        n.set_snapshots(range(2))
+        n.add("Bus", ["bus0", "bus1"])
+        n.add("Generator", "gen0", bus="bus0", p_nom=300, marginal_cost=5)
+        n.add(
+            "Link",
+            "link",
+            bus0="bus0",
+            bus1="bus1",
+            p_nom=100,
+            efficiency={0.0: 0.4, 0.5: 0.5, 1.0: 0.6},
+        )
+        n.add("Load", "load", bus="bus1", p_set=[20, 30])
+        n.optimize.create_model(include_objective_constant=False)
+        exprs = {
+            k: getattr(n.optimize.expressions, k)().sum()
+            for k in ("supply", "withdrawal", "energy_balance")
+        }
+        n.optimize.solve_model()
+        s, w, eb = (
+            exprs[k].solution.item() for k in ("supply", "withdrawal", "energy_balance")
+        )
+        assert s - w == pytest.approx(eb)
+
+    def test_capex_schema_without_data_is_linear(self):
+        """A piecewise schema without breakpoint data costs linearly (no KeyError)."""
+        n = pypsa.Network()
+        n.add("Bus", "bus")
+        n.add(
+            "Link",
+            "link",
+            bus0="bus",
+            bus1="bus",
+            p_nom_extendable=True,
+            capital_cost=100,
+        )
+        n.optimize.create_model(include_objective_constant=False)
+        assert not n.c.links.is_piecewise("capital_cost")
+        expr = n.optimize.expressions.capex().unstack("group")
+        assert "piecewise" not in str(expr)
+        assert "Link-p_nom" in str(expr)
+
     def test_expressions_energy_balance(self, piecewise_network_built):
         n = piecewise_network_built
         expr = n.optimize.expressions.energy_balance().unstack("group")

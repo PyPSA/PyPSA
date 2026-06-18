@@ -319,6 +319,34 @@ def test_remove_drops_piecewise_data(base_network):
     assert n.c.generators.piecewise["marginal_cost"].empty
 
 
+class TestPiecewiseHelpers:
+    """Schema-vs-data primitives on the component class."""
+
+    def test_is_piecewise_tracks_data_not_schema(self, base_network):
+        """`is_piecewise` reflects breakpoint data, not the schema definition."""
+        n = base_network
+        c = n.c.generators
+        assert not c.is_piecewise("marginal_cost")
+        n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=CURVE_DICT)
+        assert c.is_piecewise("marginal_cost")
+        assert not c.is_piecewise("capital_cost")
+
+    def test_aux_var_is_schema_lookup(self, base_network):
+        """`_piecewise_aux_var` resolves from the schema, independent of data."""
+        n = base_network
+        assert (
+            n.c.generators._piecewise_aux_var("marginal_cost")
+            == "Generator-marginal_cost_piecewise"
+        )
+        assert n.c.links._piecewise_aux_var("efficiency") == "Link-p1_piecewise"
+        assert n.c.processes._piecewise_aux_var("rate0") == "Process-p0_piecewise"
+
+    def test_aux_var_raises_on_unknown_attr(self, base_network):
+        """A non-piecewise attribute fails fast instead of returning None."""
+        with pytest.raises(ValueError, match="no piecewise schema"):
+            base_network.c.generators._piecewise_aux_var("not_an_attr")
+
+
 class TestPiecewiseScenarios:
     def test_add_piecewise_on_stochastic_network_raises(self, base_network):
         n = base_network

@@ -429,6 +429,19 @@ class Components(
         )
         return filtered_attrs
 
+    def is_piecewise(self, attr: str) -> bool:
+        """Whether this component instance has piecewise breakpoint data for `attr`."""
+        pw_df = self.piecewise.get(attr)
+        return pw_df is not None and not pw_df.empty
+
+    def _piecewise_aux_var(self, attr: str) -> str:
+        """Model-variable name of the piecewise auxiliary variable for `attr`."""
+        row = self._piecewise_attrs.query("y == @attr").squeeze()
+        if row.empty:
+            msg = f"{self.name!r} has no piecewise schema for attribute {attr!r}."
+            raise ValueError(msg)
+        return f"{self.name}-{row.aux_variable}"
+
     @property
     def standard_types(self) -> pd.DataFrame | None:
         """Get standard types of component.

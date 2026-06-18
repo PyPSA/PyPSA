@@ -18,6 +18,7 @@ from packaging import version
 from xarray import DataArray
 
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
+from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.statistics import (
     get_transmission_branches,
     port_efficiency,
@@ -44,6 +45,25 @@ def check_if_empty(expr: LinearExpression) -> bool:
     if USE_EMPTY_PROPERTY:
         return expr.empty
     return expr.empty()
+
+
+def _direct_piecewise(
+    c: Any, y_attr: str, sign: Any, pw: Variable, names: Any, direction: str
+) -> Variable | LinearExpression:
+    """Restrict a piecewise contribution to the requested supply/withdrawal direction.
+
+    A port's direction follows the sign of its breakpoints (``sign * y_attr``),
+    mirroring the clipping applied to linear coefficients. Mixed-sign curves are
+    rejected at ``add`` time, so each port is unambiguously supply or withdrawal.
+    """
+    if direction == "both":
+        return pw
+    y = c.piecewise[y_attr].xs(y_attr, level="attribute", axis=1)[names]
+    withdraws = (sign * y < 0).any()
+    if direction == "withdrawal":
+        return -1 * pw.sel(name=names[withdraws])
+    else:
+        return pw.sel(name=names[~withdraws])
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
@@ -222,16 +242,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             costs = c.static[cost_attribute][capacity.indexes["name"]]
 
-            piecewise_attr = (
-                n.c[component]._piecewise_attrs.query("y == @cost_attribute").squeeze()
-            )
-            aux_var = (
-                f"{component}-{piecewise_attr.aux_variable}"
-                if not piecewise_attr.empty
-                else None
-            )
-            if aux_var in m.variables:
-                add_capex = m.variables[aux_var]
+            if c.is_piecewise(cost_attribute):
+                add_capex = m.variables[c._piecewise_aux_var(cost_attribute)]
                 capacity = capacity.drop_sel(name=add_capex.coords["name"])
             else:
                 add_capex = 0
@@ -376,16 +388,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             var = n.model.variables[f"{c}-{attr}"]
             sns = var.indexes["snapshot"]
 
-            piecewise_attr = (
-                n.c[c]._piecewise_attrs.query("y == 'marginal_cost'").squeeze()
-            )
-            aux_var = (
-                f"{c}-{piecewise_attr.aux_variable}"
-                if not piecewise_attr.empty
-                else None
-            )
-            if aux_var in n.model.variables:
-                add_opex = n.model.variables[aux_var]
+            c_obj = n.c[c]
+            if c_obj.is_piecewise("marginal_cost"):
+                add_opex = n.model.variables[c_obj._piecewise_aux_var("marginal_cost")]
                 var = var.drop_sel(name=add_opex.coords["name"])
             else:
                 add_opex = 0
@@ -543,14 +548,15 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             )
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            var = self._get_operational_variable(c)
+        def func(n: Network, component: str, port: str) -> pd.Series:
+            c = n.c[component]
+            var = self._get_operational_variable(component)
             sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
-            dynamic_efficiency = port_efficiency(n, c, port=port, dynamic=True)
+            dynamic_efficiency = port_efficiency(n, component, port=port, dynamic=True)
             if isinstance(dynamic_efficiency, pd.DataFrame):
                 dynamic_efficiency = dynamic_efficiency.loc[sns]
-            sign = n.c[c].static.get("sign", 1.0)
+            sign = n.c[component].static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators.loc[sns]
             coeffs = DataArray(dynamic_efficiency * sign)
             if direction == "supply":
@@ -563,13 +569,15 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             elif direction != "both":
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
-            piecewise_efficiency = port_efficiency(n, c, port=port, piecewise=True)
-            if isinstance(piecewise_efficiency, pd.DataFrame):
-                pw_var = sign * n.model.variables[f"{c}-p{port}_piecewise"]
-                pw_var = -1 * pw_var if direction == "withdrawal" else pw_var
-                coeffs.loc[{"name": pw_var.coords["name"]}] = 0
-            else:
-                pw_var = 0
+
+            pw_var = 0
+            if isinstance(c, _Multiport) and c.is_piecewise(
+                y_attr := c._port_coefficient_attr(port)
+            ):
+                pw = sign * n.model.variables[c._piecewise_aux_var(y_attr)]
+                names = pw.coords["name"].values
+                coeffs.loc[{"name": names}] = 0
+                pw_var = _direct_piecewise(c, y_attr, sign, pw, names, direction)
 
             p = var.where(coeffs != 0) * coeffs + pw_var
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
