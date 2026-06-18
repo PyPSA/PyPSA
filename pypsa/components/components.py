@@ -434,9 +434,13 @@ class Components(
         pw_df = self.piecewise.get(attr)
         return pw_df is not None and not pw_df.empty
 
+    def _piecewise_schema(self, attr: str) -> pd.Series:
+        """Get the schema row of the piecewise definition for `attr` (empty if undefined)."""
+        return self._piecewise_attrs.query("y == @attr").squeeze()
+
     def _piecewise_aux_var(self, attr: str) -> str:
         """Model-variable name of the piecewise auxiliary variable for `attr`."""
-        row = self._piecewise_attrs.query("y == @attr").squeeze()
+        row = self._piecewise_schema(attr)
         if row.empty:
             msg = f"{self.name!r} has no piecewise schema for attribute {attr!r}."
             raise ValueError(msg)

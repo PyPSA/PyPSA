@@ -957,7 +957,7 @@ def _iter_balance_coeffs(
     for port in c._output_ports:
         suffix = c._port_suffix(port)
         coeff = (
-            c.da[f"{c._coefficient_attr}{suffix}"].where(c.da.active).sel(snapshot=sns)
+            c.da[c._port_coefficient_attr(port)].where(c.da.active).sel(snapshot=sns)
         )
         if not active.empty:
             yield (f"bus{port}", coeff.sel(name=active), active, suffix)
@@ -1187,9 +1187,7 @@ def define_nodal_balance_constraints(
                 cbuses = cbuses.isel(scenario=0, drop=True)
             cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
             cbuses = cbuses[cbuses != ""]
-            pw_attr = c._piecewise_attrs.query(
-                "y == @search_attr", local_dict={"search_attr": coeff.name}
-            ).squeeze()
+            pw_attr = c._piecewise_schema(coeff.name)
             p_piecewise = 0
             if not pw_attr.empty:
                 extra_options = filter(

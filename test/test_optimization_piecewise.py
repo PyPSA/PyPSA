@@ -175,6 +175,7 @@ class TestGetPiecewiseNames:
 class TestGetBreakpoints:
     @pytest.fixture
     def component(self) -> SimpleNamespace:
+        attrs = PIECEWISE_ATTRS.query("component == 'Generator'")
         return SimpleNamespace(
             piecewise={
                 y: _piecewise_df(
@@ -187,7 +188,8 @@ class TestGetBreakpoints:
             ),
             name="Generator",
             extendables=pd.Index([], name="name"),
-            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
+            _piecewise_attrs=attrs,
+            _piecewise_schema=lambda attr: attrs.query("y == @attr").squeeze(),
         )
 
     @pytest.fixture
@@ -371,6 +373,7 @@ class TestDefinePiecewise:
 
     @pytest.fixture
     def component(self) -> SimpleNamespace:
+        attrs = PIECEWISE_ATTRS.query("component == 'Generator'")
         component = SimpleNamespace(
             piecewise={
                 "marginal_cost": _piecewise_df(
@@ -392,7 +395,8 @@ class TestDefinePiecewise:
             ),
             name="Generator",
             extendables=pd.Index(["gen_extendable"], name="name"),
-            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
+            _piecewise_attrs=attrs,
+            _piecewise_schema=lambda attr: attrs.query("y == @attr").squeeze(),
         )
         component.piecewise["efficiency"] = pd.DataFrame()
         return component
