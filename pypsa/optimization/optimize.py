@@ -366,7 +366,7 @@ def define_objective(
             cost_weight = c.da.active.sel(name=ext_i).any(dim="snapshot")
 
         y_attr = "capital_cost"
-        pw_attr = c._piecewise_attrs.query("y == @y_attr").squeeze()
+        pw_attr = c._piecewise_schema(y_attr)
         if not pw_attr.empty:
             x_var = m[f"{c.name}-{pw_attr.x}"]
             extra_options = filter(
@@ -1059,10 +1059,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
                     for i in ports:
                         i_suffix = c._port_suffix(i)
-                        eff_attr = f"{c._coefficient_attr}{i_suffix}"
+                        eff_attr = c._port_coefficient_attr(i)
                         eff = n.get_switchable_as_dense(c.name, eff_attr, sns)
                         port_df = -df * eff
-                        if not c.piecewise.get(eff_attr, pd.DataFrame()).empty:
+                        if c.is_piecewise(eff_attr):
                             df_piecewise = _from_xarray(
                                 m.variables[f"{_c_name}-{attr}{i}_piecewise"].solution,
                                 c,
