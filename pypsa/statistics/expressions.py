@@ -69,14 +69,10 @@ def port_efficiency(
     c_name: str,
     port: int | str = 0,
     dynamic: bool = False,
-    piecewise: bool = False,
 ) -> pd.Series | pd.DataFrame:
     """Get the efficiency of a component at a specific port."""
     c = n.c[c_name]
     port = c._as_port(port)
-    if piecewise and dynamic:
-        err = "Cannot request piecewise and dynamic efficiencies together."
-        raise ValueError(err)
 
     ones = pd.Series(1, index=c.static.index)
     if c.name in n.one_port_components:
@@ -86,29 +82,14 @@ def port_efficiency(
     elif c.name == "Link":
         if port == 0:
             return -ones
-        key = f"{c._coefficient_attr}{c._port_suffix(port)}"
-        if (
-            piecewise
-            and (pw_attr := c.piecewise.get(key)) is not None
-            and not pw_attr.empty
-        ):
-            return pw_attr
-
+        key = c._port_coefficient_attr(port)
         if dynamic and key in c.static:
             return n.get_switchable_as_dense(c.name, key)
-
         return c.static.get(key, ones)
     elif c.name == "Process":
-        key = f"{c._coefficient_attr}{c._port_suffix(port)}"
-        if (
-            piecewise
-            and (pw_attr := c.piecewise.get(key)) is not None
-            and not pw_attr.empty
-        ):
-            return pw_attr
+        key = c._port_coefficient_attr(port)
         if dynamic and key in c.static:
             return n.get_switchable_as_dense(c.name, key)
-
         return c.static.get(key, ones)
     else:
         msg = f"port_efficiency has not been implemented for: {c.name}"

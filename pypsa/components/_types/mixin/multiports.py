@@ -128,6 +128,10 @@ class _Multiport(Components):
     @abstractmethod
     def _coefficient_attr(self) -> str: ...
 
+    def _port_coefficient_attr(self, port: str | int) -> str:
+        """Coefficient attribute name for a port, e.g. 'efficiency2' / 'rate0'."""
+        return f"{self._coefficient_attr}{self._port_suffix(port)}"
+
     @staticmethod
     def _delay_positions(
         weights: np.ndarray, delay: int, is_cyclic: bool
