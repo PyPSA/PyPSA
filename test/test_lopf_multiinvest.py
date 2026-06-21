@@ -430,7 +430,9 @@ def test_storage_unit_inflow_keeps_snapshot_dimension_after_reslicing():
 
     timesteps = pd.DatetimeIndex([])
     for period in n.investment_periods:
-        timesteps = timesteps.append(pd.date_range(f"{period}-01-01", periods=2, freq="h"))
+        timesteps = timesteps.append(
+            pd.date_range(f"{period}-01-01", periods=2, freq="h")
+        )
 
     n.set_snapshots(
         pd.MultiIndex.from_arrays(
