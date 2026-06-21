@@ -105,6 +105,15 @@ def _from_xarray(da: xr.DataArray, c: Components) -> pd.DataFrame | pd.Series:
     raise UnexpectedError(msg)
 
 
+def _dynamic_dataframe_to_xarray(df: pd.DataFrame) -> xr.DataArray:
+    """Convert dynamic component data to xarray with stable dimension names."""
+    return xr.DataArray(
+        df.to_numpy(),
+        coords={"snapshot": df.index, "name": df.columns},
+        dims=("snapshot", "name"),
+    )
+
+
 class _XarrayAccessor:
     """Accessor class that provides property-like xarray access to all attributes.
 
@@ -325,9 +334,15 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         """
         if attr == "active":
-            res = xr.DataArray(self.get_activity_mask())
+            if self.has_scenarios:
+                res = xr.DataArray(self.get_activity_mask())
+            else:
+                res = _dynamic_dataframe_to_xarray(self.get_activity_mask())
         elif attr in self.dynamic.keys():
-            res = xr.DataArray(self._as_dynamic(attr))
+            if self.has_scenarios:
+                res = xr.DataArray(self._as_dynamic(attr))
+            else:
+                res = _dynamic_dataframe_to_xarray(self._as_dynamic(attr))
         else:
             res = xr.DataArray(self.static[attr])
 

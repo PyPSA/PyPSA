@@ -419,6 +419,66 @@ def test_global_constraint_primary_energy_storage_stochastic(n_sus):
     assert n_sus.model.constraints["GlobalConstraint-co2limit"].rhs[0] == -77000.0
 
 
+def test_storage_unit_inflow_keeps_snapshot_dimension_after_reslicing():
+    """
+    StorageUnit inflow should remain selectable by snapshot after reslicing snapshots.
+
+    See https://github.com/PyPSA/PyPSA/issues/1741.
+    """
+    n = pypsa.Network()
+    n.set_investment_periods([2025, 2030])
+
+    timesteps = pd.DatetimeIndex([])
+    for period in n.investment_periods:
+        timesteps = timesteps.append(pd.date_range(f"{period}-01-01", periods=2, freq="h"))
+
+    n.set_snapshots(
+        pd.MultiIndex.from_arrays(
+            [timesteps.year, timesteps],
+            names=["period", "timestep"],
+        )
+    )
+
+    n.add("Bus", "bus")
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Carrier", "hydro", co2_emissions=0.0)
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        carrier="gas",
+        marginal_cost=50,
+        p_nom=100,
+        p_nom_extendable=True,
+        build_year=2020,
+        lifetime=30,
+    )
+    n.add("Load", "load", bus="bus", p_set=80)
+    n.add(
+        "StorageUnit",
+        "storage",
+        bus="bus",
+        carrier="hydro",
+        p_nom=10,
+        max_hours=10,
+    )
+    n.storage_units_t.inflow = pd.DataFrame(
+        10.0, index=n.snapshots, columns=["storage"]
+    )
+
+    n.snapshot_weightings.loc[:, ["objective", "stores", "generators"]] = 1
+    active_snapshots = n.snapshot_weightings[
+        n.snapshot_weightings["objective"] != 0
+    ].index
+    with pypsa.option_context("debug.runtime_verification", False):
+        n.set_snapshots(active_snapshots)
+
+        assert n.c.storage_units.da.inflow.dims == ("snapshot", "name")
+
+        n.optimize.create_model(multi_investment_periods=True)
+    assert "StorageUnit-spill" in n.model.variables
+
+
 def test_global_constraint_transmission_expansion_limit(n):
     n.add(
         "GlobalConstraint",

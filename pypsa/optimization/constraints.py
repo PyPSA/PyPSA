@@ -41,6 +41,15 @@ lookup = pd.read_csv(
 )
 
 
+def _snapshot_name_dataarray(df: pd.DataFrame) -> DataArray:
+    """Convert snapshot-indexed data to xarray with stable dimension names."""
+    return DataArray(
+        df.to_numpy(),
+        coords={"snapshot": df.index, "name": df.columns},
+        dims=("snapshot", "name"),
+    )
+
+
 def define_operational_constraints_for_non_extendables(
     n: Network,
     sns: pd.Index,
@@ -1653,11 +1662,14 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     # elapsed hours
     elapsed_h = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
-    eh = DataArray(elapsed_h)
-    try:
-        eh = eh.unstack("dim_1")
-    except ValueError:
-        pass
+    if n.has_scenarios:
+        eh = DataArray(elapsed_h)
+        try:
+            eh = eh.unstack("dim_1")
+        except ValueError:
+            pass
+    else:
+        eh = _snapshot_name_dataarray(elapsed_h)
 
     # efficiencies as xarray DataArrays
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
@@ -1849,11 +1861,13 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     # elapsed hours
     elapsed_h = expand_series(n.snapshot_weightings.stores[sns], c.active_assets)
-    eh = DataArray(elapsed_h)
-
-    # Unstack in stochastic networks with MultiIndex snapshots
-    if n.has_scenarios and "dim_1" in eh.dims:
-        eh = eh.unstack("dim_1")
+    if n.has_scenarios:
+        eh = DataArray(elapsed_h)
+        # Unstack in stochastic networks with MultiIndex snapshots
+        if "dim_1" in eh.dims:
+            eh = eh.unstack("dim_1")
+    else:
+        eh = _snapshot_name_dataarray(elapsed_h)
 
     # standing efficiency
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
