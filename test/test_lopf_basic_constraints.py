@@ -326,9 +326,11 @@ def test_define_generator_constraints():
     )
 
 
-def test_define_fixed_operational_constraints_positive():
+@pytest.mark.parametrize("mode", ["dynamic", "static", "mixed"])
+def test_define_fixed_operational_constraints_positive(mode):
     """
-    Test fixed operational constraints: fix to a positive value
+    Test fixed operational constraints: fix to a positive value, set statically,
+    dynamically, or both on the same snapshot
     """
     n = pypsa.Network()
     n.add("Bus", "bus0")
@@ -337,15 +339,26 @@ def test_define_fixed_operational_constraints_positive():
     n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
     n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9)
 
-    n.c.generators.dynamic.p_set["gen2"] = 10
+    if mode == "dynamic":
+        n.c.generators.dynamic.p_set["gen2"] = 8
+    elif mode == "static":
+        n.c.generators.static.loc["gen2", "p_set"] = 8
+    elif mode == "mixed":
+        n.c.generators.static.loc["gen2", "p_set"] = 8
+        n.c.generators.dynamic.p_set["gen1"] = 1
 
     n.optimize()
 
-    assert n.c.generators.dynamic.p["gen2"].eq(10).all()
-    assert n.c.generators.dynamic.p["gen0"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen2"].eq(8).all()
+    if mode == "mixed":
+        assert n.c.generators.dynamic.p["gen1"].eq(1).all()
+        assert n.c.generators.dynamic.p["gen0"].eq(1).all()
+    else:
+        assert n.c.generators.dynamic.p["gen0"].eq(2).all()
 
 
-def test_define_fixed_operational_constraints_zero():
+@pytest.mark.parametrize("static", [False, True])
+def test_define_fixed_operational_constraints_zero(static):
     """
     Test fixed operational constraints: fix to a zero value
     """
@@ -356,13 +369,46 @@ def test_define_fixed_operational_constraints_zero():
     n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
     n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9)
 
-    n.c.generators.dynamic.p_set["gen0"] = 0
+    if static:
+        n.c.generators.static.loc["gen0", "p_set"] = 0
+    else:
+        n.c.generators.dynamic.p_set["gen0"] = 0
 
     n.optimize()
 
     assert n.c.generators.dynamic.p["gen0"].eq(0).all()
     assert n.c.generators.dynamic.p["gen1"].eq(5).all()
     assert n.c.generators.dynamic.p["gen2"].eq(5).all()
+
+
+@pytest.mark.parametrize("static", [False, True])
+def test_define_fixed_operational_constraints_storage_unit(static):
+    """
+    Test fixed operational constraints: StorageUnit p_set fixes the net power
+    p_dispatch - p_store
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add("Generator", "gen0", bus="bus0", p_nom=20, marginal_cost=5)
+    n.add(
+        "StorageUnit",
+        "su0",
+        bus="bus0",
+        p_nom=10,
+        state_of_charge_initial=10,
+        marginal_cost=9,
+    )
+
+    if static:
+        n.c.storage_units.static.loc["su0", "p_set"] = 4
+    else:
+        n.c.storage_units.dynamic.p_set["su0"] = 4
+
+    n.optimize()
+
+    assert n.c.storage_units.dynamic.p["su0"].eq(4).all()
+    assert n.c.generators.dynamic.p["gen0"].eq(6).all()
 
 
 def test_define_fixed_operational_constraints_extendable():
@@ -404,3 +450,79 @@ def test_define_fixed_operational_constraints_extendable():
     assert n.c.generators.dynamic.p["gen0"].eq(5).all()
     assert n.c.generators.dynamic.p["gen1"].eq(5).all()
     assert n.c.generators.dynamic.p["gen2"].eq(0).all()
+
+
+def test_nodal_balance_respects_load_sign():
+    """
+    The sign attribute of Load components must be considered in the
+    nodal balance constraint. With sign=-1 (default), a load consumes
+    power; with sign=+1, it represents a fixed supply injection.
+
+    Verifies both:
+      1. The nodal balance constraint RHS equals -p_set * sign.
+      2. The solved generator dispatch matches the resulting net demand.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "B1")
+    n.add("Generator", "gen", bus="B1", p_nom=200, marginal_cost=10)
+    n.add("Load", "L_consume", bus="B1", p_set=100, sign=-1)
+    n.add("Load", "L_supply", bus="B1", p_set=100, sign=1)
+
+    n.optimize(solver_name="highs")
+
+    # Constraint RHS check: -p_set * sign per load, summed per bus
+    # Expected for bus B1: -(100 * -1) + -(100 * 1) = 100 - 100 = 0
+    rhs = n.model.constraints["Bus-nodal_balance"].rhs.sel(name="B1")
+    assert (rhs == 0).all().item()
+
+    # Generator stays idle
+    assert n.c.generators.dynamic.p["gen"].abs().max() < TOLERANCE
+    assert n.objective < TOLERANCE
+
+
+def test_nodal_balance_load_sign_rhs_values():
+    """
+    Verify the per-load contribution to the nodal balance RHS for both
+    sign conventions, independently of solver behavior.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "B1")
+    n.add("Bus", "B2")
+    n.add("Generator", "gen1", bus="B1", p_nom=500, marginal_cost=1)
+    n.add("Generator", "gen2", bus="B2", p_nom=500, marginal_cost=1)
+    n.add("Load", "L_default", bus="B1", p_set=80)  # default sign = -1
+    n.add("Load", "L_supply", bus="B2", p_set=30, sign=1)
+
+    n.optimize.create_model()
+
+    rhs = n.model.constraints["Bus-nodal_balance"].rhs
+    # Default sign=-1: RHS contribution = -p_set * (-1) = +p_set
+    assert rhs.sel(name="B1").item() == 80.0
+    # sign=+1: RHS contribution = -p_set * (+1) = -p_set
+    assert rhs.sel(name="B2").item() == -30.0
+
+
+def test_define_fixed_operational_constraints_infinite_p_nom():
+    """Non-extendable generator with p_nom=inf and p_min_pu=0 must not produce NaN bounds.
+
+    Without the inf*0 fallback, the lower bound would be NaN and the solve would fail.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add(
+        "Generator",
+        "gen_inf",
+        bus="bus0",
+        p_nom=float("inf"),
+        p_min_pu=0,
+        p_max_pu=1,
+        marginal_cost=1,
+    )
+
+    n.optimize.create_model()
+    lower = n.model.constraints["Generator-fix-p-lower"].rhs
+    assert (lower == 0).all()
+
+    n.optimize.solve_model()
+    assert n.c.generators.dynamic.p["gen_inf"].eq(10).all()

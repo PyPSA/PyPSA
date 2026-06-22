@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import merge
-from numpy import inf, isfinite, maximum, sqrt, tile
+from numpy import inf, isfinite, isinf, maximum, sqrt, tile
 from xarray import DataArray, concat, where
 
 from pypsa.common import as_index, expand_series
@@ -103,8 +103,12 @@ def define_operational_constraints_for_non_extendables(
         min_pu = min_pu.sel(snapshot=sns)
         max_pu = max_pu.sel(snapshot=sns)
 
-    lower = min_pu * nominal_fix
-    upper = max_pu * nominal_fix
+    is_inf = isinf(nominal_fix)
+    is_zero_min = min_pu == 0
+    is_zero_max = max_pu == 0
+
+    lower = (min_pu * nominal_fix).where(~(is_inf & is_zero_min), 0)
+    upper = (max_pu * nominal_fix).where(~(is_inf & is_zero_max), 0)
 
     active = c.da.active.sel(name=fix_i, snapshot=sns)
 
@@ -852,6 +856,8 @@ def define_ramp_limit_constraints(
         if is_com_fix.any():
             ds_ext = filter_first_sn * (1 - s_init_ext)
             rhs = rhs + limit_start.sel(name=ext_main_names) * p_nom_ext_var * ds_ext
+        # Adding a partial name expression sorts the name dim. This should be guarded more heavily in a future linopy release
+        rhs = rhs.sel(name=idx)
     mask_up = mask & ~no_up_limit & non_com_ext
     m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_up", mask=mask_up)
 
@@ -866,6 +872,8 @@ def define_ramp_limit_constraints(
         if is_com_fix.any():
             ds_ext = filter_first_sn * (1 - s_init_ext)
             rhs = rhs + limit_shut.sel(name=ext_main_names) * p_nom_ext_var * ds_ext
+        # Adding a partial name expression sorts the name dim. This should be guarded more heavily in a future linopy release
+        rhs = rhs.sel(name=idx)
     mask_down = mask & ~no_down_limit & non_com_ext
     m.add_constraints(
         lhs >= rhs, name=f"{c.name}-{attr}-ramp_limit_down", mask=mask_down
@@ -1141,9 +1149,8 @@ def define_nodal_balance_constraints(
             dims=["snapshot", "name"],
         )
     else:
-        loads_values = loads.da.p_set.where(
-            loads.da.active.sel(name=loads.active_assets, snapshot=sns)
-        )
+        active_mask = loads.da.active.sel(name=loads.active_assets, snapshot=sns)
+        loads_values = (-loads.da.p_set * loads.da.sign).where(active_mask)
         loads_values = loads_values.reindex(name=loads.static.index.unique("name"))
         load_buses = loads._as_xarray("bus").rename("Bus")
         if n.has_scenarios:
@@ -1619,7 +1626,8 @@ def define_fixed_operation_constraints(
     c = as_components(n, component)
     attr_set = f"{attr}_set"
 
-    if attr_set not in c.dynamic.keys() or c.dynamic[attr_set].empty:
+    # Those internal guards should be removed and for Lines/ Transformers which are passive, the method should not even be called (clean up needed everywhere)
+    if attr_set not in c.dynamic.keys():
         return
 
     fix = c.da[attr_set].sel(snapshot=sns, name=c.active_assets)
