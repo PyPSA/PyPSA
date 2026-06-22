@@ -9,15 +9,71 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pandas as pd
+import xarray as xr
 from deprecation import deprecated
-from numpy import hstack, ravel
+from numpy import hstack, ravel, zeros
 
 from pypsa.constants import RE_PORTS
 
 if TYPE_CHECKING:
-    import xarray as xr
-
     from pypsa import Network
+
+
+def period_start_mask(sns: pd.Index) -> xr.DataArray:
+    """Mark the first snapshot of each investment period.
+
+    Inter-temporal constraints (ramps, storage state of charge) link each
+    snapshot to its predecessor. With multiple investment periods a global shift
+    would wrongly link the last snapshot of one period to the first of the next.
+    This mask identifies the snapshots at which such links must reset.
+
+    Parameters
+    ----------
+    sns : pd.Index
+        Snapshots, a ``MultiIndex`` with a ``period`` level for multi-investment
+        optimisation, otherwise a plain index.
+
+    Returns
+    -------
+    xr.DataArray
+        Boolean array over ``sns``, ``True`` at the first snapshot of each
+        investment period (and at the horizon start).
+
+    """
+    is_start = zeros(len(sns), dtype=bool)
+    is_start[0] = True
+    if isinstance(sns, pd.MultiIndex) and "period" in sns.names:
+        periods = sns.get_level_values("period").to_numpy()
+        is_start[1:] = periods[1:] != periods[:-1]
+    return xr.DataArray(is_start, coords=[sns])
+
+
+def roll_within_periods(obj: xr.DataArray, sns: pd.MultiIndex) -> xr.DataArray:
+    """Cyclically roll ``obj`` by one snapshot within each investment period.
+
+    The first snapshot of every period wraps to the last snapshot of the same
+    period instead of crossing into the previous one. ``xarray.groupby`` cannot
+    do this on a ``MultiIndex`` (see https://github.com/pydata/xarray/issues/6836),
+    so we roll each period slice separately and concatenate.
+
+    Parameters
+    ----------
+    obj : xr.DataArray
+        Array indexed by a ``snapshot`` ``MultiIndex`` with a ``period`` level.
+    sns : pd.MultiIndex
+        Snapshots with a ``period`` level.
+
+    Returns
+    -------
+    xr.DataArray
+        ``obj`` rolled per period.
+
+    """
+    rolled = [
+        obj.sel(snapshot=(period, slice(None))).roll(snapshot=1)
+        for period in sns.unique("period")
+    ]
+    return xr.concat(rolled, dim="snapshot")
 
 
 @deprecated(

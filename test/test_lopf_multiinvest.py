@@ -219,6 +219,37 @@ def test_simple_network_snapshot_subset(n):
     assert (n.c.lines.dynamic.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
 
+def test_ramp_limit_resets_per_period():
+    # https://github.com/PyPSA/PyPSA/issues/1669: ramp constraints must reset at
+    # each investment period boundary, not only at the global first snapshot.
+    n = pypsa.Network(snapshots=range(4))
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "b")
+    n.add(
+        "Generator",
+        "nuclear",
+        bus="b",
+        p_nom=100,
+        p_min_pu=0.5,
+        ramp_limit_up=0.1,
+        ramp_limit_down=0.1,
+        marginal_cost=1,
+        build_year=2020,
+        lifetime=40,
+    )
+    n.add("Generator", "peaker", bus="b", p_nom=200, marginal_cost=100)
+    load = pd.Series([60, 80, 60, 90] * 2, index=n.snapshots)
+    n.add("Load", "load", bus="b", p_set=load)
+
+    status, cond = n.optimize(**kwargs)
+    assert (status, cond) == ("ok", "optimal")
+
+    for name in ("Generator-p-ramp_limit_up", "Generator-p-ramp_limit_down"):
+        mask = n.model.constraints[name].mask.sel(name="nuclear").to_pandas()
+        assert not mask.loc[idx[:, 0]].any()
+        assert mask.loc[idx[:, [1, 2, 3]]].all()
+
+
 def test_simple_network_storage_noncyclic(n_sus):
     n_sus.c.storage_units.static["state_of_charge_initial"] = 200
     n_sus.c.storage_units.static["cyclic_state_of_charge"] = False
