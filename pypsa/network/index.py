@@ -111,7 +111,8 @@ class NetworkIndexMixin(_NetworkABC):
         self._snapshots_data = self._snapshots_data.reindex(
             sns, fill_value=default_snapshot_weightings
         )
-        self._snapshots_data.index = sns
+        # reindex drops the MultiIndex name (snapshot), needs to be restored
+        self._snapshots_data.index.name = "snapshot"
 
         if isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
             hours_per_step = (
@@ -142,7 +143,7 @@ class NetworkIndexMixin(_NetworkABC):
                             self.snapshots, fill_value=attrs.default[attrs.varying][k]
                         )
                         # reindex drops the MultiIndex name (snapshot), needs to be restored
-                        dynamic[k].index = self.snapshots
+                        dynamic[k].index.name = "snapshot"
                     else:
                         # Make sure to keep timestep level in case of MultiIndex
                         dynamic[k] = dynamic[k].reindex(
@@ -154,7 +155,7 @@ class NetworkIndexMixin(_NetworkABC):
                     dynamic[k] = dynamic[k].reindex(self.snapshots)
                     if isinstance(dynamic[k].index, pd.MultiIndex):
                         # reindex drops the MultiIndex name (snapshot), needs to be restored
-                        dynamic[k].index = self.snapshots
+                        dynamic[k].index.name = "snapshot"
 
         # Synchronize investment_periods_data when snapshots have a period level
         if isinstance(sns, pd.MultiIndex):
