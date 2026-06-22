@@ -1228,14 +1228,12 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     deg_to_rad = np.pi / 180.0
     periods = sns.unique("period") if n._multi_invest else [None]
     lhs_parts = []
-    rhs_parts = []
     for period in periods:
         snapshots = sns if period is None else sns[sns.get_loc(period)]
         C_weighted = n.cycle_matrix(investment_period=period, apply_weights=True)
         if C_weighted.empty:
             continue
 
-        # LHS: sum_{l in cycle} x_l * flow_l  (with cycle direction)
         exprs = []
         for c in C_weighted.index.unique("type"):
             C_branch = DataArray(C_weighted.loc[c])
@@ -1246,11 +1244,10 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
             exprs.append(flow @ C_branch * 1e5)
         lhs_period = sum(exprs)
 
-        # Phase-shift contribution from Transformer components.
-        # Around each cycle:  sum_l C_lk * (x_l * flow_l + phase_shift_l) = 0
-        # where phase_shift is in radians with cycle-direction sign via the
-        # unweighted cycle matrix. Static phase_shift moves to the RHS as a
-        # constant; extendable phase_shift enters the LHS as a variable term.
+        # Around each cycle: sum_l C_lk * (x_l * flow_l + phase_shift_l_rad) = 0,
+        # with cycle-direction sign from the unweighted cycle matrix. Both the
+        # static constant and the extendable variable enter this period's LHS so
+        # per-period cycle constraints stay isolated under multi-investment.
         if "Transformer" in C_weighted.index.unique("type"):
             C_unw = n.cycle_matrix(investment_period=period, apply_weights=False)
             C_trafos = C_unw.loc["Transformer"]
@@ -1259,24 +1256,23 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
             active_mask = trafos["active"] & trafos.index.isin(C_trafos.index)
             active_names = trafos.index[active_mask]
             if len(active_names):
-                ps_series = trafos.loc[active_names, "phase_shift"].astype(float)
                 ext_series = trafos.loc[active_names, "phase_shift_extendable"].astype(
                     bool
                 )
 
-                # Static portion (non-extendable): constant RHS contribution
                 static_names = active_names[~ext_series.values]
                 if len(static_names):
+                    ps_dense = n.get_switchable_as_dense(
+                        "Transformer", "phase_shift", snapshots
+                    )[static_names]
                     C_static = DataArray(C_trafos.loc[static_names])
-                    ps_rad_static = DataArray(
-                        (ps_series.loc[static_names] * deg_to_rad).values,
-                        coords={"name": static_names},
-                        dims=["name"],
+                    ps_rad_da = DataArray(
+                        ps_dense.values * deg_to_rad,
+                        coords={"snapshot": snapshots, "name": static_names},
+                        dims=["snapshot", "name"],
                     )
-                    # Move to RHS: -(sum_l C_lk * phase_shift_l_rad) * 1e5
-                    rhs_parts.append(-(ps_rad_static @ C_static) * 1e5)
+                    lhs_period = lhs_period + (ps_rad_da @ C_static) * 1e5
 
-                # Extendable portion: variable term on LHS
                 ext_names = active_names[ext_series.values]
                 if len(ext_names) and "Transformer-phase_shift" in m.variables:
                     C_ext = DataArray(C_trafos.loc[ext_names])
@@ -1289,14 +1285,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
 
     if lhs_parts:
         lhs = merge(lhs_parts, dim="snapshot")
-        if rhs_parts:
-            # rhs_parts are DataArrays indexed by (snapshot, cycle); sum across periods
-            rhs = (
-                merge(rhs_parts, dim="snapshot") if len(rhs_parts) > 1 else rhs_parts[0]
-            )
-            con = lhs == rhs
-        else:
-            con = lhs == 0
+        con = lhs == 0
         mask = con.rhs.notnull()
         m.add_constraints(con, name="Kirchhoff-Voltage-Law", mask=mask)
 

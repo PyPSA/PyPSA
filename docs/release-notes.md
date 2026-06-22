@@ -15,7 +15,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
-- Phase-shifting transformers (PSTs, also known as _dwarsregeltransformatoren_) are now fully supported in linear optimal power flow. The new `phase_shift_extendable` attribute on `Transformer` makes the voltage phase-angle shift a per-snapshot decision variable bounded by `phase_shift_min` and `phase_shift_max` (degrees); the optimiser re-taps the PST each snapshot to redistribute flow around cycles, modelling TSO operational tap control. Optimised values are written to `n.transformers_t["phase_shift_opt"]`. Closes issue #456.
+- Phase-shifting transformers (PSTs, also known as _dwarsregeltransformatoren_) are now fully supported in linear optimal power flow. The new `phase_shift_extendable` attribute on `Transformer` makes the voltage phase-angle shift a per-snapshot decision variable bounded by `phase_shift_min` and `phase_shift_max` (degrees); the optimiser re-taps the PST each snapshot to redistribute flow around cycles, modelling TSO operational tap control. `phase_shift` is now a `static or series` attribute and the optimised per-snapshot angle is written back to the dynamic `n.transformers_t["phase_shift"]`. Closes issue #456.
 
 ### Bug Fixes
 

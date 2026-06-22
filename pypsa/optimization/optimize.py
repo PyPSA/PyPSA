@@ -943,9 +943,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p1", -df)
 
                 elif c.name == "Transformer" and attr == "phase_shift":
-                    # Per-snapshot optimised PST angle; preserve static input
-                    # `phase_shift` and write results to `phase_shift_opt`.
-                    _set_dynamic_data(n, c.name, "phase_shift_opt", df)
+                    c.dynamic["phase_shift"] = df.combine_first(
+                        c.dynamic["phase_shift"]
+                    )
 
                 elif c.name == "Link" and attr == "p":
                     _set_dynamic_data(n, c.name, "p", df)

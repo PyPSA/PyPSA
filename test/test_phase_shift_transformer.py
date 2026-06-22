@@ -13,8 +13,9 @@ Covers two related capabilities:
 
 2. **New feature (issue #456)**: ``phase_shift_extendable=True`` makes
    ``phase_shift`` a per-snapshot decision variable bounded by
-   ``phase_shift_min`` / ``phase_shift_max`` (degrees). The optimised values
-   are written to ``n.transformers_t["phase_shift_opt"]``.
+   ``phase_shift_min`` / ``phase_shift_max`` (degrees). ``phase_shift`` is a
+   ``static or series`` attribute; the optimised per-snapshot values are written
+   back to the dynamic ``n.transformers_t["phase_shift"]``.
 
 Physical setup: two parallel branches between buses A and B.
 
@@ -119,24 +120,24 @@ class TestExtendablePhaseShift:
         n.optimize(solver_name="highs")
         assert "Transformer-phase_shift" in n.model.variables
 
-    def test_extendable_writes_phase_shift_opt(self):
-        """Optimised per-snapshot values end up in n.transformers_t.phase_shift_opt."""
+    def test_extendable_writes_dynamic_phase_shift(self):
+        """Optimised per-snapshot values end up in n.transformers_t.phase_shift."""
         n = _build(extendable=True)
         n.optimize(solver_name="highs")
-        assert "T1" in n.transformers_t.phase_shift_opt.columns
-        values = n.transformers_t.phase_shift_opt["T1"].values
+        assert "T1" in n.transformers_t.phase_shift.columns
+        values = n.transformers_t.phase_shift["T1"].values
         assert len(values) == len(n.snapshots)
 
     def test_extendable_respects_bounds(self):
         """Optimised phase_shift stays within [phase_shift_min, phase_shift_max]."""
         n = _build(extendable=True, phase_shift_min=-15.0, phase_shift_max=5.0)
         n.optimize(solver_name="highs")
-        vals = n.transformers_t.phase_shift_opt["T1"].values
+        vals = n.transformers_t.phase_shift["T1"].values
         assert (vals >= -15.0 - 1e-6).all()
         assert (vals <= 5.0 + 1e-6).all()
 
     def test_extendable_preserves_static_phase_shift(self):
-        """The input attribute `phase_shift` is not overwritten by assign_solution."""
+        """The static input attribute `phase_shift` is not overwritten by the solve."""
         n = _build(phase_shift=0.0, extendable=True)
         assert n.transformers.at["T1", "phase_shift"] == 0.0
         n.optimize(solver_name="highs")
@@ -148,6 +149,14 @@ class TestExtendablePhaseShift:
         n = _build(phase_shift=5.0, extendable=False)
         n.optimize(solver_name="highs")
         assert "Transformer-phase_shift" not in n.model.variables
+
+    def test_static_phase_shift_stays_static(self):
+        """Non-extendable transformers keep phase_shift in the static frame."""
+        n = _build(phase_shift=5.0, extendable=False)
+        n.optimize(solver_name="highs")
+        assert "T1" not in n.transformers_t.phase_shift.columns
+        dense = n.get_switchable_as_dense("Transformer", "phase_shift")
+        assert (dense["T1"].values == 5.0).all()
 
 
 class TestMixedStaticAndExtendable:
@@ -183,6 +192,70 @@ class TestMixedStaticAndExtendable:
         # Extendable var present, static input unchanged
         assert "Transformer-phase_shift" in n.model.variables
         assert n.transformers.at["T1", "phase_shift"] == 5.0
+        # Realised angles: static (T1) stays static, optimised (T2) lands in `_t`
+        dense = n.get_switchable_as_dense("Transformer", "phase_shift")
+        assert (dense["T1"].values == 5.0).all()
+        assert "T2" in n.transformers_t.phase_shift.columns
+        t2_opt = dense["T2"].values
+        assert ((t2_opt >= -20.0 - 1e-6) & (t2_opt <= 20.0 + 1e-6)).all()
+
+
+class TestMultiInvestmentPeriod:
+    """Static phase_shift must not leak across investment periods.
+
+    A transformer active in only one period must not contribute its KVL term
+    to periods where it is retired. Regression for the snapshot-less RHS that
+    broadcast one period's constant onto every period.
+    """
+
+    def test_static_phase_shift_isolated_per_period(self):
+        n = pypsa.Network()
+        n.set_snapshots([0, 1])
+        n.investment_periods = [2020, 2030]
+        n.add("Carrier", "AC")
+        n.add("Bus", "A", v_nom=1.0, carrier="AC")
+        n.add("Bus", "B", v_nom=1.0, carrier="AC")
+        n.add(
+            "Generator", "gen_A", bus="A", p_nom=100, marginal_cost=10.0, carrier="AC"
+        )
+        n.add("Load", "load_B", bus="B", p_set=50.0)
+        n.add("Line", "L1", bus0="A", bus1="B", x=0.01, r=1e-6, s_nom=100, carrier="AC")
+        # T1 carries a static phase shift but retires before 2030.
+        n.add(
+            "Transformer",
+            "T1",
+            bus0="A",
+            bus1="B",
+            x=1.0,
+            r=1e-6,
+            s_nom=100,
+            phase_shift=10.0,
+            build_year=2020,
+            lifetime=5,
+            carrier="AC",
+        )
+        # L2 only exists in 2030 to keep a cycle there (x ratio L1:L2 = 1:3).
+        n.add(
+            "Line",
+            "L2",
+            bus0="A",
+            bus1="B",
+            x=0.03,
+            r=1e-6,
+            s_nom=100,
+            build_year=2030,
+            lifetime=100,
+            carrier="AC",
+        )
+        n.optimize(multi_investment_periods=True, solver_name="highs")
+
+        # 2030: T1 retired → pure L1||L2 split by inverse reactance, unaffected
+        # by T1's phase shift. 3:1 inverse-x split of 50 MW.
+        assert n.lines_t.p0.loc[(2030, 0), "L1"] == pytest.approx(37.5, abs=0.1)
+        assert n.lines_t.p0.loc[(2030, 0), "L2"] == pytest.approx(12.5, abs=0.1)
+        # 2020: phase shift active, moves flow off T1 onto L1.
+        assert n.lines_t.p0.loc[(2020, 0), "L1"] > 25.0
+        assert n.transformers_t.p0.loc[(2020, 0), "T1"] < 25.0
 
 
 class TestLOPFMatchesLinearPowerFlow:
@@ -224,7 +297,7 @@ class TestLOPFMatchesLinearPowerFlow:
         """
         n = _build(extendable=True, phase_shift_min=-20.0, phase_shift_max=20.0)
         n.optimize(solver_name="highs")
-        opt_angle = float(n.transformers_t.phase_shift_opt["T1"].iloc[0])
+        opt_angle = float(n.transformers_t.phase_shift["T1"].iloc[0])
         lopf_L1 = n.lines_t.p0["L1"].copy()
         check = _build(phase_shift=opt_angle)
         check.lpf()
