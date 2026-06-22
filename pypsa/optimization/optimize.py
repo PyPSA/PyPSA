@@ -61,6 +61,7 @@ from pypsa.optimization.variables import (
     define_loss_variables,
     define_maintenance_capacity_variables,
     define_maintenance_start_variables,
+    define_maintenance_status_variables,
     define_maintenance_variables,
     define_modular_variables,
     define_nominal_variables,
@@ -706,6 +707,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_maintenance_variables(n, sns, c)
             define_maintenance_start_variables(n, sns, c)
             define_maintenance_capacity_variables(n, sns, c)
+            define_maintenance_status_variables(n, sns, c)
             define_committability_variables_constraints_with_fixed_upper_limit(
                 n, sns, c, attr
             )
@@ -934,7 +936,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             _c_name, attr = name.split("-", 1)
 
             # Skip auxiliary McCormick linearization variables
-            if attr == "maintenance_capacity":
+            if attr in ("maintenance_capacity", "maintenance_status"):
                 continue
 
             if not hasattr(n.c, _c_name):

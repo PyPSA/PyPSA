@@ -279,8 +279,11 @@ def define_maintenance_capacity_variables(
 
     """
     c = n.c[c_name]
-    maint_ext_i = c.maintainables.intersection(c.extendables).difference(
-        c.inactive_assets
+    modular_com = c.modulars.intersection(c.committables)
+    maint_ext_i = (
+        c.maintainables.intersection(c.extendables)
+        .difference(c.inactive_assets)
+        .difference(modular_com)
     )
 
     if maint_ext_i.empty:
@@ -291,6 +294,45 @@ def define_maintenance_capacity_variables(
         lower=0,
         coords=active.coords,
         name=f"{c.name}-maintenance_capacity",
+        mask=active,
+    )
+
+
+def define_maintenance_status_variables(n: Network, sns: Sequence, c_name: str) -> None:
+    """Initialize auxiliary variables for linearizing status * maintenance.
+
+    Needed for maintainable committable components whose dispatch bounds scale
+    capacity by the commitment status, i.e. fixed (binary status) and modular
+    (integer module count) committables. The variable represents
+    w = status * maintenance and is bounded via McCormick constraints in
+    define_operational_constraints_for_committables, decoupling the commitment
+    status from the maintenance status so a unit can be shut down while in
+    maintenance. Non-modular extendable committables use the big-M formulation
+    instead and are excluded.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : Sequence
+        Set of snapshots for which to define the variables
+    c_name : str
+        Name of the network component ("Generator", "Link" or "Process")
+
+    """
+    c = n.c[c_name]
+    com_i = c.committables.difference(c.inactive_assets)
+    non_modular_ext = c.extendables.difference(c.modulars)
+    maint_w_i = com_i.intersection(c.maintainables).difference(non_modular_ext)
+
+    if maint_w_i.empty:
+        return
+
+    active = c.da.active.sel(name=maint_w_i, snapshot=sns)
+    n.model.add_variables(
+        lower=0,
+        coords=active.coords,
+        name=f"{c.name}-maintenance_status",
         mask=active,
     )
 

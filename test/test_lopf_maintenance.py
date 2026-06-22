@@ -143,6 +143,158 @@ def test_committable_maintainable(basic_network):
             assert p[t] < 1e-5
 
 
+@pytest.mark.parametrize("maintenance_pu", [0.3, 0.5, 0.8])
+def test_committable_fractional_maintenance_allows_shutdown(
+    basic_network, maintenance_pu
+):
+    n = basic_network
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=50,
+        committable=True,
+        p_min_pu=0.3,
+        maintainable=True,
+        maintenance_duration=2,
+        maintenance_pu=maintenance_pu,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=10)
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    status = n.optimize()
+    assert status[0] == "ok"
+
+    maint = n.c.generators.dynamic.maintenance["gen"].values
+    p = n.c.generators.dynamic.p["gen"].values
+    com_status = n.c.generators.dynamic.status["gen"].values
+    in_maint = maint > 0.5
+    assert in_maint.sum() == 2
+    assert (p[in_maint] < 1e-5).all()
+    assert (com_status[in_maint] < 0.5).all()
+
+
+def test_committable_full_maintenance_allows_shutdown(basic_network):
+    n = basic_network
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=50,
+        committable=True,
+        p_min_pu=0.3,
+        start_up_cost=100,
+        maintainable=True,
+        maintenance_duration=2,
+        maintenance_pu=1.0,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=10)
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    status = n.optimize()
+    assert status[0] == "ok"
+
+    maint = n.c.generators.dynamic.maintenance["gen"].values
+    p = n.c.generators.dynamic.p["gen"].values
+    com_status = n.c.generators.dynamic.status["gen"].values
+    in_maint = maint > 0.5
+    assert in_maint.sum() == 2
+    assert (p < 1e-5).all()
+    assert (com_status[in_maint] < 0.5).all()
+    assert "maintenance_status" not in n.c.generators.dynamic
+
+
+def test_linearized_uc_maintenance(basic_network):
+    n = basic_network
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=10,
+        committable=True,
+        p_min_pu=0.3,
+        maintainable=True,
+        maintenance_duration=2,
+        maintenance_pu=1.0,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    status = n.optimize(linearized_unit_commitment=True)
+    assert status[0] == "ok"
+
+    maint = n.c.generators.dynamic.maintenance["gen"].values
+    p = n.c.generators.dynamic.p["gen"].values
+    in_maint = maint > 0.5
+    assert in_maint.sum() == 2
+    assert (p[in_maint] < 1e-4).all()
+
+
+def test_modular_committable_maintenance(basic_network):
+    n = basic_network
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_mod=50,
+        p_nom_extendable=True,
+        p_nom_max=100,
+        capital_cost=1,
+        marginal_cost=10,
+        committable=True,
+        maintainable=True,
+        maintenance_duration=2,
+        maintenance_pu=1.0,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    status = n.optimize()
+    assert status[0] == "ok"
+
+    maint = n.c.generators.dynamic.maintenance["gen"].values
+    p = n.c.generators.dynamic.p["gen"].values
+    in_maint = maint > 0.5
+    assert in_maint.sum() == 2
+    assert (p[in_maint] < 1e-4).all()
+    assert "maintenance_status" not in n.c.generators.dynamic
+    assert "maintenance_capacity" not in n.c.generators.dynamic
+
+
+def test_modular_committable_fractional_maintenance(basic_network):
+    n = basic_network
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_mod=50,
+        p_nom_extendable=True,
+        p_nom_max=100,
+        capital_cost=1,
+        marginal_cost=10,
+        committable=True,
+        maintainable=True,
+        maintenance_duration=2,
+        maintenance_pu=0.5,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=80)
+
+    status = n.optimize()
+    assert status[0] == "ok"
+
+    maint = n.c.generators.dynamic.maintenance["gen"].values
+    p = n.c.generators.dynamic.p["gen"].values
+    backup = n.c.generators.dynamic.p["backup"].values
+    in_maint = maint > 0.5
+    assert in_maint.sum() == 2
+    assert (p[in_maint] <= 50 + 1e-4).all()
+    assert (backup[in_maint] >= 30 - 1e-4).all()
+
+
 def test_extendable_maintainable(basic_network):
     n = basic_network
     n.add(

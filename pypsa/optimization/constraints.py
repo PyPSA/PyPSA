@@ -425,11 +425,29 @@ def define_operational_constraints_for_committables(
 
         if not maint_com_fix_i.empty:
             alpha = c.da.maintenance_pu.sel(name=maint_com_fix_i)
+            u = status.sel(name=maint_com_fix_i)
             m = n.model[f"{c.name}-maintenance"].sel(name=maint_com_fix_i)
-            maint_lower = (lower_p_fix.sel(name=maint_com_fix_i) * alpha * m).reindex(
+            w = n.model[f"{c.name}-maintenance_status"].sel(name=maint_com_fix_i)
+            active_maint = active.sel(name=maint_com_fix_i)
+
+            n.model.add_constraints(
+                w - u <= 0,
+                name=f"{c.name}-maint-status-le-status",
+                mask=active_maint,
+            )
+            n.model.add_constraints(
+                w - m <= 0,
+                name=f"{c.name}-maint-status-le-maint",
+                mask=active_maint,
+            )
+            n.model.add_constraints(
+                w - u - m >= -1, name=f"{c.name}-maint-status-lb", mask=active_maint
+            )
+
+            maint_lower = (lower_p_fix.sel(name=maint_com_fix_i) * alpha * w).reindex(
                 name=com_fix_i, fill_value=0
             )
-            maint_upper = (upper_p_fix.sel(name=maint_com_fix_i) * alpha * m).reindex(
+            maint_upper = (upper_p_fix.sel(name=maint_com_fix_i) * alpha * w).reindex(
                 name=com_fix_i, fill_value=0
             )
             lhs_lower_fix = lhs_lower_fix + maint_lower
@@ -470,8 +488,46 @@ def define_operational_constraints_for_committables(
         lower_p_mod = min_pu_mod * nominal_mod
         upper_p_mod = max_pu_mod * nominal_mod
 
-        # Lower constraint: p >= min_pu * p_nom_mod * status
-        lhs_lower_mod = (1, p_mod), (-lower_p_mod, status_mod)
+        lhs_lower_mod = p_mod - lower_p_mod * status_mod
+        lhs_upper_mod = p_mod - upper_p_mod * status_mod
+
+        maint_com_mod_i = com_mod_i.intersection(maint_i)
+        if not maint_com_mod_i.empty:
+            nom_max = c.da[f"{c._operational_attrs['nom']}_max"].sel(
+                name=maint_com_mod_i
+            )
+            modules_max = nom_max / nominal_mod.sel(name=maint_com_mod_i)
+            alpha = c.da.maintenance_pu.sel(name=maint_com_mod_i)
+            u = status.sel(name=maint_com_mod_i)
+            m = n.model[f"{c.name}-maintenance"].sel(name=maint_com_mod_i)
+            w = n.model[f"{c.name}-maintenance_status"].sel(name=maint_com_mod_i)
+            active_maint = active.sel(name=maint_com_mod_i)
+
+            n.model.add_constraints(
+                w - u <= 0,
+                name=f"{c.name}-maint-modstatus-le-status",
+                mask=active_maint,
+            )
+            n.model.add_constraints(
+                w - modules_max * m <= 0,
+                name=f"{c.name}-maint-modstatus-le-maint",
+                mask=active_maint,
+            )
+            n.model.add_constraints(
+                w - u - modules_max * m >= -modules_max,
+                name=f"{c.name}-maint-modstatus-lb",
+                mask=active_maint,
+            )
+
+            maint_lower = (lower_p_mod.sel(name=maint_com_mod_i) * alpha * w).reindex(
+                name=com_mod_i, fill_value=0
+            )
+            maint_upper = (upper_p_mod.sel(name=maint_com_mod_i) * alpha * w).reindex(
+                name=com_mod_i, fill_value=0
+            )
+            lhs_lower_mod = lhs_lower_mod + maint_lower
+            lhs_upper_mod = lhs_upper_mod + maint_upper
+
         n.model.add_constraints(
             lhs_lower_mod,
             ">=",
@@ -479,9 +535,6 @@ def define_operational_constraints_for_committables(
             name=f"{c.name}-com-mod-p-lower",
             mask=active_mod,
         )
-
-        # Upper constraint: p <= max_pu * p_nom_mod * status
-        lhs_upper_mod = (1, p_mod), (-upper_p_mod, status_mod)
         n.model.add_constraints(
             lhs_upper_mod,
             "<=",
@@ -746,7 +799,8 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
         )
 
     ext_i = c.extendables.difference(c.inactive_assets)
-    maint_ext_i = maint_i.intersection(ext_i)
+    modular_com = c.modulars.intersection(c.committables)
+    maint_ext_i = maint_i.intersection(ext_i).difference(modular_com)
     if not maint_ext_i.empty:
         nom_attr = c._operational_attrs["nom"]
         p_nom = n.model[f"{c.name}-{nom_attr}"].sel(name=maint_ext_i)

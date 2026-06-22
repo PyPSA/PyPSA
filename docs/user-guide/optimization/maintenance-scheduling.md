@@ -67,14 +67,35 @@ Together with $z \geq 0$, these form the convex hull of $z = \hat{g} \cdot m$ fo
 
 ### Committable Components
 
-When combined with unit commitment (`committable=True`), the dispatch bounds incorporate both the commitment status $u$ and the maintenance status $m$:
+When combined with unit commitment (`committable=True`), the dispatch bounds scale the available capacity by $u_{n,s,t} - \alpha_{n,s} \cdot w_{n,s,t}$, where $w = u \cdot m$ is the product of the commitment status and the maintenance status. This couples the two decisions exactly: at full maintenance ($\alpha = 1$) the unit can be shut down ($u = 0$), while fractional maintenance leaves the remaining capacity available if committed.
 
 === "Generator (fixed capacity)"
 
     | Constraint | Name |
     |-------------------|------------------|
-    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot \hat{g}_{n,s} \cdot u_{n,s,t} - \underline{g}_{n,s,t} \cdot \hat{g}_{n,s} \cdot \alpha_{n,s} \cdot m_{n,s,t}$ | `Generator-com-p-lower` |
-    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot \hat{g}_{n,s} \cdot u_{n,s,t} - \bar{g}_{n,s,t} \cdot \hat{g}_{n,s} \cdot \alpha_{n,s} \cdot m_{n,s,t}$ | `Generator-com-p-upper` |
+    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot \hat{g}_{n,s} \cdot (u_{n,s,t} - \alpha_{n,s} \cdot w_{n,s,t})$ | `Generator-com-p-lower` |
+    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot \hat{g}_{n,s} \cdot (u_{n,s,t} - \alpha_{n,s} \cdot w_{n,s,t})$ | `Generator-com-p-upper` |
+    | $w_{n,s,t} \leq u_{n,s,t}$ | `Generator-maint-status-le-status` |
+    | $w_{n,s,t} \leq m_{n,s,t}$ | `Generator-maint-status-le-maint` |
+    | $w_{n,s,t} \geq u_{n,s,t} + m_{n,s,t} - 1$ | `Generator-maint-status-lb` |
+
+    Together with $w \geq 0$, these McCormick inequalities give $w = u \cdot m$ exactly, since $m$ is binary. This holds for binary status (standard unit commitment) and for the relaxed continuous status of `linearized_unit_commitment=True`. The auxiliary variable $w$ is internal and not written to the network outputs.
+
+=== "Generator (modular capacity)"
+
+    For modular committables the status $u^{\mathrm{mod}}_{n,s,t}$ is the integer
+    number of committed modules and $\hat{g}^{\mathrm{mod}}_{n,s}$ the module size.
+    The same product $w = u^{\mathrm{mod}} \cdot m$ scales the committed capacity,
+    with $U_{n,s} = \hat{g}^{\max}_{n,s} / \hat{g}^{\mathrm{mod}}_{n,s}$ bounding the
+    module count.
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot \hat{g}^{\mathrm{mod}}_{n,s} \cdot (u^{\mathrm{mod}}_{n,s,t} - \alpha_{n,s} \cdot w_{n,s,t})$ | `Generator-com-mod-p-lower` |
+    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot \hat{g}^{\mathrm{mod}}_{n,s} \cdot (u^{\mathrm{mod}}_{n,s,t} - \alpha_{n,s} \cdot w_{n,s,t})$ | `Generator-com-mod-p-upper` |
+    | $w_{n,s,t} \leq u^{\mathrm{mod}}_{n,s,t}$ | `Generator-maint-modstatus-le-status` |
+    | $w_{n,s,t} \leq U_{n,s} \cdot m_{n,s,t}$ | `Generator-maint-modstatus-le-maint` |
+    | $w_{n,s,t} \geq u^{\mathrm{mod}}_{n,s,t} - U_{n,s} \cdot (1 - m_{n,s,t})$ | `Generator-maint-modstatus-lb` |
 
 === "Generator (extendable capacity)"
 
@@ -83,6 +104,10 @@ When combined with unit commitment (`committable=True`), the dispatch bounds inc
     | $g_{n,s,t} - \underline{g}_{n,s,t} \cdot \hat{g}_{n,s} - M \cdot u_{n,s,t} + \underline{g}_{n,s,t} \cdot \alpha_{n,s} \cdot z_{n,s,t} \geq -M$ | `Generator-com-ext-p-lower` |
     | $g_{n,s,t} - M \cdot u_{n,s,t} \leq 0$ | `Generator-com-ext-p-upper-bigM` |
     | $g_{n,s,t} - \bar{g}_{n,s,t} \cdot \hat{g}_{n,s} + \bar{g}_{n,s,t} \cdot \alpha_{n,s} \cdot z_{n,s,t} \leq 0$ | `Generator-com-ext-p-upper` |
+
+    Non-modular extendable committables keep the big-M status formulation with the
+    McCormick capacity auxiliary $z = \hat{g} \cdot m$; modular committables use the
+    integer-status product $w$ above instead.
 
 
 ## Event Count
@@ -135,9 +160,9 @@ These constraints are defined in the functions `define_maintenance_variables()`,
 
 !!! warning "Caveats"
 
-    - For committable components, the current dispatch bounds effectively force
-      the commitment status to $u_{*,t} = 1$ while in maintenance, so start-up
-      costs and minimum up/down times interact with maintenance events.
+    - For committable components, a unit may be shut down ($u_{*,t} = 0$) during
+      maintenance. If it stays committed (e.g. forced by minimum up time),
+      start-up costs and minimum up/down times interact with maintenance events.
     - In rolling-horizon optimisation, the event count applies per horizon chunk
       and in-progress events are not carried over across chunk boundaries.
 
@@ -150,6 +175,7 @@ These constraints are defined in the functions `define_maintenance_variables()`,
         | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
         | $m_{n,s,t}$       | `n.generators_t.maintenance` | Decision variable |
         | $ms_{n,s,t}$      | `n.generators_t.maintenance_start` | Decision variable |
+        | $w_{n,s,t}$       | internal, not written to outputs | Decision variable |
         | $z_{n,s,t}$       | internal, not written to outputs | Decision variable |
         | $\hat{g}_{n,s}$   | `n.generators.p_nom` | Parameter |
         | $\hat{g}^{\min}_{n,s}$ | `n.generators.p_nom_min` | Parameter |
@@ -167,6 +193,7 @@ These constraints are defined in the functions `define_maintenance_variables()`,
         | $f_{l,t}$         | `n.links_t.p`  | Decision variable |
         | $m_{l,t}$         | `n.links_t.maintenance`  | Decision variable |
         | $ms_{l,t}$        | `n.links_t.maintenance_start`  | Decision variable |
+        | $w_{l,t}$         | internal, not written to outputs  | Decision variable |
         | $z_{l,t}$         | internal, not written to outputs  | Decision variable |
         | $\hat{f}_{l}$     | `n.links.p_nom`  | Parameter |
         | $\hat{f}^{\min}_{l}$ | `n.links.p_nom_min` | Parameter |
