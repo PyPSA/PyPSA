@@ -39,7 +39,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. (<!-- md:pr 1686 -->)
 
-- Coerce extension-backed string indices, columns, and values to `object` dtype on import (NetCDF, CSV, HDF5, Excel). Loading networks under pandas with extension strings (`pd.options.future.infer_string = True` or pandas `>= 3.0`) previously produced `StringDtype` indices (PyArrow- or NumPy-backed) that silently broke downstream xarray/linopy operations such as `optimize()` and copy-based redispatch patterns. (<!-- md:pr 1687 -->)
+- Fix networks loaded from file (NetCDF, CSV, HDF5, Excel) silently misbehaving in `optimize()` and copy-based workflows on pandas `>= 3.0` (or with `future.infer_string` enabled). On these versions pandas reads text labels in a new string format that some downstream operations mishandle without warning; labels are now converted back to the standard format on import. (<!-- md:pr 1687 -->)
 
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
