@@ -1739,7 +1739,7 @@ def add_legend_arrows(
     """
     sizes = np.atleast_1d(sizes) ** 0.5
     labels = np.atleast_1d(labels)
-    colors = np.atleast_1d(colors)  # type: ignore
+    colors = np.atleast_1d("b" if colors is None else colors)
 
     if patch_kw is None:
         patch_kw = {"linewidth": 1, "zorder": 4}
