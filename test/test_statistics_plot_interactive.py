@@ -364,14 +364,14 @@ class TestInteractivePlotIssue1719:
             ac_dc_network_r.statistics.prices.iplot.bar(carrier="AC")
 
     def test_mathtext_in_legend_is_sanitized(self, ac_dc_network_r):
-        """#7: LaTeX subscripts in nice names render as Unicode in legends."""
+        """#7: LaTeX subscripts in nice names become Plotly tags in legends."""
         n = ac_dc_network_r.copy()
         n.c.carriers.static.loc["gas", "nice_name"] = "CO$_2$"
         fig = n.statistics.installed_capacity.iplot.bar(
             x="value", y="bus_carrier", color="carrier"
         )
         names = [str(t.name) for t in fig.data]
-        assert "CO₂" in names
+        assert "CO<sub>2</sub>" in names
         assert not any("$" in name for name in names)
 
     def test_empty_facets_stay_visible(self, ac_dc_network_r):

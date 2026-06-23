@@ -24,19 +24,15 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fixed a collection of issues in the [`n.statistics.*.plot`/`.iplot`][pypsa.statistics.StatisticsAccessor] accessors (<!-- md:pr 1719 -->):
     - `color=None` now disables color grouping instead of falling back to `"carrier"`.
-    - Statistics-only arguments such as `at_port` are routed to the statistics call instead of leaking to the plotting backend.
     - Passing an unsupported filter (e.g. `carrier` to `prices`) now raises a clear error instead of being silently dropped.
     - Distribution plots (`box`/`violin`/`histogram`) default to the full time series so they show real distributions.
-    - Box/violin figure height scales with the number of categorical rows (capped at 30 inches).
+    - `box`/`violin` figure height scales with the number of categorical rows (capped at 30 inches).
     - Static `line`/`scatter` plots honor carrier colors via the palette.
-    - LaTeX sub-/superscripts in carrier nice names (e.g. `H$_2$`) are converted to Unicode so Plotly legends render correctly.
     - Requested but empty facets stay visible instead of being silently dropped.
     - `sharex=False`/`sharey=False` keeps tick labels on all faceted subplots.
     - Interactive plots with a categorical y-axis label every bar and scale the figure height with the number of rows (capped at 2000 pixels), instead of thinning tick labels.
     - Static faceted plots now accept `col_wrap` to wrap facets across rows.
     - [`n.statistics.prices`][pypsa.statistics.StatisticsAccessor.prices] accepts any static bus attribute (e.g. `country`) in `groupby`, and its plot accessors support these as dimensions (e.g. `prices.plot.box(facet_row="country")`) instead of failing with a `KeyError`.
-- Avoid redundant traces and legends in interactive statistics bar plots when
-  the color dimension duplicates an axis. (<!-- md:pr -->)
 - Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] silently ignoring a static `p_set` attribute. (<!-- md:pr 1703 -->)
 
 - Fix optimization results being silently zeroed for components which are not yet present in the existing dynamic result data. Regression introduced in `v1.2.0`. (<!-- md:pr 1726 -->)

@@ -11,16 +11,16 @@ from pypsa.plot.statistics.schema import apply_parameter_schema
 @pytest.mark.parametrize(
     ("label", "expected"),
     [
-        ("H$_2$ Storage", "H₂ Storage"),
-        ("CO$_2$", "CO₂"),
-        ("x$^2$", "x²"),
-        ("N$_2$O", "N₂O"),
+        ("H$_2$ Storage", "H<sub>2</sub> Storage"),
+        ("CO$_2$", "CO<sub>2</sub>"),
+        ("x$^2$", "x<sup>2</sup>"),
+        ("N$_2$O", "N<sub>2</sub>O"),
         ("plain name", "plain name"),
         (42, 42),
     ],
 )
 def test_sanitize_mathtext(label, expected):
-    """#7: LaTeX sub-/superscripts are converted to Unicode glyphs."""
+    """#7: LaTeX sub-/superscripts convert to Plotly tags."""
     assert sanitize_mathtext(label) == expected
 
 

@@ -19,6 +19,7 @@ import seaborn as sns
 from pypsa.plot.statistics.base import UNSET, PlotsGenerator, sanitize_mathtext
 
 DISTRIBUTION_TYPES = ["box", "violin", "histogram"]
+CHART_TYPES = ["area", "bar", "scatter", "line", *DISTRIBUTION_TYPES]
 
 # Per-row height scaling for categorical axes: inches (static) / pixels (interactive).
 ROW_HEIGHT_IN = 0.3
@@ -34,16 +35,6 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure
 
-
-CHART_TYPES = [
-    "area",
-    "bar",
-    "scatter",
-    "line",
-    "box",
-    "violin",
-    "histogram",
-]
 
 SEABORN_PLOT_FUNCS = {
     "scatter": sns.scatterplot,
@@ -259,8 +250,7 @@ def facet_iter(
 
     for i, row_val in enumerate(row_vals):
         for j, col_val in enumerate(col_vals):
-            # Get the axis for this facet. With col_wrap the axes grid is
-            # flattened to 1-D in column-major facet order.
+            # col_wrap flattens the axes grid to 1-D (column-major facet order)
             if g.axes.ndim == 1:
                 ax = g.axes[j if len(col_vals) > 1 else i]
             else:
@@ -600,17 +590,18 @@ class ChartGenerator(PlotsGenerator, ABC):
         Order values are sanitized like the plotted data so LaTeX carrier
         names still match.
         """
+
+        def sanitize(order: Sequence[str]) -> list:
+            return [sanitize_mathtext(v) if isinstance(v, str) else v for v in order]
+
         category_orders = {}
         if facet_row is not None and row_order is not None:
-            category_orders[facet_row] = row_order
+            category_orders[facet_row] = sanitize(row_order)
         if facet_col is not None and col_order is not None:
-            category_orders[facet_col] = col_order
+            category_orders[facet_col] = sanitize(col_order)
         if color is not None and color_order is not None:
-            category_orders[color] = color_order
-        return {
-            key: [sanitize_mathtext(v) if isinstance(v, str) else v for v in order]
-            for key, order in category_orders.items()
-        }
+            category_orders[color] = sanitize(color_order)
+        return category_orders
 
     def iplot(
         self,
@@ -645,8 +636,6 @@ class ChartGenerator(PlotsGenerator, ABC):
             ldata = ldata.query(query)
         ldata = self._validate(ldata)
 
-        # Replace LaTeX mathtext in labels with Unicode so Plotly legends render
-        # the full text (Plotly 6 otherwise drops text around MathJax glyphs).
         ldata = ldata.apply(
             lambda col: col.map(sanitize_mathtext) if col.dtype == "object" else col
         )
