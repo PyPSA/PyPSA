@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import importlib.resources as pkg_resources
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -20,6 +19,7 @@ from xarray import DataArray, concat, where
 from pypsa.common import as_index, expand_series
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
+from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
 
@@ -34,10 +34,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# TODO move to constants.py
-PYPSA_DIR = pkg_resources.files("pypsa")
 lookup = pd.read_csv(
-    PYPSA_DIR / "data" / "variables.csv",
+    PYPSA_DATA_DIR / "variables.csv",
     index_col=["component", "variable"],
 )
 
@@ -1575,7 +1573,8 @@ def define_fixed_operation_constraints(
     c = as_components(n, component)
     attr_set = f"{attr}_set"
 
-    if attr_set not in c.dynamic.keys() or c.dynamic[attr_set].empty:
+    # Those internal guards should be removed and for Lines/ Transformers which are passive, the method should not even be called (clean up needed everywhere)
+    if attr_set not in c.dynamic.keys():
         return
 
     fix = c.da[attr_set].sel(snapshot=sns, name=c.active_assets)

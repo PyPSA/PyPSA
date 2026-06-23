@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import importlib.resources as pkg_resources
 import logging
 import warnings
 from typing import TYPE_CHECKING, Any
@@ -22,6 +21,7 @@ from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
+from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
@@ -74,9 +74,8 @@ if TYPE_CHECKING:
     from pypsa.components import Links, Processes
 logger = logging.getLogger(__name__)
 
-PYPSA_DIR = pkg_resources.files("pypsa")
 lookup = pd.read_csv(
-    PYPSA_DIR / "data" / "variables.csv",
+    PYPSA_DATA_DIR / "variables.csv",
     index_col=["component", "variable"],
 )
 
