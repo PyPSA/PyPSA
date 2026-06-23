@@ -34,6 +34,9 @@ SPDX-License-Identifier: CC-BY-4.0
     - `sharex=False`/`sharey=False` keeps tick labels on all faceted subplots.
     - Interactive plots with a categorical y-axis label every bar and scale the figure height with the number of rows (capped at 2000 pixels), instead of thinning tick labels.
     - Static faceted plots now accept `col_wrap` to wrap facets across rows.
+    - Multi-period statistics (e.g. `optimal_capacity`) name their per-period columns `period`, so line/area plots no longer fail with `KeyError: 'period'`.
+    - A dimension mapped to `x`/`y`/`color` (e.g. `x="period"`) is no longer also used as an automatic facet.
+    - Filtering by `carrier`/`bus_carrier` on a [`NetworkCollection`][pypsa.NetworkCollection] (or stochastic network) with `nice_names=True` no longer raises `NotImplementedError`.
     - [`n.statistics.prices`][pypsa.statistics.StatisticsAccessor.prices] accepts any static bus attribute (e.g. `country`) in `groupby`, and its plot accessors support these as dimensions (e.g. `prices.plot.box(facet_row="country")`) instead of failing with a `KeyError`.
 - Avoid redundant traces and legends in interactive statistics bar plots when
   the color dimension duplicates an axis. (<!-- md:pr -->)

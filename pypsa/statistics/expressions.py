@@ -391,7 +391,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     def _concat_periods(
         self, dfs: list[pd.DataFrame] | dict[str, pd.DataFrame], c: str
     ) -> pd.DataFrame:
-        return pd.concat(dfs, axis=1)
+        return pd.concat(dfs, axis=1, names=[self._n.investment_periods.name])
 
     def _weighted_sum_per_network(
         self, df: pd.DataFrame, weights: pd.Series

@@ -237,6 +237,14 @@ def _apply_auto_faceting(plot_name: str, kwargs: dict, context: dict) -> dict:
     has_scenarios = context.get("has_scenarios", False)
     period_name = context.get("period_name")
     is_bar = plot_name == "bar"
+
+    # A dimension already mapped to an axis must not also become a facet.
+    assigned = {kwargs.get(axis) for axis in ("x", "y", "color")}
+    if period_name in assigned:
+        period_name = None
+    if "scenario" in assigned:
+        has_scenarios = False
+    index_names = [name for name in index_names if name not in assigned]
     n_idx = len(index_names)
 
     # For area plots, we want to facet by period if multi-invest or scenario if stochastic
