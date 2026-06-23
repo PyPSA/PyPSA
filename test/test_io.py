@@ -285,14 +285,13 @@ class TestNetcdf:
     @pytest.mark.filterwarnings(
         "ignore:Dtype inference on a pandas object:FutureWarning"
     )
-    def test_netcdf_io_no_arrow_string_arrays(self, tmpdir):
-        """Loaded NetCDFs must not yield Arrow-backed string indices/columns.
+    def test_netcdf_io_coerces_string_dtypes_to_object(self, tmpdir):
+        """Loaded NetCDFs must yield object-dtype strings, not ``StringDtype``.
 
-        Regression test for https://github.com/PyPSA/PyPSA/issues/1585:
-        Arrow-backed string arrays break ``optimize()`` downstream.
+        Regression for PyPSA/PyPSA#1585; ``object`` catches both the PyArrow-
+        and NumPy-backed extension strings.
         """
-        arrow_string_array = pd.arrays.ArrowStringArray
-        fn = tmpdir / "arrow_strings.nc"
+        fn = tmpdir / "string_dtypes.nc"
 
         n = pypsa.Network()
         n.set_snapshots(pd.date_range("2025-01-01", periods=4, freq="h"))
@@ -306,17 +305,18 @@ class TestNetcdf:
 
         for c in m.components:
             df = c.static
-            assert not isinstance(df.index.values, arrow_string_array), (
-                f"{c.name}.static.index is ArrowStringArray"
+            assert df.index.dtype == object, (
+                f"{c.name}.static.index is {df.index.dtype}"
             )
             for col in df.columns:
-                assert not isinstance(df[col].values, arrow_string_array), (
-                    f"{c.name}.static[{col!r}] is ArrowStringArray"
-                )
+                if df[col].dtype != object:
+                    assert not isinstance(df[col].dtype, pd.StringDtype), (
+                        f"{c.name}.static[{col!r}] is {df[col].dtype}"
+                    )
             for key, dyn_df in c.dynamic.items():
                 if isinstance(dyn_df, pd.DataFrame) and not dyn_df.empty:
-                    assert not isinstance(dyn_df.columns.values, arrow_string_array), (
-                        f"{c.name}.dynamic[{key!r}].columns is ArrowStringArray"
+                    assert dyn_df.columns.dtype == object, (
+                        f"{c.name}.dynamic[{key!r}].columns is {dyn_df.columns.dtype}"
                     )
 
     @pytest.mark.skipif(

@@ -39,7 +39,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. (<!-- md:pr 1686 -->)
 
-- Coerce Arrow-backed string indices, columns, and values to `object` dtype on import (NetCDF, CSV, HDF5, Excel). Loading networks under pandas with PyArrow-backed strings (`pd.options.future.infer_string = True` or pandas `>= 3.0`) previously produced `ArrowStringArray` indices that silently broke downstream xarray/linopy operations in `optimize()`, `optimize_with_rolling_horizon()`, and copy-based redispatch patterns. Also unblocks the stock `ac_dc_meshed` rolling-horizon example reported in #1656.
+- Coerce extension-backed string indices, columns, and values to `object` dtype on import (NetCDF, CSV, HDF5, Excel). Loading networks under pandas with extension strings (`pd.options.future.infer_string = True` or pandas `>= 3.0`) previously produced `StringDtype` indices (PyArrow- or NumPy-backed) that silently broke downstream xarray/linopy operations such as `optimize()` and copy-based redispatch patterns. (<!-- md:pr 1687 -->)
 
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }

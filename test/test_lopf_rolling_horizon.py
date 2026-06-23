@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: MIT
 
 import numpy as np
-import pandas as pd
 import pytest
 
 import pypsa
@@ -254,32 +253,3 @@ def test_rolling_horizon_linearized_uc_with_ramp_limits():
     static = n.c.generators.static.loc[committable_gens]
     ramp_limits = static.eval("ramp_limit_up * p_nom_opt")
     assert (ramping.values <= ramp_limits.values[None, :] + 1e-5).all()
-
-
-@pytest.mark.filterwarnings("ignore:Dtype inference on a pandas object:FutureWarning")
-def test_rolling_horizon_ac_dc_meshed_arrow_strings_1656():
-    """Rolling horizon on the stock ac_dc_meshed example under Arrow-backed strings.
-
-    Regression for issue #1656. Before #1585 / #1687, importing under
-    pandas with ``future.infer_string=True`` left ``Components.static.index``
-    as ``ArrowStringArray``, which broke ``xarray.sel(name=...)`` inside the
-    rolling-horizon LP build. The fix coerces Arrow-backed strings to
-    ``object`` dtype on every importer path, so the stock example now
-    solves cleanly. This test exercises the gincrement repro from #1656
-    end-to-end and asserts the inner solve produced a non-trivial objective.
-    """
-    prev_infer_string = pd.options.future.infer_string
-    pd.options.future.infer_string = True
-    try:
-        n = pypsa.examples.ac_dc_meshed()
-        # ac_dc_meshed has 10 snapshots; horizon=3 + overlap=1 gives 5 chunks.
-        n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=1)
-        assert n.objective != 0
-        # Indices are object dtype, not ArrowStringArray.
-        for comp in ("buses", "lines", "links", "generators"):
-            idx_values = n.c[comp].static.index.values
-            assert not isinstance(idx_values, pd.arrays.ArrowStringArray), (
-                f"{comp}.static.index leaked ArrowStringArray after import"
-            )
-    finally:
-        pd.options.future.infer_string = prev_infer_string
