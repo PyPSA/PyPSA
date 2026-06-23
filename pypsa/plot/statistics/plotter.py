@@ -114,20 +114,24 @@ class _StatisticPlotterBase:
         )
 
         # Forward requested filter values as facet order so empty facets stay
-        # visible instead of being silently dropped. Statistics label carriers
-        # by their nice names, so map the requested values accordingly.
+        # visible instead of being silently dropped. Carrier dimensions are
+        # relabeled to their nice names to match the plotted data.
+        carrier_labels: dict | None = None
         for axis, order_key in (("facet_col", "col_order"), ("facet_row", "row_order")):
             facet_val = plot_kwargs.get(axis)
             requested = stats_kwargs.get(facet_val) if facet_val else None
-            if (
-                facet_val in ("carrier", "bus_carrier")
-                and plot_kwargs.get(order_key) is None
-                and isinstance(requested, (list, tuple))
+            if plot_kwargs.get(order_key) is not None or not isinstance(
+                requested, (list, tuple)
             ):
-                labels = plotter.get_carrier_labels(
-                    nice_names=plot_kwargs.get("nice_names", True)
-                )
-                plot_kwargs[order_key] = [labels.get(v, v) for v in requested]
+                continue
+            if facet_val in ("carrier", "bus_carrier"):
+                if carrier_labels is None:
+                    carrier_labels = plotter.get_carrier_labels(
+                        nice_names=plot_kwargs.get("nice_names", True)
+                    )
+                plot_kwargs[order_key] = [carrier_labels.get(v, v) for v in requested]
+            else:
+                plot_kwargs[order_key] = list(requested)
 
         # Use helper for filtering
         relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)

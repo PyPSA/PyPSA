@@ -36,10 +36,6 @@ from pypsa.plot.statistics.charts import CHART_TYPES
 # feature) and must not be replaced by the schema default.
 _NONE_DISABLES = {"color"}
 
-# Excluded parameters that are always populated by the plotter signature and
-# should therefore be dropped silently rather than raising.
-_STRUCTURAL_EXCLUDED = {"nice_names"}
-
 # Base defaults for all parameters
 DEFAULTS = {
     "x": "carrier",
@@ -80,9 +76,14 @@ ALLOWED_PARAMS = {
     "revenue": ["direction"],
 }
 
-# Excluded params per statistic
-EXCLUDED_PARAMS = {
-    "prices": ["carrier", "nice_names"],
+# Excluded params per statistic. Each param maps to an error hint shown when a
+# user passes it explicitly; ``None`` marks a structurally-injected param (always
+# populated by the plotter signature) that is dropped silently instead of raising.
+EXCLUDED_PARAMS: dict[str, dict[str, str | None]] = {
+    "prices": {
+        "carrier": "Use 'bus_carrier' instead.",
+        "nice_names": None,
+    },
 }
 
 # Statistic-specific overrides per plot type
@@ -216,7 +217,7 @@ def _combine_schemas() -> dict:
                     schema[stat][plot_type][param] = {"default": value, "allowed": True}
 
             # Apply exclusions
-            for param in EXCLUDED_PARAMS.get(stat, []):
+            for param in EXCLUDED_PARAMS.get(stat, {}):
                 if param in schema[stat][plot_type]:
                     schema[stat][plot_type][param]["allowed"] = False
 
@@ -303,14 +304,15 @@ def apply_parameter_schema(
     """
     to_remove = []
 
+    excluded = EXCLUDED_PARAMS.get(stats_name, {})
     for param, value in kwargs.items():
         # Check if parameter is explicitly excluded for this statistic
-        if param in EXCLUDED_PARAMS.get(stats_name, []):
-            if value not in (None, UNSET) and param not in _STRUCTURAL_EXCLUDED:
-                hint = " Use 'bus_carrier' instead." if param == "carrier" else ""
+        if param in excluded:
+            hint = excluded[param]
+            if value not in (None, UNSET) and hint is not None:
                 msg = (
                     f"'{param}' is not a supported parameter for the "
-                    f"'{stats_name}' statistic.{hint}"
+                    f"'{stats_name}' statistic. {hint}"
                 )
                 raise ValueError(msg)
             to_remove.append(param)

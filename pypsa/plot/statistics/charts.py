@@ -551,9 +551,7 @@ class ChartGenerator(PlotsGenerator, ABC):
             if kind in ["box", "violin"]:
                 # FacetGrid adds color internally, remove to avoid conflict with hue
                 kwargs.pop("color", None)
-            plot_kwargs = {"x": x, "hue": color, **kwargs}
-            if kind != "histogram" or y is not None:
-                plot_kwargs["y"] = y
+            plot_kwargs = {"x": x, "y": y, "hue": color, **kwargs}
             if color is not None:
                 plot_kwargs["palette"] = palette
             g.map_dataframe(SEABORN_PLOT_FUNCS[kind], **plot_kwargs)

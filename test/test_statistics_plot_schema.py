@@ -39,6 +39,12 @@ def test_schema_raises_for_excluded_filter():
         apply_parameter_schema("prices", "bar", {"carrier": "AC"})
 
 
+def test_schema_drops_structural_excluded_param_silently():
+    """Structurally-injected excluded params (nice_names) are dropped, not raised."""
+    result = apply_parameter_schema("prices", "bar", {"nice_names": True})
+    assert "nice_names" not in result
+
+
 class TestSchemaContext:
     """Test that schema functions work with context parameter."""
 
