@@ -1866,8 +1866,7 @@ class NetworkIOMixin(_NetworkABC):
             if not isinstance(new_static.index, pd.MultiIndex)
             else ["scenario", "name"]
         )
-        # astype(str) above re-introduces extension strings under
-        # ``future.infer_string=True``; coerce again. See issue #1585.
+        # astype(str) above stringifies labels; normalize their dtype to object. See #1585.
         new_static = _coerce_string_dtypes(new_static)
         self.components[cls_name].static = new_static
 
