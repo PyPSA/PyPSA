@@ -199,9 +199,6 @@ class TestNetcdf:
         fn = tmpdir / "netcdf_export.nc"
         ac_dc_periods.export_to_netcdf(fn)
         m = pypsa.Network(fn)
-        # NetCDF reload coerces Arrow-backed string columns to object dtype to
-        # keep downstream xarray/linopy ops stable (issue #1585); the in-memory
-        # fixture may still hold StringDtype columns from pandas auto-inference.
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
