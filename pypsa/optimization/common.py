@@ -19,27 +19,8 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 
-def period_start_mask(sns: pd.Index) -> xr.DataArray:
-    """Mark the first snapshot of each investment period.
-
-    Inter-temporal constraints (ramps, storage state of charge) link each
-    snapshot to its predecessor. With multiple investment periods a global shift
-    would wrongly link the last snapshot of one period to the first of the next.
-    This mask identifies the snapshots at which such links must reset.
-
-    Parameters
-    ----------
-    sns : pd.Index
-        Snapshots, a ``MultiIndex`` with a ``period`` level for multi-investment
-        optimisation, otherwise a plain index.
-
-    Returns
-    -------
-    xr.DataArray
-        Boolean array over ``sns``, ``True`` at the first snapshot of each
-        investment period (and at the horizon start).
-
-    """
+def _period_start_mask(sns: pd.Index) -> xr.DataArray:
+    """Mark the first snapshot of each investment period."""
     is_start = zeros(len(sns), dtype=bool)
     is_start[0] = True
     if isinstance(sns, pd.MultiIndex) and "period" in sns.names:
@@ -48,27 +29,8 @@ def period_start_mask(sns: pd.Index) -> xr.DataArray:
     return xr.DataArray(is_start, coords=[sns])
 
 
-def roll_within_periods(obj: xr.DataArray, sns: pd.MultiIndex) -> xr.DataArray:
-    """Cyclically roll ``obj`` by one snapshot within each investment period.
-
-    The first snapshot of every period wraps to the last snapshot of the same
-    period instead of crossing into the previous one. ``xarray.groupby`` cannot
-    do this on a ``MultiIndex`` (see https://github.com/pydata/xarray/issues/6836),
-    so we roll each period slice separately and concatenate.
-
-    Parameters
-    ----------
-    obj : xr.DataArray
-        Array indexed by a ``snapshot`` ``MultiIndex`` with a ``period`` level.
-    sns : pd.MultiIndex
-        Snapshots with a ``period`` level.
-
-    Returns
-    -------
-    xr.DataArray
-        ``obj`` rolled per period.
-
-    """
+def _roll_within_periods(obj: xr.DataArray, sns: pd.MultiIndex) -> xr.DataArray:
+    """Cyclically roll ``obj`` by one snapshot within each investment period."""
     rolled = [
         obj.sel(snapshot=(period, slice(None))).roll(snapshot=1)
         for period in sns.unique("period")

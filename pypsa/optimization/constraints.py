@@ -22,9 +22,9 @@ from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import (
-    period_start_mask,
+    _period_start_mask,
+    _roll_within_periods,
     reindex,
-    roll_within_periods,
 )
 
 if TYPE_CHECKING:
@@ -836,7 +836,7 @@ def define_ramp_limit_constraints(
         mask[0] = p_init.notnull()
 
     # skip starts of periods except the first where p_init is used
-    boundary = period_start_mask(sns)
+    boundary = _period_start_mask(sns)
     boundary[0] = False
     mask = mask & ~boundary
 
@@ -1712,7 +1712,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         ) | c.da.state_of_charge_initial_per_period.sel(name=c.active_assets)
 
         # We calculate the previous soc per period while cycling within a period
-        previous_soc_pp = roll_within_periods(soc.data, sns)
+        previous_soc_pp = _roll_within_periods(soc.data, sns)
 
         # We create a mask `include_previous_soc_pp` which determines when to include
         # previous state of charge from within the period:
@@ -1721,7 +1721,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         #   * If CP=True AND IP=False: cycle to last snapshot of period (wrap)
         #   * If IP=True: use initial value instead (no wrap, handled via rhs)
         #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
-        within_period = ~period_start_mask(sns)
+        within_period = ~_period_start_mask(sns)
         include_previous_soc_pp = active & (
             within_period
             | c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
@@ -1890,7 +1890,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         per_period = per_period.sel(name=c.active_assets)
 
         # We calculate the previous e per period while cycling within a period
-        previous_e_pp = roll_within_periods(e.data, sns)
+        previous_e_pp = _roll_within_periods(e.data, sns)
 
         # We create a mask `include_previous_e_pp` which determines when to include
         # previous energy from within the period:
@@ -1899,7 +1899,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         #   * If CP=True AND IP=False: cycle to last snapshot of period (wrap)
         #   * If IP=True: use initial value instead (no wrap, handled via rhs)
         #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
-        within_period = ~period_start_mask(sns)
+        within_period = ~_period_start_mask(sns)
         include_previous_e_pp = active & (
             within_period | c.da.e_cyclic_per_period.sel(name=c.active_assets)
         )
