@@ -4,7 +4,10 @@
 
 """Constants."""
 
+import importlib.resources
 import re
+
+PYPSA_DATA_DIR = importlib.resources.files("pypsa") / "data"
 
 DEFAULT_EPSG = 4326
 DEFAULT_TIMESTAMP = "now"
