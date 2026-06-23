@@ -37,6 +37,7 @@ SPDX-License-Identifier: CC-BY-4.0
     - Multi-period statistics (e.g. `optimal_capacity`) name their per-period columns `period`, so line/area plots no longer fail with `KeyError: 'period'`.
     - A dimension mapped to `x`/`y`/`color` (e.g. `x="period"`) is no longer also used as an automatic facet.
     - Filtering by `carrier`/`bus_carrier` on a [`NetworkCollection`][pypsa.NetworkCollection] (or stochastic network) with `nice_names=True` no longer raises `NotImplementedError`.
+    - Non-bar plots of a collection (or stochastic network) of multi-period networks now facet by both the collection/scenario dimension and the period, instead of dropping the period (which made area plots fail with `cannot reshape` and line plots overlap periods).
     - [`n.statistics.prices`][pypsa.statistics.StatisticsAccessor.prices] accepts any static bus attribute (e.g. `country`) in `groupby`, and its plot accessors support these as dimensions (e.g. `prices.plot.box(facet_row="country")`) instead of failing with a `KeyError`.
 - Avoid redundant traces and legends in interactive statistics bar plots when
   the color dimension duplicates an axis. (<!-- md:pr -->)

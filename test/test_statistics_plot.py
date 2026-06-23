@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 import seaborn as sns
 
+from pypsa import NetworkCollection
 from pypsa.consistency import ConsistencyError
 from pypsa.plot.statistics.base import UNSET
 from pypsa.plot.statistics.charts import (
@@ -296,6 +297,27 @@ def test_networks_stacking(network_collection):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+
+
+@pytest.mark.parametrize("kind", ["line", "area"])
+def test_collection_of_multi_investment_facets_both_dimensions(ac_dc_network_r, kind):
+    """A collection of multi-invest networks facets by scenario and period.
+
+    Previously the period dimension was dropped, so area plots collided on the
+    period axis (``cannot reshape``) and line plots silently overlapped periods.
+    """
+    network = ac_dc_network_r.copy()
+    network.investment_periods = pd.Index([2020, 2030], name="period")
+    nc = NetworkCollection(
+        [network, network.copy()], index=pd.Index(["a", "b"], name="scenario")
+    )
+
+    plotter = getattr(nc.statistics.supply.plot, kind)
+    fig, ax, g = plotter(color="carrier")
+
+    assert {g._row_var, g._col_var} == {"scenario", "period"}
+    assert g.axes.shape == (2, 2)
+    plt.close(fig)
 
 
 def test_networks_plot_map(network_collection):

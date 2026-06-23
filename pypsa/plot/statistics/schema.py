@@ -247,32 +247,30 @@ def _apply_auto_faceting(plot_name: str, kwargs: dict, context: dict) -> dict:
     index_names = [name for name in index_names if name not in assigned]
     n_idx = len(index_names)
 
-    # For area plots, we want to facet by period if multi-invest or scenario if stochastic
-    if not is_bar and period_name and n_idx == 0 and not has_scenarios:
-        # Multi-invest network without collection: facet by period
-        kwargs["facet_col"] = period_name
-    elif not is_bar and has_scenarios and n_idx == 0 and not period_name:
-        # Stochastic network without collection or multi-invest: facet by scenario
-        kwargs["facet_col"] = "scenario"
-    elif not is_bar and n_idx == 1 and has_scenarios:
-        # Collection of stochastic networks: 2D faceting (collection index + scenario)
-        kwargs["facet_row"] = index_names[0]
-        kwargs["facet_col"] = "scenario"
+    if not is_bar:
+        # Non-bar plots map carrier to color and cannot stack extra dimensions
+        # on a single axis, so every remaining dimension (collection index
+        # levels, scenarios, investment periods) must become a facet. Assign up
+        # to two as row/col; further dimensions are aggregated by the backend.
+        facet_dims = [*index_names]
+        if has_scenarios:
+            facet_dims.append("scenario")
+        if period_name:
+            facet_dims.append(period_name)
+        if len(facet_dims) == 1:
+            kwargs["facet_col"] = facet_dims[0]
+        elif len(facet_dims) >= 2:
+            kwargs["facet_row"] = facet_dims[0]
+            kwargs["facet_col"] = facet_dims[1]
     elif n_idx >= 2:
-        # When scenarios present: use 2D faceting for bar plots
-        # When no scenarios: use 1D faceting + color for bar plots
-        if is_bar and has_scenarios:
+        # Bar plots map carrier to color and aggregate scenarios, so they only
+        # facet by collection index levels: 2D when scenarios are also present.
+        if has_scenarios:
             kwargs["facet_row"] = index_names[0]
             kwargs["facet_col"] = index_names[1]
-        elif is_bar:
-            kwargs["facet_col"] = index_names[0]
         else:
-            # Other plots: always use 2D faceting
-            kwargs["facet_row"] = index_names[0]
-            kwargs["facet_col"] = index_names[1]
-    elif n_idx == 1 and (has_scenarios or not is_bar):
-        # When scenarios present: always facet
-        # When no scenarios: only non-bar plots facet (bar uses color)
+            kwargs["facet_col"] = index_names[0]
+    elif n_idx == 1 and has_scenarios:
         kwargs["facet_col"] = index_names[0]
 
     return kwargs
