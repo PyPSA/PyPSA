@@ -1148,9 +1148,8 @@ def define_nodal_balance_constraints(
             dims=["snapshot", "name"],
         )
     else:
-        loads_values = loads.da.p_set.where(
-            loads.da.active.sel(name=loads.active_assets, snapshot=sns)
-        )
+        active_mask = loads.da.active.sel(name=loads.active_assets, snapshot=sns)
+        loads_values = (-loads.da.p_set * loads.da.sign).where(active_mask)
         loads_values = loads_values.reindex(name=loads.static.index.unique("name"))
         load_buses = loads._as_xarray("bus").rename("Bus")
         if n.has_scenarios:
@@ -1575,7 +1574,8 @@ def define_fixed_operation_constraints(
     c = as_components(n, component)
     attr_set = f"{attr}_set"
 
-    if attr_set not in c.dynamic.keys() or c.dynamic[attr_set].empty:
+    # Those internal guards should be removed and for Lines/ Transformers which are passive, the method should not even be called (clean up needed everywhere)
+    if attr_set not in c.dynamic.keys():
         return
 
     fix = c.da[attr_set].sel(snapshot=sns, name=c.active_assets)

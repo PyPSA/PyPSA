@@ -361,3 +361,21 @@ def test_getitem_index_methods():
     ):
         with pytest.raises(NotImplementedError, match="Tuple slicing is deprecated"):
             n[("Manchester", slice(0, 2))]
+
+
+def test_set_snapshots_preserves_dynamic_multiindex_name():
+    # Regression for #1741: re-setting MultiIndex snapshots must not drop the
+    # "snapshot" index name on dynamic data, else its DataArray dim becomes "dim_0".
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.set_investment_periods([2025, 2030])
+    n.add("Bus", "bus")
+    n.add("StorageUnit", "storage", bus="bus")
+    n.storage_units_t.inflow = pd.DataFrame(1.0, index=n.snapshots, columns=["storage"])
+
+    # set snapshots again
+    n.set_snapshots(n.snapshots)
+
+    assert n.snapshots.name == "snapshot"
+    assert n.storage_units_t.inflow.index.name == "snapshot"
+    assert n.components.storage_units.da.inflow.dims == ("snapshot", "name")
