@@ -14,8 +14,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
-- Improved package-internal file path resolution to use `importlib.resources.files()`. (<!-- md:pr 1720 -->)
-
 ## [**v1.2.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.3) <small>12th June 2026</small> { id="v1.2.3" }
 
 ### Features
