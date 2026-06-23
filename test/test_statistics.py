@@ -502,24 +502,29 @@ def multi_invest_network():
 
 
 class TestMultiInvest:
+    @staticmethod
     @pytest.fixture(scope="class")
-    def capex(self, multi_invest_network):
+    def capex(multi_invest_network):
         return multi_invest_network.statistics.capex()
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def capex_ungrouped(self, multi_invest_network):
+    def capex_ungrouped(multi_invest_network):
         return multi_invest_network.statistics.capex(groupby=False)
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def opex(self, multi_invest_network):
+    def opex(multi_invest_network):
         return multi_invest_network.statistics.opex()
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def opex_ungrouped(self, multi_invest_network):
+    def opex_ungrouped(multi_invest_network):
         return multi_invest_network.statistics.opex(groupby=False)
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def system_cost(self, multi_invest_network):
+    def system_cost(multi_invest_network):
         return multi_invest_network.statistics.system_cost()
 
     def test_capex_structure(self, capex):
