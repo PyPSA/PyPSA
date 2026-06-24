@@ -115,6 +115,9 @@ v_0 \\ v_1
 
 The transformer models here are largely based on the implementation in [pandapower](https://github.com/panda-power/pandapower), which is loosely based on [DIgSILENT PowerFactory](http://www.digsilent.de/index.php/products-powerfactory.html).
 
+!!! note "Impedance units"
+    Transformer `r`, `x`, `g`, `b` are given in per unit (base power `s_nom`, base voltage `v_nom`), as found on transformer datasheets, whereas line impedances are given in physical units (Ω and S). PyPSA rescales them to a common 1 MVA base via `x_pu = x / s_nom`.
+
 Transformers are modelled either with the equivalent T model (the default, since this represents the physics better) or with the equivalent PI model. The can be controlled by setting transformer attribute `model` to either "t" or "pi".
 
 The tap changer can either be modelled on the primary, high voltage side 0 (the default) or on the secondary, low voltage side 1. This is set with attribute `tap_side`.
