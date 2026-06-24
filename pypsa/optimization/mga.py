@@ -216,7 +216,6 @@ class OptimizationAbstractMGAMixin:
                     coeffs = pd.Series(coeffs)
                 if attr == nominal_attrs[c] and isinstance(coeffs, pd.Series):
                     coeffs = coeffs.reindex(self._n.c[c].extendables, fill_value=0)
-                    coeffs.index.name = ""
                 elif isinstance(coeffs, pd.Series):
                     coeffs = coeffs.reindex(columns=self._n.c[c].static.index)
                 elif isinstance(coeffs, pd.DataFrame):
