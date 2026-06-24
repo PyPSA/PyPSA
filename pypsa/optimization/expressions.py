@@ -132,7 +132,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     def _aggregate_components_concat_values(
         self, exprs: list[LinearExpression], agg: Callable | str
     ) -> LinearExpression:
-        res = ln.merge(exprs)
+        res = ln.merge(exprs, join="outer")
         if not (index := res.indexes[res.dims[0]]).is_unique:
             if agg != "sum":
                 msg = f"Aggregation method {agg} not supported."
