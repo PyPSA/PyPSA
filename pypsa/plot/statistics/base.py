@@ -18,37 +18,24 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 
-class _Unset:
-    """Sentinel marking a parameter the user did not provide.
-
-    Distinguishes "not provided" (apply the schema default) from an explicit
-    ``None`` (a deliberate user choice, e.g. ``color=None`` to disable coloring).
-    """
-
-    def __repr__(self) -> str:
-        return "UNSET"
+# Sentinel marking a parameter the user did not provide
+UNSET: Any = object()
 
 
-UNSET: Any = _Unset()
-
-
-_SUBSCRIPT = str.maketrans("0123456789+-=()aeoxhklmnpst", "₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑₒₓₕₖₗₘₙₚₛₜ")
-_SUPERSCRIPT = str.maketrans("0123456789+-=()ni", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿⁱ")
 _MATHTEXT_SUB = re.compile(r"\$_\{?([^${}]+)\}?\$")
 _MATHTEXT_SUP = re.compile(r"\$\^\{?([^${}]+)\}?\$")
 
 
 def sanitize_mathtext(label: Any) -> Any:
-    """Convert LaTeX ``$_X$``/``$^X$`` to Unicode sub-/superscripts.
+    """Convert LaTeX `$_X$`/`$^X$` to Plotly `<sub>`/`<sup>` tags.
 
-    Plotly 6 renders mathtext via MathJax, which drops surrounding text in
-    legends. Replacing the mathtext with Unicode glyphs keeps labels intact.
-    Non-string or non-mathtext labels are returned unchanged.
+    Plotly's MathJax drops the text around `$...$` in legends, but renders
+    `<sub>`/`<sup>` natively.
     """
     if not isinstance(label, str) or "$" not in label:
         return label
-    label = _MATHTEXT_SUB.sub(lambda m: m.group(1).translate(_SUBSCRIPT), label)
-    return _MATHTEXT_SUP.sub(lambda m: m.group(1).translate(_SUPERSCRIPT), label)
+    label = _MATHTEXT_SUB.sub(r"<sub>\1</sub>", label)
+    return _MATHTEXT_SUP.sub(r"<sup>\1</sup>", label)
 
 
 class PlotsGenerator(ABC):

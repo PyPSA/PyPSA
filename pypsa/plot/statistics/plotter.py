@@ -79,14 +79,10 @@ class _StatisticPlotterBase:
 
         """
         # Validate reserved kwargs
-        if any(
-            key in extra_kwargs
-            for key in ["groupby_time", "aggregate_across_components", "groupby"]
-        ):
-            msg = (
-                "'groupby_time', 'aggregate_across_components', and 'groupby' "
-                "can not be set and are automatically derived from the plot kwargs."
-            )
+        reserved = ("groupby", "groupby_time", "aggregate_across_components")
+        if any(key in extra_kwargs for key in reserved):
+            names = ", ".join(repr(k) for k in reserved)
+            msg = f"{names} can not be set; they are derived from the plot kwargs."
             raise ValueError(msg)
 
         plotter = ChartGenerator(self._n)
