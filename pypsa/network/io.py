@@ -48,10 +48,11 @@ logger = logging.getLogger(__name__)
 
 
 def _coerce_string_dtypes(df: pd.DataFrame) -> pd.DataFrame:
-    """Coerce ``StringDtype`` indices, columns and values to ``object`` dtype.
+    """Coerce `StringDtype` indices, columns and values to `object` dtype.
 
-    Extension strings (``future.infer_string`` or pandas >= 3.0) silently break
-    downstream xarray/linopy operations; see PyPSA/PyPSA#1585.
+    Under `future.infer_string` (pandas >= 3.0) string labels become extension
+    arrays that xarray rejects on the `optimize()` indexing path. Drop this once
+    fixed upstream: https://github.com/pydata/xarray/issues/10301.
     """
 
     def _coerce_axis(axis: pd.Index) -> pd.Index:
@@ -1866,7 +1867,6 @@ class NetworkIOMixin(_NetworkABC):
             if not isinstance(new_static.index, pd.MultiIndex)
             else ["scenario", "name"]
         )
-        # astype(str) above stringifies labels; normalize their dtype to object. See #1585.
         new_static = _coerce_string_dtypes(new_static)
         self.components[cls_name].static = new_static
 

@@ -283,11 +283,7 @@ class TestNetcdf:
         "ignore:Dtype inference on a pandas object:FutureWarning"
     )
     def test_netcdf_io_coerces_string_dtypes_to_object(self, tmpdir):
-        """Loaded NetCDFs must yield object-dtype strings, not ``StringDtype``.
-
-        Regression for PyPSA/PyPSA#1585; ``object`` catches both the PyArrow-
-        and NumPy-backed extension strings.
-        """
+        """Loaded NetCDFs must yield `object`-dtype strings, not `StringDtype` (#1585)."""
         fn = tmpdir / "string_dtypes.nc"
 
         n = pypsa.Network()
@@ -315,6 +311,30 @@ class TestNetcdf:
                     assert dyn_df.columns.dtype == object, (
                         f"{c.name}.dynamic[{key!r}].columns is {dyn_df.columns.dtype}"
                     )
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    def test_arrow_strings_optimize_uncoerced(self, monkeypatch):
+        """Canary: drop the #1585 coercion once this stops raising.
+
+        Without it, pyarrow-backed `infer_string` labels reach `optimize()` and xarray
+        rejects them (`TypeError: Invalid array type`). When a future xarray fixes this
+        the `pytest.raises` fails. See https://github.com/pydata/xarray/issues/10301.
+        """
+        import pypsa.examples  # noqa: PLC0415
+        from pypsa.network import io  # noqa: PLC0415
+
+        pytest.importorskip("pyarrow")
+        # Disable the workaround so the raw extension labels reach xarray.
+        monkeypatch.setattr(io, "_coerce_string_dtypes", lambda df: df)
+
+        with pd.option_context("future.infer_string", True):
+            n = pypsa.examples.ac_dc_meshed()
+            assert (
+                type(n.c.buses.static.index.array).__name__
+                == "ArrowStringArrayNumpySemantics"
+            )
+            with pytest.raises(TypeError, match="Invalid array type"):
+                n.optimize()
 
     @pytest.mark.skipif(
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
