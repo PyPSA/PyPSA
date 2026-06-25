@@ -1246,42 +1246,36 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         # Around each cycle: sum_l C_lk * (x_l * flow_l + phase_shift_l_rad) = 0,
         # with cycle-direction sign from the unweighted cycle matrix. Fixed
         # transformers contribute phase_shift_set as a constant, variable ones
-        # (phase_shift_min < phase_shift_max) contribute a decision variable.
-        # Both enter this period's LHS so per-period cycle constraints stay
-        # isolated under multi-investment.
+        # (phase_shift_min < phase_shift_max) a decision variable; both enter
+        # this period's LHS so cycle constraints stay isolated per period.
         if "Transformer" in C_weighted.index.unique("type"):
-            C_unw = n.cycle_matrix(investment_period=period, apply_weights=False)
-            C_trafos = C_unw.loc["Transformer"]
+            tr = n.c.Transformer
+            C_trafos = n.cycle_matrix(
+                investment_period=period, apply_weights=False
+            ).loc["Transformer"]
+            active = tr.static.index[
+                tr.static["active"] & tr.static.index.isin(C_trafos.index)
+            ]
+            is_var = (
+                tr.static.loc[active, "phase_shift_min"]
+                < tr.static.loc[active, "phase_shift_max"]
+            )
 
-            trafos = n.c.Transformer.static
-            active_mask = trafos["active"] & trafos.index.isin(C_trafos.index)
-            active_names = trafos.index[active_mask]
-            if len(active_names):
-                var_series = (
-                    trafos.loc[active_names, "phase_shift_min"]
-                    < trafos.loc[active_names, "phase_shift_max"]
+            fixed_names = active[~is_var.values]
+            if len(fixed_names):
+                angle = tr.da["phase_shift_set"].sel(
+                    name=fixed_names, snapshot=snapshots
                 )
+                C_fixed = DataArray(C_trafos.loc[fixed_names])
+                lhs_period = lhs_period + (angle @ C_fixed) * deg_to_rad * 1e5
 
-                fixed_names = active_names[~var_series.values]
-                if len(fixed_names):
-                    ps_dense = n.get_switchable_as_dense(
-                        "Transformer", "phase_shift_set", snapshots
-                    )[fixed_names]
-                    C_fixed = DataArray(C_trafos.loc[fixed_names])
-                    ps_rad_da = DataArray(
-                        ps_dense.values * deg_to_rad,
-                        coords={"snapshot": snapshots, "name": fixed_names},
-                        dims=["snapshot", "name"],
-                    )
-                    lhs_period = lhs_period + (ps_rad_da @ C_fixed) * 1e5
-
-                var_names = active_names[var_series.values]
-                if len(var_names) and "Transformer-phase_shift" in m.variables:
-                    C_var = DataArray(C_trafos.loc[var_names])
-                    ps_var = m["Transformer-phase_shift"].sel(
-                        snapshot=snapshots, name=var_names
-                    )
-                    lhs_period = lhs_period + (ps_var @ C_var) * deg_to_rad * 1e5
+            var_names = active[is_var.values]
+            if len(var_names) and "Transformer-phase_shift" in m.variables:
+                angle = m["Transformer-phase_shift"].sel(
+                    name=var_names, snapshot=snapshots
+                )
+                C_var = DataArray(C_trafos.loc[var_names])
+                lhs_period = lhs_period + (angle @ C_var) * deg_to_rad * 1e5
 
         lhs_parts.append(lhs_period)
 
