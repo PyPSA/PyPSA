@@ -139,6 +139,10 @@ filterwarnings = [
 
     # Ignore pandas<3.0.3 usage of the deprecated `locs` attribute of matplotlib>=3.11
     "ignore:The locs attribute was deprecated:DeprecationWarning",
+
+    # numpy>=2.5 deprecations not yet handled by netCDF4 and matplotlib
+    "ignore:Setting the shape on a NumPy array has been deprecated:DeprecationWarning",
+    "ignore:The 'generic' unit for NumPy timedelta is deprecated:DeprecationWarning",
 ]
 markers = [
     "mpl_image_compare",

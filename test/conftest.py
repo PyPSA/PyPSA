@@ -24,6 +24,17 @@ def no_warnings():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         warnings.filterwarnings("default", category=ResourceWarning)
+        # numpy>=2.5 deprecations not yet handled by netCDF4 and matplotlib
+        warnings.filterwarnings(
+            "ignore",
+            "Setting the shape on a NumPy array has been deprecated",
+            DeprecationWarning,
+        )
+        warnings.filterwarnings(
+            "ignore",
+            "The 'generic' unit for NumPy timedelta is deprecated",
+            DeprecationWarning,
+        )
         handler = logging.Handler()
         handler.setLevel(logging.WARNING)
         handler.emit = lambda record: (

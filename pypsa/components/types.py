@@ -10,19 +10,23 @@ Additional types can be added by the user.
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 
 from pypsa.common import list_as_string
+from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.definitions.components import ComponentType
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
+if TYPE_CHECKING:
+    from importlib.resources.abc import Traversable
+
 # TODO better path handeling, integrate custom components
-_components_path = Path(__file__).parent.parent / "data" / "components.csv"
-_attrs_path = Path(__file__).parent.parent / "data" / "component_attrs"
-_standard_types_path = Path(__file__).parent.parent / "data" / "standard_types"
+_components_path = PYPSA_DATA_DIR / "components.csv"
+_attrs_path = PYPSA_DATA_DIR / "component_attrs"
+_standard_types_path = PYPSA_DATA_DIR / "standard_types"
 
 component_types_df = pd.read_csv(_components_path, index_col=0)
 default_components = component_types_df.index.to_list()
@@ -138,7 +142,9 @@ def add_component_type(
 
 
 def _load_default_component_types(
-    component_df: pd.DataFrame, attrs_path: Path, standard_types_path: Path
+    component_df: pd.DataFrame,
+    attrs_path: Traversable,
+    standard_types_path: Traversable,
 ) -> None:
     """Load default component types from package data.
 
@@ -148,16 +154,16 @@ def _load_default_component_types(
     ----------
     component_df : pandas.DataFrame
         DataFrame which lists all default components. E.g. `/pypsa/data/components.csv`.
-    attrs_path : pathlib.Path
+    attrs_path : importlib.resources.abc.Traversable
         Path to the default attributes dir. E.g. `/pypsa/data/default_components/`.
-    standard_types_path : pathlib.Path
+    standard_types_path : importlib.resources.abc.Traversable
         Path to the standard types dir. E.g. `/pypsa/data/standard_types/`.
 
     """
     for c_name, row in component_df.iterrows():
         # Read in defaults attributes
         attrs_file_path = attrs_path / f"{row.list_name}.csv"
-        if not attrs_file_path.exists():
+        if not attrs_file_path.is_file():
             msg = (
                 f"Could not find {attrs_path}. For each component, there must be a "
                 "corresponding file for its attributes."
@@ -167,7 +173,7 @@ def _load_default_component_types(
 
         # Read in standard types
         types_paths = standard_types_path / f"{row.list_name}.csv"
-        if not types_paths.exists():
+        if not types_paths.is_file():
             standard_types = None
         else:
             standard_types = pd.read_csv(types_paths, index_col=0)
