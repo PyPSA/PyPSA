@@ -4,10 +4,10 @@ bus0,string,n/a,n/a,Name of origin bus (typically higher voltage) to which trans
 bus1,string,n/a,n/a,Name of destination bus (typically lower voltage) to which transformer is attached.,Input (required)
 type,string,n/a,n/a,"Name of 2-winding transformer standard type. If this is not an empty string """", the transformer type impedance parameters are taken from the standard type along with `num_parallel`. This will override any values set in `r`, `x`, `g`, `b`, `s_nom`, `tap_ratio`, `tap_side` and `phase_shift`. If the string is empty, values manually provided for `r`, `x`, etc. are taken.",Input (optional)
 model,string,n/a,t,"Model used for admittance matrix; can be ""t"" or ""pi""; defaults to ""t"" following physics and DIgSILENT PowerFactory", Input (required)
-x,float,per unit,0,"Series reactance (per unit, using `s_nom` as base power); must be non-zero for AC branch in linear power flow. Series impedance $z = r + jx$ must be non-zero for the non-linear power flow. Ignored if type defined.",Input (required)
-r,float,per unit,0,"Series resistance (per unit, using `s_nom` as base power); must be non-zero for DC branch in linear power flow. Series impedance $z = r + jx$ must be non-zero for the non-linear power flow. Ignored if type defined.",Input (required)
-g,float,per unit,0,"Shunt conductivity (per unit, using `s_nom` as base power). Ignored if type defined.",Input (optional)
-b,float,per unit,0,"Shunt susceptance (per unit, using `s_nom` as base power). Ignored if type defined.",Input (optional)
+x,float,per unit,0,"Series reactance (per unit, using `s_nom` as base power and `v_nom` as base voltage); must be non-zero for AC branch in linear power flow. Series impedance $z = r + jx$ must be non-zero for the non-linear power flow. Ignored if type defined.",Input (required)
+r,float,per unit,0,"Series resistance (per unit, using `s_nom` as base power and `v_nom` as base voltage); must be non-zero for DC branch in linear power flow. Series impedance $z = r + jx$ must be non-zero for the non-linear power flow. Ignored if type defined.",Input (required)
+g,float,per unit,0,"Shunt conductivity (per unit, using `s_nom` as base power and `v_nom` as base voltage). Ignored if type defined.",Input (optional)
+b,float,per unit,0,"Shunt susceptance (per unit, using `s_nom` as base power and `v_nom` as base voltage). Ignored if type defined.",Input (optional)
 s_nom,float,MVA,0,Limit of apparent power which can pass through branch in either direction. Ignored if `s_nom_extendable=True`.,Input (optional)
 s_nom_mod,float,MVA,0,Modular unit size of transformer expansion of `s_nom`. Introduces integer variables.,Input (optional)
 s_nom_extendable,boolean,n/a,False,Switch to allow capacity `s_nom` to be extended in optimisation.,Input (optional)
@@ -34,12 +34,12 @@ p0,series,MW,0,Active power at `bus0` (positive if branch is withdrawing power f
 q0,series,MVar,0,Reactive power at `bus0` (positive if branch is withdrawing power from `bus0`).,Output
 p1,series,MW,0,Active power at `bus1` (positive if branch is withdrawing power from `bus1`).,Output
 q1,series,MVar,0,Reactive power at `bus1` (positive if branch is withdrawing power from `bus1`).,Output
-x_pu,float,per unit,0,Per unit series reactance calculated by `n.calculate_dependent_values()` from `x` and `n.buses.v_nom`.,Output
-r_pu,float,per unit,0,Per unit series resistance calculated by `n.calculate_dependent_values()` from `r` and `n.buses.v_nom`.,Output
-g_pu,float,per unit,0,Per unit shunt conductivity calculated by `n.calculate_dependent_values()` from `g` and `n.buses.v_nom`.,Output
-b_pu,float,per unit,0,Per unit shunt susceptance calculated by `n.calculate_dependent_values()` from `b` and `n.buses.v_nom`.,Output
-x_pu_eff,float,per unit,0,"Effective per unit series reactance for linear power flow, calculated by `n.calculate_dependent_values()` from `x`, `tap_ratio` for transformers and `n.buses.v_nom`.",Output
-r_pu_eff,float,per unit,0,"Effective per unit series resistance for linear power flow, calculated by `n.calculate_dependent_values()` from `x`, `tap_ratio` for transformers and `n.buses.v_nom`.",Output
+x_pu,float,per unit,0,"Per unit series reactance rescaled to a 1 MVA base power by `n.calculate_dependent_values()` from `x` via `x_pu = x / s_nom`.",Output
+r_pu,float,per unit,0,"Per unit series resistance rescaled to a 1 MVA base power by `n.calculate_dependent_values()` from `r` via `r_pu = r / s_nom`.",Output
+g_pu,float,per unit,0,"Per unit shunt conductivity rescaled to a 1 MVA base power by `n.calculate_dependent_values()` from `g` via `g_pu = g * s_nom`.",Output
+b_pu,float,per unit,0,"Per unit shunt susceptance rescaled to a 1 MVA base power by `n.calculate_dependent_values()` from `b` via `b_pu = b * s_nom`.",Output
+x_pu_eff,float,per unit,0,"Effective per unit series reactance for linear power flow, calculated by `n.calculate_dependent_values()` from `x_pu` and `tap_ratio` via `x_pu_eff = x_pu * tap_ratio`.",Output
+r_pu_eff,float,per unit,0,"Effective per unit series resistance for linear power flow, calculated by `n.calculate_dependent_values()` from `r_pu` and `tap_ratio` via `r_pu_eff = r_pu * tap_ratio`.",Output
 s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
 mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit. Always non-negative.,Output
 mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit. Always non-negative.,Output
