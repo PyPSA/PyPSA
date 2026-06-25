@@ -84,6 +84,41 @@ def _get_potential_typos(
     }
 
 
+def _build_suffixed_names(
+    class_name: str,
+    name: str | int | Sequence[int | str],
+    suffix: str | Sequence[str],
+    single_component: bool,
+    op: str,
+) -> tuple[pd.Index, str | Sequence[str]]:
+    """Build the post-suffix component index for `n.add`/`n.remove`.
+
+    Validates list/list and empty-list suffixes, normalises a single-element
+    list suffix to a scalar so it behaves identically to the scalar form, and
+    broadcasts a scalar `name` across a list `suffix`.
+    """
+    suffix_is_list = not isinstance(suffix, str) and is_1d_list_like(suffix)
+    if suffix_is_list and not single_component:
+        msg = (
+            f"Cannot pass list to both `name` and `suffix` for n.{op} of {class_name}; "
+            "the previous behaviour silently paired them one-by-one. Pass a list to "
+            "`name` with a scalar `suffix`, or a scalar `name` with a list `suffix`."
+        )
+        raise ValueError(msg)
+    if suffix_is_list and len(suffix) == 0:
+        msg = f"Empty list `suffix` passed to n.{op} of {class_name}; pass at least one suffix."
+        raise ValueError(msg)
+    if suffix_is_list and len(suffix) == 1:
+        suffix = next(iter(suffix))
+        suffix_is_list = False
+
+    names = pd.Index([name]) if single_component else pd.Index(name)
+    if single_component and suffix_is_list:
+        names = names.repeat(len(suffix))
+    names = names.astype(str) + suffix
+    return names, suffix
+
+
 class NetworkTransformMixin(_NetworkABC):
     """Mixin class for network transform methods.
 
@@ -207,28 +242,12 @@ class NetworkTransformMixin(_NetworkABC):
                 msg += " For stochastic networks, pass simple names. They will be automatically broadcast to all scenarios."
             raise TypeError(msg)
 
-        suffix_is_list = not isinstance(suffix, str) and is_1d_list_like(suffix)
-        if suffix_is_list and not single_component:
-            msg = (
-                f"Cannot pass list to both `name` and `suffix` for n.add of {class_name}; "
-                "the previous behaviour silently paired them one-by-one. Pass a list to "
-                "`name` with a scalar `suffix`, or a scalar `name` with a list `suffix`."
-            )
-            raise ValueError(msg)
-
-        names = pd.Index([name]) if single_component else pd.Index(name)
-        # For scalar `name` + list `suffix`, broadcast the name to the suffix
-        # length so the addition is shape-matched under pandas 3 (which no
-        # longer auto-broadcasts length-1 to length-N). See #1650.
-        if single_component and suffix_is_list:
-            names = names.repeat(len(suffix))
-        names = names.astype(str) + suffix
+        names, suffix = _build_suffixed_names(
+            class_name, name, suffix, single_component, "add"
+        )
 
         names_str = "name" if single_component else "names"
-        # When `name` is scalar but `suffix` is a list, the result has multiple
-        # components; treat downstream kwargs as static (indexed by names) rather
-        # than time-varying (indexed by snapshots). See #1650.
-        single_component = single_component and not suffix_is_list
+        single_component = single_component and isinstance(suffix, str)
         # Read kwargs into static and time-varying attributes
         series = {}
         static = {}
@@ -462,21 +481,9 @@ class NetworkTransformMixin(_NetworkABC):
 
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name)
-        suffix_is_list = not isinstance(suffix, str) and is_1d_list_like(suffix)
-        if suffix_is_list and not single_component:
-            msg = (
-                f"Cannot pass list to both `name` and `suffix` for n.remove of {class_name}; "
-                "the previous behaviour silently paired them one-by-one. Pass a list to "
-                "`name` with a scalar `suffix`, or a scalar `name` with a list `suffix`."
-            )
-            raise ValueError(msg)
-
-        names = pd.Index([name]) if single_component else pd.Index(name)
-        # For scalar `name` + list `suffix`, broadcast the name to the suffix
-        # length so the addition is shape-matched under pandas 3 (see #1650).
-        if single_component and suffix_is_list:
-            names = names.repeat(len(suffix))
-        names = names.astype(str) + suffix
+        names, _ = _build_suffixed_names(
+            class_name, name, suffix, single_component, "remove"
+        )
 
         # Drop from static components
         cls_static = c.static
