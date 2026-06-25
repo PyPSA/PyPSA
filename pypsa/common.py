@@ -384,7 +384,11 @@ def equals(
             try:
                 if isinstance(a, pd.DataFrame):
                     pd_testing.assert_frame_equal(
-                        a, b, check_dtype=False, check_index_type=False
+                        a,
+                        b,
+                        check_dtype=False,
+                        check_index_type=False,
+                        check_column_type=False,
                     )
                 elif isinstance(a, pd.Series):
                     pd_testing.assert_series_equal(
