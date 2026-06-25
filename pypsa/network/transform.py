@@ -84,6 +84,11 @@ def _get_potential_typos(
     }
 
 
+def _append_suffix(label: Any, suffix: str) -> str:
+    label = str(label)
+    return label if label.endswith(suffix) else label + suffix
+
+
 def _build_suffixed_names(
     class_name: str,
     name: str | int | Sequence[int | str],
@@ -91,26 +96,21 @@ def _build_suffixed_names(
     single_component: bool,
     op: str,
 ) -> tuple[pd.Index, str | Sequence[str]]:
-    """Build the post-suffix component index for `n.add`/`n.remove`.
-
-    Validates list/list and empty-list suffixes, normalises a single-element
-    list suffix to a scalar so it behaves identically to the scalar form, and
-    broadcasts a scalar `name` across a list `suffix`.
-    """
+    """Build the post-suffix component index for `n.add`/`n.remove`."""
     suffix_is_list = not isinstance(suffix, str) and is_1d_list_like(suffix)
-    if suffix_is_list and not single_component:
-        msg = (
-            f"Cannot pass list to both `name` and `suffix` for n.{op} of {class_name}; "
-            "the previous behaviour silently paired them one-by-one. Pass a list to "
-            "`name` with a scalar `suffix`, or a scalar `name` with a list `suffix`."
-        )
-        raise ValueError(msg)
-    if suffix_is_list and len(suffix) == 0:
-        msg = f"Empty list `suffix` passed to n.{op} of {class_name}; pass at least one suffix."
-        raise ValueError(msg)
-    if suffix_is_list and len(suffix) == 1:
-        suffix = next(iter(suffix))
-        suffix_is_list = False
+    if suffix_is_list:
+        if not single_component:
+            msg = (
+                f"Cannot pass list to both `name` and `suffix` for n.{op} of {class_name}; "
+                "the previous behaviour silently paired them one-by-one. Pass a list to "
+                "`name` with a scalar `suffix`, or a scalar `name` with a list `suffix`."
+            )
+            raise ValueError(msg)
+        if len(suffix) == 0:
+            msg = f"Empty list `suffix` passed to n.{op} of {class_name}; pass at least one suffix."
+            raise ValueError(msg)
+        if len(suffix) == 1:
+            suffix, suffix_is_list = next(iter(suffix)), False
 
     names = pd.Index([name]) if single_component else pd.Index(name)
     if single_component and suffix_is_list:
@@ -296,20 +296,12 @@ class NetworkTransformMixin(_NetworkABC):
                     raise ValueError(msg.format(f"Series {k}", "network snapshots"))
             elif isinstance(v, pd.Series):
                 if isinstance(suffix, str):
-                    v = v.rename(
-                        index=lambda s: (
-                            str(s) if str(s).endswith(suffix) else str(s) + suffix
-                        )
-                    )
+                    v = v.rename(index=lambda s: _append_suffix(s, suffix))
                 if not v.index.equals(names):
                     raise ValueError(msg.format(f"Series {k}", names_str))
             if isinstance(v, pd.DataFrame):
                 if isinstance(suffix, str):
-                    v = v.rename(
-                        columns=lambda s: (
-                            str(s) if str(s).endswith(suffix) else str(s) + suffix
-                        )
-                    )
+                    v = v.rename(columns=lambda s: _append_suffix(s, suffix))
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
                 if not v.columns.equals(names):
