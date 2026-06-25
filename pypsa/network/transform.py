@@ -410,15 +410,16 @@ class NetworkTransformMixin(_NetworkABC):
                 for k, v in series.items()
             }
 
-        # Load piecewise breakpoint data
+        self._import_components_from_df(static_df, c.name, overwrite=overwrite)
+
+        # Load piecewise breakpoint data (after the static import, so that
+        # overwriting an existing component does not drop the new breakpoints)
         nom_attr = nominal_attrs.get(class_name)
         is_extendable = static_df.get(f"{nom_attr}_extendable")
         for k, v in piecewise.items():
             self._import_piecewise_from_df(
                 v, c.name, k, is_extendable=is_extendable, overwrite=overwrite
             )
-
-        self._import_components_from_df(static_df, c.name, overwrite=overwrite)
 
         # Load time-varying attributes as components
         for k, v in series.items():
