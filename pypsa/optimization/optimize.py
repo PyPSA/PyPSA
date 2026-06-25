@@ -1062,7 +1062,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                         eff_attr = c._port_coefficient_attr(i)
                         eff = n.get_switchable_as_dense(c.name, eff_attr, sns)
                         port_df = -df * eff
-                        if c.is_piecewise(eff_attr):
+                        if c.has_piecewise(eff_attr):
                             df_piecewise = _from_xarray(
                                 m.variables[f"{_c_name}-{attr}{i}_piecewise"].solution,
                                 c,

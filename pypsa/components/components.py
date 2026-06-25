@@ -429,7 +429,7 @@ class Components(
         )
         return filtered_attrs
 
-    def is_piecewise(self, attr: str) -> bool:
+    def has_piecewise(self, attr: str) -> bool:
         """Whether this component instance has piecewise breakpoint data for `attr`."""
         pw_df = self.piecewise.get(attr)
         return pw_df is not None and not pw_df.empty

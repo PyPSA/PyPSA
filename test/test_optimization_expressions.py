@@ -339,7 +339,7 @@ class TestExpressionsWithPiecewise:
             capital_cost=100,
         )
         n.optimize.create_model(include_objective_constant=False)
-        assert not n.c.links.is_piecewise("capital_cost")
+        assert not n.c.links.has_piecewise("capital_cost")
         expr = n.optimize.expressions.capex().unstack("group")
         assert "piecewise" not in str(expr)
         assert "Link-p_nom" in str(expr)

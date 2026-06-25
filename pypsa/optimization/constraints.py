@@ -1187,8 +1187,12 @@ def define_nodal_balance_constraints(
                 cbuses = cbuses.isel(scenario=0, drop=True)
             cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
             cbuses = cbuses[cbuses != ""]
+            if not cbuses.size:
+                continue
+
             pw_attr = c._piecewise_schema(coeff.name)
-            p_piecewise = 0
+            piecewise_var = None
+            piecewise_names = names[:0]
             if not pw_attr.empty:
                 extra_options = filter(
                     lambda p: p.component == c.name and p.attribute == coeff.name,
@@ -1205,40 +1209,29 @@ def define_nodal_balance_constraints(
                     cumulative_attr=False,
                     extra_options=extra_options,
                 )
-            if piecewise_var is not None:
-                piecewise_names = piecewise_var.coords["name"].values
-                for d_names, delay, is_cyclic in _iter_balance_delay(
-                    c, names, port_suffix
-                ):
-                    if delay > 0:
-                        p_piecewise += _apply_delay_shift(
-                            n,
-                            sns,
-                            c,
-                            piecewise_var,
-                            d_names.intersection(piecewise_names),
-                            delay,
-                            is_cyclic,
-                        )
-                    else:
-                        p_piecewise += piecewise_var.sel(
-                            name=d_names.intersection(piecewise_names)
-                        )
-
-                names = names.difference(piecewise_names)
+                if piecewise_var is not None:
+                    piecewise_names = piecewise_var.indexes["name"]
 
             for d_names, delay, is_cyclic in _iter_balance_delay(c, names, port_suffix):
-                if delay > 0:
-                    var = _apply_delay_shift(n, sns, c, var, d_names, delay, is_cyclic)
-
-            expr = var * coeff.sel(name=names) + p_piecewise
-
-            if not cbuses.size:
-                continue
-
-            expr = expr.sel(name=cbuses.coords["name"].values)
-            if expr.size:
-                exprs.append(_groupby_bus(expr, cbuses))
+                groups = [(d_names.difference(piecewise_names), var, True)]
+                if piecewise_var is not None:
+                    groups.append(
+                        (d_names.intersection(piecewise_names), piecewise_var, False)
+                    )
+                for group_names, source, multiply in groups:
+                    group_names = cbuses.indexes["name"].intersection(group_names)
+                    if group_names.empty:
+                        continue
+                    group_cbuses = cbuses.sel(name=group_names)
+                    if delay > 0:
+                        expr = _apply_delay_shift(
+                            n, sns, c, source, group_names, delay, is_cyclic
+                        )
+                    else:
+                        expr = source.sel(name=group_names)
+                    if multiply:
+                        expr = expr * coeff.sel(name=group_names)
+                    exprs.append(_groupby_bus(expr, group_cbuses))
 
     lhs = merge(exprs, join="outer").reindex(name=buses)
 
