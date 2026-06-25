@@ -233,7 +233,8 @@ def check_phase_shift_bounds(component: Components, strict: bool = False) -> Non
 
     A transformer phase shift is optimised when `phase_shift_min < phase_shift_max`;
     in that case both bounds must be finite for the per-snapshot tap angle to be a
-    well-posed decision variable.
+    well-posed decision variable. `phase_shift_min > phase_shift_max` is flagged as
+    a likely mistake (the shift is held fixed at `phase_shift_set`).
 
     Activate strict mode in general consistency check by passing
     `['phase_shift_bounds']` to the `strict` argument.
@@ -252,15 +253,22 @@ def check_phase_shift_bounds(component: Components, strict: bool = False) -> Non
     """
     if "phase_shift_min" not in component.static.columns:
         return
-    var = component.static[
-        component.static["phase_shift_min"] < component.static["phase_shift_max"]
-    ]
-    if var.empty:
-        return
+    ps_min = component.static["phase_shift_min"]
+    ps_max = component.static["phase_shift_max"]
 
-    non_finite = var.index[
-        ~np.isfinite(var["phase_shift_min"]) | ~np.isfinite(var["phase_shift_max"])
-    ]
+    inverted = component.static.index[ps_min > ps_max]
+    if not inverted.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have phase_shift_min greater than phase_shift_max; "
+            "the phase shift is held fixed at phase_shift_set, which is likely "
+            "unintended (set phase_shift_min < phase_shift_max to optimise it):\n%s",
+            component.list_name,
+            inverted,
+        )
+
+    var = component.static.index[ps_min < ps_max]
+    non_finite = var[~np.isfinite(ps_min[var]) | ~np.isfinite(ps_max[var])]
     if not non_finite.empty:
         _log_or_raise(
             strict,

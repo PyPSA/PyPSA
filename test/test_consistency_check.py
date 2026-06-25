@@ -86,6 +86,22 @@ def test_phase_shift_unbounded(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
+def test_phase_shift_inverted_bounds(consistent_n, caplog, strict):
+    # min > max is held fixed but is almost certainly a user mistake.
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift_min=10.0,
+        phase_shift_max=-10.0,
+    )
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
 def test_phase_shift_fixed_bounds_ok(consistent_n, caplog):
     # min >= max means a fixed shift; non-finite bounds here are irrelevant.
     consistent_n.add(
