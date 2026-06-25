@@ -70,8 +70,12 @@ def _enforce_pu_bounds(n: Network) -> None:
             if max_attr not in c.dynamic:
                 continue
             min_df = c.dynamic[min_attr]
-            upper = c.dynamic[max_attr].reindex(columns=min_df.columns)
-            c.dynamic[min_attr] = min_df.clip(upper=upper)
+            max_df = c.dynamic[max_attr]
+            common = min_df.columns.intersection(max_df.columns)
+            if common.empty:
+                continue
+            c.dynamic[min_attr].loc[:, common] = min_df[common].clip(
+                upper=max_df[common]
             )
 
 
