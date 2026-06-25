@@ -419,6 +419,9 @@ class TestDefinePiecewise:
         m.add_variables(name="x_static", coords=[idx])
         m.add_variables(name="y_static", coords=[idx])
         m.add_variables(name="x_dynamic", coords=[idx, snapshots])
+        m.add_variables(
+            name="x_status", coords=[idx, snapshots], mask=idx == "gen1", binary=True
+        )
         return m
 
     @pytest.fixture(scope="class")
@@ -591,3 +594,29 @@ class TestDefinePiecewise:
         n_w_suffix = keys.str.startswith("foo_static_gen1").sum()
         n_all = keys.str.startswith("foo_static").sum()
         assert n_w_suffix == n_all / 2
+
+    def test_use_status(self, linopy_model, default_kwargs):
+        """Test that status variable is used in piecewise constraint."""
+        _ = define_piecewise(
+            x_var=linopy_model["x_static"],
+            pw_attr="marginal_cost",
+            aux_var_name="foo_static",
+            active_names=pd.Index(["gen1", "gen_extendable"], name="name"),
+            status=linopy_model["x_status"],
+            **default_kwargs,
+        )
+        assert set(
+            linopy_model.constraints["foo_static_status_active_bound"].indexes["name"]
+        ) == {"gen1"}
+
+    def test_use_status_no_active(self, linopy_model, default_kwargs):
+        """Test that status variable is used in piecewise constraint."""
+        _ = define_piecewise(
+            x_var=linopy_model["x_static"],
+            pw_attr="marginal_cost",
+            aux_var_name="foo_static",
+            active_names=pd.Index(["gen0", "gen_extendable"], name="name"),
+            status=linopy_model["x_status"],
+            **default_kwargs,
+        )
+        assert "foo_static_status_active_bound" not in linopy_model.constraints

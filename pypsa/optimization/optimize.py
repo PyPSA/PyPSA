@@ -273,6 +273,11 @@ def define_objective(
                     lambda p: p.component == c.name and p.attribute == cost_type,
                     piecewise_options,
                 )
+                status = (
+                    None
+                    if c.committables.intersection(active_names).empty
+                    else m[f"{c.name}-status"]
+                )
                 pw_cost_var = define_piecewise(
                     m,
                     c,
@@ -280,10 +285,11 @@ def define_objective(
                     y_var=None,
                     pw_attr=cost_type,
                     aux_var_name=c._piecewise_aux_var(cost_type),
-                    active_names=c.active_assets,
+                    active_names=active_names,
                     sign=">=",
                     cumulative_attr=True,
                     extra_options=extra_options,
+                    status=status,
                 )
                 if pw_cost_var is not None:
                     opex_terms.append(

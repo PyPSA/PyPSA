@@ -67,6 +67,7 @@ def define_piecewise(
     sign: SIGNS_T,
     cumulative_attr: bool,
     extra_options: Iterable[PiecewiseOptions],
+    status: Variable | None = None,
     invert_attr: bool = False,
     y_var: Any | None = None,
     method: PWL_METHOD = "auto",
@@ -99,6 +100,8 @@ def define_piecewise(
         Whether the y-axis breakpoints represent marginal values.
         If True, the integral of the piecewise curve will be used to define y breakpoints.
         If False, the nominal values at each x breakpoint will be used to define y breakpoints.
+    status : linopy.Variable or None, optional
+        The optimisation variable for the binary status of the component (e.g. generator on/off).
     y_var : linopy.Variable or None, optional
         The optimisation variable for the y-axis of the piecewise constraint.
         If None, a new auxiliary variable will be created and used instead.
@@ -158,14 +161,49 @@ def define_piecewise(
         if names.empty:
             continue
 
+        if status is not None:
+            status_no_null = status.sel(name=~status.isnull().groupby("name").all(...))
+            opt_status = status_no_null.sel(
+                name=names.intersection(status_no_null.indexes["name"])
+            )
+            status_names = opt_status.indexes["name"]
+            non_status_names = names.difference(status_names)
+        else:
+            status_names = pd.Index([], name="name")
+            non_status_names = names
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
-            m.add_piecewise_formulation(
-                (y_var.sel(name=names), y_breakpoints.sel(name=names), opt_sign),
-                (x_var.sel(name=names), x_breakpoints.sel(name=names)),
-                method=opt_method,
-                name=aux,
-            )
+
+            if not non_status_names.empty:
+                m.add_piecewise_formulation(
+                    (
+                        y_var.sel(name=non_status_names),
+                        y_breakpoints.sel(name=non_status_names),
+                        opt_sign,
+                    ),
+                    (
+                        x_var.sel(name=non_status_names),
+                        x_breakpoints.sel(name=non_status_names),
+                    ),
+                    method=opt_method,
+                    name=aux,
+                )
+            if not status_names.empty:
+                m.add_piecewise_formulation(
+                    (
+                        y_var.sel(name=status_names),
+                        y_breakpoints.sel(name=status_names),
+                        opt_sign,
+                    ),
+                    (
+                        x_var.sel(name=status_names),
+                        x_breakpoints.sel(name=status_names),
+                    ),
+                    method=opt_method,
+                    active=opt_status,
+                    name=aux + "_status",
+                )
         pw_names = pw_names.difference(names)
     return y_var_sel
 
