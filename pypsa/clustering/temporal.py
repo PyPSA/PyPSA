@@ -57,6 +57,28 @@ TEMPORAL_AGGREGATION_DEFAULTS: dict[str, str] = {
 }
 
 
+def _enforce_pu_bounds(m: Network) -> None:
+    """Clip aggregated ``*_min_pu`` series so they never exceed ``*_max_pu``.
+
+    Aggregation can lift a lower bound above its paired upper bound, either from
+    floating-point error (segmentation normalises per column) or from min/max
+    aggregation rules (``e_min_pu`` uses ``max``, ``e_max_pu`` uses ``min``).
+    """
+    for c in m.components:
+        for min_attr in [a for a in c.dynamic if a.endswith("_min_pu")]:
+            max_attr = min_attr.replace("_min_pu", "_max_pu")
+            if max_attr not in c.dynamic:
+                continue
+            min_df = c.dynamic[min_attr]
+            max_df = c.dynamic[max_attr]
+            common = min_df.columns.intersection(max_df.columns)
+            if common.empty:
+                continue
+            c.dynamic[min_attr].loc[:, common] = min_df[common].clip(
+                upper=max_df[common]
+            )
+
+
 @dataclass
 class TemporalClustering:
     """Result of temporal clustering.
@@ -73,6 +95,10 @@ class TemporalClustering:
 
     n: Network
     snapshot_map: pd.Series
+
+    def __post_init__(self) -> None:
+        """Sanitize time clustered data."""
+        _enforce_pu_bounds(self.n)
 
 
 def _get_aggregation_rule(
