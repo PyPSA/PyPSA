@@ -229,11 +229,11 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
 
 
 def check_phase_shift_bounds(component: Components, strict: bool = False) -> None:
-    """Check phase shift bounds for extendable transformers.
+    """Check phase shift bounds for transformers with an optimisable phase shift.
 
-    Only transformers with `phase_shift_extendable=True` are checked: their
-    `phase_shift_min`/`phase_shift_max` must be finite and ordered for the
-    per-snapshot tap angle to be a well-posed decision variable.
+    A transformer phase shift is optimised when `phase_shift_min < phase_shift_max`;
+    in that case both bounds must be finite for the per-snapshot tap angle to be a
+    well-posed decision variable.
 
     Activate strict mode in general consistency check by passing
     `['phase_shift_bounds']` to the `strict` argument.
@@ -250,33 +250,25 @@ def check_phase_shift_bounds(component: Components, strict: bool = False) -> Non
     [pypsa.Network.consistency_check][]
 
     """
-    if "phase_shift_extendable" not in component.static.columns:
+    if "phase_shift_min" not in component.static.columns:
         return
-    ext = component.static[component.static["phase_shift_extendable"]]
-    if ext.empty:
+    var = component.static[
+        component.static["phase_shift_min"] < component.static["phase_shift_max"]
+    ]
+    if var.empty:
         return
 
-    non_finite = ext.index[
-        ~np.isfinite(ext["phase_shift_min"]) | ~np.isfinite(ext["phase_shift_max"])
+    non_finite = var.index[
+        ~np.isfinite(var["phase_shift_min"]) | ~np.isfinite(var["phase_shift_max"])
     ]
     if not non_finite.empty:
         _log_or_raise(
             strict,
-            "The following %s are phase_shift_extendable but have non-finite "
-            "phase_shift_min/phase_shift_max, which leaves the optimised tap "
-            "angle unbounded:\n%s",
+            "The following %s have an optimisable phase shift "
+            "(phase_shift_min < phase_shift_max) but a non-finite bound, which "
+            "leaves the optimised tap angle unbounded:\n%s",
             component.list_name,
             non_finite,
-        )
-
-    inverted = ext.index[ext["phase_shift_min"] > ext["phase_shift_max"]]
-    if not inverted.empty:
-        _log_or_raise(
-            strict,
-            "The following %s have phase_shift_min greater than phase_shift_max, "
-            "which can lead to infeasibility:\n%s",
-            component.list_name,
-            inverted,
         )
 
 

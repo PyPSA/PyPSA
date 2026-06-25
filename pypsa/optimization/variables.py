@@ -269,7 +269,7 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
 def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
     """Define per-snapshot phase-shift variables for phase-shifting transformers.
 
-    When a ``Transformer`` has ``phase_shift_extendable=True``, its voltage
+    When a ``Transformer`` has ``phase_shift_min < phase_shift_max``, its voltage
     phase-angle shift is treated as a continuous decision variable per snapshot
     bounded by ``phase_shift_min`` and ``phase_shift_max`` (in degrees). This
     models phase-shifting transformers (PSTs, also known as
@@ -294,16 +294,18 @@ def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
         return
 
     trafos = c.static
-    if "phase_shift_extendable" not in trafos.columns:
+    if "phase_shift_min" not in trafos.columns:
         return
-    ext_mask = trafos["active"] & trafos["phase_shift_extendable"]
-    ext_names = trafos.index[ext_mask]
-    if ext_names.empty:
+    var_mask = trafos["active"] & (
+        trafos["phase_shift_min"] < trafos["phase_shift_max"]
+    )
+    var_names = trafos.index[var_mask]
+    if var_names.empty:
         return
 
-    active = c.da.active.sel(name=ext_names, snapshot=sns)
-    lower = c.da["phase_shift_min"].sel(name=ext_names).broadcast_like(active)
-    upper = c.da["phase_shift_max"].sel(name=ext_names).broadcast_like(active)
+    active = c.da.active.sel(name=var_names, snapshot=sns)
+    lower = c.da["phase_shift_min"].sel(name=var_names).broadcast_like(active)
+    upper = c.da["phase_shift_max"].sel(name=var_names).broadcast_like(active)
     n.model.add_variables(lower, upper, name="Transformer-phase_shift")
 
 

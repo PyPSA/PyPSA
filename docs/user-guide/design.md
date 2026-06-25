@@ -343,7 +343,7 @@ The units for physical quantities follow the general rules.
 | Time | h |
 | Energy | MWh |
 | Voltage | kV phase-phase for `n.buses.v_nom`; per-unit for `n.buses.v_mag_pu` |
-| Angles | radians, except `n.transformers.phase_shift` which is in degrees |
+| Angles | radians, except `n.transformers.phase_shift_set` which is in degrees |
 | Impedance | Ohm, except transformers which are per-unit, using `n.transformers.s_nom` for the base power |
 | CO~2~ emissions | tonnes of CO~2~ per MWh~thermal~ of energy carrier |
 
