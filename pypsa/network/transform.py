@@ -295,9 +295,6 @@ class NetworkTransformMixin(_NetworkABC):
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"Series {k}", "network snapshots"))
             elif isinstance(v, pd.Series):
-                # Cast names index to string + suffix (only when suffix is scalar;
-                # for list suffix the user is expected to pass the full post-suffix
-                # names directly, see #1650).
                 if isinstance(suffix, str):
                     v = v.rename(
                         index=lambda s: (
@@ -307,7 +304,6 @@ class NetworkTransformMixin(_NetworkABC):
                 if not v.index.equals(names):
                     raise ValueError(msg.format(f"Series {k}", names_str))
             if isinstance(v, pd.DataFrame):
-                # Cast names columns to string + suffix (scalar suffix only, see #1650).
                 if isinstance(suffix, str):
                     v = v.rename(
                         columns=lambda s: (
