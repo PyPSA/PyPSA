@@ -41,6 +41,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. (<!-- md:pr 1686 -->)
 
+- Fix `optimize()` failing with `TypeError: Invalid array type` on networks loaded from file or built with `n.add()` when using pandas `>= 3.0` or `future.infer_string`. Component labels read in pandas' new string dtype are now converted back to `object` on import. (<!-- md:pr 1687 -->)
+
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
 
