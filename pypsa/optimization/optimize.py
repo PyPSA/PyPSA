@@ -279,7 +279,7 @@ def define_objective(
                     x_var=x_var,
                     y_var=None,
                     pw_attr=cost_type,
-                    aux_var_name=c._piecewise_var(cost_type, "aux"),
+                    aux_var_name=c._piecewise_aux_var(cost_type),
                     active_names=c.active_assets,
                     sign=">=",
                     cumulative_attr=True,
