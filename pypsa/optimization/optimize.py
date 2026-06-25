@@ -268,13 +268,8 @@ def define_objective(
             if c.static.empty:
                 continue
             active_names = c.active_assets
-            pw_attrs = c._piecewise_attrs.query("y == @cost_type")
-            for _, pw_attr in pw_attrs.iterrows():
-                var_name = f"{pw_attr.component}-{pw_attr.x.replace('_pu', '')}"
-                if var_name not in m.variables:
-                    continue
-
-                x_var = m[var_name].sel(snapshot=sns)
+            if c.has_piecewise(cost_type):
+                x_var = m[c._piecewise_x_var(cost_type)].sel(snapshot=sns)
                 extra_options = filter(
                     lambda p: p.component == c.name and p.attribute == cost_type,
                     piecewise_options,
@@ -285,7 +280,7 @@ def define_objective(
                     x_var=x_var,
                     y_var=None,
                     pw_attr=cost_type,
-                    aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
+                    aux_var_name=c._piecewise_var(cost_type, "aux"),
                     active_names=c.active_assets,
                     sign=">=",
                     cumulative_attr=True,
@@ -366,7 +361,7 @@ def define_objective(
             cost_weight = c.da.active.sel(name=ext_i).any(dim="snapshot")
 
         y_attr = "capital_cost"
-        pw_attr = c._piecewise_schema(y_attr)
+        pw_attr = c._piecewise_schema(y=y_attr)
         if not pw_attr.empty:
             x_var = m[f"{c.name}-{pw_attr.x}"]
             extra_options = filter(
@@ -1028,16 +1023,16 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 )
                 continue
             c = n.c[_c_name]
-            pw_attrs = c._piecewise_attrs.query("aux_variable == @attr").squeeze()
+            pw_schema = c._piecewise_schema(aux_variable=attr)
             # Piecewise variables are auxiliary and need to be processed before being passed back as a solution.
-            if not pw_attrs.empty:
+            if not pw_schema.empty:
                 if (
                     isinstance(c, _Multiport)
-                    and c._get_base_coeff(pw_attrs.y) == c._coefficient_attr
+                    and c._get_base_coeff(pw_schema.y) == c._coefficient_attr
                 ):
                     # We deal with these variables below when processing the `p` attr.
                     continue
-                x_var = m.variables[f"{c.name}-{pw_attrs.x.removesuffix('_pu')}"]
+                x_var = m.variables[c._piecewise_x_var(pw_schema.y)]
                 sol = sol / x_var.solution
                 if "snapshot" in sol.dims:
                     attr += "_opt"
