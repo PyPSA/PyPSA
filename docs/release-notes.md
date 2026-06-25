@@ -30,6 +30,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Avoid redundant traces and legends in interactive statistics bar plots when the color dimension duplicates an axis. (<!-- md:pr 1710 -->)
 
+- Fix temporal clustering producing `*_min_pu > *_max_pu` for some snapshots. Aggregated lower bounds are now clipped to their paired upper bound, both for the floating-point drift in [`segment()`][pypsa.clustering.temporal.TemporalClusteringMixin.segment] and the `e_min_pu`/`e_max_pu` crossover from min/max aggregation rules. (<!-- md:pr 1752 -->)
+
 
 ## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
 
