@@ -383,10 +383,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
             attr = "marginal_cost"
-            attr = lookup.query(f"not nominal and {attr}").loc[c].index.item()
-            if attr is None:
+            var = lookup.query(f"not nominal and {attr}").loc[c].index.item()
+            if var is None:
                 return None
-            var = n.model.variables[f"{c}-{attr}"]
+            var = n.model.variables[f"{c}-{var}"]
             sns = var.indexes["snapshot"]
 
             c_obj = n.c[c]
