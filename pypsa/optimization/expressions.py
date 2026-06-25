@@ -242,7 +242,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             costs = c.static[cost_attribute][capacity.indexes["name"]]
 
-            if c.is_piecewise(cost_attribute):
+            if c.has_piecewise(cost_attribute):
                 add_capex = m.variables[c._piecewise_aux_var(cost_attribute)]
                 capacity = capacity.drop_sel(name=add_capex.coords["name"])
             else:
@@ -389,7 +389,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             sns = var.indexes["snapshot"]
 
             c_obj = n.c[c]
-            if c_obj.is_piecewise("marginal_cost"):
+            if c_obj.has_piecewise("marginal_cost"):
                 add_opex = n.model.variables[c_obj._piecewise_aux_var("marginal_cost")]
                 var = var.drop_sel(name=add_opex.coords["name"])
             else:
@@ -571,7 +571,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 raise ValueError(msg)
 
             pw_var = 0
-            if isinstance(c, _Multiport) and c.is_piecewise(
+            if isinstance(c, _Multiport) and c.has_piecewise(
                 y_attr := c._port_coefficient_attr(port)
             ):
                 pw = sign * n.model.variables[c._piecewise_aux_var(y_attr)]

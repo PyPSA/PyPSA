@@ -322,14 +322,14 @@ def test_remove_drops_piecewise_data(base_network):
 class TestPiecewiseHelpers:
     """Schema-vs-data primitives on the component class."""
 
-    def test_is_piecewise_tracks_data_not_schema(self, base_network):
-        """`is_piecewise` reflects breakpoint data, not the schema definition."""
+    def test_has_piecewise_tracks_data_not_schema(self, base_network):
+        """`has_piecewise` reflects breakpoint data, not the schema definition."""
         n = base_network
         c = n.c.generators
-        assert not c.is_piecewise("marginal_cost")
+        assert not c.has_piecewise("marginal_cost")
         n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=CURVE_DICT)
-        assert c.is_piecewise("marginal_cost")
-        assert not c.is_piecewise("capital_cost")
+        assert c.has_piecewise("marginal_cost")
+        assert not c.has_piecewise("capital_cost")
 
     def test_aux_var_is_schema_lookup(self, base_network):
         """`_piecewise_aux_var` resolves from the schema, independent of data."""
