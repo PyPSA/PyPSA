@@ -57,14 +57,14 @@ TEMPORAL_AGGREGATION_DEFAULTS: dict[str, str] = {
 }
 
 
-def _enforce_pu_bounds(m: Network) -> None:
-    """Clip aggregated ``*_min_pu`` series so they never exceed ``*_max_pu``.
+def _enforce_pu_bounds(n: Network) -> None:
+    """Clip aggregated `*_min_pu` series so they never exceed `*_max_pu`.
 
     Aggregation can lift a lower bound above its paired upper bound, either from
     floating-point error (segmentation normalises per column) or from min/max
-    aggregation rules (``e_min_pu`` uses ``max``, ``e_max_pu`` uses ``min``).
+    aggregation rules (`e_min_pu` uses `max`, `e_max_pu` uses `min`).
     """
-    for c in m.components:
+    for c in n.components:
         for min_attr in [a for a in c.dynamic if a.endswith("_min_pu")]:
             max_attr = min_attr.replace("_min_pu", "_max_pu")
             if max_attr not in c.dynamic:
