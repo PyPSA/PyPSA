@@ -35,6 +35,17 @@ def gen_marginal_cost_attrs() -> pd.Series:
     ).squeeze()
 
 
+def _piecewise_schema(attrs: pd.DataFrame) -> pd.Series:
+    """Helper function to emulate piecewise schema getter."""
+
+    def __query(**query: str):
+        return attrs.query(
+            " and ".join(f"{k} == '{v}'" for k, v in query.items())
+        ).squeeze()
+
+    return __query
+
+
 def _piecewise_df(
     curves: dict[str, list[tuple[float, float]]],
     x_attr: str = "p_pu",
@@ -189,7 +200,7 @@ class TestGetBreakpoints:
             name="Generator",
             extendables=pd.Index([], name="name"),
             _piecewise_attrs=attrs,
-            _piecewise_schema=lambda attr: attrs.query("y == @attr").squeeze(),
+            _piecewise_schema=_piecewise_schema(attrs),
         )
 
     @pytest.fixture
@@ -396,7 +407,7 @@ class TestDefinePiecewise:
             name="Generator",
             extendables=pd.Index(["gen_extendable"], name="name"),
             _piecewise_attrs=attrs,
-            _piecewise_schema=lambda attr: attrs.query("y == @attr").squeeze(),
+            _piecewise_schema=_piecewise_schema(attrs),
         )
         component.piecewise["efficiency"] = pd.DataFrame()
         return component
