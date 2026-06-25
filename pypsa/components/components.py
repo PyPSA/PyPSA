@@ -434,17 +434,30 @@ class Components(
         pw_df = self.piecewise.get(attr)
         return pw_df is not None and not pw_df.empty
 
-    def _piecewise_schema(self, attr: str) -> pd.Series:
+    def _piecewise_schema(self, **attrs: str) -> pd.Series:
         """Get the schema row of the piecewise definition for `attr` (empty if undefined)."""
-        return self._piecewise_attrs.query("y == @attr").squeeze()
+        query = " and ".join(f"{k} == '{v}'" for k, v in attrs.items())
+        series = self._piecewise_attrs.query(query).squeeze()
+        if not (isinstance(series, pd.Series) or series.empty):
+            msg = "Expected max a single row of data when querying piecewise schema."
+            raise ValueError(msg)
+        return series
 
     def _piecewise_aux_var(self, attr: str) -> str:
         """Model-variable name of the piecewise auxiliary variable for `attr`."""
-        row = self._piecewise_schema(attr)
+        row = self._piecewise_schema(y=attr)
         if row.empty:
             msg = f"{self.name!r} has no piecewise schema for attribute {attr!r}."
             raise ValueError(msg)
         return f"{self.name}-{row.aux_variable}"
+
+    def _piecewise_x_var(self, attr: str) -> str:
+        """Model-variable name of the piecewise x variable for `attr`."""
+        row = self._piecewise_schema(y=attr)
+        if row.empty:
+            msg = f"{self.name!r} has no piecewise schema for attribute {attr!r}."
+            raise ValueError(msg)
+        return f"{self.name}-{row.x.replace('_pu', '')}"
 
     @property
     def standard_types(self) -> pd.DataFrame | None:

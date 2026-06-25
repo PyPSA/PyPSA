@@ -308,7 +308,7 @@ def define_primary_energy_limit(
 
     gen_c = n.c.generators
     var_name = "Generator-p"
-    pw_attr_eff = gen_c._piecewise_schema("efficiency")
+    pw_attr_eff = gen_c._piecewise_schema(y="efficiency")
     primary_energy_pw_var = None
     if not unique_names.empty and not pw_attr_eff.empty and var_name in m.variables:
         extra_options = filter(

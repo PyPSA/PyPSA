@@ -322,6 +322,14 @@ def test_remove_drops_piecewise_data(base_network):
 class TestPiecewiseHelpers:
     """Schema-vs-data primitives on the component class."""
 
+    @pytest.fixture(scope="class")
+    def base_network(self) -> pypsa.Network:
+        """Minimal network with buses required by all component tests."""
+        n = pypsa.Network()
+        n.add("Bus", ["bus_ac", "bus_ac2", "bus_dc"], carrier=["AC", "AC", "DC"])
+        n.add("Link", "link", bus0="bus_ac", bus1="bus_ac2", bus2="bus_dc")
+        return n
+
     def test_has_piecewise_tracks_data_not_schema(self, base_network):
         """`has_piecewise` reflects breakpoint data, not the schema definition."""
         n = base_network
@@ -331,20 +339,68 @@ class TestPiecewiseHelpers:
         assert c.has_piecewise("marginal_cost")
         assert not c.has_piecewise("capital_cost")
 
-    def test_aux_var_is_schema_lookup(self, base_network):
+    @pytest.mark.parametrize(
+        ("comp", "attr", "expected"),
+        [
+            ("Generator", "marginal_cost", "Generator-marginal_cost_piecewise"),
+            ("Process", "rate0", "Process-p0_piecewise"),
+            ("Process", "rate1", "Process-p1_piecewise"),
+            ("Link", "efficiency", "Link-p1_piecewise"),
+            ("Link", "efficiency2", "Link-p2_piecewise"),
+        ],
+    )
+    def test_aux_var_is_schema_lookup(self, base_network, comp, attr, expected):
         """`_piecewise_aux_var` resolves from the schema, independent of data."""
-        n = base_network
-        assert (
-            n.c.generators._piecewise_aux_var("marginal_cost")
-            == "Generator-marginal_cost_piecewise"
-        )
-        assert n.c.links._piecewise_aux_var("efficiency") == "Link-p1_piecewise"
-        assert n.c.processes._piecewise_aux_var("rate0") == "Process-p0_piecewise"
+        assert base_network.c[comp]._piecewise_aux_var(attr) == expected
 
     def test_aux_var_raises_on_unknown_attr(self, base_network):
         """A non-piecewise attribute fails fast instead of returning None."""
         with pytest.raises(ValueError, match="no piecewise schema"):
             base_network.c.generators._piecewise_aux_var("not_an_attr")
+
+    @pytest.mark.parametrize(
+        ("comp", "attr", "expected"),
+        [
+            ("Generator", "marginal_cost", "Generator-p"),
+            ("Process", "rate0", "Process-p"),
+            ("Process", "rate1", "Process-p"),
+            ("Link", "efficiency", "Link-p"),
+            ("Link", "efficiency2", "Link-p"),
+        ],
+    )
+    def test_x_var_is_schema_lookup(self, base_network, comp, attr, expected):
+        """`_piecewise_x_var` resolves from the schema, independent of data."""
+        assert base_network.c[comp]._piecewise_x_var(attr) == expected
+
+    def test_x_var_raises_on_unknown_attr(self, base_network):
+        """A non-piecewise attribute fails fast instead of returning None."""
+        with pytest.raises(ValueError, match="no piecewise schema"):
+            base_network.c.generators._piecewise_x_var("not_an_attr")
+
+    @pytest.mark.parametrize(
+        ("comp", "attr", "val"),
+        [
+            ("Generator", "y", "marginal_cost"),
+            ("Generator", "aux_variable", "marginal_cost_piecewise"),
+            ("Link", "y", "efficiency"),
+            ("Link", "aux_variable", "p1_piecewise"),
+        ],
+    )
+    def test_piecewise_schema(self, base_network, comp, attr, val):
+        """`_piecewise_schema` returns a series with the expected columns."""
+        schema = base_network.c[comp]._piecewise_schema(**{attr: val})
+        assert isinstance(schema, pd.Series)
+        assert not schema.empty
+
+    def test_piecewise_schema_empty(self, base_network):
+        """`_piecewise_schema` returns an empty series when no match."""
+        schema = base_network.c.generators._piecewise_schema(y="foo")
+        assert schema.empty
+
+    def test_piecewise_schema_raises(self, base_network):
+        """`_piecewise_schema` raises when multiple rows match."""
+        with pytest.raises(ValueError, match="Expected max a single row"):
+            base_network.c.generators._piecewise_schema(component="Generator")
 
 
 class TestPiecewiseScenarios:

@@ -209,7 +209,7 @@ def _get_breakpoints(
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Convert piecewise data to linopy breakpoints for piecewise constraint."""
     piecewise_df = c.piecewise[pw_attr][pw_names]
-    piecewise_attrs = c._piecewise_schema(pw_attr)
+    piecewise_attrs = c._piecewise_schema(y=pw_attr)
 
     # pw_attr stores the marginal value (slope) at each breakpoint.
     normalised_piecewise_df = _normalize_breakpoints(piecewise_df, piecewise_attrs)

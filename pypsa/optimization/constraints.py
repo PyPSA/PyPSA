@@ -1193,7 +1193,7 @@ def define_nodal_balance_constraints(
             if cbuses.size == 0:
                 continue
 
-            pw_schema = c._piecewise_schema(coeff.name)
+            pw_schema = c._piecewise_schema(y=coeff.name)
             piecewise_var = None
             if not pw_schema.empty:
                 extra_options = filter(
