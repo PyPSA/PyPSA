@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -291,7 +290,7 @@ def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
 
     """
     c = n.components["Transformer"]
-    if c is None or c.empty:
+    if c.empty:
         return
 
     trafos = c.static
@@ -302,24 +301,9 @@ def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
     if ext_names.empty:
         return
 
-    lower_series = trafos.loc[ext_names, "phase_shift_min"].astype(float)
-    upper_series = trafos.loc[ext_names, "phase_shift_max"].astype(float)
-
-    sns_idx = pd.Index(sns, name="snapshot")
-    name_idx = pd.Index(ext_names, name="name")
-    # Broadcast per-transformer bounds across snapshots so the variable has
-    # both dims. Static scalars would work too, but keeping per-transformer
-    # bounds allows different DRTs to have different physical ranges.
-    lower = xr.DataArray(
-        np.tile(lower_series.values, (len(sns_idx), 1)),
-        coords={"snapshot": sns_idx, "name": name_idx},
-        dims=["snapshot", "name"],
-    )
-    upper = xr.DataArray(
-        np.tile(upper_series.values, (len(sns_idx), 1)),
-        coords={"snapshot": sns_idx, "name": name_idx},
-        dims=["snapshot", "name"],
-    )
+    active = c.da.active.sel(name=ext_names, snapshot=sns)
+    lower = c.da["phase_shift_min"].sel(name=ext_names).broadcast_like(active)
+    upper = c.da["phase_shift_max"].sel(name=ext_names).broadcast_like(active)
     n.model.add_variables(lower, upper, name="Transformer-phase_shift")
 
 

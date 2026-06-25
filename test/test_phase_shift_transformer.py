@@ -114,12 +114,6 @@ class TestStaticPhaseShiftInKVL:
 class TestExtendablePhaseShift:
     """Issue #456 feature: phase_shift as an optimisation variable."""
 
-    def test_extendable_registers_variable(self):
-        """phase_shift_extendable=True creates a linopy variable."""
-        n = _build(extendable=True)
-        n.optimize(solver_name="highs")
-        assert "Transformer-phase_shift" in n.model.variables
-
     def test_extendable_writes_dynamic_phase_shift(self):
         """Optimised per-snapshot values end up in n.transformers_t.phase_shift."""
         n = _build(extendable=True)
@@ -157,6 +151,32 @@ class TestExtendablePhaseShift:
         assert "T1" not in n.transformers_t.phase_shift.columns
         dense = n.get_switchable_as_dense("Transformer", "phase_shift")
         assert (dense["T1"].values == 5.0).all()
+
+    @pytest.mark.parametrize(
+        ("phase_shift_min", "phase_shift_max", "match"),
+        [
+            (-np.inf, np.inf, "non-finite"),
+            (10.0, -10.0, "greater than"),
+        ],
+    )
+    def test_extendable_rejects_invalid_bounds(
+        self, phase_shift_min, phase_shift_max, match
+    ):
+        """Unbounded or inverted bounds fail fast via the consistency check."""
+        n = _build(
+            extendable=True,
+            phase_shift_min=phase_shift_min,
+            phase_shift_max=phase_shift_max,
+        )
+        with pytest.raises(ValueError, match=match):
+            n.optimize(solver_name="highs")
+
+    def test_extendable_only_cycle_keeps_kvl_row(self):
+        """Zero static RHS must not drop the cycle's KVL row (rhs.notnull mask)."""
+        n = _build(extendable=True, phase_shift=0.0)
+        n.optimize(solver_name="highs")
+        kvl = n.model.constraints["Kirchhoff-Voltage-Law"]
+        assert (kvl.labels != -1).any()
 
 
 class TestMixedStaticAndExtendable:
@@ -253,9 +273,50 @@ class TestMultiInvestmentPeriod:
         # by T1's phase shift. 3:1 inverse-x split of 50 MW.
         assert n.lines_t.p0.loc[(2030, 0), "L1"] == pytest.approx(37.5, abs=0.1)
         assert n.lines_t.p0.loc[(2030, 0), "L2"] == pytest.approx(12.5, abs=0.1)
-        # 2020: phase shift active, moves flow off T1 onto L1.
-        assert n.lines_t.p0.loc[(2020, 0), "L1"] > 25.0
-        assert n.transformers_t.p0.loc[(2020, 0), "T1"] < 25.0
+        # 2020: phase shift active, moves flow off T1 onto L1. Equal x_pu=0.01
+        # and phi=10deg give |L1-T1| = phi_rad/x_pu = 17.453 MW around 50 MW.
+        assert n.lines_t.p0.loc[(2020, 0), "L1"] == pytest.approx(33.727, abs=0.1)
+        assert n.transformers_t.p0.loc[(2020, 0), "T1"] == pytest.approx(
+            16.273, abs=0.1
+        )
+
+    def test_extendable_phase_shift_multi_period(self):
+        """Extendable PST must build and solve under multi-investment.
+
+        The per-snapshot variable is registered over the (period, snapshot)
+        MultiIndex; flattening it broke the KVL constraint assembly.
+        """
+        n = pypsa.Network()
+        n.set_snapshots([0, 1])
+        n.investment_periods = [2020, 2030]
+        n.add("Carrier", "AC")
+        n.add("Bus", "A", v_nom=1.0, carrier="AC")
+        n.add("Bus", "B", v_nom=1.0, carrier="AC")
+        n.add(
+            "Generator", "gen_A", bus="A", p_nom=100, marginal_cost=10.0, carrier="AC"
+        )
+        n.add("Load", "load_B", bus="B", p_set=50.0)
+        n.add("Line", "L1", bus0="A", bus1="B", x=0.01, r=1e-6, s_nom=100, carrier="AC")
+        n.add(
+            "Transformer",
+            "T1",
+            bus0="A",
+            bus1="B",
+            x=1.0,
+            r=1e-6,
+            s_nom=100,
+            phase_shift_extendable=True,
+            phase_shift_min=-20.0,
+            phase_shift_max=20.0,
+            build_year=2015,
+            lifetime=100,
+            carrier="AC",
+        )
+        n.optimize(multi_investment_periods=True, solver_name="highs")
+
+        opt = n.transformers_t.phase_shift["T1"]
+        assert opt.index.equals(n.snapshots)
+        assert ((opt >= -20.0 - 1e-6) & (opt <= 20.0 + 1e-6)).all()
 
 
 class TestLOPFMatchesLinearPowerFlow:

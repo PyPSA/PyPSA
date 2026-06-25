@@ -69,6 +69,36 @@ def test_nans_in_capacity_limits(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
+def test_phase_shift_unbounded(consistent_n, caplog, strict):
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift_extendable=True,
+    )
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+@pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
+def test_phase_shift_inverted_bounds(consistent_n, caplog, strict):
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift_extendable=True,
+        phase_shift_min=10.0,
+        phase_shift_max=-10.0,
+    )
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
 @pytest.mark.parametrize("strict", [[], ["shapes"]])
 def test_shapes_with_missing_idx(ac_dc_shapes, caplog, strict):
     n = ac_dc_shapes

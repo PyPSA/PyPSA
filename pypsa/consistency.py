@@ -228,6 +228,58 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
             )
 
 
+def check_phase_shift_bounds(component: Components, strict: bool = False) -> None:
+    """Check phase shift bounds for extendable transformers.
+
+    Only transformers with `phase_shift_extendable=True` are checked: their
+    `phase_shift_min`/`phase_shift_max` must be finite and ordered for the
+    per-snapshot tap angle to be a well-posed decision variable.
+
+    Activate strict mode in general consistency check by passing
+    `['phase_shift_bounds']` to the `strict` argument.
+
+    Parameters
+    ----------
+    component : pypsa.Component
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if "phase_shift_extendable" not in component.static.columns:
+        return
+    ext = component.static[component.static["phase_shift_extendable"]]
+    if ext.empty:
+        return
+
+    non_finite = ext.index[
+        ~np.isfinite(ext["phase_shift_min"]) | ~np.isfinite(ext["phase_shift_max"])
+    ]
+    if not non_finite.empty:
+        _log_or_raise(
+            strict,
+            "The following %s are phase_shift_extendable but have non-finite "
+            "phase_shift_min/phase_shift_max, which leaves the optimised tap "
+            "angle unbounded:\n%s",
+            component.list_name,
+            non_finite,
+        )
+
+    inverted = ext.index[ext["phase_shift_min"] > ext["phase_shift_max"]]
+    if not inverted.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have phase_shift_min greater than phase_shift_max, "
+            "which can lead to infeasibility:\n%s",
+            component.list_name,
+            inverted,
+        )
+
+
 def check_time_series(
     n: NetworkType, component: Components, strict: bool = False
 ) -> None:
@@ -888,7 +940,8 @@ class NetworkConsistencyMixin(_NetworkABC):
         strict : list, optional
             If some checks should raise an error instead of logging a warning, pass a list
             of strings with the names of the checks to be strict about. If 'all' is passed,
-            all checks will be strict. By default, 'dispatch_delays' is always strict.
+            all checks will be strict. By default, 'dispatch_delays' and
+            'phase_shift_bounds' are always strict.
 
         Raises
         ------
@@ -897,7 +950,7 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         """
         if strict is None:
-            strict = ["dispatch_delays"]
+            strict = ["dispatch_delays", "phase_shift_bounds"]
 
         strict_options = [
             "unknown_buses",
@@ -908,6 +961,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "nans_for_component_default_attrs",
             "zero_impedances",
             "zero_s_nom",
+            "phase_shift_bounds",
             "generators",
             "cost_consistency",
             "dispatch_delays",
@@ -954,6 +1008,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_impedances(self, c, "zero_impedances" in strict)
             # Checks transformers
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
+            check_phase_shift_bounds(c, "phase_shift_bounds" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
             # Checks cost attributes consistency
