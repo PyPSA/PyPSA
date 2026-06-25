@@ -275,6 +275,34 @@ class TestSuffix:
             check_names=False,
         )
 
+    def test_add_list_suffix_with_plain_list_kwarg(self, simple_network):
+        """A plain list kwarg aligns positionally to the broadcast names."""
+        n = simple_network
+        n.add(
+            "Generator",
+            "g",
+            suffix=[" wind", " solar"],
+            bus="bus",
+            p_nom=[100.0, 200.0],
+        )
+        assert n.c.generators.static.loc["g wind", "p_nom"] == 100.0
+        assert n.c.generators.static.loc["g solar", "p_nom"] == 200.0
+
+    def test_add_list_suffix_misaligned_series_raises(self, simple_network):
+        """For a list suffix the Series index must be the full post-suffix names;
+        a pre-suffix index does not align and must raise."""
+        n = simple_network
+        p_nom = pd.Series([100.0, 200.0], index=["g", "g"])
+        with pytest.raises(ValueError, match="does not align"):
+            n.add("Generator", "g", suffix=[" wind", " solar"], bus="bus", p_nom=p_nom)
+
+    def test_add_list_suffix_return_names(self, simple_network):
+        n = simple_network
+        out = n.add(
+            "Generator", "g", suffix=[" wind", " solar"], bus="bus", return_names=True
+        )
+        assert list(out) == ["g wind", "g solar"]
+
     def test_remove_list_name_scalar_suffix(self, simple_network):
         n = simple_network
         n.add("Generator", ["a wind", "b wind"], bus="bus")
