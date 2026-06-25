@@ -16,10 +16,9 @@ The module contains the following configuration dictionaries:
 2. METHOD_OVERRIDES:
    Plot-type-specific defaults that override the general defaults.
 
-3. ALLOWED_PARAMS:
-   Additional parameters that are allowed for specific statistics functions.
-   Parameters listed here are restricted by default and only enabled for the
-   specified statistics.
+3. OPTIONAL_STAT_PARAMS:
+   Parameters restricted by default and only enabled for statistics whose
+   function signature accepts them (derived via introspection).
 
 4. EXCLUDED_PARAMS:
    Parameters that should be excluded for specific statistics functions
@@ -29,12 +28,25 @@ The module contains the following configuration dictionaries:
    Statistic and plot-type specific overrides for parameter defaults.
 """
 
+import inspect
+from functools import cache
+
 from pypsa.plot.statistics.base import UNSET
 from pypsa.plot.statistics.charts import CHART_TYPES
 
-# Parameters for which an explicit ``None`` is a meaningful value (disable the
-# feature) and must not be replaced by the schema default.
-_NONE_DISABLES = {"color"}
+# Statistics-specific passthrough parameters: restricted by default and only
+# enabled for statistics whose function signature accepts them.
+OPTIONAL_STAT_PARAMS = {"storage", "direction"}
+
+
+@cache
+def _stat_signature_params(stats_name: str) -> frozenset[str]:
+    """Return the parameter names accepted by a statistics function."""
+    from pypsa.statistics.expressions import StatisticsAccessor  # noqa: PLC0415
+
+    func = getattr(StatisticsAccessor, stats_name).func
+    return frozenset(inspect.signature(func).parameters)
+
 
 # Base defaults for all parameters
 DEFAULTS = {
@@ -66,14 +78,6 @@ METHOD_OVERRIDES: dict = {
     },
     "line": {"x": "carrier", "y": "value", "color": None, "height": 3, "aspect": 2},
     "bar": {"x": "value", "y": "carrier", "color": "carrier"},
-}
-
-# Additional allowed params per statistic
-ALLOWED_PARAMS = {
-    "optimal_capacity": ["storage"],
-    "installed_capacity": ["storage"],
-    "energy_balance": ["direction"],
-    "revenue": ["direction"],
 }
 
 # Excluded params per statistic. Each param maps to an error hint shown when a
@@ -182,11 +186,10 @@ def _combine_schemas() -> dict:
     plot_types = ["map", "plot"] + CHART_TYPES
     all_stats = list(STAT_OVERRIDES.keys())
 
-    # Gather all additional params to determine which are restricted by default
-    restricted_params = {p for params in ALLOWED_PARAMS.values() for p in params}
-
     for stat in all_stats:
         schema[stat] = {}
+        # Optional params are only allowed for stats whose signature accepts them
+        allowed_optional = OPTIONAL_STAT_PARAMS & _stat_signature_params(stat)
 
         for plot_type in plot_types:
             schema[stat][plot_type] = {}
@@ -195,7 +198,7 @@ def _combine_schemas() -> dict:
             for param, default in DEFAULTS.items():
                 schema[stat][plot_type][param] = {
                     "default": default,
-                    "allowed": param not in restricted_params,
+                    "allowed": param not in OPTIONAL_STAT_PARAMS,
                 }
 
             # Apply method-specific defaults
@@ -206,8 +209,8 @@ def _combine_schemas() -> dict:
                         "allowed": True,
                     }
 
-            # Enable additional params for this stat
-            for param in ALLOWED_PARAMS.get(stat, []):
+            # Enable optional params supported by this stat
+            for param in allowed_optional:
                 if param in schema[stat][plot_type]:
                     schema[stat][plot_type][param]["allowed"] = True
 
@@ -224,8 +227,10 @@ def _combine_schemas() -> dict:
     return schema
 
 
-# Generate the schema
-schema = _combine_schemas()
+@cache
+def _schema() -> dict:
+    """Return the combined schema, built lazily on first use."""
+    return _combine_schemas()
 
 
 def _apply_auto_faceting(plot_name: str, kwargs: dict, context: dict) -> dict:
@@ -304,6 +309,7 @@ def apply_parameter_schema(
     """
     to_remove = []
 
+    stat_schema = _schema()[stats_name][plot_name]
     excluded = EXCLUDED_PARAMS.get(stats_name, {})
     for param, value in kwargs.items():
         # Check if parameter is explicitly excluded for this statistic
@@ -318,18 +324,18 @@ def apply_parameter_schema(
             to_remove.append(param)
             continue
 
-        if param not in schema[stats_name][plot_name]:
+        if param not in stat_schema:
             continue
 
         # Check if parameter is not allowed and remove it
-        if not schema[stats_name][plot_name][param]["allowed"]:
+        if not stat_schema[param]["allowed"]:
             to_remove.append(param)
             continue
 
-        # Apply the schema default for unprovided parameters. An explicit None is
-        # only overridden when it is not a meaningful "disable" value.
-        if value is UNSET or (value is None and param not in _NONE_DISABLES):
-            kwargs[param] = schema[stats_name][plot_name][param]["default"]
+        # Apply the schema default only for unprovided parameters. An explicit
+        # value (including None, e.g. ``color=None`` to disable) is kept as-is.
+        if value is UNSET:
+            kwargs[param] = stat_schema[param]["default"]
 
     for param in to_remove:
         kwargs.pop(param)

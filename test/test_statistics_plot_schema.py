@@ -24,13 +24,24 @@ def test_sanitize_mathtext(label, expected):
     assert sanitize_mathtext(label) == expected
 
 
-def test_schema_distinguishes_none_from_unset():
-    """#1: explicit None on color is preserved; UNSET gets the default."""
-    disabled = apply_parameter_schema("energy_balance", "bar", {"color": None})
-    assert disabled["color"] is None
+@pytest.mark.parametrize("param", ["color", "x", "storage"])
+def test_schema_distinguishes_none_from_unset(param):
+    """#4: UNSET on any schema param applies the default; explicit None is kept."""
+    defaulted = apply_parameter_schema("installed_capacity", "bar", {param: UNSET})
+    assert defaulted[param] is not UNSET
 
-    defaulted = apply_parameter_schema("energy_balance", "bar", {"color": UNSET})
-    assert defaulted["color"] == "carrier"
+    explicit = apply_parameter_schema("installed_capacity", "bar", {param: None})
+    assert explicit[param] is None
+
+
+@pytest.mark.parametrize(
+    ("stats_name", "allowed"),
+    [("installed_capacity", True), ("energy_balance", False), ("capex", False)],
+)
+def test_optional_param_allowed_per_signature(stats_name, allowed):
+    """#3: storage is enabled via signature introspection, not a manual list."""
+    result = apply_parameter_schema(stats_name, "bar", {"storage": True})
+    assert ("storage" in result) is allowed
 
 
 def test_schema_raises_for_excluded_filter():

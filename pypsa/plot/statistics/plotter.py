@@ -187,7 +187,7 @@ class StatisticPlotter(_StatisticPlotterBase):
         self._n = n
 
     def __call__(
-        self, kind: str | None = None
+        self, kind: str | None = UNSET
     ) -> (
         tuple[Figure, Axes | np.ndarray, sns.FacetGrid]
         | tuple[Figure | SubFigure | Any, Axes | Any]
@@ -201,9 +201,9 @@ class StatisticPlotter(_StatisticPlotterBase):
 
         Parameters
         ----------
-        kind : str | None, default: None
-            Type of chart ("bar", "line", "area", "map"). If None, the default per
-            statistics function, defined in the schema, is used.
+        kind : str, optional
+            Type of chart ("bar", "line", "area", "map"). If not provided, the
+            default per statistics function, defined in the schema, is used.
 
         Returns
         -------
@@ -216,7 +216,7 @@ class StatisticPlotter(_StatisticPlotterBase):
 
         """
         # Get the correct plot function
-        if kind not in CHART_TYPES + ["map", None]:
+        if kind is not UNSET and kind not in CHART_TYPES + ["map"]:
             msg = f"Unknown plot type '{kind}'."
             raise ValueError(msg)
         # Apply schema to kind kwarg
@@ -258,8 +258,8 @@ class StatisticPlotter(_StatisticPlotterBase):
     def chart(  # noqa: D417
         self,
         chart_type: str,
-        x: str | None = None,
-        y: str | None = None,
+        x: str | None = UNSET,
+        y: str | None = UNSET,
         color: str | None = UNSET,
         facet_col: str | None = None,
         facet_row: str | None = None,
@@ -268,11 +268,11 @@ class StatisticPlotter(_StatisticPlotterBase):
         nice_names: bool = True,
         carrier: Sequence[str] | str | None = None,
         bus_carrier: Sequence[str] | str | None = None,
-        storage: bool | None = None,
+        storage: bool | None = UNSET,
         sharex: bool | None = None,
         sharey: bool | None = None,
-        height: float | None = None,
-        aspect: float | None = None,
+        height: float | None = UNSET,
+        aspect: float | None = UNSET,
         row_order: Sequence[str] | None = None,
         col_order: Sequence[str] | None = None,
         col_wrap: int | None = None,
@@ -446,20 +446,20 @@ class StatisticPlotter(_StatisticPlotterBase):
         title: str = "",
         bus_carrier: str | None = None,
         carrier: str | None = None,
-        transmission_flow: bool | None = None,
+        transmission_flow: bool | None = UNSET,
         bus_area_fraction: float = 0.02,
         branch_area_fraction: float = 0.02,
         flow_area_fraction: float = 0.02,
         draw_legend_circles: bool = True,
-        draw_legend_lines: bool | None = None,
-        draw_legend_arrows: bool | None = None,
+        draw_legend_lines: bool | None = UNSET,
+        draw_legend_arrows: bool | None = UNSET,
         draw_legend_patches: bool = True,
         legend_circles_kw: dict | None = None,
         legend_lines_kw: dict | None = None,
         legend_arrows_kw: dict | None = None,
         legend_patches_kw: dict | None = None,
-        bus_split_circle: bool | None = None,
-        storage: bool | None = None,
+        bus_split_circle: bool | None = UNSET,
+        storage: bool | None = UNSET,
         **kwargs: Any,
     ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
         """Plot statistics on a geographic map.
@@ -597,7 +597,7 @@ class StatisticInteractivePlotter(_StatisticPlotterBase):
         self._n = n
 
     def __call__(
-        self, kind: str | None = None
+        self, kind: str | None = UNSET
     ) -> tuple[go.Figure, go.Figure | np.ndarray]:
         """Create simple visualization of the statistic.
 
@@ -608,9 +608,9 @@ class StatisticInteractivePlotter(_StatisticPlotterBase):
 
         Parameters
         ----------
-        kind : str | None, default: None
-            Type of chart ("bar", "line", "area"). If None, the default per
-            statistics function, defined in the schema, is used.
+        kind : str, optional
+            Type of chart ("bar", "line", "area"). If not provided, the default
+            per statistics function, defined in the schema, is used.
 
         Returns
         -------
@@ -623,7 +623,7 @@ class StatisticInteractivePlotter(_StatisticPlotterBase):
 
         """
         # Get the correct plot function
-        if kind not in ["bar", "line", "area", None]:
+        if kind is not UNSET and kind not in ["bar", "line", "area"]:
             msg = f"Unknown plot type '{kind}'."
             raise ValueError(msg)
         # Apply schema to kind kwarg
@@ -663,8 +663,8 @@ class StatisticInteractivePlotter(_StatisticPlotterBase):
     def chart(  # noqa: D417
         self,
         chart_type: str,
-        x: str | None = None,
-        y: str | None = None,
+        x: str | None = UNSET,
+        y: str | None = UNSET,
         color: str | None = UNSET,
         facet_col: str | None = None,
         facet_row: str | None = None,
@@ -673,7 +673,7 @@ class StatisticInteractivePlotter(_StatisticPlotterBase):
         nice_names: bool = True,
         carrier: Sequence[str] | str | None = None,
         bus_carrier: Sequence[str] | str | None = None,
-        storage: bool | None = None,
+        storage: bool | None = UNSET,
         sharex: bool | None = None,
         sharey: bool | None = None,
         height: int = 500,
