@@ -1785,6 +1785,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
+        if groupby_time is False:
+            warnings.warn(
+                "Passing `groupby_time=False` to `system_cost` is deprecated and "
+                "will raise an error in version 2.0; system_cost has no per-snapshot "
+                "resolution as it includes static capital expenditure. Use "
+                "`opex(groupby_time=False)` for the time-resolved operational cost. "
+                "Deprecated in version 1.2.3.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            groupby_time = "sum"
         capex = self.capex(
             components=components,
             groupby_method=groupby_method,

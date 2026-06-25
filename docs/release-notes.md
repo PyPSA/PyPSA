@@ -37,6 +37,8 @@ SPDX-License-Identifier: CC-BY-4.0
     - Filtering by `carrier`/`bus_carrier` on a [`NetworkCollection`][pypsa.NetworkCollection] (or stochastic network) with `nice_names=True` no longer raises `NotImplementedError`.
     - Non-bar plots of a collection (or stochastic network) of multi-period networks now facet by both the collection/scenario dimension and the period, instead of dropping the period (which made area plots fail with `cannot reshape` and line plots overlap periods).
     - [`n.statistics.prices`][pypsa.statistics.StatisticsAccessor.prices] accepts any static bus attribute (e.g. `country`) in `groupby`, and its plot accessors support these as dimensions (e.g. `prices.plot.box(facet_row="country")`) instead of failing with a `KeyError`.
+    - Interactive plots render LaTeX carrier names and categorical axes correctly with `pandas>=3` (string-dtype columns).
+- Passing `groupby_time=False` to [`n.statistics.system_cost`][pypsa.statistics.StatisticsAccessor.system_cost] is deprecated and will raise in v2.0; it has no per-snapshot resolution as it includes static capital expenditure. Use `opex(groupby_time=False)` for the time-resolved operational cost. (<!-- md:pr 1719 -->)
 - Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] silently ignoring a static `p_set` attribute. (<!-- md:pr 1703 -->)
 
 - Fix optimization results being silently zeroed for components which are not yet present in the existing dynamic result data. Regression introduced in `v1.2.0`. (<!-- md:pr 1726 -->)

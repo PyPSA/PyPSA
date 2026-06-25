@@ -351,6 +351,14 @@ def test_system_cost(ac_dc_network_r):
     assert system_cost == capex + opex
 
 
+def test_system_cost_groupby_time_false_deprecated(ac_dc_network_r):
+    """`groupby_time=False` is unsupported (capex has no time resolution)."""
+    n = ac_dc_network_r
+    with pytest.warns(DeprecationWarning, match="groupby_time=False"):
+        result = n.statistics.system_cost(groupby_time=False)
+    assert result.equals(n.statistics.system_cost())
+
+
 def test_prices(ac_dc_network_r):
     n = ac_dc_network_r
 

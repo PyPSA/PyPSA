@@ -21,6 +21,11 @@ from pypsa.plot.statistics.base import UNSET, PlotsGenerator, sanitize_mathtext
 DISTRIBUTION_TYPES = ["box", "violin", "histogram"]
 CHART_TYPES = ["area", "bar", "scatter", "line", *DISTRIBUTION_TYPES]
 
+# Statistics that expose `groupby_time` but have no per-snapshot resolution
+# (e.g. system_cost mixes static capex with dynamic opex). Not derivable from the
+# signature, so distribution plots must not request the full time series for them.
+TIME_AGGREGATED_STATS = frozenset({"system_cost"})
+
 # Per-row height scaling for categorical axes: inches (static) / pixels (interactive).
 ROW_HEIGHT_IN = 0.3
 BASE_HEIGHT_IN = 1
@@ -592,7 +597,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         def sanitize(order: Sequence[str]) -> list:
             return [sanitize_mathtext(v) if isinstance(v, str) else v for v in order]
 
-        category_orders = {}
+        category_orders: dict[str, Sequence[str]] = {}
         if facet_row is not None and row_order is not None:
             category_orders[facet_row] = sanitize(row_order)
         if facet_col is not None and col_order is not None:
@@ -635,7 +640,11 @@ class ChartGenerator(PlotsGenerator, ABC):
         ldata = self._validate(ldata)
 
         ldata = ldata.apply(
-            lambda col: col.map(sanitize_mathtext) if col.dtype == "object" else col
+            lambda col: (
+                col.map(sanitize_mathtext)
+                if pd.api.types.is_string_dtype(col.dtype)
+                else col
+            )
         )
 
         # Aggregate scenarios and calculate error bars for bar plots
@@ -673,12 +682,12 @@ class ChartGenerator(PlotsGenerator, ABC):
             labels[y] = data_label
 
         # Handle categorical axes to avoid auto-sorting
-        if x != "value" and ldata[x].dtype.name == "object":
+        if x != "value" and pd.api.types.is_string_dtype(ldata[x].dtype):
             ldata[x] = pd.Categorical(
                 ldata[x], categories=ldata[x].unique(), ordered=True
             )
         label_every_row = False
-        if y != "value" and ldata[y].dtype.name == "object":
+        if y != "value" and pd.api.types.is_string_dtype(ldata[y].dtype):
             ldata[y] = pd.Categorical(
                 ldata[y], categories=ldata[y].unique(), ordered=True
             )
@@ -914,8 +923,10 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         # `groupby_time`: time series axes and distribution plots need the
         # full time series, not its aggregate.
-        if "groupby_time" in stats_params and (
-            "snapshot" in args or chart_type in DISTRIBUTION_TYPES
+        if (
+            "groupby_time" in stats_params
+            and method_name not in TIME_AGGREGATED_STATS
+            and ("snapshot" in args or chart_type in DISTRIBUTION_TYPES)
         ):
             stats_kwargs["groupby_time"] = False
 
