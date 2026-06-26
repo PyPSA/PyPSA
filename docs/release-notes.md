@@ -32,6 +32,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix `KeyError` in [`n.pf()`][pypsa.network.power_flow.NetworkPowerFlowMixin.pf] and [`n.lpf()`][pypsa.network.power_flow.NetworkPowerFlowMixin.lpf] when a network contains multiple sub-networks and one of them has no transformers (or otherwise lacks a passive branch component present in another sub-network). (<!-- md:pr 1754 -->)
 
+- Fix the sign of the shunt susceptance when importing from pandapower. A shunt with `q_mvar > 0` (inductive) was previously imported with the wrong sign, causing the power flow to diverge from pandapower. (<!-- md:issue 477 -->)
+
 
 ## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
 

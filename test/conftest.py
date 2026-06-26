@@ -353,7 +353,7 @@ def pandapower_custom_network():
     # create bus elements
     pp.create_ext_grid(net, bus=bus1, vm_pu=1.02, name="Grid Connection")
     pp.create_load(net, bus=bus3, p_mw=0.100, q_mvar=0.05, name="Load")
-    pp.create_shunt(net, bus=bus3, p_mw=0.0, q_mvar=0.0, name="Shunt")
+    pp.create_shunt(net, bus=bus3, p_mw=0.02, q_mvar=0.05, name="Shunt")
     # create branch elements
     pp.create_transformer(
         net, hv_bus=bus1, lv_bus=bus2, std_type="0.4 MVA 20/0.4 kV", name="Trafo"
