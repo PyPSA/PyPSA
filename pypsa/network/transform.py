@@ -89,9 +89,9 @@ def _build_suffixed_names(
     suffix: str | Sequence[str],
 ) -> pd.Index:
     """Build the component index after appending `suffix`, for `n.add`/`n.remove`."""
-    single_component = np.isscalar(name)
+    single_name = np.isscalar(name)
     if not isinstance(suffix, str) and is_1d_list_like(suffix):
-        if not single_component:
+        if not single_name:
             msg = (
                 "Cannot pass list to both `name` and `suffix`. "
                 "Pass a scalar `name` with a list `suffix`."
@@ -101,7 +101,7 @@ def _build_suffixed_names(
             msg = "Empty list `suffix` passed."
             raise ValueError(msg)
         return pd.Index([str(name) + s for s in suffix])
-    names = pd.Index([name]) if single_component else pd.Index(name)
+    names = pd.Index([name]) if single_name else pd.Index(name)
     return names.astype(str) + suffix
 
 
@@ -149,8 +149,7 @@ class NetworkTransformMixin(_NetworkABC):
             Component name(s)
         suffix : str or list of str, default ""
             Suffix added to each name. Pass a list together with a single `name`
-            to add one component per suffix. Passing a list to both `name` and
-            `suffix` raises an error.
+            to add one component per suffix.
         overwrite : bool, default False
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
@@ -218,7 +217,7 @@ class NetworkTransformMixin(_NetworkABC):
 
         c = as_components(self, class_name)
         # Process name/names to pandas.Index of strings and add suffix
-        single_component = np.isscalar(name)
+        single_component = np.isscalar(name) and isinstance(suffix, str)
 
         # Check if multi-index names are passed
         if isinstance(name, pd.MultiIndex):
@@ -230,7 +229,6 @@ class NetworkTransformMixin(_NetworkABC):
         names = _build_suffixed_names(name, suffix)
 
         names_str = "name" if single_component else "names"
-        single_component = single_component and isinstance(suffix, str)
         # Read kwargs into static and time-varying attributes
         series = {}
         static = {}
@@ -403,8 +401,7 @@ class NetworkTransformMixin(_NetworkABC):
             Component name(s)
         suffix : str or list of str, default ""
             Suffix added to each name. Pass a list together with a single `name`
-            to remove one component per suffix. Passing a list to both `name` and
-            `suffix` raises an error.
+            to remove one component per suffix.
 
         Examples
         --------

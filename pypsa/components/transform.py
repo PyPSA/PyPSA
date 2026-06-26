@@ -73,10 +73,8 @@ class ComponentsTransformMixin:
         name : str or int or list of str or list of int
             Component name(s)
         suffix : str or list of str, default ""
-            A suffix appended to each component name. If a string, it is appended
-            to every name. If a list, it must be paired with a scalar `name`; the
-            resulting components are `name + suffix[i]` for each `i`. Passing a
-            list to both `name` and `suffix` raises `ValueError`.
+            Suffix added to each name. Pass a list together with a single `name`
+            to add one component per suffix.
         overwrite : bool, default False
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
