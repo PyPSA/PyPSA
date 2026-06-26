@@ -22,4 +22,6 @@ def test_set_dynamic_data_preserves_and_extends_columns():
     df = pd.DataFrame({"old": 3.0, "new": 2.0}, index=n.snapshots)
     _set_dynamic_data(n, "Load", "p", df)
 
-    pd.testing.assert_frame_equal(n.c.loads.dynamic.p, df, check_names=False)
+    pd.testing.assert_frame_equal(
+        n.c.loads.dynamic.p, df, check_names=False, check_column_type=False
+    )

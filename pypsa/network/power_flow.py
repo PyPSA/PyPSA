@@ -1654,8 +1654,9 @@ class SubNetworkPowerFlowMixin:
 
         s0 = pd.DataFrame(v0 * np.conj(i0), columns=branches_i, index=sns)
         s1 = pd.DataFrame(v1 * np.conj(i1), columns=branches_i, index=sns)
+        branch_types = branches_i.unique("type")
         for c in self.components:
-            if c.name not in n.passive_branch_components:
+            if c.name not in branch_types:
                 continue
             s0t = s0.loc[:, c.name]
             s1t = s1.loc[:, c.name]
@@ -1844,8 +1845,9 @@ class SubNetworkPowerFlowMixin:
                 + self.p_branch_shift
             )
 
+            branch_types = branches_i.unique("type")
             for c in self.components:
-                if c.name not in n.passive_branch_components:
+                if c.name not in branch_types:
                     continue
                 f = flows.loc[:, c.name]
                 n.c[c.name].dynamic.p0.loc[sns, f.columns] = f

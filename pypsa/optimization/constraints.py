@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
@@ -20,6 +19,7 @@ from xarray import DataArray, where
 from pypsa.common import as_index, expand_series
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
+from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import (
     _period_start_mask,
@@ -38,9 +38,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# TODO move to constants.py
 lookup = pd.read_csv(
-    Path(__file__).parent / ".." / "data" / "variables.csv",
+    PYPSA_DATA_DIR / "variables.csv",
     index_col=["component", "variable"],
 )
 
