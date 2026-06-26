@@ -14,7 +14,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- Validate the `suffix` argument of [`n.add`][pypsa.Network.add] and [`n.remove`][pypsa.Network.remove]: passing a list to both `name` and `suffix` now raises `ValueError` instead of silently pairing them one-by-one, and a list `suffix` no longer crashes with a `TypeError` when combined with a `pd.Series`/`pd.DataFrame` kwarg. (<!-- md:pr 1682 -->)
+- Fixed the `suffix` argument of [`n.add`][pypsa.Network.add] and [`n.remove`][pypsa.Network.remove]. Passing a list to both `name` and `suffix` now raises an error instead of silently pairing them. (<!-- md:pr 1682 -->)
 
 ## [**v1.2.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.3) <small>12th June 2026</small> { id="v1.2.3" }
 
