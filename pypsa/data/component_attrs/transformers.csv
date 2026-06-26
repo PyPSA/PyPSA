@@ -22,7 +22,7 @@ fom_cost,float,currency/MVA,0,"Fixed period operation and maintenance costs, add
 num_parallel,float,n/a,1,"When `type` is set, this is the number of parallel transformers (can also be fractional). If `type` is empty """" this value is ignored.",Input (optional)
 tap_ratio,float,per unit,1,Ratio of per unit voltages at each bus for tap changed. Ignored if type defined.,Input (optional)
 tap_side,int,n/a,0,"Defines if tap changer is modelled at the primary 0 side (usually high-voltage) or the secondary 1 side (usually low voltage) (must be 0 or 1, defaults to 0). Ignored if type defined.",Input (optional)
-tap_position,int,n/a,0,"If the transformer has a `type`, determines position relative to the neutral tap position.",Input (optional)
+tap_position,int,n/a,0,"If the transformer has a `type`, the absolute tap position on the same scale as `tap_min`/`tap_neutral`/`tap_max`. The off-nominal voltage ratio is computed from the offset to `tap_neutral`, so the nominal ratio (`tap_ratio` = 1) is obtained when `tap_position == tap_neutral`.",Input (optional)
 phase_shift,float,Degrees,0,Voltage phase angle shift. Ignored if type defined.,Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
 build_year,int,year,0,Build year of transformer.,Input (optional)
