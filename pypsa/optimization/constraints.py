@@ -1255,18 +1255,16 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
             C_trafos = C_plain.loc["Transformer"]
 
             tr = n.c.Transformer
-            in_cycle = C_trafos.index.difference(tr.inactive_assets)
-            active = tr.static.loc[in_cycle]
+            active = tr.static.loc[C_trafos.index.difference(tr.inactive_assets)]
             varying = active["phase_shift_min"] < active["phase_shift_max"]
 
             contributions = [(active.index[~varying], tr.da["phase_shift_set"])]
             if var in m.variables:
                 contributions.append((active.index[varying], m[var]))
             for names, angle in contributions:
-                if len(names):
-                    C = DataArray(C_trafos.loc[names])
-                    sel = angle.sel(name=names, snapshot=snapshots)
-                    lhs_period = lhs_period + (sel @ C) * deg_to_rad * 1e5
+                C = DataArray(C_trafos.loc[names])
+                sel = angle.sel(name=names, snapshot=snapshots)
+                lhs_period = lhs_period + (sel @ C) * deg_to_rad * 1e5
 
         lhs_parts.append(lhs_period)
 
