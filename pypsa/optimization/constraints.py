@@ -14,14 +14,18 @@ import pandas as pd
 import xarray as xr
 from linopy import merge
 from numpy import inf, isfinite, isinf, maximum, sqrt, tile
-from xarray import DataArray, concat, where
+from xarray import DataArray, where
 
 from pypsa.common import as_index, expand_series
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
-from pypsa.optimization.common import reindex
+from pypsa.optimization.common import (
+    _period_start_mask,
+    _roll_within_periods,
+    reindex,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -829,6 +833,11 @@ def define_ramp_limit_constraints(
         p_init = c.da.p_init.where(initially_up, 0)
         s_init = initially_up
         mask[0] = p_init.notnull()
+
+    # skip starts of periods except the first where p_init is used
+    boundary = _period_start_mask(sns)
+    boundary[0] = False
+    mask = mask & ~boundary
 
     p = m[f"{c.name}-{var_attr}"]
     p_prev = p.shift(snapshot=1) + p_init.fillna(0) * filter_first_sn
@@ -1694,7 +1703,6 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     if n._multi_invest:
         # If multi-horizon optimizing, we update the previous_soc and the rhs
         # for all assets which are cyclic/non-cyclic per period
-        periods = soc.coords["period"]
         # An asset is treated as per-period if:
         # 1. It cycles per period (CP=cyclic_state_of_charge_per_period=True), OR
         # 2. It uses initial state per period (IP=state_of_charge_initial_per_period=True)
@@ -1703,24 +1711,18 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         ) | c.da.state_of_charge_initial_per_period.sel(name=c.active_assets)
 
         # We calculate the previous soc per period while cycling within a period
-        # Normally, we should use groupby, but is broken for multi-index
-        # see https://github.com/pydata/xarray/issues/6836
-        ps = sns.unique("period")
-        sl = slice(None)
-        previous_soc_pp_list = [
-            soc.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps
-        ]
-        previous_soc_pp = concat(previous_soc_pp_list, dim="snapshot")
+        previous_soc_pp = _roll_within_periods(soc.data)
 
         # We create a mask `include_previous_soc_pp` which determines when to include
         # previous state of charge from within the period:
-        # - Always include previous for snapshots within a period (periods == periods.shift())
+        # - Always include previous for snapshots within a period (not a period start)
         # - At period boundaries (first snapshot):
         #   * If CP=True AND IP=False: cycle to last snapshot of period (wrap)
         #   * If IP=True: use initial value instead (no wrap, handled via rhs)
         #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
+        within_period = ~_period_start_mask(sns)
         include_previous_soc_pp = active & (
-            (periods == periods.shift(snapshot=1))
+            within_period
             | c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
         )
 
@@ -1880,7 +1882,6 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     if n._multi_invest:
         # If multi-horizon optimization, we update previous_e and the rhs
         # for all assets which are cyclic/non-cyclic per period
-        periods = e.coords["period"]
         # An asset is treated as per-period if:
         # 1. It cycles per period (CP=e_cyclic_per_period=True), OR
         # 2. It uses initial energy per period (IP=e_initial_per_period=True)
@@ -1888,23 +1889,18 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         per_period = per_period.sel(name=c.active_assets)
 
         # We calculate the previous e per period while cycling within a period
-        # Normally, we should use groupby, but it's broken for multi-index
-        # see https://github.com/pydata/xarray/issues/6836
-        ps = sns.unique("period")
-        sl = slice(None)
-        previous_e_pp_list = [e.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
-        previous_e_pp = concat(previous_e_pp_list, dim="snapshot")
+        previous_e_pp = _roll_within_periods(e.data)
 
         # We create a mask `include_previous_e_pp` which determines when to include
         # previous energy from within the period:
-        # - Always include previous for snapshots within a period (periods == periods.shift())
+        # - Always include previous for snapshots within a period (not a period start)
         # - At period boundaries (first snapshot):
         #   * If CP=True AND IP=False: cycle to last snapshot of period (wrap)
         #   * If IP=True: use initial value instead (no wrap, handled via rhs)
         #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
+        within_period = ~_period_start_mask(sns)
         include_previous_e_pp = active & (
-            (periods == periods.shift(snapshot=1))
-            | c.da.e_cyclic_per_period.sel(name=c.active_assets)
+            within_period | c.da.e_cyclic_per_period.sel(name=c.active_assets)
         )
 
         # We take values still to handle internal xarray multi-index difficulties
