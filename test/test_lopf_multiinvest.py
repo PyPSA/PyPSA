@@ -219,6 +219,42 @@ def test_simple_network_snapshot_subset(n):
     assert (n.c.lines.dynamic.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
 
+def test_ramp_limit_resets_per_period():
+    # https://github.com/PyPSA/PyPSA/issues/1669: ramp limits must reset at each
+    # investment period boundary, not only at the global first snapshot. Nuclear is
+    # cheap but limited to 10 MW/step; the load forces it down to 50 MW at the end of
+    # 2020 and demands 100 MW at the start of 2030. Serving this needs a 20 MW jump
+    # across the boundary, only feasible if the boundary ramp link is dropped.
+    n = pypsa.Network(snapshots=range(3))
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "b")
+    n.add(
+        "Generator",
+        "nuclear",
+        bus="b",
+        p_nom=100,
+        p_min_pu=0.5,
+        ramp_limit_up=0.1,
+        ramp_limit_down=0.1,
+        marginal_cost=1,
+        build_year=2020,
+        lifetime=40,
+    )
+    n.add("Generator", "peaker", bus="b", p_nom=200, marginal_cost=100)
+    load = pd.Series([60, 60, 50, 100, 60, 60], index=n.snapshots)
+    n.add("Load", "load", bus="b", p_set=load)
+
+    status, cond = n.optimize(**kwargs)
+    assert (status, cond) == ("ok", "optimal")
+
+    nuclear = n.c.generators.dynamic.p["nuclear"]
+    boundary_jump = nuclear.loc[idx[2030, 0]] - nuclear.loc[idx[2020, 2]]
+    assert boundary_jump == pytest.approx(20)
+
+    within_period_steps = nuclear.groupby(level="period").diff().dropna().abs()
+    assert (within_period_steps <= 10 + 1e-6).all()
+
+
 def test_simple_network_storage_noncyclic(n_sus):
     n_sus.c.storage_units.static["state_of_charge_initial"] = 200
     n_sus.c.storage_units.static["cyclic_state_of_charge"] = False

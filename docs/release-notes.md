@@ -45,6 +45,16 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Avoid redundant traces and legends in interactive statistics bar plots when the color dimension duplicates an axis. (<!-- md:pr 1710 -->)
 
+- Fix ramp limit constraints spuriously linking across investment period boundaries in multi-investment optimization. Ramp constraints now reset at the first snapshot of each period instead of only at the global first snapshot, which could render feasible pathway models infeasible. (<!-- md:pr 1746 -->)
+
+- Fix temporal clustering producing `*_min_pu > *_max_pu` for some snapshots. Aggregated lower bounds are now clipped to their paired upper bound, both for the floating-point drift in [`segment()`][pypsa.clustering.temporal.TemporalClusteringMixin.segment] and the `e_min_pu`/`e_max_pu` crossover from min/max aggregation rules. (<!-- md:pr 1752 -->)
+
+- Fix `KeyError` in [`n.pf()`][pypsa.network.power_flow.NetworkPowerFlowMixin.pf] and [`n.lpf()`][pypsa.network.power_flow.NetworkPowerFlowMixin.lpf] when a network contains multiple sub-networks and one of them has no transformers (or otherwise lacks a passive branch component present in another sub-network). (<!-- md:pr 1754 -->)
+
+- Fix the sign of the shunt susceptance when importing from pandapower. A shunt with `q_mvar > 0` (inductive) was previously imported with the wrong sign, causing the power flow to diverge from pandapower. (<!-- md:pr 1758 -->)
+
+- A warning is now logged when manually set impedance parameters (`r`, `x`, `g`, `b`, `s_nom`) on transformers or lines with a standard `type` are overridden by the type during [`n.calculate_dependent_values()`][pypsa.network.power_flow.NetworkPowerFlowMixin.calculate_dependent_values], instead of silently discarding them. (<!-- md:pr 1759 -->)
+
 
 ## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
 
@@ -55,6 +65,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly. (<!-- md:pr 1683 -->)
 
 - Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. (<!-- md:pr 1686 -->)
+
+- Fix `optimize()` failing with `TypeError: Invalid array type` on networks loaded from file or built with `n.add()` when using pandas `>= 3.0` or `future.infer_string`. Component labels read in pandas' new string dtype are now converted back to `object` on import. (<!-- md:pr 1687 -->)
 
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }

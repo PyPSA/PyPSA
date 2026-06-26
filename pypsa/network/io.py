@@ -47,6 +47,39 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _coerce_string_dtypes(df: pd.DataFrame) -> pd.DataFrame:
+    """Coerce `StringDtype` indices, columns and values to `object` dtype.
+
+    Under `future.infer_string` (pandas >= 3.0) string labels become extension
+    arrays that xarray rejects on the `optimize()` indexing path. Drop this once
+    fixed upstream: https://github.com/pydata/xarray/issues/10301.
+    """
+
+    def _coerce_axis(axis: pd.Index) -> pd.Index:
+        if isinstance(axis, pd.MultiIndex):
+            new_levels = [
+                level.astype(object)
+                if isinstance(level.dtype, pd.StringDtype)
+                else level
+                for level in axis.levels
+            ]
+            if any(
+                nl is not ol for nl, ol in zip(new_levels, axis.levels, strict=True)
+            ):
+                axis = axis.set_levels(new_levels)
+            return axis
+        if isinstance(axis.dtype, pd.StringDtype):
+            return axis.astype(object)
+        return axis
+
+    df.index = _coerce_axis(df.index)
+    df.columns = _coerce_axis(df.columns)
+    for col in df.columns:
+        if isinstance(df[col].dtype, pd.StringDtype):
+            df[col] = df[col].astype(object)
+    return df
+
+
 def _get_safe_excel_sheet_name(sheet_name: str) -> str:
     """Convert sheet name to/from safe version for Excel's 31-character limit.
 
@@ -930,7 +963,7 @@ class _ImporterNetCDF(_Importer):
                 scenario_index = self.ds.coords["scenario"].to_index()
                 index = pd.MultiIndex.from_product([scenario_index, index])
             df = pd.DataFrame(index=index)
-        return df
+        return _coerce_string_dtypes(df)
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         """Get dynamic components data."""
@@ -951,7 +984,7 @@ class _ImporterNetCDF(_Importer):
                     )
                     df.columns.names = ["scenario", "name"]
 
-                yield attr[len(t) :], df
+                yield attr[len(t) :], _coerce_string_dtypes(df)
 
     def finish(self) -> None:
         """Finish the import process."""
@@ -1834,6 +1867,7 @@ class NetworkIOMixin(_NetworkABC):
             if not isinstance(new_static.index, pd.MultiIndex)
             else ["scenario", "name"]
         )
+        new_static = _coerce_string_dtypes(new_static)
         self.components[cls_name].static = new_static
 
         # Now deal with time-dependent properties
@@ -1893,6 +1927,7 @@ class NetworkIOMixin(_NetworkABC):
             df.columns.names = ["scenario", "name"]
         else:
             df.columns.names = ["name"]
+        df = _coerce_string_dtypes(df)
 
         # Check if components exist in static df
         diff = df.columns.difference(static.index)
@@ -2388,7 +2423,7 @@ class NetworkIOMixin(_NetworkABC):
 
         # documented at https://docs.pypsa.org/latest/user-guide/components/shunt-impedances
         g_shunt = net.shunt.p_mw.values / net.shunt.vn_kv.values**2
-        b_shunt = net.shunt.q_mvar.values / net.shunt.vn_kv.values**2
+        b_shunt = -net.shunt.q_mvar.values / net.shunt.vn_kv.values**2
 
         d["ShuntImpedance"] = pd.DataFrame(
             {
