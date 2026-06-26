@@ -28,6 +28,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Avoid redundant traces and legends in interactive statistics bar plots when the color dimension duplicates an axis. (<!-- md:pr 1710 -->)
 
+- Fix ramp limit constraints spuriously linking across investment period boundaries in multi-investment optimization. Ramp constraints now reset at the first snapshot of each period instead of only at the global first snapshot, which could render feasible pathway models infeasible. (<!-- md:pr 1746 -->)
+
 - Fix temporal clustering producing `*_min_pu > *_max_pu` for some snapshots. Aggregated lower bounds are now clipped to their paired upper bound, both for the floating-point drift in [`segment()`][pypsa.clustering.temporal.TemporalClusteringMixin.segment] and the `e_min_pu`/`e_max_pu` crossover from min/max aggregation rules. (<!-- md:pr 1752 -->)
 
 - Fix `KeyError` in [`n.pf()`][pypsa.network.power_flow.NetworkPowerFlowMixin.pf] and [`n.lpf()`][pypsa.network.power_flow.NetworkPowerFlowMixin.lpf] when a network contains multiple sub-networks and one of them has no transformers (or otherwise lacks a passive branch component present in another sub-network). (<!-- md:pr 1754 -->)
