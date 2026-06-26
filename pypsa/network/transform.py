@@ -84,6 +84,27 @@ def _get_potential_typos(
     }
 
 
+def _build_suffixed_names(
+    name: str | int | Sequence[int | str],
+    suffix: str | Sequence[str],
+) -> pd.Index:
+    """Build the component index after appending `suffix`, for `n.add`/`n.remove`."""
+    single_name = np.isscalar(name)
+    if not isinstance(suffix, str) and is_1d_list_like(suffix):
+        if not single_name:
+            msg = (
+                "Cannot pass list to both `name` and `suffix`. "
+                "Pass a scalar `name` with a list `suffix`."
+            )
+            raise ValueError(msg)
+        if len(suffix) == 0:
+            msg = "Empty list `suffix` passed."
+            raise ValueError(msg)
+        return pd.Index([str(name) + s for s in suffix])
+    names = pd.Index([name]) if single_name else pd.Index(name)
+    return names.astype(str) + suffix
+
+
 class NetworkTransformMixin(_NetworkABC):
     """Mixin class for network transform methods.
 
@@ -95,7 +116,7 @@ class NetworkTransformMixin(_NetworkABC):
         self,
         class_name: str,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
         overwrite: bool = False,
         return_names: bool | None = None,
         **kwargs: Any,
@@ -126,8 +147,9 @@ class NetworkTransformMixin(_NetworkABC):
             "Store", "ShuntImpedance", "Line", "Transformer", "Link", "Process").
         name : str or int or list of str or list of int
             Component name(s)
-        suffix : str, default ""
-            All components are named after name with this added suffix.
+        suffix : str or list of str, default ""
+            Suffix added to each name. Pass a list together with a single `name`
+            to add one component per suffix.
         overwrite : bool, default False
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
@@ -195,7 +217,7 @@ class NetworkTransformMixin(_NetworkABC):
 
         c = as_components(self, class_name)
         # Process name/names to pandas.Index of strings and add suffix
-        single_component = np.isscalar(name)
+        single_component = np.isscalar(name) and isinstance(suffix, str)
 
         # Check if multi-index names are passed
         if isinstance(name, pd.MultiIndex):
@@ -204,8 +226,7 @@ class NetworkTransformMixin(_NetworkABC):
                 msg += " For stochastic networks, pass simple names. They will be automatically broadcast to all scenarios."
             raise TypeError(msg)
 
-        names = pd.Index([name]) if single_component else pd.Index(name)
-        names = names.astype(str) + suffix
+        names = _build_suffixed_names(name, suffix)
 
         names_str = "name" if single_component else "names"
         # Read kwargs into static and time-varying attributes
@@ -255,21 +276,13 @@ class NetworkTransformMixin(_NetworkABC):
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"Series {k}", "network snapshots"))
             elif isinstance(v, pd.Series):
-                # Cast names index to string + suffix
-                v = v.rename(
-                    index=lambda s: (
-                        str(s) if str(s).endswith(suffix) else str(s) + suffix
-                    )
-                )
+                if isinstance(suffix, str):
+                    v = v.rename(index=lambda s: str(s).removesuffix(suffix) + suffix)
                 if not v.index.equals(names):
                     raise ValueError(msg.format(f"Series {k}", names_str))
             if isinstance(v, pd.DataFrame):
-                # Cast names columns to string + suffix
-                v = v.rename(
-                    columns=lambda s: (
-                        str(s) if str(s).endswith(suffix) else str(s) + suffix
-                    )
-                )
+                if isinstance(suffix, str):
+                    v = v.rename(columns=lambda s: str(s).removesuffix(suffix) + suffix)
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
                 if not v.columns.equals(names):
@@ -374,7 +387,7 @@ class NetworkTransformMixin(_NetworkABC):
         self,
         class_name: str,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
     ) -> None:
         """Remove a single component or a list of components from the network.
 
@@ -386,8 +399,9 @@ class NetworkTransformMixin(_NetworkABC):
             Component class name
         name : str, int, list-like or pandas.Index
             Component name(s)
-        suffix : str, default=''
-            Suffix to be added to the component name(s)
+        suffix : str or list of str, default ""
+            Suffix added to each name. Pass a list together with a single `name`
+            to remove one component per suffix.
 
         Examples
         --------
@@ -433,8 +447,7 @@ class NetworkTransformMixin(_NetworkABC):
         c = as_components(self, class_name)
 
         # Process name/names to pandas.Index of strings and add suffix
-        names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
-        names = names.astype(str) + suffix
+        names = _build_suffixed_names(name, suffix)
 
         # Drop from static components
         cls_static = c.static
