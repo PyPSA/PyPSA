@@ -123,7 +123,7 @@ jobs:
         # Allow upgrading internal packages without exclude-newer cap
         sed -i '/^exclude-newer\s*=/d' pixi.toml
         pixi remove ${{ env.PACKAGE_NAME }}
-        pixi upgrade linopy
+        pixi add --pypi --git https://github.com/davide-f/linopy.git linopy --rev add_scaling
         pixi add --pypi --git https://github.com/${{ github.repository }}.git ${{ github.event.repository.name }} --rev ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
     - name: Run snakemake test workflows

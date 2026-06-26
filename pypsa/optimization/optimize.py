@@ -428,7 +428,7 @@ def define_objective(
         obj_expr = expected_capex + expected_opex
 
     # Set objective
-    m.objective = obj_expr
+    m.add_objective(obj_expr, overwrite=True)
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):

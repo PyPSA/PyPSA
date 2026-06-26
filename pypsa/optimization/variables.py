@@ -12,6 +12,11 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import xarray as xr
 
+from pypsa.optimization.scaling import (
+    component_nominal_variable_scaling,
+    component_variable_scaling,
+)
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -43,7 +48,13 @@ def define_operational_variables(
 
     active = c.da.active.sel(name=c.active_assets, snapshot=sns)
     coords = active.coords
-    n.model.add_variables(coords=coords, name=f"{c.name}-{attr}", mask=active)
+    scaling = component_variable_scaling(n, c.name, c.active_assets)
+    n.model.add_variables(
+        coords=coords,
+        name=f"{c.name}-{attr}",
+        mask=active,
+        scaling=scaling,
+    )
 
 
 def define_status_variables(
@@ -219,7 +230,8 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
     if isinstance(ext_i, pd.MultiIndex):
         ext_i = ext_i.unique(level="name")
 
-    n.model.add_variables(coords=[ext_i], name=f"{c.name}-{attr}")
+    scaling = component_nominal_variable_scaling(n, c.name, ext_i)
+    n.model.add_variables(coords=[ext_i], name=f"{c.name}-{attr}", scaling=scaling)
 
 
 def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
@@ -263,7 +275,14 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     active_aligned, upper_aligned = xr.align(active, upper, join="inner")
     active = active_aligned.where(upper_aligned > 0, False)
 
-    n.model.add_variables(0, upper_aligned, name=f"{c.name}-spill", mask=active)
+    scaling = component_variable_scaling(n, c.name, upper_aligned.coords["name"].values)
+    n.model.add_variables(
+        0,
+        upper_aligned,
+        name=f"{c.name}-spill",
+        mask=active,
+        scaling=scaling,
+    )
 
 
 def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
@@ -285,7 +304,14 @@ def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
 
     active = c.da.active.sel(name=c.active_assets, snapshot=sns)
     coords = active.coords
-    n.model.add_variables(0, coords=coords, name=f"{c.name}-loss", mask=active)
+    scaling = component_variable_scaling(n, c.name, c.active_assets)
+    n.model.add_variables(
+        0,
+        coords=coords,
+        name=f"{c.name}-loss",
+        mask=active,
+        scaling=scaling,
+    )
 
 
 def define_cvar_variables(n: Network) -> None:
