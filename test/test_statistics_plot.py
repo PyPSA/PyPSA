@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-import sys
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -23,12 +21,15 @@ from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.plotter import StatisticPlotter
 from pypsa.statistics.expressions import StatisticsAccessor
 
-# Set random seed for reproducibility
-np.random.seed(42)  # noqa: NPY002
-
 plt.rcdefaults()
 plt.rcParams["figure.figsize"] = [8, 6]
 plt.rcParams["figure.dpi"] = 100
+
+
+@pytest.fixture(autouse=True)
+def _seed_rng():
+    """Reseed before each test so image baselines don't depend on test order."""
+    np.random.seed(42)  # noqa: NPY002
 
 
 def _multi_period_sample() -> pd.DataFrame:
@@ -42,12 +43,8 @@ def _multi_period_sample() -> pd.DataFrame:
     return data
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["darwin"],
-    reason="Run only once for stability.",
-)
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-@pytest.mark.mpl_image_compare(tolerance=40)
+@pytest.mark.mpl_image_compare(tolerance=20)
 def test_simple_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     fig, _, _ = plotter.plot()
@@ -55,13 +52,9 @@ def test_simple_plot(ac_dc_network_r, stat_func):
     return fig
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["darwin"],
-    reason="Run only once for stability.",
-)
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.parametrize("kind", CHART_TYPES + ["map"])
-@pytest.mark.mpl_image_compare(tolerance=40)
+@pytest.mark.mpl_image_compare(tolerance=20)
 def test_plot_types(ac_dc_network_r, stat_func, kind):
     if kind == "map" and stat_func == "prices":
         pytest.skip("Map plotting for 'prices' is not implemented.")
