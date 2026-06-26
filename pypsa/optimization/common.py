@@ -29,11 +29,11 @@ def _period_start_mask(sns: pd.Index) -> xr.DataArray:
     return xr.DataArray(is_start, coords=[sns])
 
 
-def _roll_within_periods(obj: xr.DataArray, sns: pd.MultiIndex) -> xr.DataArray:
-    """Cyclically roll ``obj`` by one snapshot within each investment period."""
+def _roll_within_periods(da: xr.DataArray) -> xr.DataArray:
+    """Cyclically roll ``da`` by one snapshot within each investment period."""
     rolled = [
-        obj.sel(snapshot=(period, slice(None))).roll(snapshot=1)
-        for period in sns.unique("period")
+        da.sel(snapshot=(period, slice(None))).roll(snapshot=1)
+        for period in da.get_index("snapshot").unique("period")
     ]
     return xr.concat(rolled, dim="snapshot")
 

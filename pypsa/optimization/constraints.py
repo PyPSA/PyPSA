@@ -1712,7 +1712,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         ) | c.da.state_of_charge_initial_per_period.sel(name=c.active_assets)
 
         # We calculate the previous soc per period while cycling within a period
-        previous_soc_pp = _roll_within_periods(soc.data, sns)
+        previous_soc_pp = _roll_within_periods(soc.data)
 
         # We create a mask `include_previous_soc_pp` which determines when to include
         # previous state of charge from within the period:
@@ -1890,7 +1890,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         per_period = per_period.sel(name=c.active_assets)
 
         # We calculate the previous e per period while cycling within a period
-        previous_e_pp = _roll_within_periods(e.data, sns)
+        previous_e_pp = _roll_within_periods(e.data)
 
         # We create a mask `include_previous_e_pp` which determines when to include
         # previous energy from within the period:
