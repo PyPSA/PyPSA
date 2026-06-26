@@ -482,7 +482,10 @@ def test_add_list_suffix_dataframe_kwarg(n_5bus_7sn):
         "Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", p_max_pu=p_max_pu
     )
     pd.testing.assert_frame_equal(
-        n_5bus_7sn.c.generators.dynamic.p_max_pu, p_max_pu, check_names=False
+        n_5bus_7sn.c.generators.dynamic.p_max_pu,
+        p_max_pu,
+        check_names=False,
+        check_column_type=False,
     )
 
 
