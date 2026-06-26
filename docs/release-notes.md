@@ -6,15 +6,27 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-## [**v1.2.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.3) <small>12th June 2026</small> { id="v1.2.3" }
 
-<!--
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Features
+
+- Phase-shifting transformers (PSTs, also known as _dwarsregeltransformatoren_) are now fully supported in linear optimal power flow. Setting `phase_shift_min < phase_shift_max` on a `Transformer` turns the voltage phase-angle shift into a per-snapshot decision variable bounded by those two attributes (degrees); the optimiser re-taps the PST each snapshot to redistribute flow around cycles, modelling TSO operational tap control. The optimised per-snapshot angle is written to the dynamic output `n.transformers_t["phase_shift"]`, mirroring the `p_set`/`p` input/output split. (<!-- md:pr 1661 -->)
+
+### Breaking Changes
+
+- The `Transformer` input attribute `phase_shift` has been renamed to `phase_shift_set`. The name `phase_shift` is now a dynamic *output* holding the realised/optimised per-snapshot shift (analogous to `p_set`/`p`). Setting `phase_shift` via `n.add(...)` or loading networks saved with the old attribute still works but emits a `DeprecationWarning` and is aliased to `phase_shift_set`; this fallback will be removed in 2.0. (<!-- md:pr 1661 -->)
+
+### Bug Fixes
+
+- The fixed `phase_shift_set` on `Transformer` components is now included in the cycle-based Kirchhoff Voltage Law constraint in `n.optimize()`. Previously the phase shift was silently dropped in LOPF (only `n.lpf()` and `n.pf()` respected it), causing optimisation results to diverge from subsequent non-linear power-flow verification. (<!-- md:pr 1661 -->)
+
+
+## [**v1.2.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.3) <small>12th June 2026</small> { id="v1.2.3" }
 
 ### Features
 

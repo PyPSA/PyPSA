@@ -61,6 +61,7 @@ from pypsa.optimization.variables import (
     define_modular_variables,
     define_nominal_variables,
     define_operational_variables,
+    define_phase_shift_variables,
     define_shut_down_variables,
     define_spillage_variables,
     define_start_up_variables,
@@ -561,7 +562,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._multi_invest = int(multi_investment_periods)
         n._linearized_uc = linearized_unit_commitment
 
-        n.consistency_check(strict=["unknown_buses"])
+        n.consistency_check(strict=["unknown_buses", "phase_shift_bounds"])
         m = n.optimize.create_model(
             sns,
             multi_investment_periods,
@@ -704,6 +705,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
+        define_phase_shift_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -904,6 +906,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         m = n.model
         sns = n.model.parameters.snapshots.to_index()
 
+        if not n.c.transformers.empty:
+            setpoint = n.get_switchable_as_dense("Transformer", "phase_shift_set", sns)
+            _set_dynamic_data(n, "Transformer", "phase_shift", setpoint)
+
         for name, variable in m.variables.items():
             sol = variable.solution
             if name == "objective_constant":
@@ -938,6 +944,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 if c.name in n.passive_branch_components and attr == "s":
                     _set_dynamic_data(n, c.name, "p0", df)
                     _set_dynamic_data(n, c.name, "p1", -df)
+
+                elif c.name == "Transformer" and attr == "phase_shift":
+                    _set_dynamic_data(n, c.name, "phase_shift", df)
 
                 elif c.name == "Link" and attr == "p":
                     _set_dynamic_data(n, c.name, "p", df)
