@@ -2423,7 +2423,7 @@ class NetworkIOMixin(_NetworkABC):
 
         # documented at https://docs.pypsa.org/latest/user-guide/components/shunt-impedances
         g_shunt = net.shunt.p_mw.values / net.shunt.vn_kv.values**2
-        b_shunt = net.shunt.q_mvar.values / net.shunt.vn_kv.values**2
+        b_shunt = -net.shunt.q_mvar.values / net.shunt.vn_kv.values**2
 
         d["ShuntImpedance"] = pd.DataFrame(
             {
