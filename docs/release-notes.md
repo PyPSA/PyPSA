@@ -34,6 +34,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix `KeyError` in [`n.pf()`][pypsa.network.power_flow.NetworkPowerFlowMixin.pf] and [`n.lpf()`][pypsa.network.power_flow.NetworkPowerFlowMixin.lpf] when a network contains multiple sub-networks and one of them has no transformers (or otherwise lacks a passive branch component present in another sub-network). (<!-- md:pr 1754 -->)
 
+- Fix [`supply`][pypsa.optimization.expressions.StatisticExpressionsAccessor.supply] and [`withdrawal`][pypsa.optimization.expressions.StatisticExpressionsAccessor.withdrawal] expressions dropping the charging contribution of `StorageUnit` components. The supply/withdrawal split now considers the effective coefficients of the operational variable, so the `p_store` term is correctly reported as a withdrawal. (<!-- md:pr 1760 -->)
+
 
 ## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
 
