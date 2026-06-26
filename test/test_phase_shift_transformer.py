@@ -145,13 +145,12 @@ class TestVariablePhaseShift:
         n.optimize(solver_name="highs")
         assert "Transformer-phase_shift" not in n.model.variables
 
-    def test_fixed_phase_shift_stays_static(self):
-        """Fixed transformers keep their shift in the static phase_shift_set."""
+    def test_fixed_phase_shift_reports_setpoint(self):
+        """Fixed transformers report their setpoint in the realised phase_shift."""
         n = _build(phase_shift_set=5.0, variable=False)
         n.optimize(solver_name="highs")
-        assert "T1" not in n.transformers_t.phase_shift.columns
-        dense = n.get_switchable_as_dense("Transformer", "phase_shift_set")
-        assert (dense["T1"].values == 5.0).all()
+        assert (n.transformers_t.phase_shift["T1"].values == 5.0).all()
+        assert n.transformers.at["T1", "phase_shift_set"] == 5.0
 
     def test_variable_rejects_unbounded(self):
         """An optimisable shift with a non-finite bound fails fast."""
@@ -216,8 +215,8 @@ class TestMixedFixedAndVariable:
         # Variable var present, fixed input unchanged
         assert "Transformer-phase_shift" in n.model.variables
         assert n.transformers.at["T1", "phase_shift_set"] == 5.0
-        # Realised angles: fixed (T1) stays in phase_shift_set, variable (T2) in _t
-        assert "T1" not in n.transformers_t.phase_shift.columns
+        # Realised angles: fixed (T1) equals its setpoint, variable (T2) optimised
+        assert (n.transformers_t.phase_shift["T1"].values == 5.0).all()
         assert "T2" in n.transformers_t.phase_shift.columns
         t2_opt = n.transformers_t.phase_shift["T2"].values
         assert ((t2_opt >= -20.0 - 1e-6) & (t2_opt <= 20.0 + 1e-6)).all()

@@ -296,16 +296,14 @@ def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
     trafos = c.static
     if "phase_shift_min" not in trafos.columns:
         return
-    var_mask = trafos["active"] & (
-        trafos["phase_shift_min"] < trafos["phase_shift_max"]
-    )
-    var_names = trafos.index[var_mask]
-    if var_names.empty:
+    where = trafos["active"] & (trafos["phase_shift_min"] < trafos["phase_shift_max"])
+    names = trafos.index[where]
+    if names.empty:
         return
 
-    active = c.da.active.sel(name=var_names, snapshot=sns)
-    lower = c.da["phase_shift_min"].sel(name=var_names).broadcast_like(active)
-    upper = c.da["phase_shift_max"].sel(name=var_names).broadcast_like(active)
+    active = c.da.active.sel(name=names, snapshot=sns)
+    lower = c.da["phase_shift_min"].sel(name=names).broadcast_like(active)
+    upper = c.da["phase_shift_max"].sel(name=names).broadcast_like(active)
     n.model.add_variables(lower, upper, name="Transformer-phase_shift")
 
 

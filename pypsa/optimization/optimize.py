@@ -906,6 +906,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         m = n.model
         sns = n.model.parameters.snapshots.to_index()
 
+        if not n.c.transformers.empty:
+            setpoint = n.get_switchable_as_dense("Transformer", "phase_shift_set", sns)
+            _set_dynamic_data(n, "Transformer", "phase_shift", setpoint)
+
         for name, variable in m.variables.items():
             sol = variable.solution
             if name == "objective_constant":
@@ -942,9 +946,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p1", -df)
 
                 elif c.name == "Transformer" and attr == "phase_shift":
-                    c.dynamic["phase_shift"] = df.combine_first(
-                        c.dynamic["phase_shift"]
-                    )
+                    _set_dynamic_data(n, c.name, "phase_shift", df)
 
                 elif c.name == "Link" and attr == "p":
                     _set_dynamic_data(n, c.name, "p", df)
