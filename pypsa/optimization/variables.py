@@ -296,8 +296,8 @@ def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
     trafos = c.static
     if "phase_shift_min" not in trafos.columns:
         return
-    where = trafos["active"] & (trafos["phase_shift_min"] < trafos["phase_shift_max"])
-    names = trafos.index[where]
+    varying = trafos["phase_shift_min"] < trafos["phase_shift_max"]
+    names = trafos.index[varying].difference(c.inactive_assets)
     if names.empty:
         return
 

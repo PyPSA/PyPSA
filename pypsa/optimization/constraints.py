@@ -1255,8 +1255,8 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
             C_trafos = C_plain.loc["Transformer"]
 
             tr = n.c.Transformer
-            is_active = tr.static["active"] & tr.static.index.isin(C_trafos.index)
-            active = tr.static[is_active]
+            in_cycle = C_trafos.index.difference(tr.inactive_assets)
+            active = tr.static.loc[in_cycle]
             varying = active["phase_shift_min"] < active["phase_shift_max"]
 
             contributions = [(active.index[~varying], tr.da["phase_shift_set"])]
