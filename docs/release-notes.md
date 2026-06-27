@@ -26,6 +26,23 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fixed a collection of issues in the [`n.statistics.*.plot`/`.iplot`][pypsa.statistics.StatisticsAccessor] accessors (<!-- md:pr 1719 -->):
+    - `color=None` now disables color grouping instead of falling back to `"carrier"`.
+    - Passing an unsupported filter (e.g. `carrier` to `prices`) now raises a clear error instead of being silently dropped.
+    - Distribution plots (`box`/`violin`/`histogram`) default to the full time series so they show real distributions.
+    - `box`/`violin` figure height scales with the number of categorical rows (capped at 30 inches).
+    - Static `line`/`scatter` plots honor carrier colors via the palette.
+    - Requested but empty facets stay visible instead of being silently dropped.
+    - `sharex=False`/`sharey=False` keeps tick labels on all faceted subplots.
+    - Interactive plots with a categorical y-axis label every bar and scale the figure height with the number of rows (capped at 2000 pixels), instead of thinning tick labels.
+    - Static faceted plots now accept `col_wrap` to wrap facets across rows.
+    - Multi-period statistics (e.g. `optimal_capacity`) name their per-period columns `period`, so line/area plots no longer fail with `KeyError: 'period'`.
+    - A dimension mapped to `x`/`y`/`color` (e.g. `x="period"`) is no longer also used as an automatic facet.
+    - Filtering by `carrier`/`bus_carrier` on a [`NetworkCollection`][pypsa.NetworkCollection] (or stochastic network) with `nice_names=True` no longer raises `NotImplementedError`.
+    - Non-bar plots of a collection (or stochastic network) of multi-period networks now facet by both the collection/scenario dimension and the period, instead of dropping the period (which made area plots fail with `cannot reshape` and line plots overlap periods).
+    - [`n.statistics.prices`][pypsa.statistics.StatisticsAccessor.prices] accepts any static bus attribute (e.g. `country`) in `groupby`, and its plot accessors support these as dimensions (e.g. `prices.plot.box(facet_row="country")`) instead of failing with a `KeyError`.
+    - Interactive plots render LaTeX carrier names and categorical axes correctly with `pandas>=3` (string-dtype columns).
+- Passing `groupby_time=False` to [`n.statistics.system_cost`][pypsa.statistics.StatisticsAccessor.system_cost] is deprecated and will raise in v2.0; it has no per-snapshot resolution as it includes static capital expenditure. Use `opex(groupby_time=False)` for the time-resolved operational cost. (<!-- md:pr 1719 -->)
 - Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] silently ignoring a static `p_set` attribute. (<!-- md:pr 1703 -->)
 
 - Fix optimization results being silently zeroed for components which are not yet present in the existing dynamic result data. Regression introduced in `v1.2.0`. (<!-- md:pr 1726 -->)
