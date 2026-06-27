@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 # - `energy` (MW / MWh), default 1e3
-# - `cost` (€), default 1e6
+# - `cost` (€), default 1e3
 # - `emissions` (tCO2), default 1e6
 #
 # (energy, cost, emissions)
@@ -63,7 +63,7 @@ class Scaler(NamedTuple):
             return None
         defaults = {
             "energy": 1e3,
-            "cost": 1e6,
+            "cost": 1e3,
             "emissions": 1e6,
         }
         if scaling is True:

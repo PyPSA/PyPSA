@@ -532,7 +532,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             bus connectivity count. Defaults to ``[30, 100, 400]``.
         scaling : bool | dict, default False
             Rescale to better conditioned units before solving, then convert
-            results back. `True` uses `energy`/1e3, `cost`/1e6, `emissions`/1e6.
+            results back. `True` uses `energy`/1e3, `cost`/1e3, `emissions`/1e6.
             Pass a dict to override any subset.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
