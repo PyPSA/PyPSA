@@ -477,6 +477,13 @@ options._add_option(
     "Setting False sets n.objective_constant to zero and improves LP numerical "
     "conditioning. None defaults to True with a FutureWarning (changes to False in v2.0).",
 )
+options._add_option(
+    "params.optimize.scaling",
+    False,
+    "Default value for the 'scaling' parameter in optimization. False means no "
+    "scaling, True uses energy/1e3, cost/1e3, emissions/1e6, and a dict overrides "
+    "any subset. See n.optimize(scaling=...).",
+)
 
 options._add_option(
     "params.consistency.numerical_tolerance",

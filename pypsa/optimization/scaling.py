@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 # - `emissions` (tCO2), default 1e6
 #
 # (energy, cost, emissions)
-_NOM = re.compile(r"(?!v_nom)\w+_nom(_min|_max|_set|_mod)?")
+_NOM = re.compile(r"(?!v_nom)(\w+_nom(_min|_max|_set|_mod)?|nom_(min|max)_\w+)")
 _COLUMN_EXPONENTS = {
     # power flows (MW), energy stocks (MWh), capacities (*_nom, MW/MWh)
     "p_set": (-1, 0, 0),
@@ -32,6 +32,9 @@ _COLUMN_EXPONENTS = {
     "e_set": (-1, 0, 0),
     "state_of_charge_initial": (-1, 0, 0),
     "state_of_charge_set": (-1, 0, 0),
+    "max_growth": (-1, 0, 0),
+    "e_sum_min": (-1, 0, 0),
+    "e_sum_max": (-1, 0, 0),
     _NOM: (-1, 0, 0),
     # cost per quantity (€/MW, €/MWh)
     "marginal_cost": (1, -1, 0),
@@ -140,9 +143,12 @@ class Scaler(NamedTuple):
             gc.loc[is_em, "constant"] /= self.emissions
             gc.loc[~(is_cost | is_em), "constant"] /= self.energy
 
+        # Expose the active factors so raw constants can be scaled (e.g. p_init)
+        n._scaling = self._asdict()
         try:
             yield
         finally:
+            n._scaling = {"energy": 1.0, "cost": 1.0, "emissions": 1.0}
             for (cname, col), original in static.items():
                 n.components[cname].static[col] = original
             for (cname, col), original in dynamic.items():

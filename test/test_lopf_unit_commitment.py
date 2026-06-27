@@ -621,10 +621,10 @@ def test_dynamic_ramp_rates():
 
     n.optimize()
 
-    assert (n.c.generators.dynamic.p.diff().loc[0:6, "gen1"]).max() <= 0.5 * 80
-    assert (n.c.generators.dynamic.p.diff().loc[0:6, "gen1"]).min() >= -0.5 * 100
-    assert (n.c.generators.dynamic.p.diff().loc[6:, "gen1"]).max() <= 80
-    assert (n.c.generators.dynamic.p.diff().loc[6:, "gen1"]).min() >= -100
+    assert (n.c.generators.dynamic.p.diff().loc[0:6, "gen1"]).max() <= 0.5 * 80 + 1e-6
+    assert (n.c.generators.dynamic.p.diff().loc[0:6, "gen1"]).min() >= -0.5 * 100 - 1e-6
+    assert (n.c.generators.dynamic.p.diff().loc[6:, "gen1"]).max() <= 80 + 1e-6
+    assert (n.c.generators.dynamic.p.diff().loc[6:, "gen1"]).min() >= -100 - 1e-6
 
 
 @pytest.mark.parametrize("direction", ["up", "down"])

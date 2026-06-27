@@ -91,6 +91,7 @@ class Network(
     _multi_invest: int
     _linearized_uc: int
     _committable_big_m: float | None
+    _scaling: dict[str, float]
     iteration: int
 
     # ----------------
@@ -162,6 +163,7 @@ class Network(
         self._objective_constant: float | None = None
         self._multi_invest: int = 0
         self._committable_big_m: float | None = None
+        self._scaling: dict[str, float] = {"energy": 1.0, "cost": 1.0, "emissions": 1.0}
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)

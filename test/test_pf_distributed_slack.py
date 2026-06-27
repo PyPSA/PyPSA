@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 
@@ -9,6 +10,7 @@ def normed(s):
     return s / s.sum()
 
 
+@pytest.mark.no_scaling  # scigrid_de
 def test_pf_distributed_slack(scipy_network):
     n = scipy_network
     n.set_snapshots(n.snapshots[:2])

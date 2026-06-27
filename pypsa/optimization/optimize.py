@@ -460,7 +460,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
-        scaling: bool | dict = False,
+        scaling: bool | dict | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -530,10 +530,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
-        scaling : bool | dict, default False
+        scaling : bool | dict | None, default None
             Rescale to better conditioned units before solving, then convert
             results back. `True` uses `energy`/1e3, `cost`/1e3, `emissions`/1e6.
-            Pass a dict to override any subset.
+            Pass a dict to override any subset. When None, defaults to module
+            wide option `options.params.optimize.scaling`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -562,6 +563,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant = _resolve_include_objective_constant(
             include_objective_constant
         )
+        if scaling is None:
+            scaling = options.params.optimize.scaling
 
         n = self._n
         sns = as_index(n, snapshots, "snapshots")

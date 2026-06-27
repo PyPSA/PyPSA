@@ -50,10 +50,12 @@ def no_warnings():
 
 
 @pytest.fixture(autouse=True)
-def _set_test_options():
+def _set_test_options(request):
     """Ensure test-specific options are set before each test."""
     pypsa.options.debug.runtime_verification = True
     pypsa.options.params.optimize.include_objective_constant = True
+    if request.config.getoption("--scaling"):
+        pypsa.options.params.optimize.scaling = True
     return
 
 
@@ -72,6 +74,12 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Activate the new components API (options.api.new_components_api)",
+    )
+    parser.addoption(
+        "--scaling",
+        action="store_true",
+        default=False,
+        help="Enable optimization scaling by default (options.params.optimize.scaling)",
     )
     parser.addoption(
         "--test-docs",
@@ -95,12 +103,26 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     """Configure pytest session with custom options."""
+    config.addinivalue_line(
+        "markers",
+        "no_scaling: skip under the --scaling stress mode (test is incompatible "
+        "with model scaling, e.g. inspects raw model internals or runs on a "
+        "numerically ill-conditioned network).",
+    )
     if config.getoption("--new-components-api"):
         pypsa.options.api.new_components_api = True
+    if config.getoption("--scaling"):
+        pypsa.options.params.optimize.scaling = True
 
 
 def pytest_collection_modifyitems(config, items):
-    """Skip image comparison tests unless --run-plot-tests is given."""
+    """Skip image comparison and scaling-incompatible tests."""
+    if config.getoption("--scaling"):
+        skip_scaling = pytest.mark.skip(reason="incompatible with --scaling mode")
+        for item in items:
+            if "no_scaling" in item.keywords:
+                item.add_marker(skip_scaling)
+
     if config.getoption("--run-plot-tests"):
         return
     skip = pytest.mark.skip(
