@@ -329,9 +329,9 @@ class TestNetcdf:
 
         with pd.option_context("future.infer_string", True):
             n = pypsa.examples.ac_dc_meshed()
-            assert (
-                type(n.c.buses.static.index.array).__name__
-                == "ArrowStringArrayNumpySemantics"
+            assert type(n.c.buses.static.index.array).__name__ in (
+                "ArrowStringArray",
+                "ArrowStringArrayNumpySemantics",
             )
             with pytest.raises(TypeError, match="Invalid array type"):
                 n.optimize()
