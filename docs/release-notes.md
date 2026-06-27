@@ -14,6 +14,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix `optimize()` and [`export_to_netcdf()`][pypsa.Network.export_to_netcdf] failing under pandas `>= 3.0` / `future.infer_string`. String labels are now converted back to `object` on both import and export. (<!-- md:pr 1687 -->)
+
 - Fixed the `suffix` argument of [`n.add`][pypsa.Network.add] and [`n.remove`][pypsa.Network.remove]. Passing a list to both `name` and `suffix` now raises an error instead of silently pairing them. (<!-- md:pr 1682 -->)
 
 ## [**v1.2.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.3) <small>12th June 2026</small> { id="v1.2.3" }
@@ -67,8 +69,6 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly. (<!-- md:pr 1683 -->)
 
 - Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. (<!-- md:pr 1686 -->)
-
-- Fix `optimize()` failing with `TypeError: Invalid array type` on networks loaded from file or built with `n.add()` when using pandas `>= 3.0` or `future.infer_string`. Component labels read in pandas' new string dtype are now converted back to `object` on import. (<!-- md:pr 1687 -->)
 
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
