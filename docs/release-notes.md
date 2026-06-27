@@ -6,11 +6,17 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
+<!--
+## Upcoming Release
+
 !!! info "Upcoming Release"
 
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+-->
+
+## [**v1.2.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.4) <small>27th June 2026</small> { id="v1.2.4" }
 
 ### Bug Fixes
 
@@ -18,15 +24,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fixed the `suffix` argument of [`n.add`][pypsa.Network.add] and [`n.remove`][pypsa.Network.remove]. Passing a list to both `name` and `suffix` now raises an error instead of silently pairing them. (<!-- md:pr 1682 -->)
 
-## [**v1.2.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.3) <small>12th June 2026</small> { id="v1.2.3" }
-
-### Features
-
-- Added compatibility with the stricter dimension alignment handling in the upcoming linopy `>=0.8`. (<!-- md:pr 1708 -->)
-
-### Bug Fixes
-
-- Fixed a collection of issues in the [`n.statistics.*.plot`/`.iplot`][pypsa.statistics.StatisticsAccessor] accessors (<!-- md:pr 1719 -->):
+- Fixed a collection of issues in the [`n.statistics.*.plot`/`.iplot`][pypsa.statistics.StatisticsAccessor] accessors (<!-- md:pr 1721 -->):
     - `color=None` now disables color grouping instead of falling back to `"carrier"`.
     - Passing an unsupported filter (e.g. `carrier` to `prices`) now raises a clear error instead of being silently dropped.
     - Distribution plots (`box`/`violin`/`histogram`) default to the full time series so they show real distributions.
@@ -42,12 +40,7 @@ SPDX-License-Identifier: CC-BY-4.0
     - Non-bar plots of a collection (or stochastic network) of multi-period networks now facet by both the collection/scenario dimension and the period, instead of dropping the period (which made area plots fail with `cannot reshape` and line plots overlap periods).
     - [`n.statistics.prices`][pypsa.statistics.StatisticsAccessor.prices] accepts any static bus attribute (e.g. `country`) in `groupby`, and its plot accessors support these as dimensions (e.g. `prices.plot.box(facet_row="country")`) instead of failing with a `KeyError`.
     - Interactive plots render LaTeX carrier names and categorical axes correctly with `pandas>=3` (string-dtype columns).
-- Passing `groupby_time=False` to [`n.statistics.system_cost`][pypsa.statistics.StatisticsAccessor.system_cost] is deprecated and will raise in v2.0; it has no per-snapshot resolution as it includes static capital expenditure. Use `opex(groupby_time=False)` for the time-resolved operational cost. (<!-- md:pr 1719 -->)
-- Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] silently ignoring a static `p_set` attribute. (<!-- md:pr 1703 -->)
-
-- Fix optimization results being silently zeroed for components which are not yet present in the existing dynamic result data. Regression introduced in `v1.2.0`. (<!-- md:pr 1726 -->)
-
-- Avoid redundant traces and legends in interactive statistics bar plots when the color dimension duplicates an axis. (<!-- md:pr 1710 -->)
+- Passing `groupby_time=False` to [`n.statistics.system_cost`][pypsa.statistics.StatisticsAccessor.system_cost] is deprecated and will raise in v2.0; it has no per-snapshot resolution as it includes static capital expenditure. Use `opex(groupby_time=False)` for the time-resolved operational cost. (<!-- md:pr 1721 -->)
 
 - Fix ramp limit constraints spuriously linking across investment period boundaries in multi-investment optimization. Ramp constraints now reset at the first snapshot of each period instead of only at the global first snapshot, which could render feasible pathway models infeasible. (<!-- md:pr 1746 -->)
 
@@ -58,6 +51,23 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix the sign of the shunt susceptance when importing from pandapower. A shunt with `q_mvar > 0` (inductive) was previously imported with the wrong sign, causing the power flow to diverge from pandapower. (<!-- md:pr 1758 -->)
 
 - A warning is now logged when manually set impedance parameters (`r`, `x`, `g`, `b`, `s_nom`) on transformers or lines with a standard `type` are overridden by the type during [`n.calculate_dependent_values()`][pypsa.network.power_flow.NetworkPowerFlowMixin.calculate_dependent_values], instead of silently discarding them. (<!-- md:pr 1759 -->)
+
+- Fix the `snapshot` index name being dropped from dynamic data when reassigning [`n.snapshots`][pypsa.Network.snapshots]. (<!-- md:pr 1745 -->)
+
+
+## [**v1.2.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.3) <small>12th June 2026</small> { id="v1.2.3" }
+
+### Features
+
+- Added compatibility with the stricter dimension alignment handling in the upcoming linopy `>=0.8`. (<!-- md:pr 1708 -->)
+
+### Bug Fixes
+
+- Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] silently ignoring a static `p_set` attribute. (<!-- md:pr 1703 -->)
+
+- Fix optimization results being silently zeroed for components which are not yet present in the existing dynamic result data. Regression introduced in `v1.2.0`. (<!-- md:pr 1726 -->)
+
+- Avoid redundant traces and legends in interactive statistics bar plots when the color dimension duplicates an axis. (<!-- md:pr 1710 -->)
 
 
 ## [**v1.2.2**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.2) <small>25th May 2026</small> { id="v1.2.2" }
