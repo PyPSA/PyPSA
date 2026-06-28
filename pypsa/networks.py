@@ -65,6 +65,7 @@ if TYPE_CHECKING:
     from scipy.sparse import spmatrix
 
     from pypsa.components.legacy import Component
+    from pypsa.optimization.scaling import Scaler
 
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,7 @@ class Network(
     _linearized_uc: int
     _committable_big_m: float | None
     _scaling: dict[str, float]
+    _scaler: Scaler | None
     iteration: int
 
     # ----------------
@@ -164,6 +166,7 @@ class Network(
         self._multi_invest: int = 0
         self._committable_big_m: float | None = None
         self._scaling: dict[str, float] = {"energy": 1.0, "cost": 1.0, "emissions": 1.0}
+        self._scaler: Scaler | None = None
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)

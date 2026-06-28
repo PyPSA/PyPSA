@@ -550,21 +550,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
         """
-        # Handle default parameters from options
+        # Handle default parameters from options (rest resolves in solve_model)
         if model_kwargs is None:
             model_kwargs = options.params.optimize.model_kwargs.copy()
-        if solver_name is None:
-            solver_name = options.params.optimize.solver_name
-        if solver_options is None:
-            solver_options = options.params.optimize.solver_options.copy()
-        if log_to_console is None:
-            log_to_console = options.params.optimize.log_to_console
-
-        include_objective_constant = _resolve_include_objective_constant(
-            include_objective_constant
-        )
-        if scaling is None:
-            scaling = options.params.optimize.scaling
 
         n = self._n
         sns = as_index(n, snapshots, "snapshots")
@@ -573,36 +561,27 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         n.consistency_check(strict=["unknown_buses"])
 
-        factors = Scaler.resolve(scaling)
-        with factors.applied(n) if factors else nullcontext():
-            m = n.optimize.create_model(
-                sns,
-                multi_investment_periods,
-                transmission_losses,
-                linearized_unit_commitment,
-                consistency_check=False,
-                include_objective_constant=include_objective_constant,
-                committable_big_m=committable_big_m,
-                meshed_thresholds=meshed_thresholds,
-                **model_kwargs,
-            )
-            if extra_functionality:
-                extra_functionality(n, sns)
-            if log_to_console is not None:
-                kwargs["log_to_console"] = log_to_console
-            status, condition = m.solve(
-                solver_name=solver_name,
-                **solver_options,
-                **kwargs,
-            )
-
-            if status == "ok":
-                n.optimize.assign_solution(factors)
-                n.optimize.assign_duals(assign_all_duals, factors)
-
-        # Runs after restore since post_processing copies p_set into Load p unscaled.
-        if status == "ok":
-            n.optimize.post_processing(factors)
+        n.optimize.create_model(
+            sns,
+            multi_investment_periods,
+            transmission_losses,
+            linearized_unit_commitment,
+            consistency_check=False,
+            include_objective_constant=include_objective_constant,
+            committable_big_m=committable_big_m,
+            meshed_thresholds=meshed_thresholds,
+            scaling=scaling,
+            **model_kwargs,
+        )
+        # solve_model owns the solve, scaling, assign and post lifecycle
+        status, condition = n.optimize.solve_model(
+            extra_functionality=extra_functionality,
+            solver_name=solver_name,
+            solver_options=solver_options,
+            log_to_console=log_to_console,
+            assign_all_duals=assign_all_duals,
+            **kwargs,
+        )
 
         if (
             condition == "infeasible"
@@ -623,6 +602,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
+        scaling: bool | dict | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -665,6 +645,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
+        scaling : bool | dict | None, default None
+            Rescale to better conditioned units before solving, then convert
+            results back. `True` uses `energy`/1e3, `cost`/1e3, `emissions`/1e6.
+            Pass a dict to override any subset. When None, defaults to module
+            wide option `options.params.optimize.scaling`.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -689,6 +674,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             include_objective_constant
         )
 
+        if scaling is None:
+            scaling = options.params.optimize.scaling
+        factors = Scaler.resolve(scaling)
+        n._scaler = factors
+
         if "meshed_threshold" in kwargs:
             meshed_threshold = kwargs.pop("meshed_threshold")
             warnings.warn(
@@ -701,133 +691,136 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 meshed_thresholds = [meshed_threshold]
 
         kwargs.setdefault("force_dim_names", True)
-        n._model = Model(**kwargs)
-        n.model.parameters = n.model.parameters.assign(snapshots=sns)
+        with factors.applied(n) if factors else nullcontext():
+            n._model = Model(**kwargs)
+            n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
-        # Define variables
-        for c, attr in lookup.query("nominal").index:
-            define_nominal_variables(n, c, attr)
-            define_modular_variables(n, c, attr)
+            # Define variables
+            for c, attr in lookup.query("nominal").index:
+                define_nominal_variables(n, c, attr)
+                define_modular_variables(n, c, attr)
 
-        for c, attr in lookup.query("not nominal and not handle_separately").index:
-            define_operational_variables(n, sns, c, attr)
-            define_status_variables(n, sns, c, linearized_unit_commitment)
-            define_start_up_variables(n, sns, c, linearized_unit_commitment)
-            define_shut_down_variables(n, sns, c, linearized_unit_commitment)
-            define_committability_variables_constraints_with_fixed_upper_limit(
-                n, sns, c, attr
-            )
-
-        define_spillage_variables(n, sns)
-        define_operational_variables(n, sns, "Store", "p")
-
-        # CVaR auxiliary variables (only when stochastic + risk preference is set)
-        define_cvar_variables(n)
-
-        if transmission_losses:
-            for c in n.passive_branch_components:
-                define_loss_variables(n, sns, c)
-
-        # Define constraints
-        for c, attr in lookup.query("nominal").index:
-            define_nominal_constraints_for_extendables(n, c, attr)
-            define_fixed_nominal_constraints(n, c, attr)
-            define_modular_constraints(n, c, attr)
-            define_committability_variables_constraints_with_variable_upper_limit(
-                n, sns, c, attr
-            )
-
-        for c, attr in lookup.query("not nominal and not handle_separately").index:
-            define_operational_constraints_for_non_extendables(
-                n, sns, c, attr, transmission_losses
-            )
-            define_operational_constraints_for_extendables(
-                n, sns, c, attr, transmission_losses
-            )
-            define_operational_constraints_for_committables(n, sns, c)
-            define_ramp_limit_constraints(n, sns, c, attr)
-            define_fixed_operation_constraints(n, sns, c, attr)
-
-        # Handle StorageUnit p_set separately (fixes p_dispatch - p_store = p_set)
-        define_fixed_operation_constraints(n, sns, "StorageUnit", "p")
-        # Handle Store p_set
-        define_fixed_operation_constraints(n, sns, "Store", "p")
-
-        thresholds = (
-            sorted(set(meshed_thresholds))
-            if meshed_thresholds is not None
-            else [30, 100, 400]
-        )
-        bus_counts = get_bus_counts(n).reindex(n.c.buses.names, fill_value=0)
-        prev: float = 0
-        for t in thresholds + [float("inf")]:
-            if t == float("inf"):
-                mask = bus_counts > prev
-            else:
-                mask = (bus_counts > prev) & (bus_counts <= t)
-            buses = bus_counts.index[mask]
-            suffix = f"-meshed-{prev}" if prev > 0 else ""
-            if not buses.empty:
-                define_nodal_balance_constraints(
-                    n,
-                    sns,
-                    transmission_losses=transmission_losses,
-                    buses=buses,
-                    suffix=suffix,
+            for c, attr in lookup.query("not nominal and not handle_separately").index:
+                define_operational_variables(n, sns, c, attr)
+                define_status_variables(n, sns, c, linearized_unit_commitment)
+                define_start_up_variables(n, sns, c, linearized_unit_commitment)
+                define_shut_down_variables(n, sns, c, linearized_unit_commitment)
+                define_committability_variables_constraints_with_fixed_upper_limit(
+                    n, sns, c, attr
                 )
-            prev = t
 
-        define_kirchhoff_voltage_constraints(n, sns)
-        define_storage_unit_constraints(n, sns)
-        define_store_constraints(n, sns)
-        define_total_supply_constraints(n, sns)
+            define_spillage_variables(n, sns)
+            define_operational_variables(n, sns, "Store", "p")
 
-        if transmission_losses:
-            if isinstance(transmission_losses, bool):
-                transmission_losses = {"mode": "secants"}
-            elif isinstance(transmission_losses, int):
-                equivalent = {"mode": "tangents", "segments": transmission_losses}
-                warnings.warn(
-                    "Passing an int for `transmission_losses` is deprecated "
-                    "and will be removed in PyPSA 2.0. Explicitly pass "
-                    f"{equivalent} (current behavior) or use the new "
-                    "secant-based losses via `transmission_losses=True`.",
-                    FutureWarning,
-                    stacklevel=2,
+            # CVaR auxiliary variables (only when stochastic + risk preference is set)
+            define_cvar_variables(n)
+
+            if transmission_losses:
+                for c in n.passive_branch_components:
+                    define_loss_variables(n, sns, c)
+
+            # Define constraints
+            for c, attr in lookup.query("nominal").index:
+                define_nominal_constraints_for_extendables(n, c, attr)
+                define_fixed_nominal_constraints(n, c, attr)
+                define_modular_constraints(n, c, attr)
+                define_committability_variables_constraints_with_variable_upper_limit(
+                    n, sns, c, attr
                 )
-                transmission_losses = {
-                    "mode": "tangents",
-                    "segments": transmission_losses,
-                }
-            # Don't mutate passed dict
-            transmission_losses = dict(transmission_losses)
-            mode = transmission_losses.pop("mode", "secants")
-            if mode == "tangents" and "segments" not in transmission_losses:
-                msg = (
-                    "The 'tangents' mode requires a 'segments' key, e.g. "
-                    "transmission_losses={'mode': 'tangents', 'segments': 3}"
-                )
-                raise ValueError(msg)
 
-            for c in n.passive_branch_components:
-                if mode == "secants":
-                    define_secant_loss_constraints(n, sns, c, **transmission_losses)
-                elif mode == "tangents":
-                    define_tangent_loss_constraints(n, sns, c, **transmission_losses)
+            for c, attr in lookup.query("not nominal and not handle_separately").index:
+                define_operational_constraints_for_non_extendables(
+                    n, sns, c, attr, transmission_losses
+                )
+                define_operational_constraints_for_extendables(
+                    n, sns, c, attr, transmission_losses
+                )
+                define_operational_constraints_for_committables(n, sns, c)
+                define_ramp_limit_constraints(n, sns, c, attr)
+                define_fixed_operation_constraints(n, sns, c, attr)
+
+            # Handle StorageUnit p_set separately (fixes p_dispatch - p_store = p_set)
+            define_fixed_operation_constraints(n, sns, "StorageUnit", "p")
+            # Handle Store p_set
+            define_fixed_operation_constraints(n, sns, "Store", "p")
+
+            thresholds = (
+                sorted(set(meshed_thresholds))
+                if meshed_thresholds is not None
+                else [30, 100, 400]
+            )
+            bus_counts = get_bus_counts(n).reindex(n.c.buses.names, fill_value=0)
+            prev: float = 0
+            for t in thresholds + [float("inf")]:
+                if t == float("inf"):
+                    mask = bus_counts > prev
                 else:
-                    msg = f"Unknown transmission_losses mode: {mode!r}"
+                    mask = (bus_counts > prev) & (bus_counts <= t)
+                buses = bus_counts.index[mask]
+                suffix = f"-meshed-{prev}" if prev > 0 else ""
+                if not buses.empty:
+                    define_nodal_balance_constraints(
+                        n,
+                        sns,
+                        transmission_losses=transmission_losses,
+                        buses=buses,
+                        suffix=suffix,
+                    )
+                prev = t
+
+            define_kirchhoff_voltage_constraints(n, sns)
+            define_storage_unit_constraints(n, sns)
+            define_store_constraints(n, sns)
+            define_total_supply_constraints(n, sns)
+
+            if transmission_losses:
+                if isinstance(transmission_losses, bool):
+                    transmission_losses = {"mode": "secants"}
+                elif isinstance(transmission_losses, int):
+                    equivalent = {"mode": "tangents", "segments": transmission_losses}
+                    warnings.warn(
+                        "Passing an int for `transmission_losses` is deprecated "
+                        "and will be removed in PyPSA 2.0. Explicitly pass "
+                        f"{equivalent} (current behavior) or use the new "
+                        "secant-based losses via `transmission_losses=True`.",
+                        FutureWarning,
+                        stacklevel=2,
+                    )
+                    transmission_losses = {
+                        "mode": "tangents",
+                        "segments": transmission_losses,
+                    }
+                # Don't mutate passed dict
+                transmission_losses = dict(transmission_losses)
+                mode = transmission_losses.pop("mode", "secants")
+                if mode == "tangents" and "segments" not in transmission_losses:
+                    msg = (
+                        "The 'tangents' mode requires a 'segments' key, e.g. "
+                        "transmission_losses={'mode': 'tangents', 'segments': 3}"
+                    )
                     raise ValueError(msg)
 
-        # Define global constraints
-        define_primary_energy_limit(n, sns)
-        define_transmission_expansion_cost_limit(n, sns)
-        define_transmission_volume_expansion_limit(n, sns)
-        define_tech_capacity_expansion_limit(n, sns)
-        define_operational_limit(n, sns)
-        define_nominal_constraints_per_bus_carrier(n, sns)
-        define_growth_limit(n, sns)
+                for c in n.passive_branch_components:
+                    if mode == "secants":
+                        define_secant_loss_constraints(n, sns, c, **transmission_losses)
+                    elif mode == "tangents":
+                        define_tangent_loss_constraints(
+                            n, sns, c, **transmission_losses
+                        )
+                    else:
+                        msg = f"Unknown transmission_losses mode: {mode!r}"
+                        raise ValueError(msg)
 
-        define_objective(n, sns, include_objective_constant)
+            # Define global constraints
+            define_primary_energy_limit(n, sns)
+            define_transmission_expansion_cost_limit(n, sns)
+            define_transmission_volume_expansion_limit(n, sns)
+            define_tech_capacity_expansion_limit(n, sns)
+            define_operational_limit(n, sns)
+            define_nominal_constraints_per_bus_carrier(n, sns)
+            define_growth_limit(n, sns)
+
+            define_objective(n, sns, include_objective_constant)
 
         return n.model
 
@@ -892,21 +885,28 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             log_to_console = options.params.optimize.log_to_console
 
         n = self._n
-        if extra_functionality:
-            extra_functionality(n, n.snapshots)
+        # Scaling was set at create_model time, now re apply
+        factors = n._scaler
         m = n.model
-        if log_to_console is not None:
-            kwargs["log_to_console"] = log_to_console
-        status, condition = m.solve(
-            solver_name=solver_name,
-            **solver_options,
-            **kwargs,
-        )
+        sns = m.parameters.snapshots.to_index()
+        with factors.applied(n) if factors else nullcontext():
+            if extra_functionality:
+                extra_functionality(n, sns)
+            if log_to_console is not None:
+                kwargs["log_to_console"] = log_to_console
+            status, condition = m.solve(
+                solver_name=solver_name,
+                **solver_options,
+                **kwargs,
+            )
 
+            if status == "ok":
+                n.optimize.assign_solution(factors)
+                n.optimize.assign_duals(assign_all_duals, factors)
+
+        # Runs after restore since post_processing copies p_set into Load p unscaled
         if status == "ok":
-            self._n.optimize.assign_solution()
-            self._n.optimize.assign_duals(assign_all_duals)
-            self._n.optimize.post_processing()
+            n.optimize.post_processing(factors)
 
         # Optional runtime verification
         if options.debug.runtime_verification:
