@@ -480,6 +480,7 @@ def test_nodal_balance_respects_load_sign():
     assert n.objective < TOLERANCE
 
 
+@pytest.mark.no_scaling  # asserts on the raw model RHS
 def test_nodal_balance_load_sign_rhs_values():
     """
     Verify the per-load contribution to the nodal balance RHS for both

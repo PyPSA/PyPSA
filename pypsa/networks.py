@@ -54,6 +54,7 @@ from pypsa.network.power_flow import (
 )
 from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
+from pypsa.optimization.scaling import Scaler
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore
 from pypsa.statistics.expressions import StatisticsAccessor
@@ -65,7 +66,6 @@ if TYPE_CHECKING:
     from scipy.sparse import spmatrix
 
     from pypsa.components.legacy import Component
-    from pypsa.optimization.scaling import Scaler
 
 
 logger = logging.getLogger(__name__)
@@ -532,6 +532,7 @@ class Network(
             PlotAccessor,
             AbstractStatisticsAccessor,
             linopy.Model,
+            Scaler,
         ]
         not_equal = False
         if isinstance(other, self.__class__):

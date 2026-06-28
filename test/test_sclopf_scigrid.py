@@ -3,11 +3,13 @@
 # SPDX-License-Identifier: MIT
 
 import pandas as pd
+import pytest
 from numpy.testing import assert_almost_equal as equal
 
 import pypsa
 
 
+@pytest.mark.no_scaling  # scigrid_de
 def test_optimize_security_constrained(scipy_network):
     """Test security-constrained optimization functionality and dual variable assignment."""
     n = scipy_network
