@@ -827,7 +827,7 @@ def define_ramp_limit_constraints(
     if is_rolling_horizon:
         start_i = n.snapshots.get_loc(sns[0]) - 1
         p_init = c.da[hist_attr][start_i]
-        s_init = c.da.status[start_i].fillna(1)
+        s_init = c.da.status[start_i].where(c.da.committable, 1).fillna(1)
     else:
         initially_up = c.da.up_time_before > 0
         p_init = c.da.p_init.where(initially_up, 0)

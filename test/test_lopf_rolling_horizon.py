@@ -222,6 +222,50 @@ def test_rolling_horizon_committable_overlap_matches_full_run():
     assert (ramping >= -static.eval("ramp_limit_down * p_nom_opt")).all().all()
 
 
+def test_rolling_horizon_noncommittable_ramp_at_seam():
+    """Regression test for issue #1644.
+
+    At a rolling-horizon seam, non-committable generators carry no commitment
+    status, so reading ``status=0`` for them corrupted their start-up/shut-down
+    ramp terms and made windows spuriously infeasible when the network also
+    contained a committable generator.
+    """
+    n = pypsa.Network(snapshots=range(6))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "coal",
+        bus="bus",
+        committable=True,
+        p_nom=500,
+        p_min_pu=0.3,
+        marginal_cost=20,
+        ramp_limit_up=0.1,
+        ramp_limit_down=0.1,
+        ramp_limit_start_up=0.4,
+        ramp_limit_shut_down=1.0,
+    )
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        p_nom=1000,
+        marginal_cost=40,
+        ramp_limit_up=0.5,
+        ramp_limit_down=0.5,
+    )
+    n.add("Load", "load", bus="bus", p_set=[1000] * 6)
+
+    n.optimize.optimize_with_rolling_horizon(linearized_unit_commitment=True, horizon=2)
+
+    assert (n.c.generators.dynamic.p["gas"] >= 0).all()
+    assert n.c.generators.dynamic.p.sum(axis=1).round(3).eq(1000).all()
+    ramping = n.c.generators.dynamic.p.diff().fillna(0)
+    static = n.c.generators.static
+    assert (ramping <= static.eval("ramp_limit_up * p_nom_opt") + 1e-5).all().all()
+    assert (ramping >= -static.eval("ramp_limit_down * p_nom_opt") - 1e-5).all().all()
+
+
 def test_rolling_horizon_linearized_uc_with_ramp_limits():
     """
     Test rolling horizon with linearized UC and ramp limits on committables.
