@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -14,7 +13,10 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Features
+
+- Add maintenance scheduling optimization for [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components via the new attributes `maintainable`, `maintenance_duration` (elapsed time honoring snapshot weightings), `maintenance_events` and `maintenance_pu`. The timing of maintenance windows is co-optimized with dispatch, unit commitment and capacity expansion using binary maintenance start variables. (<!-- md:pr 1576 -->)
 
 ## [**v1.2.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.4) <small>27th June 2026</small> { id="v1.2.4" }
 
