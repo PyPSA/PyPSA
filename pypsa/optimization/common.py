@@ -9,15 +9,33 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pandas as pd
+import xarray as xr
 from deprecation import deprecated
-from numpy import hstack, ravel
+from numpy import hstack, ravel, zeros
 
 from pypsa.constants import RE_PORTS
 
 if TYPE_CHECKING:
-    import xarray as xr
-
     from pypsa import Network
+
+
+def _period_start_mask(sns: pd.Index) -> xr.DataArray:
+    """Mark the first snapshot of each investment period."""
+    is_start = zeros(len(sns), dtype=bool)
+    is_start[0] = True
+    if isinstance(sns, pd.MultiIndex) and "period" in sns.names:
+        periods = sns.get_level_values("period").to_numpy()
+        is_start[1:] = periods[1:] != periods[:-1]
+    return xr.DataArray(is_start, coords=[sns])
+
+
+def _roll_within_periods(da: xr.DataArray) -> xr.DataArray:
+    """Cyclically roll ``da`` by one snapshot within each investment period."""
+    rolled = [
+        da.sel(snapshot=(period, slice(None))).roll(snapshot=1)
+        for period in da.get_index("snapshot").unique("period")
+    ]
+    return xr.concat(rolled, dim="snapshot")
 
 
 @deprecated(
@@ -53,7 +71,7 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
         c.dynamic[attr] = df.reindex(n.snapshots)
 
     else:
-        c.dynamic[attr].update(df)
+        c.dynamic[attr] = df.combine_first(c.dynamic[attr])
 
     # Reindex to match network snapshots and component names
     result = c.dynamic[attr].reindex(n.snapshots, level="snapshot", axis=0)

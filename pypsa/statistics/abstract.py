@@ -180,6 +180,8 @@ class AbstractStatisticsAccessor(ABC):
             nice_names = options.params.statistics.nice_names
         if nice_names:
             nice_name_series = n.c.carriers.static.nice_name
+            if isinstance(nice_name_series.index, pd.MultiIndex):
+                nice_name_series = nice_name_series.groupby(level="name").first()
             bus_carrier = normalize_carrier_nice_names(nice_name_series, bus_carrier)
             carrier = normalize_carrier_nice_names(nice_name_series, carrier)
 

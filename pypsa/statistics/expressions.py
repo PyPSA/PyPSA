@@ -391,7 +391,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     def _concat_periods(
         self, dfs: list[pd.DataFrame] | dict[str, pd.DataFrame], c: str
     ) -> pd.DataFrame:
-        return pd.concat(dfs, axis=1)
+        return pd.concat(dfs, axis=1, names=[self._n.investment_periods.name])
 
     def _weighted_sum_per_network(
         self, df: pd.DataFrame, weights: pd.Series
@@ -1785,6 +1785,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
+        if groupby_time is False:
+            warnings.warn(
+                "Passing `groupby_time=False` to `system_cost` is deprecated and "
+                "will raise an error in version 2.0; system_cost has no per-snapshot "
+                "resolution as it includes static capital expenditure. Use "
+                "`opex(groupby_time=False)` for the time-resolved operational cost. "
+                "Deprecated in version 1.2.3.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            groupby_time = "sum"
         capex = self.capex(
             components=components,
             groupby_method=groupby_method,
@@ -2807,13 +2818,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def prices(  # noqa: D417
         self,
-        groupby: bool = False,
+        groupby: bool | str | Sequence[str] = False,
         weighting: str = "load",
         groupby_time: bool = True,
         bus_carrier: Sequence[str] | str | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-    ) -> pd.Series:
+    ) -> pd.Series | pd.DataFrame:
         """Calculate the average marginal prices in the network per bus.
 
         Currency is currency/MWh or currency/unit_{bus_carrier} where
@@ -2827,13 +2838,15 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        groupby : bool | str, optional
-            How to group components:
+        groupby : bool | str | Sequence[str], optional
+            How to group buses:
             - `False`: No grouping, return all buses individually
-            - `"bus_carrier"`: Prices are aggregated to each bus carrier with weights
-              applied.
-            Other grouping options are not supported and the groupby method can not be
-            set. See `weighting` for different weighting options. Defaults to False.
+            - `"bus_carrier"`, `"name"` or any static bus attribute (e.g.
+              `"country"`), or a list thereof: Prices are aggregated per group
+            with weights applied. The groupby method can not be set. See
+            `weighting` for different weighting options. With
+            `groupby_time=False` no aggregation is applied; the groupers only
+            become index levels of the per-bus time series. Defaults to False.
         weighting : str, optional
             Type of weighting to use. If 'load' the prices are weighted by the
             load of the buses and if time they are weighted by snapshot
@@ -2855,8 +2868,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Returns
         -------
-        pd.DataFrame
-            Time-averaged or load-weighted prices per bus or bus carrier.
+        pd.Series | pd.DataFrame
+            Weighted prices per bus or group (Series), or the full per-bus
+            time series if `groupby_time=False` (DataFrame).
 
         Examples
         --------
@@ -2867,6 +2881,34 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         n = self._n
         sns_weights = n.snapshot_weightings.objective
 
+        if groupby is False:
+            keys = []
+        elif isinstance(groupby, str):
+            keys = [groupby]
+        elif isinstance(groupby, (list, tuple)):
+            keys = list(groupby)
+        else:
+            msg = f"Grouping prices by {groupby!r} is not supported."
+            raise ValueError(msg)
+
+        buses = n.c.buses.static
+        groupers = []
+        for key in keys:
+            col = "carrier" if key == "bus_carrier" else key
+            if col == "name":
+                grouper = buses.index.get_level_values("name").to_series(
+                    index=buses.index
+                )
+            elif col in buses.columns:
+                grouper = buses[col]
+            else:
+                msg = (
+                    f"Grouping prices by '{key}' is not supported. Use 'name', "
+                    f"'bus_carrier' or a static bus attribute."
+                )
+                raise ValueError(msg)
+            groupers.append(grouper.rename(key))
+
         prices = n.c.buses.dynamic.marginal_price
 
         if bus_carrier is not None:
@@ -2876,7 +2918,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             prices = prices.loc[:, mask]
 
         if not groupby_time:
-            return prices.T
+            df = prices.T
+            if groupers:
+                # Keep collection index levels (e.g. network) and replace the
+                # bus name level with the requested groupers.
+                kept = [
+                    df.index.get_level_values(level)
+                    for level in df.index.names
+                    if level != "name"
+                ]
+                aligned = [g.reindex(df.index) for g in groupers]
+                df = df.set_index(kept + aligned)
+            return df
 
         if weighting == "load":
             weights = (
@@ -2902,14 +2955,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         b = self._weighted_sum_per_network(weights, sns_weights)
         df = a / b
 
-        if groupby == "bus_carrier":
-            df = df.groupby(n.c.buses.static.carrier).apply(
+        if groupers:
+            aligned = [g.reindex(df.index) for g in groupers]
+            df = df.groupby(aligned).apply(
                 lambda g: (g * b.loc[g.index]).sum() / b.loc[g.index].sum()
             )
-            df.index.name = "bus_carrier"
-        elif groupby is not False:
-            msg = "Only groupby=False and groupby='bus_carrier' are supported."
-            raise ValueError(msg)
 
         df.attrs["name"] = "Prices"
         df.attrs["unit"] = "currency / MWh"

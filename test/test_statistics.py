@@ -351,6 +351,14 @@ def test_system_cost(ac_dc_network_r):
     assert system_cost == capex + opex
 
 
+def test_system_cost_groupby_time_false_deprecated(ac_dc_network_r):
+    """`groupby_time=False` is unsupported (capex has no time resolution)."""
+    n = ac_dc_network_r
+    with pytest.warns(DeprecationWarning, match="groupby_time=False"):
+        result = n.statistics.system_cost(groupby_time=False)
+    assert result.equals(n.statistics.system_cost())
+
+
 def test_prices(ac_dc_network_r):
     n = ac_dc_network_r
 
@@ -370,6 +378,18 @@ def test_prices(ac_dc_network_r):
     # Test groupby bus_carrier
     grouped = n.statistics.prices(groupby="bus_carrier")
     assert set(grouped.index) == set(n.c.buses.static.carrier.unique())
+
+    # Test groupby static bus attributes
+    by_country = n.statistics.prices(groupby="country")
+    assert by_country.index.name == "country"
+    assert set(by_country.index) <= set(n.c.buses.static.country.unique())
+
+    full_ts = n.statistics.prices(groupby=["name", "country"], groupby_time=False)
+    assert full_ts.index.names == ["name", "country"]
+    assert len(full_ts) == len(n.buses)
+
+    with pytest.raises(ValueError, match="not supported"):
+        n.statistics.prices(groupby="not_an_attribute")
 
 
 @pytest.fixture
@@ -490,24 +510,29 @@ def multi_invest_network():
 
 
 class TestMultiInvest:
+    @staticmethod
     @pytest.fixture(scope="class")
-    def capex(self, multi_invest_network):
+    def capex(multi_invest_network):
         return multi_invest_network.statistics.capex()
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def capex_ungrouped(self, multi_invest_network):
+    def capex_ungrouped(multi_invest_network):
         return multi_invest_network.statistics.capex(groupby=False)
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def opex(self, multi_invest_network):
+    def opex(multi_invest_network):
         return multi_invest_network.statistics.opex()
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def opex_ungrouped(self, multi_invest_network):
+    def opex_ungrouped(multi_invest_network):
         return multi_invest_network.statistics.opex(groupby=False)
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def system_cost(self, multi_invest_network):
+    def system_cost(multi_invest_network):
         return multi_invest_network.statistics.system_cost()
 
     def test_capex_structure(self, capex):
