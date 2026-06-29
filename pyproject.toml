@@ -63,6 +63,7 @@ gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
 dotenv = ["python-dotenv"]
 tsam = ["tsam"]
+mpisppy = ["mpi-sppy", "mpi4py", "mip"]
 test = [
     "pytest",
     "pytest-cov",
