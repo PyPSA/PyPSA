@@ -8,6 +8,13 @@ import pytest
 import pypsa
 
 
+def assert_ramp_limits_respected(n, tol=0.0):
+    ramping = n.c.generators.dynamic.p.diff().fillna(0)
+    static = n.c.generators.static
+    assert (ramping <= static.eval("ramp_limit_up * p_nom_opt") + tol).all().all()
+    assert (ramping >= -static.eval("ramp_limit_down * p_nom_opt") - tol).all().all()
+
+
 def get_network(committable):
     n = pypsa.Network(snapshots=range(12))
 
@@ -50,15 +57,7 @@ def test_rolling_horizon(committable):
         status, condition = n.optimize(snapshots=sns)
         assert status == "ok"
 
-    ramping = n.c.generators.dynamic.p.diff().fillna(0)
-    assert (
-        (ramping <= n.c.generators.static.eval("ramp_limit_up * p_nom_opt")).all().all()
-    )
-    assert (
-        (ramping >= -n.c.generators.static.eval("ramp_limit_down * p_nom_opt"))
-        .all()
-        .all()
-    )
+    assert_ramp_limits_respected(n)
 
 
 @pytest.mark.parametrize("committable", [True, False])
@@ -74,15 +73,7 @@ def test_rolling_horizon_integrated(committable):
     )
 
     n.optimize.optimize_with_rolling_horizon(horizon=3)
-    ramping = n.c.generators.dynamic.p.diff().fillna(0)
-    assert (
-        (ramping <= n.c.generators.static.eval("ramp_limit_up * p_nom_opt")).all().all()
-    )
-    assert (
-        (ramping >= -n.c.generators.static.eval("ramp_limit_down * p_nom_opt"))
-        .all()
-        .all()
-    )
+    assert_ramp_limits_respected(n)
 
 
 def test_rolling_horizon_integrated_overlap():
@@ -100,15 +91,7 @@ def test_rolling_horizon_integrated_overlap():
         n.optimize.optimize_with_rolling_horizon(horizon=1, overlap=2)
 
     n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=1)
-    ramping = n.c.generators.dynamic.p.diff().fillna(0)
-    assert (
-        (ramping <= n.c.generators.static.eval("ramp_limit_up * p_nom_opt")).all().all()
-    )
-    assert (
-        (ramping >= -n.c.generators.static.eval("ramp_limit_down * p_nom_opt"))
-        .all()
-        .all()
-    )
+    assert_ramp_limits_respected(n)
 
 
 def test_rolling_horizon_committable_ramp_limits():
@@ -215,11 +198,7 @@ def test_rolling_horizon_committable_overlap_matches_full_run():
     # Dispatch trajectory should match full-horizon run for all snapshots
     assert p_rh.equals(p_full)
 
-    # Check ramping limits are respected
-    ramping = n_rh.c.generators.dynamic.p.diff().fillna(0)
-    static = n_rh.c.generators.static
-    assert (ramping <= static.eval("ramp_limit_up * p_nom_opt")).all().all()
-    assert (ramping >= -static.eval("ramp_limit_down * p_nom_opt")).all().all()
+    assert_ramp_limits_respected(n_rh)
 
 
 def test_rolling_horizon_noncommittable_ramp_at_seam():
@@ -227,8 +206,7 @@ def test_rolling_horizon_noncommittable_ramp_at_seam():
 
     At a rolling-horizon seam, non-committable generators carry no commitment
     status, so reading ``status=0`` for them corrupted their start-up/shut-down
-    ramp terms and made windows spuriously infeasible when the network also
-    contained a committable generator.
+    ramp terms.
     """
     n = pypsa.Network(snapshots=range(6))
     n.add("Bus", "bus")
@@ -260,10 +238,7 @@ def test_rolling_horizon_noncommittable_ramp_at_seam():
 
     assert (n.c.generators.dynamic.p["gas"] >= 0).all()
     assert n.c.generators.dynamic.p.sum(axis=1).round(3).eq(1000).all()
-    ramping = n.c.generators.dynamic.p.diff().fillna(0)
-    static = n.c.generators.static
-    assert (ramping <= static.eval("ramp_limit_up * p_nom_opt") + 1e-5).all().all()
-    assert (ramping >= -static.eval("ramp_limit_down * p_nom_opt") - 1e-5).all().all()
+    assert_ramp_limits_respected(n, tol=1e-5)
 
 
 def test_rolling_horizon_linearized_uc_with_ramp_limits():
