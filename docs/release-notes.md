@@ -14,7 +14,10 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Bug Fixes
+
 - Fix [`supply`][pypsa.optimization.expressions.StatisticExpressionsAccessor.supply] and [`withdrawal`][pypsa.optimization.expressions.StatisticExpressionsAccessor.withdrawal] expressions dropping the charging contribution of `StorageUnit` components. The supply/withdrawal split now considers the effective coefficients of the operational variable, so the `p_store` term is correctly reported as a withdrawal. (<!-- md:pr 1760 -->)
+- Fix [`n.graph()`][pypsa.network.graph.NetworkGraphMixin.graph] building edges in a non-deterministic order, which could make results that depend on the network's cycles differ between runs. In particular, security-constrained optimization (SCLOPF) now returns consistent results. (<!-- md:pr 1764 -->)
 
 
 ## [**v1.2.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.4) <small>27th June 2026</small> { id="v1.2.4" }
