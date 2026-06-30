@@ -13,9 +13,8 @@ monolithic **extensive form** (EF): one linear program that contains every
 scenario. This is simple and exact, but the model grows with the number of
 scenarios and can become too large to build or solve directly.
 
-As an alternative, PyPSA can solve the same problem by **decomposition** —
-Progressive Hedging (PH) with bounding cylinders — using
-[mpi-sppy](https://github.com/Pyomo/mpi-sppy). Instead of one big LP, each scenario
+As an alternative, PyPSA can solve the same problem by **decomposition** using
+[mpi-sppy](https://mpi-sppy.readthedocs.io). Instead of one big LP, each scenario
 becomes an independent subproblem, and PH coordinates the shared first-stage
 (investment) decisions across them, typically across many parallel MPI ranks on an
 HPC cluster. The modelling is unchanged — you still define scenarios with
@@ -36,7 +35,8 @@ the solution back. PyPSA never joins the MPI job, and mpi-sppy never imports PyP
 
 On top of a working PyPSA installation, the decomposition path needs three further
 pieces: a working MPI with `mpi4py`, `mpi-sppy` itself, and a solver reached through
-a Pyomo **persistent** interface. None of this is needed for
+a Pyomo **persistent** interface. (mpi-sppy will also work with solvers that are not
+persistent, just more slowly.) None of this is needed for
 the `write`/`read` helpers — only the parallel `solve_stochastic` driver and the
 mpi-sppy solve phase of the decoupled workflow use MPI and mpi-sppy.
 
@@ -105,8 +105,9 @@ pip install -e "./mpi-sppy[mpi]"
 
 ### A persistent QP solver
 
-PH adds a quadratic proximal term to each scenario subproblem and re-solves it on
-every iteration, so the subproblem solver must be reached through a Pyomo
+Some decomposition algorithms, such as Progressive Hedging (PH), add a quadratic
+proximal term to each scenario subproblem and re-solve it on every iteration, so the
+subproblem solver must be reached through a Pyomo
 **persistent** interface — that lets mpi-sppy update the objective in place between
 iterations instead of rebuilding the model each time. You select the solver by name
 with `solver_name=` (see [Passing mpi-sppy options](#passing-mpi-sppy-options)).
@@ -119,7 +120,8 @@ are installed in the environment (for example `pip install gurobipy` enables
 
 For an open-source option, use HiGHS through Pyomo's APPSI (Auto-Persistent Pyomo
 Solver Interface) as `solver_name="appsi_highs"`. APPSI is persistent, but HiGHS
-cannot take the quadratic proximal term directly, so you must also **linearize** it
+cannot take the quadratic proximal term directly, so for PH, you must also
+**linearize** it
 with `--linearize-proximal-terms` (and `--linearize-binary-proximal-terms` if any
 first-stage variables are binary). Pass that through the options channel — inline as
 `mpisppy_options={"linearize_proximal_terms": True}`, or, since that channel is
@@ -128,7 +130,9 @@ workflow (see [Passing mpi-sppy options](#passing-mpi-sppy-options)).
 
 The extensive-form oracle (`method="ef"`) is a single solve with no proximal term, so
 it needs neither a persistent interface nor linearization — a plain
-`solver_name="gurobi"` (or `"appsi_highs"`) is fine there.
+`solver_name="gurobi"` (or `"appsi_highs"`) is fine there. However, there is no
+reason to use the EF option in mpi-sppy because the solver already in PyPSA does the
+same thing with less overhead.
 
 ## Decoupled workflow (HPC / SLURM)
 
@@ -165,11 +169,34 @@ sbatch          --dependency=afterok:$j2 read.sbatch          # -n 1,   PyPSA en
 #   srun python -m mpi4py -m mpisppy.generic_cylinders --mps-files-directory $DIR ...
 ```
 
-You supply the three job scripts it refers to. `write.sbatch` and `read.sbatch` are
-single-core PyPSA jobs (the `write_stochastic_problem` and `read_stochastic_solution`
-calls); `solve.sbatch` runs `manifest["solve_command"]` across
-`manifest["mpi_ranks"]` ranks in the mpi-sppy environment. Phase 3 then reads the
-solution back:
+The `sbatch_template` only *submits and chains* the jobs — it does not write them.
+You provide the three batch scripts it names (`write.sbatch`, `solve.sbatch`,
+`read.sbatch`), since their `#SBATCH` headers, module loads and environment activation
+are cluster-specific and PyPSA cannot fill them in. `write.sbatch` and `read.sbatch`
+are single-core PyPSA jobs (the `write_stochastic_problem` and
+`read_stochastic_solution` calls); `solve.sbatch` runs `manifest["solve_command"]` on
+`manifest["mpi_ranks"]` ranks in the mpi-sppy environment, launched with `srun` in
+place of the manifest's `mpiexec -np`. A minimal `solve.sbatch` looks like:
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=stoch-solve
+#SBATCH --ntasks=3                    # = manifest["mpi_ranks"]
+#SBATCH --time=02:00:00
+#SBATCH --partition=<your-partition>  # plus --account etc. for your site
+
+module load mpi             # however your site provides MPI
+source activate mpi-sppy    # the environment with mpi-sppy and a solver
+
+# manifest["solve_command"], with srun as the launcher instead of `mpiexec -np`:
+srun python -m mpi4py -m mpisppy.generic_cylinders \
+    --mps-files-directory /shared/run42 \
+    --solver-name gurobi_persistent --lagrangian --xhatshuffle \
+    --default-rho 1.0 --max-iterations 50 \
+    --write-xhat-file /shared/run42/xhat.csv
+```
+
+Phase 3 then reads the solution back:
 
 ```python
 # Phase 3 — PyPSA: read the optimized first stage (optionally re-solve dispatch).
