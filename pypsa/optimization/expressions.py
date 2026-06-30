@@ -390,13 +390,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             sns = var.indexes["snapshot"]
 
             c_obj = n.c[c]
-            if c_obj.has_piecewise(cost_attr):
-                add_opex = n.model.variables[c_obj._piecewise_aux_var(cost_attr)]
+            if c_obj.has_piecewise(attr):
+                add_opex = n.model.variables[c_obj._piecewise_aux_var(attr)]
                 var = var.drop_sel(name=add_opex.coords["name"])
             else:
                 add_opex = 0
 
-            opex = var * n.get_switchable_as_dense(c, cost_attr).loc[sns] + add_opex
+            opex = var * n.get_switchable_as_dense(c, attr).loc[sns] + add_opex
 
             weights = n.snapshot_weightings.objective.loc[sns]
             return self._aggregate_timeseries(opex, weights, agg=groupby_time)
