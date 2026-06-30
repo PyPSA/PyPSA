@@ -6,6 +6,19 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
+## Upcoming Release
+
+!!! info "Upcoming Release"
+
+    The features listed below have not yet been released, but will be included in the
+    next update! If you would like to use these features in the meantime, you will need
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Features
+
+- Add [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] to scale per-line summer / winter MVA ratings onto `n.lines_t.s_max_pu` based on the snapshot month, leaving `s_nom` unchanged. (<!-- md:pr 1694 -->)
+
+
 ## [**v1.2.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.3) <small>12th June 2026</small> { id="v1.2.3" }
 
 <!--

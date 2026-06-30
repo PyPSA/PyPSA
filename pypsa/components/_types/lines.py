@@ -104,35 +104,36 @@ class Lines(Components):
         *,
         compose: bool = True,
     ) -> None:
-        """Apply seasonal ``s_max_pu`` derating based on snapshot month.
+        """Scale ``s_max_pu`` to per-line summer / winter ratings by month.
 
-        For each line in ``ratings``, set ``s_nom`` to the winter envelope
-        (``max(summer, winter)``) and broadcast a seasonal factor of
-        ``min(summer, winter) / max(summer, winter)`` onto summer snapshots,
-        via ``n.lines_t.s_max_pu``. Non-summer snapshots receive a factor
-        of 1.0.
+        For each line in ``ratings``, broadcast a per-snapshot ``s_max_pu`` of
+        ``rating / s_nom`` onto ``n.lines_t.s_max_pu``: summer snapshots use the
+        ``summer`` rating, all other snapshots use the ``winter`` rating.
+        ``n.lines.s_nom`` is left unchanged; the seasonal limit is expressed
+        purely as an ``s_max_pu`` scaling of the existing ``s_nom``.
 
         Parameters
         ----------
         ratings : pandas.DataFrame
             Index: line names (must be a subset of ``n.lines.index``).
             Columns: ``'summer'`` and ``'winter'`` (case-sensitive), per-line
-            MVA ratings. Rows where the two values are equal still set
-            ``s_nom`` to that value but skip the per-snapshot broadcast.
+            absolute MVA ratings.
         summer_months : Sequence[int], default ``(4, 5, 6, 7, 8, 9)``
             Snapshot months treated as summer. Default is northern-hemisphere;
             for southern-hemisphere use, pass e.g. ``(10, 11, 12, 1, 2, 3)``.
         compose : bool, default True
-            If ``True``, multiply the seasonal factor into any pre-existing
+            If ``True``, multiply the seasonal scaling into any pre-existing
             ``n.lines_t.s_max_pu`` entry (preserves N-1 margins). If
             ``False``, overwrite ``n.lines_t.s_max_pu`` with the seasonal
-            factor alone.
+            scaling alone.
 
-        Convention
-        ----------
-        Summer is the period with the *lower* rating (cooling-limited). This
-        matches IEEE 738 / IEC 61597 conductor thermal models and TenneT,
-        RTE, National Grid, CAISO published rating periods.
+        Notes
+        -----
+        The seasonal rating scales the existing ``s_nom``, so a rating above
+        ``s_nom`` yields ``s_max_pu > 1``. Each season takes its own column,
+        so the helper does not assume which period is lower. The published-TSO
+        convention is ``summer`` = lower rating (warmer ambient air, less
+        cooling, lower ampacity), matching IEEE / IEC conductor thermal models.
 
         Raises
         ------
@@ -142,7 +143,8 @@ class Lines(Components):
             If ``ratings`` references a line not in ``n.lines.index``, or if
             ``ratings`` is missing the ``summer`` / ``winter`` columns.
         ValueError
-            If any rating is non-positive or ``summer_months`` is empty.
+            If any rating is non-positive, ``summer_months`` is empty, or any
+            rated line has a non-positive ``s_nom``.
 
         See Also
         --------
@@ -159,7 +161,7 @@ class Lines(Components):
         ...     {'summer': [800], 'winter': [1000]}, index=['a-b']
         ... )
         >>> n.c.lines.apply_seasonal_rating(ratings)
-        >>> float(n.lines.at['a-b', 's_nom'])
+        >>> float(n.lines.at['a-b', 's_nom'])  # unchanged
         1000.0
         >>> n.lines_t.s_max_pu['a-b'].iloc[3000]  # mid-summer hour
         0.8
@@ -197,17 +199,25 @@ class Lines(Components):
             msg = "All summer and winter ratings must be strictly positive."
             raise ValueError(msg)
 
-        envelope = np.maximum(summer, winter)
-        factor = np.minimum(summer, winter) / envelope
+        s_nom = self.static.loc[ratings.index, "s_nom"]
+        if (s_nom <= 0).any():
+            bad = list(s_nom.index[s_nom <= 0][:5])
+            msg = (
+                "apply_seasonal_rating scales s_max_pu = rating / s_nom and "
+                "requires a strictly positive s_nom for every rated line; got "
+                f"non-positive s_nom for: {bad}"
+            )
+            raise ValueError(msg)
+
+        summer_pu = (summer / s_nom).to_numpy()
+        winter_pu = (winter / s_nom).to_numpy()
 
         summer_mask = n.snapshots.month.isin(summer_months)
         seasonal = pd.DataFrame(
-            np.where(summer_mask[:, None], factor.to_numpy()[None, :], 1.0),
+            np.where(summer_mask[:, None], summer_pu[None, :], winter_pu[None, :]),
             index=n.snapshots,
             columns=ratings.index,
         )
-
-        self.static.loc[ratings.index, "s_nom"] = envelope.to_numpy()
 
         if compose:
             existing = self.dynamic.s_max_pu.reindex(
