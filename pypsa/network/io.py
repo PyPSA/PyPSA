@@ -74,9 +74,11 @@ def _coerce_string_dtypes(df: pd.DataFrame) -> pd.DataFrame:
 
     df.index = _coerce_axis(df.index)
     df.columns = _coerce_axis(df.columns)
-    for col in df.columns:
-        if isinstance(df[col].dtype, pd.StringDtype):
-            df[col] = df[col].astype(object)
+    str_cols = [
+        col for col, dtype in df.dtypes.items() if isinstance(dtype, pd.StringDtype)
+    ]
+    if str_cols:
+        df[str_cols] = df[str_cols].astype(object)
     return df
 
 
