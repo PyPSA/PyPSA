@@ -201,12 +201,29 @@ def test_rolling_horizon_committable_overlap_matches_full_run():
     assert_ramp_limits_respected(n_rh)
 
 
-def test_rolling_horizon_noncommittable_ramp_at_seam():
+@pytest.mark.parametrize(
+    ("gas_kwargs", "gas_ramp", "load", "check_ramp"),
+    [
+        pytest.param({"p_nom": 1000}, 0.5, [1000] * 6, True, id="fixed"),
+        pytest.param(
+            {"p_nom_extendable": True, "capital_cost": 100},
+            0.3,
+            [400, 450, 800, 820, 900, 880],
+            False,
+            id="extendable",
+        ),
+    ],
+)
+def test_rolling_horizon_noncommittable_ramp_at_seam(
+    gas_kwargs, gas_ramp, load, check_ramp
+):
     """Regression test for issue #1644.
 
-    At a rolling-horizon seam, non-committable generators carry no commitment
-    status, so reading ``status=0`` for them corrupted their start-up/shut-down
-    ramp terms.
+    Non-committable generators carry no commitment status at a rolling-horizon
+    seam. Reading ``status=0`` for them corrupted their seam ramp terms (the
+    start-up/shut-down terms for fixed capacity, the capacity-relative term for
+    extendable capacity), pinning dispatch at the seam and turning the window
+    spuriously infeasible.
     """
     n = pypsa.Network(snapshots=range(6))
     n.add("Bus", "bus")
@@ -227,18 +244,21 @@ def test_rolling_horizon_noncommittable_ramp_at_seam():
         "Generator",
         "gas",
         bus="bus",
-        p_nom=1000,
         marginal_cost=40,
-        ramp_limit_up=0.5,
-        ramp_limit_down=0.5,
+        ramp_limit_up=gas_ramp,
+        ramp_limit_down=gas_ramp,
+        **gas_kwargs,
     )
-    n.add("Load", "load", bus="bus", p_set=[1000] * 6)
+    n.add("Load", "load", bus="bus", p_set=load)
 
     n.optimize.optimize_with_rolling_horizon(linearized_unit_commitment=True, horizon=2)
 
-    assert (n.c.generators.dynamic.p["gas"] >= 0).all()
-    assert n.c.generators.dynamic.p.sum(axis=1).round(3).eq(1000).all()
-    assert_ramp_limits_respected(n, tol=1e-5)
+    supply = n.c.generators.dynamic.p.sum(axis=1)
+    demand = n.c.loads.dynamic.p_set.sum(axis=1)
+    assert np.allclose(supply, demand)
+
+    if check_ramp:
+        assert_ramp_limits_respected(n, tol=1e-5)
 
 
 def test_rolling_horizon_linearized_uc_with_ramp_limits():

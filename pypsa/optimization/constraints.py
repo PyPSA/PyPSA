@@ -853,7 +853,12 @@ def define_ramp_limit_constraints(
         rhs = rhs + limit_start * p_nom * (status - status_prev)
     if p_nom_ext_var is not None:
         if is_rolling_horizon:
-            s_init_ext = c.da.status[start_i].sel(name=ext_main_names).fillna(1)
+            s_init_ext = (
+                c.da.status[start_i]
+                .where(c.da.committable, 1)
+                .fillna(1)
+                .sel(name=ext_main_names)
+            )
         else:
             s_init_ext = (c.da.up_time_before.sel(name=ext_main_names) > 0) * 1.0
         sp_ext = (1 - filter_first_sn) + s_init_ext * filter_first_sn
