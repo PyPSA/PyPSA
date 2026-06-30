@@ -63,7 +63,8 @@ gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
 dotenv = ["python-dotenv"]
 tsam = ["tsam"]
-mpisppy = ["mpi-sppy", "mpi4py", "mip"]
+# mip: coin-or python-mip, parses the per-scenario LP/MPS files in mpi-sppy's mps_module reader
+mpisppy = ["mpi-sppy @ git+https://github.com/Pyomo/mpi-sppy.git", "mpi4py", "mip"]
 test = [
     "pytest",
     "pytest-cov",

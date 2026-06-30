@@ -34,17 +34,156 @@ the solution back. PyPSA never joins the MPI job, and mpi-sppy never imports PyP
 
 ## Installation
 
-The decomposition path is an optional extra:
+On top of a working PyPSA installation, the decomposition path needs three further
+pieces: a working MPI with `mpi4py`, `mpi-sppy` itself, and a solver reached through
+a Pyomo **persistent** interface. None of this is needed for
+the `write`/`read` helpers — only the parallel `solve_stochastic` driver and the
+mpi-sppy solve phase of the decoupled workflow use MPI and mpi-sppy.
+
+### MPI and mpi4py
+
+Progressive Hedging runs the scenario subproblems in parallel under MPI, so you need
+an MPI runtime providing `mpiexec`/`mpirun` (MPICH or Open MPI) and an `mpi4py` built
+against it. Follow the mpi-sppy README's *Install mpi4py* instructions
+([readthedocs](https://mpi-sppy.readthedocs.io/en/latest/install_mpi.html)); in
+short, either install both through conda
 
 ```bash
-pip install "pypsa[mpisppy]"
+conda install openmpi    # then, in that order:
+conda install mpi4py
 ```
 
-This installs `mpi-sppy`, `mpi4py` and `mip`. Progressive Hedging runs the
-subproblem solvers in parallel under MPI, so you also need an MPI runtime providing
-`mpiexec` (e.g. MPICH or Open MPI) and a solver such as Gurobi or HiGHS. The
-`write`/`read` helpers below need neither mpi-sppy nor MPI — only the inline
-`solve_stochastic` driver does.
+or, to compile `mpi4py` against an MPI you already have, install it through pip
+
+```bash
+pip install mpi4py
+```
+
+Then verify the installation the way mpi-sppy recommends — from a clone of the
+mpi-sppy repository:
+
+```bash
+mpirun -n 2 python -m mpi4py mpi_one_sided_test.py
+```
+
+No error messages means you have an MPI installation that should work well. (Even
+with an error message mpi-sppy may still run and return correct results, just
+potentially much slower.)
+
+!!! warning "MPICH on HPC clusters"
+
+    On some HPC platforms using an MPICH implementation you must
+    `export MPICH_ASYNC_PROGRESS=1` before running, or run-times can inflate by a
+    factor of 2–4 and large rank counts (≫ 10) can stall once scenarios are created.
+    See the *Install mpi4py* section of the mpi-sppy README for details.
+
+### mpi-sppy
+
+Install `mpi-sppy` from GitHub into the **same environment as PyPSA** — the PyPI
+release can lag behind the features the interface relies on (such as the MPS-file
+loader):
+
+```bash
+pip install "git+https://github.com/Pyomo/mpi-sppy.git"
+```
+
+or, for a checkout you can edit, clone first and install editable (add the `[mpi]`
+extra to pull in `mpi4py` at the same time):
+
+```bash
+git clone https://github.com/Pyomo/mpi-sppy.git
+pip install -e "./mpi-sppy[mpi]"
+```
+
+!!! tip "The `mpisppy` extra"
+
+    `pip install "pypsa[mpisppy]"` does this GitHub install for you — the extra pulls
+    `mpi-sppy` straight from `main` (along with `mpi4py` and `mip`, the coin-or parser
+    mpi-sppy uses to read the per-scenario LP/MPS files). Still set up MPI and `mpi4py`
+    first (above): installing `mpi4py` through the extra just compiles it against
+    whatever MPI `pip` happens to find.
+
+### A persistent QP solver
+
+PH adds a quadratic proximal term to each scenario subproblem and re-solves it on
+every iteration, so the subproblem solver must be reached through a Pyomo
+**persistent** interface — that lets mpi-sppy update the objective in place between
+iterations instead of rebuilding the model each time. You select the solver by name
+with `solver_name=` (see [Passing mpi-sppy options](#passing-mpi-sppy-options)).
+
+The commercial solvers expose persistent interfaces that handle the quadratic
+proximal term directly — `gurobi_persistent`, `cplex_persistent`,
+`xpress_persistent` — and become available once the solver and its Python bindings
+are installed in the environment (for example `pip install gurobipy` enables
+`gurobi_persistent`).
+
+For an open-source option, use HiGHS through Pyomo's APPSI (Auto-Persistent Pyomo
+Solver Interface) as `solver_name="appsi_highs"`. APPSI is persistent, but HiGHS
+cannot take the quadratic proximal term directly, so you must also **linearize** it
+with `--linearize-proximal-terms` (and `--linearize-binary-proximal-terms` if any
+first-stage variables are binary). Pass that through the options channel — inline as
+`mpisppy_options={"linearize_proximal_terms": True}`, or, since that channel is
+inline-only, as `mpisppy_args=["--linearize-proximal-terms"]` for the decoupled
+workflow (see [Passing mpi-sppy options](#passing-mpi-sppy-options)).
+
+The extensive-form oracle (`method="ef"`) is a single solve with no proximal term, so
+it needs neither a persistent interface nor linearization — a plain
+`solver_name="gurobi"` (or `"appsi_highs"`) is fine there.
+
+## Decoupled workflow (HPC / SLURM)
+
+On a cluster you usually cannot hold a Python process open while a large MPI job
+queues and runs, and the three phases have very different resource profiles (one core
+to write, many cores to solve, one core to read) and even different software
+environments (PyPSA vs mpi-sppy). For this, drive the phases as **separate jobs**
+using the two dependency-free helpers.
+
+```python
+# Phase 1 — PyPSA: write one file per scenario, the metadata, and a manifest.
+manifest = n.optimize.write_stochastic_problem("/shared/run42")
+```
+
+`write_stochastic_problem` returns (and writes) a manifest describing the run. Two
+keys drive the remaining phases:
+
+- `manifest["solve_command"]` — the exact `mpisppy.generic_cylinders` command to run
+  for phase 2 (the same command the inline driver builds; see
+  [Passing mpi-sppy options](#passing-mpi-sppy-options) for how to shape it).
+- `manifest["sbatch_template"]` — a copy-paste SLURM dependency chain that wires the
+  three phases together with `afterok` and includes the directory-hygiene `rm` (see
+  the warning below). For `/shared/run42` with the default two cylinders
+  (`manifest["mpi_ranks"]` = 3) it expands to:
+
+```bash
+# Decoupled SLURM workflow (edit envs/partitions/accounts to taste).
+DIR=/shared/run42
+rm -f "$DIR"/*.lp "$DIR"/*.mps "$DIR"/*_nonants.json "$DIR"/*_rho.csv  # hygiene
+j1=$(sbatch --parsable write.sbatch)                           # -n 1,   PyPSA env
+j2=$(sbatch --parsable --dependency=afterok:$j1 solve.sbatch)  # -n 3, mpi-sppy env
+sbatch          --dependency=afterok:$j2 read.sbatch          # -n 1,   PyPSA env
+# solve.sbatch runs, e.g.:
+#   srun python -m mpi4py -m mpisppy.generic_cylinders --mps-files-directory $DIR ...
+```
+
+You supply the three job scripts it refers to. `write.sbatch` and `read.sbatch` are
+single-core PyPSA jobs (the `write_stochastic_problem` and `read_stochastic_solution`
+calls); `solve.sbatch` runs `manifest["solve_command"]` across
+`manifest["mpi_ranks"]` ranks in the mpi-sppy environment. Phase 3 then reads the
+solution back:
+
+```python
+# Phase 3 — PyPSA: read the optimized first stage (optionally re-solve dispatch).
+n.optimize.read_stochastic_solution("/shared/run42", dispatch="resolve")
+```
+
+!!! warning "Directory hygiene"
+
+    mpi-sppy discovers scenarios by scanning the transfer directory for model files,
+    so a previous run that wrote *more* scenarios would leave stale files that a
+    smaller new run silently picks up as phantom scenarios.
+    `write_stochastic_problem(clean=True)` (the default) clears them in Python; the
+    `sbatch_template` also `rm`s them as a belt-and-braces step covering an aborted
+    write.
 
 ## Inline solve
 
@@ -61,7 +200,7 @@ n = pypsa.Network()
 n.set_scenarios({"low": 0.3, "med": 0.4, "high": 0.3})
 # ... set per-scenario data ...
 
-n.optimize.solve_stochastic(method="ph", solver_name="gurobi")
+n.optimize.solve_stochastic(method="ph", solver_name="gurobi_persistent")
 ```
 
 `method="ph"` (the default) runs Progressive Hedging with bounding cylinders under
@@ -70,7 +209,54 @@ mpi-sppy in a single process; it needs no MPI and is mainly useful as a small-sc
 correctness oracle (it should match `n.optimize()`).
 
 By default only the first-stage capacities are written back. To recover the second
-stage, use `dispatch=` (next section).
+stage, use `dispatch=` (see
+[Recovering the second stage](#recovering-the-second-stage-dispatch-and-prices)).
+
+## Passing mpi-sppy options
+
+Both entry points — the inline `solve_stochastic` driver and the `solve_command`
+baked into the decoupled manifest — ultimately build a single
+`mpisppy.generic_cylinders` command line. You shape it at three levels, from most to
+least convenient.
+
+**1. Named keyword arguments** for the common Progressive-Hedging controls, accepted
+by both `solve_stochastic` and `write_stochastic_problem`:
+
+- `solver_name=` — the persistent subproblem solver, e.g. `"gurobi_persistent"`
+  (→ `--solver-name`); see [A persistent QP solver](#a-persistent-qp-solver).
+- `cylinders=` — the bounding spokes, default `("lagrangian", "xhatshuffle")`
+  (→ one `--<cylinder>` flag each).
+- `default_rho=`, `max_iterations=` (→ `--default-rho`, `--max-iterations`), plus the
+  per-variable `rho=` policy (default `"cost-proportional"`) written into the
+  per-scenario `_rho.csv` files.
+
+`solve_stochastic` additionally takes `nprocs=` to override the MPI rank count
+(default `1 + len(cylinders)`: a Progressive-Hedging hub rank plus one per cylinder).
+
+**2. An options dict**, `mpisppy_options=` (inline `solve_stochastic` only). Each
+entry becomes a CLI flag: the key gets a `--` prefix with underscores turned to
+dashes, `True` becomes a bare flag, and `False`/`None` are dropped. For example,
+
+```python
+n.optimize.solve_stochastic(
+    solver_name="gurobi_persistent",
+    mpisppy_options={"rel_gap": 0.01, "max_solver_threads": 4, "presolve": True},
+)
+# appends:  --rel-gap 0.01 --max-solver-threads 4 --presolve
+```
+
+**3. Escape hatches** for anything the helpers don't model: `mpisppy_args=` (a list
+appended to the command verbatim) and `config_file=` (→ `--config-file`), both
+accepted by `solve_stochastic` and `write_stochastic_problem`. Use these to reach any
+option in `python -m mpisppy.generic_cylinders --help`.
+
+!!! note "Tuning the decoupled solve"
+
+    `write_stochastic_problem` bakes the named arguments, `config_file=` and
+    `mpisppy_args=` into `manifest["solve_command"]` — but **not** `mpisppy_options=`,
+    which is inline-only. On a cluster, drive your tuning through the named arguments
+    and `mpisppy_args=`/`config_file=` so it survives into the command `solve.sbatch`
+    actually runs.
 
 ## Recovering the second stage (dispatch and prices)
 
@@ -101,44 +287,6 @@ the re-solves are independent, you can restrict them to a subset with `scenarios
     scenario-conditional dual scaled by the scenario probability) and are usually
     what a decision maker wants. The re-solves run serially, which is a further
     reason to narrow them with `scenarios=` when only some scenarios are of interest.
-
-## Decoupled workflow (HPC / SLURM)
-
-On a cluster you usually cannot hold a Python process open while a large MPI job
-queues and runs, and the three phases have very different resource profiles (one core
-to write, many cores to solve, one core to read) and even different software
-environments (PyPSA vs mpi-sppy). For this, drive the phases as **separate jobs**
-using the two dependency-free helpers.
-
-```python
-# Phase 1 — PyPSA: write one file per scenario, the metadata, and a manifest.
-manifest = n.optimize.write_stochastic_problem("/shared/run42")
-```
-
-`write_stochastic_problem` returns (and writes) a manifest describing the run. Two
-keys help drive the remaining phases:
-
-- `manifest["solve_command"]` — the exact mpi-sppy command to run for phase 2.
-- `manifest["sbatch_template"]` — a copy-paste SLURM dependency chain
-  (`write → solve → read`, chained with `afterok`), including the directory-hygiene
-  `rm` (see the warning below).
-
-Phase 2 runs that mpi-sppy command in the mpi-sppy environment, across many ranks.
-Phase 3 then reads the solution back, again in the PyPSA environment:
-
-```python
-# Phase 3 — PyPSA: read the optimized first stage (optionally re-solve dispatch).
-n.optimize.read_stochastic_solution("/shared/run42", dispatch="resolve")
-```
-
-!!! warning "Directory hygiene"
-
-    mpi-sppy discovers scenarios by scanning the transfer directory for model files,
-    so a previous run that wrote *more* scenarios would leave stale files that a
-    smaller new run silently picks up as phantom scenarios.
-    `write_stochastic_problem(clean=True)` (the default) clears them in Python; the
-    `sbatch_template` also `rm`s them as a belt-and-braces step covering an aborted
-    write.
 
 ## Performance note
 
