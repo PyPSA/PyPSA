@@ -14,6 +14,10 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Enhancements
+
+- Speed up netCDF I/O for networks with many components. [`export_to_netcdf()`][pypsa.Network.export_to_netcdf] avoids a costly `stack()` when writing dynamic data, and import avoids per-column boxing when coercing string dtypes. The on-disk format and round-trip behaviour are unchanged. (<!-- md:pr 1771 -->)
+
 ### Bug Fixes
 
 - Fix [`supply`][pypsa.optimization.expressions.StatisticExpressionsAccessor.supply] and [`withdrawal`][pypsa.optimization.expressions.StatisticExpressionsAccessor.withdrawal] expressions dropping the charging contribution of `StorageUnit` components. The supply/withdrawal split now considers the effective coefficients of the operational variable, so the `p_store` term is correctly reported as a withdrawal. (<!-- md:pr 1760 -->)
