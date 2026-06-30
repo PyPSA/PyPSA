@@ -18,11 +18,13 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 from linopy import available_solvers
 
 import pypsa
+from pypsa.descriptors import nominal_attrs
 from pypsa.optimization import stochastic
 
 # Build models without the existing-infrastructure objective constant (avoids a
@@ -288,6 +290,73 @@ def test_read_solution_missing_files(stochastic_export_network, tmp_path):
     n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
     with pytest.raises(FileNotFoundError, match="Solution file"):
         n.optimize.read_stochastic_solution(tmp_path)
+
+
+# --- dispatch re-solve (dispatch="resolve") -----------------------------------
+
+# The re-solve needs an LP solver but not mpi-sppy; pick whatever is installed.
+_SOLVER = next((s for s in ("gurobi", "highs") if s in available_solvers), None)
+
+
+def _carry_optimal_capacities(n, n_ef):
+    """Copy a native solve's ``*_nom_opt`` onto ``n`` (as the xhat read-back would)."""
+    for c, attr in nominal_attrs.items():
+        static = n.components[c].static
+        if not static.empty:
+            static[f"{attr}_opt"] = n_ef.components[c].static[f"{attr}_opt"]
+
+
+def test_resolve_dispatch_unknown_scenario(stochastic_export_network):
+    # Scenario names are validated before any solve, so no solver is needed.
+    with pytest.raises(ValueError, match="Unknown scenario"):
+        stochastic._resolve_dispatch(stochastic_export_network, scenarios=["nope"])
+
+
+def test_read_solution_dispatch_modes(stochastic_export_network, tmp_path):
+    n = stochastic_export_network
+    manifest = n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    values = {"x0": 0.0, "x1": 120.0, "x2": 50.0, "x3": 5.0}
+    lines = ["# xhat"] + [f"ROOT, {k}, {v}" for k, v in values.items()]
+    Path(manifest["solution_file"]).write_text("\n".join(lines) + "\n")
+
+    # "read" is documented but not yet implemented; an unknown mode is an error.
+    with pytest.raises(NotImplementedError, match="not yet implemented"):
+        n.optimize.read_stochastic_solution(tmp_path, dispatch="read")
+    with pytest.raises(ValueError, match="Unknown dispatch mode"):
+        n.optimize.read_stochastic_solution(tmp_path, dispatch="bogus")
+
+
+@pytest.mark.skipif(_SOLVER is None, reason="needs an LP solver")
+def test_resolve_dispatch_matches_native_ef(stochastic_export_network):
+    n = stochastic_export_network
+    n_ef = n.copy()
+    n_ef.optimize(solver_name=_SOLVER, include_objective_constant=False)
+    _carry_optimal_capacities(n, n_ef)
+
+    stochastic._resolve_dispatch(n, solver_name=_SOLVER)
+
+    # Primal dispatch reproduces the monolithic EF exactly (capacities fixed).
+    ef_p = n_ef.generators_t.p
+    rs_p = n.generators_t.p.reindex(columns=ef_p.columns)
+    assert np.nanmax(np.abs(rs_p.to_numpy() - ef_p.to_numpy())) < 1e-6
+    # Scenario-conditional duals are populated for every scenario.
+    price = n.buses_t.marginal_price
+    assert not price.empty
+    assert set(price.columns.get_level_values("scenario")) == set(n.scenarios)
+
+
+@pytest.mark.skipif(_SOLVER is None, reason="needs an LP solver")
+def test_resolve_dispatch_scenario_subset(stochastic_export_network):
+    n = stochastic_export_network
+    n_ef = n.copy()
+    n_ef.optimize(solver_name=_SOLVER, include_objective_constant=False)
+    _carry_optimal_capacities(n, n_ef)
+
+    stochastic._resolve_dispatch(n, scenarios=["low"], solver_name=_SOLVER)
+
+    # Only the requested scenario's dispatch and duals are populated.
+    assert set(n.generators_t.p.columns.get_level_values("scenario")) == {"low"}
+    assert set(n.buses_t.marginal_price.columns.get_level_values("scenario")) == {"low"}
 
 
 # --- solve_stochastic: command building (dependency-free) ---------------------

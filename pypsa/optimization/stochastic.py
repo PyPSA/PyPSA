@@ -40,6 +40,8 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import pandas as pd
+
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
@@ -566,6 +568,10 @@ def read_stochastic_solution(
     directory: str | Path,
     *,
     solution_file: str | Path | None = None,
+    dispatch: str = "none",
+    scenarios: Sequence[str] | None = None,
+    solver_name: str = "gurobi",
+    **solve_kwargs: Any,
 ) -> dict[str, float]:
     """Read mpi-sppy's incumbent first stage back onto the network.
 
@@ -573,7 +579,10 @@ def read_stochastic_solution(
     incumbent xhat file written by mpi-sppy (``--write-xhat-file``), then sets
     the corresponding ``*_nom_opt`` capacity values on ``n`` (shared across all
     scenarios, since they are first-stage decisions). Modular module-count
-    nonants (``*-n_mod``) are also written back (see Notes). Dependency-free.
+    nonants (``*-n_mod``) are also written back (see Notes). The ``dispatch``
+    mode optionally recovers the second stage too (see Notes). Reading the first
+    stage is dependency-free; ``dispatch="resolve"`` needs a linopy-supported
+    solver (but not mpi-sppy).
 
     Parameters
     ----------
@@ -584,11 +593,32 @@ def read_stochastic_solution(
     solution_file : str or pathlib.Path, optional
         Path to mpi-sppy's xhat CSV. Defaults to the manifest's
         ``solution_file`` (``directory/xhat.csv``).
+    dispatch : {"none", "resolve"}, default "none"
+        How to recover the second stage (the xhat carries only the first stage):
+
+        - ``"none"`` -- first stage only.
+        - ``"resolve"`` -- re-solve each scenario with the optimized capacities
+          fixed, recovering the per-scenario operational time series **and
+          scenario-conditional duals** (e.g. ``generators_t.p``,
+          ``buses_t.marginal_price``) onto ``n``. The per-scenario problems are
+          independent LPs but are solved serially.
+
+        (``"read"`` -- parse mpi-sppy's full primal tree solution -- is planned
+        but not yet implemented.)
+    scenarios : sequence of str, optional
+        Restrict the dispatch recovery to this subset of scenarios (default: all).
+        Useful for ``dispatch="resolve"`` when only some scenarios' dispatch /
+        scenario-conditional duals are of interest, since re-solving is serial.
+    solver_name : str, default "gurobi"
+        Solver for the dispatch re-solve (only used when ``dispatch="resolve"``).
+    **solve_kwargs
+        Extra keyword arguments forwarded to each scenario's ``n.optimize`` call
+        during the dispatch re-solve.
 
     Returns
     -------
     dict
-        ``{on-file nonant name: value}`` that was applied.
+        ``{on-file nonant name: value}`` that was applied (the first stage).
 
     Notes
     -----
@@ -598,8 +628,16 @@ def read_stochastic_solution(
     written to an ``n_mod_opt`` column and the capacity is set to the clean
     integer-derived value ``*_nom_opt = n_mod_opt * *_nom_mod`` (the two are
     tied by an equality constraint in every subproblem, so this agrees with the
-    capacity nonant to solver tolerance). The optional capacity-fixed dispatch
-    re-solve is planned for a later phase.
+    capacity nonant to solver tolerance).
+
+    The incumbent xhat carries only the *first stage*. With
+    ``dispatch="resolve"`` the second stage is recovered by fixing the
+    capacities and re-solving each scenario; the per-scenario operational
+    results are merged onto ``n``'s ``(scenario, name)`` columns. The duals from
+    these standalone re-solves are **conditional on the scenario** (the marginal
+    values in that scenario's realised world) -- a distinct object from the
+    extensive form's probability-weighted duals -- and are typically what a
+    decision maker wants.
 
     """
     directory = Path(directory)
@@ -658,7 +696,116 @@ def read_stochastic_solution(
             "Wrote back %d modular module-count nonant(s) to n_mod_opt.",
             len(nmod_records),
         )
+
+    if dispatch == "resolve":
+        _resolve_dispatch(
+            n, scenarios=scenarios, solver_name=solver_name, **solve_kwargs
+        )
+    elif dispatch == "read":
+        msg = (
+            "dispatch='read' (reading mpi-sppy's full primal tree solution) is "
+            "planned but not yet implemented; use dispatch='resolve'."
+        )
+        raise NotImplementedError(msg)
+    elif dispatch != "none":
+        msg = f"Unknown dispatch mode {dispatch!r}; expected 'none' or 'resolve'."
+        raise ValueError(msg)
+
     return applied
+
+
+def _resolve_dispatch(
+    n: Network,
+    *,
+    scenarios: Sequence[str] | None = None,
+    solver_name: str = "gurobi",
+    **solve_kwargs: Any,
+) -> None:
+    """Recover the second stage by re-solving each scenario with capacities fixed.
+
+    Requires the first-stage ``*_nom_opt`` capacities to be set already (the
+    xhat write-back) and a linopy-supported solver. For each scenario in
+    ``scenarios`` (default: all) the capacities are fixed
+    (:meth:`~pypsa.optimization.OptimizationAccessor.fix_optimal_capacities`),
+    the resulting pure-dispatch LP is solved, and the per-scenario operational
+    time series and (scenario-conditional) duals are merged back onto ``n``. The
+    scenarios are independent once capacities are fixed, but the loop runs
+    serially -- hence the ``scenarios`` subset, for when only some scenarios'
+    dispatch / duals are wanted.
+    """
+    all_scenarios = list(n.scenarios)
+    selected = all_scenarios if scenarios is None else list(scenarios)
+    unknown = [s for s in selected if s not in set(all_scenarios)]
+    if unknown:
+        msg = f"Unknown scenario(s) {unknown}; network scenarios are {all_scenarios}."
+        raise ValueError(msg)
+
+    solved: dict[str, Network] = {}
+    objectives: list[str] = []
+    for scenario in selected:
+        ns = n.get_scenario(scenario)
+        ns.optimize.fix_optimal_capacities()
+        status, condition = ns.optimize(solver_name=solver_name, **solve_kwargs)
+        if status != "ok":
+            msg = (
+                f"Dispatch re-solve for scenario {scenario!r} did not solve to "
+                f"optimality (status={status!r}, condition={condition!r}); the "
+                "first-stage capacities were still written back to n."
+            )
+            raise RuntimeError(msg)
+        solved[scenario] = ns
+        objectives.append(f"{scenario}={float(ns.objective):.6g}")
+
+    _merge_scenario_results(n, solved)
+    logger.info(
+        "Re-solved dispatch for %d of %d scenario(s) [%s].",
+        len(selected),
+        len(all_scenarios),
+        ", ".join(objectives),
+    )
+
+
+def _merge_scenario_results(n: Network, solved: dict[str, Network]) -> None:
+    """Write per-scenario dispatch results back onto the stochastic network.
+
+    For each component output time series (``status == "Output"``) that the
+    re-solve populated -- primal operations *and* scenario-conditional duals
+    (e.g. ``marginal_price``) -- rebuild the ``(scenario, name)`` column
+    MultiIndex with ``pd.concat(..., names=["scenario"])`` (the inverse of
+    :meth:`~pypsa.Network.get_scenario` and the same construction
+    :meth:`~pypsa.Network.set_scenarios` uses) and assign it onto ``n``. When
+    only a subset of scenarios was solved, their columns are merged into any
+    existing frame rather than replacing it. Inputs are left untouched;
+    first-stage capacity outputs (``*_nom_opt``) come from the xhat write-back.
+    """
+    scenarios = list(solved)
+    for c in n.components:
+        defaults = c.defaults
+        output_series = defaults.index[
+            defaults["varying"] & (defaults["status"] == "Output")
+        ]
+        for attr in output_series:
+            frames: dict[str, pd.DataFrame] = {}
+            for scenario in scenarios:
+                frame = solved[scenario].components[c.name].dynamic.get(attr)
+                if frame is None or frame.empty:
+                    frames = {}
+                    break
+                frames[scenario] = frame
+            if not frames:
+                continue
+            block = pd.concat(frames, axis=1, names=["scenario"])
+            existing = c.dynamic.get(attr)
+            if existing is None or existing.empty:
+                c.dynamic[attr] = block
+            else:
+                merged = existing.reindex(
+                    index=existing.index.union(block.index),
+                    columns=existing.columns.union(block.columns),
+                )
+                for col in block.columns:
+                    merged[col] = block[col]
+                c.dynamic[attr] = merged
 
 
 def _run_solver(argv: list[str], command: str, tee: bool) -> None:
@@ -709,6 +856,8 @@ def solve_stochastic(
     keep_files: bool = False,
     tee: bool = True,
     model_kwargs: dict[str, Any] | None = None,
+    dispatch: str = "none",
+    scenarios: Sequence[str] | None = None,
 ) -> dict[str, float]:
     """Solve a stochastic network inline via mpi-sppy decomposition.
 
@@ -765,6 +914,13 @@ def solve_stochastic(
     tee : bool, default True
         Stream the driver's output live; otherwise capture it and surface it only
         on failure.
+    dispatch : {"none", "resolve"}, default "none"
+        Second-stage recovery after the decomposed solve, forwarded to
+        :func:`read_stochastic_solution`. ``"resolve"`` re-solves each scenario
+        with the optimized capacities fixed, recovering the per-scenario dispatch
+        and scenario-conditional duals onto ``n`` (using ``solver_name``; serial).
+    scenarios : sequence of str, optional
+        Restrict ``dispatch="resolve"`` to this subset of scenarios (default: all).
 
     Returns
     -------
@@ -843,7 +999,13 @@ def solve_stochastic(
             command,
         )
         _run_solver(argv, command, tee)
-        return read_stochastic_solution(n, directory)
+        return read_stochastic_solution(
+            n,
+            directory,
+            dispatch=dispatch,
+            scenarios=scenarios,
+            solver_name=solver_name,
+        )
     finally:
         if cleanup:
             shutil.rmtree(directory, ignore_errors=True)
