@@ -16,6 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix [`supply`][pypsa.optimization.expressions.StatisticExpressionsAccessor.supply] and [`withdrawal`][pypsa.optimization.expressions.StatisticExpressionsAccessor.withdrawal] expressions dropping the charging contribution of `StorageUnit` components. The supply/withdrawal split now considers the effective coefficients of the operational variable, so the `p_store` term is correctly reported as a withdrawal. (<!-- md:pr 1760 -->)
 - Fix [`n.graph()`][pypsa.network.graph.NetworkGraphMixin.graph] building edges in a non-deterministic order, which could make results that depend on the network's cycles differ between runs. In particular, security-constrained optimization (SCLOPF) now returns consistent results. (<!-- md:pr 1764 -->)
 
 
