@@ -606,7 +606,7 @@ class TestDefinePiecewise:
             **default_kwargs,
         )
         assert set(
-            linopy_model.constraints["foo_static_status_active_bound"].indexes["name"]
+            linopy_model.constraints["foo_static_active_bound"].indexes["name"]
         ) == {"gen1"}
 
     def test_use_status_no_active(self, linopy_model, default_kwargs):
@@ -619,4 +619,4 @@ class TestDefinePiecewise:
             status=linopy_model["x_status"],
             **default_kwargs,
         )
-        assert "foo_static_status_active_bound" not in linopy_model.constraints
+        assert "foo_static_active_bound" not in linopy_model.constraints

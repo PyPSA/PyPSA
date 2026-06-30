@@ -382,21 +382,21 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
-            attr = "marginal_cost"
-            attr = lookup.query(f"not nominal and {attr}").loc[c].index.item()
+            cost_attr = "marginal_cost"
+            attr = lookup.query(f"not nominal and {cost_attr}").loc[c].index.item()
             if attr is None:
                 return None
             var = n.model.variables[f"{c}-{attr}"]
             sns = var.indexes["snapshot"]
 
             c_obj = n.c[c]
-            if c_obj.has_piecewise(attr):
-                add_opex = n.model.variables[c_obj._piecewise_aux_var(attr)]
+            if c_obj.has_piecewise(cost_attr):
+                add_opex = n.model.variables[c_obj._piecewise_aux_var(cost_attr)]
                 var = var.drop_sel(name=add_opex.coords["name"])
             else:
                 add_opex = 0
 
-            opex = var * n.get_switchable_as_dense(c, attr).loc[sns] + add_opex
+            opex = var * n.get_switchable_as_dense(c, cost_attr).loc[sns] + add_opex
 
             weights = n.snapshot_weightings.objective.loc[sns]
             return self._aggregate_timeseries(opex, weights, agg=groupby_time)
