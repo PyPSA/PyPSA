@@ -315,6 +315,11 @@ def define_primary_energy_limit(
             lambda opt: opt.component == gen_c.name and opt.attribute == "efficiency",
             piecewise_options,
         )
+        status = (
+            None
+            if gen_c.committables.intersection(gen_c.active_assets).empty
+            else m[f"{gen_c.name}-status"]
+        )
         primary_energy_pw_var = define_piecewise(
             m,
             gen_c,
@@ -326,6 +331,7 @@ def define_primary_energy_limit(
             cumulative_attr=False,
             extra_options=extra_options,
             invert_attr=True,
+            status=status,
         )
 
     for name in unique_names:

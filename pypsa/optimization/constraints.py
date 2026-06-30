@@ -1199,6 +1199,11 @@ def define_nodal_balance_constraints(
                     lambda p: p.component == c.name and p.attribute == coeff.name,
                     piecewise_options,
                 )
+                status = (
+                    None
+                    if c.committables.intersection(names).empty
+                    else m[f"{c.name}-status"]
+                )
                 piecewise_var = define_piecewise(
                     n.model,
                     c,
@@ -1209,6 +1214,7 @@ def define_nodal_balance_constraints(
                     sign="=",
                     cumulative_attr=False,
                     extra_options=extra_options,
+                    status=status,
                 )
 
             for d_names, delay, is_cyclic in _iter_balance_delay(c, names, port_suffix):

@@ -13,124 +13,171 @@ import pytest
 import pypsa
 
 
-@pytest.fixture
-def piecewise_efficiency_network() -> pypsa.Network:
-    n = pypsa.Network()
-    n.add("Bus", "bus0")
-    n.add("Carrier", "gas", co2_emissions=1.0)
-    n.add(
-        "Generator",
-        "gen",
-        carrier="gas",
-        bus="bus0",
-        p_nom=70,
-        marginal_cost=20,
-        efficiency={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
-    )
-    n.add(
-        "GlobalConstraint",
-        "co2_limit",
-        sense="<=",
-        carrier_attribute="co2_emissions",
-        constant=160,
-    )
-    n.add("Load", "load", bus="bus0", p_set=50)
-    return n
-
-
-def test_piecewise_efficiency_uses_equality_formulation(
-    piecewise_efficiency_network: pypsa.Network,
-) -> None:
-    model = piecewise_efficiency_network.optimize.create_model(
-        include_objective_constant=False
-    )
-    formulation = model._piecewise_formulations["Generator-p_primary_piecewise"]
-    assert formulation.method == "incremental"
-
-
-def test_piecewise_efficiency_rejects_lp_equality(
-    piecewise_efficiency_network: pypsa.Network,
-) -> None:
-    with pytest.raises(ValueError, match="method='lp' requires exactly one tuple"):
-        piecewise_efficiency_network.optimize.create_model(
-            include_objective_constant=False,
-            piecewise_options=[
-                {
-                    "component": "Generator",
-                    "attribute": "efficiency",
-                    "sign": "==",
-                    "method": "lp",
-                }
-            ],
+class TestPiecewiseGeneratorEfficiency:
+    @pytest.fixture
+    def piecewise_efficiency_network(self) -> pypsa.Network:
+        n = pypsa.Network()
+        n.add("Bus", "bus0")
+        n.add("Carrier", "gas", co2_emissions=1.0)
+        n.add(
+            "Generator",
+            "gen",
+            carrier="gas",
+            bus="bus0",
+            p_nom=70,
+            marginal_cost=20,
+            efficiency={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
         )
+        n.add(
+            "GlobalConstraint",
+            "co2_limit",
+            sense="<=",
+            carrier_attribute="co2_emissions",
+            constant=160,
+        )
+        n.add("Load", "load", bus="bus0", p_set=50)
+        return n
 
+    def test_piecewise_efficiency_uses_equality_formulation(
+        self, piecewise_efficiency_network: pypsa.Network
+    ) -> None:
+        model = piecewise_efficiency_network.optimize.create_model(
+            include_objective_constant=False
+        )
+        formulation = model._piecewise_formulations["Generator-p_primary_piecewise"]
+        assert formulation.method == "incremental"
 
-def test_piecewise_efficiency_co2_constraint_with_only_segmented_gens(
-    piecewise_efficiency_network: pypsa.Network,
-) -> None:
-    """Regression: when every CO2-emitting generator has piecewise efficiency,
-    ``linear_names`` is empty and ``primary_energy`` must still be initialised."""
-    n = piecewise_efficiency_network
-    n.optimize()
-    assert n.c.generators.dynamic.p["gen"].iloc[0] == pytest.approx(50.0, rel=1e-3)
+    def test_piecewise_efficiency_rejects_lp_equality(
+        self,
+        piecewise_efficiency_network: pypsa.Network,
+    ) -> None:
+        with pytest.raises(ValueError, match="method='lp' requires exactly one tuple"):
+            piecewise_efficiency_network.optimize.create_model(
+                include_objective_constant=False,
+                piecewise_options=[
+                    {
+                        "component": "Generator",
+                        "attribute": "efficiency",
+                        "sign": "==",
+                        "method": "lp",
+                    }
+                ],
+            )
 
+    def test_piecewise_efficiency_co2_constraint_with_only_segmented_gens(
+        self, piecewise_efficiency_network: pypsa.Network
+    ) -> None:
+        """Regression: when every CO2-emitting generator has piecewise efficiency,
+        ``linear_names`` is empty and ``primary_energy`` must still be initialised."""
+        n = piecewise_efficiency_network
+        n.optimize()
+        assert n.c.generators.dynamic.p["gen"].iloc[0] == pytest.approx(50.0, rel=1e-3)
 
-def test_piecewise_efficiency_two_primary_energy_constraints(
-    piecewise_efficiency_network: pypsa.Network,
-) -> None:
-    """Regression: multiple primary-energy constraints share one piecewise aux variable."""
-    n = piecewise_efficiency_network
-    n.add(
-        "GlobalConstraint",
-        "co2_limit2",
-        sense="<=",
-        carrier_attribute="co2_emissions",
-        constant=170,
-    )
-    status, _ = n.optimize()
-    assert status == "ok"
-    assert n.generators_t.p["gen"].iloc[0] == pytest.approx(50.0, rel=1e-3)
+    def test_piecewise_efficiency_two_primary_energy_constraints(
+        self,
+        piecewise_efficiency_network: pypsa.Network,
+    ) -> None:
+        """Regression: multiple primary-energy constraints share one piecewise aux variable."""
+        n = piecewise_efficiency_network
+        n.add(
+            "GlobalConstraint",
+            "co2_limit2",
+            sense="<=",
+            carrier_attribute="co2_emissions",
+            constant=170,
+        )
+        status, _ = n.optimize()
+        assert status == "ok"
+        assert n.generators_t.p["gen"].iloc[0] == pytest.approx(50.0, rel=1e-3)
 
+    def test_piecewise_efficiency_gen(self) -> None:
+        """gen0 is cheaper but cannot meet all load without hitting co2 limit. Gen1 comes in based on its piecewise curve rate."""
+        n = pypsa.Network()
+        n.add("Bus", "bus0")
+        n.add("Carrier", "gas", co2_emissions=1.0)
+        x_points = np.array([0.1, 0.5, 1.0])
+        y_points = np.array([0.3, 0.4, 0.6])
+        n.add(
+            "Generator",
+            "gen0",
+            carrier="gas",
+            bus="bus0",
+            p_nom=70,
+            marginal_cost=15,
+            efficiency=0.35,
+        )
+        n.add(
+            "Generator",
+            "gen1",
+            carrier="gas",
+            bus="bus0",
+            p_nom=70,
+            marginal_cost=20,
+            efficiency=pd.DataFrame({"p_pu": x_points, "efficiency": y_points}),
+        )
+        n.add(
+            "GlobalConstraint",
+            "co2_limit",
+            sense="<=",
+            carrier_attribute="co2_emissions",
+            constant=160,
+        )
+        n.add("Load", "load", bus="bus0", p_set=80)
+        n.optimize()
+        p = n.generators_t.p.iloc[0]
+        fuel = p["gen0"] / 0.35 + np.interp(
+            p["gen1"], 70 * x_points, 70 * x_points / y_points
+        )
+        assert fuel <= 160 * (1 + 1e-6)
 
-def test_piecewise_efficiency_gen() -> None:
-    """gen0 is cheaper but cannot meet all load without hitting co2 limit. Gen1 comes in based on its piecewise curve rate."""
-    n = pypsa.Network()
-    n.add("Bus", "bus0")
-    n.add("Carrier", "gas", co2_emissions=1.0)
-    x_points = np.array([0.1, 0.5, 1.0])
-    y_points = np.array([0.3, 0.4, 0.6])
-    n.add(
-        "Generator",
-        "gen0",
-        carrier="gas",
-        bus="bus0",
-        p_nom=70,
-        marginal_cost=15,
-        efficiency=0.35,
-    )
-    n.add(
-        "Generator",
-        "gen1",
-        carrier="gas",
-        bus="bus0",
-        p_nom=70,
-        marginal_cost=20,
-        efficiency=pd.DataFrame({"p_pu": x_points, "efficiency": y_points}),
-    )
-    n.add(
-        "GlobalConstraint",
-        "co2_limit",
-        sense="<=",
-        carrier_attribute="co2_emissions",
-        constant=160,
-    )
-    n.add("Load", "load", bus="bus0", p_set=80)
-    n.optimize()
-    p = n.generators_t.p.iloc[0]
-    fuel = p["gen0"] / 0.35 + np.interp(
-        p["gen1"], 70 * x_points, 70 * x_points / y_points
-    )
-    assert fuel <= 160 * (1 + 1e-6)
+    def test_piecewise_efficiency_gen_with_status(self) -> None:
+        n = pypsa.Network()
+        n.add("Bus", "bus0")
+        n.add("Carrier", "gas", co2_emissions=1.0)
+        # First x point is 10%, effectively setting a p_min_pu.
+        # This should not _require_ the committable generator to be utilized, unlike the non-committable generator.
+        x_points = np.array([0.1, 0.5, 1.0])
+        y_points = np.array([0.3, 0.3, 0.3])
+        n.add(
+            "Generator",
+            "gen0",
+            carrier="gas",
+            bus="bus0",
+            p_nom=80,
+            marginal_cost=15,
+            efficiency=0.6,
+        )
+        n.add(
+            "Generator",
+            "gen-committable",
+            carrier="gas",
+            bus="bus0",
+            p_nom=70,
+            marginal_cost=20,
+            efficiency=pd.DataFrame({"p_pu": x_points, "efficiency": y_points}),
+            committable=True,
+        )
+        n.add(
+            "Generator",
+            "gen-non-committable",
+            carrier="gas",
+            bus="bus0",
+            p_nom=70,
+            marginal_cost=20,
+            efficiency=pd.DataFrame({"p_pu": x_points, "efficiency": y_points}),
+            committable=False,
+        )
+        n.add(
+            "GlobalConstraint",
+            "co2_limit",
+            sense="<=",
+            carrier_attribute="co2_emissions",
+            constant=160,
+        )
+        n.add("Load", "load", bus="bus0", p_set=80)
+        n.optimize()
+        assert n.generators_t.p["gen-committable"].sum() == 0
+        assert n.generators_t.p["gen-non-committable"].sum() > 0
 
 
 class TestPiecewiseMultiPort2Bus:
@@ -257,6 +304,33 @@ class TestPiecewiseMultiPort2Bus:
         load = pd.Series([20.0, 30.0, 40.0]).rename_axis(index="snapshot")
         supply = -n.c.processes.dynamic.p1.sum(axis=1)
         pd.testing.assert_series_equal(supply, load, check_names=False)
+
+    def test_piecewise_efficiency_with_status(
+        self, base_network: pypsa.Network, base_multiport_attrs: dict
+    ) -> None:
+        """Committable multiports shouldn't be forced to run at the first breakpoint level, unlike non-committable multiports."""
+        n = base_network
+        n.add(
+            "Link",
+            efficiency=0.5,
+            **base_multiport_attrs,
+        )
+        n.add(
+            "Link",
+            efficiency={0.1: 0.3, 0.5: 0.2, 1.0: 0.1},
+            committable=False,
+            **{**base_multiport_attrs, "name": "link-non-committable"},
+        )
+        n.add(
+            "Link",
+            efficiency={0.1: 0.3, 0.5: 0.2, 1.0: 0.1},
+            committable=True,
+            **{**base_multiport_attrs, "name": "link-committable"},
+        )
+        status, _ = n.optimize(reformulate_sos=True)
+        assert status == "ok"
+        assert n.links_t.p["link-committable"].sum() == 0
+        assert n.links_t.p["link-non-committable"].sum() > 0
 
 
 class TestPiecewiseMultiPort3Bus:

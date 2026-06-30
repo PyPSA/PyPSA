@@ -67,6 +67,7 @@ def define_piecewise(
     sign: SIGNS_T,
     cumulative_attr: bool,
     extra_options: Iterable[PiecewiseOptions],
+    status: Variable | None = None,
     invert_attr: bool = False,
     y_var: Any | None = None,
     method: PWL_METHOD = "auto",
@@ -99,6 +100,8 @@ def define_piecewise(
         Whether the y-axis breakpoints represent marginal values.
         If True, the integral of the piecewise curve will be used to define y breakpoints.
         If False, the nominal values at each x breakpoint will be used to define y breakpoints.
+    status : linopy.Variable or None, optional
+        The optimisation variable for the binary status of the component (e.g. generator on/off).
     y_var : linopy.Variable or None, optional
         The optimisation variable for the y-axis of the piecewise constraint.
         If None, a new auxiliary variable will be created and used instead.
@@ -158,6 +161,15 @@ def define_piecewise(
         if names.empty:
             continue
 
+        if status is None:
+            active = None
+        else:
+            masked = status.isnull().reindex(name=names, fill_value=True)
+            if masked.all():
+                active = None
+            else:
+                active = status.to_linexpr().reindex(name=names).where(~masked, 1)
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
             m.add_piecewise_formulation(
@@ -165,6 +177,7 @@ def define_piecewise(
                 (x_var.sel(name=names), x_breakpoints.sel(name=names)),
                 method=opt_method,
                 name=aux,
+                active=active,
             )
         pw_names = pw_names.difference(names)
     return y_var_sel

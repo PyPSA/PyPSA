@@ -305,6 +305,80 @@ class TestPiecewiseCostsResults:
         )
 
 
+# TODO: update to a non-zero starting x point on the piecewise curve once we handle non-zero intercepts on cumulative curves
+class TestPiecewiseCostsStatus:
+    @pytest.fixture
+    def base_network(self):
+        n = pypsa.Network()
+        n.add("Bus", "bus0")
+        n.add("Load", "load", bus="bus0", p_set=80)
+        return n
+
+    def test_piecewise_marginal_cost_considers_status(self, base_network):
+        """Piecewise marginal cost considers the binary unit commitment status of the component."""
+        n = base_network
+        n.add("Generator", "gen0", bus="bus0", p_nom=100, marginal_cost=50)
+        n.add(
+            "Generator",
+            "gen-committable",
+            bus="bus0",
+            p_nom=100,
+            # effectively setting a p_min_pu of 0.1 which shouldn't be binding because the generator is committable and can be turned off
+            marginal_cost={0.0: 60, 0.5: 75, 1.0: 100.0},
+            committable=True,
+        )
+        n.optimize()
+        assert (n.c.generators.dynamic.p["gen-committable"] == 0).all()
+
+    def test_piecewise_marginal_cost_considers_status_two_piecewise_costs(
+        self, base_network
+    ):
+        """Piecewise marginal cost considers the binary unit commitment status of the component when there is a mix of committable and non-committable piecewise generators."""
+        n = base_network
+        n.add("Generator", "gen0", bus="bus0", p_nom=100, marginal_cost=50)
+        n.add(
+            "Generator",
+            "gen1",
+            bus="bus0",
+            p_nom=100,
+            marginal_cost={0.0: 60.0, 0.1: 60.0, 0.5: 35.0, 1.0: 100.0},
+        )
+        n.add(
+            "Generator",
+            "gen-committable",
+            bus="bus0",
+            p_nom=100,
+            marginal_cost={0.0: 60, 0.5: 75, 1.0: 100.0},
+            committable=True,
+        )
+        n.optimize()
+        assert (n.c.generators.dynamic.p["gen-committable"] == 0).all()
+
+    def test_piecewise_marginal_cost_considers_status_two_committable_generators(
+        self, base_network
+    ):
+        """Piecewise marginal cost considers the binary unit commitment status of the component when there is a mix of committable and non-committable piecewise generators."""
+        n = base_network
+        n.add(
+            "Generator",
+            "gen0",
+            bus="bus0",
+            p_nom=100,
+            marginal_cost=50,
+            committable=True,
+        )
+        n.add(
+            "Generator",
+            "gen-committable",
+            bus="bus0",
+            p_nom=100,
+            marginal_cost={0.0: 60, 0.5: 75, 1.0: 100.0},
+            committable=True,
+        )
+        n.optimize()
+        assert (n.c.generators.dynamic.p["gen-committable"] == 0).all()
+
+
 class TestPiecewiseCostsErrors:
     def test_piecewise_capital_cost_with_overnight_cost_raises(self) -> None:
         """Defining overnight_cost next to a piecewise capital_cost curve is ambiguous."""
