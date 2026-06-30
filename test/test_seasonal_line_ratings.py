@@ -164,22 +164,12 @@ def test_seasonal_rejects_nonpositive_s_nom(network):
 
 
 def test_seasonal_solve_runs():
-    """End-to-end: a network with seasonal ratings still solves.
-
-    Depends on the Arrow-string fix from GH #1690 (or a pandas config with
-    ``future.infer_string=False``); force the workaround locally so this test
-    is self-contained regardless of the ambient pandas option.
-    """
-    prev = pd.get_option("future.infer_string")
-    pd.set_option("future.infer_string", False)
-    try:
-        n = _build_network(periods=48)
-        n.add("Generator", "g", bus="a", p_nom=500, marginal_cost=10)
-        n.add("Load", "ld", bus="b", p_set=400)
-        ratings = pd.DataFrame({"summer": [800], "winter": [1000]}, index=["a-b"])
-        n.c.lines.apply_seasonal_rating(ratings)
-        status, condition = n.optimize()
-        assert status == "ok"
-        assert condition == "optimal"
-    finally:
-        pd.set_option("future.infer_string", prev)
+    """End-to-end: a network with seasonal ratings still solves."""
+    n = _build_network(periods=48)
+    n.add("Generator", "g", bus="a", p_nom=500, marginal_cost=10)
+    n.add("Load", "ld", bus="b", p_set=400)
+    ratings = pd.DataFrame({"summer": [800], "winter": [1000]}, index=["a-b"])
+    n.c.lines.apply_seasonal_rating(ratings)
+    status, condition = n.optimize()
+    assert status == "ok"
+    assert condition == "optimal"
