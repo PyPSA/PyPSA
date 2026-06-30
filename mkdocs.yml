@@ -69,6 +69,7 @@ nav:
       - Custom Constraints: user-guide/optimization/custom-constraints.md
       - Pathway Planning: user-guide/optimization/pathway-planning.md
       - Stochastic Optimization: user-guide/optimization/stochastic.md
+      - Stochastic Decomposition (mpi-sppy): user-guide/optimization/stochastic-decomposition.md
       - Modelling-to-Generate-Alternatives (MGA): user-guide/optimization/modelling-to-generate-alternatives.md
   - Simulation:
     - Power Flow: user-guide/power-flow.md
