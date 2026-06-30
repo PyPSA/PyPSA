@@ -1031,7 +1031,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._objective = m.objective.value
         if factors is not None:
             n._objective *= factors.cost
-            n._objective_constant *= factors.cost
+            if n._objective_constant is not None:
+                n._objective_constant *= factors.cost
 
     def assign_duals(
         self, assign_all_duals: bool = False, factors: Scaler | None = None
