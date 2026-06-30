@@ -1065,11 +1065,19 @@ class _ExporterNetCDF(_Exporter):
         new_col_name = list_name + "_t_" + attr + "_i"
         if isinstance(df.columns, pd.MultiIndex):  # stochastic
             df = df.rename_axis(index="snapshots", columns=["scenario", new_col_name])
+            self.ds[list_name + "_t_" + attr] = df.stack(
+                level=df.columns.names, future_stack=True
+            ).to_xarray()
         else:
-            df = df.rename_axis(index="snapshots", columns=new_col_name)
-        self.ds[list_name + "_t_" + attr] = df.stack(
-            level=df.columns.names, future_stack=True
-        ).to_xarray()
+            # Fast path: create DataArray directly from 2D values
+            self.ds[list_name + "_t_" + attr] = xr.DataArray(
+                df.values,
+                dims=["snapshots", new_col_name],
+                coords={
+                    "snapshots": ("snapshots", df.index.values),
+                    new_col_name: (new_col_name, df.columns.values),
+                },
+            )
 
     def set_compression_encoding(self) -> None:
         """Set compression encoding for all variables."""
