@@ -97,11 +97,12 @@ pip install -e "./mpi-sppy[mpi]"
 
 !!! tip "The `mpisppy` extra"
 
-    `pip install "pypsa[mpisppy]"` does this GitHub install for you — the extra pulls
-    `mpi-sppy` straight from `main` (along with `mpi4py` and `mip`, the coin-or parser
-    mpi-sppy uses to read the per-scenario LP/MPS files). Still set up MPI and `mpi4py`
-    first (above): installing `mpi4py` through the extra just compiles it against
-    whatever MPI `pip` happens to find.
+    `pip install "pypsa[mpisppy]"` pulls the PyPI-installable helpers — `mpi4py` and
+    `mip` (the coin-or parser mpi-sppy uses to read the per-scenario LP/MPS files) —
+    but **not `mpi-sppy` itself**, which you install with the GitHub command above
+    until a PyPI release ships the MPS-file loader. Set up MPI and `mpi4py` first
+    (above): installing `mpi4py` through the extra just compiles it against whatever
+    MPI `pip` happens to find.
 
 ### A persistent QP solver
 

@@ -63,8 +63,12 @@ gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
 dotenv = ["python-dotenv"]
 tsam = ["tsam"]
-# mip: coin-or python-mip, parses the per-scenario LP/MPS files in mpi-sppy's mps_module reader
-mpisppy = ["mpi-sppy @ git+https://github.com/Pyomo/mpi-sppy.git", "mpi4py", "mip"]
+# The extra pulls the PyPI-installable helpers only: mpi4py, and mip (coin-or
+# python-mip, the LP/MPS parser behind mpi-sppy's mps_module reader). mpi-sppy itself
+# is installed separately for now -- pip install "git+https://github.com/Pyomo/mpi-sppy.git"
+# -- until a PyPI release ships the MPS-file-loader support, after which add it here
+# as a plain "mpi-sppy>=<version>" pin.
+mpisppy = ["mpi4py", "mip"]
 test = [
     "pytest",
     "pytest-cov",
