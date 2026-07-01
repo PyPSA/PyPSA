@@ -377,15 +377,19 @@ or run `python -m mpisppy.generic_cylinders --help`.
 
 The decomposed solve returns the optimized **first-stage** capacities. The
 per-scenario **dispatch** (operational time series) and **marginal prices** are
-recovered separately via the `dispatch` argument of `solve_stochastic_mpisppy` (and of
-`read_stochastic_solution_mpisppy`):
+recovered through the `dispatch=` argument, which both entry points accept — the
+inline `solve_stochastic_mpisppy` and the decoupled `read_stochastic_solution_mpisppy`
+(Phase 3 of the SLURM workflow). The recovery itself is identical either way:
 
 ```python
-# recover per-scenario dispatch + scenario-conditional duals for all scenarios
+# Inline: solve and recover in one call (dispatch + scenario-conditional duals)
 n.optimize.solve_stochastic_mpisppy(method="ph", dispatch="resolve")
 
-# ... or only for the scenarios you care about (e.g. the stressed one)
-n.optimize.solve_stochastic_mpisppy(method="ph", dispatch="resolve", scenarios=["high"])
+# Decoupled: recover while reading the incumbent back, optionally only for the
+# scenarios you care about (e.g. the stressed one)
+n.optimize.read_stochastic_solution_mpisppy(
+    "/shared/run42", dispatch="resolve", scenarios=["high"]
+)
 ```
 
 `dispatch="resolve"` fixes the optimized capacities and re-solves each scenario as
