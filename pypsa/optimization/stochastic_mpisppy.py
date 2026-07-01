@@ -528,7 +528,7 @@ def write_stochastic_problem_mpisppy(
         mpisppy_args=mpisppy_args,
     )
     solve_command = shlex.join(solve_argv)
-    manifest = {
+    manifest: dict[str, Any] = {
         "directory": str(directory),
         "file_format": file_format,
         "scenarios": {s: float(weights[s]) for s in scenarios},
@@ -796,7 +796,8 @@ def _resolve_dispatch(
             )
             raise RuntimeError(msg)
         solved[scenario] = ns
-        objectives.append(f"{scenario}={float(ns.objective):.6g}")
+        obj = ns.objective  # set now that the solve succeeded above
+        objectives.append(f"{scenario}={obj:.6g}" if obj is not None else scenario)
 
     _merge_scenario_results(n, solved)
     logger.info(
@@ -859,21 +860,24 @@ def _run_solver(argv: list[str], command: str, tee: bool) -> None:
     inside this child process.
     """
     if tee:
-        completed = subprocess.run(argv, check=False)  # noqa: S603
+        # Output already streamed to the terminal; nothing to capture.
+        returncode = subprocess.run(argv, check=False).returncode  # noqa: S603
+        stdout = stderr = ""
     else:
         completed = subprocess.run(  # noqa: S603
             argv, check=False, capture_output=True, text=True
         )
-    if completed.returncode != 0:
-        msg = (
-            f"mpi-sppy solve failed (exit code {completed.returncode}).\n"
-            f"  Command: {command}"
+        returncode, stdout, stderr = (
+            completed.returncode,
+            completed.stdout,
+            completed.stderr,
         )
-        if not tee:
-            if completed.stdout:
-                msg += f"\n--- stdout ---\n{completed.stdout}"
-            if completed.stderr:
-                msg += f"\n--- stderr ---\n{completed.stderr}"
+    if returncode != 0:
+        msg = f"mpi-sppy solve failed (exit code {returncode}).\n  Command: {command}"
+        if stdout:
+            msg += f"\n--- stdout ---\n{stdout}"
+        if stderr:
+            msg += f"\n--- stderr ---\n{stderr}"
         raise RuntimeError(msg)
 
 
