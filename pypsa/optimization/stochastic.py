@@ -241,6 +241,7 @@ def _solve_command(
     mpisppy_options: dict[str, Any] | None = None,
     mpisppy_args: Sequence[str] | None = None,
     nprocs: int | None = None,
+    max_solver_threads: int | None = 2,
 ) -> tuple[list[str], int]:
     """Build the mpi-sppy driver command (an argv list) and its MPI rank count.
 
@@ -250,6 +251,12 @@ def _solve_command(
     solves the extensive form directly in a single process -- the correctness
     oracle, no MPI. Both write the incumbent first stage with
     ``--write-xhat-file`` so :func:`read_stochastic_solution` can read it back.
+
+    For PH, the per-rank subproblem solver is capped at ``max_solver_threads``
+    threads (default 2) so that ranks sharing a node do not oversubscribe cores;
+    pass ``None`` to remove the cap. ``max_solver_threads`` applies to PH only --
+    the single-process EF is not capped by this default -- but a user who wants
+    to can still limit EF threads via ``mpisppy_args`` / ``mpisppy_options``.
     """
     solution_file = directory / _SOLUTION_NAME
     if method == "ef":
@@ -289,9 +296,13 @@ def _solve_command(
             str(default_rho),
             "--max-iterations",
             str(max_iterations),
-            "--write-xhat-file",
-            str(solution_file),
         ]
+        # Cap each rank's subproblem solver so co-located ranks do not
+        # oversubscribe cores. This default is PH-only; EF (above) is left
+        # uncapped unless the user passes their own --max-solver-threads.
+        if max_solver_threads is not None:
+            argv += ["--max-solver-threads", str(max_solver_threads)]
+        argv += ["--write-xhat-file", str(solution_file)]
     else:
         msg = f"Unknown method {method!r}; expected 'ph' or 'ef'."
         raise ValueError(msg)

@@ -384,6 +384,14 @@ def test_solve_command_ph(tmp_path):
     assert "--xhatshuffle" in argv
     assert "--default-rho" in argv
     assert "--max-iterations" in argv
+    # PH caps solver threads per rank by default (2); None removes the cap.
+    assert argv[argv.index("--max-solver-threads") + 1] == "2"
+    assert (
+        "--max-solver-threads"
+        not in stochastic._solve_command(
+            tmp_path, method="ph", max_solver_threads=None
+        )[0]
+    )
     assert argv[argv.index("--write-xhat-file") + 1] == str(tmp_path / "xhat.csv")
 
 
@@ -395,6 +403,17 @@ def test_solve_command_ef(tmp_path):
     assert "mpiexec" not in argv
     assert "--EF" in argv
     assert argv[argv.index("--EF-solver-name") + 1] == "gurobi"
+    # The default cap is PH-only: our max_solver_threads param never adds a cap
+    # for the single-process EF...
+    assert (
+        "--max-solver-threads"
+        not in stochastic._solve_command(tmp_path, method="ef", max_solver_threads=2)[0]
+    )
+    # ...but a user who explicitly asks to cap EF threads must be let through.
+    ef_user_capped = stochastic._solve_command(
+        tmp_path, method="ef", mpisppy_args=["--max-solver-threads", "1"]
+    )[0]
+    assert ef_user_capped[ef_user_capped.index("--max-solver-threads") + 1] == "1"
     assert argv[argv.index("--write-xhat-file") + 1] == str(tmp_path / "xhat.csv")
 
 
