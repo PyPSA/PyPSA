@@ -119,11 +119,16 @@ def _nonant_records(model: Model, first_stage: Sequence[str]) -> list[dict[str, 
 
 
 def _objective_coefficients(model: Model) -> dict[int, float]:
-    """Return ``{variable label: objective coefficient}`` for ``model``."""
+    """Return ``{variable label: objective coefficient}`` for ``model``.
+
+    A label appearing in several objective terms has its coefficients summed.
+    """
     flat = model.objective.flat
-    return dict(
-        zip(flat["vars"].astype(int), flat["coeffs"].astype(float), strict=True)
+    coeffs = pd.Series(
+        flat["coeffs"].astype(float).to_numpy(),
+        index=flat["vars"].astype(int).to_numpy(),
     )
+    return coeffs.groupby(level=0).sum().to_dict()
 
 
 def _compute_rho(
@@ -146,7 +151,10 @@ def _compute_rho(
 
     rho is **scenario-invariant** (capital costs are first-stage), so this is
     computed once and replicated to every scenario's ``_rho.csv`` -- the
-    consistency mpi-sppy requires of the writer.
+    consistency mpi-sppy requires of the writer. The coefficients come from the
+    single ``model`` passed in (scenario 0 at the call site); a network with
+    genuinely per-scenario ``capital_cost`` would silently use only that
+    scenario's values.
     """
     if isinstance(rho, str):
         if rho != "cost-proportional":
@@ -159,7 +167,7 @@ def _compute_rho(
         }
     if isinstance(rho, dict):
         return {r["name"]: float(rho.get(r["name"], rho_floor)) for r in records}
-    if isinstance(rho, (int, float)):
+    if isinstance(rho, (int, float)) and not isinstance(rho, bool):
         return {r["name"]: float(rho) for r in records}
     msg = (
         f"Invalid `rho` of type {type(rho).__name__}; expected str, number or mapping."
@@ -202,6 +210,8 @@ def _clean_directory(directory: Path) -> None:
     for suffix in _METADATA_SUFFIXES:
         stale += directory.glob(f"*{suffix}")
     stale.append(directory / _MANIFEST_NAME)
+    # Also drop a stale solution file so an aborted prior solve is not read as fresh.
+    stale.append(directory / _SOLUTION_NAME)
     for path in stale:
         if path.exists():
             path.unlink()
@@ -331,7 +341,7 @@ def _sbatch_template(directory: Path, nranks: int) -> str:
     return (
         "# Decoupled SLURM workflow (edit envs/partitions/accounts to taste).\n"
         f"DIR={directory}\n"
-        'rm -f "$DIR"/*.lp "$DIR"/*.mps "$DIR"/*_nonants.json "$DIR"/*_rho.csv  # hygiene\n'
+        f'rm -f "$DIR"/*.lp "$DIR"/*.mps "$DIR"/*_nonants.json "$DIR"/*_rho.csv "$DIR"/{_SOLUTION_NAME}  # hygiene\n'
         "j1=$(sbatch --parsable write.sbatch)                           # -n 1,   PyPSA env\n"
         f"j2=$(sbatch --parsable --dependency=afterok:$j1 solve.sbatch)  # -n {nranks}, mpi-sppy env\n"
         "sbatch          --dependency=afterok:$j2 read.sbatch          # -n 1,   PyPSA env\n"
@@ -578,7 +588,11 @@ def _read_xhat_csv(path: Path) -> dict[str, float]:
             continue
         parts = [p.strip() for p in line.split(",")]
         if len(parts) != 3:
-            continue
+            msg = (
+                f"Malformed line in xhat file {path} (expected "
+                f"'node, variable, value'): {line!r}"
+            )
+            raise ValueError(msg)
         node, varname, value = parts
         if node != "ROOT":
             continue
@@ -724,6 +738,14 @@ def read_stochastic_solution_mpisppy(
         static = n.components[info["component"]].static
         # Capacities are shared first-stage decisions: write to every scenario.
         mask = static.index.get_level_values("name") == info["asset"]
+        if not mask.any():
+            logger.warning(
+                "xhat nonant %r maps to %s %r, which is not in the network; skipping.",
+                name,
+                info["component"],
+                info["asset"],
+            )
+            continue
         static.loc[mask, f"{info['attr']}_opt"] = value
         applied[name] = value
 
@@ -734,6 +756,14 @@ def read_stochastic_solution_mpisppy(
         nom_attr = nominal_attrs[component]
         static = n.components[component].static
         mask = static.index.get_level_values("name") == info["asset"]
+        if not mask.any():
+            logger.warning(
+                "xhat nonant %r maps to %s %r, which is not in the network; skipping.",
+                name,
+                component,
+                info["asset"],
+            )
+            continue
         n_modules = round(value)
         static.loc[mask, "n_mod_opt"] = n_modules
         static.loc[mask, f"{nom_attr}_opt"] = (

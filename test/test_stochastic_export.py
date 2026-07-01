@@ -252,10 +252,12 @@ def test_sbatch_template_structure(stochastic_export_network, tmp_path):
 
     # DIR points at the transfer directory (shared across all three jobs).
     assert f"DIR={tmp_path}" in tpl
-    # Directory hygiene: one rm covering all four transfer-file globs (§13.6).
+    # Directory hygiene: one rm covering the transfer-file globs + the solution
+    # file, so an aborted prior solve is not read back as fresh (§13.6).
     assert (
         'rm -f "$DIR"/*.lp "$DIR"/*.mps "$DIR"/*_nonants.json "$DIR"/*_rho.csv' in tpl
     )
+    assert '"$DIR"/xhat.csv' in tpl
     # Three jobs: write -> solve -> read, chained with afterok dependencies.
     assert "write.sbatch" in tpl
     assert "solve.sbatch" in tpl
@@ -429,6 +431,32 @@ def test_resolve_dispatch_scenario_subset(stochastic_export_network):
     # Only the requested scenario's dispatch and duals are populated.
     assert set(n.generators_t.p.columns.get_level_values("scenario")) == {"low"}
     assert set(n.buses_t.marginal_price.columns.get_level_values("scenario")) == {"low"}
+
+
+@pytest.mark.skipif(_SOLVER is None, reason="needs an LP solver")
+def test_resolve_dispatch_subset_merges_into_existing(stochastic_export_network):
+    """Re-resolving a subset merges into existing outputs (non-empty merge path)."""
+    n = stochastic_export_network
+    n_ef = n.copy()
+    n_ef.optimize(solver_name=_SOLVER, include_objective_constant=False)
+    _carry_optimal_capacities(n, n_ef)
+
+    stochastic._resolve_dispatch(n, solver_name=_SOLVER)  # all scenarios: full outputs
+    stochastic._resolve_dispatch(  # re-resolve one -> hits the merge-into-existing path
+        n, scenarios=["low"], solver_name=_SOLVER
+    )
+
+    # The merge keeps the other scenarios' columns rather than replacing them.
+    assert set(n.generators_t.p.columns.get_level_values("scenario")) == {
+        "low",
+        "med",
+        "high",
+    }
+    assert set(n.buses_t.marginal_price.columns.get_level_values("scenario")) == {
+        "low",
+        "med",
+        "high",
+    }
 
 
 # --- solve_stochastic_mpisppy: command building (dependency-free) ---------------------

@@ -194,7 +194,7 @@ python write_step.py
 ```bash
 # Decoupled SLURM workflow (edit envs/partitions/accounts to taste).
 DIR=/shared/run42
-rm -f "$DIR"/*.lp "$DIR"/*.mps "$DIR"/*_nonants.json "$DIR"/*_rho.csv  # hygiene
+rm -f "$DIR"/*.lp "$DIR"/*.mps "$DIR"/*_nonants.json "$DIR"/*_rho.csv "$DIR"/xhat.csv  # hygiene
 j1=$(sbatch --parsable write.sbatch)                           # -n 1,   PyPSA env
 j2=$(sbatch --parsable --dependency=afterok:$j1 solve.sbatch)  # -n 3, mpi-sppy env
 sbatch          --dependency=afterok:$j2 read.sbatch          # -n 1,   PyPSA env
