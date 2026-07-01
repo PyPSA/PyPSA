@@ -26,7 +26,7 @@ jobs:
     name: Build and verify package
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # Needed for setuptools_scm
     - uses: hynek/build-and-inspect-python-package@v2
@@ -62,7 +62,7 @@ jobs:
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # Needed for setuptools_scm
 
@@ -128,7 +128,7 @@ jobs:
 
     - name: Upload code coverage report
       if: ${{ !cancelled() }}
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: >
@@ -157,7 +157,7 @@ jobs:
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # Needed for setuptools_scm
 
@@ -199,7 +199,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # Needed for setuptools_scm
 
@@ -229,7 +229,7 @@ jobs:
 
     - name: Upload code coverage report
       if: ${{ !cancelled() }}
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: >
@@ -255,7 +255,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # Needed for setuptools_scm
 
