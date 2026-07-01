@@ -451,6 +451,29 @@ def test_solve_command_nprocs_options_args(tmp_path):
     assert argv[-2:] == ["--max-stalled-iters", "5"]  # extra args appended last
 
 
+def test_solve_command_thread_override_not_doubled(tmp_path):
+    """A user-supplied --max-solver-threads replaces the PH default, never doubles it."""
+    # via the options dict
+    via_opts = stochastic._solve_command(
+        tmp_path, method="ph", mpisppy_options={"max_solver_threads": 4}
+    )[0]
+    assert via_opts.count("--max-solver-threads") == 1
+    assert via_opts[via_opts.index("--max-solver-threads") + 1] == "4"
+    # via raw args
+    via_args = stochastic._solve_command(
+        tmp_path, method="ph", mpisppy_args=["--max-solver-threads", "8"]
+    )[0]
+    assert via_args.count("--max-solver-threads") == 1
+    assert via_args[via_args.index("--max-solver-threads") + 1] == "8"
+    # the --flag=value form is also detected (default still not duplicated)
+    via_eq = stochastic._solve_command(
+        tmp_path, method="ph", mpisppy_args=["--max-solver-threads=6"]
+    )[0]
+    assert [t for t in via_eq if t.startswith("--max-solver-threads")] == [
+        "--max-solver-threads=6"
+    ]
+
+
 def test_solve_command_invalid_method(tmp_path):
     with pytest.raises(ValueError, match="Unknown method"):
         stochastic._solve_command(tmp_path, method="bogus")

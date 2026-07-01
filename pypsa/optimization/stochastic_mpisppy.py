@@ -254,11 +254,26 @@ def _solve_command(
 
     For PH, the per-rank subproblem solver is capped at ``max_solver_threads``
     threads (default 2) so that ranks sharing a node do not oversubscribe cores;
-    pass ``None`` to remove the cap. ``max_solver_threads`` applies to PH only --
-    the single-process EF is not capped by this default -- but a user who wants
-    to can still limit EF threads via ``mpisppy_args`` / ``mpisppy_options``.
+    pass ``None`` to remove the cap. If the caller supplies their own
+    ``--max-solver-threads`` through ``mpisppy_options``/``mpisppy_args``, that
+    replaces the default (the flag is never emitted twice). ``max_solver_threads``
+    applies to PH only -- the single-process EF is not capped by this default,
+    but a user can still limit EF threads via ``mpisppy_args`` / ``mpisppy_options``.
     """
     solution_file = directory / _SOLUTION_NAME
+    # Assemble the user-supplied tail (config file + options dict + raw args) up
+    # front so the PH thread-cap default can defer to an explicit
+    # --max-solver-threads the user passed, rather than emitting it twice.
+    tail: list[str] = []
+    if config_file is not None:
+        tail += ["--config-file", str(config_file)]
+    tail += _options_to_args(mpisppy_options)
+    if mpisppy_args:
+        tail += list(mpisppy_args)
+    user_capped_threads = any(
+        t == "--max-solver-threads" or t.startswith("--max-solver-threads=")
+        for t in tail
+    )
     if method == "ef":
         nranks = 1
         argv = [
@@ -299,18 +314,15 @@ def _solve_command(
         ]
         # Cap each rank's subproblem solver so co-located ranks do not
         # oversubscribe cores. This default is PH-only; EF (above) is left
-        # uncapped unless the user passes their own --max-solver-threads.
-        if max_solver_threads is not None:
+        # uncapped. Skip it when the user already set --max-solver-threads (via
+        # mpisppy_options/mpisppy_args) so the flag is never emitted twice.
+        if max_solver_threads is not None and not user_capped_threads:
             argv += ["--max-solver-threads", str(max_solver_threads)]
         argv += ["--write-xhat-file", str(solution_file)]
     else:
         msg = f"Unknown method {method!r}; expected 'ph' or 'ef'."
         raise ValueError(msg)
-    if config_file is not None:
-        argv += ["--config-file", str(config_file)]
-    argv += _options_to_args(mpisppy_options)
-    if mpisppy_args:
-        argv += list(mpisppy_args)
+    argv += tail
     return argv, nranks
 
 

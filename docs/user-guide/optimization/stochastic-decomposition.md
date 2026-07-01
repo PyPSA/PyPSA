@@ -320,12 +320,15 @@ by both `solve_stochastic_mpisppy` and `write_stochastic_problem_mpisppy`:
 
 !!! note "PH caps solver threads by default"
 
-    So that ranks sharing a node do not oversubscribe cores, the PH command
-    includes `--max-solver-threads 2` by default (you'll see it in
-    `manifest["solve_command"]` and the `solve.sbatch` above). It applies to PH
-    only — the single-process EF is never capped. Override it by passing your own
-    value, e.g. `mpisppy_options={"max_solver_threads": 4}` or
-    `mpisppy_args=["--max-solver-threads", "4"]`.
+    **If you specify nothing**, the PyPSA interface to mpi-sppy caps each rank's
+    subproblem solver at `--max-solver-threads 2` so that ranks sharing a node do
+    not oversubscribe cores (you'll see it in `manifest["solve_command"]` and the
+    `solve.sbatch` above). This applies to PH only — the single-process EF is left
+    **uncapped**
+    (it uses the solver's own default). To use a different cap, pass your own value
+    — `mpisppy_options={"max_solver_threads": 4}` or
+    `mpisppy_args=["--max-solver-threads", "4"]` — which **replaces** the default
+    (the flag is not emitted twice).
 
 **2. An options dict**, `mpisppy_options=` (inline `solve_stochastic_mpisppy` only). Each
 entry becomes a CLI flag: the key gets a `--` prefix with underscores turned to
