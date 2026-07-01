@@ -37,7 +37,7 @@ On top of a working PyPSA installation, the decomposition path needs three furth
 pieces: a working MPI with `mpi4py`, `mpi-sppy` itself, and a solver reached through
 a Pyomo **persistent** interface. (mpi-sppy will also work with solvers that are not
 persistent, just more slowly.) None of this is needed for
-the `write`/`read` helpers — only the parallel `solve_stochastic` driver and the
+the `write`/`read` helpers — only the parallel `solve_stochastic_mpisppy` driver and the
 mpi-sppy solve phase of the decoupled workflow use MPI and mpi-sppy.
 
 ### MPI and mpi4py
@@ -146,7 +146,7 @@ conda environments (they may be the same one if you installed everything togethe
 
 ### Phase 1 — write (PyPSA, one core)
 
-A single-core PyPSA job builds the network and calls `write_stochastic_problem`. Any
+A single-core PyPSA job builds the network and calls `write_stochastic_problem_mpisppy`. Any
 mpi-sppy options you want in the solve — here the `--coeff-rho` rho setter — are
 passed now through `mpisppy_args=` so they are baked into the recorded
 `solve_command`:
@@ -156,7 +156,7 @@ passed now through `mpisppy_args=` so they are baked into the recorded
 from my_model import build_network  # your code: returns a network with scenarios set
 
 n = build_network()
-manifest = n.optimize.write_stochastic_problem(
+manifest = n.optimize.write_stochastic_problem_mpisppy(
     "/shared/run42",
     solver_name="gurobi_persistent",
     max_iterations=200,
@@ -180,7 +180,7 @@ source activate pypsa   # the environment with PyPSA
 python write_step.py
 ```
 
-`write_stochastic_problem` returns (and writes to
+`write_stochastic_problem_mpisppy` returns (and writes to
 `/shared/run42/pypsa_stochastic_manifest.json`) a manifest whose keys drive the rest:
 
 - `manifest["solve_command"]` — the exact `mpisppy.generic_cylinders` command for
@@ -243,7 +243,7 @@ stage back onto it (optionally re-solving the dispatch):
 from my_model import build_network  # the same network as in write_step.py
 
 n = build_network()
-n.optimize.read_stochastic_solution("/shared/run42", dispatch="resolve")
+n.optimize.read_stochastic_solution_mpisppy("/shared/run42", dispatch="resolve")
 # n now carries the optimized *_nom_opt capacities and, with dispatch="resolve",
 # the per-scenario dispatch and marginal prices — inspect or persist as you like.
 ```
@@ -267,13 +267,13 @@ python read_step.py
     mpi-sppy discovers scenarios by scanning the transfer directory for model files,
     so a previous run that wrote *more* scenarios would leave stale files that a
     smaller new run silently picks up as phantom scenarios.
-    `write_stochastic_problem(clean=True)` (the default) clears them in Python; the
+    `write_stochastic_problem_mpisppy(clean=True)` (the default) clears them in Python; the
     `sbatch_template` also `rm`s them as a belt-and-braces step covering an aborted
     write.
 
 ## Inline solve
 
-For a laptop or a single interactive node, `solve_stochastic` runs the whole
+For a laptop or a single interactive node, `solve_stochastic_mpisppy` runs the whole
 workflow in one blocking call: write the per-scenario files, run the mpi-sppy driver
 as a subprocess, and read the optimized first-stage capacities back onto the network
 as `*_nom_opt`.
@@ -286,7 +286,7 @@ n = pypsa.Network()
 n.set_scenarios({"low": 0.3, "med": 0.4, "high": 0.3})
 # ... set per-scenario data ...
 
-n.optimize.solve_stochastic(
+n.optimize.solve_stochastic_mpisppy(
     method="ph",
     solver_name="gurobi_persistent",
     mpisppy_args=["--max-solver-threads", "2"],  # cap each rank at 2 solver threads
@@ -304,13 +304,13 @@ stage, use `dispatch=` (see
 
 ## Passing mpi-sppy options
 
-Both entry points — the inline `solve_stochastic` driver and the `solve_command`
+Both entry points — the inline `solve_stochastic_mpisppy` driver and the `solve_command`
 baked into the decoupled manifest — ultimately build a single
-`mpisppy.generic_cylinders` command line. You shape it at three levels, from most to
+`mpisppy.generic_cylinders` command line. You can shape it at three levels, from most to
 least convenient.
 
 **1. Named keyword arguments** for the common Progressive-Hedging controls, accepted
-by both `solve_stochastic` and `write_stochastic_problem`:
+by both `solve_stochastic_mpisppy` and `write_stochastic_problem_mpisppy`:
 
 - `solver_name=` — the persistent subproblem solver, e.g. `"gurobi_persistent"`
   (→ `--solver-name`); see [A persistent QP solver](#a-persistent-qp-solver).
@@ -320,15 +320,15 @@ by both `solve_stochastic` and `write_stochastic_problem`:
   per-variable `rho=` policy (default `"cost-proportional"`) written into the
   per-scenario `_rho.csv` files.
 
-`solve_stochastic` additionally takes `nprocs=` to override the MPI rank count
+`solve_stochastic_mpisppy` additionally takes `nprocs=` to override the MPI rank count
 (default `1 + len(cylinders)`: a Progressive-Hedging hub rank plus one per cylinder).
 
-**2. An options dict**, `mpisppy_options=` (inline `solve_stochastic` only). Each
+**2. An options dict**, `mpisppy_options=` (inline `solve_stochastic_mpisppy` only). Each
 entry becomes a CLI flag: the key gets a `--` prefix with underscores turned to
 dashes, `True` becomes a bare flag, and `False`/`None` are dropped. For example,
 
 ```python
-n.optimize.solve_stochastic(
+n.optimize.solve_stochastic_mpisppy(
     solver_name="gurobi_persistent",
     mpisppy_options={"rel_gap": 0.01, "max_solver_threads": 2, "presolve": True},
 )
@@ -338,8 +338,8 @@ n.optimize.solve_stochastic(
 **3. Escape hatches** for anything the helpers don't model. `mpisppy_args=` is a list
 of raw tokens appended to the command verbatim — best for a handful of extra flags —
 while `config_file=` (→ `--config-file`) points at a full mpi-sppy config file, better
-for a large or reusable option set. Both are accepted by `solve_stochastic` and
-`write_stochastic_problem`. Between them you can reach any `generic_cylinders` option;
+for a large or reusable option set. Both are accepted by `solve_stochastic_mpisppy` and
+`write_stochastic_problem_mpisppy`. Between them you can reach any `generic_cylinders` option;
 for the full list and what each one does, see the mpi-sppy
 [`generic_cylinders` documentation](https://mpi-sppy.readthedocs.io/en/latest/generic_cylinders.html)
 or run `python -m mpisppy.generic_cylinders --help`.
@@ -356,7 +356,7 @@ or run `python -m mpisppy.generic_cylinders --help`.
     and works directly with the file interface:
 
     ```python
-    n.optimize.solve_stochastic(
+    n.optimize.solve_stochastic_mpisppy(
         solver_name="gurobi_persistent",
         mpisppy_args=["--coeff-rho", "--max-solver-threads", "2"],
     )
@@ -364,7 +364,7 @@ or run `python -m mpisppy.generic_cylinders --help`.
 
 !!! note "Tuning the decoupled solve"
 
-    `write_stochastic_problem` bakes the named arguments, `config_file=` and
+    `write_stochastic_problem_mpisppy` bakes the named arguments, `config_file=` and
     `mpisppy_args=` into `manifest["solve_command"]` — but **not** `mpisppy_options=`,
     which is inline-only. On a cluster, drive your tuning through the named arguments
     and `mpisppy_args=`/`config_file=` so it survives into the command `solve.sbatch`
@@ -374,17 +374,17 @@ or run `python -m mpisppy.generic_cylinders --help`.
 
 The decomposed solve returns the optimized **first-stage** capacities. The
 per-scenario **dispatch** (operational time series) and **marginal prices** are
-recovered separately via the `dispatch` argument of `solve_stochastic` (and of
-`read_stochastic_solution`):
+recovered separately via the `dispatch` argument of `solve_stochastic_mpisppy` (and of
+`read_stochastic_solution_mpisppy`):
 
 ```python
 # recover per-scenario dispatch + scenario-conditional duals for all scenarios
-n.optimize.solve_stochastic(
+n.optimize.solve_stochastic_mpisppy(
     method="ph", dispatch="resolve", mpisppy_args=["--max-solver-threads", "2"]
 )
 
 # ... or only for the scenarios you care about (e.g. the stressed one)
-n.optimize.solve_stochastic(
+n.optimize.solve_stochastic_mpisppy(
     method="ph",
     dispatch="resolve",
     scenarios=["high"],
@@ -421,4 +421,4 @@ subproblems across many cores.
 - [Stochastic Optimization](stochastic.md) — the modelling layer (`set_scenarios`,
   the extensive form, CVaR risk preferences).
 - [Optimization Methods](../../api/networks/optimize.md) — API reference for
-  `solve_stochastic`, `write_stochastic_problem` and `read_stochastic_solution`.
+  `solve_stochastic_mpisppy`, `write_stochastic_problem_mpisppy` and `read_stochastic_solution_mpisppy`.

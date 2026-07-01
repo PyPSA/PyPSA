@@ -1266,47 +1266,47 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             p_nom=p_nom,
         )
 
-    def write_stochastic_problem(
+    def write_stochastic_problem_mpisppy(
         self, directory: str | Path, **kwargs: Any
     ) -> dict[str, Any]:
         """Write the stochastic network as per-scenario files for mpi-sppy.
 
         Thin wrapper around
-        [pypsa.optimization.stochastic.write_stochastic_problem][]; see there
+        [pypsa.optimization.stochastic_mpisppy.write_stochastic_problem_mpisppy][]; see there
         for the full parameter list. Writes one ``{s}.lp`` (or ``.mps``),
         ``{s}_nonants.json`` and ``{s}_rho.csv`` per scenario plus a manifest,
         and returns the manifest (including the exact phase-2 mpi-sppy command).
         Dependency-free -- imports neither mpi-sppy nor Pyomo.
         """
-        from pypsa.optimization.stochastic import (  # noqa: PLC0415
-            write_stochastic_problem,
+        from pypsa.optimization.stochastic_mpisppy import (  # noqa: PLC0415
+            write_stochastic_problem_mpisppy,
         )
 
-        return write_stochastic_problem(self._n, directory, **kwargs)
+        return write_stochastic_problem_mpisppy(self._n, directory, **kwargs)
 
-    def read_stochastic_solution(
+    def read_stochastic_solution_mpisppy(
         self, directory: str | Path, **kwargs: Any
     ) -> dict[str, float]:
         """Read mpi-sppy's incumbent first stage back onto the network.
 
         Thin wrapper around
-        [pypsa.optimization.stochastic.read_stochastic_solution][]; sets the
+        [pypsa.optimization.stochastic_mpisppy.read_stochastic_solution_mpisppy][]; sets the
         ``*_nom_opt`` capacities from mpi-sppy's incumbent xhat file.
         Dependency-free.
         """
-        from pypsa.optimization.stochastic import (  # noqa: PLC0415
-            read_stochastic_solution,
+        from pypsa.optimization.stochastic_mpisppy import (  # noqa: PLC0415
+            read_stochastic_solution_mpisppy,
         )
 
-        return read_stochastic_solution(self._n, directory, **kwargs)
+        return read_stochastic_solution_mpisppy(self._n, directory, **kwargs)
 
-    def solve_stochastic(
+    def solve_stochastic_mpisppy(
         self, working_dir: str | Path | None = None, **kwargs: Any
     ) -> dict[str, float]:
         """Solve the stochastic network inline via mpi-sppy decomposition.
 
         Thin wrapper around
-        [pypsa.optimization.stochastic.solve_stochastic][]; see there for the
+        [pypsa.optimization.stochastic_mpisppy.solve_stochastic_mpisppy][]; see there for the
         full parameter list. Writes the per-scenario files, runs the mpi-sppy
         driver as a blocking subprocess (Progressive Hedging with bounding
         cylinders under ``mpiexec`` by default, or the extensive form with
@@ -1314,12 +1314,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         network as ``*_nom_opt``.
 
         This is the only stochastic entry point that requires the optional
-        ``pypsa[mpisppy]`` dependencies; ``write_stochastic_problem`` /
-        ``read_stochastic_solution`` are dependency-free for decoupled (e.g.
+        ``pypsa[mpisppy]`` dependencies; ``write_stochastic_problem_mpisppy`` /
+        ``read_stochastic_solution_mpisppy`` are dependency-free for decoupled (e.g.
         SLURM) workflows.
         """
-        from pypsa.optimization.stochastic import (  # noqa: PLC0415
-            solve_stochastic,
+        from pypsa.optimization.stochastic_mpisppy import (  # noqa: PLC0415
+            solve_stochastic_mpisppy,
         )
 
-        return solve_stochastic(self._n, working_dir, **kwargs)
+        return solve_stochastic_mpisppy(self._n, working_dir, **kwargs)

@@ -15,11 +15,11 @@ metadata files, and mpi-sppy's file-based scenario loader
 This module therefore imports neither mpi-sppy nor Pyomo. It contains the two
 dependency-free phases of the workflow:
 
-- :func:`write_stochastic_problem` -- slice each scenario into a standalone
+- :func:`write_stochastic_problem_mpisppy` -- slice each scenario into a standalone
   single-scenario network, build its model, and write ``{s}.lp`` (or ``.mps``),
   ``{s}_nonants.json`` (first-stage variable names + probability) and
   ``{s}_rho.csv`` (per-nonant Progressive-Hedging rho);
-- :func:`read_stochastic_solution` -- read mpi-sppy's incumbent first-stage
+- :func:`read_stochastic_solution_mpisppy` -- read mpi-sppy's incumbent first-stage
   solution back onto the network as ``*_nom_opt``.
 
 The intervening solve (``mpisppy.generic_cylinders`` under MPI) is run
@@ -250,7 +250,7 @@ def _solve_command(
     "xhatshuffle")`` -> 3 ranks), overridable with ``nprocs``. ``method="ef"``
     solves the extensive form directly in a single process -- the correctness
     oracle, no MPI. Both write the incumbent first stage with
-    ``--write-xhat-file`` so :func:`read_stochastic_solution` can read it back.
+    ``--write-xhat-file`` so :func:`read_stochastic_solution_mpisppy` can read it back.
 
     For PH, the per-rank subproblem solver is capped at ``max_solver_threads``
     threads (default 2) so that ranks sharing a node do not oversubscribe cores;
@@ -328,7 +328,7 @@ def _sbatch_template(directory: Path, nranks: int) -> str:
     )
 
 
-def write_stochastic_problem(
+def write_stochastic_problem_mpisppy(
     n: Network,
     directory: str | Path,
     *,
@@ -360,7 +360,7 @@ def write_stochastic_problem(
 
     A ``pypsa_stochastic_manifest.json`` is also written (and returned),
     carrying the exact phase-2 mpi-sppy command, an ``sbatch`` template and the
-    nonant-to-component map that :func:`read_stochastic_solution` uses. This
+    nonant-to-component map that :func:`read_stochastic_solution_mpisppy` uses. This
     function is dependency-free -- it imports neither mpi-sppy nor Pyomo.
 
     Parameters
@@ -416,7 +416,7 @@ def write_stochastic_problem(
     """
     if not n.has_scenarios:
         msg = (
-            "write_stochastic_problem requires a stochastic network. "
+            "write_stochastic_problem_mpisppy requires a stochastic network. "
             "Call n.set_scenarios({...}) first."
         )
         raise ValueError(msg)
@@ -544,8 +544,8 @@ def _read_manifest(directory: Path) -> dict[str, Any]:
     manifest_path = directory / _MANIFEST_NAME
     if not manifest_path.exists():
         msg = (
-            f"No {_MANIFEST_NAME} in {directory}. read_stochastic_solution needs the "
-            "manifest written by write_stochastic_problem to map nonants back to components."
+            f"No {_MANIFEST_NAME} in {directory}. read_stochastic_solution_mpisppy needs the "
+            "manifest written by write_stochastic_problem_mpisppy to map nonants back to components."
         )
         raise FileNotFoundError(msg)
     return json.loads(manifest_path.read_text())
@@ -574,7 +574,7 @@ def _read_xhat_csv(path: Path) -> dict[str, float]:
     return values
 
 
-def read_stochastic_solution(
+def read_stochastic_solution_mpisppy(
     n: Network,
     directory: str | Path,
     *,
@@ -586,7 +586,7 @@ def read_stochastic_solution(
 ) -> dict[str, float]:
     """Read mpi-sppy's incumbent first stage back onto the network.
 
-    Reads the manifest written by :func:`write_stochastic_problem` and the
+    Reads the manifest written by :func:`write_stochastic_problem_mpisppy` and the
     incumbent xhat file written by mpi-sppy (``--write-xhat-file``), then sets
     the corresponding ``*_nom_opt`` capacity values on ``n`` (shared across all
     scenarios, since they are first-stage decisions). Modular module-count
@@ -846,7 +846,7 @@ def _run_solver(argv: list[str], command: str, tee: bool) -> None:
         raise RuntimeError(msg)
 
 
-def solve_stochastic(
+def solve_stochastic_mpisppy(
     n: Network,
     working_dir: str | Path | None = None,
     *,
@@ -873,9 +873,9 @@ def solve_stochastic(
     """Solve a stochastic network inline via mpi-sppy decomposition.
 
     This is the *inline* convenience path (laptop / single node): it writes the
-    per-scenario files (:func:`write_stochastic_problem`), runs the mpi-sppy
+    per-scenario files (:func:`write_stochastic_problem_mpisppy`), runs the mpi-sppy
     driver as a **blocking subprocess**, and reads the incumbent first stage
-    back onto ``n`` (:func:`read_stochastic_solution`). It is the only stochastic
+    back onto ``n`` (:func:`read_stochastic_solution_mpisppy`). It is the only stochastic
     entry point that needs mpi-sppy installed; the write/read phases are
     dependency-free, so large HPC runs can instead drive the three phases as
     separate scheduler jobs (see the manifest's ``sbatch_template``).
@@ -901,7 +901,7 @@ def solve_stochastic(
         Subproblem solver. The PH proximal term is quadratic, so a QP/MIQP-capable
         solver (e.g. Gurobi) is used unless the proximal term is linearized.
     first_stage, rho, rho_alpha, rho_floor, file_format, model_kwargs
-        Forwarded to :func:`write_stochastic_problem`.
+        Forwarded to :func:`write_stochastic_problem_mpisppy`.
     cylinders : sequence of str, default ("lagrangian", "xhatshuffle")
         PH bounding spokes; one MPI rank per cylinder plus the hub.
     default_rho : float, default 1.0
@@ -927,7 +927,7 @@ def solve_stochastic(
         on failure.
     dispatch : {"none", "resolve"}, default "none"
         Second-stage recovery after the decomposed solve, forwarded to
-        :func:`read_stochastic_solution`. ``"resolve"`` re-solves each scenario
+        :func:`read_stochastic_solution_mpisppy`. ``"resolve"`` re-solves each scenario
         with the optimized capacities fixed, recovering the per-scenario dispatch
         and scenario-conditional duals onto ``n`` (using ``solver_name``; serial).
     scenarios : sequence of str, optional
@@ -973,7 +973,7 @@ def solve_stochastic(
         cleanup = False
 
     try:
-        write_stochastic_problem(
+        write_stochastic_problem_mpisppy(
             n,
             directory,
             clean=True,
@@ -1010,7 +1010,7 @@ def solve_stochastic(
             command,
         )
         _run_solver(argv, command, tee)
-        return read_stochastic_solution(
+        return read_stochastic_solution_mpisppy(
             n,
             directory,
             dispatch=dispatch,

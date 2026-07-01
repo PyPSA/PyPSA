@@ -2,12 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Test the mpi-sppy file exporter and driver (pypsa.optimization.stochastic).
+"""Test the mpi-sppy file exporter and driver (pypsa.optimization.stochastic_mpisppy).
 
-Most tests cover the dependency-free phases -- ``write_stochastic_problem``,
-``read_stochastic_solution`` and the command-building / orchestration parts of
-``solve_stochastic`` (with the solver subprocess mocked out) -- and therefore
-need neither mpi-sppy nor a solver. The end-to-end ``solve_stochastic`` test is
+Most tests cover the dependency-free phases -- ``write_stochastic_problem_mpisppy``,
+``read_stochastic_solution_mpisppy`` and the command-building / orchestration parts of
+``solve_stochastic_mpisppy`` (with the solver subprocess mocked out) -- and therefore
+need neither mpi-sppy nor a solver. The end-to-end ``solve_stochastic_mpisppy`` test is
 skipped unless mpi-sppy and Gurobi are installed.
 """
 
@@ -25,7 +25,7 @@ from linopy import available_solvers
 
 import pypsa
 from pypsa.descriptors import nominal_attrs
-from pypsa.optimization import stochastic
+from pypsa.optimization import stochastic_mpisppy as stochastic
 
 # Build models without the existing-infrastructure objective constant (avoids a
 # FutureWarning) and without the consistency check (avoids carrier warnings).
@@ -91,7 +91,9 @@ def _read_json(path):
 
 def test_write_creates_scenario_files(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    manifest = n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    manifest = n.optimize.write_stochastic_problem_mpisppy(
+        tmp_path, model_kwargs=MODEL_KWARGS
+    )
 
     stems = [sf["stem"] for sf in manifest["scenario_files"]]
     assert stems == ["scenario0", "scenario1", "scenario2"]
@@ -105,7 +107,7 @@ def test_write_creates_scenario_files(stochastic_export_network, tmp_path):
 
 def test_nonants_json_schema(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    n.optimize.write_stochastic_problem_mpisppy(tmp_path, model_kwargs=MODEL_KWARGS)
 
     payload = _read_json(tmp_path / "scenario0_nonants.json")
     assert set(payload) == {"scenarioData", "treeData"}
@@ -120,7 +122,7 @@ def test_nonants_json_schema(stochastic_export_network, tmp_path):
 
 def test_nonant_lists_identical_across_scenarios(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    n.optimize.write_stochastic_problem_mpisppy(tmp_path, model_kwargs=MODEL_KWARGS)
 
     nonants = {
         stem: _read_json(tmp_path / f"{stem}_nonants.json")["treeData"]["nodes"][
@@ -133,7 +135,9 @@ def test_nonant_lists_identical_across_scenarios(stochastic_export_network, tmp_
 
 def test_cost_proportional_rho(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    manifest = n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    manifest = n.optimize.write_stochastic_problem_mpisppy(
+        tmp_path, model_kwargs=MODEL_KWARGS
+    )
 
     # rho_i = |capital_cost_i| for the default alpha=1.0.
     assert manifest["rho"] == {"x0": 1000.0, "x1": 500.0, "x2": 200.0, "x3": 300.0}
@@ -148,7 +152,9 @@ def test_cost_proportional_rho(stochastic_export_network, tmp_path):
 
 def test_nonant_map(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    manifest = n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    manifest = n.optimize.write_stochastic_problem_mpisppy(
+        tmp_path, model_kwargs=MODEL_KWARGS
+    )
 
     assert manifest["nonant_map"] == {
         "x0": {"component": "Generator", "attr": "p_nom", "asset": "wind"},
@@ -160,12 +166,12 @@ def test_nonant_map(stochastic_export_network, tmp_path):
 
 def test_flat_and_mapping_rho(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    flat = n.optimize.write_stochastic_problem(
+    flat = n.optimize.write_stochastic_problem_mpisppy(
         tmp_path, rho=2.5, model_kwargs=MODEL_KWARGS
     )
     assert set(flat["rho"].values()) == {2.5}
 
-    mapped = n.optimize.write_stochastic_problem(
+    mapped = n.optimize.write_stochastic_problem_mpisppy(
         tmp_path, rho={"x0": 42.0}, rho_floor=0.1, model_kwargs=MODEL_KWARGS
     )
     assert mapped["rho"]["x0"] == 42.0
@@ -174,7 +180,7 @@ def test_flat_and_mapping_rho(stochastic_export_network, tmp_path):
 
 def test_explicit_first_stage(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    manifest = n.optimize.write_stochastic_problem(
+    manifest = n.optimize.write_stochastic_problem_mpisppy(
         tmp_path, first_stage=["Generator-p_nom"], model_kwargs=MODEL_KWARGS
     )
     assert manifest["first_stage"] == ["Generator-p_nom"]
@@ -183,12 +189,14 @@ def test_explicit_first_stage(stochastic_export_network, tmp_path):
 
 def test_clean_removes_phantom_scenarios(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    n.optimize.write_stochastic_problem_mpisppy(tmp_path, model_kwargs=MODEL_KWARGS)
     # A larger prior run would have left a higher-numbered scenario behind.
     (tmp_path / "scenario9.lp").write_text("\\* phantom *\\\nend\n")
     (tmp_path / "scenario9_nonants.json").write_text("{}")
 
-    n.optimize.write_stochastic_problem(tmp_path, clean=True, model_kwargs=MODEL_KWARGS)
+    n.optimize.write_stochastic_problem_mpisppy(
+        tmp_path, clean=True, model_kwargs=MODEL_KWARGS
+    )
     assert not (tmp_path / "scenario9.lp").exists()
     assert sorted(p.name for p in tmp_path.glob("*.lp")) == [
         "scenario0.lp",
@@ -199,7 +207,7 @@ def test_clean_removes_phantom_scenarios(stochastic_export_network, tmp_path):
 
 def test_mps_format(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    manifest = n.optimize.write_stochastic_problem(
+    manifest = n.optimize.write_stochastic_problem_mpisppy(
         tmp_path, file_format="mps", model_kwargs=MODEL_KWARGS
     )
     assert manifest["file_format"] == "mps"
@@ -208,7 +216,9 @@ def test_mps_format(stochastic_export_network, tmp_path):
 
 def test_manifest_solve_command(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    manifest = n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    manifest = n.optimize.write_stochastic_problem_mpisppy(
+        tmp_path, model_kwargs=MODEL_KWARGS
+    )
     cmd = manifest["solve_command"]
     assert "mpisppy.generic_cylinders" in cmd
     assert f"--mps-files-directory {tmp_path}" in cmd
@@ -223,7 +233,7 @@ def test_manifest_solve_command(stochastic_export_network, tmp_path):
 def test_manifest_solve_command_rho_setter(stochastic_export_network, tmp_path):
     """A rho setter passed via ``mpisppy_args`` is baked into the recorded command."""
     n = stochastic_export_network
-    manifest = n.optimize.write_stochastic_problem(
+    manifest = n.optimize.write_stochastic_problem_mpisppy(
         tmp_path, mpisppy_args=["--coeff-rho"], model_kwargs=MODEL_KWARGS
     )
     cmd = manifest["solve_command"]
@@ -235,7 +245,9 @@ def test_manifest_solve_command_rho_setter(stochastic_export_network, tmp_path):
 def test_sbatch_template_structure(stochastic_export_network, tmp_path):
     """The decoupled SLURM template wires the three phases together correctly."""
     n = stochastic_export_network
-    manifest = n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    manifest = n.optimize.write_stochastic_problem_mpisppy(
+        tmp_path, model_kwargs=MODEL_KWARGS
+    )
     tpl = manifest["sbatch_template"]
 
     # DIR points at the transfer directory (shared across all three jobs).
@@ -263,18 +275,20 @@ def test_requires_scenarios(tmp_path):
     n.add("Bus", "b")
     n.add("Generator", "g", bus="b", p_nom_extendable=True)
     with pytest.raises(ValueError, match="requires a stochastic network"):
-        n.optimize.write_stochastic_problem(tmp_path)
+        n.optimize.write_stochastic_problem_mpisppy(tmp_path)
 
 
 def test_invalid_file_format(stochastic_export_network, tmp_path):
     n = stochastic_export_network
     with pytest.raises(ValueError, match="Invalid file_format"):
-        n.optimize.write_stochastic_problem(tmp_path, file_format="nc")
+        n.optimize.write_stochastic_problem_mpisppy(tmp_path, file_format="nc")
 
 
 def test_read_solution_sets_nom_opt(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    manifest = n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    manifest = n.optimize.write_stochastic_problem_mpisppy(
+        tmp_path, model_kwargs=MODEL_KWARGS
+    )
 
     # Synthesize the incumbent xhat mpi-sppy would write.
     values = {"x0": 0.0, "x1": 120.0, "x2": 50.0, "x3": 5.0}
@@ -282,7 +296,7 @@ def test_read_solution_sets_nom_opt(stochastic_export_network, tmp_path):
     lines += [f"ROOT, {name}, {val}" for name, val in values.items()]
     Path(manifest["solution_file"]).write_text("\n".join(lines) + "\n")
 
-    applied = n.optimize.read_stochastic_solution(tmp_path)
+    applied = n.optimize.read_stochastic_solution_mpisppy(tmp_path)
     assert applied == values
 
     # First-stage capacities are shared, so every scenario row gets the value.
@@ -296,12 +310,12 @@ def test_read_solution_missing_files(stochastic_export_network, tmp_path):
     n = stochastic_export_network
     # No manifest yet.
     with pytest.raises(FileNotFoundError, match="manifest"):
-        n.optimize.read_stochastic_solution(tmp_path)
+        n.optimize.read_stochastic_solution_mpisppy(tmp_path)
 
     # Manifest present, but the solve has not produced a solution file.
-    n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    n.optimize.write_stochastic_problem_mpisppy(tmp_path, model_kwargs=MODEL_KWARGS)
     with pytest.raises(FileNotFoundError, match="Solution file"):
-        n.optimize.read_stochastic_solution(tmp_path)
+        n.optimize.read_stochastic_solution_mpisppy(tmp_path)
 
 
 # --- dispatch re-solve (dispatch="resolve") -----------------------------------
@@ -326,16 +340,18 @@ def test_resolve_dispatch_unknown_scenario(stochastic_export_network):
 
 def test_read_solution_dispatch_modes(stochastic_export_network, tmp_path):
     n = stochastic_export_network
-    manifest = n.optimize.write_stochastic_problem(tmp_path, model_kwargs=MODEL_KWARGS)
+    manifest = n.optimize.write_stochastic_problem_mpisppy(
+        tmp_path, model_kwargs=MODEL_KWARGS
+    )
     values = {"x0": 0.0, "x1": 120.0, "x2": 50.0, "x3": 5.0}
     lines = ["# xhat"] + [f"ROOT, {k}, {v}" for k, v in values.items()]
     Path(manifest["solution_file"]).write_text("\n".join(lines) + "\n")
 
     # "read" is documented but not yet implemented; an unknown mode is an error.
     with pytest.raises(NotImplementedError, match="not yet implemented"):
-        n.optimize.read_stochastic_solution(tmp_path, dispatch="read")
+        n.optimize.read_stochastic_solution_mpisppy(tmp_path, dispatch="read")
     with pytest.raises(ValueError, match="Unknown dispatch mode"):
-        n.optimize.read_stochastic_solution(tmp_path, dispatch="bogus")
+        n.optimize.read_stochastic_solution_mpisppy(tmp_path, dispatch="bogus")
 
 
 @pytest.mark.skipif(_SOLVER is None, reason="needs an LP solver")
@@ -371,7 +387,7 @@ def test_resolve_dispatch_scenario_subset(stochastic_export_network):
     assert set(n.buses_t.marginal_price.columns.get_level_values("scenario")) == {"low"}
 
 
-# --- solve_stochastic: command building (dependency-free) ---------------------
+# --- solve_stochastic_mpisppy: command building (dependency-free) ---------------------
 
 
 def test_solve_command_ph(tmp_path):
@@ -451,7 +467,7 @@ def test_options_to_args():
     ]
 
 
-# --- solve_stochastic: orchestration (solver subprocess mocked) ---------------
+# --- solve_stochastic_mpisppy: orchestration (solver subprocess mocked) ---------------
 
 
 def _fake_xhat_writer(values):
@@ -475,7 +491,7 @@ def test_solve_stochastic_orchestration(
     values = {"x0": 0.0, "x1": 120.0, "x2": 50.0, "x3": 5.0}
     monkeypatch.setattr(stochastic, "_run_solver", _fake_xhat_writer(values))
 
-    applied = n.optimize.solve_stochastic(
+    applied = n.optimize.solve_stochastic_mpisppy(
         tmp_path, method="ef", model_kwargs=MODEL_KWARGS
     )
     assert applied == values
@@ -504,11 +520,13 @@ def test_solve_stochastic_tempdir_cleanup(
     monkeypatch.setattr(stochastic.tempfile, "mkdtemp", fake_mkdtemp)
 
     # working_dir=None + keep_files=False -> the temporary directory is removed.
-    n.optimize.solve_stochastic(method="ef", model_kwargs=MODEL_KWARGS)
+    n.optimize.solve_stochastic_mpisppy(method="ef", model_kwargs=MODEL_KWARGS)
     assert not target.exists()
 
     # keep_files=True -> the temporary directory survives.
-    n.optimize.solve_stochastic(method="ef", keep_files=True, model_kwargs=MODEL_KWARGS)
+    n.optimize.solve_stochastic_mpisppy(
+        method="ef", keep_files=True, model_kwargs=MODEL_KWARGS
+    )
     assert target.exists()
 
 
@@ -519,7 +537,9 @@ def test_solve_stochastic_requires_mpiexec(
     monkeypatch.setattr("pypsa.common.check_optional_dependency", lambda *a, **k: None)
     monkeypatch.setattr(stochastic.shutil, "which", lambda name: None)
     with pytest.raises(RuntimeError, match="mpiexec"):
-        n.optimize.solve_stochastic(tmp_path, method="ph", model_kwargs=MODEL_KWARGS)
+        n.optimize.solve_stochastic_mpisppy(
+            tmp_path, method="ph", model_kwargs=MODEL_KWARGS
+        )
 
 
 def test_solve_stochastic_gates_on_mpisppy(
@@ -531,7 +551,9 @@ def test_solve_stochastic_gates_on_mpisppy(
     monkeypatch.setattr("pypsa.common.check_optional_dependency", boom)
     n = stochastic_export_network
     with pytest.raises(ImportError, match="Missing optional dependency"):
-        n.optimize.solve_stochastic(tmp_path, method="ef", model_kwargs=MODEL_KWARGS)
+        n.optimize.solve_stochastic_mpisppy(
+            tmp_path, method="ef", model_kwargs=MODEL_KWARGS
+        )
 
 
 def test_solve_stochastic_invalid_method(
@@ -540,10 +562,12 @@ def test_solve_stochastic_invalid_method(
     monkeypatch.setattr("pypsa.common.check_optional_dependency", lambda *a, **k: None)
     n = stochastic_export_network
     with pytest.raises(ValueError, match="Unknown method"):
-        n.optimize.solve_stochastic(tmp_path, method="bogus", model_kwargs=MODEL_KWARGS)
+        n.optimize.solve_stochastic_mpisppy(
+            tmp_path, method="bogus", model_kwargs=MODEL_KWARGS
+        )
 
 
-# --- solve_stochastic: end-to-end through real mpi-sppy -----------------------
+# --- solve_stochastic_mpisppy: end-to-end through real mpi-sppy -----------------------
 
 
 @pytest.mark.skipif(
@@ -565,7 +589,7 @@ def test_solve_stochastic_ef_matches_native_ef(stochastic_export_network, tmp_pa
     native[("Link", "p2h")] = n.links.loc[(n.scenarios[0], "p2h"), "p_nom_opt"]
 
     # Decomposition path: write -> mpi-sppy EF subprocess -> read back.
-    applied = m.optimize.solve_stochastic(
+    applied = m.optimize.solve_stochastic_mpisppy(
         tmp_path,
         method="ef",
         solver_name="gurobi",
@@ -590,7 +614,7 @@ def test_solve_stochastic_ef_matches_native_ef(stochastic_export_network, tmp_pa
 def test_decoupled_workflow_runs_recorded_command(stochastic_export_network, tmp_path):
     """The decoupled write -> (recorded solve_command) -> read round-trip (§13.6).
 
-    Unlike the inline ``solve_stochastic`` test, this executes the *exact* PH
+    Unlike the inline ``solve_stochastic_mpisppy`` test, this executes the *exact* PH
     ``solve_command`` the manifest hands a SLURM user (rather than a command the
     driver rebuilds internally) and reads back a genuine mpi-sppy ``xhat.csv`` --
     so it exercises the recorded command string and the real solution file.
@@ -607,7 +631,7 @@ def test_decoupled_workflow_runs_recorded_command(stochastic_export_network, tmp
     native["p2h"] = n.links.loc[(s0, "p2h"), "p_nom_opt"]
 
     # Step 1 (write.sbatch): PyPSA writes the per-scenario files + manifest.
-    manifest = m.optimize.write_stochastic_problem(
+    manifest = m.optimize.write_stochastic_problem_mpisppy(
         tmp_path,
         solver_name="gurobi",
         max_iterations=200,
@@ -626,7 +650,7 @@ def test_decoupled_workflow_runs_recorded_command(stochastic_export_network, tmp
     assert Path(manifest["solution_file"]).exists()
 
     # Step 3 (read.sbatch): PyPSA reads the incumbent first stage back.
-    applied = m.optimize.read_stochastic_solution(tmp_path)
+    applied = m.optimize.read_stochastic_solution_mpisppy(tmp_path)
     assert set(applied) == {"x0", "x1", "x2", "x3"}
     for asset in ("wind", "gas", "boiler"):
         assert m.generators.loc[(s0, asset), "p_nom_opt"] == pytest.approx(
@@ -660,7 +684,7 @@ def test_solve_stochastic_ph_coeff_rho_matches_native_ef(
     }
     native["p2h"] = n.links.loc[(s0, "p2h"), "p_nom_opt"]
 
-    m.optimize.solve_stochastic(
+    m.optimize.solve_stochastic_mpisppy(
         tmp_path,
         method="ph",
         solver_name="gurobi",
