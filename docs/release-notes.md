@@ -6,6 +6,19 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
+## Upcoming Release
+
+!!! info "Upcoming Release"
+
+    The features listed below have not yet been released, but will be included in the
+    next update! If you would like to use these features in the meantime, you will need
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Features
+
+- Add **stochastic optimization by decomposition** via [mpi-sppy](https://github.com/Pyomo/mpi-sppy). Two-stage stochastic problems (defined with `n.set_scenarios`) can now be solved by Progressive Hedging with bounding cylinders across MPI ranks, as an alternative to PyPSA's monolithic extensive form — for when the extensive form is too large to build or solve directly. New accessor methods [`n.optimize.solve_stochastic_mpisppy`][pypsa.optimization.OptimizationAccessor.solve_stochastic_mpisppy] (inline) plus [`write_stochastic_problem_mpisppy`][pypsa.optimization.OptimizationAccessor.write_stochastic_problem_mpisppy] / [`read_stochastic_solution_mpisppy`][pypsa.optimization.OptimizationAccessor.read_stochastic_solution_mpisppy] (a decoupled write→solve→read workflow, e.g. on SLURM) couple to mpi-sppy purely through per-scenario LP/MPS files. Second-stage dispatch and scenario-conditional marginal prices are recovered with `dispatch="resolve"`. Requires the new optional `pypsa[mpisppy]` extra. See [Stochastic Optimization by Decomposition](./user-guide/optimization/stochastic-decomposition.md). (<!-- md:pr XXXX -->)
+
+
 ## [**v1.2.3**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.3) <small>12th June 2026</small> { id="v1.2.3" }
 
 <!--
