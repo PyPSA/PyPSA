@@ -586,6 +586,33 @@ def _read_xhat_csv(path: Path) -> dict[str, float]:
     return values
 
 
+def _validate_dispatch(
+    n: Network, dispatch: str, scenarios: Sequence[str] | None
+) -> None:
+    """Validate a ``dispatch``/``scenarios`` request before any expensive work.
+
+    Called up front by both entry points so a typo -- or the not-yet-implemented
+    ``dispatch="read"`` -- fails immediately rather than after a full solve.
+    """
+    if dispatch == "read":
+        msg = (
+            "dispatch='read' (reading mpi-sppy's full primal tree solution) is "
+            "planned but not yet implemented; use dispatch='resolve'."
+        )
+        raise NotImplementedError(msg)
+    if dispatch not in ("none", "resolve"):
+        msg = f"Unknown dispatch mode {dispatch!r}; expected 'none' or 'resolve'."
+        raise ValueError(msg)
+    if dispatch == "resolve" and scenarios is not None:
+        unknown = [s for s in scenarios if s not in set(n.scenarios)]
+        if unknown:
+            msg = (
+                f"Unknown scenario(s) {unknown}; network scenarios are "
+                f"{list(n.scenarios)}."
+            )
+            raise ValueError(msg)
+
+
 def read_stochastic_solution_mpisppy(
     n: Network,
     directory: str | Path,
@@ -663,6 +690,7 @@ def read_stochastic_solution_mpisppy(
     decision maker wants.
 
     """
+    _validate_dispatch(n, dispatch, scenarios)
     directory = Path(directory)
     manifest = _read_manifest(directory)
     nonant_map: dict[str, dict[str, str]] = manifest["nonant_map"]
@@ -724,15 +752,6 @@ def read_stochastic_solution_mpisppy(
         _resolve_dispatch(
             n, scenarios=scenarios, solver_name=solver_name, **solve_kwargs
         )
-    elif dispatch == "read":
-        msg = (
-            "dispatch='read' (reading mpi-sppy's full primal tree solution) is "
-            "planned but not yet implemented; use dispatch='resolve'."
-        )
-        raise NotImplementedError(msg)
-    elif dispatch != "none":
-        msg = f"Unknown dispatch mode {dispatch!r}; expected 'none' or 'resolve'."
-        raise ValueError(msg)
 
     return applied
 
@@ -969,6 +988,8 @@ def solve_stochastic_mpisppy(
     if method not in ("ph", "ef"):
         msg = f"Unknown method {method!r}; expected 'ph' or 'ef'."
         raise ValueError(msg)
+    # Validate the dispatch/scenarios request now, before the (expensive) solve.
+    _validate_dispatch(n, dispatch, scenarios)
     if method == "ph" and shutil.which("mpiexec") is None:
         msg = (
             "mpiexec was not found on PATH but is required to run the Progressive-"

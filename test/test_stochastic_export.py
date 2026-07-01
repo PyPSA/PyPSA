@@ -354,6 +354,50 @@ def test_read_solution_dispatch_modes(stochastic_export_network, tmp_path):
         n.optimize.read_stochastic_solution_mpisppy(tmp_path, dispatch="bogus")
 
 
+def test_read_solution_modular_n_mod(tmp_path):
+    """A modular n_mod nonant writes back n_mod_opt and the integer-derived capacity."""
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2030-01-01", periods=2, freq="h"))
+    n.add("Bus", "elec")
+    n.add("Load", "load", bus="elec", p_set=[100, 120])
+    n.add(
+        "Generator",
+        "modgen",
+        bus="elec",
+        p_nom_extendable=True,
+        p_nom_mod=50,
+        capital_cost=1000,
+        marginal_cost=10,
+    )
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+    manifest = n.optimize.write_stochastic_problem_mpisppy(
+        tmp_path, model_kwargs=MODEL_KWARGS
+    )
+
+    nmap = manifest["nonant_map"]
+    nmod_key = next(
+        k for k, v in nmap.items() if v["attr"] == "n_mod" and v["asset"] == "modgen"
+    )
+    # a near-integer module count that must round; plus a deliberately-off capacity
+    # nonant that the n_mod write-back must override with the clean n_mod * mod size.
+    entries = [f"ROOT, {nmod_key}, 3.0000001"]
+    p_nom_key = next(
+        (k for k, v in nmap.items() if v["attr"] == "p_nom" and v["asset"] == "modgen"),
+        None,
+    )
+    if p_nom_key is not None:
+        entries.append(f"ROOT, {p_nom_key}, 149.9")
+    Path(manifest["solution_file"]).write_text("\n".join(["# xhat", *entries]) + "\n")
+
+    applied = n.optimize.read_stochastic_solution_mpisppy(tmp_path)
+
+    gens = n.components["Generator"].static
+    mask = gens.index.get_level_values("name") == "modgen"
+    assert (gens.loc[mask, "n_mod_opt"] == 3).all()  # rounded to the nearest integer
+    assert (gens.loc[mask, "p_nom_opt"] == 3 * 50).all()  # n_mod wins: clean capacity
+    assert applied[nmod_key] == 3.0
+
+
 @pytest.mark.skipif(_SOLVER is None, reason="needs an LP solver")
 def test_resolve_dispatch_matches_native_ef(stochastic_export_network):
     n = stochastic_export_network
@@ -477,6 +521,47 @@ def test_solve_command_thread_override_not_doubled(tmp_path):
 def test_solve_command_invalid_method(tmp_path):
     with pytest.raises(ValueError, match="Unknown method"):
         stochastic._solve_command(tmp_path, method="bogus")
+
+
+def test_validate_dispatch(stochastic_export_network):
+    n = stochastic_export_network
+    stochastic._validate_dispatch(n, "none", None)  # no-op
+    stochastic._validate_dispatch(n, "resolve", ["low", "high"])  # ok
+    with pytest.raises(NotImplementedError, match="not yet implemented"):
+        stochastic._validate_dispatch(n, "read", None)
+    with pytest.raises(ValueError, match="Unknown dispatch mode"):
+        stochastic._validate_dispatch(n, "bogus", None)
+    with pytest.raises(ValueError, match="Unknown scenario"):
+        stochastic._validate_dispatch(n, "resolve", ["nope"])
+
+
+def test_solve_stochastic_validates_before_solving(
+    stochastic_export_network, tmp_path, monkeypatch
+):
+    """dispatch/scenarios are validated up front -- no wasted solve on a typo."""
+    n = stochastic_export_network
+    monkeypatch.setattr("pypsa.common.check_optional_dependency", lambda *a, **k: None)
+
+    def _boom(*a, **k):
+        raise AssertionError("the solver must not run when the request is invalid")
+
+    monkeypatch.setattr(stochastic, "_run_solver", _boom)
+    with pytest.raises(ValueError, match="Unknown dispatch mode"):
+        n.optimize.solve_stochastic_mpisppy(
+            tmp_path, method="ef", dispatch="bogus", model_kwargs=MODEL_KWARGS
+        )
+    with pytest.raises(ValueError, match="Unknown scenario"):
+        n.optimize.solve_stochastic_mpisppy(
+            tmp_path,
+            method="ef",
+            dispatch="resolve",
+            scenarios=["nope"],
+            model_kwargs=MODEL_KWARGS,
+        )
+    with pytest.raises(NotImplementedError, match="not yet implemented"):
+        n.optimize.solve_stochastic_mpisppy(
+            tmp_path, method="ef", dispatch="read", model_kwargs=MODEL_KWARGS
+        )
 
 
 def test_options_to_args():
