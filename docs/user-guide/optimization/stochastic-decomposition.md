@@ -139,24 +139,57 @@ same thing with less overhead.
 On a cluster you usually cannot hold a Python process open while a large MPI job
 queues and runs, and the three phases have very different resource profiles (one core
 to write, many cores to solve, one core to read) and even different software
-environments (PyPSA vs mpi-sppy). For this, drive the phases as **separate jobs**
-using the two dependency-free helpers.
+environments (PyPSA vs mpi-sppy). For this, drive the phases as **separate SLURM
+jobs** using the two dependency-free helpers. The worked example below stages a run
+in the shared directory `/shared/run42`; throughout, `pypsa` and `mpi-sppy` name two
+conda environments (they may be the same one if you installed everything together).
+
+### Phase 1 — write (PyPSA, one core)
+
+A single-core PyPSA job builds the network and calls `write_stochastic_problem`. Any
+mpi-sppy options you want in the solve — here the `--coeff-rho` rho setter — are
+passed now through `mpisppy_args=` so they are baked into the recorded
+`solve_command`:
 
 ```python
-# Phase 1 — PyPSA: write one file per scenario, the metadata, and a manifest.
-manifest = n.optimize.write_stochastic_problem("/shared/run42")
+# write_step.py
+from my_model import build_network  # your code: returns a network with scenarios set
+
+n = build_network()
+manifest = n.optimize.write_stochastic_problem(
+    "/shared/run42",
+    solver_name="gurobi_persistent",
+    max_iterations=200,
+    mpisppy_args=["--coeff-rho"],  # coefficient-based rho setter (see below)
+)
+print(manifest["solve_command"])   # the exact phase-2 command, --coeff-rho included
 ```
 
-`write_stochastic_problem` returns (and writes) a manifest describing the run. Two
-keys drive the remaining phases:
+run it from the one-task batch script `write.sbatch`:
 
-- `manifest["solve_command"]` — the exact `mpisppy.generic_cylinders` command to run
-  for phase 2 (the same command the inline driver builds; see
-  [Passing mpi-sppy options](#passing-mpi-sppy-options) for how to shape it).
-- `manifest["sbatch_template"]` — a copy-paste SLURM dependency chain that wires the
-  three phases together with `afterok` and includes the directory-hygiene `rm` (see
-  the warning below). For `/shared/run42` with the default two cylinders
-  (`manifest["mpi_ranks"]` = 3) it expands to:
+```bash
+#!/bin/bash
+# write.sbatch
+#SBATCH --job-name=stoch-write
+#SBATCH --ntasks=1
+#SBATCH --time=00:20:00
+#SBATCH --partition=<your-partition>
+
+source activate pypsa   # the environment with PyPSA
+python write_step.py
+```
+
+`write_stochastic_problem` returns (and writes to
+`/shared/run42/pypsa_stochastic_manifest.json`) a manifest whose keys drive the rest:
+
+- `manifest["solve_command"]` — the exact `mpisppy.generic_cylinders` command for
+  phase 2, with your `--coeff-rho` already in it (see
+  [Passing mpi-sppy options](#passing-mpi-sppy-options)).
+- `manifest["mpi_ranks"]` — how many ranks that command needs (here 3: a
+  Progressive-Hedging hub plus one per cylinder).
+- `manifest["sbatch_template"]` — a copy-paste driver that *submits and chains* the
+  three jobs with `afterok` (and does the directory-hygiene `rm`). For `/shared/run42`
+  with the default two cylinders it expands to:
 
 ```bash
 # Decoupled SLURM workflow (edit envs/partitions/accounts to taste).
@@ -169,38 +202,63 @@ sbatch          --dependency=afterok:$j2 read.sbatch          # -n 1,   PyPSA en
 #   srun python -m mpi4py -m mpisppy.generic_cylinders --mps-files-directory $DIR ...
 ```
 
-The `sbatch_template` only *submits and chains* the jobs — it does not write them.
-You provide the three batch scripts it names (`write.sbatch`, `solve.sbatch`,
-`read.sbatch`), since their `#SBATCH` headers, module loads and environment activation
-are cluster-specific and PyPSA cannot fill them in. `write.sbatch` and `read.sbatch`
-are single-core PyPSA jobs (the `write_stochastic_problem` and
-`read_stochastic_solution` calls); `solve.sbatch` runs `manifest["solve_command"]` on
-`manifest["mpi_ranks"]` ranks in the mpi-sppy environment, launched with `srun` in
-place of the manifest's `mpiexec -np`. A minimal `solve.sbatch` looks like:
+The driver only *references* the three job scripts — you supply them, because their
+`#SBATCH` headers, module loads and environment activation are cluster-specific and
+PyPSA cannot fill them in.
+
+### Phase 2 — solve (mpi-sppy, many ranks)
+
+`solve.sbatch` runs `manifest["solve_command"]` on `manifest["mpi_ranks"]` ranks in
+the mpi-sppy environment, launched with `srun` in place of the manifest's
+`mpiexec -np`:
 
 ```bash
 #!/bin/bash
+# solve.sbatch
 #SBATCH --job-name=stoch-solve
-#SBATCH --ntasks=3                    # = manifest["mpi_ranks"]
+#SBATCH --ntasks=3                    # manifest["mpi_ranks"]: 1 PH hub + 2 cylinders
 #SBATCH --time=02:00:00
 #SBATCH --partition=<your-partition>  # plus --account etc. for your site
 
 module load mpi             # however your site provides MPI
 source activate mpi-sppy    # the environment with mpi-sppy and a solver
 
-# manifest["solve_command"], with srun as the launcher instead of `mpiexec -np`:
-srun python -m mpi4py -m mpisppy.generic_cylinders \
+# manifest["solve_command"], with srun as the launcher instead of `mpiexec -np 3`.
+# The run needs exactly manifest["mpi_ranks"] ranks (one per cylinder, plus the hub):
+srun -n "$SLURM_NTASKS" python -m mpi4py -m mpisppy.generic_cylinders \
     --mps-files-directory /shared/run42 \
     --solver-name gurobi_persistent --lagrangian --xhatshuffle \
-    --default-rho 1.0 --max-iterations 50 \
-    --write-xhat-file /shared/run42/xhat.csv
+    --default-rho 1.0 --max-iterations 200 \
+    --write-xhat-file /shared/run42/xhat.csv --coeff-rho
 ```
 
-Phase 3 then reads the solution back:
+### Phase 3 — read (PyPSA, one core)
+
+A final single-core PyPSA job rebuilds the same network and reads the incumbent first
+stage back onto it (optionally re-solving the dispatch):
 
 ```python
-# Phase 3 — PyPSA: read the optimized first stage (optionally re-solve dispatch).
+# read_step.py
+from my_model import build_network  # the same network as in write_step.py
+
+n = build_network()
 n.optimize.read_stochastic_solution("/shared/run42", dispatch="resolve")
+# n now carries the optimized *_nom_opt capacities and, with dispatch="resolve",
+# the per-scenario dispatch and marginal prices — inspect or persist as you like.
+```
+
+run it from the one-task batch script `read.sbatch`:
+
+```bash
+#!/bin/bash
+# read.sbatch
+#SBATCH --job-name=stoch-read
+#SBATCH --ntasks=1
+#SBATCH --time=00:20:00
+#SBATCH --partition=<your-partition>
+
+source activate pypsa
+python read_step.py
 ```
 
 !!! warning "Directory hygiene"
@@ -272,10 +330,31 @@ n.optimize.solve_stochastic(
 # appends:  --rel-gap 0.01 --max-solver-threads 4 --presolve
 ```
 
-**3. Escape hatches** for anything the helpers don't model: `mpisppy_args=` (a list
-appended to the command verbatim) and `config_file=` (→ `--config-file`), both
-accepted by `solve_stochastic` and `write_stochastic_problem`. Use these to reach any
-option in `python -m mpisppy.generic_cylinders --help`.
+**3. Escape hatches** for anything the helpers don't model. `mpisppy_args=` is a list
+of raw tokens appended to the command verbatim — best for a handful of extra flags —
+while `config_file=` (→ `--config-file`) points at a full mpi-sppy config file, better
+for a large or reusable option set. Both are accepted by `solve_stochastic` and
+`write_stochastic_problem`. Between them you can reach any `generic_cylinders` option;
+for the full list and what each one does, see the mpi-sppy
+[`generic_cylinders` documentation](https://mpi-sppy.readthedocs.io/en/latest/generic_cylinders.html)
+or run `python -m mpisppy.generic_cylinders --help`.
+
+!!! note "Adapting rho with a rho setter"
+
+    `rho=` and `default_rho=` set the *initial* penalty. mpi-sppy can also **adapt**
+    rho during PH with a *rho setter*, enabled by an `mpisppy_args` flag —
+    `--coeff-rho` (coefficient-based), `--sep-rho`, `--sensi-rho` or `--grad-rho` (see
+    the mpi-sppy
+    [rho-setting documentation](https://mpi-sppy.readthedocs.io/en/latest/rho_setting.html)).
+    At most one may be set, and it builds on the initial values from `rho=`. `--coeff-rho`
+    derives rho from each variable's objective coefficient, so it needs no extra input
+    and works directly with the file interface:
+
+    ```python
+    n.optimize.solve_stochastic(
+        solver_name="gurobi_persistent", mpisppy_args=["--coeff-rho"]
+    )
+    ```
 
 !!! note "Tuning the decoupled solve"
 

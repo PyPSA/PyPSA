@@ -220,6 +220,18 @@ def test_manifest_solve_command(stochastic_export_network, tmp_path):
     assert "sbatch" in manifest["sbatch_template"]
 
 
+def test_manifest_solve_command_rho_setter(stochastic_export_network, tmp_path):
+    """A rho setter passed via ``mpisppy_args`` is baked into the recorded command."""
+    n = stochastic_export_network
+    manifest = n.optimize.write_stochastic_problem(
+        tmp_path, mpisppy_args=["--coeff-rho"], model_kwargs=MODEL_KWARGS
+    )
+    cmd = manifest["solve_command"]
+    assert "--coeff-rho" in cmd
+    # mpisppy_args are appended verbatim after the built-in flags.
+    assert cmd.rstrip().endswith("--coeff-rho")
+
+
 def test_sbatch_template_structure(stochastic_export_network, tmp_path):
     """The decoupled SLURM template wires the three phases together correctly."""
     n = stochastic_export_network
@@ -592,6 +604,47 @@ def test_decoupled_workflow_runs_recorded_command(stochastic_export_network, tmp
     # Step 3 (read.sbatch): PyPSA reads the incumbent first stage back.
     applied = m.optimize.read_stochastic_solution(tmp_path)
     assert set(applied) == {"x0", "x1", "x2", "x3"}
+    for asset in ("wind", "gas", "boiler"):
+        assert m.generators.loc[(s0, asset), "p_nom_opt"] == pytest.approx(
+            native[asset], abs=1e-2
+        )
+    assert m.links.loc[(s0, "p2h"), "p_nom_opt"] == pytest.approx(
+        native["p2h"], abs=1e-2
+    )
+
+
+@pytest.mark.skipif(
+    not (_HAS_MPISPPY and _HAS_GUROBI and _HAS_MPIEXEC),
+    reason="needs mpi-sppy, Gurobi and mpiexec",
+)
+def test_solve_stochastic_ph_coeff_rho_matches_native_ef(
+    stochastic_export_network, tmp_path
+):
+    """PH with the ``--coeff-rho`` rho setter must still reproduce the native EF.
+
+    Exercises the documented decoupled-workflow rho setter end to end: the
+    coefficient-based rho is passed through ``mpisppy_args`` (so it lands in the
+    driver command), and the PH first stage is checked against the monolithic EF.
+    """
+    n = stochastic_export_network
+    m = n.copy()
+
+    n.optimize(solver_name="gurobi", include_objective_constant=False)
+    s0 = n.scenarios[0]
+    native = {
+        a: n.generators.loc[(s0, a), "p_nom_opt"] for a in ("wind", "gas", "boiler")
+    }
+    native["p2h"] = n.links.loc[(s0, "p2h"), "p_nom_opt"]
+
+    m.optimize.solve_stochastic(
+        tmp_path,
+        method="ph",
+        solver_name="gurobi",
+        max_iterations=200,
+        mpisppy_args=["--coeff-rho"],
+        tee=False,
+        model_kwargs=MODEL_KWARGS,
+    )
     for asset in ("wind", "gas", "boiler"):
         assert m.generators.loc[(s0, asset), "p_nom_opt"] == pytest.approx(
             native[asset], abs=1e-2
