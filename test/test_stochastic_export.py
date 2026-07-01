@@ -593,7 +593,6 @@ def test_solve_stochastic_ef_matches_native_ef(stochastic_export_network, tmp_pa
         tmp_path,
         method="ef",
         solver_name="gurobi",
-        mpisppy_args=["--max-solver-threads", "2"],
         tee=False,
         model_kwargs=MODEL_KWARGS,
     )
@@ -635,7 +634,6 @@ def test_decoupled_workflow_runs_recorded_command(stochastic_export_network, tmp
         tmp_path,
         solver_name="gurobi",
         max_iterations=200,
-        mpisppy_args=["--max-solver-threads", "2"],
         model_kwargs=MODEL_KWARGS,
     )
 
@@ -689,7 +687,7 @@ def test_solve_stochastic_ph_coeff_rho_matches_native_ef(
         method="ph",
         solver_name="gurobi",
         max_iterations=200,
-        mpisppy_args=["--coeff-rho", "--max-solver-threads", "2"],
+        mpisppy_args=["--coeff-rho"],
         tee=False,
         model_kwargs=MODEL_KWARGS,
     )

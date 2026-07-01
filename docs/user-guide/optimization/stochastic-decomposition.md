@@ -160,10 +160,9 @@ manifest = n.optimize.write_stochastic_problem_mpisppy(
     "/shared/run42",
     solver_name="gurobi_persistent",
     max_iterations=200,
-    # coefficient-based rho setter (see below) + cap each rank at 2 solver threads
-    mpisppy_args=["--coeff-rho", "--max-solver-threads", "2"],
+    mpisppy_args=["--coeff-rho"],  # coefficient-based rho setter (see below)
 )
-print(manifest["solve_command"])   # the exact phase-2 command, both flags included
+print(manifest["solve_command"])   # the exact phase-2 command, --coeff-rho included
 ```
 
 run it from the one-task batch script `write.sbatch`:
@@ -229,8 +228,8 @@ source activate mpi-sppy    # the environment with mpi-sppy and a solver
 srun -n "$SLURM_NTASKS" python -m mpi4py -m mpisppy.generic_cylinders \
     --mps-files-directory /shared/run42 \
     --solver-name gurobi_persistent --lagrangian --xhatshuffle \
-    --default-rho 1.0 --max-iterations 200 \
-    --write-xhat-file /shared/run42/xhat.csv --coeff-rho --max-solver-threads 2
+    --default-rho 1.0 --max-iterations 200 --max-solver-threads 2 \
+    --write-xhat-file /shared/run42/xhat.csv --coeff-rho
 ```
 
 ### Phase 3 — read (PyPSA, one core)
@@ -286,11 +285,7 @@ n = pypsa.Network()
 n.set_scenarios({"low": 0.3, "med": 0.4, "high": 0.3})
 # ... set per-scenario data ...
 
-n.optimize.solve_stochastic_mpisppy(
-    method="ph",
-    solver_name="gurobi_persistent",
-    mpisppy_args=["--max-solver-threads", "2"],  # cap each rank at 2 solver threads
-)
+n.optimize.solve_stochastic_mpisppy(method="ph", solver_name="gurobi_persistent")
 ```
 
 `method="ph"` (the default) runs Progressive Hedging with bounding cylinders under
@@ -323,6 +318,15 @@ by both `solve_stochastic_mpisppy` and `write_stochastic_problem_mpisppy`:
 `solve_stochastic_mpisppy` additionally takes `nprocs=` to override the MPI rank count
 (default `1 + len(cylinders)`: a Progressive-Hedging hub rank plus one per cylinder).
 
+!!! note "PH caps solver threads by default"
+
+    So that ranks sharing a node do not oversubscribe cores, the PH command
+    includes `--max-solver-threads 2` by default (you'll see it in
+    `manifest["solve_command"]` and the `solve.sbatch` above). It applies to PH
+    only — the single-process EF is never capped. Override it by passing your own
+    value, e.g. `mpisppy_options={"max_solver_threads": 4}` or
+    `mpisppy_args=["--max-solver-threads", "4"]`.
+
 **2. An options dict**, `mpisppy_options=` (inline `solve_stochastic_mpisppy` only). Each
 entry becomes a CLI flag: the key gets a `--` prefix with underscores turned to
 dashes, `True` becomes a bare flag, and `False`/`None` are dropped. For example,
@@ -330,9 +334,9 @@ dashes, `True` becomes a bare flag, and `False`/`None` are dropped. For example,
 ```python
 n.optimize.solve_stochastic_mpisppy(
     solver_name="gurobi_persistent",
-    mpisppy_options={"rel_gap": 0.01, "max_solver_threads": 2, "presolve": True},
+    mpisppy_options={"rel_gap": 0.01, "max_solver_threads": 4, "presolve": True},
 )
-# appends:  --rel-gap 0.01 --max-solver-threads 2 --presolve
+# appends:  --rel-gap 0.01 --max-solver-threads 4 --presolve
 ```
 
 **3. Escape hatches** for anything the helpers don't model. `mpisppy_args=` is a list
@@ -357,8 +361,7 @@ or run `python -m mpisppy.generic_cylinders --help`.
 
     ```python
     n.optimize.solve_stochastic_mpisppy(
-        solver_name="gurobi_persistent",
-        mpisppy_args=["--coeff-rho", "--max-solver-threads", "2"],
+        solver_name="gurobi_persistent", mpisppy_args=["--coeff-rho"]
     )
     ```
 
@@ -379,17 +382,10 @@ recovered separately via the `dispatch` argument of `solve_stochastic_mpisppy` (
 
 ```python
 # recover per-scenario dispatch + scenario-conditional duals for all scenarios
-n.optimize.solve_stochastic_mpisppy(
-    method="ph", dispatch="resolve", mpisppy_args=["--max-solver-threads", "2"]
-)
+n.optimize.solve_stochastic_mpisppy(method="ph", dispatch="resolve")
 
 # ... or only for the scenarios you care about (e.g. the stressed one)
-n.optimize.solve_stochastic_mpisppy(
-    method="ph",
-    dispatch="resolve",
-    scenarios=["high"],
-    mpisppy_args=["--max-solver-threads", "2"],
-)
+n.optimize.solve_stochastic_mpisppy(method="ph", dispatch="resolve", scenarios=["high"])
 ```
 
 `dispatch="resolve"` fixes the optimized capacities and re-solves each scenario as
