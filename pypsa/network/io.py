@@ -1066,9 +1066,6 @@ class _ExporterNetCDF(_Exporter):
         """Save a dynamic components data."""
         new_col_name = list_name + "_t_" + attr + "_i"
         snapshots = ("snapshots", df.index.values)
-        # Build the DataArray directly from the values, avoiding the expensive
-        # pandas stack() which is costly for wide DataFrames (many columns, few
-        # rows). See https://github.com/PyPSA/PyPSA/pull/1771.
         if isinstance(df.columns, pd.MultiIndex):  # stochastic
             scenarios = np.sort(df.columns.get_level_values(0).unique().values)
             names = np.sort(df.columns.get_level_values(1).unique().values)
