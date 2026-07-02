@@ -217,6 +217,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](transport-delay.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Piecewise costs & constraints**
+
+    Demonstrates the application of piecewise linear costs and part-load efficiency constraints.
+
+    [:octicons-arrow-right-24: Go to example](piecewise-constraints.ipynb)
+
 </div>
 
 ## Sector Coupling

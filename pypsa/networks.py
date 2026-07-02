@@ -1090,17 +1090,17 @@ class Network(
         Examples
         --------
         >>> n.passive_branches() # doctest: +ELLIPSIS
-                    active    b  b_pu  ...         x      x_pu  x_pu_eff
-        component                     ...
-        0            True  0.0   0.0  ...  0.796878  0.000006  0.000006
-        1            True  0.0   0.0  ...  0.391560  0.000003  0.000003
-        2            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-        3            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-        4            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-        5            True  0.0   0.0  ...  0.238800  0.000002  0.000002
-        6            True  0.0   0.0  ...  0.400000  0.000003  0.000003
+                             active    b  b_pu  ...         x      x_pu  x_pu_eff
+        component name                          ...
+        Line      0            True  0.0   0.0  ...  0.796878  0.000006  0.000006
+                  1            True  0.0   0.0  ...  0.391560  0.000003  0.000003
+                  2            True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  3            True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  4            True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  5            True  0.0   0.0  ...  0.238800  0.000002  0.000002
+                  6            True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 41 columns]
+        [7 rows x 42 columns]
 
         """
         comps = sorted(
@@ -1140,7 +1140,7 @@ class Network(
                   Bremen Converter     True           0  ...                   1
                   DC link              True           0  ...                   1
         <BLANKLINE>
-        [4 rows x 47 columns]
+        [4 rows x 48 columns]
 
         See Also
         --------

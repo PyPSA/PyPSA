@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import numpy as np
+import pandas as pd
 import pytest
 from linopy import LinearExpression
 
@@ -206,9 +207,6 @@ def test_expressions_operation(prepared_network):
 @pytest.fixture
 def non_extendable_network():
     """Network with only non-extendable generators."""
-    import pandas as pd
-
-    import pypsa
 
     n = pypsa.Network()
     n.set_snapshots(pd.date_range("2024", periods=4, freq="h"))
@@ -296,3 +294,112 @@ def test_concrete_at_port(prepared_network):
     expr = n.optimize.expressions.capacity("Link", at_port="all")
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
+
+
+class TestExpressionsWithPiecewise:
+    @pytest.fixture(scope="class")
+    def piecewise_network_built(self, piecewise_network):
+        piecewise_network.optimize.create_model(include_objective_constant=False)
+        return piecewise_network
+
+    def test_expressions_capex(self, piecewise_network_built):
+        n = piecewise_network_built
+        expr = n.optimize.expressions.capex().unstack("group")
+        assert isinstance(expr, LinearExpression)
+        assert str(expr.sel(component="StorageUnit", carrier="-")).endswith(
+            "+10 StorageUnit-p_nom[storage0] + 1 StorageUnit-capital_cost_piecewise[storage1]"
+        )
+        assert "piecewise" not in str(expr.sel(component=["Link", "Generator"]))
+
+    def test_expressions_opex(self, piecewise_network_built):
+        n = piecewise_network_built
+        expr = n.optimize.expressions.opex().unstack("group")
+        assert isinstance(expr, LinearExpression)
+        assert str(expr.sel(component="Generator", carrier="-")).endswith(
+            "+0.6 Generator-p[0, gen1] + 0.6 Generator-p[1, gen1] + 1 Generator-marginal_cost_piecewise[0, gen0] + 1 Generator-marginal_cost_piecewise[1, gen0]"
+        )
+        assert "piecewise" not in str(expr.sel(component=["Link", "StorageUnit"]))
+
+    def test_supply_minus_withdrawal_equals_energy_balance(self):
+        """supply - withdrawal must reconstruct the net energy balance at the optimum."""
+        n = pypsa.Network()
+        n.set_snapshots(range(2))
+        n.add("Bus", ["bus0", "bus1"])
+        n.add("Generator", "gen0", bus="bus0", p_nom=300, marginal_cost=5)
+        n.add(
+            "Link",
+            "link",
+            bus0="bus0",
+            bus1="bus1",
+            p_nom=100,
+            efficiency={0.0: 0.4, 0.5: 0.5, 1.0: 0.6},
+        )
+        n.add("Load", "load", bus="bus1", p_set=[20, 30])
+        n.optimize.create_model(include_objective_constant=False)
+        exprs = {
+            k: getattr(n.optimize.expressions, k)().sum()
+            for k in ("supply", "withdrawal", "energy_balance")
+        }
+        n.optimize.solve_model()
+        s, w, eb = (
+            exprs[k].solution.item() for k in ("supply", "withdrawal", "energy_balance")
+        )
+        assert s - w == pytest.approx(eb)
+
+    def test_capex_schema_without_data_is_linear(self):
+        """A piecewise schema without breakpoint data costs linearly (no KeyError)."""
+        n = pypsa.Network()
+        n.add("Bus", "bus")
+        n.add(
+            "Link",
+            "link",
+            bus0="bus",
+            bus1="bus",
+            p_nom_extendable=True,
+            capital_cost=100,
+        )
+        n.optimize.create_model(include_objective_constant=False)
+        assert not n.c.links.has_piecewise("capital_cost")
+        expr = n.optimize.expressions.capex().unstack("group")
+        assert "piecewise" not in str(expr)
+        assert "Link-p_nom" in str(expr)
+
+    def test_expressions_energy_balance(self, piecewise_network_built):
+        n = piecewise_network_built
+        expr = n.optimize.expressions.energy_balance().unstack("group")
+        assert str(expr.sel(component="Link", carrier="AC")).endswith(
+            "-1 Link-p[0, link] - 1 Link-p[1, link] + 1 Link-p1_piecewise[0, link] + 1 Link-p1_piecewise[1, link]"
+        )
+        assert "piecewise" not in str(
+            expr.sel(component=["Generator", "StorageUnit", "Load"])
+        )
+
+    def test_expressions_supply_withdrawal(self, piecewise_network_built):
+        """A positive piecewise port counts as supply, never as withdrawal."""
+        n = piecewise_network_built
+        supply = n.optimize.expressions.supply().unstack("group")
+        assert "Link-p1_piecewise" in str(supply.sel(component="Link", carrier="AC"))
+        withdrawal = n.optimize.expressions.withdrawal().unstack("group")
+        assert "piecewise" not in str(withdrawal.sel(component="Link", carrier="AC"))
+
+    def test_supply_withdrawal_with_negative_piecewise_port(self):
+        """A negative piecewise port counts as withdrawal, reported positive."""
+        n = pypsa.Network()
+        n.set_snapshots(range(2))
+        n.add("Bus", ["bus0", "bus1"])
+        n.add("Generator", "gen0", bus="bus0", p_nom=150, marginal_cost=5)
+        n.add(
+            "Process",
+            "proc",
+            bus0="bus0",
+            bus1="bus1",
+            p_nom=100,
+            rate0={0.1: -1 / 0.3, 0.5: -1 / 0.4, 1.0: -1 / 0.6},
+            rate1=1,
+        )
+        n.add("Load", "load", bus="bus1", p_set=[20, 30])
+        n.optimize.create_model(include_objective_constant=False)
+        withdrawal = n.optimize.expressions.withdrawal().unstack("group")
+        supply = n.optimize.expressions.supply().unstack("group")
+        assert "-1 Process-p0_piecewise" in str(withdrawal.sel(component="Process"))
+        assert "p0_piecewise" not in str(supply.sel(component="Process"))

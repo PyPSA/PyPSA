@@ -88,16 +88,16 @@ PyPSA [`Components`][pypsa.Components] are a new intermediate layer between the 
 ``` py
 >>> n = pypsa.examples.ac_dc_meshed()
 >>> n.generators
-                        bus control  ... weight  p_nom_opt
+                        bus control  ... p_nom_opt  capital_cost_piecewise_opt
 name                                 ...
-Manchester Wind  Manchester      PQ  ...    1.0        0.0
-Manchester Gas   Manchester      PQ  ...    1.0        0.0
-Norway Wind          Norway      PQ  ...    1.0        0.0
-Norway Gas           Norway      PQ  ...    1.0        0.0
-Frankfurt Wind    Frankfurt      PQ  ...    1.0        0.0
-Frankfurt Gas     Frankfurt      PQ  ...    1.0        0.0
+Manchester Wind  Manchester      PQ  ...       0.0                         0.0
+Manchester Gas   Manchester      PQ  ...       0.0                         0.0
+Norway Wind          Norway      PQ  ...       0.0                         0.0
+Norway Gas           Norway      PQ  ...       0.0                         0.0
+Frankfurt Wind    Frankfurt      PQ  ...       0.0                         0.0
+Frankfurt Gas     Frankfurt      PQ  ...       0.0                         0.0
 <BLANKLINE>
-[6 rows x 42 columns]
+[6 rows x 43 columns]
 
 # Opt-in to new components API
 >>> pypsa.options.api.new_components_api = True
@@ -111,16 +111,16 @@ Components: 6
 
 # Static data and more is still available
 >>> n.generators.static
-                        bus control  ... weight  p_nom_opt
+                        bus control  ... p_nom_opt  capital_cost_piecewise_opt
 name                                 ...
-Manchester Wind  Manchester      PQ  ...    1.0        0.0
-Manchester Gas   Manchester      PQ  ...    1.0        0.0
-Norway Wind          Norway      PQ  ...    1.0        0.0
-Norway Gas           Norway      PQ  ...    1.0        0.0
-Frankfurt Wind    Frankfurt      PQ  ...    1.0        0.0
-Frankfurt Gas     Frankfurt      PQ  ...    1.0        0.0
+Manchester Wind  Manchester      PQ  ...       0.0                         0.0
+Manchester Gas   Manchester      PQ  ...       0.0                         0.0
+Norway Wind          Norway      PQ  ...       0.0                         0.0
+Norway Gas           Norway      PQ  ...       0.0                         0.0
+Frankfurt Wind    Frankfurt      PQ  ...       0.0                         0.0
+Frankfurt Gas     Frankfurt      PQ  ...       0.0                         0.0
 <BLANKLINE>
-[6 rows x 42 columns]
+[6 rows x 43 columns]
 
 >>> pypsa.options.api.new_components_api = False
 ```

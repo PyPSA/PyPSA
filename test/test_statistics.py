@@ -2,13 +2,18 @@
 #
 # SPDX-License-Identifier: MIT
 
+
 import numpy as np
 import pandas as pd
 import pytest
 
 import pypsa
 from pypsa.statistics import groupers
-from pypsa.statistics.expressions import StatisticsAccessor, get_operation
+from pypsa.statistics.expressions import (
+    StatisticsAccessor,
+    get_operation,
+    port_efficiency,
+)
 
 
 def test_stats_alias(ac_dc_network):
@@ -699,3 +704,242 @@ class TestMarketValue:
 
         assert np.isfinite(mv.loc[("Link", "DC")])
         assert np.isfinite(mv.loc[("Line", "AC")])
+
+
+class TestStatisticsWithPiecewise:
+    """Tests for piecewise variables affecting statistics."""
+
+    @pytest.fixture(scope="class")
+    def piecewise_network_solved(self, piecewise_network):
+        piecewise_network.optimize(include_objective_constant=False)
+        return piecewise_network
+
+    def test_stats_capex(self, piecewise_network_solved):
+        """Piecewise capital cost of StorageUnit shows in capex statistic."""
+        stat = piecewise_network_solved.stats.capex(groupby=["name"])
+        assert stat.loc[("StorageUnit", "storage1")] > 0
+
+    def test_stats_opex(self, piecewise_network_solved):
+        """Piecewise marginal cost of Generator shows in opex statistic."""
+        stat = piecewise_network_solved.stats.opex(groupby=["name"])
+        assert stat.loc[("Generator", "gen0")] > 0
+
+    def test_stats_energy_balance(self, piecewise_network_solved):
+        """Piecewise efficiency of Link shows in energy balance statistic."""
+        stat = piecewise_network_solved.stats.energy_balance(groupby=["name"])
+        assert stat.loc[("Link", "link")] < 0
+
+    def test_stats_withdrawal_supply(self, piecewise_network_solved):
+        """Piecewise efficiency of Link shows between supply and withdrawal."""
+        supply = piecewise_network_solved.stats.supply(groupby=["name"])
+        withdrawal = piecewise_network_solved.stats.withdrawal(groupby=["name"])
+        assert supply.loc[("Link", "link")] < withdrawal.loc[("Link", "link")]
+
+
+class TestPortEfficiency:
+    """Tests for port_efficiency (static and dynamic numeric efficiencies)."""
+
+    @pytest.fixture(scope="class")
+    def base_network(self):
+        idx = pd.Index([0, 1, 2])
+        n = pypsa.Network()
+        n.set_snapshots(idx)
+        n.add("Bus", ["bus0", "bus1", "bus2", "bus3"], carrier="AC")
+        n.add("Generator", "gen", bus="bus0", p_nom=100)
+        return n
+
+    @pytest.fixture(scope="class", params=["Link", "Process"])
+    def component(self, request):
+        return request.param
+
+    @pytest.fixture(scope="class")
+    def eff_param(self, component):
+        if component == "Link":
+            return "efficiency"
+        if component == "Process":
+            return "rate"
+        raise ValueError(f"Unexpected component type: {component}")
+
+    @pytest.fixture(scope="class")
+    def eff1(self, eff_param, component):
+        return f"{eff_param}1" if component == "Process" else eff_param
+
+    @pytest.fixture(scope="class")
+    def static_link_eff(self, base_network, eff_param, eff1, component):
+        """Minimal network with a multi-port Link and piecewise efficiency."""
+        n = base_network.copy()
+        n.add(
+            component,
+            f"{component.lower()}_static",
+            bus0="bus0",
+            bus1="bus1",
+            bus2="bus2",
+            **{eff1: 0.8, f"{eff_param}2": 0.5},
+        )
+        return n
+
+    @pytest.fixture(scope="class")
+    def dynamic_link_eff(self, base_network, eff_param, eff1, component):
+        """Minimal network with a multi-port Link and piecewise efficiency."""
+        n = base_network.copy()
+        n.add(
+            component,
+            f"{component.lower()}_dyn",
+            bus0="bus0",
+            bus1="bus1",
+            bus2="bus2",
+            **{
+                eff1: pd.Series([0.7, 0.8, 0.9], index=n.snapshots),
+                f"{eff_param}2": pd.Series([0.1, 0.2, 0.3], index=n.snapshots),
+            },
+        )
+        return n
+
+    @pytest.fixture(scope="class")
+    def piecewise_link_eff(self, base_network, eff1, component):
+        """Network with a Link whose efficiency is defined piecewise per breakpoint."""
+        n = base_network.copy()
+        n.add(
+            component,
+            f"{component.lower()}_seg",
+            bus0="bus0",
+            bus1="bus1",
+            p_nom=100,
+            **{eff1: {0.0: 0.4, 0.5: 0.5, 1.0: 0.6}},
+        )
+        return n
+
+    @pytest.fixture(scope="class")
+    def mixed_link_eff(self, base_network, eff_param, eff1, component):
+        """Network with a Link whose efficiency is defined piecewise per breakpoint."""
+        n = base_network.copy()
+        n.add(
+            component,
+            f"{component.lower()}_mix",
+            bus0="bus0",
+            bus1="bus1",
+            bus2="bus2",
+            bus3="bus3",
+            p_nom=100,
+            **{
+                eff1: 0.5,
+                f"{eff_param}2": {0.0: 0.4, 0.5: 0.5, 1.0: 0.6},
+                f"{eff_param}3": pd.Series([0.1, 0.2, 0.3], index=n.snapshots),
+            },
+        )
+        return n
+
+    @pytest.fixture(scope="class")
+    def default_dynamic_eff(self, mixed_link_eff, component):
+        """Return default dynamic efficiency that is generated when a Link port has no dynamic efficiency defined."""
+        dyn_eff = pd.DataFrame(
+            1.0,
+            index=mixed_link_eff.snapshots,
+            columns=pd.Index([f"{component.lower()}_mix"], name="name"),
+        )
+        return dyn_eff
+
+    # --- one-port components ---
+
+    def test_one_port_returns_ones(self, base_network):
+        result = port_efficiency(base_network, "Generator", port=0)
+        assert (result == 1).all()
+
+    # --- passive branches ---
+
+    def test_passive_branch_port0_returns_minus_ones(self, ac_dc_network):
+        result = port_efficiency(ac_dc_network, "Line", port=0)
+        assert (result == -1).all()
+
+    def test_passive_branch_port1_returns_ones(self, ac_dc_network):
+        result = port_efficiency(ac_dc_network, "Line", port=1)
+        assert (result == 1).all()
+
+    # --- Link static efficiency ---
+
+    def test_static_link_port0_returns_minus_ones(self, static_link_eff, component):
+        result = port_efficiency(static_link_eff, component, port=0)
+        assert (result == -1).all()
+
+    def test_static_link_port1_returns_efficiency(self, static_link_eff, component):
+        result = port_efficiency(static_link_eff, component, port=1)
+        assert result[f"{component.lower()}_static"] == pytest.approx(0.8)
+
+    def test_static_link_port2_returns_efficiency2(self, static_link_eff, component):
+        result = port_efficiency(static_link_eff, component, port=2)
+        assert result[f"{component.lower()}_static"] == pytest.approx(0.5)
+
+    # --- Link dynamic efficiency ---
+
+    def test_dynamic_link_port1_returns_dataframe(self, dynamic_link_eff, component):
+        result = port_efficiency(dynamic_link_eff, component, port=1, dynamic=True)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_dynamic_link_port1_values(self, dynamic_link_eff, component, eff1):
+        result = port_efficiency(dynamic_link_eff, component, port=1, dynamic=True)
+        expected = dynamic_link_eff.components[component].dynamic[eff1]
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_dynamic_link_port2_returns_dataframe(
+        self, dynamic_link_eff, component, eff_param
+    ):
+        result = port_efficiency(dynamic_link_eff, component, port=2, dynamic=True)
+        expected = dynamic_link_eff.components[component].dynamic[f"{eff_param}2"]
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_dynamic_link_port2_values(self, dynamic_link_eff, component, eff_param):
+        result = port_efficiency(dynamic_link_eff, component, port=2, dynamic=True)
+        expected = dynamic_link_eff.components[component].dynamic[f"{eff_param}2"]
+        pd.testing.assert_frame_equal(result, expected)
+
+    # --- piecewise efficiency is not port_efficiency's concern ---
+
+    def test_piecewise_link_returns_static_fallback(
+        self, piecewise_link_eff, component, eff1
+    ):
+        """port_efficiency ignores piecewise data and returns the static fallback."""
+        result = port_efficiency(piecewise_link_eff, component, port=1)
+        expected = pd.Series(
+            1.0,
+            index=piecewise_link_eff.components[component].static.index,
+            name=eff1,
+        )
+        pd.testing.assert_series_equal(result, expected)
+
+    # --- mixed efficiency (parametrized over all combinations) ---
+
+    def test_mixed_link_port0_always_minus_one(self, mixed_link_eff, component):
+        result = port_efficiency(mixed_link_eff, component, port=0)
+        assert (result == -1).all()
+
+    @pytest.mark.parametrize("dynamic", [True, False])
+    def test_mixed_link_port1_static(
+        self, mixed_link_eff, default_dynamic_eff, dynamic, component
+    ):
+        result = port_efficiency(mixed_link_eff, component, port=1, dynamic=dynamic)
+        if dynamic:
+            pd.testing.assert_frame_equal(result, default_dynamic_eff * 0.5)
+        else:
+            assert result.item() == 0.5
+
+    def test_mixed_link_port2_static_request(self, mixed_link_eff, component):
+        """A piecewise-only port has no scalar static value, so it falls back to one."""
+        result = port_efficiency(mixed_link_eff, component, port=2, dynamic=False)
+        assert result.item() == 1
+
+    def test_mixed_link_port2_dynamic_request(
+        self, mixed_link_eff, default_dynamic_eff, component
+    ):
+        result = port_efficiency(mixed_link_eff, component, port=2, dynamic=True)
+        pd.testing.assert_frame_equal(result, default_dynamic_eff)
+
+    def test_mixed_link_port3_static_request(self, mixed_link_eff, component):
+        result = port_efficiency(mixed_link_eff, component, port=3, dynamic=False)
+        assert result.item() == 1
+
+    def test_mixed_link_port3_dynamic_dynamic(
+        self, mixed_link_eff, component, eff_param
+    ):
+        result = port_efficiency(mixed_link_eff, component, port=3, dynamic=True)
+        expected = mixed_link_eff.components[component].dynamic[f"{eff_param}3"]
+        pd.testing.assert_frame_equal(result, expected)
