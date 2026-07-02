@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import numpy as np
 import pandas as pd
 import pytest
 from linopy import LinearExpression
@@ -154,6 +155,25 @@ def test_expressions_withdrawal(prepared_network):
     expr = n.optimize.expressions.withdrawal()
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
+
+
+def test_expressions_storage_unit_supply_withdrawal():
+    n = pypsa.Network(snapshots=range(6))
+    n.add("Bus", "b")
+    n.add("Generator", "g", bus="b", p_nom=100, marginal_cost=[5, 5, 30, 30, 5, 30])
+    n.add("Load", "l", bus="b", p_set=50)
+    n.add("StorageUnit", "su", bus="b", p_nom=50, max_hours=4)
+    n.optimize()
+
+    ex = n.optimize.expressions
+    kwargs = {"components": ["StorageUnit"], "groupby": False, "groupby_time": False}
+    supply = ex.supply(**kwargs).solution.to_numpy().ravel()
+    withdrawal = ex.withdrawal(**kwargs).solution.to_numpy().ravel()
+    dynamic = n.c["StorageUnit"].dynamic
+
+    assert withdrawal.any()
+    assert np.allclose(supply, dynamic["p_dispatch"]["su"])
+    assert np.allclose(withdrawal, dynamic["p_store"]["su"])
 
 
 def test_expressions_transmission(prepared_network):

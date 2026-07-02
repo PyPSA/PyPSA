@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import inspect
 from abc import ABC
 from typing import TYPE_CHECKING, Any
 
@@ -15,7 +16,23 @@ import plotly.express as px
 import plotly.graph_objects as go
 import seaborn as sns
 
-from pypsa.plot.statistics.base import PlotsGenerator
+from pypsa.plot.statistics.base import UNSET, PlotsGenerator, sanitize_mathtext
+
+DISTRIBUTION_TYPES = ["box", "violin", "histogram"]
+CHART_TYPES = ["area", "bar", "scatter", "line", *DISTRIBUTION_TYPES]
+
+# Statistics that expose `groupby_time` but have no per-snapshot resolution
+# (e.g. system_cost mixes static capex with dynamic opex). Not derivable from the
+# signature, so distribution plots must not request the full time series for them.
+TIME_AGGREGATED_STATS = frozenset({"system_cost"})
+
+# Per-row height scaling for categorical axes: inches (static) / pixels (interactive).
+ROW_HEIGHT_IN = 0.3
+BASE_HEIGHT_IN = 1
+MAX_HEIGHT_IN = 30
+ROW_HEIGHT_PX = 20
+BASE_HEIGHT_PX = 100
+MAX_HEIGHT_PX = 2000
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -24,15 +41,19 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
 
 
-CHART_TYPES = [
-    "area",
-    "bar",
-    "scatter",
-    "line",
-    "box",
-    "violin",
-    "histogram",
-]
+SEABORN_PLOT_FUNCS = {
+    "scatter": sns.scatterplot,
+    "line": sns.lineplot,
+    "box": sns.boxplot,
+    "violin": sns.violinplot,
+    "histogram": sns.histplot,
+}
+
+
+def _stats_function_params(network: Any, method_name: str) -> set[str]:
+    """Return the parameter names of a statistics function's signature."""
+    wrapper = getattr(type(network.statistics), method_name)
+    return set(inspect.signature(wrapper.func).parameters) - {"self"}
 
 
 def _get_periods(network: Any) -> pd.Index | None:
@@ -78,7 +99,7 @@ def adjust_collection_bar_defaults(
     # Handle 2-level multiindex: use second level for grouped bars
     elif len(index_names) >= 2:
         second_index_name = index_names[1]
-        if color is None:
+        if color is UNSET:
             color = second_index_name
         if stacked and color == second_index_name:
             stacked = False
@@ -90,7 +111,7 @@ def adjust_collection_bar_defaults(
     # Handle single-level index
     elif len(index_names) == 1:
         index_name = index_names[0]
-        if color is None:
+        if color is UNSET:
             color = index_name
         if stacked and color == index_name:
             stacked = False
@@ -102,7 +123,7 @@ def adjust_collection_bar_defaults(
     periods = _get_periods(network)
     if periods is not None:
         period_name = periods.name or "period"
-        if color is None:
+        if color is UNSET:
             color = period_name
         if stacked and color == period_name:
             stacked = False
@@ -234,9 +255,9 @@ def facet_iter(
 
     for i, row_val in enumerate(row_vals):
         for j, col_val in enumerate(col_vals):
-            # Get the axis for this facet
+            # col_wrap flattens the axes grid to 1-D (column-major facet order)
             if g.axes.ndim == 1:
-                ax = g.axes[i if len(g.axes) > 1 else j]
+                ax = g.axes[j if len(col_vals) > 1 else i]
             else:
                 ax = g.axes[i, j]
 
@@ -423,6 +444,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         aspect: float = 2,
         row_order: Sequence[str] | None = None,
         col_order: Sequence[str] | None = None,
+        col_wrap: int | None = None,
         hue_order: Sequence[str] | None = None,
         hue_kws: dict[str, Any] | None = None,
         despine: bool = True,
@@ -454,6 +476,17 @@ class ChartGenerator(PlotsGenerator, ABC):
         if sharey is None:
             sharey = y == "value"
 
+        # Scale facet height with the number of categorical rows per facet so
+        # distribution plots stay legible on networks with many buses/carriers.
+        if kind in DISTRIBUTION_TYPES and y == "name":
+            if facet_row:
+                n_rows = ldata.groupby(facet_row, observed=True)["name"].nunique().max()
+            else:
+                n_rows = ldata["name"].nunique()
+            height = max(
+                height, min(ROW_HEIGHT_IN * n_rows + BASE_HEIGHT_IN, MAX_HEIGHT_IN)
+            )
+
         # Always use FacetGrid for consistency
         g = sns.FacetGrid(
             ldata,
@@ -466,6 +499,7 @@ class ChartGenerator(PlotsGenerator, ABC):
             aspect=aspect,
             row_order=row_order,
             col_order=col_order,
+            col_wrap=col_wrap,
             hue_order=hue_order,
             hue_kws=hue_kws,
             despine=despine,
@@ -508,23 +542,14 @@ class ChartGenerator(PlotsGenerator, ABC):
                 **kwargs,
             )
         # Other plot types remain the same
-        elif kind == "scatter":
-            g.map_dataframe(sns.scatterplot, x=x, y=y, hue=color, **kwargs)
-        elif kind == "line":
-            g.map_dataframe(sns.lineplot, x=x, y=y, hue=color, **kwargs)
-        elif kind in ["box", "violin"]:
-            # FacetGrid adds color internally, remove to avoid conflict with hue
-            kwargs.pop("color", None)
-            plot_func = sns.boxplot if kind == "box" else sns.violinplot
+        elif kind in SEABORN_PLOT_FUNCS:
+            if kind in ["box", "violin"]:
+                # FacetGrid adds color internally, remove to avoid conflict with hue
+                kwargs.pop("color", None)
             plot_kwargs = {"x": x, "y": y, "hue": color, **kwargs}
             if color is not None:
                 plot_kwargs["palette"] = palette
-            g.map_dataframe(plot_func, **plot_kwargs)
-        elif kind == "histogram":
-            if y is None:
-                g.map_dataframe(sns.histplot, x=x, hue=color, **kwargs)
-            else:
-                g.map_dataframe(sns.histplot, x=x, y=y, hue=color, **kwargs)
+            g.map_dataframe(SEABORN_PLOT_FUNCS[kind], **plot_kwargs)
         else:
             msg = f"Unsupported plot type: {kind}"
             raise ValueError(msg)
@@ -563,14 +588,22 @@ class ChartGenerator(PlotsGenerator, ABC):
         col_order: Sequence[str] | None,
         color_order: Sequence[str] | None,
     ) -> dict[str, Sequence[str]]:
-        """Create a filtered dictionary of category orders for Plotly Express."""
-        category_orders = {}
+        """Create a filtered dictionary of category orders for Plotly Express.
+
+        Order values are sanitized like the plotted data so LaTeX carrier
+        names still match.
+        """
+
+        def sanitize(order: Sequence[str]) -> list:
+            return [sanitize_mathtext(v) if isinstance(v, str) else v for v in order]
+
+        category_orders: dict[str, Sequence[str]] = {}
         if facet_row is not None and row_order is not None:
-            category_orders[facet_row] = row_order
+            category_orders[facet_row] = sanitize(row_order)
         if facet_col is not None and col_order is not None:
-            category_orders[facet_col] = col_order
+            category_orders[facet_col] = sanitize(col_order)
         if color is not None and color_order is not None:
-            category_orders[color] = color_order
+            category_orders[color] = sanitize(color_order)
         return category_orders
 
     def iplot(
@@ -606,6 +639,14 @@ class ChartGenerator(PlotsGenerator, ABC):
             ldata = ldata.query(query)
         ldata = self._validate(ldata)
 
+        ldata = ldata.apply(
+            lambda col: (
+                col.map(sanitize_mathtext)
+                if pd.api.types.is_string_dtype(col.dtype)
+                else col
+            )
+        )
+
         # Aggregate scenarios and calculate error bars for bar plots
         # Only aggregate if we have actual stochastic scenarios (not just a column named 'scenario')
         aggregated_with_std = None
@@ -623,6 +664,7 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         # Get carrier colors for the plot
         carrier_colors = self.get_carrier_colors(nice_names=nice_names)
+        carrier_colors = {sanitize_mathtext(k): v for k, v in carrier_colors.items()}
 
         # Set up labels dictionary for axis labels
         if labels is None:
@@ -640,14 +682,18 @@ class ChartGenerator(PlotsGenerator, ABC):
             labels[y] = data_label
 
         # Handle categorical axes to avoid auto-sorting
-        if x != "value" and ldata[x].dtype.name == "object":
+        if x != "value" and pd.api.types.is_string_dtype(ldata[x].dtype):
             ldata[x] = pd.Categorical(
                 ldata[x], categories=ldata[x].unique(), ordered=True
             )
-        if y != "value" and ldata[y].dtype.name == "object":
-            ldata.loc[:, y] = pd.Categorical(
+        label_every_row = False
+        if y != "value" and pd.api.types.is_string_dtype(ldata[y].dtype):
+            ldata[y] = pd.Categorical(
                 ldata[y], categories=ldata[y].unique(), ordered=True
             )
+            scaled_height = ROW_HEIGHT_PX * ldata[y].nunique() + BASE_HEIGHT_PX
+            height = max(height, min(scaled_height, MAX_HEIGHT_PX))
+            label_every_row = scaled_height <= MAX_HEIGHT_PX
 
         if kind == "bar" and color in {x, y}:
             color = None
@@ -820,16 +866,20 @@ class ChartGenerator(PlotsGenerator, ABC):
         )
 
         if not sharex and sharex is not None:
-            fig.update_xaxes(matches=None)
+            fig.update_xaxes(matches=None, showticklabels=True)
         if not sharey and sharey is not None:
-            fig.update_yaxes(matches=None)
+            fig.update_yaxes(matches=None, showticklabels=True)
+
+        if label_every_row:
+            fig.update_yaxes(dtick=1)
 
         return fig
 
     def derive_statistic_parameters(
         self,
         *args: Any,
-        method_name: str = "",  # make required
+        method_name: str,
+        chart_type: str = "",
     ) -> dict[str, Any]:
         """Extract plotting specification rules including groupby columns and component aggregation.
 
@@ -837,38 +887,47 @@ class ChartGenerator(PlotsGenerator, ABC):
         ----------
         *args : tuple of (str | None)
             Arguments representing x, y, color, facet_col, facet_row parameters
-        method_name : str, optional
+        method_name : str
             Name of the statistics function to allow for specific rules
+        chart_type : str, optional
+            Name of the chart type to allow for specific rules (e.g. distributions
+            need the full time series).
 
         Returns
         -------
-        tuple
-            List of groupby columns and boolean for component aggregation
+        dict
+            Statistics function kwargs (`groupby`,
+            `aggregate_across_components`, `groupby_time`) derived from the
+            plot arguments.
 
         """
         filtered = ["value", "name", "snapshot", "scenario", "period"]
         filtered_cols = [c for c in args if c not in filtered and c is not None]
 
         stats_kwargs: dict[str, str | bool | list] = {}
+        stats_params = _stats_function_params(self._n, method_name)
+        has_components = "aggregate_across_components" in stats_params
 
         # `groupby`
         filtered_cols = list(set(filtered_cols))  # Remove duplicates
         if filtered_cols:
+            # Component-less statistics (e.g. prices) keep per-bus rows in
+            # distribution plots; groupers become additional index levels.
+            if chart_type in DISTRIBUTION_TYPES and not has_components:
+                filtered_cols = ["name", *filtered_cols]
             stats_kwargs["groupby"] = filtered_cols
-        if method_name == "prices":
-            stats_kwargs.pop("groupby", None)  # prices does not support groupby
 
         # `aggregate_across_components`
-        if method_name != "prices":
+        if has_components:
             stats_kwargs["aggregate_across_components"] = "component" not in args
 
-        # `groupby_time` is only relevant for time series data
-        if "snapshot" in args:
-            derived_agg_time: str | bool = "snapshot" not in args  # Check in args tuple
-            if derived_agg_time:
-                # Convert to list since groupby_time expects a list of strings
-                stats_kwargs["groupby_time"] = "sum"
-            else:
-                stats_kwargs["groupby_time"] = False
+        # `groupby_time`: time series axes and distribution plots need the
+        # full time series, not its aggregate.
+        if (
+            "groupby_time" in stats_params
+            and method_name not in TIME_AGGREGATED_STATS
+            and ("snapshot" in args or chart_type in DISTRIBUTION_TYPES)
+        ):
+            stats_kwargs["groupby_time"] = False
 
         return stats_kwargs

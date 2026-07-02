@@ -339,3 +339,73 @@ def test_interactive_multi_investment_grouping(ac_dc_network_r):
         str(trace.name) for trace in fig.data if getattr(trace, "name", None)
     }
     assert trace_names == {"2020", "2030"}
+
+
+class TestInteractivePlotIssue1719:
+    """Regression tests for the statistics plotting bug collection (issue #1719)."""
+
+    def test_color_none_disables_grouping(self, ac_dc_network_r):
+        """#1: color=None is respected instead of falling back to 'carrier'."""
+        grouped = ac_dc_network_r.statistics.energy_balance.iplot.bar(y="bus_carrier")
+        ungrouped = ac_dc_network_r.statistics.energy_balance.iplot.bar(
+            y="bus_carrier", color=None
+        )
+        assert len(ungrouped.data) < len(grouped.data)
+        assert len(ungrouped.data) == 1
+
+    def test_at_port_routed_to_statistics(self, ac_dc_network_r):
+        """#2: at_port is forwarded to the statistics call, not the backend."""
+        fig = ac_dc_network_r.statistics.supply.iplot.bar(at_port="all")
+        assert isinstance(fig, go.Figure)
+
+    def test_prices_rejects_carrier(self, ac_dc_network_r):
+        """#3: passing 'carrier' to prices raises instead of silently dropping."""
+        with pytest.raises(ValueError, match="bus_carrier"):
+            ac_dc_network_r.statistics.prices.iplot.bar(carrier="AC")
+
+    def test_mathtext_in_legend_is_sanitized(self, ac_dc_network_r):
+        """#7: LaTeX subscripts in nice names become Plotly tags in legends."""
+        n = ac_dc_network_r.copy()
+        n.c.carriers.static.loc["gas", "nice_name"] = "CO$_2$"
+        fig = n.statistics.installed_capacity.iplot.bar(
+            x="value", y="bus_carrier", color="carrier"
+        )
+        names = [str(t.name) for t in fig.data]
+        assert "CO<sub>2</sub>" in names
+        assert not any("$" in name for name in names)
+
+    def test_empty_facets_stay_visible(self, ac_dc_network_r):
+        """#8: requested facet values without data are still rendered."""
+        n = ac_dc_network_r.copy()
+        n.add("Carrier", "H2", color="#123456")
+        n.add("Bus", "h2 bus", carrier="H2")
+
+        fig = n.statistics.installed_capacity.iplot.bar(
+            bus_carrier=["AC", "H2"], facet_col="bus_carrier"
+        )
+        facets = {a.text for a in fig.layout.annotations if a.text}
+        assert facets == {"bus_carrier=AC", "bus_carrier=H2"}
+
+    def test_unshared_axes_keep_tick_labels(self, ac_dc_network_r):
+        """#9: sharex=False keeps tick labels on all faceted subplots."""
+        fig = ac_dc_network_r.statistics.installed_capacity.iplot.bar(
+            bus_carrier=["AC", "DC"], facet_col="bus_carrier", sharex=False
+        )
+        layout = fig.layout.to_plotly_json()
+        xaxes = [layout[k] for k in layout if k.startswith("xaxis")]
+        assert all(ax.get("showticklabels") is True for ax in xaxes)
+
+    def test_categorical_axis_labels_every_bar(self, ac_dc_network_r):
+        """Categorical y-axes label every bar and grow with the row count."""
+        plotter = ChartGenerator(ac_dc_network_r)
+
+        def bar_fig(n_rows):
+            index = pd.Index([f"carrier {i}" for i in range(n_rows)], name="carrier")
+            data = pd.Series(range(n_rows), index=index, dtype=float)
+            return plotter.iplot(data, "bar", x="value", y="carrier")
+
+        small, large, huge = bar_fig(5), bar_fig(50), bar_fig(500)
+        assert large.layout.yaxis.dtick == 1
+        assert large.layout.height > small.layout.height
+        assert huge.layout.height <= 2000
+        assert huge.layout.yaxis.dtick is None

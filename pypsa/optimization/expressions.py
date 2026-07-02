@@ -558,16 +558,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             sign = n.c[component].static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators.loc[sns]
             coeffs = DataArray(dynamic_efficiency * sign)
-            if direction == "supply":
-                coeffs = coeffs.clip(min=0)
-            elif direction == "withdrawal":
-                logger.warning(
-                    "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
-                )
-                coeffs = -coeffs.clip(max=0)
-            elif direction != "both":
-                msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
-                raise ValueError(msg)
 
             pw_var = 0
             if isinstance(c, _Multiport) and c.has_piecewise(
@@ -578,8 +568,24 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 coeffs.loc[{"name": names}] = 0
                 pw_var = _direct_piecewise(c, y_attr, sign, pw, names, direction)
 
-            p = var.where(coeffs != 0) * coeffs + pw_var
-            return self._aggregate_timeseries(p, weights, agg=groupby_time)
+            expr = coeffs * var.where(coeffs != 0)
+
+            if direction in ("supply", "withdrawal"):
+                if direction == "withdrawal":
+                    logger.warning(
+                        "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
+                    )
+                s = 1 if direction == "supply" else -1
+                expr = expr.assign(
+                    coeffs=(s * expr.coeffs).clip(min=0),
+                    const=(s * expr.const).clip(min=0),
+                )
+            elif direction != "both":
+                msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
+                raise ValueError(msg)
+
+            expr = expr + pw_var
+            return self._aggregate_timeseries(expr, weights, agg=groupby_time)
 
         return self._aggregate_components(
             func,

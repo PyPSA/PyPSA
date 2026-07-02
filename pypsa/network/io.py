@@ -1224,13 +1224,18 @@ class _ExporterNetCDF(_Exporter):
 
         Runs post-processing, compression and saving to disk.
         """
+        # pandas>=3 infer_string strings aren't netCDF-writable. Cast to object and
+        # write with the option off to keep NaNs. https://github.com/pydata/xarray/issues/10301
+        for name in list(self.ds.variables):
+            if isinstance(self.ds[name].dtype, pd.StringDtype):
+                self.ds[name] = self.ds[name].astype(object)
         if self.float32:
             self.typecast_float32()
         if self.compression:
             self.set_compression_encoding()
         if self.path is not None:
             _path = Path(self.path)
-            with _path.open("w"):
+            with _path.open("w"), pd.option_context("future.infer_string", False):
                 self.ds.to_netcdf(_path)
 
 
@@ -2678,7 +2683,7 @@ class NetworkIOMixin(_NetworkABC):
 
         # documented at https://docs.pypsa.org/latest/user-guide/components/shunt-impedances
         g_shunt = net.shunt.p_mw.values / net.shunt.vn_kv.values**2
-        b_shunt = net.shunt.q_mvar.values / net.shunt.vn_kv.values**2
+        b_shunt = -net.shunt.q_mvar.values / net.shunt.vn_kv.values**2
 
         d["ShuntImpedance"] = pd.DataFrame(
             {

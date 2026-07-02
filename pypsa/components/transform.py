@@ -43,7 +43,7 @@ class ComponentsTransformMixin:
     def add(
         self,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
         overwrite: bool = False,
         return_names: bool | None = None,
         **kwargs: Any,
@@ -73,8 +73,9 @@ class ComponentsTransformMixin:
         ----------
         name : str or int or list of str or list of int
             Component name(s)
-        suffix : str, default ""
-            All components are named after name with this added suffix.
+        suffix : str or list of str, default ""
+            Suffix added to each name. Pass a list together with a single `name`
+            to add one component per suffix.
         overwrite : bool, default False
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
