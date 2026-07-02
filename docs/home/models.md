@@ -24,7 +24,7 @@ open source and actively maintained. Below is a list of some known models.
 - **[:flag_gb: PyPSA-UK](https://github.com/ember-climate/pypsa-uk)**: United Kingdom power system model, maintained by [Ember](https://ember-energy.org/)
 - **[:flag_gb: PyPSA-GB](https://github.com/andrewlyden/PyPSA-GB)**: Great Britain power system model, maintained by the University of Edinburgh
 - **[:flag_gb: GBPower](https://github.com/LukasFrankenQ/GBPower)**: Operation-only present time Great Britain power system model, maintained by Lukas Franken
-- **[:flag_at: PyPSA-AT](https://github.com/AGGM-AG/pypsa-at)**: Austrian power and gas system model, maintained by [Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/en/)
+- **[:flag_at: PyPSA-AT](https://github.com/msalkeldp/pypsa-at)**: Austrian power and gas system model, maintained by [Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/en/)
 - **[:flag_eu: PyPSA-IEI](https://github.com/Fraunhofer-IEG/PyPSA-IEI)**: European energy system model, maintained by [Fraunhofer IEG](https://www.ieg.fraunhofer.de/en.html), [Fraunhofer ISI](https://www.isi.fraunhofer.de/en.html), and [d-fine](https://www.d-fine.com/en/)
 - **[:flag_nl: PyPSA-NL2025](https://github.com/Tanneheemsbergen/pypsa-NL2025)**: Dutch energy system model simulating day-ahead, imbalance-only, and value stacking for energy storage projects, maintained by Tanne Heemsbergen
 
@@ -58,7 +58,7 @@ open source and actively maintained. Below is a list of some known models.
 
 - Build your own global zero emission scenario [model.energy](https://model.energy), maintained by [pypsa.org](https://pypsa.org)
     - Define your own sector-coupled European scenarios [scenarios](https://model.energy/scenarios/)
-    - Build your own green energy import supply chain [supply chain](https://model.energy/green-energy-imports/)
+    - Build your own green energy import supply chain [supply chain](https://model.energy/)
     - See how the [future](https://model.energy/future/) German energy system might operate with today's weather
 - Transport of chemical energy carriers to Germany [TRACE](https://github.com/euronion/trace)
 - Transmission grid optimisation [eTraGo](https://github.com/openego/eTraGo)

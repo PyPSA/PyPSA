@@ -30,7 +30,7 @@ potential issues in the network.
 
 ## Optimisation convergence & infeasibility
 
-If your [`n.optimize()`]() is not converging,
+If your [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] is not converging,
 here are some suggestions to try out:
 
 * Very small non-zero values, for example in `n.generators_t.p_max_pu` can

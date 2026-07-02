@@ -1402,7 +1402,7 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
   implementation ``n.optimize()`` and will be removed in PyPSA v1.0. We will
   have a generous transition period, but please start migrating your
   ``extra_functionality`` functions, e.g. by following our [migration guide
- ](https://docs.pypsa.orgxamples/optimization-with-linopy-migrate-extra-functionalities.html).
+ ](https://docs.pypsa.org/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html).
 * The module ``pypsa.networkclustering`` was moved to
   ``pypsa.clustering.spatial``. The module ``pypsa.networkclustering`` is now
   deprecated but all functionality will continue to be accessible until PyPSA v0.25.
