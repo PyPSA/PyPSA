@@ -34,6 +34,7 @@ def test_optimize(ac_dc_network):
     assert "DC link" not in n.model.constraints["Link-ext-p_nom-lower"].coords["name"]
 
 
+@pytest.mark.no_scaling  # scigrid_de
 def test_optimize_with_power_flow(scipy_network):
     """
     Test the functionality of the 'active' attribute in PyPSA components.

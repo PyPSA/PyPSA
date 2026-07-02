@@ -21,6 +21,7 @@ def test_transmission_losses_independent_of_s_nom_max():
     assert res.equals(res2)
 
 
+@pytest.mark.no_scaling  # asserts on the raw model solution
 def test_secant_losses_larger():
     n = pypsa.examples.ac_dc_meshed()
     n.lines["s_nom_max"] = 2000

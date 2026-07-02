@@ -369,11 +369,13 @@ def test_simple_network_store_cyclic(n_sts):
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sts.c.stores.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert (n_sts.c.stores.dynamic.p.loc[[2050], "sto1-2020"].abs() < 1e-6).all()
 
     e = n_sts.c.stores.dynamic.e
     p = n_sts.c.stores.dynamic.p
-    assert e.loc[idx[2040, 9], "sto1-2020"] == (e + p).loc[idx[2020, 0], "sto1-2020"]
+    assert e.loc[idx[2040, 9], "sto1-2020"] == pytest.approx(
+        (e + p).loc[idx[2020, 0], "sto1-2020"]
+    )
 
 
 def test_simple_network_store_cyclic_per_period(n_sts):
@@ -431,6 +433,7 @@ def test_global_constraint_primary_energy_store(n_sts):
     assert round(soc_diff @ emissions, 0) == 3000
 
 
+@pytest.mark.no_scaling  # asserts on the raw model RHS
 def test_global_constraint_primary_energy_storage_stochastic(n_sus):
     """
     Test global constraints with primary energy for storage in stochastic networks.

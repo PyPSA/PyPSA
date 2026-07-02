@@ -79,7 +79,7 @@ def test_modular_committable_with_ramp_limits():
     p_nom_opt = n.c["Generator"].static.loc["modgen", "p_nom_opt"]
     p_nom_mod = n.c["Generator"].static.loc["modgen", "p_nom_mod"]
     assert p_nom_opt > 0
-    assert p_nom_opt % p_nom_mod == 0
+    assert np.isclose(p_nom_opt / p_nom_mod, round(p_nom_opt / p_nom_mod))
 
     p = n.c["Generator"].dynamic["p"]["modgen"]
     u = n.c["Generator"].dynamic["status"]["modgen"]

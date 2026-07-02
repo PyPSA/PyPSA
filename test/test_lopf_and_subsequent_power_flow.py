@@ -2,7 +2,10 @@
 #
 # SPDX-License-Identifier: MIT
 
+import pytest
 
+
+@pytest.mark.no_scaling  # scigrid_de
 def test_optimize_with_power_flow(scipy_network):
     n = scipy_network
 

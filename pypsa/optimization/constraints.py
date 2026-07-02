@@ -692,6 +692,11 @@ def _define_ramp_limit_big_m(
         p_init = c.da.p_init.sel(name=idx).where(initially_up, 0)
         s_init = initially_up
 
+    # scale the raw p_init constant like the p variable it is compared to
+    scale = n._scaling["energy"]
+    if scale != 1:
+        p_init = p_init / scale
+
     p_prev_ce = p.shift(snapshot=1) + p_init.fillna(0) * filter_first_sn
     status_prev_ce = status.shift(snapshot=1) + s_init.fillna(0) * filter_first_sn
 
@@ -833,6 +838,11 @@ def define_ramp_limit_constraints(
         p_init = c.da.p_init.where(initially_up, 0)
         s_init = initially_up
         mask[0] = p_init.notnull()
+
+    # scale the raw p_init constant like the p variable it is compared to
+    scale = n._scaling["energy"]
+    if scale != 1:
+        p_init = p_init / scale
 
     # skip starts of periods except the first where p_init is used
     boundary = _period_start_mask(sns)
@@ -2027,7 +2037,8 @@ def define_tangent_loss_constraints(
         )
         raise ValueError(msg)
 
-    r_pu_eff = c.da.r_pu_eff
+    scale = n._scaling["energy"]
+    r_pu_eff = c.da.r_pu_eff * scale if scale != 1 else c.da.r_pu_eff
 
     # Calculate upper bound on losses
     upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2
@@ -2134,7 +2145,12 @@ def define_secant_loss_constraints(
         )
         raise ValueError(msg)
 
-    r_pu_eff = c.da.r_pu_eff
+    scale = n._scaling["energy"]
+    if scale != 1:
+        r_pu_eff = c.da.r_pu_eff * scale
+        atol = atol / scale
+    else:
+        r_pu_eff = c.da.r_pu_eff
 
     # Calculate upper bound on losses
     upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2

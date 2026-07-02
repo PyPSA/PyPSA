@@ -1306,6 +1306,7 @@ def test_multiperiod_stochastic_coordinate_alignment():
         )
 
 
+@pytest.mark.no_scaling  # asserts on the raw model constraint RHS
 def test_storage_unit_energy_balance_scenario_sorting_bug():
     """Test that storage unit energy balance constraints have correct RHS values with scenarios.
 
