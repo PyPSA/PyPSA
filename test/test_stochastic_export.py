@@ -221,7 +221,11 @@ def test_manifest_solve_command(stochastic_export_network, tmp_path):
     )
     cmd = manifest["solve_command"]
     assert "mpisppy.generic_cylinders" in cmd
-    assert f"--mps-files-directory {tmp_path}" in cmd
+    # ``cmd`` is built with ``shlex.join``, which quotes the directory on Windows
+    # (backslashes) but not on POSIX. Check the flag and path separately so the
+    # assertion is tolerant of that quoting.
+    assert "--mps-files-directory" in cmd
+    assert str(tmp_path) in cmd
     assert "--lagrangian" in cmd
     assert "--xhatshuffle" in cmd
     assert "--write-xhat-file" in cmd
