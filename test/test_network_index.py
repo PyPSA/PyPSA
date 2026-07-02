@@ -363,6 +363,21 @@ def test_getitem_index_methods():
             n[("Manchester", slice(0, 2))]
 
 
+def test_network_not_iterable():
+    """Regression for #1753: iterating a Network raises a clear TypeError."""
+    n = pypsa.Network()
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+
+    with pytest.raises(TypeError, match="not iterable"):
+        list(n)
+    with pytest.raises(TypeError, match="not iterable"):
+        _a, _b = n  # tuple-unpacking, the #1656 footgun
+
+    # Slicing via __getitem__ must still work.
+    assert n["bus1"].equals(n.slice_network(buses="bus1"), log_mode="strict")
+
+
 def test_set_snapshots_preserves_dynamic_multiindex_name():
     # Regression for #1741: re-setting MultiIndex snapshots must not drop the
     # "snapshot" index name on dynamic data, else its DataArray dim becomes "dim_0".

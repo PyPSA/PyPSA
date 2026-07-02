@@ -315,6 +315,15 @@ class Network(
         """
         return self.equals(other)
 
+    def __iter__(self) -> None:
+        """Disallow iterating over a Network (would fall back to ``__getitem__``)."""
+        msg = (
+            f"'{type(self).__name__}' object is not iterable. To iterate over "
+            "components use `n.components` or `n.iterate_components()`; to select "
+            "a scenario, collection member or bus slice use `n[key]`."
+        )
+        raise TypeError(msg)
+
     def __getitem__(self, key: str) -> Network:
         """Return a shallow slice of the Network object.
 
