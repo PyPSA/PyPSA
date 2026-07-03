@@ -578,9 +578,18 @@ class PydeckPlotter:
             arrow = flip_polygon(arrow, "y")
         arrow = rotate_polygon(arrow, angle)
 
-        # transform back to lon/lat relative to center point
-        coords_center = PydeckPlotter.PROJ_INV.transform(*p_center)
-        arrow = meters_to_lonlat(arrow, coords_center)
+        # The arrow is built in EPSG:3857 metres around the origin. Translate it to
+        # its absolute position around the branch midpoint and invert with the same
+        # EPSG:3857 projection used for the forward transform. Using the spherical
+        # `meters_to_lonlat` approximation here would mismatch the Web Mercator
+        # forward step and distort the arrow by a factor of sec(latitude), which
+        # grows large at high latitudes (e.g. ~2x at 60°N).
+        arrow = np.column_stack(
+            PydeckPlotter.PROJ_INV.transform(
+                arrow[:, 0] + p_center[0],
+                arrow[:, 1] + p_center[1],
+            )
+        )
 
         return arrow.tolist()
 
