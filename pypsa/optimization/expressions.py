@@ -519,19 +519,17 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 efficiency = efficiency.loc[sns]
             sign = n.c[c].static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators.loc[sns]
-            coeffs = DataArray(efficiency * sign)
-            if direction == "supply":
-                coeffs = coeffs.clip(min=0)
-            elif direction == "withdrawal":
-                logger.warning(
-                    "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
+            expr = DataArray(efficiency * sign) * var
+            if direction in ("supply", "withdrawal"):
+                s = 1 if direction == "supply" else -1
+                expr = expr.assign(
+                    coeffs=(s * expr.coeffs).clip(min=0),
+                    const=(s * expr.const).clip(min=0),
                 )
-                coeffs = -coeffs.clip(max=0)
             elif direction != "both":
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
-            p = var.where(coeffs != 0) * coeffs
-            return self._aggregate_timeseries(p, weights, agg=groupby_time)
+            return self._aggregate_timeseries(expr, weights, agg=groupby_time)
 
         return self._aggregate_components(
             func,
