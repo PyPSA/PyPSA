@@ -52,6 +52,7 @@ here are some suggestions to try out:
 
     ``` py
     n.optimize(solver_name='highs', solver="ipm", run_crossover="off", random_seed=123)
+    ```
 
 === "SCIP"
 
