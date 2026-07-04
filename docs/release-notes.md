@@ -16,6 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
+- Add a `primary_energy` statistic that post-calculates the quantity tracked by the `primary_energy` global constraint (e.g. CO2 emissions by default via `carrier_attribute="co2_emissions"`), covering Generator, StorageUnit and Store components. See [#1778](https://github.com/PyPSA/PyPSA/issues/1778).
 - Speed up [`create_model()`][pypsa.optimization.OptimizationAccessor.create_model] for large networks by computing the bus membership filter in `define_nodal_balance_constraints` with a pandas hash join instead of `xarray.isin` over object-dtype arrays. (<!-- md:pr 1770 -->)
 
 ### Bug Fixes
