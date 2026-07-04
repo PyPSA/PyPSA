@@ -68,12 +68,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-dir_name = Path(__file__).parent
-
-standard_types_dir_name = "data/standard_types"
-
-
 inf = float("inf")
 
 

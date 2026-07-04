@@ -24,6 +24,17 @@ def no_warnings():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         warnings.filterwarnings("default", category=ResourceWarning)
+        # numpy>=2.5 deprecations not yet handled by netCDF4 and matplotlib
+        warnings.filterwarnings(
+            "ignore",
+            "Setting the shape on a NumPy array has been deprecated",
+            DeprecationWarning,
+        )
+        warnings.filterwarnings(
+            "ignore",
+            "The 'generic' unit for NumPy timedelta is deprecated",
+            DeprecationWarning,
+        )
         handler = logging.Handler()
         handler.setLevel(logging.WARNING)
         handler.emit = lambda record: (
@@ -74,12 +85,30 @@ def pytest_addoption(parser):
         default=False,
         help="Auto-fix notebook issues found during validation (self-healing mode)",
     )
+    parser.addoption(
+        "--run-plot-tests",
+        action="store_true",
+        default=False,
+        help="Run the matplotlib image comparison tests (mpl_image_compare)",
+    )
 
 
 def pytest_configure(config):
     """Configure pytest session with custom options."""
     if config.getoption("--new-components-api"):
         pypsa.options.api.new_components_api = True
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip image comparison tests unless --run-plot-tests is given."""
+    if config.getoption("--run-plot-tests"):
+        return
+    skip = pytest.mark.skip(
+        reason="Need --run-plot-tests option to run plot image tests"
+    )
+    for item in items:
+        if "mpl_image_compare" in item.keywords:
+            item.add_marker(skip)
 
 
 COMPONENT_NAMES = [
@@ -141,7 +170,7 @@ def stochastic_network():
 def ac_dc_solved():
     n = pypsa.examples.ac_dc_meshed()
     n.optimize()
-    del n.model.solver_model
+    n.model.solver_model = None
     return n
 
 
@@ -342,7 +371,7 @@ def pandapower_custom_network():
     # create bus elements
     pp.create_ext_grid(net, bus=bus1, vm_pu=1.02, name="Grid Connection")
     pp.create_load(net, bus=bus3, p_mw=0.100, q_mvar=0.05, name="Load")
-    pp.create_shunt(net, bus=bus3, p_mw=0.0, q_mvar=0.0, name="Shunt")
+    pp.create_shunt(net, bus=bus3, p_mw=0.02, q_mvar=0.05, name="Shunt")
     # create branch elements
     pp.create_transformer(
         net, hv_bus=bus1, lv_bus=bus2, std_type="0.4 MVA 20/0.4 kV", name="Trafo"
