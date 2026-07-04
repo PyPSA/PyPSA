@@ -73,7 +73,7 @@ def component_nominal_variable_scaling(
     scaling = component_variable_scaling(n, component, names)
     extra_dims = [dim for dim in scaling.dims if dim != "name"]
     if extra_dims:
-        scaling = scaling.isel({dim: 0 for dim in extra_dims}, drop=True)
+        scaling = scaling.isel(dict.fromkeys(extra_dims, 0), drop=True)
     return scaling
 
 

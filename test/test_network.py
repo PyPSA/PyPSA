@@ -430,6 +430,74 @@ def test_add_return_names():
     assert result[0] == "bus7"
 
 
+def test_add_remove_list_suffix(n_5bus):
+    # A list `suffix` with a scalar `name` builds one component per suffix (#1650).
+    names = n_5bus.add(
+        "Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", return_names=True
+    )
+    assert list(names) == ["g wind", "g solar"]
+    assert list(n_5bus.c.generators.static.index) == ["g wind", "g solar"]
+
+    n_5bus.remove("Generator", "g", suffix=[" wind", " solar"])
+    assert n_5bus.c.generators.static.empty
+
+
+@pytest.mark.parametrize("method", ["add", "remove"])
+@pytest.mark.parametrize(
+    ("name", "suffix", "match"),
+    [
+        # Was a silent one-by-one pairing before #1650, now rejected.
+        (["a", "b"], [" wind", " solar"], "Cannot pass list to both"),
+        ("g", [], "Empty list `suffix`"),
+    ],
+)
+def test_list_suffix_invalid_raises(n_5bus, method, name, suffix, match):
+    with pytest.raises(ValueError, match=match):
+        getattr(n_5bus, method)("Generator", name, suffix=suffix)
+
+
+@pytest.mark.parametrize(
+    "p_nom",
+    [
+        pd.Series([100.0, 200.0], index=["g wind", "g solar"]),  # post-suffix index
+        [100.0, 200.0],  # plain list, positional
+    ],
+)
+def test_add_list_suffix_static_kwarg(n_5bus, p_nom):
+    # Regression for the TypeError from str.endswith(list) on a Series kwarg (#1650).
+    n_5bus.add("Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", p_nom=p_nom)
+    static = n_5bus.c.generators.static
+    assert static.p_nom.loc["g wind"] == 100.0
+    assert static.p_nom.loc["g solar"] == 200.0
+
+
+def test_add_list_suffix_dataframe_kwarg(n_5bus_7sn):
+    # A DataFrame kwarg with post-suffix columns stays time-varying (#1650).
+    p_max_pu = pd.DataFrame(
+        rng.random((len(n_5bus_7sn.snapshots), 2)),
+        index=n_5bus_7sn.snapshots,
+        columns=["g wind", "g solar"],
+    )
+    n_5bus_7sn.add(
+        "Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", p_max_pu=p_max_pu
+    )
+    pd.testing.assert_frame_equal(
+        n_5bus_7sn.c.generators.dynamic.p_max_pu,
+        p_max_pu,
+        check_names=False,
+        check_column_type=False,
+    )
+
+
+def test_add_list_suffix_misaligned_kwarg_raises(n_5bus):
+    # For a list suffix the Series index must be the full post-suffix names.
+    p_nom = pd.Series([100.0, 200.0], index=["g", "g"])
+    with pytest.raises(ValueError, match="does not align"):
+        n_5bus.add(
+            "Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", p_nom=p_nom
+        )
+
+
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",

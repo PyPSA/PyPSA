@@ -68,12 +68,14 @@ test = [
     "pytest-cov",
     "pytest-mpl",
     "coverage",
+    "pyarrow",
 ]
 dev = [
     "pytest",
     "pytest-cov",
     "pytest-mpl",
     "coverage",
+    "pyarrow",
     "matplotlib<3.11", # remove when uv.lock is tracked
     "pypower",
     "pandapower>=2.14.11",

@@ -14,7 +14,6 @@ import linopy as ln
 import numpy as np
 import pandas as pd
 from linopy import LinearExpression, Variable
-from packaging import version
 from xarray import DataArray
 
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
@@ -32,18 +31,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-USE_EMPTY_PROPERTY = version.parse(ln.__version__) >= version.parse("0.5.1")
-
-
 def check_if_empty(expr: LinearExpression) -> bool:
     """Check if the expression is empty.
 
     This is a workaround for the issue that linopy does not support
     the empty property for older versions (`.empty` in >=0.5.1 vs `.empty()` in <0.5.1).
     """
-    if USE_EMPTY_PROPERTY:
-        return expr.empty
-    return expr.empty()
+    empty = getattr(expr, "empty", None)
+    if callable(empty) and type(empty).__name__ != "EmptyDeprecationWrapper":
+        return empty()
+    return bool(empty)
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
@@ -519,19 +516,17 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 efficiency = efficiency.loc[sns]
             sign = n.c[c].static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators.loc[sns]
-            coeffs = DataArray(efficiency * sign)
-            if direction == "supply":
-                coeffs = coeffs.clip(min=0)
-            elif direction == "withdrawal":
-                logger.warning(
-                    "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
+            expr = DataArray(efficiency * sign) * var
+            if direction in ("supply", "withdrawal"):
+                s = 1 if direction == "supply" else -1
+                expr = expr.assign(
+                    coeffs=(s * expr.coeffs).clip(min=0),
+                    const=(s * expr.const).clip(min=0),
                 )
-                coeffs = -coeffs.clip(max=0)
             elif direction != "both":
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
-            p = var.where(coeffs != 0) * coeffs
-            return self._aggregate_timeseries(p, weights, agg=groupby_time)
+            return self._aggregate_timeseries(expr, weights, agg=groupby_time)
 
         return self._aggregate_components(
             func,
