@@ -107,7 +107,7 @@ def component_constraint_scaling(
                 )
             return xr.DataArray(values, coords={dim: names}, dims=[dim])
 
-    scaling = 1 / component_variable_scaling(n, component, names)
+    scaling = component_variable_scaling(n, component, names)
     if dim != "name" and "name" in scaling.dims:
         scaling = scaling.rename(name=dim)
         if names is not None:
@@ -117,7 +117,7 @@ def component_constraint_scaling(
 
 def bus_constraint_scaling(n: Network, buses: xr.DataArray) -> xr.DataArray:
     """Return Linopy row scaling for bus balance constraints."""
-    return 1 / bus_scaling(n, buses)
+    return bus_scaling(n, buses)
 
 
 def global_constraint_scaling(glc: Any) -> Any:
