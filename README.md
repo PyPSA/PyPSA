@@ -165,7 +165,7 @@ We strongly welcome anyone interested in contributing to this project. If you ha
 
 -   To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the [Discord server](https://discord.gg/AnuJBk23FU).
 -   For **bugs and feature requests**, please [open an issue](https://github.com/PyPSA/PyPSA/issues).
--   For **troubleshooting and support**, please check the [troubleshooting](https://docs.pypsa.org/latest/user-guide/support/) and [support](https://docs.pypsa.org/latest/user-guide/support/) sectionsin the documentation.
+-   For **troubleshooting and support**, please check the [troubleshooting](https://docs.pypsa.org/latest/user-guide/support/) and [support](https://docs.pypsa.org/latest/user-guide/support/) sections in the documentation.
 
 Detailed guidelines can be found in the [Contributing](https://docs.pypsa.org/latest/contributing/contributing/) guidelines of our documentation.
 
