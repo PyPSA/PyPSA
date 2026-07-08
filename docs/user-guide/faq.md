@@ -93,7 +93,7 @@ The general mode is continuous transmission expansion on existing lines. Changes
 in impedance can be considered by an iterative approach with
 `n.optimize.optimize_transmission_expansion_iteratively()`. This function also
 allows for discretisation procedures in between iterations. PyPSA also supports
-Limits](../user-guide/optimization/capacity-limits.md)). However, this option
+[Limits](../user-guide/optimization/capacity-limits.md)). However, this option
 does not yet consider changes in impedance endogenously.
 
 <!-- ## How are capacity retirements and stranded assets handled?
