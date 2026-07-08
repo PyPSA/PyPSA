@@ -310,16 +310,19 @@ class TestGetBreakpoints:
 
 
 class TestCreateYVar:
+    @staticmethod
     @pytest.fixture(scope="class")
-    def pw_names(self) -> pd.Series:
+    def pw_names() -> pd.Series:
         return pd.Index(["gen1"], name="name")
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def snapshots(self):
+    def snapshots():
         return pd.Index([1, 2, 3], name="snapshot")
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def linopy_model(self, snapshots):
+    def linopy_model(snapshots):
         m = linopy.Model()
         m.add_variables(
             name="x_static", coords=[pd.Index(["gen1", "gen2"], name="name")]
@@ -330,14 +333,16 @@ class TestCreateYVar:
         )
         return m
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def y_var_static(self, linopy_model, pw_names) -> linopy.Variable:
+    def y_var_static(linopy_model, pw_names) -> linopy.Variable:
         return _create_y_var(
             linopy_model, linopy_model["x_static"], pw_names, "foo-static"
         )
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def y_var_dynamic(self, linopy_model, pw_names) -> linopy.Variable:
+    def y_var_dynamic(linopy_model, pw_names) -> linopy.Variable:
         return _create_y_var(
             linopy_model, linopy_model["x_dynamic"], pw_names, "foo-dynamic"
         )
@@ -378,8 +383,9 @@ class TestToDa:
 
 
 class TestDefinePiecewise:
+    @staticmethod
     @pytest.fixture(scope="class")
-    def snapshots(self):
+    def snapshots():
         return pd.Index([1, 2, 3], name="snapshot")
 
     @pytest.fixture
@@ -424,8 +430,9 @@ class TestDefinePiecewise:
         )
         return m
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def piecewise_options(self):
+    def piecewise_options():
         options = PiecewiseOptions(
             component="Generator",
             attribute="marginal_cost",

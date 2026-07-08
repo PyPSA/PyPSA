@@ -709,8 +709,9 @@ class TestMarketValue:
 class TestStatisticsWithPiecewise:
     """Tests for piecewise variables affecting statistics."""
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def piecewise_network_solved(self, piecewise_network):
+    def piecewise_network_solved(piecewise_network):
         piecewise_network.optimize(include_objective_constant=False)
         return piecewise_network
 
@@ -739,8 +740,9 @@ class TestStatisticsWithPiecewise:
 class TestPortEfficiency:
     """Tests for port_efficiency (static and dynamic numeric efficiencies)."""
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def base_network(self):
+    def base_network():
         idx = pd.Index([0, 1, 2])
         n = pypsa.Network()
         n.set_snapshots(idx)
@@ -748,24 +750,28 @@ class TestPortEfficiency:
         n.add("Generator", "gen", bus="bus0", p_nom=100)
         return n
 
+    @staticmethod
     @pytest.fixture(scope="class", params=["Link", "Process"])
-    def component(self, request):
+    def component(request):
         return request.param
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def eff_param(self, component):
+    def eff_param(component):
         if component == "Link":
             return "efficiency"
         if component == "Process":
             return "rate"
         raise ValueError(f"Unexpected component type: {component}")
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def eff1(self, eff_param, component):
+    def eff1(eff_param, component):
         return f"{eff_param}1" if component == "Process" else eff_param
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def static_link_eff(self, base_network, eff_param, eff1, component):
+    def static_link_eff(base_network, eff_param, eff1, component):
         """Minimal network with a multi-port Link and piecewise efficiency."""
         n = base_network.copy()
         n.add(
@@ -778,8 +784,9 @@ class TestPortEfficiency:
         )
         return n
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def dynamic_link_eff(self, base_network, eff_param, eff1, component):
+    def dynamic_link_eff(base_network, eff_param, eff1, component):
         """Minimal network with a multi-port Link and piecewise efficiency."""
         n = base_network.copy()
         n.add(
@@ -795,8 +802,9 @@ class TestPortEfficiency:
         )
         return n
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def piecewise_link_eff(self, base_network, eff1, component):
+    def piecewise_link_eff(base_network, eff1, component):
         """Network with a Link whose efficiency is defined piecewise per breakpoint."""
         n = base_network.copy()
         n.add(
@@ -809,8 +817,9 @@ class TestPortEfficiency:
         )
         return n
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def mixed_link_eff(self, base_network, eff_param, eff1, component):
+    def mixed_link_eff(base_network, eff_param, eff1, component):
         """Network with a Link whose efficiency is defined piecewise per breakpoint."""
         n = base_network.copy()
         n.add(
@@ -829,8 +838,9 @@ class TestPortEfficiency:
         )
         return n
 
+    @staticmethod
     @pytest.fixture(scope="class")
-    def default_dynamic_eff(self, mixed_link_eff, component):
+    def default_dynamic_eff(mixed_link_eff, component):
         """Return default dynamic efficiency that is generated when a Link port has no dynamic efficiency defined."""
         dyn_eff = pd.DataFrame(
             1.0,
