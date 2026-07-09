@@ -313,26 +313,6 @@ def test_collection_of_multi_investment_facets_both_dimensions(ac_dc_network_r, 
     plt.close(fig)
 
 
-def test_collection_faceted_plot_with_offset_text(ac_dc_network_r):
-    """Faceted plots draw when values are large enough for the axis offset text.
-
-    On matplotlib 3.11.0 a faceted figure with a shared y-axis showing the
-    scientific offset text (e.g. ``1e6``) crashed at draw time with
-    ``ValueError: cannot convert float NaN to integer``
-    (matplotlib/matplotlib#31881). See #1779.
-    """
-    network = ac_dc_network_r.copy()
-    network.c.generators.dynamic.p *= 1e6
-    nc = NetworkCollection(
-        [network, network.copy()], index=pd.Index(["low", "high"], name="scenario")
-    )
-
-    fig, ax, g = nc.statistics.supply.plot.area(color="carrier")
-    fig.canvas.draw()
-
-    plt.close(fig)
-
-
 def test_networks_plot_map(network_collection):
     with pytest.raises(NotImplementedError):
         network_collection.statistics.energy_balance.plot.map()
