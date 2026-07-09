@@ -14,7 +14,6 @@ import linopy as ln
 import numpy as np
 import pandas as pd
 from linopy import LinearExpression, Variable
-from packaging import version
 from xarray import DataArray
 
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
@@ -32,18 +31,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-USE_EMPTY_PROPERTY = version.parse(ln.__version__) >= version.parse("0.5.1")
-
-
 def check_if_empty(expr: LinearExpression) -> bool:
     """Check if the expression is empty.
 
     This is a workaround for the issue that linopy does not support
     the empty property for older versions (`.empty` in >=0.5.1 vs `.empty()` in <0.5.1).
     """
-    if USE_EMPTY_PROPERTY:
-        return expr.empty
-    return expr.empty()
+    empty = getattr(expr, "empty", None)
+    if callable(empty) and type(empty).__name__ != "EmptyDeprecationWrapper":
+        return empty()
+    return bool(empty)
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):

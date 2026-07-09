@@ -369,7 +369,9 @@ class OptimizationAbstractMGAMixin:
             raise ValueError(msg)
 
         # build alternate objective
-        m.objective = self.build_linexpr_from_weights(weights, model=m) * sense
+        m.add_objective(
+            self.build_linexpr_from_weights(weights, model=m) * sense, overwrite=True
+        )
 
         status, condition = self._n.optimize.solve_model(**kwargs)
 
@@ -510,9 +512,13 @@ class OptimizationAbstractMGAMixin:
         # Build objective as linear combination of direction and
         # dimensions. Flip the sign in order to maximize in the given
         # direction.
-        m.objective = -sum(
-            direction[key] * self.build_linexpr_from_weights(dimensions[key], model=m)
-            for key in direction.keys()
+        m.add_objective(
+            -sum(
+                direction[key]
+                * self.build_linexpr_from_weights(dimensions[key], model=m)
+                for key in direction.keys()
+            ),
+            overwrite=True,
         )
 
         status, condition = self._n.optimize.solve_model(**kwargs)

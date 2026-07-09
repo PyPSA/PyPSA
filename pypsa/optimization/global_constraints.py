@@ -17,6 +17,7 @@ from numpy import isnan
 from xarray import DataArray
 
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.scaling import global_constraint_scaling
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -86,7 +87,11 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
                 lhs = lhs_per_bus.sel(**{busdim: str(bus_glc)}, drop=True)
 
             n.model.add_constraints(
-                lhs, sign, glc.constant, name=f"GlobalConstraint-{name}"
+                lhs,
+                sign,
+                glc.constant,
+                name=f"GlobalConstraint-{name}",
+                scaling=global_constraint_scaling(glc),
             )
 
 
@@ -477,6 +482,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             glc_group.sense,
             glc_group.constant,
             name=f"GlobalConstraint-{name}",
+            scaling=global_constraint_scaling(glc_group),
         )
 
 
@@ -675,6 +681,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             glc_group.sense,
             glc_group.constant,
             name=f"GlobalConstraint-{name}",
+            scaling=global_constraint_scaling(glc_group),
         )
 
 
@@ -786,7 +793,13 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
         sign = glc_group.sense
         rhs = glc_group.constant
 
-        m.add_constraints(expression, sign, rhs, name=f"GlobalConstraint-{name}")
+        m.add_constraints(
+            expression,
+            sign,
+            rhs,
+            name=f"GlobalConstraint-{name}",
+            scaling=global_constraint_scaling(glc_group),
+        )
 
 
 def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
@@ -864,4 +877,10 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
 
         lhs = merge(lhs)
         sign = "=" if glc.sense == "==" else glc.sense
-        m.add_constraints(lhs, sign, glc.constant, name=f"GlobalConstraint-{name}")
+        m.add_constraints(
+            lhs,
+            sign,
+            glc.constant,
+            name=f"GlobalConstraint-{name}",
+            scaling=global_constraint_scaling(glc),
+        )

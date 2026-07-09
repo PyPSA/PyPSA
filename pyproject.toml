@@ -35,7 +35,7 @@ dependencies = [
     "pandas>=2.0",
     "xarray",
     "netcdf4",
-    "linopy>=0.7.0",
+    "linopy @ git+https://github.com/davide-f/linopy.git@add_scaling",
     "matplotlib",
     "plotly",
     "pydeck>=0.6",

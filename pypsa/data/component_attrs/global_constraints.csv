@@ -6,4 +6,5 @@ bus,string,n/a,n/a,"Bus to which the global constraint applies. Only relevant fo
 carrier_attribute,string,n/a,co2_emissions,"If the global constraint is connected with a carrier, name the associated carrier attribute. This must appear as a column in `n.carriers`.",Input (optional)
 sense,string,n/a,==,"Constraint sense; must be one of <=, == or >=",Input (optional)
 constant,float,n/a,0,"Constant for right-hand-side of constraint for optimisation period. For a CO~2~ constraint, this would be tonnes of CO~2~.",Input (optional)
+scaling,float,n/a,1,"Positive optimisation scaling factor passed to Linopy for this global constraint row. Does not change values stored in PyPSA data structures.",Input (optional)
 mu,float,currency/constant,0,Shadow price of global constraint,Output
