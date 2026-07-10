@@ -79,9 +79,8 @@ potentially much slower.)
 
 ### mpi-sppy
 
-Install `mpi-sppy` from GitHub into the **same environment as PyPSA** — the PyPI
-release can lag behind the features the interface relies on (such as the MPS-file
-loader):
+Install `mpi-sppy` into the **same environment as PyPSA**. We recommend installing
+from GitHub, which tracks features newer than the latest PyPI release:
 
 ```bash
 pip install "git+https://github.com/Pyomo/mpi-sppy.git"
@@ -95,14 +94,21 @@ git clone https://github.com/Pyomo/mpi-sppy.git
 pip install -e "./mpi-sppy[mpi]"
 ```
 
+Since `mpi-sppy` 0.14.0 the MPS-file loader the interface relies on is also on
+PyPI, so a plain pip install works too:
+
+```bash
+pip install "mpi-sppy>=0.14.0"
+```
+
 !!! tip "The `mpisppy` extra"
 
-    `pip install "pypsa[mpisppy]"` pulls the PyPI-installable helpers — `mpi4py` and
-    `mip` (the coin-or parser mpi-sppy uses to read the per-scenario LP/MPS files) —
-    but **not `mpi-sppy` itself**, which you install with the GitHub command above
-    until a PyPI release ships the MPS-file loader. Set up MPI and `mpi4py` first
-    (above): installing `mpi4py` through the extra just compiles it against whatever
-    MPI `pip` happens to find.
+    `pip install "pypsa[mpisppy]"` now pulls `mpi-sppy` (>= 0.14.0) itself along with
+    the helpers `mpi4py` and `mip` (the coin-or parser mpi-sppy uses to read the
+    per-scenario LP/MPS files), so it is self-contained. Set up MPI and `mpi4py`
+    first (above): installing `mpi4py` through the extra just compiles it against
+    whatever MPI `pip` happens to find. Install from GitHub (above) if you want
+    features newer than the latest PyPI release.
 
 ### A persistent QP solver
 

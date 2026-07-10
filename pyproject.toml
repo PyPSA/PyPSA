@@ -63,12 +63,11 @@ gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
 dotenv = ["python-dotenv"]
 tsam = ["tsam"]
-# The extra pulls the PyPI-installable helpers only: mpi4py, and mip (coin-or
-# python-mip, the LP/MPS parser behind mpi-sppy's mps_module reader). mpi-sppy itself
-# is installed separately for now -- pip install "git+https://github.com/Pyomo/mpi-sppy.git"
-# -- until a PyPI release ships the MPS-file-loader support, after which add it here
-# as a plain "mpi-sppy>=<version>" pin.
-mpisppy = ["mpi4py", "mip"]
+# mpi-sppy 0.14.0 is the first PyPI release to ship the MPS-file loader the
+# interface drives, so the extra is now self-contained. mip is coin-or python-mip,
+# the LP/MPS parser behind mpi-sppy's mps_module reader. The docs still recommend
+# installing mpi-sppy from GitHub for features newer than the latest PyPI release.
+mpisppy = ["mpi-sppy>=0.14.0", "mpi4py", "mip"]
 test = [
     "pytest",
     "pytest-cov",
