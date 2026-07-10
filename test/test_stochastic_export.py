@@ -11,7 +11,6 @@ need neither mpi-sppy nor a solver. The end-to-end ``solve_stochastic_mpisppy`` 
 skipped unless mpi-sppy and Gurobi are installed.
 """
 
-import importlib.util
 import json
 import shlex
 import shutil
@@ -31,7 +30,24 @@ from pypsa.optimization import stochastic_mpisppy as stochastic
 # FutureWarning) and without the consistency check (avoids carrier warnings).
 MODEL_KWARGS = {"include_objective_constant": False, "consistency_check": False}
 
-_HAS_MPISPPY = importlib.util.find_spec("mpisppy") is not None
+
+def _mpisppy_usable() -> bool:
+    """Whether mpi-sppy can actually be imported, not merely installed.
+
+    ``mpisppy/__init__.py`` pulls in mpi4py, which loads the MPI runtime library
+    (``libmpi.so``) at import time. That library is absent on machines without an
+    MPI installation (e.g. CI runners), so ``import mpisppy`` raises there even
+    though the package is present -- as it now is via the ``pypsa[mpisppy]`` extra.
+    Gate the end-to-end solve tests on real usability so they skip cleanly.
+    """
+    try:
+        import mpisppy  # noqa: F401
+    except Exception:
+        return False
+    return True
+
+
+_HAS_MPISPPY = _mpisppy_usable()
 _HAS_GUROBI = "gurobi" in available_solvers
 _HAS_MPIEXEC = shutil.which("mpiexec") is not None
 
