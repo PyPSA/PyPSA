@@ -3821,7 +3821,7 @@ requires-dist = [
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.1.1" },
     { name = "levenshtein", specifier = ">=0.27.1" },
     { name = "linopy", specifier = ">=0.7.0" },
-    { name = "matplotlib" },
+    { name = "matplotlib", specifier = "!=3.11.0" },
     { name = "matplotlib", marker = "extra == 'dev'", specifier = "<3.11" },
     { name = "mkdocs-autolinks-plugin", marker = "extra == 'docs'" },
     { name = "mkdocs-ezlinks-plugin", marker = "extra == 'docs'" },
