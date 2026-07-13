@@ -107,7 +107,7 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_eu: ENTSO-E (European Network of Transmission System Operators for Electricity)](https://www.entsoe.eu/)** launched a research and innovation project to develop a complementary open-source tool in PyPSA for [Scenario Building and Cost-Benefit Analysis within the TYNDP process](https://www.linkedin.com/posts/entso-e_energytransition-opensource-innovation-activity-7293296246813851649-2ynL).
 
-* **[:flag_eu: ENNOH (European Network of Network Operators for Hydrogen)](https://ennoh.eu/)** announced that it will use the open-source PyPSA modelling framework for its [first Ten-Year Network Development Plan (TYNDP), starting in 2027](https://www.linkedin.com/posts/events-hydrogen-berlin-ugcPost-7479830967445073921-jO17/), to support transparent and collaborative hydrogen infrastructure planning, as highlighted in a LinkedIn announcement.
+* **[:flag_eu: ENNOH (European Network of Network Operators for Hydrogen)](https://ennoh.eu/)** announced to use PyPSA for its [first Ten-Year Network Development Plan (TYNDP), starting in 2027](https://www.linkedin.com/posts/events-hydrogen-berlin-ugcPost-7479830967445073921-jO17/), to support transparent and collaborative hydrogen infrastructure planning.
 
 * **[:flag_at: Austrian Power Grid (APG)](https://www.apg.at/)**, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in [this talk](https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf) and [this project description](https://www.apg.at/projekte/zusammen-2040/).
 
