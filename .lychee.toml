@@ -28,6 +28,7 @@ exclude = [
 # Release notes are an immutable historical record whose links rot over time.
 exclude_path = ["docs/release-notes.md"]
 
-timeout = 30
-max_retries = 2
+timeout = 60
+max_retries = 4
+retry_wait_time = 2
 max_redirects = 10
