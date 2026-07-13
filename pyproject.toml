@@ -36,7 +36,7 @@ dependencies = [
     "xarray",
     "netcdf4",
     "linopy>=0.7.0",
-    "matplotlib",
+    "matplotlib!=3.11.0", # faceted plots crash on 3.11.0, see matplotlib#31881
     "plotly",
     "pydeck>=0.6",
     "seaborn",
