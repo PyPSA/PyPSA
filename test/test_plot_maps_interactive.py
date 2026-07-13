@@ -4,6 +4,7 @@
 
 import sys
 
+import numpy as np
 import pydeck as pdk
 import pytest
 
@@ -196,3 +197,56 @@ def test_geomap_params(ac_dc_network):
         geomap_resolution="110m",
     )
     plotter.deck()
+
+
+def _reproject_arrow_to_mercator(arrow_lonlat):
+    """Reproject arrow lon/lat vertices back to EPSG:3857 metres."""
+    arrow = np.asarray(arrow_lonlat)
+    x, y = interactive.PydeckPlotter.PROJ.transform(arrow[:, 0], arrow[:, 1])
+    return np.column_stack((x, y))
+
+
+def test_make_arrows_consistent_with_forward_projection():
+    """Arrows must be inverted with the same EPSG:3857 projection used to build them.
+
+    Regression test for a projection mismatch: the forward transform projected
+    to Web Mercator (EPSG:3857) but the inverse used a spherical approximation
+    (``meters_to_lonlat``), distorting arrows by a factor of ``sec(latitude)``.
+    """
+    flow = 1.0
+    factor = 1e5  # base width of 100 km
+
+    # horizontal branch at 60°N, where the Web Mercator distortion is ~2x
+    p0 = (10.0, 60.0)
+    p1 = (12.0, 60.0)
+    arrow = interactive.PydeckPlotter._make_arrows(flow, p0, p1, factor)
+    merc = _reproject_arrow_to_mercator(arrow)
+
+    # midpoint of the branch in EPSG:3857
+    p0_m = interactive.PydeckPlotter.PROJ.transform(*p0)
+    p1_m = interactive.PydeckPlotter.PROJ.transform(*p1)
+    midpoint = np.array([(p0_m[0] + p1_m[0]) / 2, (p0_m[1] + p1_m[1]) / 2])
+
+    # the arrow is centred on the branch midpoint in the forward projection
+    np.testing.assert_allclose(merc.mean(axis=0), midpoint, rtol=1e-6)
+
+    # and its base width equals the requested size, without latitude distortion
+    base_width = merc[:, 1].max() - merc[:, 1].min()
+    np.testing.assert_allclose(base_width, flow * factor, rtol=1e-6)
+
+
+def test_make_arrows_size_independent_of_latitude():
+    """Equal flows produce equally sized arrows regardless of latitude."""
+    flow = 1.0
+    factor = 1e5
+
+    low = interactive.PydeckPlotter._make_arrows(flow, (10.0, 0.0), (12.0, 0.0), factor)
+    high = interactive.PydeckPlotter._make_arrows(
+        flow, (10.0, 60.0), (12.0, 60.0), factor
+    )
+
+    low_merc = _reproject_arrow_to_mercator(low)
+    high_merc = _reproject_arrow_to_mercator(high)
+    low_width = low_merc[:, 1].max() - low_merc[:, 1].min()
+    high_width = high_merc[:, 1].max() - high_merc[:, 1].min()
+    np.testing.assert_allclose(low_width, high_width, rtol=1e-6)
