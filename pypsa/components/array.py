@@ -11,7 +11,7 @@ DataArray for each variable.
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 import numpy as np
 import pandas as pd
@@ -138,6 +138,11 @@ class _XarrayAccessor:
     def __getitem__(self, attr: str) -> xr.DataArray:
         """Access component attributes as xarray DataArrays via bracket notation."""
         return self._get_array(attr)
+
+    def __iter__(self) -> NoReturn:
+        """Raise a clear error, as XarrayAccessor objects are not iterable."""
+        msg = "XarrayAccessor objects are not iterable."
+        raise TypeError(msg)
 
     def __dir__(self) -> list[str]:
         """List available attributes for tab-completion."""
