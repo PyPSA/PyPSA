@@ -577,7 +577,7 @@ class NetworkTransformMixin(_NetworkABC):
         Which updates the bus components
 
         >>> n.buses.index
-        Index(['bus2'], dtype='object', name='name')
+        Index(['bus2'], dtype='str', name='name')
 
         and all references in the network
 
