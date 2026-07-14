@@ -191,7 +191,7 @@ class ComponentsTransformMixin:
         Which updates the bus components
 
         >>> c.static.index
-        Index(['bus2'], dtype='str', name='name')
+        Index(['bus2'], dtype='object', name='name')
 
         and all references in the network
 

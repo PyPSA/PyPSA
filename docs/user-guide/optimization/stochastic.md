@@ -127,7 +127,7 @@ True
 
 ``` py
 >>> n.scenarios
-Index(['volcano', 'no_volcano'], dtype='str', name='scenario')
+Index(['volcano', 'no_volcano'], dtype='object', name='scenario')
 ```
 
 ``` py

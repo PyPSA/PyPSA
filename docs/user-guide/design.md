@@ -203,7 +203,7 @@ with [`n.set_scenarios()`][pypsa.Network.set_scenarios].
 >>> n = pypsa.Network() # docs-hide
 >>> n.set_scenarios(["low", "high"])
 >>> n.scenarios
-Index(['low', 'high'], dtype='str', name='scenario')
+Index(['low', 'high'], dtype='object', name='scenario')
 ```
 
 Probabilities for each scenario can also be set with

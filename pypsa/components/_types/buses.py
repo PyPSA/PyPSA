@@ -80,7 +80,7 @@ class Buses(Components):
         >>> n = pypsa.Network()
         >>> n.components.generators.add("my_gen", bus="my_bus")
         >>> n.components.buses.add_missing_buses(v_nom=100.0)
-        Index(['my_bus'], dtype='str')
+        Index(['my_bus'], dtype='object')
 
         Buses are added without needing to call `n.add` separately:
 
