@@ -12,6 +12,11 @@ scheme = ["https", "http"]
 # not link rot.
 accept = ["100..=403", "405..=409", "411..=599"]
 
+# Slow hosts (large PDFs, government portals) time out on a different random
+# subset each run. Timeouts are not link rot, so tolerate them; genuine 404/410
+# and connection failures still fail the check.
+accept_timeouts = true
+
 # Hosts that reject automated clients through TLS/HTTP2/timeout errors instead
 # of a status code, so `accept` cannot cover them.
 exclude = [
@@ -23,9 +28,6 @@ exclude = [
   "gurobi.com",
   "sun.ac.za",
   "agora-energiewende.de",
-  "gnu.org",
-  "doi.org",
-  "openresearchsoftware.metajnl.com",
 ]
 
 # Release notes are an immutable historical record whose links rot over time.
