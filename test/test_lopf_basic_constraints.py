@@ -349,12 +349,12 @@ def test_define_fixed_operational_constraints_positive(mode):
 
     n.optimize()
 
-    assert n.c.generators.dynamic.p["gen2"].eq(8).all()
+    assert (n.c.generators.dynamic.p["gen2"] - 8).abs().lt(1e-6).all()
     if mode == "mixed":
-        assert n.c.generators.dynamic.p["gen1"].eq(1).all()
-        assert n.c.generators.dynamic.p["gen0"].eq(1).all()
+        assert (n.c.generators.dynamic.p["gen1"] - 1).abs().lt(1e-6).all()
+        assert (n.c.generators.dynamic.p["gen0"] - 1).abs().lt(1e-6).all()
     else:
-        assert n.c.generators.dynamic.p["gen0"].eq(2).all()
+        assert (n.c.generators.dynamic.p["gen0"] - 2).abs().lt(1e-6).all()
 
 
 @pytest.mark.parametrize("static", [False, True])
@@ -480,6 +480,7 @@ def test_nodal_balance_respects_load_sign():
     assert n.objective < TOLERANCE
 
 
+@pytest.mark.no_scaling  # asserts on the raw model RHS
 def test_nodal_balance_load_sign_rhs_values():
     """
     Verify the per-load contribution to the nodal balance RHS for both

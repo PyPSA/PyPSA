@@ -5,6 +5,7 @@
 import pytest
 
 
+@pytest.mark.no_scaling  # scigrid_de
 @pytest.mark.parametrize("transmission_losses", [1, 2])
 def test_optimize_losses(scipy_network, transmission_losses):
     n = scipy_network

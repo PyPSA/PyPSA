@@ -81,6 +81,7 @@ def test_assign_all_duals(ac_dc_network, assign):
     assert ("mu_generation_limit_dynamic" in n.c.global_constraints.dynamic) == assign
 
 
+@pytest.mark.no_scaling  # compares the raw model dual against the network value
 def test_assign_duals_noname(ac_dc_network):
     """Test that dual values are correctly assigned back to network,
     also for a special case of constraints without component dimension."""

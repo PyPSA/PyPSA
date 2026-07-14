@@ -51,14 +51,11 @@ def test_rolling_horizon(committable):
         assert status == "ok"
 
     ramping = n.c.generators.dynamic.p.diff().fillna(0)
-    assert (
-        (ramping <= n.c.generators.static.eval("ramp_limit_up * p_nom_opt")).all().all()
-    )
-    assert (
-        (ramping >= -n.c.generators.static.eval("ramp_limit_down * p_nom_opt"))
-        .all()
-        .all()
-    )
+    static = n.c.generators.static
+    ramp_up = static["ramp_limit_up"] * static["p_nom_opt"]
+    ramp_down = static["ramp_limit_down"] * static["p_nom_opt"]
+    assert (ramping <= ramp_up + 1e-5).all().all()
+    assert (ramping >= -ramp_down - 1e-5).all().all()
 
 
 @pytest.mark.parametrize("committable", [True, False])
@@ -75,14 +72,11 @@ def test_rolling_horizon_integrated(committable):
 
     n.optimize.optimize_with_rolling_horizon(horizon=3)
     ramping = n.c.generators.dynamic.p.diff().fillna(0)
-    assert (
-        (ramping <= n.c.generators.static.eval("ramp_limit_up * p_nom_opt")).all().all()
-    )
-    assert (
-        (ramping >= -n.c.generators.static.eval("ramp_limit_down * p_nom_opt"))
-        .all()
-        .all()
-    )
+    static = n.c.generators.static
+    ramp_up = static["ramp_limit_up"] * static["p_nom_opt"]
+    ramp_down = static["ramp_limit_down"] * static["p_nom_opt"]
+    assert (ramping <= ramp_up + 1e-5).all().all()
+    assert (ramping >= -ramp_down - 1e-5).all().all()
 
 
 def test_rolling_horizon_integrated_overlap():
@@ -101,14 +95,11 @@ def test_rolling_horizon_integrated_overlap():
 
     n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=1)
     ramping = n.c.generators.dynamic.p.diff().fillna(0)
-    assert (
-        (ramping <= n.c.generators.static.eval("ramp_limit_up * p_nom_opt")).all().all()
-    )
-    assert (
-        (ramping >= -n.c.generators.static.eval("ramp_limit_down * p_nom_opt"))
-        .all()
-        .all()
-    )
+    static = n.c.generators.static
+    ramp_up = static["ramp_limit_up"] * static["p_nom_opt"]
+    ramp_down = static["ramp_limit_down"] * static["p_nom_opt"]
+    assert (ramping <= ramp_up + 1e-5).all().all()
+    assert (ramping >= -ramp_down - 1e-5).all().all()
 
 
 def test_rolling_horizon_committable_ramp_limits():
@@ -222,6 +213,7 @@ def test_rolling_horizon_committable_overlap_matches_full_run():
     assert (ramping >= -static.eval("ramp_limit_down * p_nom_opt")).all().all()
 
 
+@pytest.mark.no_scaling  # scigrid_de
 def test_rolling_horizon_linearized_uc_with_ramp_limits():
     """
     Test rolling horizon with linearized UC and ramp limits on committables.
