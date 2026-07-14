@@ -260,11 +260,11 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
     ).all()  # Assert that default value is set
 
     # Test different names shape
-    with pytest.raises(ValueError, match="index which does not align"):
+    with pytest.raises(ValueError, match="columns which do not align"):
         n_5bus_7sn.add("Load", load_names[1:] + "_a", p_set=p_set)
 
     # Test unaligned names index
-    with pytest.raises(ValueError, match="index which does not align"):
+    with pytest.raises(ValueError, match="columns which do not align"):
         n_5bus_7sn.add("Load", load_names + "_b", p_set=swap_df_index(p_set))
 
     # Test different snapshots shape
@@ -272,7 +272,7 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
         n_5bus_7sn.add("Load", load_names + "_c", p_set=p_set[1:])
 
     # Test different snapshots index
-    with pytest.raises(ValueError, match="index which does not align"):
+    with pytest.raises(ValueError, match="columns which do not align"):
         n_5bus_7sn.add("Load", load_names + "_d", p_set=swap_df_index(p_set, axis=1))
 
 
