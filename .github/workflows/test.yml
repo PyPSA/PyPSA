@@ -36,8 +36,15 @@ jobs:
     - uses: hynek/build-and-inspect-python-package@v2
       id: baipp
 
+    - name: Compute reduced PR python versions
+      id: pr-versions
+      env:
+        ALL: ${{ steps.baipp.outputs.supported_python_classifiers_json_array }}
+      run: echo "python-versions-pr=$(jq -cn --argjson a "$ALL" '[$a[0], $a[-1]] | unique')" >> "$GITHUB_OUTPUT"
+
     outputs:
       python-versions: ${{ steps.baipp.outputs.supported_python_classifiers_json_array }}
+      python-versions-pr: ${{ steps.pr-versions.outputs.python-versions-pr }}
 
   test:
     # Test package build in matrix of OS and Python versions
@@ -47,21 +54,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJSON(needs.build.outputs.python-versions) }}
-        os:
-        - ubuntu-latest
-        - macos-latest
-        - windows-latest
+        # lean matrix on PRs and master pushes (min+max Python, ubuntu only), full matrix for daily runs and releases
+        python-version: ${{ (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && fromJSON(needs.build.outputs.python-versions) || fromJSON(needs.build.outputs.python-versions-pr) }}
+        os: ${{ (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && fromJSON('["ubuntu-latest","macos-latest","windows-latest"]') || fromJSON('["ubuntu-latest"]') }}
         api: [default, new_api]
         exclude:
         - os: macos-latest
           api: new_api
         - os: windows-latest
           api: new_api
-        include:
-        - python-version: '3.13'
-          os: ubuntu-latest
-          api: pandas3
+        include: ${{ (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && fromJSON('[{"python-version":"3.13","os":"ubuntu-latest","api":"pandas3"}]') || fromJSON('[]') }}
 
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
