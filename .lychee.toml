@@ -23,12 +23,14 @@ exclude = [
   "gurobi.com",
   "sun.ac.za",
   "agora-energiewende.de",
+  "gnu.org",
+  "doi.org",
+  "openresearchsoftware.metajnl.com",
 ]
 
 # Release notes are an immutable historical record whose links rot over time.
 exclude_path = ["docs/release-notes.md"]
 
-timeout = 60
-max_retries = 4
-retry_wait_time = 2
+timeout = 30
+max_retries = 2
 max_redirects = 10
