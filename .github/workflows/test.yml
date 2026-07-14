@@ -233,6 +233,15 @@ jobs:
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
 
+    - name: Check external links
+      if: ${{ !cancelled() }}
+      uses: lycheeverse/lychee-action@v2
+      with:
+        args: "--config .lychee.toml --no-progress './**/*.md'"
+        fail: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Upload code coverage report
       if: ${{ !cancelled() }}
       uses: codecov/codecov-action@v7
