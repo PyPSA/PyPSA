@@ -20,6 +20,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fixed spurious infeasibility in [`optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] when a network mixed committable and non-committable generators with ramp limits. At a window seam, non-committable components (which carry no commitment status) were assigned `status=0`, corrupting their start-up/shut-down ramp terms. (<!-- md:pr 1644 -->)
 - Fix [`supply`][pypsa.optimization.expressions.StatisticExpressionsAccessor.supply] and [`withdrawal`][pypsa.optimization.expressions.StatisticExpressionsAccessor.withdrawal] expressions dropping the charging contribution of `StorageUnit` components. The supply/withdrawal split now considers the effective coefficients of the operational variable, so the `p_store` term is correctly reported as a withdrawal. (<!-- md:pr 1760 -->)
 - Fix [`n.graph()`][pypsa.network.graph.NetworkGraphMixin.graph] building edges in a non-deterministic order, which could make results that depend on the network's cycles differ between runs. In particular, security-constrained optimization (SCLOPF) now returns consistent results. (<!-- md:pr 1764 -->)
 
@@ -1406,7 +1407,7 @@ For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.m
   implementation ``n.optimize()`` and will be removed in PyPSA v1.0. We will
   have a generous transition period, but please start migrating your
   ``extra_functionality`` functions, e.g. by following our [migration guide
- ](https://docs.pypsa.orgxamples/optimization-with-linopy-migrate-extra-functionalities.html).
+ ](https://docs.pypsa.org/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html).
 * The module ``pypsa.networkclustering`` was moved to
   ``pypsa.clustering.spatial``. The module ``pypsa.networkclustering`` is now
   deprecated but all functionality will continue to be accessible until PyPSA v0.25.

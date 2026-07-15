@@ -9,7 +9,7 @@ from __future__ import annotations
 import copy
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 from weakref import ref
 
 from deprecation import deprecated
@@ -479,6 +479,11 @@ class Network(
                 raise NotImplementedError(msg)
 
             return self.slice_network(key)
+
+    def __iter__(self) -> NoReturn:
+        """Raise a clear error, as Network objects are not iterable."""
+        msg = "PyPSA Network objects are not iterable."
+        raise TypeError(msg)
 
     @property
     def stats(self) -> StatisticsAccessor:

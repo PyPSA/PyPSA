@@ -20,8 +20,7 @@ build:
     create_environment:
     - uv venv "${READTHEDOCS_VIRTUALENV_PATH}"
     install:
-    - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv pip install -r docs/requirements.txt
-    - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv pip install ".[smspp]"
+    - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv sync --extra docs --frozen
     pre_build:
     - printf '%b' "$GUROBI_LIC" > $HOME/gurobi.lic
     - python -c "p=\"$HOME/gurobi.lic\";t=open(p).read().replace(chr(39),\"\");open(p,\"w\").write(t)"

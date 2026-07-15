@@ -29,7 +29,7 @@ open source and actively maintained. Below is a list of some known models.
 - **[:flag_nl: PyPSA-NL2025](https://github.com/Tanneheemsbergen/pypsa-NL2025)**: Dutch energy system model simulating day-ahead, imbalance-only, and value stacking for energy storage projects, maintained by Tanne Heemsbergen
 
 ### Asia
-- **[:flag_cn: PyPSA-China-PIK](https://github.com/pik-piam/PyPSA-China-PIK)**: Chinese power and heat sector-coupling model, maintained by [PIK](https://www.pik-potsdam.de) based on a [previous version](https://github.com/Xiaowei-Z/PyPSA-China)
+- **[:flag_cn: PyPSA-China-PIK](https://github.com/pik-piam/PyPSA-China-PIK)**: Chinese power and heat sector-coupling model, maintained by [PIK](https://www.pik-potsdam.de) based on a [previous version](https://github.com/PyPSA/PyPSA-China)
 - **[:flag_vn: PyPSA-VN](https://github.com/fiasresna/pypsa-vn)**: Vietnamese electricity model, developed by FIAS
 - **[:flag_kr: PyPSA-KR](https://energyinnovation.korea.ac.kr/research/code-and-data)**: South Korean energy system model, developed by Korea University
 - **[:flag_jp: PyPSA-Japan](https://github.com/smdumlao/demandfingerprint/tree/main/papers/coaldecommissioning)**: Japanese power system model, developed by Samuel Matthew Dumlao
@@ -58,7 +58,7 @@ open source and actively maintained. Below is a list of some known models.
 
 - Build your own global zero emission scenario [model.energy](https://model.energy), maintained by [pypsa.org](https://pypsa.org)
     - Define your own sector-coupled European scenarios [scenarios](https://model.energy/scenarios/)
-    - Build your own green energy import supply chain [supply chain](https://model.energy/green-energy-imports/)
+    - Build your own green energy import supply chain [supply chain](https://model.energy/)
     - See how the [future](https://model.energy/future/) German energy system might operate with today's weather
 - Transport of chemical energy carriers to Germany [TRACE](https://github.com/euronion/trace)
 - Transmission grid optimisation [eTraGo](https://github.com/openego/eTraGo)
