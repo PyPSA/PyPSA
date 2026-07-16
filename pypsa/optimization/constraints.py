@@ -9,10 +9,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-import linopy
 import pandas as pd
 import xarray as xr
-from linopy import merge
+from linopy import LinearExpression, merge
 from numpy import inf, isfinite, isinf, maximum, sqrt, tile
 from xarray import DataArray, where
 
@@ -820,7 +819,7 @@ def define_ramp_limit_constraints(
     if is_com_fix.any():
         com_main_names = idx[is_com_fix]
         status = status.where(~is_com_fix, 0)
-        status = linopy.LinearExpression(status, m)
+        status = LinearExpression.from_constant(m, status)
         status_var = m[f"{c.name}-status"].sel(name=com_main_names)
         status = (status + status_var).loc[:, status.indexes["name"]]
 
@@ -862,8 +861,8 @@ def define_ramp_limit_constraints(
         else:
             s_init_ext = (c.da.up_time_before.sel(name=ext_main_names) > 0) * 1.0
         sp_ext = (1 - filter_first_sn) + s_init_ext * filter_first_sn
-        if not isinstance(rhs, linopy.LinearExpression):
-            rhs = linopy.LinearExpression(rhs, m)
+        if not isinstance(rhs, LinearExpression):
+            rhs = LinearExpression.from_constant(m, rhs)
         rhs = rhs + limit_up.sel(name=ext_main_names) * p_nom_ext_var * sp_ext
         if is_com_fix.any():
             ds_ext = filter_first_sn * (1 - s_init_ext)
@@ -878,8 +877,8 @@ def define_ramp_limit_constraints(
     if is_com_fix.any():
         rhs = rhs - limit_shut * p_nom * (status_prev - status)
     if p_nom_ext_var is not None:
-        if not isinstance(rhs, linopy.LinearExpression):
-            rhs = linopy.LinearExpression(rhs, m)
+        if not isinstance(rhs, LinearExpression):
+            rhs = LinearExpression.from_constant(m, rhs)
         rhs = rhs - limit_down.sel(name=ext_main_names) * p_nom_ext_var
         if is_com_fix.any():
             ds_ext = filter_first_sn * (1 - s_init_ext)
@@ -1185,7 +1184,7 @@ def define_nodal_balance_constraints(
             .reindex(name=buses, fill_value=0)
         )
 
-    empty_nodal_balance = (lhs.vars == -1).all("_term")
+    empty_nodal_balance = ~lhs.has_terms
 
     if empty_nodal_balance.any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
@@ -1725,7 +1724,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         ) | c.da.state_of_charge_initial_per_period.sel(name=c.active_assets)
 
         # We calculate the previous soc per period while cycling within a period
-        previous_soc_pp = _roll_within_periods(soc.data)
+        previous_soc_pp = _roll_within_periods(soc)
 
         # We create a mask `include_previous_soc_pp` which determines when to include
         # previous state of charge from within the period:
@@ -1747,9 +1746,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
                 previous_soc_pp = previous_soc_pp.transpose(*expected_dims)
 
         # We take values still to handle internal xarray multi-index difficulties
-        previous_soc_pp = previous_soc_pp.where(
-            include_previous_soc_pp.values, linopy.variables.FILL_VALUE
-        )
+        previous_soc_pp = previous_soc_pp.where(include_previous_soc_pp.values)
 
         # update the previous_soc variables and right hand side
         previous_soc = previous_soc.where(~per_period, previous_soc_pp)
@@ -1903,7 +1900,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         per_period = per_period.sel(name=c.active_assets)
 
         # We calculate the previous e per period while cycling within a period
-        previous_e_pp = _roll_within_periods(e.data)
+        previous_e_pp = _roll_within_periods(e)
 
         # We create a mask `include_previous_e_pp` which determines when to include
         # previous energy from within the period:
@@ -1918,9 +1915,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         )
 
         # We take values still to handle internal xarray multi-index difficulties
-        previous_e_pp = previous_e_pp.where(
-            include_previous_e_pp.values, linopy.variables.FILL_VALUE
-        )
+        previous_e_pp = previous_e_pp.where(include_previous_e_pp.values)
 
         # update previous_e variables and rhs
         previous_e = previous_e.where(~per_period, previous_e_pp)

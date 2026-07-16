@@ -125,7 +125,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         self, res: dict[str, LinearExpression], is_one_component: bool
     ) -> LinearExpression:
         if res == {}:
-            return LinearExpression(None, self._n.model)
+            return LinearExpression.from_constant(self._n.model, 0)
         if is_one_component:
             first_key = next(iter(res))
             return res[first_key].loc[first_key]
@@ -161,7 +161,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         m = self._n.model
 
         if c == "Load":
-            return LinearExpression(self._n.get_switchable_as_dense(c, "p_set"), m)
+            return LinearExpression.from_constant(
+                m, self._n.get_switchable_as_dense(c, "p_set")
+            )
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
             return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
@@ -216,7 +218,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if var_name in m.variables:
                 capacity = m.variables[var_name] + non_ext_capacity
             elif not non_ext_capacity.empty:
-                capacity = LinearExpression(non_ext_capacity, m)
+                capacity = LinearExpression.from_constant(m, non_ext_capacity)
             else:
                 return None
 
@@ -288,7 +290,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if var_name in m.variables:
                 capacity = m.variables[var_name] + non_ext_capacity
             elif not non_ext_capacity.empty:
-                capacity = LinearExpression(non_ext_capacity, m)
+                capacity = LinearExpression.from_constant(m, non_ext_capacity)
             else:
                 return None
 
@@ -685,7 +687,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if var_name in m.variables:
                 capacity = m.variables[var_name] + non_ext_capacity
             elif not non_ext_capacity.empty:
-                capacity = LinearExpression(non_ext_capacity, m)
+                capacity = LinearExpression.from_constant(m, non_ext_capacity)
             else:
                 return None
 
