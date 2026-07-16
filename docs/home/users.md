@@ -39,7 +39,7 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_jp: Kyoto University](https://www.kyoto-u.ac.jp/en)** in Japan uses PyPSA to model several high PV penetration scenarios in Kyushu, where PV capacity has been rapidly growing since 2012 and PV curtailment started in 2018: [doi:10.3390/en14092389](https://doi.org/10.3390/en14092389), [doi:10.3390/en14154496](https://doi.org/10.3390/en14154496)
 
-- **[:flag_it: University of Pisa](https://www.unipi.it/index.php/english/)** uses PyPSA as part of the [PyPSA-meets-Earth initiative](https://pypsa-meets-earth.github.io/) in [doi:10.1016/j.apenergy.2023.121096](https://doi.org/10.1016/j.apenergy.2023.121096)
+- **[:flag_it: University of Pisa](https://www.unipi.it/)** uses PyPSA as part of the [PyPSA-meets-Earth initiative](https://pypsa-meets-earth.github.io/) in [doi:10.1016/j.apenergy.2023.121096](https://doi.org/10.1016/j.apenergy.2023.121096)
 
 - **[:flag_ch: University of Geneva](https://www.unige.ch/)** in Switzerland published multiple research papers, for example: [doi:10.1038/s41467-020-18812-y](https://doi.org/10.1038/s41467-020-18812-y)
 
@@ -107,9 +107,11 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_eu: ENTSO-E (European Network of Transmission System Operators for Electricity)](https://www.entsoe.eu/)** launched a research and innovation project to develop a complementary open-source tool in PyPSA for [Scenario Building and Cost-Benefit Analysis within the TYNDP process](https://www.linkedin.com/posts/entso-e_energytransition-opensource-innovation-activity-7293296246813851649-2ynL).
 
+* **[:flag_eu: ENNOH (European Network of Network Operators for Hydrogen)](https://ennoh.eu/)** announced to use PyPSA for its [first Ten-Year Network Development Plan (TYNDP), starting in 2027](https://www.linkedin.com/posts/events-hydrogen-berlin-ugcPost-7479830967445073921-jO17/), to support transparent and collaborative hydrogen infrastructure planning.
+
 * **[:flag_at: Austrian Power Grid (APG)](https://www.apg.at/)**, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in [this talk](https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf) and [this project description](https://www.apg.at/projekte/zusammen-2040/).
 
-- **[:flag_at: Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/)** develops and maintains a high-resolution, sector-coupled energy system model for [Austria](https://github.com/AGGM-AG/pypsa-at) based on PyPSA-DE and PyPSA-EUR. The model is used to analyse long-term energy system projections up to 2050 and serves as a supplementary tool for AGGM’s bi-annual report, the Langfristige Integrierte Planung (LFiP).
+- **[:flag_at: Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/)** develops and maintains a high-resolution, sector-coupled energy system model for [Austria](https://github.com/msalkeldp/pypsa-at) based on PyPSA-DE and PyPSA-EUR. The model is used to analyse long-term energy system projections up to 2050 and serves as a supplementary tool for AGGM’s bi-annual report, the Langfristige Integrierte Planung (LFiP).
 
 - **[:flag_nl: TenneT](https://www.tennet.eu/)**, the Dutch TSO, used PyPSA for [research](https://arxiv.org/abs/2104.13047) on ancillary services acquisition using agent-based modelling.
 
@@ -141,7 +143,7 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_eu: The EU Agency for the Cooperation of Energy Regulators (ACER)](https://www.acer.europa.eu/)** is building a PyPSA solution for the [EU-wide flexibility assessment platform](https://www.acer.europa.eu/sites/default/files/documents/en/The_agency/Organisation/Expert_Groups/EG_Flexibility/Flexibility_EG_Open_Letter_2025.pdf).
 
-* **[:flag_de: GIZ](https://www.giz.de/en/html/index.html)**, the German Agency for International Cooperation (Deutsche Gesellschaft für Internationale Zusammenarbeit), published and supported several studies based on PyPSA for the [integration of renewables into the Vietnamese power system](http://gizenergy.org.vn/media/app/media/Research%20Cooperation%20Project%20Fact%20Sheet_final.pdf), [power sector analysis for Thailand](https://static.agora-energiewende.de/fileadmin/Partnerpublikationen/2021/CASE_Beyond_Net_Zero_Empowering_Climate_Mitigation/Towards_a_collective_vision_of_Thai_energy_transition_full_report.pdf) within the CASE programme, [the future of the Indonesian power system](https://energynautics.com/en/pypsa/) within the 1000 Islands programme, and the [Brazilian electricity system](https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf).
+* **[:flag_de: GIZ](https://www.giz.de/en/html/index.html)**, the German Agency for International Cooperation (Deutsche Gesellschaft für Internationale Zusammenarbeit), published and supported several studies based on PyPSA for the integration of renewables into the Vietnamese power system, [power sector analysis for Thailand](https://static.agora-energiewende.de/fileadmin/Partnerpublikationen/2021/CASE_Beyond_Net_Zero_Empowering_Climate_Mitigation/Towards_a_collective_vision_of_Thai_energy_transition_full_report.pdf) within the CASE programme, [the future of the Indonesian power system](https://energynautics.com/en/pypsa/) within the 1000 Islands programme, and the [Brazilian electricity system](https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf).
 
 * **[:flag_ca: Canada Energy Regulator (CER)](https://www.cer-rec.gc.ca/en/)**, an agency of the Government of Canada, used PyPSA for its [Canada's Energy Future 2023](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2023/appendix-3/) and [Canada's Energy Future 2026 report](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2026/canada-energy-futures-2026.pdf) report.
 

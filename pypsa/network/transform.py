@@ -348,7 +348,8 @@ class NetworkTransformMixin(_NetworkABC):
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
                 if not v.columns.equals(names):
-                    raise ValueError(msg.format(f"DataFrame {k}", names_str))
+                    col_msg = "DataFrame {} has columns which do not align with the passed {}."
+                    raise ValueError(col_msg.format(k, names_str))
 
             # Convert list-like and 1-dim array to pandas.Series
             if is_1d_list_like(v):

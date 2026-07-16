@@ -45,7 +45,6 @@ dev-scripts
 dev
 
 .venv
-uv.lock
 .aider*
 .claude
 site/

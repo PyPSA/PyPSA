@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+# lychee link checker config (https://lychee.cli.rs).
+# Only remote links are validated here; internal doc links are covered by the
+# strict mkdocs build (`fail_on_warning`, see .readthedocs.yml).
+scheme = ["https", "http"]
+
+# Accept every reachable response except definitive "not found" codes, so only
+# 404 and 410 fail. Publishers routinely answer bots with 400/403/429, which is
+# not link rot.
+accept = ["100..=403", "405..=409", "411..=599"]
+
+# Slow hosts (large PDFs, government portals) time out on a different random
+# subset each run. Timeouts are not link rot, so tolerate them; genuine 404/410
+# and connection failures still fail the check.
+accept_timeouts = true
+
+# Hosts that reject automated clients through TLS/HTTP2/timeout errors instead
+# of a status code, so `accept` cannot cover them.
+exclude = [
+  "localhost",
+  "127.0.0.1",
+  "aramco.com",
+  "fenes.net",
+  "znes-flensburg.de",
+  "gurobi.com",
+  "sun.ac.za",
+  "agora-energiewende.de",
+]
+
+# Release notes are an immutable historical record whose links rot over time.
+exclude_path = ["docs/release-notes.md"]
+
+timeout = 30
+max_retries = 2
+max_redirects = 10
