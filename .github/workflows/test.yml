@@ -20,20 +20,31 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # PRs use the committed lockfile, master/nightly resolve fresh
+  UV_LOCK_ARG: ${{ github.event_name == 'pull_request' && '--locked' || '--upgrade' }}
+
 jobs:
   build:
     # Build the Python SDist and wheel, performs metadata and readme linting
     name: Build and verify package
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # Needed for setuptools_scm
     - uses: hynek/build-and-inspect-python-package@v2
       id: baipp
 
+    - name: Compute reduced PR python versions
+      id: pr-versions
+      env:
+        ALL: ${{ steps.baipp.outputs.supported_python_classifiers_json_array }}
+      run: echo "python-versions-pr=$(jq -cn --argjson a "$ALL" '[$a[0], $a[-1]] | unique')" >> "$GITHUB_OUTPUT"
+
     outputs:
       python-versions: ${{ steps.baipp.outputs.supported_python_classifiers_json_array }}
+      python-versions-pr: ${{ steps.pr-versions.outputs.python-versions-pr }}
 
   test:
     # Test package build in matrix of OS and Python versions
@@ -43,26 +54,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJSON(needs.build.outputs.python-versions) }}
-        os:
-        - ubuntu-latest
-        - macos-latest
-        - windows-latest
+        # lean matrix on PRs and master pushes (min+max Python, ubuntu only), full matrix for daily runs and releases
+        python-version: ${{ (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && fromJSON(needs.build.outputs.python-versions) || fromJSON(needs.build.outputs.python-versions-pr) }}
+        os: ${{ (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && fromJSON('["ubuntu-latest","macos-latest","windows-latest"]') || fromJSON('["ubuntu-latest"]') }}
         api: [default, new_api]
         exclude:
         - os: macos-latest
           api: new_api
         - os: windows-latest
           api: new_api
-        include:
-        - python-version: '3.13'
-          os: ubuntu-latest
-          api: pandas3
+        include: ${{ (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && fromJSON('[{"python-version":"3.13","os":"ubuntu-latest","api":"pandas3"}]') || fromJSON('[]') }}
 
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # Needed for setuptools_scm
 
@@ -90,14 +96,14 @@ jobs:
       if: matrix.python-version != '3.14'
       run: |
         python -m pip install uv
-        uv sync --all-extras --no-install-project
+        uv sync --all-extras --no-install-project $UV_LOCK_ARG
         uv pip install "$(ls dist/*.whl)"
 
     - name: Install package and dependencies (Python 3.14)
       if: matrix.python-version == '3.14'
       run: |
         python -m pip install uv
-        uv sync --extra dev --no-install-project
+        uv sync --extra dev --no-install-project $UV_LOCK_ARG
         uv pip install "$(ls dist/*.whl)"
 
     - name: Install pandas 3
@@ -128,7 +134,7 @@ jobs:
 
     - name: Upload code coverage report
       if: ${{ !cancelled() }}
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: >
@@ -157,7 +163,7 @@ jobs:
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # Needed for setuptools_scm
 
@@ -175,7 +181,7 @@ jobs:
     - name: Install package and dependencies
       run: |
         python -m pip install uv
-        uv sync --all-extras --no-install-project
+        uv sync --all-extras --no-install-project $UV_LOCK_ARG
         uv pip install "$(ls dist/*.whl)"
 
     - name: Run image comparison tests
@@ -199,7 +205,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # Needed for setuptools_scm
 
@@ -217,7 +223,7 @@ jobs:
     - name: Install package and dependencies
       run: |
         python -m pip install uv
-        uv sync --all-extras --no-install-project
+        uv sync --all-extras --no-install-project $UV_LOCK_ARG
         uv pip install "$(ls dist/*.whl)"
 
     - name: Run doc tests
@@ -227,9 +233,18 @@ jobs:
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
 
+    - name: Check external links
+      if: ${{ !cancelled() }}
+      uses: lycheeverse/lychee-action@v2
+      with:
+        args: "--config .lychee.toml --no-progress './**/*.md'"
+        fail: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Upload code coverage report
       if: ${{ !cancelled() }}
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: >
@@ -255,7 +270,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # Needed for setuptools_scm
 
@@ -273,7 +288,7 @@ jobs:
     - name: Install package and dependencies
       run: |
         python -m pip install uv
-        uv sync --all-extras --no-install-project
+        uv sync --all-extras --no-install-project $UV_LOCK_ARG
         uv pip install "$(ls dist/*.whl)"
 
     - name: Run type checker (mypy)

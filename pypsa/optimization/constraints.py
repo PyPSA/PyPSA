@@ -1064,7 +1064,7 @@ def define_ramp_limit_constraints(
     if is_rolling_horizon:
         start_i = n.snapshots.get_loc(sns[0]) - 1
         p_init = c.da[hist_attr][start_i]
-        s_init = c.da.status[start_i].fillna(1)
+        s_init = c.da.status[start_i].where(c.da.committable, 1).fillna(1)
     else:
         initially_up = c.da.up_time_before > 0
         p_init = c.da.p_init.where(initially_up, 0)
@@ -1090,7 +1090,12 @@ def define_ramp_limit_constraints(
         rhs = rhs + limit_start * p_nom * (status - status_prev)
     if p_nom_ext_var is not None:
         if is_rolling_horizon:
-            s_init_ext = c.da.status[start_i].sel(name=ext_main_names).fillna(1)
+            s_init_ext = (
+                c.da.status[start_i]
+                .where(c.da.committable, 1)
+                .fillna(1)
+                .sel(name=ext_main_names)
+            )
         else:
             s_init_ext = (c.da.up_time_before.sel(name=ext_main_names) > 0) * 1.0
         sp_ext = (1 - filter_first_sn) + s_init_ext * filter_first_sn
@@ -1329,12 +1334,16 @@ def define_nodal_balance_constraints(
         # Only keep the first scenario if there are multiple
         if n.has_scenarios:
             cbuses = cbuses.isel(scenario=0, drop=True)
-        cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
 
-        if not cbuses.size:
+        # `numpy.isin` on object arrays scales poorly; use pandas hashing instead
+        mask = pd.Index(cbuses.data).isin(buses)
+
+        if not mask.any():
             continue
 
-        #  drop non-existent multiport buses which are ''
+        cbuses = cbuses[mask].rename("Bus")
+
+        # drop non-existent multiport buses which are ''
         if (
             c.name in n.controllable_branch_components
             and isinstance(c, _Multiport)
@@ -1371,11 +1380,16 @@ def define_nodal_balance_constraints(
             cbuses = cbuses.sel(name=names)
             if n.has_scenarios:
                 cbuses = cbuses.isel(scenario=0, drop=True)
-            cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
-            cbuses = cbuses[cbuses != ""]
 
-            if not cbuses.size:
+            # `numpy.isin` on object arrays scales poorly; use pandas hashing.
+            # Also drop non-existent multiport buses, which are "".
+            labels = pd.Index(cbuses.data)
+            mask = labels.isin(buses) & (labels != "")
+
+            if not mask.any():
                 continue
+
+            cbuses = cbuses[mask].rename("Bus")
 
             expr = expr.sel(name=cbuses.coords["name"].values)
             if expr.size:

@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import numpy as np
 import pandas as pd
 from numpy.testing import assert_almost_equal as equal
 
@@ -41,17 +42,15 @@ def test_optimize_security_constrained(scipy_network):
     n.c.generators.dynamic.p_set = n.c.generators.dynamic.p.copy()
     n.c.storage_units.dynamic.p_set = n.c.storage_units.dynamic.p.copy()
 
-    # TODO see https://github.com/PyPSA/PyPSA/issues/1356
+    # Check no lines are overloaded with the linear contingency analysis
+    p0_test = n.lpf_contingency(n.snapshots[0], branch_outages=branch_outages)
 
-    # # Check no lines are overloaded with the linear contingency analysis
-    # p0_test = n.lpf_contingency(n.snapshots[0], branch_outages=branch_outages)
+    # Check loading as per unit of s_nom in each contingency
+    max_loading = (
+        abs(p0_test.divide(n.passive_branches().s_nom, axis=0)).describe().loc["max"]
+    )
 
-    # # Check loading as per unit of s_nom in each contingency
-    # max_loading = (
-    #     abs(p0_test.divide(n.passive_branches().s_nom, axis=0)).describe().loc["max"]
-    # )
-
-    # arr_equal(max_loading, np.ones(len(max_loading)), decimal=4)
+    equal(max_loading, np.ones(len(max_loading)), decimal=4)
     equal(n.objective, 339758.4578, decimal=1)
 
     # === Dual variable assignment checks ===
