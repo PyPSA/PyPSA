@@ -776,6 +776,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, component: str, port: str) -> pd.Series:
             m = n.model
             c = n.c[component]
+            if "p_max_pu" not in c.static.columns:
+                # curtailment only applies to components with a per-unit availability
+                # (passive branches have no p_max_pu, yielding an all-NaN dense frame)
+                return None
             nom_attr = c._operational_attrs["nom"]
             var_name = f"{component}-{nom_attr}"
 
