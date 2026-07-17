@@ -821,7 +821,7 @@ def define_ramp_limit_constraints(
         status = status.where(~is_com_fix, 0)
         status = LinearExpression.from_constant(m, status)
         status_var = m[f"{c.name}-status"].sel(name=com_main_names)
-        status = (status + status_var).loc[:, status.indexes["name"]]
+        status = status.add(status_var, join="left")
 
     if is_rolling_horizon:
         start_i = n.snapshots.get_loc(sns[0]) - 1
@@ -863,11 +863,15 @@ def define_ramp_limit_constraints(
         sp_ext = (1 - filter_first_sn) + s_init_ext * filter_first_sn
         if not isinstance(rhs, LinearExpression):
             rhs = LinearExpression.from_constant(m, rhs)
-        rhs = rhs + limit_up.sel(name=ext_main_names) * p_nom_ext_var * sp_ext
+        rhs = rhs.add(
+            limit_up.sel(name=ext_main_names) * p_nom_ext_var * sp_ext, join="left"
+        )
         if is_com_fix.any():
             ds_ext = filter_first_sn * (1 - s_init_ext)
-            rhs = rhs + limit_start.sel(name=ext_main_names) * p_nom_ext_var * ds_ext
-        # Adding a partial name expression sorts the name dim. This should be guarded more heavily in a future linopy release
+            rhs = rhs.add(
+                limit_start.sel(name=ext_main_names) * p_nom_ext_var * ds_ext,
+                join="left",
+            )
         rhs = rhs.sel(name=idx)
     mask_up = mask & ~no_up_limit & non_com_ext
     m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_up", mask=mask_up)
@@ -879,11 +883,13 @@ def define_ramp_limit_constraints(
     if p_nom_ext_var is not None:
         if not isinstance(rhs, LinearExpression):
             rhs = LinearExpression.from_constant(m, rhs)
-        rhs = rhs - limit_down.sel(name=ext_main_names) * p_nom_ext_var
+        rhs = rhs.add(-limit_down.sel(name=ext_main_names) * p_nom_ext_var, join="left")
         if is_com_fix.any():
             ds_ext = filter_first_sn * (1 - s_init_ext)
-            rhs = rhs + limit_shut.sel(name=ext_main_names) * p_nom_ext_var * ds_ext
-        # Adding a partial name expression sorts the name dim. This should be guarded more heavily in a future linopy release
+            rhs = rhs.add(
+                limit_shut.sel(name=ext_main_names) * p_nom_ext_var * ds_ext,
+                join="left",
+            )
         rhs = rhs.sel(name=idx)
     mask_down = mask & ~no_down_limit & non_com_ext
     m.add_constraints(
@@ -987,7 +993,7 @@ def _iter_balance_args(
             if not names.empty:
                 yield (
                     f"bus{port}",
-                    coeff.sel(name=names),
+                    coeff.sel(name=names).fillna(0),
                     names,
                     delay_int,
                     bool(cyc),
@@ -1086,10 +1092,11 @@ def define_nodal_balance_constraints(
         if c.static.empty:
             continue
 
+        var = m[f"{c.name}-{attr}"]
         if "sign" in c.static:
-            sign = sign * c.da.sign
+            sign = sign * c.da.sign.sel(name=var.indexes["name"].values)
 
-        expr = sign * m[f"{c.name}-{attr}"]
+        expr = sign * var
 
         cbuses = c._as_xarray(column)
         cbuses = cbuses.sel(name=c.active_assets)
@@ -1121,7 +1128,7 @@ def define_nodal_balance_constraints(
         c = n.c[component]
         for bus_col, coeff, names, delay, is_cyclic in _iter_balance_args(c, sns):
             if delay <= 0:
-                expr = coeff * m[f"{c.name}-p"]
+                expr = coeff * m[f"{c.name}-p"].sel(name=names)
             else:
                 src_snapshot_pos, valid = c.get_delay_source_indexer(
                     sns,
@@ -1256,10 +1263,9 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         exprs = []
         for c in C.index.unique("type"):
             C_branch = DataArray(C.loc[c])
-            flow = m[f"{c}-s"].sel(
-                snapshot=snapshots,
-                name=C_branch.indexes["name"].difference(n.c[c].inactive_assets),
-            )
+            active_names = C_branch.indexes["name"].difference(n.c[c].inactive_assets)
+            C_branch = C_branch.sel(name=active_names)
+            flow = m[f"{c}-s"].sel(snapshot=snapshots, name=active_names)
             exprs.append(flow @ C_branch * 1e5)
         lhs.append(sum(exprs))
 
@@ -1606,6 +1612,7 @@ def define_fixed_operation_constraints(
 
     active = c.da.active.sel(snapshot=sns, name=fix.coords["name"].values)
     mask = active & (~fix.isnull())
+    fix = fix.fillna(0)
 
     if component == "StorageUnit" and attr == "p":
         p_dispatch = n.model["StorageUnit-p_dispatch"]

@@ -216,7 +216,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             # Build capacity expression handling both extendable and non-extendable
             if var_name in m.variables:
-                capacity = m.variables[var_name] + non_ext_capacity
+                capacity = (
+                    m.variables[var_name]
+                    .to_linexpr()
+                    .add(non_ext_capacity, join="outer")
+                )
             elif not non_ext_capacity.empty:
                 capacity = LinearExpression.from_constant(m, non_ext_capacity)
             else:
@@ -288,7 +292,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             # Build capacity expression handling both extendable and non-extendable
             if var_name in m.variables:
-                capacity = m.variables[var_name] + non_ext_capacity
+                capacity = (
+                    m.variables[var_name]
+                    .to_linexpr()
+                    .add(non_ext_capacity, join="outer")
+                )
             elif not non_ext_capacity.empty:
                 capacity = LinearExpression.from_constant(m, non_ext_capacity)
             else:
@@ -685,7 +693,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             # Build capacity expression handling both extendable and non-extendable
             if var_name in m.variables:
-                capacity = m.variables[var_name] + non_ext_capacity
+                capacity = (
+                    m.variables[var_name]
+                    .to_linexpr()
+                    .add(non_ext_capacity, join="outer")
+                )
             elif not non_ext_capacity.empty:
                 capacity = LinearExpression.from_constant(m, non_ext_capacity)
             else:

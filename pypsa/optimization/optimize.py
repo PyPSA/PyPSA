@@ -224,7 +224,8 @@ def define_objective(
         if n.has_scenarios and isinstance(constant, xr.DataArray):
             # For stochastic networks, weight constant by scenario probabilities
             weighted_constant = sum(
-                constant.sel(scenario=s) * n.scenario_weightings.loc[s, "weight"]
+                constant.sel(scenario=s, drop=True)
+                * n.scenario_weightings.loc[s, "weight"]
                 for s in n.scenarios
             )
             n._objective_constant = float(weighted_constant)
@@ -362,7 +363,7 @@ def define_objective(
         if n.has_scenarios:
             terms = []
             for s, p in n.scenario_weightings["weight"].items():
-                selected = [e.sel(scenario=s) for e in exprs]
+                selected = [e.sel(scenario=s, drop=True) for e in exprs]
                 # If quadratic terms exist, avoid merge (which is linear-only) and sum instead
                 merged = sum(selected) if is_quadratic else merge(selected)
                 terms.append(merged * p)
@@ -394,7 +395,7 @@ def define_objective(
         # Create per-scenario OPEX expressions to use in constraints
         scen_opex_exprs: dict[Any, Any] = {}
         for s in n.scenarios:
-            scen_selected = [e.sel(scenario=s) for e in opex_terms]
+            scen_selected = [e.sel(scenario=s, drop=True) for e in opex_terms]
             scen_opex_exprs[s] = (
                 (sum(scen_selected) if is_quadratic else merge(scen_selected))
                 if scen_selected
@@ -407,13 +408,13 @@ def define_objective(
         cvar = m["CVaR"]
 
         for s in n.scenarios:
-            lhs = a.sel(scenario=s) - scen_opex_exprs[s] + theta
+            lhs = a.sel(scenario=s, drop=True) - scen_opex_exprs[s] + theta
             m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
 
         inv_tail = 1.0 / (1.0 - alpha)
         weighted_a = None
         for s, p in n.scenario_weightings["weight"].items():
-            term = a.sel(scenario=s) * float(p)
+            term = a.sel(scenario=s, drop=True) * float(p)
             weighted_a = term if weighted_a is None else weighted_a + term
         if weighted_a is None:  # mypy type guard
             msg = "No scenarios found in scenario_weightings"
