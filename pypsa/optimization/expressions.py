@@ -251,8 +251,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         m = self._n.model
 
         if c == "Load":
+            sns = m.parameters.snapshots.to_index()
             return LinearExpression.from_constant(
-                m, self._n.get_switchable_as_dense(c, "p_set")
+                m, self._n.get_switchable_as_dense(c, "p_set").loc[sns]
             )
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
