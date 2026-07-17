@@ -1700,21 +1700,12 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         (eff_store * eh, m[f"{component}-p_store"]),
     ]
 
-    if f"{component}-spill" in m.variables:
-        lhs += [(-eh, m[f"{component}-spill"])]
-
     # We create a mask `include_previous_soc` which excludes the first snapshot
     # for non-cyclic assets
     noncyclic_b = ~c.da.cyclic_state_of_charge.sel(name=c.active_assets)
     include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
-    previous_soc = (
-        soc.where(active)
-        .ffill(dim)
-        .roll(snapshot=1)
-        .ffill(dim)
-        .where(include_previous_soc)
-    )
+    previous_soc = soc.where(active).ffill(dim).roll(snapshot=1).ffill(dim)
 
     # We add inflow and initial soc for noncyclic assets to rhs
     soc_init = c.da.state_of_charge_initial.sel(name=c.active_assets)
@@ -1799,7 +1790,13 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
                 affected,
             )
 
-    lhs += [(eff_stand, previous_soc)]
+    lhs += [(eff_stand * include_previous_soc, previous_soc)]
+
+    lhs = m.linexpr(*lhs)
+    if f"{component}-spill" in m.variables:
+        # Spill is masked for storage units without inflow; fill the resulting
+        # absent slots with 0 so those energy-balance rows are not dropped.
+        lhs = lhs - (eh * m[f"{component}-spill"]).fillna(0)
 
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
 
@@ -1889,9 +1886,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     # Calculate previous energy state with proper handling of boundaries
-    previous_e = (
-        e.where(active).ffill(dim).roll(snapshot=1).ffill(dim).where(include_previous_e)
-    )
+    previous_e = e.where(active).ffill(dim).roll(snapshot=1).ffill(dim)
 
     # We add initial e for non-cyclic assets to rhs
     e_init = c.da.e_initial.sel(name=c.active_assets)
@@ -1965,7 +1960,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
             )
 
     # Add the previous energy term with standing efficiency factor
-    lhs += [(eff_stand, previous_e)]
+    lhs += [(eff_stand * include_previous_e, previous_e)]
 
     # For snapshots where we don't include previous_e, we need to account for initial values
     rhs = -e_init.where(~include_previous_e, 0)
