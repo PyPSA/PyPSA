@@ -234,7 +234,8 @@ jobs:
         && uv run coverage xml
 
     - name: Check external links
-      if: ${{ !cancelled() }}
+      # Flaky external hosts, run on the daily schedule only, not PRs/master
+      if: ${{ !cancelled() && github.event_name == 'schedule' }}
       uses: lycheeverse/lychee-action@v2
       with:
         args: "--config .lychee.toml --no-progress './**/*.md'"
