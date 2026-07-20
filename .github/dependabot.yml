@@ -29,3 +29,6 @@ updates:
     uv:
       patterns:
       - '*'
+      update-types:
+      - minor
+      - patch
