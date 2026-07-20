@@ -127,6 +127,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         agg: Callable | str,
         c: str,
     ) -> pd.DataFrame:
+        grouping = grouping.reindex(vals.indexes["name"])
         return vals.groupby(grouping).sum()
 
     def _aggregate_components_concat_values(
