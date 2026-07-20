@@ -22,6 +22,9 @@ updates:
     interval: weekly
   cooldown:
     default-days: 7
+  # skip standalone PRs for transitive deps
+  allow:
+  - dependency-type: direct
   groups:
     uv:
       patterns:
