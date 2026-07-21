@@ -19,3 +19,17 @@ SPDX-License-Identifier: CC-BY-4.0
           - "!^_[^_]"
           - "!logger"
           - "!OptimizationAbstractMGAMixin"
+
+## Stochastic decomposition (mpi-sppy)
+
+The functions behind the `n.optimize.*_mpisppy` accessor methods; see the
+[Stochastic Optimization by Decomposition](../../user-guide/optimization/stochastic-decomposition.md)
+guide.
+
+::: pypsa.optimization.stochastic_mpisppy
+    options:
+        heading_level: 3
+        members:
+          - write_stochastic_problem_mpisppy
+          - read_stochastic_solution_mpisppy
+          - solve_stochastic_mpisppy
