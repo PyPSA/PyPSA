@@ -254,7 +254,7 @@ def define_operational_constraints_for_committables(
     status = n.model[f"{c.name}-status"]
     start_up = n.model[f"{c.name}-start_up"]
     shut_down = n.model[f"{c.name}-shut_down"]
-    status_diff = status - status.shift(snapshot=1)
+    status_diff = status - status.to_linexpr().shift(snapshot=1).fillna(0)
     p = n.model[f"{c.name}-p"].sel(name=com_i)
     active = c.da.active.sel(name=com_i, snapshot=sns)
 
@@ -273,8 +273,10 @@ def define_operational_constraints_for_committables(
     min_up_time_set = c.da.min_up_time.sel(name=com_i)
     min_down_time_set = c.da.min_down_time.sel(name=com_i)
 
-    ramp_up_limit = nominal * c.da.ramp_limit_up.sel(name=com_i).fillna(1)
-    ramp_down_limit = nominal * c.da.ramp_limit_down.sel(name=com_i).fillna(1)
+    ramp_up_limit = nominal * c.da.ramp_limit_up.sel(name=com_i, snapshot=sns).fillna(1)
+    ramp_down_limit = nominal * c.da.ramp_limit_down.sel(
+        name=com_i, snapshot=sns
+    ).fillna(1)
     ramp_start_up = nominal * c.da.ramp_limit_start_up.sel(name=com_i).fillna(1)
     ramp_shut_down = nominal * c.da.ramp_limit_shut_down.sel(name=com_i).fillna(1)
     up_time_before_set = c.da.up_time_before.sel(name=com_i)
@@ -451,7 +453,7 @@ def define_operational_constraints_for_committables(
     if not min_up_time_i.empty:
         expr = []
         for g in min_up_time_i:
-            su = start_up.loc[:, g]
+            su = start_up.loc[:, [g]]
             # Retrieve the minimum up time value for generator g and convert it to a scalar
             up_time_value = min_up_time_set.sel(name=g).item()
             expr.append(su.rolling(snapshot=up_time_value).sum())
@@ -470,7 +472,7 @@ def define_operational_constraints_for_committables(
     if not min_down_time_i.empty:
         expr = []
         for g in min_down_time_i:
-            su = shut_down.loc[:, g]
+            su = shut_down.loc[:, [g]]
             down_time_value = min_down_time_set.sel(
                 {min_down_time_set.dims[0]: g}
             ).item()
@@ -691,8 +693,13 @@ def _define_ramp_limit_big_m(
         p_init = c.da.p_init.sel(name=idx).where(initially_up, 0)
         s_init = initially_up
 
-    p_prev_ce = p.shift(snapshot=1) + p_init.fillna(0) * filter_first_sn
-    status_prev_ce = status.shift(snapshot=1) + s_init.fillna(0) * filter_first_sn
+    p_prev_ce = (
+        p.to_linexpr().shift(snapshot=1).fillna(0) + p_init.fillna(0) * filter_first_sn
+    )
+    status_prev_ce = (
+        status.to_linexpr().shift(snapshot=1).fillna(0)
+        + s_init.fillna(0) * filter_first_sn
+    )
 
     lhs_delta = p - p_prev_ce
     mask = mask.sel(name=idx)
@@ -839,10 +846,10 @@ def define_ramp_limit_constraints(
     mask = mask & ~boundary
 
     p = m[f"{c.name}-{var_attr}"]
-    p_prev = p.shift(snapshot=1) + p_init.fillna(0) * filter_first_sn
-    status_shifted = status.shift(snapshot=1)
-    if not is_com_fix.any():
-        status_shifted = status_shifted.fillna(0)
+    p_prev = (
+        p.to_linexpr().shift(snapshot=1).fillna(0) + p_init.fillna(0) * filter_first_sn
+    )
+    status_shifted = status.shift(snapshot=1).fillna(0)
     status_prev = status_shifted + s_init.fillna(0) * filter_first_sn
 
     non_com_ext = ~is_com_ext
