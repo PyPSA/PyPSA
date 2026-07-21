@@ -137,6 +137,8 @@ filterwarnings = [
     # Ignore linopy warnings
     "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
     "ignore:In a future version of xarray the default value for join will change:FutureWarning",
+    # linopy v1-semantics forward-looking warnings (legacy behavior unchanged); migrate when v1 ships
+    "ignore::linopy.config.LinopySemanticsWarning",
 
     # Ignore pandas<3.0.3 usage of the deprecated `locs` attribute of matplotlib>=3.11
     "ignore:The locs attribute was deprecated:DeprecationWarning",
@@ -288,3 +290,6 @@ ignore = [
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"
+
+[tool.uv.sources]
+linopy = { git = "https://github.com/PyPSA/linopy.git", branch = "feat/arithmetic-convention" }
