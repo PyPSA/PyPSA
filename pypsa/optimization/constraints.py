@@ -30,7 +30,7 @@ from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
-    from linopy import LinearExpression, Variable
+    from linopy import Variable
     from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
@@ -1303,8 +1303,8 @@ def define_nodal_balance_constraints(
 
 
 def _groupby_bus(
-    expr: linopy.LinearExpression, bus_mapping: DataArray, **sel: Any
-) -> linopy.LinearExpression:
+    expr: LinearExpression, bus_mapping: DataArray, **sel: Any
+) -> LinearExpression:
     """Group an expression by bus using a provided bus mapping."""
     return (
         expr.sel(**sel)
