@@ -34,5 +34,5 @@ exclude = [
 exclude_path = ["docs/release-notes.md"]
 
 timeout = 30
-max_retries = 2
+max_retries = 5
 max_redirects = 10
