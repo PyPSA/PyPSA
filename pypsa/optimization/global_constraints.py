@@ -12,7 +12,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from linopy.expressions import merge
+from linopy import merge
 from numpy import isnan
 from xarray import DataArray
 
@@ -266,7 +266,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         return
 
     lhs = merge(lhs_list)
-    rhs = max_absolute_growth.reindex_like(lhs.data)
+    rhs = max_absolute_growth.reindex(lhs.indexes)
 
     m.add_constraints(lhs, "<=", rhs, name="Carrier-growth_limit")
 

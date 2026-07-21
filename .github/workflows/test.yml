@@ -73,7 +73,7 @@ jobs:
         fetch-depth: 0   # Needed for setuptools_scm
 
     - name: Set up Python ${{ matrix.python-version }} on ${{ matrix.os }}
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -168,7 +168,7 @@ jobs:
         fetch-depth: 0   # Needed for setuptools_scm
 
     - name: Set up Python 3.13
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: 3.13
 
@@ -210,7 +210,7 @@ jobs:
         fetch-depth: 0   # Needed for setuptools_scm
 
     - name: Set up Python 3.13
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: 3.13
 
@@ -234,7 +234,8 @@ jobs:
         && uv run coverage xml
 
     - name: Check external links
-      if: ${{ !cancelled() }}
+      # Flaky external hosts, run on the daily schedule only, not PRs/master
+      if: ${{ !cancelled() && github.event_name == 'schedule' }}
       uses: lycheeverse/lychee-action@v2
       with:
         args: "--config .lychee.toml --no-progress './**/*.md'"
@@ -275,7 +276,7 @@ jobs:
         fetch-depth: 0   # Needed for setuptools_scm
 
     - name: Set up Python 3.13
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: 3.13
 
