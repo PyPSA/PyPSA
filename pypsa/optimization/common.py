@@ -11,11 +11,13 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import xarray as xr
 from deprecation import deprecated
-from numpy import hstack, ravel, zeros
+from numpy import hstack, ravel, roll, zeros
 
 from pypsa.constants import RE_PORTS
 
 if TYPE_CHECKING:
+    from linopy import Variable
+
     from pypsa import Network
 
 
@@ -29,13 +31,13 @@ def _period_start_mask(sns: pd.Index) -> xr.DataArray:
     return xr.DataArray(is_start, coords=[sns])
 
 
-def _roll_within_periods(da: xr.DataArray) -> xr.DataArray:
-    """Cyclically roll ``da`` by one snapshot within each investment period."""
-    rolled = [
-        da.sel(snapshot=(period, slice(None))).roll(snapshot=1)
-        for period in da.get_index("snapshot").unique("period")
-    ]
-    return xr.concat(rolled, dim="snapshot")
+def _roll_within_periods(v: Variable) -> Variable:
+    """Cyclically roll ``v`` by one snapshot within each investment period."""
+    sns = v.indexes["snapshot"]
+    positions = pd.Series(range(len(sns)), index=sns)
+    roll_index = positions.groupby(level="period").transform(lambda s: roll(s, 1))
+    coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
+    return v.isel(snapshot=roll_index.to_numpy()).assign_coords(coords)
 
 
 @deprecated(

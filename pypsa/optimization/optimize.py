@@ -13,8 +13,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import xarray as xr
-from linopy import Model, merge
-from linopy.solvers import available_solvers
+from linopy import Model, available_solvers, merge
 
 from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
