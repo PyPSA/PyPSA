@@ -1884,8 +1884,8 @@ wheels = [
 
 [[package]]
 name = "linopy"
-version = "0.8.0.post1.dev133+g8ce901e03"
-source = { git = "https://github.com/PyPSA/linopy.git?branch=feat%2Farithmetic-convention#8ce901e03b8a133f86a4d77c5661284c71605076" }
+version = "0.8.0.post1.dev136+gc48dafdd6"
+source = { git = "https://github.com/PyPSA/linopy.git?branch=feat%2Farithmetic-convention#c48dafdd66798b132cf9920bd4bf9de5bafcccd4" }
 dependencies = [
     { name = "bottleneck" },
     { name = "dask" },
