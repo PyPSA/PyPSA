@@ -184,6 +184,20 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](imperfect-competition.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Subsidies, CfDs and PPAs**
+
+    Settles support schemes (two-sided CfD, one-sided feed-in premium, cap-and-floor,
+    virtual and baseload PPAs) as a post-processing step on a solved network.
+
+    [:octicons-arrow-right-24: Go to example](cfd-ppa-settlement.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Multi-Year CfD Settlement**
+
+    Extends the settlement recipe across a contract lifetime: CPI strike indexation
+    and vintage stacking of a multi-cohort support portfolio.
+
+    [:octicons-arrow-right-24: Go to example](cfd-multi-year-settlement.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Screening Curves**
 
     Determines optimal generation capacity mix based on screening curves.
