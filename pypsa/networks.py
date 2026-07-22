@@ -91,6 +91,8 @@ class Network(
     _multi_invest: int
     _linearized_uc: int
     _committable_big_m: float | None
+    _optimize_flatten_snapshots: bool
+    _optimize_window_snapshots: pd.Index | None
     iteration: int
 
     # ----------------

@@ -141,48 +141,6 @@ def pytest_warning_recorded(warning_message, when, nodeid, location):
         ] += 1
 
 
-_LINOPY_V1_MULTIINDEX_MARKER = "v1 convention does not support"
-_LINOPY_V1_XFAIL_REASON = (
-    "linopy v1 forbids MultiIndex dimension coords; PyPSA's multi-period and "
-    "multiperiod-stochastic optimization builds variables on a MultiIndex snapshot "
-    "(pending a flat-snapshot representation)."
-)
-
-
-def _is_v1_multiindex_error(exc: BaseException | None) -> bool:
-    """Whether ``exc`` (or anything it chains from) is linopy's MultiIndex ban.
-
-    The ban can be masked by a wrapping failure (e.g. ``pytest.warns`` raising
-    ``DID NOT WARN`` when the error fires before the expected warning), so the
-    ``__cause__`` / ``__context__`` chain is walked too.
-    """
-    seen: set[int] = set()
-    while exc is not None and id(exc) not in seen:
-        seen.add(id(exc))
-        if isinstance(exc, ValueError) and _LINOPY_V1_MULTIINDEX_MARKER in str(exc):
-            return True
-        exc = exc.__cause__ or exc.__context__
-    return False
-
-
-def pytest_runtest_makereport(item, call):
-    """Xfail tests blocked by linopy v1's MultiIndex snapshot ban.
-
-    PyPSA multi-period optimization builds variables on a ``pd.MultiIndex``
-    ``snapshot`` dimension, which linopy's v1 convention rejects outright. Only
-    that specific error is turned into an expected failure; every other v1
-    divergence still fails the test.
-    """
-    if os.environ.get("LINOPY_SEMANTICS") != "v1" or call.excinfo is None:
-        return None
-    if _is_v1_multiindex_error(call.excinfo.value):
-        report = pytest.TestReport.from_item_and_call(item, call)
-        report.outcome = "skipped"
-        report.wasxfail = _LINOPY_V1_XFAIL_REASON
-        return report
-    return None
-
-
 def pytest_terminal_summary(terminalreporter):
     """Report catalogued linopy semantics divergence sites, if any."""
     if not _LINOPY_SEMANTICS_SITES:
