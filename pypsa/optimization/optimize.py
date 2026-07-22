@@ -90,11 +90,7 @@ def _model_snapshots_index(n: Network) -> pd.Index:
     Multi-period models are built over a flat positional snapshot dim; restore the
     original ``n.snapshots`` MultiIndex for solution assignment and post-processing.
     """
-    sns = n.model.parameters.snapshots.to_index()
-    if isinstance(n.snapshots, pd.MultiIndex) and not isinstance(sns, pd.MultiIndex):
-        window = getattr(n, "_optimize_window_snapshots", None)
-        return n.snapshots if window is None else window
-    return sns
+    return build_window(n, n.model.parameters.snapshots.to_index())
 
 
 def _apply_delay_shift(
@@ -191,7 +187,7 @@ def define_objective(
     - For a stochastic problem, scenario probabilities are applied as weightings to all cost (includes *both* investment terms).
 
     """
-    weighted_cost: xr.DataArray | int
+    weighted_cost: xr.DataArray
     m = n.model
     # Separate lists to distinguish CAPEX and OPEX terms
     capex_terms = []
@@ -226,12 +222,10 @@ def define_objective(
                 active_by_period = (
                     c.da.active.sel(name=ext_i).astype(int).groupby("period").max() > 0
                 )
-                weighted_cost = 0
-                for period in periods:
-                    active = active_by_period.sel(period=period)
-                    weighted_cost += (
-                        active * periodic_cost * period_weighting.loc[period]
-                    )
+                active_weight = (active_by_period * xr.DataArray(period_weighting)).sum(
+                    "period"
+                )
+                weighted_cost = active_weight * periodic_cost
             else:
                 active = c.da.active.sel(name=ext_i).any(dim="snapshot")
                 weighted_cost = active * periodic_cost
@@ -343,10 +337,10 @@ def define_objective(
             active_by_period = (
                 c.da.active.sel(name=ext_i).astype(int).groupby("period").max() > 0
             )
-            weighted_cost = 0
-            for period in periods:
-                active = active_by_period.sel(period=period)
-                weighted_cost += active * periodic_cost * period_weighting.loc[period]
+            active_weight = (active_by_period * xr.DataArray(period_weighting)).sum(
+                "period"
+            )
+            weighted_cost = active_weight * periodic_cost
         else:
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
             weighted_cost = active * periodic_cost

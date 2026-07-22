@@ -361,7 +361,7 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         # During optimization the snapshot MultiIndex (multi-period networks) is
         # decomposed to a flat positional dim, which linopy's v1 convention requires.
-        if getattr(self.n_save, "_optimize_flatten_snapshots", False):
+        if self.n_save._optimize_flatten_snapshots:
             res = flatten_snapshot_dim(res)
 
         return res

@@ -80,9 +80,8 @@ def attach_snapshot_aux(
     or ``snapshot`` is absent. Inverse companion of :func:`drop_snapshot_aux` for
     the flat-native round-trip.
     """
-    if not isinstance(window, pd.MultiIndex) or "snapshot" not in getattr(
-        obj, "dims", ()
-    ):
+    has_snapshot = "snapshot" in getattr(obj, "dims", ())
+    if not isinstance(window, pd.MultiIndex) or not has_snapshot:
         return obj
     pos = obj.indexes["snapshot"].to_numpy()
     coords = {
@@ -331,14 +330,13 @@ def as_index(
 
     # During optimization of multi-period networks the model is built over a flat
     # positional snapshot dim, so normalise/validate against that, not the MultiIndex.
-    model = getattr(n, "_model", None)
     if (
         network_attribute == "snapshots"
         and values is not None
-        and getattr(n, "_optimize_flatten_snapshots", False)
-        and model is not None
+        and n._optimize_flatten_snapshots
+        and n._model is not None
     ):
-        n_attr = model.parameters.snapshots.to_index()
+        n_attr = n._model.parameters.snapshots.to_index()
 
     if values is None:
         values_ = n_attr

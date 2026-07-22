@@ -26,6 +26,22 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _period_last_storage_weightings(
+    snapshots: pd.Index, period_of: pd.Index, period_weighting: pd.Series
+) -> tuple[pd.Index, pd.Series]:
+    """Last snapshot of each investment period and its storage weighting.
+
+    ``period_of`` gives the period of every entry in ``snapshots``; take the last
+    snapshot per period and weight it by ``period_weighting``.
+    """
+    last_pos = pd.Series(list(snapshots), index=period_of).groupby(level=0).last()
+    period_last_sns = pd.Index(last_pos.to_numpy(), name="snapshot")
+    storage_weightings = pd.Series(
+        period_weighting.loc[last_pos.index].to_numpy(), index=period_last_sns
+    )
+    return period_last_sns, storage_weightings
+
+
 def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
     """Define per-carrier and potentially per-bus capacity expansion limits.
 
@@ -300,10 +316,8 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         weightings = weightings.mul(
             period_weighting.loc[period_of].set_axis(sns), axis=0
         )
-        last_pos = pd.Series(list(sns), index=period_of).groupby(level=0).last()
-        period_last_sns = pd.Index(last_pos.to_numpy(), name="snapshot")
-        storage_weightings = pd.Series(
-            period_weighting.loc[last_pos.index].to_numpy(), index=period_last_sns
+        period_last_sns, storage_weightings = _period_last_storage_weightings(
+            sns, period_of, period_weighting
         )
 
     unique_names = glcs.index.unique("name")
@@ -546,15 +560,8 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 weightings_filtered = weightings_filtered.mul(
                     period_weighting.loc[sel_period_of].set_axis(snap_sel), axis=0
                 )
-                last_pos = (
-                    pd.Series(list(snap_sel), index=sel_period_of)
-                    .groupby(level=0)
-                    .last()
-                )
-                period_last_sns = pd.Index(last_pos.to_numpy(), name="snapshot")
-                storage_weightings = pd.Series(
-                    period_weighting.loc[last_pos.index].to_numpy(),
-                    index=period_last_sns,
+                period_last_sns, storage_weightings = _period_last_storage_weightings(
+                    snap_sel, sel_period_of, period_weighting
                 )
 
             lhs = []
