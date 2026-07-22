@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-from Levenshtein import distance
+from rapidfuzz.distance.Levenshtein import distance
 
 from pypsa._options import options
 from pypsa.components.common import as_components
