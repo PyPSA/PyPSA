@@ -234,6 +234,34 @@ class TestNetcdf:
             check_less_precise=True,
         )
 
+    def test_netcdf_io_shapes_lowmem(self, tmpdir):
+        import tracemalloc
+
+        import numpy as np
+        from shapely.geometry import Polygon
+
+        angles = np.linspace(0, 2 * np.pi, 200000, endpoint=False)
+        coords = np.round(np.c_[100 * np.cos(angles), 100 * np.sin(angles)], 6)
+        detailed = Polygon(coords)
+        geometry = [Polygon([(0, 0), (1, 0), (1, 1)])] * 150 + [detailed]
+        names = [f"s{i}" for i in range(len(geometry))]
+
+        n = pypsa.Network()
+        n.add("Bus", names)
+        n.add("Shape", names, geometry=geometry, component="Bus", idx=names)
+        fn = tmpdir / "netcdf_export.nc"
+        n.export_to_netcdf(fn)
+
+        tracemalloc.start()
+        m = pypsa.Network(fn)
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        assert peak < 500e6
+        assert_geodataframe_equal(
+            m.c.shapes.static, n.c.shapes.static, check_less_precise=True
+        )
+
     def test_netcdf_from_url(self):
         url = "https://data.pypsa.org/networks/examples/latest/scigrid_de.nc"
         pypsa.Network(url)

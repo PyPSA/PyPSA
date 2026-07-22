@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, overload
 from urllib.request import urlretrieve
 
 import geopandas as gpd
+import netCDF4
 import numpy as np
 import pandas as pd
 import validators
@@ -870,6 +871,25 @@ class _ExporterHDF5(_Exporter):
         self._hdf5_handle.close()
 
 
+def _open_netcdf_lowmem(path: Path) -> xr.Dataset:
+    """Open a netCDF file without expanding variable-length strings.
+
+    xarray coerces variable-length string variables to fixed-width dtypes,
+    padding every entry to the longest string and quadrupling it as UTF-32.
+    For length-skewed columns such as geometry WKT this explodes memory, so
+    those variables are read as object arrays through the netCDF4 backend.
+    """
+    with netCDF4.Dataset(path) as nc:
+        str_data = {
+            name: (var.dimensions, np.asarray(var[:], dtype=object))
+            for name, var in nc.variables.items()
+            if var.dtype == str and name not in nc.dimensions
+        }
+    ds = xr.open_dataset(path, drop_variables=list(str_data))
+    ds.update(str_data)
+    return ds
+
+
 class _ImporterNetCDF(_Importer):
     """Importer class for netCDF files."""
 
@@ -887,9 +907,9 @@ class _ImporterNetCDF(_Importer):
         self.path = path
         if isinstance(path, (str | Path)):
             if validators.url(str(path)):
-                self.ds = _retrieve_from_url(str(path), xr.open_dataset)
+                self.ds = _retrieve_from_url(str(path), _open_netcdf_lowmem)
             else:
-                self.ds = xr.open_dataset(Path(path))
+                self.ds = _open_netcdf_lowmem(Path(path))
         else:
             self.ds = path
 
