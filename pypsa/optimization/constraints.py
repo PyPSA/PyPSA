@@ -1152,9 +1152,10 @@ def define_nodal_balance_constraints(
             if delay <= 0:
                 expr = coeff * m[f"{c.name}-p"].sel(name=names)
             else:
+                window = build_window(n, sns)
                 src_snapshot_pos, valid = c.get_delay_source_indexer(
-                    sns,
-                    snapshot_weightings(n, sns, "generators"),
+                    window,
+                    n.snapshot_weightings["generators"].loc[window],
                     delay,
                     is_cyclic,
                 )
@@ -1165,7 +1166,8 @@ def define_nodal_balance_constraints(
                 shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(
                     sns_coords
                 )
-                expr = coeff.sel(name=names) * (shifted_p * valid_mask)
+                shifted_term = drop_snapshot_aux(shifted_p * valid_mask)
+                expr = coeff.sel(name=names) * shifted_term
 
             cbuses = c._as_xarray(bus_col)
             cbuses = cbuses.sel(name=names)
