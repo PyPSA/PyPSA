@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -72,7 +73,7 @@ from pypsa.optimization.variables import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterator, Sequence
 
     from pypsa import Network, SubNetwork
     from pypsa.components import Links, Processes
@@ -82,6 +83,26 @@ lookup = pd.read_csv(
     PYPSA_DATA_DIR / "variables.csv",
     index_col=["component", "variable"],
 )
+
+
+@contextmanager
+def _build_over_flat_snapshots(n: Network, sns: pd.Index) -> Iterator[pd.Index]:
+    """Yield a flat positional snapshot dim for the duration of a model build.
+
+    A MultiIndex snapshot (multi-period, or user-supplied) is forbidden on
+    variables by linopy's v1 convention, so multi-period models are built over a
+    flat ``RangeIndex``; the original window is stashed for the ``da`` accessor and
+    the solution round-trip. The flatten flag is cleared on exit (success or error)
+    while ``_optimize_window_snapshots`` persists for post-build assignment.
+    """
+    n._optimize_flatten_snapshots = isinstance(sns, pd.MultiIndex)
+    if n._optimize_flatten_snapshots:
+        n._optimize_window_snapshots = sns
+        sns = pd.RangeIndex(len(sns), name="snapshot")
+    try:
+        yield sns
+    finally:
+        n._optimize_flatten_snapshots = False
 
 
 def _model_snapshots_index(n: Network) -> pd.Index:
@@ -707,16 +728,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         kwargs.setdefault("force_dim_names", True)
         n._model = Model(**kwargs)
-        # A MultiIndex snapshot (multi-period, or user-supplied) is forbidden on
-        # variables by linopy's v1 convention. Build the model over a flat positional
-        # snapshot dim (the levels ride along as aux coords via the da accessor).
-        n._optimize_flatten_snapshots = isinstance(sns, pd.MultiIndex)
-        if n._optimize_flatten_snapshots:
-            n._optimize_window_snapshots = sns
-            sns = pd.RangeIndex(len(sns), name="snapshot")
-        n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
-        try:
+        with _build_over_flat_snapshots(n, sns) as sns:
+            n.model.parameters = n.model.parameters.assign(snapshots=sns)
+
             # Define variables
             for c, attr in lookup.query("nominal").index:
                 define_nominal_variables(n, c, attr)
@@ -843,10 +858,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_growth_limit(n, sns)
 
             define_objective(n, sns, include_objective_constant)
-        finally:
-            # Keep `_optimize_window_snapshots` for post-build solution/dual
-            # round-trip; it is reset at the start of the next build.
-            n._optimize_flatten_snapshots = False
         return n.model
 
     def solve_model(
