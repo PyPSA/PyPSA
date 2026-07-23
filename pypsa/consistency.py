@@ -234,7 +234,7 @@ def check_phase_shift_bounds(component: Components, strict: bool = False) -> Non
     A transformer phase shift is optimised when `phase_shift_min < phase_shift_max`;
     in that case both bounds must be finite for the per-snapshot tap angle to be a
     well-posed decision variable. `phase_shift_min > phase_shift_max` is flagged as
-    a likely mistake (the shift is held fixed at `phase_shift_set`).
+    a likely mistake (the shift is held fixed at `phase_shift`).
 
     Activate strict mode in general consistency check by passing
     `['phase_shift_bounds']` to the `strict` argument.
@@ -261,7 +261,7 @@ def check_phase_shift_bounds(component: Components, strict: bool = False) -> Non
         _log_or_raise(
             strict,
             "The following %s have phase_shift_min greater than phase_shift_max; "
-            "the phase shift is held fixed at phase_shift_set, which is likely "
+            "the phase shift is held fixed at phase_shift, which is likely "
             "unintended (set phase_shift_min < phase_shift_max to optimise it):\n%s",
             component.list_name,
             inverted,

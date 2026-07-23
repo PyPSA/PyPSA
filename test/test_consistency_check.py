@@ -111,7 +111,7 @@ def test_phase_shift_fixed_bounds_ok(consistent_n, caplog):
         bus1="two",
         x=0.1,
         s_nom=100,
-        phase_shift_set=10.0,
+        phase_shift=10.0,
     )
     consistent_n.consistency_check()
     assert not any("phase shift" in record.message for record in caplog.records)

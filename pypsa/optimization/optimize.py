@@ -918,8 +918,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         sns = n.model.parameters.snapshots.to_index()
 
         if not n.c.transformers.empty:
-            setpoint = n.get_switchable_as_dense("Transformer", "phase_shift_set", sns)
-            _set_dynamic_data(n, "Transformer", "phase_shift", setpoint)
+            setpoint = n.get_switchable_as_dense("Transformer", "phase_shift", sns)
+            _set_dynamic_data(n, "Transformer", "phase_shift_opt", setpoint)
 
         for name, variable in m.variables.items():
             sol = variable.solution
@@ -961,8 +961,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p0", df)
                     _set_dynamic_data(n, c.name, "p1", -df)
 
-                elif c.name == "Transformer" and attr == "phase_shift":
-                    _set_dynamic_data(n, c.name, "phase_shift", df)
+                elif c.name == "Transformer" and attr == "phase_shift_opt":
+                    _set_dynamic_data(n, c.name, "phase_shift_opt", df)
 
                 elif c.name == "Link" and attr == "p":
                     _set_dynamic_data(n, c.name, "p", df)

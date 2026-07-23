@@ -1453,7 +1453,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
 
     Applies to Line, Transformer, and Link (passive branch components). A
     transformer phase shift enters the cycle sum as a constant when fixed
-    (`phase_shift_set`) or as a per-snapshot decision variable when optimisable
+    (`phase_shift`) or as a per-snapshot decision variable when optimisable
     (`phase_shift_min < phase_shift_max`). The contributions are added per
     investment period so cycle constraints stay isolated across periods.
 
@@ -1509,7 +1509,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         lhs_period = sum(exprs)
 
         if "Transformer" in C_weighted.index.unique("type"):
-            var = "Transformer-phase_shift"
+            var = "Transformer-phase_shift_opt"
             C_plain = n.cycle_matrix(investment_period=period, apply_weights=False)
             C_trafos = C_plain.loc["Transformer"]
 
@@ -1517,7 +1517,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
             active = tr.static.loc[C_trafos.index.difference(tr.inactive_assets)]
             varying = active["phase_shift_min"] < active["phase_shift_max"]
 
-            contributions = [(active.index[~varying], tr.da["phase_shift_set"])]
+            contributions = [(active.index[~varying], tr.da["phase_shift"])]
             if var in m.variables:
                 contributions.append((active.index[varying], m[var]))
             for names, angle in contributions:
