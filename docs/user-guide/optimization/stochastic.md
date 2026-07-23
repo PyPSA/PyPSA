@@ -241,7 +241,7 @@ Constraints:
  * StorageUnit-ext-p_store-upper (scenario, name, snapshot)
  * StorageUnit-ext-state_of_charge-lower (scenario, name, snapshot)
  * StorageUnit-ext-state_of_charge-upper (scenario, name, snapshot)
- * Bus-nodal_balance (name, scenario, snapshot)
+ * Bus-nodal_balance (scenario, name, snapshot)
  * StorageUnit-energy_balance (scenario, name, snapshot)
  * Store-energy_balance (scenario, name, snapshot)
 <BLANKLINE>

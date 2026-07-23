@@ -1884,8 +1884,8 @@ wheels = [
 
 [[package]]
 name = "linopy"
-version = "0.8.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.8.0.post1.dev136+gc48dafdd6"
+source = { git = "https://github.com/PyPSA/linopy.git?branch=feat%2Farithmetic-convention#c48dafdd66798b132cf9920bd4bf9de5bafcccd4" }
 dependencies = [
     { name = "bottleneck" },
     { name = "dask" },
@@ -1898,10 +1898,6 @@ dependencies = [
     { name = "toolz" },
     { name = "tqdm" },
     { name = "xarray" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/28/7f/80c12a3bba2a2bd8c17777fb272a37ccd16e65e53dc81d0d137fabd29241/linopy-0.8.0.tar.gz", hash = "sha256:566ede05d6134abf978fb4c1e18e0e5b67cd1acf0b26e9d80adcada3632d9c02", size = 1453088, upload-time = "2026-06-10T09:48:45.124Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/a9/987a9f2ad9a0b846147092edf0071b0f96b84c0e5933ac354192d8a3836d/linopy-0.8.0-py3-none-any.whl", hash = "sha256:107f9dcb63943bb02e457693f639e4adceea265040d76f8949bad8b496558304", size = 184634, upload-time = "2026-06-10T09:48:43.147Z" },
 ]
 
 [[package]]
@@ -3842,7 +3838,7 @@ requires-dist = [
     { name = "highspy" },
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.1.1" },
     { name = "levenshtein", specifier = ">=0.27.1" },
-    { name = "linopy", specifier = ">=0.8.0" },
+    { name = "linopy", git = "https://github.com/PyPSA/linopy.git?branch=feat%2Farithmetic-convention" },
     { name = "matplotlib", specifier = "!=3.11.0" },
     { name = "matplotlib", marker = "extra == 'dev'", specifier = "<3.11" },
     { name = "mkdocs-autolinks-plugin", marker = "extra == 'docs'" },
