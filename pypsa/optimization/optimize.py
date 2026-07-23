@@ -565,7 +565,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._multi_invest = int(multi_investment_periods)
         n._linearized_uc = linearized_unit_commitment
 
-        n.consistency_check(strict=["unknown_buses"])
+        n.consistency_check(strict=["unknown_buses", "maintenance"])
         m = n.optimize.create_model(
             sns,
             multi_investment_periods,

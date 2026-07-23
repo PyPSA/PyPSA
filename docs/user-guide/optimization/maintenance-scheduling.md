@@ -67,35 +67,35 @@ Together with $z \geq 0$, these form the convex hull of $z = \hat{g} \cdot m$ fo
 
 ### Committable Components
 
-When combined with unit commitment (`committable=True`), the dispatch bounds scale the available capacity by $u_{n,s,t} - \alpha_{n,s} \cdot w_{n,s,t}$, where $w = u \cdot m$ is the product of the commitment status and the maintenance status. This couples the two decisions exactly: at full maintenance ($\alpha = 1$) the unit can be shut down ($u = 0$), while fractional maintenance leaves the remaining capacity available if committed.
+When combined with unit commitment (`committable=True`), the dispatch bounds scale the available capacity by $u_{n,s,t} - \alpha_{n,s} \cdot v_{n,s,t}$, where $v = u \cdot m$ is the product of the commitment status and the maintenance status. This couples the two decisions exactly: at full maintenance ($\alpha = 1$) the unit can be shut down ($u = 0$), while fractional maintenance leaves the remaining capacity available if committed.
 
 === "Generator (fixed capacity)"
 
     | Constraint | Name |
     |-------------------|------------------|
-    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot \hat{g}_{n,s} \cdot (u_{n,s,t} - \alpha_{n,s} \cdot w_{n,s,t})$ | `Generator-com-p-lower` |
-    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot \hat{g}_{n,s} \cdot (u_{n,s,t} - \alpha_{n,s} \cdot w_{n,s,t})$ | `Generator-com-p-upper` |
-    | $w_{n,s,t} \leq u_{n,s,t}$ | `Generator-maint-status-le-status` |
-    | $w_{n,s,t} \leq m_{n,s,t}$ | `Generator-maint-status-le-maint` |
-    | $w_{n,s,t} \geq u_{n,s,t} + m_{n,s,t} - 1$ | `Generator-maint-status-lb` |
+    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot \hat{g}_{n,s} \cdot (u_{n,s,t} - \alpha_{n,s} \cdot v_{n,s,t})$ | `Generator-com-p-lower` |
+    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot \hat{g}_{n,s} \cdot (u_{n,s,t} - \alpha_{n,s} \cdot v_{n,s,t})$ | `Generator-com-p-upper` |
+    | $v_{n,s,t} \leq u_{n,s,t}$ | `Generator-maint-status-le-status` |
+    | $v_{n,s,t} \leq m_{n,s,t}$ | `Generator-maint-status-le-maint` |
+    | $v_{n,s,t} \geq u_{n,s,t} + m_{n,s,t} - 1$ | `Generator-maint-status-lb` |
 
-    Together with $w \geq 0$, these McCormick inequalities give $w = u \cdot m$ exactly, since $m$ is binary. This holds for binary status (standard unit commitment) and for the relaxed continuous status of `linearized_unit_commitment=True`. The auxiliary variable $w$ is internal and not written to the network outputs.
+    Together with $v \geq 0$, these McCormick inequalities give $v = u \cdot m$ exactly, since $m$ is binary. This holds for binary status (standard unit commitment) and for the relaxed continuous status of `linearized_unit_commitment=True`. The auxiliary variable $v$ is internal and not written to the network outputs.
 
 === "Generator (modular capacity)"
 
     For modular committables the status $u^{\mathrm{mod}}_{n,s,t}$ is the integer
     number of committed modules and $\hat{g}^{\mathrm{mod}}_{n,s}$ the module size.
-    The same product $w = u^{\mathrm{mod}} \cdot m$ scales the committed capacity,
+    The same product $v = u^{\mathrm{mod}} \cdot m$ scales the committed capacity,
     with $U_{n,s} = \hat{g}^{\max}_{n,s} / \hat{g}^{\mathrm{mod}}_{n,s}$ bounding the
     module count.
 
     | Constraint | Name |
     |-------------------|------------------|
-    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot \hat{g}^{\mathrm{mod}}_{n,s} \cdot (u^{\mathrm{mod}}_{n,s,t} - \alpha_{n,s} \cdot w_{n,s,t})$ | `Generator-com-mod-p-lower` |
-    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot \hat{g}^{\mathrm{mod}}_{n,s} \cdot (u^{\mathrm{mod}}_{n,s,t} - \alpha_{n,s} \cdot w_{n,s,t})$ | `Generator-com-mod-p-upper` |
-    | $w_{n,s,t} \leq u^{\mathrm{mod}}_{n,s,t}$ | `Generator-maint-modstatus-le-status` |
-    | $w_{n,s,t} \leq U_{n,s} \cdot m_{n,s,t}$ | `Generator-maint-modstatus-le-maint` |
-    | $w_{n,s,t} \geq u^{\mathrm{mod}}_{n,s,t} - U_{n,s} \cdot (1 - m_{n,s,t})$ | `Generator-maint-modstatus-lb` |
+    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot \hat{g}^{\mathrm{mod}}_{n,s} \cdot (u^{\mathrm{mod}}_{n,s,t} - \alpha_{n,s} \cdot v_{n,s,t})$ | `Generator-com-mod-p-lower` |
+    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot \hat{g}^{\mathrm{mod}}_{n,s} \cdot (u^{\mathrm{mod}}_{n,s,t} - \alpha_{n,s} \cdot v_{n,s,t})$ | `Generator-com-mod-p-upper` |
+    | $v_{n,s,t} \leq u^{\mathrm{mod}}_{n,s,t}$ | `Generator-maint-modstatus-le-status` |
+    | $v_{n,s,t} \leq U_{n,s} \cdot m_{n,s,t}$ | `Generator-maint-modstatus-le-maint` |
+    | $v_{n,s,t} \geq u^{\mathrm{mod}}_{n,s,t} - U_{n,s} \cdot (1 - m_{n,s,t})$ | `Generator-maint-modstatus-lb` |
 
 === "Generator (extendable capacity)"
 
@@ -152,8 +152,6 @@ $$ms_{*,t'} = 0 \quad \forall t' : \text{cov}(t') \text{ incomplete or partially
 
 Constraint name: `*-maint-start-horizon`
 
-These constraints are defined in the functions `define_maintenance_variables()`, `define_maintenance_start_variables()`, `define_maintenance_capacity_variables()`, and `define_maintenance_constraints()`.
-
 !!! note "Combination with other features"
 
     Maintenance scheduling can be combined with `committable=True` (unit commitment) and `p_nom_extendable=True` (capacity expansion). When all three are active, dispatch bounds use the big-M formulation with the McCormick auxiliary variable $z$.
@@ -175,7 +173,7 @@ These constraints are defined in the functions `define_maintenance_variables()`,
         | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
         | $m_{n,s,t}$       | `n.generators_t.maintenance` | Decision variable |
         | $ms_{n,s,t}$      | `n.generators_t.maintenance_start` | Decision variable |
-        | $w_{n,s,t}$       | internal, not written to outputs | Decision variable |
+        | $v_{n,s,t}$       | internal, not written to outputs | Decision variable |
         | $z_{n,s,t}$       | internal, not written to outputs | Decision variable |
         | $\hat{g}_{n,s}$   | `n.generators.p_nom` | Parameter |
         | $\hat{g}^{\min}_{n,s}$ | `n.generators.p_nom_min` | Parameter |
@@ -193,7 +191,7 @@ These constraints are defined in the functions `define_maintenance_variables()`,
         | $f_{l,t}$         | `n.links_t.p`  | Decision variable |
         | $m_{l,t}$         | `n.links_t.maintenance`  | Decision variable |
         | $ms_{l,t}$        | `n.links_t.maintenance_start`  | Decision variable |
-        | $w_{l,t}$         | internal, not written to outputs  | Decision variable |
+        | $v_{l,t}$         | internal, not written to outputs  | Decision variable |
         | $z_{l,t}$         | internal, not written to outputs  | Decision variable |
         | $\hat{f}_{l}$     | `n.links.p_nom`  | Parameter |
         | $\hat{f}^{\min}_{l}$ | `n.links.p_nom_min` | Parameter |
@@ -203,6 +201,26 @@ These constraints are defined in the functions `define_maintenance_variables()`,
         | $\alpha_{l}$      | `n.links.maintenance_pu`  | Parameter |
         | $d$               | `n.links.maintenance_duration`  | Parameter |
         | $E$               | `n.links.maintenance_events`  | Parameter |
+
+    === "Process"
+
+        The `Process` follows the `Link` formulation applied to its internal power $p$.
+
+        | Symbol | Attribute | Type |
+        |-------------------|-----------|-------------|
+        | $p_{q,t}$         | `n.processes_t.p`  | Decision variable |
+        | $m_{q,t}$         | `n.processes_t.maintenance`  | Decision variable |
+        | $ms_{q,t}$        | `n.processes_t.maintenance_start`  | Decision variable |
+        | $v_{q,t}$         | internal, not written to outputs  | Decision variable |
+        | $z_{q,t}$         | internal, not written to outputs  | Decision variable |
+        | $\hat{p}_{q}$     | `n.processes.p_nom`  | Parameter |
+        | $\hat{p}^{\min}_{q}$ | `n.processes.p_nom_min` | Parameter |
+        | $\hat{p}^{\max}_{q}$ | `n.processes.p_nom_max` | Parameter |
+        | $\underline{p}_{q,t}$| `n.processes_t.p_min_pu`  | Parameter |
+        | $\bar{p}_{q,t}$   | `n.processes_t.p_max_pu`  | Parameter |
+        | $\alpha_{q}$      | `n.processes.maintenance_pu`  | Parameter |
+        | $d$               | `n.processes.maintenance_duration`  | Parameter |
+        | $E$               | `n.processes.maintenance_events`  | Parameter |
 
 ## Examples
 

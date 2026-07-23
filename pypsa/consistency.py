@@ -888,7 +888,8 @@ class NetworkConsistencyMixin(_NetworkABC):
         strict : list, optional
             If some checks should raise an error instead of logging a warning, pass a list
             of strings with the names of the checks to be strict about. If 'all' is passed,
-            all checks will be strict. By default, 'dispatch_delays' is always strict.
+            all checks will be strict. By default, 'dispatch_delays' and 'maintenance' are
+            always strict.
 
         Raises
         ------
@@ -897,7 +898,7 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         """
         if strict is None:
-            strict = ["dispatch_delays"]
+            strict = ["dispatch_delays", "maintenance"]
 
         strict_options = [
             "unknown_buses",

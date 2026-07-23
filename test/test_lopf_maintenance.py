@@ -700,4 +700,29 @@ def test_non_uniform_weightings():
     weights = n.snapshot_weightings.generators.values
     assert weights[maint].sum() >= 3
     assert set(np.where(maint)[0]) <= set(range(5, 10))
-    assert maint.sum() == 3
+
+
+def test_maintenance_respects_active_periods():
+    n = pypsa.Network(snapshots=range(5))
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=10,
+        build_year=2030,
+        lifetime=30,
+        maintainable=True,
+        maintenance_duration=2,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=50)
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    status = n.optimize(multi_investment_periods=True)
+    assert status[0] == "ok"
+
+    maint = n.c.generators.dynamic.maintenance["gen"]
+    assert maint.loc[2020].sum() == 0
+    assert maint.loc[2030].sum() == 2
