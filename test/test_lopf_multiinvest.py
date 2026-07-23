@@ -219,6 +219,26 @@ def test_simple_network_snapshot_subset(n):
     assert (n.c.lines.dynamic.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
 
+def test_optimize_later_period_uses_its_own_data():
+    # Myopic per-period optimization over a non-first investment period must build
+    # the model on that period's data. The flat positional snapshot dim numbers
+    # 0..N-1 from the build window, not from the network's full snapshot range, so
+    # a later window must not pick up the first period's time series.
+    n = pypsa.Network(snapshots=range(3))
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "b")
+    n.add("Generator", "gen", bus="b", p_nom=1000, marginal_cost=10)
+    load = pd.Series(100.0, index=n.snapshots)
+    load.loc[2030] = 777.0
+    n.add("Load", "load", bus="b", p_set=load)
+
+    for period, expected in [(2030, 777.0), (2020, 100.0)]:
+        sns = n.snapshots[n.snapshots.get_level_values("period") == period]
+        status, cond = n.optimize(sns, **kwargs)
+        assert (status, cond) == ("ok", "optimal")
+        equal(n.c.generators.dynamic.p["gen"].loc[period], [expected] * 3)
+
+
 def test_ramp_limit_resets_per_period():
     # https://github.com/PyPSA/PyPSA/issues/1669: ramp limits must reset at each
     # investment period boundary, not only at the global first snapshot. Nuclear is
