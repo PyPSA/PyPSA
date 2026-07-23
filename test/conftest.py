@@ -463,3 +463,55 @@ def stochastic_benchmark_network():
     n.set_scenarios({"low": 0.4, "medium": 0.3, "high": 0.3})
 
     return n
+
+
+@pytest.fixture(scope="class")
+def piecewise_network() -> pypsa.Network:
+    n = pypsa.Network()
+    n.snapshots = [0, 1]
+    n.add("Bus", ["bus0", "bus1"])
+    n.add(
+        "Generator",
+        "gen0",
+        bus="bus0",
+        p_nom=25,
+        marginal_cost={0.0: 0.4, 0.5: 0.6, 1.0: 0.5},
+    )
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus1",
+        p_nom_extendable=True,
+        p_nom_max=1,
+        marginal_cost=0.6,
+        capital_cost=100,
+    )
+    n.add(
+        "Link",
+        "link",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom=30,
+        efficiency={0.0: 0.4, 0.5: 0.6, 1.0: 0.7},
+        capital_cost=100,
+    )
+    n.add(
+        "StorageUnit",
+        "storage0",
+        bus="bus0",
+        p_nom_extendable=True,
+        p_nom_max=2,
+        max_hours=4,
+        capital_cost=10,
+    )
+    n.add(
+        "StorageUnit",
+        "storage1",
+        bus="bus1",
+        p_nom_extendable=True,
+        p_nom_max=20,
+        max_hours=4,
+        capital_cost={0.0: 0.0, 10: 10, 20: 15},
+    )
+    n.add("Load", "load", bus="bus1", p_set=[10, 20])
+    return n

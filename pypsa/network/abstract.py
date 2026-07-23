@@ -46,6 +46,7 @@ class _NetworkABC(ABC):
     iterate_components: Callable
     copy: Callable
     _import_components_from_df: Callable
+    _import_piecewise_from_df: Callable
 
     sub_networks: pd.DataFrame
     buses: pd.DataFrame

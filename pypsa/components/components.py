@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
@@ -35,7 +36,7 @@ from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, RE_PORTS
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, PIECEWISE_ATTRS, RE_PORTS
 from pypsa.costs import annuity, periodized_cost
 from pypsa.definitions.structures import Dict
 
@@ -115,6 +116,22 @@ class ComponentsData:
     --------
     >>> c.dynamic
     """
+    piecewise: Dict
+    """
+    Piecewise linear breakpoint data for all components of this type.
+
+    Dict-like container keyed by y-axis attribute name (e.g. 'efficiency',
+    'marginal_cost', 'capital_cost'). Each value is a DataFrame with:
+
+    - index: breakpoint number (int, 0-based), ``index.name = "breakpoint"``
+    - columns: MultiIndex ``(name, attribute)`` where ``attribute`` holds both
+      the x-axis coordinate (e.g. ``p_pu``, ``p_nom``) and the y-axis attribute,
+      ``columns.names = ["name", "attribute"]``
+
+    Examples
+    --------
+    >>> c.piecewise.efficiency
+    """
 
 
 class Components(
@@ -167,8 +184,10 @@ class Components(
                 "supported."
             )
             raise NotImplementedError(msg)
-        static, dynamic = self._get_data_containers(ctype)
-        ComponentsData.__init__(self, ctype, n=None, static=static, dynamic=dynamic)
+        static, dynamic, piecewise = self._get_data_containers(ctype)
+        ComponentsData.__init__(
+            self, ctype, n=None, static=static, dynamic=dynamic, piecewise=piecewise
+        )
         ComponentsArrayMixin.__init__(self)
 
     def __str__(self) -> str:
@@ -343,10 +362,13 @@ class Components(
             equals(self.ctype, other.ctype, log_mode=log_mode, path="c.ctype")
             and equals(self.static, other.static, log_mode=log_mode, path="c.static")
             and equals(self.dynamic, other.dynamic, log_mode=log_mode, path="c.dynamic")
+            and equals(
+                self.piecewise, other.piecewise, log_mode=log_mode, path="c.piecewise"
+            )
         )
 
     @staticmethod
-    def _get_data_containers(ct: ComponentType) -> tuple[pd.DataFrame, Dict]:
+    def _get_data_containers(ct: ComponentType) -> tuple[pd.DataFrame, Dict, Dict]:
         static_dtypes = ct.defaults.loc[ct.defaults.static, "dtype"].drop(["name"])
         if ct.name == "Shape":
             crs = CRS.from_epsg(
@@ -376,7 +398,66 @@ class Components(
             df.columns.name = "name"
             dynamic[k] = df
 
-        return static, dynamic
+        # Piecewise breakpoint data: one empty DataFrame per piecewise attribute
+        # defined by the piecewise_x column in the component's attribute CSV.
+        piecewise = Dict()
+        for y_attr in PIECEWISE_ATTRS.query(
+            "component == @name", local_dict={"name": ct.name}
+        ).y.unique():
+            cols = pd.MultiIndex.from_tuples([], names=["name", "attribute"])
+            df = pd.DataFrame(
+                index=pd.Index([], name="breakpoint", dtype=int),
+                columns=cols,
+                dtype=float,
+            )
+            piecewise[y_attr] = df
+
+        return static, dynamic, piecewise
+
+    @cached_property
+    def _piecewise_attrs(self) -> pd.DataFrame:
+        """Get the piecewise attributes for this component.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with piecewise attributes for this component.
+
+        """
+        filtered_attrs = PIECEWISE_ATTRS.query(
+            "component == @name", local_dict={"name": self.name}
+        )
+        return filtered_attrs
+
+    def has_piecewise(self, attr: str) -> bool:
+        """Whether this component instance has piecewise breakpoint data for `attr`."""
+        pw_df = self.piecewise.get(attr)
+        return pw_df is not None and not pw_df.empty
+
+    def _piecewise_schema(self, **attrs: str) -> pd.Series:
+        """Get the schema row of the piecewise definition for `attr` (empty if undefined)."""
+        query = " and ".join(f"{k} == '{v}'" for k, v in attrs.items())
+        series = self._piecewise_attrs.query(query).squeeze()
+        if not (isinstance(series, pd.Series) or series.empty):
+            msg = "Expected max a single row of data when querying piecewise schema."
+            raise ValueError(msg)
+        return series
+
+    def _piecewise_aux_var(self, attr: str) -> str:
+        """Model-variable name of the piecewise auxiliary variable for `attr`."""
+        row = self._piecewise_schema(y=attr)
+        if row.empty:
+            msg = f"{self.name!r} has no piecewise schema for attribute {attr!r}."
+            raise ValueError(msg)
+        return f"{self.name}-{row.aux_variable}"
+
+    def _piecewise_x_var(self, attr: str) -> str:
+        """Model-variable name of the piecewise x variable for `attr`."""
+        row = self._piecewise_schema(y=attr)
+        if row.empty:
+            msg = f"{self.name!r} has no piecewise schema for attribute {attr!r}."
+            raise ValueError(msg)
+        return f"{self.name}-{row.x.replace('_pu', '')}"
 
     @property
     def standard_types(self) -> pd.DataFrame | None:
@@ -667,19 +748,25 @@ class Components(
         --------
         >>> c = n.components.generators
         >>> c.ds  # doctest: +ELLIPSIS
-        <xarray.Dataset> Size: ...
-        Dimensions:                  (name: 6, snapshot: 10)
+        <xarray.Dataset> Size: 7kB
+        Dimensions:                     (name: 6, snapshot: 10)
         Coordinates:
-          * name                     (name) object ... 'Manchester Wind' ... 'Frankfu...
-          * snapshot                 (snapshot) datetime64[ns] ... 2015-01-01 ... 201...
-        Data variables: (12/43)
-            bus                      (name) object ... 'Manchester' ... 'Frankfurt'
-            control                  (name) object ... 'Slack' 'PQ' ... 'Slack' 'PQ'
-            type                     (name) object ... '' '' '' '' '' ''
-            p_nom                    (name) float64 ... 80.0 5e+04 100.0 ... 110.0 8e+04
-            p_nom_mod                (name) float64 ... 0.0 0.0 0.0 0.0 0.0 0.0
-            p_nom_extendable         (name) bool ... True True True True True True
-            ...
+          * name                        (name) object 48B 'Manchester Wind' ... 'Fran...
+          * snapshot                    (snapshot) datetime64[ns] 80B 2015-01-01 ... ...
+        Data variables: (12/44)
+            bus                         (name) object 48B 'Manchester' ... 'Frankfurt'
+            control                     (name) object 48B 'Slack' 'PQ' ... 'Slack' 'PQ'
+            type                        (name) object 48B '' '' '' '' '' ''
+            p_nom                       (name) float64 48B 80.0 5e+04 ... 110.0 8e+04
+            p_nom_mod                   (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
+            p_nom_extendable            (name) bool 6B True True True True True True
+            ...                          ...
+            ramp_limit_start_up         (name) float64 48B nan nan nan nan nan nan
+            ramp_limit_shut_down        (name) float64 48B nan nan nan nan nan nan
+            weight                      (name) float64 48B 1.0 1.0 1.0 1.0 1.0 1.0
+            p_nom_opt                   (name) float64 48B 4.091e+03 0.0 ... 982.0
+            capital_cost_piecewise_opt  (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
+            p                           (snapshot, name) float64 480B 742.0 ... 483.2
 
         """
         data = {}

@@ -17,11 +17,13 @@ from numpy import isnan
 from xarray import DataArray
 
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.piecewise import define_piecewise
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pypsa import Network
+    from pypsa.optimization.piecewise import PiecewiseOptions
 logger = logging.getLogger(__name__)
 
 
@@ -269,7 +271,9 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
     m.add_constraints(lhs, "<=", rhs, name="Carrier-growth_limit")
 
 
-def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
+def define_primary_energy_limit(
+    n: Network, sns: pd.Index, piecewise_options: list[PiecewiseOptions]
+) -> None:
     """Define primary energy constraints.
 
     It limits the byproducts of primary energy sources (defined by carriers) such
@@ -281,6 +285,9 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
+    piecewise_options : list[PiecewiseOptions]
+        Options to override defaults in piecewise constraint formulation.
+        List is of the form ``[PiecewiseOptions(...), ...]``.
 
     """
     m = n.model
@@ -298,6 +305,34 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         )
 
     unique_names = glcs.index.unique("name")
+
+    gen_c = n.c.generators
+    var_name = "Generator-p"
+    pw_attr_eff = gen_c._piecewise_schema(y="efficiency")
+    primary_energy_pw_var = None
+    if not unique_names.empty and not pw_attr_eff.empty and var_name in m.variables:
+        extra_options = filter(
+            lambda opt: opt.component == gen_c.name and opt.attribute == "efficiency",
+            piecewise_options,
+        )
+        status = (
+            None
+            if gen_c.committables.intersection(gen_c.active_assets).empty
+            else m[f"{gen_c.name}-status"]
+        )
+        primary_energy_pw_var = define_piecewise(
+            m,
+            gen_c,
+            x_var=m[var_name],
+            pw_attr="efficiency",
+            aux_var_name=f"{gen_c.name}-{pw_attr_eff.aux_variable}",
+            active_names=gen_c.active_assets,
+            sign="=",
+            cumulative_attr=False,
+            extra_options=extra_options,
+            invert_attr=True,
+            status=status,
+        )
 
     for name in unique_names:
         if n.has_scenarios:
@@ -337,20 +372,37 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
 
             if not gens.empty:
                 gens = gens.loc[scenario]
-                efficiency = (
-                    n.c.generators._as_dynamic("efficiency")
-                    .loc[:, scenario]
-                    .loc[sns[sns_sel], gens.index]
-                )
-                em_pu = gens.carrier.map(emissions) / efficiency
-                em_pu = em_pu.multiply(weightings.generators[sns_sel], axis=0)
 
-                p = m["Generator-p"].sel(name=gens.index, snapshot=sns[sns_sel])
+                p = m[var_name].sel(name=gens.index, snapshot=sns[sns_sel])
 
                 if n.has_scenarios:
                     p = p.sel(scenario=scenario, drop=True)
 
-                expr = (p * em_pu).sum()
+                linear_names = gens.index
+                to_sum = []
+                if primary_energy_pw_var is not None:
+                    pw_names = gens.index.intersection(
+                        primary_energy_pw_var.indexes["name"]
+                    )
+                    if not pw_names.empty:
+                        pw_var = primary_energy_pw_var.sel(
+                            name=pw_names, snapshot=sns[sns_sel]
+                        )
+                        to_sum.append(pw_var)
+                        linear_names = linear_names.difference(pw_names)
+
+                if not linear_names.empty:
+                    efficiency = (
+                        n.c.generators._as_dynamic("efficiency")
+                        .loc[:, scenario]
+                        .loc[sns[sns_sel], linear_names]
+                    )
+                    to_sum.append(p.sel(name=linear_names) / efficiency)
+                expr = (
+                    sum(to_sum)
+                    * weightings.generators[sns_sel]
+                    * gens.carrier.map(emissions)
+                ).sum()
                 lhs.append(expr)
 
             # storage units

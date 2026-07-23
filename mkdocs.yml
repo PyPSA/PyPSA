@@ -66,6 +66,7 @@ nav:
       - Power Flow: user-guide/optimization/power-flow.md
       - Contingencies: user-guide/optimization/contingencies.md
       - Global Constraints: user-guide/optimization/global-constraints.md
+      - Piecewise Constraints: user-guide/optimization/piecewise.md
       - Custom Constraints: user-guide/optimization/custom-constraints.md
       - Pathway Planning: user-guide/optimization/pathway-planning.md
       - Stochastic Optimization: user-guide/optimization/stochastic.md
@@ -131,6 +132,7 @@ nav:
     - examples/reserve-power.ipynb
     - examples/transport-delay.ipynb
     - examples/periodic-operational-limits.ipynb
+    - examples/piecewise-constraints.ipynb
   - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
     - examples/gsa.ipynb
@@ -307,6 +309,10 @@ plugins:
     default_handler: python
     handlers:
       python:
+        inventories:
+        - https://docs.python.org/3/objects.inv
+        - https://pandas.pydata.org/docs/objects.inv
+        - https://linopy.readthedocs.io/en/latest/objects.inv
         options:
           docstring_style: numpy
           docstring_options:

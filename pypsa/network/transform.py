@@ -21,8 +21,11 @@ import pandas as pd
 from Levenshtein import distance
 
 from pypsa._options import options
+from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
 from pypsa.components.types import all_standard_attrs_set
+from pypsa.constants import PIECEWISE_ATTRS
+from pypsa.descriptors import nominal_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.type_utils import is_1d_list_like
 
@@ -229,9 +232,10 @@ class NetworkTransformMixin(_NetworkABC):
         names = _build_suffixed_names(name, suffix)
 
         names_str = "name" if single_component else "names"
-        # Read kwargs into static and time-varying attributes
+        # Read kwargs into static, time-varying, and piecewise attributes
         series = {}
         static = {}
+        piecewise = {}  # {attr: DataFrame with columns [x_attr, attr], index = breakpoints}
 
         # Check if names are unique
         if not names.is_unique:
@@ -267,8 +271,64 @@ class NetworkTransformMixin(_NetworkABC):
                     standard_attr,
                 )
 
+        def add_suffix(s: Any) -> str:
+            s = str(s)
+            if s.endswith(suffix):
+                return s
+            return s + suffix
+
         for k, v in kwargs.items():
-            # If index/ columnes are passed (pd.DataFrame or pd.Series)
+            # Enable default lookup for attributes with port suffixes, e.g. efficiency1, rate2.
+            search_attr = c._get_base_coeff(k) if isinstance(c, _Multiport) else k
+
+            # Intercept piecewise breakpoint data: a DataFrame whose columns are the curve
+            # attributes (e.g. ["p_pu", "efficiency"]), not component names.
+            # These are identified by the attribute name being in piecewise_attrs and
+            # the value being a DataFrame whose columns include the x-axis attribute.
+            if not (
+                pw_attr := PIECEWISE_ATTRS.query(
+                    "component == @name and y == @y",
+                    local_dict={"y": search_attr, "name": c.name},
+                ).squeeze()
+            ).empty:
+                # Intercept piecewise shorthand: dict {x_value: y_value}
+                x_attr = pw_attr.x
+                if isinstance(v, dict):
+                    v = pd.DataFrame({x_attr: list(v.keys()), k: list(v.values())})
+                if isinstance(v, pd.DataFrame):
+                    pw_msg = "Piecewise {k} Dataframe has {lvl} column level which does not align with the passed {lvl}s: {diff}."
+                    if isinstance(v.columns, pd.MultiIndex):
+                        v = v.rename(columns=add_suffix, level=0)
+                        lvls = v.columns.levels
+                        if not (diff := lvls[0].difference(names)).empty:
+                            raise ValueError(pw_msg.format(k=k, lvl="name", diff=diff))
+                        if not (
+                            diff := lvls[1].symmetric_difference([x_attr, k])
+                        ).empty:
+                            raise ValueError(
+                                pw_msg.format(k=k, lvl="attribute", diff=diff)
+                            )
+                        piecewise[k] = v.reindex(columns=[x_attr, k], level=1)
+                        continue
+                    elif set(v.columns) == {x_attr, k}:
+                        # Build a MultiIndex-columned DataFrame: broadcast the curve to all names
+                        v = pd.concat(
+                            [v[[x_attr, k]]] * len(names),
+                            keys=pd.Index(names, name="name"),
+                            axis=1,
+                        )
+                        v.columns.names = ["name", "attribute"]
+                        v.index.name = "breakpoint"
+                        piecewise[k] = v
+                        continue
+            elif isinstance(v, dict):
+                msg = (
+                    "Dictionaries are not supported as dynamic attribute values. "
+                    "Please use pandas.Series or pandas.DataFrame instead."
+                )
+                raise NotImplementedError(msg)
+
+            # If index/ columns are passed (pd.DataFrame or pd.Series)
             # - cast names index to string and add suffix
             # - check if passed index/ columns align
             msg = "{} has an index which does not align with the passed {}."
@@ -276,13 +336,15 @@ class NetworkTransformMixin(_NetworkABC):
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"Series {k}", "network snapshots"))
             elif isinstance(v, pd.Series):
+                # Cast names index to string + suffix
                 if isinstance(suffix, str):
-                    v = v.rename(index=lambda s: str(s).removesuffix(suffix) + suffix)
+                    v = v.rename(index=add_suffix)
                 if not v.index.equals(names):
                     raise ValueError(msg.format(f"Series {k}", names_str))
             if isinstance(v, pd.DataFrame):
+                # Cast names columns to string + suffix
                 if isinstance(suffix, str):
-                    v = v.rename(columns=lambda s: str(s).removesuffix(suffix) + suffix)
+                    v = v.rename(columns=add_suffix)
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
                 if not v.columns.equals(names):
@@ -325,13 +387,6 @@ class NetworkTransformMixin(_NetworkABC):
                     )
                     raise ValueError(msg)
 
-            if isinstance(v, dict):
-                msg = (
-                    "Dictionaries are not supported as attribute values. Please use "
-                    "pandas.Series or pandas.DataFrame instead."
-                )
-                raise NotImplementedError(msg)
-
             # Handle addition of single component
             if single_component:
                 # Read 1-dim data as time-varying attribute
@@ -344,16 +399,15 @@ class NetworkTransformMixin(_NetworkABC):
                     static[k] = v
 
             # Handle addition of multiple components
-            elif not single_component:
-                # Read 2-dim data as time-varying attribute
-                if isinstance(v, pd.DataFrame):
-                    series[k] = v
-                # Read 1-dim data as static attribute
-                elif isinstance(v, pd.Series):
-                    static[k] = v.values
-                # Read scalar data as static attribute
-                else:
-                    static[k] = v
+            # Read 2-dim data as time-varying attribute
+            elif isinstance(v, pd.DataFrame):
+                series[k] = v
+            # Read 1-dim data as static attribute
+            elif isinstance(v, pd.Series):
+                static[k] = v.values
+            # Read scalar data as static attribute
+            else:
+                static[k] = v
 
         # Load static attributes as components
         if static:
@@ -364,6 +418,12 @@ class NetworkTransformMixin(_NetworkABC):
         # Broadcast to scenarios if network has scenario structure
         # Skip SubNetwork components, they are handled internally in determine_topology
         if self.has_scenarios and c.name != "SubNetwork":
+            if piecewise:
+                msg = (
+                    "Piecewise attribute data is not yet supported for stochastic "
+                    "networks (scenarios)."
+                )
+                raise NotImplementedError(msg)
             static_df = pd.concat(
                 dict.fromkeys(self.scenarios, static_df), names=["scenario"]
             )
@@ -375,6 +435,15 @@ class NetworkTransformMixin(_NetworkABC):
             }
 
         self._import_components_from_df(static_df, c.name, overwrite=overwrite)
+
+        # Load piecewise breakpoint data (after the static import, so that
+        # overwriting an existing component does not drop the new breakpoints)
+        nom_attr = nominal_attrs.get(class_name)
+        is_extendable = static_df.get(f"{nom_attr}_extendable")
+        for k, v in piecewise.items():
+            self._import_piecewise_from_df(
+                v, c.name, k, is_extendable=is_extendable, overwrite=overwrite
+            )
 
         # Load time-varying attributes as components
         for k, v in series.items():
@@ -457,6 +526,11 @@ class NetworkTransformMixin(_NetworkABC):
         # Drop from time-varying components
         for df in c.dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
+
+        # Drop piecewise breakpoint data
+        for df in c.piecewise.values():
+            stale = df.columns[df.columns.get_level_values("name").isin(names)]
+            df.drop(columns=stale, inplace=True)
 
     def merge(
         self,

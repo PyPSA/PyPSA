@@ -7,6 +7,8 @@
 import importlib.resources
 import re
 
+import pandas as pd
+
 PYPSA_DATA_DIR = importlib.resources.files("pypsa") / "data"
 
 DEFAULT_EPSG = 4326
@@ -19,3 +21,4 @@ RE_PORTS = re.compile(r"^bus(\d*)$")
 RE_PORTS_FILTER = re.compile(r"^bus\d*$")
 # Pattern to get port numbers greater or equal to 2
 RE_PORTS_GE_2 = re.compile(r"^bus((?:[2-9]|[1-9]\d+))$")
+PIECEWISE_ATTRS = pd.read_csv(PYPSA_DATA_DIR / "piecewise.csv")

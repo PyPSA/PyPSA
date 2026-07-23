@@ -320,7 +320,7 @@ def test_networks_plot_map(network_collection):
 
 def test_statistics_map_transmission_flow_bus_carrier_non_zero(
     ac_dc_network_r, monkeypatch
-):
+) -> None:
     captured: dict[str, pd.Series | int] = {}
 
     def fake_draw_map(self, **kwargs):
