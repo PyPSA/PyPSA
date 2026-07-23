@@ -16,7 +16,55 @@ maintenance (1) or available (0). The integrality of $m$ is implied through the
 window coverage equality below, so only $ms$ enters the model as a binary. This
 turns the model into a mixed-integer linear programme (MILP).
 
-## Dispatch Coupling
+Scheduling generator maintenance as an integer program dates back to Dopazo and
+Merrill (1975).[^1] The event-based formulation here follows the tradition of
+scheduling a given number of maintenance events of fixed duration[^2]; for a
+survey of alternative formulations and the tightness of their linear relaxations,
+see Andrade (2025).[^3]
+
+## Event Count
+
+The total number of maintenance start events must equal the specified number of events $E$:
+
+$$\sum_{t} ms_{*,t} = E$$
+
+Constraint name: `*-maint-event-count`
+
+## Maintenance Windows
+
+The duration per event $d$ (`maintenance_duration`) is given in elapsed time. For
+each potential start snapshot $t'$, the coverage window $\text{cov}(t')$ is the
+minimal run of consecutive snapshots whose weightings $w_t$ accumulate to at
+least $d$:
+
+$$\text{cov}(t') = \{t', \dots, k(t')\}, \quad k(t') = \min\Big\{k : \sum_{t=t'}^{k} w_t \ge d\Big\}$$
+
+The maintenance status equals the sum of all start events whose window covers the snapshot:
+
+$$m_{*,t} = \sum_{t' :\, t \in \text{cov}(t')} ms_{*,t'}$$
+
+Together with $m \leq 1$, this single equality enforces contiguous maintenance
+blocks, forbids overlapping events and implies the integrality of $m$.
+
+Constraint name: `*-maint-window`
+
+!!! note "Round-up semantics"
+
+    Each event lasts *at least* $d$ elapsed hours, overshooting by less than the
+    weighting of the last covered snapshot. For uniform hourly snapshots and
+    integer $d$, the duration is exact.
+
+## Start Validity
+
+Maintenance cannot start where the coverage window does not fit, i.e. where the
+remaining weighted horizon is shorter than $d$ or where the window would span
+snapshots in which the component is inactive:
+
+$$ms_{*,t'} = 0 \quad \forall t' : \text{cov}(t') \text{ incomplete or partially inactive}$$
+
+Constraint name: `*-maint-start-horizon`
+
+## Effect on Dispatch Limits
 
 During maintenance, the available capacity is reduced by a fraction $\alpha$ (`maintenance_pu`). When $\alpha = 1$ (default), the component is fully unavailable during maintenance.
 
@@ -107,50 +155,7 @@ When combined with unit commitment (`committable=True`), the dispatch bounds sca
 
     Non-modular extendable committables keep the big-M status formulation with the
     McCormick capacity auxiliary $z = \hat{g} \cdot m$; modular committables use the
-    integer-status product $w$ above instead.
-
-
-## Event Count
-
-The total number of maintenance start events must equal the specified number of events $E$:
-
-$$\sum_{t} ms_{*,t} = E$$
-
-Constraint name: `*-maint-event-count`
-
-## Maintenance Windows
-
-The duration per event $d$ (`maintenance_duration`) is given in elapsed time. For
-each potential start snapshot $t'$, the coverage window $\text{cov}(t')$ is the
-minimal run of consecutive snapshots whose weightings $w_t$ accumulate to at
-least $d$:
-
-$$\text{cov}(t') = \{t', \dots, k(t')\}, \quad k(t') = \min\Big\{k : \sum_{t=t'}^{k} w_t \ge d\Big\}$$
-
-The maintenance status equals the sum of all start events whose window covers the snapshot:
-
-$$m_{*,t} = \sum_{t' :\, t \in \text{cov}(t')} ms_{*,t'}$$
-
-Together with $m \leq 1$, this single equality enforces contiguous maintenance
-blocks, forbids overlapping events and implies the integrality of $m$.
-
-Constraint name: `*-maint-window`
-
-!!! note "Round-up semantics"
-
-    Each event lasts *at least* $d$ elapsed hours, overshooting by less than the
-    weighting of the last covered snapshot. For uniform hourly snapshots and
-    integer $d$, the duration is exact.
-
-## Start Validity
-
-Maintenance cannot start where the coverage window does not fit, i.e. where the
-remaining weighted horizon is shorter than $d$ or where the window would span
-snapshots in which the component is inactive:
-
-$$ms_{*,t'} = 0 \quad \forall t' : \text{cov}(t') \text{ incomplete or partially inactive}$$
-
-Constraint name: `*-maint-start-horizon`
+    integer-status product $v$ above instead.
 
 !!! note "Combination with other features"
 
@@ -235,3 +240,7 @@ Constraint name: `*-maint-start-horizon`
     [:octicons-arrow-right-24: Go to example](../../examples/maintenance-scheduling.ipynb)
 
 </div>
+
+[^1]: J. F. Dopazo and H. M. Merrill (1975), [Optimal Generator Maintenance Scheduling Using Integer Programming](https://doi.org/10.1109/T-PAS.1975.31996), IEEE Transactions on Power Apparatus and Systems, 94, 5, 1537-1545, doi:10.1109/T-PAS.1975.31996.
+[^2]: F. Fourcade, E. Johnson, M. Bara, P. Cortey-Dumont (1997), [Optimizing nuclear power plant refueling with mixed-integer programming](https://doi.org/10.1016/S0377-2217(96)00197-X), European Journal of Operational Research, 97, 2, 269-280, doi:10.1016/S0377-2217(96)00197-X.
+[^3]: T. Andrade (2025), [On the tightness of linear relaxations of alternative mixed integer programming formulations for the generator maintenance scheduling problem](https://arxiv.org/abs/2502.08855), arXiv:2502.08855.
