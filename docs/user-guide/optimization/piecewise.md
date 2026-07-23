@@ -11,7 +11,7 @@ Common non-linear relationships found in energy systems include:
 
 - **marginal cost curves**: Where the marginal cost of generating a unit of energy changes as the quantity of energy generated changes.
 - **capital cost curves**: Where the capital cost of investing in the next unit of nominal capacity changes as the quantity nominal capacity changes.
-- **part-load efficiency curves**: Where the efficiency of energy generation / conversion changes as the load rate ($\frac{\text{generation}{\text{nominal capacity}}}$) changes.
+- **part-load efficiency curves**: Where the efficiency of energy generation / conversion changes as the load rate ($\frac{\text{generation}}{\text{nominal capacity}}$) changes.
 
 !!! info "See Also"
 
@@ -36,7 +36,7 @@ If a DataFrame, the index should be breakpoint number, the columns should be the
 ## Inspecting piecewise data
 
 Piecewise data is stored in a component `piecewise` dictionary-like object, much like `dynamic` data.
-For instance, to access marginal_cost piecewise data for generators, you can call `n.c.generators.piecewise.marginal_cost`.
+For instance, to access `marginal_cost` piecewise data for generators, you can call `n.c.generators.piecewise.marginal_cost`.
 The returned [pandas.DataFrame][] will be of the same form as when [defining an input attribute as a DataFrame](#defining-piecewise-data), with an added column level with the names of the components for which you've defined piecewise data.
 
 ## Piecewise formulations
