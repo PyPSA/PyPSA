@@ -18,7 +18,12 @@ import pandas as pd
 import xarray as xr
 
 from pypsa._options import options
-from pypsa.common import UnexpectedError, as_index, list_as_string
+from pypsa.common import (
+    UnexpectedError,
+    as_index,
+    flatten_snapshot_dim,
+    list_as_string,
+)
 from pypsa.components.abstract import _ComponentsABC
 from pypsa.guards import _assert_xarray_integrity
 
@@ -353,5 +358,14 @@ class ComponentsArrayMixin(_ComponentsABC):
         # Optional runtime verification
         if options.debug.runtime_verification:
             _assert_xarray_integrity(self, res)
+
+        # During optimization the snapshot MultiIndex (multi-period networks) is
+        # decomposed to a flat positional dim, which linopy's v1 convention requires.
+        # Restrict to the build window first so flat positions 0..N-1 map to the
+        # optimized snapshots, not to the network's full snapshot range.
+        if self.n_save._optimize_flatten_snapshots:
+            if "snapshot" in res.dims:
+                res = res.sel(snapshot=self.n_save._optimize_window_snapshots)
+            res = flatten_snapshot_dim(res)
 
         return res

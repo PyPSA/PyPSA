@@ -17,12 +17,29 @@ from numpy import isnan
 from xarray import DataArray
 
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.common import build_window
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pypsa import Network
 logger = logging.getLogger(__name__)
+
+
+def _period_last_storage_weightings(
+    snapshots: pd.Index, period_of: pd.Index, period_weighting: pd.Series
+) -> tuple[pd.Index, pd.Series]:
+    """Last snapshot of each investment period and its storage weighting.
+
+    ``period_of`` gives the period of every entry in ``snapshots``; take the last
+    snapshot per period and weight it by ``period_weighting``.
+    """
+    last_pos = pd.Series(list(snapshots), index=period_of).groupby(level=0).last()
+    period_last_sns = pd.Index(last_pos.to_numpy(), name="snapshot")
+    storage_weightings = pd.Series(
+        period_weighting.loc[last_pos.index].to_numpy(), index=period_last_sns
+    )
+    return period_last_sns, storage_weightings
 
 
 def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
@@ -142,7 +159,8 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
         elif isinstance(n.snapshots, pd.MultiIndex):
             carrier, period = remainder.rsplit("_", 1)
             period = int(period)
-            if carrier not in n.c.carriers.static.index or period not in sns.unique(
+            window = build_window(n, sns)
+            if carrier not in n.c.carriers.static.index or period not in window.unique(
                 "period"
             ):
                 logger.warning(msg)
@@ -196,7 +214,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         return
 
     m = n.model
-    periods = sns.unique("period")
+    periods = n.snapshots.unique("period")
 
     # Handle stochastic optimization: find strictest (minimum) growth limit across scenarios
     if n.has_scenarios:
@@ -284,17 +302,22 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
 
     """
     m = n.model
-    weightings = n.snapshot_weightings.loc[sns]
     glcs = n.c.global_constraints.static.query('type == "primary_energy"')
+    if glcs.empty:
+        return
+
+    window = build_window(n, sns)
+    weightings = n.snapshot_weightings.loc[window].set_axis(sns)
 
     if n._multi_invest:
-        period_weighting = n.investment_period_weightings.years[sns.unique("period")]
-        weightings = weightings.mul(period_weighting, level=0, axis=0)
-        period_last_sns = pd.MultiIndex.from_frame(
-            sns.to_frame(index=False).groupby("period").timestep.last().reset_index()
+        period_of = window.get_level_values("period")
+        periods = window.unique("period")
+        period_weighting = n.investment_period_weightings.years[periods]
+        weightings = weightings.mul(
+            period_weighting.loc[period_of].set_axis(sns), axis=0
         )
-        storage_weightings = (
-            pd.Series(1, n.snapshots).mul(period_weighting).loc[period_last_sns]
+        period_last_sns, storage_weightings = _period_last_storage_weightings(
+            sns, period_of, period_weighting
         )
 
     unique_names = glcs.index.unique("name")
@@ -312,9 +335,9 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             glc = glc_group.loc[scenario]
 
             if isnan(glc.investment_period):
-                sns_sel = slice(None)
-            elif glc.investment_period in sns.unique("period"):
-                sns_sel = sns.get_loc(glc.investment_period)
+                snap_sel = sns
+            elif glc.investment_period in periods:
+                snap_sel = sns[period_of == glc.investment_period]
             else:
                 continue
 
@@ -340,12 +363,14 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
                 efficiency = (
                     n.c.generators._as_dynamic("efficiency")
                     .loc[:, scenario]
-                    .loc[sns[sns_sel], gens.index]
+                    .loc[window]
+                    .set_axis(sns)
+                    .loc[snap_sel, gens.index]
                 )
                 em_pu = gens.carrier.map(emissions) / efficiency
-                em_pu = em_pu.multiply(weightings.generators[sns_sel], axis=0)
+                em_pu = em_pu.multiply(weightings.generators.loc[snap_sel], axis=0)
 
-                p = m["Generator-p"].sel(name=gens.index, snapshot=sns[sns_sel])
+                p = m["Generator-p"].sel(name=gens.index, snapshot=snap_sel)
 
                 if n.has_scenarios:
                     p = p.sel(scenario=scenario, drop=True)
@@ -361,7 +386,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
                 sus = sus.loc[scenario]
                 em_pu = sus.carrier.map(emissions)
                 soc = m["StorageUnit-state_of_charge"].sel(
-                    name=sus.index, snapshot=sns[sns_sel]
+                    name=sus.index, snapshot=snap_sel
                 )
 
                 if n._multi_invest:
@@ -414,7 +439,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             if not stores.empty:
                 stores = stores.loc[scenario]
                 em_pu = stores.carrier.map(emissions)
-                e = m["Store-e"].sel(name=stores.index, snapshot=sns[sns_sel])
+                e = m["Store-e"].sel(name=stores.index, snapshot=snap_sel)
 
                 if n._multi_invest:
                     stores_continuous = stores.query("not e_initial_per_period")
@@ -495,9 +520,15 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
     """
     m = n.model
-    weightings = n.snapshot_weightings.loc[sns]
     glcs = n.c.global_constraints.static.query('type == "operational_limit"')
+    if glcs.empty:
+        return
 
+    window = build_window(n, sns)
+    weightings = n.snapshot_weightings.loc[window].set_axis(sns)
+    if n._multi_invest:
+        period_of = window.get_level_values("period")
+        periods = window.unique("period")
     unique_names = glcs.index.unique("name")
 
     for name in unique_names:
@@ -513,30 +544,24 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             glc = glc_group.loc[scenario]
 
             if isnan(glc.investment_period):
-                sns_sel = slice(None)
-            elif glc.investment_period in sns.unique("period"):
-                sns_sel = sns.get_loc(glc.investment_period)
+                snap_sel = sns
+            elif glc.investment_period in periods:
+                snap_sel = sns[period_of == glc.investment_period]
             else:
                 continue
 
             # Filter weightings and calculate period-specific values
-            weightings_filtered = weightings.loc[sns[sns_sel]]
+            weightings_filtered = weightings.loc[snap_sel]
             if n._multi_invest:
+                sel_period_of = period_of[sns.isin(snap_sel)]
                 period_weighting = n.investment_period_weightings.years[
-                    sns[sns_sel].unique("period")
+                    pd.Index(sel_period_of).unique()
                 ]
                 weightings_filtered = weightings_filtered.mul(
-                    period_weighting, level=0, axis=0
+                    period_weighting.loc[sel_period_of].set_axis(snap_sel), axis=0
                 )
-                period_last_sns = pd.MultiIndex.from_frame(
-                    sns[sns_sel]
-                    .to_frame(index=False)
-                    .groupby("period")
-                    .timestep.last()
-                    .reset_index()
-                )
-                storage_weightings = (
-                    pd.Series(1, n.snapshots).mul(period_weighting).loc[period_last_sns]
+                period_last_sns, storage_weightings = _period_last_storage_weightings(
+                    snap_sel, sel_period_of, period_weighting
                 )
 
             lhs = []
@@ -547,7 +572,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             )
             if not gens.empty:
                 gens = gens.loc[scenario]
-                p = m["Generator-p"].sel(name=gens.index, snapshot=sns[sns_sel])
+                p = m["Generator-p"].sel(name=gens.index, snapshot=snap_sel)
                 if n.has_scenarios:
                     p = p.sel(scenario=scenario, drop=True)
 
@@ -566,7 +591,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             if not sus.empty:
                 sus = sus.loc[scenario]
                 soc = m["StorageUnit-state_of_charge"].sel(
-                    name=sus.index, snapshot=sns[sns_sel]
+                    name=sus.index, snapshot=snap_sel
                 )
 
                 if n._multi_invest:
@@ -615,7 +640,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             )
             if not stores.empty:
                 stores = stores.loc[scenario]
-                e = m["Store-e"].sel(name=stores.index, snapshot=sns[sns_sel])
+                e = m["Store-e"].sel(name=stores.index, snapshot=snap_sel)
 
                 if n._multi_invest:
                     stores_continuous = stores.query("not e_initial_per_period")
@@ -729,10 +754,11 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
             period = glc.investment_period
 
             # Determine periods for active asset filtering
+            window = build_window(n, sns)
             if not isnan(period):
                 period_filter = period
-            elif isinstance(sns, pd.MultiIndex):
-                period_filter = list(sns.unique("period"))
+            elif isinstance(window, pd.MultiIndex):
+                period_filter = list(window.unique("period"))
             else:
                 period_filter = None
 
@@ -806,9 +832,12 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
     glcs = n.c.global_constraints.static.query(
         "type == 'transmission_expansion_cost_limit'"
     )
+    if glcs.empty:
+        return
 
+    window = build_window(n, sns)
     if n._multi_invest:
-        periods = sns.unique("period")
+        periods = window.unique("period")
         period_weighting = n.investment_period_weightings.objective[periods]
 
     def substr(s: str) -> str:
@@ -826,8 +855,8 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         if not isnan(period):
             period_filter = period
             weights = 1
-        elif isinstance(sns, pd.MultiIndex):
-            period_filter = list(sns.unique("period"))
+        elif isinstance(window, pd.MultiIndex):
+            period_filter = list(window.unique("period"))
             weights = None  # computed per component below
         else:
             period_filter = None

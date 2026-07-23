@@ -110,9 +110,80 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         grouping = grouping.reindex(vals.indexes["name"])
         return vals.groupby(grouping).sum()
 
+    @staticmethod
+    def _group_key_coords(expr: LinearExpression) -> list[str]:
+        """Grouping-key coordinates carried along a flat ``group`` dimension."""
+        return [
+            k for k in expr.coords if k != "group" and expr.coords[k].dims == ("group",)
+        ]
+
+    def _concat_flat_groups(self, exprs: list[LinearExpression]) -> LinearExpression:
+        """Concatenate grouped expressions along a flat, globally unique ``group`` dim.
+
+        Under linopy's v1 semantics a multi-key ``groupby`` yields a flat ``group``
+        dimension with the keys as auxiliary coordinates (rather than a stacked
+        ``group`` ``MultiIndex``), which ``linopy.merge`` cannot concatenate directly.
+        The keys are stripped, the groups renumbered to be globally unique, merged,
+        and the keys reattached as ``group``-indexed coordinates.
+        """
+        parts: list[LinearExpression] = []
+        frames: list[pd.DataFrame] = []
+        offset = 0
+        for expr in exprs:
+            keys = self._group_key_coords(expr)
+            frames.append(
+                pd.DataFrame({k: np.asarray(expr.coords[k].values) for k in keys})
+            )
+            size = expr.sizes["group"]
+            expr = expr.drop_vars(keys).assign_coords(
+                group=np.arange(offset, offset + size)
+            )
+            offset += size
+            parts.append(expr)
+        merged = ln.merge(parts, dim="group") if len(parts) > 1 else parts[0]
+        frame = pd.concat(frames, ignore_index=True)
+        return merged.assign_coords(
+            {col: ("group", frame[col].to_numpy()) for col in frame.columns}
+        )
+
+    def _regroup_flat(self, expr: LinearExpression, by: list[str]) -> LinearExpression:
+        """Regroup a flat-``group`` expression by a subset of its key coordinates.
+
+        Keeps a flat ``group`` dimension (the v1 representation) and reattaches the
+        selected keys, summing entries that share the same key tuple.
+        """
+        keys = pd.MultiIndex.from_arrays(
+            [np.asarray(expr.coords[k].values) for k in by], names=by
+        )
+        codes, uniques = pd.factorize(keys, sort=True)
+        # Group by a single code coordinate (rather than a Series grouper, which
+        # would misalign against other dimensions such as `snapshot`).
+        grouped = (
+            expr.assign_coords(_group_code=("group", codes))
+            .groupby("_group_code")
+            .sum()
+            .rename(_group_code="group")
+        )
+        return grouped.assign_coords(
+            {
+                name: ("group", uniques.get_level_values(i).to_numpy())
+                for i, name in enumerate(by)
+            }
+        )
+
     def _aggregate_components_concat_values(
         self, exprs: list[LinearExpression], agg: Callable | str
     ) -> LinearExpression:
+        first = exprs[0]
+        if not isinstance(first.indexes.get("group"), pd.MultiIndex) and (
+            "group" in first.dims and len(exprs) > 1
+        ):
+            # v1: flat `group` dim — concatenate ports and sum shared key tuples
+            if agg != "sum":
+                msg = f"Aggregation method {agg} not supported."
+                raise ValueError(msg)
+            merged = self._concat_flat_groups(exprs)
+            return self._regroup_flat(merged, self._group_key_coords(merged))
         res = ln.merge(exprs)
         if not (index := res.indexes[res.dims[0]]).is_unique:
             if agg != "sum":
@@ -127,10 +198,24 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     ) -> LinearExpression:
         if res == {}:
             return LinearExpression.from_constant(self._n.model, 0)
+        first = next(iter(res.values()))
+        group = first.indexes.get("group")
+        if isinstance(group, pd.MultiIndex):
+            # legacy: the stacked `group` MultiIndex concatenates directly
+            if is_one_component:
+                first_key = next(iter(res))
+                return res[first_key].loc[first_key]
+            return ln.merge(list(res.values()), dim="group")
+        if "group" in first.dims:
+            # v1: flat `group` dim with keys as coordinates
+            if is_one_component:
+                keys = [k for k in self._group_key_coords(first) if k != "component"]
+                return self._regroup_flat(first, keys) if keys else first
+            return self._concat_flat_groups(list(res.values()))
+        # groupby=False: no `group` dim, concatenate disjoint asset names
         if is_one_component:
-            first_key = next(iter(res))
-            return res[first_key].loc[first_key]
-        return ln.merge(list(res.values()), dim="group")
+            return first
+        return ln.merge(list(res.values()), dim="name")
 
     def _apply_option_kwargs(
         self,
@@ -151,9 +236,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             raise ValueError(msg)
         if check_if_empty(expr):
             return expr
-        group = expr.indexes["group"].to_frame().drop(columns="component").squeeze()
-        group.index = pd.Index(expr.indexes["group"], name="group")
-        return expr.groupby(group).sum()
+        group = expr.indexes.get("group")
+        if isinstance(group, pd.MultiIndex):
+            grouping = group.to_frame().drop(columns="component").squeeze()
+            grouping.index = pd.Index(group, name="group")
+            return expr.groupby(grouping).sum()
+        keys = [k for k in self._group_key_coords(expr) if k != "component"]
+        return self._regroup_flat(expr, keys) if keys else expr
 
     def _get_operational_variable(self, c: str) -> Variable | LinearExpression:
         # TODO: move function to better place to avoid circular imports
@@ -162,8 +251,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         m = self._n.model
 
         if c == "Load":
+            sns = m.parameters.snapshots.to_index()
             return LinearExpression.from_constant(
-                m, self._n.get_switchable_as_dense(c, "p_set")
+                m, self._n.get_switchable_as_dense(c, "p_set").loc[sns]
             )
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
@@ -217,7 +307,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             # Build capacity expression handling both extendable and non-extendable
             if var_name in m.variables:
-                capacity = m.variables[var_name] + non_ext_capacity
+                capacity = (
+                    m.variables[var_name]
+                    .to_linexpr()
+                    .add(non_ext_capacity, join="outer")
+                )
             elif not non_ext_capacity.empty:
                 capacity = LinearExpression.from_constant(m, non_ext_capacity)
             else:
@@ -289,7 +383,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             # Build capacity expression handling both extendable and non-extendable
             if var_name in m.variables:
-                capacity = m.variables[var_name] + non_ext_capacity
+                capacity = (
+                    m.variables[var_name]
+                    .to_linexpr()
+                    .add(non_ext_capacity, join="outer")
+                )
             elif not non_ext_capacity.empty:
                 capacity = LinearExpression.from_constant(m, non_ext_capacity)
             else:
@@ -678,6 +776,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, component: str, port: str) -> pd.Series:
             m = n.model
             c = n.c[component]
+            if "p_max_pu" not in c.static.columns:
+                # curtailment only applies to components with a per-unit availability
+                # (passive branches have no p_max_pu, yielding an all-NaN dense frame)
+                return None
             nom_attr = c._operational_attrs["nom"]
             var_name = f"{component}-{nom_attr}"
 
@@ -686,7 +788,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             # Build capacity expression handling both extendable and non-extendable
             if var_name in m.variables:
-                capacity = m.variables[var_name] + non_ext_capacity
+                capacity = (
+                    m.variables[var_name]
+                    .to_linexpr()
+                    .add(non_ext_capacity, join="outer")
+                )
             elif not non_ext_capacity.empty:
                 capacity = LinearExpression.from_constant(m, non_ext_capacity)
             else:

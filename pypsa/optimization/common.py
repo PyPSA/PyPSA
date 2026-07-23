@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import xarray as xr
@@ -21,23 +21,69 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 
-def _period_start_mask(sns: pd.Index) -> xr.DataArray:
-    """Mark the first snapshot of each investment period."""
+def build_window(n: Network, sns: pd.Index) -> pd.Index:
+    """(Multi)Index snapshots of the current build window.
+
+    While a multi-period model is built over a flat positional ``snapshot`` dim,
+    the original MultiIndex window is stashed on the network; return it. Outside
+    the flat path ``sns`` already *is* the window, so return it unchanged. Single
+    source of truth for the flat position -> period mapping.
+    """
+    window = n._optimize_window_snapshots
+    return sns if window is None else window
+
+
+def snapshot_weightings(n: Network, sns: pd.Index, kind: str) -> pd.Series:
+    """Snapshot weightings of ``kind`` aligned to ``sns``.
+
+    During multi-period model building ``sns`` is a flat positional index, while
+    the weightings are indexed by the window MultiIndex; select by the latter and
+    relabel to the flat index. A no-op relabel outside the flat path.
+    """
+    return n.snapshot_weightings[kind].loc[build_window(n, sns)].set_axis(sns)
+
+
+def iter_snapshot_periods(n: Network, sns: pd.Index) -> Any:
+    """Yield ``(period, snapshots)`` pairs for per-period constraint building.
+
+    Works with the flat positional snapshot dim used during model building: each
+    snapshot's period comes from the build window (aligned by position), so
+    ``sns`` need not be a MultiIndex.
+    """
+    if not n._multi_invest:
+        yield None, sns
+        return
+    window = build_window(n, sns)
+    period_of = window.get_level_values("period")
+    for period in window.unique("period"):
+        yield period, sns[period_of == period]
+
+
+def _period_start_mask(n: Network, sns: pd.Index) -> xr.DataArray:
+    """Mark the first snapshot of each investment period within the build window."""
     is_start = zeros(len(sns), dtype=bool)
     is_start[0] = True
-    if isinstance(sns, pd.MultiIndex) and "period" in sns.names:
-        periods = sns.get_level_values("period").to_numpy()
+    window = build_window(n, sns)
+    if isinstance(window, pd.MultiIndex) and "period" in window.names:
+        periods = window.get_level_values("period").to_numpy()
         is_start[1:] = periods[1:] != periods[:-1]
     return xr.DataArray(is_start, coords=[sns])
 
 
 def _roll_within_periods(v: Variable) -> Variable:
-    """Cyclically roll ``v`` by one snapshot within each investment period."""
+    """Cyclically roll ``v`` by one snapshot within each investment period.
+
+    Groups by the ``period`` auxiliary coordinate carried on the flat snapshot
+    dim, then restores the original snapshot coordinates after the positional
+    roll so the result stays aligned with the un-rolled variable.
+    """
     sns = v.indexes["snapshot"]
+    period = v.coords["period"].to_numpy()
     positions = pd.Series(range(len(sns)), index=sns)
-    roll_index = positions.groupby(level="period").transform(lambda s: roll(s, 1))
-    coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
-    return v.isel(snapshot=roll_index.to_numpy()).assign_coords(coords)
+    roll_index = positions.groupby(period).transform(lambda s: roll(s, 1))
+    rolled = v.isel(snapshot=roll_index.to_numpy())
+    keep = {c: v.coords[c] for c in ("snapshot", "period", "timestep") if c in v.coords}
+    return rolled.assign_coords(keep)
 
 
 @deprecated(

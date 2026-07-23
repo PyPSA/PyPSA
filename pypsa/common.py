@@ -35,6 +35,76 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def flatten_snapshot_dim(obj: Any) -> Any:
+    """Decompose a MultiIndex ``snapshot`` dimension into a flat positional one.
+
+    The level values (e.g. ``period``, ``timestep``) are re-attached as auxiliary
+    coordinates so a ``groupby``/``.sel`` on them still works. A no-op when
+    ``snapshot`` is not a MultiIndex. Positions run ``0..N-1`` so any two arrays
+    built over the same snapshots stay aligned.
+    """
+    idx = obj.indexes.get("snapshot")
+    if not isinstance(idx, pd.MultiIndex):
+        return obj
+    levels = {
+        name: ("snapshot", idx.get_level_values(name).to_numpy()) for name in idx.names
+    }
+    obj = obj.reset_index("snapshot", drop=True)
+    coords = {"snapshot": np.arange(obj.sizes["snapshot"]), **levels}
+    return obj.assign_coords(coords)
+
+
+def recompose_snapshot_dim(
+    obj: Any, levels: tuple[str, ...] = ("period", "timestep")
+) -> Any:
+    """Rebuild a MultiIndex ``snapshot`` from a flat positional dim + level aux coords.
+
+    Inverse of :func:`flatten_snapshot_dim`. A no-op when the level coordinates
+    are not present.
+    """
+    if "snapshot" not in getattr(obj, "dims", ()):
+        return obj
+    present = [lvl for lvl in levels if lvl in obj.coords]
+    if len(present) < 2:
+        return obj
+    return obj.set_index(snapshot=present)
+
+
+def attach_snapshot_aux(
+    obj: Any, window: pd.Index, levels: tuple[str, ...] = ("period", "timestep")
+) -> Any:
+    """Re-attach flat-snapshot aux coords by position from a MultiIndex ``window``.
+
+    The flat ``snapshot`` coordinate holds positions into ``window``; pull each
+    level's value at those positions. A no-op when ``window`` is not a MultiIndex
+    or ``snapshot`` is absent. Inverse companion of :func:`drop_snapshot_aux` for
+    the flat-native round-trip.
+    """
+    has_snapshot = "snapshot" in getattr(obj, "dims", ())
+    if not isinstance(window, pd.MultiIndex) or not has_snapshot:
+        return obj
+    pos = obj.indexes["snapshot"].to_numpy()
+    coords = {
+        lvl: ("snapshot", window.get_level_values(lvl).to_numpy()[pos])
+        for lvl in levels
+    }
+    return obj.assign_coords(coords)
+
+
+def drop_snapshot_aux(
+    obj: Any, levels: tuple[str, ...] = ("period", "timestep")
+) -> Any:
+    """Drop the flat-snapshot auxiliary coordinates (``period``/``timestep``).
+
+    The aux coords are only meaningful while the ``snapshot`` dimension is live
+    (for grouping, alignment and solution round-trip). Once ``snapshot`` is
+    consumed by a reduction they linger on the resulting ``_term`` dimension and
+    break strict concat/merge against operands that never carried them. Dropping
+    them keeps merges consistent. Works on xarray and linopy objects alike.
+    """
+    return obj.drop_vars(list(levels), errors="ignore")
+
+
 class UnexpectedError(AssertionError):
     """Custom error for unexpected conditions with issue tracker reference.
 
@@ -257,6 +327,16 @@ def as_index(
 
     """
     n_attr = getattr(n, network_attribute)
+
+    # During optimization of multi-period networks the model is built over a flat
+    # positional snapshot dim, so normalise/validate against that, not the MultiIndex.
+    if (
+        network_attribute == "snapshots"
+        and values is not None
+        and n._optimize_flatten_snapshots
+        and n._model is not None
+    ):
+        n_attr = n._model.parameters.snapshots.to_index()
 
     if values is None:
         values_ = n_attr

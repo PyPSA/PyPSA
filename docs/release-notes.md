@@ -22,6 +22,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Speed up [`create_model()`][pypsa.optimization.OptimizationAccessor.create_model] for large networks by computing the bus membership filter in `define_nodal_balance_constraints` with a pandas hash join instead of `xarray.isin` over object-dtype arrays. (<!-- md:pr 1770 -->)
 
+- Prepared the optimization module for linopy's upcoming v1 arithmetic convention (strict coordinate alignment and NaN handling). Expression combinations that previously relied on linopy's implicit alignment now align operands explicitly (via `join=`, `.sel`, and `.fillna` on constants), so model building runs correctly under both the current and the new linopy semantics. This is a no-op for results and remains compatible with released linopy `0.8.x`.
+
 ### Bug Fixes
 
 - Fixed spurious infeasibility in [`optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] when a network mixed committable and non-committable generators with ramp limits. At a window seam, non-committable components (which carry no commitment status) were assigned `status=0`, corrupting their start-up/shut-down ramp terms. (<!-- md:pr 1644 -->)

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any
 
+    import linopy
     import pandas as pd
 
     from pypsa.components.store import ComponentsStore
@@ -66,6 +67,10 @@ class _NetworkABC(ABC):
     calculate_dependent_values: Callable
 
     passive_branches: pd.DataFrame
+
+    # Optimization
+    _model: linopy.Model | None
+    _optimize_flatten_snapshots: bool
 
     @property
     @abstractmethod
