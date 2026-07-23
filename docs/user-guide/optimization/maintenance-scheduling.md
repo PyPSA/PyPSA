@@ -20,7 +20,8 @@ Scheduling generator maintenance as an integer program dates back to Dopazo and
 Merrill (1975).[^1] The event-based formulation here follows the tradition of
 scheduling a given number of maintenance events of fixed duration[^2]; for a
 survey of alternative formulations and the tightness of their linear relaxations,
-see Andrade (2025).[^3]
+see Andrade (2025).[^3] A broader review of maintenance scheduling in the
+electricity industry is given by Froger et al. (2016).[^4]
 
 ## Event Count
 
@@ -244,3 +245,4 @@ When combined with unit commitment (`committable=True`), the dispatch bounds sca
 [^1]: J. F. Dopazo and H. M. Merrill (1975), [Optimal Generator Maintenance Scheduling Using Integer Programming](https://doi.org/10.1109/T-PAS.1975.31996), IEEE Transactions on Power Apparatus and Systems, 94, 5, 1537-1545, doi:10.1109/T-PAS.1975.31996.
 [^2]: F. Fourcade, E. Johnson, M. Bara, P. Cortey-Dumont (1997), [Optimizing nuclear power plant refueling with mixed-integer programming](https://doi.org/10.1016/S0377-2217(96)00197-X), European Journal of Operational Research, 97, 2, 269-280, doi:10.1016/S0377-2217(96)00197-X.
 [^3]: T. Andrade (2025), [On the tightness of linear relaxations of alternative mixed integer programming formulations for the generator maintenance scheduling problem](https://arxiv.org/abs/2502.08855), arXiv:2502.08855.
+[^4]: A. Froger, M. Gendreau, J. E. Mendoza, É. Pinson, L.-M. Rousseau (2016), [Maintenance scheduling in the electricity industry: A literature review](https://doi.org/10.1016/j.ejor.2015.08.045), European Journal of Operational Research, 251, 3, 695-706, doi:10.1016/j.ejor.2015.08.045.
