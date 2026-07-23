@@ -21,6 +21,7 @@ import pandas as pd
 from Levenshtein import distance
 
 from pypsa._options import options
+from pypsa.common import rename_deprecated_kwargs
 from pypsa.components.common import as_components
 from pypsa.components.types import all_standard_attrs_set
 from pypsa.network.abstract import _NetworkABC
@@ -216,6 +217,14 @@ class NetworkTransformMixin(_NetworkABC):
             return_names = options.params.add.return_names
 
         c = as_components(self, class_name)
+        if c.name == "Transformer":
+            rename_deprecated_kwargs(
+                "n.add",
+                kwargs,
+                {"phase_shift": "phase_shift_set"},
+                deprecated_in="1.3.0",
+                removed_in="2.0",
+            )
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name) and isinstance(suffix, str)
 

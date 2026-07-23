@@ -54,6 +54,41 @@ These constraints are set in the function `define_kirchhoff_voltage_constraints(
     However, the extension [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] covers this through an
     iterative process as done Hagspiel et al. (2014)[^2] .
 
+## Phase-Shifting Transformers (PSTs)
+
+A phase-shifting transformer (PST) inserts a controllable voltage phase-angle
+shift between its terminals to redistribute power flows in a meshed network,
+without adding or removing active power. Following the linearised power-flow
+treatment of PSTs in Verboomen et al. (2008)[^4] (Section III-A "Linearized
+Power Flow", eq. (3)), the phase shift enters the cycle-based KVL constraint
+as an additive angle term:
+
+$$\sum_l C_{l,c} \left( x_l p_{l,t} + \alpha_{l,t} \right) = 0  \quad \forall\, c,t$$
+
+where $\alpha_{l,t}$ is the voltage phase-angle shift of branch $l$ in radians
+(zero for lines and transformers without phase shift).
+
+For a `Transformer` with `phase_shift_min < phase_shift_max`, the phase shift
+becomes a per-snapshot decision variable with bounds
+
+$$\alpha_l^{min} \leq \alpha_{l,t} \leq \alpha_l^{max} \quad \forall\, l,t$$
+
+given by the input attributes `phase_shift_min` and `phase_shift_max` (in
+degrees, converted to radians internally). Otherwise the phase shift is fixed
+to the static or series input `phase_shift_set`. The realised per-snapshot
+angle is written to the dynamic output `n.transformers_t["phase_shift"]`.
+
+The variables are set in `define_phase_shift_variables()` and carry the name
+`Transformer-phase_shift`; the angle term is added within
+`define_kirchhoff_voltage_constraints()`.
+
+!!! note "Note: Sign convention"
+
+    PyPSA's power-flow sign convention is $p_{l,t} = (\theta_0 - \theta_1 - \alpha_{l,t}) / x_l$,
+    consistent with `n.pf()` and `n.lpf()`. This is the negative of the angle
+    convention used in Verboomen et al. (2008)[^4], i.e.
+    $\alpha^{PyPSA} = -\alpha^{Verboomen}$.
+
 ## Linear Loss Approximation
 
 The AC transmission losses $\psi_{l,t}$ for line $l$ at timestep $t$ are given by the loss parabola
@@ -196,3 +231,5 @@ More details on this implementation can be found in Neumann et al. (2022)[^3].
 [^2]: S. Hagspiel, C. Jägemann, D. Lindenberger, T. Brown, S. Cherevatskiy, E. Tröster (2014), [Cost-optimal power system extension under flow-based market coupling](https://doi.org/10.1016/j.energy.2014.01.025), Energy, 66, 654-666, doi:10.1016/j.energy.2014.01.025.
 
 [^3]: F. Neumann, V. Hagenmeyer, T. Brown (2022), [Assessments of linear power flow and transmission loss approximations in coordinated capacity expansion problems](https://doi.org/10.1016/j.apenergy.2022.118859), Applied Energy, 314, 118859, doi:10.1016/j.apenergy.2022.118859.
+
+[^4]: J. Verboomen, D. Van Hertem, P. H. Schavemaker, W. L. Kling, R. Belmans (2008), [Analytical Approach to Grid Operation With Phase Shifting Transformers](https://doi.org/10.1109/TPWRS.2007.913197), IEEE Transactions on Power Systems, 23 (1), 41-46, doi:10.1109/TPWRS.2007.913197. See Section III-A "Linearized Power Flow", eq. (3).

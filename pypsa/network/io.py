@@ -1791,6 +1791,21 @@ class NetworkIOMixin(_NetworkABC):
             If True, overwrite existing components.
 
         """
+        if (
+            cls_name == "Transformer"
+            and "phase_shift" in df.columns
+            and "phase_shift_set" not in df.columns
+        ):
+            warnings.warn(
+                "The Transformer input attribute `phase_shift` has been renamed to "
+                "`phase_shift_set`; `phase_shift` now holds the realised/optimised "
+                "shift. Importing the legacy column as `phase_shift_set`. Deprecated "
+                "in 1.3.0, support removed in 2.0.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            df = df.rename(columns={"phase_shift": "phase_shift_set"})
+
         if cls_name in ("Link", "Process"):
             _update_ports_component_attrs(self, where=df, c_name=cls_name)
 
@@ -2177,7 +2192,9 @@ class NetworkIOMixin(_NetworkABC):
             )  # NB: PYPOWER has strange default of 0. for tap ratio
             | (pdf["branches"].phase_shift != 0)
         )
-        pdf["transformers"] = pd.DataFrame(pdf["branches"][transformers])
+        pdf["transformers"] = pd.DataFrame(pdf["branches"][transformers]).rename(
+            columns={"phase_shift": "phase_shift_set"}
+        )
         pdf["lines"] = pdf["branches"][~transformers].drop(
             ["tap_ratio", "phase_shift"], axis=1
         )
@@ -2412,7 +2429,7 @@ class NetworkIOMixin(_NetworkABC):
 
             d["Transformer"] = pd.DataFrame(
                 {
-                    "phase_shift": net.trafo.shift_degree.values,
+                    "phase_shift_set": net.trafo.shift_degree.values,
                     "s_nom": s_nom,
                     "bus0": net.bus.name.loc[net.trafo.hv_bus].values,
                     "bus1": net.bus.name.loc[net.trafo.lv_bus].values,

@@ -552,7 +552,7 @@ def apply_transformer_types(n: Network) -> None:
     )
 
     # now set calculated values on live transformers
-    attrs = ["r", "x", "g", "b", "phase_shift", "s_nom", "tap_side", "tap_ratio"]
+    attrs = ["r", "x", "g", "b", "s_nom", "tap_side", "tap_ratio"]
     _warn_type_param_override(
         "Transformer(s)",
         n.c.transformers.static.loc[trafos_with_types_b],
@@ -562,6 +562,10 @@ def apply_transformer_types(n: Network) -> None:
     n.c.transformers.static.loc[trafos_with_types_b, attrs] = t[attrs].astype(
         n.c.transformers.static[attrs].dtypes
     )
+    # the type's phase_shift feeds the transformer's phase_shift_set input
+    n.c.transformers.static.loc[trafos_with_types_b, "phase_shift_set"] = t[
+        "phase_shift"
+    ].astype(n.c.transformers.static["phase_shift_set"].dtype)
 
     # TODO: status, rate_A
 
@@ -1154,7 +1158,9 @@ class SubNetworkPowerFlowMixin:
         phase_shift = np.concatenate(
             [
                 (
-                    (c.static.loc[c.static.query("active").index, "phase_shift"]).values
+                    (
+                        c.static.loc[c.static.query("active").index, "phase_shift_set"]
+                    ).values
                     * np.pi
                     / 180.0
                     if c.name == "Transformer"
@@ -1214,7 +1220,9 @@ class SubNetworkPowerFlowMixin:
         tau_lv = pd.Series(1.0, branches.index)
         tau_lv[branches.tap_side == 1] = tau[branches.tap_side == 1]
 
-        phase_shift = np.exp(1.0j * branches["phase_shift"].fillna(0.0) * np.pi / 180.0)
+        phase_shift = np.exp(
+            1.0j * branches["phase_shift_set"].fillna(0.0) * np.pi / 180.0
+        )
 
         # build the admittance matrix elements for each branch
         Y11 = (y_se + 0.5 * y_sh) / tau_lv**2
