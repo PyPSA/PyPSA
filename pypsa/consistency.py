@@ -888,7 +888,8 @@ class NetworkConsistencyMixin(_NetworkABC):
         strict : list, optional
             If some checks should raise an error instead of logging a warning, pass a list
             of strings with the names of the checks to be strict about. If 'all' is passed,
-            all checks will be strict. By default, 'dispatch_delays' is always strict.
+            all checks will be strict. By default, 'dispatch_delays' and 'maintenance' are
+            always strict.
 
         Raises
         ------
@@ -897,7 +898,7 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         """
         if strict is None:
-            strict = ["dispatch_delays"]
+            strict = ["dispatch_delays", "maintenance"]
 
         strict_options = [
             "unknown_buses",
@@ -911,6 +912,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "generators",
             "cost_consistency",
             "dispatch_delays",
+            "maintenance",
             "disconnected_buses",
             "investment_periods",
             "shapes",
@@ -956,6 +958,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
+            check_maintenance_attributes(self, c, "maintenance" in strict)
             # Checks cost attributes consistency
             check_cost_consistency(c)
             # Checks dispatch delay attributes
@@ -1411,6 +1414,89 @@ def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
                 c.name.lower(),
                 ", ".join(details),
             )
+
+
+def check_maintenance_attributes(
+    n: NetworkType, component: Components, strict: bool = False
+) -> None:
+    """Check maintainable components have valid maintenance parameters.
+
+    Parameters
+    ----------
+    n : NetworkType
+        The network to check.
+    component : Components
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if "maintainable" not in component.static:
+        return
+
+    maintainable = component.static[component.static.maintainable]
+    if maintainable.empty:
+        return
+
+    bad_duration = maintainable[maintainable.maintenance_duration <= 0]
+    if not bad_duration.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintainable=True but maintenance_duration <= 0,"
+            " which is invalid for maintenance scheduling:\n%s",
+            component.list_name,
+            bad_duration.index,
+        )
+
+    bad_events = maintainable[maintainable.maintenance_events <= 0]
+    if not bad_events.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintainable=True but maintenance_events <= 0,"
+            " so no maintenance will be scheduled:\n%s",
+            component.list_name,
+            bad_events.index,
+        )
+
+    horizon_hours = n.snapshot_weightings.generators.sum()
+    bad_horizon = maintainable[maintainable.maintenance_duration > horizon_hours]
+    if not bad_horizon.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintenance_duration > total weighted snapshot"
+            " hours (%s), which will cause infeasibility:\n%s",
+            component.list_name,
+            horizon_hours,
+            bad_horizon.index,
+        )
+
+    total = maintainable.maintenance_duration * maintainable.maintenance_events
+    bad_total = maintainable[total > horizon_hours]
+    if not bad_total.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintenance_duration * maintenance_events > total"
+            " weighted snapshot hours (%s), which will cause infeasibility:\n%s",
+            component.list_name,
+            horizon_hours,
+            bad_total.index,
+        )
+
+    ext = maintainable[maintainable.p_nom_extendable]
+    bad_max = ext[np.isinf(ext.p_nom_max)]
+    if not bad_max.empty:
+        _log_or_raise(
+            strict,
+            "The following extendable maintainable %s have infinite p_nom_max,"
+            " which is required to be finite for linearizing the maintenance"
+            " capacity reduction:\n%s",
+            component.list_name,
+            bad_max.index,
+        )
 
 
 def check_no_modular_committables(n: Network) -> None:
