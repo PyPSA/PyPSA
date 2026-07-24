@@ -1884,7 +1884,7 @@ wheels = [
 
 [[package]]
 name = "linopy"
-version = "0.8.0"
+version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bottleneck" },
@@ -1899,9 +1899,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "xarray" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/28/7f/80c12a3bba2a2bd8c17777fb272a37ccd16e65e53dc81d0d137fabd29241/linopy-0.8.0.tar.gz", hash = "sha256:566ede05d6134abf978fb4c1e18e0e5b67cd1acf0b26e9d80adcada3632d9c02", size = 1453088, upload-time = "2026-06-10T09:48:45.124Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c3/59/ea260357cb0676017c93ece2bbbd376f9d921ac1c80332b5c38ba87a1385/linopy-0.9.0.tar.gz", hash = "sha256:8dfa89505125f52ba52758cea83c2867012ae57761fff4e8f8bc3c5ddc96aae9", size = 1524935, upload-time = "2026-07-24T09:06:27.048Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/a9/987a9f2ad9a0b846147092edf0071b0f96b84c0e5933ac354192d8a3836d/linopy-0.8.0-py3-none-any.whl", hash = "sha256:107f9dcb63943bb02e457693f639e4adceea265040d76f8949bad8b496558304", size = 184634, upload-time = "2026-06-10T09:48:43.147Z" },
+    { url = "https://files.pythonhosted.org/packages/33/39/f4b5e9bf33701123cf311baef07bcf8c923b6f181b98edf1a075f61c5f78/linopy-0.9.0-py3-none-any.whl", hash = "sha256:d14df569f75061a17eff46df8367cb5fac608d2f3ea1a1249f0b698d1ef3e76e", size = 208757, upload-time = "2026-07-24T09:06:25.253Z" },
 ]
 
 [[package]]
@@ -3842,7 +3842,7 @@ requires-dist = [
     { name = "highspy" },
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.1.1" },
     { name = "levenshtein", specifier = ">=0.27.1" },
-    { name = "linopy", specifier = ">=0.8.0" },
+    { name = "linopy", specifier = ">=0.9.0" },
     { name = "matplotlib", specifier = "!=3.11.0" },
     { name = "matplotlib", marker = "extra == 'dev'", specifier = "<3.11" },
     { name = "mkdocs-autolinks-plugin", marker = "extra == 'docs'" },
