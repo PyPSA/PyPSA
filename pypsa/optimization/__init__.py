@@ -6,6 +6,7 @@
 
 from pypsa.optimization import abstract, constraints, optimize, variables
 from pypsa.optimization.optimize import OptimizationAccessor
+from pypsa.optimization.smspp import SMSppAccessor
 
 __all__ = [
     "abstract",
@@ -13,4 +14,5 @@ __all__ = [
     "optimize",
     "variables",
     "OptimizationAccessor",
+    "SMSppAccessor",
 ]

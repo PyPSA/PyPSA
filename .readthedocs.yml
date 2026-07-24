@@ -11,6 +11,8 @@ build:
   jobs:
     pre_system_dependencies:
     - git fetch --unshallow   # Needed to get version tags
+    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C "$HOME" bin/micromamba
+    - MAMBA_ROOT_PREFIX="$HOME/micromamba" "$HOME/bin/micromamba" create -y -p "$HOME/smspp" -c conda-forge smspp-project
     pre_create_environment:
     - asdf plugin add uv
     - asdf install uv latest
@@ -23,7 +25,8 @@ build:
     - printf '%b' "$GUROBI_LIC" > $HOME/gurobi.lic
     - python -c "p=\"$HOME/gurobi.lic\";t=open(p).read().replace(chr(39),\"\");open(p,\"w\").write(t)"
       # To create all doctest files
-    - PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi uv run pytest test/test_docs.py --test-docs
+    - PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv run --no-sync pytest test/test_docs.py --test-docs
+    - PATH="$HOME/smspp/bin:$PATH" LD_LIBRARY_PATH="$HOME/smspp/lib:${LD_LIBRARY_PATH:-}" UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv run --no-sync pytest test/test_smspp.py
 
 mkdocs:
   configuration: mkdocs.yml
