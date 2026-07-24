@@ -17,13 +17,16 @@ import pandas as pd
 import xarray as xr
 from linopy import Model, available_solvers, merge
 
+from pypsa._linopy_compat import (
+    drop_snapshot_aux,
+    linopy_uses_v1,
+    recompose_snapshot_dim,
+    tuple_snapshot_index,
+)
 from pypsa._options import options
 from pypsa.common import (
     UnexpectedError,
     as_index,
-    drop_snapshot_aux,
-    linopy_uses_v1,
-    recompose_snapshot_dim,
 )
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
@@ -96,20 +99,17 @@ lookup = pd.read_csv(
 def _build_over_flat_snapshots(n: Network, sns: pd.Index) -> Iterator[pd.Index]:
     """Yield a flat tuple-labeled snapshot dim for the duration of a model build.
 
-    A ``pd.MultiIndex`` snapshot (multi-period, or user-supplied) is forbidden on
-    variables by linopy's v1 convention, so under v1 multi-period models are built
-    over a flat object index whose labels are the ``(period, timestep)`` tuples;
-    the original window is stashed for the ``da`` accessor and the solution
-    round-trip. Under legacy semantics (and pre-v1 linopy) the MultiIndex stays
-    first-class, keeping ``n.model`` unchanged. The flatten flag is cleared on exit
-    (success or error) while ``_optimize_window_snapshots`` persists for post-build
-    assignment.
+    Under v1 a multi-period ``snapshot`` MultiIndex is flattened to its tuple labels
+    (see :mod:`pypsa._linopy_compat`) and the original window stashed for the ``da``
+    accessor and the solution round-trip; under legacy it stays first-class. The
+    flatten flag is cleared on exit while ``_optimize_window_snapshots`` persists for
+    post-build assignment.
     """
     is_multiindex = isinstance(sns, pd.MultiIndex)
     n._optimize_flatten_snapshots = is_multiindex and linopy_uses_v1()
     if n._optimize_flatten_snapshots:
         n._optimize_window_snapshots = sns
-        sns = pd.Index(list(sns), tupleize_cols=False, name="snapshot")
+        sns = tuple_snapshot_index(sns)
     with warnings.catch_warnings():
         if is_multiindex and not n._optimize_flatten_snapshots:
             _notify_multiindex_snapshot_kept()

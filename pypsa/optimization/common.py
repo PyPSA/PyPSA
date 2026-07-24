@@ -11,12 +11,18 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 import xarray as xr
 from deprecation import deprecated
+from linopy import merge
 from numpy import hstack, ravel, roll, zeros
 
+from pypsa._linopy_compat import (
+    SNAPSHOT_LEVELS,
+    attach_snapshot_aux,
+    drop_snapshot_aux,
+)
 from pypsa.constants import RE_PORTS
 
 if TYPE_CHECKING:
-    from linopy import Variable
+    from linopy import LinearExpression, Variable
 
     from pypsa import Network
 
@@ -82,8 +88,18 @@ def _roll_within_periods(v: Variable) -> Variable:
     positions = pd.Series(range(len(sns)), index=sns)
     roll_index = positions.groupby(period).transform(lambda s: roll(s, 1))
     rolled = v.isel(snapshot=roll_index.to_numpy())
-    keep = {c: v.coords[c] for c in ("snapshot", "period", "timestep") if c in v.coords}
+    keep = {c: v.coords[c] for c in ("snapshot", *SNAPSHOT_LEVELS) if c in v.coords}
     return rolled.assign_coords(keep)
+
+
+def merge_over_snapshots(exprs: list, n: Network, sns: pd.Index) -> LinearExpression:
+    """Merge expressions on ``snapshot`` while preserving the flat-snapshot aux coords.
+
+    The aux coords must be dropped before the strict outer merge — differing periods
+    on collided labels read as a conflict — and re-derived from the tuple labels after.
+    """
+    merged = merge([drop_snapshot_aux(e) for e in exprs], dim="snapshot", join="outer")
+    return attach_snapshot_aux(merged, build_window(n, sns))
 
 
 @deprecated(

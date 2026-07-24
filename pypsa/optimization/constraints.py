@@ -25,10 +25,9 @@ from numpy import (
 )
 from xarray import DataArray, where
 
+from pypsa._linopy_compat import drop_snapshot_aux
 from pypsa.common import (
     as_index,
-    attach_snapshot_aux,
-    drop_snapshot_aux,
     expand_series,
 )
 from pypsa.components._types.mixin.multiports import _Multiport
@@ -40,6 +39,7 @@ from pypsa.optimization.common import (
     _roll_within_periods,
     build_window,
     iter_snapshot_periods,
+    merge_over_snapshots,
     reindex,
     snapshot_weightings,
 )
@@ -1529,11 +1529,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         lhs.append(sum(exprs))
 
     if lhs:
-        # Per-period cycles are distinct topologies sharing collided labels; drop the
-        # snapshot aux coords so the concat doesn't read differing periods as a
-        # conflict, outer-join the disjoint cycle dims, then re-attach the coords.
-        lhs = merge([drop_snapshot_aux(e) for e in lhs], dim="snapshot", join="outer")
-        lhs = attach_snapshot_aux(lhs, build_window(n, sns))
+        lhs = merge_over_snapshots(lhs, n, sns)
         con = lhs == 0
         mask = con.rhs.notnull()
         m.add_constraints(con, name="Kirchhoff-Voltage-Law", mask=mask)
