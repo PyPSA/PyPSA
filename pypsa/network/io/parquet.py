@@ -341,7 +341,7 @@ def _attribute_catalog(n: Network, component_classes: list[str]) -> dict:
             dims = ["name", "snapshot"] if row["varying"] else ["name"]
             entries[str(attr)] = {
                 "dims": dims,
-                "default": _jsonable(row["default"]),
+                "default": row["default"],
             }
         catalog[cls] = entries
     return catalog
