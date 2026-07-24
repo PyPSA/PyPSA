@@ -23,6 +23,7 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Enhancements
 
 - Speed up [`create_model()`][pypsa.optimization.OptimizationAccessor.create_model] for large networks by computing the bus membership filter in `define_nodal_balance_constraints` with a pandas hash join instead of `xarray.isin` over object-dtype arrays. (<!-- md:pr 1770 -->)
+- Replace the `Levenshtein` dependency (GPL-2.0-or-later) with `rapidfuzz` (MIT) for detecting typos in custom attribute names, so PyPSA's dependency tree remains fully MIT-compatible.
 
 ### Bug Fixes
 
