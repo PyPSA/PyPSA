@@ -73,6 +73,13 @@ class UnexpectedError(AssertionError):
         super().__init__(message)
 
 
+class ExperimentalWarning(FutureWarning):
+    """Warning for experimental PyPSA APIs.
+
+    Silence with `warnings.filterwarnings("ignore", category=pypsa.ExperimentalWarning)`.
+    """
+
+
 class MethodHandlerWrapper:
     """Decorator to wrap a method with a handler class.
 
@@ -630,6 +637,25 @@ def deprecated_namespace(
     return wrapper
 
 
+def experimental(func: Callable) -> Callable:
+    """Mark a function or method as experimental.
+
+    Emits an `ExperimentalWarning` on use. Add a `<!-- md:badge-experimental -->`
+    badge to the docstring to flag it in the API docs.
+    """
+    message = (
+        f"`{func.__qualname__}` is experimental. It may change "
+        "or be removed without notice."
+    )
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        warnings.warn(message, ExperimentalWarning, stacklevel=2)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 def list_as_string(
     list_: Sequence | dict | set, prefix: str = "", style: str = "comma-separated"
 ) -> str:
@@ -735,6 +761,35 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
         __import__(module_name)
     except ImportError as e:
         raise ImportError(install_message) from e
+
+
+def _is_output(defaults: pd.DataFrame, attr: str) -> bool:
+    """Return `True` if `attr` is an output (custom attrs with no status are inputs)."""
+    # TODO, move this to cleaned up components defaults -> Move to manifest
+    if attr not in defaults.index:
+        return False
+    return str(defaults.at[attr, "status"]).startswith("Output")
+
+
+def _series_export_columns(
+    defaults: pd.DataFrame, wide: pd.DataFrame, attr: str
+) -> pd.Index:
+    """Select the columns of a dynamic frame whose series differ from the default.
+
+    Examples
+    --------
+    >>> defaults = pd.DataFrame({"default": [1.0]}, index=["p_set"])
+    >>> wide = pd.DataFrame({"gen1": [1.0, 1.0], "gen2": [1.0, 2.0]})
+    >>> _series_export_columns(defaults, wide, "p_set").tolist()
+    ['gen2']
+
+    """
+    if attr not in defaults.index:
+        return wide.columns
+    default = defaults.at[attr, "default"]
+    if pd.isnull(default):
+        return wide.columns[(~pd.isnull(wide)).any()]
+    return wide.columns[(wide != default).any()]
 
 
 def _convert_to_series(variable: dict | Sequence | float, index: pd.Index) -> pd.Series:

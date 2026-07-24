@@ -14,7 +14,7 @@ import tempfile
 import warnings
 from abc import abstractmethod
 from functools import partial
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 from urllib.request import urlretrieve
 
 import geopandas as gpd
@@ -27,10 +27,16 @@ from pandas.errors import ParserError
 from pyproj import CRS
 
 from pypsa._options import options
-from pypsa.common import _check_for_update, check_optional_dependency
+from pypsa.common import (
+    _check_for_update,
+    _series_export_columns,
+    check_optional_dependency,
+    experimental,
+)
 from pypsa.consistency import check_for_unknown_buses
 from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
+from pypsa.network.io import parquet
 from pypsa.version import __version_base__
 
 try:
@@ -1153,30 +1159,11 @@ class NetworkIOMixin(_NetworkABC):
     within any Network instance.
     """
 
-    def _export_to_exporter(
-        self,
-        exporter: _Exporter,
-        quotechar: str = '"',
-        export_standard_types: bool = False,
-    ) -> None:
-        """Export to exporter.
+    def _collect_network_attributes(self) -> dict:
+        """Collect the serializable scalar network attributes (incl. `name`, `pypsa_version`).
 
-        Both static and series attributes of components are exported, but only
-        if they have non-default values.
-
-        Parameters
-        ----------
-        exporter : _Exporter
-            Initialized exporter instance
-        quotechar : str, default '"'
-            String of length 1. Character used to denote the start and end of a
-            quoted item. Quoted items can include "," and it will be ignored
-        export_standard_types : boolean, default False
-            If True, then standard types are exported too (upon reimporting you
-            should then set "ignore_standard_types" when initialising the netowrk).
-
+        Used by all export formats so they serialize the same set.
         """
-        # exportable component types
         allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
         skip_attrs = {
             "component_attrs",
@@ -1216,7 +1203,119 @@ class NetworkIOMixin(_NetworkABC):
                 value = getattr(self, attr)
             if isinstance(value, allowed_types):
                 _attrs[attr] = value
-        exporter.save_attributes(_attrs)
+        return _attrs
+
+    def _apply_network_attributes(self, attrs: dict) -> None:
+        """Apply scalar network attributes read back from a store.
+
+        Handles `name`/`pypsa_version` specially and emits the version warnings.
+        """
+        attrs = dict(attrs)
+        if "name" in attrs:
+            name = attrs.pop("name")
+            if pd.notna(name):
+                self.name = name
+
+        if "pypsa_version" in attrs:
+            pypsa_version = parse_version(attrs.pop("pypsa_version", "0.0.0"))
+        else:
+            pypsa_version = parse_version("0.0.0")
+
+        for attr, val in attrs.items():
+            if attr in ["model", "objective", "objective_constant"]:
+                setattr(self, f"_{attr}", val)
+            else:
+                setattr(self, attr, val)
+
+        ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
+        if pypsa_version < parse_version(__version_base__):
+            pypsa_version_str = str(pypsa_version)
+            logger.warning(
+                "Importing network from PyPSA version v%s while current version is v%s. Read the "
+                "release notes at `https://go.pypsa.org/release-notes` "
+                "to prepare your network for import.",
+                pypsa_version_str,
+                __version_base__,
+            )
+
+        # Check for newer PyPSA version available
+        update_msg = _check_for_update(__version_base__, "PyPSA", "pypsa")
+        if update_msg:
+            logger.info(update_msg)
+
+        if pypsa_version < parse_version("0.18.0"):
+            self._multi_invest = 0
+
+    def _prepare_components_export(
+        self, c: Any, export_standard_types: bool
+    ) -> pd.DataFrame:
+        """Preprocess a component's static frame for export (all formats).
+
+        Shape geometries become WKT; standard types are dropped unless
+        requested. May return an empty frame.
+        """
+        static = c.static
+        if c.name == "Shape":
+            static = pd.DataFrame(static).assign(geometry=static["geometry"].to_wkt())
+        if not export_standard_types and c.name in self.standard_type_components:
+            if isinstance(static.index, pd.MultiIndex):
+                static = static.drop(c["standard_types"].index, level="name")
+            else:
+                static = static.drop(c["standard_types"].index)
+        return static
+
+    def _apply_snapshots_import(self, df: pd.DataFrame) -> None:
+        """Set snapshots and snapshot weightings from an imported axis table."""
+        if snapshot_levels := {"period", "timestep", "snapshot"}.intersection(
+            df.columns
+        ):
+            df = df.set_index(sorted(snapshot_levels))
+        self.set_snapshots(df.index)
+
+        cols = ["objective", "stores", "generators"]
+        if not df.columns.intersection(cols).empty:
+            # Preserve the default column order from Network.__init__
+            existing_cols = [col for col in cols if col in df.columns]
+            self.snapshot_weightings = df.reindex(
+                index=self.snapshots, columns=existing_cols
+            )
+        elif "weightings" in df.columns:
+            self.snapshot_weightings = df["weightings"].reindex(self.snapshots)
+
+    def _broadcast_standard_types(self) -> None:
+        """Broadcast standard-type static tables across scenarios after import."""
+        for component in self.standard_type_components:
+            comp = self.components[component]
+            if self.has_scenarios and not isinstance(comp.static.index, pd.MultiIndex):
+                comp.static = pd.concat(
+                    dict.fromkeys(self.scenarios, comp.static),
+                    names=["scenario"],
+                )
+
+    def _export_to_exporter(
+        self,
+        exporter: _Exporter,
+        quotechar: str = '"',
+        export_standard_types: bool = False,
+    ) -> None:
+        """Export to exporter.
+
+        Both static and series attributes of components are exported, but only
+        if they have non-default values.
+
+        Parameters
+        ----------
+        exporter : _Exporter
+            Initialized exporter instance
+        quotechar : str, default '"'
+            String of length 1. Character used to denote the start and end of a
+            quoted item. Quoted items can include "," and it will be ignored
+        export_standard_types : boolean, default False
+            If True, then standard types are exported too (upon reimporting you
+            should then set "ignore_standard_types" when initialising the netowrk).
+
+        """
+        exporter.save_attributes(self._collect_network_attributes())
 
         crs = {}
         if self.crs is not None:
@@ -1244,24 +1343,13 @@ class NetworkIOMixin(_NetworkABC):
             list_name = c["list_name"]
             attrs = c["defaults"]
 
-            static = c.static
             dynamic = c.dynamic
-
-            if component == "Shape":
-                static = pd.DataFrame(static).assign(
-                    geometry=static["geometry"].to_wkt()
-                )
-
-            if not export_standard_types and component in self.standard_type_components:
-                if isinstance(static.index, pd.MultiIndex):
-                    static = static.drop(c["standard_types"].index, level="name")
-                else:
-                    static = static.drop(c["standard_types"].index)
+            static = self._prepare_components_export(c, export_standard_types)
 
             col_export = []
             for col in static.columns:
                 # do not export derived attributes and object column of subnetwork
-                if col in ["g_pu", "b_pu"]:
+                if col in parquet._DERIVED_STATIC_COLUMNS:
                     continue
                 if (
                     col in attrs.index
@@ -1292,19 +1380,7 @@ class NetworkIOMixin(_NetworkABC):
 
             # now do varying attributes
             for attr in dynamic:
-                if attr not in attrs.index:
-                    col_export = dynamic[attr].columns
-                else:
-                    default = attrs.at[attr, "default"]
-
-                    if pd.isnull(default):
-                        col_export = dynamic[attr].columns[
-                            (~pd.isnull(dynamic[attr])).any()
-                        ]
-                    else:
-                        col_export = dynamic[attr].columns[
-                            (dynamic[attr] != default).any()
-                        ]
+                col_export = _series_export_columns(attrs, dynamic[attr], attr)
 
                 if len(col_export) > 0:
                     static = dynamic[attr].reset_index()[col_export]
@@ -1347,61 +1423,13 @@ class NetworkIOMixin(_NetworkABC):
             self._crs = crs
 
         # other network attributes
-        attrs = importer.get_attributes() or {}
-        if "name" in attrs:
-            name = attrs.pop("name")
-            if pd.notna(name):
-                self.name = name
-
-        if "pypsa_version" in attrs:
-            pypsa_version = parse_version(attrs.pop("pypsa_version", "0.0.0"))
-        else:
-            pypsa_version = parse_version("0.0.0")
-
-        for attr, val in attrs.items():
-            if attr in ["model", "objective", "objective_constant"]:
-                setattr(self, f"_{attr}", val)
-            else:
-                setattr(self, attr, val)
-
-        ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
-        if pypsa_version < parse_version(__version_base__):
-            pypsa_version_str = str(pypsa_version)
-            logger.warning(
-                "Importing network from PyPSA version v%s while current version is v%s. Read the "
-                "release notes at `https://go.pypsa.org/release-notes` "
-                "to prepare your network for import.",
-                pypsa_version_str,
-                __version_base__,
-            )
-
-        # Check for newer PyPSA version available
-        update_msg = _check_for_update(__version_base__, "PyPSA", "pypsa")
-        if update_msg:
-            logger.info(update_msg)
-
-        if pypsa_version < parse_version("0.18.0"):
-            self._multi_invest = 0
+        self._apply_network_attributes(importer.get_attributes() or {})
 
         # if there is snapshots.csv, read in snapshot data
         df = importer.get_snapshots()
 
         if df is not None:
-            if snapshot_levels := {"period", "timestep", "snapshot"}.intersection(
-                df.columns
-            ):
-                df = df.set_index(sorted(snapshot_levels))
-            self.set_snapshots(df.index)
-
-            cols = ["objective", "stores", "generators"]
-            if not df.columns.intersection(cols).empty:
-                # Preserve the default column order from Network.__init__
-                existing_cols = [col for col in cols if col in df.columns]
-                self.snapshot_weightings = df.reindex(
-                    index=self.snapshots, columns=existing_cols
-                )
-            elif "weightings" in df.columns:
-                self.snapshot_weightings = df["weightings"].reindex(self.snapshots)
+            self._apply_snapshots_import(df)
 
         # read in investment period weightings
         periods = importer.get_investment_periods()
@@ -1444,14 +1472,7 @@ class NetworkIOMixin(_NetworkABC):
 
             imported_components.append(list_name)
 
-        for component in self.standard_type_components:
-            if self.has_scenarios and not isinstance(
-                self.components[component].static.index, pd.MultiIndex
-            ):
-                self.components[component].static = pd.concat(
-                    dict.fromkeys(self.scenarios, self.components[component].static),
-                    names=["scenario"],
-                )
+        self._broadcast_standard_types()
 
         logger.info(
             "Imported network '%s' has %s",
@@ -1770,6 +1791,76 @@ class NetworkIOMixin(_NetworkABC):
                 exporter, export_standard_types=export_standard_types
             )
             return exporter.ds
+
+    @experimental
+    def export_to_parquet(self, path: str | Path) -> None:
+        """Export network and components to a parquet store.
+
+        <!-- md:badge-experimental --> | <!-- md:badge-version v1.3.0 -->
+
+        A store is a directory of parquet files, laid out to be read by other
+        tools. It is self describing, all metadata needed to interpret them
+        lives in `manifest.json`.
+
+        ```
+        my_network/
+        ├── dims/
+        │   ├── components/<Type>.parquet  members of a type, static inputs only
+        │   └── snapshots.parquet, ...     other dimensions with weightings
+        ├── inputs/<attr>.parquet          one file per input attribute
+        ├── outputs/<attr>.parquet         one file per result attribute
+        └── manifest.json                  format version and metadata
+        ```
+
+        Parameters
+        ----------
+        path : str | Path
+            Directory to export to, created if it does not exist. It must be
+            empty or an existing store.
+
+        Examples
+        --------
+        >>> n.export_to_parquet("my_network") # doctest: +SKIP
+
+        Cloud object storage URIs work if cloudpathlib is installed:
+
+        >>> n.export_to_parquet("s3://my-bucket/my_network") # doctest: +SKIP
+
+        """
+        parquet._write_store(path, cast("Network", self))
+
+    @experimental
+    def import_from_parquet(self, path: str | Path) -> None:
+        """Import network data from a parquet store at `path`.
+
+        <!-- md:badge-experimental --> | <!-- md:badge-version v1.3.0 -->
+
+        ```
+        my_network/
+        ├── dims/
+        │   ├── components/<Type>.parquet  members of a type, static inputs only
+        │   └── snapshots.parquet, ...     other dimensions with weightings
+        ├── inputs/<attr>.parquet          one file per input attribute
+        ├── outputs/<attr>.parquet         one file per result attribute
+        └── manifest.json                  format version and metadata
+        ```
+
+        Parameters
+        ----------
+        path : str | Path
+            Directory of the parquet store.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.import_from_parquet("my_network") # doctest: +SKIP
+
+        Cloud object storage URIs work if cloudpathlib is installed:
+
+        >>> n.import_from_parquet("s3://my-bucket/my_network") # doctest: +SKIP
+
+        """
+        parquet._read_store(path, cast("Network", self))
 
     def _import_components_from_df(
         self, df: pd.DataFrame, cls_name: str, overwrite: bool = False
