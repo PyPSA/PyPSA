@@ -69,6 +69,54 @@ def test_nans_in_capacity_limits(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
+def test_phase_shift_unbounded(consistent_n, caplog, strict):
+    # phase_shift_min < phase_shift_max makes the shift a variable; a non-finite
+    # bound leaves it unbounded.
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift_min=-np.inf,
+        phase_shift_max=np.inf,
+    )
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+@pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
+def test_phase_shift_inverted_bounds(consistent_n, caplog, strict):
+    # min > max is held fixed but is almost certainly a user mistake.
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift_min=10.0,
+        phase_shift_max=-10.0,
+    )
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+def test_phase_shift_fixed_bounds_ok(consistent_n, caplog):
+    # min >= max means a fixed shift; non-finite bounds here are irrelevant.
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift=10.0,
+    )
+    consistent_n.consistency_check()
+    assert not any("phase shift" in record.message for record in caplog.records)
+
+
 @pytest.mark.parametrize("strict", [[], ["shapes"]])
 def test_shapes_with_missing_idx(ac_dc_shapes, caplog, strict):
     n = ac_dc_shapes

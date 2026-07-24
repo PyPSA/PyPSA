@@ -18,12 +18,15 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add maintenance scheduling optimization for [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components via the new attributes `maintainable`, `maintenance_duration` (elapsed time honoring snapshot weightings), `maintenance_events` and `maintenance_pu`. The timing of maintenance windows is co-optimized with dispatch, unit commitment and capacity expansion using binary maintenance start variables. (<!-- md:pr 1576 -->)
 
+- Phase-shifting transformers (PSTs) are now supported in linear optimal power flow. Setting `phase_shift_min < phase_shift_max` on a `Transformer` turns its `phase_shift` into a per-snapshot decision variable bounded by those two attributes (degrees); the optimiser re-taps the PST each snapshot to redistribute flow around cycles, modelling TSO operational tap control. The optimised per-snapshot angle is written to the new dynamic output `n.transformers_t["phase_shift_opt"]`. (<!-- md:pr 1661 -->)
+
 ### Enhancements
 
 - Speed up [`create_model()`][pypsa.optimization.OptimizationAccessor.create_model] for large networks by computing the bus membership filter in `define_nodal_balance_constraints` with a pandas hash join instead of `xarray.isin` over object-dtype arrays. (<!-- md:pr 1770 -->)
 
 ### Bug Fixes
 
+- The fixed `phase_shift` on `Transformer` components is now included in the cycle-based Kirchhoff Voltage Law constraint in `n.optimize()`. Previously the phase shift was not considered in LOPF (only `n.lpf()` and `n.pf()` respected it), causing optimisation results to diverge from subsequent non-linear power-flow verification. (<!-- md:pr 1661 -->)
 - Fixed spurious infeasibility in [`optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] when a network mixed committable and non-committable generators with ramp limits. At a window seam, non-committable components (which carry no commitment status) were assigned `status=0`, corrupting their start-up/shut-down ramp terms. (<!-- md:pr 1644 -->)
 - Fix [`supply`][pypsa.optimization.expressions.StatisticExpressionsAccessor.supply] and [`withdrawal`][pypsa.optimization.expressions.StatisticExpressionsAccessor.withdrawal] expressions dropping the charging contribution of `StorageUnit` components. The supply/withdrawal split now considers the effective coefficients of the operational variable, so the `p_store` term is correctly reported as a withdrawal. (<!-- md:pr 1760 -->)
 - Fix [`n.graph()`][pypsa.network.graph.NetworkGraphMixin.graph] building edges in a non-deterministic order, which could make results that depend on the network's cycles differ between runs. In particular, security-constrained optimization (SCLOPF) now returns consistent results. (<!-- md:pr 1764 -->)

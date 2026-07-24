@@ -23,7 +23,9 @@ num_parallel,float,n/a,1,"When `type` is set, this is the number of parallel tra
 tap_ratio,float,per unit,1,Ratio of per unit voltages at each bus for tap changed. Ignored if type defined.,Input (optional)
 tap_side,int,n/a,0,"Defines if tap changer is modelled at the primary 0 side (usually high-voltage) or the secondary 1 side (usually low voltage) (must be 0 or 1, defaults to 0). Ignored if type defined.",Input (optional)
 tap_position,int,n/a,0,"If the transformer has a `type`, the absolute tap position on the same scale as `tap_min`/`tap_neutral`/`tap_max`. The off-nominal voltage ratio is computed from the offset to `tap_neutral`, so the nominal ratio (`tap_ratio` = 1) is obtained when `tap_position == tap_neutral`.",Input (optional)
-phase_shift,float,Degrees,0,Voltage phase angle shift. Ignored if type defined.,Input (optional)
+phase_shift,static or series,Degrees,0,"Voltage phase angle shift setpoint. Ignored if type defined. Sign convention follows `pf`/`lpf`: the realised flow is P = (theta0 - theta1 - phase_shift) / x, so the KVL cycle constraint reads sum_l C_lk * (x_l * P_l + phase_shift_l) = 0 (in rad). This is the negative of the angle convention in Verboomen 2008 (= -alpha_Verboomen); do not flip the sign towards the paper or LOPF will diverge from `pf`/`lpf` (issue #1220). When `phase_shift_min < phase_shift_max` the shift becomes a per-snapshot decision variable instead and `phase_shift` is ignored.",Input (optional)
+phase_shift_min,float,Degrees,0,"Lower bound (degrees) for the per-snapshot phase shift. When `phase_shift_min < phase_shift_max` the shift is optimised as a decision variable bounded by `phase_shift_min`/`phase_shift_max` (e.g. a phase-shifting transformer whose tap the TSO optimises); otherwise the shift is fixed to `phase_shift`.",Input (optional)
+phase_shift_max,float,Degrees,0,"Upper bound (degrees) for the per-snapshot phase shift. See `phase_shift_min`.",Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
 build_year,int,year,0,Build year of transformer.,Input (optional)
 lifetime,float,years,inf,Lifetime of transformer.,Input (optional)
@@ -43,3 +45,4 @@ r_pu_eff,float,per unit,0,"Effective per unit series resistance for linear power
 s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
 mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit. Always non-negative.,Output
 mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit. Always non-negative.,Output
+phase_shift_opt,series,Degrees,0,"Realised per-snapshot voltage phase angle shift. Equals `phase_shift` for fixed transformers; for optimised transformers (`phase_shift_min < phase_shift_max`) it holds the value chosen by `n.optimize()`.",Output

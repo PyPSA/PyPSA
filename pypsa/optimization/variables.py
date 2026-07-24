@@ -404,6 +404,44 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     n.model.add_variables(0, upper_aligned, name=f"{c.name}-spill", mask=active)
 
 
+def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
+    """Define per-snapshot phase-shift variables for phase-shifting transformers.
+
+    When a ``Transformer`` has ``phase_shift_min < phase_shift_max``, its voltage
+    phase-angle shift is treated as a continuous decision variable per snapshot
+    bounded by ``phase_shift_min`` and ``phase_shift_max`` (in degrees). This
+    models phase-shifting transformers (PSTs) whose tap position the TSO
+    optimises at operational timescales to redistribute power flows around cycles in the
+    transmission network, without adding or removing active power.
+
+    The variable enters the Kirchhoff Voltage Law cycle constraint via
+    ``define_kirchhoff_voltage_constraints``. No separate equality constraint
+    is required here.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    sns : Sequence
+        Snapshots for which to define the variable.
+
+    """
+    c = n.components["Transformer"]
+    if c.empty:
+        return
+
+    trafos = c.static
+    varying = trafos["phase_shift_min"] < trafos["phase_shift_max"]
+    names = trafos.index[varying].difference(c.inactive_assets)
+    if names.empty:
+        return
+
+    active = c.da.active.sel(name=names, snapshot=sns)
+    lower = c.da["phase_shift_min"].sel(name=names).broadcast_like(active)
+    upper = c.da["phase_shift_max"].sel(name=names).broadcast_like(active)
+    n.model.add_variables(lower, upper, name="Transformer-phase_shift")
+
+
 def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
     """Initialize variables for transmission losses.
 
