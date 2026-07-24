@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 import pandas.testing as pd_testing
 from deprecation import deprecated
+from linopy import options as linopy_options
 from packaging import version
 from pandas.api.types import is_list_like
 
@@ -33,6 +34,21 @@ if TYPE_CHECKING:
     from pypsa.type_utils import NetworkType
 
 logger = logging.getLogger(__name__)
+
+
+def linopy_uses_v1() -> bool:
+    """Whether linopy's active arithmetic semantics is the v1 convention.
+
+    v1 forbids a ``pd.MultiIndex`` dimension coordinate, so PyPSA flattens the
+    multi-period ``snapshot`` MultiIndex to a tuple-labeled dim with
+    ``period``/``timestep`` auxiliary coords only then. Legacy linopy — and any
+    release without the ``semantics`` option — keeps the MultiIndex first-class,
+    leaving ``n.model``'s data model unchanged.
+    """
+    try:
+        return linopy_options["semantics"] == "v1"
+    except KeyError:
+        return False
 
 
 def flatten_snapshot_dim(obj: Any) -> Any:
@@ -68,6 +84,8 @@ def recompose_snapshot_dim(
     """
     if "snapshot" not in getattr(obj, "dims", ()):
         return obj
+    if isinstance(obj.indexes.get("snapshot"), pd.MultiIndex):
+        return obj
     present = [lvl for lvl in levels if lvl in obj.coords]
     if len(present) < 2:
         return obj
@@ -87,6 +105,8 @@ def attach_snapshot_aux(
     has_snapshot = "snapshot" in getattr(obj, "dims", ())
     if not isinstance(window, pd.MultiIndex) or not has_snapshot:
         return obj
+    if isinstance(obj.indexes.get("snapshot"), pd.MultiIndex):
+        return obj
     mi = pd.MultiIndex.from_tuples(list(obj.indexes["snapshot"]), names=levels)
     coords = {lvl: ("snapshot", mi.get_level_values(lvl).to_numpy()) for lvl in levels}
     return obj.assign_coords(coords)
@@ -102,7 +122,14 @@ def drop_snapshot_aux(
     consumed by a reduction they linger on the resulting ``_term`` dimension and
     break strict concat/merge against operands that never carried them. Dropping
     them keeps merges consistent. Works on xarray and linopy objects alike.
+
+    A no-op while ``snapshot`` is a live MultiIndex (non-flattened build): the
+    levels are the index itself, not droppable aux coords.
     """
+    if "snapshot" in getattr(obj, "dims", ()) and isinstance(
+        obj.indexes.get("snapshot"), pd.MultiIndex
+    ):
+        return obj
     return obj.drop_vars(list(levels), errors="ignore")
 
 

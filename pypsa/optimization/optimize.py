@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import warnings
 from contextlib import contextmanager
@@ -21,6 +22,7 @@ from pypsa.common import (
     UnexpectedError,
     as_index,
     drop_snapshot_aux,
+    linopy_uses_v1,
     recompose_snapshot_dim,
 )
 from pypsa.components.array import _from_xarray
@@ -95,20 +97,43 @@ def _build_over_flat_snapshots(n: Network, sns: pd.Index) -> Iterator[pd.Index]:
     """Yield a flat tuple-labeled snapshot dim for the duration of a model build.
 
     A ``pd.MultiIndex`` snapshot (multi-period, or user-supplied) is forbidden on
-    variables by linopy's v1 convention, so multi-period models are built over a
-    flat object index whose labels are the ``(period, timestep)`` tuples; the
-    original window is stashed for the ``da`` accessor and the solution round-trip.
-    The flatten flag is cleared on exit (success or error) while
-    ``_optimize_window_snapshots`` persists for post-build assignment.
+    variables by linopy's v1 convention, so under v1 multi-period models are built
+    over a flat object index whose labels are the ``(period, timestep)`` tuples;
+    the original window is stashed for the ``da`` accessor and the solution
+    round-trip. Under legacy semantics (and pre-v1 linopy) the MultiIndex stays
+    first-class, keeping ``n.model`` unchanged. The flatten flag is cleared on exit
+    (success or error) while ``_optimize_window_snapshots`` persists for post-build
+    assignment.
     """
-    n._optimize_flatten_snapshots = isinstance(sns, pd.MultiIndex)
+    is_multiindex = isinstance(sns, pd.MultiIndex)
+    n._optimize_flatten_snapshots = is_multiindex and linopy_uses_v1()
     if n._optimize_flatten_snapshots:
         n._optimize_window_snapshots = sns
         sns = pd.Index(list(sns), tupleize_cols=False, name="snapshot")
-    try:
-        yield sns
-    finally:
-        n._optimize_flatten_snapshots = False
+    with warnings.catch_warnings():
+        if is_multiindex and not n._optimize_flatten_snapshots:
+            _notify_multiindex_snapshot_kept()
+            warnings.filterwarnings("ignore", message=r".*a `pd\.MultiIndex`")
+        try:
+            yield sns
+        finally:
+            n._optimize_flatten_snapshots = False
+
+
+@functools.cache
+def _notify_multiindex_snapshot_kept() -> None:
+    """One-shot notice that the multi-period ``snapshot`` stays a MultiIndex.
+
+    Under legacy linopy the MultiIndex is kept first-class (unchanged ``n.model``),
+    which linopy flags per variable/constraint as deprecated; suppress that spam
+    and inform once. Opting into v1 switches to the flat tuple representation.
+    """
+    logger.info(
+        "Building the multi-period model over a MultiIndex `snapshot`. linopy's v1 "
+        "convention (`linopy.options['semantics'] = 'v1'`) uses a flat `snapshot` "
+        "dim with `period`/`timestep` auxiliary coordinates instead; this becomes "
+        "PyPSA's default in 2.0."
+    )
 
 
 def _model_snapshots_index(n: Network) -> pd.Index:
