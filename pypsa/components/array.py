@@ -232,7 +232,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         * name      (name) object 48B 'Manchester Wind' ... 'Frankfurt Gas'
 
         For stochastic networks the scenarios are unstacked automatically:
-        >>> c = n_stoch.components.generators
+        >>> c = n_stochastic.components.generators
         >>> c.da.p_max_pu
         <xarray.DataArray 'p_max_pu' (snapshot: 2920, scenario: 3, name: 4)> Size: 280kB
         array([[[0.    , 0.1566, 1.    , 1.    ],
@@ -245,7 +245,7 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         String representation:
         >>> c.da
-        <XarrayAccessor for Generators>
+        'Generator' XarrayAccessor
 
         """
         return _XarrayAccessor(self)
