@@ -5,7 +5,6 @@
 import logging
 import os
 import warnings
-from collections import Counter
 from pathlib import Path
 
 import geopandas as gpd
@@ -17,8 +16,6 @@ from shapely.geometry import Polygon
 
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
-
-_LINOPY_SEMANTICS_SITES: Counter = Counter()
 
 
 @pytest.fixture
@@ -105,55 +102,29 @@ def pytest_configure(config):
 
 
 def _configure_linopy_semantics(config):
-    """Select linopy arithmetic semantics and optionally record divergent sites.
+    """Select linopy arithmetic semantics and fail on divergence warnings.
 
-    Controlled via environment variables (no ``PYPSA_`` prefix, to avoid
-    PyPSA's own env-var option loader) so old linopy (without the
-    ``semantics`` option) is untouched:
-
-    - ``LINOPY_SEMANTICS`` (``legacy`` | ``v1``): set the mode.
-    - ``LINOPY_SEMANTICS_RECORD``: if set, downgrade
-      ``LinopySemanticsWarning`` from error to a recorded site (dumped in the
-      terminal summary) instead of failing the test. Value may be a file path
-      to also write the catalogue to.
+    Controlled via ``LINOPY_SEMANTICS`` (``legacy`` | ``v1``); no ``PYPSA_``
+    prefix, to avoid PyPSA's own env-var option loader, so old linopy (without
+    the ``semantics`` option) is untouched. When set, any
+    ``LinopySemanticsWarning`` escaping PyPSA's own targeted suppression fails
+    the test. The filter is added here rather than in ``pyproject.toml`` because
+    the warning class only exists on linopy with v1 semantics.
     """
     import linopy
 
     mode = os.environ.get("LINOPY_SEMANTICS")
-    if mode:
-        try:
-            linopy.options["semantics"] = mode
-        except (KeyError, TypeError):
-            # linopy < 0.10 has no "semantics" option; setting it is a no-op.
-            pass
-
-    if os.environ.get("LINOPY_SEMANTICS_RECORD"):
-        config.addinivalue_line(
-            "filterwarnings",
-            "always::linopy.config.LinopySemanticsWarning",
-        )
-
-
-def pytest_warning_recorded(warning_message, when, nodeid, location):
-    """Catalogue LinopySemanticsWarning origins during a recording run."""
-    if warning_message.category.__name__ == "LinopySemanticsWarning":
-        _LINOPY_SEMANTICS_SITES[
-            f"{warning_message.filename}:{warning_message.lineno}"
-        ] += 1
-
-
-def pytest_terminal_summary(terminalreporter):
-    """Report catalogued linopy semantics divergence sites, if any."""
-    if not _LINOPY_SEMANTICS_SITES:
+    if not mode:
         return
-    lines = [
-        f"{count:>6}  {site}" for site, count in _LINOPY_SEMANTICS_SITES.most_common()
-    ]
-    terminalreporter.write_sep("=", "linopy semantics divergence sites")
-    terminalreporter.write_line("\n".join(lines))
-    record = os.environ.get("LINOPY_SEMANTICS_RECORD", "")
-    if record and record != "1":
-        Path(record).write_text("\n".join(lines) + "\n")
+    try:
+        linopy.options["semantics"] = mode
+    except (KeyError, TypeError):
+        # linopy < 0.10 has no "semantics" option; setting it is a no-op.
+        return
+    config.addinivalue_line(
+        "filterwarnings",
+        "error::linopy.config.LinopySemanticsWarning",
+    )
 
 
 def pytest_collection_modifyitems(config, items):

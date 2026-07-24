@@ -165,18 +165,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-        # v1: no LinopySemanticsWarning fires, so this is a clean pass/fail gate
-        - semantics: v1
-          record: ""
-        # legacy: divergence sites emit a FutureWarning; record them (and upload
-        # the catalogue) instead of erroring, while still catching real failures
-        - semantics: legacy
-          record: linopy-semantics-sites.txt
+        # Both modes are clean pass/fail gates: any LinopySemanticsWarning that
+        # escapes PyPSA's own suppression fails the job.
+        semantics: [v1, legacy]
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
       LINOPY_SEMANTICS: ${{ matrix.semantics }}
-      LINOPY_SEMANTICS_RECORD: ${{ matrix.record }}
     steps:
     - uses: actions/checkout@v7
       with:
@@ -211,14 +205,6 @@ jobs:
     # re-sync it back to the locked 0.8.0).
     - name: Run unit tests
       run: uv run --no-sync pytest
-
-    - name: Upload linopy semantics divergence sites
-      if: ${{ !cancelled() && matrix.record != '' }}
-      uses: actions/upload-artifact@v7
-      with:
-        name: linopy-semantics-sites-${{ matrix.semantics }}
-        path: ${{ matrix.record }}
-        if-no-files-found: ignore
 
   test-plots:
     # Run the matplotlib image-comparison tests once, on a single instance.
