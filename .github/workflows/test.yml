@@ -157,8 +157,8 @@ jobs:
   test-linopy-semantics:
     # Draft-only guard: validate the optimization module against linopy PR #717
     # (PyPSA/linopy#717) under both the legacy and the new v1 arithmetic semantics.
-    # Released linopy 0.8 is already covered by the `test` job above. Drop this
-    # job once the v1 semantics ship in a linopy release.
+    # Released linopy 0.9 is already covered by the `test` job above. Drop this
+    # job once the v1 semantics ship in a linopy release (0.10).
     name: Test linopy semantics (${{ matrix.semantics }})
     needs: [build]
     runs-on: ubuntu-latest

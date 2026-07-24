@@ -124,7 +124,7 @@ def _configure_linopy_semantics(config):
         try:
             linopy.options["semantics"] = mode
         except (KeyError, TypeError):
-            # Released linopy 0.8 has no "semantics" option; setting it is a no-op.
+            # linopy < 0.10 has no "semantics" option; setting it is a no-op.
             pass
 
     if os.environ.get("LINOPY_SEMANTICS_RECORD"):
