@@ -99,6 +99,14 @@ n.export_to_netcdf("foo/bar.nc")
 n_import = pypsa.Network("foo/bar.nc")
 ```
 
+## Parquet Store
+
+<!-- md:badge-experimental -->
+
+A parquet store is a self-describing directory of parquet files, readable from
+many engines without PyPSA. See [Parquet Store](import-export/parquet.md) for
+usage and the store format specification.
+
 ## HDF5
 
 To **export** the network to an HDF store, run [`n.export_to_hdf5()`][pypsa.network.io.NetworkIOMixin.export_to_hdf5].

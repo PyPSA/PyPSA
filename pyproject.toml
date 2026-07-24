@@ -57,6 +57,7 @@ Documentation = "https://docs.pypsa.org"
 
 [project.optional-dependencies]
 hdf5 = ["tables"]
+parquet = ["pyarrow"]
 cartopy = ["cartopy>=0.16"]
 excel = ["openpyxl", "python-calamine"]
 gurobipy = ["gurobipy"]
@@ -69,6 +70,7 @@ test = [
     "pytest-mpl",
     "coverage",
     "pyarrow",
+    "cloudpathlib",
 ]
 dev = [
     "pytest",
@@ -76,6 +78,7 @@ dev = [
     "pytest-mpl",
     "coverage",
     "pyarrow",
+    "cloudpathlib",
     "matplotlib<3.11", # remove when uv.lock is tracked
     "pypower",
     "pandapower>=2.14.11",

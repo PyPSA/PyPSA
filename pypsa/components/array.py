@@ -10,15 +10,20 @@ DataArray for each variable.
 
 from __future__ import annotations
 
-import copy
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 from pypsa._options import options
-from pypsa.common import UnexpectedError, as_index, list_as_string
+from pypsa.common import (
+    UnexpectedError,
+    _is_output,
+    as_index,
+    experimental,
+    list_as_string,
+)
 from pypsa.components.abstract import _ComponentsABC
 from pypsa.guards import _assert_xarray_integrity
 
@@ -105,12 +110,32 @@ def _from_xarray(da: xr.DataArray, c: Components) -> pd.DataFrame | pd.Series:
     raise UnexpectedError(msg)
 
 
-class _XarrayAccessor:
-    """Accessor class that provides property-like xarray access to all attributes.
+def _drop_default_rows(rows: pd.DataFrame, default: Any) -> pd.DataFrame:
+    """Remove scalar rows that just repeat the attribute's default value."""
+    if pd.isnull(default):
+        return rows[rows["value"].notna()]
+    return rows[rows["value"] != default]
 
-    Attributes are lazy evaluated via _as_xarray method of the component.
-    Supports both attribute access (c.da.p_max_pu) and item access (c.da['p_max_pu']).
+
+def _concat_long(series_rows: pd.DataFrame, scalar_rows: pd.DataFrame) -> pd.DataFrame:
+    """Concatenate series rows and null-snapshot scalar rows of one attribute.
+
+    The scalar rows carry plain NaN in the dimension columns, which pandas
+    would flag as an all-NA entry with a conflicting dtype -- take the dtypes
+    from the series rows instead.
     """
+    if scalar_rows.empty:
+        return series_rows
+    if series_rows.empty:
+        return scalar_rows
+    scalar_rows = scalar_rows.copy()
+    for col in ("snapshot", "period"):
+        scalar_rows[col] = series_rows[col].iloc[:0].reindex(scalar_rows.index)
+    return pd.concat([series_rows, scalar_rows[series_rows.columns]], ignore_index=True)
+
+
+class _ComponentAccessor:
+    """Base class for lazy per-attribute accessors (`c.da`, `c.long`)."""
 
     # Use __slots__ to reduce memory footprint (no __dict__ and no dynamic attributes)
     __slots__ = ("_component",)
@@ -122,27 +147,41 @@ class _XarrayAccessor:
         """Safely get the component reference to avoid recursion during unpickling."""
         return object.__getattribute__(self, "_component")
 
-    def _get_array(self, attr: str) -> xr.DataArray:
+    def _get(self, attr: str) -> Any:
+        raise NotImplementedError
+
+    def __getattr__(self, attr: str) -> Any:
+        """Access a component attribute via dot notation."""
+        return self._get(attr)
+
+    def __getitem__(self, attr: str) -> Any:
+        """Access a component attribute via bracket notation."""
+        return self._get(attr)
+
+    def __iter__(self) -> NoReturn:
+        """Raise a clear error, as accessor objects are not iterable."""
+        msg = f"{type(self).__name__.removeprefix('_')} objects are not iterable."
+        raise TypeError(msg)
+
+    def __repr__(self) -> str:
+        """Get representation of the accessor."""
+        name = type(self).__name__.removeprefix("_")
+        return f"'{self._get_component().ctype.name}' {name}"
+
+
+class _XarrayAccessor(_ComponentAccessor):
+    """Lazy xarray access to all static and dynamic attributes (see `Components.da`)."""
+
+    __slots__ = ()
+
+    def _get(self, attr: str) -> xr.DataArray:
         """Get an xarray DataArray for the specified attribute."""
         component = self._get_component()
         try:
             return component._as_xarray(attr=attr)
-        except AttributeError as e:
+        except (AttributeError, KeyError) as e:
             msg = f"'{component.__class__.__name__}' components has no attribute '{attr}'."
             raise AttributeError(msg) from e
-
-    def __getattr__(self, attr: str) -> xr.DataArray:
-        """Access component attributes as xarray DataArrays via dot notation."""
-        return self._get_array(attr)
-
-    def __getitem__(self, attr: str) -> xr.DataArray:
-        """Access component attributes as xarray DataArrays via bracket notation."""
-        return self._get_array(attr)
-
-    def __iter__(self) -> NoReturn:
-        """Raise a clear error, as XarrayAccessor objects are not iterable."""
-        msg = "XarrayAccessor objects are not iterable."
-        raise TypeError(msg)
 
     def __dir__(self) -> list[str]:
         """List available attributes for tab-completion."""
@@ -152,15 +191,21 @@ class _XarrayAccessor:
         attrs.update(component.dynamic.keys())
         return sorted(attrs)
 
-    def __str__(self) -> str:
-        """Get string representation of the xarray accessor."""
-        component = self._get_component()
-        return f"'{component.ctype.name}' XarrayAccessor"
 
-    def __repr__(self) -> str:
-        """Get representation of the xarray accessor."""
-        component = self._get_component()
-        return f"'{component.ctype.name}' XarrayAccessor"
+class _LongAccessor(_ComponentAccessor):
+    """Lazy long-format access to varying and output attributes (see `Components.long`)."""
+
+    __slots__ = ()
+
+    def _get(self, attr: str) -> pd.DataFrame:
+        """Get a dynamic attribute as a long DataFrame."""
+        return self._get_component()._as_long(attr)
+
+    def __dir__(self) -> list[str]:
+        """List the varying and output attributes for tab-completion."""
+        defaults = self._get_component().defaults
+        outputs = defaults["status"].astype(str).str.startswith("Output")
+        return sorted(defaults.index[defaults.varying | outputs])
 
 
 class ComponentsArrayMixin(_ComponentsABC):
@@ -170,11 +215,9 @@ class ComponentsArrayMixin(_ComponentsABC):
     within any Components instance.
     """
 
-    def __init__(self) -> None:
-        """Initialize the ComponentsArrayMixin."""
-        self.da = _XarrayAccessor(self)
-        """
-        xArray accessor to get component attributes as xarray DataArray.
+    @property
+    def da(self) -> _XarrayAccessor:
+        """XArray accessor to get component attributes as xarray DataArray.
 
         Examples
         --------
@@ -203,22 +246,39 @@ class ComponentsArrayMixin(_ComponentsABC):
         String representation:
         >>> c.da
         <XarrayAccessor for Generators>
-        """
 
-    def __deepcopy__(
-        self, memo: dict[int, object] | None = None
-    ) -> ComponentsArrayMixin:
-        """Create custom deepcopy which does not copy the xarray accessor."""
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result  # type: ignore
-        for k, v in self.__dict__.items():
-            setattr(
-                result,
-                k,
-                _XarrayAccessor(result) if k == "da" else copy.deepcopy(v, memo),
-            )
-        return result
+        """
+        return _XarrayAccessor(self)
+
+    @property
+    @experimental
+    def long(self) -> _LongAccessor:
+        """Long/tidy accessor for varying and output attributes.
+
+        <!-- md:badge-experimental --> | <!-- md:badge-version v1.3.0 -->
+
+        Each `c.long.<attr>` is a DataFrame of the four dimensions plus `value`:
+        `name, snapshot, scenario, period, value`. Nulls follow the parquet
+        store convention, see [pypsa.Network.export_to_parquet][]: what is
+        available here mirrors what the parquet long tables hold — varying
+        attributes (including ones that currently hold only static input) and
+        static outputs like `p_nom_opt`, which appear as null-snapshot scalar
+        rows.
+
+        Recomputed on every access, since `c.static` and `c.dynamic` are currently
+        mutable with no change hook to invalidate a cache. This might change in future.
+
+        Examples
+        --------
+        >>> c = n.components.generators
+        >>> c.long.p_max_pu.head(3)
+                      name   snapshot  scenario  period     value
+        0  Manchester Wind 2015-01-01       NaN     NaN  0.930020
+        1   Frankfurt Wind 2015-01-01       NaN     NaN  0.559078
+        2      Norway Wind 2015-01-01       NaN     NaN  0.974583
+
+        """
+        return _LongAccessor(self)
 
     def _as_dynamic(
         self,
@@ -243,7 +303,8 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         Returns
         -------
-            pandas.DataFrame
+        pandas.DataFrame
+            Values of `attr` for every component, indexed by snapshot.
 
         Examples
         --------
@@ -355,3 +416,99 @@ class ComponentsArrayMixin(_ComponentsABC):
             _assert_xarray_integrity(self, res)
 
         return res
+
+    def _stack_dynamic(self, wide: pd.DataFrame) -> pd.DataFrame:
+        """Melt a wide `snapshots x components` frame into long rows.
+
+        Examples
+        --------
+        >>> c._stack_dynamic(c.dynamic['p_max_pu']).head(3)
+            snapshot             name     value  scenario  period
+        0 2015-01-01  Manchester Wind  0.930020       NaN     NaN
+        1 2015-01-01   Frankfurt Wind  0.559078       NaN     NaN
+        2 2015-01-01      Norway Wind  0.974583       NaN     NaN
+
+        """
+        stochastic = isinstance(wide.columns, pd.MultiIndex)
+        wide = wide.rename_axis(columns=["scenario", "name"] if stochastic else "name")
+
+        stacked = wide.stack(level=list(range(wide.columns.nlevels)), future_stack=True)
+        long = stacked.rename("value").reset_index()
+        if isinstance(self.snapshots, pd.MultiIndex):
+            long = long.rename(columns={"timestep": "snapshot"})
+        if "scenario" not in long.columns:
+            long["scenario"] = np.nan
+        if "period" not in long.columns:
+            long["period"] = np.nan
+        return long
+
+    def _scalar_rows(self, attr: str, exclude: pd.Index) -> pd.DataFrame:
+        """Build null snapshot long rows from the static scalars of `attr`.
+
+        Examples
+        --------
+        Components with a time series are excluded and the remaining static
+        scalars become null snapshot rows:
+
+        >>> c._scalar_rows('p_max_pu', c.dynamic['p_max_pu'].columns)
+                     name  value  scenario  snapshot  period
+        0  Manchester Gas    1.0       NaN       NaN     NaN
+        1      Norway Gas    1.0       NaN       NaN     NaN
+        2   Frankfurt Gas    1.0       NaN       NaN     NaN
+
+        """
+        static = self.static[attr]
+        if len(exclude):
+            static = static[~static.index.isin(exclude)]
+        out = static.rename("value").reset_index()
+        if "scenario" not in out.columns:
+            out["scenario"] = np.nan
+        out["snapshot"] = np.nan
+        out["period"] = np.nan
+        return out
+
+    def _as_long(self, attr: str, *, drop_defaults: bool = False) -> pd.DataFrame:
+        """Get an attribute as a long/tidy DataFrame.
+
+        See the `long` accessor. With `drop_defaults`, scalar rows equal to
+        the attribute's default are omitted.
+        """
+        varying = attr in self.dynamic or (
+            attr in self.defaults.index and bool(self.defaults.at[attr, "varying"])
+        )
+        if not varying and not _is_output(self.defaults, attr):
+            msg = (
+                f"'{attr}' of '{self.__class__.__name__}' components has no "
+                f"long representation."
+            )
+            raise AttributeError(msg)
+
+        cols = ["name", "snapshot", "scenario", "period", "value"]
+        if not varying:
+            out = self._scalar_rows(attr, pd.Index([]))[cols]
+            if drop_defaults:
+                out = _drop_default_rows(out, self.defaults.at[attr, "default"])
+            return out
+        wide = self.dynamic[attr]
+        out = self._stack_dynamic(wide)[cols]
+        # scalar rows import into `c.static[attr]`, so only attrs with a
+        # static column get them
+        static_backed = attr in self.defaults.index and bool(
+            self.defaults.at[attr, "static"]
+        )
+        if static_backed:
+            scalars = self._scalar_rows(attr, wide.columns)[cols]
+            if drop_defaults:
+                scalars = _drop_default_rows(scalars, self.defaults.at[attr, "default"])
+            out = _concat_long(out, scalars)
+        return out
+
+    def _export_long_frames(self, static_outputs: list[str]) -> list[pd.DataFrame]:
+        """Build the parquet store's long frame for every exported attribute."""
+        frames = []
+        for attr in dict.fromkeys([*self.dynamic, *static_outputs]):
+            long = self._as_long(attr, drop_defaults=True)
+            if long.empty:
+                continue
+            frames.append(long.assign(component_type=self.name, attribute=attr))
+        return frames

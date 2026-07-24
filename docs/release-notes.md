@@ -20,6 +20,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Phase-shifting transformers (PSTs) are now supported in linear optimal power flow. Setting `phase_shift_min < phase_shift_max` on a `Transformer` turns its `phase_shift` into a per-snapshot decision variable bounded by those two attributes (degrees); the optimiser re-taps the PST each snapshot to redistribute flow around cycles, modelling TSO operational tap control. The optimised per-snapshot angle is written to the new dynamic output `n.transformers_t["phase_shift_opt"]`. (<!-- md:pr 1661 -->)
 
+- Add experimental [`export_to_parquet()`][pypsa.Network.export_to_parquet] and [`import_from_parquet()`][pypsa.Network.import_from_parquet] for a self describing parquet store, plus an experimental long/tidy [`Components.long`][pypsa.Components.long] accessor. See the [Parquet user guide](./user-guide/import-export/parquet.md).
+
 ### Enhancements
 
 - Speed up [`create_model()`][pypsa.optimization.OptimizationAccessor.create_model] for large networks by computing the bus membership filter in `define_nodal_balance_constraints` with a pandas hash join instead of `xarray.isin` over object-dtype arrays. (<!-- md:pr 1770 -->)

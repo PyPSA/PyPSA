@@ -3767,6 +3767,7 @@ cloudpath = [
     { name = "cloudpathlib" },
 ]
 dev = [
+    { name = "cloudpathlib" },
     { name = "coverage" },
     { name = "jupyter" },
     { name = "matplotlib" },
@@ -3816,7 +3817,11 @@ gurobipy = [
 hdf5 = [
     { name = "tables" },
 ]
+parquet = [
+    { name = "pyarrow" },
+]
 test = [
+    { name = "cloudpathlib" },
     { name = "coverage" },
     { name = "pyarrow" },
     { name = "pytest" },
@@ -3833,6 +3838,8 @@ requires-dist = [
     { name = "cartopy", marker = "extra == 'cartopy'", specifier = ">=0.16" },
     { name = "cartopy", marker = "extra == 'docs'", specifier = ">=0.16" },
     { name = "cloudpathlib", marker = "extra == 'cloudpath'" },
+    { name = "cloudpathlib", marker = "extra == 'dev'" },
+    { name = "cloudpathlib", marker = "extra == 'test'" },
     { name = "coverage", marker = "extra == 'dev'" },
     { name = "coverage", marker = "extra == 'test'" },
     { name = "deprecation" },
@@ -3867,6 +3874,7 @@ requires-dist = [
     { name = "plotly" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "pyarrow", marker = "extra == 'dev'" },
+    { name = "pyarrow", marker = "extra == 'parquet'" },
     { name = "pyarrow", marker = "extra == 'test'" },
     { name = "pydeck", specifier = ">=0.6" },
     { name = "pypower", marker = "extra == 'dev'" },
@@ -3894,7 +3902,7 @@ requires-dist = [
     { name = "validators" },
     { name = "xarray" },
 ]
-provides-extras = ["hdf5", "cartopy", "excel", "gurobipy", "cloudpath", "dotenv", "tsam", "test", "dev", "docs"]
+provides-extras = ["hdf5", "parquet", "cartopy", "excel", "gurobipy", "cloudpath", "dotenv", "tsam", "test", "dev", "docs"]
 
 [[package]]
 name = "pyshp"

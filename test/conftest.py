@@ -17,6 +17,40 @@ import pypsa
 from pypsa.constants import DEFAULT_EPSG
 
 
+def custom_equals(n1, n2, ignore_attrs=None):
+    """Compare two networks, optionally ignoring some attributes.
+
+    Parameters
+    ----------
+    n1, n2 : pypsa.Network
+        Networks to compare
+    ignore_attrs : list of str, optional
+        List of attribute names that are allowed to be different.
+
+    """
+    if not ignore_attrs:
+        return n1.equals(n2, log_mode="strict")
+
+    # Copy networks to avoid modifying originals
+    n1 = n1.copy()
+    n2 = n2.copy()
+
+    for attr in ignore_attrs:
+        for net in (n1, n2):
+            obj = net
+            parts = attr.split(".")
+            for part in parts[:-1]:
+                if hasattr(obj, part):
+                    obj = getattr(obj, part)
+                else:
+                    break
+            else:
+                if hasattr(obj, parts[-1]):
+                    setattr(obj, parts[-1], None)
+
+    return n1.equals(n2, log_mode="strict")
+
+
 @pytest.fixture
 def no_warnings():
     """Fail if any Python warning or logging warning is emitted."""
