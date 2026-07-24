@@ -145,7 +145,7 @@ class TestVariablePhaseShift:
         """A fixed transformer (min == max) does not add a variable."""
         n = _build(phase_shift=5.0, variable=False)
         n.optimize(solver_name="highs")
-        assert "Transformer-phase_shift_opt" not in n.model.variables
+        assert "Transformer-phase_shift" not in n.model.variables
 
     def test_fixed_phase_shift_reports_setpoint(self):
         """Fixed transformers report their setpoint in the realised phase_shift_opt."""
@@ -194,7 +194,7 @@ class TestMixedFixedAndVariable:
         )
         assert total == pytest.approx(50.0, abs=0.1)
         # Variable var present, fixed input unchanged
-        assert "Transformer-phase_shift_opt" in n.model.variables
+        assert "Transformer-phase_shift" in n.model.variables
         assert n.transformers.at["T1", "phase_shift"] == 5.0
         # Realised angles: fixed (T1) equals its setpoint, variable (T2) optimised
         assert (n.transformers_t.phase_shift_opt["T1"].values == 5.0).all()

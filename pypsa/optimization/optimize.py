@@ -961,7 +961,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p0", df)
                     _set_dynamic_data(n, c.name, "p1", -df)
 
-                elif c.name == "Transformer" and attr == "phase_shift_opt":
+                elif c.name == "Transformer" and attr == "phase_shift":
                     _set_dynamic_data(n, c.name, "phase_shift_opt", df)
 
                 elif c.name == "Link" and attr == "p":

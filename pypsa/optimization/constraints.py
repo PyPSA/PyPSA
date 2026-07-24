@@ -1509,7 +1509,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         lhs_period = sum(exprs)
 
         if "Transformer" in C_weighted.index.unique("type"):
-            var = "Transformer-phase_shift_opt"
+            var = "Transformer-phase_shift"
             C_plain = n.cycle_matrix(investment_period=period, apply_weights=False)
             C_trafos = C_plain.loc["Transformer"]
 

@@ -79,7 +79,7 @@ to the static or series input `phase_shift`. The realised per-snapshot
 angle is written to the dynamic output `n.transformers_t["phase_shift_opt"]`.
 
 The variables are set in `define_phase_shift_variables()` and carry the name
-`Transformer-phase_shift_opt`; the angle term is added within
+`Transformer-phase_shift`; the angle term is added within
 `define_kirchhoff_voltage_constraints()`.
 
 !!! note "Note: Sign convention"
