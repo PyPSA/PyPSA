@@ -36,12 +36,15 @@ logger = logging.getLogger(__name__)
 
 
 def flatten_snapshot_dim(obj: Any) -> Any:
-    """Decompose a MultiIndex ``snapshot`` dimension into a flat positional one.
+    """Relabel a MultiIndex ``snapshot`` dimension with its ``(period, timestep)`` tuples.
 
-    The level values (e.g. ``period``, ``timestep``) are re-attached as auxiliary
-    coordinates so a ``groupby``/``.sel`` on them still works. A no-op when
-    ``snapshot`` is not a MultiIndex. Positions run ``0..N-1`` so any two arrays
-    built over the same snapshots stay aligned.
+    linopy's v1 convention forbids a ``pd.MultiIndex`` as a variable's dimension
+    coordinate, but accepts a plain object index of tuples. The level values
+    (``period``, ``timestep``) are re-attached as auxiliary coordinates so a
+    ``groupby``/``.sel`` on them still works. A no-op when ``snapshot`` is not a
+    MultiIndex. The tuple labels carry the snapshot identity, so any two arrays
+    built over the same snapshots align by label and the round-trip to a MultiIndex
+    is a plain ``pd.MultiIndex.from_tuples``.
     """
     idx = obj.indexes.get("snapshot")
     if not isinstance(idx, pd.MultiIndex):
@@ -49,8 +52,9 @@ def flatten_snapshot_dim(obj: Any) -> Any:
     levels = {
         name: ("snapshot", idx.get_level_values(name).to_numpy()) for name in idx.names
     }
+    tuples = pd.Index(list(idx), tupleize_cols=False, name="snapshot").values
     obj = obj.reset_index("snapshot", drop=True)
-    coords = {"snapshot": np.arange(obj.sizes["snapshot"]), **levels}
+    coords = {"snapshot": tuples, **levels}
     return obj.assign_coords(coords)
 
 
@@ -73,21 +77,18 @@ def recompose_snapshot_dim(
 def attach_snapshot_aux(
     obj: Any, window: pd.Index, levels: tuple[str, ...] = ("period", "timestep")
 ) -> Any:
-    """Re-attach flat-snapshot aux coords by position from a MultiIndex ``window``.
+    """Re-derive flat-snapshot aux coords from the ``(period, timestep)`` tuple labels.
 
-    The flat ``snapshot`` coordinate holds positions into ``window``; pull each
-    level's value at those positions. A no-op when ``window`` is not a MultiIndex
-    or ``snapshot`` is absent. Inverse companion of :func:`drop_snapshot_aux` for
-    the flat-native round-trip.
+    The flat ``snapshot`` coordinate holds ``(period, timestep)`` tuples; split them
+    back into level aux coords. ``window`` is only used as a guard: a no-op when it
+    is not a MultiIndex (single-period build) or ``snapshot`` is absent. Inverse
+    companion of :func:`drop_snapshot_aux` for the flat-native round-trip.
     """
     has_snapshot = "snapshot" in getattr(obj, "dims", ())
     if not isinstance(window, pd.MultiIndex) or not has_snapshot:
         return obj
-    pos = obj.indexes["snapshot"].to_numpy()
-    coords = {
-        lvl: ("snapshot", window.get_level_values(lvl).to_numpy()[pos])
-        for lvl in levels
-    }
+    mi = pd.MultiIndex.from_tuples(list(obj.indexes["snapshot"]), names=levels)
+    coords = {lvl: ("snapshot", mi.get_level_values(lvl).to_numpy()) for lvl in levels}
     return obj.assign_coords(coords)
 
 

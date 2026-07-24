@@ -92,18 +92,19 @@ lookup = pd.read_csv(
 
 @contextmanager
 def _build_over_flat_snapshots(n: Network, sns: pd.Index) -> Iterator[pd.Index]:
-    """Yield a flat positional snapshot dim for the duration of a model build.
+    """Yield a flat tuple-labeled snapshot dim for the duration of a model build.
 
-    A MultiIndex snapshot (multi-period, or user-supplied) is forbidden on
+    A ``pd.MultiIndex`` snapshot (multi-period, or user-supplied) is forbidden on
     variables by linopy's v1 convention, so multi-period models are built over a
-    flat ``RangeIndex``; the original window is stashed for the ``da`` accessor and
-    the solution round-trip. The flatten flag is cleared on exit (success or error)
-    while ``_optimize_window_snapshots`` persists for post-build assignment.
+    flat object index whose labels are the ``(period, timestep)`` tuples; the
+    original window is stashed for the ``da`` accessor and the solution round-trip.
+    The flatten flag is cleared on exit (success or error) while
+    ``_optimize_window_snapshots`` persists for post-build assignment.
     """
     n._optimize_flatten_snapshots = isinstance(sns, pd.MultiIndex)
     if n._optimize_flatten_snapshots:
         n._optimize_window_snapshots = sns
-        sns = pd.RangeIndex(len(sns), name="snapshot")
+        sns = pd.Index(list(sns), tupleize_cols=False, name="snapshot")
     try:
         yield sns
     finally:
