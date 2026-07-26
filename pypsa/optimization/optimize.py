@@ -21,6 +21,7 @@ from pypsa._linopy_compat import (
     drop_snapshot_aux,
     linopy_uses_v1,
     recompose_snapshot_dim,
+    suppress_semantics_warnings,
     tuple_snapshot_index,
 )
 from pypsa._options import options
@@ -110,10 +111,9 @@ def _build_over_flat_snapshots(n: Network, sns: pd.Index) -> Iterator[pd.Index]:
     if n._optimize_flatten_snapshots:
         n._optimize_window_snapshots = sns
         sns = tuple_snapshot_index(sns)
-    with warnings.catch_warnings():
+    with suppress_semantics_warnings():
         if is_multiindex and not n._optimize_flatten_snapshots:
             _notify_multiindex_snapshot_kept()
-            warnings.filterwarnings("ignore", message=r".*a `pd\.MultiIndex`")
         try:
             yield sns
         finally:

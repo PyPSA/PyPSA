@@ -17,10 +17,20 @@ unchanged. This shim is temporary; it goes away once v1 is linopy's default.
 
 from __future__ import annotations
 
-from typing import Any
+import warnings
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 from linopy import options as linopy_options
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+try:
+    from linopy.config import LinopySemanticsWarning
+except ImportError:  # linopy without the v1 semantics option
+    LinopySemanticsWarning = None
 
 SNAPSHOT_LEVELS = ("period", "timestep")
 
@@ -31,6 +41,25 @@ def linopy_uses_v1() -> bool:
         return linopy_options["semantics"] == "v1"
     except KeyError:
         return False
+
+
+@contextmanager
+def suppress_semantics_warnings() -> Iterator[None]:
+    """Silence linopy's legacy->v1 divergence notices for a PyPSA linopy block.
+
+    PyPSA's optimization build and expression accessor produce identical models
+    under legacy and v1 semantics, but under legacy they trip linopy's
+    per-operation deprecation notices (masked-variable absent slots, stacked
+    ``group`` MultiIndex, dropped conflicting aux coords, the ``snapshot``
+    MultiIndex). Suppress that whole family for the wrapped block. A no-op under
+    v1 (the notices don't fire) and on linopy without the semantics option.
+    """
+    if LinopySemanticsWarning is None or linopy_uses_v1():
+        yield
+        return
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=LinopySemanticsWarning)
+        yield
 
 
 def _snapshot_is_multiindex(obj: Any) -> bool:

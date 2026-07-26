@@ -17,6 +17,7 @@ from linopy import LinearExpression, Variable
 from packaging import version
 from xarray import DataArray
 
+from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
 from pypsa.statistics import (
     get_transmission_branches,
@@ -96,6 +97,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             return expr @ weights
         msg = f"Aggregation method {agg} not supported."
         raise ValueError(msg)
+
+    def _aggregate_components(self, *args: Any, **kwargs: Any) -> Any:
+        # Expressions built from masked model variables leave absent slots, a
+        # multi-key groupby keeps a stacked `group` MultiIndex, and cross-
+        # component merges drop a conflicting aux coord; all are handled
+        # identically here under legacy and v1, so silence linopy's notices.
+        with suppress_semantics_warnings():
+            return super()._aggregate_components(*args, **kwargs)
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
         return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())
