@@ -699,3 +699,189 @@ class TestMarketValue:
 
         assert np.isfinite(mv.loc[("Link", "DC")])
         assert np.isfinite(mv.loc[("Line", "AC")])
+
+
+def test_primary_energy_generator_matches_constraint():
+    """Generator primary_energy reconciles with a binding primary_energy constraint."""
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+    n.add("Bus", "bus")
+    n.add("Carrier", "coal", co2_emissions=1.0)
+    n.add("Carrier", "clean", co2_emissions=0.0)
+    n.add("Load", "load", bus="bus", p_set=[20, 30, 25, 15])
+    n.add(
+        "Generator",
+        "coal",
+        bus="bus",
+        carrier="coal",
+        p_nom=50,
+        efficiency=0.5,
+        marginal_cost=10,
+    )
+    n.add(
+        "Generator",
+        "clean",
+        bus="bus",
+        carrier="clean",
+        p_nom=50,
+        efficiency=1.0,
+        marginal_cost=80,
+    )
+    n.add(
+        "GlobalConstraint",
+        "co2cap",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=150.0,
+    )
+
+    n.optimize()
+
+    pe = n.statistics.primary_energy()
+    # Constraint binds (nonzero shadow price), so the total equals the cap.
+    assert n.c.global_constraints.static.mu["co2cap"] != 0
+    assert pe.sum() == pytest.approx(150.0, abs=1e-6)
+    # coal emits, clean does not.
+    assert pe.loc["Generator", "coal"] == pytest.approx(150.0, abs=1e-6)
+    assert ("Generator", "clean") not in pe.index or pe.loc["Generator", "clean"] == 0
+
+
+def test_primary_energy_store_endpoint_vs_net_dispatch():
+    """Aggregated storage uses the endpoint delta; time-resolved uses net dispatch.
+
+    For lossy storage the net-dispatch profile sums to less than the endpoint
+    total (losses cannot be pinned to a single snapshot).
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+    n.add("Bus", "bus")
+    n.add("Carrier", "gas", co2_emissions=0.4)
+    n.add("Load", "load", bus="bus", p_set=[10, 30, 20, 25])
+    n.add(
+        "Generator",
+        "backup",
+        bus="bus",
+        carrier="gas",
+        p_nom=100,
+        efficiency=1.0,
+        marginal_cost=100,
+    )
+    n.add(
+        "Store",
+        "cavern",
+        bus="bus",
+        carrier="gas",
+        e_nom=100,
+        e_initial=100,
+        standing_loss=0.10,
+        e_cyclic=False,
+        marginal_cost=1,
+    )
+
+    n.optimize()
+
+    static = n.c.stores.static
+    dynamic = n.c.stores.dynamic
+    endpoint = (static.e_initial["cavern"] - dynamic.e["cavern"].iloc[-1]) * 0.4
+
+    agg = n.statistics.primary_energy(components="Store")
+    assert agg.sum() == pytest.approx(endpoint, abs=1e-6)
+
+    profile = n.statistics.primary_energy(components="Store", groupby_time=False)
+    net_dispatch = (dynamic.p["cavern"] * n.snapshot_weightings.stores).sum() * 0.4
+    assert profile.sum().sum() == pytest.approx(net_dispatch, abs=1e-6)
+    # Lossy storage: the time-resolved profile falls short of the endpoint total.
+    assert profile.sum().sum() < endpoint
+
+
+def test_primary_energy_custom_carrier_attribute():
+    """A non-CO2 carrier_attribute is used when provided."""
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", "bus")
+    n.add("Carrier", "coal", co2_emissions=1.0, nox_emissions=3.0)
+    n.add("Load", "load", bus="bus", p_set=[10, 10])
+    n.add(
+        "Generator",
+        "coal",
+        bus="bus",
+        carrier="coal",
+        p_nom=50,
+        efficiency=0.5,
+        marginal_cost=10,
+    )
+
+    n.optimize()
+
+    co2 = n.statistics.primary_energy()
+    nox = n.statistics.primary_energy(carrier_attribute="nox_emissions")
+    # nox factor is 3x the co2 factor for the same dispatch.
+    assert nox.sum() == pytest.approx(3.0 * co2.sum(), abs=1e-6)
+
+
+def test_primary_energy_cyclic_storage_excluded():
+    """Cyclic storage is excluded, mirroring the primary_energy constraint."""
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+    n.add("Bus", "bus")
+    n.add("Carrier", "gas", co2_emissions=0.4)
+    n.add("Load", "load", bus="bus", p_set=[10, 30, 20, 25])
+    n.add(
+        "Generator",
+        "backup",
+        bus="bus",
+        carrier="gas",
+        p_nom=100,
+        efficiency=1.0,
+        marginal_cost=100,
+    )
+    n.add(
+        "Store",
+        "cavern",
+        bus="bus",
+        carrier="gas",
+        e_nom=100,
+        e_initial=100,
+        standing_loss=0.10,
+        e_cyclic=True,
+        marginal_cost=1,
+    )
+
+    n.optimize()
+
+    pe = n.statistics.primary_energy(components="Store")
+    assert pe.empty or pe.sum() == pytest.approx(0.0, abs=1e-9)
+
+
+def test_primary_energy_negative_emissions_sign_preserved():
+    """A negative-emission carrier (e.g. BECCS/DAC) yields negative primary energy."""
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", "bus")
+    n.add("Carrier", "beccs", co2_emissions=-1.0)
+    n.add("Carrier", "gas", co2_emissions=0.4)
+    n.add("Load", "load", bus="bus", p_set=[10, 10])
+    n.add(
+        "Generator",
+        "beccs",
+        bus="bus",
+        carrier="beccs",
+        p_nom=50,
+        efficiency=1.0,
+        marginal_cost=1,
+    )
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        carrier="gas",
+        p_nom=50,
+        efficiency=1.0,
+        marginal_cost=50,
+    )
+
+    n.optimize()
+
+    pe = n.statistics.primary_energy()
+    assert pe.loc["Generator", "beccs"] < 0

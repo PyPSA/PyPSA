@@ -154,6 +154,10 @@ STAT_OVERRIDES: dict = {
         "line": {"x": "snapshot"},
         "area": {"x": "snapshot", "color": "carrier"},
     },
+    "primary_energy": {
+        "line": {"x": "snapshot"},
+        "area": {"x": "snapshot", "color": "carrier"},
+    },
     # Statistics with no special overrides
     "capex": {},
     "installed_capex": {},

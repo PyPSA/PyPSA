@@ -383,6 +383,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         "revenue",
         "market_value",
         "prices",
+        "primary_energy",
     ]
 
     def _get_component_index(self, df: pd.DataFrame | pd.Series, c: str) -> pd.Index:
@@ -2304,6 +2305,130 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         df.attrs["name"] = "Energy Balance"
         df.attrs["unit"] = n.bus_carrier_unit(bus_carrier)
+        return df
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
+    def primary_energy(  # noqa: D417
+        self,
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
+        aggregate_across_components: bool = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: PortsLike = "all",
+        carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+        carrier_attribute: str = "co2_emissions",
+    ) -> pd.DataFrame:
+        """Calculate the **primary energy usage** (e.g. CO2 emissions) of components.
+
+        Post-calculates the quantity tracked by the ``primary_energy`` global
+        constraint from the solved dispatch, using the per-carrier factor
+        ``n.carriers[carrier_attribute]`` (default ``co2_emissions``). Generators
+        contribute ``p / efficiency * factor``; non-cyclic StorageUnit and Store use
+        the endpoint drawdown when aggregated and net dispatch when time-resolved.
+
+        Parameters
+        ----------
+        components : str | Sequence[str] | None, default=None
+            Components to include. If None, uses Generator, StorageUnit and Store.
+        groupby_time : str | bool, default="sum"
+            Whether to aggregate the time series. See other statistic methods.
+        groupby_method : Callable | str, default="sum"
+            Function to aggregate groups when using the groupby parameter.
+        aggregate_across_components : bool, default=False
+            Whether to aggregate across components.
+        groupby : str | Sequence[str] | Callable, default="carrier"
+            How to group components.
+        at_port : PortsLike, default="all"
+            Which ports to consider.
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier.
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of connected buses.
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result.
+        round : int | None, default=None
+            Round the result to the given number of decimals.
+        carrier_attribute : str, default="co2_emissions"
+            Carrier attribute providing the primary-energy factor per carrier.
+
+        Returns
+        -------
+        pd.DataFrame
+
+        """
+        n = self._n
+
+        factor = n.c.carriers.static[carrier_attribute]
+        if isinstance(factor.index, pd.MultiIndex):
+            # Stochastic network: de-scenario the per-carrier factor.
+            factor = factor.groupby(level="name").first()
+
+        @pass_empty_series_if_keyerror
+        def func(n: Network, c: str, port: str) -> pd.Series:
+            static = n.c[c].static
+            em_pu = static["carrier"].map(factor).fillna(0.0)
+
+            if c == "Generator":
+                efficiency = n.get_switchable_as_dense(c, "efficiency")
+                value = n.c[c].dynamic[f"p{port}"].mul(em_pu, axis=1).div(efficiency)
+                weights = n.snapshot_weightings.generators
+                return self._aggregate_timeseries(value, weights, agg=groupby_time)
+
+            # StorageUnit / Store: exclude cyclic units to mirror the constraint.
+            if c == "StorageUnit":
+                em_pu = em_pu.where(~static["cyclic_state_of_charge"], 0.0)
+                traj, initial = (
+                    n.c[c].dynamic["state_of_charge"],
+                    static["state_of_charge_initial"],
+                )
+            else:  # Store
+                em_pu = em_pu.where(~static["e_cyclic"], 0.0)
+                traj, initial = n.c[c].dynamic["e"], static["e_initial"]
+
+            aggregated = groupby_time is True or groupby_time == "sum"
+            if aggregated and not n.has_investment_periods:
+                # Endpoint drawdown: matches the primary_energy constraint exactly.
+                final = traj.ffill().iloc[-1]
+                return (initial - final) * em_pu
+
+            # Time-resolved / multi-period: net dispatch (see docstring).
+            value = n.c[c].dynamic[f"p{port}"].mul(em_pu, axis=1)
+            weights = n.snapshot_weightings.stores
+            return self._aggregate_timeseries(value, weights, agg=groupby_time)
+
+        if components is None:
+            components = ["Generator", "StorageUnit", "Store"]
+
+        df = self._aggregate_components(
+            func,
+            components=components,
+            agg=groupby_method,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port=at_port,
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
+        )
+
+        df.attrs["name"] = "Primary Energy"
+        df.attrs["unit"] = "carrier dependent"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
