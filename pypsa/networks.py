@@ -675,7 +675,7 @@ class Network(
         * Line-ext-s-upper (snapshot, name)
         * Link-ext-p-lower (snapshot, name)
         * Link-ext-p-upper (snapshot, name)
-        * Bus-nodal_balance (name, snapshot)
+        * Bus-nodal_balance (snapshot, name)
         * Kirchhoff-Voltage-Law (snapshot, cycle)
         * GlobalConstraint-co2_limit
         <BLANKLINE>
