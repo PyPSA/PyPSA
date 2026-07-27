@@ -63,7 +63,7 @@ jobs:
           api: new_api
         - os: windows-latest
           api: new_api
-        include: ${{ (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && fromJSON('[{"python-version":"3.13","os":"ubuntu-latest","api":"pandas3"}]') || fromJSON('[]') }}
+        include: ${{ (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && fromJSON('[{"python-version":"3.13","os":"ubuntu-latest","api":"pandas2"}]') || fromJSON('[]') }}
 
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
@@ -106,9 +106,9 @@ jobs:
         uv sync --extra dev --no-install-project $UV_LOCK_ARG
         uv pip install "$(ls dist/*.whl)"
 
-    - name: Install pandas 3
-      if: matrix.api == 'pandas3'
-      run: uv pip install 'pandas>=3.0'
+    - name: Install pandas 2
+      if: matrix.api == 'pandas2'
+      run: uv pip install 'pandas>=2,<3'
 
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
@@ -117,8 +117,8 @@ jobs:
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
 
-    - name: Run unit tests (pandas 3)
-      if: matrix.api == 'pandas3'
+    - name: Run unit tests (pandas 2)
+      if: matrix.api == 'pandas2'
       run: >
         uv run --no-sync pytest
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
