@@ -35,6 +35,7 @@ from pypsa._options import (
     options,
 )
 from pypsa.collection import NetworkCollection
+from pypsa.common import ExperimentalWarning
 from pypsa.components.components import Components
 from pypsa.networks import Network, SubNetwork
 from pypsa.version import (
@@ -77,6 +78,7 @@ __all__ = [
     "NetworkCollection",
     "SubNetwork",
     "Components",
+    "ExperimentalWarning",
 ]
 
 

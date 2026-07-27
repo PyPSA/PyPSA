@@ -113,6 +113,8 @@ def _process_shortcodes(text: str, page: Page, files: Files):
                 if is_badge
                 else _link_api(args, page, files)
             )
+        elif type == "experimental":
+            return _badge_experimental()
 
         # Otherwise, raise an error
         raise RuntimeError(f"Unknown shortcode: {type}")
@@ -156,7 +158,9 @@ def _resolve_path(path: str, page: Page, files: Files):
     path, anchor, *_ = f"{path}#".split("#")
     file = files.get_file_from_path(path)
     if file is None:
-        logging.warning("File not found: %s (referenced in %s)", path, page.file.src_uri)
+        logging.warning(
+            "File not found: %s (referenced in %s)", path, page.file.src_uri
+        )
         return original_path  # Return original path unchanged
     path = _resolve(file, page)
     return "#".join([path, anchor]) if anchor else path
@@ -264,6 +268,13 @@ def _link_api(text: str, page: Page, files: Files):
     href = href.replace("networks/network.md", f"{text}")
     display_text = clean_file_path(text)
     return f"[:{icon}: {display_text}]({href} 'View API Reference')"
+
+
+def _badge_experimental():
+    """Create badge for experimental APIs."""
+    icon = "material-flask-outline"
+    title = "Experimental: may change or be removed without notice"
+    return _badge(f":{icon}: [Experimental](# '{title}')", type="experimental")
 
 
 # -----------------------------------------------------------------------------
@@ -402,6 +413,8 @@ if GRIFFE_AVAILABLE:
                             )
                         else:
                             return f"[:{icon}: {display_text}]({href} 'View API Reference')"
+                    elif type == "experimental":
+                        return _badge_experimental()
                 except Exception as e:
                     # Fallback to original if anything fails
                     print(

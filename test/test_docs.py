@@ -89,6 +89,7 @@ modules = [
 @pytest.mark.skipif(new_api, reason="New components API not yet shown in docs")
 @pytest.mark.skipif(not cartopy_available, reason="Cartopy not available")
 @pytest.mark.parametrize("module", modules)
+@pytest.mark.filterwarnings("ignore::pypsa.ExperimentalWarning")
 def test_doctest_code(module, close_matplotlib_figures, test_docs_flag):
     if not test_docs_flag:
         pytest.skip("Need --test-docs option to run documentation tests")

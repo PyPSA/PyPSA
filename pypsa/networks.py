@@ -47,6 +47,7 @@ from pypsa.network.descriptors import NetworkDescriptorsMixin
 from pypsa.network.graph import NetworkGraphMixin
 from pypsa.network.index import NetworkIndexMixin
 from pypsa.network.io import NetworkIOMixin
+from pypsa.network.io.parquet import is_network_store
 from pypsa.network.power_flow import (
     NetworkPowerFlowMixin,
     SubNetworkPowerFlowMixin,
@@ -198,7 +199,10 @@ class Network(
             elif str(import_name).endswith((".xls", ".xlsx", ".xlsm", ".xlsb")):
                 self.import_from_excel(import_name)
             elif isinstance(import_name, Path) and import_name.is_dir():
-                self.import_from_csv_folder(import_name)
+                if is_network_store(import_name):
+                    self.import_from_parquet(import_name)
+                else:
+                    self.import_from_csv_folder(import_name)
             else:
                 msg = f"import_name '{import_name}' is not a valid .h5 file, .nc file or directory."
                 raise ValueError(msg)

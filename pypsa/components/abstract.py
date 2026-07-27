@@ -49,6 +49,11 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
+    def defaults(self) -> pd.DataFrame:
+        pass
+
+    @property
+    @abstractmethod
     def snapshots(self) -> pd.Index:
         pass
 

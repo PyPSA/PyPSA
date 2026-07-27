@@ -6,6 +6,7 @@ import sys
 
 import pandas as pd
 import pytest
+from conftest import custom_equals
 from geopandas.testing import assert_geodataframe_equal
 from numpy.testing import assert_array_almost_equal as equal
 
@@ -25,39 +26,6 @@ try:
     excel_installed = True
 except ImportError:
     excel_installed = False
-
-
-def custom_equals(n1, n2, ignore_attrs=None):
-    """
-    Custom equality check that allows certain attributes to be different.
-    Parameters
-    ----------
-    n1, n2 : pypsa.Network
-        Networks to compare
-    ignore_attrs : list of str, optional
-        List of attribute names that are allowed to be different.
-    """
-    if not ignore_attrs:
-        return n1.equals(n2, log_mode="strict")
-
-    # Copy networks to avoid modifying originals
-    n1 = n1.copy()
-    n2 = n2.copy()
-
-    for attr in ignore_attrs:
-        for net in (n1, n2):
-            obj = net
-            parts = attr.split(".")
-            for part in parts[:-1]:
-                if hasattr(obj, part):
-                    obj = getattr(obj, part)
-                else:
-                    break
-            else:
-                if hasattr(obj, parts[-1]):
-                    setattr(obj, parts[-1], None)
-
-    return n1.equals(n2, log_mode="strict")
 
 
 # TODO classes could be further parametrized
