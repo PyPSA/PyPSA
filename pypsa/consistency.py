@@ -228,6 +228,58 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
             )
 
 
+def check_phase_shift_bounds(component: Components, strict: bool = False) -> None:
+    """Check phase shift bounds for transformers with an optimisable phase shift.
+
+    A transformer phase shift is optimised when `phase_shift_min < phase_shift_max`;
+    in that case both bounds must be finite for the per-snapshot tap angle to be a
+    well-posed decision variable. `phase_shift_min > phase_shift_max` is flagged as
+    a likely mistake (the shift is held fixed at `phase_shift`).
+
+    Activate strict mode in general consistency check by passing
+    `['phase_shift_bounds']` to the `strict` argument.
+
+    Parameters
+    ----------
+    component : pypsa.Component
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if "phase_shift_min" not in component.static.columns:
+        return
+    ps_min = component.static["phase_shift_min"]
+    ps_max = component.static["phase_shift_max"]
+
+    inverted = component.static.index[ps_min > ps_max]
+    if not inverted.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have phase_shift_min greater than phase_shift_max; "
+            "the phase shift is held fixed at phase_shift, which is likely "
+            "unintended (set phase_shift_min < phase_shift_max to optimise it):\n%s",
+            component.list_name,
+            inverted,
+        )
+
+    var = component.static.index[ps_min < ps_max]
+    non_finite = var[~np.isfinite(ps_min[var]) | ~np.isfinite(ps_max[var])]
+    if not non_finite.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have an optimisable phase shift "
+            "(phase_shift_min < phase_shift_max) but a non-finite bound, which "
+            "leaves the optimised tap angle unbounded:\n%s",
+            component.list_name,
+            non_finite,
+        )
+
+
 def check_time_series(
     n: NetworkType, component: Components, strict: bool = False
 ) -> None:
@@ -888,7 +940,8 @@ class NetworkConsistencyMixin(_NetworkABC):
         strict : list, optional
             If some checks should raise an error instead of logging a warning, pass a list
             of strings with the names of the checks to be strict about. If 'all' is passed,
-            all checks will be strict. By default, 'dispatch_delays' is always strict.
+            all checks will be strict. By default, 'dispatch_delays', 'maintenance' and
+            'phase_shift_bounds' are always strict.
 
         Raises
         ------
@@ -897,7 +950,7 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         """
         if strict is None:
-            strict = ["dispatch_delays"]
+            strict = ["dispatch_delays", "maintenance", "phase_shift_bounds"]
 
         strict_options = [
             "unknown_buses",
@@ -908,9 +961,11 @@ class NetworkConsistencyMixin(_NetworkABC):
             "nans_for_component_default_attrs",
             "zero_impedances",
             "zero_s_nom",
+            "phase_shift_bounds",
             "generators",
             "cost_consistency",
             "dispatch_delays",
+            "maintenance",
             "disconnected_buses",
             "investment_periods",
             "shapes",
@@ -954,8 +1009,10 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_impedances(self, c, "zero_impedances" in strict)
             # Checks transformers
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
+            check_phase_shift_bounds(c, "phase_shift_bounds" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
+            check_maintenance_attributes(self, c, "maintenance" in strict)
             # Checks cost attributes consistency
             check_cost_consistency(c)
             # Checks dispatch delay attributes
@@ -1411,6 +1468,89 @@ def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
                 c.name.lower(),
                 ", ".join(details),
             )
+
+
+def check_maintenance_attributes(
+    n: NetworkType, component: Components, strict: bool = False
+) -> None:
+    """Check maintainable components have valid maintenance parameters.
+
+    Parameters
+    ----------
+    n : NetworkType
+        The network to check.
+    component : Components
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if "maintainable" not in component.static:
+        return
+
+    maintainable = component.static[component.static.maintainable]
+    if maintainable.empty:
+        return
+
+    bad_duration = maintainable[maintainable.maintenance_duration <= 0]
+    if not bad_duration.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintainable=True but maintenance_duration <= 0,"
+            " which is invalid for maintenance scheduling:\n%s",
+            component.list_name,
+            bad_duration.index,
+        )
+
+    bad_events = maintainable[maintainable.maintenance_events <= 0]
+    if not bad_events.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintainable=True but maintenance_events <= 0,"
+            " so no maintenance will be scheduled:\n%s",
+            component.list_name,
+            bad_events.index,
+        )
+
+    horizon_hours = n.snapshot_weightings.generators.sum()
+    bad_horizon = maintainable[maintainable.maintenance_duration > horizon_hours]
+    if not bad_horizon.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintenance_duration > total weighted snapshot"
+            " hours (%s), which will cause infeasibility:\n%s",
+            component.list_name,
+            horizon_hours,
+            bad_horizon.index,
+        )
+
+    total = maintainable.maintenance_duration * maintainable.maintenance_events
+    bad_total = maintainable[total > horizon_hours]
+    if not bad_total.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintenance_duration * maintenance_events > total"
+            " weighted snapshot hours (%s), which will cause infeasibility:\n%s",
+            component.list_name,
+            horizon_hours,
+            bad_total.index,
+        )
+
+    ext = maintainable[maintainable.p_nom_extendable]
+    bad_max = ext[np.isinf(ext.p_nom_max)]
+    if not bad_max.empty:
+        _log_or_raise(
+            strict,
+            "The following extendable maintainable %s have infinite p_nom_max,"
+            " which is required to be finite for linearizing the maintenance"
+            " capacity reduction:\n%s",
+            component.list_name,
+            bad_max.index,
+        )
 
 
 def check_no_modular_committables(n: Network) -> None:

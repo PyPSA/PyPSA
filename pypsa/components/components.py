@@ -753,7 +753,7 @@ class Components(
         Coordinates:
           * name                        (name) object 48B 'Manchester Wind' ... 'Fran...
           * snapshot                    (snapshot) datetime64[ns] 80B 2015-01-01 ... ...
-        Data variables: (12/44)
+        Data variables: (12/48)
             bus                         (name) object 48B 'Manchester' ... 'Frankfurt'
             control                     (name) object 48B 'Slack' 'PQ' ... 'Slack' 'PQ'
             type                        (name) object 48B '' '' '' '' '' ''
@@ -989,6 +989,26 @@ class Components(
         idx = self.static.loc[self.static["committable"]].index
 
         # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
+    @property
+    def maintainables(self) -> pd.Index:
+        """Get the index of maintainable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of maintainable elements.
+
+        """
+        if "maintainable" not in self.static:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static["maintainable"]].index
+
         if self.has_scenarios:
             idx = idx.get_level_values("name").drop_duplicates()
 

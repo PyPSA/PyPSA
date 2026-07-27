@@ -199,6 +199,144 @@ def define_shut_down_variables(
     )
 
 
+def define_maintenance_variables(n: Network, sns: Sequence, c_name: str) -> None:
+    """Initialize continuous maintenance status variables in [0, 1].
+
+    Integrality is implied through the binary maintenance start variables and
+    the window coverage equality in define_maintenance_constraints.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : Sequence
+        Set of snapshots for which to define the variables
+    c_name : str
+        Name of the network component ("Generator", "Link" or "Process")
+
+    """
+    c = n.c[c_name]
+    maint_i = c.maintainables.difference(c.inactive_assets)
+
+    if maint_i.empty:
+        return
+
+    active = c.da.active.sel(name=maint_i, snapshot=sns)
+    n.model.add_variables(
+        lower=0,
+        upper=1,
+        coords=active.coords,
+        name=f"{c.name}-maintenance",
+        mask=active,
+    )
+
+
+def define_maintenance_start_variables(n: Network, sns: Sequence, c_name: str) -> None:
+    """Initialize binary variables for maintenance start events.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : Sequence
+        Set of snapshots for which to define the variables
+    c_name : str
+        Name of the network component ("Generator", "Link" or "Process")
+
+    """
+    c = n.c[c_name]
+    maint_i = c.maintainables.difference(c.inactive_assets)
+
+    if maint_i.empty:
+        return
+
+    active = c.da.active.sel(name=maint_i, snapshot=sns)
+    n.model.add_variables(
+        coords=active.coords,
+        name=f"{c.name}-maintenance_start",
+        mask=active,
+        binary=True,
+    )
+
+
+def define_maintenance_capacity_variables(
+    n: Network, sns: Sequence, c_name: str
+) -> None:
+    """Initialize auxiliary variables for linearizing p_nom * maintenance.
+
+    Only needed for maintainable extendable components. The variable
+    represents z = p_nom * maintenance and is bounded via McCormick
+    constraints in define_maintenance_constraints.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : Sequence
+        Set of snapshots for which to define the variables
+    c_name : str
+        Name of the network component ("Generator", "Link" or "Process")
+
+    """
+    c = n.c[c_name]
+    modular_com = c.modulars.intersection(c.committables)
+    maint_ext_i = (
+        c.maintainables.intersection(c.extendables)
+        .difference(c.inactive_assets)
+        .difference(modular_com)
+    )
+
+    if maint_ext_i.empty:
+        return
+
+    active = c.da.active.sel(name=maint_ext_i, snapshot=sns)
+    n.model.add_variables(
+        lower=0,
+        coords=active.coords,
+        name=f"{c.name}-maintenance_capacity",
+        mask=active,
+    )
+
+
+def define_maintenance_status_variables(n: Network, sns: Sequence, c_name: str) -> None:
+    """Initialize auxiliary variables for linearizing status * maintenance.
+
+    Needed for maintainable committable components whose dispatch bounds scale
+    capacity by the commitment status, i.e. fixed (binary status) and modular
+    (integer module count) committables. The variable represents
+    w = status * maintenance and is bounded via McCormick constraints in
+    define_operational_constraints_for_committables, decoupling the commitment
+    status from the maintenance status so a unit can be shut down while in
+    maintenance. Non-modular extendable committables use the big-M formulation
+    instead and are excluded.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : Sequence
+        Set of snapshots for which to define the variables
+    c_name : str
+        Name of the network component ("Generator", "Link" or "Process")
+
+    """
+    c = n.c[c_name]
+    com_i = c.committables.difference(c.inactive_assets)
+    non_modular_ext = c.extendables.difference(c.modulars)
+    maint_w_i = com_i.intersection(c.maintainables).difference(non_modular_ext)
+
+    if maint_w_i.empty:
+        return
+
+    active = c.da.active.sel(name=maint_w_i, snapshot=sns)
+    n.model.add_variables(
+        lower=0,
+        coords=active.coords,
+        name=f"{c.name}-maintenance_status",
+        mask=active,
+    )
+
+
 def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
     """Initialize variables for nominal capacities.
 
@@ -264,6 +402,44 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     active = active_aligned.where(upper_aligned > 0, False)
 
     n.model.add_variables(0, upper_aligned, name=f"{c.name}-spill", mask=active)
+
+
+def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
+    """Define per-snapshot phase-shift variables for phase-shifting transformers.
+
+    When a ``Transformer`` has ``phase_shift_min < phase_shift_max``, its voltage
+    phase-angle shift is treated as a continuous decision variable per snapshot
+    bounded by ``phase_shift_min`` and ``phase_shift_max`` (in degrees). This
+    models phase-shifting transformers (PSTs) whose tap position the TSO
+    optimises at operational timescales to redistribute power flows around cycles in the
+    transmission network, without adding or removing active power.
+
+    The variable enters the Kirchhoff Voltage Law cycle constraint via
+    ``define_kirchhoff_voltage_constraints``. No separate equality constraint
+    is required here.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    sns : Sequence
+        Snapshots for which to define the variable.
+
+    """
+    c = n.components["Transformer"]
+    if c.empty:
+        return
+
+    trafos = c.static
+    varying = trafos["phase_shift_min"] < trafos["phase_shift_max"]
+    names = trafos.index[varying].difference(c.inactive_assets)
+    if names.empty:
+        return
+
+    active = c.da.active.sel(name=names, snapshot=sns)
+    lower = c.da["phase_shift_min"].sel(name=names).broadcast_like(active)
+    upper = c.da["phase_shift_max"].sel(name=names).broadcast_like(active)
+    n.model.add_variables(lower, upper, name="Transformer-phase_shift")
 
 
 def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
