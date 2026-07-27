@@ -561,7 +561,7 @@ def define_operational_constraints_for_committables(
     # Convert xarray boolean to list of indices for DataFrame indexing
     initially_up_indices = com_i[initially_up.values]
     if not initially_up_indices.empty:
-        rhs.loc[sns[0], initially_up_indices] = -1
+        rhs.iloc[0, rhs.columns.get_indexer(initially_up_indices)] = -1
 
     lhs = start_up - status_diff
     n.model.add_constraints(
@@ -570,7 +570,7 @@ def define_operational_constraints_for_committables(
 
     rhs = pd.DataFrame(0, sns, com_i)
     if not initially_up_indices.empty:
-        rhs.loc[sns[0], initially_up_indices] = 1
+        rhs.iloc[0, rhs.columns.get_indexer(initially_up_indices)] = 1
 
     lhs = shut_down + status_diff
     n.model.add_constraints(
