@@ -436,9 +436,9 @@ def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
     if names.empty:
         return
 
-    active = c.da.active.sel(name=names, snapshot=sns)
-    lower = c.da["phase_shift_min"].sel(name=names).broadcast_like(active)
-    upper = c.da["phase_shift_max"].sel(name=names).broadcast_like(active)
+    grid = xr.ones_like(c.da.active.sel(name=names, snapshot=sns))
+    lower = c.da["phase_shift_min"].sel(name=names) * grid
+    upper = c.da["phase_shift_max"].sel(name=names) * grid
     n.model.add_variables(lower, upper, name="Transformer-phase_shift")
 
 
