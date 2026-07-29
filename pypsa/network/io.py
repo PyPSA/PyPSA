@@ -74,9 +74,11 @@ def _coerce_string_dtypes(df: pd.DataFrame) -> pd.DataFrame:
 
     df.index = _coerce_axis(df.index)
     df.columns = _coerce_axis(df.columns)
-    for col in df.columns:
-        if isinstance(df[col].dtype, pd.StringDtype):
-            df[col] = df[col].astype(object)
+    str_cols = [
+        col for col, dtype in df.dtypes.items() if isinstance(dtype, pd.StringDtype)
+    ]
+    if str_cols:
+        df[str_cols] = df[str_cols].astype(object)
     return df
 
 
@@ -1063,13 +1065,31 @@ class _ExporterNetCDF(_Exporter):
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save a dynamic components data."""
         new_col_name = list_name + "_t_" + attr + "_i"
+        snapshots = ("snapshots", df.index.values)
         if isinstance(df.columns, pd.MultiIndex):  # stochastic
-            df = df.rename_axis(index="snapshots", columns=["scenario", new_col_name])
+            scenarios = np.sort(df.columns.get_level_values(0).unique().values)
+            names = np.sort(df.columns.get_level_values(1).unique().values)
+            grid = pd.MultiIndex.from_product([scenarios, names])
+            values = df.reindex(columns=grid).values.reshape(
+                len(df.index), len(scenarios), len(names)
+            )
+            dims = ["snapshots", "scenario", new_col_name]
+            coords = {
+                "snapshots": snapshots,
+                "scenario": ("scenario", scenarios),
+                new_col_name: (new_col_name, names),
+            }
         else:
-            df = df.rename_axis(index="snapshots", columns=new_col_name)
-        self.ds[list_name + "_t_" + attr] = df.stack(
-            level=df.columns.names, future_stack=True
-        ).to_xarray()
+            values = df.values
+            dims = ["snapshots", new_col_name]
+            coords = {
+                "snapshots": snapshots,
+                new_col_name: (new_col_name, df.columns.values),
+            }
+
+        self.ds[list_name + "_t_" + attr] = xr.DataArray(
+            values, dims=dims, coords=coords
+        )
 
     def set_compression_encoding(self) -> None:
         """Set compression encoding for all variables."""

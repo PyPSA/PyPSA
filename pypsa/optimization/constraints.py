@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import LinearExpression, merge
@@ -1473,13 +1474,19 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     branches around all cycles in the network must sum to zero. For each cycle
     in the network graph, the constraint enforces:
 
-    sum_{l in cycle} x_l * s_l = 0
+    sum_{l in cycle} C_lk * (x_l * s_l + phase_shift_l) = 0
 
     where
+        C_lk : cycle-direction sign (-1, 0, +1) of branch l in cycle k
         x_l : series reactance or resistance of branch l (depending on AC/DC)
         s_l : branch flow variable for branch l in the cycle
+        phase_shift_l : transformer phase shift in radians (zero otherwise)
 
-    Applies to Line, Transformer, and Link (passive branch components).
+    Applies to Line, Transformer, and Link (passive branch components). A
+    transformer phase shift enters the cycle sum as a constant when fixed
+    (`phase_shift`) or as a per-snapshot decision variable when optimisable
+    (`phase_shift_min < phase_shift_max`). The contributions are added per
+    investment period so cycle constraints stay isolated across periods.
 
     Parameters
     ----------
@@ -1513,23 +1520,43 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     m = n.model
     n.calculate_dependent_values()
 
-    lhs = []
+    deg_to_rad = np.pi / 180.0
+    lhs_parts = []
     for period, snapshots in iter_snapshot_periods(n, sns):
-        C = n.cycle_matrix(investment_period=period, apply_weights=True)
-        if C.empty:
+        C_weighted = n.cycle_matrix(investment_period=period, apply_weights=True)
+        if C_weighted.empty:
             continue
 
         exprs = []
-        for c in C.index.unique("type"):
-            C_branch = DataArray(C.loc[c])
+        for c in C_weighted.index.unique("type"):
+            C_branch = DataArray(C_weighted.loc[c])
             active_names = C_branch.indexes["name"].difference(n.c[c].inactive_assets)
             C_branch = C_branch.sel(name=active_names)
             flow = m[f"{c}-s"].sel(snapshot=snapshots, name=active_names)
             exprs.append(flow @ C_branch * 1e5)
-        lhs.append(sum(exprs))
+        lhs_period = sum(exprs)
 
-    if lhs:
-        lhs = merge_over_snapshots(lhs, n, sns)
+        if "Transformer" in C_weighted.index.unique("type"):
+            var = "Transformer-phase_shift"
+            C_plain = n.cycle_matrix(investment_period=period, apply_weights=False)
+            C_trafos = C_plain.loc["Transformer"]
+
+            tr = n.c.Transformer
+            active = tr.static.loc[C_trafos.index.difference(tr.inactive_assets)]
+            varying = active["phase_shift_min"] < active["phase_shift_max"]
+
+            contributions = [(active.index[~varying], tr.da["phase_shift"])]
+            if var in m.variables:
+                contributions.append((active.index[varying], m[var]))
+            for names, angle in contributions:
+                C = DataArray(C_trafos.loc[names])
+                sel = angle.sel(name=names, snapshot=snapshots)
+                lhs_period = lhs_period + (sel @ C) * deg_to_rad * 1e5
+
+        lhs_parts.append(lhs_period)
+
+    if lhs_parts:
+        lhs = merge_over_snapshots(lhs_parts, n, sns)
         con = lhs == 0
         mask = con.rhs.notnull()
         m.add_constraints(con, name="Kirchhoff-Voltage-Law", mask=mask)
