@@ -27,9 +27,17 @@ plt.rcParams["figure.dpi"] = 100
 
 
 @pytest.fixture(autouse=True)
-def _seed_rng():
+def _seed_rng(monkeypatch):
     """Reseed before each test so image baselines don't depend on test order."""
     np.random.seed(42)  # noqa: NPY002
+
+    # Seaborn's bootstrapped error bands use their own RNG, unaffected by the seed above
+    def seeded_bootstrap(*args, **kwargs):
+        if kwargs.get("seed") is None:
+            kwargs["seed"] = 42
+        return sns.algorithms.bootstrap(*args, **kwargs)
+
+    monkeypatch.setattr("seaborn._statistics.bootstrap", seeded_bootstrap)
 
 
 def _multi_period_sample() -> pd.DataFrame:
