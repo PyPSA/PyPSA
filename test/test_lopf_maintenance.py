@@ -553,7 +553,7 @@ def test_extendable_committable_maintainable(basic_network):
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     p = n.c.generators.dynamic.p["gen"].values
-    assert maint.sum() == 2
+    assert maint.sum() == pytest.approx(2)
     for t in range(len(maint)):
         if maint[t] > 0.5:
             assert p[t] < 1e-5
