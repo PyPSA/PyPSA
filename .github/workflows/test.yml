@@ -33,7 +33,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # Needed for setuptools_scm
-    - uses: hynek/build-and-inspect-python-package@v2
+    - uses: hynek/build-and-inspect-python-package@v2.18.0
       id: baipp
 
     - name: Compute reduced PR python versions
