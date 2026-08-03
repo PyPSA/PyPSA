@@ -3827,7 +3827,6 @@ cloudpath = [
 dev = [
     { name = "coverage" },
     { name = "jupyter" },
-    { name = "matplotlib" },
     { name = "mypy" },
     { name = "pandapower" },
     { name = "pre-commit" },
@@ -3902,7 +3901,6 @@ requires-dist = [
     { name = "levenshtein", specifier = ">=0.27.1" },
     { name = "linopy", specifier = ">=0.8.0" },
     { name = "matplotlib", specifier = "!=3.11.0" },
-    { name = "matplotlib", marker = "extra == 'dev'", specifier = "<3.12" },
     { name = "mkdocs-autolinks-plugin", marker = "extra == 'docs'" },
     { name = "mkdocs-ezlinks-plugin", marker = "extra == 'docs'" },
     { name = "mkdocs-git-revision-date-localized-plugin", marker = "extra == 'docs'" },
