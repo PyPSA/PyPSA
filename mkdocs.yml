@@ -62,6 +62,7 @@ nav:
       - Dispatch Limits: user-guide/optimization/dispatch-limits.md
       - Capacity Limits: user-guide/optimization/capacity-limits.md
       - Unit Commitment: user-guide/optimization/unit-commitment.md
+      - Maintenance Scheduling: user-guide/optimization/maintenance-scheduling.md
       - Storage: user-guide/optimization/storage.md
       - Power Flow: user-guide/optimization/power-flow.md
       - Contingencies: user-guide/optimization/contingencies.md
@@ -94,6 +95,7 @@ nav:
     - examples/simple-electricity-market-examples.ipynb
     - examples/unit-commitment.ipynb
     - examples/uc-prices.ipynb
+    - examples/maintenance-scheduling.ipynb
     - examples/ac-dc-lopf.ipynb
     - examples/scigrid-lopf-then-pf.ipynb
     - examples/scigrid-sclopf.ipynb

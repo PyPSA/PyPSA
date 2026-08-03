@@ -31,6 +31,7 @@ from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
+    define_maintenance_constraints,
     define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
@@ -57,9 +58,14 @@ from pypsa.optimization.global_constraints import (
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
+    define_maintenance_capacity_variables,
+    define_maintenance_start_variables,
+    define_maintenance_status_variables,
+    define_maintenance_variables,
     define_modular_variables,
     define_nominal_variables,
     define_operational_variables,
+    define_phase_shift_variables,
     define_shut_down_variables,
     define_spillage_variables,
     define_start_up_variables,
@@ -560,7 +566,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._multi_invest = int(multi_investment_periods)
         n._linearized_uc = linearized_unit_commitment
 
-        n.consistency_check(strict=["unknown_buses"])
+        n.consistency_check(
+            strict=["unknown_buses", "maintenance", "phase_shift_bounds"]
+        )
         m = n.optimize.create_model(
             sns,
             multi_investment_periods,
@@ -697,12 +705,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_status_variables(n, sns, c, linearized_unit_commitment)
             define_start_up_variables(n, sns, c, linearized_unit_commitment)
             define_shut_down_variables(n, sns, c, linearized_unit_commitment)
+            define_maintenance_variables(n, sns, c)
+            define_maintenance_start_variables(n, sns, c)
+            define_maintenance_capacity_variables(n, sns, c)
+            define_maintenance_status_variables(n, sns, c)
             define_committability_variables_constraints_with_fixed_upper_limit(
                 n, sns, c, attr
             )
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
+        define_phase_shift_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -721,6 +734,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             )
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
+            define_maintenance_constraints(n, sns, c)
             define_operational_constraints_for_non_extendables(
                 n, sns, c, attr, transmission_losses
             )
@@ -903,6 +917,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         m = n.model
         sns = n.model.parameters.snapshots.to_index()
 
+        if not n.c.transformers.empty:
+            setpoint = n.get_switchable_as_dense("Transformer", "phase_shift", sns)
+            _set_dynamic_data(n, "Transformer", "phase_shift_opt", setpoint)
+
         for name, variable in m.variables.items():
             sol = variable.solution
             if name == "objective_constant":
@@ -922,6 +940,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 continue
 
             _c_name, attr = name.split("-", 1)
+
+            # Skip auxiliary McCormick linearization variables
+            if attr in ("maintenance_capacity", "maintenance_status"):
+                continue
+
             if not hasattr(n.c, _c_name):
                 # Custom variables might correspond to a designated component
                 logger.info(
@@ -937,6 +960,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 if c.name in n.passive_branch_components and attr == "s":
                     _set_dynamic_data(n, c.name, "p0", df)
                     _set_dynamic_data(n, c.name, "p1", -df)
+
+                elif c.name == "Transformer" and attr == "phase_shift":
+                    _set_dynamic_data(n, c.name, "phase_shift_opt", df)
 
                 elif c.name == "Link" and attr == "p":
                     _set_dynamic_data(n, c.name, "p", df)
