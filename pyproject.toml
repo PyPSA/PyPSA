@@ -32,7 +32,8 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy",
     "scipy",
-    "pandas>=2.0",
+    "pandas>=3.0",
+    "pyarrow",
     "xarray",
     "netcdf4",
     "linopy>=0.8.0",
@@ -68,14 +69,12 @@ test = [
     "pytest-cov",
     "pytest-mpl",
     "coverage",
-    "pyarrow",
 ]
 dev = [
     "pytest",
     "pytest-cov",
     "pytest-mpl",
     "coverage",
-    "pyarrow",
     "matplotlib<3.11", # remove when uv.lock is tracked
     "pypower",
     "pandapower>=2.14.11",
@@ -133,6 +132,7 @@ filterwarnings = [
     "default:With PyPSA 1.0, the API for how to access components data has changed:DeprecationWarning",
     "default:When combining.*with other plots on a geographical axis.*:UserWarning", # TODO: needs to be checked
     "default:The default value of `include_objective_constant` will change:FutureWarning",
+    "default:pandas infers the `str` dtype for string data:FutureWarning",
 
     # Ignore linopy warnings
     "default:Coordinates across variables not equal. Perform outer join.:UserWarning",

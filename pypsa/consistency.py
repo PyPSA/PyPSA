@@ -710,10 +710,15 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
     [pypsa.Network.consistency_check][]
 
     """
-    dtypes_soll = component.defaults.loc[component.defaults["static"], "dtype"].drop(
-        "name"
-    )
-    unmatched = component.static.dtypes[dtypes_soll.index] != dtypes_soll
+    dtypes_expected = component.defaults.loc[
+        component.defaults["static"], "dtype"
+    ].drop("name")
+    dtypes_is = component.static.dtypes[dtypes_expected.index]
+    unmatched = dtypes_is != dtypes_expected
+    # String attributes are either object or pandas' `str` dtype, depending on
+    # `pypsa.options.api.legacy_string_dtype`
+    is_string_attr = component.defaults.loc[dtypes_expected.index, "type"] == "string"
+    unmatched &= ~(is_string_attr & dtypes_is.map(pd.api.types.is_string_dtype))
 
     if unmatched.any():
         _log_or_raise(
@@ -722,15 +727,17 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
             " the wrong dtype:\n%s\nThey are:\n%s\nbut should be:\n%s",
             component.list_name,
             unmatched.index[unmatched],
-            component.static.dtypes[dtypes_soll.index[unmatched]],
-            dtypes_soll[unmatched],
+            dtypes_is[unmatched],
+            dtypes_expected[unmatched],
         )
 
     # now check varying attributes
 
-    types_soll = component.defaults.loc[component.defaults["varying"], ["typ", "dtype"]]
+    types_expected = component.defaults.loc[
+        component.defaults["varying"], ["typ", "dtype"]
+    ]
 
-    for attr, typ, dtype in types_soll.itertuples():
+    for attr, typ, dtype in types_expected.itertuples():
         if component.dynamic[attr].empty:
             continue
 

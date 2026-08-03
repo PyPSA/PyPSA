@@ -46,14 +46,37 @@ if TYPE_CHECKING:
     from pypsa import Network
 logger = logging.getLogger(__name__)
 
+_legacy_string_dtype_warned = False
+
+
+def _use_legacy_string_dtype() -> bool:
+    """Resolve whether string data is converted to object dtype on import."""
+    global _legacy_string_dtype_warned  # noqa: PLW0603
+
+    value = options.api.legacy_string_dtype
+    if value is None:
+        if not _legacy_string_dtype_warned:
+            warnings.warn(
+                "pandas infers the `str` dtype for string data since its version 3.0. "
+                "PyPSA still converts it back to numpy object dtype on import, but will "
+                "keep it from PyPSA 2.0 on. Set "
+                "`pypsa.options.api.legacy_string_dtype` explicitly to suppress this "
+                "warning.",
+                FutureWarning,
+                stacklevel=3,
+            )
+            _legacy_string_dtype_warned = True
+        return True
+    return value
+
 
 def _coerce_string_dtypes(df: pd.DataFrame) -> pd.DataFrame:
     """Coerce `StringDtype` indices, columns and values to `object` dtype.
 
-    Under `future.infer_string` (pandas >= 3.0) string labels become extension
-    arrays that xarray rejects on the `optimize()` indexing path. Drop this once
-    fixed upstream: https://github.com/pydata/xarray/issues/10301.
+    Pre-1.3 behaviour, kept behind `options.api.legacy_string_dtype` until 2.0.
     """
+    if not _use_legacy_string_dtype():
+        return df
 
     def _coerce_axis(axis: pd.Index) -> pd.Index:
         if isinstance(axis, pd.MultiIndex):

@@ -279,11 +279,9 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=True)
         pypsa.Network(fn)
 
-    @pytest.mark.filterwarnings(
-        "ignore:Dtype inference on a pandas object:FutureWarning"
-    )
-    def test_netcdf_io_coerces_string_dtypes_to_object(self, tmpdir):
-        """Loaded NetCDFs must yield `object`-dtype strings, not `StringDtype` (#1585)."""
+    @pytest.mark.parametrize("legacy", [True, False])
+    def test_netcdf_io_string_dtypes(self, tmpdir, legacy):
+        """String data follows `api.legacy_string_dtype` (#1585)."""
         fn = tmpdir / "string_dtypes.nc"
 
         n = pypsa.Network()
@@ -293,48 +291,41 @@ class TestNetcdf:
         n.add("Load", "load0", bus="bus0", p_set=50)
         n.export_to_netcdf(fn)
 
-        with pd.option_context("future.infer_string", True):
+        with pypsa.option_context("api.legacy_string_dtype", legacy):
             m = pypsa.Network(fn)
 
         for c in m.components:
             df = c.static
-            assert df.index.dtype == object, (
+            assert (df.index.dtype == object) == legacy, (
                 f"{c.name}.static.index is {df.index.dtype}"
             )
-            for col in df.columns:
-                if df[col].dtype != object:
-                    assert not isinstance(df[col].dtype, pd.StringDtype), (
-                        f"{c.name}.static[{col!r}] is {df[col].dtype}"
-                    )
-            for key, dyn_df in c.dynamic.items():
-                if isinstance(dyn_df, pd.DataFrame) and not dyn_df.empty:
-                    assert dyn_df.columns.dtype == object, (
-                        f"{c.name}.dynamic[{key!r}].columns is {dyn_df.columns.dtype}"
+            for col, dtype in df.dtypes.items():
+                if c.defaults.at[col, "type"] == "string":
+                    assert pd.api.types.is_object_dtype(dtype) == legacy, (
+                        f"{c.name}.static[{col!r}] is {dtype}"
                     )
 
-    @pytest.mark.filterwarnings("ignore::FutureWarning")
-    def test_arrow_strings_optimize_uncoerced(self, monkeypatch):
-        """Canary: drop the #1585 coercion once this stops raising.
+    def test_string_dtypes_reach_xarray_as_object(self):
+        """Canary: drop `_strings_to_object` once xarray accepts `StringDtype`.
 
-        Without it, pyarrow-backed `infer_string` labels reach `optimize()` and xarray
-        rejects them (`TypeError: Invalid array type`). When a future xarray fixes this
-        the `pytest.raises` fails. See https://github.com/pydata/xarray/issues/10301.
+        xarray rejects string extension arrays (`TypeError: Invalid array type`), so
+        `_as_xarray` casts them to object. When a future xarray fixes this, the
+        `pytest.raises` fails. See https://github.com/pydata/xarray/issues/10301.
         """
+        import xarray as xr  # noqa: PLC0415
+
         import pypsa.examples  # noqa: PLC0415
-        from pypsa.network import io  # noqa: PLC0415
 
-        pytest.importorskip("pyarrow")
-        # Disable the workaround so the raw extension labels reach xarray.
-        monkeypatch.setattr(io, "_coerce_string_dtypes", lambda df: df)
-
-        with pd.option_context("future.infer_string", True):
+        with pypsa.option_context("api.legacy_string_dtype", False):
             n = pypsa.examples.ac_dc_meshed()
-            assert type(n.c.buses.static.index.array).__name__ in (
-                "ArrowStringArray",
-                "ArrowStringArrayNumpySemantics",
-            )
-            with pytest.raises(TypeError, match="Invalid array type"):
-                n.optimize()
+
+        bus = n.c.generators.static.bus
+        assert isinstance(bus.dtype, pd.StringDtype)
+
+        with pytest.raises(TypeError, match="Invalid array type"):
+            xr.DataArray(bus).sel(name=bus.index[:1])
+
+        assert n.c.generators._as_xarray("bus").dtype == object
 
     @pytest.mark.skipif(
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
