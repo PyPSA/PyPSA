@@ -46,7 +46,7 @@ dependencies = [
     "deprecation",
     "validators",
     "highspy",
-    "levenshtein>=0.27.1",
+    "rapidfuzz>=3.9.0",
     "platformdirs",
 ]
 
