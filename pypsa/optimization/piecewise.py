@@ -230,6 +230,24 @@ def _get_breakpoints(
     x_da = _to_da(normalised_piecewise_df, piecewise_attrs.x)
     y_da = _to_da(normalised_piecewise_df, pw_attr)
     valid_breakpoints = x_da.notnull() & y_da.notnull()
+
+    if cumulative_attr and (bad := x_da.isel({BREAKPOINT_DIM: 0}) > 0).any():
+        msg = (
+            f"Piecewise '{pw_attr}' curves must start at {piecewise_attrs.x}=0. The cost below "
+            f"the first breakpoint is undefined, and the curve's x-range would bound "
+            f"{piecewise_attrs.x} from below. Components: {pw_names[bad.to_series()].tolist()}."
+        )
+        raise ValueError(msg)
+    if cumulative_attr and (bad := y_da.isel({BREAKPOINT_DIM: 0}) != 0).any():
+        logger.warning(
+            "Piecewise '%s' values price the increment from the previous breakpoint, so the "
+            "first value of each curve spans zero width and is ignored. To price the first "
+            "segment, set the value on the second breakpoint instead, e.g. {0.0: 0.0, 0.5: 40.0} "
+            "for a price of 40 up to 0.5. Affected components: %s.",
+            pw_attr,
+            pw_names[bad.to_series()].tolist(),
+        )
+
     if invert_attr:
         y_da = 1 / y_da
 

@@ -282,6 +282,38 @@ class TestGetBreakpoints:
             )
         assert str(excinfo.value) == expected
 
+    def test_first_x_above_zero_raises_cumulative_only(
+        self, component, pw_names
+    ) -> None:
+        """Test that a first x breakpoint above zero raises for cumulative curves only."""
+        component.piecewise["marginal_cost"] = _piecewise_df(
+            {"gen": [(0.1, 10.0), (0.5, 20.0), (1.0, 40.0)]}
+        )
+        with pytest.raises(ValueError, match=r"must start at p_pu=0"):
+            _get_breakpoints(
+                component, "marginal_cost", pw_names, True, invert_attr=False
+            )
+        # Direct curves may start above zero, e.g. part-load efficiency with a minimum load.
+        _get_breakpoints(component, "marginal_cost", pw_names, False, invert_attr=False)
+
+    @pytest.mark.parametrize(
+        ("first_y", "cumulative_attr", "expect_warning"),
+        [(10.0, True, True), (0.0, True, False), (10.0, False, False)],
+        ids=["cumulative-nonzero", "cumulative-zero", "direct-nonzero"],
+    )
+    def test_first_y_ignored_warning(
+        self, component, pw_names, caplog, first_y, cumulative_attr, expect_warning
+    ) -> None:
+        """Test that ignored non-zero first y values on cumulative curves log a warning."""
+        component.piecewise["marginal_cost"] = _piecewise_df(
+            {"gen": [(0.0, first_y), (0.5, 20.0), (1.0, 40.0)]}
+        )
+        with caplog.at_level(logging.WARNING, logger="pypsa.optimization.piecewise"):
+            _get_breakpoints(
+                component, "marginal_cost", pw_names, cumulative_attr, invert_attr=False
+            )
+        assert ("ignored" in caplog.text and "gen" in caplog.text) == expect_warning
+
     @pytest.mark.parametrize("p_nom", [np.nan, np.inf, 0.0])
     def test_not_allow_extendables_missing_nom(
         self, component, pw_names, p_nom

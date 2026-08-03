@@ -101,6 +101,10 @@ The choice is [configurable](#configuring-piecewise-formulations) but you should
 Here, the y-value at each point on the curve represents an _incremental_ contribution, so the total operating point $X$ is the integral of the curve up to $X$.
 We assume that piecewise marginal operating and capital cost curves are cumulative.
 
+!!! warning
+
+    Curves must start at $x = 0$, and the y-value there prices a zero-width increment and is ignored.
+
 !!! example
 
     For an increasing marginal cost curve, the increments are dispatched in cost order.
