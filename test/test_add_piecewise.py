@@ -21,7 +21,7 @@ import pandas as pd
 import pytest
 
 import pypsa
-from pypsa.constants import PIECEWISE_ATTRS
+from pypsa.constants import piecewise_attrs
 from pypsa.descriptors import nominal_attrs
 
 # ---------------------------------------------------------------------------
@@ -51,11 +51,11 @@ def _build_params(base_kwargs_by_comp: dict[str, dict]) -> list:
     """Build ``(comp, base_kwargs, attr, x_attr)`` pytest.param entries.
 
     Attributes and their x-axis coordinate are read from
-    PIECEWISE_ATTRS.
+    the piecewise schema.
     """
     params = []
     for comp, base_kw in base_kwargs_by_comp.items():
-        for _, attr in PIECEWISE_ATTRS.query("component == @comp").iterrows():
+        for _, attr in piecewise_attrs(comp).iterrows():
             if comp == "Process" and attr.y == "rate":
                 y = "rate1"
             else:
@@ -86,7 +86,7 @@ def _build_extendable_params(base_kwargs_by_comp: dict[str, dict]) -> tuple[list
     for comp, base_kw in base_kwargs_by_comp.items():
         nom = nominal_attrs[comp]
         kw = {**base_kw, f"{nom}_extendable": True}
-        for _, attr in PIECEWISE_ATTRS.query("component == @comp").iterrows():
+        for _, attr in piecewise_attrs(comp).iterrows():
             p = pytest.param(comp, kw, attr.y, id=f"{comp}-{attr.y}")
             if attr.x != nom:
                 pu_raises.append(p)
@@ -148,7 +148,7 @@ def base_network() -> pypsa.Network:
 
 @pytest.mark.parametrize(("comp", "base_kwargs", "attr", "x_attr"), ALL_PARAMS)
 class TestPiecewise:
-    """Piecewise attrs from PIECEWISE_ATTRS; parametrised over all components."""
+    """Piecewise attrs from the piecewise schema; parametrised over all components."""
 
     def test_dict_input(self, base_network, comp, base_kwargs, attr, x_attr):
         n = base_network
@@ -227,9 +227,9 @@ class TestMultiportPiecewise:
 
 class TestPiecewiseErrors:
     def test_dict_for_non_piecewise_attr_raises(self, base_network):
-        """A dict passed to a plain scalar attr raises ``NotImplementedError``."""
+        """A dict passed to a plain scalar attr raises ``TypeError``."""
         n = base_network
-        with pytest.raises(NotImplementedError, match="Dictionaries are not supported"):
+        with pytest.raises(TypeError, match="Dictionaries are not supported"):
             n.add("Generator", "gen", bus="bus_ac", p_nom={0: 100})
 
     def test_multiindex_df_wrong_attribute_labels_raises_x(self, base_network):
@@ -379,29 +379,24 @@ class TestPiecewiseHelpers:
             base_network.c.generators._piecewise_x_var("not_an_attr")
 
     @pytest.mark.parametrize(
-        ("comp", "attr", "val"),
+        ("comp", "attr", "expected_y"),
         [
-            ("Generator", "y", "marginal_cost"),
-            ("Generator", "aux_variable", "marginal_cost_piecewise"),
-            ("Link", "y", "efficiency"),
-            ("Link", "aux_variable", "p1_piecewise"),
+            ("Generator", "marginal_cost", "marginal_cost"),
+            ("Link", "efficiency", "efficiency"),
+            ("Link", "efficiency2", "efficiency"),
+            ("Process", "rate0", "rate"),
         ],
     )
-    def test_piecewise_schema(self, base_network, comp, attr, val):
-        """`_piecewise_schema` returns a series with the expected columns."""
-        schema = base_network.c[comp]._piecewise_schema(**{attr: val})
+    def test_piecewise_schema(self, base_network, comp, attr, expected_y):
+        """`_piecewise_schema` resolves port-suffixed attrs to their definition row."""
+        schema = base_network.c[comp]._piecewise_schema(attr)
         assert isinstance(schema, pd.Series)
-        assert not schema.empty
+        assert schema.y == expected_y
 
     def test_piecewise_schema_empty(self, base_network):
         """`_piecewise_schema` returns an empty series when no match."""
-        schema = base_network.c.generators._piecewise_schema(y="foo")
+        schema = base_network.c.generators._piecewise_schema("foo")
         assert schema.empty
-
-    def test_piecewise_schema_raises(self, base_network):
-        """`_piecewise_schema` raises when multiple rows match."""
-        with pytest.raises(ValueError, match="Expected max a single row"):
-            base_network.c.generators._piecewise_schema(component="Generator")
 
 
 class TestPiecewiseScenarios:

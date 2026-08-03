@@ -7,14 +7,13 @@
 from __future__ import annotations
 
 import logging
-import re
 from abc import abstractmethod
 
 import numpy as np
 import pandas as pd
 
 from pypsa.components.components import Components
-from pypsa.constants import PIECEWISE_ATTRS, RE_PORTS_GE_2
+from pypsa.constants import RE_PORTS_GE_2
 
 logger = logging.getLogger(__name__)
 
@@ -58,41 +57,6 @@ class _Multiport(Components):
             for col in self.static.columns
             if (match := RE_PORTS_GE_2.search(col))
         ]
-
-    @property
-    def _piecewise_attrs(self) -> pd.DataFrame:
-        """Get the piecewise attributes for this component.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with piecewise attributes for this component.
-
-        """
-        filtered_attrs = PIECEWISE_ATTRS.query(
-            "component == @name", local_dict={"name": self.name}
-        )
-        extra_rows: list[pd.Series] = []
-        del_rows = []
-        for idx, row in filtered_attrs.iterrows():
-            if row["y"] == self._coefficient_attr:
-                extra_rows.extend(
-                    pd.Series(
-                        {
-                            **row,
-                            "aux_variable": row.aux_variable.format(port=i),
-                            "y": row.y + self._port_suffix(i),
-                        }
-                    )
-                    for i in self._output_ports
-                )
-                del_rows.append(idx)
-        if not del_rows:
-            return filtered_attrs
-        return pd.concat(
-            [filtered_attrs.drop(index=del_rows), pd.DataFrame(extra_rows)],
-            ignore_index=True,
-        )
 
     @property
     @abstractmethod
@@ -245,13 +209,3 @@ class _Multiport(Components):
 
         w = weightings.reindex(snapshots).astype(float).to_numpy()
         return _Multiport._delay_positions(w, delay, is_cyclic)
-
-    def _get_base_coeff(self, attr: str) -> str:
-        """Get base coefficient related to  for a given attribute."""
-        base_coeff_attr = self._coefficient_attr
-        if attr == base_coeff_attr + self._port_suffix("1") or re.match(
-            rf"^{base_coeff_attr}\d+$", attr
-        ):
-            return base_coeff_attr
-        else:
-            return attr

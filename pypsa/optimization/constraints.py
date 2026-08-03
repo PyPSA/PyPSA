@@ -1452,7 +1452,7 @@ def define_nodal_balance_constraints(
 
             cbuses = cbuses[mask].rename("Bus")
 
-            pw_schema = c._piecewise_schema(y=coeff.name)
+            pw_schema = c._piecewise_schema(coeff.name)
             piecewise_var = None
             if not pw_schema.empty:
                 extra_options = filter(
@@ -1469,7 +1469,7 @@ def define_nodal_balance_constraints(
                     c,
                     x_var=m[f"{c.name}-p"],
                     pw_attr=coeff.name,
-                    aux_var_name=f"{c.name}-{pw_schema.aux_variable}",
+                    aux_var_name=c._piecewise_aux_var(coeff.name),
                     active_names=names,
                     sign="=",
                     cumulative_attr=False,

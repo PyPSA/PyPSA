@@ -29,9 +29,8 @@ from pyproj import CRS
 
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
-from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.consistency import check_for_unknown_buses
-from pypsa.constants import PIECEWISE_ATTRS
+from pypsa.constants import piecewise_attrs
 from pypsa.descriptors import (
     _update_ports_component_attrs,
 )
@@ -2182,15 +2181,9 @@ class NetworkIOMixin(_NetworkABC):
         idx_name = "breakpoint"
         col_names = ["name", "attribute"]
         c = self.c[cls_name]
-        search_attr = c._get_base_coeff(attr) if isinstance(c, _Multiport) else attr
-        pw_attr = PIECEWISE_ATTRS.query(
-            "component == @name and y == @search_attr",
-            local_dict={"name": cls_name, "search_attr": search_attr},
-        ).squeeze()
+        pw_attr = c._piecewise_schema(attr)
         if pw_attr.empty:
-            valid_attrs = (
-                PIECEWISE_ATTRS.query("component == @cls_name").y.unique().tolist()
-            )
+            valid_attrs = piecewise_attrs(cls_name).y.unique().tolist()
             msg = (
                 f"'{attr}' is not a recognised piecewise attribute for {cls_name}. "
                 f"Known piecewise attributes: {valid_attrs}."
@@ -2225,7 +2218,7 @@ class NetworkIOMixin(_NetworkABC):
                     f"{bad.tolist()}."
                 )
                 raise ValueError(msg)
-        if search_attr in ["rate", "efficiency"]:
+        if pw_attr.y in ("rate", "efficiency"):
             curve = df.xs(attr, level="attribute", axis=1)
             is_pos = ((curve >= 0) | curve.isna()).all()
             is_neg = ((curve <= 0) | curve.isna()).all()

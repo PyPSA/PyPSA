@@ -16,6 +16,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
+- Add support for piecewise linear `marginal_cost` and `capital_cost` curves on `Generator`, `StorageUnit`, `Store`, `Link` and `Process` components, as well as piecewise linear `efficiency`/`rate` curves on `Link` and `Process` components. Breakpoints can be passed directly to `n.add`, e.g. `n.add("Generator", "gen", p_nom=100, marginal_cost={0.0: 40.0, 0.5: 60.0, 1.0: 70.0})`. Convex curves are formulated with linear tangent constraints and non-convex curves automatically fall back to an SOS2 formulation. See the [piecewise constraints user guide](./user-guide/optimization/piecewise.md) for details. (<!-- md:pr 1603 -->)
+
 - Add maintenance scheduling optimization for [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components via the new attributes `maintainable`, `maintenance_duration` (elapsed time honoring snapshot weightings), `maintenance_events` and `maintenance_pu`. The timing of maintenance windows is co-optimized with dispatch, unit commitment and capacity expansion using binary maintenance start variables. (<!-- md:pr 1576 -->)
 
 - Phase-shifting transformers (PSTs) are now supported in linear optimal power flow. Setting `phase_shift_min < phase_shift_max` on a `Transformer` turns its `phase_shift` into a per-snapshot decision variable bounded by those two attributes (degrees); the optimiser re-taps the PST each snapshot to redistribute flow around cycles, modelling TSO operational tap control. The optimised per-snapshot angle is written to the new dynamic output `n.transformers_t["phase_shift_opt"]`. (<!-- md:pr 1661 -->)

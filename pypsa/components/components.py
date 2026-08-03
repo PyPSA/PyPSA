@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
@@ -36,7 +35,13 @@ from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, PIECEWISE_ATTRS, RE_PORTS
+from pypsa.constants import (
+    DEFAULT_EPSG,
+    DEFAULT_TIMESTAMP,
+    RE_PORTS,
+    piecewise_attrs,
+    piecewise_schema,
+)
 from pypsa.costs import annuity, periodized_cost
 from pypsa.definitions.structures import Dict
 
@@ -132,6 +137,15 @@ class ComponentsData:
     --------
     >>> c.piecewise.efficiency
     """
+
+
+def _split_port(attr: str) -> tuple[str, str]:
+    """Split a trailing port number off an attribute name.
+
+    'efficiency2' -> ('efficiency', '2'), 'marginal_cost' -> ('marginal_cost', '').
+    """
+    base = attr.rstrip("0123456789")
+    return base, attr.removeprefix(base)
 
 
 class Components(
@@ -401,9 +415,7 @@ class Components(
         # Piecewise breakpoint data: one empty DataFrame per piecewise attribute
         # defined by the piecewise_x column in the component's attribute CSV.
         piecewise = Dict()
-        for y_attr in PIECEWISE_ATTRS.query(
-            "component == @name", local_dict={"name": ct.name}
-        ).y.unique():
+        for y_attr in piecewise_attrs(ct.name).y.unique():
             cols = pd.MultiIndex.from_tuples([], names=["name", "attribute"])
             df = pd.DataFrame(
                 index=pd.Index([], name="breakpoint", dtype=int),
@@ -414,46 +426,40 @@ class Components(
 
         return static, dynamic, piecewise
 
-    @cached_property
+    @property
     def _piecewise_attrs(self) -> pd.DataFrame:
-        """Get the piecewise attributes for this component.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with piecewise attributes for this component.
-
-        """
-        filtered_attrs = PIECEWISE_ATTRS.query(
-            "component == @name", local_dict={"name": self.name}
-        )
-        return filtered_attrs
+        """Piecewise attribute rows for this component type."""
+        return piecewise_attrs(self.name)
 
     def has_piecewise(self, attr: str) -> bool:
         """Whether this component instance has piecewise breakpoint data for `attr`."""
         pw_df = self.piecewise.get(attr)
         return pw_df is not None and not pw_df.empty
 
-    def _piecewise_schema(self, **attrs: str) -> pd.Series:
-        """Get the schema row of the piecewise definition for `attr` (empty if undefined)."""
-        query = " and ".join(f"{k} == '{v}'" for k, v in attrs.items())
-        series = self._piecewise_attrs.query(query).squeeze()
-        if not (isinstance(series, pd.Series) or series.empty):
-            msg = "Expected max a single row of data when querying piecewise schema."
-            raise ValueError(msg)
-        return series
+    def _piecewise_schema(self, attr: str) -> pd.Series:
+        """Get the piecewise definition row for `attr`, ignoring any port suffix (empty if undefined)."""
+        row = piecewise_schema(self.name, attr)
+        base, port = _split_port(attr)
+        if row.empty and port:
+            # Only schema rows with a {port} placeholder accept suffixed attrs.
+            candidate = piecewise_schema(self.name, base)
+            if not candidate.empty and "{port}" in candidate.aux_variable:
+                row = candidate
+        return row
 
     def _piecewise_aux_var(self, attr: str) -> str:
         """Model-variable name of the piecewise auxiliary variable for `attr`."""
-        row = self._piecewise_schema(y=attr)
+        row = self._piecewise_schema(attr)
         if row.empty:
             msg = f"{self.name!r} has no piecewise schema for attribute {attr!r}."
             raise ValueError(msg)
-        return f"{self.name}-{row.aux_variable}"
+        # An empty port suffix denotes port 1
+        port = _split_port(attr)[1] or "1"
+        return f"{self.name}-{row.aux_variable.format(port=port)}"
 
     def _piecewise_x_var(self, attr: str) -> str:
         """Model-variable name of the piecewise x variable for `attr`."""
-        row = self._piecewise_schema(y=attr)
+        row = self._piecewise_schema(attr)
         if row.empty:
             msg = f"{self.name!r} has no piecewise schema for attribute {attr!r}."
             raise ValueError(msg)

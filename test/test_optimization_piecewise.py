@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 import linopy
 import numpy as np
@@ -16,7 +17,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from pypsa.constants import PIECEWISE_ATTRS
+from pypsa.constants import piecewise_attrs, piecewise_schema
 from pypsa.optimization.piecewise import (
     PiecewiseOptions,
     _create_y_var,
@@ -27,23 +28,18 @@ from pypsa.optimization.piecewise import (
     get_piecewise_names,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 @pytest.fixture
 def gen_marginal_cost_attrs() -> pd.Series:
-    return PIECEWISE_ATTRS.query(
-        "component == 'Generator' and y == 'marginal_cost'"
-    ).squeeze()
+    return piecewise_schema("Generator", "marginal_cost")
 
 
-def _piecewise_schema(attrs: pd.DataFrame) -> pd.Series:
+def _piecewise_schema(attrs: pd.DataFrame) -> Callable:
     """Helper function to emulate piecewise schema getter."""
-
-    def __query(**query: str):
-        return attrs.query(
-            " and ".join(f"{k} == '{v}'" for k, v in query.items())
-        ).squeeze()
-
-    return __query
+    return lambda attr: attrs[attrs.y == attr].squeeze()
 
 
 def _piecewise_df(
@@ -124,7 +120,6 @@ class TestGetPiecewiseNames:
     def test_missing_attribute_returns_empty(self) -> None:
         c = SimpleNamespace(
             piecewise={},
-            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
         )
         result = get_piecewise_names(c, "marginal_cost", pd.Index(["gen"], name="name"))
         assert result.empty
@@ -139,7 +134,6 @@ class TestGetPiecewiseNames:
         )
         c = SimpleNamespace(
             piecewise={"marginal_cost": df},
-            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
         )
         active = pd.Index(["gen0", "gen1"], name="name")
         result = get_piecewise_names(c, "marginal_cost", active)
@@ -155,7 +149,6 @@ class TestGetPiecewiseNames:
         )
         c = SimpleNamespace(
             piecewise={"marginal_cost": df},
-            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
         )
         active = pd.Index(["gen0", "gen2"], name="name")
         result = get_piecewise_names(c, "marginal_cost", active)
@@ -177,7 +170,6 @@ class TestGetPiecewiseNames:
     ) -> None:
         c = SimpleNamespace(
             piecewise=piecewise,
-            _piecewise_attrs=PIECEWISE_ATTRS.query("component == 'Generator'"),
         )
         result = get_piecewise_names(c, "marginal_cost", active)
         assert result.name == "name"
@@ -186,7 +178,7 @@ class TestGetPiecewiseNames:
 class TestGetBreakpoints:
     @pytest.fixture
     def component(self) -> SimpleNamespace:
-        attrs = PIECEWISE_ATTRS.query("component == 'Generator'")
+        attrs = piecewise_attrs("Generator")
         return SimpleNamespace(
             piecewise={
                 y: _piecewise_df(
@@ -199,7 +191,6 @@ class TestGetBreakpoints:
             ),
             name="Generator",
             extendables=pd.Index([], name="name"),
-            _piecewise_attrs=attrs,
             _piecewise_schema=_piecewise_schema(attrs),
         )
 
@@ -390,7 +381,7 @@ class TestDefinePiecewise:
 
     @pytest.fixture
     def component(self) -> SimpleNamespace:
-        attrs = PIECEWISE_ATTRS.query("component == 'Generator'")
+        attrs = piecewise_attrs("Generator")
         component = SimpleNamespace(
             piecewise={
                 "marginal_cost": _piecewise_df(
@@ -412,7 +403,6 @@ class TestDefinePiecewise:
             ),
             name="Generator",
             extendables=pd.Index(["gen_extendable"], name="name"),
-            _piecewise_attrs=attrs,
             _piecewise_schema=_piecewise_schema(attrs),
         )
         component.piecewise["efficiency"] = pd.DataFrame()

@@ -725,6 +725,35 @@ class TestStatisticsWithPiecewise:
         stat = piecewise_network_solved.stats.opex(groupby=["name"])
         assert stat.loc[("Generator", "gen0")] > 0
 
+    @staticmethod
+    def _process_network(**proc_kwargs):
+        n = pypsa.Network()
+        n.add("Bus", ["b0", "b1"])
+        n.add("Generator", "src", bus="b0", p_nom=100)
+        n.add("Load", "load", bus="b1", p_set=50.0)
+        n.add("Process", "proc", bus0="b0", bus1="b1", rate0=-1, rate1=1, **proc_kwargs)
+        n.optimize()
+        return n
+
+    def test_stats_capex_process(self):
+        """Piecewise capital cost of Process is written back and shows in capex."""
+        n = self._process_network(
+            p_nom_extendable=True,
+            p_nom_max=100,
+            capital_cost=pd.DataFrame(
+                {"p_nom": [0.0, 100.0], "capital_cost": [0.5, 1.5]}
+            ),
+        )
+        assert n.stats.capex().sum() == n.objective == 75.0
+
+    def test_stats_opex_process(self):
+        """Piecewise marginal cost of Process is written back and shows in opex."""
+        n = self._process_network(
+            p_nom=100,
+            marginal_cost={0.0: 10.0, 0.5: 20.0, 1.0: 40.0},
+        )
+        assert n.stats.opex().sum() == n.objective == 1000.0
+
     def test_stats_energy_balance(self, piecewise_network_solved):
         """Piecewise efficiency of Link shows in energy balance statistic."""
         stat = piecewise_network_solved.stats.energy_balance(groupby=["name"])

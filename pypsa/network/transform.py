@@ -21,10 +21,8 @@ import pandas as pd
 from Levenshtein import distance
 
 from pypsa._options import options
-from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
 from pypsa.components.types import all_standard_attrs_set
-from pypsa.constants import PIECEWISE_ATTRS
 from pypsa.descriptors import nominal_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.type_utils import is_1d_list_like
@@ -278,19 +276,11 @@ class NetworkTransformMixin(_NetworkABC):
             return s + suffix
 
         for k, v in kwargs.items():
-            # Enable default lookup for attributes with port suffixes, e.g. efficiency1, rate2.
-            search_attr = c._get_base_coeff(k) if isinstance(c, _Multiport) else k
-
             # Intercept piecewise breakpoint data: a DataFrame whose columns are the curve
             # attributes (e.g. ["p_pu", "efficiency"]), not component names.
             # These are identified by the attribute name being in piecewise_attrs and
             # the value being a DataFrame whose columns include the x-axis attribute.
-            if not (
-                pw_attr := PIECEWISE_ATTRS.query(
-                    "component == @name and y == @y",
-                    local_dict={"y": search_attr, "name": c.name},
-                ).squeeze()
-            ).empty:
+            if not (pw_attr := c._piecewise_schema(k)).empty:
                 # Intercept piecewise shorthand: dict {x_value: y_value}
                 x_attr = pw_attr.x
                 if isinstance(v, dict):
@@ -326,7 +316,7 @@ class NetworkTransformMixin(_NetworkABC):
                     "Dictionaries are not supported as dynamic attribute values. "
                     "Please use pandas.Series or pandas.DataFrame instead."
                 )
-                raise NotImplementedError(msg)
+                raise TypeError(msg)
 
             # If index/ columns are passed (pd.DataFrame or pd.Series)
             # - cast names index to string and add suffix
