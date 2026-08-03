@@ -296,7 +296,7 @@ class TestNetcdf:
 
         for c in m.components:
             df = c.static
-            assert (df.index.dtype == object) == legacy, (
+            assert pd.api.types.is_object_dtype(df.index.dtype) == legacy, (
                 f"{c.name}.static.index is {df.index.dtype}"
             )
             for col, dtype in df.dtypes.items():
