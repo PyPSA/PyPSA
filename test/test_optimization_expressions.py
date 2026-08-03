@@ -395,7 +395,7 @@ class TestExpressionsWithPiecewise:
             bus0="bus0",
             bus1="bus1",
             p_nom=100,
-            rate0={0.1: -1 / 0.3, 0.5: -1 / 0.4, 1.0: -1 / 0.6},
+            rate0={0.0: 0.0, 0.1: -1 / 0.3, 0.5: -1 / 0.4, 1.0: -1 / 0.6},
             rate1=1,
         )
         n.add("Load", "load", bus="bus1", p_set=[20, 30])

@@ -26,7 +26,7 @@ class TestPiecewiseGeneratorEfficiency:
             bus="bus0",
             p_nom=70,
             marginal_cost=20,
-            efficiency={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
+            efficiency={0.0: 0.0, 0.1: 0.2, 0.5: 0.4, 1.0: 0.6},
         )
         n.add(
             "GlobalConstraint",
@@ -95,8 +95,8 @@ class TestPiecewiseGeneratorEfficiency:
         n = pypsa.Network()
         n.add("Bus", "bus0")
         n.add("Carrier", "gas", co2_emissions=1.0)
-        x_points = np.array([0.1, 0.5, 1.0])
-        y_points = np.array([0.3, 0.4, 0.6])
+        x_points = np.array([0.0, 0.1, 0.5, 1.0])
+        y_points = np.array([0.0, 0.3, 0.4, 0.6])
         n.add(
             "Generator",
             "gen0",
@@ -125,19 +125,18 @@ class TestPiecewiseGeneratorEfficiency:
         n.add("Load", "load", bus="bus0", p_set=80)
         n.optimize()
         p = n.generators_t.p.iloc[0]
-        fuel = p["gen0"] / 0.35 + np.interp(
-            p["gen1"], 70 * x_points, 70 * x_points / y_points
-        )
+        with np.errstate(invalid="ignore"):
+            fuel = p["gen0"] / 0.35 + np.interp(
+                p["gen1"], 70 * x_points, 70 * x_points / y_points
+            )
         assert fuel <= 160 * (1 + 1e-6)
 
     def test_piecewise_efficiency_gen_with_status(self) -> None:
         n = pypsa.Network()
         n.add("Bus", "bus0")
         n.add("Carrier", "gas", co2_emissions=1.0)
-        # First x point is 10%, effectively setting a p_min_pu.
-        # This should not _require_ the committable generator to be utilized, unlike the non-committable generator.
-        x_points = np.array([0.1, 0.5, 1.0])
-        y_points = np.array([0.3, 0.3, 0.3])
+        x_points = np.array([0.0, 0.1, 0.5, 1.0])
+        y_points = np.array([0.0, 0.3, 0.3, 0.3])
         n.add(
             "Generator",
             "gen0",
@@ -154,6 +153,7 @@ class TestPiecewiseGeneratorEfficiency:
             bus="bus0",
             p_nom=70,
             marginal_cost=20,
+            p_min_pu=0.1,
             efficiency=pd.DataFrame({"p_pu": x_points, "efficiency": y_points}),
             committable=True,
         )
@@ -164,6 +164,7 @@ class TestPiecewiseGeneratorEfficiency:
             bus="bus0",
             p_nom=70,
             marginal_cost=20,
+            p_min_pu=0.1,
             efficiency=pd.DataFrame({"p_pu": x_points, "efficiency": y_points}),
             committable=False,
         )
@@ -176,7 +177,7 @@ class TestPiecewiseGeneratorEfficiency:
         )
         n.add("Load", "load", bus="bus0", p_set=80)
         n.optimize()
-        assert n.generators_t.p["gen-committable"].sum() == 0
+        assert n.generators_t.p["gen-committable"].sum() == pytest.approx(0)
         assert n.generators_t.p["gen-non-committable"].sum() > 0
 
 
@@ -208,7 +209,9 @@ class TestPiecewiseMultiPort2Bus:
         self, base_network: pypsa.Network, base_multiport_attrs: dict
     ) -> tuple[pypsa.Network, str]:
         base_network.add(
-            "Link", efficiency={0.1: 0.3, 0.5: 0.4, 1.0: 0.6}, **base_multiport_attrs
+            "Link",
+            efficiency={0.0: 0.0, 0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
+            **base_multiport_attrs,
         )
         return base_network, "Link"
 
@@ -218,7 +221,7 @@ class TestPiecewiseMultiPort2Bus:
     ) -> tuple[pypsa.Network, str]:
         base_network.add(
             "Process",
-            rate0={0.1: -1 / 0.3, 0.5: -1 / 0.4, 1.0: -1 / 0.6},
+            rate0={0.0: 0.0, 0.1: -1 / 0.3, 0.5: -1 / 0.4, 1.0: -1 / 0.6},
             rate1=1,
             **base_multiport_attrs,
         )
@@ -229,7 +232,9 @@ class TestPiecewiseMultiPort2Bus:
         self, base_network: pypsa.Network, base_multiport_attrs: dict
     ) -> tuple[pypsa.Network, str]:
         base_network.add(
-            "Process", rate1={0.1: 0.3, 0.5: 0.4, 1.0: 0.6}, **base_multiport_attrs
+            "Process",
+            rate1={0.0: 0.0, 0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
+            **base_multiport_attrs,
         )
         return base_network, "Process"
 
@@ -290,13 +295,13 @@ class TestPiecewiseMultiPort2Bus:
         n = base_network
         n.add(
             "Process",
-            rate1={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
+            rate1={0.0: 0.0, 0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
             delay1=1,
             **base_multiport_attrs,
         )
         n.add(
             "Process",
-            rate1={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
+            rate1={0.0: 0.0, 0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
             **{**base_multiport_attrs, "name": "multiport2"},
         )
         status, _ = n.optimize()
@@ -317,19 +322,21 @@ class TestPiecewiseMultiPort2Bus:
         )
         n.add(
             "Link",
-            efficiency={0.1: 0.3, 0.5: 0.2, 1.0: 0.1},
+            efficiency={0.0: 0.0, 0.1: 0.3, 0.5: 0.2, 1.0: 0.1},
             committable=False,
+            p_min_pu=0.1,
             **{**base_multiport_attrs, "name": "link-non-committable"},
         )
         n.add(
             "Link",
-            efficiency={0.1: 0.3, 0.5: 0.2, 1.0: 0.1},
+            efficiency={0.0: 0.0, 0.1: 0.3, 0.5: 0.2, 1.0: 0.1},
             committable=True,
+            p_min_pu=0.1,
             **{**base_multiport_attrs, "name": "link-committable"},
         )
         status, _ = n.optimize(reformulate_sos=True)
         assert status == "ok"
-        assert n.links_t.p["link-committable"].sum() == 0
+        assert n.links_t.p["link-committable"].sum() == pytest.approx(0)
         assert n.links_t.p["link-non-committable"].sum() > 0
 
 
@@ -367,7 +374,7 @@ class TestPiecewiseMultiPort3Bus:
         base_network.add(
             "Link",
             efficiency=0.5,
-            efficiency2={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
+            efficiency2={0.0: 0.0, 0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
             **base_multiport_attrs,
         )
         return base_network, "Link"
@@ -379,7 +386,7 @@ class TestPiecewiseMultiPort3Bus:
         base_network.add(
             "Process",
             rate1=0.5,
-            rate2={0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
+            rate2={0.0: 0.0, 0.1: 0.3, 0.5: 0.4, 1.0: 0.6},
             **base_multiport_attrs,
         )
         return base_network, "Process"

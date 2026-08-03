@@ -22,7 +22,6 @@ from pypsa.optimization.piecewise import (
     PiecewiseOptions,
     _create_y_var,
     _get_breakpoints,
-    _normalize_breakpoints,
     _to_da,
     define_piecewise,
     get_piecewise_names,
@@ -54,66 +53,6 @@ def _piecewise_df(
     return pd.concat(frames, axis=1, names=["name", "attribute"]).rename_axis(
         index="breakpoint"
     )
-
-
-class TestNormalizeBreakpoints:
-    def test_sorts_unsorted_rows(self, gen_marginal_cost_attrs: pd.Series) -> None:
-        df = _piecewise_df({"gen": [(1.0, 40.0), (0.0, 10.0), (0.5, 20.0)]})
-        result = _normalize_breakpoints(df, gen_marginal_cost_attrs)
-        assert result["gen"]["p_pu"].tolist() == [0.0, 0.5, 1.0]
-        assert result["gen"]["marginal_cost"].tolist() == [10.0, 20.0, 40.0]
-        assert result.index.name == "breakpoint"
-
-    def test_ragged_curves_aligned_with_trailing_nan(
-        self, gen_marginal_cost_attrs: pd.Series
-    ) -> None:
-        df = _piecewise_df(
-            {
-                "gen0": [(0.0, 10.0), (0.5, 20.0), (1.0, 40.0)],
-                "gen1": [(0.0, 5.0), (1.0, 25.0)],
-            }
-        )
-        result = _normalize_breakpoints(df, gen_marginal_cost_attrs)
-        assert len(result) == 3
-        assert result["gen0"]["p_pu"].tolist() == [0.0, 0.5, 1.0]
-        assert result["gen1"]["p_pu"].iloc[:2].tolist() == [0.0, 1.0]
-        assert np.isnan(result["gen1"]["p_pu"].iloc[2])
-
-    def test_idempotent(self, gen_marginal_cost_attrs: pd.Series) -> None:
-        df = _piecewise_df({"gen": [(1.0, 40.0), (0.0, 10.0), (0.5, 20.0)]})
-        once = _normalize_breakpoints(df, gen_marginal_cost_attrs)
-        twice = _normalize_breakpoints(once, gen_marginal_cost_attrs)
-        pd.testing.assert_frame_equal(once, twice)
-
-    @pytest.mark.parametrize(
-        ("curves", "match"),
-        [
-            pytest.param(
-                {"gen": [(0.0, 10.0), (float("nan"), float("nan")), (1.0, 40.0)]},
-                "non-trailing missing breakpoint",
-                id="interior-nan-row",
-            ),
-            pytest.param(
-                {"gen": [(0.0, 10.0), (0.5, float("nan")), (1.0, 40.0)]},
-                "incomplete breakpoint data",
-                id="missing-y",
-            ),
-            pytest.param(
-                {"gen": [(0.0, 10.0), (float("nan"), 20.0), (1.0, 40.0)]},
-                "incomplete breakpoint data",
-                id="missing-x",
-            ),
-        ],
-    )
-    def test_invalid_breakpoints_raise(
-        self,
-        gen_marginal_cost_attrs: pd.Series,
-        curves: dict[str, list[tuple[float, float]]],
-        match: str,
-    ) -> None:
-        df = _piecewise_df(curves)
-        with pytest.raises(ValueError, match=match):
-            _normalize_breakpoints(df, gen_marginal_cost_attrs)
 
 
 class TestGetPiecewiseNames:
@@ -281,38 +220,6 @@ class TestGetBreakpoints:
                 invert_attr=False,
             )
         assert str(excinfo.value) == expected
-
-    def test_first_x_above_zero_raises_cumulative_only(
-        self, component, pw_names
-    ) -> None:
-        """Test that a first x breakpoint above zero raises for cumulative curves only."""
-        component.piecewise["marginal_cost"] = _piecewise_df(
-            {"gen": [(0.1, 10.0), (0.5, 20.0), (1.0, 40.0)]}
-        )
-        with pytest.raises(ValueError, match=r"must start at p_pu=0"):
-            _get_breakpoints(
-                component, "marginal_cost", pw_names, True, invert_attr=False
-            )
-        # Direct curves may start above zero, e.g. part-load efficiency with a minimum load.
-        _get_breakpoints(component, "marginal_cost", pw_names, False, invert_attr=False)
-
-    @pytest.mark.parametrize(
-        ("first_y", "cumulative_attr", "expect_warning"),
-        [(10.0, True, True), (0.0, True, False), (10.0, False, False)],
-        ids=["cumulative-nonzero", "cumulative-zero", "direct-nonzero"],
-    )
-    def test_first_y_ignored_warning(
-        self, component, pw_names, caplog, first_y, cumulative_attr, expect_warning
-    ) -> None:
-        """Test that ignored non-zero first y values on cumulative curves log a warning."""
-        component.piecewise["marginal_cost"] = _piecewise_df(
-            {"gen": [(0.0, first_y), (0.5, 20.0), (1.0, 40.0)]}
-        )
-        with caplog.at_level(logging.WARNING, logger="pypsa.optimization.piecewise"):
-            _get_breakpoints(
-                component, "marginal_cost", pw_names, cumulative_attr, invert_attr=False
-            )
-        assert ("ignored" in caplog.text and "gen" in caplog.text) == expect_warning
 
     @pytest.mark.parametrize("p_nom", [np.nan, np.inf, 0.0])
     def test_not_allow_extendables_missing_nom(

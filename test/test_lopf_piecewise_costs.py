@@ -25,7 +25,7 @@ class TestPiecewiseCostsDefine:
             bus="bus0",
             p_nom=100,
             marginal_cost=pd.DataFrame(
-                {"p_pu": [1.0, 0.0, 0.5], "marginal_cost": [40.0, 10.0, 20.0]}
+                {"p_pu": [0.0, 0.5, 1.0], "marginal_cost": [0.0, 1.0, 4.0]}
             ),
         )
         n.add("Load", "load", bus="bus0", p_set=50)
@@ -42,7 +42,7 @@ class TestPiecewiseCostsDefine:
             p_nom_extendable=True,
             p_nom_max=100,
             capital_cost=pd.DataFrame(
-                {"p_nom": [100.0, 0.0, 50.0], "capital_cost": [4.0, 1.0, 2.0]}
+                {"p_nom": [0.0, 50.0, 100.0], "capital_cost": [0.0, 2.0, 4.0]}
             ),
         )
         n.add("Load", "load", bus="bus0", p_set=50)
@@ -58,7 +58,7 @@ class TestPiecewiseCostsDefine:
             bus="bus0",
             p_nom=100,
             marginal_cost=pd.DataFrame(
-                {"p_pu": [0.0, 0.5, 1.0], "marginal_cost": [4.0, 2.0, 1.0]}
+                {"p_pu": [0.0, 0.5, 1.0], "marginal_cost": [0.0, 4.0, 1.0]}
             ),
         )
         n.add("Load", "load", bus="bus0", p_set=50)
@@ -121,7 +121,7 @@ class TestPiecewiseCostsDefine:
     def test_piecewise_unsorted_rows_get_sorted(self) -> None:
         """Shuffled segment rows must produce the same dispatch as sorted rows."""
         sorted_costs = pd.DataFrame(
-            {"p_pu": [0.0, 0.5, 1.0], "marginal_cost": [10.0, 20.0, 40.0]}
+            {"p_pu": [0.0, 0.5, 1.0], "marginal_cost": [0.0, 20.0, 40.0]}
         )
         shuffled_costs = sorted_costs.iloc[[2, 0, 1]].reset_index(drop=True)
 

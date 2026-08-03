@@ -475,7 +475,7 @@ def piecewise_network() -> pypsa.Network:
         "gen0",
         bus="bus0",
         p_nom=25,
-        marginal_cost={0.0: 0.4, 0.5: 0.6, 1.0: 0.5},
+        marginal_cost={0.0: 0.0, 0.5: 0.6, 1.0: 0.5},
     )
     n.add(
         "Generator",
@@ -492,7 +492,7 @@ def piecewise_network() -> pypsa.Network:
         bus0="bus0",
         bus1="bus1",
         p_nom=30,
-        efficiency={0.0: 0.4, 0.5: 0.6, 1.0: 0.7},
+        efficiency={0.0: 0.0, 0.5: 0.6, 1.0: 0.7},
         capital_cost=100,
     )
     n.add(

@@ -17,12 +17,15 @@ Coverage
 
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 import pytest
 
 import pypsa
-from pypsa.constants import piecewise_attrs
+from pypsa.constants import piecewise_attrs, piecewise_schema
 from pypsa.descriptors import nominal_attrs
+from pypsa.network.io import NetworkIOMixin
 
 # ---------------------------------------------------------------------------
 # Component catalogue
@@ -66,6 +69,7 @@ def _build_params(base_kwargs_by_comp: dict[str, dict]) -> list:
 
 
 ALL_PARAMS = _build_params(BASE_KWARGS)
+ALL_PU_PARAMS = [p for p in ALL_PARAMS if p.values[3] != nominal_attrs[p.values[0]]]
 
 
 def _build_extendable_params(base_kwargs_by_comp: dict[str, dict]) -> tuple[list, list]:
@@ -271,7 +275,7 @@ class TestPiecewiseErrors:
     def test_multiport_pos_neg_mix_raises(self, base_network, component, attr):
         """Multi-port piecewise attrs must not mix positive and negative values."""
         n = base_network
-        curve = pd.DataFrame({"p_pu": [0.0, 0.5, 1.0], attr: [1.0, -0.7, 0.4]})
+        curve = pd.DataFrame({"p_pu": [0.0, 0.5, 1.0], attr: [0.0, -0.7, 0.4]})
         with pytest.raises(
             NotImplementedError,
             match=f"Cannot mix positive and negative values for piecewise {attr} curves",
@@ -307,6 +311,141 @@ class TestPiecewiseErrors:
         n = base_network
         n.add(comp, "c1", **extendable_kwargs, **{attr: CURVE_DICT})
         assert not n.components[comp].piecewise[attr].empty
+
+    @pytest.mark.parametrize(("comp", "base_kwargs", "attr", "x_attr"), ALL_PARAMS)
+    def test_first_x_above_zero_raises(
+        self, base_network, comp, base_kwargs, attr, x_attr
+    ):
+        """Test that a first x breakpoint above zero raises for cumulative curves only."""
+        n = base_network
+        curve = pd.DataFrame({x_attr: [0.1, 0.5, 1.0], attr: [0.0, 0.1, 0.4]})
+        with pytest.raises(ValueError, match=rf"must start at {x_attr}=0"):
+            n.add(comp, "c1", **base_kwargs, **{attr: curve})
+
+    @pytest.mark.parametrize(("comp", "base_kwargs", "attr", "x_attr"), ALL_PU_PARAMS)
+    def test_last_x_below_one_raises(
+        self, base_network, comp, base_kwargs, attr, x_attr
+    ):
+        """Test that a last x breakpoint below one raises for cumulative curves only."""
+        n = base_network
+        curve = pd.DataFrame({x_attr: [0.0, 0.5, 0.8], attr: [0.0, 0.1, 0.4]})
+        # monkeypatch the kwargs to not have the breaking extendable attr on a per-unit piecewise attr
+        with pytest.raises(ValueError, match=rf"must end at {x_attr}=1"):
+            n.add(comp, "c1", **base_kwargs, **{attr: curve})
+
+    @pytest.mark.parametrize(("comp", "base_kwargs", "attr", "x_attr"), ALL_PU_PARAMS)
+    def test_last_x_below_one_raises_handles_nan(
+        self, base_network, comp, base_kwargs, attr, x_attr
+    ):
+        """Test that a last x breakpoint below one raises for cumulative curves only."""
+        n = base_network
+        curve1 = pd.DataFrame({x_attr: [0.0, 0.5, 1], attr: [0.0, 0.1, 0.4]})
+        curve2 = pd.DataFrame({x_attr: [0.0, 0.8], attr: [0.0, 0.1]})
+        # monkeypatch the kwargs to not have the breaking extendable attr on a per-unit piecewise attr
+        n.add(comp, "c1", **base_kwargs, **{attr: curve1})
+        with pytest.raises(ValueError, match=rf"must end at {x_attr}=1"):
+            n.add(comp, "c2", **base_kwargs, **{attr: curve2})
+
+    @pytest.mark.parametrize(("comp", "base_kwargs", "attr", "x_attr"), ALL_PARAMS)
+    def test_first_y_ignored_warning(
+        self, caplog, base_network, comp, base_kwargs, attr, x_attr
+    ) -> None:
+        """Test that ignored non-zero first y values on cumulative curves log a warning."""
+
+        n = base_network
+        curve = pd.DataFrame({x_attr: [0.0, 0.5, 1.0], attr: [1.0, 0.1, 0.4]})
+        with caplog.at_level(logging.WARNING, logger="pypsa.network.io"):
+            n.add(comp, "c1", **base_kwargs, **{attr: curve})
+        if attr in ["marginal_cost", "capital_cost"]:
+            assert (
+                f"Piecewise '{attr}' values price the increment from the previous breakpoint, so the y-value at x=0 spans zero width and will be ignored."
+                in caplog.text
+            )
+        elif attr.startswith(("rate", "efficiency")):
+            assert (
+                f"A non-zero y value at x=0 for piecewise '{attr}' will be ignored when the piecewise constraint is defined"
+                in caplog.text
+            )
+
+
+class TestNormalizeBreakpoints:
+    @pytest.fixture(scope="class")
+    @classmethod
+    def gen_marginal_cost_attrs(cls) -> pd.Series:
+        return piecewise_schema("Generator", "marginal_cost")
+
+    def _piecewise_df(
+        self,
+        curves: dict[str, list[tuple[float, float]]],
+        x_attr: str = "p_pu",
+        y_attr: str = "marginal_cost",
+    ) -> pd.DataFrame:
+        """Build a (name, attribute)-columned DataFrame from {name: [(x, y), ...]}."""
+        frames = {
+            n: pd.DataFrame(rows, columns=[x_attr, y_attr])
+            for n, rows in curves.items()
+        }
+        return pd.concat(frames, axis=1, names=["name", "attribute"]).rename_axis(
+            index="breakpoint"
+        )
+
+    def test_sorts_unsorted_rows(self, gen_marginal_cost_attrs: pd.Series) -> None:
+        df = self._piecewise_df({"gen": [(1.0, 40.0), (0.0, 10.0), (0.5, 20.0)]})
+        result = NetworkIOMixin._normalize_breakpoints(df, gen_marginal_cost_attrs)
+        assert result["gen"]["p_pu"].tolist() == [0.0, 0.5, 1.0]
+        assert result["gen"]["marginal_cost"].tolist() == [10.0, 20.0, 40.0]
+        assert result.index.name == "breakpoint"
+
+    def test_ragged_curves_aligned_with_trailing_nan(
+        self, gen_marginal_cost_attrs: pd.Series
+    ) -> None:
+        df = self._piecewise_df(
+            {
+                "gen0": [(0.0, 10.0), (0.5, 20.0), (1.0, 40.0)],
+                "gen1": [(0.0, 5.0), (1.0, 25.0)],
+            }
+        )
+        result = NetworkIOMixin._normalize_breakpoints(df, gen_marginal_cost_attrs)
+        assert len(result) == 3
+        assert result["gen0"]["p_pu"].tolist() == [0.0, 0.5, 1.0]
+        assert result["gen1"]["p_pu"].iloc[:2].tolist() == [0.0, 1.0]
+        assert result["gen1"]["p_pu"].isnull().iloc[2]
+
+    def test_idempotent(self, gen_marginal_cost_attrs: pd.Series) -> None:
+        df = self._piecewise_df({"gen": [(1.0, 40.0), (0.0, 10.0), (0.5, 20.0)]})
+        once = NetworkIOMixin._normalize_breakpoints(df, gen_marginal_cost_attrs)
+        twice = NetworkIOMixin._normalize_breakpoints(once, gen_marginal_cost_attrs)
+        pd.testing.assert_frame_equal(once, twice)
+
+    @pytest.mark.parametrize(
+        ("curves", "match"),
+        [
+            pytest.param(
+                {"gen": [(0.0, 10.0), (float("nan"), float("nan")), (1.0, 40.0)]},
+                "non-trailing missing breakpoint",
+                id="interior-nan-row",
+            ),
+            pytest.param(
+                {"gen": [(0.0, 10.0), (0.5, float("nan")), (1.0, 40.0)]},
+                "incomplete breakpoint data",
+                id="missing-y",
+            ),
+            pytest.param(
+                {"gen": [(0.0, 10.0), (float("nan"), 20.0), (1.0, 40.0)]},
+                "incomplete breakpoint data",
+                id="missing-x",
+            ),
+        ],
+    )
+    def test_invalid_breakpoints_raise(
+        self,
+        gen_marginal_cost_attrs: pd.Series,
+        curves: dict[str, list[tuple[float, float]]],
+        match: str,
+    ) -> None:
+        df = self._piecewise_df(curves)
+        with pytest.raises(ValueError, match=match):
+            NetworkIOMixin._normalize_breakpoints(df, gen_marginal_cost_attrs)
 
 
 def test_remove_drops_piecewise_data(base_network):

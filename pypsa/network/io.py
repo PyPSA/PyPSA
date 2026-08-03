@@ -2151,6 +2151,39 @@ class NetworkIOMixin(_NetworkABC):
             self.snapshots, df.columns
         ]
 
+    @staticmethod
+    def _normalize_breakpoints(
+        piecewise_df: pd.DataFrame, piecewise_attrs: pd.Series
+    ) -> pd.DataFrame:
+        """Sort segment rows by x-coordinate and align ragged curves with trailing NaNs."""
+        x_attr, y_attr = piecewise_attrs.x, piecewise_attrs.y
+
+        def __normalize(curve: pd.DataFrame) -> pd.DataFrame:
+            filled = curve.notna().any()
+            has_later = filled.iloc[::-1].cummax().iloc[::-1]
+            if (gap := ~filled & has_later).any():
+                msg = (
+                    f"Piecewise '{y_attr}' segments for component '{curve.name}' contain "
+                    f"non-trailing missing breakpoint rows: {gap[gap].index.tolist()}."
+                )
+                raise ValueError(msg)
+            if (partial := filled & curve.isna().any()).any():
+                msg = (
+                    f"Piecewise '{y_attr}' segments for component '{curve.name}' have "
+                    f"incomplete breakpoint data at rows: {partial[partial].index.tolist()}."
+                )
+                raise ValueError(msg)
+            return curve.loc[:, filled].sort_values(
+                (curve.name, x_attr), axis=1, kind="mergesort"
+            )
+
+        return (
+            piecewise_df.T.groupby(level="name", group_keys=False)
+            .apply(__normalize)
+            .T.reset_index(drop=True)
+            .rename_axis(index="breakpoint")
+        )
+
     def _import_piecewise_from_df(
         self,
         df: pd.DataFrame,
@@ -2204,6 +2237,7 @@ class NetworkIOMixin(_NetworkABC):
         df.index = df.index.set_names(idx_name)
         df.columns = df.columns.set_names(col_names)
 
+        df = self._normalize_breakpoints(df, pw_attr)
         if not pw_attr.allow_extendable:
             new_names = df.columns.unique("name")
             if is_extendable is not None:
@@ -2225,6 +2259,42 @@ class NetworkIOMixin(_NetworkABC):
             if not (bad := curve.columns[~(is_pos | is_neg)]).empty:
                 msg = f"Cannot mix positive and negative values for piecewise {attr} curves of {c} components {bad.tolist()}"
                 raise NotImplementedError(msg)
+
+        if (bad := df.loc[0].loc[pd.IndexSlice[:, x_attr]] > 0).any():
+            equivalents = {"p_pu": "p_min_pu", "p_nom": "p_nom_min"}
+            msg = (
+                f"Piecewise '{attr}' curves must start at {x_attr}=0. "
+                f"Otherwise, you implicitly bound {x_attr} from below (equivalent to setting {equivalents.get(x_attr)}). "
+                f"Even if you are explicitly bounding from below, you should still set a breakpoint at (0, 0)."
+                f"Affected components: {bad[bad].index.tolist()}."
+            )
+            raise ValueError(msg)
+        if (
+            x_attr.endswith("_pu")
+            and (bad := df.iloc[-1].loc[pd.IndexSlice[:, x_attr]].ffill() < 1).any()
+        ):
+            equivalents = {"p_pu": "p_max_pu"}
+            msg = (
+                f"Piecewise '{attr}' curves must end at {x_attr}=1. "
+                f"Otherwise, you implicitly bound {x_attr} from above (equivalent to setting {equivalents.get(x_attr)}). "
+                f"Even if you are explicitly bounding from above, you should still set a breakpoint at (1, <y-value>)."
+                f"Affected components: {bad[bad].index.tolist()}."
+            )
+            raise ValueError(msg)
+        if (bad := df.loc[0].loc[pd.IndexSlice[:, attr]] > 0).any():
+            preamble: str
+            if "cost" in attr:
+                preamble = (
+                    "Piecewise '%s' values price the increment from the previous breakpoint, so the y-value at x=0 spans zero width and will be ignored. "
+                    "To set the y-value for the first segment, set the value on the second breakpoint instead, e.g. {0.0: 0.0, 0.5: 40.0} for a '%s' of 40 up to 0.5 '%s'."
+                )
+            else:
+                preamble = (
+                    "A non-zero y value at x=0 for piecewise '%s' will be ignored when the piecewise constraint is defined since y values are denormalised using x values. "
+                    "To approximate '%s' as non-zero at '%s'=0, consider setting it at a very small x value instead, e.g. {0.0: 0.0, 0.001: 10, 0.5: 40.0}."
+                )
+            msg = preamble + " Affected components: %s."
+            logger.warning(msg, attr, attr, x_attr, bad[bad].index.tolist())
         piecewise = self.c[cls_name].piecewise
 
         if attr not in piecewise:

@@ -224,29 +224,9 @@ def _get_breakpoints(
     piecewise_df = c.piecewise[pw_attr][pw_names]
     piecewise_attrs = c._piecewise_schema(pw_attr)
 
-    # pw_attr stores the marginal value (slope) at each breakpoint.
-    normalised_piecewise_df = _normalize_breakpoints(piecewise_df, piecewise_attrs)
-
-    x_da = _to_da(normalised_piecewise_df, piecewise_attrs.x)
-    y_da = _to_da(normalised_piecewise_df, pw_attr)
+    x_da = _to_da(piecewise_df, piecewise_attrs.x)
+    y_da = _to_da(piecewise_df, pw_attr)
     valid_breakpoints = x_da.notnull() & y_da.notnull()
-
-    if cumulative_attr and (bad := x_da.isel({BREAKPOINT_DIM: 0}) > 0).any():
-        msg = (
-            f"Piecewise '{pw_attr}' curves must start at {piecewise_attrs.x}=0. The cost below "
-            f"the first breakpoint is undefined, and the curve's x-range would bound "
-            f"{piecewise_attrs.x} from below. Components: {pw_names[bad.to_series()].tolist()}."
-        )
-        raise ValueError(msg)
-    if cumulative_attr and (bad := y_da.isel({BREAKPOINT_DIM: 0}) != 0).any():
-        logger.warning(
-            "Piecewise '%s' values price the increment from the previous breakpoint, so the "
-            "first value of each curve spans zero width and is ignored. To price the first "
-            "segment, set the value on the second breakpoint instead, e.g. {0.0: 0.0, 0.5: 40.0} "
-            "for a price of 40 up to 0.5. Affected components: %s.",
-            pw_attr,
-            pw_names[bad.to_series()].tolist(),
-        )
 
     if invert_attr:
         y_da = 1 / y_da
@@ -283,41 +263,10 @@ def _get_breakpoints(
             slopes = y_da.shift({BREAKPOINT_DIM: -1})
             y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
         else:
-            y_breakpoints = breakpoints((y_da * x_da).where(valid_breakpoints))
+            y_breakpoints = breakpoints(
+                (y_da * x_da).fillna(0).where(valid_breakpoints)
+            )
     return x_breakpoints, y_breakpoints
-
-
-def _normalize_breakpoints(
-    piecewise_df: pd.DataFrame, piecewise_attrs: pd.Series
-) -> pd.DataFrame:
-    """Sort segment rows by x-coordinate and align ragged curves with trailing NaNs."""
-    x_attr, y_attr = piecewise_attrs.x, piecewise_attrs.y
-
-    def __normalize(curve: pd.DataFrame) -> pd.DataFrame:
-        filled = curve.notna().any()
-        has_later = filled.iloc[::-1].cummax().iloc[::-1]
-        if (gap := ~filled & has_later).any():
-            msg = (
-                f"Piecewise '{y_attr}' segments for component '{curve.name}' contain "
-                f"non-trailing missing breakpoint rows: {gap[gap].index.tolist()}."
-            )
-            raise ValueError(msg)
-        if (partial := filled & curve.isna().any()).any():
-            msg = (
-                f"Piecewise '{y_attr}' segments for component '{curve.name}' have "
-                f"incomplete breakpoint data at rows: {partial[partial].index.tolist()}."
-            )
-            raise ValueError(msg)
-        return curve.loc[:, filled].sort_values(
-            (curve.name, x_attr), axis=1, kind="mergesort"
-        )
-
-    return (
-        piecewise_df.T.groupby(level="name", group_keys=False)
-        .apply(__normalize)
-        .T.reset_index(drop=True)
-        .rename_axis(index="breakpoint")
-    )
 
 
 def _create_y_var(
