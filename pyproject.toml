@@ -46,7 +46,7 @@ dependencies = [
     "deprecation",
     "validators",
     "highspy",
-    "levenshtein>=0.27.1",
+    "rapidfuzz>=3.9.0",
     "platformdirs",
 ]
 
@@ -76,7 +76,6 @@ dev = [
     "pytest-mpl",
     "coverage",
     "pyarrow",
-    "matplotlib<3.11", # remove when uv.lock is tracked
     "pypower",
     "pandapower>=2.14.11",
     "scikit-learn",
