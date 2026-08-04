@@ -36,7 +36,7 @@ dependencies = [
     "xarray",
     "netcdf4",
     "linopy>=0.8.0",
-    "matplotlib!=3.11.0", # faceted plots crash on 3.11.0, see matplotlib#31881
+    "matplotlib",
     "plotly",
     "pydeck>=0.6",
     "seaborn",
@@ -140,6 +140,9 @@ filterwarnings = [
 
     # Ignore pandas<3.0.3 usage of the deprecated `locs` attribute of matplotlib>=3.11
     "ignore:The locs attribute was deprecated:DeprecationWarning",
+
+    # Ignore seaborn's usage of the deprecated `vert` kwarg of matplotlib>=3.11
+    "ignore:vert. bool was deprecated:DeprecationWarning",
 
     # numpy>=2.5 deprecations not yet handled by netCDF4 and matplotlib
     "ignore:Setting the shape on a NumPy array has been deprecated:DeprecationWarning",
