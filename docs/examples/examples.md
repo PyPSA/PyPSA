@@ -223,6 +223,13 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](transport-delay.ipynb)
 
+-   :material-notebook:{ .lg .middle } **SMS++ Optimization Backend**
+
+    Solves a PyPSA network through the optional SMS++ backend using
+    `pypsa2smspp` and `pySMSpp`.
+
+    [:octicons-arrow-right-24: Go to example](smspp-optimization.ipynb)
+
 </div>
 
 ## Sector Coupling
