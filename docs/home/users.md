@@ -147,6 +147,8 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_ca: Canada Energy Regulator (CER)](https://www.cer-rec.gc.ca/en/)**, an agency of the Government of Canada, used PyPSA for its [Canada's Energy Future 2023](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2023/appendix-3/) and [Canada's Energy Future 2026 report](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2026/canada-energy-futures-2026.pdf) report.
 
+* **[:flag_cl: Ministry of Energy of Chile](https://energia.gob.cl/)**, the Planning and Climate Change Unit of the Ministry of Energy of Chile, developed a capacity expansion model of the national electricity system based on PyPSA, used in the official Long-term Energy Planning process of Chile [PELP 2028-2032](https://energia.gob.cl/pelp/repositorio).
+
 ## Non-Governmental and Non-Profit Organisations
 
 * **[:flag_de: Open Energy Transition (OET)](https://openenergytransition.org/)**, a non-profit software company and environmental think tank, uses, develops and provides commercial support and training for PyPSA, see [list of projects](https://openenergytransition.org/projects.html).
