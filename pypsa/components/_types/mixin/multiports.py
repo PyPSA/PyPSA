@@ -72,12 +72,12 @@ class _Multiport(Components):
         ...
 
     @abstractmethod
-    def _port_suffix(self, port: str) -> str:
+    def _port_suffix(self, port: str | int) -> str:
         """Return the attribute suffix for a given port.
 
         Parameters
         ----------
-        port : str
+        port : str | int
             Port identifier.
 
         Returns
@@ -91,6 +91,10 @@ class _Multiport(Components):
     @property
     @abstractmethod
     def _coefficient_attr(self) -> str: ...
+
+    def _port_coefficient_attr(self, port: str | int) -> str:
+        """Coefficient attribute name for a port, e.g. 'efficiency2' / 'rate0'."""
+        return f"{self._coefficient_attr}{self._port_suffix(port)}"
 
     @staticmethod
     def _delay_positions(

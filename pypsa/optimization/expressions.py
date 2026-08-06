@@ -19,6 +19,7 @@ from xarray import DataArray
 
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
+from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.statistics import (
     get_transmission_branches,
     port_efficiency,
@@ -45,6 +46,25 @@ def check_if_empty(expr: LinearExpression) -> bool:
     if USE_EMPTY_PROPERTY:
         return expr.empty
     return expr.empty()
+
+
+def _direct_piecewise(
+    c: Any, y_attr: str, sign: Any, pw: Variable, names: Any, direction: str
+) -> Variable | LinearExpression:
+    """Restrict a piecewise contribution to the requested supply/withdrawal direction.
+
+    A port's direction follows the sign of its breakpoints (``sign * y_attr``),
+    mirroring the clipping applied to linear coefficients. Mixed-sign curves are
+    rejected at ``add`` time, so each port is unambiguously supply or withdrawal.
+    """
+    if direction == "both":
+        return pw
+    y = c.piecewise[y_attr].xs(y_attr, level="attribute", axis=1)[names]
+    withdraws = (sign * y < 0).any()
+    if direction == "withdrawal":
+        return -1 * pw.sel(name=names[withdraws])
+    else:
+        return pw.sel(name=names[~withdraws])
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
@@ -187,13 +207,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         if not isinstance(first.indexes.get("group"), pd.MultiIndex) and (
             "group" in first.dims and len(exprs) > 1
         ):
-            # v1: flat `group` dim — concatenate ports and sum shared key tuples
+            # v1: flat `group` dim - concatenate ports and sum shared key tuples
             if agg != "sum":
                 msg = f"Aggregation method {agg} not supported."
                 raise ValueError(msg)
             merged = self._concat_flat_groups(exprs)
             return self._regroup_flat(merged, self._group_key_coords(merged))
-        res = ln.merge(exprs)
+        res = ln.merge(exprs, join="outer")
         if not (index := res.indexes[res.dims[0]]).is_unique:
             if agg != "sum":
                 msg = f"Aggregation method {agg} not supported."
@@ -327,7 +347,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 return None
 
             costs = c.static[cost_attribute][capacity.indexes["name"]]
-            return capacity * costs
+
+            if c.has_piecewise(cost_attribute):
+                add_capex = m.variables[c._piecewise_aux_var(cost_attribute)]
+                capacity = capacity.drop_sel(name=add_capex.coords["name"])
+            else:
+                add_capex = 0
+
+            return capacity * costs + add_capex
 
         return self._aggregate_components(
             func,
@@ -465,12 +492,22 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
-            attr = lookup.query("not nominal and marginal_cost").loc[c].index.item()
-            if attr is None:
+            attr = "marginal_cost"
+            var = lookup.query(f"not nominal and {attr}").loc[c].index.item()
+            if var is None:
                 return None
-            var = n.model.variables[f"{c}-{attr}"]
+            var = n.model.variables[f"{c}-{var}"]
             sns = var.indexes["snapshot"]
-            opex = var * n.get_switchable_as_dense(c, "marginal_cost").loc[sns]
+
+            c_obj = n.c[c]
+            if c_obj.has_piecewise(attr):
+                add_opex = n.model.variables[c_obj._piecewise_aux_var(attr)]
+                var = var.drop_sel(name=add_opex.coords["name"])
+            else:
+                add_opex = 0
+
+            opex = var * n.get_switchable_as_dense(c, attr).loc[sns] + add_opex
+
             weights = n.snapshot_weightings.objective.loc[sns]
             return self._aggregate_timeseries(opex, weights, agg=groupby_time)
 
@@ -620,17 +657,34 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             )
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            var = self._get_operational_variable(c)
+        def func(n: Network, component: str, port: str) -> pd.Series:
+            c = n.c[component]
+            var = self._get_operational_variable(component)
             sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
-            efficiency = port_efficiency(n, c, port=port, dynamic=True)
-            if isinstance(efficiency, pd.DataFrame):
-                efficiency = efficiency.loc[sns]
-            sign = n.c[c].static.get("sign", 1.0)
+            dynamic_efficiency = port_efficiency(n, component, port=port, dynamic=True)
+            if isinstance(dynamic_efficiency, pd.DataFrame):
+                dynamic_efficiency = dynamic_efficiency.loc[sns]
+            sign = n.c[component].static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators.loc[sns]
-            expr = DataArray(efficiency * sign) * var
+            coeffs = DataArray(dynamic_efficiency * sign)
+
+            pw_var = 0
+            if isinstance(c, _Multiport) and c.has_piecewise(
+                y_attr := c._port_coefficient_attr(port)
+            ):
+                pw = sign * n.model.variables[c._piecewise_aux_var(y_attr)]
+                names = pw.coords["name"].values
+                coeffs.loc[{"name": names}] = 0
+                pw_var = _direct_piecewise(c, y_attr, sign, pw, names, direction)
+
+            expr = coeffs * var.where(coeffs != 0)
+
             if direction in ("supply", "withdrawal"):
+                if direction == "withdrawal":
+                    logger.warning(
+                        "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
+                    )
                 s = 1 if direction == "supply" else -1
                 expr = expr.assign(
                     coeffs=(s * expr.coeffs).clip(min=0),
@@ -639,6 +693,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             elif direction != "both":
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
+
+            expr = expr + pw_var
             return self._aggregate_timeseries(expr, weights, agg=groupby_time)
 
         return self._aggregate_components(

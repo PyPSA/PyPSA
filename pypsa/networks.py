@@ -1109,7 +1109,7 @@ class Network(
                   5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
                   6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 43 columns]
+        [7 rows x 44 columns]
 
         """
         comps = sorted(
@@ -1149,7 +1149,7 @@ class Network(
                   Bremen Converter     True           0  ...                   1
                   DC link              True           0  ...                   1
         <BLANKLINE>
-        [4 rows x 51 columns]
+        [4 rows x 52 columns]
 
         See Also
         --------

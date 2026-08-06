@@ -58,7 +58,10 @@ def create_docstring_parameters(component_name: str) -> str:
             py_type = "bool"
         elif attr_type == "int":
             py_type = "int"
-        elif "static or series" in attr_type:
+        elif (
+            "static or series" in attr_type
+            or "static or piecewise or series" in attr_type
+        ):
             py_type = "float or pandas.Series"
         else:
             py_type = attr_type
