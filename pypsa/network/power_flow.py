@@ -144,7 +144,7 @@ def _network_prepare_and_run_pf(
     skip_pre: bool,
     linear: bool = False,
     distribute_slack: bool = False,
-    slack_weights: str = "p_set",
+    slack_weights: str | pd.Series | dict | None = "p_set",
     **kwargs: Any,
 ) -> Dict | None:
     # TODO this needs to be refactored
@@ -197,7 +197,9 @@ def _network_prepare_and_run_pf(
             if len(branches_i) > 0:
                 sub_network_prepare_fun(sub_network, skip_pre=True)
 
-        if isinstance(slack_weights, dict):
+        if isinstance(slack_weights, dict) and all(
+            key in n.c.sub_networks.static.index for key in slack_weights
+        ):
             sn_slack_weights = slack_weights[sub_network.name]
         else:
             sn_slack_weights = slack_weights
@@ -206,7 +208,14 @@ def _network_prepare_and_run_pf(
             sn_slack_weights = pd.Series(sn_slack_weights)
 
         if linear:
-            sub_network_pf_fun(sub_network, snapshots=sns, skip_pre=True, **kwargs)
+            sub_network_pf_fun(
+                sub_network,
+                snapshots=sns,
+                skip_pre=True,
+                distribute_slack=distribute_slack,
+                slack_weights=sn_slack_weights,
+                **kwargs,
+            )
 
         elif len(sub_network.c.buses.static) <= 1:
             (
@@ -839,7 +848,11 @@ class NetworkPowerFlowMixin(_NetworkABC):
         _update_ports_component_attrs(self)
 
     def lpf(
-        n: Network, snapshots: Sequence | None = None, skip_pre: bool = False
+        n: Network,
+        snapshots: Sequence | None = None,
+        skip_pre: bool = False,
+        distribute_slack: bool = False,
+        slack_weights: str | pd.Series | dict | None = None,
     ) -> None:
         """Linear power flow for generic network.
 
@@ -853,10 +866,24 @@ class NetworkPowerFlowMixin(_NetworkABC):
         skip_pre : bool, default False
             Skip the preliminary steps of computing topology, calculating
             dependent values and finding bus controls.
+        distribute_slack : bool, default False
+            Distribute the active power mismatch across generators instead of
+            assigning it to the slack generator.
+        slack_weights : str|pandas.Series|dict, default None
+            Weights for distributed slack. Supported strings are ``"p_set"``,
+            ``"p_nom"`` and ``"p_nom_opt"``. Custom weights may be given for
+            generators or buses. ``None`` uses ``"p_set"``.
 
         """
         sns = as_index(n, snapshots, "snapshots")
-        _network_prepare_and_run_pf(n, sns, skip_pre, linear=True)
+        _network_prepare_and_run_pf(
+            n,
+            sns,
+            skip_pre,
+            linear=True,
+            distribute_slack=distribute_slack,
+            slack_weights=slack_weights,
+        )
 
     def pf(
         n: Network,
@@ -1784,6 +1811,8 @@ class SubNetworkPowerFlowMixin:
         self,
         snapshots: Sequence | None = None,
         skip_pre: bool = False,
+        distribute_slack: bool = False,
+        slack_weights: str | pd.Series | dict | None = None,
     ) -> None:
         """Linear power flow for connected sub-network.
 
@@ -1795,6 +1824,13 @@ class SubNetworkPowerFlowMixin:
         skip_pre : bool, default False
             Skip the preliminary steps of computing topology, calculating
             dependent values and finding bus controls.
+        distribute_slack : bool, default False
+            Distribute the active power mismatch across generators instead of
+            assigning it to the slack generator.
+        slack_weights : str|pandas.Series|dict, default None
+            Weights for distributed slack. Supported strings are ``"p_set"``,
+            ``"p_nom"`` and ``"p_nom_opt"``. Custom weights may be given for
+            generators or buses. ``None`` uses ``"p_set"``.
 
         """
         sns = as_index(self.n, snapshots, "snapshots")
@@ -1885,6 +1921,80 @@ class SubNetworkPowerFlowMixin:
         else:
             n.c.buses.dynamic.v_ang.loc[sns, buses_o] = v_diff
             n.c.buses.dynamic.v_mag_pu.loc[sns, buses_o] = 1.0
+
+        if distribute_slack:
+            generators_i = self.c.generators.static.query("active").index
+            if len(generators_i) > 0:
+                weights = slack_weights if slack_weights is not None else "p_set"
+                if isinstance(weights, str):
+                    if weights == "p_set":
+                        weight_values = n.get_switchable_as_dense(
+                            "Generator", weights, sns, generators_i
+                        )
+                    elif weights in ("p_nom", "p_nom_opt"):
+                        values = self.c.generators.static.loc[generators_i, weights]
+                        weight_values = pd.DataFrame(
+                            np.tile(values.to_numpy(), (len(sns), 1)),
+                            index=sns,
+                            columns=generators_i,
+                        )
+                    else:
+                        msg = (
+                            "String value for 'slack_weights' must be one of "
+                            "['p_set', 'p_nom', 'p_nom_opt']."
+                        )
+                        raise ValueError(msg)
+                else:
+                    custom_weights = pd.Series(weights, dtype=float)
+                    if custom_weights.index.isin(generators_i).all():
+                        weight_values = pd.DataFrame(
+                            np.tile(
+                                custom_weights.reindex(generators_i).to_numpy(),
+                                (len(sns), 1),
+                            ),
+                            index=sns,
+                            columns=generators_i,
+                        )
+                    elif custom_weights.index.isin(buses_o).all():
+                        weight_values = pd.DataFrame(
+                            0.0, index=sns, columns=generators_i
+                        )
+                        for bus, group in self.c.generators.static.loc[
+                            generators_i
+                        ].groupby("bus"):
+                            bus_weight = custom_weights.get(bus, 0.0)
+                            generator_capacity = self.c.generators.static.loc[
+                                group.index, "p_nom"
+                            ]
+                            if generator_capacity.sum() == 0:
+                                generator_capacity = pd.Series(1.0, index=group.index)
+                            shares = generator_capacity / generator_capacity.sum()
+                            weight_values.loc[:, group.index] = bus_weight * shares
+                    else:
+                        msg = (
+                            "Custom slack weights must only contain generators or "
+                            "buses from the sub-network."
+                        )
+                        raise ValueError(msg)
+
+                row_sums = weight_values.sum(axis=1)
+                if weight_values.isna().all().all() or row_sums.isna().any() or any(
+                    np.isclose(row_sums, 0)
+                ):
+                    msg = "Slack weights must not be all zero."
+                    raise ValueError(msg)
+                weights = weight_values.div(row_sums, axis=0).fillna(0)
+                slack_adjustment = -n.c.buses.dynamic.p.loc[sns, buses_o].sum(axis=1)
+                generator_adjustment = weights.multiply(slack_adjustment, axis=0)
+                n.c.generators.dynamic.p.loc[sns, generators_i] += generator_adjustment
+                bus_adjustment = (
+                    generator_adjustment.T.groupby(
+                        self.c.generators.static.loc[generators_i, "bus"]
+                    )
+                    .sum()
+                    .T.reindex(columns=buses_o, fill_value=0.0)
+                )
+                n.c.buses.dynamic.p.loc[sns, buses_o] += bus_adjustment
 
         # set slack bus power to pick up remained
         slack_adjustment = (
