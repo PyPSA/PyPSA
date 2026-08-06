@@ -2,8 +2,9 @@
 #
 # SPDX-License-Identifier: MIT
 
-import pypsa
 from numpy.testing import assert_allclose
+
+import pypsa
 
 
 def test_lpf_distributed_slack_by_capacity() -> None:

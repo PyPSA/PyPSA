@@ -1978,8 +1978,10 @@ class SubNetworkPowerFlowMixin:
                         raise ValueError(msg)
 
                 row_sums = weight_values.sum(axis=1)
-                if weight_values.isna().all().all() or row_sums.isna().any() or any(
-                    np.isclose(row_sums, 0)
+                if (
+                    weight_values.isna().all().all()
+                    or row_sums.isna().any()
+                    or any(np.isclose(row_sums, 0))
                 ):
                     msg = "Slack weights must not be all zero."
                     raise ValueError(msg)
