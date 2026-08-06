@@ -485,6 +485,19 @@ options._add_option(
     "Values within this tolerance of the boundary are not flagged as inconsistent. "
     "Set to 0 to disable tolerance and flag any violation.",
 )
+# Optimization category
+options._add_option(
+    "optimization.snapshot_representation",
+    "auto",
+    "How multi-period optimization models represent the snapshot dimension. "
+    "'auto' follows linopy's active arithmetic semantics: a MultiIndex on legacy "
+    "linopy, flat '(period, timestep)' tuple labels with 'period'/'timestep' "
+    "auxiliary coordinates under the v1 convention (linopy 0.10+ with "
+    "linopy.options['semantics'] = 'v1'). 'flat' always builds over the flat tuple "
+    "labels (also on legacy linopy). 'multiindex' always keeps the MultiIndex and "
+    "requires legacy semantics. The representation is fixed when the model is "
+    "created; changing the option only affects newly built models.",
+)
 # Warnings category
 options._add_option(
     "warnings.components_store_iter",

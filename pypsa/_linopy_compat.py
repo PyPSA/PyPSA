@@ -43,6 +43,49 @@ def linopy_uses_v1() -> bool:
         return False
 
 
+def resolve_snapshot_representation(sns: pd.Index, option: str) -> str:
+    """Resolve the snapshot representation for a model build from the pypsa option.
+
+    Parameters
+    ----------
+    sns : pandas.Index
+        The snapshots selected for the build.
+    option : str
+        Value of ``pypsa.options.optimization.snapshot_representation``.
+
+    Returns
+    -------
+    str
+        Either ``"flat"`` (tuple-labeled snapshot dim) or ``"multiindex"``.
+
+    Raises
+    ------
+    ValueError
+        If ``option`` is unknown or incompatible with linopy's semantics.
+
+    """
+    if option not in ("auto", "flat", "multiindex"):
+        msg = (
+            f"Invalid snapshot representation '{option}'. Choose 'auto', "
+            "'flat' or 'multiindex'."
+        )
+        raise ValueError(msg)
+    if not isinstance(sns, pd.MultiIndex):
+        return "multiindex"
+    if option == "flat":
+        return "flat"
+    if option == "multiindex":
+        if linopy_uses_v1():
+            msg = (
+                "linopy's v1 semantics forbids a MultiIndex snapshot dimension. "
+                "Build with pypsa.options.optimization.snapshot_representation "
+                "= 'flat' (or 'auto') instead."
+            )
+            raise ValueError(msg)
+        return "multiindex"
+    return "flat" if linopy_uses_v1() else "multiindex"
+
+
 @contextmanager
 def suppress_semantics_warnings() -> Iterator[None]:
     """Silence linopy's legacy->v1 divergence notices for a PyPSA linopy block.

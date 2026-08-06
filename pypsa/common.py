@@ -261,7 +261,8 @@ def as_index(
     if (
         network_attribute == "snapshots"
         and values is not None
-        and n._optimize_flatten_snapshots
+        and not isinstance(values, pd.MultiIndex)
+        and n._optimize_window_snapshots is not None
         and n._model is not None
     ):
         n_attr = n._model.parameters.snapshots.to_index()

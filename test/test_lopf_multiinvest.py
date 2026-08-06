@@ -9,6 +9,8 @@ from numpy.testing import assert_array_almost_equal as equal
 from pandas import IndexSlice as idx
 
 import pypsa
+from pypsa import option_context
+from pypsa._linopy_compat import tuple_snapshot_index
 
 kwargs = {"multi_investment_periods": True}
 
@@ -1188,3 +1190,59 @@ def test_operational_limit_with_investment_period_storage():
     # Total operational value for 2030 should respect the limit
     total_2030 = soc_delta
     assert total_2030 <= 25 + 1e-6  # Allow small numerical tolerance
+
+
+def test_snapshot_representation_default_multiindex(n):
+    n.optimize(**kwargs)
+    assert isinstance(n.model.parameters.snapshots.to_index(), pd.MultiIndex)
+
+
+def test_snapshot_representation_flat(n):
+    with option_context("optimization.snapshot_representation", "flat"):
+        status, cond = n.optimize(**kwargs)
+    assert status == "ok"
+    assert cond == "optimal"
+    assert not isinstance(n.model.parameters.snapshots.to_index(), pd.MultiIndex)
+    pd.testing.assert_index_equal(
+        n.model.parameters.snapshots.to_index(), tuple_snapshot_index(n.snapshots)
+    )
+
+
+def _make_multi_period_network():
+    n = pypsa.Network(snapshots=range(10))
+    n.investment_periods = [2020, 2030, 2040, 2050]
+    n.add("Bus", [1, 2])
+    n.add(
+        "Generator",
+        ["g1", "g2"],
+        bus=[1, 2],
+        p_nom_extendable=True,
+        capital_cost=[10, 20],
+    )
+    n.add("Load", ["l1", "l2"], bus=[1, 2], p_set=1.0)
+    return n
+
+
+def test_snapshot_representation_flat_same_results():
+    ref_n = _make_multi_period_network()
+    flat_n = _make_multi_period_network()
+    ref_n.optimize(**kwargs)
+    with option_context("optimization.snapshot_representation", "flat"):
+        flat_n.optimize(**kwargs)
+    assert flat_n.objective == ref_n.objective
+
+
+def test_snapshot_representation_flat_da_accessor_stable(n):
+    with option_context("optimization.snapshot_representation", "flat"):
+        n.optimize.create_model(**kwargs)
+    da = n.c.generators.da.p_max_pu
+    assert not isinstance(da.indexes["snapshot"], pd.MultiIndex)
+    pd.testing.assert_index_equal(
+        da.indexes["snapshot"], tuple_snapshot_index(n.snapshots)
+    )
+
+
+def test_snapshot_representation_invalid_option(n):
+    with pytest.raises(ValueError):
+        with option_context("optimization.snapshot_representation", "bogus"):
+            n.optimize.create_model(**kwargs)

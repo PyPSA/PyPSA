@@ -71,7 +71,7 @@ class _NetworkABC(ABC):
 
     # Optimization
     _model: linopy.Model | None
-    _optimize_flatten_snapshots: bool
+    _optimize_window_snapshots: pd.Index | None
 
     @property
     @abstractmethod

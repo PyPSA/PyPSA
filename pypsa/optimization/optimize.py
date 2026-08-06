@@ -9,7 +9,6 @@ from __future__ import annotations
 import functools
 import logging
 import warnings
-from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -21,8 +20,8 @@ from linopy.solvers import available_solvers
 
 from pypsa._linopy_compat import (
     drop_snapshot_aux,
-    linopy_uses_v1,
     recompose_snapshot_dim,
+    resolve_snapshot_representation,
     suppress_semantics_warnings,
     tuple_snapshot_index,
 )
@@ -88,7 +87,7 @@ from pypsa.optimization.variables import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import Callable, Sequence
 
     from pypsa import Network, SubNetwork
     from pypsa.components import Links, Processes
@@ -100,43 +99,20 @@ lookup = pd.read_csv(
 )
 
 
-@contextmanager
-def _build_over_flat_snapshots(n: Network, sns: pd.Index) -> Iterator[pd.Index]:
-    """Yield a flat tuple-labeled snapshot dim for the duration of a model build.
-
-    Under v1 a multi-period ``snapshot`` MultiIndex is flattened to its tuple labels
-    (see :mod:`pypsa._linopy_compat`) and the original window stashed for the ``da``
-    accessor and the solution round-trip; under legacy it stays first-class. The
-    flatten flag is cleared on exit while ``_optimize_window_snapshots`` persists for
-    post-build assignment.
-    """
-    is_multiindex = isinstance(sns, pd.MultiIndex)
-    n._optimize_flatten_snapshots = is_multiindex and linopy_uses_v1()
-    if n._optimize_flatten_snapshots:
-        n._optimize_window_snapshots = sns
-        sns = tuple_snapshot_index(sns)
-    with suppress_semantics_warnings():
-        if is_multiindex and not n._optimize_flatten_snapshots:
-            _notify_multiindex_snapshot_kept()
-        try:
-            yield sns
-        finally:
-            n._optimize_flatten_snapshots = False
-
-
 @functools.cache
 def _notify_multiindex_snapshot_kept() -> None:
     """One-shot notice that the multi-period ``snapshot`` stays a MultiIndex.
 
     Under legacy linopy the MultiIndex is kept first-class (unchanged ``n.model``),
     which linopy flags per variable/constraint as deprecated; suppress that spam
-    and inform once. Opting into v1 switches to the flat tuple representation.
+    and inform once. The flat tuple representation can be opted into explicitly.
     """
     logger.info(
-        "Building the multi-period model over a MultiIndex `snapshot`. linopy's v1 "
-        "convention (`linopy.options['semantics'] = 'v1'`) uses a flat `snapshot` "
-        "dim with `period`/`timestep` auxiliary coordinates instead; this becomes "
-        "PyPSA's default in 2.0."
+        "Building the multi-period model over a MultiIndex `snapshot`. The flat "
+        "`snapshot` dim with `period`/`timestep` auxiliary coordinates (linopy's "
+        "v1 convention, `linopy.options['semantics'] = 'v1'`) is enabled via "
+        "`pypsa.options.optimization.snapshot_representation = 'flat'`; this "
+        "becomes PyPSA's default in 2.0."
     )
 
 
@@ -425,9 +401,12 @@ def define_objective(
 
         if n._multi_invest:
             sum_dim = ["name", "period"]
-            cost_weight = (
-                c.da.active.to_series().groupby(sum_dim).any() * period_weighting
-            ).to_xarray()
+            period_weight = xr.DataArray(
+                period_weighting.to_numpy(),
+                coords={"period": period_weighting.index.to_numpy()},
+                dims=["period"],
+            )
+            cost_weight = c.da.active.groupby("period").any("snapshot") * period_weight
         else:
             sum_dim = ["name"]
             cost_weight = c.da.active.sel(name=ext_i).any(dim="snapshot")
@@ -707,6 +686,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         )
 
         n = self._n
+        n._optimize_window_snapshots = None
         sns = as_index(n, snapshots, "snapshots")
         n._multi_invest = int(multi_investment_periods)
         n._linearized_uc = linearized_unit_commitment
@@ -815,7 +795,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         """
         n = self._n
-        n._optimize_flatten_snapshots = False
         n._optimize_window_snapshots = None
         sns = as_index(n, snapshots, "snapshots")
         n._linearized_uc = int(linearized_unit_commitment)
@@ -851,7 +830,16 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         kwargs.setdefault("force_dim_names", True)
         n._model = Model(**kwargs)
 
-        with _build_over_flat_snapshots(n, sns) as sns:
+        representation = resolve_snapshot_representation(
+            sns, options.optimization.snapshot_representation
+        )
+        if representation == "flat":
+            n._optimize_window_snapshots = sns
+            sns = tuple_snapshot_index(sns)
+        elif isinstance(sns, pd.MultiIndex):
+            _notify_multiindex_snapshot_kept()
+
+        with suppress_semantics_warnings():
             n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
             # Define variables

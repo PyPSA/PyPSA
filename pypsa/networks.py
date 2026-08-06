@@ -91,7 +91,6 @@ class Network(
     _multi_invest: int
     _linearized_uc: int
     _committable_big_m: float | None
-    _optimize_flatten_snapshots: bool
     _optimize_window_snapshots: pd.Index | None
     iteration: int
 
@@ -164,7 +163,6 @@ class Network(
         self._objective_constant: float | None = None
         self._multi_invest: int = 0
         self._committable_big_m: float | None = None
-        self._optimize_flatten_snapshots: bool = False
         self._optimize_window_snapshots: pd.Index | None = None
 
         # Initialize accessors

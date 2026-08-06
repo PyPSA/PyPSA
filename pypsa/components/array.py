@@ -359,7 +359,10 @@ class ComponentsArrayMixin(_ComponentsABC):
         if options.debug.runtime_verification:
             _assert_xarray_integrity(self, res)
 
-        if self.n_save._optimize_flatten_snapshots:
+        if (
+            self.n_save._optimize_window_snapshots is not None
+            and self.n_save._model is not None
+        ):
             if "snapshot" in res.dims:
                 res = res.sel(snapshot=self.n_save._optimize_window_snapshots)
             res = flatten_snapshot_dim(res)
