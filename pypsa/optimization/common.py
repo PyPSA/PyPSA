@@ -2,7 +2,21 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Use common methods for optimization problem definition with Linopy."""
+"""Use common methods for optimization problem definition with Linopy.
+
+Snapshot naming convention
+---------------------------
+- ``sns``: snapshots the current model build is constructed over (flat
+  tuple-labeled index under linopy-v1 multi-period builds, plain Index or
+  MultiIndex otherwise).
+- ``window``: the same snapshots as the network indexes them (always the
+  original MultiIndex for multi-period). Only ever produced by ``build_window``.
+- ``period_sns``: per-investment-period subset of ``sns``, as yielded by
+  ``iter_snapshot_periods``.
+
+``snapshots`` is reserved for the public API (``n.optimize(snapshots=...)``,
+``n.snapshots``); ``"snapshot"`` is the model dimension name.
+"""
 
 from __future__ import annotations
 
@@ -30,10 +44,11 @@ if TYPE_CHECKING:
 def build_window(n: Network, sns: pd.Index) -> pd.Index:
     """(Multi)Index snapshots of the current build window.
 
-    While a multi-period model is built over a flat positional ``snapshot`` dim,
-    the original MultiIndex window is stashed on the network; return it. Outside
-    the flat path ``sns`` already *is* the window, so return it unchanged. Single
-    source of truth for the flat position -> period mapping.
+    While a multi-period model is built over a flat tuple-labeled ``snapshot``
+    dim (a plain object index of ``(period, timestep)`` tuples, position-aligned
+    with the window), the original MultiIndex window is stashed on the network;
+    return it. Outside the flat path ``sns`` already *is* the window, so return
+    it unchanged. Single source of truth for the flat position -> period mapping.
     """
     window = n._optimize_window_snapshots
     return sns if window is None else window
@@ -42,9 +57,9 @@ def build_window(n: Network, sns: pd.Index) -> pd.Index:
 def snapshot_weightings(n: Network, sns: pd.Index, kind: str) -> pd.Series:
     """Snapshot weightings of ``kind`` aligned to ``sns``.
 
-    During multi-period model building ``sns`` is a flat positional index, while
-    the weightings are indexed by the window MultiIndex; select by the latter and
-    relabel to the flat index. A no-op relabel outside the flat path.
+    During multi-period model building ``sns`` is a flat tuple-labeled index,
+    while the weightings are indexed by the window MultiIndex; select by the
+    latter and relabel to the flat index. A no-op relabel outside the flat path.
     """
     return n.snapshot_weightings[kind].loc[build_window(n, sns)].set_axis(sns)
 
@@ -52,8 +67,8 @@ def snapshot_weightings(n: Network, sns: pd.Index, kind: str) -> pd.Series:
 def iter_snapshot_periods(n: Network, sns: pd.Index) -> Any:
     """Yield ``(period, snapshots)`` pairs for per-period constraint building.
 
-    Works with the flat positional snapshot dim used during model building: each
-    snapshot's period comes from the build window (aligned by position), so
+    Works with the flat tuple-labeled snapshot dim used during model building:
+    each snapshot's period comes from the build window (aligned by position), so
     ``sns`` need not be a MultiIndex.
     """
     if not n._multi_invest:

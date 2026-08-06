@@ -370,9 +370,9 @@ def define_primary_energy_limit(
             glc = glc_group.loc[scenario]
 
             if isnan(glc.investment_period):
-                snap_sel = sns
+                period_sns = sns
             elif glc.investment_period in periods:
-                snap_sel = sns[period_of == glc.investment_period]
+                period_sns = sns[period_of == glc.investment_period]
             else:
                 continue
 
@@ -395,7 +395,7 @@ def define_primary_energy_limit(
 
             if not gens.empty:
                 gens = gens.loc[scenario]
-                p = m[var_name].sel(name=gens.index, snapshot=snap_sel)
+                p = m[var_name].sel(name=gens.index, snapshot=period_sns)
 
                 if n.has_scenarios:
                     p = p.sel(scenario=scenario, drop=True)
@@ -408,7 +408,7 @@ def define_primary_energy_limit(
                     )
                     if not pw_names.empty:
                         pw_var = primary_energy_pw_var.sel(
-                            name=pw_names, snapshot=snap_sel
+                            name=pw_names, snapshot=period_sns
                         )
                         to_sum.append(pw_var)
                         linear_names = linear_names.difference(pw_names)
@@ -419,12 +419,12 @@ def define_primary_energy_limit(
                         .loc[:, scenario]
                         .loc[window]
                         .set_axis(sns)
-                        .loc[snap_sel, linear_names]
+                        .loc[period_sns, linear_names]
                     )
                     to_sum.append(p.sel(name=linear_names) / efficiency)
                 expr = (
                     sum(to_sum)
-                    * weightings.generators.loc[snap_sel]
+                    * weightings.generators.loc[period_sns]
                     * gens.carrier.map(emissions)
                 ).sum()
                 lhs.append(expr)
@@ -437,7 +437,7 @@ def define_primary_energy_limit(
                 sus = sus.loc[scenario]
                 em_pu = sus.carrier.map(emissions)
                 soc = m["StorageUnit-state_of_charge"].sel(
-                    name=sus.index, snapshot=snap_sel
+                    name=sus.index, snapshot=period_sns
                 )
 
                 if n._multi_invest:
@@ -490,7 +490,7 @@ def define_primary_energy_limit(
             if not stores.empty:
                 stores = stores.loc[scenario]
                 em_pu = stores.carrier.map(emissions)
-                e = m["Store-e"].sel(name=stores.index, snapshot=snap_sel)
+                e = m["Store-e"].sel(name=stores.index, snapshot=period_sns)
 
                 if n._multi_invest:
                     stores_continuous = stores.query("not e_initial_per_period")
@@ -595,24 +595,24 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             glc = glc_group.loc[scenario]
 
             if isnan(glc.investment_period):
-                snap_sel = sns
+                period_sns = sns
             elif glc.investment_period in periods:
-                snap_sel = sns[period_of == glc.investment_period]
+                period_sns = sns[period_of == glc.investment_period]
             else:
                 continue
 
             # Filter weightings and calculate period-specific values
-            weightings_filtered = weightings.loc[snap_sel]
+            weightings_filtered = weightings.loc[period_sns]
             if n._multi_invest:
-                sel_period_of = period_of[sns.isin(snap_sel)]
+                sel_period_of = period_of[sns.isin(period_sns)]
                 period_weighting = n.investment_period_weightings.years[
                     pd.Index(sel_period_of).unique()
                 ]
                 weightings_filtered = weightings_filtered.mul(
-                    period_weighting.loc[sel_period_of].set_axis(snap_sel), axis=0
+                    period_weighting.loc[sel_period_of].set_axis(period_sns), axis=0
                 )
                 period_last_sns, storage_weightings = _period_last_storage_weightings(
-                    snap_sel, sel_period_of, period_weighting
+                    period_sns, sel_period_of, period_weighting
                 )
 
             lhs = []
@@ -623,7 +623,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             )
             if not gens.empty:
                 gens = gens.loc[scenario]
-                p = m["Generator-p"].sel(name=gens.index, snapshot=snap_sel)
+                p = m["Generator-p"].sel(name=gens.index, snapshot=period_sns)
                 if n.has_scenarios:
                     p = p.sel(scenario=scenario, drop=True)
 
@@ -642,7 +642,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             if not sus.empty:
                 sus = sus.loc[scenario]
                 soc = m["StorageUnit-state_of_charge"].sel(
-                    name=sus.index, snapshot=snap_sel
+                    name=sus.index, snapshot=period_sns
                 )
 
                 if n._multi_invest:
@@ -691,7 +691,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             )
             if not stores.empty:
                 stores = stores.loc[scenario]
-                e = m["Store-e"].sel(name=stores.index, snapshot=snap_sel)
+                e = m["Store-e"].sel(name=stores.index, snapshot=period_sns)
 
                 if n._multi_invest:
                     stores_continuous = stores.query("not e_initial_per_period")

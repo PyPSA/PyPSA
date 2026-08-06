@@ -143,8 +143,9 @@ def _notify_multiindex_snapshot_kept() -> None:
 def _model_snapshots_index(n: Network) -> pd.Index:
     """Model snapshots as the network sees them (MultiIndex for multi-period).
 
-    Multi-period models are built over a flat positional snapshot dim; restore the
-    original ``n.snapshots`` MultiIndex for solution assignment and post-processing.
+    Multi-period models are built over a flat tuple-labeled snapshot dim; restore
+    the original ``n.snapshots`` MultiIndex for solution assignment and
+    post-processing.
     """
     return build_window(n, n.model.parameters.snapshots.to_index())
 
@@ -1075,10 +1076,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """Map solution to network components."""
         n = self._n
         m = n.model
-        sns = _model_snapshots_index(n)
+        window = _model_snapshots_index(n)
 
         if not n.c.transformers.empty:
-            setpoint = n.get_switchable_as_dense("Transformer", "phase_shift", sns)
+            setpoint = n.get_switchable_as_dense("Transformer", "phase_shift", window)
             _set_dynamic_data(n, "Transformer", "phase_shift_opt", setpoint)
 
         for name, variable in m.variables.items():
@@ -1152,7 +1153,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     for i in ports:
                         i_suffix = c._port_suffix(i)
                         eff_attr = c._port_coefficient_attr(i)
-                        eff = n.get_switchable_as_dense(c.name, eff_attr, sns)
+                        eff = n.get_switchable_as_dense(c.name, eff_attr, window)
                         port_df = -df * eff
                         if c.has_piecewise(eff_attr):
                             df_piecewise = _from_xarray(
@@ -1165,12 +1166,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                             c,
                             f"delay{i_suffix}",
                             f"cyclic_delay{i_suffix}",
-                            sns,
+                            window,
                             n,
                         )
                         _set_dynamic_data(n, c.name, f"p{i}", port_df)
                         c.dynamic[f"p{i}"].loc[
-                            sns, c.static.index[c.static[f"bus{i}"] == ""]
+                            window, c.static.index[c.static[f"bus{i}"] == ""]
                         ] = float(c.defaults.loc[f"p{i}", "default"])
 
                 else:
@@ -1304,7 +1305,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         power injection per bus and snapshot, voltage angle.
         """
         n = self._n
-        sns = _model_snapshots_index(n)
+        window = _model_snapshots_index(n)
 
         check_big_m_exceeded(n)
 
@@ -1313,18 +1314,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             period_weighting = n.investment_period_weightings.objective
             weightings = n.snapshot_weightings.objective.mul(
                 period_weighting, level=0, axis=0
-            ).loc[sns]
+            ).loc[window]
         else:
-            weightings = n.snapshot_weightings.objective.loc[sns]
+            weightings = n.snapshot_weightings.objective.loc[window]
 
-        n.c.buses.dynamic.marginal_price.loc[sns] = (
-            n.c.buses.dynamic.marginal_price.loc[sns].divide(weightings, axis=0)
+        n.c.buses.dynamic.marginal_price.loc[window] = (
+            n.c.buses.dynamic.marginal_price.loc[window].divide(weightings, axis=0)
         )
 
         # load
         if len(n.loads):
             _set_dynamic_data(
-                n, "Load", "p", n.get_switchable_as_dense("Load", "p_set", sns)
+                n, "Load", "p", n.get_switchable_as_dense("Load", "p_set", window)
             )
 
         # line losses
@@ -1367,7 +1368,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
                 buses_i = sub.buses_o
                 if len(buses_i) == 1:
-                    return pd.DataFrame(0, index=sns, columns=buses_i)
+                    return pd.DataFrame(0, index=window, columns=buses_i)
                 sub.calculate_B_H(skip_pre=True)
                 Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
                 Z -= Z[sub.slack_bus]
