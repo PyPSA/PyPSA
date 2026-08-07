@@ -237,6 +237,7 @@ def define_objective(
         window = build_window(n, sns)
         periods = window.unique("period")
         period_weighting = n.investment_period_weightings.objective[periods]
+        period_weight = xr.DataArray(period_weighting)
 
     # constant for already done investment
     if include_objective_constant:
@@ -261,9 +262,7 @@ def define_objective(
                 active_by_period = (
                     c.da.active.sel(name=ext_i).astype(int).groupby("period").max() > 0
                 )
-                active_weight = (active_by_period * xr.DataArray(period_weighting)).sum(
-                    "period"
-                )
+                active_weight = (active_by_period * period_weight).sum("period")
                 weighted_cost = active_weight * periodic_cost
             else:
                 active = c.da.active.sel(name=ext_i).any(dim="snapshot")
@@ -401,11 +400,6 @@ def define_objective(
 
         if n._multi_invest:
             sum_dim = ["name", "period"]
-            period_weight = xr.DataArray(
-                period_weighting.to_numpy(),
-                coords={"period": period_weighting.index.to_numpy()},
-                dims=["period"],
-            )
             cost_weight = c.da.active.groupby("period").any("snapshot") * period_weight
         else:
             sum_dim = ["name"]

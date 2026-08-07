@@ -50,7 +50,7 @@ def build_window(n: Network, sns: pd.Index) -> pd.Index:
     return it. Outside the flat path ``sns`` already *is* the window, so return
     it unchanged. Single source of truth for the flat position -> period mapping.
     """
-    window = n._optimize_window_snapshots
+    window = n._flat_snapshot_window
     return sns if window is None else window
 
 

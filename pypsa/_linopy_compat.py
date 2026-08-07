@@ -72,18 +72,16 @@ def resolve_snapshot_representation(sns: pd.Index, option: str) -> str:
         raise ValueError(msg)
     if not isinstance(sns, pd.MultiIndex):
         return "multiindex"
-    if option == "flat":
-        return "flat"
-    if option == "multiindex":
-        if linopy_uses_v1():
-            msg = (
-                "linopy's v1 semantics forbids a MultiIndex snapshot dimension. "
-                "Build with pypsa.options.optimization.snapshot_representation "
-                "= 'flat' (or 'auto') instead."
-            )
-            raise ValueError(msg)
-        return "multiindex"
-    return "flat" if linopy_uses_v1() else "multiindex"
+    if option == "auto":
+        return "flat" if linopy_uses_v1() else "multiindex"
+    if option == "multiindex" and linopy_uses_v1():
+        msg = (
+            "linopy's v1 semantics forbids a MultiIndex snapshot dimension. "
+            "Build with pypsa.options.optimization.snapshot_representation "
+            "= 'flat' (or 'auto') instead."
+        )
+        raise ValueError(msg)
+    return option
 
 
 @contextmanager

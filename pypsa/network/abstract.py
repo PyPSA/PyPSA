@@ -74,6 +74,11 @@ class _NetworkABC(ABC):
     _optimize_window_snapshots: pd.Index | None
 
     @property
+    def _flat_snapshot_window(self) -> pd.Index | None:
+        """Window (Multi)Index of a live model built over flat snapshot labels."""
+        return self._optimize_window_snapshots if self._model is not None else None
+
+    @property
     @abstractmethod
     def has_scenarios(self) -> bool:
         """Read only placeholder."""
