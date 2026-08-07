@@ -10,7 +10,7 @@ from pandas import IndexSlice as idx
 
 import pypsa
 from pypsa import option_context
-from pypsa._linopy_compat import tuple_snapshot_index
+from pypsa._linopy_compat import linopy_uses_v1, tuple_snapshot_index
 
 kwargs = {"multi_investment_periods": True}
 
@@ -1192,9 +1192,10 @@ def test_operational_limit_with_investment_period_storage():
     assert total_2030 <= 25 + 1e-6  # Allow small numerical tolerance
 
 
-def test_snapshot_representation_default_multiindex(n):
+def test_snapshot_representation_default_follows_semantics(n):
     n.optimize(**kwargs)
-    assert isinstance(n.model.parameters.snapshots.to_index(), pd.MultiIndex)
+    snapshots = n.model.parameters.snapshots.to_index()
+    assert isinstance(snapshots, pd.MultiIndex) is not linopy_uses_v1()
 
 
 def test_snapshot_representation_flat(n):

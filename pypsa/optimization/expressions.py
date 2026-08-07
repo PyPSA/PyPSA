@@ -102,7 +102,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         return obj.indexes["name"]
 
     def _concat_periods(self, exprs: dict[str, LinearExpression], c: str) -> Any:
-        return ln.merge(list(exprs.values()), dim=c)
+        periods = self._n.investment_periods
+        res = ln.merge(list(exprs.values()), dim=periods.name)
+        return res.assign_coords({periods.name: periods})
 
     def _aggregate_with_weights(
         self,
@@ -282,7 +284,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         if c == "Load":
             sns = m.parameters.snapshots.to_index()
             return LinearExpression.from_constant(
-                m, self._n.get_switchable_as_dense(c, "p_set").loc[sns]
+                m, self._n.get_switchable_as_dense(c, "p_set", snapshots=sns)
             )
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
