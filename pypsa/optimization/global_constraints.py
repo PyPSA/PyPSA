@@ -410,7 +410,7 @@ def define_primary_energy_limit(
                         pw_var = primary_energy_pw_var.sel(
                             name=pw_names, snapshot=period_sns
                         )
-                        to_sum.append(pw_var)
+                        to_sum.append(pw_var.to_linexpr())
                         linear_names = linear_names.difference(pw_names)
 
                 if not linear_names.empty:
@@ -422,10 +422,14 @@ def define_primary_energy_limit(
                         .loc[period_sns, linear_names]
                     )
                     to_sum.append(p.sel(name=linear_names) / efficiency)
+                dispatch = to_sum[0]
+                for term in to_sum[1:]:
+                    dispatch = dispatch.add(term, join="outer")
+                emission_rate = gens.carrier.map(emissions).reindex(
+                    dispatch.indexes["name"]
+                )
                 expr = (
-                    sum(to_sum)
-                    * weightings.generators.loc[period_sns]
-                    * gens.carrier.map(emissions)
+                    dispatch * weightings.generators.loc[period_sns] * emission_rate
                 ).sum()
                 lhs.append(expr)
 

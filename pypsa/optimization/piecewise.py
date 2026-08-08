@@ -16,6 +16,7 @@ import xarray as xr
 from linopy import Model, Slopes, Variable, breakpoints
 from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, EvolvingAPIWarning
 
+from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
@@ -168,7 +169,10 @@ def define_piecewise(
             if masked.all():
                 active = None
             else:
-                active = status.to_linexpr().reindex(name=names).where(~masked, 1)
+                # `.where(..., 1)` resolves the absent slots to always-active, so
+                # legacy and v1 agree; silence linopy's notice about them.
+                with suppress_semantics_warnings():
+                    active = status.to_linexpr().reindex(name=names).where(~masked, 1)
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=EvolvingAPIWarning)

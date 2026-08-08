@@ -402,5 +402,8 @@ class TestExpressionsWithPiecewise:
         n.optimize.create_model(include_objective_constant=False)
         withdrawal = n.optimize.expressions.withdrawal().unstack("group")
         supply = n.optimize.expressions.supply().unstack("group")
-        assert "-1 Process-p0_piecewise" in str(withdrawal.sel(component="Process"))
+        # linopy renders the leading term without a space after its sign; term
+        # order is not part of the contract, so compare sign-normalised.
+        terms = str(withdrawal.sel(component="Process")).replace("- ", "-")
+        assert "-1 Process-p0_piecewise" in terms
         assert "p0_piecewise" not in str(supply.sel(component="Process"))

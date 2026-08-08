@@ -449,7 +449,8 @@ class TestDefinePiecewise:
             active_names=pd.Index(["gen1"], name="name"),
             **default_kwargs,
         )
-        assert result == linopy_model["y_static"]
+        assert result.name == "y_static"
+        assert list(result.indexes["name"]) == ["gen1"]
         assert "foo_static" not in linopy_model.variables
 
     @pytest.mark.parametrize(

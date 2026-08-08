@@ -434,7 +434,8 @@ def define_objective(
                     )
                     raise ValueError(msg)
                 ext_i = ext_i.difference(pw_names)
-                capex_terms.append((piecewise_var * cost_weight).sum(dim=sum_dim))
+                pw_weight = cost_weight.sel(name=pw_names)
+                capex_terms.append((piecewise_var * pw_weight).sum(dim=sum_dim))
 
         periodic_cost = c.periodized_cost.sel(name=ext_i)
         # Linear capital cost for non-piecewise components
@@ -442,9 +443,8 @@ def define_objective(
             periodic_cost.size > 0 and not (periodic_cost == 0).all()
         ):
             caps_lin = m[f"{c.name}-{attr}"].sel(name=ext_i)
-            capex_terms.append(
-                (caps_lin * cost_weight * periodic_cost).sum(dim=sum_dim)
-            )
+            lin_weight = cost_weight.sel(name=ext_i)
+            capex_terms.append((caps_lin * lin_weight * periodic_cost).sum(dim=sum_dim))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841

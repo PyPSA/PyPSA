@@ -126,7 +126,23 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         # component merges drop a conflicting aux coord; all are handled
         # identically here under legacy and v1, so silence linopy's notices.
         with suppress_semantics_warnings():
-            return super()._aggregate_components(*args, **kwargs)
+            res = super()._aggregate_components(*args, **kwargs)
+        return self._restack_flat_groups(res)
+
+    def _restack_flat_groups(self, expr: Any) -> Any:
+        """Give a flat-``group`` expression the legacy stacked group index.
+
+        Under v1 the grouping keys ride as auxiliary coordinates on a flat
+        ``group`` dim; restack them so the public return shape is the same in both
+        modes. A no-op on a live ``group`` MultiIndex (no key aux coords).
+        """
+        if not isinstance(expr, LinearExpression) or "group" not in expr.dims:
+            return expr
+        keys = self._group_key_coords(expr)
+        if not keys:
+            return expr
+        indexed = expr.set_index(group=keys)
+        return indexed.rename(group=keys[0]) if len(keys) == 1 else indexed
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
         return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())
@@ -348,15 +364,17 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             else:
                 return None
 
-            costs = c.static[cost_attribute][capacity.indexes["name"]]
-
             if c.has_piecewise(cost_attribute):
                 add_capex = m.variables[c._piecewise_aux_var(cost_attribute)]
                 capacity = capacity.drop_sel(name=add_capex.coords["name"])
             else:
-                add_capex = 0
+                add_capex = None
 
-            return capacity * costs + add_capex
+            costs = c.static[cost_attribute][capacity.indexes["name"]]
+            capex = capacity * costs
+            if add_capex is None:
+                return capex
+            return capex.add(add_capex, join="outer")
 
         return self._aggregate_components(
             func,
@@ -506,9 +524,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 add_opex = n.model.variables[c_obj._piecewise_aux_var(attr)]
                 var = var.drop_sel(name=add_opex.coords["name"])
             else:
-                add_opex = 0
+                add_opex = None
 
-            opex = var * n.get_switchable_as_dense(c, attr).loc[sns] + add_opex
+            cost = n.get_switchable_as_dense(c, attr).loc[sns, var.indexes["name"]]
+            opex = var * cost
+            if add_opex is not None:
+                opex = opex.add(add_opex, join="outer")
 
             weights = n.snapshot_weightings.objective.loc[sns]
             return self._aggregate_timeseries(opex, weights, agg=groupby_time)
@@ -671,7 +692,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             weights = n.snapshot_weightings.generators.loc[sns]
             coeffs = DataArray(dynamic_efficiency * sign)
 
-            pw_var = 0
+            pw_var = None
             if isinstance(c, _Multiport) and c.has_piecewise(
                 y_attr := c._port_coefficient_attr(port)
             ):
@@ -696,7 +717,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
 
-            expr = expr + pw_var
+            if pw_var is not None:
+                # Zeroing the piecewise coefficients above left absent slots, which
+                # would swallow the piecewise term under v1; resolve them to 0 first.
+                expr = expr.fillna(0).add(pw_var, join="outer")
             return self._aggregate_timeseries(expr, weights, agg=groupby_time)
 
         return self._aggregate_components(
