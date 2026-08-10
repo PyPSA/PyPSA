@@ -604,7 +604,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
             sns = var.indexes["snapshot"]
-            idx = transmission_branches.get_loc_level(c)[1].rename(c)
+            idx = transmission_branches.get_loc_level(c)[1].rename("name")
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
             if isinstance(efficiency, pd.DataFrame):
                 efficiency = on_snapshots(n, efficiency, sns)
