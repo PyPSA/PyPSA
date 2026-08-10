@@ -62,10 +62,12 @@ nav:
       - Dispatch Limits: user-guide/optimization/dispatch-limits.md
       - Capacity Limits: user-guide/optimization/capacity-limits.md
       - Unit Commitment: user-guide/optimization/unit-commitment.md
+      - Maintenance Scheduling: user-guide/optimization/maintenance-scheduling.md
       - Storage: user-guide/optimization/storage.md
       - Power Flow: user-guide/optimization/power-flow.md
       - Contingencies: user-guide/optimization/contingencies.md
       - Global Constraints: user-guide/optimization/global-constraints.md
+      - Piecewise Constraints: user-guide/optimization/piecewise.md
       - Custom Constraints: user-guide/optimization/custom-constraints.md
       - Pathway Planning: user-guide/optimization/pathway-planning.md
       - Stochastic Optimization: user-guide/optimization/stochastic.md
@@ -94,6 +96,7 @@ nav:
     - examples/simple-electricity-market-examples.ipynb
     - examples/unit-commitment.ipynb
     - examples/uc-prices.ipynb
+    - examples/maintenance-scheduling.ipynb
     - examples/ac-dc-lopf.ipynb
     - examples/scigrid-lopf-then-pf.ipynb
     - examples/scigrid-sclopf.ipynb
@@ -131,6 +134,7 @@ nav:
     - examples/reserve-power.ipynb
     - examples/transport-delay.ipynb
     - examples/periodic-operational-limits.ipynb
+    - examples/piecewise-constraints.ipynb
   - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
     - examples/gsa.ipynb
@@ -307,6 +311,10 @@ plugins:
     default_handler: python
     handlers:
       python:
+        inventories:
+        - https://docs.python.org/3/objects.inv
+        - https://pandas.pydata.org/docs/objects.inv
+        - https://linopy.readthedocs.io/en/latest/objects.inv
         options:
           docstring_style: numpy
           docstring_options:

@@ -77,6 +77,7 @@ class Component:
         n: Any | None = None,
         static: pd.DataFrame | None = None,
         dynamic: Dict | None = None,
+        piecewise: Dict | None = None,
     ) -> Any:
         # Deprecation warnings
         if (name and ctype is not None) or (not name and ctype is None):
@@ -102,5 +103,7 @@ class Component:
             instance.static = static
         if dynamic is not None:
             instance.dynamic = dynamic
+        if piecewise is not None:
+            instance.piecewise = piecewise
 
         return instance

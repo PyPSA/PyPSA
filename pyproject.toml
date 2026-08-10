@@ -36,7 +36,7 @@ dependencies = [
     "xarray",
     "netcdf4",
     "linopy>=0.8.0",
-    "matplotlib!=3.11.0", # faceted plots crash on 3.11.0, see matplotlib#31881
+    "matplotlib",
     "plotly",
     "pydeck>=0.6",
     "seaborn",
@@ -46,7 +46,7 @@ dependencies = [
     "deprecation",
     "validators",
     "highspy",
-    "levenshtein>=0.27.1",
+    "rapidfuzz>=3.9.0",
     "platformdirs",
 ]
 
@@ -76,7 +76,6 @@ dev = [
     "pytest-mpl",
     "coverage",
     "pyarrow",
-    "matplotlib<3.11", # remove when uv.lock is tracked
     "pypower",
     "pandapower>=2.14.11",
     "scikit-learn",
@@ -137,9 +136,13 @@ filterwarnings = [
     # Ignore linopy warnings
     "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
     "ignore:In a future version of xarray the default value for join will change:FutureWarning",
+    "ignore::linopy.constants.EvolvingAPIWarning",
 
     # Ignore pandas<3.0.3 usage of the deprecated `locs` attribute of matplotlib>=3.11
     "ignore:The locs attribute was deprecated:DeprecationWarning",
+
+    # Ignore seaborn's usage of the deprecated `vert` kwarg of matplotlib>=3.11
+    "ignore:vert. bool was deprecated:DeprecationWarning",
 
     # numpy>=2.5 deprecations not yet handled by netCDF4 and matplotlib
     "ignore:Setting the shape on a NumPy array has been deprecated:DeprecationWarning",

@@ -276,7 +276,7 @@ def as_index(
     else:
         values_ = pd.Index(values, name=n_attr.names[0])
 
-    if force_subset and not all(val in n_attr for val in values_):
+    if force_subset and not values_.isin(n_attr).all():
         msg = (
             f"Values must be a subset of the network attribute "
             f"'{network_attribute}'. Pass force_subset=False to disable this check."
@@ -972,8 +972,8 @@ def normalize_carrier_nice_names(
     if isinstance(carrier, str):
         carriers = [carrier]
         scalar = True
-    elif isinstance(carrier, list):
-        carriers = carrier
+    elif is_list_like(carrier):
+        carriers = list(carrier)
         scalar = False
     else:
         return carrier
