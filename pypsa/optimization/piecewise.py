@@ -133,7 +133,7 @@ def define_piecewise(
             c.name,
         )
         return None
-    x_breakpoints, y_breakpoints = _get_breakpoints(
+    x_breakpoints, y_breakpoints, valid = _get_breakpoints(
         c, pw_attr, pw_names, cumulative_attr, invert_attr
     )
 
@@ -179,6 +179,7 @@ def define_piecewise(
             m.add_piecewise_formulation(
                 (y_var.sel(name=names), y_breakpoints.sel(name=names), opt_sign),
                 (x_var.sel(name=names), x_breakpoints.sel(name=names)),
+                mask=valid.sel(name=names),
                 method=opt_method,
                 name=aux,
                 active=active,
@@ -223,8 +224,12 @@ def _get_breakpoints(
     pw_names: pd.Index,
     cumulative_attr: bool,
     invert_attr: bool,
-) -> tuple[xr.DataArray, xr.DataArray]:
-    """Convert piecewise data to linopy breakpoints for piecewise constraint."""
+) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
+    """Convert piecewise data to linopy breakpoints and their validity mask.
+
+    Ragged curves are stored densely; the mask declares which slots hold a real
+    breakpoint, which linopy requires rather than inferring it from NaN padding.
+    """
     piecewise_df = c.piecewise[pw_attr][pw_names]
     piecewise_attrs = c._piecewise_schema(pw_attr)
 
@@ -270,7 +275,7 @@ def _get_breakpoints(
             y_breakpoints = breakpoints(
                 (y_da * x_da).fillna(0).where(valid_breakpoints)
             )
-    return x_breakpoints, y_breakpoints
+    return x_breakpoints, y_breakpoints, valid_breakpoints
 
 
 def _create_y_var(
