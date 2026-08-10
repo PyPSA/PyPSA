@@ -1727,3 +1727,26 @@ def test_ramp_limit_stochastic_optimization_bug():
     for scenario in n.scenarios:
         diff = p[scenario].diff().dropna()
         assert (diff.abs() <= ramp * p_nom + tol).all()
+
+
+def test_active_inactive_assets_per_scenario():
+    """Per-scenario activeness keeps active/inactive assets mutually exclusive."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Generator", "g", bus="bus", p_nom_extendable=True)
+    n.add("Generator", "h", bus="bus", p_nom_extendable=True)
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+
+    # Deactivate g only in scenario "b" (do not run consistency_check).
+    n.c.generators.static.loc[("b", "g"), "active"] = False
+
+    c = n.c.generators
+    active, inactive = c.active_assets, c.inactive_assets
+
+    # g is active in at least one scenario, so it must not be inactive.
+    assert "g" in active
+    assert "g" not in inactive
+    # Documented invariant: the two sets partition the names.
+    assert active.intersection(inactive).empty
+    # Model index must keep g (pre-fix it was dropped via .difference).
+    assert "g" in c.extendables.difference(inactive)
