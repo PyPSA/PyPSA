@@ -972,8 +972,8 @@ def normalize_carrier_nice_names(
     if isinstance(carrier, str):
         carriers = [carrier]
         scalar = True
-    elif isinstance(carrier, list):
-        carriers = carrier
+    elif is_list_like(carrier):
+        carriers = list(carrier)
         scalar = False
     else:
         return carrier
