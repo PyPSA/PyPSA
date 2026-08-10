@@ -186,7 +186,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         n.c.lines.static["carrier"] = n.c.lines.static.bus0.map(
             n.c.buses.static.carrier
         )
-        ext_i = n.c.lines.extendables.difference(n.c.lines.inactive_assets)
+        ext_i = n.c.lines.extendables.intersection(n.c.lines.active_assets)
         typed_i = n.c.lines.static.query('type != ""').index
         ext_untyped_i = ext_i.difference(typed_i)
         ext_typed_i = ext_i.intersection(typed_i)

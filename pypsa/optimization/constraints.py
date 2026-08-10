@@ -104,7 +104,7 @@ def define_operational_constraints_for_non_extendables(
 
     """
     c = as_components(n, component)
-    fix_i = c.fixed.difference(c.committables).difference(c.inactive_assets)
+    fix_i = c.fixed.difference(c.committables).intersection(c.active_assets)
     maint_fix_i = c.maintainables.intersection(fix_i)
 
     if fix_i.empty:
@@ -194,7 +194,7 @@ def define_operational_constraints_for_extendables(
     c = as_components(n, component)
     sns = as_index(n, sns, "snapshots")
 
-    ext_i = c.extendables.difference(c.inactive_assets)
+    ext_i = c.extendables.intersection(c.active_assets)
     com_ext_i = c.committables.intersection(ext_i)
     ext_i = ext_i.difference(com_ext_i)
 
@@ -287,7 +287,7 @@ def define_operational_constraints_for_committables(
 
     """
     c = as_components(n, component)
-    com_i = c.committables.difference(c.inactive_assets)
+    com_i = c.committables.intersection(c.active_assets)
 
     if com_i.empty:
         return
@@ -299,7 +299,7 @@ def define_operational_constraints_for_committables(
     p = n.model[f"{c.name}-p"].sel(name=com_i)
     active = c.da.active.sel(name=com_i, snapshot=sns)
 
-    ext_i = c.extendables.difference(c.inactive_assets)
+    ext_i = c.extendables.intersection(c.active_assets)
     com_ext_i = com_i.intersection(ext_i).difference(c.modulars)
     com_fix_i = com_i.difference(ext_i)
 
@@ -341,7 +341,7 @@ def define_operational_constraints_for_committables(
         down_time_before_set = down_time_before.clip(max=min_down_time_set)
         initially_down = down_time_before_set.astype(bool)
 
-    maint_i = c.maintainables.difference(c.inactive_assets)
+    maint_i = c.maintainables.intersection(c.active_assets)
 
     if not com_ext_i.empty:
         p_nom_var = n.model[f"{c.name}-{c._operational_attrs['nom']}"]
@@ -742,7 +742,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
 
     """
     c = n.c[component]
-    maint_i = c.maintainables.difference(c.inactive_assets)
+    maint_i = c.maintainables.intersection(c.active_assets)
 
     if maint_i.empty:
         return
@@ -803,7 +803,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
             mask=forbidden,
         )
 
-    ext_i = c.extendables.difference(c.inactive_assets)
+    ext_i = c.extendables.intersection(c.active_assets)
     modular_com = c.modulars.intersection(c.committables)
     maint_ext_i = maint_i.intersection(ext_i).difference(modular_com)
     if not maint_ext_i.empty:
@@ -872,7 +872,7 @@ def define_nominal_constraints_for_extendables(
 
     """
     c = as_components(n, component)
-    ext_i = c.extendables.difference(c.inactive_assets)
+    ext_i = c.extendables.intersection(c.active_assets)
 
     if ext_i.empty:
         return
@@ -1618,7 +1618,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
             C_branch = DataArray(C_weighted.loc[c])
             flow = m[f"{c}-s"].sel(
                 snapshot=snapshots,
-                name=C_branch.indexes["name"].difference(n.c[c].inactive_assets),
+                name=C_branch.indexes["name"].intersection(n.c[c].active_assets),
             )
             exprs.append(flow @ C_branch * 1e5)
         lhs_period = sum(exprs)
@@ -1629,7 +1629,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
             C_trafos = C_plain.loc["Transformer"]
 
             tr = n.c.Transformer
-            active = tr.static.loc[C_trafos.index.difference(tr.inactive_assets)]
+            active = tr.static.loc[C_trafos.index.intersection(tr.active_assets)]
             varying = active["phase_shift_min"] < active["phase_shift_max"]
 
             contributions = [(active.index[~varying], tr.da["phase_shift"])]

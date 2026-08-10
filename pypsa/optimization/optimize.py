@@ -207,7 +207,7 @@ def define_objective(
 
         for c_name, attr in nom_attr:
             c = as_components(n, c_name)
-            ext_i = c.extendables.difference(c.inactive_assets)
+            ext_i = c.extendables.intersection(c.active_assets)
 
             if ext_i.empty:
                 continue
@@ -337,7 +337,7 @@ def define_objective(
     # stand-by cost
     for c_name in ["Generator", "Link", "Process"]:
         c = as_components(n, c_name)
-        com_i = c.committables.difference(c.inactive_assets)
+        com_i = c.committables.intersection(c.active_assets)
 
         if com_i.empty:
             continue
@@ -356,7 +356,7 @@ def define_objective(
     # investment
     for c_name, attr in nominal_attrs.items():
         c = as_components(n, c_name)
-        ext_i = c.extendables.difference(c.inactive_assets)
+        ext_i = c.extendables.intersection(c.active_assets)
 
         if ext_i.empty:
             continue
@@ -417,7 +417,7 @@ def define_objective(
     keys = ["start_up", "shut_down"]  # noqa: F841
     for c_name, attr in lookup.query("variable in @keys").index:
         c = as_components(n, c_name)
-        com_i = c.committables.difference(c.inactive_assets)
+        com_i = c.committables.intersection(c.active_assets)
 
         if com_i.empty:
             continue
@@ -1327,7 +1327,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n = self._n
         for c, attr in nominal_attrs.items():
             c = n.components[c]
-            ext_i = c.extendables.difference(c.inactive_assets)
+            ext_i = c.extendables.intersection(c.active_assets)
             c.static.loc[ext_i, attr] = c.static.loc[ext_i, attr + "_opt"]
             c.static[attr + "_extendable"] = False
 
