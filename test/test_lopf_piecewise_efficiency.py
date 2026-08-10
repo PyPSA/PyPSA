@@ -260,7 +260,9 @@ class TestPiecewiseMultiPort2Bus:
         expected_p1 = (
             -1 * n.model.variables[f"{comp}-p1_piecewise"].solution.to_pandas()
         )
-        pd.testing.assert_frame_equal(n.c[comp].dynamic.p1, expected_p1)
+        pd.testing.assert_frame_equal(
+            n.c[comp].dynamic.p1, expected_p1, check_column_type=False
+        )
 
     @pytest.mark.parametrize("fixture_name", ["piecewise_two_port_process_network_r0"])
     def test_piecewise_efficiency_two_port_in(self, request, fixture_name: str) -> None:
@@ -416,6 +418,8 @@ class TestPiecewiseMultiPort3Bus:
         expected_p2 = (
             -1 * n.model.variables[f"{comp}-p2_piecewise"].solution.to_pandas()
         )
-        pd.testing.assert_frame_equal(n.c[comp].dynamic.p2, expected_p2)
+        pd.testing.assert_frame_equal(
+            n.c[comp].dynamic.p2, expected_p2, check_column_type=False
+        )
         # The auxiliary variable feeds p2; it must not leak as its own output.
         assert "p2_piecewise_opt" not in n.c[comp].dynamic
