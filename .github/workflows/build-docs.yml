@@ -33,7 +33,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install uv
-        uv sync --extra docs --upgrade
+        uv sync --extra docs --frozen
 
     - name: Gurobi license
       run: |
