@@ -1016,7 +1016,7 @@ def define_ramp_limit_constraints(
     if c.static.empty:
         return
 
-    idx = c.static.index
+    idx = c.active_assets
     kwargs = {"level": "name"} if isinstance(idx, pd.MultiIndex) else {}
     is_ext = idx.isin(c.extendables, **kwargs)
     is_com = idx.isin(c.committables, **kwargs)
@@ -1025,11 +1025,11 @@ def define_ramp_limit_constraints(
     is_com_ext_mod = is_com & is_ext & is_modular
     is_com_fix = is_com & ~is_com_ext
 
-    limit_up = c.da.ramp_limit_up.sel(snapshot=sns)
-    limit_down = c.da.ramp_limit_down.sel(snapshot=sns)
-    limit_start = c.da.ramp_limit_start_up
-    limit_shut = c.da.ramp_limit_shut_down
-    mask = c.da.active.sel(snapshot=sns)
+    limit_up = c.da.ramp_limit_up.sel(snapshot=sns, name=idx)
+    limit_down = c.da.ramp_limit_down.sel(snapshot=sns, name=idx)
+    limit_start = c.da.ramp_limit_start_up.sel(name=idx)
+    limit_shut = c.da.ramp_limit_shut_down.sel(name=idx)
+    mask = c.da.active.sel(snapshot=sns, name=idx)
 
     no_up_limit = limit_up.isnull() & limit_start.isnull()
     no_down_limit = limit_down.isnull() & limit_shut.isnull()
@@ -1046,9 +1046,9 @@ def define_ramp_limit_constraints(
     filter_first_sn = DataArray([1] + [0] * (len(sns) - 1), coords=[sns])
 
     nom_mod_attr = c._operational_attrs["nom_mod"]
-    p_nom = c.da[nom_attr].where(~is_ext, 0)
+    p_nom = c.da[nom_attr].sel(name=idx).where(~is_ext, 0)
     if is_com_ext_mod.any():
-        p_nom = p_nom.where(~is_com_ext_mod, c.da[nom_mod_attr])
+        p_nom = p_nom.where(~is_com_ext_mod, c.da[nom_mod_attr].sel(name=idx))
     is_ext_main = is_ext & ~is_com_ext & ~is_com_ext_mod
     p_nom_ext_var = None
     if is_ext_main.any():
@@ -1065,11 +1065,11 @@ def define_ramp_limit_constraints(
 
     if is_rolling_horizon:
         start_i = n.snapshots.get_loc(sns[0]) - 1
-        p_init = c.da[hist_attr][start_i]
-        s_init = c.da.status[start_i].where(c.da.committable, 1).fillna(1)
+        p_init = c.da[hist_attr][start_i].sel(name=idx)
+        s_init = c.da.status[start_i].where(c.da.committable, 1).fillna(1).sel(name=idx)
     else:
-        initially_up = c.da.up_time_before > 0
-        p_init = c.da.p_init.where(initially_up, 0)
+        initially_up = c.da.up_time_before.sel(name=idx) > 0
+        p_init = c.da.p_init.sel(name=idx).where(initially_up, 0)
         s_init = initially_up
         mask[0] = p_init.notnull()
 
@@ -1731,7 +1731,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     c = as_components(n, component)
 
     # Get components that are both extendable and modular
-    mod_i = c.extendables.intersection(c.modulars)
+    mod_i = c.extendables.intersection(c.modulars).difference(c.inactive_assets)
 
     # Unique component names for modular components (in absence of c.modulars helper)
     if isinstance(mod_i, pd.MultiIndex):
@@ -1799,7 +1799,7 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
     m = n.model
 
     # Get committable, modular, and non-extendable component indices
-    com_i = c.committables
+    com_i = c.committables.difference(c.inactive_assets)
     mod_i = c.modulars
     fix_i = c.fixed
 
@@ -1905,7 +1905,7 @@ def define_committability_variables_constraints_with_variable_upper_limit(
     m = n.model
 
     # Get committable, extendable, and modular component indices
-    com_i = c.committables
+    com_i = c.committables.difference(c.inactive_assets)
     ext_i = c.extendables
     mod_i = c.modulars
 

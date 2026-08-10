@@ -1248,3 +1248,65 @@ def test_ramp_limit_shut_down_first_snapshot_with_slack():
     assert abs(slack_output[0] - 4500.0) < 1e-3, (
         f"Snapshot 0: Expected slack output 4500.0, got {slack_output[0]}"
     )
+
+
+@pytest.mark.parametrize(
+    "generator_kwargs",
+    [
+        {},
+        {"p_nom_extendable": True, "p_nom_mod": 50},
+        {"ramp_limit_up": 0.5},
+    ],
+    ids=["fixed", "extendable-modular", "ramp-limited"],
+)
+def test_inactive_committable_generator(generator_kwargs):
+    """Inactive committables get no status variable, so must not be constrained.
+
+    See https://github.com/PyPSA/PyPSA/issues/1850.
+    """
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Generator", "active", bus="bus", p_nom=100, marginal_cost=50)
+    n.add(
+        "Generator",
+        "inactive",
+        bus="bus",
+        p_nom=100,
+        committable=True,
+        active=False,
+        marginal_cost=60,
+        **generator_kwargs,
+    )
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    n.optimize.create_model(include_objective_constant=True)
+
+    assert "Generator-status" not in n.model.variables
+
+
+def test_inactive_asset_with_modular_committable_ramp():
+    """Ramp limits on a modular extendable committable, alongside any inactive asset.
+
+    See https://github.com/PyPSA/PyPSA/issues/1850.
+    """
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Generator", "backup", bus="bus", p_nom=500, marginal_cost=200)
+    n.add(
+        "Generator",
+        "com_mod_ext",
+        bus="bus",
+        p_nom_extendable=True,
+        p_nom_mod=50,
+        p_nom_max=200,
+        committable=True,
+        marginal_cost=12,
+        ramp_limit_up=0.5,
+    )
+    n.add("Generator", "inactive", bus="bus", p_nom=100, active=False, marginal_cost=99)
+    n.add("Load", "load", bus="bus", p_set=120)
+
+    n.optimize.create_model(include_objective_constant=False)
+
+    ramp_up = n.model.constraints["Generator-p-ramp_limit_up"]
+    assert "inactive" not in ramp_up.indexes["name"]
