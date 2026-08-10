@@ -988,23 +988,19 @@ class _ExporterHDF5(_Exporter):
         self._hdf5_handle.close()
 
 
-def _open_netcdf_lowmem(path: Path) -> xr.Dataset:
-    """Open a netCDF file without expanding variable-length strings.
+def _open_netcdf(path: Path) -> xr.Dataset:
+    """Open a netCDF file, reading variable-length strings as object arrays.
 
-    xarray coerces variable-length string variables to fixed-width dtypes,
-    padding every entry to the longest string and quadrupling it as UTF-32.
-    For length-skewed columns such as geometry WKT this explodes memory, so
-    those variables are read as object arrays through the netCDF4 backend.
+    xarray pads them to the longest entry and stores them as UTF-32, which
+    explodes memory for length-skewed columns such as geometry WKT.
     """
     with netCDF4.Dataset(path) as nc:
-        str_data = {
-            name: (var.dimensions, np.asarray(var[:], dtype=object))
+        strings = {
+            name: (var.dimensions, var[:])
             for name, var in nc.variables.items()
-            if var.dtype == str and name not in nc.dimensions
+            if var.dtype == str
         }
-    ds = xr.open_dataset(path, drop_variables=list(str_data))
-    ds.update(str_data)
-    return ds
+    return xr.open_dataset(path, drop_variables=strings).assign(strings)
 
 
 class _ImporterNetCDF(_Importer):
@@ -1024,9 +1020,9 @@ class _ImporterNetCDF(_Importer):
         self.path = path
         if isinstance(path, (str | Path)):
             if validators.url(str(path)):
-                self.ds = _retrieve_from_url(str(path), _open_netcdf_lowmem)
+                self.ds = _retrieve_from_url(str(path), _open_netcdf)
             else:
-                self.ds = _open_netcdf_lowmem(Path(path))
+                self.ds = _open_netcdf(Path(path))
         else:
             self.ds = path
 

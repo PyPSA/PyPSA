@@ -246,7 +246,7 @@ class TestNetcdf:
             check_less_precise=True,
         )
 
-    def test_netcdf_io_shapes_lowmem(self, tmpdir):
+    def test_netcdf_io_shapes_memory(self, tmpdir):
         import tracemalloc
 
         import numpy as np
