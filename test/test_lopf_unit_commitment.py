@@ -1261,10 +1261,7 @@ def test_ramp_limit_shut_down_first_snapshot_with_slack():
 )
 @pytest.mark.parametrize("committable", [False, True], ids=["sole", "alongside-active"])
 def test_inactive_committable_generator(generator_kwargs, committable):
-    """Inactive committables get no status variable, so must not be constrained.
-
-    See https://github.com/PyPSA/PyPSA/issues/1850.
-    """
+    """Inactive committables get no status variable, so must not be constrained."""
     n = pypsa.Network(snapshots=range(2))
     n.add("Bus", "bus")
     n.add(
@@ -1297,10 +1294,7 @@ def test_inactive_committable_generator(generator_kwargs, committable):
 
 
 def test_inactive_committable_generator_multi_investment():
-    """Narrowing to active assets must not drop assets active in only some periods.
-
-    See https://github.com/PyPSA/PyPSA/issues/1850.
-    """
+    """Narrowing to active assets must not drop assets active in only some periods."""
     n = pypsa.Network(snapshots=range(2))
     n.investment_periods = [2020, 2030]
     n.add("Bus", "bus")
@@ -1345,10 +1339,7 @@ def test_inactive_committable_generator_multi_investment():
 
 
 def test_inactive_asset_with_modular_committable_ramp():
-    """Ramp limits on a modular extendable committable, alongside any inactive asset.
-
-    See https://github.com/PyPSA/PyPSA/issues/1850.
-    """
+    """Ramp limits on a modular extendable committable, alongside any inactive asset."""
     n = pypsa.Network(snapshots=range(3))
     n.add("Bus", "bus")
     n.add("Generator", "backup", bus="bus", p_nom=500, marginal_cost=200)

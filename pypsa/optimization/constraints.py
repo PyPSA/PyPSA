@@ -1730,7 +1730,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     c = as_components(n, component)
 
     # Get components that are both extendable and modular
-    mod_i = c.extendables.intersection(c.modulars).difference(c.inactive_assets)
+    mod_i = c.extendables.intersection(c.modulars).intersection(c.active_assets)
 
     # Unique component names for modular components (in absence of c.modulars helper)
     if isinstance(mod_i, pd.MultiIndex):
@@ -1798,7 +1798,7 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
     m = n.model
 
     # Get committable, modular, and non-extendable component indices
-    com_i = c.committables.difference(c.inactive_assets)
+    com_i = c.committables.intersection(c.active_assets)
     mod_i = c.modulars
     fix_i = c.fixed
 
@@ -1904,7 +1904,7 @@ def define_committability_variables_constraints_with_variable_upper_limit(
     m = n.model
 
     # Get committable, extendable, and modular component indices
-    com_i = c.committables.difference(c.inactive_assets)
+    com_i = c.committables.intersection(c.active_assets)
     ext_i = c.extendables
     mod_i = c.modulars
 
