@@ -1259,14 +1259,26 @@ def test_ramp_limit_shut_down_first_snapshot_with_slack():
     ],
     ids=["fixed", "extendable-modular", "ramp-limited"],
 )
-def test_inactive_committable_generator(generator_kwargs):
+@pytest.mark.parametrize("committable", [False, True], ids=["sole", "alongside-active"])
+def test_inactive_committable_generator(generator_kwargs, committable):
     """Inactive committables get no status variable, so must not be constrained.
+
+    With ``committable`` the commitment index is narrowed but non-empty, so the
+    constraints are built rather than skipped by their empty-index guards.
 
     See https://github.com/PyPSA/PyPSA/issues/1850.
     """
     n = pypsa.Network(snapshots=range(2))
     n.add("Bus", "bus")
-    n.add("Generator", "active", bus="bus", p_nom=100, marginal_cost=50)
+    n.add(
+        "Generator",
+        "active",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=50,
+        committable=committable,
+        **(generator_kwargs if committable else {}),
+    )
     n.add(
         "Generator",
         "inactive",
@@ -1279,9 +1291,60 @@ def test_inactive_committable_generator(generator_kwargs):
     )
     n.add("Load", "load", bus="bus", p_set=50)
 
-    n.optimize.create_model(include_objective_constant=True)
+    n.optimize.create_model(include_objective_constant=False)
 
-    assert "Generator-status" not in n.model.variables
+    if committable:
+        assert "inactive" not in n.model.variables["Generator-status"].indexes["name"]
+    else:
+        assert "Generator-status" not in n.model.variables
+
+
+def test_inactive_committable_generator_multi_investment():
+    """Narrowing to active assets must not drop assets active in only some periods.
+
+    See https://github.com/PyPSA/PyPSA/issues/1850.
+    """
+    n = pypsa.Network(snapshots=range(2))
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "active",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=50,
+        committable=True,
+        ramp_limit_up=0.5,
+    )
+    n.add(
+        "Generator",
+        "later",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=70,
+        committable=True,
+        ramp_limit_up=0.5,
+        build_year=2030,
+        lifetime=20,
+    )
+    n.add(
+        "Generator",
+        "inactive",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=60,
+        committable=True,
+        active=False,
+    )
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    n.optimize.create_model(
+        include_objective_constant=False, multi_investment_periods=True
+    )
+
+    names = n.model.variables["Generator-status"].indexes["name"]
+    assert "inactive" not in names
+    assert "later" in names
 
 
 def test_inactive_asset_with_modular_committable_ramp():
