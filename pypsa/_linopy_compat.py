@@ -17,11 +17,13 @@ unchanged. This shim is temporary; it goes away once v1 is linopy's default.
 
 from __future__ import annotations
 
+import inspect
 import warnings
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+from linopy import Model
 from linopy import options as linopy_options
 
 if TYPE_CHECKING:
@@ -33,6 +35,12 @@ except ImportError:  # linopy without the v1 semantics option
     LinopySemanticsWarning = None
 
 SNAPSHOT_LEVELS = ("period", "timestep")
+
+# Ragged piecewise curves are stored densely. Only linopy with the v1 semantics
+# lets the absent slots be declared; older releases infer them from NaN padding.
+SUPPORTS_BREAKPOINT_MASK = (
+    "mask" in inspect.signature(Model.add_piecewise_formulation).parameters
+)
 
 
 def linopy_uses_v1() -> bool:

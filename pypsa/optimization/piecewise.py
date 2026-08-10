@@ -16,7 +16,10 @@ import xarray as xr
 from linopy import Model, Slopes, Variable, breakpoints
 from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, EvolvingAPIWarning
 
-from pypsa._linopy_compat import suppress_semantics_warnings
+from pypsa._linopy_compat import (
+    SUPPORTS_BREAKPOINT_MASK,
+    suppress_semantics_warnings,
+)
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
@@ -174,12 +177,15 @@ def define_piecewise(
                 with suppress_semantics_warnings():
                     active = status.to_linexpr().reindex(name=names).where(~masked, 1)
 
+        mask_kwargs = (
+            {"mask": valid.sel(name=names)} if SUPPORTS_BREAKPOINT_MASK else {}
+        )
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
             m.add_piecewise_formulation(
                 (y_var.sel(name=names), y_breakpoints.sel(name=names), opt_sign),
                 (x_var.sel(name=names), x_breakpoints.sel(name=names)),
-                mask=valid.sel(name=names),
+                **mask_kwargs,
                 method=opt_method,
                 name=aux,
                 active=active,
