@@ -1017,10 +1017,9 @@ def define_ramp_limit_constraints(
         return
 
     idx = c.active_assets
-    kwargs = {"level": "name"} if isinstance(idx, pd.MultiIndex) else {}
-    is_ext = idx.isin(c.extendables, **kwargs)
-    is_com = idx.isin(c.committables, **kwargs)
-    is_modular = idx.isin(c.modulars, **kwargs)
+    is_ext = idx.isin(c.extendables)
+    is_com = idx.isin(c.committables)
+    is_modular = idx.isin(c.modulars)
     is_com_ext = is_com & is_ext & ~is_modular
     is_com_ext_mod = is_com & is_ext & is_modular
     is_com_fix = is_com & ~is_com_ext
