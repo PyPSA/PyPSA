@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import xarray as xr
+from pandas.api.types import is_list_like
 
 from pypsa._options import options
 from pypsa.descriptors import nominal_attrs
@@ -416,7 +417,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         if branch_outages is None:
             branch_outages = all_passive_branches
-        elif isinstance(branch_outages, (list | pd.Index)) and not isinstance(
+        elif is_list_like(branch_outages) and not isinstance(
             branch_outages, pd.MultiIndex
         ):
             branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])

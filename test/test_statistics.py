@@ -414,7 +414,8 @@ def network_with_nice_name():
     return n
 
 
-def test_energy_balance_bus_carrier_filter():
+@pytest.mark.parametrize("bus_carrier", ["rural heat", ("rural heat",), ["rural heat"]])
+def test_energy_balance_bus_carrier_filter(bus_carrier):
     n = pypsa.Network()
     n.set_snapshots([0])
     n.add("Carrier", "rural heat")
@@ -428,7 +429,7 @@ def test_energy_balance_bus_carrier_filter():
     )
     n.c.loads.dynamic.p = n.c.loads.dynamic.p_set.copy()
 
-    result = n.statistics.energy_balance(bus_carrier="rural heat")
+    result = n.statistics.energy_balance(bus_carrier=bus_carrier)
     assert not result.empty
     assert "bus_carrier" in result.index.names
     assert "rural heat" in result.index.get_level_values("bus_carrier")
