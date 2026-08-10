@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-name: Build docs (execute notebooks)
+name: Run docs notebooks
 
 on:
   schedule:
@@ -33,12 +33,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install uv
-        uv sync --extra docs --upgrade
+        uv sync --extra docs --frozen
 
     - name: Gurobi license
-      run: |
-        printf '%b' "$GUROBI_LIC" > $HOME/gurobi.lic
-        python -c "p='$HOME/gurobi.lic';open(p,'w').write(open(p).read().replace(chr(39),''))"
+      run: printf '%s' "$GUROBI_LIC" > $HOME/gurobi.lic
       env:
         GUROBI_LIC: ${{ secrets.GUROBI_LIC }}
 

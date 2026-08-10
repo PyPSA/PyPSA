@@ -157,8 +157,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         Returns
         -------
-        pd.Series
-            List of inactive assets
+        pd.Index
+            List of active assets
 
         See Also
         --------
@@ -169,7 +169,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         return active_assets[active_assets].index.unique("name")
 
     @property
-    def inactive_assets(self) -> pd.Series:
+    def inactive_assets(self) -> pd.Index:
         """Get list of inactive assets.
 
         <!-- md:badge-version v1.0.0 -->
@@ -183,7 +183,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         Returns
         -------
-        pd.Series
+        pd.Index
             List of inactive assets
 
         Examples
@@ -213,8 +213,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         [pypsa.Components.get_active_assets][]
 
         """
-        active_assets = self.get_active_assets()
-        return active_assets[~active_assets].index.get_level_values("name").unique()
+        return self.names.difference(self.active_assets)
 
     def filter_by_active_assets(
         self,
