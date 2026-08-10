@@ -37,8 +37,8 @@ jobs:
 
     - name: Gurobi license
       run: |
-        printf '%b' "$GUROBI_LIC" > $HOME/gurobi.lic
-        python -c "p='$HOME/gurobi.lic';open(p,'w').write(open(p).read().replace(chr(39),''))"
+        printf '%s' "$GUROBI_LIC" > $HOME/gurobi.lic
+        python -c "t=open('$HOME/gurobi.lic').read().splitlines();print('lines:',len(t));print('keys:',[l.split('=')[0].strip() for l in t if '=' in l and not l.strip().startswith('#')])"
       env:
         GUROBI_LIC: ${{ secrets.GUROBI_LIC }}
 
