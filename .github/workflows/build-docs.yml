@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+name: Build docs (execute notebooks)
+
+on:
+  schedule:
+  - cron: "0 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: build-docs
+  cancel-in-progress: true
+
+permissions:
+  contents: write   # to push docs-notebooks branch
+
+jobs:
+  execute-notebooks:
+    name: Execute notebooks
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: 3.13
+
+    - name: Install dependencies
+      run: |
+        python -m pip install uv
+        uv sync --extra docs --upgrade
+
+    - name: Gurobi license
+      run: |
+        printf '%b' "$GUROBI_LIC" > $HOME/gurobi.lic
+        python -c "p='$HOME/gurobi.lic';open(p,'w').write(open(p).read().replace(chr(39),''))"
+      env:
+        GUROBI_LIC: ${{ secrets.GUROBI_LIC }}
+
+    - name: Execute notebooks
+      run: |
+        PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi \
+          uv run jupyter nbconvert --to notebook --execute --inplace \
+          $(git ls-files 'docs/**/*.ipynb')
+
+    - name: Publish to docs-notebooks branch
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git switch -C docs-notebooks
+        git add -f $(git ls-files -c -o 'docs/**/*.ipynb')
+        git commit -m "docs: execute notebooks [skip ci]"
+        git push -f origin docs-notebooks
