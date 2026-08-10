@@ -1263,9 +1263,6 @@ def test_ramp_limit_shut_down_first_snapshot_with_slack():
 def test_inactive_committable_generator(generator_kwargs, committable):
     """Inactive committables get no status variable, so must not be constrained.
 
-    With ``committable`` the commitment index is narrowed but non-empty, so the
-    constraints are built rather than skipped by their empty-index guards.
-
     See https://github.com/PyPSA/PyPSA/issues/1850.
     """
     n = pypsa.Network(snapshots=range(2))
