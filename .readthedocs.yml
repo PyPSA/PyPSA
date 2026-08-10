@@ -24,6 +24,9 @@ build:
     - python -c "p=\"$HOME/gurobi.lic\";t=open(p).read().replace(chr(39),\"\");open(p,\"w\").write(t)"
       # To create all doctest files
     - PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi uv run pytest test/test_docs.py --test-docs
+      # Overlay pre-executed notebooks from the docs-notebooks branch (built daily by build-docs.yml)
+    - git fetch origin docs-notebooks || true
+    - git checkout origin/docs-notebooks -- ':(glob)docs/**/*.ipynb' || true
 
 mkdocs:
   configuration: mkdocs.yml
