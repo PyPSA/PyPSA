@@ -9,16 +9,18 @@ from __future__ import annotations
 import logging
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Collection, Sequence
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pandas as pd
+from pandas.api.types import is_list_like
 
 from pypsa._options import options
 from pypsa.common import normalize_carrier_nice_names
 from pypsa.statistics.grouping import groupers
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Sequence
+
     from pypsa import Network, NetworkCollection
     from pypsa.components.components import PortsLike
 
@@ -81,10 +83,11 @@ class AbstractStatisticsAccessor(ABC):
                 by = groupby(n, c, port=port, nice_names=nice_names)
             except TypeError:
                 by = groupby(n, c, nice_names=nice_names)
-        elif isinstance(groupby, (str | list)):
-            by = groupers[groupby](n, c, port=port, nice_names=nice_names)
+        elif isinstance(groupby, str) or is_list_like(groupby):
+            key = cast("str | Sequence[str]", groupby)
+            by = groupers[key](n, c, port=port, nice_names=nice_names)
         elif groupby is not False:
-            msg = f"Argument `groupby` must be a string, list, callable, or False, got {repr(groupby)}."
+            msg = f"Argument `groupby` must be a string, list-like, callable, or False, got {repr(groupby)}."
             raise ValueError(msg)
         return {"by": by, "level": level}
 
@@ -293,10 +296,10 @@ class AbstractStatisticsAccessor(ABC):
                 mask = port_carriers == bus_carrier
             else:
                 mask = port_carriers.str.contains(bus_carrier, regex=True)
-        elif isinstance(bus_carrier, list):
+        elif is_list_like(bus_carrier):
             mask = port_carriers.isin(bus_carrier)
         else:
-            msg = f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
+            msg = f"Argument `bus_carrier` must be a string or list-like, got {type(bus_carrier)}"
             raise TypeError(msg)
         # links may have empty ports which results in NaNs
         mask = mask.where(mask.notnull(), False)
@@ -321,10 +324,12 @@ class AbstractStatisticsAccessor(ABC):
                 mask = carriers == carrier
             else:
                 mask = carriers.str.contains(carrier)
-        elif isinstance(carrier, Sequence):
+        elif is_list_like(carrier):
             mask = carriers.isin(carrier)
         else:
-            msg = f"Argument `carrier` must be a string or list, got {type(carrier)}"
+            msg = (
+                f"Argument `carrier` must be a string or list-like, got {type(carrier)}"
+            )
             raise TypeError(msg)
 
         return obj.loc[carriers.index[mask]]
