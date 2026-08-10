@@ -9,6 +9,14 @@ from numpy.testing import assert_almost_equal as equal
 import pypsa
 
 
+def _n_security_constraints(model):
+    return sum(
+        int((c.labels.values != -1).sum())
+        for name, c in model.constraints.items()
+        if "security" in name
+    )
+
+
 def test_optimize_security_constrained(scipy_network):
     """Test security-constrained optimization functionality and dual variable assignment."""
     n = scipy_network
@@ -84,6 +92,35 @@ def test_optimize_security_constrained(scipy_network):
         name for name in n.model.dual.data_vars if "security" in name
     ]
     assert len(security_constraints) == 4, "Should have four security constraint duals"
+
+
+def test_optimize_security_constrained_threshold(scipy_network):
+    """A BODF threshold drops negligible contingency constraints."""
+    n = scipy_network
+    for line_name in ["316", "527", "602"]:
+        n.c.lines.static.loc[line_name, "s_nom"] = 1200
+    branch_outages = n.c.lines.static.index[:2]
+
+    counts = {}
+    for threshold in (0.0, 0.05, 1.1):
+        n.optimize.optimize_security_constrained(
+            n.snapshots[0], branch_outages=branch_outages, threshold=threshold
+        )
+        counts[threshold] = _n_security_constraints(n.model)
+
+    assert counts[0.0] > counts[0.05] > counts[1.1] == 0
+
+
+def test_optimize_security_constrained_num_parallel_warning(caplog):
+    n = pypsa.Network()
+    n.add("Bus", ["bus1", "bus2"])
+    n.add("Line", "line1", bus0="bus1", bus1="bus2", x=0.1, s_nom=100, num_parallel=2)
+    n.add("Generator", "gen1", bus="bus1", marginal_cost=10, p_nom=100)
+    n.add("Load", "load1", bus="bus2", p_set=50)
+
+    n.optimize.optimize_security_constrained()
+
+    assert "num_parallel > 1" in caplog.text
 
 
 def test_optimize_security_constrained_multiindex_branch_outages():
