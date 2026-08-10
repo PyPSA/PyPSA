@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_list_like
 
 from pypsa._options import options
 from pypsa.common import (
@@ -2830,7 +2831,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def prices(  # noqa: D417
         self,
-        groupby: bool | str | Sequence[str] = False,
+        groupby: Literal[False] | str | Sequence[str] = False,
         weighting: str = "load",
         groupby_time: bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -2897,7 +2898,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             keys = []
         elif isinstance(groupby, str):
             keys = [groupby]
-        elif isinstance(groupby, (list, tuple)):
+        elif is_list_like(groupby):
             keys = list(groupby)
         else:
             msg = f"Grouping prices by {groupby!r} is not supported."

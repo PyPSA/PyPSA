@@ -698,6 +698,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             ):
                 pw = sign * n.model.variables[c._piecewise_aux_var(y_attr)]
                 names = pw.coords["name"].values
+                # pandas 3 returns read-only views, so copy before writing
+                coeffs = coeffs.copy()
                 coeffs.loc[{"name": names}] = 0
                 pw_var = _direct_piecewise(c, y_attr, sign, pw, names, direction)
 
