@@ -983,3 +983,25 @@ class TestPortEfficiency:
         result = port_efficiency(mixed_link_eff, component, port=3, dynamic=True)
         expected = mixed_link_eff.components[component].dynamic[f"{eff_param}3"]
         pd.testing.assert_frame_equal(result, expected)
+
+
+def test_1144():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1144.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.c.generators.static["build_year"] = [2020, 2020, 2030, 2030, 2040, 2040]
+    n.investment_periods = [2020, 2030, 2040]
+    capacity = n.statistics.installed_capacity(components="Generator")
+    assert capacity[2020].sum() < capacity[2030].sum() < capacity[2040].sum()
+
+
+def test_statistics_groupby_time_true():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1534.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+    result = n.statistics.revenue(groupby_time=True)
+    expected = n.statistics.revenue(groupby_time="sum")
+    pd.testing.assert_series_equal(result, expected)

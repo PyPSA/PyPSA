@@ -372,6 +372,46 @@ class TestNetcdf:
         )
         assert custom_equals(n, n2, ignore_attrs=ignore)
 
+    def test_779(self):
+        """
+        Importing from xarray dataset.
+        See https://github.com/PyPSA/PyPSA/issues/779.
+        """
+        n1 = pypsa.Network()
+        n1.add("Bus", "bus")
+        xarr = n1.export_to_netcdf()
+        n2 = pypsa.Network()
+        n2.import_from_netcdf(xarr)
+
+    def test_1522(self, tmp_path):
+        """
+        NetCDF export corrupts dynamic attributes with direct DataFrame assignment.
+        See https://github.com/PyPSA/PyPSA/issues/1522.
+        """
+        fn = tmp_path / "test.nc"
+
+        n = pypsa.Network()
+        n.set_snapshots(range(3))
+        n.add("Bus", ["bus0", "bus1"])
+        n.add("Generator", ["gen0", "gen1"], bus=["bus0", "bus1"], p_nom=100)
+        n.add("Link", ["link0", "link1"], bus0=["bus0", "bus1"], bus1=["bus1", "bus0"])
+
+        # Direct assignment without proper column name
+        n.generators_t.marginal_cost = pd.DataFrame(
+            {"gen0": [10.0, 20.0, 30.0], "gen1": [15.0, 25.0, 35.0]},
+            index=n.snapshots,
+        )
+        n.links_t.marginal_cost = pd.DataFrame(
+            {"link0": [1.0, 2.0, 3.0], "link1": [0.5, 1.5, 2.5]},
+            index=n.snapshots,
+        )
+
+        n.export_to_netcdf(fn)
+        m = pypsa.Network(fn)
+
+        assert set(m.generators_t.marginal_cost.columns) == {"gen0", "gen1"}
+        assert set(m.links_t.marginal_cost.columns) == {"link0", "link1"}
+
 
 @pytest.mark.skipif(not tables_installed, reason="PyTables not installed")
 class TestHDF5:
@@ -611,6 +651,21 @@ class TestExcelIO:
             m.c.storage_units.dynamic.efficiency_dispatch,
             n.c.storage_units.dynamic.efficiency_dispatch,
         )
+
+    def test_1268(self, tmpdir):
+        """
+        Excel import without snapshots sheet should not raise KeyError.
+        See https://github.com/PyPSA/PyPSA/issues/1268.
+        """
+        fn = str(tmpdir / "no_snapshots.xlsx")
+
+        buses = pd.DataFrame({"v_nom": [132]}, index=["bus1"])
+        with pd.ExcelWriter(fn, engine="openpyxl") as writer:
+            buses.to_excel(writer, sheet_name="buses")
+
+        n = pypsa.Network()
+        n.import_from_excel(fn)
+        assert len(n.c.buses.static) == 1
 
 
 @pytest.mark.skipif(
