@@ -54,14 +54,22 @@ def build_window(n: Network, sns: pd.Index) -> pd.Index:
     return sns if window is None else window
 
 
-def snapshot_weightings(n: Network, sns: pd.Index, kind: str) -> pd.Series:
-    """Snapshot weightings of ``kind`` aligned to ``sns``.
+def on_snapshots(n: Network, obj: pd.DataFrame | pd.Series, sns: pd.Index) -> Any:
+    """Snapshot-indexed pandas object on the build's ``sns`` labels.
 
-    During multi-period model building ``sns`` is a flat tuple-labeled index,
-    while the weightings are indexed by the window MultiIndex; select by the
-    latter and relabel to the flat index. A no-op relabel outside the flat path.
+    During multi-period model building ``sns`` is a flat tuple-labeled index while
+    pandas objects stay indexed by the window MultiIndex; select by the latter and
+    relabel to the flat index. A no-op relabel outside the flat path. The index
+    name is carried over, as linopy derives the dimension name from it.
     """
-    return n.snapshot_weightings[kind].loc[build_window(n, sns)].set_axis(sns)
+    labels = sns.copy()
+    labels.name = obj.index.name
+    return obj.loc[build_window(n, sns)].set_axis(labels)
+
+
+def snapshot_weightings(n: Network, sns: pd.Index, kind: str) -> pd.Series:
+    """Snapshot weightings of ``kind`` aligned to ``sns``."""
+    return on_snapshots(n, n.snapshot_weightings[kind], sns)
 
 
 def iter_snapshot_periods(n: Network, sns: pd.Index) -> Any:

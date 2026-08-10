@@ -407,3 +407,30 @@ class TestExpressionsWithPiecewise:
         terms = str(withdrawal.sel(component="Process")).replace("- ", "-")
         assert "-1 Process-p0_piecewise" in terms
         assert "p0_piecewise" not in str(supply.sel(component="Process"))
+
+
+def test_multi_period_supply_withdrawal_energy_balance():
+    """Multi-period expressions aggregate over time and are non-empty.
+
+    Regression test for the multi-period ``supply``/``withdrawal``/``energy_balance``
+    returning an empty ``+0`` expression because the snapshot-weighted aggregation
+    called a non-existent ``LinearExpression.multiply``.
+    """
+    n = pypsa.Network(snapshots=range(4))
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=5)
+    n.add("Load", "load", bus="bus", p_set=40)
+    n.optimize.create_model(include_objective_constant=False)
+
+    supply = n.optimize.expressions.supply()
+    withdrawal = n.optimize.expressions.withdrawal()
+    energy_balance = n.optimize.expressions.energy_balance()
+
+    assert "period" in supply.dims
+    assert not supply.empty
+    assert not withdrawal.empty
+    assert not energy_balance.empty
+    # supply and withdrawal must carry generator / load terms respectively
+    assert "Generator-p" in str(supply)
+    assert "Load" in str(withdrawal)

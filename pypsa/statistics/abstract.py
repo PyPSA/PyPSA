@@ -249,7 +249,11 @@ class AbstractStatisticsAccessor(ABC):
         self, n: Network | NetworkCollection, c: str, obj: Any
     ) -> Any:
         """For static values iterate over periods and concat values."""
-        if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
+        if (
+            isinstance(obj, pd.DataFrame)
+            or "snapshot" in getattr(obj, "dims", [])
+            or "period" in getattr(obj, "dims", [])
+        ):
             return obj
         idx = self._get_component_index(obj, c)
 
