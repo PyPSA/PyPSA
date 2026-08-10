@@ -2831,7 +2831,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def prices(  # noqa: D417
         self,
-        groupby: bool | str | Sequence[str] = False,
+        groupby: Literal[False] | str | Sequence[str] = False,
         weighting: str = "load",
         groupby_time: bool = True,
         bus_carrier: Sequence[str] | str | None = None,
