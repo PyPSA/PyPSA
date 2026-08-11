@@ -1724,9 +1724,8 @@ def test_ramp_limit_stochastic_optimization_bug():
 
     p = n.c["Generator"].dynamic["p"].xs("g", axis=1, level="name")
     tol = 1e-6
-    for scenario in n.scenarios:
-        diff = p[scenario].diff().dropna()
-        assert (diff.abs() <= ramp * p_nom + tol).all()
+    diff = p.diff().dropna()
+    assert (diff.abs() <= ramp * p_nom + tol).all().all()
 
 
 def test_active_inactive_assets_per_scenario():
