@@ -160,6 +160,14 @@ def test_multi_period_matches_statistics(solved_multi_period, pair):
     compare(solved_multi_period, pair)
 
 
+@pytest.mark.parametrize("pair", DYNAMIC_PAIRS, ids=lambda p: p[0])
+@pytest.mark.parametrize("groupby_time", ["sum", "mean"])
+def test_multi_period_time_aggregation_matches_statistics(
+    solved_multi_period, pair, groupby_time
+):
+    compare(solved_multi_period, pair, groupby_time=groupby_time)
+
+
 @pytest.mark.parametrize(
     "pair",
     [pair for pair in ALL_PAIRS if pair[0] not in SNAPSHOT_EXTENT_SENSITIVE],

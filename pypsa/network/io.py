@@ -1340,7 +1340,7 @@ class NetworkIOMixin(_NetworkABC):
             "iterate_components",
             "_name",
             "_pypsa_version",
-            "_optimize_window_snapshots",
+            "_optimize_window",
         }
 
         _attrs = {}

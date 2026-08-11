@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from pypsa.components.store import ComponentsStore
+    from pypsa.optimization.window import SnapshotWindow
 
 
 class _NetworkABC(ABC):
@@ -71,12 +72,12 @@ class _NetworkABC(ABC):
 
     # Optimization
     _model: linopy.Model | None
-    _optimize_window_snapshots: pd.Index | None
+    _optimize_window: SnapshotWindow | None
 
     @property
-    def _flat_snapshot_window(self) -> pd.Index | None:
-        """Window (Multi)Index of a live model built over flat snapshot labels."""
-        return self._optimize_window_snapshots if self._model is not None else None
+    def _snapshot_window(self) -> SnapshotWindow | None:
+        """Snapshot window of the live model build, if any."""
+        return self._optimize_window if self._model is not None else None
 
     @property
     @abstractmethod

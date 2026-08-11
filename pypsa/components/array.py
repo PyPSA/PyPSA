@@ -17,7 +17,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypsa._linopy_compat import flatten_snapshot_dim
 from pypsa._options import options
 from pypsa.common import (
     UnexpectedError,
@@ -359,10 +358,8 @@ class ComponentsArrayMixin(_ComponentsABC):
         if options.debug.runtime_verification:
             _assert_xarray_integrity(self, res)
 
-        window = self.n_save._flat_snapshot_window
+        window = self.n_save._snapshot_window
         if window is not None:
-            if "snapshot" in res.dims:
-                res = res.sel(snapshot=window)
-            res = flatten_snapshot_dim(res)
+            res = window.flatten(res)
 
         return res

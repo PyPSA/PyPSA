@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import functools
 import logging
 import warnings
 from typing import TYPE_CHECKING, Any
@@ -19,11 +18,8 @@ from linopy.constants import BREAKPOINT_DIM, LP_PIECE_DIM, PWL_LINK_DIM, SEGMENT
 from linopy.solvers import available_solvers
 
 from pypsa._linopy_compat import (
-    drop_snapshot_aux,
     recompose_snapshot_dim,
-    resolve_snapshot_representation,
     suppress_semantics_warnings,
-    tuple_snapshot_index,
 )
 from pypsa._options import options
 from pypsa.common import (
@@ -37,7 +33,7 @@ from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
-from pypsa.optimization.common import _set_dynamic_data, build_window, get_bus_counts
+from pypsa.optimization.common import _set_dynamic_data, get_bus_counts
 from pypsa.optimization.constraints import (
     define_committability_variables_constraints_with_fixed_upper_limit,
     define_committability_variables_constraints_with_variable_upper_limit,
@@ -85,6 +81,7 @@ from pypsa.optimization.variables import (
     define_start_up_variables,
     define_status_variables,
 )
+from pypsa.optimization.window import SnapshotWindow
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -97,33 +94,6 @@ lookup = pd.read_csv(
     PYPSA_DATA_DIR / "variables.csv",
     index_col=["component", "variable"],
 )
-
-
-@functools.cache
-def _notify_multiindex_snapshot_kept() -> None:
-    """One-shot notice that the multi-period ``snapshot`` stays a MultiIndex.
-
-    Under legacy linopy the MultiIndex is kept first-class (unchanged ``n.model``),
-    which linopy flags per variable/constraint as deprecated; suppress that spam
-    and inform once. The flat tuple representation can be opted into explicitly.
-    """
-    logger.info(
-        "Building the multi-period model over a MultiIndex `snapshot`. The flat "
-        "`snapshot` dim with `period`/`timestep` auxiliary coordinates (linopy's "
-        "v1 convention, `linopy.options['semantics'] = 'v1'`) is enabled via "
-        "`pypsa.options.optimization.snapshot_representation = 'flat'`; this "
-        "becomes PyPSA's default in 2.0."
-    )
-
-
-def _model_snapshots_index(n: Network) -> pd.Index:
-    """Model snapshots as the network sees them (MultiIndex for multi-period).
-
-    Multi-period models are built over a flat tuple-labeled snapshot dim; restore
-    the original ``n.snapshots`` MultiIndex for solution assignment and
-    post-processing.
-    """
-    return build_window(n, n.model.parameters.snapshots.to_index())
 
 
 def _apply_delay_shift(
@@ -233,10 +203,9 @@ def define_objective(
     opex_terms = []
     is_quadratic = False
 
+    window = n.optimize.window.subset(sns)
     if n._multi_invest:
-        window = build_window(n, sns)
-        periods = window.unique("period")
-        period_weighting = n.investment_period_weightings.objective[periods]
+        period_weighting = n.investment_period_weightings.objective[window.periods]
         period_weight = xr.DataArray(period_weighting)
 
     # constant for already done investment
@@ -297,8 +266,8 @@ def define_objective(
     weighting = n.snapshot_weightings.objective
     if n._multi_invest:
         weighting = weighting.mul(period_weighting, level=0)
-    weighting = weighting.loc[build_window(n, sns)]
-    weight = xr.DataArray(weighting.values, coords={"snapshot": sns}, dims=["snapshot"])
+    values = window.on_network(weighting).values
+    weight = xr.DataArray(values, coords={"snapshot": sns}, dims=["snapshot"])
 
     # marginal costs, marginal storage cost, and spill cost
 
@@ -470,8 +439,8 @@ def define_objective(
         )
         raise ValueError(msg)
 
-    capex_terms = [drop_snapshot_aux(t) for t in capex_terms]
-    opex_terms = [drop_snapshot_aux(t) for t in opex_terms]
+    capex_terms = [window.drop_aux(t) for t in capex_terms]
+    opex_terms = [window.drop_aux(t) for t in opex_terms]
 
     # Build expected CAPEX and expected OPEX (scenario-weighted if stochastic)
     def _expected(exprs: list) -> Any:
@@ -558,6 +527,26 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """Initialize the optimization accessor."""
         self._n = n
         self.expressions = StatisticExpressionsAccessor(self._n)
+
+    @property
+    def window(self) -> SnapshotWindow:
+        """Snapshot window of the live model build.
+
+        Maps between ``n.snapshots`` and the labels of the model's ``snapshot``
+        dimension. Available from
+        [create_model][pypsa.optimization.OptimizationAccessor.create_model]
+        onwards; use it in ``extra_functionality``.
+
+        Returns
+        -------
+        pypsa.optimization.window.SnapshotWindow
+
+        """
+        window = self._n._snapshot_window
+        if window is None:
+            msg = "No model has been built yet; call `n.optimize.create_model` first."
+            raise AttributeError(msg)
+        return window
 
     def __call__(
         self,
@@ -678,7 +667,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         )
 
         n = self._n
-        n._optimize_window_snapshots = None
         sns = as_index(n, snapshots, "snapshots")
         n._multi_invest = int(multi_investment_periods)
         n._linearized_uc = linearized_unit_commitment
@@ -699,7 +687,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             **model_kwargs,
         )
         if extra_functionality:
-            extra_functionality(n, sns)
+            extra_functionality(n, n.optimize.window.model_index)
         if log_to_console is not None:
             kwargs["log_to_console"] = log_to_console
         status, condition = m.solve(
@@ -787,7 +775,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         """
         n = self._n
-        n._optimize_window_snapshots = None
         sns = as_index(n, snapshots, "snapshots")
         n._linearized_uc = int(linearized_unit_commitment)
         n._multi_invest = int(multi_investment_periods)
@@ -822,14 +809,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         kwargs.setdefault("force_dim_names", True)
         n._model = Model(**kwargs)
 
-        representation = resolve_snapshot_representation(
-            sns, options.optimization.snapshot_representation
+        n._optimize_window = SnapshotWindow.build(
+            n, sns, options.optimization.snapshot_representation
         )
-        if representation == "flat":
-            n._optimize_window_snapshots = sns
-            sns = tuple_snapshot_index(sns)
-        elif isinstance(sns, pd.MultiIndex):
-            _notify_multiindex_snapshot_kept()
+        sns = n._optimize_window.model_index
 
         with suppress_semantics_warnings():
             n.model.parameters = n.model.parameters.assign(snapshots=sns)
@@ -1031,7 +1014,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         n = self._n
         if extra_functionality:
-            extra_functionality(n, n.snapshots)
+            extra_functionality(n, n.optimize.window.model_index)
         m = n.model
         if log_to_console is not None:
             kwargs["log_to_console"] = log_to_console
@@ -1056,7 +1039,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """Map solution to network components."""
         n = self._n
         m = n.model
-        window = _model_snapshots_index(n)
+        window = n.optimize.window.network_index
 
         if not n.c.transformers.empty:
             setpoint = n.get_switchable_as_dense("Transformer", "phase_shift", window)
@@ -1285,18 +1268,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         power injection per bus and snapshot, voltage angle.
         """
         n = self._n
-        window = _model_snapshots_index(n)
+        w = n.optimize.window
+        window = w.network_index
 
         check_big_m_exceeded(n)
 
         # correct prices with objective weightings
+        objective = n.snapshot_weightings.objective
         if n._multi_invest:
             period_weighting = n.investment_period_weightings.objective
-            weightings = n.snapshot_weightings.objective.mul(
-                period_weighting, level=0, axis=0
-            ).loc[window]
-        else:
-            weightings = n.snapshot_weightings.objective.loc[window]
+            objective = objective.mul(period_weighting, level=0, axis=0)
+        weightings = w.on_network(objective)
 
         n.c.buses.dynamic.marginal_price.loc[window] = (
             n.c.buses.dynamic.marginal_price.loc[window].divide(weightings, axis=0)

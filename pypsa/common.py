@@ -258,15 +258,6 @@ def as_index(
     """
     n_attr = getattr(n, network_attribute)
 
-    if (
-        network_attribute == "snapshots"
-        and values is not None
-        and not isinstance(values, pd.MultiIndex)
-        and n._optimize_window_snapshots is not None
-        and n._model is not None
-    ):
-        n_attr = n._model.parameters.snapshots.to_index()
-
     if values is None:
         values_ = n_attr
         # Skip the subset check, because we know the values are equal

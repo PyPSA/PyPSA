@@ -80,8 +80,12 @@ To create custom constraints, sets of variables are first combined into
 addition, subtraction, multiplication, division) that represent the relationship
 between variables involved in the constraint.
 
+Operands with different labels along a shared dimension (here `name`: generators
+and links) must be aligned explicitly, via `join=` on `.add()`/`.sub()` or
+`linopy.merge`, otherwise linopy raises under its v1 semantics:
+
 ``` py
->>> 2 * m.variables["Generator-p"] + 0.5 * m.variables["Link-p"]  # doctest: +ELLIPSIS
+>>> (2 * m.variables["Generator-p"]).add(0.5 * m.variables["Link-p"], join="outer")  # doctest: +ELLIPSIS
 LinearExpression [snapshot: 10, name: 10]:
 ------------------------------------------
 [2015-01-01 00:00:00, Bremen Converter]: +0.5 Link-p[2015-01-01 00:00:00, Bremen Converter]
@@ -130,6 +134,45 @@ Generally, optimised values for custom variables are not written back to the net
 
 <!-- However, if you follow the naming convention `{component}-{variable}`, where `component` is the name of the component (e.g., "Generator") and `variable` is the name of the variable (e.g., "custom_var"),
 the optimised values will be stored for the network component (e.g. `n.generators_t.custom_var`). -->
+
+## Snapshots in the model
+
+The model's `snapshot` labels are not always the labels of `n.snapshots`. For a
+multi-period network built under linopy's v1 semantics
+(`linopy.options["semantics"] = "v1"`), where a `pandas.MultiIndex` may not be a
+dimension coordinate, PyPSA builds `snapshot` as a flat dimension whose labels are
+the `(period, timestep)` tuples, with `period` and `timestep` attached as auxiliary
+coordinates. `n.snapshots` stays a `MultiIndex` and results are unchanged. Which
+representation the live model uses is answered by
+
+``` py
+>>> n.optimize.window.is_flat
+False
+```
+
+[`n.optimize.window`][pypsa.optimization.window.SnapshotWindow] carries the
+snapshots of the current model build in both labellings and bridges them, so
+`extra_functionality` does not have to branch on the representation:
+
+``` py
+>>> def custom_constraints(n: pypsa.Network, sns: pd.Index) -> None:
+...     window = n.optimize.window
+...     p = n.model.variables["Generator-p"]
+...     cost = n.get_switchable_as_dense("Generator", "marginal_cost")
+...     expr = (p * window.on_model(cost)).sum("name")   # pandas data on the model's labels
+...     weighted = expr * window.model_weightings("objective")
+...     for period, period_sns in window.iter_periods():  # (None, all snapshots) if single-period
+...         total = weighted.sel(snapshot=period_sns).sum()
+...         n.model.add_constraints(total <= 1e9, name=f"Generator-cost_cap-{period}")
+```
+
+Migrating existing `extra_functionality` to the flat representation:
+
+* `window.on_model(df)` instead of `df.loc[sns]` when putting a snapshot-indexed pandas object onto the model.
+* `window.model_weightings("objective")` instead of `n.snapshot_weightings.objective.loc[sns]`.
+* `window.iter_periods()` instead of slicing `sns` by `sns.unique("period")`.
+* `window.on_network(df)` to restrict a network-indexed object to the build's snapshots, keeping the network's labels.
+* `expr.groupby("period").sum()` keeps working unchanged — the auxiliary coordinate takes the role of the `MultiIndex` level.
 
 !!! note "Alternative approach using `n.optimize(extra_functionality=...)`"
 

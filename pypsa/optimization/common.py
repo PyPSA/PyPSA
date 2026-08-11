@@ -6,13 +6,12 @@
 
 Snapshot naming convention
 ---------------------------
-- ``sns``: snapshots the current model build is constructed over (flat
-  tuple-labeled index under linopy-v1 multi-period builds, plain Index or
-  MultiIndex otherwise).
-- ``window``: the same snapshots as the network indexes them (always the
-  original MultiIndex for multi-period). Only ever produced by ``build_window``.
+- ``sns``: snapshots the current model build is constructed over, in the model's
+  labelling (see [pypsa.optimization.window][]).
+- ``window``: the build's [SnapshotWindow][pypsa.optimization.window.SnapshotWindow],
+  which maps those labels back to the network's.
 - ``period_sns``: per-investment-period subset of ``sns``, as yielded by
-  ``iter_snapshot_periods``.
+  ``window.iter_periods``.
 
 ``snapshots`` is reserved for the public API (``n.optimize(snapshots=...)``,
 ``n.snapshots``); ``"snapshot"`` is the model dimension name.
@@ -20,109 +19,18 @@ Snapshot naming convention
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pandas as pd
-import xarray as xr
 from deprecation import deprecated
-from linopy import merge
-from numpy import hstack, ravel, roll, zeros
+from numpy import hstack, ravel
 
-from pypsa._linopy_compat import (
-    SNAPSHOT_LEVELS,
-    attach_snapshot_aux,
-    drop_snapshot_aux,
-)
 from pypsa.constants import RE_PORTS
 
 if TYPE_CHECKING:
-    from linopy import LinearExpression, Variable
+    import xarray as xr
 
     from pypsa import Network
-
-
-def build_window(n: Network, sns: pd.Index) -> pd.Index:
-    """(Multi)Index snapshots of the current build window.
-
-    While a multi-period model is built over a flat tuple-labeled ``snapshot``
-    dim (a plain object index of ``(period, timestep)`` tuples, position-aligned
-    with the window), the original MultiIndex window is stashed on the network;
-    return it. Outside the flat path ``sns`` already *is* the window, so return
-    it unchanged. Single source of truth for the flat position -> period mapping.
-    """
-    window = n._flat_snapshot_window
-    return sns if window is None else window
-
-
-def on_snapshots(n: Network, obj: pd.DataFrame | pd.Series, sns: pd.Index) -> Any:
-    """Snapshot-indexed pandas object on the build's ``sns`` labels.
-
-    During multi-period model building ``sns`` is a flat tuple-labeled index while
-    pandas objects stay indexed by the window MultiIndex; select by the latter and
-    relabel to the flat index. A no-op relabel outside the flat path. The index
-    name is carried over, as linopy derives the dimension name from it.
-    """
-    labels = sns.copy()
-    labels.name = obj.index.name
-    return obj.loc[build_window(n, sns)].set_axis(labels)
-
-
-def snapshot_weightings(n: Network, sns: pd.Index, kind: str) -> pd.Series:
-    """Snapshot weightings of ``kind`` aligned to ``sns``."""
-    return on_snapshots(n, n.snapshot_weightings[kind], sns)
-
-
-def iter_snapshot_periods(n: Network, sns: pd.Index) -> Any:
-    """Yield ``(period, snapshots)`` pairs for per-period constraint building.
-
-    Works with the flat tuple-labeled snapshot dim used during model building:
-    each snapshot's period comes from the build window (aligned by position), so
-    ``sns`` need not be a MultiIndex.
-    """
-    if not n._multi_invest:
-        yield None, sns
-        return
-    window = build_window(n, sns)
-    period_of = window.get_level_values("period")
-    for period in window.unique("period"):
-        yield period, sns[period_of == period]
-
-
-def _period_start_mask(n: Network, sns: pd.Index) -> xr.DataArray:
-    """Mark the first snapshot of each investment period within the build window."""
-    is_start = zeros(len(sns), dtype=bool)
-    is_start[0] = True
-    window = build_window(n, sns)
-    if isinstance(window, pd.MultiIndex) and "period" in window.names:
-        periods = window.get_level_values("period").to_numpy()
-        is_start[1:] = periods[1:] != periods[:-1]
-    return xr.DataArray(is_start, coords=[sns])
-
-
-def _roll_within_periods(v: Variable) -> Variable:
-    """Cyclically roll ``v`` by one snapshot within each investment period.
-
-    Groups by the ``period`` auxiliary coordinate carried on the flat snapshot
-    dim, then restores the original snapshot coordinates after the positional
-    roll so the result stays aligned with the un-rolled variable.
-    """
-    sns = v.indexes["snapshot"]
-    period = v.coords["period"].to_numpy()
-    positions = pd.Series(range(len(sns)), index=sns)
-    roll_index = positions.groupby(period).transform(lambda s: roll(s, 1))
-    rolled = v.isel(snapshot=roll_index.to_numpy())
-    keep = {c: v.coords[c] for c in ("snapshot", *SNAPSHOT_LEVELS) if c in v.coords}
-    return rolled.assign_coords(keep)
-
-
-def merge_over_snapshots(exprs: list, n: Network, sns: pd.Index) -> LinearExpression:
-    """Merge expressions on ``snapshot`` while preserving the flat-snapshot aux coords.
-
-    The aux coords must be dropped before the strict outer merge — differing periods
-    on collided labels read as a conflict — and re-derived from the tuple labels after.
-    """
-    merged = merge([drop_snapshot_aux(e) for e in exprs], dim="snapshot", join="outer")
-    return attach_snapshot_aux(merged, build_window(n, sns))
 
 
 @deprecated(

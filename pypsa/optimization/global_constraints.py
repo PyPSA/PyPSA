@@ -17,7 +17,6 @@ from numpy import isnan
 from xarray import DataArray
 
 from pypsa.descriptors import nominal_attrs
-from pypsa.optimization.common import build_window
 from pypsa.optimization.piecewise import define_piecewise
 
 if TYPE_CHECKING:
@@ -161,10 +160,8 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
         elif isinstance(n.snapshots, pd.MultiIndex):
             carrier, period = remainder.rsplit("_", 1)
             period = int(period)
-            window = build_window(n, sns)
-            if carrier not in n.c.carriers.static.index or period not in window.unique(
-                "period"
-            ):
+            periods = n.optimize.window.subset(sns).periods
+            if carrier not in n.c.carriers.static.index or period not in periods:
                 logger.warning(msg)
                 continue
         else:
@@ -313,12 +310,12 @@ def define_primary_energy_limit(
     if glcs.empty:
         return
 
-    window = build_window(n, sns)
-    weightings = n.snapshot_weightings.loc[window].set_axis(sns)
+    window = n.optimize.window.subset(sns)
+    weightings = window.on_model(n.snapshot_weightings)
 
     if n._multi_invest:
-        period_of = window.get_level_values("period")
-        periods = window.unique("period")
+        period_of = window.period_of
+        periods = window.periods
         period_weighting = n.investment_period_weightings.years[periods]
         weightings = weightings.mul(
             period_weighting.loc[period_of].set_axis(sns), axis=0
@@ -414,13 +411,12 @@ def define_primary_energy_limit(
                         linear_names = linear_names.difference(pw_names)
 
                 if not linear_names.empty:
-                    efficiency = (
-                        n.c.generators._as_dynamic("efficiency")
-                        .loc[:, scenario]
-                        .loc[window]
-                        .set_axis(sns)
-                        .loc[period_sns, linear_names]
-                    )
+                    dense_eff = n.c.generators._as_dynamic("efficiency").loc[
+                        :, scenario
+                    ]
+                    efficiency = window.on_model(dense_eff).loc[
+                        period_sns, linear_names
+                    ]
                     to_sum.append(p.sel(name=linear_names) / efficiency)
                 dispatch = to_sum[0]
                 for term in to_sum[1:]:
@@ -579,11 +575,11 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
     if glcs.empty:
         return
 
-    window = build_window(n, sns)
-    weightings = n.snapshot_weightings.loc[window].set_axis(sns)
+    window = n.optimize.window.subset(sns)
+    weightings = window.on_model(n.snapshot_weightings)
     if n._multi_invest:
-        period_of = window.get_level_values("period")
-        periods = window.unique("period")
+        period_of = window.period_of
+        periods = window.periods
     unique_names = glcs.index.unique("name")
 
     for name in unique_names:
@@ -809,11 +805,11 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
             period = glc.investment_period
 
             # Determine periods for active asset filtering
-            window = build_window(n, sns)
+            window = n.optimize.window.subset(sns)
             if not isnan(period):
                 period_filter = period
-            elif isinstance(window, pd.MultiIndex):
-                period_filter = list(window.unique("period"))
+            elif window.has_periods:
+                period_filter = list(window.periods)
             else:
                 period_filter = None
 
@@ -890,9 +886,9 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
     if glcs.empty:
         return
 
-    window = build_window(n, sns)
+    window = n.optimize.window.subset(sns)
     if n._multi_invest:
-        periods = window.unique("period")
+        periods = window.periods
         period_weighting = n.investment_period_weightings.objective[periods]
 
     def substr(s: str) -> str:
@@ -910,8 +906,8 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         if not isnan(period):
             period_filter = period
             weights = 1
-        elif isinstance(window, pd.MultiIndex):
-            period_filter = list(window.unique("period"))
+        elif window.has_periods:
+            period_filter = list(window.periods)
             weights = None  # computed per component below
         else:
             period_filter = None

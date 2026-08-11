@@ -1247,3 +1247,67 @@ def test_snapshot_representation_invalid_option(n):
     with pytest.raises(ValueError):
         with option_context("optimization.snapshot_representation", "bogus"):
             n.optimize.create_model(**kwargs)
+
+
+@pytest.fixture(params=["auto", "flat"])
+def windowed_n(request, n):
+    """Multi-period network with a live model, built in each representation."""
+    with option_context("optimization.snapshot_representation", request.param):
+        n.optimize.create_model(**kwargs)
+    return n
+
+
+def test_window_unavailable_without_model(n):
+    with pytest.raises(AttributeError, match="create_model"):
+        n.optimize.window
+
+
+def test_window_spans_the_build(windowed_n):
+    window = windowed_n.optimize.window
+    model_sns = windowed_n.model.parameters.snapshots.to_index()
+    pd.testing.assert_index_equal(window.model_index, model_sns)
+    pd.testing.assert_index_equal(window.network_index, windowed_n.snapshots)
+    equal(window.periods, windowed_n.investment_periods)
+
+
+def test_window_on_model_uses_model_labels(windowed_n):
+    window = windowed_n.optimize.window
+    weightings = window.model_weightings("objective")
+    pd.testing.assert_index_equal(weightings.index, window.model_index)
+    equal(weightings.to_numpy(), windowed_n.snapshot_weightings.objective.to_numpy())
+
+
+def test_window_subset_realigns_a_strict_subset(windowed_n):
+    window = windowed_n.optimize.window
+    subset = window.subset(window.model_index[:7])
+    weightings = subset.model_weightings("objective")
+
+    pd.testing.assert_index_equal(weightings.index, window.model_index[:7])
+    equal(
+        weightings.to_numpy(),
+        windowed_n.snapshot_weightings.objective.to_numpy()[:7],
+    )
+    equal(subset.periods, windowed_n.investment_periods[:1])
+
+
+def test_window_subset_rejects_unknown_snapshots(windowed_n):
+    window = windowed_n.optimize.window
+    with pytest.raises(KeyError):
+        window.subset(pd.Index(["not-a-snapshot"], name="snapshot"))
+
+
+def test_window_iter_periods_partitions_the_build(windowed_n):
+    window = windowed_n.optimize.window
+    periods, chunks = zip(*window.iter_periods())
+
+    equal(list(periods), list(windowed_n.investment_periods))
+    pd.testing.assert_index_equal(chunks[0].append(chunks[1:]), window.model_index)
+
+
+@pytest.mark.parametrize("representation", ["auto", "flat"])
+def test_extra_functionality_receives_the_build_snapshots(n, representation):
+    seen = []
+    with option_context("optimization.snapshot_representation", representation):
+        n.optimize.create_model(snapshots=n.snapshots[:12], **kwargs)
+        n.optimize.solve_model(extra_functionality=lambda _, sns: seen.append(sns))
+    pd.testing.assert_index_equal(seen[0], n.optimize.window.model_index)
