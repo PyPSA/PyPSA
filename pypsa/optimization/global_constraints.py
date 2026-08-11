@@ -213,7 +213,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         return
 
     m = n.model
-    periods = n.snapshots.unique("period")
+    periods = n.optimize.window.periods
 
     # Handle stochastic optimization: find strictest (minimum) growth limit across scenarios
     if n.has_scenarios:
@@ -573,11 +573,11 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
         return
 
     window = n.optimize.window.subset(sns)
-    gen_weight = n.da.snapshot_weightings.generators.sel(snapshot=sns)
+    weight = n.da.snapshot_weightings.generators.sel(snapshot=sns)
     if n._multi_invest:
-        period_of = pd.Index(gen_weight.coords["period"].to_numpy())
+        period_of = pd.Index(weight.coords["period"].to_numpy())
         periods = pd.unique(period_of)
-    gen_weight = window.drop_aux(gen_weight)
+    weight = window.drop_aux(weight)
     unique_names = glcs.index.unique("name")
 
     for name in unique_names:
@@ -600,7 +600,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 continue
 
             # Filter weightings and calculate period-specific values
-            w = gen_weight.sel(snapshot=period_sns)
+            w = weight.sel(snapshot=period_sns)
             if n._multi_invest:
                 sel_period_of = period_of[sns.isin(period_sns)]
                 period_weighting = n.investment_period_weightings.years[
