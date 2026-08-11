@@ -15,7 +15,6 @@ import numpy as np
 import pandas as pd
 from linopy import LinearExpression, Variable
 from packaging import version
-from xarray import DataArray
 
 from pypsa._linopy_compat import drop_snapshot_aux, suppress_semantics_warnings
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
@@ -28,6 +27,8 @@ from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_por
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
+
+    from xarray import DataArray
 
     from pypsa import Network, NetworkCollection
     from pypsa.components.components import PortsLike
@@ -50,7 +51,7 @@ def check_if_empty(expr: LinearExpression) -> bool:
 
 def _port_coefficients(n: Network, c: str, port: str, sns: pd.Index) -> DataArray:
     """Port efficiencies of `c` as an array, restricted to `sns` if time-varying."""
-    efficiency = DataArray(port_efficiency(n, c, port=port, dynamic=True))
+    efficiency = port_efficiency(n, c, port=port, dynamic=True, as_xarray=True)
     if "snapshot" in efficiency.dims:
         return efficiency.sel(snapshot=sns)
     return efficiency

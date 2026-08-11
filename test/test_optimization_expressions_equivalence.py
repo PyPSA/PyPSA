@@ -4,6 +4,8 @@
 
 """At the optimum, optimization expressions must evaluate to the statistics values."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -16,11 +18,13 @@ TOLERANCE = 1e-2
 BUS_CARRIER_GROUPBY = {"groupby": ["carrier", "bus_carrier"]}
 
 # (expression method, statistics method, shared kwargs, expression sign)
-STATIC_PAIRS = [
+Pair = tuple[str, str, dict[str, Any], int]
+
+STATIC_PAIRS: list[Pair] = [
     ("capex", "capex", {}, 1),
     ("capacity", "optimal_capacity", {}, 1),
 ]
-DYNAMIC_PAIRS = [
+DYNAMIC_PAIRS: list[Pair] = [
     ("opex", "opex", {}, 1),
     ("curtailment", "curtailment", {}, 1),
     # supply/withdrawal clip coefficients, which only reproduces the statistics'

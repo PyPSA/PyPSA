@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from pandas.api.types import is_list_like
 
 from pypsa._options import options
@@ -26,8 +27,6 @@ from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_por
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
-
-    import xarray as xr
 
     from pypsa import Network, NetworkCollection
     from pypsa.components.components import PortsLike
@@ -72,35 +71,37 @@ def port_efficiency(
     c_name: str,
     port: int | str = 0,
     dynamic: bool = False,
-) -> pd.Series | xr.DataArray:
+    as_xarray: bool = False,
+) -> pd.Series | pd.DataFrame | xr.DataArray:
     """Get the efficiency of a component at a specific port.
 
-    With `dynamic`, a time-varying efficiency is returned as a
-    ``DataArray`` on the labels of the live optimization model.
+    With `as_xarray`, the efficiency is returned as a ``DataArray`` on the labels of
+    the live optimization model rather than as a pandas object on `n.snapshots`.
     """
     c = n.c[c_name]
     port = c._as_port(port)
 
     ones = pd.Series(1, index=c.static.index)
+    res: pd.Series | pd.DataFrame
     if c.name in n.one_port_components:
-        return ones
+        res = ones
     elif c.name in n.passive_branch_components:
-        return -ones if port == 0 else ones
-    elif c.name == "Link":
-        if port == 0:
-            return -ones
+        res = -ones if port == 0 else ones
+    elif c.name == "Link" and port == 0:
+        res = -ones
+    elif c.name in ("Link", "Process"):
         key = c._port_coefficient_attr(port)
         if dynamic and key in c.static:
-            return c.da[key]
-        return c.static.get(key, ones)
-    elif c.name == "Process":
-        key = c._port_coefficient_attr(port)
-        if dynamic and key in c.static:
-            return c.da[key]
-        return c.static.get(key, ones)
+            if as_xarray:
+                return c.da[key]
+            res = n.get_switchable_as_dense(c.name, key)
+        else:
+            res = c.static.get(key, ones)
     else:
         msg = f"port_efficiency has not been implemented for: {c.name}"
         raise NotImplementedError(msg)
+
+    return xr.DataArray(res) if as_xarray else res
 
 
 def get_transmission_branches(
