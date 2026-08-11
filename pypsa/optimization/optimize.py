@@ -263,11 +263,11 @@ def define_objective(
         n._objective_constant = 0.0
 
     # Weightings
-    weighting = n.snapshot_weightings.objective
+    weight = n.da.snapshot_weightings.objective.sel(snapshot=sns)
     if n._multi_invest:
-        weighting = weighting.mul(period_weighting, level=0)
-    values = window.on_network(weighting).values
-    weight = xr.DataArray(values, coords={"snapshot": sns}, dims=["snapshot"])
+        period_of = weight.coords["period"].to_numpy()
+        weight = weight * period_weighting.reindex(period_of).to_numpy()
+    weight = window.drop_aux(weight)
 
     # marginal costs, marginal storage cost, and spill cost
 
@@ -1278,7 +1278,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if n._multi_invest:
             period_weighting = n.investment_period_weightings.objective
             objective = objective.mul(period_weighting, level=0, axis=0)
-        weightings = w.on_network(objective)
+        weightings = objective.loc[window]
 
         n.c.buses.dynamic.marginal_price.loc[window] = (
             n.c.buses.dynamic.marginal_price.loc[window].divide(weightings, axis=0)
