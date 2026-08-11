@@ -1317,9 +1317,14 @@ def _apply_delay_shift(
     else:
         sns_coords = {"snapshot": sns}
     window = n.optimize.window.subset(sns)
-    weightings = window.on_network(n.snapshot_weightings["generators"])
+    weightings = n.da.snapshot_weightings.generators.sel(snapshot=sns)
+    periods = weightings.coords.get("period")
     src_snapshot_pos, valid = c.get_delay_source_indexer(
-        window.network_index, weightings, delay, is_cyclic
+        sns,
+        weightings.to_numpy(),
+        delay,
+        is_cyclic,
+        None if periods is None else periods.to_numpy(),
     )
     valid_mask = DataArray(valid.astype(float), dims=["snapshot"], coords=sns_coords)
     shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(sns_coords)

@@ -166,7 +166,7 @@ Migrating existing `extra_functionality` to the flat representation:
 
 * `n.c.<component>.da.<attr>` instead of `n.get_switchable_as_dense(...).loc[sns]`, and [`n.da.snapshot_weightings.<kind>`][pypsa.Network.da] instead of `n.snapshot_weightings.<kind>.loc[sns]`. Both are already on the model's labels; select the snapshots you need with `.sel(snapshot=sns)`.
 * `expr.groupby("period").sum()` instead of slicing `sns` by `sns.unique("period")` — the auxiliary coordinate takes the role of the `MultiIndex` level.
-* [`n.optimize.window`][pypsa.optimization.window.SnapshotWindow] bridges whatever has to stay in pandas: `window.on_model(df)` puts a snapshot-indexed object onto the model's labels, `window.on_network(df)` restricts one to the build's snapshots keeping the network's labels, and `window.iter_periods()` yields the per-investment-period snapshots.
+* [`n.optimize.window`][pypsa.optimization.window.SnapshotWindow] bridges whatever has to stay in pandas: `window.on_model(df)` puts a snapshot-indexed object onto the model's labels, `window.network_index` and `window.model_index` hold the build's snapshots in either labelling, and `window.iter_periods()` yields the per-investment-period snapshots.
 
 !!! note "Alternative approach using `n.optimize(extra_functionality=...)`"
 

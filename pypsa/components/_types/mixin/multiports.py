@@ -135,9 +135,10 @@ class _Multiport(Components):
     @staticmethod
     def get_delay_source_indexer(
         snapshots: pd.Index,
-        weightings: pd.Series,
+        weightings: pd.Series | np.ndarray,
         delay: int,
         is_cyclic: bool,
+        periods: np.ndarray | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Get per-snapshot source positions for component delays.
 
@@ -147,22 +148,26 @@ class _Multiport(Components):
         starts. In cyclic mode, source times wrap around the horizon. In
         non-cyclic mode, targets without a valid source are marked invalid.
 
-        For multi-investment period snapshots (MultiIndex), delays are applied
-        independently per period since investment periods are not temporally
-        adjacent.
+        Delays are applied independently per investment period, since investment
+        periods are not temporally adjacent. The periods are taken from
+        `periods` if given, and otherwise from a `snapshots` MultiIndex.
 
         Parameters
         ----------
         snapshots : pd.Index
             Snapshot index of the optimization horizon.
-        weightings : pd.Series
+        weightings : pd.Series or np.ndarray
             Generator snapshot weightings (`n.snapshot_weightings.generators`),
-            defining the duration of each snapshot in time units.
+            defining the duration of each snapshot in time units. A `Series` is
+            aligned to `snapshots`; an array is taken in order.
         delay : int
             Delivery delay in the same time units as `weightings`.
         is_cyclic : bool
             If True, delayed times wrap around the horizon. If False,
             snapshots without a valid source are marked invalid.
+        periods : np.ndarray, optional
+            Investment period of each snapshot, for horizons whose `snapshots`
+            do not carry them. Snapshots of a period must be contiguous.
 
         Returns
         -------
@@ -195,17 +200,25 @@ class _Multiport(Components):
         if delay <= 0:
             return np.arange(n_snapshots, dtype=int), np.ones(n_snapshots, dtype=bool)
 
-        if isinstance(snapshots, pd.MultiIndex):
-            src = np.empty(n_snapshots, dtype=int)
-            valid = np.empty(n_snapshots, dtype=bool)
-            offset = 0
-            for period in snapshots.unique("period"):
-                w = weightings[snapshots.get_loc(period)].to_numpy().astype(float)
-                p_src, p_valid = _Multiport._delay_positions(w, delay, is_cyclic)
-                src[offset : offset + len(w)] = p_src + offset
-                valid[offset : offset + len(w)] = p_valid
-                offset += len(w)
-            return src, valid
+        if isinstance(weightings, pd.Series):
+            weightings = weightings.reindex(snapshots)
+        w = np.asarray(weightings, dtype=float)
 
-        w = weightings.reindex(snapshots).astype(float).to_numpy()
-        return _Multiport._delay_positions(w, delay, is_cyclic)
+        if periods is None and isinstance(snapshots, pd.MultiIndex):
+            periods = snapshots.get_level_values("period").to_numpy()
+        if periods is None:
+            return _Multiport._delay_positions(w, delay, is_cyclic)
+
+        breaks = np.flatnonzero(periods[1:] != periods[:-1]) + 1
+        starts = np.concatenate(([0], breaks))
+        stops = np.concatenate((breaks, [n_snapshots]))
+
+        src = np.empty(n_snapshots, dtype=int)
+        valid = np.empty(n_snapshots, dtype=bool)
+        for start, stop in zip(starts, stops, strict=True):
+            p_src, p_valid = _Multiport._delay_positions(
+                w[start:stop], delay, is_cyclic
+            )
+            src[start:stop] = p_src + start
+            valid[start:stop] = p_valid
+        return src, valid

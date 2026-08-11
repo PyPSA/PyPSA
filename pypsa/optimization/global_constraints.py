@@ -311,18 +311,16 @@ def define_primary_energy_limit(
         return
 
     window = n.optimize.window.subset(sns)
-    weightings = window.on_model(n.snapshot_weightings)
-
+    gen_weight = n.da.snapshot_weightings.generators.sel(snapshot=sns)
     if n._multi_invest:
-        period_of = window.period_of
-        periods = window.periods
+        period_of = pd.Index(gen_weight.coords["period"].to_numpy())
+        periods = pd.unique(period_of)
         period_weighting = n.investment_period_weightings.years[periods]
-        weightings = weightings.mul(
-            period_weighting.loc[period_of].set_axis(sns), axis=0
-        )
+        gen_weight = gen_weight * period_weighting.reindex(period_of).to_numpy()
         period_last_sns, storage_weightings = _period_last_storage_weightings(
             sns, period_of, period_weighting
         )
+    gen_weight = window.drop_aux(gen_weight)
 
     unique_names = glcs.index.unique("name")
 
@@ -425,7 +423,7 @@ def define_primary_energy_limit(
                     dispatch.indexes["name"]
                 )
                 expr = (
-                    dispatch * weightings.generators.loc[period_sns] * emission_rate
+                    dispatch * gen_weight.sel(snapshot=period_sns) * emission_rate
                 ).sum()
                 lhs.append(expr)
 
@@ -576,10 +574,11 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
         return
 
     window = n.optimize.window.subset(sns)
-    weightings = window.on_model(n.snapshot_weightings)
+    gen_weight = n.da.snapshot_weightings.generators.sel(snapshot=sns)
     if n._multi_invest:
-        period_of = window.period_of
-        periods = window.periods
+        period_of = pd.Index(gen_weight.coords["period"].to_numpy())
+        periods = pd.unique(period_of)
+    gen_weight = window.drop_aux(gen_weight)
     unique_names = glcs.index.unique("name")
 
     for name in unique_names:
@@ -602,15 +601,13 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 continue
 
             # Filter weightings and calculate period-specific values
-            weightings_filtered = weightings.loc[period_sns]
+            w = gen_weight.sel(snapshot=period_sns)
             if n._multi_invest:
                 sel_period_of = period_of[sns.isin(period_sns)]
                 period_weighting = n.investment_period_weightings.years[
                     pd.Index(sel_period_of).unique()
                 ]
-                weightings_filtered = weightings_filtered.mul(
-                    period_weighting.loc[sel_period_of].set_axis(period_sns), axis=0
-                )
+                w = w * period_weighting.reindex(sel_period_of).to_numpy()
                 period_last_sns, storage_weightings = _period_last_storage_weightings(
                     period_sns, sel_period_of, period_weighting
                 )
@@ -627,11 +624,6 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 if n.has_scenarios:
                     p = p.sel(scenario=scenario, drop=True)
 
-                w = DataArray(
-                    weightings_filtered.generators.values,
-                    coords={"snapshot": weightings_filtered.index},
-                    dims=["snapshot"],
-                )
                 expr = (p * w).sum()
                 lhs.append(expr)
 

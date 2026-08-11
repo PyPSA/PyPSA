@@ -169,22 +169,6 @@ class SnapshotWindow:
         """First snapshot of the window, in the network's labelling."""
         return self.network_index[0]
 
-    def on_network(self, obj: pd.DataFrame | pd.Series) -> Any:
-        """Restrict a network-indexed pandas object to the window's snapshots.
-
-        Parameters
-        ----------
-        obj : pandas.DataFrame or pandas.Series
-            Object indexed by ``n.snapshots``.
-
-        Returns
-        -------
-        pandas.DataFrame or pandas.Series
-            `obj` restricted to the window, keeping the network's labels.
-
-        """
-        return obj.loc[self.network_index]
-
     def on_model(self, obj: pd.DataFrame | pd.Series) -> Any:
         """Put a snapshot-indexed pandas object on the model's snapshot labels.
 
@@ -203,7 +187,7 @@ class SnapshotWindow:
         """
         labels = self.model_index.copy()
         labels.name = obj.index.name
-        return self.on_network(obj).set_axis(labels)
+        return obj.loc[self.network_index].set_axis(labels)
 
     def iter_periods(self) -> Iterator[tuple[Any, pd.Index]]:
         """Yield ``(period, snapshots)`` pairs for per-period constraint building.
