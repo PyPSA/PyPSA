@@ -311,16 +311,16 @@ def define_primary_energy_limit(
         return
 
     window = n.optimize.window.subset(sns)
-    gen_weight = n.da.snapshot_weightings.generators.sel(snapshot=sns)
+    weight = n.da.snapshot_weightings.generators.sel(snapshot=sns)
     if n._multi_invest:
-        period_of = pd.Index(gen_weight.coords["period"].to_numpy())
+        period_of = pd.Index(weight.coords["period"].to_numpy())
         periods = pd.unique(period_of)
         period_weighting = n.investment_period_weightings.years[periods]
-        gen_weight = gen_weight * period_weighting.reindex(period_of).to_numpy()
+        weight = weight * period_weighting.reindex(period_of).to_numpy()
         period_last_sns, storage_weightings = _period_last_storage_weightings(
             sns, period_of, period_weighting
         )
-    gen_weight = window.drop_aux(gen_weight)
+    weight = window.drop_aux(weight)
 
     unique_names = glcs.index.unique("name")
 
@@ -409,12 +409,11 @@ def define_primary_energy_limit(
                         linear_names = linear_names.difference(pw_names)
 
                 if not linear_names.empty:
-                    dense_eff = n.c.generators._as_dynamic("efficiency").loc[
-                        :, scenario
-                    ]
-                    efficiency = window.on_model(dense_eff).loc[
-                        period_sns, linear_names
-                    ]
+                    efficiency = n.c.generators.da.efficiency.sel(
+                        name=linear_names, snapshot=period_sns
+                    )
+                    if n.has_scenarios:
+                        efficiency = efficiency.sel(scenario=scenario, drop=True)
                     to_sum.append(p.sel(name=linear_names) / efficiency)
                 dispatch = to_sum[0]
                 for term in to_sum[1:]:
@@ -423,7 +422,7 @@ def define_primary_energy_limit(
                     dispatch.indexes["name"]
                 )
                 expr = (
-                    dispatch * gen_weight.sel(snapshot=period_sns) * emission_rate
+                    dispatch * weight.sel(snapshot=period_sns) * emission_rate
                 ).sum()
                 lhs.append(expr)
 

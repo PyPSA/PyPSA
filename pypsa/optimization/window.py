@@ -169,26 +169,6 @@ class SnapshotWindow:
         """First snapshot of the window, in the network's labelling."""
         return self.network_index[0]
 
-    def on_model(self, obj: pd.DataFrame | pd.Series) -> Any:
-        """Put a snapshot-indexed pandas object on the model's snapshot labels.
-
-        The index name is carried over, as linopy derives the dimension name from it.
-
-        Parameters
-        ----------
-        obj : pandas.DataFrame or pandas.Series
-            Object indexed by ``n.snapshots``.
-
-        Returns
-        -------
-        pandas.DataFrame or pandas.Series
-            `obj` restricted to the window and relabelled for the model.
-
-        """
-        labels = self.model_index.copy()
-        labels.name = obj.index.name
-        return obj.loc[self.network_index].set_axis(labels)
-
     def iter_periods(self) -> Iterator[tuple[Any, pd.Index]]:
         """Yield ``(period, snapshots)`` pairs for per-period constraint building.
 

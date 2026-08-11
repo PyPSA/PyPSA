@@ -1270,13 +1270,6 @@ def test_window_spans_the_build(windowed_n):
     equal(window.periods, windowed_n.investment_periods)
 
 
-def test_window_on_model_uses_model_labels(windowed_n):
-    window = windowed_n.optimize.window
-    weightings = window.on_model(windowed_n.snapshot_weightings.objective)
-    pd.testing.assert_index_equal(weightings.index, window.model_index)
-    equal(weightings.to_numpy(), windowed_n.snapshot_weightings.objective.to_numpy())
-
-
 def test_network_arrays_use_model_labels(windowed_n):
     window = windowed_n.optimize.window
     weightings = windowed_n.da.snapshot_weightings.objective
@@ -1287,13 +1280,9 @@ def test_network_arrays_use_model_labels(windowed_n):
 def test_window_subset_realigns_a_strict_subset(windowed_n):
     window = windowed_n.optimize.window
     subset = window.subset(window.model_index[:7])
-    weightings = subset.on_model(windowed_n.snapshot_weightings.objective)
 
-    pd.testing.assert_index_equal(weightings.index, window.model_index[:7])
-    equal(
-        weightings.to_numpy(),
-        windowed_n.snapshot_weightings.objective.to_numpy()[:7],
-    )
+    pd.testing.assert_index_equal(subset.model_index, window.model_index[:7])
+    pd.testing.assert_index_equal(subset.network_index, windowed_n.snapshots[:7])
     equal(subset.periods, windowed_n.investment_periods[:1])
 
 
