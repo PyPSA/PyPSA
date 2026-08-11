@@ -253,8 +253,9 @@ class SnapshotWindow:
     def drop_aux(self, obj: Any) -> Any:
         """Drop the flat-snapshot ``period``/``timestep`` aux coords.
 
-        They linger on reduced dimensions and break strict concat/merge against
-        operands that never carried them.
+        Needed where the snapshot labels are rewritten (a positional shift, a
+        merge over collided labels): the coords still describe the source
+        snapshots and contradict their own dimension, which v1 rejects.
 
         Parameters
         ----------

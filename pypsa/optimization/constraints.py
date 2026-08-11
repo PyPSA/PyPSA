@@ -745,7 +745,6 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     if maint_i.empty:
         return
 
-    window = n.optimize.window.subset(sns)
     weightings = n.da.snapshot_weightings.generators.sel(snapshot=sns).values
     maintenance = n.model[f"{c.name}-maintenance"]
     maintenance_start = n.model[f"{c.name}-maintenance_start"]
@@ -755,7 +754,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     events = c.da.maintenance_events.sel(name=maint_i)
 
     n.model.add_constraints(
-        window.drop_aux(maintenance_start.sum("snapshot")) == events,
+        maintenance_start.sum("snapshot") == events,
         name=f"{c.name}-maint-event-count",
     )
 

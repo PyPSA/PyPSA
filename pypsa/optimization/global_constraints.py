@@ -310,7 +310,6 @@ def define_primary_energy_limit(
     if glcs.empty:
         return
 
-    window = n.optimize.window.subset(sns)
     weight = n.da.snapshot_weightings.generators.sel(snapshot=sns)
     if n._multi_invest:
         period_of = pd.Index(weight.coords["period"].to_numpy())
@@ -320,7 +319,6 @@ def define_primary_energy_limit(
         period_last_sns, storage_weightings = _period_last_storage_weightings(
             sns, period_of, period_weighting
         )
-    weight = window.drop_aux(weight)
 
     unique_names = glcs.index.unique("name")
 
@@ -572,12 +570,10 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
     if glcs.empty:
         return
 
-    window = n.optimize.window.subset(sns)
     weight = n.da.snapshot_weightings.generators.sel(snapshot=sns)
     if n._multi_invest:
         period_of = pd.Index(weight.coords["period"].to_numpy())
         periods = pd.unique(period_of)
-    weight = window.drop_aux(weight)
     unique_names = glcs.index.unique("name")
 
     for name in unique_names:

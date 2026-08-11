@@ -16,7 +16,7 @@ import pandas as pd
 from linopy import LinearExpression, Variable
 from packaging import version
 
-from pypsa._linopy_compat import drop_snapshot_aux, suppress_semantics_warnings
+from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.statistics import (
@@ -288,7 +288,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             raise ValueError(msg)
         if "period" not in expr.coords:
             return expr @ weights
-        return expr.mul(drop_snapshot_aux(weights), join="left").groupby("period").sum()
+        return expr.mul(weights, join="left").groupby("period").sum()
 
     def _aggregate_components(self, *args: Any, **kwargs: Any) -> Any:
         # Expressions built from masked model variables leave absent slots, the
@@ -743,8 +743,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 raise ValueError(msg)
 
             if pw_var is not None:
-                # Zeroing the piecewise coefficients above left absent slots, which
-                # would swallow the piecewise term under v1; resolve them to 0 first.
                 expr = expr.fillna(0)
             return self._aggregate_timeseries(
                 _add_optional(expr, pw_var), weights, agg=groupby_time
@@ -894,8 +892,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, component: str, port: str) -> pd.Series:
             c = n.c[component]
             if "p_max_pu" not in c.static.columns:
-                # curtailment only applies to components with a per-unit availability
-                # (passive branches have no p_max_pu, yielding an all-NaN dense frame)
                 return None
             capacity = _capacity_expression(n, component)
             if capacity is None:

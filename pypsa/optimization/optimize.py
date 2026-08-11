@@ -267,7 +267,6 @@ def define_objective(
     if n._multi_invest:
         period_of = weight.coords["period"].to_numpy()
         weight = weight * period_weighting.reindex(period_of).to_numpy()
-    weight = window.drop_aux(weight)
 
     # marginal costs, marginal storage cost, and spill cost
 
@@ -438,9 +437,6 @@ def define_objective(
             "Please make sure the components have assigned costs."
         )
         raise ValueError(msg)
-
-    capex_terms = [window.drop_aux(t) for t in capex_terms]
-    opex_terms = [window.drop_aux(t) for t in opex_terms]
 
     # Build expected CAPEX and expected OPEX (scenario-weighted if stochastic)
     def _expected(exprs: list) -> Any:

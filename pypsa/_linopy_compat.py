@@ -171,9 +171,10 @@ def attach_snapshot_aux(obj: Any, window: pd.Index) -> Any:
 def drop_snapshot_aux(obj: Any) -> Any:
     """Drop the flat-snapshot ``period``/``timestep`` aux coords.
 
-    They linger on the ``_term`` dim after a reduction and break strict concat/merge
-    against operands that never carried them. A no-op while ``snapshot`` is a live
-    MultiIndex (the levels are the index itself, not droppable aux coords).
+    Where the snapshot labels are rewritten, they keep describing the source
+    snapshots and contradict their own dimension, which v1 rejects. A no-op while
+    ``snapshot`` is a live MultiIndex (the levels are the index itself, not
+    droppable aux coords).
     """
     if "snapshot" in obj.dims and _snapshot_is_multiindex(obj):
         return obj
