@@ -24,7 +24,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
+- Add a `threshold` argument to [`optimize_security_constrained()`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained]. Security constraints are only formulated for outage/branch pairs whose absolute branch outage distribution factor (BODF) reaches the threshold, approximating the N-1 secure problem with far fewer constraints. Branch outages with `num_parallel > 1` now also raise a warning. (<!-- md:pr 1875 -->)
+
 - Speed up netCDF I/O for networks with many components. [`export_to_netcdf()`][pypsa.Network.export_to_netcdf] avoids a costly `stack()` when writing dynamic data, and import avoids per-column boxing when coercing string dtypes. The on-disk format and round-trip behaviour are unchanged. (<!-- md:pr 1771 -->)
+
 - Speed up [`create_model()`][pypsa.optimization.OptimizationAccessor.create_model] for large networks by computing the bus membership filter in `define_nodal_balance_constraints` with a pandas hash join instead of `xarray.isin` over object-dtype arrays. (<!-- md:pr 1770 -->)
 - Replace the `Levenshtein` dependency (GPL-2.0-or-later) with `rapidfuzz` (MIT) for detecting typos in custom attribute names, so PyPSA's dependency tree remains fully MIT-compatible.
 

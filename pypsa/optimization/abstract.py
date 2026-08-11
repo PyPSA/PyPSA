@@ -377,6 +377,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         self,
         snapshots: Sequence | None = None,
         branch_outages: Sequence | pd.Index | pd.MultiIndex | None = None,
+        threshold: float = 0.0,
         multi_investment_periods: bool = False,
         model_kwargs: dict | None = None,
         **kwargs: Any,
@@ -395,6 +396,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             multiindex is passed, its first level has to contain the component names,
             the second the assets. The default None results in all passive branches
             to be considered.
+        threshold : float, default 0.0
+            Only formulate a security constraint for an affected branch and outage
+            pair if the absolute branch outage distribution factor (BODF) reaches
+            this threshold.
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
             investment periods. Then, snapshots should be a `pd.MultiIndex`.
@@ -413,7 +418,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         n = self._n
 
-        all_passive_branches = n.passive_branches().index
+        passive_branches = n.passive_branches()
+        all_passive_branches = passive_branches.index
 
         if branch_outages is None:
             branch_outages = all_passive_branches
@@ -425,6 +431,17 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             if diff := set(branch_outages) - set(all_passive_branches):
                 msg = f"The following passive branches are not in the network: {diff}"
                 raise ValueError(msg)
+
+        num_parallel = passive_branches.num_parallel.reindex(branch_outages)
+        if (num_parallel > 1).any():
+            parallel_outages = num_parallel.index[num_parallel > 1].tolist()
+            logger.warning(
+                "The branch outages %s have num_parallel > 1. The N-1 analysis "
+                "treats them as a single outage of all parallel circuits. Split "
+                "such branches into single-circuit lines to secure individual "
+                "circuits.",
+                parallel_outages,
+            )
 
         if not len(all_passive_branches):
             return n.optimize(
@@ -456,13 +473,23 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 outages.unique(0), branches_i.unique(0)
             ):
                 c_outage_ = c_outage + "-outage"
-                c_outages = outages.get_loc_level(c_outage)[1]
-                flow_outage = m.variables[c_outage + "-s"].loc[:, c_outages]
-                flow_outage = flow_outage.rename({"name": c_outage_})
-
                 bodf = BODF.loc[c_affected, c_outage]
-                bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
-                added_flow = flow_outage * bodf
+
+                significant = bodf.abs() >= threshold if threshold > 0 else None
+                if significant is not None:
+                    bodf = bodf.loc[significant.any(axis=1), significant.any(axis=0)]
+                    if bodf.empty:
+                        continue
+                    significant = significant.loc[bodf.index, bodf.columns]
+                    significant = xr.DataArray(
+                        significant, dims=[c_affected, c_outage_]
+                    )
+
+                flow_outage = m.variables[c_outage + "-s"].loc[:, bodf.columns]
+                flow_outage = flow_outage.rename({"name": c_outage_})
+                added_flow = flow_outage * xr.DataArray(
+                    bodf, dims=[c_affected, c_outage_]
+                )
 
                 for bound, kind in product(("lower", "upper"), ("fix", "ext")):
                     constraint = c_affected + "-" + kind + "-s-" + bound
@@ -479,13 +506,22 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                         {c_affected: "name"}
                     )
                     lhs = con.lhs.sel(name=idx) + added_flow_aligned
+                    mask = (
+                        significant.sel({c_affected: idx}).rename({c_affected: "name"})
+                        if significant is not None
+                        else None
+                    )
 
                     name = (
                         constraint
                         + f"-security-for-{c_outage_}-in-sub-network-{sub_network.name}"
                     )
                     m.add_constraints(
-                        lhs, con.sign.sel(name=idx), con.rhs.sel(name=idx), name=name
+                        lhs,
+                        con.sign.sel(name=idx),
+                        con.rhs.sel(name=idx),
+                        name=name,
+                        mask=mask,
                     )
 
         return n.optimize.solve_model(**kwargs)
