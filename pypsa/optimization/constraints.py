@@ -26,9 +26,6 @@ from numpy import (
 )
 from xarray import DataArray, where
 
-from pypsa.common import (
-    expand_series,
-)
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components
 from pypsa.constants import PYPSA_DATA_DIR
@@ -749,7 +746,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
         return
 
     window = n.optimize.window.subset(sns)
-    weightings = window.model_weightings("generators").values
+    weightings = n.da.snapshot_weightings.generators.sel(snapshot=sns).values
     maintenance = n.model[f"{c.name}-maintenance"]
     maintenance_start = n.model[f"{c.name}-maintenance_start"]
     active = c.da.active.sel(name=maint_i, snapshot=sns)
@@ -2069,13 +2066,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     if c.static.empty:
         return
 
-    # elapsed hours
-    elapsed_h = expand_series(window.model_weightings("stores"), c.static.index)
-    eh = DataArray(elapsed_h)
-    try:
-        eh = eh.unstack("dim_1")
-    except ValueError:
-        pass
+    eh = n.da.snapshot_weightings.stores.sel(snapshot=sns)
 
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
     eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=c.active_assets)
@@ -2253,13 +2244,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     if c.static.empty:
         return
 
-    # elapsed hours
-    elapsed_h = expand_series(window.model_weightings("stores"), c.active_assets)
-    eh = DataArray(elapsed_h)
-
-    # Unstack in stochastic networks with MultiIndex snapshots
-    if n.has_scenarios and "dim_1" in eh.dims:
-        eh = eh.unstack("dim_1")
+    eh = n.da.snapshot_weightings.stores.sel(snapshot=sns)
 
     # standing efficiency
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
@@ -2651,11 +2636,7 @@ def define_total_supply_constraints(
     if c.static.empty:
         return
 
-    # elapsed hours
-    eh = DataArray(expand_series(window.model_weightings("generators"), c.static.index))
-    # Unstack in stochastic networks with MultiIndex snapshots
-    if n.has_scenarios:
-        eh = eh.unstack("dim_1")
+    eh = n.da.snapshot_weightings.generators.sel(snapshot=sns_)
 
     def _extract_names(index: pd.Index) -> pd.Index:
         """Extract name level from MultiIndex or return as-is."""
@@ -2671,8 +2652,7 @@ def define_total_supply_constraints(
         names = _extract_names(e_sum_min_i)
         e_sum_min = c.da.e_sum_min.sel(name=names)
         p = m[f"{c.name}-p"].sel(name=names, snapshot=sns_)
-        eh_selected = eh.sel(name=names)
-        energy = (p * eh_selected).sum(dim="snapshot")
+        energy = (p * eh).sum(dim="snapshot")
         m.add_constraints(energy, ">=", e_sum_min, name=f"{c.name}-e_sum_min")
 
     # maximum energy production constraints
@@ -2681,6 +2661,5 @@ def define_total_supply_constraints(
         names = _extract_names(e_sum_max_i)
         e_sum_max = c.da.e_sum_max.sel(name=names)
         p = m[f"{c.name}-p"].sel(name=names, snapshot=sns_)
-        eh_selected = eh.sel(name=names)
-        energy = (p * eh_selected).sum(dim="snapshot")
+        energy = (p * eh).sum(dim="snapshot")
         m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")

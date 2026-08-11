@@ -27,6 +27,8 @@ from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_por
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
+    import xarray as xr
+
     from pypsa import Network, NetworkCollection
     from pypsa.components.components import PortsLike
 
@@ -70,8 +72,12 @@ def port_efficiency(
     c_name: str,
     port: int | str = 0,
     dynamic: bool = False,
-) -> pd.Series | pd.DataFrame:
-    """Get the efficiency of a component at a specific port."""
+) -> pd.Series | xr.DataArray:
+    """Get the efficiency of a component at a specific port.
+
+    With `dynamic`, a time-varying efficiency is returned as a
+    ``DataArray`` on the labels of the live optimization model.
+    """
     c = n.c[c_name]
     port = c._as_port(port)
 
@@ -85,12 +91,12 @@ def port_efficiency(
             return -ones
         key = c._port_coefficient_attr(port)
         if dynamic and key in c.static:
-            return n.get_switchable_as_dense(c.name, key)
+            return c.da[key]
         return c.static.get(key, ones)
     elif c.name == "Process":
         key = c._port_coefficient_attr(port)
         if dynamic and key in c.static:
-            return n.get_switchable_as_dense(c.name, key)
+            return c.da[key]
         return c.static.get(key, ones)
     else:
         msg = f"port_efficiency has not been implemented for: {c.name}"

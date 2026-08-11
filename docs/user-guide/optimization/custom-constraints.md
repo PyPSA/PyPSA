@@ -150,29 +150,23 @@ representation the live model uses is answered by
 False
 ```
 
-[`n.optimize.window`][pypsa.optimization.window.SnapshotWindow] carries the
-snapshots of the current model build in both labellings and bridges them, so
+The `da` accessors already hand out data on the model's labels, so
 `extra_functionality` does not have to branch on the representation:
 
 ``` py
 >>> def custom_constraints(n: pypsa.Network, sns: pd.Index) -> None:
-...     window = n.optimize.window
 ...     p = n.model.variables["Generator-p"]
-...     cost = n.get_switchable_as_dense("Generator", "marginal_cost")
-...     expr = (p * window.on_model(cost)).sum("name")   # pandas data on the model's labels
-...     weighted = expr * window.model_weightings("objective")
-...     for period, period_sns in window.iter_periods():  # (None, all snapshots) if single-period
-...         total = weighted.sel(snapshot=period_sns).sum()
-...         n.model.add_constraints(total <= 1e9, name=f"Generator-cost_cap-{period}")
+...     cost = n.c.generators.da.marginal_cost
+...     weight = n.da.snapshot_weightings.objective
+...     spend = (p * cost).sum("name") * weight
+...     n.model.add_constraints(spend.sum() <= 1e9, name="Generator-cost_cap")
 ```
 
 Migrating existing `extra_functionality` to the flat representation:
 
-* `window.on_model(df)` instead of `df.loc[sns]` when putting a snapshot-indexed pandas object onto the model.
-* `window.model_weightings("objective")` instead of `n.snapshot_weightings.objective.loc[sns]`.
-* `window.iter_periods()` instead of slicing `sns` by `sns.unique("period")`.
-* `window.on_network(df)` to restrict a network-indexed object to the build's snapshots, keeping the network's labels.
-* `expr.groupby("period").sum()` keeps working unchanged — the auxiliary coordinate takes the role of the `MultiIndex` level.
+* `n.c.<component>.da.<attr>` instead of `n.get_switchable_as_dense(...).loc[sns]`, and [`n.da.snapshot_weightings.<kind>`][pypsa.Network.da] instead of `n.snapshot_weightings.<kind>.loc[sns]`. Both are already on the model's labels; select the snapshots you need with `.sel(snapshot=sns)`.
+* `expr.groupby("period").sum()` instead of slicing `sns` by `sns.unique("period")` — the auxiliary coordinate takes the role of the `MultiIndex` level.
+* [`n.optimize.window`][pypsa.optimization.window.SnapshotWindow] bridges whatever has to stay in pandas: `window.on_model(df)` puts a snapshot-indexed object onto the model's labels, `window.on_network(df)` restricts one to the build's snapshots keeping the network's labels, and `window.iter_periods()` yields the per-investment-period snapshots.
 
 !!! note "Alternative approach using `n.optimize(extra_functionality=...)`"
 

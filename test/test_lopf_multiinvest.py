@@ -1272,15 +1272,22 @@ def test_window_spans_the_build(windowed_n):
 
 def test_window_on_model_uses_model_labels(windowed_n):
     window = windowed_n.optimize.window
-    weightings = window.model_weightings("objective")
+    weightings = window.on_model(windowed_n.snapshot_weightings.objective)
     pd.testing.assert_index_equal(weightings.index, window.model_index)
+    equal(weightings.to_numpy(), windowed_n.snapshot_weightings.objective.to_numpy())
+
+
+def test_network_arrays_use_model_labels(windowed_n):
+    window = windowed_n.optimize.window
+    weightings = windowed_n.da.snapshot_weightings.objective
+    pd.testing.assert_index_equal(weightings.indexes["snapshot"], window.model_index)
     equal(weightings.to_numpy(), windowed_n.snapshot_weightings.objective.to_numpy())
 
 
 def test_window_subset_realigns_a_strict_subset(windowed_n):
     window = windowed_n.optimize.window
     subset = window.subset(window.model_index[:7])
-    weightings = subset.model_weightings("objective")
+    weightings = subset.on_model(windowed_n.snapshot_weightings.objective)
 
     pd.testing.assert_index_equal(weightings.index, window.model_index[:7])
     equal(

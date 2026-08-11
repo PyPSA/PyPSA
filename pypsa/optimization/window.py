@@ -205,40 +205,6 @@ class SnapshotWindow:
         labels.name = obj.index.name
         return self.on_network(obj).set_axis(labels)
 
-    def model_weightings(self, kind: str) -> pd.Series:
-        """Snapshot weightings of `kind` over the window, on the model's labels.
-
-        Use this to weight model objects. Use
-        [network_weightings][pypsa.optimization.window.SnapshotWindow.network_weightings]
-        for pandas-side aggregation that resolves the investment period from the index.
-
-        Parameters
-        ----------
-        kind : str
-            Column of ``n.snapshot_weightings``, e.g. ``"objective"``.
-
-        Returns
-        -------
-        pandas.Series
-
-        """
-        return self.on_model(self._n.snapshot_weightings[kind])
-
-    def network_weightings(self, kind: str) -> pd.Series:
-        """Snapshot weightings of `kind` over the window, on the network's labels.
-
-        Parameters
-        ----------
-        kind : str
-            Column of ``n.snapshot_weightings``, e.g. ``"objective"``.
-
-        Returns
-        -------
-        pandas.Series
-
-        """
-        return self.on_network(self._n.snapshot_weightings[kind])
-
     def iter_periods(self) -> Iterator[tuple[Any, pd.Index]]:
         """Yield ``(period, snapshots)`` pairs for per-period constraint building.
 
@@ -314,21 +280,10 @@ class SnapshotWindow:
 
         """
         merged = merge([self.drop_aux(e) for e in exprs], dim="snapshot", join="outer")
-        return self.attach_aux(merged)
+        return self._attach_aux(merged)
 
-    def attach_aux(self, obj: Any) -> Any:
-        """Re-derive the ``period``/``timestep`` aux coords from the tuple labels.
-
-        Parameters
-        ----------
-        obj : linopy.Variable, linopy.LinearExpression or xarray.DataArray
-            Object over the model's ``snapshot`` dimension.
-
-        Returns
-        -------
-        Same type as `obj`
-
-        """
+    def _attach_aux(self, obj: Any) -> Any:
+        """Re-derive the ``period``/``timestep`` aux coords from the tuple labels."""
         return attach_snapshot_aux(obj, self.network_index)
 
     def drop_aux(self, obj: Any) -> Any:

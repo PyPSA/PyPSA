@@ -17,7 +17,7 @@ from linopy import LinearExpression, Variable
 from packaging import version
 from xarray import DataArray
 
-from pypsa._linopy_compat import suppress_semantics_warnings
+from pypsa._linopy_compat import drop_snapshot_aux, suppress_semantics_warnings
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.statistics import (
@@ -46,6 +46,23 @@ def check_if_empty(expr: LinearExpression) -> bool:
     if USE_EMPTY_PROPERTY:
         return expr.empty
     return expr.empty()
+
+
+def _port_coefficients(n: Network, c: str, port: str, sns: pd.Index) -> DataArray:
+    """Port efficiencies of `c` as an array, restricted to `sns` if time-varying."""
+    efficiency = DataArray(port_efficiency(n, c, port=port, dynamic=True))
+    if "snapshot" in efficiency.dims:
+        return efficiency.sel(snapshot=sns)
+    return efficiency
+
+
+def _normalized_weights(weights: DataArray) -> DataArray:
+    """Scale `weights` to sum to one, per investment period if the snapshots carry one."""
+    if "period" not in weights.coords:
+        return weights / weights.sum()
+    period = weights.coords["period"].to_numpy()
+    totals = pd.Series(weights.to_numpy()).groupby(period).transform("sum")
+    return weights / totals.to_numpy()
 
 
 def _group_key_coords(expr: LinearExpression) -> list[str]:
@@ -235,20 +252,42 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         res = ln.merge(list(exprs.values()), dim=periods.name)
         return res.assign_coords({periods.name: periods})
 
+    def _aggregate_timeseries(
+        self,
+        expr: LinearExpression,
+        weights: DataArray,
+        agg: str | Callable | bool = "sum",
+    ) -> LinearExpression:
+        """Weight `expr` over the snapshots it spans and aggregate them.
+
+        Overrides the pandas-side implementation: the weights arrive as an array on
+        the model's snapshot labels, so both the restriction to `expr`'s snapshots
+        and the per-period mean normalization run on the ``period`` coordinate,
+        which the snapshots carry under either representation.
+        """
+        if not agg:
+            return expr
+        if agg is True:
+            agg = "sum"
+        weights = weights.sel(snapshot=expr.indexes["snapshot"])
+        if agg == "mean":
+            weights = _normalized_weights(weights)
+            agg = "sum"
+        return self._aggregate_with_weights(expr, weights, agg)
+
     def _aggregate_with_weights(
         self,
         expr: LinearExpression,
-        weights: pd.Series,
+        weights: DataArray,
         agg: str | Callable,
     ) -> LinearExpression:
         """Apply weights to a time series."""
         if agg != "sum":
             msg = f"Aggregation method {agg} not supported."
             raise ValueError(msg)
-        sns = expr.indexes.get("snapshot")
-        if sns is None or "period" not in expr.coords:
+        if "period" not in expr.coords:
             return expr @ weights
-        return expr.mul(weights.set_axis(sns), join="left").groupby("period").sum()
+        return expr.mul(drop_snapshot_aux(weights), join="left").groupby("period").sum()
 
     def _aggregate_components(self, *args: Any, **kwargs: Any) -> Any:
         # Expressions built from masked model variables leave absent slots, the
@@ -338,9 +377,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         if c == "Load":
             window = self._n.optimize.window
-            dense_p_set = self._n.get_switchable_as_dense(c, "p_set")
-            const = LinearExpression.from_constant(m, window.on_model(dense_p_set))
-            return window.attach_aux(const)
+            p_set = self._n.c[c].da.p_set.sel(snapshot=window.model_index)
+            return LinearExpression.from_constant(m, p_set)
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
             return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
@@ -519,11 +557,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if add_opex is not None:
                 var = var.drop_sel(name=add_opex.coords["name"])
 
-            window = n.optimize.window.subset(sns)
-            cost = n.get_switchable_as_dense(c, attr)[var.indexes["name"]]
-            opex = _add_optional(var * window.on_model(cost), add_opex)
+            cost = n.c[c].da[attr].sel(snapshot=sns, name=var.indexes["name"])
+            opex = _add_optional(var * cost, add_opex)
 
-            weights = window.network_weightings("objective")
+            weights = n.da.snapshot_weightings.objective
             return self._aggregate_timeseries(opex, weights, agg=groupby_time)
 
         return self._aggregate_components(
@@ -586,13 +623,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
             sns = var.indexes["snapshot"]
-            window = n.optimize.window.subset(sns)
             idx = transmission_branches.get_loc_level(c)[1].rename("name")
-            efficiency = port_efficiency(n, c, port=port, dynamic=True)
-            if isinstance(efficiency, pd.DataFrame):
-                efficiency = window.on_model(efficiency)
-            p = var.loc[:, idx] * efficiency[idx]
-            weights = window.network_weightings("generators")
+            efficiency = _port_coefficients(n, c, port, sns)
+            p = var.loc[:, idx] * efficiency.sel(name=idx)
+            weights = n.da.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         return self._aggregate_components(
@@ -678,13 +712,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             var = self._get_operational_variable(component)
             sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
-            window = n.optimize.window.subset(sns)
-            dynamic_efficiency = port_efficiency(n, component, port=port, dynamic=True)
-            if isinstance(dynamic_efficiency, pd.DataFrame):
-                dynamic_efficiency = window.on_model(dynamic_efficiency)
             sign = n.c[component].static.get("sign", 1.0)
-            weights = window.network_weightings("generators")
-            coeffs = DataArray(dynamic_efficiency * sign)
+            weights = n.da.snapshot_weightings.generators
+            coeffs = _port_coefficients(n, component, port, sns) * sign
 
             pw_var = None
             if isinstance(c, _Multiport) and c.has_piecewise(
@@ -692,8 +722,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             ):
                 pw = sign * n.model.variables[c._piecewise_aux_var(y_attr)]
                 names = pw.coords["name"].values
-                # pandas 3 returns read-only views, so copy before writing
-                coeffs = coeffs.copy()
                 coeffs.loc[{"name": names}] = 0
                 pw_var = _direct_piecewise(c, y_attr, sign, pw, names, direction)
 
@@ -863,7 +891,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series:
-            if "p_max_pu" not in n.c[component].static.columns:
+            c = n.c[component]
+            if "p_max_pu" not in c.static.columns:
                 # curtailment only applies to components with a per-unit availability
                 # (passive branches have no p_max_pu, yielding an all-NaN dense frame)
                 return None
@@ -874,13 +903,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             idx = capacity.indexes["name"]
             operation = self._get_operational_variable(component).loc[:, idx]
             sns = operation.indexes["snapshot"]
-            window = n.optimize.window.subset(sns)
-            dense_p_max_pu = n.get_switchable_as_dense(component, "p_max_pu")[idx]
-            p_max_pu = DataArray(window.on_model(dense_p_max_pu))
+            p_max_pu = c.da.p_max_pu.sel(snapshot=sns, name=idx)
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
             # TODO curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
-            weights = window.network_weightings("generators")
+            weights = n.da.snapshot_weightings.generators
             return self._aggregate_timeseries(curtailment, weights, agg=groupby_time)
 
         return self._aggregate_components(
@@ -935,8 +962,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             operation = self._get_operational_variable(c)
-            sns = operation.indexes["snapshot"]
-            weights = n.optimize.window.subset(sns).network_weightings("generators")
+            weights = n.da.snapshot_weightings.generators
             return self._aggregate_timeseries(operation, weights, agg=groupby_time)
 
         return self._aggregate_components(
