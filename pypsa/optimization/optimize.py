@@ -17,10 +17,7 @@ from linopy import Model, merge
 from linopy.constants import BREAKPOINT_DIM, LP_PIECE_DIM, PWL_LINK_DIM, SEGMENT_DIM
 from linopy.solvers import available_solvers
 
-from pypsa._linopy_compat import (
-    recompose_snapshot_dim,
-    suppress_semantics_warnings,
-)
+from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import (
     UnexpectedError,
@@ -1035,14 +1032,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """Map solution to network components."""
         n = self._n
         m = n.model
-        window = n.optimize.window.network_index
+        window = n.optimize.window
+        sns = window.network_index
 
         if not n.c.transformers.empty:
-            setpoint = n.get_switchable_as_dense("Transformer", "phase_shift", window)
+            setpoint = n.get_switchable_as_dense("Transformer", "phase_shift", sns)
             _set_dynamic_data(n, "Transformer", "phase_shift_opt", setpoint)
 
         for name, variable in m.variables.items():
-            sol = recompose_snapshot_dim(variable.solution)
+            sol = window.recompose(variable.solution)
             if name == "objective_constant":
                 continue
 
@@ -1112,7 +1110,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     for i in ports:
                         i_suffix = c._port_suffix(i)
                         eff_attr = c._port_coefficient_attr(i)
-                        eff = n.get_switchable_as_dense(c.name, eff_attr, window)
+                        eff = n.get_switchable_as_dense(c.name, eff_attr, sns)
                         port_df = -df * eff
                         if c.has_piecewise(eff_attr):
                             df_piecewise = _from_xarray(
@@ -1125,12 +1123,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                             c,
                             f"delay{i_suffix}",
                             f"cyclic_delay{i_suffix}",
-                            window,
+                            sns,
                             n,
                         )
                         _set_dynamic_data(n, c.name, f"p{i}", port_df)
                         c.dynamic[f"p{i}"].loc[
-                            window, c.static.index[c.static[f"bus{i}"] == ""]
+                            sns, c.static.index[c.static[f"bus{i}"] == ""]
                         ] = float(c.defaults.loc[f"p{i}", "default"])
 
                 else:
@@ -1211,7 +1209,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             # Dynamic duals (constraints with snapshot dimension)
             if "snapshot" in constraint.dual.dims:
                 # Get dual from constraint as formatted pandas DataFrame
-                dual_df = _from_xarray(recompose_snapshot_dim(constraint.dual), c)
+                dual = self._n.optimize.window.recompose(constraint.dual)
+                dual_df = _from_xarray(dual, c)
 
                 # Standard components: extract last part after final dash
                 # e.g., "Line-s-upper" -> "upper", "Generator-p-lower" -> "lower"
@@ -1264,8 +1263,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         power injection per bus and snapshot, voltage angle.
         """
         n = self._n
-        w = n.optimize.window
-        window = w.network_index
+        sns = n.optimize.window.network_index
 
         check_big_m_exceeded(n)
 
@@ -1274,16 +1272,16 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if n._multi_invest:
             period_weighting = n.investment_period_weightings.objective
             objective = objective.mul(period_weighting, level=0, axis=0)
-        weightings = objective.loc[window]
+        weightings = objective.loc[sns]
 
-        n.c.buses.dynamic.marginal_price.loc[window] = (
-            n.c.buses.dynamic.marginal_price.loc[window].divide(weightings, axis=0)
+        n.c.buses.dynamic.marginal_price.loc[sns] = (
+            n.c.buses.dynamic.marginal_price.loc[sns].divide(weightings, axis=0)
         )
 
         # load
         if len(n.loads):
             _set_dynamic_data(
-                n, "Load", "p", n.get_switchable_as_dense("Load", "p_set", window)
+                n, "Load", "p", n.get_switchable_as_dense("Load", "p_set", sns)
             )
 
         # line losses
@@ -1326,7 +1324,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
                 buses_i = sub.buses_o
                 if len(buses_i) == 1:
-                    return pd.DataFrame(0, index=window, columns=buses_i)
+                    return pd.DataFrame(0, index=sns, columns=buses_i)
                 sub.calculate_B_H(skip_pre=True)
                 Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
                 Z -= Z[sub.slack_bus]

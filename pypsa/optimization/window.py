@@ -8,8 +8,9 @@ A multi-period model may be built over a flat ``snapshot`` dimension whose label
 are the ``(period, timestep)`` tuples of ``n.snapshots`` (linopy's v1 convention,
 see [pypsa._linopy_compat][]). [SnapshotWindow][pypsa.optimization.window.SnapshotWindow]
 carries both labellings of the build's snapshots and every operation that bridges
-them. Outside that path the two labellings are the same index and all operations
-degenerate to identity, so call sites never branch on the representation.
+them; what is left in [pypsa._linopy_compat][] needs no build state. Outside that
+path the two labellings are the same index and all operations degenerate to
+identity, so call sites never branch on the representation.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from pypsa._linopy_compat import (
     attach_snapshot_aux,
     drop_snapshot_aux,
     flatten_snapshot_dim,
+    recompose_snapshot_dim,
     resolve_snapshot_representation,
     tuple_snapshot_index,
 )
@@ -288,3 +290,22 @@ class SnapshotWindow:
         if "snapshot" in obj.dims:
             obj = obj.sel(snapshot=self.network_index)
         return flatten_snapshot_dim(obj)
+
+    def recompose(self, obj: xr.DataArray) -> xr.DataArray:
+        """Put a model-labelled array back on the network's snapshots.
+
+        Inverse of [flatten][pypsa.optimization.window.SnapshotWindow.flatten], for
+        results handed back to the pandas side.
+
+        Parameters
+        ----------
+        obj : xarray.DataArray
+            Array over the model's ``snapshot`` dimension.
+
+        Returns
+        -------
+        xarray.DataArray
+            Unchanged unless the build is flat.
+
+        """
+        return recompose_snapshot_dim(obj)

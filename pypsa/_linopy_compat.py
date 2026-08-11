@@ -12,7 +12,14 @@ of truth: the MultiIndex and the aux coords are both derived from them, so any t
 arrays over the same snapshots align by label and the round-trip back is a plain
 ``pd.MultiIndex.from_tuples``. Legacy linopy — and any release without the
 ``semantics`` option — keeps the MultiIndex first-class, leaving ``n.model``
-unchanged. This shim is temporary; it goes away once v1 is linopy's default.
+unchanged.
+
+Only the version probes die once v1 is linopy's default: ``linopy_uses_v1``,
+``suppress_semantics_warnings``, ``SUPPORTS_BREAKPOINT_MASK`` and
+``resolve_snapshot_representation`` (with the ``snapshot_representation`` option).
+The transforms below stay — the flat representation outlives the compatibility
+layer — and move to their caller,
+[SnapshotWindow][pypsa.optimization.window.SnapshotWindow].
 """
 
 from __future__ import annotations
