@@ -10,6 +10,7 @@ import functools
 import json
 import logging
 import math
+import os
 import re
 import tempfile
 import warnings
@@ -19,6 +20,7 @@ from typing import TYPE_CHECKING, Any, overload
 from urllib.request import urlretrieve
 
 import geopandas as gpd
+import netCDF4
 import numpy as np
 import pandas as pd
 import validators
@@ -987,6 +989,25 @@ class _ExporterHDF5(_Exporter):
         self._hdf5_handle.close()
 
 
+def _open_netcdf(path: Path) -> xr.Dataset:
+    """Open a netCDF file, reading variable-length strings as object arrays.
+
+    xarray pads them to the longest entry and stores them as UTF-32, which
+    explodes memory for length-skewed columns such as geometry WKT.
+
+    Cloud paths (via cloudpathlib) resolve to their local cache file so that netCDF4
+    reads the downloaded file instead of treating the URI as a remote URL.
+    """
+    local_path = os.fspath(path)
+    with netCDF4.Dataset(local_path) as nc:
+        strings = {
+            name: (var.dimensions, var[:])
+            for name, var in nc.variables.items()
+            if var.dtype == str
+        }
+    return xr.open_dataset(local_path, drop_variables=strings).assign(strings)
+
+
 class _ImporterNetCDF(_Importer):
     """Importer class for netCDF files."""
 
@@ -1004,9 +1025,9 @@ class _ImporterNetCDF(_Importer):
         self.path = path
         if isinstance(path, (str | Path)):
             if validators.url(str(path)):
-                self.ds = _retrieve_from_url(str(path), xr.open_dataset)
+                self.ds = _retrieve_from_url(str(path), _open_netcdf)
             else:
-                self.ds = xr.open_dataset(Path(path))
+                self.ds = _open_netcdf(Path(path))
         else:
             self.ds = path
 
