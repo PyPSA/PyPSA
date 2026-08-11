@@ -10,6 +10,7 @@ import functools
 import json
 import logging
 import math
+import os
 import re
 import tempfile
 import warnings
@@ -993,14 +994,18 @@ def _open_netcdf(path: Path) -> xr.Dataset:
 
     xarray pads them to the longest entry and stores them as UTF-32, which
     explodes memory for length-skewed columns such as geometry WKT.
+
+    Cloud paths (via cloudpathlib) resolve to their local cache file so that netCDF4
+    reads the downloaded file instead of treating the URI as a remote URL.
     """
-    with netCDF4.Dataset(path) as nc:
+    local_path = os.fspath(path)
+    with netCDF4.Dataset(local_path) as nc:
         strings = {
             name: (var.dimensions, var[:])
             for name, var in nc.variables.items()
             if var.dtype == str
         }
-    return xr.open_dataset(path, drop_variables=strings).assign(strings)
+    return xr.open_dataset(local_path, drop_variables=strings).assign(strings)
 
 
 class _ImporterNetCDF(_Importer):
