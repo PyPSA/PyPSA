@@ -924,8 +924,8 @@ def _define_ramp_limit_big_m(
 
     if is_rolling_horizon:
         start_i = n.snapshots.get_loc(sns[0]) - 1
-        p_init = c.da[hist_attr][start_i].sel(name=idx)
-        s_init = c.da.status[start_i].sel(name=idx).fillna(1)
+        p_init = c.da[hist_attr].isel(snapshot=start_i).sel(name=idx)
+        s_init = c.da.status.isel(snapshot=start_i).sel(name=idx).fillna(1)
     else:
         initially_up = c.da.up_time_before.sel(name=idx) > 0
         p_init = c.da.p_init.sel(name=idx).where(initially_up, 0)
@@ -1017,9 +1017,10 @@ def define_ramp_limit_constraints(
         return
 
     idx = c.active_assets
-    is_ext = idx.isin(c.extendables)
-    is_com = idx.isin(c.committables)
-    is_modular = idx.isin(c.modulars)
+    # Label-indexed on name so masks broadcast against the scenario arrays.
+    is_ext = DataArray(idx.isin(c.extendables), coords=[idx])
+    is_com = DataArray(idx.isin(c.committables), coords=[idx])
+    is_modular = DataArray(idx.isin(c.modulars), coords=[idx])
     is_com_ext = is_com & is_ext & ~is_modular
     is_com_ext_mod = is_com & is_ext & is_modular
     is_com_fix = is_com & ~is_com_ext
@@ -1064,13 +1065,18 @@ def define_ramp_limit_constraints(
 
     if is_rolling_horizon:
         start_i = n.snapshots.get_loc(sns[0]) - 1
-        p_init = c.da[hist_attr][start_i].sel(name=idx)
-        s_init = c.da.status[start_i].where(c.da.committable, 1).fillna(1).sel(name=idx)
+        p_init = c.da[hist_attr].isel(snapshot=start_i).sel(name=idx)
+        s_init = (
+            c.da.status.isel(snapshot=start_i)
+            .where(c.da.committable, 1)
+            .fillna(1)
+            .sel(name=idx)
+        )
     else:
         initially_up = c.da.up_time_before.sel(name=idx) > 0
         p_init = c.da.p_init.sel(name=idx).where(initially_up, 0)
         s_init = initially_up
-        mask[0] = p_init.notnull()
+        mask.loc[{"snapshot": sns[0]}] = p_init.notnull()
 
     # skip starts of periods except the first where p_init is used
     boundary = _period_start_mask(sns)
