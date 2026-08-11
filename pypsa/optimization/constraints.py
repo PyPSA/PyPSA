@@ -1052,12 +1052,12 @@ def define_ramp_limit_constraints(
     is_ext_main = is_ext & ~is_com_ext & ~is_com_ext_mod
     p_nom_ext_var = None
     if is_ext_main.any():
-        ext_main_names = idx[is_ext_main.values]
+        ext_main_names = idx[is_ext_main]
         p_nom_ext_var = m[f"{c.name}-{nom_attr}"].sel(name=ext_main_names)
 
     status = DataArray(1, coords=[sns, idx])
     if is_com_fix.any():
-        com_main_names = idx[is_com_fix.values]
+        com_main_names = idx[is_com_fix]
         status = status.where(~is_com_fix, 0)
         status = LinearExpression.from_constant(m, status)
         status_var = m[f"{c.name}-status"].sel(name=com_main_names)
