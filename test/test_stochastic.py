@@ -1690,3 +1690,62 @@ def test_1472():
     n.set_scenarios({"a": 0.5, "b": 0.5})
     status, _ = n.optimize()
     assert status == "ok"
+
+
+def test_ramp_limit_stochastic_optimization_bug():
+    """Ramp-limit constraints must build and hold under scenarios."""
+    p_nom = 10.0
+    ramp = 0.3
+
+    n = pypsa.Network()
+    n.set_snapshots(range(5))
+    n.add("Bus", "bus")
+    n.add(
+        "Load",
+        "load",
+        bus="bus",
+        p_set=[0.0, 3.0, 6.0, 2.0, 5.0],
+    )
+    n.add("Generator", "slack", bus="bus", p_nom=100, marginal_cost=100)
+    n.add(
+        "Generator",
+        "g",
+        bus="bus",
+        p_nom=p_nom,
+        marginal_cost=1,
+        ramp_limit_up=ramp,
+        ramp_limit_down=ramp,
+    )
+
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+    status, condition = n.optimize(solver_name="highs")
+    assert status == "ok"
+    assert condition == "optimal"
+
+    p = n.c["Generator"].dynamic["p"].xs("g", axis=1, level="name")
+    tol = 1e-6
+    diff = p.diff().dropna()
+    assert (diff.abs() <= ramp * p_nom + tol).all().all()
+
+
+def test_active_inactive_assets_per_scenario():
+    """Per-scenario activeness keeps active/inactive assets mutually exclusive."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Generator", "g", bus="bus", p_nom_extendable=True)
+    n.add("Generator", "h", bus="bus", p_nom_extendable=True)
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+
+    # Deactivate g only in scenario "b" (do not run consistency_check).
+    n.c.generators.static.loc[("b", "g"), "active"] = False
+
+    c = n.c.generators
+    active, inactive = c.active_assets, c.inactive_assets
+
+    # g is active in at least one scenario, so it must not be inactive.
+    assert "g" in active
+    assert "g" not in inactive
+    # Documented invariant: the two sets partition the names.
+    assert active.intersection(inactive).empty
+    # Model index must keep g (pre-fix it was dropped via .difference).
+    assert "g" in c.extendables.difference(inactive)

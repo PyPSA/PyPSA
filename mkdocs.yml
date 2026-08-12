@@ -383,10 +383,10 @@ plugins:
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.violin
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.histogram
 
-# This will rebuild and execute the notebooks during any modifications when running `mkdocs serve`
-# For local development, this can be commented out/ filtered to only include the notebooks of interest
+# Notebooks are pre-executed by the build-docs GitHub Action and stored on the
+# `docs-notebooks` branch. For local development set execute: true to run on serve.
 - mkdocs-jupyter:
-    execute: true
+    execute: false
     include: ["*.ipynb"]
     allow_errors: false
     include_source: true
