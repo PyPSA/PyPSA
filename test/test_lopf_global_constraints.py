@@ -191,3 +191,31 @@ def test_1449():
 
     status, _ = n.optimize()
     assert status == "ok"
+
+
+def test_transmission_cost_limit_overnight_cost():
+    n = pypsa.Network()
+    n.snapshot_weightings.loc[:, :] = 8760.0
+    n.add("Bus", ["a", "b"])
+    n.add(
+        "Line",
+        "ab",
+        bus0="a",
+        bus1="b",
+        x=0.01,
+        s_nom_extendable=True,
+        overnight_cost=1000,
+        discount_rate=0,
+        lifetime=10,
+    )
+    n.add(
+        "GlobalConstraint",
+        "cost_limit",
+        type="transmission_expansion_cost_limit",
+        constant=10000,
+        sense="<=",
+        carrier_attribute="AC",
+    )
+    m = n.optimize.create_model()
+    con = m.constraints["GlobalConstraint-cost_limit"]
+    assert (con.coeffs == 100.0).all()
