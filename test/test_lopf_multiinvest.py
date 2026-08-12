@@ -1306,4 +1306,21 @@ def test_extra_functionality_receives_the_build_snapshots(n, representation):
     with option_context("optimization.snapshot_representation", representation):
         n.optimize.create_model(snapshots=n.snapshots[:12], **kwargs)
         n.optimize.solve_model(extra_functionality=lambda _, sns: seen.append(sns))
-    pd.testing.assert_index_equal(seen[0], n.optimize.window.model_index)
+    pd.testing.assert_index_equal(seen[0], n.snapshots[:12])
+
+
+def test_extra_functionality_selects_with_network_labels(n):
+    """Slicing `sns` by period and selecting the model holds in both representations."""
+
+    def cap_first_period(n: pypsa.Network, sns: pd.Index) -> None:
+        first = sns[sns.get_level_values("period") == n.investment_periods[0]]
+        p = n.model.variables["Generator-p"].sel(name="gen1-2020")
+        n.model.add_constraints(p.sel(snapshot=first).sum() <= 500, name="cap-first")
+
+    objectives = {}
+    for representation in ("auto", "flat"):
+        with option_context("optimization.snapshot_representation", representation):
+            n.optimize(extra_functionality=cap_first_period, **kwargs)
+        objectives[representation] = n.objective
+
+    almost_equal(objectives["auto"], objectives["flat"], decimal=3)

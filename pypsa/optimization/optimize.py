@@ -680,7 +680,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             **model_kwargs,
         )
         if extra_functionality:
-            extra_functionality(n, n.optimize.window.model_index)
+            extra_functionality(n, n.optimize.window.network_index)
         if log_to_console is not None:
             kwargs["log_to_console"] = log_to_console
         status, condition = m.solve(
@@ -1007,7 +1007,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         n = self._n
         if extra_functionality:
-            extra_functionality(n, n.optimize.window.model_index)
+            extra_functionality(n, n.optimize.window.network_index)
         m = n.model
         if log_to_console is not None:
             kwargs["log_to_console"] = log_to_console
