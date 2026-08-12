@@ -51,27 +51,25 @@ PyPSA supports two approaches for specifying investment costs:
           p_nom_extendable=True,
           overnight_cost=1200000,  # Upfront cost: €/MW
           discount_rate=0.07,      # 7% discount rate
-          lifetime=25,             # 25 years
-          fom_cost=12000)          # Fixed O&M: €/MW/a
+          lifetime=25)             # 25 years
     ```
 
     The effective periodized cost per MW installation used in optimization is calculated as:
 
-    $$c = c_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}} + c_{\text{fom}}$$
-
+    $$c = c_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}}$$
     where $N_{\text{years}}$ refers to the model time span in units of years, derived from `n.snapshot_weightings["objective"]`.  The annuity factor converts overnight cost to annual payments:
 
     $$\text{annuity}(r, n) = \frac{r}{1 - (1 + r)^{-n}}$$
 
     or
 
-    $$1/n  /text{if} r=0$$
+    $$\frac{1}{n}  \text{if} r=0$$
 
 
 
 ### Fixed Operation & Maintenance Costs
 
-Fixed O&M costs (`fom_cost`) represent periodized costs that are incurred regardless of dispatch, such as maintenance, insurance, and land lease. They are added to the annualized investment cost (`capital_cost` / `overnight_cost`):
+Fixed O&M costs (`fom_cost`) represent another type of periodized costs that are incurred regardless of dispatch, such as maintenance, insurance, and land lease:
 
 ``` py
 # Wind turbine with 2% of overnight cost as annual FOM
