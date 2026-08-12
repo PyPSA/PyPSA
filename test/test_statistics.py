@@ -371,13 +371,13 @@ def test_system_cost_includes_fom():
         fom_cost=10,
         marginal_cost=1,
     )
-    n.optimize()
+    n.optimize(inlude_objective_constant=False)
 
     assert n.statistics.capex().sum() == pytest.approx(100.0)
     assert n.statistics.fom().sum() == pytest.approx(10.0)
     system_cost = n.statistics.system_cost().sum()
     assert system_cost == pytest.approx(111.0)
-    assert system_cost == pytest.approx(n.objective + n.objective_constant)
+    assert system_cost == pytest.approx(n.objective)
 
 
 def test_system_cost_groupby_time_false_deprecated(ac_dc_network_r):
