@@ -1064,7 +1064,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         See Also
         --------
-        :meth:`capex` : Returns annuitized investment costs (excluding fom).
+        :meth:`capex` : Returns periodized investment costs (excluding fom).
         :meth:`fom` : Returns fixed operation and maintenance costs.
 
         """
@@ -1148,7 +1148,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         See Also
         --------
-        :meth:`capex` : Returns annuitized investment costs (excluding fom).
+        :meth:`capex` : Returns periodized investment costs (excluding fom).
         :meth:`overnight_cost` : Returns overnight investment costs.
         :meth:`system_cost` : Returns total system cost (capex + fom + opex).
 
@@ -1738,8 +1738,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **total system cost**.
 
-        Sum of the capital expenditure, fixed O&M costs and operational
-        expenditure.
+        Sum of the capital expenditures, fixed O&M costs and operational
+        expenditures.
 
         Parameters
         ----------
