@@ -28,6 +28,7 @@ exclude = [
   "gurobi.com",
   "sun.ac.za",
   "agora-energiewende.de",
+  "isa.co",
 ]
 
 # Release notes are an immutable historical record whose links rot over time.
