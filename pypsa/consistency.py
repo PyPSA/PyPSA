@@ -1410,11 +1410,11 @@ def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
         if c.static.empty:
             continue
 
-        com_i = c.committables.difference(c.inactive_assets)
+        com_i = c.committables.intersection(c.active_assets)
         if com_i.empty:
             continue
 
-        ext_i = c.extendables.difference(c.inactive_assets)
+        ext_i = c.extendables.intersection(c.active_assets)
         com_ext_i = com_i.intersection(ext_i)
         if com_ext_i.empty:
             continue
@@ -1582,7 +1582,7 @@ def check_no_modular_committables(n: Network) -> None:
         com_i = c.committables
         if com_i.empty:
             continue
-        com_i = com_i.difference(c.inactive_assets)
+        com_i = com_i.intersection(c.active_assets)
         mod_com_i = com_i.intersection(c.modulars)
         if not mod_com_i.empty:
             modular_committables.extend(f"{c.name}:{name}" for name in mod_com_i)

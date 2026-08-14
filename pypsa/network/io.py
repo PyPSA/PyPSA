@@ -10,6 +10,8 @@ import functools
 import json
 import logging
 import math
+import os
+import re
 import tempfile
 import warnings
 from abc import abstractmethod
@@ -18,6 +20,7 @@ from typing import TYPE_CHECKING, Any, overload
 from urllib.request import urlretrieve
 
 import geopandas as gpd
+import netCDF4
 import numpy as np
 import pandas as pd
 import validators
@@ -29,7 +32,10 @@ from pyproj import CRS
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.consistency import check_for_unknown_buses
-from pypsa.descriptors import _update_ports_component_attrs
+from pypsa.constants import piecewise_attrs
+from pypsa.descriptors import (
+    _update_ports_component_attrs,
+)
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_base__
 
@@ -115,6 +121,13 @@ def _get_safe_excel_sheet_name(sheet_name: str) -> str:
     mappings = {
         "storage_units-state_of_charge_set": "storage_units-soc_set",
         "storage_units-efficiency_dispatch": "storage_units-eff_dispatch",
+        "generators-marginal_cost_piecewise": "generators-marginal_cost_pw",
+        "generators-capital_cost_piecewise": "generators-capital_cost_pw",
+        "processes-capital_cost_piecewise": "processes-capital_cost_pw",
+        "processes-marginal_cost_piecewise": "processes-marginal_cost_pw",
+        "storage_units-capital_cost_piecewise": "storage_units-capital_cost_pw",
+        "storage_units-marginal_cost_piecewise": "storage_units-marginal_cost_pw",
+        "transformers-capital_cost_piecewise": "transformers-capital_cost_pw",
     }
 
     if sheet_name in mappings:
@@ -200,6 +213,9 @@ class _Exporter(_ImpExper):
     def remove_series(self, list_name: str, attr: str) -> None:
         """Remove dynamic components data."""
 
+    def remove_piecewise(self, list_name: str, attr: str) -> None:
+        """Remove piecewise component data."""
+
     @abstractmethod
     def save_attributes(self, attrs: dict) -> None:
         """Save generic network attributes."""
@@ -231,6 +247,10 @@ class _Exporter(_ImpExper):
     @abstractmethod
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save dynamic components data."""
+
+    @abstractmethod
+    def save_piecewise(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        """Save piecewise component data."""
 
 
 class _Importer(_ImpExper):
@@ -300,12 +320,20 @@ class _ImporterCSV(_Importer):
         )
 
         # Convert snapshot and timestep to datetime (if possible)
-        if "snapshot" in df and df.snapshot.iloc[0] != "now":
+        if (
+            "snapshot" in df
+            and df.snapshot.iloc[0] != "now"
+            and df.snapshot.dtype.kind != "i"
+        ):
             try:
                 df["snapshot"] = pd.to_datetime(df.snapshot)
             except (ValueError, ParserError):
                 pass
-        if "timestep" in df and df.timestep.iloc[0] != "now":
+        if (
+            "timestep" in df
+            and df.timestep.iloc[0] != "now"
+            and df.timestep.dtype.kind != "i"
+        ):
             try:
                 df["timestep"] = pd.to_datetime(df.timestep)
             except (ValueError, ParserError):
@@ -345,11 +373,27 @@ class _ImporterCSV(_Importer):
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         """Get dynamic components data."""
         for fn in self.path.iterdir():
-            if fn.name.startswith(list_name + "-") and fn.name.endswith(".csv"):
-                attr = fn.name[len(list_name) + 1 : -4]
+            match = re.match(rf"^{list_name}-(.+)(?<!-pw)\.csv$", fn.name)
+            if match:
+                attr = match.group(1)
                 df = pd.read_csv(
                     self.path.joinpath(fn.name),
                     index_col=0,
+                    encoding=self.encoding,
+                    quotechar=self.quotechar,
+                )
+                yield attr, df
+
+    def get_piecewise(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        """Get piecewise component data."""
+        for fn in self.path.iterdir():
+            match = re.match(rf"^{list_name}-(.+)-pw\.csv$", fn.name)
+            if match:
+                attr = match.group(1)
+                df = pd.read_csv(
+                    self.path.joinpath(fn.name),
+                    index_col=0,
+                    header=[0, 1],
                     encoding=self.encoding,
                     quotechar=self.quotechar,
                 )
@@ -433,6 +477,12 @@ class _ExporterCSV(_Exporter):
         with fn.open("w"):
             df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
+    def save_piecewise(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        """Save piecewise component data."""
+        fn = self.path.joinpath(f"{list_name}-{attr}-pw.csv")
+        with fn.open("w"):
+            df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
+
     def remove_static(self, list_name: str) -> None:
         """Remove static components data.
 
@@ -449,6 +499,15 @@ class _ExporterCSV(_Exporter):
         Needed to not have stale sheets for empty components.
         """
         fn = self.path.joinpath(list_name + "-" + attr + ".csv")
+        if fn.exists():
+            fn.unlink()
+
+    def remove_piecewise(self, list_name: str, attr: str) -> None:
+        """Remove piecewise component data.
+
+        Needed to not have stale sheets for empty components.
+        """
+        fn = self.path.joinpath(f"{list_name}-{attr}-pw.csv")
         if fn.exists():
             fn.unlink()
 
@@ -554,12 +613,20 @@ class _ImporterExcel(_Importer):
             return None
         df = df.set_index(df.columns[0])
         # Convert snapshot and timestep to datetime (if possible)
-        if "snapshot" in df and df.snapshot.iloc[0] != "now":
+        if (
+            "snapshot" in df
+            and df.snapshot.iloc[0] != "now"
+            and df.snapshot.dtype.kind != "i"
+        ):
             try:
                 df["snapshot"] = pd.to_datetime(df.snapshot)
             except (ValueError, ParserError):
                 pass
-        if "timestep" in df and df.timestep.iloc[0] != "now":
+        if (
+            "timestep" in df
+            and df.timestep.iloc[0] != "now"
+            and df.timestep.dtype.kind != "i"
+        ):
             try:
                 df["timestep"] = pd.to_datetime(df.timestep)
             except (ValueError, ParserError):
@@ -606,10 +673,26 @@ class _ImporterExcel(_Importer):
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         """Get dynamic components data."""
         for sheet_name, df in self.sheets.items():
-            if sheet_name.startswith(list_name + "-"):
-                sheet_name = _get_safe_excel_sheet_name(sheet_name)
-                attr = sheet_name[len(list_name) + 1 :]
+            sheet_name = _get_safe_excel_sheet_name(sheet_name)
+            match = re.match(rf"^{list_name}-(.+)(?<!-pw)$", sheet_name)
+            if match:
+                attr = match.group(1)
                 df = df.set_index(df.columns[0])
+                yield attr, df
+
+    def get_piecewise(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        """Get piecewise component data."""
+        for sheet_name, df in self.sheets.items():
+            sheet_name = _get_safe_excel_sheet_name(sheet_name)
+            match = re.match(rf"^{list_name}-(.+)-pw$", sheet_name)
+            if match:
+                attr = match.group(1)
+                df = (
+                    df.set_index(["breakpoint", "attribute"])
+                    .rename_axis(columns="name")
+                    .unstack("attribute", sort=False)
+                    .reorder_levels(["name", "attribute"], axis=1)
+                )
                 yield attr, df
 
     def finish(self) -> None:
@@ -710,6 +793,13 @@ class _ExporterExcel(_Exporter):
         sheet_name = _get_safe_excel_sheet_name(sheet_name)
         df.to_excel(self.writer, sheet_name=sheet_name)
 
+    def save_piecewise(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        """Save piecewise component data."""
+        sheet_name = f"{list_name}-{attr}-pw"
+        sheet_name = _get_safe_excel_sheet_name(sheet_name)
+        df_stack = df.stack("attribute", future_stack=True).reset_index()
+        df_stack.to_excel(self.writer, sheet_name=sheet_name, index=False)
+
     def remove_static(self, list_name: str) -> None:
         """Remove static components data.
 
@@ -726,6 +816,17 @@ class _ExporterExcel(_Exporter):
         Needed to not have stale sheets for empty components.
         """
         sheet_name = f"{list_name}-{attr}"
+        sheet_name = _get_safe_excel_sheet_name(sheet_name)
+        if sheet_name in self.writer.book.sheetnames:
+            del self.writer.book[sheet_name]
+            logger.warning("Stale sheet %s removed", sheet_name)
+
+    def remove_piecewise(self, list_name: str, attr: str) -> None:
+        """Remove piecewise component data.
+
+        Needed to not have stale sheets for empty components.
+        """
+        sheet_name = f"{list_name}-{attr}-pw"
         sheet_name = _get_safe_excel_sheet_name(sheet_name)
         if sheet_name in self.writer.book.sheetnames:
             del self.writer.book[sheet_name]
@@ -810,6 +911,15 @@ class _ImporterHDF5(_Importer):
                 df.columns = self.index[list_name][df.columns]
                 yield attr, df
 
+    def get_piecewise(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        """Get piecewise component data."""
+        for tab in self.ds:
+            if tab.startswith("/" + list_name + "_p/"):
+                attr = tab[len("/" + list_name + "_p/") :]
+                df = self.ds[tab]
+                df = df.unstack(["name", "attribute"])
+                yield attr, df
+
     def finish(self) -> None:
         """Finish the import process."""
 
@@ -890,9 +1000,35 @@ class _ExporterHDF5(_Exporter):
         df = df.set_axis(self.index[list_name].get_indexer(df.columns), axis="columns")
         self.ds.put("/" + list_name + "_t/" + attr, df, format="table", index=False)
 
+    def save_piecewise(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        """Save piecewise component data."""
+        df_stack = df.stack(df.columns.names, future_stack=True)
+        self.ds.put(
+            "/" + list_name + "_p/" + attr, df_stack, format="table", index=False
+        )
+
     def finish(self) -> None:
         """Postprocessing of exporting process."""
         self._hdf5_handle.close()
+
+
+def _open_netcdf(path: Path) -> xr.Dataset:
+    """Open a netCDF file, reading variable-length strings as object arrays.
+
+    xarray pads them to the longest entry and stores them as UTF-32, which
+    explodes memory for length-skewed columns such as geometry WKT.
+
+    Cloud paths (via cloudpathlib) resolve to their local cache file so that netCDF4
+    reads the downloaded file instead of treating the URI as a remote URL.
+    """
+    local_path = os.fspath(path)
+    with netCDF4.Dataset(local_path) as nc:
+        strings = {
+            name: (var.dimensions, var[:])
+            for name, var in nc.variables.items()
+            if var.dtype == str
+        }
+    return xr.open_dataset(local_path, drop_variables=strings).assign(strings)
 
 
 class _ImporterNetCDF(_Importer):
@@ -912,9 +1048,9 @@ class _ImporterNetCDF(_Importer):
         self.path = path
         if isinstance(path, (str | Path)):
             if validators.url(str(path)):
-                self.ds = _retrieve_from_url(str(path), xr.open_dataset)
+                self.ds = _retrieve_from_url(str(path), _open_netcdf)
             else:
-                self.ds = xr.open_dataset(Path(path))
+                self.ds = _open_netcdf(Path(path))
         else:
             self.ds = path
 
@@ -967,20 +1103,19 @@ class _ImporterNetCDF(_Importer):
 
     def get_static(self, list_name: str, index_name: str | None = None) -> pd.DataFrame:
         """Get static components data."""
-        t = list_name + "_"
-        i = len(t)
         if index_name is None:
             index_name = list_name + "_i"
         if index_name not in self.ds.coords:
             return None
         df = pd.DataFrame()
-        for attr in self.ds.data_vars.keys():
+        for attr, data_var in self.ds.data_vars.items():
             attr = str(attr)
-            if attr.startswith(t) and attr[i : i + 2] != "t_":
-                loaded_df = self.ds[attr].to_pandas()
+            match = re.match(rf"^{list_name}_(?!t_|pw_)(.+)$", attr)
+            if match:
+                loaded_df = data_var.to_pandas()
                 if isinstance(loaded_df, pd.DataFrame):
                     loaded_df = loaded_df.stack()
-                df[attr[i:]] = loaded_df
+                df[match.group(1)] = loaded_df
 
         if df.empty:
             index = self.ds.coords[index_name].to_index().rename("name")
@@ -996,20 +1131,26 @@ class _ImporterNetCDF(_Importer):
         for attr in self.ds.data_vars.keys():
             attr = str(attr)
             if attr.startswith(t):
-                try:
-                    df = self.ds[attr].to_pandas()
-                    # df.index.name = "name"
-                    df.columns.name = "name"
-                # Handle multi-indexed (scenarios)
-                except ValueError:
-                    df = (
-                        self.ds[attr]
-                        .stack(combined=("scenario", attr + "_i"))
-                        .to_pandas()
-                    )
-                    df.columns.names = ["scenario", "name"]
-
+                df = (
+                    self.ds[attr]
+                    .rename({attr + "_i": "name"})
+                    .to_series()
+                    .unstack("snapshots")
+                    .T
+                )
                 yield attr[len(t) :], _coerce_string_dtypes(df)
+
+    def get_piecewise(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        """Get piecewise component data."""
+        for attr, data_var in self.ds.data_vars.items():
+            match = re.match(rf"^{list_name}_pw_(.+)$", str(attr))
+            if match:
+                df = data_var.stack(
+                    combined=(f"{attr}_i", f"{attr}_attr_i")
+                ).to_pandas()
+                df.columns.names = ["name", "attribute"]
+
+                yield match.group(1), df
 
     def finish(self) -> None:
         """Finish the import process."""
@@ -1113,6 +1254,19 @@ class _ExporterNetCDF(_Exporter):
         self.ds[list_name + "_t_" + attr] = xr.DataArray(
             values, dims=dims, coords=coords
         )
+
+    def save_piecewise(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        """Save piecewise component data."""
+        data_var_name = f"{list_name}_pw_{attr}"
+        df = df.rename_axis(
+            columns={
+                "name": f"{data_var_name}_i",
+                "attribute": f"{data_var_name}_attr_i",
+            }
+        )
+        self.ds[data_var_name] = df.stack(
+            level=df.columns.names, future_stack=True
+        ).to_xarray()
 
     def set_compression_encoding(self) -> None:
         """Set compression encoding for all variables."""
@@ -1289,6 +1443,7 @@ class NetworkIOMixin(_NetworkABC):
 
             static = c.static
             dynamic = c.dynamic
+            piecewise = c.piecewise
 
             if component == "Shape":
                 static = pd.DataFrame(static).assign(
@@ -1355,6 +1510,12 @@ class NetworkIOMixin(_NetworkABC):
                 else:
                     exporter.remove_series(list_name, attr)
 
+            # now do piecewise attributes
+            for attr, pw_df in piecewise.items():
+                if not pw_df.empty:
+                    exporter.save_piecewise(list_name, attr, pw_df)
+                else:
+                    exporter.remove_piecewise(list_name, attr)
             exported_components.append(list_name)
 
         logger.info(
@@ -1482,6 +1643,9 @@ class NetworkIOMixin(_NetworkABC):
                 for attr, df in importer.get_series(list_name):
                     df.set_index(self.snapshots, inplace=True)
                     self._import_series_from_df(df, component, attr)
+
+            for attr, df in importer.get_piecewise(list_name):
+                self._import_piecewise_from_df(df, component, attr)
 
             logger.debug(getattr(self, list_name))
 
@@ -1921,7 +2085,6 @@ class NetworkIOMixin(_NetworkABC):
         # Now deal with time-dependent properties
 
         dynamic = self.c[cls_name].dynamic
-
         for k in non_static_attrs_in_df:
             # If reading in outputs, fill the outputs
             dynamic[k] = dynamic[k].reindex(
@@ -2031,6 +2194,182 @@ class NetworkIOMixin(_NetworkABC):
         dynamic[attr].loc[self.snapshots, df.columns] = df.loc[
             self.snapshots, df.columns
         ]
+
+    @staticmethod
+    def _normalize_breakpoints(
+        piecewise_df: pd.DataFrame, piecewise_attrs: pd.Series
+    ) -> pd.DataFrame:
+        """Sort segment rows by x-coordinate and align ragged curves with trailing NaNs."""
+        x_attr, y_attr = piecewise_attrs.x, piecewise_attrs.y
+
+        def __normalize(curve: pd.DataFrame) -> pd.DataFrame:
+            filled = curve.notna().any()
+            has_later = filled.iloc[::-1].cummax().iloc[::-1]
+            if (gap := ~filled & has_later).any():
+                msg = (
+                    f"Piecewise '{y_attr}' segments for component '{curve.name}' contain "
+                    f"non-trailing missing breakpoint rows: {gap[gap].index.tolist()}."
+                )
+                raise ValueError(msg)
+            if (partial := filled & curve.isna().any()).any():
+                msg = (
+                    f"Piecewise '{y_attr}' segments for component '{curve.name}' have "
+                    f"incomplete breakpoint data at rows: {partial[partial].index.tolist()}."
+                )
+                raise ValueError(msg)
+            return curve.loc[:, filled].sort_values(
+                (curve.name, x_attr), axis=1, kind="mergesort"
+            )
+
+        return (
+            piecewise_df.T.groupby(level="name", group_keys=False)
+            .apply(__normalize)
+            .T.reset_index(drop=True)
+            .rename_axis(index="breakpoint")
+        )
+
+    def _import_piecewise_from_df(
+        self,
+        df: pd.DataFrame,
+        cls_name: str,
+        attr: str,
+        is_extendable: pd.Series | None = None,
+        overwrite: bool = False,
+    ) -> None:
+        """Import piecewise breakpoint data from a pandas DataFrame.
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            DataFrame with MultiIndex columns ``(name, attribute)`` where the
+            attribute level holds ``[x_attr, attr]`` (the x-axis coordinate and
+            the y-axis attribute) and whose index is the breakpoint number.
+        cls_name : str
+            Component class name, e.g. ``"Generator"``.
+        attr : str
+            Piecewise y-axis attribute name, e.g. ``"efficiency"``.
+        is_extendable : pd.Series or None, default None
+            If Series, a boolean series where True = extendable.
+            if None, it is inferred from the component's extendables.
+        overwrite : bool, default False
+            If True, replace existing breakpoint data for the component.
+
+        """
+        idx_name = "breakpoint"
+        col_names = ["name", "attribute"]
+        c = self.c[cls_name]
+        pw_attr = c._piecewise_schema(attr)
+        if pw_attr.empty:
+            valid_attrs = piecewise_attrs(cls_name).y.unique().tolist()
+            msg = (
+                f"'{attr}' is not a recognised piecewise attribute for {cls_name}. "
+                f"Known piecewise attributes: {valid_attrs}."
+            )
+            raise ValueError(msg)
+
+        x_attr = pw_attr.x
+
+        # df must have MultiIndex columns (name, attribute) with x_attr and attr present
+        if not isinstance(df.columns, pd.MultiIndex):
+            msg = (
+                "Pass a MultiIndex-columned DataFrame to _import_piecewise_from_df "
+                "with levels ['name', 'attribute']. Use network.add() for the "
+                "user-facing interface."
+            )
+            raise TypeError(msg)
+
+        df.index = df.index.set_names(idx_name)
+        df.columns = df.columns.set_names(col_names)
+
+        df = self._normalize_breakpoints(df, pw_attr)
+        if not pw_attr.allow_extendable:
+            new_names = df.columns.unique("name")
+            if is_extendable is not None:
+                extendable_i = is_extendable[is_extendable].index
+            else:
+                extendable_i = self.c[cls_name].extendables
+            bad = new_names.intersection(extendable_i)
+            if not bad.empty:
+                msg = (
+                    f"Piecewise '{attr}' breakpoints are not supported for extendable "
+                    f"components (fixed p_nom required). Extendable components: "
+                    f"{bad.tolist()}."
+                )
+                raise ValueError(msg)
+        if pw_attr.y in ("rate", "efficiency"):
+            curve = df.xs(attr, level="attribute", axis=1)
+            is_pos = ((curve >= 0) | curve.isna()).all()
+            is_neg = ((curve <= 0) | curve.isna()).all()
+            if not (bad := curve.columns[~(is_pos | is_neg)]).empty:
+                msg = f"Cannot mix positive and negative values for piecewise {attr} curves of {c} components {bad.tolist()}"
+                raise NotImplementedError(msg)
+
+        if (bad := df.loc[0].loc[pd.IndexSlice[:, x_attr]] > 0).any():
+            equivalents = {"p_pu": "p_min_pu", "p_nom": "p_nom_min"}
+            msg = (
+                f"Piecewise '{attr}' curves must start at {x_attr}=0. "
+                f"Otherwise, you implicitly bound {x_attr} from below (equivalent to setting {equivalents.get(x_attr)}). "
+                f"Even if you are explicitly bounding from below, you should still set a breakpoint at (0, 0)."
+                f"Affected components: {bad[bad].index.tolist()}."
+            )
+            raise ValueError(msg)
+        if (
+            x_attr.endswith("_pu")
+            and (bad := df.iloc[-1].loc[pd.IndexSlice[:, x_attr]].ffill() < 1).any()
+        ):
+            equivalents = {"p_pu": "p_max_pu"}
+            msg = (
+                f"Piecewise '{attr}' curves must end at {x_attr}=1. "
+                f"Otherwise, you implicitly bound {x_attr} from above (equivalent to setting {equivalents.get(x_attr)}). "
+                f"Even if you are explicitly bounding from above, you should still set a breakpoint at (1, <y-value>)."
+                f"Affected components: {bad[bad].index.tolist()}."
+            )
+            raise ValueError(msg)
+        if (bad := df.loc[0].loc[pd.IndexSlice[:, attr]] > 0).any():
+            preamble: str
+            if "cost" in attr:
+                preamble = (
+                    "Piecewise '%s' values price the increment from the previous breakpoint, so the y-value at x=0 spans zero width and will be ignored. "
+                    "To set the y-value for the first segment, set the value on the second breakpoint instead, e.g. {0.0: 0.0, 0.5: 40.0} for a '%s' of 40 up to 0.5 '%s'."
+                )
+            else:
+                preamble = (
+                    "A non-zero y value at x=0 for piecewise '%s' will be ignored when the piecewise constraint is defined since y values are denormalised using x values. "
+                    "To approximate '%s' as non-zero at '%s'=0, consider setting it at a very small x value instead, e.g. {0.0: 0.0, 0.001: 10, 0.5: 40.0}."
+                )
+            msg = preamble + " Affected components: %s."
+            logger.warning(msg, attr, attr, x_attr, bad[bad].index.tolist())
+        piecewise = self.c[cls_name].piecewise
+
+        if attr not in piecewise:
+            piecewise[attr] = pd.DataFrame(
+                index=pd.Index([], name=idx_name, dtype=int),
+                columns=pd.MultiIndex.from_tuples([], names=col_names),
+                dtype=float,
+            )
+
+        existing = piecewise[attr]
+
+        attribute_values = df.columns.unique("attribute")
+        if not attribute_values.symmetric_difference([x_attr, attr]).empty:
+            msg = (
+                f"DataFrame for piecewise attribute '{attr}' must have attribute "
+                f"level values ['{x_attr}', '{attr}']. Got: {sorted(attribute_values)}."
+            )
+            raise ValueError(msg)
+
+        if overwrite:
+            # Drop existing entries for the new components
+            new_names = df.columns.unique("name")
+            keep = ~existing.columns.get_level_values("name").isin(new_names)
+            existing = existing.loc[:, keep]
+
+        # Align piecewise indices: union of existing and new
+        all_piecewise = existing.index.union(df.index)
+        existing = existing.reindex(all_piecewise)
+        df = df.reindex(all_piecewise)
+
+        piecewise[attr] = pd.concat([existing, df], axis=1)
 
     def import_from_pypower_ppc(
         self, ppc: dict, overwrite_zero_s_nom: float | None = None

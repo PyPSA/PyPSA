@@ -21,9 +21,7 @@ from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.plotter import StatisticPlotter
 from pypsa.statistics.expressions import StatisticsAccessor
 
-plt.rcdefaults()
-plt.rcParams["figure.figsize"] = [8, 6]
-plt.rcParams["figure.dpi"] = 100
+SAVEFIG_KWARGS = {"dpi": 50}
 
 
 @pytest.fixture(autouse=True)
@@ -52,7 +50,7 @@ def _multi_period_sample() -> pd.DataFrame:
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-@pytest.mark.mpl_image_compare(tolerance=20)
+@pytest.mark.mpl_image_compare(tolerance=20, savefig_kwargs=SAVEFIG_KWARGS)
 def test_simple_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     fig, _, _ = plotter.plot()
@@ -62,7 +60,7 @@ def test_simple_plot(ac_dc_network_r, stat_func):
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.parametrize("kind", CHART_TYPES + ["map"])
-@pytest.mark.mpl_image_compare(tolerance=20)
+@pytest.mark.mpl_image_compare(tolerance=20, savefig_kwargs=SAVEFIG_KWARGS)
 def test_plot_types(ac_dc_network_r, stat_func, kind):
     if kind == "map" and stat_func == "prices":
         pytest.skip("Map plotting for 'prices' is not implemented.")
@@ -328,7 +326,7 @@ def test_networks_plot_map(network_collection):
 
 def test_statistics_map_transmission_flow_bus_carrier_non_zero(
     ac_dc_network_r, monkeypatch
-):
+) -> None:
     captured: dict[str, pd.Series | int] = {}
 
     def fake_draw_map(self, **kwargs):

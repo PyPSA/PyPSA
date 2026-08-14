@@ -526,3 +526,22 @@ def test_define_fixed_operational_constraints_infinite_p_nom():
 
     n.optimize.solve_model()
     assert n.c.generators.dynamic.p["gen_inf"].eq(10).all()
+
+
+def test_515():
+    """
+    Time-varying marginal costs removed.
+    See https://github.com/PyPSA/PyPSA/issues/515.
+    """
+    marginal_costs = [0, 10]
+
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=1, marginal_cost=marginal_costs)
+    n.add("Load", "load", bus="bus", p_set=1)
+
+    n.optimize()
+
+    assert n.objective == 10
