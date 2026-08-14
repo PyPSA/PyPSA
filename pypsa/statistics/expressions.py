@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from functools import reduce
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
@@ -1065,7 +1066,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         See Also
         --------
-        :meth:`capex` : Returns total fixed costs (overnight_cost + fom_cost).
+        :meth:`capex` : Returns periodized investment costs (excluding fom).
         :meth:`fom` : Returns fixed operation and maintenance costs.
 
         """
@@ -1149,8 +1150,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         See Also
         --------
-        :meth:`capex` : Returns total fixed costs (investment + fom_cost).
-        :meth:`overnight_cost` : Returns annuitized investment costs.
+        :meth:`capex` : Returns periodized investment costs (excluding fom).
+        :meth:`overnight_cost` : Returns overnight investment costs.
+        :meth:`system_cost` : Returns total system cost (capex + fom + opex).
 
         """
 
@@ -1738,7 +1740,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **total system cost**.
 
-        Sum of the capital and operational expenditures.
+        Sum of the capital expenditures, fixed O&M costs and operational
+        expenditures.
 
         Parameters
         ----------
@@ -1823,6 +1826,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
+        fom = self.fom(
+            components=components,
+            groupby_method=groupby_method,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port=at_port,
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
+        )
         opex = self.opex(
             components=components,
             groupby_time=groupby_time,
@@ -1837,12 +1852,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             round=round,
         )
         # TODO It would be better if the empty series return has index names
-        if not capex.empty and not opex.empty:
-            df = capex.add(opex, fill_value=0)
-        elif not capex.empty:
-            df = capex
-        else:
-            df = opex
+        parts = [part for part in (capex, fom, opex) if not part.empty]
+        df = reduce(lambda a, b: a.add(b, fill_value=0), parts) if parts else capex
         df.attrs["name"] = "System Cost"
         df.attrs["unit"] = "currency"
         return df

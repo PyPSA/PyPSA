@@ -356,6 +356,30 @@ def test_system_cost(ac_dc_network_r):
     assert system_cost == capex + opex
 
 
+def test_system_cost_includes_fom():
+    """system_cost must include fom_cost, matching the objective (GH #1868)."""
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        capital_cost=100,
+        fom_cost=10,
+        marginal_cost=1,
+    )
+    n.optimize(inlude_objective_constant=False)
+
+    assert n.statistics.capex().sum() == pytest.approx(100.0)
+    assert n.statistics.fom().sum() == pytest.approx(10.0)
+    system_cost = n.statistics.system_cost().sum()
+    assert system_cost == pytest.approx(111.0)
+    assert system_cost == pytest.approx(n.objective)
+
+
 def test_system_cost_groupby_time_false_deprecated(ac_dc_network_r):
     """`groupby_time=False` is unsupported (capex has no time resolution)."""
     n = ac_dc_network_r
