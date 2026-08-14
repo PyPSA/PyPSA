@@ -243,7 +243,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             else:
                 return None
 
-            costs = c.static[cost_attribute][capacity.indexes["name"]]
+            if cost_attribute == "capital_cost":
+                costs = c.capital_cost[capacity.indexes["name"]]
+            else:
+                costs = c.static[cost_attribute][capacity.indexes["name"]]
 
             if c.has_piecewise(cost_attribute):
                 add_capex = m.variables[c._piecewise_aux_var(cost_attribute)]

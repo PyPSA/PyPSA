@@ -1005,3 +1005,14 @@ def test_statistics_groupby_time_true():
     result = n.statistics.revenue(groupby_time=True)
     expected = n.statistics.revenue(groupby_time="sum")
     pd.testing.assert_series_equal(result, expected)
+
+
+def test_installed_capex_honours_cost_attribute():
+    n = pypsa.Network()
+    n.add("Bus", "b")
+    n.add("Generator", "g", bus="b", p_nom=100, capital_cost=10, fom_cost=3)
+
+    default = n.statistics.installed_capex(drop_zero=False)
+    fom = n.statistics.installed_capex(cost_attribute="fom_cost", drop_zero=False)
+    assert default.sum() == 1000.0
+    assert fom.sum() == 300.0
