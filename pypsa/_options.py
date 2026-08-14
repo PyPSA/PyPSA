@@ -501,6 +501,14 @@ options._add_option(
 
 # API
 options._add_option(
+    "api.legacy_string_dtype",
+    None,
+    "Whether to convert string data to numpy `object` dtype on import. pandas 3\n\t"
+    "reads strings as `str` dtype, which PyPSA undoes by default to stay\n\t"
+    "compatible with earlier versions. Set to False to keep the `str` dtype.\n\t"
+    "PyPSA v2 will always keep it and drop this option.",
+)
+options._add_option(
     "api.new_components_api",
     False,
     "Activate the new components API, which replaces the static components data access\n\t"

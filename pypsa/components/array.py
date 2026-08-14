@@ -28,6 +28,21 @@ if TYPE_CHECKING:
     from pypsa import Components
 
 
+def _strings_to_object(
+    data: pd.DataFrame | pd.Series,
+) -> pd.DataFrame | pd.Series:
+    """Cast string columns to object dtype, which xarray needs for values.
+
+    See https://github.com/pydata/xarray/issues/10301.
+    """
+    if isinstance(data, pd.Series):
+        return data.astype(object) if isinstance(data.dtype, pd.StringDtype) else data
+    str_cols = [
+        col for col, dtype in data.dtypes.items() if isinstance(dtype, pd.StringDtype)
+    ]
+    return data.astype(dict.fromkeys(str_cols, object)) if str_cols else data
+
+
 def _from_xarray(da: xr.DataArray, c: Components) -> pd.DataFrame | pd.Series:
     """Convert component attribute xarray view back to pandas dataframe or series.
 
@@ -332,9 +347,9 @@ class ComponentsArrayMixin(_ComponentsABC):
         if attr == "active":
             res = xr.DataArray(self.get_activity_mask())
         elif attr in self.dynamic.keys():
-            res = xr.DataArray(self._as_dynamic(attr))
+            res = xr.DataArray(_strings_to_object(self._as_dynamic(attr)))
         else:
-            res = xr.DataArray(self.static[attr])
+            res = xr.DataArray(_strings_to_object(self.static[attr]))
 
         # Unstack the dimension that contains the scenarios
         if self.has_scenarios:

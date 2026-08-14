@@ -379,8 +379,8 @@ def equals(
             return True
         if not a.equals(b):
             # TODO: Resolve with data validation PR
-            # Fallback with dtype tolerance for pandas 2 vs 3 differences
-            # (object vs StringDtype, datetime64[ns] vs datetime64[us])
+            # Tolerate what CSV/Excel round-trips lose, float precision and the
+            # dtype of undeclared columns
             try:
                 if isinstance(a, pd.DataFrame):
                     pd_testing.assert_frame_equal(

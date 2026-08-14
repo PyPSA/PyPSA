@@ -24,6 +24,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
+- PyPSA now requires `pandas>=3.0` and `pyarrow`. pandas 3 infers the `str` dtype for string data, backed by Arrow when `pyarrow` is installed. PyPSA still converts it back to numpy `object` on import, but will keep it in version 2.0. Opt in early with `pypsa.options.api.legacy_string_dtype` (see <!-- md:guide options.md -->).
 - Speed up netCDF I/O for networks with many components. [`export_to_netcdf()`][pypsa.Network.export_to_netcdf] avoids a costly `stack()` when writing dynamic data, and import avoids per-column boxing when coercing string dtypes. The on-disk format and round-trip behaviour are unchanged. (<!-- md:pr 1771 -->)
 - Speed up [`create_model()`][pypsa.optimization.OptimizationAccessor.create_model] for large networks by computing the bus membership filter in `define_nodal_balance_constraints` with a pandas hash join instead of `xarray.isin` over object-dtype arrays. (<!-- md:pr 1770 -->)
 - Replace the `Levenshtein` dependency (GPL-2.0-or-later) with `rapidfuzz` (MIT) for detecting typos in custom attribute names, so PyPSA's dependency tree remains fully MIT-compatible.
