@@ -13,6 +13,6 @@ attribute of the [`Line`][pypsa.components.Lines].
 
 {{ read_csv('../../../pypsa/data/component_attrs/line_types.csv') }}
 
-The following standard line types are available, which are based on [pandapower's standard types](https://pandapower.readthedocs.io/en/latest/std_types/basic.html), whose parameterisation is in turn based on [DIgSILENT PowerFactory](http://www.digsilent.de/index.php/products-powerfactory.html). Other sources include [JAO's Static Grid Model](https://www.jao.eu/static-grid-model).
+The following standard line types are available, which are based on [pandapower's standard types](https://pandapower.readthedocs.io/en/latest/std_types/basic.html), whose parameterisation is in turn based on [DIgSILENT PowerFactory](https://www.digsilent.de/en/powerfactory.html). Other sources include [JAO's Static Grid Model](https://www.jao.eu/static-grid-model).
 
 {{ read_csv('../../../pypsa/data/standard_types/line_types.csv') }}

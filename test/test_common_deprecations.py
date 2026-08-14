@@ -9,7 +9,6 @@ import pytest
 
 from pypsa.common import (
     deprecated_common_kwargs,
-    deprecated_in_next_major,
     deprecated_kwargs,
     deprecated_namespace,
     rename_deprecated_kwargs,
@@ -146,27 +145,6 @@ def test_deprecated_common_kwargs(mock_version_semver):
         assert "`network` is deprecated as an argument to `test_func`" in str(
             w[0].message
         )
-
-    # Check that the function worked correctly
-    assert result == "value"
-
-
-def test_deprecated_in_next_major(mock_version_semver):
-    """Test the deprecated_in_next_major decorator."""
-
-    @deprecated_in_next_major("This function will be removed in version 2.0")
-    def test_func():
-        return "value"
-
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        result = test_func()
-
-        # Check that a warning was raised
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "is deprecated as of 1.0" in str(w[0].message).lower()
-        assert "will be removed in 2.0" in str(w[0].message).lower()
 
     # Check that the function worked correctly
     assert result == "value"

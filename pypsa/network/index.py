@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 
 from pypsa._options import options
+from pypsa.constants import HOURS_PER_YEAR
 from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
 
@@ -78,7 +79,7 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.snapshots
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
 
         """
         # Check if snapshots contain timezones
@@ -110,6 +111,8 @@ class NetworkIndexMixin(_NetworkABC):
         self._snapshots_data = self._snapshots_data.reindex(
             sns, fill_value=default_snapshot_weightings
         )
+        # reindex drops the MultiIndex name (snapshot), needs to be restored
+        self._snapshots_data.index.name = "snapshot"
 
         if isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
             hours_per_step = (
@@ -139,6 +142,8 @@ class NetworkIndexMixin(_NetworkABC):
                         dynamic[k] = dynamic[k].reindex(
                             self.snapshots, fill_value=attrs.default[attrs.varying][k]
                         )
+                        # reindex drops the MultiIndex name (snapshot), needs to be restored
+                        dynamic[k].index.name = "snapshot"
                     else:
                         # Make sure to keep timestep level in case of MultiIndex
                         dynamic[k] = dynamic[k].reindex(
@@ -148,6 +153,9 @@ class NetworkIndexMixin(_NetworkABC):
                         )
                 else:
                     dynamic[k] = dynamic[k].reindex(self.snapshots)
+                    if isinstance(dynamic[k].index, pd.MultiIndex):
+                        # reindex drops the MultiIndex name (snapshot), needs to be restored
+                        dynamic[k].index.name = "snapshot"
 
         # Synchronize investment_periods_data when snapshots have a period level
         if isinstance(sns, pd.MultiIndex):
@@ -239,11 +247,11 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.timesteps
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
         >>> n.snapshots
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
 
         For a Network with investment periods, the timesteps are are the unqiue set
         of timesteps in across all investment periods:
@@ -251,7 +259,7 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.timesteps
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='timestep', freq=None)
+                      dtype='datetime64[us]', name='timestep', freq=None)
         >>> n.snapshots
         MultiIndex([(1, '2015-01-01 00:00:00'),
                 (1, '2015-01-01 01:00:00'),
@@ -310,7 +318,7 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.snapshots
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
         >>> n.investment_periods = [1, 2]
         >>> n.snapshots
         MultiIndex([(1, '2015-01-01 00:00:00'),
@@ -397,7 +405,7 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.snapshots
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
 
         Add investment periods:
         >>> n.periods = [1, 2]
@@ -493,7 +501,7 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.snapshots
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
 
         Add investment periods:
         >>> n.investment_periods = [1, 2]
@@ -623,6 +631,37 @@ class NetworkIndexMixin(_NetworkABC):
             _assert_data_integrity(self)
 
     @property
+    def nyears(self) -> float | pd.Series:
+        """Return the modeled time horizon in years based on objective weightings.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns
+        -------
+        float | pd.Series
+            The modeled time horizon in years. Returns a Series indexed by investment
+            period when the network has investment periods.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(range(24))  # 24 hourly snapshots
+        >>> n.nyears  # 1/365 # doctest: +ELLIPSIS
+        np.float64(0.00273...)
+        >>> n.snapshot_weightings.loc[:, :] = 365  # weight each hour as one day
+        >>> n.nyears
+        np.float64(1.0)
+
+        """
+        if self.has_investment_periods:
+            return (
+                self.snapshot_weightings["objective"].groupby(level="period").sum()
+                / HOURS_PER_YEAR
+            )
+        return self.snapshot_weightings["objective"].sum() / HOURS_PER_YEAR
+
+    @property
     def investment_period_weightings(self) -> pd.DataFrame:
         """Weightings applied to each investment period during the optimization (LOPF).
 
@@ -742,6 +781,17 @@ class NetworkIndexMixin(_NetworkABC):
         scenarios_ = scenarios_.rename("weight")
         scenarios_.index = scenarios_.index.astype(str)
         scenarios_.index.name = "scenario"
+
+        if any(
+            not df.empty
+            for c in self.components.values()
+            for df in c.piecewise.values()
+        ):
+            msg = (
+                "Setting scenarios on a network with piecewise attribute data is "
+                "not yet supported."
+            )
+            raise NotImplementedError(msg)
 
         for c in self.components.values():  # Loop all components, not just empty ones
             c.static = pd.concat(
@@ -911,6 +961,7 @@ class NetworkIndexMixin(_NetworkABC):
         ---------------------------------------------
         Components:
          - Bus: 3
+         - Carrier: 18
          - Generator: 12
          - Load: 3
         Snapshots: 2920
@@ -921,6 +972,7 @@ class NetworkIndexMixin(_NetworkABC):
         ----------------------------------------------------
         Components:
          - Bus: 1
+         - Carrier: 6
          - Generator: 4
          - Load: 1
         Snapshots: 2920

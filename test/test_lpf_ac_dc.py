@@ -57,3 +57,22 @@ def test_lpf_chunks(ac_dc_network, ac_dc_network_r):
         n.c.links.dynamic.p0[n.c.links.static.index],
         n_r.c.links.dynamic.p0[n.c.links.static.index],
     )
+
+
+@pytest.mark.parametrize("method", ["lpf", "pf"])
+def test_pf_subnetwork_without_transformer(method):
+    # https://github.com/PyPSA/PyPSA/issues/1698
+    # one sub-network has a transformer, the other only lines
+    n = pypsa.Network()
+    n.add("Bus", ["a", "c", "d"], v_nom=110)
+    n.add("Bus", "b", v_nom=220)
+    n.add("Transformer", "t", bus0="a", bus1="b", x=0.1, s_nom=100)
+    n.add("Line", "l", bus0="c", bus1="d", x=0.1, s_nom=100)
+    n.add("Generator", ["ga", "gc"], bus=["a", "c"], control="Slack")
+    n.add("Load", ["lb", "ld"], bus=["b", "d"], p_set=10)
+    n.determine_network_topology()
+
+    getattr(n, method)()
+
+    equal(n.c.transformers.dynamic.p0["t"], [10.0])
+    equal(n.c.lines.dynamic.p0["l"], [10.0])

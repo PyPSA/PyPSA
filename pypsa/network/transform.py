@@ -18,11 +18,12 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-from Levenshtein import distance
+from rapidfuzz.distance.Levenshtein import distance
 
 from pypsa._options import options
 from pypsa.components.common import as_components
 from pypsa.components.types import all_standard_attrs_set
+from pypsa.descriptors import nominal_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.type_utils import is_1d_list_like
 
@@ -84,6 +85,27 @@ def _get_potential_typos(
     }
 
 
+def _build_suffixed_names(
+    name: str | int | Sequence[int | str],
+    suffix: str | Sequence[str],
+) -> pd.Index:
+    """Build the component index after appending `suffix`, for `n.add`/`n.remove`."""
+    single_name = np.isscalar(name)
+    if not isinstance(suffix, str) and is_1d_list_like(suffix):
+        if not single_name:
+            msg = (
+                "Cannot pass list to both `name` and `suffix`. "
+                "Pass a scalar `name` with a list `suffix`."
+            )
+            raise ValueError(msg)
+        if len(suffix) == 0:
+            msg = "Empty list `suffix` passed."
+            raise ValueError(msg)
+        return pd.Index([str(name) + s for s in suffix])
+    names = pd.Index([name]) if single_name else pd.Index(name)
+    return names.astype(str) + suffix
+
+
 class NetworkTransformMixin(_NetworkABC):
     """Mixin class for network transform methods.
 
@@ -95,7 +117,7 @@ class NetworkTransformMixin(_NetworkABC):
         self,
         class_name: str,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
         overwrite: bool = False,
         return_names: bool | None = None,
         **kwargs: Any,
@@ -123,11 +145,12 @@ class NetworkTransformMixin(_NetworkABC):
         ----------
         class_name : str
             Component class name in ("Bus", "Generator", "Load", "StorageUnit",
-            "Store", "ShuntImpedance", "Line", "Transformer", "Link").
+            "Store", "ShuntImpedance", "Line", "Transformer", "Link", "Process").
         name : str or int or list of str or list of int
             Component name(s)
-        suffix : str, default ""
-            All components are named after name with this added suffix.
+        suffix : str or list of str, default ""
+            Suffix added to each name. Pass a list together with a single `name`
+            to add one component per suffix.
         overwrite : bool, default False
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
@@ -195,22 +218,22 @@ class NetworkTransformMixin(_NetworkABC):
 
         c = as_components(self, class_name)
         # Process name/names to pandas.Index of strings and add suffix
-        single_component = np.isscalar(name)
+        single_component = np.isscalar(name) and isinstance(suffix, str)
 
         # Check if multi-index names are passed
         if isinstance(name, pd.MultiIndex):
-            msg = "Component names must be a one-dimensional."
+            msg = "Component names must be one-dimensional."
             if self.has_scenarios:
-                msg += " For stochastic networks, they will be casted to all dimensions and data per scenario can be changed after adding them."
+                msg += " For stochastic networks, pass simple names. They will be automatically broadcast to all scenarios."
             raise TypeError(msg)
 
-        names = pd.Index([name]) if single_component else pd.Index(name)
-        names = names.astype(str) + suffix
+        names = _build_suffixed_names(name, suffix)
 
         names_str = "name" if single_component else "names"
-        # Read kwargs into static and time-varying attributes
+        # Read kwargs into static, time-varying, and piecewise attributes
         series = {}
         static = {}
+        piecewise = {}  # {attr: DataFrame with columns [x_attr, attr], index = breakpoints}
 
         # Check if names are unique
         if not names.is_unique:
@@ -246,8 +269,56 @@ class NetworkTransformMixin(_NetworkABC):
                     standard_attr,
                 )
 
+        def add_suffix(s: Any) -> str:
+            s = str(s)
+            if s.endswith(suffix):
+                return s
+            return s + suffix
+
         for k, v in kwargs.items():
-            # If index/ columnes are passed (pd.DataFrame or pd.Series)
+            # Intercept piecewise breakpoint data: a DataFrame whose columns are the curve
+            # attributes (e.g. ["p_pu", "efficiency"]), not component names.
+            # These are identified by the attribute name being in piecewise_attrs and
+            # the value being a DataFrame whose columns include the x-axis attribute.
+            if not (pw_attr := c._piecewise_schema(k)).empty:
+                # Intercept piecewise shorthand: dict {x_value: y_value}
+                x_attr = pw_attr.x
+                if isinstance(v, dict):
+                    v = pd.DataFrame({x_attr: list(v.keys()), k: list(v.values())})
+                if isinstance(v, pd.DataFrame):
+                    pw_msg = "Piecewise {k} Dataframe has {lvl} column level which does not align with the passed {lvl}s: {diff}."
+                    if isinstance(v.columns, pd.MultiIndex):
+                        v = v.rename(columns=add_suffix, level=0)
+                        lvls = v.columns.levels
+                        if not (diff := lvls[0].difference(names)).empty:
+                            raise ValueError(pw_msg.format(k=k, lvl="name", diff=diff))
+                        if not (
+                            diff := lvls[1].symmetric_difference([x_attr, k])
+                        ).empty:
+                            raise ValueError(
+                                pw_msg.format(k=k, lvl="attribute", diff=diff)
+                            )
+                        piecewise[k] = v.reindex(columns=[x_attr, k], level=1)
+                        continue
+                    elif set(v.columns) == {x_attr, k}:
+                        # Build a MultiIndex-columned DataFrame: broadcast the curve to all names
+                        v = pd.concat(
+                            [v[[x_attr, k]]] * len(names),
+                            keys=pd.Index(names, name="name"),
+                            axis=1,
+                        )
+                        v.columns.names = ["name", "attribute"]
+                        v.index.name = "breakpoint"
+                        piecewise[k] = v
+                        continue
+            elif isinstance(v, dict):
+                msg = (
+                    "Dictionaries are not supported as dynamic attribute values. "
+                    "Please use pandas.Series or pandas.DataFrame instead."
+                )
+                raise TypeError(msg)
+
+            # If index/ columns are passed (pd.DataFrame or pd.Series)
             # - cast names index to string and add suffix
             # - check if passed index/ columns align
             msg = "{} has an index which does not align with the passed {}."
@@ -256,24 +327,19 @@ class NetworkTransformMixin(_NetworkABC):
                     raise ValueError(msg.format(f"Series {k}", "network snapshots"))
             elif isinstance(v, pd.Series):
                 # Cast names index to string + suffix
-                v = v.rename(
-                    index=lambda s: str(s)
-                    if str(s).endswith(suffix)
-                    else str(s) + suffix
-                )
+                if isinstance(suffix, str):
+                    v = v.rename(index=add_suffix)
                 if not v.index.equals(names):
                     raise ValueError(msg.format(f"Series {k}", names_str))
             if isinstance(v, pd.DataFrame):
                 # Cast names columns to string + suffix
-                v = v.rename(
-                    columns=lambda s: str(s)
-                    if str(s).endswith(suffix)
-                    else str(s) + suffix
-                )
+                if isinstance(suffix, str):
+                    v = v.rename(columns=add_suffix)
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
                 if not v.columns.equals(names):
-                    raise ValueError(msg.format(f"DataFrame {k}", names_str))
+                    col_msg = "DataFrame {} has columns which do not align with the passed {}."
+                    raise ValueError(col_msg.format(k, names_str))
 
             # Convert list-like and 1-dim array to pandas.Series
             if is_1d_list_like(v):
@@ -311,13 +377,6 @@ class NetworkTransformMixin(_NetworkABC):
                     )
                     raise ValueError(msg)
 
-            if isinstance(v, dict):
-                msg = (
-                    "Dictionaries are not supported as attribute values. Please use "
-                    "pandas.Series or pandas.DataFrame instead."
-                )
-                raise NotImplementedError(msg)
-
             # Handle addition of single component
             if single_component:
                 # Read 1-dim data as time-varying attribute
@@ -330,23 +389,51 @@ class NetworkTransformMixin(_NetworkABC):
                     static[k] = v
 
             # Handle addition of multiple components
-            elif not single_component:
-                # Read 2-dim data as time-varying attribute
-                if isinstance(v, pd.DataFrame):
-                    series[k] = v
-                # Read 1-dim data as static attribute
-                elif isinstance(v, pd.Series):
-                    static[k] = v.values
-                # Read scalar data as static attribute
-                else:
-                    static[k] = v
+            # Read 2-dim data as time-varying attribute
+            elif isinstance(v, pd.DataFrame):
+                series[k] = v
+            # Read 1-dim data as static attribute
+            elif isinstance(v, pd.Series):
+                static[k] = v.values
+            # Read scalar data as static attribute
+            else:
+                static[k] = v
 
         # Load static attributes as components
         if static:
             static_df = pd.DataFrame(static, index=names)
         else:
             static_df = pd.DataFrame(index=names)
+
+        # Broadcast to scenarios if network has scenario structure
+        # Skip SubNetwork components, they are handled internally in determine_topology
+        if self.has_scenarios and c.name != "SubNetwork":
+            if piecewise:
+                msg = (
+                    "Piecewise attribute data is not yet supported for stochastic "
+                    "networks (scenarios)."
+                )
+                raise NotImplementedError(msg)
+            static_df = pd.concat(
+                dict.fromkeys(self.scenarios, static_df), names=["scenario"]
+            )
+            series = {
+                k: pd.concat(
+                    dict.fromkeys(self.scenarios, v), names=["scenario"], axis=1
+                )
+                for k, v in series.items()
+            }
+
         self._import_components_from_df(static_df, c.name, overwrite=overwrite)
+
+        # Load piecewise breakpoint data (after the static import, so that
+        # overwriting an existing component does not drop the new breakpoints)
+        nom_attr = nominal_attrs.get(class_name)
+        is_extendable = static_df.get(f"{nom_attr}_extendable")
+        for k, v in piecewise.items():
+            self._import_piecewise_from_df(
+                v, c.name, k, is_extendable=is_extendable, overwrite=overwrite
+            )
 
         # Load time-varying attributes as components
         for k, v in series.items():
@@ -360,7 +447,7 @@ class NetworkTransformMixin(_NetworkABC):
         self,
         class_name: str,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
     ) -> None:
         """Remove a single component or a list of components from the network.
 
@@ -372,8 +459,9 @@ class NetworkTransformMixin(_NetworkABC):
             Component class name
         name : str, int, list-like or pandas.Index
             Component name(s)
-        suffix : str, default=''
-            Suffix to be added to the component name(s)
+        suffix : str or list of str, default ""
+            Suffix added to each name. Pass a list together with a single `name`
+            to remove one component per suffix.
 
         Examples
         --------
@@ -419,8 +507,7 @@ class NetworkTransformMixin(_NetworkABC):
         c = as_components(self, class_name)
 
         # Process name/names to pandas.Index of strings and add suffix
-        names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
-        names = names.astype(str) + suffix
+        names = _build_suffixed_names(name, suffix)
 
         # Drop from static components
         cls_static = c.static
@@ -429,6 +516,11 @@ class NetworkTransformMixin(_NetworkABC):
         # Drop from time-varying components
         for df in c.dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
+
+        # Drop piecewise breakpoint data
+        for df in c.piecewise.values():
+            stale = df.columns[df.columns.get_level_values("name").isin(names)]
+            df.drop(columns=stale, inplace=True)
 
     def merge(
         self,
@@ -550,7 +642,7 @@ class NetworkTransformMixin(_NetworkABC):
         Which updates the bus components
 
         >>> n.buses.index
-        Index(['bus2'], dtype='object', name='name')
+        Index(['bus2'], dtype='str', name='name')
 
         and all references in the network
 

@@ -24,7 +24,7 @@ SPDX-License-Identifier: MIT
 [![License](https://img.shields.io/pypi/l/pypsa.svg)](LICENSE)
 [![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg)](https://doi.org/10.5281/zenodo.3946412)
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](docs/CODE_OF_CONDUCT.md)
 
 PyPSA stands for **Python for Power System Analysis**. It is pronounced
 **pipes-ah**.
@@ -38,13 +38,17 @@ designed to scale well with large networks and long time series. It is made for
 researchers, planners and utilities with basic coding aptitude who need a fast,
 easy-to-use and transparent tool for power and energy system analysis.
 
-PyPSA is maintained by the [Department of Digital Transformation in Energy
-Systems](https://tu.berlin/en/ensys) at the [Technical University of
-Berlin](https://www.tu.berlin). Previous versions were developed at the
-[Karlsruhe Institute of Technology](http://www.kit.edu/english/index.php) funded
-by the [Helmholtz Association](https://www.helmholtz.de/en/), and at
-[FIAS](https://fias.uni-frankfurt.de/) funded by the [German Federal Ministry
-for Education and Research (BMBF)](https://www.bmbf.de/bmbf/en/).
+> [!NOTE]
+> PyPSA has many contributors, with the maintenance led by the [Department of Digital Transformation in
+> Energy Systems](https://tu.berlin/en/ensys) at the [Technical University of
+> Berlin](https://www.tu.berlin).  The project is currently supported by the
+> [German Research Foundation](https://www.dfg.de/en/)
+> (grant number [`528775426`](https://gepris.dfg.de/gepris/projekt/528775426)).
+> Previous versions were developed at the [Karlsruhe
+> Institute of Technology](http://www.kit.edu/english/index.php) funded by the
+> [Helmholtz Association](https://www.helmholtz.de/en/), and
+> at [FIAS](https://fias.uni-frankfurt.de/) funded by the [German Federal
+> Ministry for Education and Research (BMBF)](https://www.bmftr.bund.de/EN).
 
 ## Features
 
@@ -161,13 +165,13 @@ We strongly welcome anyone interested in contributing to this project. If you ha
 
 -   To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the [Discord server](https://discord.gg/AnuJBk23FU).
 -   For **bugs and feature requests**, please [open an issue](https://github.com/PyPSA/PyPSA/issues).
--   For **troubleshooting and support**, please check the [troubleshooting](https://docs.pypsa.org/latest/user-guide/support/) and [support](https://docs.pypsa.org/latest/user-guide/support/) sectionsin the documentation.
+-   For **troubleshooting and support**, please check the [troubleshooting](https://docs.pypsa.org/latest/user-guide/support/) and [support](https://docs.pypsa.org/latest/user-guide/support/) sections in the documentation.
 
 Detailed guidelines can be found in the [Contributing](https://docs.pypsa.org/latest/contributing/contributing/) guidelines of our documentation.
 
 ## Code of Conduct
 
-Please respect our [Code of Conduct](https://docs.pypsa.org/latest/contributing/code-of-conduct/).
+Please respect our [Code of Conduct](https://docs.pypsa.org/latest/CODE_OF_CONDUCT/).
 
 ## Citing PyPSA
 
@@ -202,7 +206,7 @@ on [Zenodo](https://zenodo.org/) with a release-specific DOI:
 
 ## Licence
 
-Copyright [PyPSA Contributors](https://docs.pypsa.org/latest/developers.html)
+Copyright [PyPSA Contributors](https://docs.pypsa.org/latest/contributing/contributors/)
 
 PyPSA is licensed under the open source [MIT License](LICENSES/MIT.txt).
 The documentation is licensed under [CC-BY-4.0](LICENSES/CC-BY-4.0.txt).

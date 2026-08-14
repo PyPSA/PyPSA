@@ -14,6 +14,6 @@ reactive power (i.e. behaving like an inductor).
 
 !!! note "When to use [`Generator`][pypsa.components.Generators] instead?"
 
-    Use the [`Generator`][pypsa.components.Generators] component with a negative `sign` to model elastic demands following a linear demand curve or to represent a comnsumption at a given price.
+    Use the [`Generator`][pypsa.components.Generators] component with a negative `sign` and negative `marginal_cost` to model elastic demands following a linear demand curve or to represent a consumption at a given price like shown in the [example about demand and supply bids](../../examples/demand-supply-bids.ipynb).
 
 {{ read_csv('../../../pypsa/data/component_attrs/loads.csv', disable_numparse=True) }}

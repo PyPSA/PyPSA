@@ -4,6 +4,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 import xarray
 
 from pypsa.components.array import _from_xarray
@@ -151,6 +152,19 @@ def test_as_xarray_dynamic_with_scenarios(ac_dc_network):
     # TODO add test for non_dynamic_index
 
 
+def test_as_xarray_scenario_dim_order(ac_dc_network):
+    """Scenario dataarrays must have dims matching coords iteration order."""
+    n = ac_dc_network
+    n.scenarios = ["s1", "s2"]
+
+    for attr in ["active", "p_max_pu", "bus"]:
+        da = n.c.generators._as_xarray(attr)
+        coord_dim_order = tuple(c for c in da.coords if c in da.dims)
+        assert da.dims == coord_dim_order, (
+            f"Dim order mismatch for {attr}: dims={da.dims}, coords order={coord_dim_order}"
+        )
+
+
 def test_ds_property_consistency(ac_dc_network):
     n = ac_dc_network
     """Test that ds property returns the same data as individual da calls."""
@@ -277,3 +291,12 @@ def test_from_xarray_edge_cases():
     assert isinstance(result_2d, pd.DataFrame)
     # After name expansion, we have 3+ dimensions, so combined index is created
     assert len(result_2d.columns) == 4  # gen1*c1, gen1*c2, gen2*c1, gen2*c2
+
+
+def test_da_accessor_not_iterable(ac_dc_network):
+    da = ac_dc_network.c.generators.da
+
+    with pytest.raises(TypeError, match="not iterable"):
+        iter(da)
+    with pytest.raises(TypeError, match="not iterable"):
+        list(da)

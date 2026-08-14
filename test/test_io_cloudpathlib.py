@@ -12,6 +12,13 @@ import pypsa
 
 pytest.importorskip("cloudpathlib", reason="cloudpathlib not installed")
 
+try:
+    import tables  # noqa: F401
+
+    tables_installed = True
+except ImportError:
+    tables_installed = False
+
 from cloudpathlib import AnyPath, CloudPath, implementation_registry
 from cloudpathlib.local import (
     local_azure_blob_implementation,
@@ -74,6 +81,7 @@ class TestIOCloudpath:
         n = pypsa.Network()
         n.import_from_netcdf(cloudpath_network)
 
+    @pytest.mark.skipif(not tables_installed, reason="PyTables not installed")
     @pytest.mark.parametrize(
         "cloudpath_network_parameterized_ext", [".h5"], indirect=True, ids=["hdf5"]
     )
@@ -90,8 +98,11 @@ class TestIOCloudpath:
     )
     def test_io_cloudpath_csv_folder(self, cloudpath_network, scipy_network):
         scipy_network.export_to_csv_folder(cloudpath_network)
-        n = pypsa.Network()
-        n.import_from_csv_folder(cloudpath_network)
+        # FIXME: why is this needed for hdf5? cloudpathlib is claiming that the local
+        # cached file from export is newer on disk than the cloud file being imported
+        with patch.dict("os.environ", {"CLOUDPATHLIB_FORCE_OVERWRITE_FROM_CLOUD": "1"}):
+            n = pypsa.Network()
+            n.import_from_csv_folder(cloudpath_network)
 
 
 def test_cloudpathlib_anypath_uses_pathlib_path_locally():

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import linopy as ln
@@ -17,17 +18,18 @@ from packaging import version
 from xarray import DataArray
 
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
-from pypsa.descriptors import nominal_attrs
+from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.statistics import (
     get_transmission_branches,
     port_efficiency,
 )
-from pypsa.statistics.abstract import AbstractStatisticsAccessor
+from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_port
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
     from pypsa import Network, NetworkCollection
+    from pypsa.components.components import PortsLike
 logger = logging.getLogger(__name__)
 
 
@@ -45,6 +47,25 @@ def check_if_empty(expr: LinearExpression) -> bool:
     return expr.empty()
 
 
+def _direct_piecewise(
+    c: Any, y_attr: str, sign: Any, pw: Variable, names: Any, direction: str
+) -> Variable | LinearExpression:
+    """Restrict a piecewise contribution to the requested supply/withdrawal direction.
+
+    A port's direction follows the sign of its breakpoints (``sign * y_attr``),
+    mirroring the clipping applied to linear coefficients. Mixed-sign curves are
+    rejected at ``add`` time, so each port is unambiguously supply or withdrawal.
+    """
+    if direction == "both":
+        return pw
+    y = c.piecewise[y_attr].xs(y_attr, level="attribute", axis=1)[names]
+    withdraws = (sign * y < 0).any()
+    if direction == "withdrawal":
+        return -1 * pw.sel(name=names[withdraws])
+    else:
+        return pw.sel(name=names[~withdraws])
+
+
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     """Accessor to calculate different statistical expressions.
 
@@ -58,7 +79,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         n: Network | NetworkCollection,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
-        port: str | None = None,
+        port: str,
         nice_names: bool = False,
     ) -> pd.DataFrame:
         result = super()._get_grouping(n, c, groupby, port, nice_names)
@@ -82,8 +103,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     def _concat_periods(self, exprs: dict[str, LinearExpression], c: str) -> Any:
         return ln.merge(list(exprs.values()), dim=c)
 
-    @staticmethod
     def _aggregate_with_weights(
+        self,
         expr: LinearExpression,
         weights: pd.Series,
         agg: str | Callable,
@@ -106,12 +127,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         agg: Callable | str,
         c: str,
     ) -> pd.DataFrame:
+        grouping = grouping.reindex(vals.indexes["name"])
         return vals.groupby(grouping).sum()
 
     def _aggregate_components_concat_values(
         self, exprs: list[LinearExpression], agg: Callable | str
     ) -> LinearExpression:
-        res = ln.merge(exprs)
+        res = ln.merge(exprs, join="outer")
         if not (index := res.indexes[res.dims[0]]).is_unique:
             if agg != "sum":
                 msg = f"Aggregation method {agg} not supported."
@@ -124,7 +146,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         self, res: dict[str, LinearExpression], is_one_component: bool
     ) -> LinearExpression:
         if res == {}:
-            return LinearExpression(None, self._n.model)
+            return LinearExpression.from_constant(self._n.model, 0)
         if is_one_component:
             first_key = next(iter(res))
             return res[first_key].loc[first_key]
@@ -150,6 +172,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         if check_if_empty(expr):
             return expr
         group = expr.indexes["group"].to_frame().drop(columns="component").squeeze()
+        group.index = pd.Index(expr.indexes["group"], name="group")
         return expr.groupby(group).sum()
 
     def _get_operational_variable(self, c: str) -> Variable | LinearExpression:
@@ -159,7 +182,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         m = self._n.model
 
         if c == "Load":
-            return LinearExpression(self._n.get_switchable_as_dense(c, "p_set"), m)
+            return LinearExpression.from_constant(
+                m, self._n.get_switchable_as_dense(c, "p_set")
+            )
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
             return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
@@ -179,7 +204,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -194,16 +219,42 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
+        at_port = resolve_at_port(at_port, bus_carrier)
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series | None:
+        def func(n: Network, component: str, port: str) -> pd.Series | None:
             m = n.model
-            capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            if include_non_extendable:
-                query = f"~{nominal_attrs[c]}_extendable"
-                capacity = capacity + n.c[c].static.query(query)["p_nom"]
-            costs = n.c[c].static[cost_attribute][capacity.indexes["name"]]
-            return capacity * costs
+            c = n.c[component]
+            nom_attr = c._operational_attrs["nom"]
+            var_name = f"{component}-{nom_attr}"
+
+            # Get non-extendable capacity using component's fixed property
+            non_ext_capacity = (
+                c.static.loc[c.fixed, nom_attr]
+                if include_non_extendable
+                else pd.Series(dtype=float)
+            )
+
+            # Build capacity expression handling both extendable and non-extendable
+            if var_name in m.variables:
+                capacity = m.variables[var_name] + non_ext_capacity
+            elif not non_ext_capacity.empty:
+                capacity = LinearExpression.from_constant(m, non_ext_capacity)
+            else:
+                return None
+
+            if cost_attribute == "capital_cost":
+                costs = c.capital_cost[capacity.indexes["name"]]
+            else:
+                costs = c.static[cost_attribute][capacity.indexes["name"]]
+
+            if c.has_piecewise(cost_attribute):
+                add_capex = m.variables[c._piecewise_aux_var(cost_attribute)]
+                capacity = capacity.drop_sel(name=add_capex.coords["name"])
+            else:
+                add_capex = 0
+
+            return capacity * costs + add_capex
 
         return self._aggregate_components(
             func,
@@ -230,7 +281,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: str | Sequence[str] | bool | None = None,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         storage: bool = False,
@@ -250,23 +301,38 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
         if storage:
             components = ("Store", "StorageUnit")
-        if bus_carrier and at_port is None:
-            at_port = True
+        at_port = resolve_at_port(at_port, bus_carrier)
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series | None:
+        def func(n: Network, component: str, port: str) -> pd.Series | None:
             m = n.model
-            attr = nominal_attrs[c]
-            capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            if include_non_extendable:
-                query = f"~{attr}_extendable"
-                capacity = capacity + n.c[c].static.query(query)[attr]
-            efficiency = port_efficiency(n, c, port=port)[capacity.indexes["name"]]
-            if not at_port:
+            c = n.c[component]
+            nom_attr = c._operational_attrs["nom"]
+            var_name = f"{component}-{nom_attr}"
+
+            # Get non-extendable capacity using component's fixed property
+            non_ext_capacity = (
+                c.static.loc[c.fixed, nom_attr]
+                if include_non_extendable
+                else pd.Series(dtype=float)
+            )
+
+            # Build capacity expression handling both extendable and non-extendable
+            if var_name in m.variables:
+                capacity = m.variables[var_name] + non_ext_capacity
+            elif not non_ext_capacity.empty:
+                capacity = LinearExpression.from_constant(m, non_ext_capacity)
+            else:
+                return None
+
+            efficiency = port_efficiency(n, component, port=port)[
+                capacity.indexes["name"]
+            ]
+            if c._as_ports(at_port) == [0]:
                 efficiency = abs(efficiency)
             res = capacity * efficiency
-            if storage and (c == "StorageUnit"):
-                res = res * n.components[c].static.max_hours
+            if storage and (component == "StorageUnit"):
+                res = res * c.static.max_hours
             return res
 
         return self._aggregate_components(
@@ -295,7 +361,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -318,14 +384,26 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
         from pypsa.optimization.optimize import lookup  # noqa: PLC0415
 
+        at_port = resolve_at_port(at_port, bus_carrier)
+
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
-            attr = lookup.query("not nominal and marginal_cost").loc[c].index.item()
-            if attr is None:
+            attr = "marginal_cost"
+            var = lookup.query(f"not nominal and {attr}").loc[c].index.item()
+            if var is None:
                 return None
-            var = n.model.variables[f"{c}-{attr}"]
+            var = n.model.variables[f"{c}-{var}"]
             sns = var.indexes["snapshot"]
-            opex = var * n.get_switchable_as_dense(c, "marginal_cost").loc[sns]
+
+            c_obj = n.c[c]
+            if c_obj.has_piecewise(attr):
+                add_opex = n.model.variables[c_obj._piecewise_aux_var(attr)]
+                var = var.drop_sel(name=add_opex.coords["name"])
+            else:
+                add_opex = 0
+
+            opex = var * n.get_switchable_as_dense(c, attr).loc[sns] + add_opex
+
             weights = n.snapshot_weightings.objective.loc[sns]
             return self._aggregate_timeseries(opex, weights, agg=groupby_time)
 
@@ -355,7 +433,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -378,6 +456,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
 
         """
+        at_port = resolve_at_port(at_port, bus_carrier)
+
         if components is None:
             components = self._n.branch_components
 
@@ -414,18 +494,23 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_groups="groupby_method",
         aggregate_time="groupby_time",
     )
-    def energy_balance(
+    @deprecated_kwargs(
+        deprecated_in="1.1",
+        removed_in="2.0",
+        kind="direction",
+    )
+    def energy_balance(  # noqa: D417
         self,
         components: str | Sequence[str] | None = None,
         groupby_time: str | bool = "sum",
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | None = None,
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
-        kind: str | None = None,
+        direction: str | None = "both",
     ) -> LinearExpression:
         """Calculate the energy balance of components in the network.
 
@@ -435,17 +520,28 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
-        Additional parameter
-        --------------------
-        aggregate_bus: bool, optional
-            Whether to obtain the nodal or carrier-wise energy balance. Default is True, corresponding to the carrier-wise balance.
+        Parameters
+        ----------
         groupby_time : str, bool, optional
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
+        direction : str, default="both"
+            Type of energy balance to calculate:
+            - 'supply': Only consider positive values (energy production)
+            - 'withdrawal': Only consider negative values (energy consumption)
+            - 'both': Consider both supply and withdrawal
+
         """
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
+        if direction is None:
+            warnings.warn(
+                "Passing `direction=None` is deprecated. Use `direction='both'` instead. Deprecated in version 1.1. Will be removed in version 2.0.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            direction = "both"
         if (
             self._n.c.buses.static.carrier.unique().size > 1
             and groupby is None
@@ -457,28 +553,47 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             )
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            var = self._get_operational_variable(c)
+        def func(n: Network, component: str, port: str) -> pd.Series:
+            c = n.c[component]
+            var = self._get_operational_variable(component)
             sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
-            efficiency = port_efficiency(n, c, port=port, dynamic=True)
-            if isinstance(efficiency, pd.DataFrame):
-                efficiency = efficiency.loc[sns]
-            sign = n.c[c].static.get("sign", 1.0)
+            dynamic_efficiency = port_efficiency(n, component, port=port, dynamic=True)
+            if isinstance(dynamic_efficiency, pd.DataFrame):
+                dynamic_efficiency = dynamic_efficiency.loc[sns]
+            sign = n.c[component].static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators.loc[sns]
-            coeffs = DataArray(efficiency * sign)
-            if kind == "supply":
-                coeffs = coeffs.clip(min=0)
-            elif kind == "withdrawal":
-                logger.warning(
-                    "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
+            coeffs = DataArray(dynamic_efficiency * sign)
+
+            pw_var = 0
+            if isinstance(c, _Multiport) and c.has_piecewise(
+                y_attr := c._port_coefficient_attr(port)
+            ):
+                pw = sign * n.model.variables[c._piecewise_aux_var(y_attr)]
+                names = pw.coords["name"].values
+                # pandas 3 returns read-only views, so copy before writing
+                coeffs = coeffs.copy()
+                coeffs.loc[{"name": names}] = 0
+                pw_var = _direct_piecewise(c, y_attr, sign, pw, names, direction)
+
+            expr = coeffs * var.where(coeffs != 0)
+
+            if direction in ("supply", "withdrawal"):
+                if direction == "withdrawal":
+                    logger.warning(
+                        "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
+                    )
+                s = 1 if direction == "supply" else -1
+                expr = expr.assign(
+                    coeffs=(s * expr.coeffs).clip(min=0),
+                    const=(s * expr.const).clip(min=0),
                 )
-                coeffs = -coeffs.clip(max=0)
-            elif kind is not None:
-                msg = f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."
+            elif direction != "both":
+                msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
-            p = var.where(coeffs != 0) * coeffs
-            return self._aggregate_timeseries(p, weights, agg=groupby_time)
+
+            expr = expr + pw_var
+            return self._aggregate_timeseries(expr, weights, agg=groupby_time)
 
         return self._aggregate_components(
             func,
@@ -506,7 +621,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | None = None,
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -519,7 +634,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         `bus_carrier` is calculated.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
@@ -533,7 +648,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             bus_carrier=bus_carrier,
             carrier=carrier,
             nice_names=nice_names,
-            kind="supply",
+            direction="supply",
         )
 
     @deprecated_kwargs(
@@ -550,7 +665,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | None = None,
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -563,7 +678,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier `bus_carrier` is calculated.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
@@ -577,7 +692,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             bus_carrier=bus_carrier,
             carrier=carrier,
             nice_names=nice_names,
-            kind="withdrawal",
+            direction="withdrawal",
         )
 
     @deprecated_kwargs(
@@ -594,7 +709,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -618,18 +733,32 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
 
         """
+        at_port = resolve_at_port(at_port, bus_carrier)
 
         @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            attr = nominal_attrs[c]
-            capacity = (
-                n.model.variables[f"{c}-{attr}"]
-                + n.c[c].static.query(f"~{attr}_extendable")[attr]
-            )
+        def func(n: Network, component: str, port: str) -> pd.Series:
+            m = n.model
+            c = n.c[component]
+            nom_attr = c._operational_attrs["nom"]
+            var_name = f"{component}-{nom_attr}"
+
+            # Get non-extendable capacity using component's fixed property
+            non_ext_capacity = c.static.loc[c.fixed, nom_attr]
+
+            # Build capacity expression handling both extendable and non-extendable
+            if var_name in m.variables:
+                capacity = m.variables[var_name] + non_ext_capacity
+            elif not non_ext_capacity.empty:
+                capacity = LinearExpression.from_constant(m, non_ext_capacity)
+            else:
+                return None
+
             idx = capacity.indexes["name"]
-            operation = self._get_operational_variable(c).loc[:, idx]
+            operation = self._get_operational_variable(component).loc[:, idx]
             sns = operation.indexes["snapshot"]
-            p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx]).loc[sns]
+            p_max_pu = DataArray(
+                n.get_switchable_as_dense(component, "p_max_pu")[idx]
+            ).loc[sns]
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
             # TODO curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
@@ -661,7 +790,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby_time: str | bool = "mean",
         groupby_method: str = "sum",
         aggregate_across_components: bool = False,
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike | None = None,
         groupby: str | Sequence[str] | Callable = "carrier",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
@@ -683,6 +812,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given. Defaults to 'mean'.
 
         """
+        at_port = resolve_at_port(at_port, bus_carrier)
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:

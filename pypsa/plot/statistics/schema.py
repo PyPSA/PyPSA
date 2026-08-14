@@ -16,10 +16,9 @@ The module contains the following configuration dictionaries:
 2. METHOD_OVERRIDES:
    Plot-type-specific defaults that override the general defaults.
 
-3. ALLOWED_PARAMS:
-   Additional parameters that are allowed for specific statistics functions.
-   Parameters listed here are restricted by default and only enabled for the
-   specified statistics.
+3. OPTIONAL_STAT_PARAMS:
+   Parameters restricted by default and only enabled for statistics whose
+   function signature accepts them (derived via introspection).
 
 4. EXCLUDED_PARAMS:
    Parameters that should be excluded for specific statistics functions
@@ -29,7 +28,25 @@ The module contains the following configuration dictionaries:
    Statistic and plot-type specific overrides for parameter defaults.
 """
 
+import inspect
+from functools import cache
+
+from pypsa.plot.statistics.base import UNSET
 from pypsa.plot.statistics.charts import CHART_TYPES
+
+# Statistics-specific passthrough parameters: restricted by default and only
+# enabled for statistics whose function signature accepts them.
+OPTIONAL_STAT_PARAMS = {"storage", "direction"}
+
+
+@cache
+def _stat_signature_params(stats_name: str) -> frozenset[str]:
+    """Return the parameter names accepted by a statistics function."""
+    from pypsa.statistics.expressions import StatisticsAccessor  # noqa: PLC0415
+
+    func = getattr(StatisticsAccessor, stats_name).func
+    return frozenset(inspect.signature(func).parameters)
+
 
 # Base defaults for all parameters
 DEFAULTS = {
@@ -63,17 +80,14 @@ METHOD_OVERRIDES: dict = {
     "bar": {"x": "value", "y": "carrier", "color": "carrier"},
 }
 
-# Additional allowed params per statistic
-ALLOWED_PARAMS = {
-    "optimal_capacity": ["storage"],
-    "installed_capacity": ["storage"],
-    "energy_balance": ["direction"],
-    "revenue": ["direction"],
-}
-
-# Excluded params per statistic
-EXCLUDED_PARAMS = {
-    "prices": ["carrier", "nice_names"],
+# Excluded params per statistic. Each param maps to an error hint shown when a
+# user passes it explicitly; ``None`` marks a structurally-injected param (always
+# populated by the plotter signature) that is dropped silently instead of raising.
+EXCLUDED_PARAMS: dict[str, dict[str, str | None]] = {
+    "prices": {
+        "carrier": "Use 'bus_carrier' instead.",
+        "nice_names": None,
+    },
 }
 
 # Statistic-specific overrides per plot type
@@ -172,11 +186,10 @@ def _combine_schemas() -> dict:
     plot_types = ["map", "plot"] + CHART_TYPES
     all_stats = list(STAT_OVERRIDES.keys())
 
-    # Gather all additional params to determine which are restricted by default
-    restricted_params = {p for params in ALLOWED_PARAMS.values() for p in params}
-
     for stat in all_stats:
         schema[stat] = {}
+        # Optional params are only allowed for stats whose signature accepts them
+        allowed_optional = OPTIONAL_STAT_PARAMS & _stat_signature_params(stat)
 
         for plot_type in plot_types:
             schema[stat][plot_type] = {}
@@ -185,7 +198,7 @@ def _combine_schemas() -> dict:
             for param, default in DEFAULTS.items():
                 schema[stat][plot_type][param] = {
                     "default": default,
-                    "allowed": param not in restricted_params,
+                    "allowed": param not in OPTIONAL_STAT_PARAMS,
                 }
 
             # Apply method-specific defaults
@@ -196,8 +209,8 @@ def _combine_schemas() -> dict:
                         "allowed": True,
                     }
 
-            # Enable additional params for this stat
-            for param in ALLOWED_PARAMS.get(stat, []):
+            # Enable optional params supported by this stat
+            for param in allowed_optional:
                 if param in schema[stat][plot_type]:
                     schema[stat][plot_type][param]["allowed"] = True
 
@@ -207,15 +220,66 @@ def _combine_schemas() -> dict:
                     schema[stat][plot_type][param] = {"default": value, "allowed": True}
 
             # Apply exclusions
-            for param in EXCLUDED_PARAMS.get(stat, []):
+            for param in EXCLUDED_PARAMS.get(stat, {}):
                 if param in schema[stat][plot_type]:
                     schema[stat][plot_type][param]["allowed"] = False
 
     return schema
 
 
-# Generate the schema
-schema = _combine_schemas()
+@cache
+def _schema() -> dict:
+    """Return the combined schema, built lazily on first use."""
+    return _combine_schemas()
+
+
+def _apply_auto_faceting(plot_name: str, kwargs: dict, context: dict) -> dict:
+    """Auto-determine facet_col/facet_row based on network context."""
+    if kwargs.get("facet_col") or kwargs.get("facet_row"):
+        return kwargs
+
+    # Ignore unnamed index levels to avoid creating empty facets
+    index_names = [n for n in context.get("index_names", []) if n is not None]
+    has_scenarios = context.get("has_scenarios", False)
+    period_name = context.get("period_name")
+    is_bar = plot_name == "bar"
+
+    # A dimension already mapped to an axis must not also become a facet.
+    assigned = {kwargs.get(axis) for axis in ("x", "y", "color")}
+    if period_name in assigned:
+        period_name = None
+    if "scenario" in assigned:
+        has_scenarios = False
+    index_names = [name for name in index_names if name not in assigned]
+    n_idx = len(index_names)
+
+    if not is_bar:
+        # Non-bar plots map carrier to color and cannot stack extra dimensions
+        # on a single axis, so every remaining dimension (collection index
+        # levels, scenarios, investment periods) must become a facet. Assign up
+        # to two as row/col; further dimensions are aggregated by the backend.
+        facet_dims = [*index_names]
+        if has_scenarios:
+            facet_dims.append("scenario")
+        if period_name:
+            facet_dims.append(period_name)
+        if len(facet_dims) == 1:
+            kwargs["facet_col"] = facet_dims[0]
+        elif len(facet_dims) >= 2:
+            kwargs["facet_row"] = facet_dims[0]
+            kwargs["facet_col"] = facet_dims[1]
+    elif n_idx >= 2:
+        # Bar plots map carrier to color and aggregate scenarios, so they only
+        # facet by collection index levels: 2D when scenarios are also present.
+        if has_scenarios:
+            kwargs["facet_row"] = index_names[0]
+            kwargs["facet_col"] = index_names[1]
+        else:
+            kwargs["facet_col"] = index_names[0]
+    elif n_idx == 1 and has_scenarios:
+        kwargs["facet_col"] = index_names[0]
+
+    return kwargs
 
 
 def apply_parameter_schema(
@@ -245,40 +309,39 @@ def apply_parameter_schema(
     """
     to_remove = []
 
+    stat_schema = _schema()[stats_name][plot_name]
+    excluded = EXCLUDED_PARAMS.get(stats_name, {})
     for param, value in kwargs.items():
         # Check if parameter is explicitly excluded for this statistic
-        if param in EXCLUDED_PARAMS.get(stats_name, []):
+        if param in excluded:
+            hint = excluded[param]
+            if value not in (None, UNSET) and hint is not None:
+                msg = (
+                    f"'{param}' is not a supported parameter for the "
+                    f"'{stats_name}' statistic. {hint}"
+                )
+                raise ValueError(msg)
             to_remove.append(param)
             continue
 
-        if param not in schema[stats_name][plot_name]:
+        if param not in stat_schema:
             continue
 
         # Check if parameter is not allowed and remove it
-        if not schema[stats_name][plot_name][param]["allowed"]:
+        if not stat_schema[param]["allowed"]:
             to_remove.append(param)
             continue
 
-        # Apply default if value is None
-        if value is None:
-            kwargs[param] = schema[stats_name][plot_name][param]["default"]
+        # Apply the schema default only for unprovided parameters. An explicit
+        # value (including None, e.g. ``color=None`` to disable) is kept as-is.
+        if value is UNSET:
+            kwargs[param] = stat_schema[param]["default"]
 
     for param in to_remove:
         kwargs.pop(param)
 
-    # Auto-faceting logic
-    if (
-        context
-        and context.get("index_names")
-        and not kwargs.get("facet_col")
-        and not kwargs.get("facet_row")
-    ):
-        index_names = context["index_names"]
-        if len(index_names) == 1:
-            kwargs["facet_col"] = index_names[0]
-        elif len(index_names) >= 2:
-            kwargs["facet_row"] = index_names[0]
-            kwargs["facet_col"] = index_names[1]
+    if context:
+        kwargs = _apply_auto_faceting(plot_name, kwargs, context)
 
     return kwargs
 
@@ -300,10 +363,13 @@ def get_relevant_plot_values(plot_kwargs: dict, context: dict | None = None) -> 
 
     """
     index_names = context.get("index_names", []) if context else []
+    period_name = context.get("period_name") if context else None
     relevant_keys = {"x", "y", "color", "facet_col", "facet_row"}
     values = [
         v
         for k, v in plot_kwargs.items()
-        if k in relevant_keys and v not in index_names and v is not None
+        if k in relevant_keys and v not in index_names and v not in (None, UNSET)
     ]
+    if period_name is not None:
+        values = [value for value in values if value != period_name]
     return list(set(values))

@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 import copy
+import pickle
 import sys
 import warnings
+from pathlib import Path
 
 import linopy
 import numpy as np
@@ -260,11 +262,11 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
     ).all()  # Assert that default value is set
 
     # Test different names shape
-    with pytest.raises(ValueError, match="index which does not align"):
+    with pytest.raises(ValueError, match="columns which do not align"):
         n_5bus_7sn.add("Load", load_names[1:] + "_a", p_set=p_set)
 
     # Test unaligned names index
-    with pytest.raises(ValueError, match="index which does not align"):
+    with pytest.raises(ValueError, match="columns which do not align"):
         n_5bus_7sn.add("Load", load_names + "_b", p_set=swap_df_index(p_set))
 
     # Test different snapshots shape
@@ -272,7 +274,7 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
         n_5bus_7sn.add("Load", load_names + "_c", p_set=p_set[1:])
 
     # Test different snapshots index
-    with pytest.raises(ValueError, match="index which does not align"):
+    with pytest.raises(ValueError, match="columns which do not align"):
         n_5bus_7sn.add("Load", load_names + "_d", p_set=swap_df_index(p_set, axis=1))
 
 
@@ -306,28 +308,68 @@ def test_add_overwrite_varying(n_5bus_7sn, caplog):
     assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[:5]] == p).all().all()
 
 
+def test_add_overwrite_clears_stale_dynamic():
+    """Regression for #1628: overwrite=True must clear pre-existing dynamic
+    columns even if the new call does not re-supply them.
+    """
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "b")
+    n.add("Generator", "g", bus="b", marginal_cost=[10.0, 20.0, 30.0])
+    assert "g" in n.c.generators.dynamic.marginal_cost.columns
+
+    n.add("Generator", "g", bus="b", marginal_cost=5.0, overwrite=True)
+    assert "g" not in n.c.generators.dynamic.marginal_cost.columns
+
+
 def test_add_stochastic():
-    n = pypsa.Network()
+    """Test adding components to stochastic networks."""
+    n = pypsa.Network(snapshots=range(5))
     n.add("Bus", "bus_1", v_mag_pu_set=0.1)
     n.add("Bus", "bus_2", v_mag_pu_set=0.1)
 
+    # Test 1: Reject MultiIndex names before scenarios
     multi_indexed = pd.MultiIndex.from_product(
         [["bus_3", "bus_4"], ["scenario_1", "scenario_2"]]
     )
-
-    with pytest.raises(TypeError, match="Component names must be a one-dimensional."):
+    with pytest.raises(TypeError, match="Component names must be one-dimensional"):
         n.add("Bus", multi_indexed, v_mag_pu_set=0.1)
 
+    # Set scenarios
     n.set_scenarios(["scenario_1", "scenario_2"])
 
+    # Test 2: Reject MultiIndex names after scenarios
     with pytest.raises(
         TypeError,
-        match=(
-            "Component names must be a one-dimensional. For stochastic networks, they "
-            "will be casted to all dimensions and data per scenario can be changed after adding them."
-        ),
+        match="Component names must be one-dimensional.*broadcast",
     ):
         n.add("Bus", multi_indexed, v_mag_pu_set=0.1)
+
+    # Test 3: Add single component with static attributes - should broadcast
+    n.add("Load", "load1", bus="bus_1", p_set=50)
+    assert isinstance(n.c.loads.static.index, pd.MultiIndex)
+    assert n.c.loads.static.index.names == ["scenario", "name"]
+    assert len(n.c.loads.static.index) == 2  # One per scenario
+    assert ("scenario_1", "load1") in n.c.loads.static.index
+    assert ("scenario_2", "load1") in n.c.loads.static.index
+    assert n.c.loads.static.loc[("scenario_1", "load1"), "p_set"] == 50.0
+
+    # Test 4: Add multiple components - should broadcast
+    n.add("Load", ["load2", "load3"], bus=["bus_1", "bus_2"], p_set=[75, 100])
+    assert len(n.c.loads.static.index) == 6  # 3 loads × 2 scenarios
+
+    # Test 5: Add with time-varying attributes - should broadcast
+    load_profile = [100, 120, 110, 130, 115]
+    n.add("Load", "load4", bus="bus_2", p_set=load_profile)
+    assert isinstance(n.c.loads.dynamic.p_set.columns, pd.MultiIndex)
+    assert n.c.loads.dynamic.p_set.columns.names == ["scenario", "name"]
+    for scenario in n.scenarios:
+        assert list(n.c.loads.dynamic.p_set.loc[:, (scenario, "load4")]) == load_profile
+
+    # Test 6: Verify can modify per scenario after adding
+    n.c.loads.static.loc[("scenario_1", "load1"), "p_set"] = 80
+    n.c.loads.static.loc[("scenario_2", "load1"), "p_set"] = 120
+    assert n.c.loads.static.loc[("scenario_1", "load1"), "p_set"] == 80.0
+    assert n.c.loads.static.loc[("scenario_2", "load1"), "p_set"] == 120.0
 
 
 def test_multiple_add_defaults(n_5bus):
@@ -388,6 +430,118 @@ def test_add_return_names():
     result = n.components.buses.add("bus7", return_names=True)
     assert isinstance(result, pd.Index)
     assert result[0] == "bus7"
+
+
+def test_add_remove_list_suffix(n_5bus):
+    # A list `suffix` with a scalar `name` builds one component per suffix (#1650).
+    names = n_5bus.add(
+        "Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", return_names=True
+    )
+    assert list(names) == ["g wind", "g solar"]
+    assert list(n_5bus.c.generators.static.index) == ["g wind", "g solar"]
+
+    n_5bus.remove("Generator", "g", suffix=[" wind", " solar"])
+    assert n_5bus.c.generators.static.empty
+
+
+@pytest.mark.parametrize("method", ["add", "remove"])
+@pytest.mark.parametrize(
+    ("name", "suffix", "match"),
+    [
+        # Was a silent one-by-one pairing before #1650, now rejected.
+        (["a", "b"], [" wind", " solar"], "Cannot pass list to both"),
+        ("g", [], "Empty list `suffix`"),
+    ],
+)
+def test_list_suffix_invalid_raises(n_5bus, method, name, suffix, match):
+    with pytest.raises(ValueError, match=match):
+        getattr(n_5bus, method)("Generator", name, suffix=suffix)
+
+
+@pytest.mark.parametrize(
+    "p_nom",
+    [
+        pd.Series([100.0, 200.0], index=["g wind", "g solar"]),  # post-suffix index
+        [100.0, 200.0],  # plain list, positional
+    ],
+)
+def test_add_list_suffix_static_kwarg(n_5bus, p_nom):
+    # Regression for the TypeError from str.endswith(list) on a Series kwarg (#1650).
+    n_5bus.add("Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", p_nom=p_nom)
+    static = n_5bus.c.generators.static
+    assert static.p_nom.loc["g wind"] == 100.0
+    assert static.p_nom.loc["g solar"] == 200.0
+
+
+def test_add_list_suffix_dataframe_kwarg(n_5bus_7sn):
+    # A DataFrame kwarg with post-suffix columns stays time-varying (#1650).
+    p_max_pu = pd.DataFrame(
+        rng.random((len(n_5bus_7sn.snapshots), 2)),
+        index=n_5bus_7sn.snapshots,
+        columns=["g wind", "g solar"],
+    )
+    n_5bus_7sn.add(
+        "Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", p_max_pu=p_max_pu
+    )
+    pd.testing.assert_frame_equal(
+        n_5bus_7sn.c.generators.dynamic.p_max_pu,
+        p_max_pu,
+        check_names=False,
+        check_column_type=False,
+    )
+
+
+def test_add_list_suffix_misaligned_kwarg_raises(n_5bus):
+    # For a list suffix the Series index must be the full post-suffix names.
+    p_nom = pd.Series([100.0, 200.0], index=["g", "g"])
+    with pytest.raises(ValueError, match="does not align"):
+        n_5bus.add(
+            "Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", p_nom=p_nom
+        )
+
+
+def test_multiport_assignment_defaults_single_add():
+    """
+    Add a single link to a network, then add a second link with additional
+    ports.
+
+    Check that the default values are assigned to the first link.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "bus2")
+    n.add("Link", "link", bus0="bus", bus1="bus2")
+    n.add("Link", "link2", bus0="bus", bus1="bus2", bus2="bus")
+    assert n.c.links.static.loc["link", "bus2"] == ""
+
+
+def test_multiport_assignment_defaults_multiple_add():
+    """
+    Add a single link to a network, then add a second link with additional
+    ports.
+
+    Check that the default values are assigned to the first link.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "bus2")
+    n.add("Link", ["link"], bus0="bus", bus1="bus2")
+    n.add("Link", ["link2"], bus0="bus", bus1="bus2", bus2="bus")
+    assert n.c.links.static.loc["link", "bus2"] == ""
+
+
+def test_331():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/331.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.add("Generator", "generator1", bus="bus", p_nom=15, marginal_cost=10)
+    n.optimize()
+    n.add("Generator", "generator2", bus="bus", p_nom=5, marginal_cost=5)
+    n.optimize()
+    assert "generator2" in n.c.generators.dynamic.p
 
 
 @pytest.mark.skipif(
@@ -457,6 +611,50 @@ def test_copy_with_model(ac_dc_network):
         match="Copying a solved network with an attached solver model is not supported.",
     ):
         n_copy = n.copy()
+
+
+def test_1319():
+    """
+    Copying a solved network should work after setting solver_model to None.
+    See https://github.com/PyPSA/PyPSA/issues/1319.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+
+    # Should raise error when trying to copy with solver_model attached
+    with pytest.raises(
+        ValueError, match="Copying a solved network with an attached solver model"
+    ):
+        n.copy()
+
+    # Should work after setting solver_model to None
+    n.model.solver_model = None
+    n_copy = n.copy()  # Should not raise an error
+    assert n_copy is not n
+    assert len(n_copy.buses) == len(n.c.buses.static)
+
+
+def test_1420(tmp_path):
+    """
+    Network pickling should not cause RecursionError in xarray accessor.
+    See https://github.com/PyPSA/PyPSA/issues/1420.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100)
+
+    pickle_file = tmp_path / "network.pkl"
+
+    with Path(pickle_file).open("wb") as out:
+        pickle.dump(n, out)
+
+    with Path(pickle_file).open("rb") as inp:
+        n_loaded = pickle.load(inp)
+
+    # Verify network was loaded correctly
+    assert len(n_loaded.c.buses.static) == 1
+    assert len(n_loaded.c.generators.static) == 1
+    # tmp_path is automatically cleaned up by pytest
 
 
 @pytest.mark.skipif(
@@ -680,3 +878,74 @@ def test_api_new_components_api(component_name, new_components_api):
                 setattr(n, component_name, "test")
             with pytest.warns(DeprecationWarning, match="cannot be set"):
                 setattr(n, f"{component_name}_t", "test")
+
+
+def test_sanitize():
+    """Test sanitize method adds missing buses, carriers, and colors."""
+    n = pypsa.Network()
+    # Add components with missing buses and carriers
+    n.add("Generator", "gen1", bus="missing_bus", carrier="missing_carrier", p_nom=100)
+    n.add("Load", "load1", bus="missing_bus2", carrier="electricity", p_set=50)
+
+    # Before sanitize
+    assert len(n.c.buses.static) == 0
+    assert len(n.c.carriers.static) == 0
+
+    n.sanitize()
+
+    # After sanitize - buses should be added
+    assert "missing_bus" in n.c.buses.names
+    assert "missing_bus2" in n.c.buses.names
+
+    # After sanitize - carriers should be added (including AC from buses)
+    assert "missing_carrier" in n.c.carriers.names
+    assert "electricity" in n.c.carriers.names
+
+    # After sanitize - carriers should have colors assigned
+    assert n.c.carriers.static.loc["missing_carrier", "color"] != ""
+    assert n.c.carriers.static.loc["electricity", "color"] != ""
+
+
+def test_sanitize_with_existing_data():
+    """Test sanitize doesn't overwrite existing data."""
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=110)
+    n.add("Carrier", "wind", color="blue", co2_emissions=0.0)
+    n.add("Generator", "gen1", bus="bus1", carrier="wind", p_nom=100)
+    n.add("Generator", "gen2", bus="bus2", carrier="solar", p_nom=200)
+
+    n.sanitize()
+
+    # Existing bus unchanged
+    assert n.c.buses.static.loc["bus1", "v_nom"] == 110
+    # New bus added
+    assert "bus2" in n.c.buses.names
+
+    # Existing carrier color unchanged
+    assert n.c.carriers.static.loc["wind", "color"] == "blue"
+    # New carrier has color assigned
+    assert n.c.carriers.static.loc["solar", "color"] != ""
+
+
+def test_sanitize_no_changes_needed():
+    """Test sanitize works when no changes are needed."""
+    n = pypsa.Network()
+    n.add("Bus", "bus1")
+    n.add("Carrier", "wind", color="#1f77b4")
+    n.add("Generator", "gen1", bus="bus1", carrier="wind", p_nom=100)
+
+    # No missing data
+    n.sanitize()
+
+    # Should still work without errors
+    assert len(n.c.buses.static) == 1
+    assert len(n.c.carriers.static) == 2  # wind + AC from bus
+
+    # Stochastic network
+    n2 = pypsa.Network()
+    n2.add("Bus", "bus1")
+    n2.set_scenarios(["s1", "s2"])
+    n2.add("Generator", "gen1", bus="missing_bus", carrier="missing_carrier", p_nom=100)
+    n2.sanitize()
+    assert ("s1", "missing_bus") in n2.c.buses.static.index
+    assert ("s1", "missing_carrier") in n2.c.carriers.static.index

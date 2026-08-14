@@ -38,13 +38,53 @@ def apply_cmap(  # noqa
     cmap: str | mcolors.Colormap | None,
     cmap_norm: mcolors.Normalize | None = None,
 ) -> pd.Series:
-    if np.issubdtype(colors.dtype, np.number):
+    if pd.api.types.is_numeric_dtype(colors):
         if not isinstance(cmap, mcolors.Colormap):
             cmap = plt.get_cmap(cmap)
         if not cmap_norm:
             cmap_norm = plt.Normalize(vmin=colors.min(), vmax=colors.max())
         colors = colors.apply(lambda cval: cmap(cmap_norm(cval)))
     return colors
+
+
+def convert_matplotlib_color_to_plotly(
+    color: str | pd.Series | dict,
+) -> str | pd.Series | dict:
+    """Convert matplotlib color specifications to plotly-compatible formats.
+
+    Converts matplotlib-specific colors (e.g., 'k', 'C0', 'tab:blue', '0.75') to hex
+    strings. Preserves plotly-compatible formats (hex, CSS names, rgb/rgba strings).
+
+    Parameters
+    ----------
+    color : str, pd.Series, or dict
+        Color specification that might contain matplotlib formats.
+
+    Returns
+    -------
+    str, pd.Series, or dict
+        Plotly-compatible color specification.
+
+    """
+
+    def _convert_single_color(c: Any) -> Any:
+        if not isinstance(c, str):
+            return c
+        if c.startswith(("#", "rgb")):
+            return c
+        if c.lower() in mcolors.CSS4_COLORS:
+            return c
+        try:
+            return mcolors.to_hex(mcolors.to_rgb(c))
+        except (ValueError, AttributeError):
+            return c
+
+    if isinstance(color, pd.Series):
+        return color.map(_convert_single_color)
+    elif isinstance(color, dict):
+        return {k: _convert_single_color(v) for k, v in color.items()}
+    else:
+        return _convert_single_color(color)
 
 
 def as_branch_series(  # noqa
@@ -107,8 +147,6 @@ def apply_layouter(
 
     Examples
     --------
-    >>> import pypsa
-    >>> n = pypsa.examples.ac_dc_meshed()
     >>> x, y = apply_layouter(n, layouter=nx.circular_layout)
     >>> x
     London        1.000000

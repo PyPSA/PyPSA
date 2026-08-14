@@ -35,6 +35,7 @@ class ComponentsTransformMixin:
 
     static: pd.DataFrame
     dynamic: Dict
+    piecewise: Dict
     attached: Any
     n_save: Any
     name: Any
@@ -42,7 +43,7 @@ class ComponentsTransformMixin:
     def add(
         self,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
         overwrite: bool = False,
         return_names: bool | None = None,
         **kwargs: Any,
@@ -72,8 +73,9 @@ class ComponentsTransformMixin:
         ----------
         name : str or int or list of str or list of int
             Component name(s)
-        suffix : str, default ""
-            All components are named after name with this added suffix.
+        suffix : str or list of str, default ""
+            Suffix added to each name. Pass a list together with a single `name`
+            to add one component per suffix.
         overwrite : bool, default False
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
@@ -178,7 +180,6 @@ class ComponentsTransformMixin:
         Examples
         --------
         Define some network
-        >>> import pypsa
         >>> n = pypsa.Network()
         >>> n.add("Bus", ["bus1"])
         >>> n.add("Generator", ["gen1"], bus="bus1")
@@ -191,7 +192,7 @@ class ComponentsTransformMixin:
         Which updates the bus components
 
         >>> c.static.index
-        Index(['bus2'], dtype='object', name='name')
+        Index(['bus2'], dtype='str', name='name')
 
         and all references in the network
 

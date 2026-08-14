@@ -24,25 +24,37 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import xarray
+from deprecation import deprecated
 from pyproj import CRS
 
-from pypsa.common import deprecated_in_next_major, equals
+from pypsa.common import equals
 from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, RE_PORTS
+from pypsa.constants import (
+    DEFAULT_EPSG,
+    DEFAULT_TIMESTAMP,
+    RE_PORTS,
+    piecewise_attrs,
+    piecewise_schema,
+)
+from pypsa.costs import annuity, periodized_cost
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Collection, Sequence
+    from typing import Literal
 
     from pypsa import Network
     from pypsa.definitions.components import ComponentType
+
+    PortsLike = Literal["all"] | str | int | Collection[str] | Collection[int]  # noqa: PYI051
 
 # TODO attachment todos
 # - crs
@@ -109,6 +121,31 @@ class ComponentsData:
     --------
     >>> c.dynamic
     """
+    piecewise: Dict
+    """
+    Piecewise linear breakpoint data for all components of this type.
+
+    Dict-like container keyed by y-axis attribute name (e.g. 'efficiency',
+    'marginal_cost', 'capital_cost'). Each value is a DataFrame with:
+
+    - index: breakpoint number (int, 0-based), ``index.name = "breakpoint"``
+    - columns: MultiIndex ``(name, attribute)`` where ``attribute`` holds both
+      the x-axis coordinate (e.g. ``p_pu``, ``p_nom``) and the y-axis attribute,
+      ``columns.names = ["name", "attribute"]``
+
+    Examples
+    --------
+    >>> c.piecewise.efficiency
+    """
+
+
+def _split_port(attr: str) -> tuple[str, str]:
+    """Split a trailing port number off an attribute name.
+
+    'efficiency2' -> ('efficiency', '2'), 'marginal_cost' -> ('marginal_cost', '').
+    """
+    base = attr.rstrip("0123456789")
+    return base, attr.removeprefix(base)
 
 
 class Components(
@@ -161,8 +198,10 @@ class Components(
                 "supported."
             )
             raise NotImplementedError(msg)
-        static, dynamic = self._get_data_containers(ctype)
-        ComponentsData.__init__(self, ctype, n=None, static=static, dynamic=dynamic)
+        static, dynamic, piecewise = self._get_data_containers(ctype)
+        ComponentsData.__init__(
+            self, ctype, n=None, static=static, dynamic=dynamic, piecewise=piecewise
+        )
         ComponentsArrayMixin.__init__(self)
 
     def __str__(self) -> str:
@@ -337,10 +376,13 @@ class Components(
             equals(self.ctype, other.ctype, log_mode=log_mode, path="c.ctype")
             and equals(self.static, other.static, log_mode=log_mode, path="c.static")
             and equals(self.dynamic, other.dynamic, log_mode=log_mode, path="c.dynamic")
+            and equals(
+                self.piecewise, other.piecewise, log_mode=log_mode, path="c.piecewise"
+            )
         )
 
     @staticmethod
-    def _get_data_containers(ct: ComponentType) -> tuple[pd.DataFrame, Dict]:
+    def _get_data_containers(ct: ComponentType) -> tuple[pd.DataFrame, Dict, Dict]:
         static_dtypes = ct.defaults.loc[ct.defaults.static, "dtype"].drop(["name"])
         if ct.name == "Shape":
             crs = CRS.from_epsg(
@@ -370,7 +412,58 @@ class Components(
             df.columns.name = "name"
             dynamic[k] = df
 
-        return static, dynamic
+        # Piecewise breakpoint data: one empty DataFrame per piecewise attribute
+        # defined by the piecewise_x column in the component's attribute CSV.
+        piecewise = Dict()
+        for y_attr in piecewise_attrs(ct.name).y.unique():
+            cols = pd.MultiIndex.from_tuples([], names=["name", "attribute"])
+            df = pd.DataFrame(
+                index=pd.Index([], name="breakpoint", dtype=int),
+                columns=cols,
+                dtype=float,
+            )
+            piecewise[y_attr] = df
+
+        return static, dynamic, piecewise
+
+    @property
+    def _piecewise_attrs(self) -> pd.DataFrame:
+        """Piecewise attribute rows for this component type."""
+        return piecewise_attrs(self.name)
+
+    def has_piecewise(self, attr: str) -> bool:
+        """Whether this component instance has piecewise breakpoint data for `attr`."""
+        pw_df = self.piecewise.get(attr)
+        return pw_df is not None and not pw_df.empty
+
+    def _piecewise_schema(self, attr: str) -> pd.Series:
+        """Get the piecewise definition row for `attr`, ignoring any port suffix (empty if undefined)."""
+        row = piecewise_schema(self.name, attr)
+        base, port = _split_port(attr)
+        if row.empty and port:
+            # Only schema rows with a {port} placeholder accept suffixed attrs.
+            candidate = piecewise_schema(self.name, base)
+            if not candidate.empty and "{port}" in candidate.aux_variable:
+                row = candidate
+        return row
+
+    def _piecewise_aux_var(self, attr: str) -> str:
+        """Model-variable name of the piecewise auxiliary variable for `attr`."""
+        row = self._piecewise_schema(attr)
+        if row.empty:
+            msg = f"{self.name!r} has no piecewise schema for attribute {attr!r}."
+            raise ValueError(msg)
+        # An empty port suffix denotes port 1
+        port = _split_port(attr)[1] or "1"
+        return f"{self.name}-{row.aux_variable.format(port=port)}"
+
+    def _piecewise_x_var(self, attr: str) -> str:
+        """Model-variable name of the piecewise x variable for `attr`."""
+        row = self._piecewise_schema(attr)
+        if row.empty:
+            msg = f"{self.name!r} has no piecewise schema for attribute {attr!r}."
+            raise ValueError(msg)
+        return f"{self.name}-{row.x.replace('_pu', '')}"
 
     @property
     def standard_types(self) -> pd.DataFrame | None:
@@ -485,7 +578,9 @@ class Components(
         return self.ctype.category
 
     @property
-    @deprecated_in_next_major(details="Use `c.defaults` instead.")
+    @deprecated(
+        deprecated_in="1.0.0", removed_in="2.0.0", details="Use `c.defaults` instead."
+    )
     def attrs(self) -> pd.DataFrame:
         """Default values of corresponding component type.
 
@@ -597,7 +692,9 @@ class Components(
         return self.n
 
     @property
-    @deprecated_in_next_major(details="Use `c.static` instead.")
+    @deprecated(
+        deprecated_in="1.0.0", removed_in="2.0.0", details="Use `c.static` instead."
+    )
     def df(self) -> pd.DataFrame:
         """Get static data of all components as pandas DataFrame.
 
@@ -613,7 +710,9 @@ class Components(
         return self.static
 
     @property
-    @deprecated_in_next_major(details="Use `c.dynamic` instead.")
+    @deprecated(
+        deprecated_in="1.0.0", removed_in="2.0.0", details="Use `c.dynamic` instead."
+    )
     def pnl(self) -> dict:
         """Get dynamic data of all components as a dictionary of pandas DataFrames.
 
@@ -655,19 +754,25 @@ class Components(
         --------
         >>> c = n.components.generators
         >>> c.ds  # doctest: +ELLIPSIS
-        <xarray.Dataset> Size: ...
-        Dimensions:                  (name: 6, snapshot: 10)
+        <xarray.Dataset> Size: 7kB
+        Dimensions:                     (name: 6, snapshot: 10)
         Coordinates:
-          * name                     (name) object ... 'Manchester Wind' ... 'Frankfu...
-          * snapshot                 (snapshot) datetime64[ns] ... 2015-01-01 ... 201...
-        Data variables: (12/39)
-            bus                      (name) object ... 'Manchester' ... 'Frankfurt'
-            control                  (name) object ... 'Slack' 'PQ' ... 'Slack' 'PQ'
-            type                     (name) object ... '' '' '' '' '' ''
-            p_nom                    (name) float64 ... 80.0 5e+04 100.0 ... 110.0 8e+04
-            p_nom_mod                (name) float64 ... 0.0 0.0 0.0 0.0 0.0 0.0
-            p_nom_extendable         (name) bool ... True True True True True True
-            ...
+          * name                        (name) object 48B 'Manchester Wind' ... 'Fran...
+          * snapshot                    (snapshot) datetime64[ns] 80B 2015-01-01 ... ...
+        Data variables: (12/48)
+            bus                         (name) object 48B 'Manchester' ... 'Frankfurt'
+            control                     (name) object 48B 'Slack' 'PQ' ... 'Slack' 'PQ'
+            type                        (name) object 48B '' '' '' '' '' ''
+            p_nom                       (name) float64 48B 80.0 5e+04 ... 110.0 8e+04
+            p_nom_mod                   (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
+            p_nom_extendable            (name) bool 6B True True True True True True
+            ...                          ...
+            ramp_limit_start_up         (name) float64 48B nan nan nan nan nan nan
+            ramp_limit_shut_down        (name) float64 48B nan nan nan nan nan nan
+            weight                      (name) float64 48B 1.0 1.0 1.0 1.0 1.0 1.0
+            p_nom_opt                   (name) float64 48B 4.091e+03 0.0 ... 982.0
+            capital_cost_piecewise_opt  (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
+            p                           (snapshot, name) float64 480B 742.0 ... 483.2
 
         """
         data = {}
@@ -724,14 +829,105 @@ class Components(
         >>> c.ports
         ['0', '1']
 
-        See Also
-        --------
-        [pypsa.components.Links.additional_ports][]
-
         """
         return [
             match.group(1) for col in self.static if (match := RE_PORTS.search(col))
         ]
+
+    def _as_port(self, port: int | str) -> int:
+        """Convert a single port specification to an integer index.
+
+        Parameters
+        ----------
+        port : int | str
+            Port specification. Can be an integer index directly, or a string
+            like "bus0", "bus1", or just "0", "1". The string "bus" alone
+            maps to port 0.
+
+        Returns
+        -------
+        int
+            The port index.
+
+        Raises
+        ------
+        ValueError
+            If port cannot be converted to a valid port index.
+
+        """
+        try:
+            if isinstance(port, str):
+                port = port.removeprefix("bus")
+                if port == "":
+                    return 0
+            return int(port)
+        except ValueError:
+            msg = f"Ports should be given as int or 'busX' string, not: {port}"
+            raise ValueError(msg) from None
+
+    def _as_ports(self, ports: PortsLike) -> list[int]:
+        """Convert port-like input to a list of integer port indices.
+
+        Parameters
+        ----------
+        ports : PortsLike
+            Port specification. Can be:
+            - "all": returns all port indices
+            - str: port name like "bus0", "bus1", or just "0", "1"
+            - int: port index directly
+            - Sequence of str/int: multiple ports
+
+        Returns
+        -------
+        list of int
+            List of port indices.
+
+        Raises
+        ------
+        ValueError
+            If a port specification cannot be converted to a valid port index.
+
+        """
+        existing_ports = self.ports
+
+        if ports == "all":
+            return list(range(len(existing_ports)))
+        elif isinstance(ports, str | int):
+            return [self._as_port(ports)]
+
+        return [self._as_port(p) for p in ports]
+
+    @property
+    def unique_carriers(self) -> set[str]:
+        """Get all unique carrier values for this component.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns
+        -------
+        set of str
+            Set of all unique carrier names found in this component.
+
+        Examples
+        --------
+        >>> sorted(n.c.generators.unique_carriers)
+        ['gas', 'wind']
+
+        >>> sorted(n.c.buses.unique_carriers)
+        ['AC', 'DC']
+
+        See Also
+        --------
+        [pypsa.components.Carriers.add_missing_carriers][]
+
+        """
+        if self.static.empty or "carrier" not in self.static.columns:
+            return set()
+
+        # Get carriers and filter out empty strings and NaN
+        c_carriers = self.static["carrier"].dropna()
+        c_carriers = c_carriers[c_carriers != ""]
+        return set(c_carriers.unique())
 
     @property
     def extendables(self) -> pd.Index:
@@ -803,6 +999,277 @@ class Components(
             idx = idx.get_level_values("name").drop_duplicates()
 
         return idx
+
+    @property
+    def maintainables(self) -> pd.Index:
+        """Get the index of maintainable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of maintainable elements.
+
+        """
+        if "maintainable" not in self.static:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static["maintainable"]].index
+
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
+    @property
+    def modulars(self) -> pd.Index:
+        """Get the index of modular elements of this component.
+
+        Modular components have a positive module size (e.g., p_nom_mod > 0)
+        which introduces integer variables for capacity expansion.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of modular elements.
+
+        """
+        mod_col = self._operational_attrs["nom_mod"]
+        if mod_col not in self.static.columns:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static[mod_col] > 0].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
+    def _infer_committable_big_m_scale(self) -> float:
+        """Infer a reasonable big-M scale from network and component data."""
+        candidates: list[float] = []
+
+        if "nom" not in self._operational_attrs:
+            msg = f"Component {self.name} has no nominal operational attribute."
+            raise AttributeError(msg)
+
+        if self.n is not None:
+            # Peak total load over time provides a natural system-scale bound.
+            load = self.n.get_switchable_as_dense("Load", "p_set")
+            peak_load = load.sum(axis=1).abs().max()
+            candidates.append(float(peak_load))
+
+        nom_attr = self._operational_attrs["nom"]
+        nom_series = self.static[nom_attr]
+        finite_nominal = nom_series[np.isfinite(nom_series) & (nom_series > 0)]
+        if not finite_nominal.empty:
+            candidates.append(float(finite_nominal.max()))
+
+        nom_max_attr = f"{nom_attr}_max"
+        nom_max_series = self.static[nom_max_attr]
+        finite_max = nom_max_series[np.isfinite(nom_max_series) & (nom_max_series > 0)]
+        if not finite_max.empty:
+            candidates.append(float(finite_max.max()))
+
+        if not candidates:
+            return 1e6
+
+        fallback = max(candidates) * 10
+        if not np.isfinite(fallback) or fallback <= 0:
+            return 1e6
+        return fallback
+
+    def get_committable_big_m_values(
+        self,
+        names: pd.Index,
+        max_pu: xarray.DataArray | None = None,
+        committable_big_m: float | None = None,
+    ) -> xarray.DataArray:
+        """Get per-asset big-M values for committable+extendable constraints."""
+        if "nom" not in self._operational_attrs:
+            msg = f"Component {self.name} has no nominal operational attribute."
+            raise AttributeError(msg)
+
+        nom_attr = self._operational_attrs["nom"]
+        nom_max_attr = f"{nom_attr}_max"
+
+        nom_max_values = self.da[nom_max_attr].sel(name=names)
+        if max_pu is None:
+            _, max_pu = self.get_bounds_pu(attr=self._operational_attrs["base"])
+        max_pu_values = max_pu.sel(name=names)
+        if "snapshot" in max_pu_values.dims:
+            max_pu_values = max_pu_values.max("snapshot")
+
+        big_m_default = committable_big_m
+        if big_m_default is None and self.n is not None:
+            big_m_default = self.n._committable_big_m
+        if big_m_default is None:
+            big_m_default = self._infer_committable_big_m_scale()
+        else:
+            if not np.isfinite(big_m_default):
+                msg = f"committable_big_m must be finite, got {big_m_default}."
+                raise ValueError(msg)
+            if big_m_default <= 0:
+                msg = f"committable_big_m must be positive, got {big_m_default}."
+                raise ValueError(msg)
+
+        fallback_values = big_m_default * max_pu_values.fillna(1)
+        return xarray.where(
+            np.isfinite(nom_max_values) & (nom_max_values > 0),
+            nom_max_values * max_pu_values,
+            fallback_values,
+        )
+
+    @property
+    def periodized_cost(self) -> xarray.DataArray:
+        """Calculate periodized cost from component attributes as xarray DataArray.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        See Also
+        --------
+        `pypsa.costs.periodized_cost`
+
+        """
+        static = self.static
+        cost = periodized_cost(
+            capital_cost=static["capital_cost"],
+            overnight_cost=static["overnight_cost"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=static.get("fom_cost", 0),
+            nyears=self.nyears,
+        )
+        da = xarray.DataArray(cost)
+        if self.has_scenarios:
+            da = da.unstack().reindex(name=self.names, scenario=self.scenarios)
+        return da
+
+    @property
+    def capital_cost(self) -> pd.Series:
+        """Calculate annuitized investment cost per unit of capacity (no fom).
+
+        <!-- md:badge-version v1.1.0 -->
+
+        See Also
+        --------
+        `pypsa.costs.periodized_cost`
+
+        """
+        static = self.static
+        return periodized_cost(
+            capital_cost=static["capital_cost"],
+            overnight_cost=static["overnight_cost"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=None,
+            nyears=self.nyears,
+        )
+
+    @property
+    def nyears(self) -> float | pd.Series:
+        """Return the modeled time horizon in years.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        See Also
+        --------
+        `pypsa.Network.nyears`
+
+        """
+        return self.n_save.nyears
+
+    @property
+    def annuity(self) -> pd.Series:
+        """Calculate annuity factor for all components.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns the annuity factor based on `discount_rate` and `lifetime`.
+        If `discount_rate` is NaN (no `overnight_cost` provided), returns 1.0.
+
+        Returns
+        -------
+        pd.Series
+            Annuity factor for each component.
+
+        Examples
+        --------
+        >>> n.c.generators.annuity  # doctest: +SKIP
+        name
+        gen1    0.085...
+        gen2    1.0
+        dtype: float64
+
+        See Also
+        --------
+        `pypsa.costs.annuity_factor`
+
+        """
+        static = self.static
+        discount_rate = static["discount_rate"]
+        lifetime = static["lifetime"]
+        return annuity(discount_rate, lifetime)
+
+    @property
+    def overnight_cost(self) -> pd.Series:
+        """Calculate overnight cost from component attributes.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        If overnight_cost column is provided (not NaN), returns it directly.
+        Otherwise, converts annualized capital_cost back to overnight cost using
+        the formula: overnight_cost = capital_cost / (annuity_factor × nyears).
+
+        Note: When nyears == 1, capital_cost represents the annualized cost per year,
+        so overnight_cost = capital_cost / annuity_factor.
+
+        Returns
+        -------
+        pd.Series
+            Overnight (upfront) investment cost per unit of capacity.
+
+        Examples
+        --------
+        >>> n.c.generators.overnight_cost  # doctest: +SKIP
+        name
+        gen1    1000.0   # overnight_cost used directly
+        gen2    1166.0   # 100 / annuity(0.07, 25) - back-calculated from capital_cost
+        dtype: float64
+
+        See Also
+        --------
+        `capital_cost` : Annuitized investment cost for the modeled horizon.
+        `annuity` : Annuity factor for each component.
+
+        """
+        static = self.static
+        overnight = static["overnight_cost"]
+        capital = static["capital_cost"]
+        has_overnight = overnight.notna()
+
+        needs_back_calc = ~has_overnight & (capital != 0)
+        discount_rate = static["discount_rate"]
+        lifetime = static["lifetime"]
+        missing_params = needs_back_calc & (discount_rate.isna() | lifetime.isna())
+
+        if missing_params.any():
+            bad = static.index[missing_params].tolist()
+            msg = (
+                f"Cannot back-calculate overnight_cost for {bad}: "
+                "both 'discount_rate' and 'lifetime' must be provided "
+                "when 'overnight_cost' is not set."
+            )
+            raise ValueError(msg)
+
+        ann_factor = self.annuity
+        nyears = self.nyears
+        nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
+        back_calculated = capital / (ann_factor * nyears_scalar)
+
+        return overnight.where(has_overnight, back_calculated)
 
 
 class SubNetworkComponents:

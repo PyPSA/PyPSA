@@ -30,7 +30,7 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 1. Fork the repository on GitHub
 2. Clone your fork: `git clone https://github.com/<your-username>/PyPSA.git`
 3. Fetch the upstream tags `git fetch --tags https://github.com/PyPSA/PyPSA.git`
-4. Install with dependencies in editable mode: `pip install -e .[dev]`
+4. Install with dependencies in editable mode: `pip install -e '.[dev]'`
 5. Setup linter and formatter, e.g `pre-commit install` (see [Code Style](#style))
 6. Write your code (preferably on a new branch)
 7. Run tests: `pytest` (see [Testing](#testing))
@@ -153,6 +153,24 @@ For simple changes, you can also edit the documentation directly on GitHub:
 1. If you are on the documentation page, click on the little paper icon with the pen on the top right. This will bring you straight to the source file.
 2. Make your changes in the file.
 3. Commit your changes and create a pull request.
+
+## AI-based Contributions
+
+We do not impose general restrictions on the use of AI for contributions.
+But we require that all contributions, whether AI-assisted or not, adhere to the same standards of quality, relevance, and maintainability.
+This boils down to:
+
+1. PR and issue descriptions should read like you wrote them. Keep them concise and human. Any potentially verbose AI-generated content should be marked, e.g. in a collapsed `<details>` block. Please don't mix both.
+2. Take responsibility for the content and quality of your contribution, even if you used AI.
+3. Keep the code simple. AI tools often produce verbose or over-engineered code. Review and trim it back before submitting.
+4. Before you submit large contributions, coordinate with the maintainers to ensure they align with the project's goals and roadmap.
+4. Minimize the review burden on us by keeping your contributions focused, don't solve multiple tangential issues in one PR.
+
+We may close AI-based contributions without further review if we consider them to bind up excessive maintainer time.
+
+Why?
+Because the PyPSA project has limited maintainer capacity.
+Let's respect everyone's time and token budget.
 
 ## Examples
 

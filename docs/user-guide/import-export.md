@@ -135,7 +135,7 @@ To **import** a network from [pandapower](http://www.pandapower.org/), run the f
     three-winding transformers, switches, `in_service` status and tap positions
     of transformers.
 
-``` py
+```python
 import pandapower.networks as pn
 net = pn.create_cigre_network_mv(with_der='all')
 n = pypsa.Network()

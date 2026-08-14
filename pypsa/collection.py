@@ -9,6 +9,11 @@ import re
 from collections.abc import Callable, Iterator, Sequence
 from typing import Any
 
+try:
+    from cloudpathlib import AnyPath as Path
+except ImportError:
+    from pathlib import Path
+
 import pandas as pd
 
 from pypsa._options import options
@@ -71,22 +76,22 @@ class NetworkCollection:
     Access component data across all networks:
 
     >>> nc.generators  # doctest: +ELLIPSIS
-                                                   bus  ...    p_nom_opt
+                                                       bus  ... capital_cost_piecewise_opt
     network                    name                         ...
-    AC-DC-Meshed               Manchester Wind  Manchester  ...  ...
-                               Manchester Gas   Manchester  ...  ...
-                               Norway Wind          Norway  ...  ...
-                               Norway Gas           Norway  ...  ...
-                               Frankfurt Wind    Frankfurt  ...  ...
-                               Frankfurt Gas     Frankfurt  ...  ...
-    AC-DC-Meshed-Shuffled-Load Manchester Wind  Manchester  ...  ...
-                               Manchester Gas   Manchester  ...  ...
-                               Norway Wind          Norway  ...  ...
-                               Norway Gas           Norway  ...  ...
-                               Frankfurt Wind    Frankfurt  ...  ...
-                               Frankfurt Gas     Frankfurt  ...  ...
+    AC-DC-Meshed               Manchester Wind  Manchester  ...                        0.0
+                               Manchester Gas   Manchester  ...                        0.0
+                               Norway Wind          Norway  ...                        0.0
+                               Norway Gas           Norway  ...                        0.0
+                               Frankfurt Wind    Frankfurt  ...                        0.0
+                               Frankfurt Gas     Frankfurt  ...                        0.0
+    AC-DC-Meshed-Shuffled-Load Manchester Wind  Manchester  ...                        0.0
+                               Manchester Gas   Manchester  ...                        0.0
+                               Norway Wind          Norway  ...                        0.0
+                               Norway Gas           Norway  ...                        0.0
+                               Frankfurt Wind    Frankfurt  ...                        0.0
+                               Frankfurt Gas     Frankfurt  ...                        0.0
     <BLANKLINE>
-    [12 rows x 38 columns]
+    [12 rows x 47 columns]
 
 
     >>> nc.statistics.energy_balance()  # doctest: +ELLIPSIS
@@ -129,29 +134,35 @@ class NetworkCollection:
 
     def __init__(
         self,
-        networks: pd.Series | Sequence[Network | str],
+        networks: pd.Series
+        | dict[Any, Network | str | Path]
+        | Sequence[Network | str | Path],
         index: pd.Index | pd.MultiIndex | Sequence | None = None,
     ) -> None:
         """Initialize the NetworkCollection with one or more networks.
 
         Parameters
         ----------
-        networks : pd.Series | Sequence[Network | str]
-            Sequence or pd.Series of Network objects or strings (file paths/ urls) to
-            include in the collection. If strings are provided, they will be passed to
-            pypsa.Network() to create Network objects.
+        networks : pd.Series | dict | Sequence[Network | str | Path]
+            Sequence, dict, or pd.Series of Network objects or paths (anything that can
+            be passed to pypsa.Network()) to include in the collection. If a dict is
+            provided, keys become the index and values are the networks/paths.
         index : pd.Index, pd.MultiIndex, Sequence, or None, optional
-            The index to use for the collection. If `networks` is of type `pd.Series`,
-            no index is allowed and it will be retrieved from the Series. If None, a
-            default index based on the network names will be created.
+            The index to use for the collection. If `networks` is of type `pd.Series`
+            or dict, no index is allowed and it will be retrieved from the keys. If
+            None, a default index based on the network names will be created.
 
         """
-        if isinstance(networks, pd.Series) and index is not None:
+        if isinstance(networks, pd.Series | dict) and index is not None:
             msg = (
-                "When passing a pandas Series, the index must be None, "
-                "as the Series index is used as the collection index."
+                "When passing a pandas Series or dict, the index must be None, "
+                "as the keys are used as the collection index."
             )
             raise ValueError(msg)
+
+        # Convert dict to Series (before the string check)
+        if isinstance(networks, dict):
+            networks = pd.Series(networks)
 
         # Validate that networks is not a single string (which would iterate char by char)
         if isinstance(networks, str):
@@ -161,10 +172,10 @@ class NetworkCollection:
         def _convert_to_network(item: Any) -> Network:
             if isinstance(item, Network):
                 return item
-            elif isinstance(item, str):
+            elif isinstance(item, str | Path):
                 return Network(item)
             else:
-                msg = f"All values must be PyPSA Network objects or strings, got {type(item)}."
+                msg = f"All values must be PyPSA Network objects, strings, or pathlib Path, got {type(item)}."
                 raise TypeError(msg)
 
         if isinstance(networks, pd.Series):
@@ -329,6 +340,29 @@ class NetworkCollection:
         """
         return True
 
+    @property
+    def has_scenarios(self) -> bool:
+        """Check if any network in the collection has scenarios.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns
+        -------
+        bool
+            True if any member network has scenarios, False otherwise.
+
+        Examples
+        --------
+        >>> nc.has_scenarios
+        False
+
+        See Also
+        --------
+        [pypsa.Network.has_scenarios][]
+
+        """
+        return any(n.has_scenarios for n in self.networks)
+
     def get_network(self, collection: Any) -> Network:
         """Return a single network from the collection.
 
@@ -445,13 +479,20 @@ class NetworkCollection:
         if len(self.networks) <= 1:
             return  # No validation needed for single network or empty collection
 
-        # TODO: Implement basic validation of network compatibility
+        has_periods = [n.has_investment_periods for n in self.networks]
+        if any(has_periods) and not all(has_periods):
+            msg = (
+                "NetworkCollection cannot mix networks with and without investment "
+                "periods. All member networks must either have investment periods "
+                "or none of them must."
+            )
+            raise ValueError(msg)
 
 
 _all_components = (
     r"sub_networks|buses|carriers|global_constraints|lines|line_types|"
-    r"transformers|transformer_types|links|loads|generators|storage_units|"
-    r"stores|shunt_impedances|shapes"
+    r"transformers|transformer_types|links|processes|loads|generators|"
+    r"storage_units|stores|shunt_impedances|shapes"
 )
 
 
@@ -459,8 +500,8 @@ def _get_method_patterns() -> dict[str, str]:
     new_api = options.api.new_components_api
     _all_component_names = (
         r"SubNetwork|Bus|Carrier|GlobalConstraint|Line|LineType|"
-        "Transformer|TransformerType|Link|Load|Generator|StorageUnit|"
-        "Store|ShuntImpedance|Shape"
+        "Transformer|TransformerType|Link|Process|Load|Generator|"
+        "StorageUnit|Store|ShuntImpedance|Shape"
     )
 
     _component_classes = (
@@ -480,8 +521,11 @@ def _get_method_patterns() -> dict[str, str]:
         rf"({_all_components if not new_api else ''})|"
         rf"({_component_classes}.static)|"
         rf"({_component_classes}.get_active_assets)|"
+        rf"({_component_classes}.capital_cost)|"
+        rf"({_component_classes}.annuity)|"
         rf"static|"
-        rf"get_active_assets"
+        rf"get_active_assets|"
+        rf"snapshot_weightings"
         rf")$",
         # ---------------
         "horizontal_concat": rf"^("
@@ -491,11 +535,18 @@ def _get_method_patterns() -> dict[str, str]:
         rf"get_switchable_as_dense"
         rf")$",
         # ---------------
+        # TODO: `snapshots` uses return_from_first, which assumes all
+        # networks share the same snapshots. Mid-term, we need a way to
+        # enforce or convert to common dimensions across networks.
         "return_from_first": r"^("
         r"\S+_components|"
         r"snapshots|"
-        r"snapshot_weightings|"
+        r"has_investment_periods|"
+        r"investment_period_weightings|"
+        r"investment_periods|"
+        r"periods|"
         r"bus_carrier_unit|"
+        rf"({_component_classes}\.(name|ports|_as_port|_as_ports))|"
         r")$",
         # ---------------
         "index_concat": r"^("

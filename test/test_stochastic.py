@@ -85,6 +85,31 @@ def test_calculate_dependent_values(ac_dc_stochastic: pypsa.Network):
     assert n.c.lines.static.x_pu_eff.notnull().all()
 
 
+def test_apply_transformer_types_with_scenarios():
+    """
+    Test that apply_transformer_types works correctly with broadcasted transformer
+    types in stochastic networks.
+
+    @TODO update test once properties are implemented and types are no longer broadcasted.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220, carrier="AC")
+    n.add("Bus", "bus2", v_nom=110, carrier="AC")
+    n.add("Transformer", "trafo", bus0="bus1", bus1="bus2", type="100 MVA 220/110 kV")
+
+    # Set up scenarios - this broadcasts transformer_types with scenario index
+    n.set_scenarios(["low", "high"])
+
+    # This should not raise "type does not exist in n.transformer_types"
+    n.calculate_dependent_values()
+
+    # Verify transformer parameters were correctly computed from type
+    trafo = n.c.transformers.static
+    assert trafo.s_nom.notnull().all()
+    assert trafo.x.notnull().all()
+    assert trafo.r.notnull().all()
+
+
 def test_determine_network_topology(ac_dc_stochastic: pypsa.Network):
     """
     Test the determination of network topology in a stochastic network.
@@ -276,6 +301,50 @@ def test_solved_network_simple(stochastic_benchmark_network):
     equal(n.objective, n_r.objective, decimal=2)
 
 
+def test_solved_network_simple_modular(stochastic_benchmark_network):
+    """
+    Solve the stochastic problem with modular expansion constraints.
+    Tests that p_nom_mod works correctly with scenarios.
+    """
+    n = stochastic_benchmark_network
+
+    # GAS_PRICES = {"low": 40, "med": 70, "high": 100}
+    n.c.generators.static.loc[("medium", "gas"), "marginal_cost"] = (
+        70 / n.c.generators.static.loc[("medium", "gas"), "efficiency"]
+    )
+    n.c.generators.static.loc[("high", "gas"), "marginal_cost"] = (
+        100 / n.c.generators.static.loc[("high", "gas"), "efficiency"]
+    )
+
+    # Set modular expansion
+    for scenario in n.scenarios:
+        n.c.generators.static.loc[(scenario, "gas"), "p_nom_mod"] = 0.7
+        n.c.generators.static.loc[(scenario, "lignite"), "p_nom_mod"] = 0.7
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    # Check that modular constraints are satisfied
+    # p_nom_opt should be a multiple of p_nom_mod (0.7)
+    for gen in ["gas", "lignite"]:
+        p_nom_opt = n.c.generators.static.loc[("low", gen), "p_nom_opt"]
+        p_nom_mod = n.c.generators.static.loc[("low", gen), "p_nom_mod"]
+        n_modules = round(p_nom_opt / p_nom_mod)
+        assert abs(p_nom_opt - n_modules * p_nom_mod) < 1e-4, (
+            f"{gen} p_nom_opt={p_nom_opt} is not a multiple of p_nom_mod={p_nom_mod}"
+        )
+
+    # Check first-stage decision
+    for gen in n.c.generators.static.loc["low", :].index:
+        low_cap = n.c.generators.static.loc[("low", gen), "p_nom_opt"]
+        medium_cap = n.c.generators.static.loc[("medium", gen), "p_nom_opt"]
+        high_cap = n.c.generators.static.loc[("high", gen), "p_nom_opt"]
+        assert low_cap == medium_cap == high_cap, (
+            f"{gen} has different capacities across scenarios: "
+            f"low={low_cap}, medium={medium_cap}, high={high_cap}"
+        )
+
+
 def test_solved_network_multiperiod():
     """
     Test combined stochastic + multiperiod optimization.
@@ -424,13 +493,11 @@ def test_single_scenario():
 
         # Set scenario-specific load data (same as deterministic)
         n.c.loads.dynamic.p_set = pd.DataFrame(
+            {("scenario", "load1"): [100.0, 120.0, 110.0]},
             index=n.snapshots,
-            columns=pd.MultiIndex.from_product(
-                [n.scenarios, ["load1"]], names=["scenario", "name"]
-            ),
         )
-        n.c.loads.dynamic.p_set.loc[:, ("scenario", "load1")] = pd.Series(
-            [100.0, 120.0, 110.0], dtype=float
+        n.c.loads.dynamic.p_set.columns = pd.MultiIndex.from_tuples(
+            n.c.loads.dynamic.p_set.columns, names=["scenario", "name"]
         )
 
         # Solve stochastic problem
@@ -1586,3 +1653,99 @@ def test_transmission_volume_expansion_limit_constraint_stochastic():
     n.optimize.create_model()
     assert "GlobalConstraint-tx_vol" in n.model.constraints
     assert "scenario" in n.model.constraints["GlobalConstraint-tx_vol"].dims
+
+
+def test_1472():
+    """
+    Stochastic optimization with scenarios and meshed buses should not fail.
+    The bug was that weakly_meshed_buses had duplicate names when scenarios
+    were used, which wasn't catched with current tests and only with a strongly and
+    weakly meshed network/ PyPSA-Eur.
+    """
+    # Create network with hub bus having >45 component references (50 gens + 50 lines)
+    # and peripheral buses having <45 references (1 load + 1 line each).
+    n = pypsa.Network(snapshots=range(3))
+
+    n.add("Bus", "hub")
+    for i in range(50):
+        n.add("Bus", f"peripheral_{i}")
+
+    for i in range(50):
+        n.add("Generator", f"gen_{i}", bus="hub", p_nom=10, marginal_cost=i)
+
+    for i in range(50):
+        n.add("Load", f"load_{i}", bus=f"peripheral_{i}", p_set=1)
+
+    for i in range(50):
+        n.add(
+            "Line",
+            f"line_{i}",
+            bus0="hub",
+            bus1=f"peripheral_{i}",
+            s_nom=100,
+            x=0.1,
+            r=0.01,
+        )
+
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+    status, _ = n.optimize()
+    assert status == "ok"
+
+
+def test_ramp_limit_stochastic_optimization_bug():
+    """Ramp-limit constraints must build and hold under scenarios."""
+    p_nom = 10.0
+    ramp = 0.3
+
+    n = pypsa.Network()
+    n.set_snapshots(range(5))
+    n.add("Bus", "bus")
+    n.add(
+        "Load",
+        "load",
+        bus="bus",
+        p_set=[0.0, 3.0, 6.0, 2.0, 5.0],
+    )
+    n.add("Generator", "slack", bus="bus", p_nom=100, marginal_cost=100)
+    n.add(
+        "Generator",
+        "g",
+        bus="bus",
+        p_nom=p_nom,
+        marginal_cost=1,
+        ramp_limit_up=ramp,
+        ramp_limit_down=ramp,
+    )
+
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+    status, condition = n.optimize(solver_name="highs")
+    assert status == "ok"
+    assert condition == "optimal"
+
+    p = n.c["Generator"].dynamic["p"].xs("g", axis=1, level="name")
+    tol = 1e-6
+    diff = p.diff().dropna()
+    assert (diff.abs() <= ramp * p_nom + tol).all().all()
+
+
+def test_active_inactive_assets_per_scenario():
+    """Per-scenario activeness keeps active/inactive assets mutually exclusive."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Generator", "g", bus="bus", p_nom_extendable=True)
+    n.add("Generator", "h", bus="bus", p_nom_extendable=True)
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+
+    # Deactivate g only in scenario "b" (do not run consistency_check).
+    n.c.generators.static.loc[("b", "g"), "active"] = False
+
+    c = n.c.generators
+    active, inactive = c.active_assets, c.inactive_assets
+
+    # g is active in at least one scenario, so it must not be inactive.
+    assert "g" in active
+    assert "g" not in inactive
+    # Documented invariant: the two sets partition the names.
+    assert active.intersection(inactive).empty
+    # Model index must keep g (pre-fix it was dropped via .difference).
+    assert "g" in c.extendables.difference(inactive)

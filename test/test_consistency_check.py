@@ -5,6 +5,7 @@
 import os
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
@@ -47,15 +48,18 @@ def test_missing_bus(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
-@pytest.mark.parametrize("strict", [[], ["assets"]])
-def test_infeasible_capacity_limits(consistent_n, caplog, strict):
+def test_committable_extendable_allowed(consistent_n, caplog):
     consistent_n.c.generators.static.loc[
         "gen_one", ["p_nom_extendable", "committable"]
     ] = (
         True,
         True,
     )
-    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+    consistent_n.consistency_check()
+    assert not any(
+        "only be committable or extendable" in record.message
+        for record in caplog.records
+    )
 
 
 @pytest.mark.parametrize("strict", [[], ["static_power_attrs"]])
@@ -63,6 +67,54 @@ def test_nans_in_capacity_limits(consistent_n, caplog, strict):
     consistent_n.c.generators.static.loc["gen_one", "p_nom_extendable"] = True
     consistent_n.c.generators.static.loc["gen_one", "p_nom_max"] = np.nan
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+@pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
+def test_phase_shift_unbounded(consistent_n, caplog, strict):
+    # phase_shift_min < phase_shift_max makes the shift a variable; a non-finite
+    # bound leaves it unbounded.
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift_min=-np.inf,
+        phase_shift_max=np.inf,
+    )
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+@pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
+def test_phase_shift_inverted_bounds(consistent_n, caplog, strict):
+    # min > max is held fixed but is almost certainly a user mistake.
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift_min=10.0,
+        phase_shift_max=-10.0,
+    )
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+def test_phase_shift_fixed_bounds_ok(consistent_n, caplog):
+    # min >= max means a fixed shift; non-finite bounds here are irrelevant.
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift=10.0,
+    )
+    consistent_n.consistency_check()
+    assert not any("phase shift" in record.message for record in caplog.records)
 
 
 @pytest.mark.parametrize("strict", [[], ["shapes"]])
@@ -111,6 +163,19 @@ def test_scenarios_sum_to_one(consistent_n, caplog, strict):
     # Manually modify scenarios to break sum=1 constraint
     consistent_n._scenarios_data.iloc[0, 0] = 0.2  # Sum becomes 0.8
 
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+@pytest.mark.parametrize("strict", [[], ["generators"]])
+def test_committable_down_with_p_init(consistent_n, caplog, strict):
+    consistent_n.add(
+        "Generator",
+        "gen_uc",
+        bus="one",
+        committable=True,
+        up_time_before=0,
+        p_init=50,
+    )
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
@@ -309,6 +374,34 @@ def test_scenario_invariant_attributes_comprehensive():
     n_non_stoch.consistency_check()  # Should pass
 
 
+def test_p_nom_mod_invariant():
+    """Test that p_nom_mod is enforced as invariant across scenarios."""
+    n = pypsa.Network()
+    n.add("Bus", "bus1")
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus1",
+        p_nom_extendable=True,
+        p_nom_mod=0.7,
+    )
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Should pass with same p_nom_mod across scenarios
+    n.consistency_check()
+
+    n.c.generators.static.loc[("s1", "gen1"), "p_nom_mod"] = 0.7
+    n.c.generators.static.loc[("s2", "gen1"), "p_nom_mod"] = 1.0
+
+    # Should raise error
+    with pytest.raises(
+        pypsa.consistency.ConsistencyError,
+        match="Component 'gen1' .* has attribute 'p_nom_mod' that varies across scenarios",
+    ):
+        n.consistency_check()
+
+
 @pytest.mark.parametrize("strict", [[], ["line_types"]])
 def test_line_types_consistency(caplog, strict):
     """
@@ -401,6 +494,80 @@ def test_line_types_consistency_non_stochastic():
     pypsa.consistency.check_line_types_consistency(n, strict=True)
 
 
+@pytest.mark.parametrize("strict", [[], ["transformer_types"]])
+def test_transformer_types_consistency_fail(caplog, strict):
+    """
+    Test that the consistency check fails when transformer_types differ across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    transformer_types_data = {
+        ("s1", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+        ("s2", "type1"): {"s_nom": 150, "vsc": 15.0, "vscr": 0.30, "pfe": 65},
+    }
+
+    transformer_types_df = pd.DataFrame.from_dict(
+        transformer_types_data, orient="index"
+    )
+    transformer_types_df.index = pd.MultiIndex.from_tuples(
+        transformer_types_df.index, names=["scenario", "type"]
+    )
+
+    n.c.transformer_types.static = transformer_types_df
+
+    if strict and "transformer_types" in strict:
+        with pytest.raises(pypsa.consistency.ConsistencyError):
+            pypsa.consistency.check_transformer_types_consistency(n, strict=True)
+    else:
+        pypsa.consistency.check_transformer_types_consistency(n, strict=False)
+        assert caplog.records[-1].levelname == "WARNING"
+
+
+def test_transformer_types_consistency_pass():
+    """
+    Test that the consistency check passes when transformer_types are identical across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    transformer_types_data = {
+        ("s1", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+        ("s2", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+    }
+
+    transformer_types_df = pd.DataFrame.from_dict(
+        transformer_types_data, orient="index"
+    )
+    transformer_types_df.index = pd.MultiIndex.from_tuples(
+        transformer_types_df.index, names=["scenario", "type"]
+    )
+
+    n.c.transformer_types.static = transformer_types_df
+
+    pypsa.consistency.check_transformer_types_consistency(n, strict=True)
+
+
+def test_transformer_types_consistency_non_stochastic():
+    """
+    Test that the consistency check is skipped for non-stochastic networks.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.add("TransformerType", "type1", s_nom=100, vsc=12.0, vscr=0.26, pfe=55)
+    n.add("TransformerType", "type2", s_nom=160, vsc=12.2, vscr=0.25, pfe=60)
+
+    pypsa.consistency.check_transformer_types_consistency(n, strict=True)
+
+
 @pytest.mark.parametrize("strict", [[], ["unknown_buses"]])
 def test_check_for_unknown_buses(caplog, strict):
     """Test check_for_unknown_buses via consistency_check(): GlobalConstraint/Link empty buses OK, invalid warns."""
@@ -418,6 +585,27 @@ def test_check_for_unknown_buses(caplog, strict):
     # Add component with invalid bus (should warn/error)
     n.add("Generator", "gen1", bus="invalid_bus")
     assert_log_or_error_in_consistency(n, caplog, strict=strict)
+
+
+def test_check_for_unknown_buses_empty_double_digit(caplog):
+    """Test check_for_unknown_buses: empty buses on double-digit ports OK, invalid buses warn."""
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    # Link with empty bus10 and bus11 - no warning
+    busmap = {f"bus{i}": "" for i in range(12)}
+    busmap["bus0"] = "bus0"
+    busmap["bus1"] = "bus1"
+    caplog.clear()
+    n.add("Link", "link1", **busmap)
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Link with unknown buses in bus10 - should warn
+    busmap["bus10"] = "invalid"
+    caplog.clear()
+    n.add("Link", "link2", **busmap)
+    assert any("buses which are not defined" in r.message for r in caplog.records)
 
 
 def test_check_for_unknown_buses_when_adding(caplog):
@@ -440,3 +628,92 @@ def test_check_for_unknown_buses_when_adding(caplog):
     caplog.clear()
     n.add("Generator", "gen1", bus="invalid")
     assert any("buses which are not defined" in r.message for r in caplog.records)
+
+
+# --- Tests for numerical tolerance in consistency checks ---
+
+
+class TestNumericalTolerance:
+    """Tests for params.consistency.numerical_tolerance option."""
+
+    EXPANSION_MSG = "smaller maximum than minimum expansion"
+    OPERATIONAL_MSG = "smaller maximum than minimum operational"
+    E_SUM_MSG = "e_sum_min"
+
+    @pytest.fixture
+    def n(self):
+        """Return a network with a bus and generator."""
+        n = pypsa.Network()
+        n.add("Bus", "bus")
+        n.add("Generator", "gen", bus="bus")
+        return n
+
+    def test_e_sum_within_tolerance_no_warning(self, n, caplog):
+        """e_sum_min exceeding e_sum_max by a tiny amount within tolerance."""
+        n.c.generators.static.loc["gen", ["e_sum_min", "e_sum_max"]] = [1e-12, 0.0]
+        caplog.clear()
+        n.consistency_check()
+        assert not any(self.E_SUM_MSG in r.message for r in caplog.records)
+
+    def test_static_power_within_tolerance_no_warning(self, n, caplog):
+        """p_nom_max < p_nom_min by a tiny amount within tolerance."""
+        n.c.generators.static.loc["gen", "p_nom_extendable"] = True
+        n.c.generators.static.loc["gen", ["p_nom_min", "p_nom_max"]] = [
+            10.0 + 1e-12,
+            10.0,
+        ]
+        caplog.clear()
+        n.consistency_check()
+        assert not any(self.EXPANSION_MSG in r.message for r in caplog.records)
+
+    def test_time_series_within_tolerance_no_warning(self, caplog):
+        """p_max_pu < p_min_pu by a tiny amount within tolerance."""
+        n = pypsa.Network()
+        n.set_snapshots([0, 1, 2])
+        n.add("Bus", "bus")
+        n.add("Generator", "gen", bus="bus")
+        n.c.generators.dynamic.p_max_pu = pd.DataFrame(
+            {"gen": [0.9, 0.9, 0.9]}, index=n.snapshots
+        )
+        n.c.generators.dynamic.p_min_pu = pd.DataFrame(
+            {"gen": [0.9 + 1e-12, 0.9 + 1e-12, 0.9 + 1e-12]}, index=n.snapshots
+        )
+        caplog.clear()
+        n.consistency_check()
+        assert not any(self.OPERATIONAL_MSG in r.message for r in caplog.records)
+
+    def test_large_tolerance_suppresses_warning(self, n, caplog):
+        """Custom large tolerance via option_context suppresses warnings."""
+        n.c.generators.static.loc["gen", ["e_sum_min", "e_sum_max"]] = [5.5, 5.0]
+        # diff = 0.5, within custom tolerance of 1.0
+        with pypsa.option_context("params.consistency.numerical_tolerance", 1.0):
+            caplog.clear()
+            n.consistency_check()
+            assert not any(self.E_SUM_MSG in r.message for r in caplog.records)
+
+        # Without custom tolerance, should warn
+        caplog.clear()
+        n.consistency_check()
+        assert any(self.E_SUM_MSG in r.message for r in caplog.records)
+
+
+def test_nomansland_bus(caplog):
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.add("Generator", "generator1", bus="bus", p_nom=15, marginal_cost=10)
+
+    n.consistency_check()
+    assert "The following buses have no attached components" not in caplog.text, (
+        "warning should not trigger..."
+    )
+
+    n.add("Bus", "extrabus")
+
+    n.consistency_check()
+    assert "The following buses have no attached components" in caplog.text, (
+        "warning is not working..."
+    )
+
+    n.optimize()
