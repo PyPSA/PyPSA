@@ -68,7 +68,7 @@ def define_status_variables(
 
     """
     c = n.components[c_name]
-    com_i = c.committables.difference(c.inactive_assets)
+    com_i = c.committables.intersection(c.active_assets)
 
     if com_i.empty:
         return
@@ -119,7 +119,7 @@ def define_start_up_variables(
 
     """
     c = n.components[c_name]
-    com_i = c.committables.difference(c.inactive_assets)
+    com_i = c.committables.intersection(c.active_assets)
 
     if com_i.empty:
         return
@@ -170,7 +170,7 @@ def define_shut_down_variables(
 
     """
     c = n.components[c_name]
-    com_i = c.committables.difference(c.inactive_assets)
+    com_i = c.committables.intersection(c.active_assets)
 
     if com_i.empty:
         return
@@ -216,7 +216,7 @@ def define_maintenance_variables(n: Network, sns: Sequence, c_name: str) -> None
 
     """
     c = n.c[c_name]
-    maint_i = c.maintainables.difference(c.inactive_assets)
+    maint_i = c.maintainables.intersection(c.active_assets)
 
     if maint_i.empty:
         return
@@ -245,7 +245,7 @@ def define_maintenance_start_variables(n: Network, sns: Sequence, c_name: str) -
 
     """
     c = n.c[c_name]
-    maint_i = c.maintainables.difference(c.inactive_assets)
+    maint_i = c.maintainables.intersection(c.active_assets)
 
     if maint_i.empty:
         return
@@ -282,7 +282,7 @@ def define_maintenance_capacity_variables(
     modular_com = c.modulars.intersection(c.committables)
     maint_ext_i = (
         c.maintainables.intersection(c.extendables)
-        .difference(c.inactive_assets)
+        .intersection(c.active_assets)
         .difference(modular_com)
     )
 
@@ -321,7 +321,7 @@ def define_maintenance_status_variables(n: Network, sns: Sequence, c_name: str) 
 
     """
     c = n.c[c_name]
-    com_i = c.committables.difference(c.inactive_assets)
+    com_i = c.committables.intersection(c.active_assets)
     non_modular_ext = c.extendables.difference(c.modulars)
     maint_w_i = com_i.intersection(c.maintainables).difference(non_modular_ext)
 
@@ -351,7 +351,7 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
 
     """
     c = n.components[c_name]
-    ext_i = c.extendables.difference(c.inactive_assets)
+    ext_i = c.extendables.intersection(c.active_assets)
     if ext_i.empty:
         return
     if isinstance(ext_i, pd.MultiIndex):
@@ -376,7 +376,7 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
 
     """
     c = n.components[c_name]
-    mod_i = c.extendables.intersection(c.modulars).difference(c.inactive_assets)
+    mod_i = c.extendables.intersection(c.modulars).intersection(c.active_assets)
 
     if mod_i.empty:
         return
@@ -432,7 +432,7 @@ def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
 
     trafos = c.static
     varying = trafos["phase_shift_min"] < trafos["phase_shift_max"]
-    names = trafos.index[varying].difference(c.inactive_assets)
+    names = trafos.index[varying].intersection(c.active_assets)
     if names.empty:
         return
 

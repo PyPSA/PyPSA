@@ -24,16 +24,26 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
+- PyPSA now requires `pandas>=3.0` and `pyarrow`. pandas 3 infers the `str` dtype for string data, backed by Arrow when `pyarrow` is installed. PyPSA still converts it back to numpy `object` on import, but will keep it in version 2.0. Opt in early with `pypsa.options.api.legacy_string_dtype` (see <!-- md:guide options.md -->).
 - Speed up netCDF I/O for networks with many components. [`export_to_netcdf()`][pypsa.Network.export_to_netcdf] avoids a costly `stack()` when writing dynamic data, and import avoids per-column boxing when coercing string dtypes. The on-disk format and round-trip behaviour are unchanged. (<!-- md:pr 1771 -->)
 - Speed up [`create_model()`][pypsa.optimization.OptimizationAccessor.create_model] for large networks by computing the bus membership filter in `define_nodal_balance_constraints` with a pandas hash join instead of `xarray.isin` over object-dtype arrays. (<!-- md:pr 1770 -->)
 - Replace the `Levenshtein` dependency (GPL-2.0-or-later) with `rapidfuzz` (MIT) for detecting typos in custom attribute names, so PyPSA's dependency tree remains fully MIT-compatible.
 
 ### Bug Fixes
 
+- Fix [`system_cost`][pypsa.statistics.StatisticsAccessor.system_cost] omitting fixed operation and maintenance costs (`fom_cost`), which are part of the optimization objective. It now returns the sum of `capex`, `fom` and `opex`, consistent with the objective function.
+- Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] failing for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]) containing components with ramp limits. (<!-- md:pr 1873 -->)
+- Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] failing with a `KeyError` when a network contains inactive components alongside committable, modular or ramp-limited ones. (<!-- md:pr 1870 -->)
+- [`c.active_assets`][pypsa.Components.active_assets] and [`c.inactive_assets`][pypsa.Components.inactive_assets] are now guaranteed to be mutually exclusive, also for stochastic networks. (<!-- md:pr 1870 -->)
+- Fix [`installed_capex`][pypsa.statistics.StatisticsAccessor.installed_capex] ignoring its `cost_attribute` argument and always using `capital_cost`.
+- Fix investment costs being silently dropped for networks specifying costs via `overnight_cost`, where the raw `capital_cost` column was read instead of the annuitized cost. Affected the [`capex`][pypsa.optimization.expressions.StatisticExpressionsAccessor.capex] expression, the `transmission_expansion_cost_limit` global constraint, and the objective correction in [`optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively].
 - The fixed `phase_shift` on `Transformer` components is now included in the cycle-based Kirchhoff Voltage Law constraint in `n.optimize()`. Previously the phase shift was not considered in LOPF (only `n.lpf()` and `n.pf()` respected it), causing optimisation results to diverge from subsequent non-linear power-flow verification. (<!-- md:pr 1661 -->)
 - Fixed spurious infeasibility in [`optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] when a network mixed committable and non-committable generators with ramp limits. At a window seam, non-committable components (which carry no commitment status) were assigned `status=0`, corrupting their start-up/shut-down ramp terms. (<!-- md:pr 1644 -->)
 - Fix [`supply`][pypsa.optimization.expressions.StatisticExpressionsAccessor.supply] and [`withdrawal`][pypsa.optimization.expressions.StatisticExpressionsAccessor.withdrawal] expressions dropping the charging contribution of `StorageUnit` components. The supply/withdrawal split now considers the effective coefficients of the operational variable, so the `p_store` term is correctly reported as a withdrawal. (<!-- md:pr 1760 -->)
+- The `bus_carrier`, `carrier` and `groupby` arguments of the [statistics](./user-guide/statistics.md) methods now accept any list-like value, not just lists. (<!-- md:pr 1869 -->)
 - Fix [`n.graph()`][pypsa.Network.graph] building edges in a non-deterministic order, which could make results that depend on the network's cycles differ between runs. In particular, security-constrained optimization (SCLOPF) now returns consistent results. (<!-- md:pr 1764 -->)
+
+- Fix a large memory spike when reading netCDF networks that store `Shape` geometries by reading variable-length string variables as object arrays via the `netCDF4` backend. (<!-- md:pr 1830 -->)
 
 
 ## [**v1.2.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.4) <small>27th June 2026</small> { id="v1.2.4" }

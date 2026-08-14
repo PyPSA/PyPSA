@@ -243,7 +243,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             else:
                 return None
 
-            costs = c.static[cost_attribute][capacity.indexes["name"]]
+            if cost_attribute == "capital_cost":
+                costs = c.capital_cost[capacity.indexes["name"]]
+            else:
+                costs = c.static[cost_attribute][capacity.indexes["name"]]
 
             if c.has_piecewise(cost_attribute):
                 add_capex = m.variables[c._piecewise_aux_var(cost_attribute)]
@@ -568,6 +571,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             ):
                 pw = sign * n.model.variables[c._piecewise_aux_var(y_attr)]
                 names = pw.coords["name"].values
+                # pandas 3 returns read-only views, so copy before writing
+                coeffs = coeffs.copy()
                 coeffs.loc[{"name": names}] = 0
                 pw_var = _direct_piecewise(c, y_attr, sign, pw, names, direction)
 

@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 import copy
+import pickle
 import sys
 import warnings
+from pathlib import Path
 
 import linopy
 import numpy as np
@@ -498,6 +500,50 @@ def test_add_list_suffix_misaligned_kwarg_raises(n_5bus):
         )
 
 
+def test_multiport_assignment_defaults_single_add():
+    """
+    Add a single link to a network, then add a second link with additional
+    ports.
+
+    Check that the default values are assigned to the first link.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "bus2")
+    n.add("Link", "link", bus0="bus", bus1="bus2")
+    n.add("Link", "link2", bus0="bus", bus1="bus2", bus2="bus")
+    assert n.c.links.static.loc["link", "bus2"] == ""
+
+
+def test_multiport_assignment_defaults_multiple_add():
+    """
+    Add a single link to a network, then add a second link with additional
+    ports.
+
+    Check that the default values are assigned to the first link.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "bus2")
+    n.add("Link", ["link"], bus0="bus", bus1="bus2")
+    n.add("Link", ["link2"], bus0="bus", bus1="bus2", bus2="bus")
+    assert n.c.links.static.loc["link", "bus2"] == ""
+
+
+def test_331():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/331.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.add("Generator", "generator1", bus="bus", p_nom=15, marginal_cost=10)
+    n.optimize()
+    n.add("Generator", "generator2", bus="bus", p_nom=5, marginal_cost=5)
+    n.optimize()
+    assert "generator2" in n.c.generators.dynamic.p
+
+
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
@@ -565,6 +611,50 @@ def test_copy_with_model(ac_dc_network):
         match="Copying a solved network with an attached solver model is not supported.",
     ):
         n_copy = n.copy()
+
+
+def test_1319():
+    """
+    Copying a solved network should work after setting solver_model to None.
+    See https://github.com/PyPSA/PyPSA/issues/1319.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+
+    # Should raise error when trying to copy with solver_model attached
+    with pytest.raises(
+        ValueError, match="Copying a solved network with an attached solver model"
+    ):
+        n.copy()
+
+    # Should work after setting solver_model to None
+    n.model.solver_model = None
+    n_copy = n.copy()  # Should not raise an error
+    assert n_copy is not n
+    assert len(n_copy.buses) == len(n.c.buses.static)
+
+
+def test_1420(tmp_path):
+    """
+    Network pickling should not cause RecursionError in xarray accessor.
+    See https://github.com/PyPSA/PyPSA/issues/1420.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100)
+
+    pickle_file = tmp_path / "network.pkl"
+
+    with Path(pickle_file).open("wb") as out:
+        pickle.dump(n, out)
+
+    with Path(pickle_file).open("rb") as inp:
+        n_loaded = pickle.load(inp)
+
+    # Verify network was loaded correctly
+    assert len(n_loaded.c.buses.static) == 1
+    assert len(n_loaded.c.generators.static) == 1
+    # tmp_path is automatically cleaned up by pytest
 
 
 @pytest.mark.skipif(

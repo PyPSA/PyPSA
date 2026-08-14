@@ -10,6 +10,7 @@ import functools
 import json
 import logging
 import math
+import os
 import re
 import tempfile
 import warnings
@@ -19,6 +20,7 @@ from typing import TYPE_CHECKING, Any, overload
 from urllib.request import urlretrieve
 
 import geopandas as gpd
+import netCDF4
 import numpy as np
 import pandas as pd
 import validators
@@ -50,14 +52,37 @@ if TYPE_CHECKING:
     from pypsa import Network
 logger = logging.getLogger(__name__)
 
+_legacy_string_dtype_warned = False
+
+
+def _use_legacy_string_dtype() -> bool:
+    """Resolve whether string data is converted to object dtype on import."""
+    global _legacy_string_dtype_warned  # noqa: PLW0603
+
+    value = options.api.legacy_string_dtype
+    if value is None:
+        if not _legacy_string_dtype_warned:
+            warnings.warn(
+                "pandas infers the `str` dtype for string data since its version 3.0. "
+                "PyPSA still converts it back to numpy object dtype on import, but will "
+                "keep it from PyPSA 2.0 on. Set "
+                "`pypsa.options.api.legacy_string_dtype` explicitly to suppress this "
+                "warning.",
+                FutureWarning,
+                stacklevel=3,
+            )
+            _legacy_string_dtype_warned = True
+        return True
+    return value
+
 
 def _coerce_string_dtypes(df: pd.DataFrame) -> pd.DataFrame:
     """Coerce `StringDtype` indices, columns and values to `object` dtype.
 
-    Under `future.infer_string` (pandas >= 3.0) string labels become extension
-    arrays that xarray rejects on the `optimize()` indexing path. Drop this once
-    fixed upstream: https://github.com/pydata/xarray/issues/10301.
+    Pre-1.3 behaviour, kept behind `options.api.legacy_string_dtype` until 2.0.
     """
+    if not _use_legacy_string_dtype():
+        return df
 
     def _coerce_axis(axis: pd.Index) -> pd.Index:
         if isinstance(axis, pd.MultiIndex):
@@ -987,6 +1012,25 @@ class _ExporterHDF5(_Exporter):
         self._hdf5_handle.close()
 
 
+def _open_netcdf(path: Path) -> xr.Dataset:
+    """Open a netCDF file, reading variable-length strings as object arrays.
+
+    xarray pads them to the longest entry and stores them as UTF-32, which
+    explodes memory for length-skewed columns such as geometry WKT.
+
+    Cloud paths (via cloudpathlib) resolve to their local cache file so that netCDF4
+    reads the downloaded file instead of treating the URI as a remote URL.
+    """
+    local_path = os.fspath(path)
+    with netCDF4.Dataset(local_path) as nc:
+        strings = {
+            name: (var.dimensions, var[:])
+            for name, var in nc.variables.items()
+            if var.dtype == str
+        }
+    return xr.open_dataset(local_path, drop_variables=strings).assign(strings)
+
+
 class _ImporterNetCDF(_Importer):
     """Importer class for netCDF files."""
 
@@ -1004,9 +1048,9 @@ class _ImporterNetCDF(_Importer):
         self.path = path
         if isinstance(path, (str | Path)):
             if validators.url(str(path)):
-                self.ds = _retrieve_from_url(str(path), xr.open_dataset)
+                self.ds = _retrieve_from_url(str(path), _open_netcdf)
             else:
-                self.ds = xr.open_dataset(Path(path))
+                self.ds = _open_netcdf(Path(path))
         else:
             self.ds = path
 

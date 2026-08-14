@@ -93,6 +93,24 @@ def test_expressions_capex(prepared_network):
     assert expr.size > 0
 
 
+def test_expressions_capex_overnight_cost():
+    n = pypsa.Network()
+    n.snapshot_weightings.loc[:, :] = 8760.0
+    n.add("Bus", "b")
+    n.add(
+        "Generator",
+        "g",
+        bus="b",
+        p_nom_extendable=True,
+        overnight_cost=1000,
+        discount_rate=0,
+        lifetime=10,
+    )
+    n.optimize.create_model()
+    expr = n.optimize.expressions.capex(groupby=False)
+    assert (expr.coeffs == 100.0).all()
+
+
 # Test one dynamic function for each groupby option and other options
 @pytest.mark.parametrize("groupby_time", AGGREGRATE_TIME_PARAMETERS)
 @pytest.mark.parametrize("groupby", GROUPER_PARAMETERS)
