@@ -5,6 +5,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+from numpy.testing import assert_array_almost_equal as almost_equal
 
 import pypsa
 from pypsa.clustering.spatial import (
@@ -14,6 +15,8 @@ from pypsa.clustering.spatial import (
     get_clustering_from_busmap,
     normed_or_uniform,
 )
+
+pytest.importorskip("sklearn")
 
 
 def test_aggregate_generators(ac_dc_network):
@@ -280,3 +283,32 @@ def test_aggregate_one_ports_no_time_series():
     C = get_clustering_from_busmap(n, busmap, aggregate_one_ports=["StorageUnit"])
 
     assert C.n.storage_units_t.p.empty
+
+
+def test_890():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/890.
+    """
+    n = pypsa.examples.scigrid_de()
+    n.calculate_dependent_values()
+
+    n.c.lines.static = n.c.lines.static.reindex(
+        columns=n.components["Line"]["defaults"].index[1:]
+    )
+    n.c.lines.static["type"] = np.nan
+    n.c.buses.static = n.c.buses.static.reindex(
+        columns=n.components["Bus"]["defaults"].index[1:]
+    )
+    n.c.buses.static["frequency"] = 50
+
+    n.set_investment_periods([2020, 2030])
+
+    weighting = pd.Series(1, n.c.buses.static.index)
+    busmap = n.cluster.spatial.busmap_by_kmeans(bus_weightings=weighting, n_clusters=50)
+    nc = n.cluster.spatial.cluster_by_busmap(busmap)
+
+    C = n.cluster.spatial.get_clustering_from_busmap(busmap)
+    nc = C.n
+
+    almost_equal(n.investment_periods, nc.investment_periods)
+    almost_equal(n.investment_period_weightings, nc.investment_period_weightings)

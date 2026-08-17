@@ -70,7 +70,7 @@ class TestCSVDir:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_csv_io(self, scipy_network, tmpdir, meta):
+    def test_csv_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "csv_export"
         scipy_network.meta = meta
         scipy_network.export_to_csv_folder(fn)
@@ -99,6 +99,12 @@ class TestCSVDir:
         scipy_network.export_to_csv_folder(fn)
         pypsa.Network(fn)
 
+    def test_csv_io_piecewise(self, tmpdir, piecewise_network):
+        fn = tmpdir / "csv_piecewise"
+        piecewise_network.export_to_csv_folder(fn)
+        imported = pypsa.Network(fn)
+        assert custom_equals(piecewise_network, imported)
+
     def test_csv_io_multiindexed(self, ac_dc_periods, tmpdir):
         fn = tmpdir / "csv_export"
         ac_dc_periods.export_to_csv_folder(fn)
@@ -106,6 +112,8 @@ class TestCSVDir:
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
+            check_column_type=False,
         )
 
     def test_csv_io_shapes(self, ac_dc_shapes, tmpdir):
@@ -171,7 +179,7 @@ class TestNetcdf:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_netcdf_io(self, scipy_network, tmpdir, meta):
+    def test_netcdf_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "netcdf_export.nc"
         scipy_network.meta = meta
         scipy_network.export_to_netcdf(fn)
@@ -182,6 +190,12 @@ class TestNetcdf:
         fn = tmpdir / "netcdf_export.nc"
         scipy_network.export_to_netcdf(fn)
         pypsa.Network(fn)
+
+    def test_netcdf_io_piecewise(self, tmpdir, piecewise_network):
+        ds = piecewise_network.export_to_netcdf(path=None)
+        imported = pypsa.Network()
+        imported.import_from_netcdf(ds)
+        assert custom_equals(piecewise_network, imported)
 
     def test_netcdf_io_datetime(self, tmpdir):
         fn = tmpdir / "temp.nc"
@@ -200,6 +214,8 @@ class TestNetcdf:
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
+            check_column_type=False,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
@@ -230,8 +246,36 @@ class TestNetcdf:
             check_less_precise=True,
         )
 
+    def test_netcdf_io_shapes_memory(self, tmpdir):
+        import tracemalloc
+
+        import numpy as np
+        from shapely.geometry import Polygon
+
+        angles = np.linspace(0, 2 * np.pi, 200000, endpoint=False)
+        coords = np.round(np.c_[100 * np.cos(angles), 100 * np.sin(angles)], 6)
+        detailed = Polygon(coords)
+        geometry = [Polygon([(0, 0), (1, 0), (1, 1)])] * 150 + [detailed]
+        names = [f"s{i}" for i in range(len(geometry))]
+
+        n = pypsa.Network()
+        n.add("Bus", names)
+        n.add("Shape", names, geometry=geometry, component="Bus", idx=names)
+        fn = tmpdir / "netcdf_export.nc"
+        n.export_to_netcdf(fn)
+
+        tracemalloc.start()
+        m = pypsa.Network(fn)
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        assert peak < 500e6
+        assert_geodataframe_equal(
+            m.c.shapes.static, n.c.shapes.static, check_less_precise=True
+        )
+
     def test_netcdf_from_url(self):
-        url = "https://github.com/PyPSA/PyPSA/raw/master/examples/networks/scigrid-de/scigrid-de.nc"
+        url = "https://data.pypsa.org/networks/examples/latest/scigrid_de.nc"
         pypsa.Network(url)
 
     def test_netcdf_io_no_compression(self, scipy_network, tmpdir):
@@ -275,6 +319,54 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=True)
         pypsa.Network(fn)
 
+    @pytest.mark.parametrize("legacy", [True, False])
+    def test_netcdf_io_string_dtypes(self, tmpdir, legacy):
+        """String data follows `api.legacy_string_dtype` (#1585)."""
+        fn = tmpdir / "string_dtypes.nc"
+
+        n = pypsa.Network()
+        n.set_snapshots(pd.date_range("2025-01-01", periods=4, freq="h"))
+        n.add("Bus", "bus0")
+        n.add("Generator", "gen0", bus="bus0", p_nom=100, marginal_cost=10)
+        n.add("Load", "load0", bus="bus0", p_set=50)
+        n.export_to_netcdf(fn)
+
+        with pypsa.option_context("api.legacy_string_dtype", legacy):
+            m = pypsa.Network(fn)
+
+        for c in m.components:
+            df = c.static
+            assert pd.api.types.is_object_dtype(df.index.dtype) == legacy, (
+                f"{c.name}.static.index is {df.index.dtype}"
+            )
+            for col, dtype in df.dtypes.items():
+                if c.defaults.at[col, "type"] == "string":
+                    assert pd.api.types.is_object_dtype(dtype) == legacy, (
+                        f"{c.name}.static[{col!r}] is {dtype}"
+                    )
+
+    def test_string_dtypes_reach_xarray_as_object(self):
+        """Canary: drop `_strings_to_object` once xarray accepts `StringDtype`.
+
+        xarray rejects string extension arrays (`TypeError: Invalid array type`), so
+        `_as_xarray` casts them to object. When a future xarray fixes this, the
+        `pytest.raises` fails. See https://github.com/pydata/xarray/issues/10301.
+        """
+        import xarray as xr  # noqa: PLC0415
+
+        import pypsa.examples  # noqa: PLC0415
+
+        with pypsa.option_context("api.legacy_string_dtype", False):
+            n = pypsa.examples.ac_dc_meshed()
+
+        bus = n.c.generators.static.bus
+        assert isinstance(bus.dtype, pd.StringDtype)
+
+        with pytest.raises(TypeError, match="Invalid array type"):
+            xr.DataArray(bus).sel(name=bus.index[:1])
+
+        assert n.c.generators._as_xarray("bus").dtype == object
+
     @pytest.mark.skipif(
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
         reason="Unstable test in CI. Remove with 1.0",
@@ -299,6 +391,46 @@ class TestNetcdf:
         )
         assert custom_equals(n, n2, ignore_attrs=ignore)
 
+    def test_779(self):
+        """
+        Importing from xarray dataset.
+        See https://github.com/PyPSA/PyPSA/issues/779.
+        """
+        n1 = pypsa.Network()
+        n1.add("Bus", "bus")
+        xarr = n1.export_to_netcdf()
+        n2 = pypsa.Network()
+        n2.import_from_netcdf(xarr)
+
+    def test_1522(self, tmp_path):
+        """
+        NetCDF export corrupts dynamic attributes with direct DataFrame assignment.
+        See https://github.com/PyPSA/PyPSA/issues/1522.
+        """
+        fn = tmp_path / "test.nc"
+
+        n = pypsa.Network()
+        n.set_snapshots(range(3))
+        n.add("Bus", ["bus0", "bus1"])
+        n.add("Generator", ["gen0", "gen1"], bus=["bus0", "bus1"], p_nom=100)
+        n.add("Link", ["link0", "link1"], bus0=["bus0", "bus1"], bus1=["bus1", "bus0"])
+
+        # Direct assignment without proper column name
+        n.generators_t.marginal_cost = pd.DataFrame(
+            {"gen0": [10.0, 20.0, 30.0], "gen1": [15.0, 25.0, 35.0]},
+            index=n.snapshots,
+        )
+        n.links_t.marginal_cost = pd.DataFrame(
+            {"link0": [1.0, 2.0, 3.0], "link1": [0.5, 1.5, 2.5]},
+            index=n.snapshots,
+        )
+
+        n.export_to_netcdf(fn)
+        m = pypsa.Network(fn)
+
+        assert set(m.generators_t.marginal_cost.columns) == {"gen0", "gen1"}
+        assert set(m.links_t.marginal_cost.columns) == {"link0", "link1"}
+
 
 @pytest.mark.skipif(not tables_installed, reason="PyTables not installed")
 class TestHDF5:
@@ -310,7 +442,7 @@ class TestHDF5:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_hdf5_io(self, scipy_network, tmpdir, meta):
+    def test_hdf5_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "hdf5_export.h5"
         scipy_network.meta = meta
         scipy_network.export_to_hdf5(fn)
@@ -323,6 +455,12 @@ class TestHDF5:
         scipy_network.export_to_hdf5(fn)
         pypsa.Network(fn)
 
+    def test_hdf5_io_piecewise(self, tmpdir, piecewise_network):
+        fn = tmpdir / "hdf5_piecewise.h5"
+        piecewise_network.export_to_hdf5(fn)
+        imported = pypsa.Network(fn)
+        assert custom_equals(piecewise_network, imported)
+
     def test_hdf5_io_multiindexed(self, ac_dc_periods, tmpdir):
         fn = tmpdir / "hdf5_export.h5"
         ac_dc_periods.export_to_hdf5(fn)
@@ -330,6 +468,8 @@ class TestHDF5:
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
+            check_column_type=False,
         )
 
     def test_hdf5_io_shapes(self, ac_dc_shapes, tmpdir):
@@ -396,7 +536,7 @@ class TestExcelIO:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_excel_io(self, scipy_network, tmpdir, meta):
+    def test_excel_io(self, scipy_network, tmpdir, meta, no_warnings):
         fn = tmpdir / "excel_export.xlsx"
         scipy_network.meta = meta
         scipy_network.export_to_excel(fn)
@@ -407,6 +547,12 @@ class TestExcelIO:
         fn = tmpdir / "excel_export.xlsx"
         scipy_network.export_to_excel(fn)
         pypsa.Network(fn)
+
+    def test_excel_io_piecewise(self, tmpdir, piecewise_network):
+        fn = tmpdir / "excel_piecewise.xlsx"
+        piecewise_network.export_to_excel(fn)
+        imported = pypsa.Network(fn)
+        assert custom_equals(piecewise_network, imported)
 
     def test_excel_io_datetime(self, tmpdir):
         fn = tmpdir / "temp.xlsx"
@@ -424,11 +570,14 @@ class TestExcelIO:
         pd.testing.assert_frame_equal(
             m.c.generators.dynamic.p,
             ac_dc_periods.c.generators.dynamic.p,
+            check_index_type=False,
+            check_column_type=False,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
             ac_dc_periods.snapshot_weightings[m.snapshot_weightings.columns],
             check_dtype=False,  # TODO Remove once validation layer leads to safer types
+            check_index_type=False,
         )
 
     def test_excel_io_shapes(self, ac_dc_shapes, tmpdir):
@@ -522,6 +671,21 @@ class TestExcelIO:
             n.c.storage_units.dynamic.efficiency_dispatch,
         )
 
+    def test_1268(self, tmpdir):
+        """
+        Excel import without snapshots sheet should not raise KeyError.
+        See https://github.com/PyPSA/PyPSA/issues/1268.
+        """
+        fn = str(tmpdir / "no_snapshots.xlsx")
+
+        buses = pd.DataFrame({"v_nom": [132]}, index=["bus1"])
+        with pd.ExcelWriter(fn, engine="openpyxl") as writer:
+            buses.to_excel(writer, sheet_name="buses")
+
+        n = pypsa.Network()
+        n.import_from_excel(fn)
+        assert len(n.c.buses.static) == 1
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
@@ -566,41 +730,18 @@ def test_io_equality(networks_including_solved, tmp_path):
         assert custom_equals(n, n5, ignore_attrs=ignore)
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Only check once since it is an optional test when examples are updated.",
-)
 @pytest.mark.parametrize(
     "example_network",
     [
-        "ac-dc-meshed",
-        "storage-hvdc",
-        "scigrid-de",
-        "model-energy",
-    ],
-)
-def test_examples_against_master(tmp_path, example_network):
-    # Test examples are unchanged
-    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
-    # Test examples vs master
-    example_network = pypsa.Network(
-        f"https://github.com/PyPSA/PyPSA/raw/master/examples/networks/{example_network}/{example_network}.nc"
-    )
-    assert n.equals(example_network, log_mode="strict")
-
-
-@pytest.mark.parametrize(
-    "example_network",
-    [
-        "ac-dc-meshed",
-        "storage-hvdc",
-        "scigrid-de",
-        "model-energy",
+        "ac_dc_meshed",
+        "storage_hvdc",
+        "scigrid_de",
+        "model_energy",
     ],
 )
 def test_examples_consistency(tmp_path, example_network):
-    # Test examples are unchanged
-    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
+    # Round-trip example networks through CSV export/import to catch schema drift
+    n = getattr(pypsa.examples, example_network)()
     n.export_to_csv_folder(tmp_path / "network")
     n2 = pypsa.Network(tmp_path / "network")
     assert n.equals(n2, log_mode="strict")

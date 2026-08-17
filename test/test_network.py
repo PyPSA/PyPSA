@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 import copy
+import pickle
 import sys
 import warnings
+from pathlib import Path
 
 import linopy
 import numpy as np
@@ -260,11 +262,11 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
     ).all()  # Assert that default value is set
 
     # Test different names shape
-    with pytest.raises(ValueError, match="index which does not align"):
+    with pytest.raises(ValueError, match="columns which do not align"):
         n_5bus_7sn.add("Load", load_names[1:] + "_a", p_set=p_set)
 
     # Test unaligned names index
-    with pytest.raises(ValueError, match="index which does not align"):
+    with pytest.raises(ValueError, match="columns which do not align"):
         n_5bus_7sn.add("Load", load_names + "_b", p_set=swap_df_index(p_set))
 
     # Test different snapshots shape
@@ -272,7 +274,7 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
         n_5bus_7sn.add("Load", load_names + "_c", p_set=p_set[1:])
 
     # Test different snapshots index
-    with pytest.raises(ValueError, match="index which does not align"):
+    with pytest.raises(ValueError, match="columns which do not align"):
         n_5bus_7sn.add("Load", load_names + "_d", p_set=swap_df_index(p_set, axis=1))
 
 
@@ -304,6 +306,19 @@ def test_add_overwrite_varying(n_5bus_7sn, caplog):
     assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[:5]] == 2).all().all()
     n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=True)
     assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[:5]] == p).all().all()
+
+
+def test_add_overwrite_clears_stale_dynamic():
+    """Regression for #1628: overwrite=True must clear pre-existing dynamic
+    columns even if the new call does not re-supply them.
+    """
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "b")
+    n.add("Generator", "g", bus="b", marginal_cost=[10.0, 20.0, 30.0])
+    assert "g" in n.c.generators.dynamic.marginal_cost.columns
+
+    n.add("Generator", "g", bus="b", marginal_cost=5.0, overwrite=True)
+    assert "g" not in n.c.generators.dynamic.marginal_cost.columns
 
 
 def test_add_stochastic():
@@ -417,6 +432,118 @@ def test_add_return_names():
     assert result[0] == "bus7"
 
 
+def test_add_remove_list_suffix(n_5bus):
+    # A list `suffix` with a scalar `name` builds one component per suffix (#1650).
+    names = n_5bus.add(
+        "Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", return_names=True
+    )
+    assert list(names) == ["g wind", "g solar"]
+    assert list(n_5bus.c.generators.static.index) == ["g wind", "g solar"]
+
+    n_5bus.remove("Generator", "g", suffix=[" wind", " solar"])
+    assert n_5bus.c.generators.static.empty
+
+
+@pytest.mark.parametrize("method", ["add", "remove"])
+@pytest.mark.parametrize(
+    ("name", "suffix", "match"),
+    [
+        # Was a silent one-by-one pairing before #1650, now rejected.
+        (["a", "b"], [" wind", " solar"], "Cannot pass list to both"),
+        ("g", [], "Empty list `suffix`"),
+    ],
+)
+def test_list_suffix_invalid_raises(n_5bus, method, name, suffix, match):
+    with pytest.raises(ValueError, match=match):
+        getattr(n_5bus, method)("Generator", name, suffix=suffix)
+
+
+@pytest.mark.parametrize(
+    "p_nom",
+    [
+        pd.Series([100.0, 200.0], index=["g wind", "g solar"]),  # post-suffix index
+        [100.0, 200.0],  # plain list, positional
+    ],
+)
+def test_add_list_suffix_static_kwarg(n_5bus, p_nom):
+    # Regression for the TypeError from str.endswith(list) on a Series kwarg (#1650).
+    n_5bus.add("Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", p_nom=p_nom)
+    static = n_5bus.c.generators.static
+    assert static.p_nom.loc["g wind"] == 100.0
+    assert static.p_nom.loc["g solar"] == 200.0
+
+
+def test_add_list_suffix_dataframe_kwarg(n_5bus_7sn):
+    # A DataFrame kwarg with post-suffix columns stays time-varying (#1650).
+    p_max_pu = pd.DataFrame(
+        rng.random((len(n_5bus_7sn.snapshots), 2)),
+        index=n_5bus_7sn.snapshots,
+        columns=["g wind", "g solar"],
+    )
+    n_5bus_7sn.add(
+        "Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", p_max_pu=p_max_pu
+    )
+    pd.testing.assert_frame_equal(
+        n_5bus_7sn.c.generators.dynamic.p_max_pu,
+        p_max_pu,
+        check_names=False,
+        check_column_type=False,
+    )
+
+
+def test_add_list_suffix_misaligned_kwarg_raises(n_5bus):
+    # For a list suffix the Series index must be the full post-suffix names.
+    p_nom = pd.Series([100.0, 200.0], index=["g", "g"])
+    with pytest.raises(ValueError, match="does not align"):
+        n_5bus.add(
+            "Generator", "g", suffix=[" wind", " solar"], bus="bus_0 ", p_nom=p_nom
+        )
+
+
+def test_multiport_assignment_defaults_single_add():
+    """
+    Add a single link to a network, then add a second link with additional
+    ports.
+
+    Check that the default values are assigned to the first link.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "bus2")
+    n.add("Link", "link", bus0="bus", bus1="bus2")
+    n.add("Link", "link2", bus0="bus", bus1="bus2", bus2="bus")
+    assert n.c.links.static.loc["link", "bus2"] == ""
+
+
+def test_multiport_assignment_defaults_multiple_add():
+    """
+    Add a single link to a network, then add a second link with additional
+    ports.
+
+    Check that the default values are assigned to the first link.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "bus2")
+    n.add("Link", ["link"], bus0="bus", bus1="bus2")
+    n.add("Link", ["link2"], bus0="bus", bus1="bus2", bus2="bus")
+    assert n.c.links.static.loc["link", "bus2"] == ""
+
+
+def test_331():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/331.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.add("Generator", "generator1", bus="bus", p_nom=15, marginal_cost=10)
+    n.optimize()
+    n.add("Generator", "generator2", bus="bus", p_nom=5, marginal_cost=5)
+    n.optimize()
+    assert "generator2" in n.c.generators.dynamic.p
+
+
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
@@ -484,6 +611,50 @@ def test_copy_with_model(ac_dc_network):
         match="Copying a solved network with an attached solver model is not supported.",
     ):
         n_copy = n.copy()
+
+
+def test_1319():
+    """
+    Copying a solved network should work after setting solver_model to None.
+    See https://github.com/PyPSA/PyPSA/issues/1319.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+
+    # Should raise error when trying to copy with solver_model attached
+    with pytest.raises(
+        ValueError, match="Copying a solved network with an attached solver model"
+    ):
+        n.copy()
+
+    # Should work after setting solver_model to None
+    n.model.solver_model = None
+    n_copy = n.copy()  # Should not raise an error
+    assert n_copy is not n
+    assert len(n_copy.buses) == len(n.c.buses.static)
+
+
+def test_1420(tmp_path):
+    """
+    Network pickling should not cause RecursionError in xarray accessor.
+    See https://github.com/PyPSA/PyPSA/issues/1420.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100)
+
+    pickle_file = tmp_path / "network.pkl"
+
+    with Path(pickle_file).open("wb") as out:
+        pickle.dump(n, out)
+
+    with Path(pickle_file).open("rb") as inp:
+        n_loaded = pickle.load(inp)
+
+    # Verify network was loaded correctly
+    assert len(n_loaded.c.buses.static) == 1
+    assert len(n_loaded.c.generators.static) == 1
+    # tmp_path is automatically cleaned up by pytest
 
 
 @pytest.mark.skipif(

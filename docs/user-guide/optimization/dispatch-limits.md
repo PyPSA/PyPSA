@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Dispatch Limits
 
-Each [`Generator`][pypsa.components.Generators] has a dispatch variable $g_{n,s,t}$ where $n$ labels the bus, $s$ labels the particular generator at the bus and $t$ labels the snapshot. Each [`Link`][pypsa.components.Links] has a dispatch variable $f_{l,t}$ where $l$ labels the link and $t$ labels the snapshot. Each [`Line`][pypsa.components.Lines] and [`Transformer`][pypsa.components.Transformers] has a dispatch variable $p_{l,t}$ where $l$ labels the line/transformer and $t$ labels the snapshot.
+Each [`Generator`][pypsa.components.Generators] has a dispatch variable $g_{n,s,t}$ where $n$ labels the bus, $s$ labels the particular generator at the bus and $t$ labels the snapshot. Each [`Link`][pypsa.components.Links] has a dispatch variable $f_{l,t}$ where $l$ labels the link and $t$ labels the snapshot. Each [`Process`][pypsa.components.Processes] has an internal dispatch variable $r_{m,t}$ where $m$ labels the process and $t$ labels the snapshot. Each [`Line`][pypsa.components.Lines] and [`Transformer`][pypsa.components.Transformers] has a dispatch variable $p_{l,t}$ where $l$ labels the line/transformer and $t$ labels the snapshot.
 
 !!! note "Dispatch limits of [`Store`][pypsa.components.Stores] and [`StorageUnit`][pypsa.components.StorageUnits]"
 
@@ -23,10 +23,12 @@ For non-extendable components (`{p,s}_nom_extendable=False`), the dispatch is li
 | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot \hat{g}_{n,s}$ | $w_t^o \bar{\mu}_{n,s,t}$ | `n.generators_t.mu_upper` | `Generator-fix-p-upper` |
 | $f_{l,t} \geq \underline{f}_{l,t} \cdot \hat{f}_{l}$ | $w_t^o \underline{\mu}_{l,t}$ | `n.links_t.mu_lower` | `Link-fix-p-lower` |
 | $f_{l,t} \leq \bar{f}_{l,t} \cdot \hat{f}_{l}$ | $w_t^o \bar{\mu}_{l,t}$ | `n.links_t.mu_upper` | `Link-fix-p-upper` |
+| $r_{m,t} \geq \underline{r}_{m,t} \cdot \hat{r}_{m}$ | $w_t^o \underline{\mu}_{m,t}$ | `n.processes_t.mu_lower` | `Process-fix-p-lower` |
+| $r_{m,t} \leq \bar{r}_{m,t} \cdot \hat{r}_{m}$ | $w_t^o \bar{\mu}_{m,t}$ | `n.processes_t.mu_upper` | `Process-fix-p-upper` |
 | $p_{l,t} \geq - \bar{p}_{l,t} \cdot \hat{p}_{l}$ | $w_t^o \underline{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_lower` | `Line-fix-p-lower` |
 | $p_{l,t} \leq \bar{p}_{l,t} \cdot \hat{p}_{l}$ | $w_t^o \bar{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_upper` | `Line-fix-p-upper` |
 
-where $\hat{g}_{n,s}$, $\hat{f}_{l}$, and $\hat{p}_{l}$ are the nominal capacities; $\underline{g}_{n,s,t}$, $\underline{f}_{l,t}$, $\bar{g}_{n,s,t}$, and $\bar{f}_{l,t}$ and $\bar{p}_{l,t}$ are time-dependent restrictions on the dispatch given per unit of nominal capacity (e.g. due to wind availability for generators or dynamic line rating and security margins for lines).
+where $\hat{g}_{n,s}$, $\hat{f}_{l}$, $\hat{r}_{m}$, and $\hat{p}_{l}$ are the nominal capacities; $\underline{g}_{n,s,t}$, $\underline{f}_{l,t}$, $\underline{r}_{m,t}$, $\bar{g}_{n,s,t}$, $\bar{f}_{l,t}$, $\bar{r}_{m,t}$ and $\bar{p}_{l,t}$ are time-dependent restrictions on the dispatch given per unit of nominal capacity (e.g. due to wind availability for generators or dynamic line rating and security margins for lines).
 
 These constraints are set in the function `define_operational_constraints_for_non_extendables()`.
 
@@ -40,28 +42,31 @@ Constraint | Dual Variable | | Name |
 | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot G_{n,s}$ | $w_t^o \bar{\mu}_{n,s,t}$ | `n.generators_t.mu_upper` | `Generator-ext-p-upper` |
 | $f_{l,t} \geq \underline{f}_{l,t} \cdot F_{l}$ | $w_t^o \underline{\mu}_{l,t}$ | `n.links_t.mu_lower` | `Link-ext-p-lower` |
 | $f_{l,t} \leq \bar{f}_{l,t} \cdot F_{l}$ | $w_t^o \bar{\mu}_{l,t}$ | `n.links_t.mu_upper` | `Link-ext-p-upper` |
+| $r_{m,t} \geq \underline{r}_{m,t} \cdot R_{m}$ | $w_t^o \underline{\mu}_{m,t}$ | `n.processes_t.mu_lower` | `Process-ext-p-lower` |
+| $r_{m,t} \leq \bar{r}_{m,t} \cdot R_{m}$ | $w_t^o \bar{\mu}_{m,t}$ | `n.processes_t.mu_upper` | `Process-ext-p-upper` |
 | $p_{l,t} \geq - \bar{p}_{l,t} \cdot P_{l}$ | $w_t^o \underline{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_lower` | `Line-ext-p-lower` |
 | $p_{l,t} \leq \bar{p}_{l,t} \cdot P_{l}$ | $w_t^o \bar{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_upper` | `Line-ext-p-upper` |
 
-where $G_{n,s}$, $F_{l}$, and $P_{l}$ are the nominal capacities to be optimised.
+where $G_{n,s}$, $F_{l}$, $R_{m}$, and $P_{l}$ are the nominal capacities to be optimised.
 
 These constraints are set in the function `define_operational_constraints_for_extendables()`.
 
 ## Fixed Dispatch
 
-Additionally, the dispatch can be fixed to a certain value $\tilde{g}_{n,s,t}$ for generators and $\tilde{f}_{l,t}$ for links. In this case, the dispatch is given by:
+Additionally, the dispatch can be fixed to a certain value $\tilde{g}_{n,s,t}$ for generators, $\tilde{f}_{l,t}$ for links and $\tilde{r}_{m,t}$ for processes. In this case, the dispatch is given by:
 
 
 Constraint | Dual Variable | | Name |
 |------------|---------------|--|------|
 | $g_{n,s,t} = \tilde{g}_{n,s,t}$ | $w_t^o  \tilde{\mu}_{n,s,t}$ | `n.generators_t.mu_p_set` | `Generator-p_set` |
 | $f_{l,t} = \tilde{f}_{l,t}$ | $w_t^o  \tilde{\mu}_{l,t}$ | `n.links_t.mu_p_set` | `Link-p_set` |
+| $r_{m,t} = \tilde{r}_{m,t}$ | $w_t^o  \tilde{\mu}_{m,t}$ | `n.processes_t.mu_p_set` | `Process-p_set` |
 
 These constraints are set in the function `define_fixed_operation_constraints()`.
 
 ## Volume Limits
 
-Generators and links can also have volume limits, i.e. the total dispatch over all snapshots must be above a minimum $\underline{e}_{*}$ or below a maximum $\bar{e}_{*}$.
+Generators, links and processes can also have volume limits, i.e. the total dispatch over all snapshots must be above a minimum $\underline{e}_{*}$ or below a maximum $\bar{e}_{*}$.
 
 | Constraint | Dual Variable | Name |
 |-------------------|------------------|------------------|
@@ -69,6 +74,8 @@ Generators and links can also have volume limits, i.e. the total dispatch over a
 | $\sum_t w_t^g g_{n,s,t} \leq \bar{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Generator-e_sum_max` |
 | $\sum_t w_t^g f_{l,t} \geq \underline{e}_{l} \quad \forall l$ | only in `n.model` | `Link-e_sum_min` |
 | $\sum_t w_t^g f_{l,t} \leq \bar{e}_{l} \quad \forall l$ | only in `n.model` | `Link-e_sum_max` |
+| $\sum_t w_t^g r_{m,t} \geq \underline{e}_{m} \quad \forall m$ | only in `n.model` | `Process-e_sum_min` |
+| $\sum_t w_t^g r_{m,t} \leq \bar{e}_{m} \quad \forall m$ | only in `n.model` | `Process-e_sum_max` |
 
 These constraints are set in the function `define_total_supply_constraints()`.
 
@@ -103,6 +110,22 @@ These constraints are set in the function `define_total_supply_constraints()`.
         | $\tilde{f}_{l,t}$ | `n.links_t.p_set` | Parameter |
         | $\underline{e}_{l}$          | `n.links.e_sum_min` | Parameter |
         | $\bar{e}_{l}$          | `n.links.e_sum_max` | Parameter |
+        | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
+        | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
+
+    === "Process"
+
+
+        | Symbol | Attribute | Type |
+        |-------------------|-----------|-------------|
+        | $r_{m,t}$         | `n.processes_t.p` | Decision variable |
+        | $R_{m}$           | `n.processes.p_nom_opt` | Decision variable |
+        | $\hat{r}_{m}$     | `n.processes.p_nom` | Parameter |
+        | $\underline{r}_{m,t}$ | `n.processes_t.p_min_pu` | Parameter |
+        | $\bar{r}_{m,t}$   | `n.processes_t.p_max_pu` | Parameter |
+        | $\tilde{r}_{m,t}$ | `n.processes_t.p_set` | Parameter |
+        | $\underline{e}_{m}$          | `n.processes.e_sum_min` | Parameter |
+        | $\bar{e}_{m}$          | `n.processes.e_sum_max` | Parameter |
         | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
         | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
 

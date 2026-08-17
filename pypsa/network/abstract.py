@@ -46,6 +46,7 @@ class _NetworkABC(ABC):
     iterate_components: Callable
     copy: Callable
     _import_components_from_df: Callable
+    _import_piecewise_from_df: Callable
 
     sub_networks: pd.DataFrame
     buses: pd.DataFrame
@@ -82,6 +83,12 @@ class _NetworkABC(ABC):
     @property
     @abstractmethod
     def passive_branch_components(self) -> set[str]:
+        """Read only placeholder."""
+        ...
+
+    @property
+    @abstractmethod
+    def controllable_branch_components(self) -> set[str]:
         """Read only placeholder."""
         ...
 

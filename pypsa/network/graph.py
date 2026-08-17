@@ -83,6 +83,8 @@ class NetworkGraphMixin:
         else:
             msg = "graph must be called with a Network or a SubNetwork"
             raise TypeError(msg)
+        # sort for a hash-seed-independent edge order (and cycle basis); see GH #1356
+        branch_components = sorted(branch_components)
 
         buses_i = n.c.buses.static.index
 

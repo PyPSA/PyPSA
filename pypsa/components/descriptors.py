@@ -60,6 +60,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             "Line": "s",
             "Link": "p",
             "Load": "p",
+            "Process": "p",
             "StorageUnit": "p",
             "Store": "e",
             "Transformer": "s",
@@ -72,6 +73,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             "nom_min": f"{base}_nom_min",
             "nom_max": f"{base}_nom_max",
             "nom_set": f"{base}_nom_set",
+            "nom_mod": f"{base}_nom_mod",
             "min_pu": f"{base}_min_pu",
             "max_pu": f"{base}_max_pu",
             "set": f"{base}_set",
@@ -146,7 +148,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         return pd.DataFrame(active).any(axis=1) & self.static.active
 
     @property
-    def active_assets(self) -> pd.Series:
+    def active_assets(self) -> pd.Index:
         """Get list of active assets.
 
         <!-- md:badge-version v1.0.0 -->
@@ -155,8 +157,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         Returns
         -------
-        pd.Series
-            List of inactive assets
+        pd.Index
+            List of active assets
 
         See Also
         --------
@@ -164,10 +166,10 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         """
         active_assets = self.get_active_assets()
-        return active_assets[active_assets].index.get_level_values("name").unique()
+        return active_assets[active_assets].index.unique("name")
 
     @property
-    def inactive_assets(self) -> pd.Series:
+    def inactive_assets(self) -> pd.Index:
         """Get list of inactive assets.
 
         <!-- md:badge-version v1.0.0 -->
@@ -181,7 +183,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         Returns
         -------
-        pd.Series
+        pd.Index
             List of inactive assets
 
         Examples
@@ -211,8 +213,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         [pypsa.Components.get_active_assets][]
 
         """
-        active_assets = self.get_active_assets()
-        return active_assets[~active_assets].index.get_level_values("name").unique()
+        return self.names.difference(self.active_assets)
 
     def filter_by_active_assets(
         self,

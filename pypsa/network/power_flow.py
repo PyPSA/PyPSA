@@ -24,7 +24,7 @@ from scipy.sparse.linalg import spsolve
 
 from pypsa.common import as_index, deprecated_common_kwargs
 from pypsa.definitions.structures import Dict
-from pypsa.descriptors import _update_linkports_component_attrs
+from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
@@ -76,16 +76,14 @@ def _allocate_pf_outputs(n: Network, linear: bool = False) -> None:
         "Store": ["p"],
         "ShuntImpedance": ["p"],
         "Bus": ["p", "v_ang", "v_mag_pu"],
-        "Line": ["p0", "p1"],
-        "Transformer": ["p0", "p1"],
-        "Link": ["p" + col[3:] for col in n.c.links.static.columns if col[:3] == "bus"],
+        **{c: ["p" + port for port in n.c[c].ports] for c in n.branch_components},
     }
 
     if not linear:
         for component, attrs in to_allocate.items():
             if "p" in attrs:
                 attrs.append("q")
-            if "p0" in attrs and component != "Link":
+            if "p0" in attrs and component in n.passive_branch_components:
                 attrs.extend(["q0", "q1"])
 
     allocate_series_dataframes(n, to_allocate)
@@ -174,6 +172,18 @@ def _network_prepare_and_run_pf(
             links = n.c.links.static.index[n.c.links.static[f"bus{i}"] != ""]
             n.c.links.dynamic[f"p{i}"].loc[sns, links] = (
                 -n.c.links.dynamic.p0.loc[sns, links] * efficiency.loc[sns, links]
+            )
+
+    # deal with processes
+    if not n.c.processes.static.empty:
+        p_set = n.get_switchable_as_dense("Process", "p_set", sns)
+        for i in n.c.processes.ports:
+            rate = n.get_switchable_as_dense("Process", f"rate{i}", sns)
+            processes = n.c.processes.static.index[
+                n.c.processes.static[f"bus{i}"] != ""
+            ]
+            n.c.processes.dynamic[f"p{i}"].loc[sns, processes] = (
+                -p_set.loc[sns, processes] * rate.loc[sns, processes]
             )
 
     itdf = pd.DataFrame(index=sns, columns=n.c.sub_networks.static.index, dtype=int)
@@ -412,6 +422,22 @@ def sub_network_pf_singlebus(
     return 0, 0.0, True  # dummy substitute for newton raphson output
 
 
+def _warn_type_param_override(
+    component: str, current: pd.DataFrame, new: pd.DataFrame, attrs: list[str]
+) -> None:
+    """Warn if non-default manual impedance values are overridden by a standard type."""
+    differs = (current[attrs].to_numpy() != 0) & ~np.isclose(current[attrs], new[attrs])
+    overridden = current.index[differs.any(axis=1)]
+    if not overridden.empty:
+        logger.warning(
+            "%s %s have a 'type' set; the manually provided values for %s are "
+            "overridden by the standard type. Set 'type' to \"\" to keep manual values.",
+            component,
+            overridden.tolist(),
+            ", ".join(attrs),
+        )
+
+
 def apply_line_types(n: Network) -> None:
     """Calculate line electrical parameters x, r, b, g from standard types."""
     lines_with_types_b = n.c.lines.static.type != ""
@@ -456,7 +482,11 @@ def apply_line_types(n: Network) -> None:
     )
 
     # now set calculated values on live lines
-    for attr in ["r", "x", "b"]:
+    line_attrs = ["r", "x", "b"]
+    _warn_type_param_override(
+        "Line(s)", n.c.lines.static.loc[lines_with_types_b], lines, line_attrs
+    )
+    for attr in line_attrs:
         n.c.lines.static.loc[lines_with_types_b, attr] = lines[attr]
 
 
@@ -523,6 +553,12 @@ def apply_transformer_types(n: Network) -> None:
 
     # now set calculated values on live transformers
     attrs = ["r", "x", "g", "b", "phase_shift", "s_nom", "tap_side", "tap_ratio"]
+    _warn_type_param_override(
+        "Transformer(s)",
+        n.c.transformers.static.loc[trafos_with_types_b],
+        t,
+        ["r", "x", "g", "b", "s_nom"],
+    )
     n.c.transformers.static.loc[trafos_with_types_b, attrs] = t[attrs].astype(
         n.c.transformers.static[attrs].dtypes
     )
@@ -800,7 +836,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
             self.c.stores.static.bus.map(buses.carrier)
         )
 
-        _update_linkports_component_attrs(self)
+        _update_ports_component_attrs(self)
 
     def lpf(
         n: Network, snapshots: Sequence | None = None, skip_pre: bool = False
@@ -1644,8 +1680,9 @@ class SubNetworkPowerFlowMixin:
 
         s0 = pd.DataFrame(v0 * np.conj(i0), columns=branches_i, index=sns)
         s1 = pd.DataFrame(v1 * np.conj(i1), columns=branches_i, index=sns)
+        branch_types = branches_i.unique("type")
         for c in self.components:
-            if c.name not in n.passive_branch_components:
+            if c.name not in branch_types:
                 continue
             s0t = s0.loc[:, c.name]
             s1t = s1.loc[:, c.name]
@@ -1834,8 +1871,9 @@ class SubNetworkPowerFlowMixin:
                 + self.p_branch_shift
             )
 
+            branch_types = branches_i.unique("type")
             for c in self.components:
-                if c.name not in n.passive_branch_components:
+                if c.name not in branch_types:
                     continue
                 f = flows.loc[:, c.name]
                 n.c[c.name].dynamic.p0.loc[sns, f.columns] = f

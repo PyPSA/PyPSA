@@ -9,148 +9,109 @@ on:
     tags:
     - v*.*.*
 
-env:
-  PREPARATION_COMMIT: '[github-actions.ci] prepare release ${{ github.ref_name }}'
-
 jobs:
-  check-preparation:
-    name: Check if release is prepared
-    runs-on: ubuntu-latest
-    outputs:
-      prepared: ${{ steps.validate.outputs.prepared }}
-    steps:
-    - uses: actions/checkout@v6
-
-    - name: Validate commit message
-      id: validate
-      run: |
-        # Check if last commit is the expected commit message
-        COMMIT_MESSAGE=$(git log -1 --pretty=%B)
-        echo "Expected: '${{ env.PREPARATION_COMMIT }}'"
-        echo "Received: '$COMMIT_MESSAGE'"
-
-        prepared="false"
-        if [[ "$COMMIT_MESSAGE" == "${{ env.PREPARATION_COMMIT }}" ]]; then
-          prepared="true"
-        fi
-
-        echo "prepared=$prepared" >> $GITHUB_OUTPUT
-
-  prepare-release:
-    name: Prepare release
-    needs: [check-preparation]
-    if: ${{ needs.check-preparation.outputs.prepared == 'false' }}
+  publish-examples:
+    name: Publish example networks to bucket
     runs-on: ubuntu-latest
     steps:
-    - name: Generate token for PyPSA Bot
-      id: generate-token
-      uses: actions/create-github-app-token@v2
-      with:
-        app-id: ${{ vars.PYPSA_BOT_ID }}
-        private-key: ${{ secrets.PYPSA_BOT_PRIVATE_KEY }}
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-
-    - name: Find the branch for commit/ tag
-      run: |
-        branch=$(git branch -r --contains ${{ github.sha }} | grep -v 'HEAD' | head -n 1 | sed 's|origin/||' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        echo "Branch found: $branch"
-        echo "BRANCH_NAME=$branch" >> $GITHUB_ENV
-
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-        ref: ${{ env.BRANCH_NAME }}
-        token: ${{ steps.generate-token.outputs.token }}
-
-    # Start of preparation script
-
-    - uses: actions/setup-python@v6
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: 3.12
 
     - name: Install packages
       run: |
         python -m pip install uv
-        uv pip install --system toml
-        uv pip install --system setuptools_scm
+        uv pip install --system boto3
         uv pip install --system .
 
-    - name: Update CITATION.cff
+    - name: Publish example networks to S3
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_KEY }}
+        S3_ENDPOINT_URL: ${{ vars.S3_ENDPOINT_URL }}
+        S3_BUCKET: ${{ vars.S3_BUCKET }}
+        S3_EXAMPLES_PREFIX: ${{ vars.S3_EXAMPLES_PREFIX }}
+        RELEASE_TAG: ${{ github.ref_name }}
       run: |
-        import re
-        from setuptools_scm import get_version
+        import os
+        from pathlib import Path
 
-        version = get_version()
-
-        with open('CITATION.cff', 'r') as file:
-          cff_content = file.read()
-        cff_content = open('CITATION.cff', 'r').read()
-
-        updated_cff_content = re.sub(r"(?<=version: ).+(?= #)",version,cff_content,flags=re.MULTILINE)
-
-        with open('CITATION.cff', 'w') as file:
-          file.write(updated_cff_content)
-      shell: python
-
-    - name: Update example notebooks
-      run: |
+        import boto3
         import pypsa
-        # ac-dc-meshed
-        n = pypsa.Network("examples/networks/ac-dc-meshed/ac-dc-meshed")
-        n.export_to_csv_folder("examples/networks/ac-dc-meshed/ac-dc-meshed")
-        n.export_to_netcdf("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
-        # storage-hvdc
-        n = pypsa.Network("examples/networks/storage-hvdc/storage-hvdc")
-        n.export_to_csv_folder("examples/networks/storage-hvdc/storage-hvdc")
-        n.export_to_netcdf("examples/networks/storage-hvdc/storage-hvdc.nc")
-        # scigrid-de
-        n = pypsa.Network("examples/networks/scigrid-de/scigrid-de")
-        n.export_to_csv_folder("examples/networks/scigrid-de/scigrid-de")
-        n.export_to_netcdf("examples/networks/scigrid-de/scigrid-de.nc")
-        # model-energy
-        n = pypsa.Network("examples/networks/model-energy/model-energy")
-        n.export_to_csv_folder("examples/networks/model-energy/model-energy")
-        n.export_to_netcdf("examples/networks/model-energy/model-energy.nc")
-        # stochastic-network
-        n = pypsa.Network("examples/networks/stochastic-network/stochastic-network.nc")
-        n.export_to_netcdf("examples/networks/stochastic-network/stochastic-network.nc")
+
+        tag = os.environ["RELEASE_TAG"]
+        assert tag.startswith("v"), f"unexpected release tag: {tag!r}"
+        version_base = tag[1:]
+
+        endpoint_url = os.environ["S3_ENDPOINT_URL"]
+        bucket = os.environ["S3_BUCKET"]
+        base_prefix = os.environ["S3_EXAMPLES_PREFIX"]
+
+        client = boto3.client("s3", endpoint_url=endpoint_url)
+
+        examples = [
+            "ac_dc_meshed",
+            "storage_hvdc",
+            "scigrid_de",
+            "model_energy",
+            "stochastic_network",
+            "carbon_management",
+        ]
+
+        tmp = Path("/tmp/pypsa-examples")
+        tmp.mkdir(exist_ok=True)
+
+        # Upload examples to versioned prefix
+        for name in examples:
+            n = getattr(pypsa.examples, name)()
+            local = tmp / f"{name}.nc"
+            n.export_to_netcdf(str(local))
+            key = f"{base_prefix}/v{version_base}/{name}.nc"
+            client.upload_file(
+                str(local),
+                bucket,
+                key,
+                ExtraArgs={"ACL": "public-read", "ContentType": "application/x-netcdf"},
+            )
+            print(f"uploaded {key}")
+
+        # Repoint latest/ to new version
+        for name in examples:
+            src_key = f"{base_prefix}/v{version_base}/{name}.nc"
+            dst_key = f"{base_prefix}/latest/{name}.nc"
+            client.copy_object(
+                Bucket=bucket,
+                CopySource={"Bucket": bucket, "Key": src_key},
+                Key=dst_key,
+                ACL="public-read",
+                ContentType="application/x-netcdf",
+                MetadataDirective="REPLACE",
+            )
+            print(f"repointed {dst_key} -> {src_key}")
       shell: python
 
-    # End of preparation script
-
-    - name: Remove previous tag
-      run: |
-        git tag -d ${{ github.ref_name }}
-        git push origin --delete ${{ github.ref_name }}
-
-    - name: Commit changes
-      uses: stefanzweifel/git-auto-commit-action@v7
-      with:
-        branch: ${{ env.BRANCH_NAME }}
-        commit_message: '${{ env.PREPARATION_COMMIT }}'
-        tagging_message: '${{ github.ref_name }}' # add tag again
-        push_options: '${{ github.ref_name }}'
-        add_options: '-u' # Never add untracked files
+  test:
+    needs: [publish-examples]
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
 
   build:
     name: Build and verify package
-    needs: [check-preparation]
-    if: ${{ needs.check-preparation.outputs.prepared == 'true' }}
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
-    - uses: hynek/build-and-inspect-python-package@v2
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: hynek/build-and-inspect-python-package@2abe76da66d0a6a4a227101f9348ee855797cfa5 # v3.0.1
 
   release:
     name: Create GitHub release
     needs: [build]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
-    - uses: softprops/action-gh-release@v2
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
       with:
         body: |
           Revised release notes are available in the [documentation](https://docs.pypsa.org/latest/release-notes/).
@@ -167,8 +128,8 @@ jobs:
     permissions:
       id-token: write
     steps:
-    - uses: actions/download-artifact@v7
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: Packages
         path: dist
-    - uses: pypa/gh-action-pypi-publish@release/v1
+    - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2

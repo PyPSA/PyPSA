@@ -301,7 +301,7 @@ class OptionsNode:
                 continue
 
             # PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS -> general.allow_network_requests
-            option_path = env_var[len(prefix) :].replace("__", ".").lower()
+            option_path = env_var.removeprefix(prefix).replace("__", ".").lower()
 
             lower_value = env_value.lower()
             # Handle common booleans
@@ -465,9 +465,10 @@ options._add_option(
 )
 options._add_option(
     "params.optimize.log_to_console",
-    True,
-    "Whether to print solver output to console. See linopy's Model.solve()\n\t"
-    "documentation at https://linopy.readthedocs.io for details.",
+    None,
+    "Whether to print solver output to console. Passed as a solver option\n\t"
+    "to linopy's Model.solve(). When None, solver default behavior is used.\n\t"
+    "Note: not all solvers support this option (e.g. HiGHS does, CPLEX does not).",
 )
 options._add_option(
     "params.optimize.include_objective_constant",
@@ -477,6 +478,13 @@ options._add_option(
     "conditioning. None defaults to True with a FutureWarning (changes to False in v2.0).",
 )
 
+options._add_option(
+    "params.consistency.numerical_tolerance",
+    1e-9,
+    "Tolerance for numerical comparisons in consistency checks (e.g. p_min_pu > p_max_pu). "
+    "Values within this tolerance of the boundary are not flagged as inconsistent. "
+    "Set to 0 to disable tolerance and flag any violation.",
+)
 # Warnings category
 options._add_option(
     "warnings.components_store_iter",
@@ -492,6 +500,14 @@ options._add_option(
 )
 
 # API
+options._add_option(
+    "api.legacy_string_dtype",
+    None,
+    "Whether to convert string data to numpy `object` dtype on import. pandas 3\n\t"
+    "reads strings as `str` dtype, which PyPSA undoes by default to stay\n\t"
+    "compatible with earlier versions. Set to False to keep the `str` dtype.\n\t"
+    "PyPSA v2 will always keep it and drop this option.",
+)
 options._add_option(
     "api.new_components_api",
     False,

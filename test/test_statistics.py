@@ -2,13 +2,18 @@
 #
 # SPDX-License-Identifier: MIT
 
+
 import numpy as np
 import pandas as pd
 import pytest
 
 import pypsa
 from pypsa.statistics import groupers
-from pypsa.statistics.expressions import StatisticsAccessor
+from pypsa.statistics.expressions import (
+    StatisticsAccessor,
+    get_operation,
+    port_efficiency,
+)
 
 
 def test_stats_alias(ac_dc_network):
@@ -140,7 +145,7 @@ def test_supply_withdrawal(ac_dc_network_r):
 def test_opex():
     n = pypsa.Network()
     n.set_snapshots([0, 1, 2])
-    n.snapshot_weightings.loc[:, :] = 2
+    n.snapshot_weightings.iloc[:, :] = 2
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=[0, 0, 5])
     n.add(
@@ -246,6 +251,17 @@ def test_bus_carrier_selection_with_list(ac_dc_network_r):
     assert not df.empty
 
 
+@pytest.mark.parametrize(
+    "stat_func",
+    ["capex", "optimal_capacity", "installed_capacity"],
+)
+def test_bus_carrier_searches_all_ports(ac_dc_network_r, stat_func):
+    n = ac_dc_network_r
+    result = getattr(n.statistics, stat_func)(bus_carrier="DC")
+    components = result.index.get_level_values("component")
+    assert "Link" in components
+
+
 def test_storage_capacity(ac_dc_network_r):
     n = ac_dc_network_r
     df = n.statistics.installed_capacity(storage=True)
@@ -340,6 +356,38 @@ def test_system_cost(ac_dc_network_r):
     assert system_cost == capex + opex
 
 
+def test_system_cost_includes_fom():
+    """system_cost must include fom_cost, matching the objective (GH #1868)."""
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        capital_cost=100,
+        fom_cost=10,
+        marginal_cost=1,
+    )
+    n.optimize(inlude_objective_constant=False)
+
+    assert n.statistics.capex().sum() == pytest.approx(100.0)
+    assert n.statistics.fom().sum() == pytest.approx(10.0)
+    system_cost = n.statistics.system_cost().sum()
+    assert system_cost == pytest.approx(111.0)
+    assert system_cost == pytest.approx(n.objective)
+
+
+def test_system_cost_groupby_time_false_deprecated(ac_dc_network_r):
+    """`groupby_time=False` is unsupported (capex has no time resolution)."""
+    n = ac_dc_network_r
+    with pytest.warns(DeprecationWarning, match="groupby_time=False"):
+        result = n.statistics.system_cost(groupby_time=False)
+    assert result.equals(n.statistics.system_cost())
+
+
 def test_prices(ac_dc_network_r):
     n = ac_dc_network_r
 
@@ -360,6 +408,18 @@ def test_prices(ac_dc_network_r):
     grouped = n.statistics.prices(groupby="bus_carrier")
     assert set(grouped.index) == set(n.c.buses.static.carrier.unique())
 
+    # Test groupby static bus attributes
+    by_country = n.statistics.prices(groupby="country")
+    assert by_country.index.name == "country"
+    assert set(by_country.index) <= set(n.c.buses.static.country.unique())
+
+    full_ts = n.statistics.prices(groupby=["name", "country"], groupby_time=False)
+    assert full_ts.index.names == ["name", "country"]
+    assert len(full_ts) == len(n.buses)
+
+    with pytest.raises(ValueError, match="not supported"):
+        n.statistics.prices(groupby="not_an_attribute")
+
 
 @pytest.fixture
 def network_with_nice_name():
@@ -378,7 +438,8 @@ def network_with_nice_name():
     return n
 
 
-def test_energy_balance_bus_carrier_filter():
+@pytest.mark.parametrize("bus_carrier", ["rural heat", ("rural heat",), ["rural heat"]])
+def test_energy_balance_bus_carrier_filter(bus_carrier):
     n = pypsa.Network()
     n.set_snapshots([0])
     n.add("Carrier", "rural heat")
@@ -392,7 +453,7 @@ def test_energy_balance_bus_carrier_filter():
     )
     n.c.loads.dynamic.p = n.c.loads.dynamic.p_set.copy()
 
-    result = n.statistics.energy_balance(bus_carrier="rural heat")
+    result = n.statistics.energy_balance(bus_carrier=bus_carrier)
     assert not result.empty
     assert "bus_carrier" in result.index.names
     assert "rural heat" in result.index.get_level_values("bus_carrier")
@@ -423,3 +484,559 @@ def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
         carrier="residential rural heat", nice_names=False
     )
     assert result.empty
+
+
+@pytest.fixture(scope="module")
+def multi_invest_network():
+    n = pypsa.Network(snapshots=range(10))
+    n.investment_periods = [2020, 2030, 2040]
+    n.investment_period_weightings.loc[2020, "years"] = 10
+    n.investment_period_weightings.loc[2020, "objective"] = 10
+    n.investment_period_weightings.loc[2030, "years"] = 15
+    n.investment_period_weightings.loc[2030, "objective"] = 15
+    n.investment_period_weightings.loc[2040, "years"] = 5
+    n.investment_period_weightings.loc[2040, "objective"] = 5
+    n.add("Carrier", "wind")
+    n.add("Carrier", "gas")
+    n.add("Bus", "elec")
+    n.add(
+        "Generator",
+        "wind-2020",
+        bus="elec",
+        carrier="wind",
+        capital_cost=100,
+        marginal_cost=0,
+        p_nom_extendable=True,
+        build_year=2020,
+        lifetime=30,
+    )
+    n.add(
+        "Generator",
+        "gas-2020",
+        bus="elec",
+        carrier="gas",
+        capital_cost=50,
+        marginal_cost=30,
+        p_nom_extendable=True,
+        p_nom_min=10,
+        build_year=2020,
+        lifetime=20,
+    )
+    n.add(
+        "Generator",
+        "gas-2040",
+        bus="elec",
+        carrier="gas",
+        capital_cost=40,
+        marginal_cost=25,
+        p_nom_extendable=True,
+        build_year=2040,
+        lifetime=20,
+    )
+    load = pd.DataFrame({"load": range(100, 100 + len(n.snapshots))}, index=n.snapshots)
+    n.add("Load", "load", bus="elec", p_set=load["load"])
+    n.optimize(solver_name="highs", multi_investment_periods=True)
+    return n
+
+
+class TestMultiInvest:
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def capex(multi_invest_network):
+        return multi_invest_network.statistics.capex()
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def capex_ungrouped(multi_invest_network):
+        return multi_invest_network.statistics.capex(groupby=False)
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def opex(multi_invest_network):
+        return multi_invest_network.statistics.opex()
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def opex_ungrouped(multi_invest_network):
+        return multi_invest_network.statistics.opex(groupby=False)
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def system_cost(multi_invest_network):
+        return multi_invest_network.statistics.system_cost()
+
+    def test_capex_structure(self, capex):
+        assert isinstance(capex, pd.DataFrame)
+        assert list(capex.columns) == [2020, 2030, 2040]
+        assert (capex.fillna(0) >= 0).all().all()
+
+    def test_capex_weighted(self, multi_invest_network, capex):
+        weights = multi_invest_network.investment_period_weightings["objective"]
+        annualized_2020 = capex[2020].dropna() / weights[2020]
+        annualized_2030 = capex[2030].dropna() / weights[2030]
+        pd.testing.assert_series_equal(
+            annualized_2020, annualized_2030, rtol=1e-3, check_names=False
+        )
+
+    def test_capex_active_assets_filtering(self, capex_ungrouped):
+        assert pd.isna(capex_ungrouped.loc[("Generator", "gas-2040"), 2020])
+        assert capex_ungrouped.loc[("Generator", "gas-2040"), 2040] > 0.0
+
+    def test_opex_structure(self, opex):
+        assert isinstance(opex, pd.DataFrame)
+        assert list(opex.columns) == [2020, 2030, 2040]
+        assert not opex.empty
+        assert (opex.fillna(0) >= 0).all().all()
+
+    def test_opex_matches_marginal_cost(self, multi_invest_network, opex_ungrouped):
+        n = multi_invest_network
+        pw = n.investment_period_weightings["objective"]
+        sw = n.snapshot_weightings.objective
+        for period in n.investment_periods:
+            active = n.c.generators.get_active_assets(period)
+            mc = n.c.generators.static.loc[active, "marginal_cost"]
+            mc = mc[mc > 0]
+            p = n.c.generators.dynamic.p.loc[period, mc.index]
+            expected = (p * mc).multiply(sw.loc[period], axis=0).sum() * pw[period]
+            actual = (
+                opex_ungrouped.loc["Generator"]
+                .reindex(expected.index)[period]
+                .fillna(0)
+            )
+            pd.testing.assert_series_equal(
+                actual, expected, rtol=1e-3, atol=1e-6, check_names=False
+            )
+
+    def test_system_cost_equals_capex_plus_opex(self, capex, opex, system_cost):
+        expected = capex.add(opex, fill_value=0).reindex(system_cost.index)
+        pd.testing.assert_frame_equal(expected, system_cost, atol=1e-3)
+
+    def test_system_cost_consistent_with_objective(
+        self, multi_invest_network, system_cost
+    ):
+        assert np.nansum(system_cost.values) == pytest.approx(
+            multi_invest_network.objective, rel=1e-3
+        )
+
+
+class TestGetOperation:
+    @pytest.mark.parametrize(
+        ("component", "expected_attr"),
+        [("Link", "p0"), ("Line", "p0"), ("Generator", "p"), ("Store", "e")],
+    )
+    def test_get_operation(self, ac_dc_network_r, component, expected_attr):
+        n = ac_dc_network_r
+        pd.testing.assert_frame_equal(
+            get_operation(n, component), n.components[component].dynamic[expected_attr]
+        )
+
+    def test_get_operation_multi_port(self, multiport_process_network):
+        pd.testing.assert_frame_equal(
+            get_operation(multiport_process_network, "Process"),
+            multiport_process_network.c.processes.dynamic["p"],
+        )
+
+
+class TestMarketValue:
+    mv_kwargs = {"nice_names": False, "round": None, "drop_zero": False}
+    rtol = 1e-6
+
+    def test_multiport(self, multiport_process_network):
+        n = multiport_process_network
+        mv = n.statistics.market_value(**self.mv_kwargs)
+
+        operation = n.c.processes.dynamic["p"]["electrolyser"]
+        prices = n.c.buses.dynamic["marginal_price"]
+        rev_per_t = -(
+            n.c.processes.dynamic["p0"]["electrolyser"] * prices["elec"]
+            + n.c.processes.dynamic["p1"]["electrolyser"] * prices["h2"]
+            + n.c.processes.dynamic["p2"]["electrolyser"] * prices["heat"]
+        )
+        expected = rev_per_t.mean() / operation.mean()
+        np.testing.assert_allclose(
+            mv.loc[("Process", "electrolyser")], expected, rtol=self.rtol
+        )
+
+    @pytest.mark.parametrize(
+        ("bus_carrier", "port", "bus"),
+        [
+            ("AC", "p0", "elec"),
+            ("H2", "p1", "h2"),
+            ("heat", "p2", "heat"),
+        ],
+    )
+    def test_with_bus_carrier(self, multiport_process_network, bus_carrier, port, bus):
+        n = multiport_process_network
+        mv = n.statistics.market_value(bus_carrier=bus_carrier, **self.mv_kwargs)
+
+        reference_operation = n.c.processes.dynamic["p"]["electrolyser"]
+        operation = n.c.processes.dynamic[port]["electrolyser"]
+        prices = n.c.buses.dynamic["marginal_price"][bus]
+        expected = -(operation * prices).mean() / reference_operation.mean()
+        np.testing.assert_allclose(
+            mv.loc[("Process", "electrolyser")], expected, rtol=self.rtol
+        )
+
+    def test_bus_carrier_additivity(self, multiport_process_network):
+        n = multiport_process_network
+        mv_kw = {**self.mv_kwargs, "groupby": False}
+        mv_total = n.statistics.market_value(**mv_kw)
+        mv_ac = n.statistics.market_value(bus_carrier="AC", **mv_kw)
+        mv_h2 = n.statistics.market_value(bus_carrier="H2", **mv_kw)
+        mv_heat = n.statistics.market_value(bus_carrier="heat", **mv_kw)
+
+        expected = (
+            mv_ac.loc[("Process", "electrolyser")]
+            + mv_h2.loc[("Process", "electrolyser")]
+            + mv_heat.loc[("Process", "electrolyser")]
+        )
+        np.testing.assert_allclose(
+            mv_total.loc[("Process", "electrolyser")], expected, rtol=self.rtol
+        )
+
+    def test_generator(self, multiport_process_network):
+        n = multiport_process_network
+        mv = n.statistics.market_value(components="Generator", **self.mv_kwargs)
+        operation = n.c.generators.dynamic["p"]["gen"]
+        prices = n.c.buses.dynamic["marginal_price"]["elec"]
+        expected = (operation * prices).mean() / operation.mean()
+        np.testing.assert_allclose(mv.loc["AC"], expected, rtol=self.rtol)
+
+    def test_withdrawing_load_sign(self):
+        n = pypsa.Network()
+        n.set_snapshots([0, 1])
+        n.add("Carrier", "AC")
+        n.add("Carrier", "load")
+        n.add("Bus", "b", carrier="AC")
+        n.add("Load", "l", bus="b", carrier="load", p_set=[10.0, 20.0])
+        n.c.loads.dynamic["p"] = n.c.loads.dynamic["p_set"].copy()
+
+        marginal_price = pd.DataFrame({"b": [50.0, 100.0]}, index=n.snapshots)
+        marginal_price.columns.name = "name"
+        n.c.buses.dynamic["marginal_price"] = marginal_price
+
+        mv = n.statistics.market_value(components="Load", **self.mv_kwargs)
+
+        p_load = np.array([10.0, 20.0])
+        price_load = np.array([50.0, 100.0])
+        expected = -(p_load * price_load).mean() / p_load.mean()
+        np.testing.assert_allclose(mv.loc["load"], expected, rtol=self.rtol)
+        assert mv.loc["load"] < 0
+
+    def test_grouped_branches_is_finite(self, ac_dc_network_r):
+        n = ac_dc_network_r
+        mv = n.statistics.market_value(**self.mv_kwargs)
+
+        assert np.isfinite(mv.loc[("Link", "DC")])
+        assert np.isfinite(mv.loc[("Line", "AC")])
+
+
+class TestStatisticsWithPiecewise:
+    """Tests for piecewise variables affecting statistics."""
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def piecewise_network_solved(piecewise_network):
+        piecewise_network.optimize(include_objective_constant=False)
+        return piecewise_network
+
+    def test_stats_capex(self, piecewise_network_solved):
+        """Piecewise capital cost of StorageUnit shows in capex statistic."""
+        stat = piecewise_network_solved.stats.capex(groupby=["name"])
+        assert stat.loc[("StorageUnit", "storage1")] > 0
+
+    def test_stats_opex(self, piecewise_network_solved):
+        """Piecewise marginal cost of Generator shows in opex statistic."""
+        stat = piecewise_network_solved.stats.opex(groupby=["name"])
+        assert stat.loc[("Generator", "gen0")] > 0
+
+    @staticmethod
+    def _process_network(**proc_kwargs):
+        n = pypsa.Network()
+        n.add("Bus", ["b0", "b1"])
+        n.add("Generator", "src", bus="b0", p_nom=100)
+        n.add("Load", "load", bus="b1", p_set=50.0)
+        n.add("Process", "proc", bus0="b0", bus1="b1", rate0=-1, rate1=1, **proc_kwargs)
+        n.optimize()
+        return n
+
+    def test_stats_capex_process(self):
+        """Piecewise capital cost of Process is written back and shows in capex."""
+        n = self._process_network(
+            p_nom_extendable=True,
+            p_nom_max=100,
+            capital_cost=pd.DataFrame(
+                {"p_nom": [0.0, 100.0], "capital_cost": [0.5, 1.5]}
+            ),
+        )
+        assert n.stats.capex().sum() == n.objective == 75.0
+
+    def test_stats_opex_process(self):
+        """Piecewise marginal cost of Process is written back and shows in opex."""
+        n = self._process_network(
+            p_nom=100,
+            marginal_cost={0.0: 10.0, 0.5: 20.0, 1.0: 40.0},
+        )
+        assert n.stats.opex().sum() == n.objective == 1000.0
+
+    def test_stats_energy_balance(self, piecewise_network_solved):
+        """Piecewise efficiency of Link shows in energy balance statistic."""
+        stat = piecewise_network_solved.stats.energy_balance(groupby=["name"])
+        assert stat.loc[("Link", "link")] < 0
+
+    def test_stats_withdrawal_supply(self, piecewise_network_solved):
+        """Piecewise efficiency of Link shows between supply and withdrawal."""
+        supply = piecewise_network_solved.stats.supply(groupby=["name"])
+        withdrawal = piecewise_network_solved.stats.withdrawal(groupby=["name"])
+        assert supply.loc[("Link", "link")] < withdrawal.loc[("Link", "link")]
+
+
+class TestPortEfficiency:
+    """Tests for port_efficiency (static and dynamic numeric efficiencies)."""
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def base_network():
+        idx = pd.Index([0, 1, 2])
+        n = pypsa.Network()
+        n.set_snapshots(idx)
+        n.add("Bus", ["bus0", "bus1", "bus2", "bus3"], carrier="AC")
+        n.add("Generator", "gen", bus="bus0", p_nom=100)
+        return n
+
+    @staticmethod
+    @pytest.fixture(scope="class", params=["Link", "Process"])
+    def component(request):
+        return request.param
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def eff_param(component):
+        if component == "Link":
+            return "efficiency"
+        if component == "Process":
+            return "rate"
+        raise ValueError(f"Unexpected component type: {component}")
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def eff1(eff_param, component):
+        return f"{eff_param}1" if component == "Process" else eff_param
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def static_link_eff(base_network, eff_param, eff1, component):
+        """Minimal network with a multi-port Link and piecewise efficiency."""
+        n = base_network.copy()
+        n.add(
+            component,
+            f"{component.lower()}_static",
+            bus0="bus0",
+            bus1="bus1",
+            bus2="bus2",
+            **{eff1: 0.8, f"{eff_param}2": 0.5},
+        )
+        return n
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def dynamic_link_eff(base_network, eff_param, eff1, component):
+        """Minimal network with a multi-port Link and piecewise efficiency."""
+        n = base_network.copy()
+        n.add(
+            component,
+            f"{component.lower()}_dyn",
+            bus0="bus0",
+            bus1="bus1",
+            bus2="bus2",
+            **{
+                eff1: pd.Series([0.7, 0.8, 0.9], index=n.snapshots),
+                f"{eff_param}2": pd.Series([0.1, 0.2, 0.3], index=n.snapshots),
+            },
+        )
+        return n
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def piecewise_link_eff(base_network, eff1, component):
+        """Network with a Link whose efficiency is defined piecewise per breakpoint."""
+        n = base_network.copy()
+        n.add(
+            component,
+            f"{component.lower()}_seg",
+            bus0="bus0",
+            bus1="bus1",
+            p_nom=100,
+            **{eff1: {0.0: 0.4, 0.5: 0.5, 1.0: 0.6}},
+        )
+        return n
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def mixed_link_eff(base_network, eff_param, eff1, component):
+        """Network with a Link whose efficiency is defined piecewise per breakpoint."""
+        n = base_network.copy()
+        n.add(
+            component,
+            f"{component.lower()}_mix",
+            bus0="bus0",
+            bus1="bus1",
+            bus2="bus2",
+            bus3="bus3",
+            p_nom=100,
+            **{
+                eff1: 0.5,
+                f"{eff_param}2": {0.0: 0.4, 0.5: 0.5, 1.0: 0.6},
+                f"{eff_param}3": pd.Series([0.1, 0.2, 0.3], index=n.snapshots),
+            },
+        )
+        return n
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def default_dynamic_eff(mixed_link_eff, component):
+        """Return default dynamic efficiency that is generated when a Link port has no dynamic efficiency defined."""
+        dyn_eff = pd.DataFrame(
+            1.0,
+            index=mixed_link_eff.snapshots,
+            columns=pd.Index([f"{component.lower()}_mix"], name="name"),
+        )
+        return dyn_eff
+
+    # --- one-port components ---
+
+    def test_one_port_returns_ones(self, base_network):
+        result = port_efficiency(base_network, "Generator", port=0)
+        assert (result == 1).all()
+
+    # --- passive branches ---
+
+    def test_passive_branch_port0_returns_minus_ones(self, ac_dc_network):
+        result = port_efficiency(ac_dc_network, "Line", port=0)
+        assert (result == -1).all()
+
+    def test_passive_branch_port1_returns_ones(self, ac_dc_network):
+        result = port_efficiency(ac_dc_network, "Line", port=1)
+        assert (result == 1).all()
+
+    # --- Link static efficiency ---
+
+    def test_static_link_port0_returns_minus_ones(self, static_link_eff, component):
+        result = port_efficiency(static_link_eff, component, port=0)
+        assert (result == -1).all()
+
+    def test_static_link_port1_returns_efficiency(self, static_link_eff, component):
+        result = port_efficiency(static_link_eff, component, port=1)
+        assert result[f"{component.lower()}_static"] == pytest.approx(0.8)
+
+    def test_static_link_port2_returns_efficiency2(self, static_link_eff, component):
+        result = port_efficiency(static_link_eff, component, port=2)
+        assert result[f"{component.lower()}_static"] == pytest.approx(0.5)
+
+    # --- Link dynamic efficiency ---
+
+    def test_dynamic_link_port1_returns_dataframe(self, dynamic_link_eff, component):
+        result = port_efficiency(dynamic_link_eff, component, port=1, dynamic=True)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_dynamic_link_port1_values(self, dynamic_link_eff, component, eff1):
+        result = port_efficiency(dynamic_link_eff, component, port=1, dynamic=True)
+        expected = dynamic_link_eff.components[component].dynamic[eff1]
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_dynamic_link_port2_returns_dataframe(
+        self, dynamic_link_eff, component, eff_param
+    ):
+        result = port_efficiency(dynamic_link_eff, component, port=2, dynamic=True)
+        expected = dynamic_link_eff.components[component].dynamic[f"{eff_param}2"]
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_dynamic_link_port2_values(self, dynamic_link_eff, component, eff_param):
+        result = port_efficiency(dynamic_link_eff, component, port=2, dynamic=True)
+        expected = dynamic_link_eff.components[component].dynamic[f"{eff_param}2"]
+        pd.testing.assert_frame_equal(result, expected)
+
+    # --- piecewise efficiency is not port_efficiency's concern ---
+
+    def test_piecewise_link_returns_static_fallback(
+        self, piecewise_link_eff, component, eff1
+    ):
+        """port_efficiency ignores piecewise data and returns the static fallback."""
+        result = port_efficiency(piecewise_link_eff, component, port=1)
+        expected = pd.Series(
+            1.0,
+            index=piecewise_link_eff.components[component].static.index,
+            name=eff1,
+        )
+        pd.testing.assert_series_equal(result, expected)
+
+    # --- mixed efficiency (parametrized over all combinations) ---
+
+    def test_mixed_link_port0_always_minus_one(self, mixed_link_eff, component):
+        result = port_efficiency(mixed_link_eff, component, port=0)
+        assert (result == -1).all()
+
+    @pytest.mark.parametrize("dynamic", [True, False])
+    def test_mixed_link_port1_static(
+        self, mixed_link_eff, default_dynamic_eff, dynamic, component
+    ):
+        result = port_efficiency(mixed_link_eff, component, port=1, dynamic=dynamic)
+        if dynamic:
+            pd.testing.assert_frame_equal(result, default_dynamic_eff * 0.5)
+        else:
+            assert result.item() == 0.5
+
+    def test_mixed_link_port2_static_request(self, mixed_link_eff, component):
+        """A piecewise-only port has no scalar static value, so it falls back to one."""
+        result = port_efficiency(mixed_link_eff, component, port=2, dynamic=False)
+        assert result.item() == 1
+
+    def test_mixed_link_port2_dynamic_request(
+        self, mixed_link_eff, default_dynamic_eff, component
+    ):
+        result = port_efficiency(mixed_link_eff, component, port=2, dynamic=True)
+        pd.testing.assert_frame_equal(result, default_dynamic_eff)
+
+    def test_mixed_link_port3_static_request(self, mixed_link_eff, component):
+        result = port_efficiency(mixed_link_eff, component, port=3, dynamic=False)
+        assert result.item() == 1
+
+    def test_mixed_link_port3_dynamic_dynamic(
+        self, mixed_link_eff, component, eff_param
+    ):
+        result = port_efficiency(mixed_link_eff, component, port=3, dynamic=True)
+        expected = mixed_link_eff.components[component].dynamic[f"{eff_param}3"]
+        pd.testing.assert_frame_equal(result, expected)
+
+
+def test_1144():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1144.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.c.generators.static["build_year"] = [2020, 2020, 2030, 2030, 2040, 2040]
+    n.investment_periods = [2020, 2030, 2040]
+    capacity = n.statistics.installed_capacity(components="Generator")
+    assert capacity[2020].sum() < capacity[2030].sum() < capacity[2040].sum()
+
+
+def test_statistics_groupby_time_true():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1534.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+    result = n.statistics.revenue(groupby_time=True)
+    expected = n.statistics.revenue(groupby_time="sum")
+    pd.testing.assert_series_equal(result, expected)
+
+
+def test_installed_capex_honours_cost_attribute():
+    n = pypsa.Network()
+    n.add("Bus", "b")
+    n.add("Generator", "g", bus="b", p_nom=100, capital_cost=10, fom_cost=3)
+
+    default = n.statistics.installed_capex(drop_zero=False)
+    fom = n.statistics.installed_capex(cost_attribute="fom_cost", drop_zero=False)
+    assert default.sum() == 1000.0
+    assert fom.sum() == 300.0

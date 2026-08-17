@@ -29,11 +29,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _sum_keep_na(s: Series) -> float:
+    """Sum keeping all nan groups as nan instead of collapsing them to 0."""
+    return s.sum(min_count=1)
+
+
 DEFAULT_ONE_PORT_STRATEGIES = {
     "p": "sum",
     "q": "sum",
-    "p_set": "sum",
-    "q_set": "sum",
+    "p_set": _sum_keep_na,
+    "q_set": _sum_keep_na,
     "p_nom": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
     "p_nom_max": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
     "p_nom_min": "sum",
@@ -197,7 +202,7 @@ def flatten_multiindex(m: pd.MultiIndex, join: str = " ") -> pd.Index:
     --------
     >>> m = pd.MultiIndex.from_tuples([("a", "b"), ("c", "d")])
     >>> flatten_multiindex(m)
-    Index(['a b', 'c d'], dtype='object')
+    Index(['a b', 'c d'], dtype='str')
 
     """
     return m if m.nlevels <= 1 else m.to_flat_index().str.join(join).str.strip()
@@ -269,10 +274,10 @@ def aggregateoneport(
     capacity = static.columns.intersection({"p_nom", "e_nom"})
     if len(capacity):
         capacity_weights = (
-            static[capacity[0]].groupby(grouper, axis=0).transform(normed_or_uniform)
+            static[capacity[0]].groupby(grouper).transform(normed_or_uniform)
         )
     if "weight" in static.columns:
-        weights = static.weight.groupby(grouper, axis=0).transform(normed_or_uniform)
+        weights = static.weight.groupby(grouper).transform(normed_or_uniform)
 
     for k, v in static_strategies.items():
         if v == "weighted_average":
@@ -446,7 +451,7 @@ def aggregatelines(
     length_factor = (static.length / orig_length).where(orig_length > 0, static.length)
     v_nom = pd.concat(
         [static.bus0.map(buses.v_nom), static.bus1.map(buses.v_nom)], axis=1
-    ).max(1)
+    ).max(axis=1)
     voltage_factor = (orig_v_nom / v_nom) ** 2
     capacity_weights = static.groupby(grouper).s_nom.transform(normed_or_uniform)
 

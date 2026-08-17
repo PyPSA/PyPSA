@@ -37,6 +37,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](uc-prices.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Maintenance Scheduling**
+
+    Schedules optimal maintenance windows for generators, links and processes with contiguous downtime blocks, partial outages, and multiple events.
+
+    [:octicons-arrow-right-24: Go to example](maintenance-scheduling.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Meshed AC-DC Networks**
 
     Builds a stylized 3-node AC network coupled via AC-DC converters to a 3-node DC network.
@@ -140,6 +146,22 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](modular-expansion.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Committable and Extendable Components**
+
+    Co-optimize capacity expansion and unit commitment using big-M linearization.
+    Demonstrates continuous capacity decisions with start-up/shut-down costs,
+    ramp limits, and minimum load constraints.
+
+    [:octicons-arrow-right-24: Go to example](committable-extendable.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Modular and Committable Components**
+
+    Model discrete capacity blocks with unit commitment where status represents
+    the number of committed modules. Shows modular gas turbines, HVDC links,
+    and multi-module operational dynamics.
+
+    [:octicons-arrow-right-24: Go to example](modular-committable.ipynb)
+
 </div>
 
 
@@ -160,6 +182,13 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
     affect price formation.
 
     [:octicons-arrow-right-24: Go to example](demand-elasticity.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Imperfect Competition**
+
+    Models oligopolistic behavior in energy markets using Cournot-Nash equilibrium
+    with the fictitious objective approach, avoiding KKT conditions.
+
+    [:octicons-arrow-right-24: Go to example](imperfect-competition.ipynb)
 
 -   :material-notebook:{ .lg .middle } **Screening Curves**
 
@@ -187,6 +216,18 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
     Implements operating reserve requirements in power system optimization.
 
     [:octicons-arrow-right-24: Go to example](reserve-power.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Link Delay**
+
+    Demonstrates time-delayed energy transport through links, modeling pipeline or shipping delays with cyclic and non-cyclic boundary behavior.
+
+    [:octicons-arrow-right-24: Go to example](transport-delay.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Piecewise costs & constraints**
+
+    Demonstrates the application of piecewise linear costs and part-load efficiency constraints.
+
+    [:octicons-arrow-right-24: Go to example](piecewise-constraints.ipynb)
 
 </div>
 

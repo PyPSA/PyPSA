@@ -374,7 +374,7 @@ def test_unit_commitment_rolling_horizon():
 
 def test_linearized_unit_commitment():
     n = pypsa.Network()
-    n.snapshots = pd.date_range("2022-01-01", "2022-02-09", freq="d")
+    n.snapshots = pd.date_range("2022-01-01", "2022-02-09", freq="D")
 
     load = np.zeros(len(n.snapshots))
     load[:5] = 5
@@ -625,6 +625,53 @@ def test_dynamic_ramp_rates():
     assert (n.c.generators.dynamic.p.diff().loc[0:6, "gen1"]).min() >= -0.5 * 100
     assert (n.c.generators.dynamic.p.diff().loc[6:, "gen1"]).max() <= 80
     assert (n.c.generators.dynamic.p.diff().loc[6:, "gen1"]).min() >= -100
+
+
+@pytest.mark.parametrize("direction", ["up", "down"])
+def test_generator_ramp_constraints_unsorted_names(direction):
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1675
+
+    With one fixed and one extendable generator on the same component,
+    a non-alphabetical insertion order used to leak the extendable's
+    p_nom variable into the fixed generator's ramp constraint.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2025-01-01", periods=3, freq="h"))
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=100)
+
+    # Fixed generator's name sorts AFTER the extendable's; this ordering
+    # is what triggered the bug.
+    n.add(
+        "Generator",
+        "fixed_lignite",
+        bus="bus",
+        p_nom=944,
+        marginal_cost=30,
+        **{f"ramp_limit_{direction}": 0.04},
+    )
+    n.add(
+        "Generator",
+        "ext_gas",
+        bus="bus",
+        p_nom_extendable=True,
+        marginal_cost=95,
+        capital_cost=52_000,
+    )
+
+    n.optimize.create_model()
+
+    con = n.model.constraints[f"Generator-p-ramp_limit_{direction}"]
+    p_nom_ext_label = int(
+        n.model.variables["Generator-p_nom"].labels.sel(name="ext_gas")
+    )
+    vars_for_fixed = con.vars.sel(name="fixed_lignite").values
+    assert (vars_for_fixed != p_nom_ext_label).all(), (
+        f"ramp_{direction} for 'fixed_lignite' references the extendable's "
+        f"p_nom variable (issue #1675)"
+    )
 
 
 @pytest.mark.parametrize("direction", ["up", "down"])
@@ -1201,3 +1248,116 @@ def test_ramp_limit_shut_down_first_snapshot_with_slack():
     assert abs(slack_output[0] - 4500.0) < 1e-3, (
         f"Snapshot 0: Expected slack output 4500.0, got {slack_output[0]}"
     )
+
+
+@pytest.mark.parametrize(
+    "generator_kwargs",
+    [
+        {},
+        {"p_nom_extendable": True, "p_nom_mod": 50},
+        {"ramp_limit_up": 0.5},
+    ],
+    ids=["fixed", "extendable-modular", "ramp-limited"],
+)
+@pytest.mark.parametrize("committable", [False, True], ids=["sole", "alongside-active"])
+def test_inactive_committable_generator(generator_kwargs, committable):
+    """Inactive committables get no status variable, so must not be constrained."""
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "active",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=50,
+        committable=committable,
+        **(generator_kwargs if committable else {}),
+    )
+    n.add(
+        "Generator",
+        "inactive",
+        bus="bus",
+        p_nom=100,
+        committable=True,
+        active=False,
+        marginal_cost=60,
+        **generator_kwargs,
+    )
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    n.optimize.create_model(include_objective_constant=False)
+
+    if committable:
+        assert "inactive" not in n.model.variables["Generator-status"].indexes["name"]
+    else:
+        assert "Generator-status" not in n.model.variables
+
+
+def test_inactive_committable_generator_multi_investment():
+    """Narrowing to active assets must not drop assets active in only some periods."""
+    n = pypsa.Network(snapshots=range(2))
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "active",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=50,
+        committable=True,
+        ramp_limit_up=0.5,
+    )
+    n.add(
+        "Generator",
+        "later",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=70,
+        committable=True,
+        ramp_limit_up=0.5,
+        build_year=2030,
+        lifetime=20,
+    )
+    n.add(
+        "Generator",
+        "inactive",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=60,
+        committable=True,
+        active=False,
+    )
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    n.optimize.create_model(
+        include_objective_constant=False, multi_investment_periods=True
+    )
+
+    names = n.model.variables["Generator-status"].indexes["name"]
+    assert "inactive" not in names
+    assert "later" in names
+
+
+def test_inactive_asset_with_modular_committable_ramp():
+    """Ramp limits on a modular extendable committable, alongside any inactive asset."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Generator", "backup", bus="bus", p_nom=500, marginal_cost=200)
+    n.add(
+        "Generator",
+        "com_mod_ext",
+        bus="bus",
+        p_nom_extendable=True,
+        p_nom_mod=50,
+        p_nom_max=200,
+        committable=True,
+        marginal_cost=12,
+        ramp_limit_up=0.5,
+    )
+    n.add("Generator", "inactive", bus="bus", p_nom=100, active=False, marginal_cost=99)
+    n.add("Load", "load", bus="bus", p_set=120)
+
+    n.optimize.create_model(include_objective_constant=False)
+
+    ramp_up = n.model.constraints["Generator-p-ramp_limit_up"]
+    assert "inactive" not in ramp_up.indexes["name"]

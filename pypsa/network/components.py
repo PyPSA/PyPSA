@@ -105,16 +105,16 @@ class NetworkComponentsMixin(_NetworkABC):
 
         Which is the same reference when accessing the component directly:
         >>> n.generators # doctest: +ELLIPSIS
-                            bus control  ...
-        name                             ...
-        Manchester Wind  Manchester   Slack  ...
-        Manchester Gas   Manchester      PQ  ...
-        Norway Wind          Norway      PQ  ...
-        Norway Gas           Norway      PQ  ...
-        Frankfurt Wind    Frankfurt   Slack  ...
-        Frankfurt Gas     Frankfurt      PQ  ...
+                                bus control  ...    p_nom_opt  capital_cost_piecewise_opt
+        name                                 ...
+        Manchester Wind  Manchester   Slack  ...  4090.809778                         0.0
+        Manchester Gas   Manchester      PQ  ...     0.000000                         0.0
+        Norway Wind          Norway      PQ  ...  1533.599858                         0.0
+        Norway Gas           Norway      PQ  ...     0.000000                         0.0
+        Frankfurt Wind    Frankfurt   Slack  ...  1667.724420                         0.0
+        Frankfurt Gas     Frankfurt      PQ  ...   982.034483                         0.0
         <BLANKLINE>
-        [6 rows x 42 columns]
+        [6 rows x 47 columns]
         >>> n.generators is n.components.generators.static
         True
 
@@ -275,6 +275,21 @@ class NetworkComponentsMixin(_NetworkABC):
         if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.links.static = value
+
+    @property
+    def processes(self) -> Any:
+        """Access to static data of [pypsa.components.Processes][]."""
+        return (
+            self.c.processes.static
+            if not options.api.new_components_api
+            else self.c.processes
+        )
+
+    @processes.setter
+    def processes(self, value: pd.DataFrame) -> None:
+        if options.api.new_components_api:
+            raise AttributeError(_STATIC_SETTER_WARNING)
+        self.c.processes.static = value
 
     @property
     def loads(self) -> Any:
@@ -686,10 +701,10 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.controllable_branch_components)
-        ['Link']
+        ['Link', 'Process']
 
         """
-        return {"Link"}
+        return {"Link", "Process"}
 
     @property
     def controllable_one_port_components(self) -> set[str]:
@@ -758,7 +773,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.branch_components)
-        ['Line', 'Link', 'Transformer']
+        ['Line', 'Link', 'Process', 'Transformer']
 
         """
         return self.passive_branch_components | self.controllable_branch_components
@@ -770,7 +785,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.all_components)
-        ['Bus', 'Carrier', 'Generator', 'GlobalConstraint', 'Line', 'LineType', 'Link', 'Load', 'Shape', 'ShuntImpedance', 'StorageUnit', 'Store', 'SubNetwork', 'Transformer', 'TransformerType']
+        ['Bus', 'Carrier', 'Generator', 'GlobalConstraint', 'Line', 'LineType', 'Link', 'Load', 'Process', 'Shape', 'ShuntImpedance', 'StorageUnit', 'Store', 'SubNetwork', 'Transformer', 'TransformerType']
 
         """
         return {
@@ -789,6 +804,7 @@ class NetworkComponentsMixin(_NetworkABC):
             "LineType",
             "Bus",
             "Load",
+            "Process",
         }
 
     @property

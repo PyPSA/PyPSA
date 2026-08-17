@@ -9,15 +9,35 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pandas as pd
+import xarray as xr
 from deprecation import deprecated
-from numpy import hstack, ravel
+from numpy import hstack, ravel, roll, zeros
 
 from pypsa.constants import RE_PORTS
 
 if TYPE_CHECKING:
-    import xarray as xr
+    from linopy import Variable
 
     from pypsa import Network
+
+
+def _period_start_mask(sns: pd.Index) -> xr.DataArray:
+    """Mark the first snapshot of each investment period."""
+    is_start = zeros(len(sns), dtype=bool)
+    is_start[0] = True
+    if isinstance(sns, pd.MultiIndex) and "period" in sns.names:
+        periods = sns.get_level_values("period").to_numpy()
+        is_start[1:] = periods[1:] != periods[:-1]
+    return xr.DataArray(is_start, coords=[sns])
+
+
+def _roll_within_periods(v: Variable) -> Variable:
+    """Cyclically roll ``v`` by one snapshot within each investment period."""
+    sns = v.indexes["snapshot"]
+    positions = pd.Series(range(len(sns)), index=sns)
+    roll_index = positions.groupby(level="period").transform(lambda s: roll(s, 1))
+    coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
+    return v.isel(snapshot=roll_index.to_numpy()).assign_coords(coords)
 
 
 @deprecated(
@@ -53,7 +73,7 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
         c.dynamic[attr] = df.reindex(n.snapshots)
 
     else:
-        c.dynamic[attr].loc[df.index, df.columns] = df
+        c.dynamic[attr] = df.combine_first(c.dynamic[attr])
 
     # Reindex to match network snapshots and component names
     result = c.dynamic[attr].reindex(n.snapshots, level="snapshot", axis=0)
@@ -71,6 +91,32 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
     c.dynamic[attr] = result.fillna(0.0)
 
 
+def get_bus_counts(n: Network) -> pd.Series:
+    """Count how often each bus appears in component bus columns.
+
+    Parameters
+    ----------
+    n : Network
+        The network to analyze.
+
+    Returns
+    -------
+    pandas.Series
+        Bus usage counts indexed by bus name.
+
+    """
+    all_buses = pd.Series(
+        hstack([ravel(c.static.filter(regex=RE_PORTS.pattern)) for c in n.components])
+    )
+    all_buses = all_buses[all_buses != ""]
+    return all_buses.value_counts()
+
+
+@deprecated(
+    deprecated_in="1.1.3",
+    removed_in="2.0.0",
+    details="Use `get_bus_counts(n).loc[lambda s: s > threshold].index` instead.",
+)
 def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     """Get the buses which are strongly meshed in the network.
 
@@ -86,11 +132,7 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     pandas series of all meshed buses.
 
     """
-    all_buses = pd.Series(
-        hstack([ravel(c.static.filter(regex=RE_PORTS.pattern)) for c in n.components])
-    )
-    all_buses = all_buses[all_buses != ""]
-    counts = all_buses.value_counts()
+    counts = get_bus_counts(n)
     results = counts.index[counts > threshold].rename("Bus")
     results = results.sort_values()
     return results

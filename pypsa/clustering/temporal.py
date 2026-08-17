@@ -57,6 +57,28 @@ TEMPORAL_AGGREGATION_DEFAULTS: dict[str, str] = {
 }
 
 
+def _enforce_pu_bounds(n: Network) -> None:
+    """Clip aggregated `*_min_pu` series so they never exceed `*_max_pu`.
+
+    Aggregation can lift a lower bound above its paired upper bound, either from
+    floating-point error (segmentation normalises per column) or from min/max
+    aggregation rules (`e_min_pu` uses `max`, `e_max_pu` uses `min`).
+    """
+    for c in n.components:
+        for min_attr in [a for a in c.dynamic if a.endswith("_min_pu")]:
+            max_attr = min_attr.replace("_min_pu", "_max_pu")
+            if max_attr not in c.dynamic:
+                continue
+            min_df = c.dynamic[min_attr]
+            max_df = c.dynamic[max_attr]
+            common = min_df.columns.intersection(max_df.columns)
+            if common.empty:
+                continue
+            c.dynamic[min_attr].loc[:, common] = min_df[common].clip(
+                upper=max_df[common]
+            )
+
+
 @dataclass
 class TemporalClustering:
     """Result of temporal clustering.
@@ -73,6 +95,10 @@ class TemporalClustering:
 
     n: Network
     snapshot_map: pd.Series
+
+    def __post_init__(self) -> None:
+        """Sanitize time clustered data."""
+        _enforce_pu_bounds(self.n)
 
 
 def _get_aggregation_rule(
@@ -628,7 +654,7 @@ class TemporalClusteringMixin:
             )
             raise ModuleNotFoundError(msg)
 
-        import tsam.timeseriesaggregation as tsam_module  # noqa: PLC0415
+        import tsam  # noqa: PLC0415
 
         if exclude_attrs is None:
             exclude_attrs = ["e_min_pu"]
@@ -659,15 +685,26 @@ class TemporalClusteringMixin:
         df_normalized = combined.div(normalization_factors)
         df_normalized = df_normalized.fillna(0)
 
-        agg = tsam_module.TimeSeriesAggregation(
-            df_normalized,
-            hoursPerPeriod=len(df_normalized),
-            noTypicalPeriods=1,
-            noSegments=num_segments,
-            segmentation=True,
-            solver=solver,
-        )
-        segmented = agg.createTypicalPeriods()
+        if hasattr(tsam, "aggregate"):  # tsam >= 3.0
+            result = tsam.aggregate(
+                df_normalized,
+                n_clusters=1,
+                period_duration=len(df_normalized),
+                segments=tsam.SegmentConfig(n_segments=num_segments),
+            )
+            segmented = result.cluster_representatives
+        else:  # tsam < 3.0
+            import tsam.timeseriesaggregation  # noqa: PLC0415
+
+            agg = tsam.timeseriesaggregation.TimeSeriesAggregation(
+                df_normalized,
+                hoursPerPeriod=len(df_normalized),
+                noTypicalPeriods=1,
+                noSegments=num_segments,
+                segmentation=True,
+                solver=solver,
+            )
+            segmented = agg.createTypicalPeriods()
 
         weightings_raw = segmented.index.get_level_values("Segment Duration")
         offsets = np.insert(np.cumsum(weightings_raw.values[:-1]), 0, 0).astype(int)

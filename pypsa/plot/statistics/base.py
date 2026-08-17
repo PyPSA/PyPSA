@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
@@ -15,6 +16,26 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pypsa import Network
+
+
+# Sentinel marking a parameter the user did not provide
+UNSET: Any = object()
+
+
+_MATHTEXT_SUB = re.compile(r"\$_\{?([^${}]+)\}?\$")
+_MATHTEXT_SUP = re.compile(r"\$\^\{?([^${}]+)\}?\$")
+
+
+def sanitize_mathtext(label: Any) -> Any:
+    """Convert LaTeX `$_X$`/`$^X$` to Plotly `<sub>`/`<sup>` tags.
+
+    Plotly's MathJax drops the text around `$...$` in legends, but renders
+    `<sub>`/`<sup>` natively.
+    """
+    if not isinstance(label, str) or "$" not in label:
+        return label
+    label = _MATHTEXT_SUB.sub(r"<sub>\1</sub>", label)
+    return _MATHTEXT_SUP.sub(r"<sup>\1</sup>", label)
 
 
 class PlotsGenerator(ABC):
@@ -42,7 +63,7 @@ class PlotsGenerator(ABC):
     def derive_statistic_parameters(
         self,
         *args: str | None,
-        method_name: str = "",  # make required
+        method_name: str,
     ) -> dict[str, Any]:
         """Handle default statistics kwargs based on provided plot kwargs."""
 

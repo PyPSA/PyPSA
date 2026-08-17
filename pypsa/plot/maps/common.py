@@ -38,7 +38,7 @@ def apply_cmap(  # noqa
     cmap: str | mcolors.Colormap | None,
     cmap_norm: mcolors.Normalize | None = None,
 ) -> pd.Series:
-    if np.issubdtype(colors.dtype, np.number):
+    if pd.api.types.is_numeric_dtype(colors):
         if not isinstance(cmap, mcolors.Colormap):
             cmap = plt.get_cmap(cmap)
         if not cmap_norm:

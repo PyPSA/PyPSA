@@ -276,7 +276,7 @@ def as_index(
     else:
         values_ = pd.Index(values, name=n_attr.names[0])
 
-    if force_subset and not all(val in n_attr for val in values_):
+    if force_subset and not values_.isin(n_attr).all():
         msg = (
             f"Values must be a subset of the network attribute "
             f"'{network_attribute}'. Pass force_subset=False to disable this check."
@@ -365,6 +365,7 @@ def equals(
 
     if ignored_classes is not None and isinstance(a, tuple(ignored_classes)):
         return True
+    from pypsa.components.components import Components  # noqa: PLC0415
     from pypsa.components.store import ComponentsStore  # noqa: PLC0415
 
     # Classes with equality methods
@@ -378,14 +379,30 @@ def equals(
             return True
         if not a.equals(b):
             # TODO: Resolve with data validation PR
-            # Check if dtypes are equal
+            # Tolerate what CSV/Excel round-trips lose, float precision and the
+            # dtype of undeclared columns
             try:
-                pd_testing.assert_frame_equal(
-                    a, b, check_dtype=False, check_exact=False
-                )
+                if isinstance(a, pd.DataFrame):
+                    pd_testing.assert_frame_equal(
+                        a,
+                        b,
+                        check_dtype=False,
+                        check_index_type=False,
+                        check_column_type=False,
+                    )
+                elif isinstance(a, pd.Series):
+                    pd_testing.assert_series_equal(
+                        a, b, check_dtype=False, check_index_type=False
+                    )
+                else:
+                    pd_testing.assert_index_equal(a, b, exact=False)
             except AssertionError:
                 msg = f"pandas objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
                 return handle_diff(msg)
+
+    elif isinstance(a, Components):
+        if not a.equals(b, log_mode=log_mode):
+            return False
 
     elif isinstance(a, ComponentsStore):
         for k, v in a.items():
@@ -840,7 +857,9 @@ def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
     c   3.0   3.0
 
     """
-    return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+    result = ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+    result.index.name = ser.index.name
+    return result
 
 
 def _scenarios_not_implemented(func: Callable) -> Callable:
@@ -953,8 +972,8 @@ def normalize_carrier_nice_names(
     if isinstance(carrier, str):
         carriers = [carrier]
         scalar = True
-    elif isinstance(carrier, list):
-        carriers = carrier
+    elif is_list_like(carrier):
+        carriers = list(carrier)
         scalar = False
     else:
         return carrier

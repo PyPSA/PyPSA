@@ -18,6 +18,7 @@ from pypsa.components._types import (
     LineTypes,
     Links,
     Loads,
+    Processes,
     Shapes,
     ShuntImpedances,
     StorageUnits,
@@ -47,6 +48,7 @@ _CLASS_MAPPING = {
     "LineType": LineTypes,
     "Link": Links,
     "Load": Loads,
+    "Process": Processes,
     "Shape": Shapes,
     "ShuntImpedance": ShuntImpedances,
     "StorageUnit": StorageUnits,
@@ -75,6 +77,7 @@ class Component:
         n: Any | None = None,
         static: pd.DataFrame | None = None,
         dynamic: Dict | None = None,
+        piecewise: Dict | None = None,
     ) -> Any:
         # Deprecation warnings
         if (name and ctype is not None) or (not name and ctype is None):
@@ -86,7 +89,7 @@ class Component:
         else:
             ctype_ = ctype  # type: ignore
 
-        component_class = _CLASS_MAPPING.get(ctype_.name, None)
+        component_class = _CLASS_MAPPING.get(ctype_.name)
         instance: Components
         if component_class is not None:
             instance = component_class(ctype=ctype_)
@@ -100,5 +103,7 @@ class Component:
             instance.static = static
         if dynamic is not None:
             instance.dynamic = dynamic
+        if piecewise is not None:
+            instance.piecewise = piecewise
 
         return instance

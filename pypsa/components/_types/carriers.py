@@ -47,7 +47,7 @@ class Carriers(Components):
     def add(
         self,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
         overwrite: bool = False,
         return_names: bool | None = None,
         **kwargs: Any,
@@ -167,7 +167,7 @@ class Carriers(Components):
         >>> n = pypsa.Network()
         >>> n.components.buses.add('my_bus', carrier='my_carrier')
         >>> n.c.carriers.add_missing_carriers()
-        Index(['my_carrier'], dtype='object')
+        Index(['my_carrier'], dtype='str')
 
         Carriers are added without needing to call `n.add` separately:
 

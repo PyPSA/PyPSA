@@ -18,12 +18,15 @@ build:
     create_environment:
     - uv venv "${READTHEDOCS_VIRTUALENV_PATH}"
     install:
-    - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv pip install -r docs/requirements.txt
+    - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv sync --extra docs --frozen
     pre_build:
     - printf '%b' "$GUROBI_LIC" > $HOME/gurobi.lic
     - python -c "p=\"$HOME/gurobi.lic\";t=open(p).read().replace(chr(39),\"\");open(p,\"w\").write(t)"
       # To create all doctest files
     - PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi uv run pytest test/test_docs.py --test-docs
+      # Overlay pre-executed notebooks from the docs-notebooks branch (built daily by build-docs.yml)
+    - git fetch origin docs-notebooks || true
+    - git checkout origin/docs-notebooks -- 'docs/*.ipynb' || true
 
 mkdocs:
   configuration: mkdocs.yml

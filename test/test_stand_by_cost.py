@@ -58,6 +58,6 @@ def test_stand_by_cost():
 
     expected_cost = np.array([80000, 120000, 100000, 56010], dtype=float).T
 
-    equal(cost.sum(1), expected_cost)
+    equal(cost.sum(axis=1), expected_cost)
 
     equal(sum(expected_cost), n.objective)

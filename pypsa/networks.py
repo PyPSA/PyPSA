@@ -9,7 +9,7 @@ from __future__ import annotations
 import copy
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 from weakref import ref
 
 from deprecation import deprecated
@@ -69,12 +69,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-dir_name = Path(__file__).parent
-
-standard_types_dir_name = "data/standard_types"
-
-
 inf = float("inf")
 
 
@@ -96,6 +90,7 @@ class Network(
     # Optimization
     _multi_invest: int
     _linearized_uc: int
+    _committable_big_m: float | None
     iteration: int
 
     # ----------------
@@ -165,6 +160,8 @@ class Network(
         self._model: linopy.Model | None = None
         self._objective: float | None = None
         self._objective_constant: float | None = None
+        self._multi_invest: int = 0
+        self._committable_big_m: float | None = None
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -485,6 +482,11 @@ class Network(
 
             return self.slice_network(key)
 
+    def __iter__(self) -> NoReturn:
+        """Raise a clear error, as Network objects are not iterable."""
+        msg = "PyPSA Network objects are not iterable."
+        raise TypeError(msg)
+
     @property
     def stats(self) -> StatisticsAccessor:
         """Network [statistics functionality][pypsa.statistics.StatisticsAccessor] accessor (alias for [pypsa.Network.statistics][])."""
@@ -673,7 +675,7 @@ class Network(
         * Line-ext-s-upper (snapshot, name)
         * Link-ext-p-lower (snapshot, name)
         * Link-ext-p-upper (snapshot, name)
-        * Bus-nodal_balance (name, snapshot)
+        * Bus-nodal_balance (snapshot, name)
         * Kirchhoff-Voltage-Law (snapshot, cycle)
         * GlobalConstraint-co2_limit
         <BLANKLINE>
@@ -684,7 +686,9 @@ class Network(
         """
         if self._model is None:
             logger.warning(
-                "The network has not been optimized yet and no model is stored."
+                "No linopy model is stored on this network. "
+                "The network may not have been optimized yet, or it was loaded "
+                "from a file (models are not serialized on export)."
             )
         return self._model
 
@@ -1002,6 +1006,7 @@ class Network(
             "_meta",
             "_linearized_uc",
             "_multi_invest",
+            "_committable_big_m",
             "_objective",
             "_objective_constant",
             "now",
@@ -1029,7 +1034,7 @@ class Network(
 
         <!-- md:badge-version v0.3.0 -->
 
-        Branches are Lines, Links and Transformers.
+        Branches are Links, Processes, Lines and Transformers.
 
         !!! note
 
@@ -1090,17 +1095,17 @@ class Network(
         Examples
         --------
         >>> n.passive_branches() # doctest: +ELLIPSIS
-                    active    b  b_pu  ...         x      x_pu  x_pu_eff
-        component                     ...
-        0            True  0.0   0.0  ...  0.796878  0.000006  0.000006
-        1            True  0.0   0.0  ...  0.391560  0.000003  0.000003
-        2            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-        3            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-        4            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-        5            True  0.0   0.0  ...  0.238800  0.000002  0.000002
-        6            True  0.0   0.0  ...  0.400000  0.000003  0.000003
+                        active    b  b_pu  ...         x      x_pu  x_pu_eff
+        component name                     ...
+        Line      0       True  0.0   0.0  ...  0.796878  0.000006  0.000006
+                  1       True  0.0   0.0  ...  0.391560  0.000003  0.000003
+                  2       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  3       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  4       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
+                  6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 41 columns]
+        [7 rows x 44 columns]
 
         """
         comps = sorted(
@@ -1123,7 +1128,7 @@ class Network(
 
         <!-- md:badge-version v0.3.0 -->
 
-        Controllable branches are Links.
+        Controllable branches are Links and Processes.
 
         !!! note
 
@@ -1133,17 +1138,14 @@ class Network(
         Examples
         --------
         >>> n.controllable_branches() # doctest: +ELLIPSIS
-                        active    b  b_pu  ...         x      x_pu  x_pu_eff
-        component name                     ...
-        Line      0       True  0.0   0.0  ...  0.796878  0.000006  0.000006
-                1       True  0.0   0.0  ...  0.391560  0.000003  0.000003
-                2       True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                3       True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                4       True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
-                6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
+                                     active  build_year  ... type up_time_before
+        component name                                   ...
+        Link      Norwich Converter    True           0  ...                   1
+                  Norway Converter     True           0  ...                   1
+                  Bremen Converter     True           0  ...                   1
+                  DC link              True           0  ...                   1
         <BLANKLINE>
-        [7 rows x 41 columns]
+        [4 rows x 52 columns]
 
         See Also
         --------
@@ -1152,7 +1154,7 @@ class Network(
 
         """
         comps = list(
-            set(self.passive_branch_components) - set(self._empty_components())
+            set(self.controllable_branch_components) - set(self._empty_components())
         )
         names = (
             ["component", "scenario", "name"]

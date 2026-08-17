@@ -40,9 +40,9 @@ jobs:
         shell: bash -l {0}
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - uses: dorny/paths-filter@v3
+    - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
       id: filter
       with:
         filters: |
@@ -67,7 +67,7 @@ jobs:
         echo "Final disk space"
         df -h
 
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
       with:
         repository: PyPSA/pypsa-eur
@@ -82,9 +82,9 @@ jobs:
 
     - name: Setup Pixi
       if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
-      uses: prefix-dev/setup-pixi@v0.9.4
+      uses: prefix-dev/setup-pixi@a09b6247153796b190642a2b53fac4241043cf6f # v0.10.0
       with:
-        pixi-version: v0.59.0
+        pixi-version: v0.68.1
         cache: true
         # Do not cache in branches
         cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
@@ -105,7 +105,7 @@ jobs:
             echo "pinned=false" >> $GITHUB_ENV
         fi
 
-    - uses: actions/cache@v5
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
       with:
         path: |
@@ -120,7 +120,10 @@ jobs:
     - name: Install package from ref
       if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
       run: |
+        # Allow upgrading internal packages without exclude-newer cap
+        sed -i '/^exclude-newer\s*=/d' pixi.toml
         pixi remove ${{ env.PACKAGE_NAME }}
+        pixi upgrade linopy
         pixi add --pypi --git https://github.com/${{ github.repository }}.git ${{ github.event.repository.name }} --rev ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
     - name: Run snakemake test workflows
@@ -135,7 +138,7 @@ jobs:
 
     - name: Upload artifacts
       if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: results-pypsa-eur-${{ matrix.version }}
         path: |
@@ -164,7 +167,7 @@ jobs:
   #       shell: bash -l {0}
 
   #   steps:
-  #   - uses: actions/checkout@v6
+  #   - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
   #     with:
   #       repository: PyPSA/pypsa-de
   #       ref: main
@@ -190,7 +193,7 @@ jobs:
   #           echo "pinned=false" >> $GITHUB_ENV
   #       fi
 
-  #   - uses: actions/cache@v5
+  #   - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
   #     if: env.pinned == 'false'
   #     with:
   #       path: |
@@ -199,7 +202,7 @@ jobs:
   #         resources/ariadne_database.csv
   #       key: data-cutouts-pypsa-de-${{ env.WEEK }}
 
-  #   - uses: conda-incubator/setup-miniconda@v3
+  #   - uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
   #     if: env.pinned == 'false'
   #     with:
   #       miniforge-version: latest
@@ -208,7 +211,7 @@ jobs:
 
   #   - name: Cache Conda env
   #     if: env.pinned == 'false'
-  #     uses: actions/cache@v5
+  #     uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
   #     with:
   #       path: ${{ env.CONDA }}/envs
   #       key: conda-pypsa-de-${{ env.WEEK }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
@@ -237,7 +240,7 @@ jobs:
 
   #   - name: Upload artifacts
   #     if: env.pinned == 'false'
-  #     uses: actions/upload-artifact@v6
+  #     uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
   #     with:
   #       name: results-pypsa-de-${{ matrix.version }}
   #       path: |

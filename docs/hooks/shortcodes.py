@@ -37,13 +37,10 @@ if TYPE_CHECKING:
 
 def clean_file_path(path: str) -> str:
     """Clean file paths for display."""
-    import os
+    from pathlib import PurePosixPath
 
-    # Remove file extension
-    name = os.path.splitext(path)[0]
-
-    # Get just the filename if it's a path
-    name = os.path.basename(name)
+    # Get the filename without extension
+    name = PurePosixPath(path).stem
 
     # Handle special case where folder and file have same name (e.g., components/components)
     parts = path.split("/")
@@ -139,7 +136,7 @@ def on_env(env, config: MkDocsConfig, files: Files):
             page = None
             # Process the shortcodes
             return _process_shortcodes(text, page, files)
-        except:
+        except Exception:
             # If processing fails, return original text
             return text
 
@@ -159,7 +156,7 @@ def _resolve_path(path: str, page: Page, files: Files):
     path, anchor, *_ = f"{path}#".split("#")
     file = files.get_file_from_path(path)
     if file is None:
-        logging.warning(f"File not found: {path} (referenced in {page.file.src_uri})")
+        logging.warning("File not found: %s (referenced in %s)", path, page.file.src_uri)
         return original_path  # Return original path unchanged
     path = _resolve(file, page)
     return "#".join([path, anchor]) if anchor else path

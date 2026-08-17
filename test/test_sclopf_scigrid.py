@@ -2,7 +2,11 @@
 #
 # SPDX-License-Identifier: MIT
 
+import numpy as np
+import pandas as pd
 from numpy.testing import assert_almost_equal as equal
+
+import pypsa
 
 
 def test_optimize_security_constrained(scipy_network):
@@ -38,17 +42,15 @@ def test_optimize_security_constrained(scipy_network):
     n.c.generators.dynamic.p_set = n.c.generators.dynamic.p.copy()
     n.c.storage_units.dynamic.p_set = n.c.storage_units.dynamic.p.copy()
 
-    # TODO see https://github.com/PyPSA/PyPSA/issues/1356
+    # Check no lines are overloaded with the linear contingency analysis
+    p0_test = n.lpf_contingency(n.snapshots[0], branch_outages=branch_outages)
 
-    # # Check no lines are overloaded with the linear contingency analysis
-    # p0_test = n.lpf_contingency(n.snapshots[0], branch_outages=branch_outages)
+    # Check loading as per unit of s_nom in each contingency
+    max_loading = (
+        abs(p0_test.divide(n.passive_branches().s_nom, axis=0)).describe().loc["max"]
+    )
 
-    # # Check loading as per unit of s_nom in each contingency
-    # max_loading = (
-    #     abs(p0_test.divide(n.passive_branches().s_nom, axis=0)).describe().loc["max"]
-    # )
-
-    # arr_equal(max_loading, np.ones(len(max_loading)), decimal=4)
+    equal(max_loading, np.ones(len(max_loading)), decimal=4)
     equal(n.objective, 339758.4578, decimal=1)
 
     # === Dual variable assignment checks ===
@@ -82,3 +84,18 @@ def test_optimize_security_constrained(scipy_network):
         name for name in n.model.dual.data_vars if "security" in name
     ]
     assert len(security_constraints) == 4, "Should have four security constraint duals"
+
+
+def test_optimize_security_constrained_multiindex_branch_outages():
+    """See https://github.com/PyPSA/PyPSA/issues/1631."""
+    n = pypsa.Network()
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add("Line", "line1", bus0="bus1", bus1="bus2")
+    # Add a component with an assigned cost, as required to create the objective function:
+    n.add("Generator", "gen1", bus="bus1", marginal_cost=10)
+    branch_outages = pd.MultiIndex.from_tuples([("Line", "line1")])
+
+    status, _ = n.optimize.optimize_security_constrained(branch_outages=branch_outages)
+
+    assert status == "ok"

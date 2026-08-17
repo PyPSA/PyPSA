@@ -40,7 +40,7 @@ The linear load flow for DC networks follows the same calculation as for AC netw
 The function [n.lpf_contingency()][pypsa.Network.lpf_contingency] computes a
 base case linear power flow (LPF) with no outages, and then cycles through the
 list of branches in `branch_outages` and computes the line flows after the
-outage of that branch using the branch outage distribution factor (BODF, see []()).
+outage of that branch using the branch outage distribution factor (BODF, see [Contingencies](./optimization/contingencies.md#calculating-branch-outage-distribution-factors-bodf)).
 
 
 ## Inputs
