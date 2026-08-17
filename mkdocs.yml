@@ -147,7 +147,6 @@ nav:
       - General: api/networks/network.md
       - Index: api/networks/indexing.md
       - Components: api/networks/components.md
-      - Array: api/networks/array.md
       - Transform: api/networks/transform.md
       - Descriptors: api/networks/descriptors.md
       - IO: api/networks/io.md

@@ -104,11 +104,11 @@ def pytest_configure(config):
 def _configure_linopy_semantics(config):
     """Select linopy arithmetic semantics and fail on divergence warnings.
 
-    Controlled via ``LINOPY_SEMANTICS`` (``legacy`` | ``v1``); no ``PYPSA_``
+    Controlled via `LINOPY_SEMANTICS` (`legacy` | `v1`); no `PYPSA_`
     prefix, to avoid PyPSA's own env-var option loader, so old linopy (without
-    the ``semantics`` option) is untouched. When set, any
-    ``LinopySemanticsWarning`` escaping PyPSA's own targeted suppression fails
-    the test. The filter is added here rather than in ``pyproject.toml`` because
+    the `semantics` option) is untouched. When set, any
+    `LinopySemanticsWarning` escaping PyPSA's own targeted suppression fails
+    the test. The filter is added here rather than in `pyproject.toml` because
     the warning class only exists on linopy with v1 semantics.
     """
     import linopy

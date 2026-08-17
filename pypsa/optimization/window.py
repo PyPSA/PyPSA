@@ -4,13 +4,13 @@
 
 """Snapshot window of a single optimization model build.
 
-A multi-period model may be built over a flat ``snapshot`` dimension whose labels
-are the ``(period, timestep)`` tuples of ``n.snapshots`` (linopy's v1 convention,
-see [pypsa._linopy_compat][]). [SnapshotWindow][pypsa.optimization.window.SnapshotWindow]
-carries both labellings of the build's snapshots and every operation that bridges
-them; what is left in [pypsa._linopy_compat][] needs no build state. Outside that
-path the two labellings are the same index and all operations degenerate to
-identity, so call sites never branch on the representation.
+linopy's v1 convention forbids a `MultiIndex` dimension coordinate, so
+multi-period models are built over a flat `snapshot` dim labelled by the
+`(period, timestep)` tuples of `n.snapshots`, with the levels attached as
+auxiliary coordinates. `SnapshotWindow` carries both labellings of the build's
+snapshots and every operation bridging them. Outside the flat path the two
+labellings coincide and all operations degenerate to identity, so call sites
+never branch on the representation.
 """
 
 from __future__ import annotations
@@ -19,20 +19,12 @@ import functools
 import logging
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import merge
-from numpy import roll, zeros
 
-from pypsa._linopy_compat import (
-    SNAPSHOT_LEVELS,
-    attach_snapshot_aux,
-    drop_snapshot_aux,
-    flatten_snapshot_dim,
-    recompose_snapshot_dim,
-    resolve_snapshot_representation,
-    tuple_snapshot_index,
-)
+from pypsa._linopy_compat import resolve_model_snapshot_index
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -43,42 +35,74 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+SNAPSHOT_LEVELS = ("period", "timestep")
+
 
 @functools.cache
 def _notify_multiindex_snapshot_kept() -> None:
-    """One-shot notice that the multi-period ``snapshot`` stays a MultiIndex.
+    """One-shot notice that the multi-period `snapshot` stays a MultiIndex.
 
-    Under legacy linopy the MultiIndex is kept first-class (unchanged ``n.model``),
+    Under legacy linopy the MultiIndex is kept first-class (unchanged `n.model`),
     which linopy flags per variable/constraint as deprecated; suppress that spam
     and inform once. The flat tuple representation can be opted into explicitly.
     """
     logger.info(
-        "Building the multi-period model over a MultiIndex `snapshot`. The flat "
-        "`snapshot` dim with `period`/`timestep` auxiliary coordinates (linopy's "
-        "v1 convention, `linopy.options['semantics'] = 'v1'`) is enabled via "
-        "`pypsa.options.optimization.snapshot_representation = 'flat'`; this "
-        "becomes PyPSA's default in 2.0."
+        "Building the multi-period model over a MultiIndex `snapshot`. Opt into "
+        "the flat representation via "
+        "`pypsa.options.optimization.model_snapshot_index = 'flat'`."
     )
+
+
+def _snapshot_is_multiindex(obj: Any) -> bool:
+    """Whether `obj` carries a `snapshot` MultiIndex."""
+    return isinstance(obj.indexes.get("snapshot"), pd.MultiIndex)
+
+
+def _level_coords(mi: pd.MultiIndex) -> dict[str, tuple[str, Any]]:
+    """Auxiliary `snapshot` coords holding the level values of `mi`."""
+    return {
+        name: ("snapshot", mi.get_level_values(name).to_numpy()) for name in mi.names
+    }
+
+
+def tuple_snapshot_index(mi: pd.MultiIndex) -> pd.Index:
+    """Flat index holding the MultiIndex's `(period, timestep)` tuples."""
+    return mi.to_flat_index().rename("snapshot")
+
+
+def apply_period_weighting(weight: xr.DataArray, weighting: pd.Series) -> xr.DataArray:
+    """Multiply `weight` by the investment-period weighting of its snapshots."""
+    period_of = weight.coords["period"].to_numpy()
+    return weight * weighting.reindex(period_of).to_numpy()
+
+
+def snapshot_array(values: Any, index: pd.Index) -> xr.DataArray:
+    """Array over a `snapshot` dim labelled by `index`.
+
+    Names the dim explicitly. Inferring it from the pandas object is
+    unreliable: the snapshots MultiIndex only carries its "snapshot" label as
+    an ad-hoc scalar name, which pandas 3 drops on any derived index.
+    """
+    return xr.DataArray(values, coords=[index], dims="snapshot")
 
 
 class SnapshotWindow:
     """Snapshots of one model build, in the network's and in linopy's labelling.
 
-    Created once per
-    [create_model][pypsa.optimization.OptimizationAccessor.create_model] and reachable as
-    ``n.optimize.window`` for as long as that model lives. Use it in
-    ``extra_functionality`` to move pandas data onto the model's ``snapshot``
-    dimension and back.
+    Created once per model build and kept on the network for as long as that
+    model lives. Internal. User code sees the model's snapshot labels only
+    through the `sns` argument of `extra_functionality` and the `c.da`
+    accessors.
 
     Parameters
     ----------
     n : pypsa.Network
         Network the model is built for.
     network_index : pandas.Index
-        Build snapshots as the network indexes them (a ``pandas.MultiIndex`` for
+        Build snapshots as the network indexes them (a `pandas.MultiIndex` for
         multi-period networks).
     model_index : pandas.Index
-        Labels of the model's ``snapshot`` dimension, position-aligned with
+        Labels of the model's `snapshot` dimension, position-aligned with
         `network_index`. Equal to `network_index` unless the build is flat.
 
     """
@@ -90,44 +114,21 @@ class SnapshotWindow:
         self._n = n
         self.network_index = network_index
         self.model_index = model_index
+        # labels of the last flattened index, so repeated flattens skip
+        # rebuilding the tuples
+        self._flat_labels_cache: tuple[pd.Index, Any, dict[str, Any]] | None = None
 
     @classmethod
     def build(cls, n: Network, sns: pd.Index, representation: str) -> SnapshotWindow:
-        """Create the window for a model built over `sns`.
-
-        Parameters
-        ----------
-        n : pypsa.Network
-            Network the model is built for.
-        sns : pandas.Index
-            Snapshots selected for the build, in the network's labelling.
-        representation : str
-            Value of ``pypsa.options.optimization.snapshot_representation``.
-
-        Returns
-        -------
-        SnapshotWindow
-
-        """
-        if resolve_snapshot_representation(sns, representation) == "flat":
+        """Create the window for a model built over `sns`."""
+        if resolve_model_snapshot_index(sns, representation) == "flat":
             return cls(n, sns, tuple_snapshot_index(sns))
         if isinstance(sns, pd.MultiIndex):
             _notify_multiindex_snapshot_kept()
         return cls(n, sns, sns)
 
     def subset(self, sns: pd.Index) -> SnapshotWindow:
-        """Window restricted to `sns`, given in the model's labelling.
-
-        Parameters
-        ----------
-        sns : pandas.Index
-            Subset of ``model_index``.
-
-        Returns
-        -------
-        SnapshotWindow
-
-        """
+        """Window restricted to `sns`, given in the model's labelling."""
         if sns.equals(self.model_index):
             return self
         positions = self.model_index.get_indexer(sns)
@@ -143,7 +144,7 @@ class SnapshotWindow:
 
     @property
     def is_flat(self) -> bool:
-        """Whether the model's ``snapshot`` dim carries flat tuple labels."""
+        """Whether the model's `snapshot` dim carries flat tuple labels."""
         return isinstance(self.network_index, pd.MultiIndex) and not isinstance(
             self.model_index, pd.MultiIndex
         )
@@ -172,15 +173,10 @@ class SnapshotWindow:
         return self.network_index[0]
 
     def iter_periods(self) -> Iterator[tuple[Any, pd.Index]]:
-        """Yield ``(period, snapshots)`` pairs for per-period constraint building.
+        """Yield `(period, snapshots)` pairs for per-period constraint building.
 
-        Yields a single ``(None, model_index)`` pair unless the model was built
-        with ``multi_investment_periods=True``.
-
-        Yields
-        ------
-        tuple of (int or None, pandas.Index)
-
+        Yields a single `(None, model_index)` pair unless the model was built
+        with `multi_investment_periods=True`.
         """
         if not self._n._multi_invest:
             yield None, self.model_index
@@ -190,122 +186,124 @@ class SnapshotWindow:
             yield period, self.model_index[period_of == period]
 
     def period_start_mask(self) -> xr.DataArray:
-        """Mark the first snapshot of each investment period within the window.
-
-        Returns
-        -------
-        xarray.DataArray
-            Boolean array over the model's ``snapshot`` dimension.
-
-        """
-        is_start = zeros(len(self.model_index), dtype=bool)
+        """Mark the first snapshot of each investment period within the window."""
+        is_start = np.zeros(len(self.model_index), dtype=bool)
         is_start[0] = True
         if self.has_periods:
             periods = self.period_of.to_numpy()
             is_start[1:] = periods[1:] != periods[:-1]
-        return xr.DataArray(is_start, coords=[self.model_index])
+        return snapshot_array(is_start, self.model_index)
+
+    def take(self, v: Variable, positions: Any) -> Variable:
+        """Positionally select snapshots from `v`, keeping the window's labels.
+
+        For shifts and rolls: the result carries the window's own snapshot
+        coordinates, staying aligned with the un-shifted variable.
+        """
+        if not v.indexes["snapshot"].equals(self.model_index):
+            v = v.sel(snapshot=self.model_index)
+        keep = {c: v.coords[c] for c in ("snapshot", *SNAPSHOT_LEVELS) if c in v.coords}
+        return v.isel(snapshot=positions).assign_coords(keep)
 
     def roll_within_periods(self, v: Variable) -> Variable:
-        """Cyclically roll `v` by one snapshot within each investment period.
-
-        Rolls positionally within each period and restores the original snapshot
-        coordinates, so the result stays aligned with the un-rolled variable.
-
-        Parameters
-        ----------
-        v : linopy.Variable
-            Variable over the model's ``snapshot`` dimension.
-
-        Returns
-        -------
-        linopy.Variable
-
-        """
-        positions = pd.Series(range(len(self.model_index)), index=self.model_index)
-        rolled_at = positions.groupby(self.period_of.to_numpy()).transform(
-            lambda s: roll(s, 1)
-        )
-        rolled = v.isel(snapshot=rolled_at.to_numpy())
-        keep = {c: v.coords[c] for c in ("snapshot", *SNAPSHOT_LEVELS) if c in v.coords}
-        return rolled.assign_coords(keep)
+        """Cyclically roll `v` by one snapshot within each investment period."""
+        n_sns = len(self.model_index)
+        starts = np.flatnonzero(self.period_start_mask().to_numpy())
+        positions = np.arange(n_sns) - 1
+        positions[starts] = np.append(starts[1:], n_sns) - 1
+        return self.take(v, positions)
 
     def merge(self, exprs: list[LinearExpression]) -> LinearExpression:
-        """Outer-merge expressions on ``snapshot``, preserving the flat aux coords.
+        """Outer-merge expressions on `snapshot`, preserving the flat aux coords.
 
         The aux coords must be dropped before the strict outer merge — differing
         periods on collided labels read as a conflict — and re-derived afterwards.
-
-        Parameters
-        ----------
-        exprs : list of linopy.LinearExpression
-            Expressions to merge.
-
-        Returns
-        -------
-        linopy.LinearExpression
-
         """
         merged = merge([self.drop_aux(e) for e in exprs], dim="snapshot", join="outer")
         return self._attach_aux(merged)
 
     def _attach_aux(self, obj: Any) -> Any:
-        """Re-derive the ``period``/``timestep`` aux coords from the tuple labels."""
-        return attach_snapshot_aux(obj, self.network_index)
+        """Re-derive the aux coords of a flat `snapshot` dim from its tuple labels.
+
+        A no-op outside a multi-period flat build.
+        """
+        if not isinstance(self.network_index, pd.MultiIndex) or (
+            "snapshot" not in obj.dims
+        ):
+            return obj
+        if _snapshot_is_multiindex(obj):
+            return obj
+        idx = obj.indexes["snapshot"]
+        if idx.equals(self.model_index):
+            _, level_coords = self._flat_labels(self.network_index)
+            return obj.assign_coords(level_coords)
+        mi = pd.MultiIndex.from_tuples(list(idx), names=SNAPSHOT_LEVELS)
+        return obj.assign_coords(_level_coords(mi))
 
     def drop_aux(self, obj: Any) -> Any:
-        """Drop the flat-snapshot ``period``/``timestep`` aux coords.
+        """Drop the flat-snapshot `period`/`timestep` aux coords.
 
         Needed where the snapshot labels are rewritten (a positional shift, a
         merge over collided labels): the coords still describe the source
-        snapshots and contradict their own dimension, which v1 rejects.
-
-        Parameters
-        ----------
-        obj : linopy.Variable, linopy.LinearExpression or xarray.DataArray
-            Object to strip.
-
-        Returns
-        -------
-        Same type as `obj`
-
+        snapshots and contradict their own dimension, which v1 rejects. A no-op
+        while `snapshot` is a live MultiIndex.
         """
-        return drop_snapshot_aux(obj)
+        if "snapshot" in obj.dims and _snapshot_is_multiindex(obj):
+            return obj
+        return obj.drop_vars(list(SNAPSHOT_LEVELS), errors="ignore")
 
     def flatten(self, obj: xr.DataArray) -> xr.DataArray:
-        """Select the window from an xarray object and put it on the model labels.
+        """Put an `n.snapshots`-indexed array on the model's flat labels.
 
-        Parameters
-        ----------
-        obj : xarray.DataArray
-            Array indexed by ``n.snapshots`` along ``snapshot``.
-
-        Returns
-        -------
-        xarray.DataArray
-            Unchanged unless the build is flat.
-
+        Relabels without restricting to the window, mirroring the non-flat path
+        where arrays keep all of `n.snapshots`: rolling-horizon code reads
+        history from before the window. A no-op unless the build is flat.
         """
         if not self.is_flat:
             return obj
-        if "snapshot" in obj.dims:
-            obj = obj.sel(snapshot=self.network_index)
-        return flatten_snapshot_dim(obj)
+        idx = obj.indexes.get("snapshot")
+        if not isinstance(idx, pd.MultiIndex):
+            return obj
+        tuples, level_coords = self._flat_labels(idx)
+        obj = obj.reset_index("snapshot", drop=True)
+        return obj.assign_coords({"snapshot": tuples, **level_coords})
+
+    def _flat_labels(self, idx: pd.MultiIndex) -> tuple[Any, dict[str, Any]]:
+        """Tuple labels and level coords of `idx`, cached per source index."""
+        cached = self._flat_labels_cache
+        if cached is not None and (idx is cached[0] or idx.equals(cached[0])):
+            return cached[1], cached[2]
+        tuples = tuple_snapshot_index(idx).values
+        level_coords = _level_coords(idx)
+        self._flat_labels_cache = (idx, tuples, level_coords)
+        return tuples, level_coords
+
+    def snapshot_weighting(self, col: str) -> xr.DataArray:
+        """Snapshot-weighting column of the window's snapshots, read live."""
+        series = self._n.snapshot_weightings[col]
+        weighting = self.flatten(snapshot_array(series.to_numpy(), series.index))
+        idx = weighting.indexes["snapshot"]
+        if idx.equals(self.model_index):
+            return weighting
+        # positional take keeps a MultiIndex intact, unlike label-based `sel`
+        return weighting.isel(snapshot=idx.get_indexer(self.model_index))
+
+    @functools.cached_property
+    def _network_coords(self) -> xr.Coordinates:
+        """Window snapshots as a ready-made MultiIndex coordinate set."""
+        return xr.Coordinates.from_pandas_multiindex(self.network_index, "snapshot")
 
     def recompose(self, obj: xr.DataArray) -> xr.DataArray:
         """Put a model-labelled array back on the network's snapshots.
 
-        Inverse of [flatten][pypsa.optimization.window.SnapshotWindow.flatten], for
-        results handed back to the pandas side.
-
-        Parameters
-        ----------
-        obj : xarray.DataArray
-            Array over the model's ``snapshot`` dimension.
-
-        Returns
-        -------
-        xarray.DataArray
-            Unchanged unless the build is flat.
-
+        Inverse of `flatten`, for results handed back to the pandas side. A
+        no-op unless both level coords are present.
         """
-        return recompose_snapshot_dim(obj)
+        if "snapshot" not in obj.dims or _snapshot_is_multiindex(obj):
+            return obj
+        if not all(lvl in obj.coords for lvl in SNAPSHOT_LEVELS):
+            return obj
+        if obj.indexes["snapshot"].equals(self.model_index):
+            obj = self.drop_aux(obj).drop_vars("snapshot")
+            return obj.assign_coords(self._network_coords)
+        return obj.set_index(snapshot=list(SNAPSHOT_LEVELS))

@@ -430,9 +430,9 @@ class TestExpressionsWithPiecewise:
 def test_multi_period_supply_withdrawal_energy_balance():
     """Multi-period expressions aggregate over time and are non-empty.
 
-    Regression test for the multi-period ``supply``/``withdrawal``/``energy_balance``
-    returning an empty ``+0`` expression because the snapshot-weighted aggregation
-    called a non-existent ``LinearExpression.multiply``.
+    Regression test for the multi-period `supply`/`withdrawal`/`energy_balance`
+    returning an empty `+0` expression because the snapshot-weighted aggregation
+    called a non-existent `LinearExpression.multiply`.
     """
     n = pypsa.Network(snapshots=range(4))
     n.investment_periods = [2020, 2030]

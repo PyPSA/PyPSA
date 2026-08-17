@@ -487,16 +487,13 @@ options._add_option(
 )
 # Optimization category
 options._add_option(
-    "optimization.snapshot_representation",
+    "optimization.model_snapshot_index",
     "auto",
-    "How multi-period optimization models represent the snapshot dimension. "
-    "'auto' follows linopy's active arithmetic semantics: a MultiIndex on legacy "
-    "linopy, flat '(period, timestep)' tuple labels with 'period'/'timestep' "
-    "auxiliary coordinates under the v1 convention (linopy 0.10+ with "
-    "linopy.options['semantics'] = 'v1'). 'flat' always builds over the flat tuple "
-    "labels (also on legacy linopy). 'multiindex' always keeps the MultiIndex and "
-    "requires legacy semantics. The representation is fixed when the model is "
-    "created; changing the option only affects newly built models.",
+    "Snapshot dimension of multi-period models: 'multiindex' keeps the "
+    "(period, timestep) MultiIndex, 'flat' uses tuple labels "
+    "with period/timestep auxiliary coordinates, 'auto' picks by linopy's active "
+    "semantics ('flat' under v1, else 'multiindex'). Applies to newly built "
+    "models only.",
 )
 # Warnings category
 options._add_option(

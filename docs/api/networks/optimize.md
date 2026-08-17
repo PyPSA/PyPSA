@@ -12,11 +12,6 @@ SPDX-License-Identifier: CC-BY-4.0
         show_bases: False
         inherited_members: true
 
-::: pypsa.optimization.window.SnapshotWindow
-    options:
-        heading_level: 2
-        show_bases: False
-
 ::: pypsa.optimization.mga
     options:
         heading_level: 2

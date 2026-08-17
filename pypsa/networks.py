@@ -42,7 +42,6 @@ from pypsa.components.components import SubNetworkComponents
 from pypsa.components.store import ComponentsStore
 from pypsa.consistency import NetworkConsistencyMixin
 from pypsa.definitions.structures import Dict
-from pypsa.network.array import NetworkArrayMixin
 from pypsa.network.components import NetworkComponentsMixin
 from pypsa.network.descriptors import NetworkDescriptorsMixin
 from pypsa.network.graph import NetworkGraphMixin
@@ -75,7 +74,6 @@ inf = float("inf")
 
 
 class Network(
-    NetworkArrayMixin,
     NetworkComponentsMixin,
     NetworkDescriptorsMixin,
     NetworkTransformMixin,
