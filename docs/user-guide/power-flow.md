@@ -67,6 +67,16 @@ This adds an additional row to the Jacobian for the derivatives of the slack bus
 
 ## DC networks
 
+## Linear power flow
+
+The linear power flow [`n.lpf()`][pypsa.Network.lpf] can distribute an active
+power mismatch across the generators in each sub-network by passing
+`distribute_slack=True`. By default, the mismatch is assigned to the slack
+generator. With distributed slack enabled, `slack_weights` can be set to
+`"p_set"`, `"p_nom"`, or `"p_nom_opt"`, or to a mapping of generator or bus
+weights. For example, `n.lpf(distribute_slack=True, slack_weights="p_nom")`
+allocates the mismatch in proportion to nominal generator capacity.
+
 For meshed DC networks the equations are a special case of those for AC networks, with the difference that all quantities are real.
 
 To solve the non-linear equations for a DC network, ensure that the series reactance $x$ and shunt susceptance $b$ are zero for all branches, pick a slack bus (where $V_0 = 1$) and set all other buses to be 'PQ' buses. Then execute [`n.pf()`][pypsa.Network.pf].
