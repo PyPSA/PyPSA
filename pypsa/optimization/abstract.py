@@ -361,12 +361,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         ## add costs of additional infrastructure to objective value of last iteration
         obj_links = (
-            n.c.links.static[ext_links_to_fix_b]
-            .eval("capital_cost * (p_nom_opt - p_nom_min)")
-            .sum()
-        )
-        obj_lines = n.c.lines.static.eval(
-            "capital_cost * (s_nom_opt - s_nom_min)"
+            n.c.links.periodized_cost.to_series()
+            * n.c.links.static.eval("p_nom_opt - p_nom_min")
+        )[ext_links_to_fix_b].sum()
+        obj_lines = (
+            n.c.lines.periodized_cost.to_series()
+            * n.c.lines.static.eval("s_nom_opt - s_nom_min")
         ).sum()
         n._objective += obj_links + obj_lines
         n._objective_constant -= obj_links + obj_lines

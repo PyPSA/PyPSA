@@ -427,7 +427,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if add_capex is not None:
                 capacity = capacity.drop_sel(name=add_capex.coords["name"])
 
-            costs = c.static[cost_attribute][capacity.indexes["name"]]
+            if cost_attribute == "capital_cost":
+                costs = c.capital_cost[capacity.indexes["name"]]
+            else:
+                costs = c.static[cost_attribute][capacity.indexes["name"]]
             return _add_optional(capacity * costs, add_capex)
 
         return self._aggregate_components(

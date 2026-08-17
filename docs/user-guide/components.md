@@ -140,7 +140,7 @@ As a quick example, let's take a snippet of the [Three-Node Capacity Expansion E
 Series([], Name: p_nom_opt, dtype: float64)
 
 # Interconnector Flows
->>> n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7d").mean()  # doctest: +SKIP
+>>> n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7D").mean()  # doctest: +SKIP
 ```
 
 To switch to the new API, we just need to set the package option `api.new_components_api` to `True`.
@@ -152,7 +152,7 @@ pypsa.options.api.new_components_api = True
 n.links.static.query("carrier == 'HVDC'").p_nom_opt.round(2)
 
 # Interconnector Flows
-n.links.dynamic.p0.loc[:, n.links.static.carrier == "HVDC"].rolling("7d").mean()
+n.links.dynamic.p0.loc[:, n.links.static.carrier == "HVDC"].rolling("7D").mean()
 
 # Now you can also use the full functionality of the Components class, for example:
 n.links.additional_ports
@@ -171,7 +171,7 @@ n.links.static.query("carrier == 'HVDC'").p_nom_opt.round(2)
 pypsa.options.api.new_components_api = False
 
 # Interconnector Flows
-n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7d").mean()
+n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7D").mean()
 ```
 
 Another way is to use the [`option_context`][pypsa.option_context] context manager to temporarily switch the API.
@@ -182,7 +182,7 @@ with pypsa.options_context(api.new_components_api=True):
     n.links.static.query("carrier == 'HVDC'").p_nom_opt.round(2)
 
 # Interconnector Flows
-n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7d").mean()
+n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7D").mean()
 ```
 
 PyPSA `v1.0` will support full functionality for both APIs. The example above just shows how to immediately translate between the two APIs. It often also makes sense to assign the components object to a variable, which is then used in the rest of the script.

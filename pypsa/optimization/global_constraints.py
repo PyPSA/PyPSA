@@ -922,7 +922,7 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
             else:
                 comp_weights = weights
 
-            cost = c.static.capital_cost.reindex(ext_i) * comp_weights
+            cost = c.capital_cost.reindex(ext_i) * comp_weights
             vars = m[f"{c.name}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((cost, vars)).sum())
 
