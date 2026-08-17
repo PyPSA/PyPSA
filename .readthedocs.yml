@@ -25,8 +25,8 @@ build:
       # To create all doctest files
     - PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi uv run pytest test/test_docs.py --test-docs
       # Overlay pre-executed notebooks from the docs-notebooks branch (built daily by build-docs.yml)
-    - git fetch origin docs-notebooks || true
-    - git checkout origin/docs-notebooks -- 'docs/*.ipynb' || true
+    - git fetch origin docs-notebooks
+    - git checkout FETCH_HEAD -- 'docs/*.ipynb'
 
 mkdocs:
   configuration: mkdocs.yml
