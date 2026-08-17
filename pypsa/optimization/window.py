@@ -114,9 +114,6 @@ class SnapshotWindow:
         self._n = n
         self.network_index = network_index
         self.model_index = model_index
-        # labels of the last flattened index, so repeated flattens skip
-        # rebuilding the tuples
-        self._flat_labels_cache: tuple[pd.Index, Any, dict[str, Any]] | None = None
 
     @classmethod
     def build(cls, n: Network, sns: pd.Index, representation: str) -> SnapshotWindow:
@@ -235,8 +232,7 @@ class SnapshotWindow:
             return obj
         idx = obj.indexes["snapshot"]
         if idx.equals(self.model_index):
-            _, level_coords = self._flat_labels(self.network_index)
-            return obj.assign_coords(level_coords)
+            return obj.assign_coords(_level_coords(self.network_index))
         mi = pd.MultiIndex.from_tuples(list(idx), names=SNAPSHOT_LEVELS)
         return obj.assign_coords(_level_coords(mi))
 
@@ -268,15 +264,17 @@ class SnapshotWindow:
         obj = obj.reset_index("snapshot", drop=True)
         return obj.assign_coords({"snapshot": tuples, **level_coords})
 
+    @functools.cached_property
+    def _snapshots_labels(self) -> tuple[Any, dict[str, Any]]:
+        """Flat labels and aux coords of all of `n.snapshots`."""
+        snapshots = self._n.snapshots
+        return tuple_snapshot_index(snapshots).values, _level_coords(snapshots)
+
     def _flat_labels(self, idx: pd.MultiIndex) -> tuple[Any, dict[str, Any]]:
-        """Tuple labels and level coords of `idx`, cached per source index."""
-        cached = self._flat_labels_cache
-        if cached is not None and (idx is cached[0] or idx.equals(cached[0])):
-            return cached[1], cached[2]
-        tuples = tuple_snapshot_index(idx).values
-        level_coords = _level_coords(idx)
-        self._flat_labels_cache = (idx, tuples, level_coords)
-        return tuples, level_coords
+        """Flat labels of `idx`, cached for the `n.snapshots` every caller passes."""
+        if idx.equals(self._n.snapshots):
+            return self._snapshots_labels
+        return tuple_snapshot_index(idx).values, _level_coords(idx)
 
     def snapshot_weighting(self, col: str) -> xr.DataArray:
         """Snapshot-weighting column of the window's snapshots, read live."""

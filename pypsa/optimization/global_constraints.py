@@ -128,24 +128,25 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
         Set of snapshots to which the constraint should be applied.
 
     """
-    m = n.model
     cols = n.c.buses.static.columns[n.c.buses.static.columns.str.startswith("nom_")]
-    buses = n.c.buses.static.index[n.c.buses.static[cols].notnull().any(axis=1)]
+    if cols.empty:
+        return
 
-    if not cols.empty:
-        warnings.warn(
-            "Nominal constraints per bus carrier are deprecated and will be removed in the future. "
-            "Use global constraint of type 'define_tech_capacity_expansion_limit' instead."
-            "Deprecated in PyPSA 1.0 and will be removed in PyPSA 2.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+    m = n.model
+    warnings.warn(
+        "Nominal constraints per bus carrier are deprecated and will be removed in the future. "
+        "Use global constraint of type 'define_tech_capacity_expansion_limit' instead."
+        "Deprecated in PyPSA 1.0 and will be removed in PyPSA 2.0.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    buses = n.c.buses.static.index[n.c.buses.static[cols].notnull().any(axis=1)]
     if n.has_scenarios and not buses.empty:
         msg = "Nominal constraints per bus carrier are not implemented for stochastic networks."
         raise NotImplementedError(msg)
 
-    if isinstance(n.snapshots, pd.MultiIndex):
-        periods = n.optimize._window.subset(sns).periods
+    multi_invest = isinstance(n.snapshots, pd.MultiIndex)
+    periods = n.optimize._window.subset(sns).periods if multi_invest else pd.Index([])
 
     for col in cols:
         msg = (
@@ -164,7 +165,7 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
         if remainder in n.c.carriers.static.index:
             carrier = remainder
             period = None
-        elif isinstance(n.snapshots, pd.MultiIndex):
+        elif multi_invest:
             carrier, period = remainder.rsplit("_", 1)
             period = int(period)
             if carrier not in n.c.carriers.static.index or period not in periods:
