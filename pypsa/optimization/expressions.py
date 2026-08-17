@@ -19,6 +19,7 @@ from packaging import version
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
 from pypsa.components._types.mixin.multiports import _Multiport
+from pypsa.optimization.window import apply_period_weighting
 from pypsa.statistics import (
     get_transmission_branches,
     port_efficiency,
@@ -61,7 +62,9 @@ def _normalized_weights(weights: DataArray) -> DataArray:
     """Scale `weights` to sum to one, per investment period if the snapshots carry one."""
     if "period" not in weights.coords:
         return weights / weights.sum()
-    return weights.groupby("period") / weights.groupby("period").sum()
+    period_of = weights.coords["period"].to_numpy()
+    totals = pd.Series(weights.to_numpy(), index=period_of).groupby(level=0).sum()
+    return apply_period_weighting(weights, 1 / totals)
 
 
 def _require_sum_agg(agg: Callable | str) -> None:
