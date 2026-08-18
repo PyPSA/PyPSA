@@ -62,8 +62,7 @@ def _normalized_weights(weights: DataArray) -> DataArray:
     """Scale `weights` to sum to one, per investment period if the snapshots carry one."""
     if "period" not in weights.coords:
         return weights / weights.sum()
-    period_of = weights.coords["period"].to_numpy()
-    totals = pd.Series(weights.to_numpy(), index=period_of).groupby(level=0).sum()
+    totals = weights.groupby("period").sum().to_series()
     return apply_period_weighting(weights, 1 / totals)
 
 
@@ -187,11 +186,14 @@ def _capacity_expression(
     return LinearExpression.from_constant(m, fixed_capacity)
 
 
-def _piecewise_aux_variable(m: ln.Model, c: Any, attr: str) -> Variable | None:
-    """Auxiliary piecewise variable of `c` for `attr`, or `None` if there is none."""
+def _split_piecewise(
+    expr: Variable | LinearExpression, m: ln.Model, c: Any, attr: str
+) -> tuple[Any, Variable | None]:
+    """Split the names handled by the `attr` piecewise curve out of `expr`."""
     if not c.has_piecewise(attr):
-        return None
-    return m.variables[c._piecewise_aux_var(attr)]
+        return expr, None
+    aux = m.variables[c._piecewise_aux_var(attr)]
+    return expr.drop_sel(name=aux.coords["name"]), aux
 
 
 def _add_optional(
@@ -321,18 +323,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     def _aggregate_components_concat_values(
         self, exprs: list[LinearExpression], agg: Callable | str
     ) -> LinearExpression:
-        first = exprs[0]
-        if "group" in first.dims and len(exprs) > 1:
+        if "group" in exprs[0].dims and len(exprs) > 1:
             # concatenate the ports and sum entries sharing a key tuple
             _require_sum_agg(agg)
             merged = _concat_flat_groups(exprs)
             return _regroup_flat(merged, _group_key_coords(merged))
-        res = ln.merge(exprs, join="outer")
-        if not (index := res.indexes[res.dims[0]]).is_unique:
-            _require_sum_agg(agg)
-            non_unique_groups = pd.DataFrame(list(index), columns=index.names)
-            res = res.groupby(non_unique_groups).sum()
-        return res
+        return ln.merge(exprs, join="outer")
 
     def _aggregate_components_concat_data(
         self, res: dict[str, LinearExpression], is_one_component: bool
@@ -423,9 +419,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if capacity is None:
                 return None
 
-            add_capex = _piecewise_aux_variable(n.model, c, cost_attribute)
-            if add_capex is not None:
-                capacity = capacity.drop_sel(name=add_capex.coords["name"])
+            capacity, add_capex = _split_piecewise(capacity, n.model, c, cost_attribute)
 
             if cost_attribute == "capital_cost":
                 costs = c.capital_cost[capacity.indexes["name"]]
@@ -558,9 +552,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             var = n.model.variables[f"{c}-{var}"]
             sns = var.indexes["snapshot"]
 
-            add_opex = _piecewise_aux_variable(n.model, n.c[c], attr)
-            if add_opex is not None:
-                var = var.drop_sel(name=add_opex.coords["name"])
+            var, add_opex = _split_piecewise(var, n.model, n.c[c], attr)
 
             cost = n.c[c].da[attr].sel(snapshot=sns, name=var.indexes["name"])
             opex = _add_optional(var * cost, add_opex)
