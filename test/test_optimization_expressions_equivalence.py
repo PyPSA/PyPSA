@@ -182,7 +182,7 @@ def test_snapshot_subset_matches_statistics(solved_snapshot_subset, pair):
 
 
 def test_operation_matches_dispatch(solved_network):
-    """``operation`` has no statistics counterpart; check it against the dispatch."""
+    """`operation` has no statistics counterpart; check it against the dispatch."""
     n = solved_network
     expr = n.optimize.expressions.operation(
         components=["Generator"], groupby=False, groupby_time="sum"

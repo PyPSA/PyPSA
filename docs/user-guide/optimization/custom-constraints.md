@@ -142,45 +142,13 @@ multi-period network built under linopy's v1 semantics
 (`linopy.options["semantics"] = "v1"`), where a `pandas.MultiIndex` may not be a
 dimension coordinate, PyPSA builds `snapshot` as a flat dimension whose labels are
 the `(period, timestep)` tuples, with `period` and `timestep` attached as auxiliary
-coordinates. `n.snapshots` stays a `MultiIndex` and results are unchanged. Which
-representation the live model uses is answered by
+coordinates. `n.snapshots` stays a `MultiIndex` and results are unchanged.
 
-``` py
->>> n.optimize.window.is_flat
-False
-```
+Migrating existing `extra_functionality` to the flat representation:
 
-The `sns` handed to `extra_functionality` is always the network's labelling of the
-build's snapshots — a `MultiIndex` for a multi-period network, whichever
-representation the model uses. Slicing it and selecting the model with the result
-works under both, since a full `(period, timestep)` tuple addresses the same
-snapshot either way:
-
-``` py
->>> def cap_first_period(n: pypsa.Network, sns: pd.Index) -> None:
-...     first = sns[sns.get_level_values("period") == n.investment_periods[0]]
-...     p = n.model.variables["Generator-p"]
-...     n.model.add_constraints(p.sel(snapshot=first).sum() <= 1e6, name="Generator-cap")
-```
-
-Data on the model's labels comes from the `da` accessors, so nothing has to branch
-on the representation:
-
-``` py
->>> def custom_constraints(n: pypsa.Network, sns: pd.Index) -> None:
-...     p = n.model.variables["Generator-p"]
-...     cost = n.c.generators.da.marginal_cost
-...     weight = n.da.snapshot_weightings.objective
-...     spend = (p * cost).sum("name") * weight
-...     n.model.add_constraints(spend.sum() <= 1e9, name="Generator-cost_cap")
-```
-
-What the flat representation does change is code that reads the *model's* snapshot
-index as a `MultiIndex`:
-
-* `n.model.variables[...].indexes["snapshot"].get_level_values("period")` raises. Group with `expr.groupby("period").sum()`, or slice `sns` on the network side as above.
-* `.sel(period=...)` selects along `snapshot` and keeps the dimension, where the `MultiIndex` representation replaces it with a `timestep` dimension.
-* [`n.optimize.window`][pypsa.optimization.window.SnapshotWindow] bridges whatever has to stay in pandas: `window.network_index` and `window.model_index` hold the build's snapshots in the network's and the model's labelling (position-aligned), so a snapshot-indexed frame is relabelled with `df.loc[window.network_index].set_axis(window.model_index)`, and `window.iter_periods()` yields the per-investment-period snapshots.
+* `n.c.<component>.da.<attr>` instead of `n.get_switchable_as_dense(...).loc[sns]`. The arrays are already on the model's labels; select the snapshots you need with `.sel(snapshot=sns)`.
+* `expr.groupby("period").sum()` instead of slicing `sns` by `sns.unique("period")` — the auxiliary coordinate takes the role of the `MultiIndex` level.
+* For data that has to stay in pandas, the flat labels *are* the `(period, timestep)` tuples of `n.snapshots`. The `sns` argument of `extra_functionality` carries the model's labels, so `net_sns = pd.MultiIndex.from_tuples(sns, names=n.snapshots.names)` recovers the network's labelling and `df.loc[net_sns].set_axis(sns)` relabels a snapshot-indexed frame onto the model's.
 
 !!! note "Alternative approach using `n.optimize(extra_functionality=...)`"
 

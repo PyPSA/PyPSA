@@ -60,6 +60,12 @@ def _from_xarray(da: xr.DataArray, c: Components) -> pd.DataFrame | pd.Series:
     If name or scenarios (if stochastic) are missing, they will be expanded to cover them
 
     """
+    # Restore the snapshot MultiIndex from a flat build's tuple labels once
+    # here, rather than at every caller.
+    window = c.n_save._snapshot_window
+    if window is not None:
+        da = window.recompose(da)
+
     # Add missing dimensions if needed
     if "name" not in da.dims:
         da = da.expand_dims(name=c.names)
@@ -146,7 +152,7 @@ class _XarrayAccessor:
         component = self._get_component()
         try:
             return component._as_xarray(attr=attr)
-        except AttributeError as e:
+        except (AttributeError, KeyError) as e:
             msg = f"'{component.__class__.__name__}' components has no attribute '{attr}'."
             raise AttributeError(msg) from e
 

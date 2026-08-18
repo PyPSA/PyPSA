@@ -32,6 +32,7 @@ from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
+from pypsa.optimization.window import snapshot_array
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -187,7 +188,7 @@ def define_operational_constraints_for_extendables(
 
     """
     c = as_components(n, component)
-    sns = n.optimize.window.subset(sns).model_index
+    sns = n.optimize._window.subset(sns).model_index
 
     ext_i = c.extendables.intersection(c.active_assets)
     com_ext_i = c.committables.intersection(ext_i)
@@ -321,7 +322,7 @@ def define_operational_constraints_for_committables(
     initially_down = down_time_before_set.astype(bool)
 
     # check if there are status calculated/fixed before given sns interval
-    window = n.optimize.window.subset(sns)
+    window = n.optimize._window.subset(sns)
     if window.start != n.snapshots[0]:
         start_i = n.snapshots.get_loc(window.start)
         prev_sns = n.snapshots[:start_i][::-1]
@@ -745,7 +746,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     if maint_i.empty:
         return
 
-    weightings = n.da.snapshot_weightings.generators.sel(snapshot=sns).values
+    weightings = n.optimize._window.subset(sns).snapshot_weighting("generators").values
     maintenance = n.model[f"{c.name}-maintenance"]
     maintenance_start = n.model[f"{c.name}-maintenance_start"]
     active = c.da.active.sel(name=maint_i, snapshot=sns)
@@ -907,11 +908,11 @@ def _define_ramp_limit_big_m(
     var_attr = "p"
     nom_attr = c._operational_attrs["nom"]
     hist_attr = "p0" if c.name in n.branch_components else "p"
-    window = n.optimize.window.subset(sns)
+    window = n.optimize._window.subset(sns)
     is_rolling_horizon = (window.start != n.snapshots[0]) & (
         not c.dynamic[hist_attr].empty
     )
-    filter_first_sn = DataArray([1] + [0] * (len(sns) - 1), coords=[sns])
+    filter_first_sn = snapshot_array([1] + [0] * (len(sns) - 1), sns)
 
     M = c.get_committable_big_m_values(
         names=idx, committable_big_m=n._committable_big_m
@@ -1048,11 +1049,11 @@ def define_ramp_limit_constraints(
     limit_start = limit_start.fillna(1.0)
     limit_shut = limit_shut.fillna(1.0)
 
-    window = n.optimize.window.subset(sns)
+    window = n.optimize._window.subset(sns)
     is_rolling_horizon = (window.start != n.snapshots[0]) & (
         not c.dynamic[hist_attr].empty
     )
-    filter_first_sn = DataArray([1] + [0] * (len(sns) - 1), coords=[sns])
+    filter_first_sn = snapshot_array([1] + [0] * (len(sns) - 1), sns)
 
     nom_mod_attr = c._operational_attrs["nom_mod"]
     p_nom = c.da[nom_attr].sel(name=idx).where(~is_ext, 0)
@@ -1064,7 +1065,7 @@ def define_ramp_limit_constraints(
         ext_main_names = idx[is_ext_main]
         p_nom_ext_var = m[f"{c.name}-{nom_attr}"].sel(name=ext_main_names)
 
-    status = DataArray(1, coords=[sns, idx])
+    status = DataArray(1, coords=[sns, idx], dims=["snapshot", "name"])
     if is_com_fix.any():
         com_main_names = idx[is_com_fix]
         status = status.where(~is_com_fix, 0)
@@ -1311,27 +1312,21 @@ def _apply_delay_shift(
     LinearExpression
 
     """
-    sns_coords: xr.Coordinates | dict[str, Any]
     comp_p = in_var.sel(name=names)
     if delay <= 0:
         return comp_p.to_linexpr()
 
-    if isinstance(sns, pd.MultiIndex):
-        sns_coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
-    else:
-        sns_coords = {"snapshot": sns}
-    window = n.optimize.window.subset(sns)
-    weightings = n.da.snapshot_weightings.generators.sel(snapshot=sns)
-    periods = weightings.coords.get("period")
+    window = n.optimize._window.subset(sns)
+    weightings = window.snapshot_weighting("generators")
     src_snapshot_pos, valid = c.get_delay_source_indexer(
         sns,
         weightings.to_numpy(),
         delay,
         is_cyclic,
-        None if periods is None else periods.to_numpy(),
+        window.period_of.to_numpy() if window.has_periods else None,
     )
-    valid_mask = DataArray(valid.astype(float), dims=["snapshot"], coords=sns_coords)
-    shifted_p = comp_p.isel(snapshot=src_snapshot_pos).assign_coords(sns_coords)
+    shifted_p = window.take(comp_p, src_snapshot_pos)
+    valid_mask = snapshot_array(valid.astype(float), window.model_index)
     return window.drop_aux(shifted_p * valid_mask)
 
 
@@ -1628,7 +1623,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     m = n.model
     n.calculate_dependent_values()
 
-    window = n.optimize.window.subset(sns)
+    window = n.optimize._window.subset(sns)
     deg_to_rad = np.pi / 180.0
     lhs_parts = []
     for period, snapshots in window.iter_periods():
@@ -1639,10 +1634,9 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         exprs = []
         for c in C_weighted.index.unique("type"):
             C_branch = DataArray(C_weighted.loc[c])
-            flow = m[f"{c}-s"].sel(
-                snapshot=snapshots,
-                name=C_branch.indexes["name"].intersection(n.c[c].active_assets),
-            )
+            active_names = C_branch.indexes["name"].intersection(n.c[c].active_assets)
+            C_branch = C_branch.sel(name=active_names)
+            flow = m[f"{c}-s"].sel(snapshot=snapshots, name=active_names)
             exprs.append(flow @ C_branch * 1e5)
         lhs_period = sum(exprs)
 
@@ -2069,14 +2063,14 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     m = n.model
     component = "StorageUnit"
     dim = "snapshot"
-    window = n.optimize.window.subset(sns)
+    window = n.optimize._window.subset(sns)
     c = as_components(n, component)
     active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     if c.static.empty:
         return
 
-    eh = n.da.snapshot_weightings.stores.sel(snapshot=sns)
+    eh = window.snapshot_weighting("stores")
 
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
     eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=c.active_assets)
@@ -2247,14 +2241,14 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     m = n.model
     component = "Store"
     dim = "snapshot"
-    window = n.optimize.window.subset(sns)
+    window = n.optimize._window.subset(sns)
     c = as_components(n, component)
     active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     if c.static.empty:
         return
 
-    eh = n.da.snapshot_weightings.stores.sel(snapshot=sns)
+    eh = window.snapshot_weighting("stores")
 
     # standing efficiency
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
@@ -2639,14 +2633,14 @@ def define_total_supply_constraints(
 
     """
     m = n.model
-    window = n.optimize.window.subset(sns)
+    window = n.optimize._window.subset(sns)
     sns_ = window.model_index
     c = as_components(n, component)
 
     if c.static.empty:
         return
 
-    eh = n.da.snapshot_weightings.generators.sel(snapshot=sns_)
+    eh = window.snapshot_weighting("generators")
 
     def _extract_names(index: pd.Index) -> pd.Index:
         """Extract name level from MultiIndex or return as-is."""

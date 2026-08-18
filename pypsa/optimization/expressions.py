@@ -19,6 +19,7 @@ from packaging import version
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
 from pypsa.components._types.mixin.multiports import _Multiport
+from pypsa.optimization.window import apply_period_weighting
 from pypsa.statistics import (
     get_transmission_branches,
     port_efficiency,
@@ -61,24 +62,31 @@ def _normalized_weights(weights: DataArray) -> DataArray:
     """Scale `weights` to sum to one, per investment period if the snapshots carry one."""
     if "period" not in weights.coords:
         return weights / weights.sum()
-    period = weights.coords["period"].to_numpy()
-    totals = pd.Series(weights.to_numpy()).groupby(period).transform("sum")
-    return weights / totals.to_numpy()
+    period_of = weights.coords["period"].to_numpy()
+    totals = pd.Series(weights.to_numpy(), index=period_of).groupby(level=0).sum()
+    return apply_period_weighting(weights, 1 / totals)
+
+
+def _require_sum_agg(agg: Callable | str) -> None:
+    """Reject any aggregation method other than plain summation."""
+    if agg != "sum":
+        msg = f"Aggregation method {agg} not supported."
+        raise ValueError(msg)
 
 
 def _group_key_coords(expr: LinearExpression) -> list[str]:
-    """Grouping-key coordinates carried along a flat ``group`` dimension."""
+    """Grouping-key coordinates carried along a flat `group` dimension."""
     return [
         k for k in expr.coords if k != "group" and expr.coords[k].dims == ("group",)
     ]
 
 
 def _flatten_group_index(expr: LinearExpression) -> LinearExpression:
-    """Turn a stacked ``group`` MultiIndex into a flat dim with the keys as aux coords.
+    """Turn a stacked `group` MultiIndex into a flat dim with the keys as aux coords.
 
-    Legacy linopy's multi-key ``groupby`` returns a stacked ``group`` ``MultiIndex``;
+    Legacy linopy's multi-key `groupby` returns a stacked `group` `MultiIndex`;
     v1 returns the flat form directly. Normalising here gives the rest of the
-    pipeline a single representation. Inverse of :func:`_restack_flat_groups`.
+    pipeline a single representation. Inverse of `_restack_flat_groups`.
     """
     if isinstance(expr.indexes.get("group"), pd.MultiIndex):
         return expr.reset_index("group")
@@ -86,11 +94,11 @@ def _flatten_group_index(expr: LinearExpression) -> LinearExpression:
 
 
 def _restack_flat_groups(expr: Any) -> Any:
-    """Give a flat-``group`` expression the public stacked group index.
+    """Give a flat-`group` expression the public stacked group index.
 
-    The grouping keys ride as auxiliary coordinates on a flat ``group`` dim
+    The grouping keys ride as auxiliary coordinates on a flat `group` dim
     throughout the pipeline; restack them on exit so the public return shape is the
-    same under both semantics. Inverse of :func:`_flatten_group_index`.
+    same under both semantics. Inverse of `_flatten_group_index`.
     """
     if not isinstance(expr, LinearExpression) or "group" not in expr.dims:
         return expr
@@ -102,11 +110,11 @@ def _restack_flat_groups(expr: Any) -> Any:
 
 
 def _concat_flat_groups(exprs: list[LinearExpression]) -> LinearExpression:
-    """Concatenate grouped expressions along a flat, globally unique ``group`` dim.
+    """Concatenate grouped expressions along a flat, globally unique `group` dim.
 
-    ``linopy.merge`` cannot concatenate flat ``group`` dims whose labels overlap, so
+    `linopy.merge` cannot concatenate flat `group` dims whose labels overlap, so
     the keys are stripped, the groups renumbered to be globally unique, merged, and
-    the keys reattached as ``group``-indexed coordinates.
+    the keys reattached as `group`-indexed coordinates.
     """
     parts: list[LinearExpression] = []
     frames: list[pd.DataFrame] = []
@@ -130,9 +138,9 @@ def _concat_flat_groups(exprs: list[LinearExpression]) -> LinearExpression:
 
 
 def _regroup_flat(expr: LinearExpression, by: list[str]) -> LinearExpression:
-    """Regroup a flat-``group`` expression by a subset of its key coordinates.
+    """Regroup a flat-`group` expression by a subset of its key coordinates.
 
-    Keeps the flat ``group`` dimension and reattaches the selected keys, summing
+    Keeps the flat `group` dimension and reattaches the selected keys, summing
     entries that share the same key tuple.
     """
     keys = pd.MultiIndex.from_arrays(
@@ -158,7 +166,7 @@ def _regroup_flat(expr: LinearExpression, by: list[str]) -> LinearExpression:
 def _capacity_expression(
     n: Network, component: str, include_non_extendable: bool = True
 ) -> LinearExpression | None:
-    """Nominal capacity of `component` as an expression, or ``None`` if it has none.
+    """Nominal capacity of `component` as an expression, or `None` if it has none.
 
     Combines the extendable capacity variables with the fixed capacities of the
     non-extendable assets.
@@ -180,7 +188,7 @@ def _capacity_expression(
 
 
 def _piecewise_aux_variable(m: ln.Model, c: Any, attr: str) -> Variable | None:
-    """Auxiliary piecewise variable of `c` for `attr`, or ``None`` if there is none."""
+    """Auxiliary piecewise variable of `c` for `attr`, or `None` if there is none."""
     if not c.has_piecewise(attr):
         return None
     return m.variables[c._piecewise_aux_var(attr)]
@@ -263,7 +271,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         Overrides the pandas-side implementation: the weights arrive as an array on
         the model's snapshot labels, so both the restriction to `expr`'s snapshots
-        and the per-period mean normalization run on the ``period`` coordinate,
+        and the per-period mean normalization run on the `period` coordinate,
         which the snapshots carry under either representation.
         """
         if not agg:
@@ -283,9 +291,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         agg: str | Callable,
     ) -> LinearExpression:
         """Apply weights to a time series."""
-        if agg != "sum":
-            msg = f"Aggregation method {agg} not supported."
-            raise ValueError(msg)
+        _require_sum_agg(agg)
         if "period" not in expr.coords:
             return expr @ weights
         return expr.mul(weights, join="left").groupby("period").sum()
@@ -318,16 +324,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         first = exprs[0]
         if "group" in first.dims and len(exprs) > 1:
             # concatenate the ports and sum entries sharing a key tuple
-            if agg != "sum":
-                msg = f"Aggregation method {agg} not supported."
-                raise ValueError(msg)
+            _require_sum_agg(agg)
             merged = _concat_flat_groups(exprs)
             return _regroup_flat(merged, _group_key_coords(merged))
         res = ln.merge(exprs, join="outer")
         if not (index := res.indexes[res.dims[0]]).is_unique:
-            if agg != "sum":
-                msg = f"Aggregation method {agg} not supported."
-                raise ValueError(msg)
+            _require_sum_agg(agg)
             non_unique_groups = pd.DataFrame(list(index), columns=index.names)
             res = res.groupby(non_unique_groups).sum()
         return res
@@ -362,9 +364,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     def _aggregate_across_components(
         self, expr: LinearExpression, agg: Callable | str
     ) -> LinearExpression:
-        if agg != "sum":
-            msg = f"Aggregation method {agg} not supported."
-            raise ValueError(msg)
+        _require_sum_agg(agg)
         if check_if_empty(expr):
             return expr
         keys = [k for k in _group_key_coords(expr) if k != "component"]
@@ -377,7 +377,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         m = self._n.model
 
         if c == "Load":
-            window = self._n.optimize.window
+            window = self._n.optimize._window
             p_set = self._n.c[c].da.p_set.sel(snapshot=window.model_index)
             return LinearExpression.from_constant(m, p_set)
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
@@ -547,6 +547,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         from pypsa.optimization.optimize import lookup  # noqa: PLC0415
 
         at_port = resolve_at_port(at_port, bus_carrier)
+        weights = self._n.optimize._window.snapshot_weighting("objective")
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
@@ -563,8 +564,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             cost = n.c[c].da[attr].sel(snapshot=sns, name=var.indexes["name"])
             opex = _add_optional(var * cost, add_opex)
-
-            weights = n.da.snapshot_weightings.objective
             return self._aggregate_timeseries(opex, weights, agg=groupby_time)
 
         return self._aggregate_components(
@@ -622,6 +621,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             components = self._n.branch_components
 
         transmission_branches = get_transmission_branches(self._n, bus_carrier)
+        weights = self._n.optimize._window.snapshot_weighting("generators")
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
@@ -630,7 +630,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             idx = transmission_branches.get_loc_level(c)[1].rename("name")
             efficiency = _port_coefficients(n, c, port, sns)
             p = var.loc[:, idx] * efficiency.sel(name=idx)
-            weights = n.da.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         return self._aggregate_components(
@@ -710,6 +709,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 "To separate bus carriers set `bus_carrier` or use `bus_carrier` in the groupby argument."
             )
 
+        weights = self._n.optimize._window.snapshot_weighting("generators")
+
         @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series:
             c = n.c[component]
@@ -717,7 +718,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
             sign = n.c[component].static.get("sign", 1.0)
-            weights = n.da.snapshot_weightings.generators
             coeffs = _port_coefficients(n, component, port, sns) * sign
 
             pw_var = None
@@ -890,6 +890,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         """
         at_port = resolve_at_port(at_port, bus_carrier)
+        weights = self._n.optimize._window.snapshot_weighting("generators")
 
         @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series:
@@ -907,7 +908,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
             # TODO curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
-            weights = n.da.snapshot_weightings.generators
             return self._aggregate_timeseries(curtailment, weights, agg=groupby_time)
 
         return self._aggregate_components(
@@ -959,10 +959,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
         at_port = resolve_at_port(at_port, bus_carrier)
 
+        weights = self._n.optimize._window.snapshot_weighting("generators")
+
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             operation = self._get_operational_variable(c)
-            weights = n.da.snapshot_weightings.generators
             return self._aggregate_timeseries(operation, weights, agg=groupby_time)
 
         return self._aggregate_components(

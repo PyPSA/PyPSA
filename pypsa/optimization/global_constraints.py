@@ -11,13 +11,14 @@ import re
 import warnings
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 from linopy import merge
-from numpy import isnan
 from xarray import DataArray
 
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import define_piecewise
+from pypsa.optimization.window import apply_period_weighting
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -32,13 +33,16 @@ def _period_last_storage_weightings(
 ) -> tuple[pd.Index, pd.Series]:
     """Last snapshot of each investment period and its storage weighting.
 
-    ``period_of`` gives the period of every entry in ``snapshots``; take the last
-    snapshot per period and weight it by ``period_weighting``.
+    `period_of` gives the period of every entry in `snapshots`; take the last
+    snapshot per period and weight it by `period_weighting`.
     """
-    last_pos = pd.Series(list(snapshots), index=period_of).groupby(level=0).last()
-    period_last_sns = pd.Index(last_pos.to_numpy(), name="snapshot")
+    periods = period_of.to_numpy()
+    last = np.flatnonzero(np.append(periods[1:] != periods[:-1], True))
+    period_last_sns = pd.Index(
+        list(snapshots[last]), tupleize_cols=False, name="snapshot"
+    )
     storage_weightings = pd.Series(
-        period_weighting.loc[last_pos.index].to_numpy(), index=period_last_sns
+        period_weighting.loc[periods[last]].to_numpy(), index=period_last_sns
     )
     return period_last_sns, storage_weightings
 
@@ -66,7 +70,7 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
     for (carrier, sense, period), glcs_group in glcs.groupby(
         ["carrier_attribute", "sense", "investment_period"]
     ):
-        period = None if isnan(period) else int(period)
+        period = None if np.isnan(period) else int(period)
         sign = "=" if sense == "==" else sense
         busdim = f"Bus-{carrier}-{period}"
         lhs_per_bus_list = []
@@ -124,21 +128,25 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
         Set of snapshots to which the constraint should be applied.
 
     """
-    m = n.model
     cols = n.c.buses.static.columns[n.c.buses.static.columns.str.startswith("nom_")]
-    buses = n.c.buses.static.index[n.c.buses.static[cols].notnull().any(axis=1)]
+    if cols.empty:
+        return
 
-    if not cols.empty:
-        warnings.warn(
-            "Nominal constraints per bus carrier are deprecated and will be removed in the future. "
-            "Use global constraint of type 'define_tech_capacity_expansion_limit' instead."
-            "Deprecated in PyPSA 1.0 and will be removed in PyPSA 2.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+    m = n.model
+    warnings.warn(
+        "Nominal constraints per bus carrier are deprecated and will be removed in the future. "
+        "Use global constraint of type 'define_tech_capacity_expansion_limit' instead."
+        "Deprecated in PyPSA 1.0 and will be removed in PyPSA 2.0.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    buses = n.c.buses.static.index[n.c.buses.static[cols].notnull().any(axis=1)]
     if n.has_scenarios and not buses.empty:
         msg = "Nominal constraints per bus carrier are not implemented for stochastic networks."
         raise NotImplementedError(msg)
+
+    multi_invest = isinstance(n.snapshots, pd.MultiIndex)
+    periods = n.optimize._window.subset(sns).periods if multi_invest else pd.Index([])
 
     for col in cols:
         msg = (
@@ -157,10 +165,9 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
         if remainder in n.c.carriers.static.index:
             carrier = remainder
             period = None
-        elif isinstance(n.snapshots, pd.MultiIndex):
+        elif multi_invest:
             carrier, period = remainder.rsplit("_", 1)
             period = int(period)
-            periods = n.optimize.window.subset(sns).periods
             if carrier not in n.c.carriers.static.index or period not in periods:
                 logger.warning(msg)
                 continue
@@ -213,7 +220,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         return
 
     m = n.model
-    periods = n.optimize.window.periods
+    periods = n.optimize._window.periods
 
     # Handle stochastic optimization: find strictest (minimum) growth limit across scenarios
     if n.has_scenarios:
@@ -310,12 +317,13 @@ def define_primary_energy_limit(
     if glcs.empty:
         return
 
-    weight = n.da.snapshot_weightings.generators.sel(snapshot=sns)
+    window = n.optimize._window.subset(sns)
+    weight = window.snapshot_weighting("generators")
     if n._multi_invest:
-        period_of = pd.Index(weight.coords["period"].to_numpy())
-        periods = pd.unique(period_of)
+        period_of = window.period_of
+        periods = window.periods
         period_weighting = n.investment_period_weightings.years[periods]
-        weight = weight * period_weighting.reindex(period_of).to_numpy()
+        weight = apply_period_weighting(weight, period_weighting)
         period_last_sns, storage_weightings = _period_last_storage_weightings(
             sns, period_of, period_weighting
         )
@@ -362,7 +370,7 @@ def define_primary_energy_limit(
         for scenario in scenarios:
             glc = glc_group.loc[scenario]
 
-            if isnan(glc.investment_period):
+            if np.isnan(glc.investment_period):
                 period_sns = sns
             elif glc.investment_period in periods:
                 period_sns = sns[period_of == glc.investment_period]
@@ -570,10 +578,11 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
     if glcs.empty:
         return
 
-    weight = n.da.snapshot_weightings.generators.sel(snapshot=sns)
+    window = n.optimize._window.subset(sns)
+    weight = window.snapshot_weighting("generators")
     if n._multi_invest:
-        period_of = pd.Index(weight.coords["period"].to_numpy())
-        periods = pd.unique(period_of)
+        period_of = window.period_of
+        periods = window.periods
     unique_names = glcs.index.unique("name")
 
     for name in unique_names:
@@ -588,21 +597,22 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
         for scenario in scenarios:
             glc = glc_group.loc[scenario]
 
-            if isnan(glc.investment_period):
-                period_sns = sns
+            if np.isnan(glc.investment_period):
+                in_period = None
             elif glc.investment_period in periods:
-                period_sns = sns[period_of == glc.investment_period]
+                in_period = period_of == glc.investment_period
             else:
                 continue
+            period_sns = sns if in_period is None else sns[in_period]
 
             # Filter weightings and calculate period-specific values
             w = weight.sel(snapshot=period_sns)
             if n._multi_invest:
-                sel_period_of = period_of[sns.isin(period_sns)]
+                sel_period_of = period_of if in_period is None else period_of[in_period]
                 period_weighting = n.investment_period_weightings.years[
-                    pd.Index(sel_period_of).unique()
+                    sel_period_of.unique()
                 ]
-                w = w * period_weighting.reindex(sel_period_of).to_numpy()
+                w = apply_period_weighting(w, period_weighting)
                 period_last_sns, storage_weightings = _period_last_storage_weightings(
                     period_sns, sel_period_of, period_weighting
                 )
@@ -792,8 +802,8 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
             period = glc.investment_period
 
             # Determine periods for active asset filtering
-            window = n.optimize.window.subset(sns)
-            if not isnan(period):
+            window = n.optimize._window.subset(sns)
+            if not np.isnan(period):
                 period_filter = period
             elif window.has_periods:
                 period_filter = list(window.periods)
@@ -873,7 +883,7 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
     if glcs.empty:
         return
 
-    window = n.optimize.window.subset(sns)
+    window = n.optimize._window.subset(sns)
     if n._multi_invest:
         periods = window.periods
         period_weighting = n.investment_period_weightings.objective[periods]
@@ -890,7 +900,7 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         period = glc.investment_period
 
         # Determine periods for active asset filtering and cost weighting
-        if not isnan(period):
+        if not np.isnan(period):
             period_filter = period
             weights = 1
         elif window.has_periods:

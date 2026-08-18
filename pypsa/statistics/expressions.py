@@ -74,11 +74,7 @@ def port_efficiency(
     dynamic: bool = False,
     as_xarray: bool = False,
 ) -> pd.Series | pd.DataFrame | xr.DataArray:
-    """Get the efficiency of a component at a specific port.
-
-    With `as_xarray`, the efficiency is returned as a ``DataArray`` on the labels of
-    the live optimization model rather than as a pandas object on `n.snapshots`.
-    """
+    """Get the efficiency of a component at a specific port."""
     c = n.c[c_name]
     port = c._as_port(port)
 
