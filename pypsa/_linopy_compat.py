@@ -6,9 +6,9 @@
 
 linopy's v1 semantics forbid a `pd.MultiIndex` as a dimension coordinate. Under
 v1, PyPSA therefore builds multi-period models over a flat `snapshot` dim (see
-`pypsa.optimization.window`). This module only detects what the installed
-linopy supports; delete it once v1 is linopy's default and PyPSA requires that
-release.
+`pypsa.optimization.window`). This module detects what the installed linopy
+supports and resolves the snapshot representation against it; delete it once v1
+is linopy's default and PyPSA requires that release.
 """
 
 from __future__ import annotations
@@ -45,12 +45,11 @@ def linopy_uses_v1() -> bool:
         return False
 
 
-def resolve_model_snapshot_index(sns: pd.Index, option: str) -> str:
-    """Pick the snapshot representation for a model built over `sns`.
+def use_flat_snapshot_index(sns: pd.Index, option: str) -> bool:
+    """Whether a model built over `sns` labels `snapshot` with flat tuples.
 
-    Resolves `"flat"` or `"multiindex"` from the
-    `pypsa.options.optimization.model_snapshot_index` option and linopy's
-    active semantics.
+    Resolves the `pypsa.options.optimization.model_snapshot_index` option
+    against linopy's active semantics.
     """
     if option not in ("auto", "flat", "multiindex"):
         msg = (
@@ -59,9 +58,9 @@ def resolve_model_snapshot_index(sns: pd.Index, option: str) -> str:
         )
         raise ValueError(msg)
     if not isinstance(sns, pd.MultiIndex):
-        return "multiindex"
+        return False
     if option == "auto":
-        return "flat" if linopy_uses_v1() else "multiindex"
+        return linopy_uses_v1()
     if option == "multiindex" and linopy_uses_v1():
         msg = (
             "linopy's v1 semantics forbids a MultiIndex snapshot dimension. "
@@ -69,7 +68,7 @@ def resolve_model_snapshot_index(sns: pd.Index, option: str) -> str:
             "= 'flat' (or 'auto') instead."
         )
         raise ValueError(msg)
-    return option
+    return option == "flat"
 
 
 @contextmanager

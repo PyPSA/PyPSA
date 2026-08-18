@@ -24,7 +24,7 @@ import pandas as pd
 import xarray as xr
 from linopy import merge
 
-from pypsa._linopy_compat import resolve_model_snapshot_index
+from pypsa._linopy_compat import use_flat_snapshot_index
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -118,7 +118,7 @@ class SnapshotWindow:
     @classmethod
     def build(cls, n: Network, sns: pd.Index, representation: str) -> SnapshotWindow:
         """Create the window for a model built over `sns`."""
-        if resolve_model_snapshot_index(sns, representation) == "flat":
+        if use_flat_snapshot_index(sns, representation):
             return cls(n, sns, tuple_snapshot_index(sns))
         if isinstance(sns, pd.MultiIndex):
             _notify_multiindex_snapshot_kept()
@@ -142,17 +142,12 @@ class SnapshotWindow:
     @property
     def is_flat(self) -> bool:
         """Whether the model's `snapshot` dim carries flat tuple labels."""
-        return isinstance(self.network_index, pd.MultiIndex) and not isinstance(
-            self.model_index, pd.MultiIndex
-        )
+        return self.has_periods and not isinstance(self.model_index, pd.MultiIndex)
 
     @property
     def has_periods(self) -> bool:
         """Whether the window is resolved by investment period."""
-        return (
-            isinstance(self.network_index, pd.MultiIndex)
-            and "period" in self.network_index.names
-        )
+        return isinstance(self.network_index, pd.MultiIndex)
 
     @property
     def periods(self) -> pd.Index:
@@ -224,9 +219,7 @@ class SnapshotWindow:
 
         A no-op outside a multi-period flat build.
         """
-        if not isinstance(self.network_index, pd.MultiIndex) or (
-            "snapshot" not in obj.dims
-        ):
+        if not self.has_periods or "snapshot" not in obj.dims:
             return obj
         if _snapshot_is_multiindex(obj):
             return obj
@@ -255,36 +248,21 @@ class SnapshotWindow:
         where arrays keep all of `n.snapshots`: rolling-horizon code reads
         history from before the window. A no-op unless the build is flat.
         """
-        if not self.is_flat:
+        if not self.is_flat or not _snapshot_is_multiindex(obj):
             return obj
-        idx = obj.indexes.get("snapshot")
-        if not isinstance(idx, pd.MultiIndex):
-            return obj
-        tuples, level_coords = self._flat_labels(idx)
-        obj = obj.reset_index("snapshot", drop=True)
-        return obj.assign_coords({"snapshot": tuples, **level_coords})
+        return obj.reset_index("snapshot", drop=True).assign_coords(self._flat_coords)
 
     @functools.cached_property
-    def _snapshots_labels(self) -> tuple[Any, dict[str, Any]]:
-        """Flat labels and aux coords of all of `n.snapshots`."""
+    def _flat_coords(self) -> dict[str, Any]:
+        """Flat `snapshot` labels and aux coords of all of `n.snapshots`."""
         snapshots = self._n.snapshots
-        return tuple_snapshot_index(snapshots).values, _level_coords(snapshots)
-
-    def _flat_labels(self, idx: pd.MultiIndex) -> tuple[Any, dict[str, Any]]:
-        """Flat labels of `idx`, cached for the `n.snapshots` every caller passes."""
-        if idx.equals(self._n.snapshots):
-            return self._snapshots_labels
-        return tuple_snapshot_index(idx).values, _level_coords(idx)
+        labels = tuple_snapshot_index(snapshots).values
+        return {"snapshot": labels, **_level_coords(snapshots)}
 
     def snapshot_weightings(self, col: str) -> xr.DataArray:
         """Snapshot-weighting column of the window's snapshots, read live."""
-        series = self._n.snapshot_weightings[col]
-        weighting = self.flatten(snapshot_array(series.to_numpy(), series.index))
-        idx = weighting.indexes["snapshot"]
-        if idx.equals(self.model_index):
-            return weighting
-        # positional take keeps a MultiIndex intact, unlike label-based `sel`
-        return weighting.isel(snapshot=idx.get_indexer(self.model_index))
+        series = self._n.snapshot_weightings[col].loc[self.network_index]
+        return self._attach_aux(snapshot_array(series.to_numpy(), self.model_index))
 
     @functools.cached_property
     def _network_coords(self) -> xr.Coordinates:
