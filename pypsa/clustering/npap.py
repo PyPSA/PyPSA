@@ -614,14 +614,12 @@ def _build_one_port_strategies(
 
     # Inject "sum" for solver output attributes present in the component data
     attrs = n.components[component]["defaults"]
-    output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
-    for col in output_columns:
-        if col in n.c[component].static.columns:
-            effective[col] = "sum"
-
-    # Also cover dynamic-only output attributes (e.g. p, q time series)
-    for attr_name in n.c[component].dynamic:
-        if attr_name not in effective:
+    output_attrs = attrs.index[attrs.status.str.startswith("Output")]
+    for attr_name in output_attrs:
+        if (
+            attr_name in n.c[component].static.columns
+            or attr_name in n.c[component].dynamic
+        ):
             effective[attr_name] = "sum"
 
     # Layer user strategies on top

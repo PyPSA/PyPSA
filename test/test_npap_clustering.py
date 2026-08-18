@@ -313,9 +313,30 @@ class TestBuildOnePortStrategies:
         n = _make_small_network()
         strategies = _build_one_port_strategies(n, "Generator", {})
         # Generator output attrs like p should get "sum"
-        # Check that at least dynamic attrs get "sum"
-        for attr_name in n.c.generators.dynamic:
+        attrs = n.components["Generator"]["defaults"]
+        output_attrs = attrs.index[attrs.status.str.startswith("Output")]
+        present_output_attrs = [
+            attr_name
+            for attr_name in output_attrs
+            if attr_name in n.c.generators.static.columns
+            or attr_name in n.c.generators.dynamic
+        ]
+        for attr_name in present_output_attrs:
             assert strategies.get(attr_name) == "sum"
+
+    def test_input_attrs_do_not_override_defaults(self):
+        n = _make_small_network()
+        strategies = _build_one_port_strategies(n, "Generator", {})
+        # Optional input attrs must keep aggregateoneport's defaults.
+        for attr_name in [
+            "p_set",
+            "q_set",
+            "p_max_pu",
+            "p_min_pu",
+            "ramp_limit_up",
+            "ramp_limit_down",
+        ]:
+            assert attr_name not in strategies
 
     def test_user_flat_strategies_override(self):
         n = _make_small_network()
@@ -347,7 +368,7 @@ class TestBuildOnePortStrategies:
     def test_empty_strategies(self):
         n = _make_small_network()
         strategies = _build_one_port_strategies(n, "Generator", {})
-        # Should still have entries for dynamic attrs
+        # Should still have entries for output attrs
         assert isinstance(strategies, dict)
         assert len(strategies) >= 0  # At minimum an empty or populated dict
 
