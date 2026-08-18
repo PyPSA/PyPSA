@@ -1273,7 +1273,7 @@ def test_window_spans_the_build(windowed_n):
 
 def test_network_arrays_use_model_labels(windowed_n):
     window = windowed_n.optimize._window
-    weightings = windowed_n.optimize._window.snapshot_weighting("objective")
+    weightings = windowed_n.optimize._window.snapshot_weightings("objective")
     pd.testing.assert_index_equal(weightings.indexes["snapshot"], window.model_index)
     equal(weightings.to_numpy(), windowed_n.snapshot_weightings.objective.to_numpy())
 

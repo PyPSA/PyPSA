@@ -81,8 +81,11 @@ addition, subtraction, multiplication, division) that represent the relationship
 between variables involved in the constraint.
 
 Operands with different labels along a shared dimension (here `name`: generators
-and links) must be aligned explicitly, via `join=` on `.add()`/`.sub()` or
-`linopy.merge`, otherwise linopy raises under its v1 semantics:
+and links) need explicit alignment. Under linopy's current default semantics a
+plain `expr1 + expr2` still works and silently combines the two label sets with
+an outer join. Under the v1 semantics the same `+` raises a `ValueError`, so the intended
+alignment is stated with the `join` argument on `.add()`/`.sub()` or
+`linopy.merge`:
 
 ``` py
 >>> (2 * m.variables["Generator-p"]).add(0.5 * m.variables["Link-p"], join="outer")  # doctest: +ELLIPSIS
@@ -137,12 +140,13 @@ the optimised values will be stored for the network component (e.g. `n.generator
 
 ## Handling snapshots in multi-investment optimizations
 
-The model's `snapshot` labels are not always the labels of `n.snapshots`. For a
-multi-period network built under linopy's v1 semantics
-(`linopy.options["semantics"] = "v1"`), where a `pandas.MultiIndex` may not be a
-dimension coordinate, PyPSA builds `snapshot` as a flat dimension whose labels are
-the `(period, timestep)` tuples, with `period` and `timestep` attached as auxiliary
-coordinates. `n.snapshots` stays a `MultiIndex` and results are unchanged.
+In multi-period networks, `n.snapshots` is a `pandas.MultiIndex`. linopy's v1
+semantics do not allow a `MultiIndex` on a model dimension, so under v1 PyPSA
+builds `snapshot` as a flat dimension labelled by the `(period, timestep)`
+tuples, with `period` and `timestep` as auxiliary coordinates. Auxiliary
+coordinates are extra labels on a dimension that do not index it but still work
+for selecting and grouping, e.g. `expr.groupby("period")`. `n.snapshots` stays
+a `MultiIndex` and results are unchanged.
 
 Migrating existing `extra_functionality` to the flat representation:
 

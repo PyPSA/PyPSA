@@ -318,7 +318,7 @@ def define_primary_energy_limit(
         return
 
     window = n.optimize._window.subset(sns)
-    weight = window.snapshot_weighting("generators")
+    weight = window.snapshot_weightings("generators")
     if n._multi_invest:
         period_of = window.period_of
         periods = window.periods
@@ -579,7 +579,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
         return
 
     window = n.optimize._window.subset(sns)
-    weight = window.snapshot_weighting("generators")
+    weight = window.snapshot_weightings("generators")
     if n._multi_invest:
         period_of = window.period_of
         periods = window.periods

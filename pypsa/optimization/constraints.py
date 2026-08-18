@@ -746,7 +746,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     if maint_i.empty:
         return
 
-    weightings = n.optimize._window.subset(sns).snapshot_weighting("generators").values
+    weightings = n.optimize._window.subset(sns).snapshot_weightings("generators").values
     maintenance = n.model[f"{c.name}-maintenance"]
     maintenance_start = n.model[f"{c.name}-maintenance_start"]
     active = c.da.active.sel(name=maint_i, snapshot=sns)
@@ -1317,7 +1317,7 @@ def _apply_delay_shift(
         return comp_p.to_linexpr()
 
     window = n.optimize._window.subset(sns)
-    weightings = window.snapshot_weighting("generators")
+    weightings = window.snapshot_weightings("generators")
     src_snapshot_pos, valid = c.get_delay_source_indexer(
         sns,
         weightings.to_numpy(),
@@ -2070,7 +2070,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     if c.static.empty:
         return
 
-    eh = window.snapshot_weighting("stores")
+    eh = window.snapshot_weightings("stores")
 
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
     eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=c.active_assets)
@@ -2248,7 +2248,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     if c.static.empty:
         return
 
-    eh = window.snapshot_weighting("stores")
+    eh = window.snapshot_weightings("stores")
 
     # standing efficiency
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
@@ -2640,7 +2640,7 @@ def define_total_supply_constraints(
     if c.static.empty:
         return
 
-    eh = window.snapshot_weighting("generators")
+    eh = window.snapshot_weightings("generators")
 
     def _extract_names(index: pd.Index) -> pd.Index:
         """Extract name level from MultiIndex or return as-is."""

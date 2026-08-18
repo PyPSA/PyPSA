@@ -260,7 +260,7 @@ def define_objective(
         n._objective_constant = 0.0
 
     # Weightings
-    weight = window.snapshot_weighting("objective")
+    weight = window.snapshot_weightings("objective")
     if n._multi_invest:
         weight = apply_period_weighting(weight, period_weighting)
 

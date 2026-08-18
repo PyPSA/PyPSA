@@ -276,7 +276,7 @@ class SnapshotWindow:
             return self._snapshots_labels
         return tuple_snapshot_index(idx).values, _level_coords(idx)
 
-    def snapshot_weighting(self, col: str) -> xr.DataArray:
+    def snapshot_weightings(self, col: str) -> xr.DataArray:
         """Snapshot-weighting column of the window's snapshots, read live."""
         series = self._n.snapshot_weightings[col]
         weighting = self.flatten(snapshot_array(series.to_numpy(), series.index))

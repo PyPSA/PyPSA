@@ -547,7 +547,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         from pypsa.optimization.optimize import lookup  # noqa: PLC0415
 
         at_port = resolve_at_port(at_port, bus_carrier)
-        weights = self._n.optimize._window.snapshot_weighting("objective")
+        weights = self._n.optimize._window.snapshot_weightings("objective")
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
@@ -621,7 +621,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             components = self._n.branch_components
 
         transmission_branches = get_transmission_branches(self._n, bus_carrier)
-        weights = self._n.optimize._window.snapshot_weighting("generators")
+        weights = self._n.optimize._window.snapshot_weightings("generators")
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
@@ -709,7 +709,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 "To separate bus carriers set `bus_carrier` or use `bus_carrier` in the groupby argument."
             )
 
-        weights = self._n.optimize._window.snapshot_weighting("generators")
+        weights = self._n.optimize._window.snapshot_weightings("generators")
 
         @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series:
@@ -890,7 +890,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         """
         at_port = resolve_at_port(at_port, bus_carrier)
-        weights = self._n.optimize._window.snapshot_weighting("generators")
+        weights = self._n.optimize._window.snapshot_weightings("generators")
 
         @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series:
@@ -959,7 +959,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
         at_port = resolve_at_port(at_port, bus_carrier)
 
-        weights = self._n.optimize._window.snapshot_weighting("generators")
+        weights = self._n.optimize._window.snapshot_weightings("generators")
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
