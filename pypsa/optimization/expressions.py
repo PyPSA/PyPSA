@@ -80,24 +80,41 @@ def _group_key_coords(expr: LinearExpression) -> list[str]:
     ]
 
 
-def _flatten_group_index(expr: LinearExpression) -> LinearExpression:
-    """Turn a stacked `group` MultiIndex into a flat dim with the keys as aux coords.
+def _key_frame(expr: LinearExpression, keys: list[str]) -> pd.DataFrame:
+    """Values of the `keys` coordinates of `expr` as a frame."""
+    return pd.DataFrame({k: expr.coords[k].to_numpy() for k in keys})
 
-    Legacy linopy's multi-key `groupby` returns a stacked `group` `MultiIndex`;
-    v1 returns the flat form directly. Normalising here gives the rest of the
-    pipeline a single representation. Inverse of `_restack_flat_groups`.
+
+def _attach_keys(expr: LinearExpression, keys: pd.DataFrame) -> LinearExpression:
+    """Attach the columns of `keys` as coordinates of the flat `group` dim."""
+    return expr.assign_coords({k: ("group", keys[k].to_numpy()) for k in keys})
+
+
+def _group_by_keys(
+    expr: LinearExpression, dim: str, keys: pd.DataFrame
+) -> LinearExpression:
+    """Sum `expr` over `dim` into a flat `group` dim keyed by the columns of `keys`.
+
+    Grouping by a single integer code coordinate (rather than by a frame or Series
+    grouper) keeps the reduction aligned against other dimensions such as
+    `snapshot` and yields the flat form under either linopy semantics.
     """
-    if isinstance(expr.indexes.get("group"), pd.MultiIndex):
-        return expr.reset_index("group")
-    return expr
+    codes, uniques = pd.factorize(pd.MultiIndex.from_frame(keys), sort=True)
+    grouped = (
+        expr.assign_coords(_group_code=(dim, codes))
+        .groupby("_group_code")
+        .sum()
+        .rename(_group_code="group")
+    )
+    return _attach_keys(grouped, uniques.set_names(keys.columns).to_frame(index=False))
 
 
 def _restack_flat_groups(expr: Any) -> Any:
     """Give a flat-`group` expression the public stacked group index.
 
     The grouping keys ride as auxiliary coordinates on a flat `group` dim
-    throughout the pipeline; restack them on exit so the public return shape is the
-    same under both semantics. Inverse of `_flatten_group_index`.
+    throughout the pipeline; restack them on exit so the public return shape
+    carries the keys themselves.
     """
     if not isinstance(expr, LinearExpression) or "group" not in expr.dims:
         return expr
@@ -115,51 +132,19 @@ def _concat_flat_groups(exprs: list[LinearExpression]) -> LinearExpression:
     the keys are stripped, the groups renumbered to be globally unique, merged, and
     the keys reattached as `group`-indexed coordinates.
     """
-    parts: list[LinearExpression] = []
-    frames: list[pd.DataFrame] = []
-    offset = 0
-    for expr in exprs:
-        keys = _group_key_coords(expr)
-        frames.append(
-            pd.DataFrame({k: np.asarray(expr.coords[k].values) for k in keys})
-        )
-        size = expr.sizes["group"]
-        renumbered = expr.drop_vars(keys).assign_coords(
-            group=np.arange(offset, offset + size)
-        )
-        offset += size
-        parts.append(renumbered)
+    frames = [_key_frame(e, _group_key_coords(e)) for e in exprs]
+    starts = np.cumsum([0, *(len(f) for f in frames)])[:-1]
+    parts = [
+        e.drop_vars(f.columns).assign_coords(group=np.arange(o, o + len(f)))
+        for e, f, o in zip(exprs, frames, starts, strict=True)
+    ]
     merged = ln.merge(parts, dim="group") if len(parts) > 1 else parts[0]
-    frame = pd.concat(frames, ignore_index=True)
-    return merged.assign_coords(
-        {col: ("group", frame[col].to_numpy()) for col in frame.columns}
-    )
+    return _attach_keys(merged, pd.concat(frames, ignore_index=True))
 
 
 def _regroup_flat(expr: LinearExpression, by: list[str]) -> LinearExpression:
-    """Regroup a flat-`group` expression by a subset of its key coordinates.
-
-    Keeps the flat `group` dimension and reattaches the selected keys, summing
-    entries that share the same key tuple.
-    """
-    keys = pd.MultiIndex.from_arrays(
-        [np.asarray(expr.coords[k].values) for k in by], names=by
-    )
-    codes, uniques = pd.factorize(keys, sort=True)
-    # Group by a single code coordinate (rather than a Series grouper, which
-    # would misalign against other dimensions such as `snapshot`).
-    grouped = (
-        expr.assign_coords(_group_code=("group", codes))
-        .groupby("_group_code")
-        .sum()
-        .rename(_group_code="group")
-    )
-    return grouped.assign_coords(
-        {
-            name: ("group", uniques.get_level_values(i).to_numpy())
-            for i, name in enumerate(by)
-        }
-    )
+    """Regroup a flat-`group` expression by a subset of its key coordinates."""
+    return _group_by_keys(expr, "group", _key_frame(expr, by))
 
 
 def _capacity_expression(
@@ -316,9 +301,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         grouping: pd.DataFrame,
         agg: Callable | str,
         c: str,
-    ) -> pd.DataFrame:
-        grouping = grouping.reindex(vals.indexes["name"])
-        return _flatten_group_index(vals.groupby(grouping).sum())
+    ) -> LinearExpression:
+        return _group_by_keys(vals, "name", grouping.reindex(vals.indexes["name"]))
 
     def _aggregate_components_concat_values(
         self, exprs: list[LinearExpression], agg: Callable | str
