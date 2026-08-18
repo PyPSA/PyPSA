@@ -80,33 +80,16 @@ def _group_key_coords(expr: LinearExpression) -> list[str]:
     ]
 
 
-def _key_frame(expr: LinearExpression, keys: list[str]) -> pd.DataFrame:
-    """Values of the `keys` coordinates of `expr` as a frame."""
-    return pd.DataFrame({k: expr.coords[k].to_numpy() for k in keys})
+def _flatten_group(expr: LinearExpression) -> LinearExpression:
+    """Flatten a stacked `group` index onto a flat one keyed by auxiliary coordinates."""
+    if isinstance(expr.indexes.get("group"), pd.MultiIndex):
+        return expr.reset_index("group")
+    return expr
 
 
-def _attach_keys(expr: LinearExpression, keys: pd.DataFrame) -> LinearExpression:
-    """Attach the columns of `keys` as coordinates of the flat `group` dim."""
-    return expr.assign_coords({k: ("group", keys[k].to_numpy()) for k in keys})
-
-
-def _group_by_keys(
-    expr: LinearExpression, dim: str, keys: pd.DataFrame
-) -> LinearExpression:
-    """Sum `expr` over `dim` into a flat `group` dim keyed by the columns of `keys`.
-
-    Grouping by a single integer code coordinate (rather than by a frame or Series
-    grouper) keeps the reduction aligned against other dimensions such as
-    `snapshot` and yields the flat form under either linopy semantics.
-    """
-    codes, uniques = pd.factorize(pd.MultiIndex.from_frame(keys), sort=True)
-    grouped = (
-        expr.assign_coords(_group_code=(dim, codes))
-        .groupby("_group_code")
-        .sum()
-        .rename(_group_code="group")
-    )
-    return _attach_keys(grouped, uniques.set_names(keys.columns).to_frame(index=False))
+def _regroup(expr: LinearExpression, keys: list[str]) -> LinearExpression:
+    """Sum a grouped expression over the subset `keys` of its grouping keys."""
+    return _flatten_group(expr.groupby(keys).sum(observed=True))
 
 
 def _restack_flat_groups(expr: Any) -> Any:
@@ -123,28 +106,6 @@ def _restack_flat_groups(expr: Any) -> Any:
         return expr
     indexed = expr.set_index(group=keys)
     return indexed.rename(group=keys[0]) if len(keys) == 1 else indexed
-
-
-def _concat_flat_groups(exprs: list[LinearExpression]) -> LinearExpression:
-    """Concatenate grouped expressions along a flat, globally unique `group` dim.
-
-    `linopy.merge` cannot concatenate flat `group` dims whose labels overlap, so
-    the keys are stripped, the groups renumbered to be globally unique, merged, and
-    the keys reattached as `group`-indexed coordinates.
-    """
-    frames = [_key_frame(e, _group_key_coords(e)) for e in exprs]
-    starts = np.cumsum([0, *(len(f) for f in frames)])[:-1]
-    parts = [
-        e.drop_vars(f.columns).assign_coords(group=np.arange(o, o + len(f)))
-        for e, f, o in zip(exprs, frames, starts, strict=True)
-    ]
-    merged = ln.merge(parts, dim="group") if len(parts) > 1 else parts[0]
-    return _attach_keys(merged, pd.concat(frames, ignore_index=True))
-
-
-def _regroup_flat(expr: LinearExpression, by: list[str]) -> LinearExpression:
-    """Regroup a flat-`group` expression by a subset of its key coordinates."""
-    return _group_by_keys(expr, "group", _key_frame(expr, by))
 
 
 def _capacity_expression(
@@ -302,7 +263,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         agg: Callable | str,
         c: str,
     ) -> LinearExpression:
-        return _group_by_keys(vals, "name", grouping.reindex(vals.indexes["name"]))
+        return _flatten_group(
+            vals.groupby(grouping.reindex(vals.indexes["name"])).sum()
+        )
 
     def _aggregate_components_concat_values(
         self, exprs: list[LinearExpression], agg: Callable | str
@@ -310,8 +273,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         if "group" in exprs[0].dims and len(exprs) > 1:
             # concatenate the ports and sum entries sharing a key tuple
             _require_sum_agg(agg)
-            merged = _concat_flat_groups(exprs)
-            return _regroup_flat(merged, _group_key_coords(merged))
+            merged = ln.merge(exprs, dim="group")
+            return _regroup(merged, _group_key_coords(merged))
         return ln.merge(exprs, join="outer")
 
     def _aggregate_components_concat_data(
@@ -323,8 +286,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         if "group" in first.dims:
             if is_one_component:
                 keys = [k for k in _group_key_coords(first) if k != "component"]
-                return _regroup_flat(first, keys) if keys else first
-            return _concat_flat_groups(list(res.values()))
+                return _regroup(first, keys) if keys else first
+            return ln.merge(list(res.values()), dim="group")
         # groupby=False: no `group` dim, concatenate disjoint asset names
         if is_one_component:
             return first
@@ -348,7 +311,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         if check_if_empty(expr):
             return expr
         keys = [k for k in _group_key_coords(expr) if k != "component"]
-        return _regroup_flat(expr, keys) if keys else expr
+        return _regroup(expr, keys) if keys else expr
 
     def _get_operational_variable(self, c: str) -> Variable | LinearExpression:
         # TODO: move function to better place to avoid circular imports
