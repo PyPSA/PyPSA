@@ -360,12 +360,13 @@ def define_objective(
         if ext_i.empty:
             continue
 
+        active_ext = c.da.active.sel(name=ext_i)
         if n._multi_invest:
             sum_dim = ["name", "period"]
-            cost_weight = c.da.active.groupby("period").any("snapshot") * period_weight
+            cost_weight = active_ext.groupby("period").any("snapshot") * period_weight
         else:
             sum_dim = ["name"]
-            cost_weight = c.da.active.sel(name=ext_i).any(dim="snapshot")
+            cost_weight = active_ext.any(dim="snapshot")
 
         y_attr = "capital_cost"
         pw_attr = c._piecewise_schema(y_attr)
@@ -435,18 +436,20 @@ def define_objective(
         raise ValueError(msg)
 
     # Build expected CAPEX and expected OPEX (scenario-weighted if stochastic)
-    def _expected(exprs: list) -> Any:
+    def _combine(exprs: list) -> Any:
         if not exprs:
             return 0
-        if n.has_scenarios:
-            terms = []
-            for s, p in n.scenario_weightings["weight"].items():
-                selected = [e.sel(scenario=s, drop=True) for e in exprs]
-                # If quadratic terms exist, avoid merge (which is linear-only) and sum instead
-                merged = sum(selected) if is_quadratic else merge(selected)
-                terms.append(merged * p)
-            return sum(terms) if is_quadratic else merge(terms)
+        # If quadratic terms exist, avoid merge (which is linear-only) and sum instead
         return sum(exprs) if is_quadratic else merge(exprs)
+
+    def _combine_scenario(exprs: list, s: Any) -> Any:
+        return _combine([e.sel(scenario=s, drop=True) for e in exprs])
+
+    def _expected(exprs: list) -> Any:
+        if not exprs or not n.has_scenarios:
+            return _combine(exprs)
+        weights = n.scenario_weightings["weight"]
+        return _combine([_combine_scenario(exprs, s) * p for s, p in weights.items()])
 
     expected_capex = _expected(capex_terms)
     expected_opex = _expected(opex_terms)
@@ -471,14 +474,7 @@ def define_objective(
             raise ValueError(msg_q)
 
         # Create per-scenario OPEX expressions to use in constraints
-        scen_opex_exprs: dict[Any, Any] = {}
-        for s in n.scenarios:
-            scen_selected = [e.sel(scenario=s, drop=True) for e in opex_terms]
-            scen_opex_exprs[s] = (
-                (sum(scen_selected) if is_quadratic else merge(scen_selected))
-                if scen_selected
-                else 0
-            )
+        scen_opex_exprs = {s: _combine_scenario(opex_terms, s) for s in n.scenarios}
 
         # Retrieve CVaR auxiliary variables
         a = m["CVaR-a"]
@@ -652,7 +648,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         )
 
         n = self._n
-        sns = as_index(n, snapshots, "snapshots")
         n._multi_invest = int(multi_investment_periods)
         n._linearized_uc = linearized_unit_commitment
 
@@ -660,7 +655,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             strict=["unknown_buses", "maintenance", "phase_shift_bounds"]
         )
         m = n.optimize.create_model(
-            sns,
+            snapshots,
             multi_investment_periods,
             transmission_losses,
             linearized_unit_commitment,
@@ -793,10 +788,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 meshed_thresholds = [meshed_threshold]
 
         kwargs.setdefault("force_dim_names", True)
-        n._optimize_window = SnapshotWindow.build(
-            n, sns, options.optimization.model_snapshot_index
-        )
-        sns = n._optimize_window.model_index
+        window = SnapshotWindow.build(n, sns, options.optimization.model_snapshot_index)
+        n._optimize_window = window
+        sns = window.model_index
         n._model = Model(**kwargs)
 
         n.model.parameters = n.model.parameters.assign(snapshots=sns)

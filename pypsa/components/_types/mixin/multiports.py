@@ -210,15 +210,10 @@ class _Multiport(Components):
             return _Multiport._delay_positions(w, delay, is_cyclic)
 
         breaks = np.flatnonzero(periods[1:] != periods[:-1]) + 1
-        starts = np.concatenate(([0], breaks))
-        stops = np.concatenate((breaks, [n_snapshots]))
-
         src = np.empty(n_snapshots, dtype=int)
         valid = np.empty(n_snapshots, dtype=bool)
-        for start, stop in zip(starts, stops, strict=True):
-            p_src, p_valid = _Multiport._delay_positions(
-                w[start:stop], delay, is_cyclic
-            )
-            src[start:stop] = p_src + start
-            valid[start:stop] = p_valid
+        for block in np.split(np.arange(n_snapshots), breaks):
+            p_src, p_valid = _Multiport._delay_positions(w[block], delay, is_cyclic)
+            src[block] = p_src + block[0]
+            valid[block] = p_valid
         return src, valid

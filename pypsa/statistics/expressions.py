@@ -79,7 +79,6 @@ def port_efficiency(
     port = c._as_port(port)
 
     ones = pd.Series(1, index=c.static.index)
-    res: pd.Series | pd.DataFrame
     if c.name in n.one_port_components:
         res = ones
     elif c.name in n.passive_branch_components:
@@ -89,11 +88,8 @@ def port_efficiency(
     elif c.name in ("Link", "Process"):
         key = c._port_coefficient_attr(port)
         if dynamic and key in c.static:
-            if as_xarray:
-                return c.da[key]
-            res = n.get_switchable_as_dense(c.name, key)
-        else:
-            res = c.static.get(key, ones)
+            return c.da[key] if as_xarray else n.get_switchable_as_dense(c.name, key)
+        res = c.static.get(key, ones)
     else:
         msg = f"port_efficiency has not been implemented for: {c.name}"
         raise NotImplementedError(msg)
