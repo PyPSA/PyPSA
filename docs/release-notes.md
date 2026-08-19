@@ -47,6 +47,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix a large memory spike when reading netCDF networks that store `Shape` geometries by reading variable-length string variables as object arrays via the `netCDF4` backend. (<!-- md:pr 1830 -->)
 
+- Fix a `tech_capacity_expansion_limit` global constraint being ignored when no `investment_period` was given. The limit was silently skipped and `n.optimize()` could return capacities above it without warning. (<!-- md:pr 1884 -->)
+
 
 ## [**v1.2.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.4) <small>27th June 2026</small> { id="v1.2.4" }
 
