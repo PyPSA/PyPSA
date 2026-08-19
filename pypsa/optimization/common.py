@@ -2,42 +2,35 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Use common methods for optimization problem definition with Linopy."""
+"""Use common methods for optimization problem definition with Linopy.
+
+Snapshot naming convention
+---------------------------
+- `sns`: snapshots the current model build is constructed over, in the model's
+  labelling (see `pypsa.optimization.window`).
+- `window`: the build's `SnapshotWindow`, which maps those labels back to the
+  network's.
+- `period_sns`: per-investment-period subset of `sns`, as yielded by
+  `window.iter_periods`.
+
+`snapshots` is reserved for the public API (`n.optimize(snapshots=...)`,
+`n.snapshots`); `"snapshot"` is the model dimension name.
+"""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import pandas as pd
-import xarray as xr
 from deprecation import deprecated
-from numpy import hstack, ravel, roll, zeros
+from numpy import hstack, ravel
 
 from pypsa.constants import RE_PORTS
 
 if TYPE_CHECKING:
-    from linopy import Variable
+    import xarray as xr
 
     from pypsa import Network
-
-
-def _period_start_mask(sns: pd.Index) -> xr.DataArray:
-    """Mark the first snapshot of each investment period."""
-    is_start = zeros(len(sns), dtype=bool)
-    is_start[0] = True
-    if isinstance(sns, pd.MultiIndex) and "period" in sns.names:
-        periods = sns.get_level_values("period").to_numpy()
-        is_start[1:] = periods[1:] != periods[:-1]
-    return xr.DataArray(is_start, coords=[sns])
-
-
-def _roll_within_periods(v: Variable) -> Variable:
-    """Cyclically roll ``v`` by one snapshot within each investment period."""
-    sns = v.indexes["snapshot"]
-    positions = pd.Series(range(len(sns)), index=sns)
-    roll_index = positions.groupby(level="period").transform(lambda s: roll(s, 1))
-    coords = xr.Coordinates.from_pandas_multiindex(sns, "snapshot")
-    return v.isel(snapshot=roll_index.to_numpy()).assign_coords(coords)
 
 
 @deprecated(
