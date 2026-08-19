@@ -34,6 +34,7 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Bug Fixes
 
 - Fix pickling of networks that contain sub-networks, which previously failed with `cannot pickle 'weakref.ReferenceType' object`. (<!-- md:pr 1888 -->)
+- Fix [`n.optimize(linearized_unit_commitment=True)`][pypsa.optimization.OptimizationAccessor.__call__] excluding the integer optimum for components that are both committable and extendable. The relaxation tightening constraints are no longer applied to extendable committables, where `p_nom` is an optimization variable. (<!-- md:pr 1885 -->)
 - Fix [`system_cost`][pypsa.statistics.StatisticsAccessor.system_cost] omitting fixed operation and maintenance costs (`fom_cost`), which are part of the optimization objective. It now returns the sum of `capex`, `fom` and `opex`, consistent with the objective function.
 - Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] failing for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]) containing components with ramp limits. (<!-- md:pr 1873 -->)
 - Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] failing with a `KeyError` when a network contains inactive components alongside committable, modular or ramp-limited ones. (<!-- md:pr 1870 -->)
@@ -47,6 +48,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix [`n.graph()`][pypsa.Network.graph] building edges in a non-deterministic order, which could make results that depend on the network's cycles differ between runs. In particular, security-constrained optimization (SCLOPF) now returns consistent results. (<!-- md:pr 1764 -->)
 
 - Fix a large memory spike when reading netCDF networks that store `Shape` geometries by reading variable-length string variables as object arrays via the `netCDF4` backend. (<!-- md:pr 1830 -->)
+
+- Fix a `tech_capacity_expansion_limit` global constraint being ignored when no `investment_period` was given. The limit was silently skipped and `n.optimize()` could return capacities above it without warning. (<!-- md:pr 1884 -->)
 
 
 ## [**v1.2.4**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.4) <small>27th June 2026</small> { id="v1.2.4" }
