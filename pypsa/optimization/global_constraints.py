@@ -48,7 +48,7 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
         raise NotImplementedError(msg)
 
     for (carrier, sense, period), glcs_group in glcs.groupby(
-        ["carrier_attribute", "sense", "investment_period"]
+        ["carrier_attribute", "sense", "investment_period"], dropna=False
     ):
         period = None if isnan(period) else int(period)
         sign = "=" if sense == "==" else sense

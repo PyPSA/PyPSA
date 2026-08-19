@@ -193,6 +193,38 @@ def test_1449():
     assert status == "ok"
 
 
+def test_1884():
+    """
+    A tech_capacity_expansion_limit with no investment_period must still apply.
+    See https://github.com/PyPSA/PyPSA/issues/1884.
+    """
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "b")
+    n.add("Carrier", ["wind", "gas"])
+    n.add("Load", "l", bus="b", p_set=100)
+    # cheap wind is capped at 50, so expensive gas must cover the rest
+    n.add(
+        "Generator",
+        ["wind", "gas"],
+        bus="b",
+        carrier=["wind", "gas"],
+        p_nom_extendable=True,
+        capital_cost=1,
+        marginal_cost=[1, 100],
+    )
+    n.add(
+        "GlobalConstraint",
+        "wind_limit",
+        type="tech_capacity_expansion_limit",
+        carrier_attribute="wind",
+        sense="<=",
+        constant=50,
+    )
+
+    n.optimize()
+    assert n.generators.p_nom_opt["wind"] == pytest.approx(50)
+
+
 def test_transmission_cost_limit_overnight_cost():
     n = pypsa.Network()
     n.snapshot_weightings.loc[:, :] = 8760.0
