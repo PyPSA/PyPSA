@@ -6,6 +6,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+import xarray as xr
 
 import pypsa
 from pypsa.statistics import groupers
@@ -935,25 +936,24 @@ class TestPortEfficiency:
 
     # --- Link dynamic efficiency ---
 
-    def test_dynamic_link_port1_returns_dataframe(self, dynamic_link_eff, component):
-        result = port_efficiency(dynamic_link_eff, component, port=1, dynamic=True)
-        assert isinstance(result, pd.DataFrame)
-
-    def test_dynamic_link_port1_values(self, dynamic_link_eff, component, eff1):
-        result = port_efficiency(dynamic_link_eff, component, port=1, dynamic=True)
-        expected = dynamic_link_eff.components[component].dynamic[eff1]
-        pd.testing.assert_frame_equal(result, expected)
-
-    def test_dynamic_link_port2_returns_dataframe(
-        self, dynamic_link_eff, component, eff_param
+    @pytest.mark.parametrize(
+        ("as_xarray", "expected_type"), [(False, pd.DataFrame), (True, xr.DataArray)]
+    )
+    def test_dynamic_link_port1_return_type(
+        self, dynamic_link_eff, component, as_xarray, expected_type
     ):
-        result = port_efficiency(dynamic_link_eff, component, port=2, dynamic=True)
-        expected = dynamic_link_eff.components[component].dynamic[f"{eff_param}2"]
-        pd.testing.assert_frame_equal(result, expected)
+        result = port_efficiency(
+            dynamic_link_eff, component, port=1, dynamic=True, as_xarray=as_xarray
+        )
+        assert isinstance(result, expected_type)
 
-    def test_dynamic_link_port2_values(self, dynamic_link_eff, component, eff_param):
-        result = port_efficiency(dynamic_link_eff, component, port=2, dynamic=True)
-        expected = dynamic_link_eff.components[component].dynamic[f"{eff_param}2"]
+    @pytest.mark.parametrize("port", [1, 2])
+    def test_dynamic_link_port_values(
+        self, dynamic_link_eff, component, eff1, eff_param, port
+    ):
+        result = port_efficiency(dynamic_link_eff, component, port=port, dynamic=True)
+        attr = eff1 if port == 1 else f"{eff_param}2"
+        expected = dynamic_link_eff.components[component].dynamic[attr]
         pd.testing.assert_frame_equal(result, expected)
 
     # --- piecewise efficiency is not port_efficiency's concern ---

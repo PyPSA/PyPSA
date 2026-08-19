@@ -54,6 +54,7 @@ from pypsa.network.power_flow import (
 )
 from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
+from pypsa.optimization.window import SnapshotWindow
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore
 from pypsa.statistics.expressions import StatisticsAccessor
@@ -91,6 +92,7 @@ class Network(
     _multi_invest: int
     _linearized_uc: int
     _committable_big_m: float | None
+    _optimize_window: SnapshotWindow | None
     iteration: int
 
     # ----------------
@@ -162,6 +164,7 @@ class Network(
         self._objective_constant: float | None = None
         self._multi_invest: int = 0
         self._committable_big_m: float | None = None
+        self._optimize_window: SnapshotWindow | None = None
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -532,6 +535,7 @@ class Network(
             PlotAccessor,
             AbstractStatisticsAccessor,
             linopy.Model,
+            SnapshotWindow,
         ]
         not_equal = False
         if isinstance(other, self.__class__):

@@ -485,6 +485,16 @@ options._add_option(
     "Values within this tolerance of the boundary are not flagged as inconsistent. "
     "Set to 0 to disable tolerance and flag any violation.",
 )
+# Optimization category
+options._add_option(
+    "optimization.model_snapshot_index",
+    "auto",
+    "Snapshot dimension of multi-period models: 'multiindex' keeps the "
+    "(period, timestep) MultiIndex, 'flat' uses tuple labels "
+    "with period/timestep auxiliary coordinates, 'auto' picks by linopy's active "
+    "semantics ('flat' under v1, else 'multiindex'). Applies to newly built "
+    "models only.",
+)
 # Warnings category
 options._add_option(
     "warnings.components_store_iter",
