@@ -16,7 +16,8 @@ import pandas as pd
 
 from pypsa.clustering.spatial import (
     Clustering,
-    aggregateoneport,
+    _add_aggregated_one_port_components,
+    _add_remaining_one_port_components,
 )
 
 if TYPE_CHECKING:
@@ -30,8 +31,8 @@ def _build_networkx_graph_from_pypsa(
     buses_i: pd.Index | None = None,
     include_transformers: bool = True,
     include_links: bool = False,
-) -> nx.DiGraph:
-    """Convert a PyPSA Network into a NetworkX DiGraph with NPAP-compatible attributes.
+) -> nx.MultiGraph:
+    """Convert a PyPSA Network into a NetworkX MultiGraph with NPAP-compatible attributes.
 
     All static attributes from PyPSA DataFrames are carried over to the
     NetworkX nodes and edges.  NPAP-specific aliases (``lon``, ``lat``,
@@ -51,86 +52,77 @@ def _build_networkx_graph_from_pypsa(
 
     Returns
     -------
-    nx.DiGraph
-        A NetworkX DiGraph with NPAP-compatible node and edge attributes.
+    nx.MultiGraph
+        A NetworkX MultiGraph with NPAP-compatible node and edge attributes.
 
     """
-    G = nx.DiGraph()
-
-    # Get bus data
     buses = n.c.buses.static
     if buses_i is not None:
         buses = buses.loc[buses_i]
 
-    bus_index = buses.index
+    branch_components = ["Line"]
+    if include_transformers:
+        branch_components.append("Transformer")
+    if include_links:
+        branch_components.append("Link")
+
+    G = n.graph(branch_components=branch_components)
+    if buses_i is not None:
+        G = G.subgraph(buses.index).copy()
+
+    G.remove_edges_from(list(nx.selfloop_edges(G, keys=True)))
 
     # Columns to skip when copying bus attributes (not meaningful on nodes)
     _bus_skip = {"generator"}
 
     # Add nodes: carry ALL bus static columns + NPAP aliases
     for bus_name, bus_data in buses.iterrows():
-        node_attrs: dict[str, Any] = {
-            "lon": bus_data.get("x", 0.0),
-            "lat": bus_data.get("y", 0.0),
-            "voltage": bus_data.get("v_nom", 0.0),
-        }
+        node_attrs: dict[str, Any] = {}
         for col in buses.columns:
             if col in _bus_skip:
                 continue
             val = bus_data[col]
             if not isinstance(val, float) or not pd.isna(val):
                 node_attrs[col] = val
-        G.add_node(bus_name, **node_attrs)
+        node_attrs.update(
+            {
+                "lon": bus_data.get("x", 0.0),
+                "lat": bus_data.get("y", 0.0),
+                "voltage": bus_data.get("v_nom", 0.0),
+            }
+        )
+        G.nodes[bus_name].update(node_attrs)
 
     # Columns to exclude from edge attribute copying (used for connectivity)
     _edge_skip = {"bus0", "bus1"}
     has_v_nom = "v_nom" in buses.columns
 
-    def _add_branch_edges(
-        df: pd.DataFrame, edge_type: str, add_voltages: bool = True
-    ) -> None:
-        """Add edges from a branch DataFrame, copying all static columns."""
-        for _name, row in df.iterrows():
-            bus0 = row["bus0"]
-            bus1 = row["bus1"]
-            if bus0 == bus1:
+    component_edge_types = {
+        "Line": "line",
+        "Transformer": "trafo",
+        "Link": "dc_link",
+    }
+    for bus0, bus1, edge_key in G.edges(keys=True):
+        component, branch_name = edge_key
+        row = n.c[component].static.loc[branch_name]
+
+        edge_attrs: dict[str, Any] = {}
+        for col in row.index:
+            if col in _edge_skip:
                 continue
+            val = row[col]
+            if not isinstance(val, float) or not pd.isna(val):
+                edge_attrs[col] = val
 
-            edge_attrs: dict[str, Any] = {}
-            for col in df.columns:
-                if col in _edge_skip:
-                    continue
-                val = row[col]
-                if not isinstance(val, float) or not pd.isna(val):
-                    edge_attrs[col] = val
+        # Set edge class marker LAST so it is never overwritten by a
+        # PyPSA column of the same name (e.g. Line.type = line spec).
+        edge_attrs["type"] = component_edge_types[component]
 
-            # Set edge class marker LAST so it is never overwritten by a
-            # PyPSA column of the same name (e.g. Line.type = line spec).
-            edge_attrs["type"] = edge_type
+        if component != "Link" and has_v_nom:
+            edge_attrs["primary_voltage"] = buses.at[row["bus0"], "v_nom"]
+            edge_attrs["secondary_voltage"] = buses.at[row["bus1"], "v_nom"]
 
-            if add_voltages and has_v_nom:
-                edge_attrs["primary_voltage"] = buses.at[bus0, "v_nom"]
-                edge_attrs["secondary_voltage"] = buses.at[bus1, "v_nom"]
-
-            G.add_edge(bus0, bus1, **edge_attrs)
-            G.add_edge(bus1, bus0, **edge_attrs)
-
-    # Add line edges
-    lines = n.c.lines.static
-    lines = lines[lines.bus0.isin(bus_index) & lines.bus1.isin(bus_index)]
-    _add_branch_edges(lines, "line")
-
-    # Add transformer edges
-    if include_transformers:
-        trafos = n.c.transformers.static
-        trafos = trafos[trafos.bus0.isin(bus_index) & trafos.bus1.isin(bus_index)]
-        _add_branch_edges(trafos, "trafo")
-
-    # Add link edges
-    if include_links:
-        links = n.c.links.static
-        links = links[links.bus0.isin(bus_index) & links.bus1.isin(bus_index)]
-        _add_branch_edges(links, "dc_link", add_voltages=False)
+        G.edges[bus0, bus1, edge_key].update(edge_attrs)
 
     # AC island detection: compute connected components on AC-only subgraph.
     # Only assign ac_island when there are multiple islands (i.e. DC links
@@ -148,6 +140,13 @@ def _build_networkx_graph_from_pypsa(
             for node in component:
                 G.nodes[node]["ac_island"] = island_id
 
+    return G
+
+
+def _as_npap_input_graph(G: nx.MultiGraph) -> nx.Graph | nx.MultiGraph:
+    """Keep a MultiGraph only when it contains parallel branches."""
+    if G.number_of_edges() == nx.Graph(G).number_of_edges():
+        return nx.Graph(G)
     return G
 
 
@@ -255,14 +254,29 @@ def busmap_by_npap(
         include_links=include_links,
     )
 
-    # Create manager and load graph (bidirectional=False since graph is already bidirectional)
+    # Create manager and load graph
     manager = PartitionAggregatorManager()
-    manager.load_data("networkx_direct", graph=G, bidirectional=False)
+    manager.load_data("networkx_direct", graph=_as_npap_input_graph(G))
 
     # By default, NPAP's partitioning algorithms do not handle parallel edges
     if isinstance(manager.get_current_graph(), nx.MultiDiGraph):
+        edge_properties = {
+            "type": "first",
+            "primary_voltage": "first",
+            "secondary_voltage": "first",
+            "x": "equivalent_reactance",
+            "r": "equivalent_reactance",
+            "s_nom": "sum",
+            "p_nom": "sum",
+            "length": "average",
+            "active": "first",
+        }
+        if parallel_edge_strategies is not None:
+            edge_properties.update(parallel_edge_strategies)
         manager.aggregate_parallel_edges(
-            edge_properties=parallel_edge_strategies,
+            edge_properties=edge_properties,
+            default_strategy="first",
+            warn_on_defaults=False,
         )
 
     # For voltage-aware strategies, group by voltage levels
@@ -344,7 +358,10 @@ def aggregate_network_by_npap(
         raise ModuleNotFoundError(msg)
 
     from npap.interfaces import AggregationProfile  # noqa: PLC0415
-    from npap.managers import AggregationManager  # noqa: PLC0415
+    from npap.managers import (  # noqa: PLC0415
+        AggregationManager,
+        PartitionAggregatorManager,
+    )
 
     # Default strategies
     if node_strategies is None:
@@ -372,23 +389,34 @@ def aggregate_network_by_npap(
             "r": "equivalent_reactance",
             "s_nom": "sum",
             "length": "average",
+            "active": "first",
         }
+    else:
+        line_strategies = {"active": "first", **line_strategies}
     if transformer_strategies is None:
         transformer_strategies = {
             "x": "equivalent_reactance",
             "r": "equivalent_reactance",
             "s_nom": "sum",
+            "active": "first",
         }
+    else:
+        transformer_strategies = {"active": "first", **transformer_strategies}
     if link_strategies is None:
         link_strategies = {
             "p_nom": "sum",
             "length": "average",
+            "active": "first",
         }
+    else:
+        link_strategies = {"active": "first", **link_strategies}
 
     # Build graph and partition map
     G = _build_networkx_graph_from_pypsa(
         n, include_transformers=True, include_links=True
     )
+    loader = PartitionAggregatorManager()
+    G = loader.load_data("networkx_direct", graph=_as_npap_input_graph(G))
     partition_map = _busmap_to_partition_map(busmap)
 
     # Build the AggregationProfile
@@ -745,35 +773,20 @@ def npap_clustering(
     # Step 4: Aggregate one-port components using PyPSA's aggregateoneport
     one_port_components = n.one_port_components.copy()
 
-    for one_port in aggregate_one_ports:
-        one_port_components.remove(one_port)
-        custom = _build_one_port_strategies(n, one_port, one_port_strategies)
-        new_static, new_dynamic = aggregateoneport(
-            n,
-            busmap,
-            component=one_port,
-            with_time=with_time,
-            custom_strategies=custom,
-        )
-        clustered.add(one_port, new_static.index, **new_static)
-        for attr, df in new_dynamic.items():
-            if not df.empty:
-                clustered._import_series_from_df(df, one_port, attr)
+    _add_aggregated_one_port_components(
+        n,
+        clustered,
+        busmap,
+        one_port_components,
+        aggregate_one_ports,
+        with_time,
+        lambda one_port: _build_one_port_strategies(n, one_port, one_port_strategies),
+    )
 
     # Collect remaining one-port components (remap bus references only)
-    for c in n.components:
-        if c.name not in one_port_components:
-            continue
-        remaining = c.static.assign(bus=c.static.bus.map(busmap)).dropna(subset=["bus"])
-        clustered.add(c.name, remaining.index, **remaining)
-
-    if with_time:
-        for c in n.components:
-            if c.name not in one_port_components:
-                continue
-            for attr, df in c.dynamic.items():
-                if not df.empty:
-                    clustered._import_series_from_df(df, c.name, attr)
+    _add_remaining_one_port_components(
+        n, clustered, busmap, one_port_components, with_time
+    )
 
     # Handle links that were not aggregated by NPAP (when include_links=False)
     if not include_links:

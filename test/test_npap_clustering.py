@@ -113,6 +113,12 @@ def _make_small_network(
     return n
 
 
+def _first_edge_attrs(G: nx.Graph, u: str, v: str) -> dict:
+    data = G.get_edge_data(u, v)
+    assert data is not None
+    return next(iter(data.values())) if G.is_multigraph() else data
+
+
 # ===================================================================
 # Tier 1: Unit tests — no NPAP dependency required
 # ===================================================================
@@ -121,10 +127,10 @@ def _make_small_network(
 class TestBuildNetworkxGraph:
     """Tests for _build_networkx_graph_from_pypsa."""
 
-    def test_returns_digraph(self):
+    def test_returns_multigraph(self):
         n = _make_small_network()
         G = _build_networkx_graph_from_pypsa(n)
-        assert isinstance(G, nx.DiGraph)
+        assert isinstance(G, nx.MultiGraph)
 
     def test_node_count(self):
         n = _make_small_network()
@@ -132,10 +138,10 @@ class TestBuildNetworkxGraph:
         assert G.number_of_nodes() == 5
 
     def test_edge_count_lines_only(self):
-        # 4 lines × 2 directions = 8 edges
+        # 4 lines
         n = _make_small_network()
         G = _build_networkx_graph_from_pypsa(n)
-        assert G.number_of_edges() == 8
+        assert G.number_of_edges() == 4
 
     def test_npap_aliases_on_nodes(self):
         n = _make_small_network()
@@ -144,6 +150,14 @@ class TestBuildNetworkxGraph:
         assert attrs["lon"] == 0.0
         assert attrs["lat"] == 1.0
         assert attrs["voltage"] == 110.0
+
+    def test_voltage_alias_overrides_original_bus_voltage_column(self):
+        n = _make_small_network()
+        n.c.buses.static["voltage"] = "metadata-voltage"
+
+        G = _build_networkx_graph_from_pypsa(n)
+
+        assert G.nodes["bus0"]["voltage"] == 110.0
 
     def test_original_bus_attrs_preserved(self):
         n = _make_small_network()
@@ -157,25 +171,25 @@ class TestBuildNetworkxGraph:
     def test_line_edge_type_marker(self):
         n = _make_small_network()
         G = _build_networkx_graph_from_pypsa(n)
-        edge_data = G.edges["bus0", "bus1"]
+        edge_data = _first_edge_attrs(G, "bus0", "bus1")
         assert edge_data["type"] == "line"
 
     def test_transformer_edge_type_marker(self):
         n = _make_small_network(with_transformer=True)
         G = _build_networkx_graph_from_pypsa(n)
-        edge_data = G.edges["bus3", "bus4"]
+        edge_data = _first_edge_attrs(G, "bus3", "bus4")
         assert edge_data["type"] == "trafo"
 
     def test_link_edge_type_marker(self):
         n = _make_small_network(with_links=True)
         G = _build_networkx_graph_from_pypsa(n, include_links=True)
-        edge_data = G.edges["bus0", "bus4"]
+        edge_data = _first_edge_attrs(G, "bus0", "bus4")
         assert edge_data["type"] == "dc_link"
 
     def test_voltage_attributes_on_line_edges(self):
         n = _make_small_network()
         G = _build_networkx_graph_from_pypsa(n)
-        edge_data = G.edges["bus0", "bus3"]
+        edge_data = _first_edge_attrs(G, "bus0", "bus3")
         assert edge_data["primary_voltage"] == 110.0
         assert edge_data["secondary_voltage"] == 220.0
 
@@ -185,27 +199,27 @@ class TestBuildNetworkxGraph:
         G = _build_networkx_graph_from_pypsa(n, buses_i=subset)
         assert G.number_of_nodes() == 3
         assert set(G.nodes()) == {"bus0", "bus1", "bus2"}
-        # Only lines within subset: line01, line12 → 4 edges
-        assert G.number_of_edges() == 4
+        # Only lines within subset: line01, line12
+        assert G.number_of_edges() == 2
 
     def test_exclude_transformers(self):
         n = _make_small_network(with_transformer=True)
         G_with = _build_networkx_graph_from_pypsa(n, include_transformers=True)
         G_without = _build_networkx_graph_from_pypsa(n, include_transformers=False)
-        # Transformer adds 2 directed edges
-        assert G_with.number_of_edges() == G_without.number_of_edges() + 2
+        # Transformer adds 1 edge
+        assert G_with.number_of_edges() == G_without.number_of_edges() + 1
 
     def test_include_links_false_by_default(self):
         n = _make_small_network(with_links=True)
         G = _build_networkx_graph_from_pypsa(n)
-        # Links excluded by default: only 4 lines × 2 = 8 edges
-        assert G.number_of_edges() == 8
+        # Links excluded by default: only 4 lines
+        assert G.number_of_edges() == 4
 
     def test_include_links_true(self):
         n = _make_small_network(with_links=True)
         G = _build_networkx_graph_from_pypsa(n, include_links=True)
-        # 4 lines × 2 + 1 link × 2 = 10 edges
-        assert G.number_of_edges() == 10
+        # 4 lines + 1 link
+        assert G.number_of_edges() == 5
 
     def test_ac_island_single_island(self):
         n = _make_small_network()
@@ -241,14 +255,14 @@ class TestBuildNetworkxGraph:
 
         G = _build_networkx_graph_from_pypsa(n)
         assert G.number_of_nodes() == 2
-        # Only the normal line (2 directed edges), self-loop skipped
-        assert G.number_of_edges() == 2
+        # Only the normal line, self-loop skipped
+        assert G.number_of_edges() == 1
         assert not G.has_edge("bus0", "bus0")
 
     def test_link_edges_no_voltage_attributes(self):
         n = _make_small_network(with_links=True)
         G = _build_networkx_graph_from_pypsa(n, include_links=True)
-        edge_data = G.edges["bus0", "bus4"]
+        edge_data = _first_edge_attrs(G, "bus0", "bus4")
         assert "primary_voltage" not in edge_data
         assert "secondary_voltage" not in edge_data
 
@@ -257,8 +271,33 @@ class TestBuildNetworkxGraph:
         G = _build_networkx_graph_from_pypsa(
             n, include_transformers=True, include_links=True
         )
-        # 4 lines × 2 + 1 trafo × 2 + 1 link × 2 = 12 edges
-        assert G.number_of_edges() == 12
+        # 4 lines + 1 trafo + 1 link
+        assert G.number_of_edges() == 6
+
+    def test_parallel_branches_are_preserved(self):
+        n = pypsa.Network()
+        n.add("Bus", ["a", "b"], x=[0, 1], y=[0, 0], v_nom=110)
+        n.add(
+            "Line",
+            ["l1", "l2"],
+            bus0=["a", "a"],
+            bus1=["b", "b"],
+            x=[0.2, 0.3],
+            r=[0.02, 0.03],
+            s_nom=[100, 200],
+        )
+
+        G = _build_networkx_graph_from_pypsa(n)
+
+        assert G.number_of_edges("a", "b") == 2
+        assert {key for _, _, key in G.edges(keys=True)} == {
+            ("Line", "l1"),
+            ("Line", "l2"),
+        }
+        assert sorted(data["x"] for _, _, _, data in G.edges(keys=True, data=True)) == [
+            0.2,
+            0.3,
+        ]
 
 
 class TestBusmapPartitionRoundtrip:
@@ -411,6 +450,97 @@ def npap_busmap_result(scipy_network_for_npap):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         return busmap_by_npap(scipy_network_for_npap, n_clusters=50)
+
+
+@npap_skip
+@pytest.mark.filterwarnings("ignore::FutureWarning")
+@pytest.mark.filterwarnings("ignore::UserWarning")
+class TestAggregateNetworkByNpap:
+    """Tests for aggregate_network_by_npap."""
+
+    def test_branch_active_true_values_are_preserved(self):
+        from pypsa.clustering.npap import aggregate_network_by_npap
+
+        n = pypsa.Network()
+        n.add("Bus", ["a", "b"], x=[0, 1], y=[0, 0], v_nom=[110, 220])
+        n.add(
+            "Line",
+            ["l1", "l2"],
+            bus0=["a", "a"],
+            bus1=["b", "b"],
+            x=[0.1, 0.2],
+            r=[0.01, 0.02],
+            s_nom=[100, 200],
+            active=[True, True],
+        )
+        n.add(
+            "Transformer",
+            ["t1", "t2"],
+            bus0=["a", "a"],
+            bus1=["b", "b"],
+            x=[0.1, 0.2],
+            r=[0.01, 0.02],
+            s_nom=[100, 200],
+            active=[True, True],
+        )
+        n.add(
+            "Link",
+            ["k1", "k2"],
+            bus0=["a", "a"],
+            bus1=["b", "b"],
+            p_nom=[100, 200],
+            active=[True, True],
+        )
+
+        aggregated = aggregate_network_by_npap(n, pd.Series({"a": "0", "b": "1"}))
+
+        for component in ("lines", "transformers", "links"):
+            assert aggregated[component]["active"].tolist() == [True]
+
+    def test_custom_branch_strategies_keep_active_default(self):
+        from pypsa.clustering.npap import aggregate_network_by_npap
+
+        n = pypsa.Network()
+        n.add("Bus", ["a", "b"], x=[0, 1], y=[0, 0], v_nom=[110, 220])
+        n.add(
+            "Line",
+            ["l1", "l2"],
+            bus0=["a", "a"],
+            bus1=["b", "b"],
+            x=[0.1, 0.2],
+            r=[0.01, 0.02],
+            s_nom=[100, 200],
+            active=[True, True],
+        )
+        n.add(
+            "Transformer",
+            ["t1", "t2"],
+            bus0=["a", "a"],
+            bus1=["b", "b"],
+            x=[0.1, 0.2],
+            r=[0.01, 0.02],
+            s_nom=[100, 200],
+            active=[True, True],
+        )
+        n.add(
+            "Link",
+            ["k1", "k2"],
+            bus0=["a", "a"],
+            bus1=["b", "b"],
+            p_nom=[100, 200],
+            active=[True, True],
+        )
+
+        aggregated = aggregate_network_by_npap(
+            n,
+            pd.Series({"a": "0", "b": "1"}),
+            line_strategies={"s_nom": "sum"},
+            transformer_strategies={"s_nom": "sum"},
+            link_strategies={"p_nom": "sum"},
+        )
+
+        for component in ("lines", "transformers", "links"):
+            assert aggregated[component]["active"].tolist() == [True]
 
 
 @npap_skip

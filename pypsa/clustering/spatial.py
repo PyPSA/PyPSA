@@ -508,6 +508,59 @@ class Clustering:
     linemap: pd.Series
 
 
+def _add_aggregated_one_port_components(
+    n: Network,
+    clustered: Network,
+    busmap: dict | pd.Series,
+    one_port_components: set[str],
+    aggregate_one_ports: Iterable[str],
+    with_time: bool,
+    get_custom_strategies: Callable[[str], dict] | None = None,
+) -> None:
+    """Aggregate selected one-port components into a clustered network."""
+    for one_port in aggregate_one_ports:
+        one_port_components.remove(one_port)
+        custom_strategies = (
+            get_custom_strategies(one_port) if get_custom_strategies is not None else {}
+        )
+        new_static, new_dynamic = aggregateoneport(
+            n,
+            busmap,
+            component=one_port,
+            with_time=with_time,
+            custom_strategies=custom_strategies,
+        )
+        clustered.add(one_port, new_static.index, **new_static)
+        for attr, df in new_dynamic.items():
+            if not df.empty:
+                clustered._import_series_from_df(df, one_port, attr)
+
+
+def _add_remaining_one_port_components(
+    n: Network,
+    clustered: Network,
+    busmap: dict | pd.Series,
+    one_port_components: set[str],
+    with_time: bool,
+) -> None:
+    """Remap unaggregated one-port components into a clustered network."""
+    for c in n.components:
+        if c.name not in one_port_components:
+            continue
+        remaining_one_port_data = c.static.assign(bus=c.static.bus.map(busmap)).dropna(
+            subset=["bus"]
+        )
+        clustered.add(c.name, remaining_one_port_data.index, **remaining_one_port_data)
+
+    if with_time:
+        for c in n.components:
+            if c.name not in one_port_components:
+                continue
+            for attr, df in c.dynamic.items():
+                if not df.empty:
+                    clustered._import_series_from_df(df, c.name, attr)
+
+
 class SpatialClusteringMixin:
     """Mixin for spatial clustering methods.
 
@@ -1000,39 +1053,21 @@ class SpatialClusteringMixin:
                     if not df.empty:
                         clustered._import_series_from_df(df, "Generator", attr)
 
-        for one_port in aggregate_one_ports:
-            one_port_components.remove(one_port)
-            new_static, new_dynamic = aggregateoneport(
-                n,
-                busmap,
-                component=one_port,
-                with_time=with_time,
-                custom_strategies=one_port_strategies.get(one_port, {}),
-            )
-            clustered.add(one_port, new_static.index, **new_static)
-            for attr, df in new_dynamic.items():
-                if not df.empty:
-                    clustered._import_series_from_df(df, one_port, attr)
+        _add_aggregated_one_port_components(
+            n,
+            clustered,
+            busmap,
+            one_port_components,
+            aggregate_one_ports,
+            with_time,
+            lambda one_port: one_port_strategies.get(one_port, {}),
+        )
 
         # Collect remaining one ports
 
-        for c in n.components:
-            if c.name not in one_port_components:
-                continue
-            remaining_one_port_data = c.static.assign(
-                bus=c.static.bus.map(busmap)
-            ).dropna(subset=["bus"])
-            clustered.add(
-                c.name, remaining_one_port_data.index, **remaining_one_port_data
-            )
-
-        if with_time:
-            for c in n.components:
-                if c.name not in one_port_components:
-                    continue
-                for attr, df in c.dynamic.items():
-                    if not df.empty:
-                        clustered._import_series_from_df(df, c.name, attr)
+        _add_remaining_one_port_components(
+            n, clustered, busmap, one_port_components, with_time
+        )
 
         bus_mappings = {
             "bus0": n.c.links.static.bus0.map(busmap),
