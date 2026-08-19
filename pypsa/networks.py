@@ -667,28 +667,32 @@ class Network(
         <BLANKLINE>
         Variables:
         ----------
-        * Generator-p_nom (name)
-        * Line-s_nom (name)
-        * Link-p_nom (name)
-        * Generator-p (snapshot, name)
-        * Line-s (snapshot, name)
-        * Link-p (snapshot, name)
-        * objective_constant
+         * Generator-p_nom (name)
+         * Line-s_nom (name)
+         * Link-p_nom (name)
+         * Generator-p (snapshot, name)
+         * Line-s (snapshot, name)
+         * Link-p (snapshot, name)
+         * objective_constant
+        <BLANKLINE>
+        Expressions:
+        ------------
+        <empty>
         <BLANKLINE>
         Constraints:
         ------------
-        * Generator-ext-p_nom-lower (name)
-        * Line-ext-s_nom-lower (name)
-        * Link-ext-p_nom-lower (name)
-        * Generator-ext-p-lower (snapshot, name)
-        * Generator-ext-p-upper (snapshot, name)
-        * Line-ext-s-lower (snapshot, name)
-        * Line-ext-s-upper (snapshot, name)
-        * Link-ext-p-lower (snapshot, name)
-        * Link-ext-p-upper (snapshot, name)
-        * Bus-nodal_balance (snapshot, name)
-        * Kirchhoff-Voltage-Law (snapshot, cycle)
-        * GlobalConstraint-co2_limit
+         * Generator-ext-p_nom-lower (name)
+         * Line-ext-s_nom-lower (name)
+         * Link-ext-p_nom-lower (name)
+         * Generator-ext-p-lower (snapshot, name)
+         * Generator-ext-p-upper (snapshot, name)
+         * Line-ext-s-lower (snapshot, name)
+         * Line-ext-s-upper (snapshot, name)
+         * Link-ext-p-lower (snapshot, name)
+         * Link-ext-p-upper (snapshot, name)
+         * Bus-nodal_balance (snapshot, name)
+         * Kirchhoff-Voltage-Law (snapshot, cycle)
+         * GlobalConstraint-co2_limit
         <BLANKLINE>
         Status:
         -------

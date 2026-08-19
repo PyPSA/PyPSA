@@ -159,6 +159,8 @@ jobs:
     # under both arithmetic semantics. Drop once v1 ships in a linopy release (0.10).
     name: Test linopy semantics (${{ matrix.semantics }})
     needs: [build]
+    # Only on the full suite (daily schedule, manual dispatch, releases), not every PR/push
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
