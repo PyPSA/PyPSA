@@ -322,7 +322,8 @@ class Network(
         """Restore state and relink SubNetwork weakrefs dropped on pickling."""
         self.__dict__.update(state)
         for sub in self.c.sub_networks.static.get("obj", []):
-            sub._n = ref(self)
+            if isinstance(sub, SubNetwork):
+                sub._n = ref(self)
 
     def __getitem__(self, key: str) -> Network:
         """Return a shallow slice of the Network object.
