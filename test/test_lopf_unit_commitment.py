@@ -423,6 +423,41 @@ def test_linearized_unit_commitment():
     assert round(n.objective / MILP_objective, 2) == 1
 
 
+def test_linearized_unit_commitment_committable_extendable():
+    # linearized relaxation must not exclude the integer optimum for a
+    # committable extendable generator
+    n = pypsa.Network()
+    n.set_snapshots([0, 1, 2, 3])
+    n.add("Bus", "hub")
+    n.add(
+        "Generator",
+        "flex",
+        bus="hub",
+        committable=True,
+        p_nom_extendable=True,
+        p_min_pu=0.4,
+        p_nom_max=100.0,
+        marginal_cost=40.0,
+        capital_cost=100.0,
+    )
+    n.add(
+        "Generator",
+        "peak",
+        bus="hub",
+        p_nom_extendable=True,
+        p_nom_max=100.0,
+        marginal_cost=120.0,
+        capital_cost=50.0,
+    )
+    n.add("Load", "demand", bus="hub", p_set=[75, 30, 75, 0])
+
+    n.optimize()
+    integer_objective = n.objective
+
+    n.optimize(linearized_unit_commitment=True)
+    assert n.objective == pytest.approx(integer_objective)
+
+
 def test_link_unit_commitment():
     n = pypsa.Network()
 

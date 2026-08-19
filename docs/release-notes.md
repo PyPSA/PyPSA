@@ -33,6 +33,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix [`n.optimize(linearized_unit_commitment=True)`][pypsa.optimization.OptimizationAccessor.__call__] excluding the integer optimum for components that are both committable and extendable. The relaxation tightening constraints are no longer applied to extendable committables, where `p_nom` is an optimization variable. (<!-- md:pr 1885 -->)
 - Fix [`system_cost`][pypsa.statistics.StatisticsAccessor.system_cost] omitting fixed operation and maintenance costs (`fom_cost`), which are part of the optimization objective. It now returns the sum of `capex`, `fom` and `opex`, consistent with the objective function.
 - Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] failing for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]) containing components with ramp limits. (<!-- md:pr 1873 -->)
 - Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] failing with a `KeyError` when a network contains inactive components alongside committable, modular or ramp-limited ones. (<!-- md:pr 1870 -->)
