@@ -318,6 +318,12 @@ class Network(
         """
         return self.equals(other)
 
+    def __setstate__(self, state: dict) -> None:
+        """Restore state and relink SubNetwork weakrefs dropped on pickling."""
+        self.__dict__.update(state)
+        for sub in self.c.sub_networks.static.get("obj", []):
+            sub._n = ref(self)
+
     def __getitem__(self, key: str) -> Network:
         """Return a shallow slice of the Network object.
 
@@ -1440,6 +1446,12 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         self._n = ref(n)
         self.name = name
+
+    def __getstate__(self) -> dict:
+        """Drop the unpicklable parent weakref, relinked in Network.__setstate__."""
+        state = self.__dict__.copy()
+        state.pop("_n", None)
+        return state
 
     # TODO assign __str__ and __repr__
     @property

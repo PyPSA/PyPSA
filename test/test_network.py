@@ -589,6 +589,15 @@ def test_copy_default_behavior(networks):
     assert n is not network_copy
 
 
+def test_copy_relinks_sub_networks(ac_dc_network):
+    """Copying relinks SubNetwork parent references to the copied network."""
+    n = ac_dc_network
+    n.determine_network_topology()
+    n_copy = n.copy()
+    for sub in n_copy.c.sub_networks.static.obj:
+        assert sub.n is n_copy
+
+
 def test_copy_with_model(ac_dc_network):
     n = ac_dc_network
     n.optimize.create_model()
@@ -655,6 +664,23 @@ def test_1420(tmp_path):
     assert len(n_loaded.c.buses.static) == 1
     assert len(n_loaded.c.generators.static) == 1
     # tmp_path is automatically cleaned up by pytest
+
+
+def test_pickle_with_sub_networks(ac_dc_network):
+    """
+    Networks with sub-networks should be picklable despite the SubNetwork weakref.
+    See https://github.com/PyPSA/PyPSA/issues/1888.
+    """
+    n = ac_dc_network
+    n.determine_network_topology()
+    assert len(n.c.sub_networks.static) > 0
+
+    n_loaded = pickle.loads(pickle.dumps(n))
+
+    assert len(n_loaded.c.sub_networks.static) == len(n.c.sub_networks.static)
+    # SubNetwork weakref to the parent is restored to the loaded network
+    for sub in n_loaded.c.sub_networks.static.obj:
+        assert sub.n is n_loaded
 
 
 @pytest.mark.skipif(
