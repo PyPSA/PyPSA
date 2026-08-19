@@ -643,6 +643,11 @@ def define_operational_constraints_for_committables(
             "constraints for these. This might result in a longer "
             "solving time."
         )
+
+    # tightening is only valid for fixed-capacity committables, since it uses
+    # nominal as a parameter (for extendables p_nom is an optimization variable)
+    cost_equal = cost_equal & com_i.isin(com_fix_i)
+
     if n._linearized_uc and cost_equal.any():
         # dispatch limit for partly start up/shut down for t-1
         p_ce = p.loc[:, cost_equal]
