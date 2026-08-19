@@ -28,6 +28,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - Speed up netCDF I/O for networks with many components. [`export_to_netcdf()`][pypsa.Network.export_to_netcdf] avoids a costly `stack()` when writing dynamic data, and import avoids per-column boxing when coercing string dtypes. The on-disk format and round-trip behaviour are unchanged. (<!-- md:pr 1771 -->)
 - Speed up [`create_model()`][pypsa.optimization.OptimizationAccessor.create_model] for large networks by computing the bus membership filter in `define_nodal_balance_constraints` with a pandas hash join instead of `xarray.isin` over object-dtype arrays. (<!-- md:pr 1770 -->)
 - Replace the `Levenshtein` dependency (GPL-2.0-or-later) with `rapidfuzz` (MIT) for detecting typos in custom attribute names, so PyPSA's dependency tree remains fully MIT-compatible.
+- Prepare the optimization module for linopy's upcoming v1 arithmetic convention (strict coordinate alignment and NaN handling) by aligning expression operands explicitly. Results are unchanged and released linopy `0.9.x` stays supported. (<!-- md:pr 1829 -->)
+- Under linopy's v1 semantics, the multi-period `snapshot` dimension of `n.model` is a flat dimension with `period`/`timestep` auxiliary coordinates instead of a `pandas.MultiIndex`. The v1 semantics are not active by default, so existing custom constraints keep working unchanged. Results are identical in both representations, and [`pypsa.options.optimization.model_snapshot_index`][pypsa.options] selects the representation explicitly. See [custom constraints](./user-guide/optimization/custom-constraints.md#handling-snapshots-in-multi-investment-optimizations) for details. Detailed migration guides will follow with the official release of linopy v1. (<!-- md:pr 1829 -->)
 
 ### Bug Fixes
 
