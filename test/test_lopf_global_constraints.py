@@ -222,7 +222,7 @@ def test_1884():
     )
 
     n.optimize()
-    assert n.generators.p_nom_opt["wind"] == pytest.approx(50)
+    assert n.c.generators.static.p_nom_opt["wind"] == pytest.approx(50)
 
 
 def test_transmission_cost_limit_overnight_cost():
