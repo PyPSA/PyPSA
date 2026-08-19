@@ -155,8 +155,8 @@ jobs:
           api-${{ matrix.api }}
 
   test-linopy-semantics:
-    # Temporary guard: test against linopy PR #717 (PyPSA/linopy#717) under both
-    # arithmetic semantics. Drop once v1 ships in a linopy release (0.10).
+    # Temporary guard: test against linopy master
+    # under both arithmetic semantics. Drop once v1 ships in a linopy release (0.10).
     name: Test linopy semantics (${{ matrix.semantics }})
     needs: [build]
     runs-on: ubuntu-latest
@@ -190,8 +190,8 @@ jobs:
         uv sync --all-extras --no-install-project $UV_LOCK_ARG
         uv pip install "$(ls dist/*.whl)"
 
-    - name: Override linopy with PR #717
-      run: uv pip install "linopy @ git+https://github.com/pypsa/linopy@refs/pull/717/head"
+    - name: Override linopy with master
+      run: uv pip install "linopy @ git+https://github.com/pypsa/linopy@master"
 
     - name: Report linopy provenance
       run: |
