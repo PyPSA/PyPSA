@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 from deprecation import deprecated
 
-from pypsa.clustering import npap as npap_module
 from pypsa.clustering import spatial, temporal
 from pypsa.clustering.spatial import SpatialClusteringMixin
 from pypsa.clustering.temporal import TemporalClusteringMixin
@@ -177,24 +176,5 @@ class ClusteringAccessor:
         """Wrap `n.cluster.spatial.get_clustering_from_busmap`, deprecated."""  # noqa: D401
         return self.spatial.get_clustering_from_busmap(*args, **kwargs)
 
-    def busmap_by_npap(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """Wrap [`pypsa.clustering.npap.busmap_by_npap`][]."""
-        return npap_module.busmap_by_npap(self._n, *args, **kwargs)
 
-    def cluster_by_npap(self, *args: Any, **kwargs: Any) -> "Network":
-        """Wrap [`pypsa.clustering.npap.cluster_by_npap`][]."""
-        return npap_module.cluster_by_npap(self._n, *args, **kwargs)
-
-    def get_npap_clustering_from_busmap(
-        self, *args: Any, **kwargs: Any
-    ) -> "Clustering":
-        """Wrap [`pypsa.clustering.npap.get_npap_clustering_from_busmap`][].
-
-        Returns the full result including the clustered network, busmap,
-        and linemap. Use this when you need the busmap or linemap for
-        disaggregation or analysis.
-        """
-        return npap_module.get_npap_clustering_from_busmap(self._n, *args, **kwargs)
-
-
-__all__ = ["ClusteringAccessor", "npap", "spatial", "temporal"]
+__all__ = ["ClusteringAccessor", "spatial", "temporal"]

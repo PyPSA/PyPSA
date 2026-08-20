@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Tests for pypsa.clustering.npap — NPAP spatial clustering integration."""
+"""Tests for NPAP spatial clustering integration."""
 
 from __future__ import annotations
 
@@ -14,13 +14,13 @@ import pandas as pd
 import pytest
 
 import pypsa
-from pypsa.clustering.npap import (
+from pypsa.clustering.spatial import (
+    Clustering,
     _build_networkx_graph_from_pypsa,
     _build_one_port_strategies,
     _busmap_to_partition_map,
     _npap_partition_to_busmap,
 )
-from pypsa.clustering.spatial import Clustering
 
 try:
     import npap  # noqa: F401
@@ -117,6 +117,17 @@ def _first_edge_attrs(G: nx.Graph, u: str, v: str) -> dict:
     data = G.get_edge_data(u, v)
     assert data is not None
     return next(iter(data.values())) if G.is_multigraph() else data
+
+
+def test_npap_methods_are_only_on_spatial_accessor():
+    n = pypsa.Network()
+
+    assert hasattr(n.cluster.spatial, "busmap_by_npap")
+    assert hasattr(n.cluster.spatial, "cluster_by_npap")
+    assert hasattr(n.cluster.spatial, "get_npap_clustering_from_busmap")
+    assert not hasattr(n.cluster, "busmap_by_npap")
+    assert not hasattr(n.cluster, "cluster_by_npap")
+    assert not hasattr(n.cluster, "get_npap_clustering_from_busmap")
 
 
 # ===================================================================
@@ -435,7 +446,7 @@ def scipy_network_for_npap():
 @pytest.fixture(scope="module")
 def npap_busmap_clustering_result(scipy_network_for_npap):
     """Run get_npap_clustering_from_busmap once and cache for the module."""
-    from pypsa.clustering.npap import (
+    from pypsa.clustering.spatial import (
         busmap_by_npap,
         get_npap_clustering_from_busmap,
     )
@@ -451,7 +462,7 @@ def npap_busmap_clustering_result(scipy_network_for_npap):
 @pytest.fixture(scope="module")
 def npap_busmap_result(scipy_network_for_npap):
     """Run busmap_by_npap once and cache for the module."""
-    from pypsa.clustering.npap import busmap_by_npap
+    from pypsa.clustering.spatial import busmap_by_npap
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
@@ -462,10 +473,10 @@ def npap_busmap_result(scipy_network_for_npap):
 @pytest.mark.filterwarnings("ignore::FutureWarning")
 @pytest.mark.filterwarnings("ignore::UserWarning")
 class TestAggregateNetworkByNpap:
-    """Tests for aggregate_network_by_npap."""
+    """Tests for _aggregate_network_by_npap."""
 
     def test_branch_active_true_values_are_preserved(self):
-        from pypsa.clustering.npap import aggregate_network_by_npap
+        from pypsa.clustering.spatial import _aggregate_network_by_npap
 
         n = pypsa.Network()
         n.add("Bus", ["a", "b"], x=[0, 1], y=[0, 0], v_nom=[110, 220])
@@ -498,13 +509,13 @@ class TestAggregateNetworkByNpap:
             active=[True, True],
         )
 
-        aggregated = aggregate_network_by_npap(n, pd.Series({"a": "0", "b": "1"}))
+        aggregated = _aggregate_network_by_npap(n, pd.Series({"a": "0", "b": "1"}))
 
         for component in ("lines", "transformers", "links"):
             assert aggregated[component]["active"].tolist() == [True]
 
     def test_custom_branch_strategies_keep_active_default(self):
-        from pypsa.clustering.npap import aggregate_network_by_npap
+        from pypsa.clustering.spatial import _aggregate_network_by_npap
 
         n = pypsa.Network()
         n.add("Bus", ["a", "b"], x=[0, 1], y=[0, 0], v_nom=[110, 220])
@@ -537,7 +548,7 @@ class TestAggregateNetworkByNpap:
             active=[True, True],
         )
 
-        aggregated = aggregate_network_by_npap(
+        aggregated = _aggregate_network_by_npap(
             n,
             pd.Series({"a": "0", "b": "1"}),
             line_strategies={"s_nom": "sum"},
@@ -651,7 +662,7 @@ class TestGetNpapClusteringFromBusmap:
 
     def test_branch_time_series_warning(self, caplog):
         """Branch time series warning is emitted via logger.warning."""
-        from pypsa.clustering.npap import (
+        from pypsa.clustering.spatial import (
             busmap_by_npap,
             get_npap_clustering_from_busmap,
         )
@@ -672,7 +683,7 @@ class TestGetNpapClusteringFromBusmap:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             busmap = busmap_by_npap(n, n_clusters=20, include_links=True)
-            with caplog.at_level(logging.WARNING, logger="pypsa.clustering.npap"):
+            with caplog.at_level(logging.WARNING, logger="pypsa.clustering.spatial"):
                 get_npap_clustering_from_busmap(n, busmap)
 
         assert any(
@@ -683,21 +694,23 @@ class TestGetNpapClusteringFromBusmap:
 @npap_skip
 @pytest.mark.filterwarnings("ignore::UserWarning")
 class TestAccessors:
-    """Tests for ClusteringAccessor NPAP methods."""
+    """Tests for NPAP accessor methods."""
 
     def test_cluster_by_npap_returns_network(self, scipy_network_for_npap):
-        result = scipy_network_for_npap.cluster.cluster_by_npap(n_clusters=50)
+        result = scipy_network_for_npap.cluster.spatial.cluster_by_npap(n_clusters=50)
         assert isinstance(result, pypsa.Network)
 
     def test_get_npap_clustering_from_busmap_returns_clustering(
         self, scipy_network_for_npap
     ):
-        busmap = scipy_network_for_npap.cluster.busmap_by_npap(n_clusters=50)
-        result = scipy_network_for_npap.cluster.get_npap_clustering_from_busmap(busmap)
+        busmap = scipy_network_for_npap.cluster.spatial.busmap_by_npap(n_clusters=50)
+        result = scipy_network_for_npap.cluster.spatial.get_npap_clustering_from_busmap(
+            busmap
+        )
         assert isinstance(result, Clustering)
 
     def test_busmap_by_npap_accessor(self, scipy_network_for_npap):
-        busmap = scipy_network_for_npap.cluster.busmap_by_npap(n_clusters=50)
+        busmap = scipy_network_for_npap.cluster.spatial.busmap_by_npap(n_clusters=50)
         assert isinstance(busmap, pd.Series)
         assert busmap.nunique() == 50
 
@@ -708,7 +721,7 @@ class TestClusterThenOptimize:
     """End-to-end: cluster with NPAP, then run LOPF on the reduced network."""
 
     def test_clustered_network_is_solvable(self):
-        from pypsa.clustering.npap import cluster_by_npap
+        from pypsa.clustering.spatial import cluster_by_npap
 
         n = pypsa.examples.scigrid_de()
         # Use only a few snapshots for speed
