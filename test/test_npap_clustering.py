@@ -235,9 +235,9 @@ class TestBuildNetworkxGraph:
     def test_ac_island_single_island(self):
         n = _make_small_network()
         G = _build_networkx_graph_from_pypsa(n)
-        # All buses connected by lines → single AC island → no ac_island attr
+        # All buses connected by lines -> single AC island -> ac_island = 0
         for node in G.nodes():
-            assert "ac_island" not in G.nodes[node]
+            assert G.nodes[node]["ac_island"] == 0
 
     def test_ac_island_multiple_islands(self):
         # Create two disconnected AC islands connected only by DC link
@@ -579,6 +579,20 @@ class TestBusmapByNpap:
 
     def test_covers_all_buses(self, npap_busmap_result, scipy_network_for_npap):
         assert set(npap_busmap_result.index) == set(scipy_network_for_npap.buses.index)
+
+    def test_voltage_aware_haversine_single_ac_island(self, scipy_network_for_npap):
+        from pypsa.clustering.spatial import busmap_by_npap
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            busmap = busmap_by_npap(
+                scipy_network_for_npap,
+                n_clusters=50,
+                strategy="va_geographical_kmedoids_haversine",
+            )
+
+        assert isinstance(busmap, pd.Series)
+        assert len(busmap) == len(scipy_network_for_npap.buses)
 
 
 @npap_skip

@@ -661,9 +661,8 @@ def _build_networkx_graph_from_pypsa(
         G.edges[bus0, bus1, edge_key].update(edge_attrs)
 
     # AC island detection: compute connected components on AC-only subgraph.
-    # Only assign ac_island when there are multiple islands (i.e. DC links
-    # separate AC zones), otherwise the attribute is meaningless and triggers
-    # unnecessary warnings in NPAP for algorithms that don't support it.
+    # Assign ac_island for every node so a single connected AC network has
+    # ac_island = 0 and DC-separated AC zones receive distinct IDs.
     ac_graph = nx.Graph()
     ac_graph.add_nodes_from(G.nodes())
     for u, v, data in G.edges(data=True):
@@ -671,10 +670,9 @@ def _build_networkx_graph_from_pypsa(
             ac_graph.add_edge(u, v)
 
     components = list(nx.connected_components(ac_graph))
-    if len(components) > 1:
-        for island_id, component in enumerate(components):
-            for node in component:
-                G.nodes[node]["ac_island"] = island_id
+    for island_id, component in enumerate(components):
+        for node in component:
+            G.nodes[node]["ac_island"] = island_id
 
     return G
 
