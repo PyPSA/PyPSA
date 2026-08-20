@@ -433,13 +433,19 @@ def scipy_network_for_npap():
 
 
 @pytest.fixture(scope="module")
-def npap_clustering_result(scipy_network_for_npap):
-    """Run npap_clustering once and cache for the module."""
-    from pypsa.clustering.npap import npap_clustering
+def npap_busmap_clustering_result(scipy_network_for_npap):
+    """Run get_npap_clustering_from_busmap once and cache for the module."""
+    from pypsa.clustering.npap import (
+        busmap_by_npap,
+        get_npap_clustering_from_busmap,
+    )
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        return npap_clustering(scipy_network_for_npap, n_clusters=50)
+        busmap = busmap_by_npap(
+            scipy_network_for_npap, n_clusters=50, include_links=True
+        )
+        return get_npap_clustering_from_busmap(scipy_network_for_npap, busmap)
 
 
 @pytest.fixture(scope="module")
@@ -566,78 +572,89 @@ class TestBusmapByNpap:
 
 @npap_skip
 @pytest.mark.filterwarnings("ignore::UserWarning")
-class TestNpapClustering:
-    """Tests for npap_clustering full pipeline."""
+class TestGetNpapClusteringFromBusmap:
+    """Tests for get_npap_clustering_from_busmap."""
 
-    def test_returns_clustering_dataclass(self, npap_clustering_result):
-        assert isinstance(npap_clustering_result, Clustering)
+    def test_returns_clustering_dataclass(self, npap_busmap_clustering_result):
+        assert isinstance(npap_busmap_clustering_result, Clustering)
 
-    def test_clustered_bus_count(self, npap_clustering_result):
-        assert len(npap_clustering_result.n.buses) == 50
+    def test_clustered_bus_count(self, npap_busmap_clustering_result):
+        assert len(npap_busmap_clustering_result.n.buses) == 50
 
-    def test_busmap_length(self, npap_clustering_result, scipy_network_for_npap):
-        assert len(npap_clustering_result.busmap) == len(scipy_network_for_npap.buses)
+    def test_busmap_length(self, npap_busmap_clustering_result, scipy_network_for_npap):
+        assert len(npap_busmap_clustering_result.busmap) == len(
+            scipy_network_for_npap.buses
+        )
 
     def test_busmap_index_matches_original(
-        self, npap_clustering_result, scipy_network_for_npap
+        self, npap_busmap_clustering_result, scipy_network_for_npap
     ):
-        assert set(npap_clustering_result.busmap.index) == set(
+        assert set(npap_busmap_clustering_result.busmap.index) == set(
             scipy_network_for_npap.buses.index
         )
 
-    def test_busmap_values_are_strings(self, npap_clustering_result):
-        assert npap_clustering_result.busmap.dtype == object
+    def test_busmap_values_are_strings(self, npap_busmap_clustering_result):
+        assert npap_busmap_clustering_result.busmap.dtype == object
 
-    def test_linemap_not_empty(self, npap_clustering_result):
-        assert not npap_clustering_result.linemap.empty
+    def test_linemap_not_empty(self, npap_busmap_clustering_result):
+        assert not npap_busmap_clustering_result.linemap.empty
 
     def test_linemap_index_subset_of_original_lines(
-        self, npap_clustering_result, scipy_network_for_npap
+        self, npap_busmap_clustering_result, scipy_network_for_npap
     ):
         original_lines = scipy_network_for_npap.lines.index
-        assert npap_clustering_result.linemap.index.isin(original_lines).all()
+        assert npap_busmap_clustering_result.linemap.index.isin(original_lines).all()
 
-    def test_linemap_values_subset_of_aggregated_lines(self, npap_clustering_result):
-        aggregated_lines = npap_clustering_result.n.lines.index
-        assert npap_clustering_result.linemap.isin(aggregated_lines).all()
+    def test_linemap_values_subset_of_aggregated_lines(
+        self, npap_busmap_clustering_result
+    ):
+        aggregated_lines = npap_busmap_clustering_result.n.lines.index
+        assert npap_busmap_clustering_result.linemap.isin(aggregated_lines).all()
 
     def test_generators_carried_forward(
-        self, npap_clustering_result, scipy_network_for_npap
+        self, npap_busmap_clustering_result, scipy_network_for_npap
     ):
         # All original generators should be present
-        assert len(npap_clustering_result.n.generators) == len(
+        assert len(npap_busmap_clustering_result.n.generators) == len(
             scipy_network_for_npap.generators
         )
 
-    def test_generator_bus_references_valid(self, npap_clustering_result):
-        clustered_buses = npap_clustering_result.n.buses.index
-        gen_buses = npap_clustering_result.n.generators.bus
+    def test_generator_bus_references_valid(self, npap_busmap_clustering_result):
+        clustered_buses = npap_busmap_clustering_result.n.buses.index
+        gen_buses = npap_busmap_clustering_result.n.generators.bus
         assert gen_buses.isin(clustered_buses).all()
 
     def test_loads_carried_forward(
-        self, npap_clustering_result, scipy_network_for_npap
+        self, npap_busmap_clustering_result, scipy_network_for_npap
     ):
-        assert len(npap_clustering_result.n.loads) == len(scipy_network_for_npap.loads)
+        assert len(npap_busmap_clustering_result.n.loads) == len(
+            scipy_network_for_npap.loads
+        )
 
-    def test_load_bus_references_valid(self, npap_clustering_result):
-        clustered_buses = npap_clustering_result.n.buses.index
-        load_buses = npap_clustering_result.n.loads.bus
+    def test_load_bus_references_valid(self, npap_busmap_clustering_result):
+        clustered_buses = npap_busmap_clustering_result.n.buses.index
+        load_buses = npap_busmap_clustering_result.n.loads.bus
         assert load_buses.isin(clustered_buses).all()
 
-    def test_snapshots_preserved(self, npap_clustering_result, scipy_network_for_npap):
-        assert npap_clustering_result.n.snapshots.equals(
+    def test_snapshots_preserved(
+        self, npap_busmap_clustering_result, scipy_network_for_npap
+    ):
+        assert npap_busmap_clustering_result.n.snapshots.equals(
             scipy_network_for_npap.snapshots
         )
 
-    def test_aggregated_lines_have_valid_bus_refs(self, npap_clustering_result):
-        clustered_buses = npap_clustering_result.n.buses.index
-        lines = npap_clustering_result.n.lines
+    def test_aggregated_lines_have_valid_bus_refs(self, npap_busmap_clustering_result):
+        clustered_buses = npap_busmap_clustering_result.n.buses.index
+        lines = npap_busmap_clustering_result.n.lines
         assert lines.bus0.isin(clustered_buses).all()
         assert lines.bus1.isin(clustered_buses).all()
 
     def test_branch_time_series_warning(self, caplog):
         """Branch time series warning is emitted via logger.warning."""
-        from pypsa.clustering.npap import npap_clustering
+        from pypsa.clustering.npap import (
+            busmap_by_npap,
+            get_npap_clustering_from_busmap,
+        )
 
         # Build a fresh network with line time series to trigger the warning
         n = pypsa.examples.scigrid_de()
@@ -654,8 +671,9 @@ class TestNpapClustering:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
+            busmap = busmap_by_npap(n, n_clusters=20, include_links=True)
             with caplog.at_level(logging.WARNING, logger="pypsa.clustering.npap"):
-                npap_clustering(n, n_clusters=20)
+                get_npap_clustering_from_busmap(n, busmap)
 
         assert any(
             "will not be aggregated" in record.message for record in caplog.records
@@ -671,12 +689,11 @@ class TestAccessors:
         result = scipy_network_for_npap.cluster.cluster_by_npap(n_clusters=50)
         assert isinstance(result, pypsa.Network)
 
-    def test_get_npap_clustering_result_returns_clustering(
+    def test_get_npap_clustering_from_busmap_returns_clustering(
         self, scipy_network_for_npap
     ):
-        result = scipy_network_for_npap.cluster.get_npap_clustering_result(
-            n_clusters=50
-        )
+        busmap = scipy_network_for_npap.cluster.busmap_by_npap(n_clusters=50)
+        result = scipy_network_for_npap.cluster.get_npap_clustering_from_busmap(busmap)
         assert isinstance(result, Clustering)
 
     def test_busmap_by_npap_accessor(self, scipy_network_for_npap):
@@ -691,7 +708,7 @@ class TestClusterThenOptimize:
     """End-to-end: cluster with NPAP, then run LOPF on the reduced network."""
 
     def test_clustered_network_is_solvable(self):
-        from pypsa.clustering.npap import npap_clustering
+        from pypsa.clustering.npap import cluster_by_npap
 
         n = pypsa.examples.scigrid_de()
         # Use only a few snapshots for speed
@@ -700,12 +717,11 @@ class TestClusterThenOptimize:
         n.determine_network_topology()
 
         # Cluster to 50 buses with one-port aggregation
-        C = npap_clustering(
+        nc = cluster_by_npap(
             n,
             n_clusters=50,
             aggregate_one_ports=["Generator", "Load", "StorageUnit"],
         )
-        nc = C.n
 
         # Sanity: the clustered network has the expected structure
         assert len(nc.buses) == 50

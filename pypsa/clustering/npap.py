@@ -576,14 +576,11 @@ def _build_one_port_strategies(
     return effective
 
 
-def npap_clustering(
+def get_npap_clustering_from_busmap(
     n: Network,
-    n_clusters: int,
-    strategy: str = "geographical_kmeans",
-    buses_i: pd.Index | None = None,
+    busmap: pd.Series,
     include_transformers: bool = True,
     include_links: bool = True,
-    voltage_levels: list[float] | None = None,
     node_strategies: dict[str, str] | None = None,
     line_strategies: dict[str, str] | None = None,
     transformer_strategies: dict[str, str] | None = None,
@@ -593,29 +590,22 @@ def npap_clustering(
     aggregation_mode: Any | None = None,
     aggregation_profile: Any | None = None,
     with_time: bool = True,
-    **kwargs: Any,
 ) -> Clustering:
-    """Partition and aggregate a PyPSA network using NPAP.
+    """Aggregate a PyPSA network from a busmap using NPAP.
 
-    This combines NPAP partitioning and aggregation for buses/lines/transformers/links
+    This combines NPAP aggregation for buses/lines/transformers/links
     with PyPSA's ``aggregateoneport()`` for generators, loads, storage_units, and stores.
 
     Parameters
     ----------
     n : Network
         The PyPSA network to cluster.
-    n_clusters : int
-        Number of clusters to create.
-    strategy : str, optional
-        NPAP partitioning strategy name (default "geographical_kmeans").
-    buses_i : pd.Index | None, optional
-        Subset of buses to cluster. If None, all buses are used.
+    busmap : pd.Series
+        Series mapping bus names to cluster labels.
     include_transformers : bool, optional
         Include transformers as edges (default True).
     include_links : bool, optional
         Include links as edges (default True).
-    voltage_levels : list[float] | None, optional
-        Target voltage levels for voltage-aware strategies.
     node_strategies : dict[str, str] | None, optional
         NPAP strategy names for node properties. Defaults to average for
         lat/lon/voltage.
@@ -642,8 +632,6 @@ def npap_clustering(
         :func:`aggregate_network_by_npap`.
     with_time : bool, optional
         Whether to include time-dependent data (default True).
-    **kwargs : Any
-        Additional keyword arguments passed to busmap_by_npap.
 
     Returns
     -------
@@ -656,19 +644,7 @@ def npap_clustering(
     if one_port_strategies is None:
         one_port_strategies = {}
 
-    # Step 1: Get busmap from NPAP partitioning
-    busmap = busmap_by_npap(
-        n,
-        n_clusters=n_clusters,
-        strategy=strategy,
-        buses_i=buses_i,
-        include_transformers=include_transformers,
-        include_links=include_links,
-        voltage_levels=voltage_levels,
-        **kwargs,
-    )
-
-    # Step 2: Get aggregated components from NPAP
+    # Get aggregated components from NPAP
     npap_result = aggregate_network_by_npap(
         n,
         busmap,
@@ -680,7 +656,7 @@ def npap_clustering(
         aggregation_profile=aggregation_profile,
     )
 
-    # Step 3: Create new network
+    # Create new network
     clustered = n.__class__()
 
     # Add NPAP-aggregated buses
@@ -770,7 +746,7 @@ def npap_clustering(
                 n.investment_period_weightings.copy()
             )
 
-    # Step 4: Aggregate one-port components using PyPSA's aggregateoneport
+    # Aggregate one-port components using PyPSA's aggregateoneport
     one_port_components = n.one_port_components.copy()
 
     _add_aggregated_one_port_components(
@@ -817,3 +793,105 @@ def npap_clustering(
     clustered.determine_network_topology()
 
     return Clustering(clustered, busmap, linemap)
+
+
+def cluster_by_npap(
+    n: Network,
+    n_clusters: int,
+    strategy: str = "geographical_kmeans",
+    buses_i: pd.Index | None = None,
+    include_transformers: bool = True,
+    include_links: bool = True,
+    voltage_levels: list[float] | None = None,
+    node_strategies: dict[str, str] | None = None,
+    line_strategies: dict[str, str] | None = None,
+    transformer_strategies: dict[str, str] | None = None,
+    link_strategies: dict[str, str] | None = None,
+    aggregate_one_ports: dict | None = None,
+    one_port_strategies: dict | None = None,
+    aggregation_mode: Any | None = None,
+    aggregation_profile: Any | None = None,
+    with_time: bool = True,
+    **kwargs: Any,
+) -> Network:
+    """Cluster a PyPSA network using NPAP.
+
+    This combines NPAP partitioning and aggregation for buses/lines/transformers/links
+    with PyPSA's ``aggregateoneport()`` for generators, loads, storage_units, and stores.
+
+    Parameters
+    ----------
+    n : Network
+        The PyPSA network to cluster.
+    n_clusters : int
+        Number of clusters to create.
+    strategy : str, optional
+        NPAP partitioning strategy name (default "geographical_kmeans").
+    buses_i : pd.Index | None, optional
+        Subset of buses to cluster. If None, all buses are used.
+    include_transformers : bool, optional
+        Include transformers as edges (default True).
+    include_links : bool, optional
+        Include links as edges (default True).
+    voltage_levels : list[float] | None, optional
+        Target voltage levels for voltage-aware strategies.
+    node_strategies : dict[str, str] | None, optional
+        NPAP strategy names for node properties. Defaults to average for
+        lat/lon/voltage.
+    line_strategies : dict[str, str] | None, optional
+        NPAP strategy names for line edge properties. Defaults to
+        equivalent_reactance for x/r, sum for s_nom, average for length.
+    transformer_strategies : dict[str, str] | None, optional
+        NPAP strategy names for transformer edge properties.
+    link_strategies : dict[str, str] | None, optional
+        NPAP strategy names for link edge properties.
+    aggregate_one_ports : dict | None, optional
+        List or dict of one-port components to aggregate
+        (e.g. ``["Generator", "Load"]``).
+        If None, defaults to empty (no one-port aggregation).
+    one_port_strategies : dict | None, optional
+        Custom strategies for one-port aggregation.  May be a flat dict
+        (applied to all components) or a dict of dicts keyed by component
+        name.  Solver output attributes automatically get ``"sum"``.
+    aggregation_mode : AggregationMode | None, optional
+        Pre-defined NPAP aggregation mode passed to
+        :func:`aggregate_network_by_npap`.
+    aggregation_profile : AggregationProfile | None, optional
+        Fully custom NPAP aggregation profile passed to
+        :func:`aggregate_network_by_npap`.
+    with_time : bool, optional
+        Whether to include time-dependent data (default True).
+    **kwargs : Any
+        Additional keyword arguments passed to busmap_by_npap.
+
+    Returns
+    -------
+    Network
+        The clustered network.
+
+    """
+    busmap = busmap_by_npap(
+        n,
+        n_clusters=n_clusters,
+        strategy=strategy,
+        buses_i=buses_i,
+        include_transformers=include_transformers,
+        include_links=include_links,
+        voltage_levels=voltage_levels,
+        **kwargs,
+    )
+    return get_npap_clustering_from_busmap(
+        n,
+        busmap,
+        include_transformers=include_transformers,
+        include_links=include_links,
+        node_strategies=node_strategies,
+        line_strategies=line_strategies,
+        transformer_strategies=transformer_strategies,
+        link_strategies=link_strategies,
+        aggregate_one_ports=aggregate_one_ports,
+        one_port_strategies=one_port_strategies,
+        aggregation_mode=aggregation_mode,
+        aggregation_profile=aggregation_profile,
+        with_time=with_time,
+    ).n

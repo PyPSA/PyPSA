@@ -182,17 +182,19 @@ class ClusteringAccessor:
         return npap_module.busmap_by_npap(self._n, *args, **kwargs)
 
     def cluster_by_npap(self, *args: Any, **kwargs: Any) -> "Network":
-        """Wrap [`pypsa.clustering.npap.npap_clustering`][]."""
-        return npap_module.npap_clustering(self._n, *args, **kwargs).n
+        """Wrap [`pypsa.clustering.npap.cluster_by_npap`][]."""
+        return npap_module.cluster_by_npap(self._n, *args, **kwargs)
 
-    def get_npap_clustering_result(self, *args: Any, **kwargs: Any) -> "Clustering":
-        """Get full Clustering result from NPAP clustering.
+    def get_npap_clustering_from_busmap(
+        self, *args: Any, **kwargs: Any
+    ) -> "Clustering":
+        """Wrap [`pypsa.clustering.npap.get_npap_clustering_from_busmap`][].
 
         Returns the full result including the clustered network, busmap,
         and linemap. Use this when you need the busmap or linemap for
         disaggregation or analysis.
         """
-        return npap_module.npap_clustering(self._n, *args, **kwargs)
+        return npap_module.get_npap_clustering_from_busmap(self._n, *args, **kwargs)
 
 
 __all__ = ["ClusteringAccessor", "npap", "spatial", "temporal"]
