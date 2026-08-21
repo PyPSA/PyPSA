@@ -221,6 +221,10 @@ Variables:
  * StorageUnit-state_of_charge (scenario, name, snapshot)
  * Store-p (scenario, name, snapshot)
 <BLANKLINE>
+Expressions:
+------------
+<empty>
+<BLANKLINE>
 Constraints:
 ------------
  * Generator-ext-p_nom-lower (name, scenario)

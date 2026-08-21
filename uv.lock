@@ -1300,7 +1300,7 @@ name = "importlib-metadata"
 version = "8.7.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp" },
+    { name = "zipp", marker = "python_full_version < '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f3/49/3b30cad09e7771a4982d9975a8cbf64f00d4a1ececb53297f1d9a7be1b10/importlib_metadata-8.7.1.tar.gz", hash = "sha256:49fef1ae6440c182052f407c8d34a68f72efc36db9ca90dc0113398f2fdde8bb", size = 57107, upload-time = "2025-12-21T10:00:19.278Z" }
 wheels = [
@@ -1931,7 +1931,7 @@ wheels = [
 
 [[package]]
 name = "linopy"
-version = "0.9.0"
+version = "0.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bottleneck" },
@@ -1946,9 +1946,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "xarray" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c3/59/ea260357cb0676017c93ece2bbbd376f9d921ac1c80332b5c38ba87a1385/linopy-0.9.0.tar.gz", hash = "sha256:8dfa89505125f52ba52758cea83c2867012ae57761fff4e8f8bc3c5ddc96aae9", size = 1524935, upload-time = "2026-07-24T09:06:27.048Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/93/cf/466120a5436a753604f653f9b91908546d79205015e90e85b175fde20ea6/linopy-0.9.1.tar.gz", hash = "sha256:549c7961e86023631d5ae9e180fa40160b126cd62cb8dec70e7efc8fed5c40ac", size = 1534644, upload-time = "2026-08-18T10:44:25.423Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/39/f4b5e9bf33701123cf311baef07bcf8c923b6f181b98edf1a075f61c5f78/linopy-0.9.0-py3-none-any.whl", hash = "sha256:d14df569f75061a17eff46df8367cb5fac608d2f3ea1a1249f0b698d1ef3e76e", size = 208757, upload-time = "2026-07-24T09:06:25.253Z" },
+    { url = "https://files.pythonhosted.org/packages/2b/74/5155452610328255ed1b2ba7698cd453877e5822eb9e3477b96b25379af6/linopy-0.9.1-py3-none-any.whl", hash = "sha256:70edf6790487bfc5caa041e81532c5cca064809d3f9db8a82e0b9d16bf9a4960", size = 212256, upload-time = "2026-08-18T10:44:23.503Z" },
 ]
 
 [[package]]
@@ -3144,7 +3144,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -3787,7 +3787,7 @@ requires-dist = [
     { name = "gurobipy", marker = "extra == 'gurobipy'" },
     { name = "highspy" },
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.1.1" },
-    { name = "linopy", specifier = ">=0.8.0" },
+    { name = "linopy", specifier = ">=0.9.0" },
     { name = "matplotlib" },
     { name = "mkdocs-autolinks-plugin", marker = "extra == 'docs'" },
     { name = "mkdocs-ezlinks-plugin", marker = "extra == 'docs'" },

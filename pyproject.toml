@@ -36,7 +36,7 @@ dependencies = [
     "pyarrow",
     "xarray",
     "netcdf4",
-    "linopy>=0.8.0",
+    "linopy>=0.9.0",
     "matplotlib",
     "plotly",
     "pydeck>=0.6",
