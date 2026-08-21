@@ -298,6 +298,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](time-series-aggregation.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Voltage-Aware Network Clustering**
+
+    Compares coordinate-based K-means with NPAP voltage-aware clustering on the network SciGRID-DE.
+
+    [:octicons-arrow-right-24: Go to example](npap-clustering.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Global Sensitivity Analysis**
 
     Combines PyPSA with SALib's Sobol indices to understand how technology cost uncertainties affect optimal system design and total costs.
