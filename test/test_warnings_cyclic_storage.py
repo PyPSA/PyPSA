@@ -9,6 +9,7 @@ Test warnings for cyclic storage overriding initial values.
 import logging
 
 import pandas as pd
+import pytest
 
 import pypsa
 
@@ -232,3 +233,105 @@ def test_warning_store_cp_overrides_c(caplog):
         and "store" in record.message
         for record in caplog.records
     ), "Expected warning about CP overriding C not found"
+
+
+@pytest.mark.parametrize(
+    ("component", "kwargs", "ignored_msg", "override_msg"),
+    [
+        (
+            "StorageUnit",
+            {
+                "p_nom": 1,
+                "max_hours": 1,
+                "state_of_charge_initial": 0.5,
+                "cyclic_state_of_charge": True,
+                "state_of_charge_initial_per_period": True,
+            },
+            "Cyclic state of charge constraint overrules initial storage level setting",
+            "Per-period initial state of charge (state_of_charge_initial_per_period=True) "
+            "overrides global cyclic",
+        ),
+        (
+            "Store",
+            {
+                "e_nom": 1,
+                "e_initial": 0.5,
+                "e_cyclic": True,
+                "e_initial_per_period": True,
+            },
+            "Cyclic energy level constraint overrules initial value setting",
+            "Per-period initial energy level (e_initial_per_period=True) "
+            "overrides global cyclic",
+        ),
+    ],
+)
+def test_warning_ip_overrides_c(caplog, component, kwargs, ignored_msg, override_msg):
+    """IP beats C: warn about the override, not about the initial value being ignored."""
+    n = pypsa.Network()
+    n.set_snapshots(
+        pd.MultiIndex.from_tuples(
+            [(2030, 0), (2030, 1), (2040, 0), (2040, 1)], names=["period", "timestep"]
+        )
+    )
+    n.set_investment_periods([2030, 2040])
+    n.add("Bus", "bus")
+    n.add("Carrier", "carrier")
+    n.add("Load", "load", bus="bus", p_set=0.1)
+    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=1, marginal_cost=10)
+    n.add(component, "storage", bus="bus", carrier="carrier", marginal_cost=1, **kwargs)
+
+    with caplog.at_level(logging.WARNING):
+        n.optimize(multi_investment_periods=True)
+
+    assert any(override_msg in record.message for record in caplog.records)
+    assert not any(ignored_msg in record.message for record in caplog.records)
+
+
+@pytest.mark.parametrize(
+    ("component", "kwargs", "level_attr", "initial"),
+    [
+        (
+            "StorageUnit",
+            {
+                "p_nom": 50,
+                "max_hours": 4,
+                "cyclic_state_of_charge": True,
+                "state_of_charge_initial": 40,
+                "state_of_charge_initial_per_period": True,
+            },
+            "state_of_charge",
+            40,
+        ),
+        (
+            "Store",
+            {
+                "e_nom": 200,
+                "e_cyclic": True,
+                "e_initial": 40,
+                "e_initial_per_period": True,
+            },
+            "e",
+            40,
+        ),
+    ],
+)
+def test_ip_seeds_every_period_start(component, kwargs, level_attr, initial):
+    """With IP=True the initial level seeds every period start, despite C=True."""
+    n = pypsa.Network()
+    n.set_snapshots(
+        pd.MultiIndex.from_tuples(
+            [(2030, 0), (2030, 1), (2040, 0), (2040, 1)], names=["period", "timestep"]
+        )
+    )
+    n.set_investment_periods([2030, 2040])
+    n.add("Bus", "bus")
+    n.add("Carrier", "carrier")
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=100, marginal_cost=50)
+    n.add(component, "storage", bus="bus", carrier="carrier", **kwargs)
+
+    n.optimize(multi_investment_periods=True)
+
+    level = n.c[component].dynamic[level_attr]["storage"]
+    assert level.groupby(level="period").first().eq(initial - 10).all()
+    assert n.c.generators.dynamic.p["gen"].sum() == 0
