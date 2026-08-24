@@ -67,6 +67,19 @@ def test_secant_input_variants(kwargs):
     assert status == "ok"
 
 
+def test_transmission_losses_with_scenarios(ac_dc_stochastic):
+    n = ac_dc_stochastic
+    n.lines["s_nom_max"] = 2000
+    n.transformers["s_nom_max"] = 2000
+
+    status, _ = n.optimize(transmission_losses=True)
+
+    assert status == "ok"
+    assert not n.lines_t.p0.isna().any().any()
+    assert not n.lines_t.p1.isna().any().any()
+    assert n.lines_t.p0.columns.equals(n.lines_t.p1.columns)
+
+
 def test_invalid_params_raise():
     n = pypsa.examples.ac_dc_meshed()
     n.lines["s_nom_max"] = 2000
