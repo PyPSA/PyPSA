@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -14,7 +13,10 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Bug Fixes
+
+- Fix the storage warning that claimed `state_of_charge_initial` (`e_initial`) would be ignored under `cyclic_state_of_charge=True` (`e_cyclic=True`) even when `state_of_charge_initial_per_period=True` (`e_initial_per_period=True`) made the model use it at every period start. That case now warns that per-period seeding overrides global cycling, and the precedence `*_per_period` cycling > per-period initial > global cycling is documented in the component attributes. Optimisation results are unchanged.
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
 
@@ -49,7 +51,6 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fixed spurious infeasibility in [`optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] when a network mixed committable and non-committable generators with ramp limits. At a window seam, non-committable components (which carry no commitment status) were assigned `status=0`, corrupting their start-up/shut-down ramp terms. (<!-- md:pr 1766 -->)
 - Fix [`supply`][pypsa.optimization.expressions.StatisticExpressionsAccessor.supply] and [`withdrawal`][pypsa.optimization.expressions.StatisticExpressionsAccessor.withdrawal] expressions dropping the charging contribution of [StorageUnit](./user-guide/components/storage-units.md) components. The supply/withdrawal split now considers the effective coefficients of the operational variable, so the `p_store` term is correctly reported as a withdrawal. (<!-- md:pr 1761 -->)
 - The `bus_carrier`, `carrier` and `groupby` arguments of the [statistics](./user-guide/statistics.md) methods now accept any list-like value, not just lists. (<!-- md:pr 1869 -->)
-- Fix the storage warning that claimed `state_of_charge_initial` (`e_initial`) would be ignored under `cyclic_state_of_charge=True` (`e_cyclic=True`) even when `state_of_charge_initial_per_period=True` (`e_initial_per_period=True`) made the model use it at every period start. That case now warns that per-period seeding overrides global cycling, and the precedence `*_per_period` cycling > per-period initial > global cycling is documented in the component attributes. Optimisation results are unchanged.
 - Fix [`n.graph()`][pypsa.Network.graph] building edges in a non-deterministic order, which could make results that depend on the network's cycles differ between runs. In particular, security-constrained optimization (SCLOPF) now returns consistent results. (<!-- md:pr 1764 -->)
 
 - Fix a large memory spike when reading netCDF networks that store [Shape](./user-guide/components/shapes.md) geometries by reading variable-length string variables as object arrays via the `netCDF4` backend. (<!-- md:pr 1830 -->)
