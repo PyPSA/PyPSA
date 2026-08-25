@@ -324,7 +324,7 @@ class TestBusmapPartitionRoundtrip:
     def test_partition_to_busmap_basic(self):
         mapping = {0: ["a", "b"], 1: ["c"]}
         busmap = _npap_partition_to_busmap(mapping)
-        assert busmap.dtype == object  # string dtype
+        assert pd.api.types.is_string_dtype(busmap)
         assert busmap["a"] == "0"
         assert busmap["b"] == "0"
         assert busmap["c"] == "1"
@@ -572,7 +572,7 @@ class TestBusmapByNpap:
         assert len(npap_busmap_result) == len(scipy_network_for_npap.buses)
 
     def test_string_dtype(self, npap_busmap_result):
-        assert npap_busmap_result.dtype == object  # pandas string dtype
+        assert pd.api.types.is_string_dtype(npap_busmap_result)
 
     def test_cluster_count(self, npap_busmap_result):
         assert npap_busmap_result.nunique() == 50
@@ -619,7 +619,7 @@ class TestGetNpapClusteringFromBusmap:
         )
 
     def test_busmap_values_are_strings(self, npap_busmap_clustering_result):
-        assert npap_busmap_clustering_result.busmap.dtype == object
+        assert pd.api.types.is_string_dtype(npap_busmap_clustering_result.busmap)
 
     def test_linemap_not_empty(self, npap_busmap_clustering_result):
         assert not npap_busmap_clustering_result.linemap.empty
