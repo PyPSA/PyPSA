@@ -53,7 +53,6 @@ from pypsa.optimization.constraints import (
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
 from pypsa.optimization.flow_based import (
-    assign_flow_based_duals,
     define_flow_based_constraints,
     define_flow_based_variables,
 )
@@ -1185,9 +1184,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 unassigned_constraints.append(constraint_name)
                 continue
 
-            # Flow-based constraints are indexed by CNEC/zone bus, not by component
-            # name; their duals are assigned separately (see assign_flow_based_duals).
-            if c.name == "FlowBasedDomain":
+            # The flow-based zero-sum balance dual is a scalar per snapshot (no CNEC
+            # dimension), so it has no component slot; the domain dual is mapped normally.
+            if c.name == "FlowBasedDomain" and suffix == "balance":
                 continue
 
             # Add placeholder for custom constraints, marked as GlobalConstraint
@@ -1254,8 +1253,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 "The shadow-prices of the constraints %s were not assigned to the network.",
                 ", ".join(unassigned_constraints),
             )
-
-        assign_flow_based_duals(self._n)
 
     def post_processing(self) -> None:
         """Post-process the optimized network.

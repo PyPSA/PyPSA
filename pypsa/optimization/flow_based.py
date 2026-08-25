@@ -5,10 +5,10 @@
 """Flow-based market-coupling constraints.
 
 A flow-based domain constrains the *net positions* of market zones (buses) by a set of
-linear inequalities ``PTDF . NP <= RAM``. Each row is a critical network element (CNEC).
-The zonal PTDF sensitivities are stored in the dedicated ``n.c.flow_based_domains.ptdf``
-frame (cnec x zone); the ``ram`` attribute (static or time-varying) is the right-hand
-side.
+linear inequalities ``zonal_ptdf . NP <= RAM``. Each row is a critical network element
+(CNEC). The zonal PTDF sensitivities are stored in the dedicated
+``n.c.flow_based_domains.zonal_ptdf`` frame (cnec x zone); the ``ram`` attribute (static
+or time-varying) is the right-hand side.
 
 The net position of a zone is added as a variable directly inside the nodal balance
 (``generation - load - net_position = 0``), so no auxiliary buses or links are needed and
@@ -24,9 +24,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pandas as pd
-
-from pypsa.components.array import _from_xarray
-from pypsa.optimization.common import _set_dynamic_data
 
 if TYPE_CHECKING:
     import xarray as xr
@@ -49,14 +46,13 @@ def _active(n: Network) -> pd.DataFrame:
 
 
 def _zones(n: Network) -> list:
-    """Zone buses referenced by the domain (PTDF columns)."""
-    return list(n.c.flow_based_domains.ptdf.columns)
+    """Zone buses referenced by the domain (zonal PTDF columns)."""
+    return list(n.c.flow_based_domains.zonal_ptdf.columns)
 
 
-def _ptdf(n: Network) -> xr.DataArray:
-    """Active zonal PTDF as a DataArray with dims (cnec, bus)."""
-    da = n.c.flow_based_domains.da.ptdf.sel(name=_active(n).index)
-    return da.rename(name="cnec")
+def _zonal_ptdf(n: Network) -> xr.DataArray:
+    """Active zonal PTDF as a DataArray with dims (name, bus)."""
+    return n.c.flow_based_domains.da.zonal_ptdf.sel(name=_active(n).index)
 
 
 def validate_flow_based(n: Network) -> None:
@@ -102,36 +98,20 @@ def define_flow_based_variables(n: Network, sns: pd.Index) -> None:
 
 
 def define_flow_based_constraints(n: Network, sns: pd.Index) -> None:
-    """Define the flow-based domain constraints ``PTDF . NP <= RAM`` and ``sum(NP) = 0``.
+    """Define the flow-based constraints ``zonal_ptdf . NP <= RAM`` and ``sum(NP) = 0``.
 
     The net-position variables are injected into the nodal balance elsewhere; here we add
-    the domain half-spaces and the global zero-sum balance.
+    the domain half-spaces and the global zero-sum balance. The domain constraint is
+    indexed by the CNEC (component ``name``), so its dual is mapped to ``mu_domain`` by
+    the standard dual assignment.
     """
     if not _has_flow_based(n):
         return
     m = n.model
     np_var = m[NP_VAR]
-    ptdf = _ptdf(n)
 
-    lhs = (np_var * ptdf).sum("bus")  # dims (snapshot, cnec)
-    ram = n.c.flow_based_domains.da.ram.sel(name=_active(n).index).rename(name="cnec")
+    lhs = (np_var * _zonal_ptdf(n)).sum("bus")  # dims (snapshot, name)
+    ram = n.c.flow_based_domains.da.ram.sel(name=_active(n).index)
     m.add_constraints(lhs <= ram, name="FlowBasedDomain-domain")
 
     m.add_constraints(np_var.sum("bus") == 0, name="FlowBasedDomain-balance")
-
-
-def assign_flow_based_duals(n: Network) -> None:
-    """Write the domain shadow prices into the CNEC-indexed ``mu`` series.
-
-    The flow-based variables and constraints are indexed by zone bus / CNEC rather than
-    by the component name, so the generic dual assignment cannot map them. This writes
-    the ``FlowBasedDomain-domain`` dual (per snapshot and CNEC) into ``mu`` directly.
-    """
-    if not _has_flow_based(n):
-        return
-    con = n.model.constraints["FlowBasedDomain-domain"]
-    if "dual" not in con:
-        return
-    c = n.c.flow_based_domains
-    mu = _from_xarray(con.dual.rename(cnec="name"), c)
-    _set_dynamic_data(n, "FlowBasedDomain", "mu", mu)
