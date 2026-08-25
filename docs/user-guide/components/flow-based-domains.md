@@ -41,14 +41,15 @@ n.add("FlowBasedDomain", zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=[1000.0, 8
 
 ## Importing published domains
 
-Published flow-based domains can be read directly. `from_eraa` parses an ERAA `FB-Domain-CORE` Excel workbook, selecting one target year and season (assumed time-invariant for now):
+Published flow-based domains can be read directly. `from_eraa` parses an ERAA `FB-Domain-CORE` Excel workbook, selecting one target year and season (assumed time-invariant for now); `from_jao` parses a JAO `finalComputation` CSV for one market hour:
 
 ```python
 n.c.flow_based_domains.from_eraa(
     "FB-Domain-CORE_simplified.xlsx", year="2030", season="winter1"
 )
+n.c.flow_based_domains.from_jao("finalComputation.csv")  # presolved rows by default
 ```
 
-The zone labels in the file are used as bus names as-is; there is no fuzzy matching. Where the labels differ from your bus names, pass an explicit mapping, e.g. `buses={"DE00": "DE"}`. Zones that are not buses in the network raise an error rather than being dropped silently. Reading `.xlsx` requires the `excel` extra (`openpyxl`).
+Both importers map the file's zone labels to bus names of the same name; there is no fuzzy matching. For JAO the `Ptdf_<hub>` columns are read and the `Ptdf_` prefix stripped to obtain the hub name. Where the labels differ from your bus names, pass an explicit mapping, e.g. `buses={"DE00": "DE"}`. Zones that are not buses in the network raise an error rather than being dropped silently. JAO `CneName` is not unique across directions and contingencies, so the numeric `Id` is used as the CNEC name by default (`name_col`). Reading `.xlsx` requires the `excel` extra (`openpyxl`).
 
 {{ read_csv('../../../pypsa/data/component_attrs/flow_based_domains.csv') }}

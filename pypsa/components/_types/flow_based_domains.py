@@ -11,8 +11,14 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 import xarray as xr
 
+from pypsa.common import check_optional_dependency
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
+
+_EXCEL_HINT = (
+    "Missing optional dependencies to read Excel files. Install them via "
+    "`pip install pypsa[excel]`."
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -109,6 +115,7 @@ class FlowBasedDomains(Components):
             Names of the added CNECs (see [`add`][pypsa.Network.add]).
 
         """
+        check_optional_dependency("openpyxl", _EXCEL_HINT)
         ptdf_sheet = ptdf_sheet or f"PTDF {year}"
         ram_sheet = ram_sheet or f"RAM {year}"
 
@@ -122,14 +129,70 @@ class FlowBasedDomains(Components):
         ram = pd.read_excel(path, sheet_name=ram_sheet).set_index("CNEC_ID")[season]
         keep = rows.index[rows.index.isin(ram.dropna().index)]
 
-        zonal_ptdf = rows.loc[keep, zones].astype(float)
+        return self._add_domain_frame(rows.loc[keep, zones], ram.loc[keep], buses)
+
+    def from_jao(
+        self,
+        path: str,
+        *,
+        presolved: bool = True,
+        buses: dict[str, str] | None = None,
+        name_col: str = "Id",
+        sep: str = ";",
+    ) -> pd.Index | None:
+        """Add a flow-based domain from a JAO ``finalComputation`` CSV.
+
+        The zonal PTDF is given directly as ``Ptdf_<hub>`` columns; the ``Ptdf_`` prefix
+        is stripped to obtain the hub (bus) name. The ``Direction`` (DIRECT/OPPOSITE) is
+        already baked into the PTDF sign, so no sign duplication is applied. The domain is
+        assumed time-invariant (one CSV = one market hour).
+
+        Parameters
+        ----------
+        path : str
+            Path to the JAO ``finalComputation`` CSV.
+        presolved : bool, default True
+            Keep only the presolved rows (the actual domain); if False, all rows are read.
+        buses : dict, optional
+            Explicit mapping from hub names (after stripping ``Ptdf_``) to network bus
+            names. Hubs are used as-is where unmapped; no fuzzy matching is done.
+        name_col : str, default "Id"
+            Column used as the unique CNEC name. ``CneName`` is not unique across
+            directions and contingencies, so the numeric ``Id`` is the default.
+        sep : str, default ";"
+            CSV field separator.
+
+        Returns
+        -------
+        pandas.Index or None
+            Names of the added CNECs (see [`add`][pypsa.Network.add]).
+
+        """
+        raw = pd.read_csv(path, sep=sep, low_memory=False)
+        rows = raw[raw["Presolved"]] if presolved else raw
+        rows = rows.copy()
+        rows[name_col] = rows[name_col].astype(str)
+
+        ptdf_cols = [c for c in rows.columns if c.startswith("Ptdf_")]
+        zonal_ptdf = rows.set_index(name_col)[ptdf_cols].astype(float)
+        zonal_ptdf.columns = [c.removeprefix("Ptdf_") for c in ptdf_cols]
+        ram = rows.set_index(name_col)["Ram"]
+
+        return self._add_domain_frame(zonal_ptdf, ram, buses)
+
+    def _add_domain_frame(
+        self,
+        zonal_ptdf: pd.DataFrame,
+        ram: pd.Series,
+        buses: dict[str, str] | None,
+    ) -> pd.Index | None:
+        """Rename zones, validate they are buses, and add the parsed domain."""
+        zonal_ptdf = zonal_ptdf.astype(float)
         if buses is not None:
             zonal_ptdf = zonal_ptdf.rename(columns=buses)
         self._require_buses(zonal_ptdf.columns)
-
-        return self.add(
-            zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=ram.loc[keep].values
-        )
+        ram = ram.reindex(zonal_ptdf.index)
+        return self.add(zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=ram.values)
 
     def _require_buses(self, zones: pd.Index) -> None:
         """Fail fast if any zone column is not a bus in the network."""
