@@ -39,4 +39,16 @@ n.add("FlowBasedDomain", zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=[1000.0, 8
 
     The domain replaces the electrical exchange between zones, so the network must not contain electrical [`Link`][pypsa.components.Links] components that directly connect two zone buses. Non-electrical links (e.g. gas pipelines or electrolysers) with at least one non-zone end are ignored.
 
+## Importing published domains
+
+Published flow-based domains can be read directly. `from_eraa` parses an ERAA `FB-Domain-CORE` Excel workbook, selecting one target year and season (assumed time-invariant for now):
+
+```python
+n.c.flow_based_domains.from_eraa(
+    "FB-Domain-CORE_simplified.xlsx", year="2030", season="winter1"
+)
+```
+
+The zone labels in the file are used as bus names as-is; there is no fuzzy matching. Where the labels differ from your bus names, pass an explicit mapping, e.g. `buses={"DE00": "DE"}`. Zones that are not buses in the network raise an error rather than being dropped silently. Reading `.xlsx` requires the `excel` extra (`openpyxl`).
+
 {{ read_csv('../../../pypsa/data/component_attrs/flow_based_domains.csv') }}

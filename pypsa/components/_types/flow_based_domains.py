@@ -71,6 +71,76 @@ class FlowBasedDomains(Components):
             **kwargs,
         )
 
+    def from_eraa(
+        self,
+        path: str,
+        year: str | int,
+        season: str,
+        *,
+        buses: dict[str, str] | None = None,
+        ptdf_sheet: str | None = None,
+        ram_sheet: str | None = None,
+    ) -> pd.Index | None:
+        """Add a flow-based domain from an ERAA ``FB-Domain-CORE`` Excel workbook.
+
+        The zonal PTDF sheet carries two header rows: a *kind* row (``PTDF_SZ`` for the
+        study-zone sensitivities) and a *label* row (the zone names plus ``FB_ID`` and
+        ``CNEC_ID``). Only the ``PTDF_SZ`` columns are read here; AHC/EvFB columns are
+        ignored for now. The domain is assumed time-invariant: one ``season`` is selected.
+
+        Parameters
+        ----------
+        path : str
+            Path to the ERAA workbook (requires the ``openpyxl`` extra to read ``.xlsx``).
+        year : str or int
+            Target year, selecting the ``PTDF {year}`` and ``RAM {year}`` sheets.
+        season : str
+            Seasonal domain to select (the ``FB_ID`` value and the RAM column, e.g.
+            ``"winter1"``).
+        buses : dict, optional
+            Explicit mapping from ERAA zone labels to network bus names. Labels are used
+            as-is where unmapped; no fuzzy matching is done.
+        ptdf_sheet, ram_sheet : str, optional
+            Override the sheet names (default ``"PTDF {year}"`` / ``"RAM {year}"``).
+
+        Returns
+        -------
+        pandas.Index or None
+            Names of the added CNECs (see [`add`][pypsa.Network.add]).
+
+        """
+        ptdf_sheet = ptdf_sheet or f"PTDF {year}"
+        ram_sheet = ram_sheet or f"RAM {year}"
+
+        raw = pd.read_excel(path, sheet_name=ptdf_sheet, header=None)
+        kind, label = raw.iloc[0], raw.iloc[1]
+        zones = [label[i] for i in range(len(kind)) if kind[i] == "PTDF_SZ"]
+        body = raw.iloc[2:].copy()
+        body.columns = list(label)
+        rows = body[body["FB_ID"] == season].set_index("CNEC_ID")
+
+        ram = pd.read_excel(path, sheet_name=ram_sheet).set_index("CNEC_ID")[season]
+        keep = rows.index[rows.index.isin(ram.dropna().index)]
+
+        zonal_ptdf = rows.loc[keep, zones].astype(float)
+        if buses is not None:
+            zonal_ptdf = zonal_ptdf.rename(columns=buses)
+        self._require_buses(zonal_ptdf.columns)
+
+        return self.add(
+            zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=ram.loc[keep].values
+        )
+
+    def _require_buses(self, zones: pd.Index) -> None:
+        """Fail fast if any zone column is not a bus in the network."""
+        missing = sorted(set(zones) - set(self.n_save.c.buses.static.index))
+        if missing:
+            msg = (
+                f"Flow-based domain references zones that are not network buses: "
+                f"{missing}. Add these buses or pass a `buses` mapping to the importer."
+            )
+            raise ValueError(msg)
+
     @property
     def zonal_ptdf(self) -> pd.DataFrame:
         """Zonal PTDF sensitivities of the domain.
