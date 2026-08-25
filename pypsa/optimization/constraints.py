@@ -1522,6 +1522,14 @@ def define_nodal_balance_constraints(
                         expr = expr * coeff.sel(name=group_names)
                     exprs.append(_groupby_bus(expr, group_cbuses))
 
+    # Flow-based domain: inject each zone's net position into its nodal balance
+    # (generation - load - net_position = 0), so no auxiliary buses/links are needed.
+    if "FlowBasedDomain-net_position" in m.variables:
+        np_var = m["FlowBasedDomain-net_position"].rename(bus="name")
+        fb_buses = np_var.indexes["name"].intersection(buses)
+        if not fb_buses.empty:
+            exprs.append(-1 * np_var.sel(name=fb_buses))
+
     lhs = merge(exprs, join="outer").reindex(name=buses)
 
     # Prepare the RHS

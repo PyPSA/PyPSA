@@ -52,6 +52,10 @@ from pypsa.optimization.constraints import (
     define_total_supply_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
+from pypsa.optimization.flow_based import (
+    define_flow_based_constraints,
+    define_flow_based_variables,
+)
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
@@ -816,6 +820,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
         define_phase_shift_variables(n, sns)
+        define_flow_based_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -924,6 +929,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
+        define_flow_based_constraints(n, sns)
 
         define_objective(n, sns, include_objective_constant, piecewise_opts)
 

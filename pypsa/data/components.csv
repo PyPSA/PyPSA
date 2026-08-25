@@ -15,3 +15,4 @@ ShuntImpedance,shunt_impedances,"Shunt with voltage-dependent admittance.",passi
 GlobalConstraint,global_constraints,"Constraints in the optimisation problem that apply to multiple components at once."
 Shape,shapes,"Geographical shapes of network components.",shape
 SubNetwork,sub_networks,"Subsets of buses and passive branches (i.e. lines and transformers) that are connected (i.e. synchronous areas)."
+FlowBasedDomain,flow_based_domains,"Flow-based market-coupling domain: linear constraints on zonal net positions (PTDF . NP <= RAM). Non-physical.",

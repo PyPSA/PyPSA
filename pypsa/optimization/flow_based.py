@@ -1,0 +1,120 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+"""Flow-based market-coupling constraints.
+
+A flow-based domain constrains the *net positions* of market zones (buses) by a set of
+linear inequalities ``PTDF . NP <= RAM``. Each row is a critical network element (CNEC).
+The zonal PTDF sensitivities are stored as bus-named columns in
+``n.c.flow_based_domains.static``; the ``ram`` attribute (static or time-varying) is the
+right-hand side.
+
+The net position of a zone is added as a variable directly inside the nodal balance
+(``generation - load - net_position = 0``), so no auxiliary buses or links are needed and
+the zonal prices remain the duals of the nodal balance. A single ``sum(NP) = 0`` closes the
+copper-plate balance across zones.
+
+This module is deliberately abstract: it implements linear constraints on grouped bus net
+positions and is not specific to any particular region or regulatory framework.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import pandas as pd
+import xarray as xr
+
+if TYPE_CHECKING:
+    from pypsa import Network
+
+NP_VAR = "FlowBasedDomain-net_position"
+
+
+def _has_flow_based(n: Network) -> bool:
+    """Whether the network carries at least one active flow-based constraint."""
+    static = n.c.flow_based_domains.static
+    return not static.empty and static["active"].any()
+
+
+def _active(n: Network) -> pd.DataFrame:
+    """Active flow-based constraints (static frame)."""
+    static = n.c.flow_based_domains.static
+    return static[static["active"]]
+
+
+def _zones(n: Network) -> list:
+    """Zone buses referenced by the domain (PTDF columns that are buses)."""
+    buses = n.c.buses.static.index
+    return [c for c in n.c.flow_based_domains.static.columns if c in buses]
+
+
+def _ptdf(n: Network) -> xr.DataArray:
+    """Zonal PTDF as a DataArray with dims (cnec, bus)."""
+    active = _active(n)
+    zones = _zones(n)
+    return xr.DataArray(
+        active[zones].astype(float).rename_axis(index="cnec", columns="bus")
+    )
+
+
+def validate_flow_based(n: Network) -> None:
+    """Check the network is compatible with a flow-based domain.
+
+    The domain replaces the electrical exchange between zones, so there must be no
+    electrical links directly connecting two different zone buses. Non-electrical links
+    (e.g. gas pipelines, electrolysers) are ignored: only links whose both ends are zone
+    buses are flagged.
+
+    Raises
+    ------
+    ValueError
+        If any link connects two distinct zone buses referenced by the domain.
+
+    """
+    zones = set(_zones(n))
+    links = n.c.links.static
+    if links.empty:
+        return
+    crossing = links[
+        links["bus0"].isin(zones)
+        & links["bus1"].isin(zones)
+        & (links["bus0"] != links["bus1"])
+    ]
+    if not crossing.empty:
+        msg = (
+            "Flow-based domain requires cross-zone electrical links to be removed, but "
+            f"found {len(crossing)} link(s) connecting two zone buses: "
+            f"{list(crossing.index)}. Remove them (the flow-based domain replaces the "
+            "inter-zonal exchange) or point them at non-zone buses."
+        )
+        raise ValueError(msg)
+
+
+def define_flow_based_variables(n: Network, sns: pd.Index) -> None:
+    """Define the zonal net-position variables of the flow-based domain."""
+    if not _has_flow_based(n):
+        return
+    validate_flow_based(n)
+    zones = pd.Index(_zones(n), name="bus")
+    n.model.add_variables(coords=[sns, zones], name=NP_VAR)
+
+
+def define_flow_based_constraints(n: Network, sns: pd.Index) -> None:
+    """Define the flow-based domain constraints ``PTDF . NP <= RAM`` and ``sum(NP) = 0``.
+
+    The net-position variables are injected into the nodal balance elsewhere; here we add
+    the domain half-spaces and the global zero-sum balance.
+    """
+    if not _has_flow_based(n):
+        return
+    m = n.model
+    np_var = m[NP_VAR]
+    ptdf = _ptdf(n)
+
+    lhs = (np_var * ptdf).sum("bus")  # dims (snapshot, cnec)
+    ram = n.c.flow_based_domains.da.ram.sel(name=_active(n).index).rename(name="cnec")
+    m.add_constraints(lhs <= ram, name="FlowBasedDomain-domain")
+
+    m.add_constraints(np_var.sum("bus") == 0, name="FlowBasedDomain-balance")

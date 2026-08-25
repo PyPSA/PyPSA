@@ -206,6 +206,21 @@ class NetworkComponentsMixin(_NetworkABC):
         self.c.global_constraints.static = value
 
     @property
+    def flow_based_domains(self) -> Any:
+        """Access to static data of [pypsa.components.FlowBasedDomains][]."""
+        return (
+            self.c.flow_based_domains.static
+            if not options.api.new_components_api
+            else self.c.flow_based_domains
+        )
+
+    @flow_based_domains.setter
+    def flow_based_domains(self, value: pd.DataFrame) -> None:
+        if options.api.new_components_api:
+            raise AttributeError(_STATIC_SETTER_WARNING)
+        self.c.flow_based_domains.static = value
+
+    @property
     def lines(self) -> Any:
         """Access to static data of [pypsa.components.Lines][]."""
         return (

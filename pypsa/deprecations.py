@@ -8,6 +8,7 @@ COMPONENT_ALIAS_DICT = {
     "SubNetwork": "sub_networks",
     "Bus": "buses",
     "Carrier": "carriers",
+    "FlowBasedDomain": "flow_based_domains",
     "GlobalConstraint": "global_constraints",
     "Line": "lines",
     "LineType": "line_types",
