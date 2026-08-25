@@ -23,6 +23,7 @@ _EXCEL_HINT = (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from pypsa import Network
     from pypsa.components.types import ComponentType
 
 
@@ -52,8 +53,8 @@ class FlowBasedDomains(Components):
     def __init__(
         self,
         ctype: ComponentType,
-        n: Any = None,
-        names: Any = None,
+        n: Network | None = None,
+        names: str | int | Sequence[int | str] | None = None,
         suffix: str = "",
     ) -> None:
         """Initialise the component and its (empty) zonal PTDF frame."""
@@ -121,7 +122,7 @@ class FlowBasedDomains(Components):
 
         raw = pd.read_excel(path, sheet_name=ptdf_sheet, header=None)
         kind, label = raw.iloc[0], raw.iloc[1]
-        zones = [label[i] for i in range(len(kind)) if kind[i] == "PTDF_SZ"]
+        zones = label[kind == "PTDF_SZ"].tolist()
         body = raw.iloc[2:].copy()
         body.columns = list(label)
         rows = body[body["FB_ID"] == season].set_index("CNEC_ID")
@@ -169,16 +170,14 @@ class FlowBasedDomains(Components):
 
         """
         raw = pd.read_csv(path, sep=sep, low_memory=False)
-        rows = raw[raw["Presolved"]] if presolved else raw
-        rows = rows.copy()
+        rows = (raw[raw["Presolved"]] if presolved else raw).copy()
         rows[name_col] = rows[name_col].astype(str)
+        rows = rows.set_index(name_col)
 
         ptdf_cols = [c for c in rows.columns if c.startswith("Ptdf_")]
-        zonal_ptdf = rows.set_index(name_col)[ptdf_cols].astype(float)
-        zonal_ptdf.columns = [c.removeprefix("Ptdf_") for c in ptdf_cols]
-        ram = rows.set_index(name_col)["Ram"]
+        zonal_ptdf = rows[ptdf_cols].rename(columns=lambda c: c.removeprefix("Ptdf_"))
 
-        return self._add_domain_frame(zonal_ptdf, ram, buses)
+        return self._add_domain_frame(zonal_ptdf, rows["Ram"], buses)
 
     def _add_domain_frame(
         self,
@@ -187,7 +186,6 @@ class FlowBasedDomains(Components):
         buses: dict[str, str] | None,
     ) -> pd.Index | None:
         """Rename zones, validate they are buses, and add the parsed domain."""
-        zonal_ptdf = zonal_ptdf.astype(float)
         if buses is not None:
             zonal_ptdf = zonal_ptdf.rename(columns=buses)
         self._require_buses(zonal_ptdf.columns)

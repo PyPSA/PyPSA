@@ -166,6 +166,65 @@ def test_zonal_ptdf_views_are_pandas_and_xarray():
     assert set(c.da.zonal_ptdf.dims) == {"name", "bus"}
 
 
+def test_deactivating_one_cnec_relaxes_the_domain():
+    """An inactive CNEC drops out of the constraint and no longer limits trade."""
+    n = _network(_domain(SYMMETRIC))
+    n.c.flow_based_domains.static.loc["AB+", "active"] = False
+    n.optimize(log_to_console=False)
+    con = n.model.constraints["FlowBasedDomain-domain"]
+    assert "AB+" not in con.dual.indexes["name"]  # excluded from the constraint
+    assert _net_positions(n)["A"] > 2000.0  # AB+ no longer binds -> more export
+
+
+def test_readd_with_overwrite_replaces_the_row():
+    """Re-adding a CNEC with overwrite updates its PTDF and RAM without duplicating it."""
+    n = _network(_domain(SYMMETRIC))
+    c = n.c.flow_based_domains
+    n.add(
+        "FlowBasedDomain",
+        "AB+",
+        zonal_ptdf=pd.Series({"A": 0.9, "B": 0.0, "C": 0.0}),
+        ram=99.0,
+        overwrite=True,
+    )
+    assert len(c.static) == 6  # not duplicated
+    assert c.zonal_ptdf.loc["AB+", "A"] == pytest.approx(0.9)
+    assert c.static.loc["AB+", "ram"] == pytest.approx(99.0)
+
+
+def test_incremental_add_unions_zones_with_zero_fill():
+    """CNECs added separately with different zone sets share one zero-filled frame."""
+    n = pypsa.Network()
+    n.add("Bus", ZONES)
+    n.c.flow_based_domains.add("c1", zonal_ptdf=pd.Series({"A": 0.5, "B": -0.5}), ram=100.0)
+    n.c.flow_based_domains.add("c2", zonal_ptdf=pd.Series({"A": 0.2, "C": 0.3}), ram=200.0)
+    z = n.c.flow_based_domains.zonal_ptdf
+    assert set(z.columns) == set(ZONES)
+    assert z.loc["c1", "C"] == 0.0  # zone absent for c1 -> zero sensitivity
+    assert z.loc["c2", "B"] == 0.0
+
+
+def test_no_domain_optimizes_normally():
+    """Without a flow-based domain the machinery is a clean no-op."""
+    n = pypsa.Network()
+    n.add("Bus", "b")
+    n.add("Load", "l", bus="b", p_set=10.0)
+    n.add("Generator", "g", bus="b", p_nom=20.0, marginal_cost=5.0)
+    n.optimize(log_to_console=False)
+    assert "FlowBasedDomain-domain" not in n.model.constraints
+    assert n.generators_t.p.iloc[0]["g"] == pytest.approx(10.0)
+
+
+def test_copy_preserves_domain_and_re_solves():
+    """n.copy() deep-copies the zonal PTDF store; the copy solves independently."""
+    n = _network(_domain(SYMMETRIC))
+    m = n.copy()
+    assert m.c.flow_based_domains.zonal_ptdf.equals(n.c.flow_based_domains.zonal_ptdf)
+    assert m.c.flow_based_domains.zonal_ptdf is not n.c.flow_based_domains.zonal_ptdf
+    m.optimize(log_to_console=False)
+    assert _net_positions(m).to_dict() == {"A": 2000.0, "B": -1000.0, "C": -1000.0}
+
+
 def test_single_and_bulk_add_agree():
     """Adding CNECs one at a time gives the same PTDF frame and clearing as one bulk add."""
     n_bulk = _network(_domain(SYMMETRIC))

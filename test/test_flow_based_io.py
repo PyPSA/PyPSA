@@ -75,6 +75,13 @@ def test_from_eraa_fails_fast_on_unknown_zone(eraa_workbook):
         n.c.flow_based_domains.from_eraa(eraa_workbook, year="2030", season="winter1")
 
 
+def test_from_eraa_unknown_season_raises(eraa_workbook):
+    """Selecting a season absent from the RAM sheet fails rather than adding an empty domain."""
+    n = _network()
+    with pytest.raises(KeyError):
+        n.c.flow_based_domains.from_eraa(eraa_workbook, year="2030", season="autumn9")
+
+
 def test_from_eraa_domain_solves(eraa_workbook):
     """The imported domain feeds straight into the optimisation."""
     n = _network()
