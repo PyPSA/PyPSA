@@ -85,15 +85,17 @@ class FlowBasedDomains(Components):
         season: str,
         *,
         buses: dict[str, str] | None = None,
+        links: dict[str, str] | None = None,
         ptdf_sheet: str | None = None,
         ram_sheet: str | None = None,
     ) -> pd.Index | None:
         """Add a flow-based domain from an ERAA ``FB-Domain-CORE`` Excel workbook.
 
         The zonal PTDF sheet carries two header rows: a *kind* row (``PTDF_SZ`` for the
-        study-zone sensitivities) and a *label* row (the zone names plus ``FB_ID`` and
-        ``CNEC_ID``). Only the ``PTDF_SZ`` columns are read here; AHC/EvFB columns are
-        ignored for now. The domain is assumed time-invariant: one ``season`` is selected.
+        study-zone sensitivities, ``PTDF*_AHC,SZ`` and ``PTDF_EvFB`` for the advanced
+        hybrid-coupling and evolved corridors) and a *label* row (the zone / border names
+        plus ``FB_ID`` and ``CNEC_ID``). The domain is assumed time-invariant: one
+        ``season`` is selected.
 
         Parameters
         ----------
@@ -107,6 +109,12 @@ class FlowBasedDomains(Components):
         buses : dict, optional
             Explicit mapping from ERAA zone labels to network bus names. Labels are used
             as-is where unmapped; no fuzzy matching is done.
+        links : dict, optional
+            Explicit mapping from AHC/EvFB border labels (of the form ``"A-B"``) to
+            network link names, to include those corridors as ``Link-p`` terms. The sign
+            is aligned automatically to the link's ``bus0 -> bus1`` orientation (the ERAA
+            PTDF is defined for flow from ``A`` to ``B``). Endpoints are resolved through
+            ``buses``. Unmapped AHC/EvFB columns are dropped.
         ptdf_sheet, ram_sheet : str, optional
             Override the sheet names (default ``"PTDF {year}"`` / ``"RAM {year}"``).
 
@@ -123,6 +131,7 @@ class FlowBasedDomains(Components):
         raw = pd.read_excel(path, sheet_name=ptdf_sheet, header=None)
         kind, label = raw.iloc[0], raw.iloc[1]
         zones = label[kind == "PTDF_SZ"].tolist()
+        corridors = label[kind.isin(["PTDF*_AHC,SZ", "PTDF_EvFB"])].tolist()
         body = raw.iloc[2:].copy()
         body.columns = list(label)
         rows = body[body["FB_ID"] == season].set_index("CNEC_ID")
@@ -130,7 +139,34 @@ class FlowBasedDomains(Components):
         ram = pd.read_excel(path, sheet_name=ram_sheet).set_index("CNEC_ID")[season]
         keep = rows.index[rows.index.isin(ram.dropna().index)]
 
-        return self._add_domain_frame(rows.loc[keep, zones], ram.loc[keep], buses)
+        zonal_ptdf = rows.loc[keep, zones].astype(float)
+        for border, link in (links or {}).items():
+            if border not in corridors:
+                msg = f"{border!r} is not an ERAA AHC/EvFB column; available: {corridors}."
+                raise ValueError(msg)
+            zonal_ptdf[link] = rows.loc[keep, border].astype(float) * self._link_sign(
+                border, link, buses or {}
+            )
+
+        return self._add_domain_frame(zonal_ptdf, ram.loc[keep], buses)
+
+    def _link_sign(self, border: str, link: str, buses: dict[str, str]) -> float:
+        """Sign aligning an ERAA border ``"A-B"`` (flow A->B) to a link's bus0->bus1."""
+        frm, to = (buses.get(x, x) for x in border.split("-", 1))
+        static = self.n_save.c.links.static
+        if link not in static.index:
+            msg = f"{link!r} is not a network link."
+            raise ValueError(msg)
+        ends = (static.at[link, "bus0"], static.at[link, "bus1"])
+        if ends == (frm, to):
+            return 1.0
+        if ends == (to, frm):
+            return -1.0
+        msg = (
+            f"Link {link!r} ({ends[0]} -> {ends[1]}) does not connect the border "
+            f"{border!r} endpoints ({frm}, {to}); check the `buses` mapping."
+        )
+        raise ValueError(msg)
 
     def from_jao(
         self,
@@ -138,15 +174,16 @@ class FlowBasedDomains(Components):
         *,
         presolved: bool = True,
         buses: dict[str, str] | None = None,
+        links: dict[str, str] | None = None,
         name_col: str = "Id",
         sep: str = ";",
     ) -> pd.Index | None:
         """Add a flow-based domain from a JAO ``finalComputation`` CSV.
 
         The zonal PTDF is given directly as ``Ptdf_<hub>`` columns; the ``Ptdf_`` prefix
-        is stripped to obtain the hub (bus) name. The ``Direction`` (DIRECT/OPPOSITE) is
-        already baked into the PTDF sign, so no sign duplication is applied. The domain is
-        assumed time-invariant (one CSV = one market hour).
+        is stripped to obtain the hub name. The ``Direction`` (DIRECT/OPPOSITE) is already
+        baked into the PTDF sign, so no sign duplication is applied. The domain is assumed
+        time-invariant (one CSV = one market hour).
 
         Parameters
         ----------
@@ -157,6 +194,11 @@ class FlowBasedDomains(Components):
         buses : dict, optional
             Explicit mapping from hub names (after stripping ``Ptdf_``) to network bus
             names. Hubs are used as-is where unmapped; no fuzzy matching is done.
+        links : dict, optional
+            Explicit mapping from hub names to network link names, to include an external
+            virtual hub as a ``Link-p`` term. JAO hubs are undirected labels, so the sign
+            is not adjusted: ensure the link's ``bus0 -> bus1`` orientation matches the
+            hub's net-position convention, or flip the column.
         name_col : str, default "Id"
             Column used as the unique CNEC name. ``CneName`` is not unique across
             directions and contingencies, so the numeric ``Id`` is the default.
@@ -177,17 +219,17 @@ class FlowBasedDomains(Components):
         ptdf_cols = [c for c in rows.columns if c.startswith("Ptdf_")]
         zonal_ptdf = rows[ptdf_cols].rename(columns=lambda c: c.removeprefix("Ptdf_"))
 
-        return self._add_domain_frame(zonal_ptdf, rows["Ram"], buses)
+        return self._add_domain_frame(zonal_ptdf, rows["Ram"], {**(buses or {}), **(links or {})})
 
     def _add_domain_frame(
         self,
         zonal_ptdf: pd.DataFrame,
         ram: pd.Series,
-        buses: dict[str, str] | None,
+        mapping: dict[str, str] | None,
     ) -> pd.Index | None:
-        """Rename zones, validate they are buses, and add the parsed domain."""
-        if buses is not None:
-            zonal_ptdf = zonal_ptdf.rename(columns=buses)
+        """Rename columns, validate they are buses/links, and add the parsed domain."""
+        if mapping:
+            zonal_ptdf = zonal_ptdf.rename(columns=mapping)
         self._require_components(zonal_ptdf.columns)
         ram = ram.reindex(zonal_ptdf.index)
         return self.add(zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=ram.values)

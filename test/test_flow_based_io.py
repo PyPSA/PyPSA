@@ -18,13 +18,13 @@ ZONES = ["Z1", "Z2", "Z3"]
 def eraa_workbook(tmp_path):
     """A minimal ERAA-shaped workbook: two header rows, two seasons, one NaN RAM."""
     pytest.importorskip("openpyxl")
-    header_kind = [None, None, "PTDF_SZ", "PTDF_SZ", "PTDF_SZ", "PTDF*_AHC,SZ"]
-    header_label = ["FB_ID", "CNEC_ID", *ZONES, "X-Z1"]
+    header_kind = [None, None, "PTDF_SZ", "PTDF_SZ", "PTDF_SZ", "PTDF*_AHC,SZ", "PTDF_EvFB"]
+    header_label = ["FB_ID", "CNEC_ID", *ZONES, "EXT-Z1", "Z1-Z2"]
     data = [
-        ["winter1", "c1", 0.4, -0.2, 0.1, 0.9],
-        ["winter1", "c2", -0.3, 0.5, 0.2, 0.1],
-        ["winter1", "c3", 0.1, 0.1, 0.1, 0.0],  # NaN RAM below -> dropped
-        ["summer1", "c1", 0.9, 0.9, 0.9, 0.0],  # other season -> ignored
+        ["winter1", "c1", 0.4, -0.2, 0.1, 0.9, 0.5],
+        ["winter1", "c2", -0.3, 0.5, 0.2, 0.1, 0.3],
+        ["winter1", "c3", 0.1, 0.1, 0.1, 0.0, 0.0],  # NaN RAM below -> dropped
+        ["summer1", "c1", 0.9, 0.9, 0.9, 0.0, 0.0],  # other season -> ignored
     ]
     ptdf = pd.DataFrame([header_kind, header_label, *data])
     ram = pd.DataFrame(
@@ -92,6 +92,50 @@ def test_from_eraa_domain_solves(eraa_workbook):
     assert n.buses_t.p.iloc[0][ZONES].sum() == pytest.approx(0.0)  # net positions balance
 
 
+def test_from_eraa_maps_corridors_to_links(eraa_workbook):
+    """AHC/EvFB columns are included as link terms when mapped; others are dropped."""
+    n = _network([*ZONES, "EXT"])
+    n.add("Link", "ahc", bus0="EXT", bus1="Z1", p_nom=100)  # EXT->Z1 matches "EXT-Z1"
+    n.add("Link", "ev", bus0="Z1", bus1="Z2", p_nom=100)  # Z1->Z2 matches "Z1-Z2"
+    n.c.flow_based_domains.from_eraa(
+        eraa_workbook, year="2030", season="winter1", links={"EXT-Z1": "ahc", "Z1-Z2": "ev"}
+    )
+    z = n.c.flow_based_domains.zonal_ptdf
+    assert set(z.columns) == {*ZONES, "ahc", "ev"}
+    assert z.loc["c1", "ahc"] == pytest.approx(0.9)  # same orientation -> +
+    assert z.loc["c1", "ev"] == pytest.approx(0.5)
+
+
+def test_from_eraa_corridor_orientation_flips_sign(eraa_workbook):
+    """A link oriented opposite to the border label flips the PTDF sign."""
+    n = _network([*ZONES, "EXT"])
+    n.add("Link", "rev", bus0="Z1", bus1="EXT", p_nom=100)  # reversed vs "EXT-Z1"
+    n.c.flow_based_domains.from_eraa(
+        eraa_workbook, year="2030", season="winter1", links={"EXT-Z1": "rev"}
+    )
+    assert n.c.flow_based_domains.zonal_ptdf.loc["c1", "rev"] == pytest.approx(-0.9)
+
+
+def test_from_eraa_corridor_endpoint_mismatch_raises(eraa_workbook):
+    """A mapped link must connect the border's endpoints."""
+    n = _network([*ZONES, "EXT"])
+    n.add("Link", "bad", bus0="Z2", bus1="Z3", p_nom=100)  # not EXT<->Z1
+    with pytest.raises(ValueError, match="does not connect"):
+        n.c.flow_based_domains.from_eraa(
+            eraa_workbook, year="2030", season="winter1", links={"EXT-Z1": "bad"}
+        )
+
+
+def test_from_eraa_unknown_corridor_raises(eraa_workbook):
+    """A links key that is not an AHC/EvFB column fails fast."""
+    n = _network([*ZONES, "EXT"])
+    n.add("Link", "ahc", bus0="EXT", bus1="Z1", p_nom=100)
+    with pytest.raises(ValueError, match="AHC/EvFB column"):
+        n.c.flow_based_domains.from_eraa(
+            eraa_workbook, year="2030", season="winter1", links={"NOPE": "ahc"}
+        )
+
+
 @pytest.fixture
 def jao_csv(tmp_path):
     """A minimal JAO finalComputation CSV: non-unique CneName, one non-presolved row."""
@@ -143,6 +187,17 @@ def test_from_jao_bus_mapping(jao_csv):
     n = _network(["ZoneOne", "Z2", "Z3"])
     n.c.flow_based_domains.from_jao(jao_csv, buses={"Z1": "ZoneOne"})
     assert list(n.c.flow_based_domains.zonal_ptdf.columns) == ["ZoneOne", "Z2", "Z3"]
+
+
+def test_from_jao_links_mapping(jao_csv):
+    """A hub can be mapped to a link (external virtual hub); the value is not re-signed."""
+    n = pypsa.Network()
+    n.add("Bus", ["Z1", "Z2", "X"])
+    n.add("Link", "cobra", bus0="Z1", bus1="X", p_nom=100)
+    n.c.flow_based_domains.from_jao(jao_csv, links={"Z3": "cobra"})
+    z = n.c.flow_based_domains.zonal_ptdf
+    assert set(z.columns) == {"Z1", "Z2", "cobra"}
+    assert z.loc["1", "cobra"] == pytest.approx(0.1)  # renamed, sign unchanged
 
 
 _REAL_ERAA = Path(__file__).parent / "data" / "fbmc" / "FB-Domain-CORE_simplified.xlsx"

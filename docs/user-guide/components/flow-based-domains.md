@@ -66,4 +66,15 @@ n.c.flow_based_domains.from_jao("finalComputation.csv")  # presolved rows by def
 
 Both importers map the file's zone labels to bus names of the same name; there is no fuzzy matching. For JAO the `Ptdf_<hub>` columns are read and the `Ptdf_` prefix stripped to obtain the hub name. Where the labels differ from your bus names, pass an explicit mapping, e.g. `buses={"DE00": "DE"}`. Zones that are not buses in the network raise an error rather than being dropped silently. JAO `CneName` is not unique across directions and contingencies, so the numeric `Id` is used as the CNEC name by default (`name_col`). Reading `.xlsx` requires the `excel` extra (`openpyxl`).
 
+To bring in the AHC/EvFB corridors as link terms, pass a `links` mapping. For ERAA the border columns are directed labels `"A-B"`, so the sign is aligned automatically to the link's `bus0 → bus1` orientation; unmapped corridors are dropped:
+
+```python
+n.c.flow_based_domains.from_eraa(
+    "FB-Domain-CORE_simplified.xlsx", year="2030", season="winter1",
+    links={"CH00-AT00": "AT_CH_dc", "BE00-DE00": "ALEGrO"},
+)
+```
+
+For JAO the external hubs are undirected labels, so `links` only renames the column — set the link's orientation (or flip the column) to match the hub's net-position convention.
+
 {{ read_csv('../../../pypsa/data/component_attrs/flow_based_domains.csv') }}
