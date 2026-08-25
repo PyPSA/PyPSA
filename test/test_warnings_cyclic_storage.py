@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 """
-Test warnings for cyclic storage overriding initial values.
+Test warnings for the CP > IP > C precedence of cyclic and initial storage levels.
 """
 
 import logging
@@ -13,325 +13,104 @@ import pytest
 
 import pypsa
 
+STORAGE_UNIT = {
+    "component": "StorageUnit",
+    "attrs": {"p_nom": 1, "max_hours": 1, "state_of_charge_initial": 0.5},
+    "c": "cyclic_state_of_charge",
+    "cp": "cyclic_state_of_charge_per_period",
+    "ip": "state_of_charge_initial_per_period",
+    "ignored": "Cyclic state of charge constraint overrules initial storage level setting",
+    "ip_wins": "Per-period initial state of charge (state_of_charge_initial_per_period=True) "
+    "overrides global cyclic",
+    "cp_wins": "Per-period cyclic (cyclic_state_of_charge_per_period=True) overrides global cyclic",
+}
 
-def test_warning_storage_unit_global_cyclic(caplog):
-    """Test warning when global cyclic_state_of_charge overrides initial value."""
-    n = pypsa.Network(snapshots=range(4))
-    n.add("Bus", "bus")
-    n.add("Carrier", "carrier")
-    n.add("Load", "load", bus="bus", p_set=0.1)
-    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=1, marginal_cost=10)
+STORE = {
+    "component": "Store",
+    "attrs": {"e_nom": 1, "e_initial": 0.5},
+    "c": "e_cyclic",
+    "cp": "e_cyclic_per_period",
+    "ip": "e_initial_per_period",
+    "ignored": "Cyclic energy level constraint overrules initial value setting",
+    "ip_wins": "Per-period initial energy level (e_initial_per_period=True) "
+    "overrides global cyclic",
+    "cp_wins": "Per-period cyclic (e_cyclic_per_period=True) overrides global cyclic",
+}
 
-    # Add storage with both cyclic=True and non-zero initial value
-    n.add(
-        "StorageUnit",
-        "storage",
-        bus="bus",
-        carrier="carrier",
-        p_nom=1,
-        max_hours=1,
-        state_of_charge_initial=0.5,  # Non-zero initial value
-        cyclic_state_of_charge=True,  # Cyclic enabled
-        marginal_cost=1,
-    )
-
-    with caplog.at_level(logging.WARNING):
-        n.optimize()
-
-    # Check that warning was issued
-    assert any(
-        "Cyclic state of charge constraint overrules initial storage level setting"
-        in record.message
-        and "storage" in record.message
-        for record in caplog.records
-    ), "Expected warning about cyclic overriding initial values not found"
-
-
-def test_warning_storage_unit_per_period_cyclic(caplog):
-    """Test warning when per-period cyclic overrides initial value in multi-investment."""
-    n = pypsa.Network()
-    n.set_snapshots(
-        pd.MultiIndex.from_tuples(
-            [(2030, 0), (2030, 1), (2040, 0), (2040, 1)], names=["period", "timestep"]
-        )
-    )
-    n.set_investment_periods([2030, 2040])
-    n.add("Bus", "bus")
-    n.add("Carrier", "carrier")
-    n.add("Load", "load", bus="bus", p_set=0.1)
-    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=1, marginal_cost=10)
-
-    # Add storage with both per-period cyclic=True and per-period initial=True
-    n.add(
-        "StorageUnit",
-        "storage",
-        bus="bus",
-        carrier="carrier",
-        p_nom=1,
-        max_hours=1,
-        state_of_charge_initial=0.5,  # Non-zero initial value
-        cyclic_state_of_charge_per_period=True,  # Per-period cyclic
-        state_of_charge_initial_per_period=True,  # Per-period initial
-        marginal_cost=1,
-    )
-
-    with caplog.at_level(logging.WARNING):
-        n.optimize(multi_investment_periods=True)
-
-    # Check that warning was issued
-    assert any(
-        "Cyclic state of charge constraint overrules initial storage level setting"
-        in record.message
-        and "storage" in record.message
-        for record in caplog.records
-    ), "Expected warning about cyclic overriding initial values not found"
-
-
-def test_warning_store_global_cyclic(caplog):
-    """Test warning when global e_cyclic overrides initial value."""
-    n = pypsa.Network(snapshots=range(4))
-    n.add("Bus", "bus")
-    n.add("Carrier", "carrier")
-    n.add("Load", "load", bus="bus", p_set=0.1)
-    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=1, marginal_cost=10)
-
-    # Add store with both cyclic=True and non-zero initial value
-    n.add(
-        "Store",
-        "store",
-        bus="bus",
-        carrier="carrier",
-        e_nom=1,
-        e_initial=0.5,  # Non-zero initial value
-        e_cyclic=True,  # Cyclic enabled
-        marginal_cost=1,
-    )
-
-    with caplog.at_level(logging.WARNING):
-        n.optimize()
-
-    # Check that warning was issued
-    assert any(
-        "Cyclic energy level constraint overrules initial value setting"
-        in record.message
-        and "store" in record.message
-        for record in caplog.records
-    ), "Expected warning about cyclic overriding initial values not found"
-
-
-def test_warning_store_per_period_cyclic(caplog):
-    """Test warning when per-period cyclic overrides initial value in multi-investment."""
-    n = pypsa.Network()
-    n.set_snapshots(
-        pd.MultiIndex.from_tuples(
-            [(2030, 0), (2030, 1), (2040, 0), (2040, 1)], names=["period", "timestep"]
-        )
-    )
-    n.set_investment_periods([2030, 2040])
-    n.add("Bus", "bus")
-    n.add("Carrier", "carrier")
-    n.add("Load", "load", bus="bus", p_set=0.1)
-    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=1, marginal_cost=10)
-
-    # Add store with both per-period cyclic=True and per-period initial=True
-    n.add(
-        "Store",
-        "store",
-        bus="bus",
-        carrier="carrier",
-        e_nom=1,
-        e_initial=0.5,  # Non-zero initial value
-        e_cyclic_per_period=True,  # Per-period cyclic
-        e_initial_per_period=True,  # Per-period initial
-        marginal_cost=1,
-    )
-
-    with caplog.at_level(logging.WARNING):
-        n.optimize(multi_investment_periods=True)
-
-    # Check that warning was issued
-    assert any(
-        "Cyclic energy level constraint overrules initial value setting"
-        in record.message
-        and "store" in record.message
-        for record in caplog.records
-    ), "Expected warning about cyclic overriding initial values not found"
-
-
-def test_warning_storage_unit_cp_overrides_c(caplog):
-    """Test warning when per-period cyclic overrides global cyclic for StorageUnit."""
-    n = pypsa.Network()
-    n.set_snapshots(
-        pd.MultiIndex.from_tuples(
-            [(2030, 0), (2030, 1), (2040, 0), (2040, 1)], names=["period", "timestep"]
-        )
-    )
-    n.set_investment_periods([2030, 2040])
-    n.add("Bus", "bus")
-    n.add("Carrier", "carrier")
-    n.add("Load", "load", bus="bus", p_set=0.1)
-    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=1, marginal_cost=10)
-
-    # Add storage with both global cyclic AND per-period cyclic (CP overrides C)
-    n.add(
-        "StorageUnit",
-        "storage",
-        bus="bus",
-        carrier="carrier",
-        p_nom=1,
-        max_hours=1,
-        cyclic_state_of_charge=True,  # Global cyclic
-        cyclic_state_of_charge_per_period=True,  # Per-period cyclic (overrides global)
-        marginal_cost=1,
-    )
-
-    with caplog.at_level(logging.WARNING):
-        n.optimize(multi_investment_periods=True)
-
-    # Check that warning was issued
-    assert any(
-        "Per-period cyclic (cyclic_state_of_charge_per_period=True) overrides global cyclic"
-        in record.message
-        and "storage" in record.message
-        for record in caplog.records
-    ), "Expected warning about CP overriding C not found"
-
-
-def test_warning_store_cp_overrides_c(caplog):
-    """Test warning when per-period cyclic overrides global cyclic for Store."""
-    n = pypsa.Network()
-    n.set_snapshots(
-        pd.MultiIndex.from_tuples(
-            [(2030, 0), (2030, 1), (2040, 0), (2040, 1)], names=["period", "timestep"]
-        )
-    )
-    n.set_investment_periods([2030, 2040])
-    n.add("Bus", "bus")
-    n.add("Carrier", "carrier")
-    n.add("Load", "load", bus="bus", p_set=0.1)
-    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=1, marginal_cost=10)
-
-    # Add store with both global cyclic AND per-period cyclic (CP overrides C)
-    n.add(
-        "Store",
-        "store",
-        bus="bus",
-        carrier="carrier",
-        e_nom=1,
-        e_cyclic=True,  # Global cyclic
-        e_cyclic_per_period=True,  # Per-period cyclic (overrides global)
-        marginal_cost=1,
-    )
-
-    with caplog.at_level(logging.WARNING):
-        n.optimize(multi_investment_periods=True)
-
-    # Check that warning was issued
-    assert any(
-        "Per-period cyclic (e_cyclic_per_period=True) overrides global cyclic"
-        in record.message
-        and "store" in record.message
-        for record in caplog.records
-    ), "Expected warning about CP overriding C not found"
-
-
-@pytest.mark.parametrize(
-    ("component", "kwargs", "ignored_msg", "override_msg"),
-    [
-        (
-            "StorageUnit",
-            {
-                "p_nom": 1,
-                "max_hours": 1,
-                "state_of_charge_initial": 0.5,
-                "cyclic_state_of_charge": True,
-                "state_of_charge_initial_per_period": True,
-            },
-            "Cyclic state of charge constraint overrules initial storage level setting",
-            "Per-period initial state of charge (state_of_charge_initial_per_period=True) "
-            "overrides global cyclic",
-        ),
-        (
-            "Store",
-            {
-                "e_nom": 1,
-                "e_initial": 0.5,
-                "e_cyclic": True,
-                "e_initial_per_period": True,
-            },
-            "Cyclic energy level constraint overrules initial value setting",
-            "Per-period initial energy level (e_initial_per_period=True) "
-            "overrides global cyclic",
-        ),
-    ],
+SPECS = pytest.mark.parametrize(
+    "spec", [STORAGE_UNIT, STORE], ids=["StorageUnit", "Store"]
 )
-def test_warning_ip_overrides_c(caplog, component, kwargs, ignored_msg, override_msg):
-    """IP beats C: warn about the override, not about the initial value being ignored."""
-    n = pypsa.Network()
-    n.set_snapshots(
-        pd.MultiIndex.from_tuples(
-            [(2030, 0), (2030, 1), (2040, 0), (2040, 1)], names=["period", "timestep"]
-        )
-    )
-    n.set_investment_periods([2030, 2040])
-    n.add("Bus", "bus")
-    n.add("Carrier", "carrier")
-    n.add("Load", "load", bus="bus", p_set=0.1)
-    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=1, marginal_cost=10)
-    n.add(component, "storage", bus="bus", carrier="carrier", marginal_cost=1, **kwargs)
 
+
+@pytest.fixture
+def network():
+    def build(multi_invest: bool = True) -> pypsa.Network:
+        n = pypsa.Network()
+        if multi_invest:
+            n.set_snapshots(
+                pd.MultiIndex.from_tuples(
+                    [(2030, 0), (2030, 1), (2040, 0), (2040, 1)],
+                    names=["period", "timestep"],
+                )
+            )
+            n.set_investment_periods([2030, 2040])
+        else:
+            n.set_snapshots(range(4))
+        n.add("Bus", "bus")
+        n.add("Carrier", "carrier")
+        n.add("Load", "load", bus="bus", p_set=0.1)
+        n.add(
+            "Generator", "gen", bus="bus", carrier="carrier", p_nom=1, marginal_cost=10
+        )
+        return n
+
+    return build
+
+
+def optimize_with_flags(n, spec, caplog, **flags):
+    n.add(
+        spec["component"],
+        "storage",
+        bus="bus",
+        carrier="carrier",
+        marginal_cost=1,
+        **spec["attrs"],
+        **{spec[flag]: value for flag, value in flags.items()},
+    )
     with caplog.at_level(logging.WARNING):
-        n.optimize(multi_investment_periods=True)
-
-    assert any(override_msg in record.message for record in caplog.records)
-    assert not any(ignored_msg in record.message for record in caplog.records)
+        n.optimize(multi_investment_periods=not n.investment_periods.empty)
+    return [record.message for record in caplog.records]
 
 
-@pytest.mark.parametrize(
-    ("component", "kwargs", "level_attr", "initial"),
-    [
-        (
-            "StorageUnit",
-            {
-                "p_nom": 50,
-                "max_hours": 4,
-                "cyclic_state_of_charge": True,
-                "state_of_charge_initial": 40,
-                "state_of_charge_initial_per_period": True,
-            },
-            "state_of_charge",
-            40,
-        ),
-        (
-            "Store",
-            {
-                "e_nom": 200,
-                "e_cyclic": True,
-                "e_initial": 40,
-                "e_initial_per_period": True,
-            },
-            "e",
-            40,
-        ),
-    ],
-)
-def test_ip_seeds_every_period_start(component, kwargs, level_attr, initial):
-    """With IP=True the initial level seeds every period start, despite C=True."""
-    n = pypsa.Network()
-    n.set_snapshots(
-        pd.MultiIndex.from_tuples(
-            [(2030, 0), (2030, 1), (2040, 0), (2040, 1)], names=["period", "timestep"]
-        )
-    )
-    n.set_investment_periods([2030, 2040])
-    n.add("Bus", "bus")
-    n.add("Carrier", "carrier")
-    n.add("Load", "load", bus="bus", p_set=10)
-    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=100, marginal_cost=50)
-    n.add(component, "storage", bus="bus", carrier="carrier", **kwargs)
+@SPECS
+@pytest.mark.parametrize("multi_invest", [False, True])
+def test_warning_cyclic_overrules_initial(network, spec, caplog, multi_invest):
+    """C alone discards the initial level, in single- and multi-period networks."""
+    messages = optimize_with_flags(network(multi_invest), spec, caplog, c=True)
 
-    n.optimize(multi_investment_periods=True)
+    assert any(spec["ignored"] in message for message in messages)
 
-    level = n.c[component].dynamic[level_attr]["storage"]
-    assert level.groupby(level="period").first().eq(initial - 10).all()
-    assert n.c.generators.dynamic.p["gen"].sum() == 0
+
+@SPECS
+def test_warning_per_period_cyclic_overrules_initial(network, spec, caplog):
+    """CP wins over IP, so the initial level is still discarded."""
+    messages = optimize_with_flags(network(), spec, caplog, cp=True, ip=True)
+
+    assert any(spec["ignored"] in message for message in messages)
+
+
+@SPECS
+def test_warning_per_period_cyclic_overrides_global(network, spec, caplog):
+    """CP wins over C, which only warns about the cycling regime."""
+    messages = optimize_with_flags(network(), spec, caplog, c=True, cp=True)
+
+    assert any(spec["cp_wins"] in message for message in messages)
+
+
+@SPECS
+def test_warning_initial_per_period_overrides_global(network, spec, caplog):
+    """IP wins over C, so the initial level is used rather than ignored."""
+    messages = optimize_with_flags(network(), spec, caplog, c=True, ip=True)
+
+    assert any(spec["ip_wins"] in message for message in messages)
+    assert not any(spec["ignored"] in message for message in messages)

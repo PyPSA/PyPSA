@@ -350,6 +350,22 @@ def test_simple_network_storage_cyclic_per_period(n_sus):
     )
 
 
+def test_simple_network_storage_initial_per_period_overrides_cyclic(n_sus):
+    n_sus.c.storage_units.static["state_of_charge_initial"] = 200
+    n_sus.c.storage_units.static["cyclic_state_of_charge"] = True
+    n_sus.c.storage_units.static["state_of_charge_initial_per_period"] = True
+
+    status, cond = n_sus.optimize(**kwargs)
+    assert status == "ok"
+    assert cond == "optimal"
+
+    soc = n_sus.c.storage_units.dynamic.state_of_charge
+    p = n_sus.c.storage_units.dynamic.p
+    soc_initial = (soc + p).loc[idx[:, 0], :].droplevel("timestep")
+    assert soc_initial.loc[2020, "sto1-2020"] == 200
+    assert soc_initial.loc[2030, "sto1-2020"] == 200
+
+
 def test_simple_network_store_noncyclic(n_sts):
     n_sts.c.stores.static["e_cyclic"] = False
     n_sts.c.stores.static["e_initial_per_period"] = False
@@ -382,6 +398,21 @@ def test_simple_network_store_noncyclic_per_period(n_sts):
 
     # lifetime is over here
     assert e_initial.loc[2050, "sto1-2020"] == 0
+
+
+def test_simple_network_store_initial_per_period_overrides_cyclic(n_sts):
+    n_sts.c.stores.static["e_cyclic"] = True
+    n_sts.c.stores.static["e_initial_per_period"] = True
+
+    status, cond = n_sts.optimize(**kwargs)
+    assert status == "ok"
+    assert cond == "optimal"
+
+    e = n_sts.c.stores.dynamic.e
+    p = n_sts.c.stores.dynamic.p
+    e_initial = (e + p).loc[idx[:, 0], :].droplevel("timestep")
+    assert e_initial.loc[2020, "sto1-2020"] == 20
+    assert e_initial.loc[2030, "sto1-2020"] == 20
 
 
 def test_simple_network_store_cyclic(n_sts):
