@@ -54,6 +54,9 @@ logger = logging.getLogger(__name__)
 
 _legacy_string_dtype_warned = False
 
+# Prefix under which the flow-based zonal PTDF matrix is serialised as static columns.
+_ZONAL_PTDF_PREFIX = "zonal_ptdf:"
+
 
 def _use_legacy_string_dtype() -> bool:
     """Resolve whether string data is converted to object dtype on import."""
@@ -1445,6 +1448,13 @@ class NetworkIOMixin(_NetworkABC):
             dynamic = c.dynamic
             piecewise = c.piecewise
 
+            # Serialise the flow-based zonal PTDF matrix (stored outside static/dynamic)
+            # as prefixed static columns, so it round-trips through every format.
+            if component == "FlowBasedDomain" and not c.zonal_ptdf.empty:
+                static = pd.concat(
+                    [static, c.zonal_ptdf.add_prefix(_ZONAL_PTDF_PREFIX)], axis=1
+                )
+
             if component == "Shape":
                 static = pd.DataFrame(static).assign(
                     geometry=static["geometry"].to_wkt()
@@ -1638,6 +1648,17 @@ class NetworkIOMixin(_NetworkABC):
                 _update_ports_component_attrs(self, where=df, c_name=component)
 
             self._import_components_from_df(df, component)
+
+            # Recover the flow-based zonal PTDF matrix from its prefixed static columns.
+            if component == "FlowBasedDomain":
+                c = self.c.flow_based_domains
+                cols = [col for col in c.static.columns if col.startswith(_ZONAL_PTDF_PREFIX)]
+                if cols:
+                    frame = c.static[cols].rename(
+                        columns=lambda s: s[len(_ZONAL_PTDF_PREFIX) :]
+                    )
+                    c._set_frame("zonal_ptdf", frame, frame.index)
+                    c.static.drop(columns=cols, inplace=True)
 
             if not skip_time:
                 for attr, df in importer.get_series(list_name):

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
@@ -14,6 +15,8 @@ import xarray as xr
 from pypsa.common import check_optional_dependency
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
+
+logger = logging.getLogger(__name__)
 
 _EXCEL_HINT = (
     "Missing optional dependencies to read Excel files. Install them via "
@@ -146,6 +149,14 @@ class FlowBasedDomains(Components):
                 raise ValueError(msg)
             zonal_ptdf[link] = rows.loc[keep, border].astype(float) * self._link_sign(
                 border, link, buses or {}
+            )
+
+        if dropped := [c for c in corridors if c not in (links or {})]:
+            logger.warning(
+                "Dropping %d unmapped ERAA AHC/EvFB corridor(s): %s. Pass them in "
+                "`links` to include them as link terms.",
+                len(dropped),
+                dropped,
             )
 
         return self._add_domain_frame(zonal_ptdf, ram.loc[keep], buses)

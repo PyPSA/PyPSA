@@ -47,6 +47,29 @@ def _network(buses=ZONES):
     return n
 
 
+@pytest.mark.parametrize("fmt", ["nc", "csv"])
+def test_round_trip_preserves_domain(tmp_path, fmt):
+    """Export/import preserves the static frame and the zonal PTDF matrix (incl. links)."""
+    n = _network([*ZONES, "X"])
+    n.add("Link", "ev", bus0="Z1", bus1="Z2", p_nom=500)
+    ptdf = pd.DataFrame(
+        {"Z1": [0.4, 0.1], "Z2": [-0.2, 0.3], "Z3": [0.0, 0.0], "ev": [0.2, -0.1]},
+        index=["c1", "c2"],
+    )
+    n.add("FlowBasedDomain", ptdf.index, zonal_ptdf=ptdf, ram=[1000.0, 800.0])
+    n.c.flow_based_domains.static.loc["c2", "active"] = False
+
+    path = tmp_path / ("net.nc" if fmt == "nc" else "csv")
+    (n.export_to_netcdf if fmt == "nc" else n.export_to_csv_folder)(str(path))
+    m = pypsa.Network(str(path))
+
+    c, cm = n.c.flow_based_domains, m.c.flow_based_domains
+    pd.testing.assert_frame_equal(cm.zonal_ptdf[c.zonal_ptdf.columns], c.zonal_ptdf)
+    pd.testing.assert_series_equal(cm.static["ram"], c.static["ram"])
+    pd.testing.assert_series_equal(cm.static["active"], c.static["active"])
+    assert not any(col.startswith("zonal_ptdf") for col in cm.static.columns)
+
+
 def test_from_eraa_parses_zones_season_and_ram(eraa_workbook):
     """Only PTDF_SZ columns and the selected season are read; NaN-RAM CNECs are dropped."""
     n = _network()
@@ -124,6 +147,14 @@ def test_from_eraa_corridor_endpoint_mismatch_raises(eraa_workbook):
         n.c.flow_based_domains.from_eraa(
             eraa_workbook, year="2030", season="winter1", links={"EXT-Z1": "bad"}
         )
+
+
+def test_from_eraa_warns_on_dropped_corridors(eraa_workbook, caplog):
+    """Unmapped AHC/EvFB corridors are dropped with a warning."""
+    n = _network()
+    with caplog.at_level("WARNING"):
+        n.c.flow_based_domains.from_eraa(eraa_workbook, year="2030", season="winter1")
+    assert "unmapped" in caplog.text.lower()
 
 
 def test_from_eraa_unknown_corridor_raises(eraa_workbook):
