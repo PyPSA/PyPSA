@@ -14,6 +14,7 @@ on:
   schedule:
   - cron: "0 5 * * *"
   workflow_call:
+  workflow_dispatch: # run the full matrix on demand from any branch
 
 # Cancel any in-progress runs when a new run is triggered
 concurrency:
@@ -54,16 +55,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # lean matrix on PRs and master pushes (min+max Python, ubuntu only), full matrix for daily runs and releases
-        python-version: ${{ (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && fromJSON(needs.build.outputs.python-versions) || fromJSON(needs.build.outputs.python-versions-pr) }}
-        os: ${{ (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && fromJSON('["ubuntu-latest","macos-latest","windows-latest"]') || fromJSON('["ubuntu-latest"]') }}
+        # lean matrix on PRs and master pushes (min+max Python, ubuntu only), full matrix for daily runs, releases and manual runs
+        python-version: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && fromJSON(needs.build.outputs.python-versions) || fromJSON(needs.build.outputs.python-versions-pr) }}
+        os: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && fromJSON('["ubuntu-latest","macos-latest","windows-latest"]') || fromJSON('["ubuntu-latest"]') }}
         api: [default, new_api]
         exclude:
         - os: macos-latest
           api: new_api
         - os: windows-latest
           api: new_api
-        include: ${{ (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && fromJSON('[{"python-version":"3.13","os":"ubuntu-latest","api":"pandas3"}]') || fromJSON('[]') }}
+        include: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && fromJSON('[{"python-version":"3.13","os":"ubuntu-latest","api":"str_dtype"}]') || fromJSON('[]') }}
 
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
@@ -106,10 +107,6 @@ jobs:
         uv sync --extra dev --no-install-project $UV_LOCK_ARG
         uv pip install "$(ls dist/*.whl)"
 
-    - name: Install pandas 3
-      if: matrix.api == 'pandas3'
-      run: uv pip install 'pandas>=3.0'
-
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
       run: >
@@ -117,12 +114,15 @@ jobs:
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
 
-    - name: Run unit tests (pandas 3)
-      if: matrix.api == 'pandas3'
+    # Behaviour which becomes the default in 2.0, see api.legacy_string_dtype
+    - name: Run unit tests (str dtype)
+      if: matrix.api == 'str_dtype'
+      env:
+        PYPSA_API__LEGACY_STRING_DTYPE: "false"
       run: >
-        uv run --no-sync pytest
+        uv run pytest
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
-        && uv run --no-sync coverage xml
+        && uv run coverage xml
 
     - name: Run unit tests (new API)
       if: matrix.api == 'new_api'
@@ -153,6 +153,55 @@ jobs:
           os-${{ matrix.os }},
           python${{ matrix.python-version }},
           api-${{ matrix.api }}
+
+  test-linopy-semantics:
+    # Temporary guard: test against linopy master
+    # under both arithmetic semantics. Drop once v1 ships in a linopy release (0.10).
+    name: Test linopy semantics (${{ matrix.semantics }})
+    needs: [build]
+    # Only on the full suite (daily schedule, manual dispatch, releases), not every PR/push
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Any LinopySemanticsWarning escaping PyPSA's suppression fails the job.
+        semantics: [v1, legacy]
+    env:
+      MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
+      LINOPY_SEMANTICS: ${{ matrix.semantics }}
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0   # Needed for setuptools_scm
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v7
+      with:
+        python-version: 3.13
+
+    - name: Download package
+      uses: actions/download-artifact@v8
+      with:
+        name: Packages
+        path: dist
+
+    - name: Install package and dependencies
+      run: |
+        python -m pip install uv
+        uv sync --all-extras --no-install-project $UV_LOCK_ARG
+        uv pip install "$(ls dist/*.whl)"
+
+    - name: Override linopy with master
+      run: uv pip install "linopy @ git+https://github.com/pypsa/linopy@master"
+
+    - name: Report linopy provenance
+      run: |
+        uv run --no-sync python -c "import linopy; print('linopy', linopy.__version__, 'from', linopy.__file__)"
+        echo "LINOPY_SEMANTICS=$LINOPY_SEMANTICS"
+
+    - name: Run unit tests
+      run: uv run --no-sync pytest
 
   test-plots:
     # Run the matplotlib image-comparison tests once, on a single instance.

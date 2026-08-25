@@ -2,7 +2,10 @@
 #
 # SPDX-License-Identifier: MIT
 
+import pandas as pd
 import pytest
+
+import pypsa
 
 
 def test_operational_limit_n_ac_dc_meshed(ac_dc_network):
@@ -138,3 +141,113 @@ def test_custom_variable_warnings(ac_dc_network, caplog):
             "could not be mapped to the network component because the component 'NonExistentComponent' does not exist",
         ]
     )
+
+
+def test_1449():
+    """
+    Inactive components with global carrier constraint should not break.
+    See https://github.com/PyPSA/PyPSA/issues/1449.
+    """
+    snapshots = pd.date_range("2025-01-01", freq="h", periods=5)
+
+    n = pypsa.Network(snapshots=snapshots)
+
+    n.add("Carrier", name="gird_with_emissions", co2_emissions=0.5)
+
+    n.add("Bus", name="b_electricity", unit="MW")
+
+    n.add(
+        "Generator",
+        name="grid",
+        bus="b_electricity",
+        p_nom=10,
+        marginal_cost=5,
+    )
+
+    n.add(
+        "Generator",
+        name="grid_2",
+        bus="b_electricity",
+        carrier="gird_with_emissions",
+        p_nom_extendable=True,
+        marginal_cost=5,
+        active=False,
+    )
+
+    n.add(
+        "Load",
+        name="demand",
+        bus="b_electricity",
+        p_set=pd.Series([0, 2, 0, 0, 0], index=snapshots),
+    )
+
+    n.add(
+        "GlobalConstraint",
+        name="CO2_limit",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=50,
+    )
+
+    status, _ = n.optimize()
+    assert status == "ok"
+
+
+def test_1884():
+    """
+    A tech_capacity_expansion_limit with no investment_period must still apply.
+    See https://github.com/PyPSA/PyPSA/issues/1884.
+    """
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "b")
+    n.add("Carrier", ["wind", "gas"])
+    n.add("Load", "l", bus="b", p_set=100)
+    # cheap wind is capped at 50, so expensive gas must cover the rest
+    n.add(
+        "Generator",
+        ["wind", "gas"],
+        bus="b",
+        carrier=["wind", "gas"],
+        p_nom_extendable=True,
+        capital_cost=1,
+        marginal_cost=[1, 100],
+    )
+    n.add(
+        "GlobalConstraint",
+        "wind_limit",
+        type="tech_capacity_expansion_limit",
+        carrier_attribute="wind",
+        sense="<=",
+        constant=50,
+    )
+
+    n.optimize()
+    assert n.c.generators.static.p_nom_opt["wind"] == pytest.approx(50)
+
+
+def test_transmission_cost_limit_overnight_cost():
+    n = pypsa.Network()
+    n.snapshot_weightings.loc[:, :] = 8760.0
+    n.add("Bus", ["a", "b"])
+    n.add(
+        "Line",
+        "ab",
+        bus0="a",
+        bus1="b",
+        x=0.01,
+        s_nom_extendable=True,
+        overnight_cost=1000,
+        discount_rate=0,
+        lifetime=10,
+    )
+    n.add(
+        "GlobalConstraint",
+        "cost_limit",
+        type="transmission_expansion_cost_limit",
+        constant=10000,
+        sense="<=",
+        carrier_attribute="AC",
+    )
+    m = n.optimize.create_model()
+    con = m.constraints["GlobalConstraint-cost_limit"]
+    assert (con.coeffs == 100.0).all()

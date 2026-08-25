@@ -246,6 +246,34 @@ class TestNetcdf:
             check_less_precise=True,
         )
 
+    def test_netcdf_io_shapes_memory(self, tmpdir):
+        import tracemalloc
+
+        import numpy as np
+        from shapely.geometry import Polygon
+
+        angles = np.linspace(0, 2 * np.pi, 200000, endpoint=False)
+        coords = np.round(np.c_[100 * np.cos(angles), 100 * np.sin(angles)], 6)
+        detailed = Polygon(coords)
+        geometry = [Polygon([(0, 0), (1, 0), (1, 1)])] * 150 + [detailed]
+        names = [f"s{i}" for i in range(len(geometry))]
+
+        n = pypsa.Network()
+        n.add("Bus", names)
+        n.add("Shape", names, geometry=geometry, component="Bus", idx=names)
+        fn = tmpdir / "netcdf_export.nc"
+        n.export_to_netcdf(fn)
+
+        tracemalloc.start()
+        m = pypsa.Network(fn)
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        assert peak < 500e6
+        assert_geodataframe_equal(
+            m.c.shapes.static, n.c.shapes.static, check_less_precise=True
+        )
+
     def test_netcdf_from_url(self):
         url = "https://data.pypsa.org/networks/examples/latest/scigrid_de.nc"
         pypsa.Network(url)
@@ -291,11 +319,9 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=True)
         pypsa.Network(fn)
 
-    @pytest.mark.filterwarnings(
-        "ignore:Dtype inference on a pandas object:FutureWarning"
-    )
-    def test_netcdf_io_coerces_string_dtypes_to_object(self, tmpdir):
-        """Loaded NetCDFs must yield `object`-dtype strings, not `StringDtype` (#1585)."""
+    @pytest.mark.parametrize("legacy", [True, False])
+    def test_netcdf_io_string_dtypes(self, tmpdir, legacy):
+        """String data follows `api.legacy_string_dtype` (#1585)."""
         fn = tmpdir / "string_dtypes.nc"
 
         n = pypsa.Network()
@@ -305,48 +331,41 @@ class TestNetcdf:
         n.add("Load", "load0", bus="bus0", p_set=50)
         n.export_to_netcdf(fn)
 
-        with pd.option_context("future.infer_string", True):
+        with pypsa.option_context("api.legacy_string_dtype", legacy):
             m = pypsa.Network(fn)
 
         for c in m.components:
             df = c.static
-            assert df.index.dtype == object, (
+            assert pd.api.types.is_object_dtype(df.index.dtype) == legacy, (
                 f"{c.name}.static.index is {df.index.dtype}"
             )
-            for col in df.columns:
-                if df[col].dtype != object:
-                    assert not isinstance(df[col].dtype, pd.StringDtype), (
-                        f"{c.name}.static[{col!r}] is {df[col].dtype}"
-                    )
-            for key, dyn_df in c.dynamic.items():
-                if isinstance(dyn_df, pd.DataFrame) and not dyn_df.empty:
-                    assert dyn_df.columns.dtype == object, (
-                        f"{c.name}.dynamic[{key!r}].columns is {dyn_df.columns.dtype}"
+            for col, dtype in df.dtypes.items():
+                if c.defaults.at[col, "type"] == "string":
+                    assert pd.api.types.is_object_dtype(dtype) == legacy, (
+                        f"{c.name}.static[{col!r}] is {dtype}"
                     )
 
-    @pytest.mark.filterwarnings("ignore::FutureWarning")
-    def test_arrow_strings_optimize_uncoerced(self, monkeypatch):
-        """Canary: drop the #1585 coercion once this stops raising.
+    def test_string_dtypes_reach_xarray_as_object(self):
+        """Canary: drop `_strings_to_object` once xarray accepts `StringDtype`.
 
-        Without it, pyarrow-backed `infer_string` labels reach `optimize()` and xarray
-        rejects them (`TypeError: Invalid array type`). When a future xarray fixes this
-        the `pytest.raises` fails. See https://github.com/pydata/xarray/issues/10301.
+        xarray rejects string extension arrays (`TypeError: Invalid array type`), so
+        `_as_xarray` casts them to object. When a future xarray fixes this, the
+        `pytest.raises` fails. See https://github.com/pydata/xarray/issues/10301.
         """
+        import xarray as xr  # noqa: PLC0415
+
         import pypsa.examples  # noqa: PLC0415
-        from pypsa.network import io  # noqa: PLC0415
 
-        pytest.importorskip("pyarrow")
-        # Disable the workaround so the raw extension labels reach xarray.
-        monkeypatch.setattr(io, "_coerce_string_dtypes", lambda df: df)
-
-        with pd.option_context("future.infer_string", True):
+        with pypsa.option_context("api.legacy_string_dtype", False):
             n = pypsa.examples.ac_dc_meshed()
-            assert type(n.c.buses.static.index.array).__name__ in (
-                "ArrowStringArray",
-                "ArrowStringArrayNumpySemantics",
-            )
-            with pytest.raises(TypeError, match="Invalid array type"):
-                n.optimize()
+
+        bus = n.c.generators.static.bus
+        assert isinstance(bus.dtype, pd.StringDtype)
+
+        with pytest.raises(TypeError, match="Invalid array type"):
+            xr.DataArray(bus).sel(name=bus.index[:1])
+
+        assert n.c.generators._as_xarray("bus").dtype == object
 
     @pytest.mark.skipif(
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
@@ -371,6 +390,46 @@ class TestNetcdf:
             else []
         )
         assert custom_equals(n, n2, ignore_attrs=ignore)
+
+    def test_779(self):
+        """
+        Importing from xarray dataset.
+        See https://github.com/PyPSA/PyPSA/issues/779.
+        """
+        n1 = pypsa.Network()
+        n1.add("Bus", "bus")
+        xarr = n1.export_to_netcdf()
+        n2 = pypsa.Network()
+        n2.import_from_netcdf(xarr)
+
+    def test_1522(self, tmp_path):
+        """
+        NetCDF export corrupts dynamic attributes with direct DataFrame assignment.
+        See https://github.com/PyPSA/PyPSA/issues/1522.
+        """
+        fn = tmp_path / "test.nc"
+
+        n = pypsa.Network()
+        n.set_snapshots(range(3))
+        n.add("Bus", ["bus0", "bus1"])
+        n.add("Generator", ["gen0", "gen1"], bus=["bus0", "bus1"], p_nom=100)
+        n.add("Link", ["link0", "link1"], bus0=["bus0", "bus1"], bus1=["bus1", "bus0"])
+
+        # Direct assignment without proper column name
+        n.generators_t.marginal_cost = pd.DataFrame(
+            {"gen0": [10.0, 20.0, 30.0], "gen1": [15.0, 25.0, 35.0]},
+            index=n.snapshots,
+        )
+        n.links_t.marginal_cost = pd.DataFrame(
+            {"link0": [1.0, 2.0, 3.0], "link1": [0.5, 1.5, 2.5]},
+            index=n.snapshots,
+        )
+
+        n.export_to_netcdf(fn)
+        m = pypsa.Network(fn)
+
+        assert set(m.generators_t.marginal_cost.columns) == {"gen0", "gen1"}
+        assert set(m.links_t.marginal_cost.columns) == {"link0", "link1"}
 
 
 @pytest.mark.skipif(not tables_installed, reason="PyTables not installed")
@@ -611,6 +670,21 @@ class TestExcelIO:
             m.c.storage_units.dynamic.efficiency_dispatch,
             n.c.storage_units.dynamic.efficiency_dispatch,
         )
+
+    def test_1268(self, tmpdir):
+        """
+        Excel import without snapshots sheet should not raise KeyError.
+        See https://github.com/PyPSA/PyPSA/issues/1268.
+        """
+        fn = str(tmpdir / "no_snapshots.xlsx")
+
+        buses = pd.DataFrame({"v_nom": [132]}, index=["bus1"])
+        with pd.ExcelWriter(fn, engine="openpyxl") as writer:
+            buses.to_excel(writer, sheet_name="buses")
+
+        n = pypsa.Network()
+        n.import_from_excel(fn)
+        assert len(n.c.buses.static) == 1
 
 
 @pytest.mark.skipif(

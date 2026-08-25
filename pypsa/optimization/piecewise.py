@@ -16,6 +16,10 @@ import xarray as xr
 from linopy import Model, Slopes, Variable, breakpoints
 from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, EvolvingAPIWarning
 
+from pypsa._linopy_compat import (
+    SUPPORTS_BREAKPOINT_MASK,
+    suppress_semantics_warnings,
+)
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
@@ -132,7 +136,7 @@ def define_piecewise(
             c.name,
         )
         return None
-    x_breakpoints, y_breakpoints = _get_breakpoints(
+    x_breakpoints, y_breakpoints, valid = _get_breakpoints(
         c, pw_attr, pw_names, cumulative_attr, invert_attr
     )
 
@@ -168,13 +172,20 @@ def define_piecewise(
             if masked.all():
                 active = None
             else:
-                active = status.to_linexpr().reindex(name=names).where(~masked, 1)
+                # `.where(..., 1)` resolves the absent slots to always-active, so
+                # legacy and v1 agree; silence linopy's notice about them.
+                with suppress_semantics_warnings():
+                    active = status.to_linexpr().reindex(name=names).where(~masked, 1)
 
+        mask_kwargs = (
+            {"mask": valid.sel(name=names)} if SUPPORTS_BREAKPOINT_MASK else {}
+        )
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
             m.add_piecewise_formulation(
                 (y_var.sel(name=names), y_breakpoints.sel(name=names), opt_sign),
                 (x_var.sel(name=names), x_breakpoints.sel(name=names)),
+                **mask_kwargs,
                 method=opt_method,
                 name=aux,
                 active=active,
@@ -219,8 +230,12 @@ def _get_breakpoints(
     pw_names: pd.Index,
     cumulative_attr: bool,
     invert_attr: bool,
-) -> tuple[xr.DataArray, xr.DataArray]:
-    """Convert piecewise data to linopy breakpoints for piecewise constraint."""
+) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
+    """Convert piecewise data to linopy breakpoints and their validity mask.
+
+    Ragged curves are stored densely; the mask declares which slots hold a real
+    breakpoint, which linopy requires rather than inferring it from NaN padding.
+    """
     piecewise_df = c.piecewise[pw_attr][pw_names]
     piecewise_attrs = c._piecewise_schema(pw_attr)
 
@@ -266,7 +281,7 @@ def _get_breakpoints(
             y_breakpoints = breakpoints(
                 (y_da * x_da).fillna(0).where(valid_breakpoints)
             )
-    return x_breakpoints, y_breakpoints
+    return x_breakpoints, y_breakpoints, valid_breakpoints
 
 
 def _create_y_var(

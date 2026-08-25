@@ -127,7 +127,7 @@ True
 
 ``` py
 >>> n.scenarios
-Index(['volcano', 'no_volcano'], dtype='object', name='scenario')
+Index(['volcano', 'no_volcano'], dtype='str', name='scenario')
 ```
 
 ``` py
@@ -220,6 +220,10 @@ Variables:
  * StorageUnit-p_store (scenario, name, snapshot)
  * StorageUnit-state_of_charge (scenario, name, snapshot)
  * Store-p (scenario, name, snapshot)
+<BLANKLINE>
+Expressions:
+------------
+<empty>
 <BLANKLINE>
 Constraints:
 ------------

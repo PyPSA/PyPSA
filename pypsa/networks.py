@@ -54,6 +54,7 @@ from pypsa.network.power_flow import (
 )
 from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
+from pypsa.optimization.window import SnapshotWindow
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore
 from pypsa.statistics.expressions import StatisticsAccessor
@@ -91,6 +92,7 @@ class Network(
     _multi_invest: int
     _linearized_uc: int
     _committable_big_m: float | None
+    _optimize_window: SnapshotWindow | None
     iteration: int
 
     # ----------------
@@ -162,6 +164,7 @@ class Network(
         self._objective_constant: float | None = None
         self._multi_invest: int = 0
         self._committable_big_m: float | None = None
+        self._optimize_window: SnapshotWindow | None = None
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -314,6 +317,13 @@ class Network(
 
         """
         return self.equals(other)
+
+    def __setstate__(self, state: dict) -> None:
+        """Restore state and relink SubNetwork weakrefs dropped on pickling."""
+        self.__dict__.update(state)
+        for sub in self.c.sub_networks.static.get("obj", []):
+            if isinstance(sub, SubNetwork):
+                sub._n = ref(self)
 
     def __getitem__(self, key: str) -> Network:
         """Return a shallow slice of the Network object.
@@ -532,6 +542,7 @@ class Network(
             PlotAccessor,
             AbstractStatisticsAccessor,
             linopy.Model,
+            SnapshotWindow,
         ]
         not_equal = False
         if isinstance(other, self.__class__):
@@ -656,28 +667,32 @@ class Network(
         <BLANKLINE>
         Variables:
         ----------
-        * Generator-p_nom (name)
-        * Line-s_nom (name)
-        * Link-p_nom (name)
-        * Generator-p (snapshot, name)
-        * Line-s (snapshot, name)
-        * Link-p (snapshot, name)
-        * objective_constant
+         * Generator-p_nom (name)
+         * Line-s_nom (name)
+         * Link-p_nom (name)
+         * Generator-p (snapshot, name)
+         * Line-s (snapshot, name)
+         * Link-p (snapshot, name)
+         * objective_constant
+        <BLANKLINE>
+        Expressions:
+        ------------
+        <empty>
         <BLANKLINE>
         Constraints:
         ------------
-        * Generator-ext-p_nom-lower (name)
-        * Line-ext-s_nom-lower (name)
-        * Link-ext-p_nom-lower (name)
-        * Generator-ext-p-lower (snapshot, name)
-        * Generator-ext-p-upper (snapshot, name)
-        * Line-ext-s-lower (snapshot, name)
-        * Line-ext-s-upper (snapshot, name)
-        * Link-ext-p-lower (snapshot, name)
-        * Link-ext-p-upper (snapshot, name)
-        * Bus-nodal_balance (snapshot, name)
-        * Kirchhoff-Voltage-Law (snapshot, cycle)
-        * GlobalConstraint-co2_limit
+         * Generator-ext-p_nom-lower (name)
+         * Line-ext-s_nom-lower (name)
+         * Link-ext-p_nom-lower (name)
+         * Generator-ext-p-lower (snapshot, name)
+         * Generator-ext-p-upper (snapshot, name)
+         * Line-ext-s-lower (snapshot, name)
+         * Line-ext-s-upper (snapshot, name)
+         * Link-ext-p-lower (snapshot, name)
+         * Link-ext-p-upper (snapshot, name)
+         * Bus-nodal_balance (snapshot, name)
+         * Kirchhoff-Voltage-Law (snapshot, cycle)
+         * GlobalConstraint-co2_limit
         <BLANKLINE>
         Status:
         -------
@@ -1436,6 +1451,12 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         self._n = ref(n)
         self.name = name
+
+    def __getstate__(self) -> dict:
+        """Drop the unpicklable parent weakref, relinked in Network.__setstate__."""
+        state = self.__dict__.copy()
+        state.pop("_n", None)
+        return state
 
     # TODO assign __str__ and __repr__
     @property

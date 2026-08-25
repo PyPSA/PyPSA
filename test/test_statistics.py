@@ -6,6 +6,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+import xarray as xr
 
 import pypsa
 from pypsa.statistics import groupers
@@ -356,6 +357,30 @@ def test_system_cost(ac_dc_network_r):
     assert system_cost == capex + opex
 
 
+def test_system_cost_includes_fom():
+    """system_cost must include fom_cost, matching the objective (GH #1868)."""
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        capital_cost=100,
+        fom_cost=10,
+        marginal_cost=1,
+    )
+    n.optimize(inlude_objective_constant=False)
+
+    assert n.statistics.capex().sum() == pytest.approx(100.0)
+    assert n.statistics.fom().sum() == pytest.approx(10.0)
+    system_cost = n.statistics.system_cost().sum()
+    assert system_cost == pytest.approx(111.0)
+    assert system_cost == pytest.approx(n.objective)
+
+
 def test_system_cost_groupby_time_false_deprecated(ac_dc_network_r):
     """`groupby_time=False` is unsupported (capex has no time resolution)."""
     n = ac_dc_network_r
@@ -414,7 +439,8 @@ def network_with_nice_name():
     return n
 
 
-def test_energy_balance_bus_carrier_filter():
+@pytest.mark.parametrize("bus_carrier", ["rural heat", ("rural heat",), ["rural heat"]])
+def test_energy_balance_bus_carrier_filter(bus_carrier):
     n = pypsa.Network()
     n.set_snapshots([0])
     n.add("Carrier", "rural heat")
@@ -428,7 +454,7 @@ def test_energy_balance_bus_carrier_filter():
     )
     n.c.loads.dynamic.p = n.c.loads.dynamic.p_set.copy()
 
-    result = n.statistics.energy_balance(bus_carrier="rural heat")
+    result = n.statistics.energy_balance(bus_carrier=bus_carrier)
     assert not result.empty
     assert "bus_carrier" in result.index.names
     assert "rural heat" in result.index.get_level_values("bus_carrier")
@@ -910,25 +936,24 @@ class TestPortEfficiency:
 
     # --- Link dynamic efficiency ---
 
-    def test_dynamic_link_port1_returns_dataframe(self, dynamic_link_eff, component):
-        result = port_efficiency(dynamic_link_eff, component, port=1, dynamic=True)
-        assert isinstance(result, pd.DataFrame)
-
-    def test_dynamic_link_port1_values(self, dynamic_link_eff, component, eff1):
-        result = port_efficiency(dynamic_link_eff, component, port=1, dynamic=True)
-        expected = dynamic_link_eff.components[component].dynamic[eff1]
-        pd.testing.assert_frame_equal(result, expected)
-
-    def test_dynamic_link_port2_returns_dataframe(
-        self, dynamic_link_eff, component, eff_param
+    @pytest.mark.parametrize(
+        ("as_xarray", "expected_type"), [(False, pd.DataFrame), (True, xr.DataArray)]
+    )
+    def test_dynamic_link_port1_return_type(
+        self, dynamic_link_eff, component, as_xarray, expected_type
     ):
-        result = port_efficiency(dynamic_link_eff, component, port=2, dynamic=True)
-        expected = dynamic_link_eff.components[component].dynamic[f"{eff_param}2"]
-        pd.testing.assert_frame_equal(result, expected)
+        result = port_efficiency(
+            dynamic_link_eff, component, port=1, dynamic=True, as_xarray=as_xarray
+        )
+        assert isinstance(result, expected_type)
 
-    def test_dynamic_link_port2_values(self, dynamic_link_eff, component, eff_param):
-        result = port_efficiency(dynamic_link_eff, component, port=2, dynamic=True)
-        expected = dynamic_link_eff.components[component].dynamic[f"{eff_param}2"]
+    @pytest.mark.parametrize("port", [1, 2])
+    def test_dynamic_link_port_values(
+        self, dynamic_link_eff, component, eff1, eff_param, port
+    ):
+        result = port_efficiency(dynamic_link_eff, component, port=port, dynamic=True)
+        attr = eff1 if port == 1 else f"{eff_param}2"
+        expected = dynamic_link_eff.components[component].dynamic[attr]
         pd.testing.assert_frame_equal(result, expected)
 
     # --- piecewise efficiency is not port_efficiency's concern ---
@@ -982,3 +1007,36 @@ class TestPortEfficiency:
         result = port_efficiency(mixed_link_eff, component, port=3, dynamic=True)
         expected = mixed_link_eff.components[component].dynamic[f"{eff_param}3"]
         pd.testing.assert_frame_equal(result, expected)
+
+
+def test_1144():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1144.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.c.generators.static["build_year"] = [2020, 2020, 2030, 2030, 2040, 2040]
+    n.investment_periods = [2020, 2030, 2040]
+    capacity = n.statistics.installed_capacity(components="Generator")
+    assert capacity[2020].sum() < capacity[2030].sum() < capacity[2040].sum()
+
+
+def test_statistics_groupby_time_true():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/1534.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+    result = n.statistics.revenue(groupby_time=True)
+    expected = n.statistics.revenue(groupby_time="sum")
+    pd.testing.assert_series_equal(result, expected)
+
+
+def test_installed_capex_honours_cost_attribute():
+    n = pypsa.Network()
+    n.add("Bus", "b")
+    n.add("Generator", "g", bus="b", p_nom=100, capital_cost=10, fom_cost=3)
+
+    default = n.statistics.installed_capex(drop_zero=False)
+    fom = n.statistics.installed_capex(cost_attribute="fom_cost", drop_zero=False)
+    assert default.sum() == 1000.0
+    assert fom.sum() == 300.0

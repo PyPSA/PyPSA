@@ -710,10 +710,15 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
     [pypsa.Network.consistency_check][]
 
     """
-    dtypes_soll = component.defaults.loc[component.defaults["static"], "dtype"].drop(
-        "name"
-    )
-    unmatched = component.static.dtypes[dtypes_soll.index] != dtypes_soll
+    dtypes_expected = component.defaults.loc[
+        component.defaults["static"], "dtype"
+    ].drop("name")
+    dtypes_is = component.static.dtypes[dtypes_expected.index]
+    unmatched = dtypes_is != dtypes_expected
+    # String attributes are either object or pandas' `str` dtype, depending on
+    # `pypsa.options.api.legacy_string_dtype`
+    is_string_attr = component.defaults.loc[dtypes_expected.index, "type"] == "string"
+    unmatched &= ~(is_string_attr & dtypes_is.map(pd.api.types.is_string_dtype))
 
     if unmatched.any():
         _log_or_raise(
@@ -722,15 +727,17 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
             " the wrong dtype:\n%s\nThey are:\n%s\nbut should be:\n%s",
             component.list_name,
             unmatched.index[unmatched],
-            component.static.dtypes[dtypes_soll.index[unmatched]],
-            dtypes_soll[unmatched],
+            dtypes_is[unmatched],
+            dtypes_expected[unmatched],
         )
 
     # now check varying attributes
 
-    types_soll = component.defaults.loc[component.defaults["varying"], ["typ", "dtype"]]
+    types_expected = component.defaults.loc[
+        component.defaults["varying"], ["typ", "dtype"]
+    ]
 
-    for attr, typ, dtype in types_soll.itertuples():
+    for attr, typ, dtype in types_expected.itertuples():
         if component.dynamic[attr].empty:
             continue
 
@@ -1403,11 +1410,11 @@ def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
         if c.static.empty:
             continue
 
-        com_i = c.committables.difference(c.inactive_assets)
+        com_i = c.committables.intersection(c.active_assets)
         if com_i.empty:
             continue
 
-        ext_i = c.extendables.difference(c.inactive_assets)
+        ext_i = c.extendables.intersection(c.active_assets)
         com_ext_i = com_i.intersection(ext_i)
         if com_ext_i.empty:
             continue
@@ -1575,7 +1582,7 @@ def check_no_modular_committables(n: Network) -> None:
         com_i = c.committables
         if com_i.empty:
             continue
-        com_i = com_i.difference(c.inactive_assets)
+        com_i = com_i.intersection(c.active_assets)
         mod_com_i = com_i.intersection(c.modulars)
         if not mod_com_i.empty:
             modular_committables.extend(f"{c.name}:{name}" for name in mod_com_i)
