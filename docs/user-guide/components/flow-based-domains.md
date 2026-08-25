@@ -55,14 +55,17 @@ The link column's sign must follow the link's `bus0 → bus1` flow direction (th
 
 ## Importing published domains
 
-Published flow-based domains can be read directly. `from_eraa` parses an ERAA `FB-Domain-CORE` Excel workbook, selecting one target year and season (assumed time-invariant for now); `from_jao` parses a JAO `finalComputation` CSV for one market hour:
+Published flow-based domains can be read directly. `from_eraa` parses an ERAA `FB-Domain-CORE` Excel workbook (one target year and season); `from_jao` parses a JAO `finalComputation` CSV (one market hour); `from_tso` parses a TSO `MS_FBMC` domain CSV (one typical situation). All are assumed time-invariant for now:
 
 ```python
 n.c.flow_based_domains.from_eraa(
     "FB-Domain-CORE_simplified.xlsx", year="2030", season="winter1"
 )
 n.c.flow_based_domains.from_jao("finalComputation.csv")  # presolved rows by default
+n.c.flow_based_domains.from_tso("MS_FBMC_Domain_TS1.csv")  # one file, self-typed
 ```
+
+The TSO file carries a `!!OBJEKTTYP` header row that types every column, so `from_tso` reads just that one file: `RAM_MW` is the RAM, `FB_DOMAIN`/`FB_DOMAIN_AHC` columns are the zones, and `HGUE`/`HGUE_AHC` columns are HVDC converters (mapped via `links`, like JAO). It is Latin-1 by default and auto-detects the decimal separator (German `,` vs English `.`).
 
 Both importers map the file's zone labels to bus names of the same name; there is no fuzzy matching. For JAO the `Ptdf_<hub>` columns are read and the `Ptdf_` prefix stripped to obtain the hub name. Where the labels differ from your bus names, pass an explicit mapping, e.g. `buses={"DE00": "DE"}`. Zones that are not buses in the network raise an error rather than being dropped silently. JAO `CneName` is not unique across directions and contingencies, so the numeric `Id` is used as the CNEC name by default (`name_col`). Reading `.xlsx` requires the `excel` extra (`openpyxl`).
 

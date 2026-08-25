@@ -231,8 +231,83 @@ def test_from_jao_links_mapping(jao_csv):
     assert z.loc["1", "cobra"] == pytest.approx(0.1)  # renamed, sign unchanged
 
 
+@pytest.fixture
+def tso_domain(tmp_path):
+    """A minimal TSO MS_FBMC domain CSV factory (English or German decimals)."""
+
+    def build(decimal="."):
+        def n(x):
+            return str(x).replace(".", decimal)
+
+        lines = [
+            "!DATEITYP;MS_FBMC_Domain_TS*",
+            "!!FORMAT_NAME;FORMAT_FLOW_BASED_DOMAIN",
+            "!!OBJEKTTYP;FB_RAM;FB_DOMAIN;FB_DOMAIN;FB_DOMAIN_AHC;HGUE",
+            "CNEC_ID;RAM_MW;Z1;Z2;EXT;KONV_X",
+            f"c1;{n(1000.0)};{n(0.4)};{n(-0.2)};{n(0.1)};{n(0.3)}",
+            f"c2;{n(800.0)};{n(0.1)};{n(0.5)};{n(0.2)};{n(-0.1)}",
+        ]
+        path = tmp_path / f"tso_{decimal!r}.csv"
+        path.write_text("\n".join(lines), encoding="latin-1")
+        return str(path)
+
+    return build
+
+
+TSO_ZONES = ["Z1", "Z2", "EXT"]
+
+
+@pytest.mark.parametrize("decimal", [".", ","])
+def test_from_tso_parses_domain(tso_domain, decimal, caplog):
+    """OBJEKTTYP types the columns; the decimal locale is auto-detected; converters drop."""
+    n = pypsa.Network()
+    n.add("Bus", TSO_ZONES)
+    with caplog.at_level("WARNING"):
+        n.c.flow_based_domains.from_tso(tso_domain(decimal))
+    c = n.c.flow_based_domains
+    assert list(c.static.index) == ["c1", "c2"]
+    assert list(c.zonal_ptdf.columns) == TSO_ZONES  # FB_DOMAIN + FB_DOMAIN_AHC; HGUE dropped
+    assert c.zonal_ptdf.loc["c1", "Z1"] == pytest.approx(0.4)
+    assert c.static.ram.to_dict() == {"c1": 1000.0, "c2": 800.0}
+    assert "unmapped" in caplog.text.lower()  # KONV_X dropped with a warning
+
+
+def test_from_tso_maps_converter(tso_domain):
+    """A converter column is included as a link term when mapped."""
+    n = pypsa.Network()
+    n.add("Bus", TSO_ZONES)
+    n.add("Link", "dc", bus0="Z1", bus1="EXT", p_nom=100)
+    n.c.flow_based_domains.from_tso(tso_domain(), links={"KONV_X": "dc"})
+    z = n.c.flow_based_domains.zonal_ptdf
+    assert set(z.columns) == {*TSO_ZONES, "dc"}
+    assert z.loc["c1", "dc"] == pytest.approx(0.3)
+
+
+def test_from_tso_unknown_converter_raises(tso_domain):
+    """A links key that is not a converter column fails fast."""
+    n = pypsa.Network()
+    n.add("Bus", TSO_ZONES)
+    n.add("Link", "dc", bus0="Z1", bus1="EXT", p_nom=100)
+    with pytest.raises(ValueError, match="converter column"):
+        n.c.flow_based_domains.from_tso(tso_domain(), links={"Z1": "dc"})
+
+
 _REAL_ERAA = Path(__file__).parent / "data" / "fbmc" / "FB-Domain-CORE_simplified.xlsx"
 _REAL_JAO = Path(__file__).parent / "data" / "fbmc" / "finalComputation.csv"
+_REAL_TSO = Path(__file__).parent / "data" / "fbmc" / "tso_domain.csv"
+
+
+@pytest.mark.skipif(not _REAL_TSO.exists(), reason="TSO example data not available")
+def test_from_tso_real_data():
+    """Parse the real (scrambled) TSO domain: 164 CNECs x 15 zones."""
+    zones = ["CZ", "NL", "AT", "PL", "HR", "FR", "BE", "SI", "SK", "RO", "HU", "DE", "DKW", "LT", "BG"]
+    n = pypsa.Network()
+    n.add("Bus", zones)
+    n.c.flow_based_domains.from_tso(str(_REAL_TSO))
+    c = n.c.flow_based_domains
+    assert c.zonal_ptdf.shape == (164, 15)
+    assert set(c.zonal_ptdf.columns) == set(zones)
+    assert not c.static.ram.isna().any()
 
 
 @pytest.mark.skipif(not _REAL_ERAA.exists(), reason="ERAA example data not available")

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
@@ -231,6 +232,86 @@ class FlowBasedDomains(Components):
         zonal_ptdf = rows[ptdf_cols].rename(columns=lambda c: c.removeprefix("Ptdf_"))
 
         return self._add_domain_frame(zonal_ptdf, rows["Ram"], {**(buses or {}), **(links or {})})
+
+    def from_tso(
+        self,
+        path: str,
+        *,
+        buses: dict[str, str] | None = None,
+        links: dict[str, str] | None = None,
+        encoding: str = "latin-1",
+        decimal: str | None = None,
+    ) -> pd.Index | None:
+        """Add a flow-based domain from a TSO ``MS_FBMC`` domain CSV.
+
+        The file has a ``!``/``!!`` metadata header ending in an ``!!OBJEKTTYP`` row that
+        types every column, followed by the column header and the data. Only this one file
+        is read: ``RAM_MW`` (``FB_RAM``) is the RAM, ``FB_DOMAIN``/``FB_DOMAIN_AHC`` columns
+        are the zones, and ``HGUE``/``HGUE_AHC`` columns are the HVDC converters. The domain
+        is assumed time-invariant (one ``Domain_TS`` file).
+
+        Parameters
+        ----------
+        path : str
+            Path to the ``MS_FBMC`` domain CSV (semicolon-separated).
+        buses : dict, optional
+            Explicit mapping from zone labels to network bus names. Labels are used as-is
+            where unmapped; no fuzzy matching is done.
+        links : dict, optional
+            Explicit mapping from converter column names (e.g. ``"KONV_BE-DE1_DE"``) to
+            network link names, to include them as ``Link-p`` terms. The sign is not
+            adjusted: ensure the link's ``bus0 -> bus1`` orientation matches the converter
+            convention, or flip the column. Unmapped converters are dropped.
+        encoding : str, default "latin-1"
+            File encoding (TSO files are typically Latin-1).
+        decimal : str, optional
+            Decimal separator; auto-detected from the ``RAM_MW`` column (German ``","`` vs
+            English ``"."``) when not given.
+
+        Returns
+        -------
+        pandas.Index or None
+            Names of the added CNECs (see [`add`][pypsa.Network.add]).
+
+        """
+        raw = Path(path).read_text(encoding=encoding).splitlines()
+        meta = [i for i, line in enumerate(raw) if line.startswith("!")]
+        objtyp = raw[meta[-1]].split(";")[1:]  # !!OBJEKTTYP row, aligns to header[1:]
+        header = raw[meta[-1] + 1].split(";")
+        types = {
+            header[i + 1]: t
+            for i, t in enumerate(objtyp)
+            if i + 1 < len(header) and header[i + 1]
+        }
+
+        ram_col = next(c for c in header if types.get(c) == "FB_RAM")
+        zones = [c for c in header if types.get(c) in ("FB_DOMAIN", "FB_DOMAIN_AHC")]
+        converters = [c for c in header if types.get(c) in ("HGUE", "HGUE_AHC")]
+
+        if decimal is None:
+            cells = (line.split(";")[header.index(ram_col)] for line in raw[meta[-1] + 2 :])
+            decimal = "," if any("," in c for c in cells) else "."
+
+        df = pd.read_csv(
+            path, sep=";", skiprows=meta, encoding=encoding, decimal=decimal
+        ).set_index("CNEC_ID")
+
+        zonal_ptdf = df[zones].astype(float)
+        for col, link in (links or {}).items():
+            if col not in converters:
+                msg = f"{col!r} is not a TSO converter column; available: {converters}."
+                raise ValueError(msg)
+            zonal_ptdf[link] = df[col].astype(float)
+
+        if dropped := [c for c in converters if c not in (links or {})]:
+            logger.warning(
+                "Dropping %d unmapped TSO converter(s): %s. Pass them in `links` to "
+                "include them as link terms.",
+                len(dropped),
+                dropped,
+            )
+
+        return self._add_domain_frame(zonal_ptdf, df[ram_col], buses)
 
     def _add_domain_frame(
         self,

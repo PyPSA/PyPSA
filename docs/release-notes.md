@@ -21,7 +21,7 @@ SPDX-License-Identifier: CC-BY-4.0
     - Each zone's net position is a variable inside the nodal balance, so zonal prices stay native (no auxiliary buses or links) and net positions are read from `n.buses_t.p`.
     - A domain column may instead name a `Link`, whose `Link-p` flow enters the constraint directly. This covers advanced hybrid coupling (a link to an external hub) and evolved flow-based coupling (a link between two zones) with no distinction and no auxiliary variables.
     - Per-CNEC shadow prices are written to the `mu_domain` output when optimizing with `assign_all_duals=True`.
-    - Published domains can be imported with `n.c.flow_based_domains.from_eraa(path, year, season)` (ERAA `FB-Domain-CORE` workbooks; needs the `excel` extra) and `.from_jao(path)` (JAO `finalComputation` CSV); both accept a `links` mapping to include AHC/EvFB corridors (ERAA aligns the sign to the link orientation automatically).
+    - Published domains can be imported with `n.c.flow_based_domains.from_eraa(path, year, season)` (ERAA `FB-Domain-CORE` workbooks; needs the `excel` extra), `.from_jao(path)` (JAO `finalComputation` CSV), and `.from_tso(path)` (TSO `MS_FBMC` domain CSV, self-typed via its `OBJEKTTYP` row, Latin-1 with auto-detected decimal separator). All accept a `links` mapping to include AHC/EvFB corridors (ERAA aligns the sign to the link orientation automatically).
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
 
