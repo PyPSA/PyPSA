@@ -2038,9 +2038,8 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     - **IP** (state_of_charge_initial_per_period): If True, reset to initial
       state_of_charge_initial value at the start of each period.
 
-    The flags follow the precedence **CP > IP > C**: per-period cycling wins over
-    everything, per-period seeding wins over global cycling, and global cycling
-    only applies if neither per-period flag is set.
+    They follow the precedence **CP > IP > C**: global cycling only applies if
+    neither per-period flag is set.
 
     Standing losses are applied based on the elapsed hours between snapshots.
 
@@ -2100,23 +2099,11 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     rhs = -c.da.inflow.sel(snapshot=sns, name=c.active_assets) * eh
 
     if n._multi_invest:
-        # If multi-horizon optimizing, we update the previous_soc and the rhs
-        # for all assets which are cyclic/non-cyclic per period
-        # An asset is treated as per-period if:
-        # 1. It cycles per period (CP=cyclic_state_of_charge_per_period=True), OR
-        # 2. It uses initial state per period (IP=state_of_charge_initial_per_period=True)
+        # Assets with CP or IP set follow the per-period regime instead of the global one
         per_period = cyclic_pp | initial_pp
-
-        # We calculate the previous soc per period while cycling within a period
         previous_soc_pp = _roll_within_periods(soc)
 
-        # We create a mask `include_previous_soc_pp` which determines when to include
-        # previous state of charge from within the period:
-        # - Always include previous for snapshots within a period (not a period start)
-        # - At period boundaries (first snapshot):
-        #   * If CP=True AND IP=False: cycle to last snapshot of period (wrap)
-        #   * If IP=True: use initial value instead (no wrap, handled via rhs)
-        #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
+        # At a period start only CP wraps; IP instead seeds the rhs below
         within_period = ~_period_start_mask(sns)
         include_previous_soc_pp = active & (within_period | cyclic_pp)
 
@@ -2129,13 +2116,11 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         # We take values still to handle internal xarray multi-index difficulties
         previous_soc_pp = previous_soc_pp.where(include_previous_soc_pp.values)
 
-        # update the previous_soc variables and right hand side
         previous_soc = previous_soc.where(~per_period, previous_soc_pp)
         include_previous_soc = include_previous_soc_pp.where(
             per_period, include_previous_soc
         )
 
-    # Warn if cyclic overrides initial values, following the CP > IP > C precedence
     has_initial = soc_init != 0
     ignored = has_initial & (cyclic_pp | (cyclic & ~initial_pp))
     if ignored.any():
@@ -2221,9 +2206,8 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     - **IP** (e_initial_per_period): If True, reset to initial
       e_initial value at the start of each period.
 
-    The flags follow the precedence **CP > IP > C**: per-period cycling wins over
-    everything, per-period seeding wins over global cycling, and global cycling
-    only applies if neither per-period flag is set.
+    They follow the precedence **CP > IP > C**: global cycling only applies if
+    neither per-period flag is set.
 
     Standing losses are applied based on the elapsed hours between snapshots.
 
@@ -2274,34 +2258,20 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     rhs = DataArray(0)
 
     if n._multi_invest:
-        # If multi-horizon optimization, we update previous_e and the rhs
-        # for all assets which are cyclic/non-cyclic per period
-        # An asset is treated as per-period if:
-        # 1. It cycles per period (CP=e_cyclic_per_period=True), OR
-        # 2. It uses initial energy per period (IP=e_initial_per_period=True)
+        # Assets with CP or IP set follow the per-period regime instead of the global one
         per_period = cyclic_pp | initial_pp
-
-        # We calculate the previous e per period while cycling within a period
         previous_e_pp = _roll_within_periods(e)
 
-        # We create a mask `include_previous_e_pp` which determines when to include
-        # previous energy from within the period:
-        # - Always include previous for snapshots within a period (not a period start)
-        # - At period boundaries (first snapshot):
-        #   * If CP=True AND IP=False: cycle to last snapshot of period (wrap)
-        #   * If IP=True: use initial value instead (no wrap, handled via rhs)
-        #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
+        # At a period start only CP wraps; IP instead seeds the rhs below
         within_period = ~_period_start_mask(sns)
         include_previous_e_pp = active & (within_period | cyclic_pp)
 
         # We take values still to handle internal xarray multi-index difficulties
         previous_e_pp = previous_e_pp.where(include_previous_e_pp.values)
 
-        # update previous_e variables and rhs
         previous_e = previous_e.where(~per_period, previous_e_pp)
         include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
-    # Warn if cyclic overrides initial values, following the CP > IP > C precedence
     has_initial = e_init != 0
     ignored = has_initial & (cyclic_pp | (cyclic & ~initial_pp))
     if ignored.any():
