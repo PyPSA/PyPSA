@@ -240,6 +240,10 @@ class NetworkTransformMixin(_NetworkABC):
             msg = f"Names for {c.name} must be unique."
             raise ValueError(msg)
 
+        # Intercept matrix-valued attributes (e.g. a flow-based domain PTDF) that are
+        # stored outside the static/dynamic frames; applied after the static import.
+        frame_data = {k: kwargs.pop(k) for k in list(kwargs) if k in c.frame_attrs}
+
         # Check custom attributes
         standard_attrs = set(c.defaults.index)
         custom_attrs = set(kwargs.keys()) - standard_attrs
@@ -425,6 +429,11 @@ class NetworkTransformMixin(_NetworkABC):
             }
 
         self._import_components_from_df(static_df, c.name, overwrite=overwrite)
+
+        # Load matrix-valued attributes (after the static import, so the component rows
+        # exist and overwriting does not drop them)
+        for k, v in frame_data.items():
+            c._set_frame(k, v, names)
 
         # Load piecewise breakpoint data (after the static import, so that
         # overwriting an existing component does not drop the new breakpoints)

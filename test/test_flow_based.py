@@ -29,13 +29,31 @@ def _domain(ram: dict[str, float]) -> pd.DataFrame:
     return d.sort_index()
 
 
-def _network(domain: pd.DataFrame) -> pypsa.Network:
+def _add_domain(n: pypsa.Network, domain: pd.DataFrame, one_at_a_time: bool) -> None:
+    """Attach the domain either as one bulk add or one CNEC at a time."""
+    if one_at_a_time:
+        for cnec in domain.index:
+            n.add(
+                "FlowBasedDomain",
+                cnec,
+                ptdf=domain.loc[cnec, ZONES],
+                ram=float(domain.loc[cnec, "RAM"]),
+            )
+    else:
+        n.add(
+            "FlowBasedDomain",
+            domain.index,
+            ptdf=domain[ZONES],
+            ram=domain["RAM"].values,
+        )
+
+
+def _network(domain: pd.DataFrame, one_at_a_time: bool = False) -> pypsa.Network:
     n = pypsa.Network()
     n.add("Bus", ZONES)
     n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
     n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
-    n.add("FlowBasedDomain", domain.index, ram=domain["RAM"].values)
-    n.flow_based_domains[ZONES] = domain[ZONES]
+    _add_domain(n, domain, one_at_a_time)
     return n
 
 
@@ -43,9 +61,13 @@ def _net_positions(n: pypsa.Network) -> pd.Series:
     return (n.generators_t.p.iloc[0] - LOADS)[ZONES].round(0)
 
 
-def test_symmetric_domain_reproduces_toy():
+SYMMETRIC = {"AB+": 1000, "AB-": 1000, "BC+": 1500, "BC-": 1500, "AC+": 2000, "AC-": 2000}
+
+
+@pytest.mark.parametrize("one_at_a_time", [False, True])
+def test_symmetric_domain_reproduces_toy(one_at_a_time):
     """The clearing lands on the AB+ edge with the canonical net positions and prices."""
-    n = _network(_domain({"AB+": 1000, "AB-": 1000, "BC+": 1500, "BC-": 1500, "AC+": 2000, "AC-": 2000}))
+    n = _network(_domain(SYMMETRIC), one_at_a_time=one_at_a_time)
     n.optimize(log_to_console=False)
 
     assert _net_positions(n).to_dict() == {"A": 2000.0, "B": -1000.0, "C": -1000.0}
@@ -59,7 +81,7 @@ def test_symmetric_domain_reproduces_toy():
 
 def test_prices_come_from_nodal_balance():
     """No auxiliary components: zonal prices are the nodal-balance duals, not reconstructed."""
-    n = _network(_domain({"AB+": 1000, "AB-": 1000, "BC+": 1500, "BC-": 1500, "AC+": 2000, "AC-": 2000}))
+    n = _network(_domain(SYMMETRIC))
     n.optimize(log_to_console=False)
     assert not n.buses_t.marginal_price.empty
     # net positions sum to zero (global balance)
@@ -75,7 +97,7 @@ def test_asymmetric_ram_shifts_the_optimum():
 
 def test_validation_rejects_cross_zone_electrical_link():
     """A link between two zone buses must be removed; the domain replaces it."""
-    n = _network(_domain({"AB+": 1000, "AB-": 1000, "BC+": 1500, "BC-": 1500, "AC+": 2000, "AC-": 2000}))
+    n = _network(_domain(SYMMETRIC))
     n.add("Link", "A-B", bus0="A", bus1="B", p_nom=1000)
     with pytest.raises(ValueError, match="cross-zone"):
         n.optimize(log_to_console=False)
@@ -83,7 +105,7 @@ def test_validation_rejects_cross_zone_electrical_link():
 
 def test_non_zone_link_is_allowed():
     """A link to a non-zone bus (e.g. a gas pipeline) does not trip validation."""
-    n = _network(_domain({"AB+": 1000, "AB-": 1000, "BC+": 1500, "BC-": 1500, "AC+": 2000, "AC-": 2000}))
+    n = _network(_domain(SYMMETRIC))
     n.add("Bus", "gas")
     n.add("Link", "A-gas", bus0="A", bus1="gas", p_nom=1000)
     n.optimize(log_to_console=False)
@@ -92,8 +114,30 @@ def test_non_zone_link_is_allowed():
 
 def test_inactive_domain_is_ignored():
     """Deactivating all constraints leaves an unconstrained copper-plate clearing."""
-    n = _network(_domain({"AB+": 1000, "AB-": 1000, "BC+": 1500, "BC-": 1500, "AC+": 2000, "AC-": 2000}))
+    n = _network(_domain(SYMMETRIC))
     n.flow_based_domains["active"] = False
     n.optimize(log_to_console=False)
     # cheapest generator (A) serves all demand; no binding domain
     assert "FlowBasedDomain-domain" not in n.model.constraints
+
+
+def test_ptdf_views_are_pandas_and_xarray():
+    """PTDF is public pandas (cnec x zone) and internal xarray (name, bus)."""
+    c = _network(_domain(SYMMETRIC)).c.flow_based_domains
+    assert isinstance(c.ptdf, pd.DataFrame)
+    assert list(c.ptdf.columns) == ZONES
+    assert c.ptdf.loc["AB+", "A"] == pytest.approx(1 / 3)
+    assert set(c.da.ptdf.dims) == {"name", "bus"}
+
+
+def test_single_and_bulk_add_agree():
+    """Adding CNECs one at a time gives the same PTDF frame and clearing as one bulk add."""
+    n_bulk = _network(_domain(SYMMETRIC))
+    n_single = _network(_domain(SYMMETRIC), one_at_a_time=True)
+    pd.testing.assert_frame_equal(
+        n_single.c.flow_based_domains.ptdf.sort_index(),
+        n_bulk.c.flow_based_domains.ptdf.sort_index(),
+    )
+    n_bulk.optimize(log_to_console=False)
+    n_single.optimize(log_to_console=False)
+    assert _net_positions(n_single).to_dict() == _net_positions(n_bulk).to_dict()

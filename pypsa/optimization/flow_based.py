@@ -6,9 +6,9 @@
 
 A flow-based domain constrains the *net positions* of market zones (buses) by a set of
 linear inequalities ``PTDF . NP <= RAM``. Each row is a critical network element (CNEC).
-The zonal PTDF sensitivities are stored as bus-named columns in
-``n.c.flow_based_domains.static``; the ``ram`` attribute (static or time-varying) is the
-right-hand side.
+The zonal PTDF sensitivities are stored in the dedicated ``n.c.flow_based_domains.ptdf``
+frame (cnec x zone); the ``ram`` attribute (static or time-varying) is the right-hand
+side.
 
 The net position of a zone is added as a variable directly inside the nodal balance
 (``generation - load - net_position = 0``), so no auxiliary buses or links are needed and
@@ -24,9 +24,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pandas as pd
-import xarray as xr
 
 if TYPE_CHECKING:
+    import xarray as xr
+
     from pypsa import Network
 
 NP_VAR = "FlowBasedDomain-net_position"
@@ -45,18 +46,14 @@ def _active(n: Network) -> pd.DataFrame:
 
 
 def _zones(n: Network) -> list:
-    """Zone buses referenced by the domain (PTDF columns that are buses)."""
-    buses = n.c.buses.static.index
-    return [c for c in n.c.flow_based_domains.static.columns if c in buses]
+    """Zone buses referenced by the domain (PTDF columns)."""
+    return list(n.c.flow_based_domains.ptdf.columns)
 
 
 def _ptdf(n: Network) -> xr.DataArray:
-    """Zonal PTDF as a DataArray with dims (cnec, bus)."""
-    active = _active(n)
-    zones = _zones(n)
-    return xr.DataArray(
-        active[zones].astype(float).rename_axis(index="cnec", columns="bus")
-    )
+    """Active zonal PTDF as a DataArray with dims (cnec, bus)."""
+    da = n.c.flow_based_domains.da.ptdf.sel(name=_active(n).index)
+    return da.rename(name="cnec")
 
 
 def validate_flow_based(n: Network) -> None:
