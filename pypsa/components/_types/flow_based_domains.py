@@ -188,17 +188,19 @@ class FlowBasedDomains(Components):
         """Rename zones, validate they are buses, and add the parsed domain."""
         if buses is not None:
             zonal_ptdf = zonal_ptdf.rename(columns=buses)
-        self._require_buses(zonal_ptdf.columns)
+        self._require_components(zonal_ptdf.columns)
         ram = ram.reindex(zonal_ptdf.index)
         return self.add(zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=ram.values)
 
-    def _require_buses(self, zones: pd.Index) -> None:
-        """Fail fast if any zone column is not a bus in the network."""
-        missing = sorted(set(zones) - set(self.n_save.c.buses.static.index))
+    def _require_components(self, columns: pd.Index) -> None:
+        """Fail fast if any domain column is neither a bus (zone) nor a link."""
+        n = self.n_save
+        known = set(n.c.buses.static.index) | set(n.c.links.static.index)
+        missing = sorted(set(columns) - known)
         if missing:
             msg = (
-                f"Flow-based domain references zones that are not network buses: "
-                f"{missing}. Add these buses or pass a `buses` mapping to the importer."
+                f"Flow-based domain references columns that are not network buses or "
+                f"links: {missing}. Add them or pass a `buses` mapping to the importer."
             )
             raise ValueError(msg)
 

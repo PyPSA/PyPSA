@@ -131,12 +131,84 @@ def test_dual_assignment_is_clean():
     assert "mu_balance" not in dynamic  # scalar zero-sum dual has no component slot
 
 
-def test_validation_rejects_cross_zone_electrical_link():
-    """A link between two zone buses must be removed; the domain replaces it."""
+@pytest.mark.parametrize(
+    ("comp", "kwargs"),
+    [
+        ("Link", {"bus0": "A", "bus1": "B", "p_nom": 1000}),
+        ("Line", {"bus0": "A", "bus1": "B", "x": 0.1, "s_nom": 500}),
+        ("Transformer", {"bus0": "A", "bus1": "B", "x": 0.1, "s_nom": 500}),
+    ],
+)
+def test_validation_rejects_cross_zone_branch(comp, kwargs):
+    """A branch between two zone buses (not a declared FB column) is rejected."""
     n = _network(_domain(SYMMETRIC))
-    n.add("Link", "A-B", bus0="A", bus1="B", p_nom=1000)
-    with pytest.raises(ValueError, match="cross-zone"):
+    n.add(comp, "A-B", **kwargs)
+    with pytest.raises(ValueError, match="two zone buses"):
         n.optimize(log_to_console=False)
+
+
+def _ahc_evfb_network():
+    """Three zones A,B,C plus external X, with an EvFB link (A-B) and an AHC link (C-X)."""
+    n = pypsa.Network()
+    n.add("Bus", ["A", "B", "C", "X"])
+    n.add("Load", ["A", "B", "C", "X"], bus=["A", "B", "C", "X"], p_set=[500.0, 1500.0, 1000.0, 200.0])
+    n.add("Generator", ["A", "B", "C"], bus=["A", "B", "C"], p_nom=4000, marginal_cost=[10.0, 80.0, 50.0])
+    n.add("Generator", "Xgen", bus="X", p_nom=4000, marginal_cost=15.0)
+    n.add("Link", "AB_hvdc", bus0="A", bus1="B", p_nom=800)  # EvFB (two zones)
+    n.add("Link", "CX_hvdc", bus0="C", bus1="X", p_nom=600)  # AHC (zone to external)
+    d = _domain(SYMMETRIC)
+    d["AB_hvdc"], d["CX_hvdc"] = 0.2, 0.15
+    n.c.flow_based_domains.add(
+        d.index, zonal_ptdf=d[[*ZONES, "AB_hvdc", "CX_hvdc"]], ram=d["RAM"].values
+    )
+    return n
+
+
+def test_link_columns_reconstruct_cnec_loading():
+    """AHC and EvFB link flows enter the constraint via Link-p in the bus0->bus1 sign.
+
+    Reconstructing each CNEC loading from the zone net positions and the link flows must
+    stay within RAM and hit RAM exactly on the binding CNECs.
+    """
+    n = _ahc_evfb_network()
+    n.optimize(log_to_console=False, assign_all_duals=True)
+    c = n.c.flow_based_domains
+    zp = c.zonal_ptdf
+    zone_cols = [col for col in zp.columns if col in n.buses.index]
+    link_cols = [col for col in zp.columns if col in n.links.index]
+    loading = zp[zone_cols] @ n.buses_t.p.iloc[0][zone_cols] + zp[link_cols] @ n.links_t.p0.iloc[0][link_cols]
+    ram = c.static["ram"]
+    assert (loading <= ram + 1e-6).all()  # feasible
+    mu = c.dynamic["mu_domain"].iloc[0]
+    for cnec in mu[mu.abs() > 1e-3].index:
+        assert loading[cnec] == pytest.approx(ram[cnec], abs=1e-3)  # binding -> at RAM
+
+
+def test_evfb_cross_zone_link_column_is_allowed():
+    """A cross-zone link that is a declared domain column (EvFB) passes validation."""
+    n = _ahc_evfb_network()  # AB_hvdc connects zones A and B and is a column
+    n.optimize(log_to_console=False)
+    assert "FlowBasedDomain-domain" in n.model.constraints
+
+
+def test_unknown_domain_column_raises():
+    """A domain column that is neither a bus nor a link fails fast at build time."""
+    n = _network(_domain(SYMMETRIC))
+    n.c.flow_based_domains.zonal_ptdf["ghost"] = 0.1  # not a bus or link
+    with pytest.raises(ValueError, match="neither"):
+        n.optimize(log_to_console=False)
+
+
+def test_bus_takes_priority_over_link_on_name_clash():
+    """A column that names both a bus and a link is treated as a zone (net position)."""
+    n = pypsa.Network()
+    n.add("Bus", [*ZONES, "gas"])
+    n.add("Link", "C", bus0="A", bus1="gas", p_nom=100)  # link named like bus "C"
+    n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
+    n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
+    n.c.flow_based_domains.add(_domain(SYMMETRIC).index, zonal_ptdf=_domain(SYMMETRIC)[ZONES], ram=_domain(SYMMETRIC)["RAM"].values)
+    n.optimize(log_to_console=False)
+    assert "C" in n.model["FlowBasedDomain-net_position"].indexes["bus"]  # zone, not link
 
 
 def test_non_zone_link_is_allowed():

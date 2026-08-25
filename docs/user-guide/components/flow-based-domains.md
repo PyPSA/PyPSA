@@ -35,9 +35,23 @@ zonal_ptdf = pd.DataFrame(
 n.add("FlowBasedDomain", zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=[1000.0, 800.0])
 ```
 
-!!! note "Cross-zone links"
+## Controllable link flows (AHC and EvFB)
 
-    The domain replaces the electrical exchange between zones, so the network must not contain electrical [`Link`][pypsa.components.Links] components that directly connect two zone buses. Non-electrical links (e.g. gas pipelines or electrolysers) with at least one non-zone end are ignored.
+A domain column may also name a [`Link`][pypsa.components.Links] instead of a zone bus. These are the controllable HVDC corridors of *advanced hybrid coupling* (AHC, a link from a zone to an external hub) and *evolved flow-based coupling* (EvFB, a link between two zones). Both enter the constraint identically as `zonal_ptdf · Link-p` terms, so there is no AHC/EvFB distinction and no auxiliary variables — the link's own `p_nom` is its capacity, and its flow delivers power through the ordinary nodal balance.
+
+```python
+n.add("Link", "ALEGrO", bus0="BE", bus1="DE", p_nom=1000)  # EvFB (two zones)
+n.add("Link", "NorNed", bus0="NL", bus1="NO2", p_nom=700)   # AHC (zone to external NO2)
+zonal_ptdf["ALEGrO"] = ...  # sensitivity to the link flow in its bus0 -> bus1 direction
+zonal_ptdf["NorNed"] = ...
+n.c.flow_based_domains.add(cnecs, zonal_ptdf=zonal_ptdf, ram=ram)
+```
+
+The link column's sign must follow the link's `bus0 → bus1` flow direction (the sign of `Link-p`); flip the column if your link orientation is opposite to the published convention.
+
+!!! note "Cross-zone branches"
+
+    The domain replaces the electrical grid *between* zones, so the network must not contain a [`Line`][pypsa.components.Lines], [`Transformer`][pypsa.components.Transformers] or [`Link`][pypsa.components.Links] directly connecting two zone buses — with one exception: a `Link` that is a declared domain column (an EvFB corridor) is kept, since its flow enters the constraint explicitly. Branches with at least one non-zone end (e.g. an external border or a gas pipeline) are ignored.
 
 ## Importing published domains
 
