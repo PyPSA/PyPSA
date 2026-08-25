@@ -221,6 +221,27 @@ class NetworkComponentsMixin(_NetworkABC):
         self.c.flow_based_domains.static = value
 
     @property
+    def flow_based_domains_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.FlowBasedDomains][]."""
+        if options.api.new_components_api:
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("flow_based_domains"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return self.c.flow_based_domains.dynamic
+
+    @flow_based_domains_t.setter
+    def flow_based_domains_t(self, value: Dict) -> None:
+        if options.api.new_components_api:
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("flow_based_domains"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self.c.flow_based_domains.dynamic = value
+
+    @property
     def lines(self) -> Any:
         """Access to static data of [pypsa.components.Lines][]."""
         return (

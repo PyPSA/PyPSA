@@ -25,6 +25,9 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from pypsa.components.array import _from_xarray
+from pypsa.optimization.common import _set_dynamic_data
+
 if TYPE_CHECKING:
     import xarray as xr
 
@@ -115,3 +118,20 @@ def define_flow_based_constraints(n: Network, sns: pd.Index) -> None:
     m.add_constraints(lhs <= ram, name="FlowBasedDomain-domain")
 
     m.add_constraints(np_var.sum("bus") == 0, name="FlowBasedDomain-balance")
+
+
+def assign_flow_based_duals(n: Network) -> None:
+    """Write the domain shadow prices into the CNEC-indexed ``mu`` series.
+
+    The flow-based variables and constraints are indexed by zone bus / CNEC rather than
+    by the component name, so the generic dual assignment cannot map them. This writes
+    the ``FlowBasedDomain-domain`` dual (per snapshot and CNEC) into ``mu`` directly.
+    """
+    if not _has_flow_based(n):
+        return
+    con = n.model.constraints["FlowBasedDomain-domain"]
+    if "dual" not in con:
+        return
+    c = n.c.flow_based_domains
+    mu = _from_xarray(con.dual.rename(cnec="name"), c)
+    _set_dynamic_data(n, "FlowBasedDomain", "mu", mu)

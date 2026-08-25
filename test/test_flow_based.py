@@ -95,6 +95,42 @@ def test_asymmetric_ram_shifts_the_optimum():
     assert _net_positions(n)["A"] < 2000.0
 
 
+def test_shadow_prices_reproduce_zonal_price_spreads():
+    """A meshed asymmetric domain: mu is written back and reproduces the price spreads.
+
+    The KKT price identity ``pi_z = lambda + sum_c mu_c PTDF[c,z]`` implies that zonal
+    price *differences* equal ``sum_c mu_c (PTDF[c,z1] - PTDF[c,z2])`` (lambda cancels).
+    """
+    n = _network(
+        _domain(
+            {"AB+": 600, "AB-": 1200, "BC+": 1500, "BC-": 1500, "AC+": 1400, "AC-": 2000}
+        )
+    )
+    n.optimize(log_to_console=False)
+    c = n.c.flow_based_domains
+
+    mu = c.dynamic["mu"].iloc[0]  # per-CNEC shadow price, written back into `mu`
+    assert (mu.abs() > 1e-4).any()  # at least one CNEC binds
+    assert (mu <= 1e-6).all()  # <= constraint duals are non-positive
+
+    implied = c.ptdf.T @ mu  # zone -> sum_c mu_c PTDF[c,z]
+    prices = n.buses_t.marginal_price.iloc[0][ZONES]
+    for z1 in ZONES:
+        for z2 in ZONES:
+            spread = prices[z1] - prices[z2]
+            assert spread == pytest.approx(implied[z1] - implied[z2], abs=1e-3)
+
+
+def test_no_stray_dual_or_solution_frames():
+    """The generic assignment must not create bus/cnec-indexed junk frames."""
+    n = _network(_domain(SYMMETRIC))
+    n.optimize(log_to_console=False, assign_all_duals=True)
+    dynamic = n.c.flow_based_domains.dynamic
+    assert "net_position" not in dynamic
+    assert "mu_domain" not in dynamic
+    assert "mu_balance" not in dynamic
+
+
 def test_validation_rejects_cross_zone_electrical_link():
     """A link between two zone buses must be removed; the domain replaces it."""
     n = _network(_domain(SYMMETRIC))

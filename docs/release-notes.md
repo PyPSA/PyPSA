@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -14,7 +13,10 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Features
+
+- Add a `FlowBasedDomain` component for flow-based market coupling. It constrains the net positions of market zones (buses) by a set of linear inequalities `PTDF . NP <= RAM`, one row per critical network element (CNEC). The zonal PTDF matrix (CNEC x zone) is passed directly to [`n.add`][pypsa.Network.add] as `ptdf=<DataFrame>` and read back as a pandas DataFrame from `n.c.flow_based_domains.ptdf`; the remaining available margin `ram` may be static or time-varying. During optimization the net position of each zone is added as a variable inside the nodal balance, so zonal prices stay native (no auxiliary buses or links) and the per-CNEC shadow prices are written to the `mu` output.
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
 

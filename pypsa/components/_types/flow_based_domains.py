@@ -72,7 +72,17 @@ class FlowBasedDomains(Components):
 
     @property
     def ptdf(self) -> pd.DataFrame:
-        """Zonal PTDF sensitivities as a pandas DataFrame (cnec x zone)."""
+        """Zonal PTDF sensitivities of the domain.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Power transfer distribution factors with one row per CNEC (the component
+            index) and one column per zone bus. This is the stored frame itself, so
+            in-place edits write through; assign a new frame or use ``add`` to replace
+            it. The xarray view used internally by the optimisation is ``c.da.ptdf``.
+
+        """
         return self._ptdf
 
     def _set_frame(self, attr: str, value: Any, names: pd.Index) -> None:

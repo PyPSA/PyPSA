@@ -53,6 +53,7 @@ from pypsa.optimization.constraints import (
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
 from pypsa.optimization.flow_based import (
+    assign_flow_based_duals,
     define_flow_based_constraints,
     define_flow_based_variables,
 )
@@ -1057,6 +1058,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if attr in ("maintenance_capacity", "maintenance_status"):
                 continue
 
+            # Flow-based variables are indexed by zone bus, not by component name;
+            # they are handled separately (see assign_flow_based_duals).
+            if _c_name == "FlowBasedDomain":
+                continue
+
             if not hasattr(n.c, _c_name):
                 # Custom variables might correspond to a designated component
                 logger.info(
@@ -1179,6 +1185,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 unassigned_constraints.append(constraint_name)
                 continue
 
+            # Flow-based constraints are indexed by CNEC/zone bus, not by component
+            # name; their duals are assigned separately (see assign_flow_based_duals).
+            if c.name == "FlowBasedDomain":
+                continue
+
             # Add placeholder for custom constraints, marked as GlobalConstraint
             # TODO This should go to an actual custom constraint
             if (
@@ -1243,6 +1254,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 "The shadow-prices of the constraints %s were not assigned to the network.",
                 ", ".join(unassigned_constraints),
             )
+
+        assign_flow_based_duals(self._n)
 
     def post_processing(self) -> None:
         """Post-process the optimized network.
