@@ -2060,7 +2060,8 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     - **IP** (state_of_charge_initial_per_period): If True, reset to initial
       state_of_charge_initial value at the start of each period.
 
-    When CP=True and IP=True simultaneously, CP takes precedence (wrapping behavior).
+    They follow the precedence **CP > IP > C**: global cycling only applies if
+    neither per-period flag is set.
 
     Standing losses are applied based on the elapsed hours between snapshots.
 
@@ -2091,8 +2092,13 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     # We create a mask `include_previous_soc` which excludes the first snapshot
     # for non-cyclic assets
-    noncyclic_b = ~c.da.cyclic_state_of_charge.sel(name=c.active_assets)
-    include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
+    cyclic = c.da.cyclic_state_of_charge.sel(name=c.active_assets)
+    if n._multi_invest:
+        cyclic_pp = c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
+        initial_pp = c.da.state_of_charge_initial_per_period.sel(name=c.active_assets)
+    else:
+        cyclic_pp = initial_pp = DataArray(False)
+    include_previous_soc = (active.cumsum(dim) != 1).where(~cyclic, True)
 
     previous_soc = soc.where(active).ffill(dim).roll(snapshot=1).ffill(dim)
 
@@ -2101,30 +2107,13 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     rhs = -c.da.inflow.sel(snapshot=sns, name=c.active_assets) * eh
 
     if n._multi_invest:
-        # If multi-horizon optimizing, we update the previous_soc and the rhs
-        # for all assets which are cyclic/non-cyclic per period
-        # An asset is treated as per-period if:
-        # 1. It cycles per period (CP=cyclic_state_of_charge_per_period=True), OR
-        # 2. It uses initial state per period (IP=state_of_charge_initial_per_period=True)
-        per_period = c.da.cyclic_state_of_charge_per_period.sel(
-            name=c.active_assets
-        ) | c.da.state_of_charge_initial_per_period.sel(name=c.active_assets)
-
-        # We calculate the previous soc per period while cycling within a period
+        # Assets with CP or IP set follow the per-period regime instead of the global one
+        per_period = cyclic_pp | initial_pp
         previous_soc_pp = window.roll_within_periods(soc)
 
-        # We create a mask `include_previous_soc_pp` which determines when to include
-        # previous state of charge from within the period:
-        # - Always include previous for snapshots within a period (not a period start)
-        # - At period boundaries (first snapshot):
-        #   * If CP=True AND IP=False: cycle to last snapshot of period (wrap)
-        #   * If IP=True: use initial value instead (no wrap, handled via rhs)
-        #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
+        # At a period start only CP wraps; IP instead seeds the rhs below
         within_period = ~window.period_start_mask()
-        include_previous_soc_pp = active & (
-            within_period
-            | c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
-        )
+        include_previous_soc_pp = active & (within_period | cyclic_pp)
 
         # Ensure that dimension order is consistent for stochastic networks
         if n.has_scenarios:
@@ -2132,31 +2121,16 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
             if list(previous_soc_pp.dims) != expected_dims:
                 previous_soc_pp = previous_soc_pp.transpose(*expected_dims)
 
-        # update the previous_soc variables and right hand side. The per-period
-        # inclusion is carried by the `include_previous_soc` coefficient (not by
-        # masking `previous_soc_pp` to NaN, which v1 reads as an absent term and
-        # would drop the period-start energy-balance row).
+        # The per-period inclusion is carried by the `include_previous_soc`
+        # coefficient (not by masking `previous_soc_pp` to NaN, which v1 reads as an
+        # absent term and would drop the period-start energy-balance row).
         previous_soc = previous_soc.where(~per_period, previous_soc_pp)
         include_previous_soc = include_previous_soc_pp.where(
             per_period, include_previous_soc
         )
 
-    # Warn if cyclic overrides initial values (both global and per-period)
-    has_initial = c.da.state_of_charge_initial.sel(name=c.active_assets) != 0
-    global_conflict = (
-        c.da.cyclic_state_of_charge.sel(name=c.active_assets) & has_initial
-    )
-    period_conflict = (
-        (
-            c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
-            & c.da.state_of_charge_initial_per_period.sel(name=c.active_assets)
-            & has_initial
-        )
-        if n._multi_invest
-        else False
-    )
-
-    ignored = global_conflict | period_conflict
+    has_initial = soc_init != 0
+    ignored = has_initial & (cyclic_pp | (cyclic & ~initial_pp))
     if ignored.any():
         affected = c.active_assets[ignored.values].tolist()
         logger.warning(
@@ -2165,19 +2139,27 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
             affected,
         )
 
-    # Warn if per-period cyclic overrides global cyclic
-    if n._multi_invest:
-        cp_overrides_c = c.da.cyclic_state_of_charge.sel(
-            name=c.active_assets
-        ) & c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
-        if cp_overrides_c.any():
-            affected = c.active_assets[cp_overrides_c.values].tolist()
-            logger.warning(
-                "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
-                "overrides global cyclic (cyclic_state_of_charge=True). "
-                "Storage will cycle within each investment period, not across the entire horizon.",
-                affected,
-            )
+    ip_overrides_c = cyclic & initial_pp & ~cyclic_pp
+    if ip_overrides_c.any():
+        affected = c.active_assets[ip_overrides_c.values].tolist()
+        logger.warning(
+            "StorageUnits %s: Per-period initial state of charge "
+            "(state_of_charge_initial_per_period=True) overrides global cyclic "
+            "(cyclic_state_of_charge=True). State of charge is reset to "
+            "state_of_charge_initial at the start of each investment period instead of "
+            "cycling across the entire horizon.",
+            affected,
+        )
+
+    cp_overrides_c = cyclic & cyclic_pp
+    if cp_overrides_c.any():
+        affected = c.active_assets[cp_overrides_c.values].tolist()
+        logger.warning(
+            "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
+            "overrides global cyclic (cyclic_state_of_charge=True). "
+            "Storage will cycle within each investment period, not across the entire horizon.",
+            affected,
+        )
 
     lhs += [(eff_stand * include_previous_soc, previous_soc)]
 
@@ -2238,7 +2220,8 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     - **IP** (e_initial_per_period): If True, reset to initial
       e_initial value at the start of each period.
 
-    When CP=True and IP=True simultaneously, CP takes precedence (wrapping behavior).
+    They follow the precedence **CP > IP > C**: global cycling only applies if
+    neither per-period flag is set.
 
     Standing losses are applied based on the elapsed hours between snapshots.
 
@@ -2266,8 +2249,13 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     # We create a mask `include_previous_e` which excludes the first snapshot
     # for non-cyclic assets
-    noncyclic_b = ~c.da.e_cyclic.sel(name=c.active_assets)
-    include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
+    cyclic = c.da.e_cyclic.sel(name=c.active_assets)
+    if n._multi_invest:
+        cyclic_pp = c.da.e_cyclic_per_period.sel(name=c.active_assets)
+        initial_pp = c.da.e_initial_per_period.sel(name=c.active_assets)
+    else:
+        cyclic_pp = initial_pp = DataArray(False)
+    include_previous_e = (active.cumsum(dim) != 1).where(~cyclic, True)
 
     # Calculate previous energy state with proper handling of boundaries
     previous_e = e.where(active).ffill(dim).roll(snapshot=1).ffill(dim)
@@ -2277,28 +2265,13 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     rhs = DataArray(0)
 
     if n._multi_invest:
-        # If multi-horizon optimization, we update previous_e and the rhs
-        # for all assets which are cyclic/non-cyclic per period
-        # An asset is treated as per-period if:
-        # 1. It cycles per period (CP=e_cyclic_per_period=True), OR
-        # 2. It uses initial energy per period (IP=e_initial_per_period=True)
-        per_period = c.da.e_cyclic_per_period | c.da.e_initial_per_period
-        per_period = per_period.sel(name=c.active_assets)
-
-        # We calculate the previous e per period while cycling within a period
+        # Assets with CP or IP set follow the per-period regime instead of the global one
+        per_period = cyclic_pp | initial_pp
         previous_e_pp = window.roll_within_periods(e)
 
-        # We create a mask `include_previous_e_pp` which determines when to include
-        # previous energy from within the period:
-        # - Always include previous for snapshots within a period (not a period start)
-        # - At period boundaries (first snapshot):
-        #   * If CP=True AND IP=False: cycle to last snapshot of period (wrap)
-        #   * If IP=True: use initial value instead (no wrap, handled via rhs)
-        #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
+        # At a period start only CP wraps; IP instead seeds the rhs below
         within_period = ~window.period_start_mask()
-        include_previous_e_pp = active & (
-            within_period | c.da.e_cyclic_per_period.sel(name=c.active_assets)
-        )
+        include_previous_e_pp = active & (within_period | cyclic_pp)
 
         # Per-period inclusion is carried by the `include_previous_e` coefficient
         # (not by masking `previous_e_pp` to NaN, which v1 reads as an absent term
@@ -2306,20 +2279,8 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         previous_e = previous_e.where(~per_period, previous_e_pp)
         include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
-    # Warn if cyclic overrides initial values (both global and per-period)
-    has_initial = c.da.e_initial.sel(name=c.active_assets) != 0
-    global_conflict = c.da.e_cyclic.sel(name=c.active_assets) & has_initial
-    period_conflict = (
-        (
-            c.da.e_cyclic_per_period.sel(name=c.active_assets)
-            & c.da.e_initial_per_period.sel(name=c.active_assets)
-            & has_initial
-        )
-        if n._multi_invest
-        else False
-    )
-
-    ignored = global_conflict | period_conflict
+    has_initial = e_init != 0
+    ignored = has_initial & (cyclic_pp | (cyclic & ~initial_pp))
     if ignored.any():
         affected = c.active_assets[ignored.values].tolist()
         logger.warning(
@@ -2328,19 +2289,26 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
             affected,
         )
 
-    # Warn if per-period cyclic overrides global cyclic
-    if n._multi_invest:
-        cp_overrides_c = c.da.e_cyclic.sel(
-            name=c.active_assets
-        ) & c.da.e_cyclic_per_period.sel(name=c.active_assets)
-        if cp_overrides_c.any():
-            affected = c.active_assets[cp_overrides_c.values].tolist()
-            logger.warning(
-                "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
-                "overrides global cyclic (e_cyclic=True). "
-                "Storage will cycle within each investment period, not across the entire horizon.",
-                affected,
-            )
+    ip_overrides_c = cyclic & initial_pp & ~cyclic_pp
+    if ip_overrides_c.any():
+        affected = c.active_assets[ip_overrides_c.values].tolist()
+        logger.warning(
+            "Stores %s: Per-period initial energy level (e_initial_per_period=True) "
+            "overrides global cyclic (e_cyclic=True). Energy level is reset to e_initial "
+            "at the start of each investment period instead of cycling across the entire "
+            "horizon.",
+            affected,
+        )
+
+    cp_overrides_c = cyclic & cyclic_pp
+    if cp_overrides_c.any():
+        affected = c.active_assets[cp_overrides_c.values].tolist()
+        logger.warning(
+            "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
+            "overrides global cyclic (e_cyclic=True). "
+            "Storage will cycle within each investment period, not across the entire horizon.",
+            affected,
+        )
 
     # Add the previous energy term with standing efficiency factor
     lhs += [(eff_stand * include_previous_e, previous_e)]

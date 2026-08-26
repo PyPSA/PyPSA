@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -14,7 +13,10 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Bug Fixes
+
+- Fix the storage warning that claimed `state_of_charge_initial` (`e_initial`) would be ignored under `cyclic_state_of_charge=True` (`e_cyclic=True`) even when `state_of_charge_initial_per_period=True` (`e_initial_per_period=True`) made the model use it at every period start. That case now warns that per-period seeding overrides global cycling, and the precedence `*_per_period` cycling > per-period initial > global cycling is documented in the component attributes. Optimisation results are unchanged.
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
 
