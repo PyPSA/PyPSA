@@ -35,6 +35,10 @@ SPDX-License-Identifier: CC-BY-4.0
 - Speed up [`create_model()`][pypsa.optimization.OptimizationAccessor.create_model] for large networks by computing the bus membership filter in `define_nodal_balance_constraints` with a pandas hash join instead of `xarray.isin` over object-dtype arrays. (<!-- md:pr 1770 -->)
 - PyPSA now requires `pandas>=3.0` and `pyarrow`. pandas 3 infers the `str` dtype for string data, backed by Arrow when `pyarrow` is installed. PyPSA still converts it back to numpy `object` on import, but will keep it in version 2.0. Opt in early with `pypsa.options.api.legacy_string_dtype` (see <!-- md:guide options.md -->). (<!-- md:pr 1858 -->)
 
+### Features
+
+- Add [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] to scale per-line summer / winter MVA ratings onto `n.lines_t.s_max_pu` based on the snapshot month, leaving `s_nom` unchanged. (<!-- md:pr 1694 -->)
+
 ### Bug Fixes
 
 - Fix pickling of networks that contain [sub-networks](./user-guide/components/sub-networks.md), which previously failed with `cannot pickle 'weakref.ReferenceType' object`. (<!-- md:pr 1889 -->)
