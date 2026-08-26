@@ -29,8 +29,21 @@ def _domain(ram: dict[str, float]) -> pd.DataFrame:
     return d.sort_index()
 
 
-def _add_domain(n: pypsa.Network, domain: pd.DataFrame, one_at_a_time: bool) -> None:
-    """Attach the domain either as one bulk add or one CNEC at a time."""
+def _tv_ptdf(domain: pd.DataFrame, cols: list, snapshots: pd.Index) -> pd.DataFrame:
+    """Same domain columns repeated across snapshots as a (snapshot, cnec) frame."""
+    return pd.concat(dict.fromkeys(snapshots, domain[cols]), names=["snapshot", "name"])
+
+
+def _add_domain(
+    n: pypsa.Network, domain: pd.DataFrame, one_at_a_time: bool, tv: bool = False
+) -> None:
+    """Attach the domain: static (bulk or one CNEC at a time) or repeated time-varying."""
+    if tv:
+        ptdf = _tv_ptdf(domain, ZONES, n.snapshots)
+        n.add(
+            "FlowBasedDomain", domain.index, zonal_ptdf=ptdf, ram=domain["RAM"].values
+        )
+        return
     if one_at_a_time:
         for cnec in domain.index:
             n.add(
@@ -48,12 +61,16 @@ def _add_domain(n: pypsa.Network, domain: pd.DataFrame, one_at_a_time: bool) -> 
         )
 
 
-def _network(domain: pd.DataFrame, one_at_a_time: bool = False) -> pypsa.Network:
+def _network(
+    domain: pd.DataFrame, one_at_a_time: bool = False, tv: bool = False
+) -> pypsa.Network:
     n = pypsa.Network()
+    if tv:
+        n.set_snapshots([0, 1])
     n.add("Bus", ZONES)
     n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
     n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
-    _add_domain(n, domain, one_at_a_time)
+    _add_domain(n, domain, one_at_a_time, tv)
     return n
 
 
@@ -156,9 +173,11 @@ def test_validation_rejects_cross_zone_branch(comp, kwargs):
         n.optimize(log_to_console=False)
 
 
-def _ahc_evfb_network():
+def _ahc_evfb_network(tv: bool = False):
     """Three zones A,B,C plus external X, with an EvFB link (A-B) and an AHC link (C-X)."""
     n = pypsa.Network()
+    if tv:
+        n.set_snapshots([0, 1])
     n.add("Bus", ["A", "B", "C", "X"])
     n.add("Load", ["A", "B", "C", "X"], bus=["A", "B", "C", "X"], p_set=[500.0, 1500.0, 1000.0, 200.0])
     n.add("Generator", ["A", "B", "C"], bus=["A", "B", "C"], p_nom=4000, marginal_cost=[10.0, 80.0, 50.0])
@@ -167,9 +186,9 @@ def _ahc_evfb_network():
     n.add("Link", "CX_hvdc", bus0="C", bus1="X", p_nom=600)  # AHC (zone to external)
     d = _domain(SYMMETRIC)
     d["AB_hvdc"], d["CX_hvdc"] = 0.2, 0.15
-    n.c.flow_based_domains.add(
-        d.index, zonal_ptdf=d[[*ZONES, "AB_hvdc", "CX_hvdc"]], ram=d["RAM"].values
-    )
+    cols = [*ZONES, "AB_hvdc", "CX_hvdc"]
+    ptdf = _tv_ptdf(d, cols, n.snapshots) if tv else d[cols]
+    n.c.flow_based_domains.add(d.index, zonal_ptdf=ptdf, ram=d["RAM"].values)
     return n
 
 
@@ -547,3 +566,23 @@ def test_time_varying_ptdf_with_link_column_broadcasts():
     gen_minus_load = (n.generators_t.p[ZONES] - LOADS).round(0)
     pd.testing.assert_frame_equal(npos, gen_minus_load, check_names=False)
     assert not npos.loc[0].equals(npos.loc[1])  # the link-loaded hours really differ
+
+
+@pytest.mark.parametrize(
+    "make",
+    [lambda tv: _network(_domain(SYMMETRIC), tv=tv), _ahc_evfb_network],
+    ids=["zone-domain", "link-domain"],
+)
+def test_time_varying_reproduces_static(make):
+    """A domain repeated across snapshots reproduces the static net positions and duals."""
+    ref = make(False)
+    ref.optimize(log_to_console=False, assign_all_duals=True)
+    n = make(True)
+    n.optimize(log_to_console=False, assign_all_duals=True)
+
+    ref_np = ref.buses_t.net_position.iloc[0][ZONES].round(0)
+    ref_mu = ref.c.flow_based_domains.dynamic["mu_domain"].iloc[0].round(3)
+    mu = n.c.flow_based_domains.dynamic["mu_domain"]
+    for sns in n.snapshots:
+        assert n.buses_t.net_position.loc[sns][ZONES].round(0).equals(ref_np)
+        assert mu.loc[sns].round(3).equals(ref_mu)
