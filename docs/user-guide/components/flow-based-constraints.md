@@ -45,6 +45,20 @@ n.add("FlowBasedConstraint", zonal_ptdf.index, zonal_ptdf=zonal_ptdf_t, ram=[100
 
 The internal xarray view `c.da.zonal_ptdf` then carries a `snapshot` dimension, and the domain constraint broadcasts over it; nothing else in the API changes.
 
+### Deriving a zonal PTDF from a nodal grid
+
+If you have a nodal, grid-resolved network, the zonal PTDF follows from its nodal PTDF and a *generation shift key* (GSK). A zone's net-position change $\Delta NP_z$ is distributed to its nodes by the GSK (a bus × zone matrix whose columns sum to one), so with the nodal $F = \text{PTDF}\cdot P$ and $P = \text{GSK}\cdot NP$ the zonal PTDF is $\text{PTDF}\cdot\text{GSK}$. This is computed per [sub-network](sub-networks.md) with [`calculate_zonal_PTDF`][pypsa.SubNetwork.calculate_zonal_PTDF], which returns a labelled `branch × zone` DataFrame ready to pass to a flow-based constraint:
+
+```python
+nodal.determine_network_topology()
+sub = nodal.c.sub_networks.static.obj.iloc[0]
+node_to_zone = nodal.buses["country"]  # any bus -> zone mapping (a pandas Series)
+
+zonal_ptdf = sub.calculate_zonal_PTDF(node_to_zone, gsk="capacity")  # or "uniform"
+```
+
+The `gsk` argument is either a scheme name or a ready bus × zone frame. Two thin builders are provided (also callable standalone), each returning a normalised GSK: [`gsk_uniform`][pypsa.SubNetwork.gsk_uniform] (equal weight per bus in a zone) and [`gsk_by_capacity`][pypsa.SubNetwork.gsk_by_capacity] (weight proportional to generator `p_nom`, optionally filtered by `carrier`; a zone with no capacity falls back to uniform). Every sub-network bus must be mapped to a zone, or the call fails. A branch-free sub-network (e.g. a single-node one, common in sector-coupled models) returns an empty frame. The remaining available margin `ram` is not derived here — supply it yourself.
+
 ## Controllable link flows (AHC and EvFB)
 
 A domain column may also name a [`Link`][pypsa.components.Links] instead of a zone bus. These are the controllable HVDC corridors of *advanced hybrid coupling* (AHC, a link from a zone to an external hub) and *evolved flow-based coupling* (EvFB, a link between two zones). Each loads its CNECs through a `zonal_ptdf · Link-p` term on the existing interconnector (its `p_nom` is the capacity). To keep every zone's net position equal to `generation - load`, the corridor's contribution to its Core-side bus balance is cancelled — for EvFB (both ends zones) at both ends, for AHC (one end external) at the Core end only. An AHC border additionally enters the zero-sum balance as the net position $NP_v$ of its external virtual hub, so the imported power is priced by the external zone; EvFB, being internal and net-zero, stays out of the zero-sum. The AHC vs EvFB distinction is inferred from the link's endpoints — you do not declare it.
