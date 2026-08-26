@@ -14,7 +14,7 @@ where each component (row) is one critical network element (CNEC). This replaces
 
 - The net position $NP_z$ of a zone is its net export (`generation - load`). During optimization it is added as a variable directly inside the nodal balance, so no auxiliary buses or links are needed and the zonal prices remain the native duals of the nodal balance.
 - A single zero-sum constraint $\sum_z NP_z + \sum_v NP_v = 0$ closes the copper-plate balance across the zones and the AHC virtual hubs $v$ (see below); with no AHC borders it reduces to $\sum_z NP_z = 0$.
-- Without corridors the zone net positions equal the bus net injections `n.buses_t.p`. When AHC/EvFB corridors touch a zone, `n.buses_t.p` is the *physical* injection (it includes the corridor flow), which differs from the net position `generation - load` that the domain constrains; read the latter as `generation - load` per zone. The per-CNEC shadow prices are assigned to the `mu_domain` output when optimizing with `assign_all_duals=True`.
+- The zone net positions are written to `n.buses_t.net_position` after optimizing. Without corridors these equal the bus net injections `n.buses_t.p`; when AHC/EvFB corridors touch a zone, `n.buses_t.p` is the *physical* injection (it includes the corridor flow) and diverges from the net position `generation - load` that the domain constrains, so read the net position from `n.buses_t.net_position`. The per-CNEC shadow prices are assigned to the `mu_domain` output when optimizing with `assign_all_duals=True`.
 
 ## Zonal PTDF
 

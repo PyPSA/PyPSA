@@ -1057,9 +1057,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if attr in ("maintenance_capacity", "maintenance_status"):
                 continue
 
-            # Flow-based variables are indexed by zone bus, not by component name;
-            # they are handled separately (see assign_flow_based_duals).
+            # The flow-based net-position variable is indexed by zone bus, not by CNEC,
+            # so it is written to the Bus dynamic output rather than mapped by component
+            # name (the domain dual is mapped generically to mu_domain).
             if _c_name == "FlowBasedDomain":
+                if attr == "net_position":
+                    df = _from_xarray(sol.rename(bus="name"), n.c.buses)
+                    _set_dynamic_data(n, "Bus", "net_position", df)
                 continue
 
             if not hasattr(n.c, _c_name):

@@ -79,6 +79,15 @@ def test_symmetric_domain_reproduces_toy(one_at_a_time):
     assert binding.iloc[0] == pytest.approx(-105.0)
 
 
+def test_net_position_output_matches_domain_variable():
+    """buses_t.net_position exposes the domain net position; equals buses_t.p without corridors."""
+    n = _network(_domain(SYMMETRIC))
+    n.optimize(log_to_console=False)
+    np_out = n.buses_t.net_position.iloc[0][ZONES].round(0)
+    assert np_out.to_dict() == {"A": 2000.0, "B": -1000.0, "C": -1000.0}
+    assert (np_out - n.buses_t.p.iloc[0][ZONES]).abs().max() == pytest.approx(0.0)
+
+
 def test_prices_come_from_nodal_balance():
     """No auxiliary components: zonal prices are the nodal-balance duals, not reconstructed."""
     n = _network(_domain(SYMMETRIC))
@@ -127,7 +136,7 @@ def test_dual_assignment_is_clean():
     n.optimize(log_to_console=False, assign_all_duals=True)
     dynamic = n.c.flow_based_domains.dynamic
     assert list(dynamic["mu_domain"].columns) == sorted(SYMMETRIC)  # per-CNEC
-    assert "net_position" not in dynamic  # net position lives in n.buses_t.p
+    assert "net_position" not in dynamic  # net position lives in n.buses_t.net_position
     assert "mu_balance" not in dynamic  # scalar zero-sum dual has no component slot
 
 
@@ -283,8 +292,10 @@ def test_buses_p_is_physical_injection_hub_np_is_link_flow():
 
     np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
     assert np_var["A"] == pytest.approx(300.0)  # domain net position = gen - load
+    assert n.buses_t.net_position.iloc[0]["A"] == pytest.approx(300.0)  # exposed output = NP var
     assert n.buses_t.p.iloc[0]["A"] == pytest.approx(800.0)  # physical injection = gen-load+import
     assert n.links_t.p0.iloc[0]["X-A"] == pytest.approx(500.0)  # virtual hub NP = link flow
+    assert "X" not in n.buses_t.net_position.columns[n.buses_t.net_position.iloc[0] != 0]  # zones only
 
 
 def test_evfb_cross_zone_link_column_is_allowed():
