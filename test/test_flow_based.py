@@ -29,17 +29,19 @@ def _domain(ram: dict[str, float]) -> pd.DataFrame:
     return d.sort_index()
 
 
-def _tv_ptdf(domain: pd.DataFrame, cols: list, snapshots: pd.Index) -> pd.DataFrame:
+def _dynamic_ptdf(
+    domain: pd.DataFrame, cols: list, snapshots: pd.Index
+) -> pd.DataFrame:
     """Same domain columns repeated across snapshots as a (snapshot, cnec) frame."""
     return pd.concat(dict.fromkeys(snapshots, domain[cols]), names=["snapshot", "name"])
 
 
 def _add_domain(
-    n: pypsa.Network, domain: pd.DataFrame, one_at_a_time: bool, tv: bool = False
+    n: pypsa.Network, domain: pd.DataFrame, one_at_a_time: bool, dynamic: bool = False
 ) -> None:
     """Attach the domain: static (bulk or one CNEC at a time) or repeated time-varying."""
-    if tv:
-        ptdf = _tv_ptdf(domain, ZONES, n.snapshots)
+    if dynamic:
+        ptdf = _dynamic_ptdf(domain, ZONES, n.snapshots)
         n.add(
             "FlowBasedDomain", domain.index, zonal_ptdf=ptdf, ram=domain["RAM"].values
         )
@@ -62,15 +64,15 @@ def _add_domain(
 
 
 def _network(
-    domain: pd.DataFrame, one_at_a_time: bool = False, tv: bool = False
+    domain: pd.DataFrame, one_at_a_time: bool = False, dynamic: bool = False
 ) -> pypsa.Network:
     n = pypsa.Network()
-    if tv:
+    if dynamic:
         n.set_snapshots([0, 1])
     n.add("Bus", ZONES)
     n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
     n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
-    _add_domain(n, domain, one_at_a_time, tv)
+    _add_domain(n, domain, one_at_a_time, dynamic)
     return n
 
 
@@ -173,10 +175,10 @@ def test_validation_rejects_cross_zone_branch(comp, kwargs):
         n.optimize(log_to_console=False)
 
 
-def _ahc_evfb_network(tv: bool = False):
+def _ahc_evfb_network(dynamic: bool = False):
     """Three zones A,B,C plus external X, with an EvFB link (A-B) and an AHC link (C-X)."""
     n = pypsa.Network()
-    if tv:
+    if dynamic:
         n.set_snapshots([0, 1])
     n.add("Bus", ["A", "B", "C", "X"])
     n.add("Load", ["A", "B", "C", "X"], bus=["A", "B", "C", "X"], p_set=[500.0, 1500.0, 1000.0, 200.0])
@@ -187,7 +189,7 @@ def _ahc_evfb_network(tv: bool = False):
     d = _domain(SYMMETRIC)
     d["AB_hvdc"], d["CX_hvdc"] = 0.2, 0.15
     cols = [*ZONES, "AB_hvdc", "CX_hvdc"]
-    ptdf = _tv_ptdf(d, cols, n.snapshots) if tv else d[cols]
+    ptdf = _dynamic_ptdf(d, cols, n.snapshots) if dynamic else d[cols]
     n.c.flow_based_domains.add(d.index, zonal_ptdf=ptdf, ram=d["RAM"].values)
     return n
 
@@ -450,7 +452,7 @@ def _static_np(domain: pd.DataFrame) -> pd.Series:
     return n.buses_t.net_position.iloc[0][ZONES].round(0)
 
 
-def _tv_network(dA: pd.DataFrame, dB: pd.DataFrame) -> pypsa.Network:
+def _dynamic_network(dA: pd.DataFrame, dB: pd.DataFrame) -> pypsa.Network:
     """Two-snapshot toy whose zonal PTDF is ``dA`` in hour 0 and ``dB`` in hour 1."""
     n = pypsa.Network()
     n.set_snapshots([0, 1])
@@ -467,7 +469,7 @@ def test_time_varying_zonal_ptdf_frontend_and_da():
     dA = _domain(SYMMETRIC)
     dB = dA.copy()
     dB[ZONES] = dB[ZONES] * 2.0
-    c = _tv_network(dA, dB).c.flow_based_domains
+    c = _dynamic_network(dA, dB).c.flow_based_domains
     assert isinstance(c.zonal_ptdf.index, pd.MultiIndex)
     assert list(c.zonal_ptdf.columns) == ZONES
     assert set(c.da.zonal_ptdf.dims) == {"snapshot", "name", "bus"}
@@ -484,7 +486,7 @@ def test_time_varying_zonal_ptdf_matches_per_snapshot_static():
     refA, refB = _static_np(dA), _static_np(dB)
     assert not refA.equals(refB)  # the two hours really differ
 
-    n = _tv_network(dA, dB)
+    n = _dynamic_network(dA, dB)
     n.optimize(log_to_console=False)
     npos = n.buses_t.net_position[ZONES].round(0)
     assert npos.loc[0].equals(refA)
@@ -496,8 +498,8 @@ def test_time_varying_zonal_ptdf_round_trips(tmp_path):
     dA = _domain(SYMMETRIC)
     dB = dA.copy()
     dB[ZONES] = dB[ZONES] * 2.0
-    n = _tv_network(dA, dB)
-    path = tmp_path / "tv.nc"
+    n = _dynamic_network(dA, dB)
+    path = tmp_path / "dynamic.nc"
     n.export_to_netcdf(path)
     m = pypsa.Network(path)
     pd.testing.assert_frame_equal(
@@ -513,7 +515,7 @@ def test_copy_preserves_time_varying_domain():
     dA = _domain(SYMMETRIC)
     dB = dA.copy()
     dB[ZONES] = dB[ZONES] * 2.0
-    n = _tv_network(dA, dB)
+    n = _dynamic_network(dA, dB)
     m = n.copy()
     pd.testing.assert_frame_equal(
         m.c.flow_based_domains.zonal_ptdf, n.c.flow_based_domains.zonal_ptdf
@@ -570,7 +572,7 @@ def test_time_varying_ptdf_with_link_column_broadcasts():
 
 @pytest.mark.parametrize(
     "make",
-    [lambda tv: _network(_domain(SYMMETRIC), tv=tv), _ahc_evfb_network],
+    [lambda dynamic: _network(_domain(SYMMETRIC), dynamic=dynamic), _ahc_evfb_network],
     ids=["zone-domain", "link-domain"],
 )
 def test_time_varying_reproduces_static(make):
