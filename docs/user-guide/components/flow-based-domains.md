@@ -35,6 +35,16 @@ zonal_ptdf = pd.DataFrame(
 n.add("FlowBasedDomain", zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=[1000.0, 800.0])
 ```
 
+Both the `ram` (like any `static or series` attribute) and the zonal PTDF itself may be time-varying. For a time-varying domain, pass a `zonal_ptdf` with a `(snapshot, CNEC)` MultiIndex on the rows and the zones as columns; the frame keeps that MultiIndex, and `c.zonal_ptdf.loc[snapshot]` selects one hour's matrix. A domain is static or time-varying as a whole, not a mix.
+
+```python
+# one matrix per snapshot, stacked under a (snapshot, cnec) MultiIndex
+zonal_ptdf_t = pd.concat({sns: zonal_ptdf for sns in n.snapshots}, names=["snapshot", "name"])
+n.add("FlowBasedDomain", zonal_ptdf.index, zonal_ptdf=zonal_ptdf_t, ram=[1000.0, 800.0])
+```
+
+The internal xarray view `c.da.zonal_ptdf` then carries a `snapshot` dimension, and the domain constraint broadcasts over it; nothing else in the API changes.
+
 ## Controllable link flows (AHC and EvFB)
 
 A domain column may also name a [`Link`][pypsa.components.Links] instead of a zone bus. These are the controllable HVDC corridors of *advanced hybrid coupling* (AHC, a link from a zone to an external hub) and *evolved flow-based coupling* (EvFB, a link between two zones). Each loads its CNECs through a `zonal_ptdf · Link-p` term on the existing interconnector (its `p_nom` is the capacity). To keep every zone's net position equal to `generation - load`, the corridor's contribution to its Core-side bus balance is cancelled — for EvFB (both ends zones) at both ends, for AHC (one end external) at the Core end only. An AHC border additionally enters the zero-sum balance as the net position $NP_v$ of its external virtual hub, so the imported power is priced by the external zone; EvFB, being internal and net-zero, stays out of the zero-sum. The AHC vs EvFB distinction is inferred from the link's endpoints — you do not declare it.

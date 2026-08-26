@@ -45,6 +45,8 @@ class FlowBasedDomains(Components):
     The name distinguishes it from the *nodal* PTDF computed per sub-network. Pass it
     directly to ``add`` via the ``zonal_ptdf`` argument; read it back as a pandas
     DataFrame from ``c.zonal_ptdf`` or as an xarray DataArray from ``c.da.zonal_ptdf``.
+    A time-varying domain passes a ``(snapshot, cnec)`` MultiIndex frame instead, and the
+    frame keeps that MultiIndex; the whole domain is static or time-varying, not mixed.
 
     See Also
     --------
@@ -345,11 +347,13 @@ class FlowBasedDomains(Components):
         Returns
         -------
         pandas.DataFrame
-            Zonal power transfer distribution factors with one row per CNEC (the
-            component index) and one column per zone bus. This is the stored frame
-            itself, so in-place edits write through; assign a new frame or use ``add``
-            to replace it. The xarray view used internally by the optimisation is
-            ``c.da.zonal_ptdf``.
+            Zonal power transfer distribution factors, one column per zone bus. For a
+            static domain the index is the CNEC (component index); for a time-varying
+            domain it is a ``(snapshot, CNEC)`` MultiIndex, so ``c.zonal_ptdf.loc[sns]``
+            selects one snapshot's matrix. This is the stored frame itself, so in-place
+            edits write through; assign a new frame or use ``add`` to replace it. The
+            xarray view used internally by the optimisation is ``c.da.zonal_ptdf``
+            (dims ``(name, bus)``, gaining a ``snapshot`` dim when time-varying).
 
         """
         return self._zonal_ptdf
@@ -357,24 +361,47 @@ class FlowBasedDomains(Components):
     def _set_frame(self, attr: str, value: Any, names: pd.Index) -> None:
         """Store a matrix-valued attribute (currently only ``zonal_ptdf``).
 
-        ``value`` is a Series over zones (single CNEC) or a DataFrame (cnec x zone).
-        Rows already present are overwritten; missing zone entries default to zero.
+        ``value`` is a Series over zones (single CNEC), a DataFrame (cnec x zone), or a
+        time-varying DataFrame with a ``(snapshot, cnec)`` MultiIndex and zones as
+        columns. Rows already present are overwritten; missing zone entries default to
+        zero. A domain is static or time-varying as a whole; mixing the two raises.
         """
         if attr != "zonal_ptdf":
             super()._set_frame(attr, value, names)
             return
-        if isinstance(value, pd.Series):
-            df = value.to_frame(names[0]).T
+        if isinstance(value, pd.DataFrame) and isinstance(value.index, pd.MultiIndex):
+            df = self._time_varying_frame(value)
+        elif isinstance(value, pd.Series):
+            df = value.to_frame(names[0]).T.rename_axis(index="name", columns="bus")
         else:
-            df = pd.DataFrame(value).reindex(names)
-        df = df.rename_axis(index="name", columns="bus").astype(float)
-        keep = self._zonal_ptdf.drop(index=df.index, errors="ignore")
+            frame = pd.DataFrame(value).reindex(names)
+            df = frame.rename_axis(index="name", columns="bus")
+        df = df.astype(float)
+        existing = self._zonal_ptdf
+        if not existing.empty and existing.index.nlevels != df.index.nlevels:
+            msg = "Cannot mix static and time-varying zonal PTDF rows in one domain."
+            raise ValueError(msg)
+        keep = existing.drop(index=df.index, errors="ignore")
         self._zonal_ptdf = pd.concat([keep, df]).fillna(0.0)
 
+    def _time_varying_frame(self, value: pd.DataFrame) -> pd.DataFrame:
+        """Validate and label a time-varying ``(snapshot, cnec) x zone`` frame."""
+        if not value.index.get_level_values(0).isin(self.n_save.snapshots).all():
+            msg = (
+                "Time-varying zonal_ptdf must be indexed by (snapshot, CNEC); its outer "
+                "index level must be network snapshots."
+            )
+            raise ValueError(msg)
+        return value.rename_axis(index=["snapshot", "name"], columns="bus")
+
     def _as_xarray(self, attr: str) -> xr.DataArray:
-        """Expose ``zonal_ptdf`` as a (name, bus) DataArray; defer otherwise."""
+        """Expose ``zonal_ptdf`` as a (name, bus) or (snapshot, name, bus) DataArray."""
         if attr == "zonal_ptdf":
-            da = xr.DataArray(self._zonal_ptdf.rename_axis(index="name", columns="bus"))
+            z = self._zonal_ptdf
+            if isinstance(z.index, pd.MultiIndex):
+                da = z.stack(future_stack=True).to_xarray()
+            else:
+                da = xr.DataArray(z.rename_axis(index="name", columns="bus"))
             da.name = "zonal_ptdf"
             return da
         return super()._as_xarray(attr)

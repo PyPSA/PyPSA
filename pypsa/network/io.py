@@ -1449,11 +1449,19 @@ class NetworkIOMixin(_NetworkABC):
             piecewise = c.piecewise
 
             # Serialise the flow-based zonal PTDF matrix (stored outside static/dynamic)
-            # as prefixed static columns, so it round-trips through every format.
+            # under a prefix, so it round-trips through every format: a static domain as
+            # prefixed static columns (cnec index); a time-varying one as prefixed varying
+            # attributes (one snapshot x cnec frame per zone).
             if component == "FlowBasedDomain" and not c.zonal_ptdf.empty:
-                static = pd.concat(
-                    [static, c.zonal_ptdf.add_prefix(_ZONAL_PTDF_PREFIX)], axis=1
-                )
+                z = c.zonal_ptdf
+                if isinstance(z.index, pd.MultiIndex):
+                    dynamic = dict(dynamic)
+                    for zone in z.columns:
+                        dynamic[_ZONAL_PTDF_PREFIX + zone] = z[zone].unstack("name")
+                else:
+                    static = pd.concat(
+                        [static, z.add_prefix(_ZONAL_PTDF_PREFIX)], axis=1
+                    )
 
             if component == "Shape":
                 static = pd.DataFrame(static).assign(
@@ -1664,6 +1672,21 @@ class NetworkIOMixin(_NetworkABC):
                 for attr, df in importer.get_series(list_name):
                     df.set_index(self.snapshots, inplace=True)
                     self._import_series_from_df(df, component, attr)
+
+            # Reassemble a time-varying zonal PTDF from its prefixed varying attributes.
+            if component == "FlowBasedDomain" and not skip_time:
+                c = self.c.flow_based_domains
+                zkeys = [k for k in list(c.dynamic) if k.startswith(_ZONAL_PTDF_PREFIX)]
+                if zkeys:
+                    frames = {k[len(_ZONAL_PTDF_PREFIX) :]: c.dynamic[k] for k in zkeys}
+                    frame = pd.concat(
+                        {z: f.stack(future_stack=True) for z, f in frames.items()},
+                        axis=1,
+                    )
+                    frame.columns.name = "bus"
+                    c._set_frame("zonal_ptdf", frame, c.static.index)
+                    for k in zkeys:
+                        del c.dynamic[k]
 
             for attr, df in importer.get_piecewise(list_name):
                 self._import_piecewise_from_df(df, component, attr)

@@ -7,8 +7,9 @@
 A flow-based domain constrains the *net positions* of market zones (buses) by a set of
 linear inequalities ``zonal_ptdf . NP <= RAM``. Each row is a critical network element
 (CNEC). The zonal PTDF sensitivities are stored in the dedicated
-``n.c.flow_based_domains.zonal_ptdf`` frame (cnec x zone); the ``ram`` attribute (static
-or time-varying) is the right-hand side.
+``n.c.flow_based_domains.zonal_ptdf`` frame (cnec x zone, or ``(snapshot, cnec) x zone``
+when time-varying); the ``ram`` attribute (static or time-varying) is the right-hand
+side. Both the PTDF and the RAM may vary by snapshot; the constraint broadcasts either.
 
 The net position of a zone is added as a variable directly inside the nodal balance
 (``generation - load - net_position = 0``), so no auxiliary buses or links are needed and

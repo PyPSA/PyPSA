@@ -422,3 +422,128 @@ def test_single_and_bulk_add_agree():
     n_bulk.optimize(log_to_console=False)
     n_single.optimize(log_to_console=False)
     assert _net_positions(n_single).to_dict() == _net_positions(n_bulk).to_dict()
+
+
+def _static_np(domain: pd.DataFrame) -> pd.Series:
+    """Net positions of a single-snapshot solve of a static domain."""
+    n = _network(domain)
+    n.optimize(log_to_console=False)
+    return n.buses_t.net_position.iloc[0][ZONES].round(0)
+
+
+def _tv_network(dA: pd.DataFrame, dB: pd.DataFrame) -> pypsa.Network:
+    """Two-snapshot toy whose zonal PTDF is ``dA`` in hour 0 and ``dB`` in hour 1."""
+    n = pypsa.Network()
+    n.set_snapshots([0, 1])
+    n.add("Bus", ZONES)
+    n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
+    n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
+    ptdf = pd.concat({0: dA[ZONES], 1: dB[ZONES]}, names=["snapshot", "name"])
+    n.add("FlowBasedDomain", dA.index, zonal_ptdf=ptdf, ram=dA["RAM"].values)
+    return n
+
+
+def test_time_varying_zonal_ptdf_frontend_and_da():
+    """A time-varying PTDF is public pandas (MultiIndex) and internal xarray (+snapshot)."""
+    dA = _domain(SYMMETRIC)
+    dB = dA.copy()
+    dB[ZONES] = dB[ZONES] * 2.0
+    c = _tv_network(dA, dB).c.flow_based_domains
+    assert isinstance(c.zonal_ptdf.index, pd.MultiIndex)
+    assert list(c.zonal_ptdf.columns) == ZONES
+    assert set(c.da.zonal_ptdf.dims) == {"snapshot", "name", "bus"}
+    pd.testing.assert_frame_equal(
+        c.zonal_ptdf.loc[0][ZONES], dA[ZONES], check_like=True, check_names=False
+    )
+
+
+def test_time_varying_zonal_ptdf_matches_per_snapshot_static():
+    """Each hour clears exactly like a static domain built from that hour's PTDF."""
+    dA = _domain(SYMMETRIC)
+    dB = dA.copy()
+    dB[ZONES] = dB[ZONES] * 2.0  # tighter half-spaces in hour 1
+    refA, refB = _static_np(dA), _static_np(dB)
+    assert not refA.equals(refB)  # the two hours really differ
+
+    n = _tv_network(dA, dB)
+    n.optimize(log_to_console=False)
+    npos = n.buses_t.net_position[ZONES].round(0)
+    assert npos.loc[0].equals(refA)
+    assert npos.loc[1].equals(refB)
+
+
+def test_time_varying_zonal_ptdf_round_trips(tmp_path):
+    """Export/import through netCDF preserves the time-varying frame and clearing."""
+    dA = _domain(SYMMETRIC)
+    dB = dA.copy()
+    dB[ZONES] = dB[ZONES] * 2.0
+    n = _tv_network(dA, dB)
+    path = tmp_path / "tv.nc"
+    n.export_to_netcdf(path)
+    m = pypsa.Network(path)
+    pd.testing.assert_frame_equal(
+        m.c.flow_based_domains.zonal_ptdf,
+        n.c.flow_based_domains.zonal_ptdf,
+        check_index_type=False,  # cnec labels come back object vs StringDtype (PyPSA-wide)
+    )
+    m.optimize(log_to_console=False)  # the recovered domain still solves
+
+
+def test_copy_preserves_time_varying_domain():
+    """n.copy() carries the time-varying zonal PTDF frame."""
+    dA = _domain(SYMMETRIC)
+    dB = dA.copy()
+    dB[ZONES] = dB[ZONES] * 2.0
+    n = _tv_network(dA, dB)
+    m = n.copy()
+    pd.testing.assert_frame_equal(
+        m.c.flow_based_domains.zonal_ptdf, n.c.flow_based_domains.zonal_ptdf
+    )
+
+
+def test_time_varying_ram_matches_per_snapshot_static():
+    """A per-snapshot RAM clears each hour like a static domain with that hour's RAM."""
+    d0 = _domain(SYMMETRIC)
+    d1 = _domain({**SYMMETRIC, "AB+": 600})  # tighter AB+ margin in hour 1
+    ref0, ref1 = _static_np(d0), _static_np(d1)
+    assert not ref0.equals(ref1)
+
+    n = pypsa.Network()
+    n.set_snapshots([0, 1])
+    n.add("Bus", ZONES)
+    n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
+    n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
+    ram = pd.DataFrame({0: d0["RAM"], 1: d1["RAM"]}).T  # snapshot x cnec
+    n.add("FlowBasedDomain", d0.index, zonal_ptdf=d0[ZONES], ram=ram)
+    n.optimize(log_to_console=False, assign_all_duals=True)
+
+    npos = n.buses_t.net_position[ZONES].round(0)
+    assert npos.loc[0].equals(ref0)
+    assert npos.loc[1].equals(ref1)
+    # one dual per snapshot
+    assert len(n.c.flow_based_domains.dynamic["mu_domain"]) == 2
+
+
+def test_time_varying_ptdf_with_link_column_broadcasts():
+    """A time-varying PTDF carrying an EvFB link column broadcasts and stays gen - load."""
+    dA = _domain(SYMMETRIC)
+    dA["AB_hvdc"] = 0.2
+    dB = dA.copy()
+    dB[[*ZONES, "AB_hvdc"]] *= 2.0  # tighter half-spaces in hour 1
+    cols = [*ZONES, "AB_hvdc"]
+
+    n = pypsa.Network()
+    n.set_snapshots([0, 1])
+    n.add("Bus", ZONES)
+    n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
+    n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
+    n.add("Link", "AB_hvdc", bus0="A", bus1="B", p_nom=800)  # EvFB (two zones)
+    ptdf = pd.concat({0: dA[cols], 1: dB[cols]}, names=["snapshot", "name"])
+    n.add("FlowBasedDomain", dA.index, zonal_ptdf=ptdf, ram=dA["RAM"].values)
+    n.optimize(log_to_console=False)
+
+    npos = n.buses_t.net_position[ZONES].round(0)
+    # EvFB cut applied per hour, so the net position stays generation - load
+    gen_minus_load = (n.generators_t.p[ZONES] - LOADS).round(0)
+    pd.testing.assert_frame_equal(npos, gen_minus_load, check_names=False)
+    assert not npos.loc[0].equals(npos.loc[1])  # the link-loaded hours really differ
