@@ -12,8 +12,8 @@ or time-varying) is the right-hand side.
 
 The net position of a zone is added as a variable directly inside the nodal balance
 (``generation - load - net_position = 0``), so no auxiliary buses or links are needed and
-the zonal prices remain the duals of the nodal balance. A single ``sum(NP) = 0`` closes the
-copper-plate balance across zones.
+the zonal prices remain the duals of the nodal balance. A single zero-sum balance
+``sum(NP) = 0`` closes the copper plate across zones (AHC virtual hubs join it, below).
 
 A domain column may also name a ``Link`` instead of a zone bus: the controllable HVDC
 corridors of advanced hybrid coupling (AHC, a border to an external hub) and evolved

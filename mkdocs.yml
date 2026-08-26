@@ -106,6 +106,7 @@ nav:
     - examples/rolling-horizon.ipynb
     - examples/water-value.ipynb
     - examples/demand-supply-bids.ipynb
+    - examples/flow-based-market-coupling.ipynb
   - Planning Problems:
     - examples/capacity-expansion-planning-single-node.ipynb
     - examples/3-node-cem.ipynb

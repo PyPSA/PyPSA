@@ -25,6 +25,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](demand-supply-bids.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Flow-Based Market Coupling**
+
+    Clears a flow-based domain with the `FlowBasedDomain` component: net positions, zonal prices, binding CNECs, and coupling to neighbours via AHC and EvFB.
+
+    [:octicons-arrow-right-24: Go to example](flow-based-market-coupling.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Unit Commitment**
 
     Models generator unit commitment with start-up and shut-down costs, ramping limits, minimum part loads, up and down times using binary variables.
