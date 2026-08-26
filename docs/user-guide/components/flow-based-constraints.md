@@ -6,19 +6,13 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Flow-Based Constraint
 
-The [`FlowBasedConstraint`][pypsa.components.FlowBasedConstraints] components describe a flow-based market-coupling domain: a set of linear constraints that bound the *net positions* of the market zones (buses) by
+The [`FlowBasedConstraint`][pypsa.components.FlowBasedConstraints] components describe a flow-based market-coupling domain: a set of linear constraints that bound the net positions of the market zones (buses) by their zonal PTDF sensitivities, one row per critical network element (CNEC). This replaces the transmission grid *between* zones with a compact market representation, as used in the Core region of the European day-ahead market. For how the domain enters the optimisation, see [flow-based market coupling](../optimization/flow-based-constraints.md).
 
-$$\text{zonal\_ptdf} \cdot NP \le \text{RAM},$$
-
-where each component (row) is one critical network element (CNEC). This replaces the internal transmission grid between zones with a compact market representation, as used in the Core region of the European day-ahead market.
-
-- The net position $NP_z$ of a zone is its net export (`generation - load`). During optimization it is added as a variable directly inside the nodal balance, so no auxiliary buses or links are needed and the zonal prices remain the native duals of the nodal balance.
-- A single zero-sum constraint $\sum_z NP_z + \sum_v NP_v = 0$ closes the copper-plate balance across the zones and the AHC virtual hubs $v$ (see below); with no AHC borders it reduces to $\sum_z NP_z = 0$.
-- The zone net positions are written to `n.buses_t.net_position` after optimizing. Without corridors these equal the bus net injections `n.buses_t.p`; when AHC/EvFB corridors touch a zone, `n.buses_t.p` is the *physical* injection (it includes the corridor flow) and diverges from the net position `generation - load` that the domain constrains, so read the net position from `n.buses_t.net_position`. The per-CNEC shadow prices are assigned to the `mu_domain` output when optimizing with `assign_all_duals=True`.
+The net position of each zone is added as a variable inside the nodal balance, so the zonal prices remain the native duals of the nodal balance. After optimising, the net positions are written to `n.buses_t.net_position` and the per-CNEC shadow prices to `mu_domain` (with `assign_all_duals=True`).
 
 ## Zonal PTDF
 
-Unlike the scalar attributes below, the zonal power transfer distribution factors form a matrix (CNEC × zone) and are stored in the dedicated frame `n.c.flow_based_constraints.zonal_ptdf` (rows = CNECs, columns = zone buses). The name distinguishes it from the *nodal* PTDF computed per [sub-network](sub-networks.md) via `sub_network.calculate_PTDF()`. Pass it directly to [`n.add`][pypsa.Network.add] together with the remaining available margin `ram` (which may be static or time-varying):
+Unlike the scalar attributes below, the zonal PTDF sensitivities form a matrix (CNEC × zone) and are stored in the dedicated frame `n.c.flow_based_constraints.zonal_ptdf` (rows = CNECs, columns = zone buses). The name distinguishes it from the *nodal* PTDF computed per [sub-network](../components/sub-networks.md). Pass it to [`n.add`][pypsa.Network.add] together with the remaining available margin `ram`:
 
 ```python
 import pandas as pd
@@ -35,19 +29,11 @@ zonal_ptdf = pd.DataFrame(
 n.add("FlowBasedConstraint", zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=[1000.0, 800.0])
 ```
 
-Both the `ram` (like any `static or series` attribute) and the zonal PTDF itself may be time-varying. For a time-varying domain, pass a `zonal_ptdf` with a `(snapshot, CNEC)` MultiIndex on the rows and the zones as columns; the frame keeps that MultiIndex, and `c.zonal_ptdf.loc[snapshot]` selects one hour's matrix. A domain is static or time-varying as a whole, not a mix.
+For a single CNEC, `zonal_ptdf` may also be a `pandas.Series` over zones. Both `ram` and the zonal PTDF may be time-varying: pass a `zonal_ptdf` with a `(snapshot, CNEC)` MultiIndex (zones as columns), and `c.zonal_ptdf.loc[snapshot]` selects one hour's matrix. A domain is static or time-varying as a whole, not a mix.
 
-```python
-# one matrix per snapshot, stacked under a (snapshot, cnec) MultiIndex
-zonal_ptdf_t = pd.concat({sns: zonal_ptdf for sns in n.snapshots}, names=["snapshot", "name"])
-n.add("FlowBasedConstraint", zonal_ptdf.index, zonal_ptdf=zonal_ptdf_t, ram=[1000.0, 800.0])
-```
+### Deriving a zonal PTDF
 
-The internal xarray view `c.da.zonal_ptdf` then carries a `snapshot` dimension, and the domain constraint broadcasts over it; nothing else in the API changes.
-
-### Deriving a zonal PTDF from a nodal grid
-
-If you have a nodal, grid-resolved network, the zonal PTDF follows from its nodal PTDF and a *generation shift key* (GSK). A zone's net-position change $\Delta NP_z$ is distributed to its nodes by the GSK (a bus × zone matrix whose columns sum to one), so with the nodal $F = \text{PTDF}\cdot P$ and $P = \text{GSK}\cdot NP$ the zonal PTDF is $\text{PTDF}\cdot\text{GSK}$. This is computed per [sub-network](sub-networks.md) with [`calculate_zonal_PTDF`][pypsa.SubNetwork.calculate_zonal_PTDF], which returns a labelled `branch × zone` DataFrame ready to pass to a flow-based constraint:
+If you have a nodal, grid-resolved network, the zonal PTDF follows from its nodal PTDF and a *generation shift key* (GSK); see [the math](../optimization/flow-based-constraints.md#deriving-a-zonal-ptdf-from-a-nodal-grid). It is computed per [sub-network](../components/sub-networks.md) with [`calculate_zonal_PTDF`][pypsa.SubNetwork.calculate_zonal_PTDF], returning a labelled `branch × zone` frame:
 
 ```python
 nodal.determine_network_topology()
@@ -57,11 +43,11 @@ node_to_zone = nodal.buses["country"]  # any bus -> zone mapping (a pandas Serie
 zonal_ptdf = sub.calculate_zonal_PTDF(node_to_zone, gsk="capacity")  # or "uniform"
 ```
 
-The `gsk` argument is either a scheme name or a ready bus × zone frame. Two thin builders are provided (also callable standalone), each returning a normalised GSK: [`gsk_uniform`][pypsa.SubNetwork.gsk_uniform] (equal weight per bus in a zone) and [`gsk_by_capacity`][pypsa.SubNetwork.gsk_by_capacity] (weight proportional to generator `p_nom`, optionally filtered by `carrier`; a zone with no capacity falls back to uniform). Every sub-network bus must be mapped to a zone, or the call fails. A branch-free sub-network (e.g. a single-node one, common in sector-coupled models) returns an empty frame. The remaining available margin `ram` is not derived here — supply it yourself.
+The `gsk` argument is a scheme name or a ready bus × zone frame. Two builders are provided: [`gsk_uniform`][pypsa.SubNetwork.gsk_uniform] (equal weight per bus) and [`gsk_by_capacity`][pypsa.SubNetwork.gsk_by_capacity] (weight ∝ generator `p_nom`, optionally by `carrier`). Every sub-network bus must map to a zone. The `ram` is not derived — supply it yourself.
 
 ## Controllable link flows (AHC and EvFB)
 
-A domain column may also name a [`Link`][pypsa.components.Links] instead of a zone bus. These are the controllable HVDC corridors of *advanced hybrid coupling* (AHC, a link from a zone to an external hub) and *evolved flow-based coupling* (EvFB, a link between two zones). Each loads its CNECs through a `zonal_ptdf · Link-p` term on the existing interconnector (its `p_nom` is the capacity). To keep every zone's net position equal to `generation - load`, the corridor's contribution to its Core-side bus balance is cancelled — for EvFB (both ends zones) at both ends, for AHC (one end external) at the Core end only. An AHC border additionally enters the zero-sum balance as the net position $NP_v$ of its external virtual hub, so the imported power is priced by the external zone; EvFB, being internal and net-zero, stays out of the zero-sum. The AHC vs EvFB distinction is inferred from the link's endpoints — you do not declare it.
+A domain column may name a [`Link`][pypsa.components.Links] instead of a zone bus: the controllable HVDC corridors of *advanced hybrid coupling* (AHC, a link to an external hub) and *evolved flow-based coupling* (EvFB, a link between two zones). The link flow then loads its CNECs directly, and the AHC/EvFB distinction is inferred from the link's endpoints — you do not declare it. The column's sign must follow the link's `bus0 → bus1` direction.
 
 ```python
 n.add("Link", "ALEGrO", bus0="BE", bus1="DE", p_nom=1000)  # EvFB (two zones)
@@ -71,46 +57,18 @@ zonal_ptdf["NorNed"] = ...
 n.c.flow_based_constraints.add(cnecs, zonal_ptdf=zonal_ptdf, ram=ram)
 ```
 
-The link column's sign must follow the link's `bus0 → bus1` flow direction (the sign of `Link-p`); flip the column if your link orientation is opposite to the published convention.
+See [the optimisation page](../optimization/flow-based-constraints.md#controllable-link-flows-ahc-and-evfb) for how corridors are kept out of the zones' net positions.
 
 !!! note "Cross-zone branches"
 
-    The domain replaces the electrical grid *between* zones, so the network must not contain a [`Line`][pypsa.components.Lines], [`Transformer`][pypsa.components.Transformers] or [`Link`][pypsa.components.Links] directly connecting two zone buses — with one exception: a `Link` that is a declared domain column (an EvFB corridor) is kept, since its flow enters the constraint explicitly. Branches with at least one non-zone end (e.g. an external border or a gas pipeline) are ignored.
+    The domain replaces the electrical grid *between* zones, so the network must not contain a [`Line`][pypsa.components.Lines], [`Transformer`][pypsa.components.Transformers] or [`Link`][pypsa.components.Links] directly connecting two zone buses — except a `Link` that is a declared domain column (an AHC/EvFB corridor). Branches with a non-zone end (an external border, a gas pipeline) are ignored.
 
 ## Importing published domains
 
-Published flow-based domains can be read directly. `from_eraa` parses an ERAA `FB-Domain-CORE` Excel workbook (one target year and season); `from_jao` parses a JAO `finalComputation` CSV (one market hour); `from_tso` parses a TSO `MS_FBMC` domain CSV (one typical situation):
+Published domains can be read directly with `from_eraa` (ERAA `FB-Domain-CORE` workbook), `from_jao` (JAO `finalComputation` CSV) and `from_tso` (TSO `MS_FBMC` CSV). Each maps the file's zone labels to buses of the same name (pass `buses=` to remap) and accepts a `links=` mapping to include AHC/EvFB corridors. See the [example notebook](../../examples/flow-based-market-coupling.ipynb) for a worked import.
 
 ```python
-n.c.flow_based_constraints.from_eraa(
-    "FB-Domain-CORE_simplified.xlsx", year="2030", season="winter1"
-)
-n.c.flow_based_constraints.from_jao("finalComputation.csv")  # presolved rows by default
-n.c.flow_based_constraints.from_tso("MS_FBMC_Domain_TS1.csv")  # one file, self-typed
+n.c.flow_based_constraints.from_eraa("FB-Domain-CORE.xlsx", year="2030", season="winter1")
 ```
 
-A single `season` reads one time-invariant ERAA domain. To build a *time-varying* domain, pass `season` as a `pandas.Series` indexed by the network snapshots, mapping each snapshot to a season name; `from_eraa` reads the referenced seasons and stacks them into the `(snapshot, CNEC)` frame described above:
-
-```python
-season = pd.Series({t: "winter1" if t.month in (12, 1, 2) else "summer1" for t in n.snapshots})
-n.c.flow_based_constraints.from_eraa("FB-Domain-CORE_simplified.xlsx", year="2030", season=season)
-```
-
-The seasons need not share a CNEC list: the domain holds the union, and where a CNEC is absent in the season a snapshot maps to, its PTDF row is zero and its RAM infinite, so that constraint is present but never binds that hour. This assumes `CNEC_ID` identifies the same element across seasons. `from_jao` and `from_tso` remain time-invariant for now.
-
-The TSO file carries a `!!OBJEKTTYP` header row that types every column, so `from_tso` reads just that one file: `RAM_MW` is the RAM, `FB_DOMAIN`/`FB_DOMAIN_AHC` columns are the zones, and `HGUE`/`HGUE_AHC` columns are HVDC converters (mapped via `links`, like JAO). It is Latin-1 by default and auto-detects the decimal separator (German `,` vs English `.`).
-
-The importers map the file's zone labels to bus names of the same name; there is no fuzzy matching. For JAO the `Ptdf_<hub>` columns are read and the `Ptdf_` prefix stripped to obtain the hub name. Where the labels differ from your bus names, pass an explicit mapping, e.g. `buses={"DE00": "DE"}`. Zones that are not buses in the network raise an error rather than being dropped silently. JAO `CneName` is not unique across directions and contingencies, so the numeric `Id` is used as the CNEC name by default (`name_col`). Reading `.xlsx` requires the `excel` extra (`openpyxl`).
-
-To bring in the AHC/EvFB corridors as link terms, pass a `links` mapping. For ERAA the border columns are directed labels `"A-B"`, so the sign is aligned automatically to the link's `bus0 → bus1` orientation; unmapped corridors are dropped:
-
-```python
-n.c.flow_based_constraints.from_eraa(
-    "FB-Domain-CORE_simplified.xlsx", year="2030", season="winter1",
-    links={"CH00-AT00": "AT_CH_dc", "BE00-DE00": "ALEGrO"},
-)
-```
-
-For JAO the external hubs are undirected labels, so `links` only renames the column — set the link's orientation (or flip the column) to match the hub's net-position convention.
-
-{{ read_csv('../../../pypsa/data/component_attrs/flow_based_constraints.csv') }}
+{{ read_csv('../../../pypsa/data/component_attrs/flow_based_constraints.csv', disable_numparse=True) }}

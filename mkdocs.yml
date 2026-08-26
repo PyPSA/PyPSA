@@ -67,6 +67,7 @@ nav:
       - Storage: user-guide/optimization/storage.md
       - Power Flow: user-guide/optimization/power-flow.md
       - Contingencies: user-guide/optimization/contingencies.md
+      - Flow-Based Market Coupling: user-guide/optimization/flow-based-constraints.md
       - Global Constraints: user-guide/optimization/global-constraints.md
       - Piecewise Constraints: user-guide/optimization/piecewise.md
       - Custom Constraints: user-guide/optimization/custom-constraints.md
