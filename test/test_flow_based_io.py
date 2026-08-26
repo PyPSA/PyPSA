@@ -167,6 +167,48 @@ def test_from_eraa_unknown_corridor_raises(eraa_workbook):
         )
 
 
+def test_from_eraa_time_varying_by_season(eraa_workbook):
+    """A snapshot->season Series builds a time-varying domain; unmatched CNECs go inert."""
+    n = _network()
+    n.set_snapshots([0, 1])
+    n.c.flow_based_domains.from_eraa(
+        eraa_workbook, year="2030", season=pd.Series({0: "winter1", 1: "summer1"})
+    )
+    c = n.c.flow_based_domains
+    z = c.zonal_ptdf
+    assert isinstance(z.index, pd.MultiIndex)
+    assert sorted(c.static.index) == ["c1", "c2"]  # union of both seasons
+    assert z.loc[(0, "c1"), "Z1"] == pytest.approx(0.4)  # winter1 PTDF
+    assert z.loc[(1, "c1"), "Z1"] == pytest.approx(0.9)  # summer1 PTDF
+    assert z.loc[(1, "c2")].eq(0.0).all()  # c2 absent in summer1 -> zero row
+    ram = c.dynamic["ram"]
+    assert ram.loc[0, "c2"] == pytest.approx(800.0)
+    assert ram.loc[1, "c2"] == float("inf")  # inert that hour
+
+
+def test_from_eraa_time_varying_solves(eraa_workbook):
+    """The time-varying ERAA domain feeds straight into the optimisation."""
+    n = _network()
+    n.set_snapshots([0, 1])
+    n.add("Load", ZONES, bus=ZONES, p_set=[300.0, 500.0, 200.0])
+    n.add("Generator", ZONES, bus=ZONES, p_nom=2000, marginal_cost=[10.0, 50.0, 30.0])
+    n.c.flow_based_domains.from_eraa(
+        eraa_workbook, year="2030", season=pd.Series({0: "winter1", 1: "summer1"})
+    )
+    n.optimize(log_to_console=False)
+    assert (n.buses_t.p[ZONES].sum(axis=1).abs() < 1e-6).all()  # balances each hour
+
+
+def test_from_eraa_time_varying_incomplete_mapping_raises(eraa_workbook):
+    """A season Series that misses a snapshot fails fast."""
+    n = _network()
+    n.set_snapshots([0, 1])
+    with pytest.raises(ValueError, match="every network snapshot"):
+        n.c.flow_based_domains.from_eraa(
+            eraa_workbook, year="2030", season=pd.Series({0: "winter1"})
+        )
+
+
 @pytest.fixture
 def jao_csv(tmp_path):
     """A minimal JAO finalComputation CSV: non-unique CneName, one non-presolved row."""

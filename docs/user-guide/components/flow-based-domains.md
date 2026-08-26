@@ -65,7 +65,7 @@ The link column's sign must follow the link's `bus0 → bus1` flow direction (th
 
 ## Importing published domains
 
-Published flow-based domains can be read directly. `from_eraa` parses an ERAA `FB-Domain-CORE` Excel workbook (one target year and season); `from_jao` parses a JAO `finalComputation` CSV (one market hour); `from_tso` parses a TSO `MS_FBMC` domain CSV (one typical situation). All are assumed time-invariant for now:
+Published flow-based domains can be read directly. `from_eraa` parses an ERAA `FB-Domain-CORE` Excel workbook (one target year and season); `from_jao` parses a JAO `finalComputation` CSV (one market hour); `from_tso` parses a TSO `MS_FBMC` domain CSV (one typical situation):
 
 ```python
 n.c.flow_based_domains.from_eraa(
@@ -74,6 +74,15 @@ n.c.flow_based_domains.from_eraa(
 n.c.flow_based_domains.from_jao("finalComputation.csv")  # presolved rows by default
 n.c.flow_based_domains.from_tso("MS_FBMC_Domain_TS1.csv")  # one file, self-typed
 ```
+
+A single `season` reads one time-invariant ERAA domain. To build a *time-varying* domain, pass `season` as a `pandas.Series` indexed by the network snapshots, mapping each snapshot to a season name; `from_eraa` reads the referenced seasons and stacks them into the `(snapshot, CNEC)` frame described above:
+
+```python
+season = pd.Series({t: "winter1" if t.month in (12, 1, 2) else "summer1" for t in n.snapshots})
+n.c.flow_based_domains.from_eraa("FB-Domain-CORE_simplified.xlsx", year="2030", season=season)
+```
+
+The seasons need not share a CNEC list: the domain holds the union, and where a CNEC is absent in the season a snapshot maps to, its PTDF row is zero and its RAM infinite, so that constraint is present but never binds that hour. This assumes `CNEC_ID` identifies the same element across seasons. `from_jao` and `from_tso` remain time-invariant for now.
 
 The TSO file carries a `!!OBJEKTTYP` header row that types every column, so `from_tso` reads just that one file: `RAM_MW` is the RAM, `FB_DOMAIN`/`FB_DOMAIN_AHC` columns are the zones, and `HGUE`/`HGUE_AHC` columns are HVDC converters (mapped via `links`, like JAO). It is Latin-1 by default and auto-detects the decimal separator (German `,` vs English `.`).
 

@@ -88,7 +88,7 @@ class FlowBasedDomains(Components):
         self,
         path: str,
         year: str | int,
-        season: str,
+        season: str | pd.Series,
         *,
         buses: dict[str, str] | None = None,
         links: dict[str, str] | None = None,
@@ -100,8 +100,7 @@ class FlowBasedDomains(Components):
         The zonal PTDF sheet carries two header rows: a *kind* row (``PTDF_SZ`` for the
         study-zone sensitivities, ``PTDF*_AHC,SZ`` and ``PTDF_EvFB`` for the advanced
         hybrid-coupling and evolved corridors) and a *label* row (the zone / border names
-        plus ``FB_ID`` and ``CNEC_ID``). The domain is assumed time-invariant: one
-        ``season`` is selected.
+        plus ``FB_ID`` and ``CNEC_ID``).
 
         Parameters
         ----------
@@ -109,9 +108,13 @@ class FlowBasedDomains(Components):
             Path to the ERAA workbook (requires the ``openpyxl`` extra to read ``.xlsx``).
         year : str or int
             Target year, selecting the ``PTDF {year}`` and ``RAM {year}`` sheets.
-        season : str
-            Seasonal domain to select (the ``FB_ID`` value and the RAM column, e.g.
-            ``"winter1"``).
+        season : str or pandas.Series
+            A single ``FB_ID`` value (e.g. ``"winter1"``) selects one time-invariant
+            domain. Passing a Series indexed by the network snapshots, whose values are
+            season names, builds a *time-varying* domain: each snapshot's domain is the
+            season it maps to. The per-season CNEC sets are unioned; where a CNEC is
+            absent in a snapshot's season, its PTDF row is zero and its RAM infinite, so
+            that constraint never binds that hour.
         buses : dict, optional
             Explicit mapping from ERAA zone labels to network bus names. Labels are used
             as-is where unmapped; no fuzzy matching is done.
@@ -140,20 +143,12 @@ class FlowBasedDomains(Components):
         corridors = label[kind.isin(["PTDF*_AHC,SZ", "PTDF_EvFB"])].tolist()
         body = raw.iloc[2:].copy()
         body.columns = list(label)
-        rows = body[body["FB_ID"] == season].set_index("CNEC_ID")
+        ram_all = pd.read_excel(path, sheet_name=ram_sheet).set_index("CNEC_ID")
 
-        ram = pd.read_excel(path, sheet_name=ram_sheet).set_index("CNEC_ID")[season]
-        keep = rows.index[rows.index.isin(ram.dropna().index)]
-
-        zonal_ptdf = rows.loc[keep, zones].astype(float)
-        for border, link in (links or {}).items():
-            if border not in corridors:
-                msg = f"{border!r} is not an ERAA AHC/EvFB column; available: {corridors}."
-                raise ValueError(msg)
-            zonal_ptdf[link] = rows.loc[keep, border].astype(float) * self._link_sign(
-                border, link, buses or {}
-            )
-
+        unknown = [border for border in (links or {}) if border not in corridors]
+        if unknown:
+            msg = f"{unknown} are not ERAA AHC/EvFB columns; available: {corridors}."
+            raise ValueError(msg)
         if dropped := [c for c in corridors if c not in (links or {})]:
             logger.warning(
                 "Dropping %d unmapped ERAA AHC/EvFB corridor(s): %s. Pass them in "
@@ -162,7 +157,52 @@ class FlowBasedDomains(Components):
                 dropped,
             )
 
-        return self._add_domain_frame(zonal_ptdf, ram.loc[keep], buses)
+        def parse(s: str) -> tuple[pd.DataFrame, pd.Series]:
+            """Parse one ERAA season into its ``(zonal_ptdf, ram)`` pair (CNEC-indexed)."""
+            rows = body[body["FB_ID"] == s].set_index("CNEC_ID")
+            ram = ram_all[s]
+            keep = rows.index[rows.index.isin(ram.dropna().index)]
+            zonal_ptdf = rows.loc[keep, zones].astype(float)
+            for border, link in (links or {}).items():
+                sign = self._link_sign(border, link, buses or {})
+                zonal_ptdf[link] = rows.loc[keep, border].astype(float) * sign
+            return zonal_ptdf, ram.loc[keep]
+
+        if isinstance(season, pd.Series):
+            return self._add_eraa_dynamic(season, parse, buses)
+        zonal_ptdf, ram = parse(season)
+        return self._add_domain_frame(zonal_ptdf, ram, buses)
+
+    def _add_eraa_dynamic(
+        self,
+        season: pd.Series,
+        parse: Any,
+        buses: dict[str, str] | None,
+    ) -> pd.Index | None:
+        """Assemble a time-varying domain from a ``snapshot -> ERAA season`` mapping.
+
+        Each season is parsed once; the per-season CNEC sets are unioned. Where a CNEC is
+        absent in the season a snapshot maps to, its PTDF row is zero and its RAM infinite,
+        so the constraint is present but never binds that hour.
+        """
+        sns = self.n_save.snapshots
+        season = season.reindex(sns)
+        if season.isna().any():
+            msg = "`season` Series must map every network snapshot to an ERAA season."
+            raise ValueError(msg)
+        parsed = {s: parse(s) for s in season.unique()}
+        cnecs = pd.Index(sorted(set().union(*(zp.index for zp, _ in parsed.values()))))
+        ptdf = pd.concat(
+            {t: parsed[s][0].reindex(cnecs).fillna(0.0) for t, s in season.items()},
+            names=["snapshot", "name"],
+        )
+        ram = pd.DataFrame(
+            {t: parsed[s][1].reindex(cnecs) for t, s in season.items()}
+        ).T.fillna(float("inf"))
+        if buses:
+            ptdf = ptdf.rename(columns=buses)
+        self._require_components(ptdf.columns)
+        return self.add(cnecs, zonal_ptdf=ptdf, ram=ram)
 
     def _link_sign(self, border: str, link: str, buses: dict[str, str]) -> float:
         """Sign aligning an ERAA border ``"A-B"`` (flow A->B) to a link's bus0->bus1."""
