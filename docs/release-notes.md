@@ -26,6 +26,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Phase-shifting transformers (PSTs) are now supported in linear optimal power flow. Setting `phase_shift_min < phase_shift_max` on a [Transformer](./user-guide/components/transformers.md) turns its `phase_shift` into a per-snapshot decision variable bounded by those two attributes (degrees). The optimiser re-taps the PST each snapshot to redistribute flow around cycles, modelling TSO operational tap control. The optimised per-snapshot angle is written to the new dynamic output `n.transformers_t["phase_shift_opt"]`. (<!-- md:pr 1661 -->)
 
+### Features
+
+- Add **stochastic optimization by decomposition** via [mpi-sppy](https://github.com/Pyomo/mpi-sppy). Two-stage stochastic problems (defined with `n.set_scenarios`) can now be solved by Progressive Hedging with bounding cylinders across MPI ranks, as an alternative to PyPSA's monolithic extensive form — for when the extensive form is too large to build or solve directly. New accessor methods [`n.optimize.solve_stochastic_mpisppy`][pypsa.optimization.OptimizationAccessor.solve_stochastic_mpisppy] (inline) plus [`write_stochastic_problem_mpisppy`][pypsa.optimization.OptimizationAccessor.write_stochastic_problem_mpisppy] / [`read_stochastic_solution_mpisppy`][pypsa.optimization.OptimizationAccessor.read_stochastic_solution_mpisppy] (a decoupled write→solve→read workflow, e.g. on SLURM) couple to mpi-sppy purely through per-scenario LP/MPS files. Second-stage dispatch and scenario-conditional marginal prices are recovered with `dispatch="resolve"`. Install with the new optional `pypsa[mpisppy]` extra (`mpi-sppy>=0.14.0`, `mpi4py`, `mip`); installing `mpi-sppy` from GitHub is recommended for the newest features. See [Stochastic Optimization by Decomposition](./user-guide/optimization/stochastic-decomposition.md). (<!-- md:pr 1774 -->)
+
 ### Enhancements
 
 - Prepare the optimization module for linopy's upcoming v1 semantics, keeping results unchanged and released linopy `0.9.x` supported (<!-- md:pr 1829 -->):
