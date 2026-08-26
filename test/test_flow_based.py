@@ -167,8 +167,10 @@ def _ahc_evfb_network():
 def test_link_columns_reconstruct_cnec_loading():
     """AHC and EvFB link flows enter the constraint via Link-p in the bus0->bus1 sign.
 
-    Reconstructing each CNEC loading from the zone net positions and the link flows must
-    stay within RAM and hit RAM exactly on the binding CNECs.
+    Reconstructing each CNEC loading from the zone net positions (gen - load, read from the
+    net-position variable) and the link flows must stay within RAM and hit RAM exactly on
+    the binding CNECs. The corridor loads its CNECs only through its own column - not also
+    smeared through the adjacent zone's net position (no double count).
     """
     n = _ahc_evfb_network()
     n.optimize(log_to_console=False, assign_all_duals=True)
@@ -176,12 +178,113 @@ def test_link_columns_reconstruct_cnec_loading():
     zp = c.zonal_ptdf
     zone_cols = [col for col in zp.columns if col in n.buses.index]
     link_cols = [col for col in zp.columns if col in n.links.index]
-    loading = zp[zone_cols] @ n.buses_t.p.iloc[0][zone_cols] + zp[link_cols] @ n.links_t.p0.iloc[0][link_cols]
+    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
+    # the net position is gen - load, unaffected by the corridor flows
+    gen_load = (n.generators_t.p.iloc[0].groupby(n.generators.bus).sum() - n.loads_t.p.iloc[0].groupby(n.loads.bus).sum())
+    assert np_var[zone_cols].round(1).to_dict() == gen_load[zone_cols].round(1).to_dict()
+    loading = zp[zone_cols] @ np_var[zone_cols] + zp[link_cols] @ n.links_t.p0.iloc[0][link_cols]
     ram = c.static["ram"]
     assert (loading <= ram + 1e-6).all()  # feasible
     mu = c.dynamic["mu_domain"].iloc[0]
     for cnec in mu[mu.abs() > 1e-3].index:
         assert loading[cnec] == pytest.approx(ram[cnec], abs=1e-3)  # binding -> at RAM
+
+
+def test_ahc_import_not_double_counted():
+    """A binding corridor CNEC must not phantom-block cheap AHC imports (no leak).
+
+    Zone A imports from cheap external X over an AHC border; a single CNEC binds. Under the
+    old leak the corridor loaded the CNEC at ptdf_A + ptdf_link (0.7) and blocked the
+    import; with the Core-side term cut it loads once (0.3), so the import flows.
+    """
+    n = pypsa.Network()
+    n.add("Bus", ["A", "B", "X"])
+    n.add("Generator", "gA", bus="A", p_nom=1000, marginal_cost=10)
+    n.add("Generator", "gX", bus="X", p_nom=1000, marginal_cost=5)
+    n.add("Load", ["lA", "lB"], bus=["A", "B"], p_set=[200.0, 800.0])
+    n.add("Link", "X-A", bus0="X", bus1="A", p_nom=500, p_min_pu=-1)
+    ptdf = pd.DataFrame({"A": [0.4], "B": [-0.6], "X-A": [0.3]}, index=pd.Index(["c1"], name="name"))
+    n.c.flow_based_domains.add("c1", zonal_ptdf=ptdf, ram=800.0)
+    n.optimize(log_to_console=False)
+
+    assert n.links_t.p0.iloc[0]["X-A"] == pytest.approx(500.0)  # import flows (was blocked)
+    assert n.objective == pytest.approx(7500.0)  # cheap import used, not local gen
+    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
+    assert np_var["A"] == pytest.approx(300.0)  # gen - load, no corridor leak
+
+
+def test_ahc_export_keeps_net_position_and_plate_sign():
+    """Core exports over an AHC border on bus0: net position stays gen-load, plate closes."""
+    n = pypsa.Network()
+    n.add("Bus", ["A", "B", "X"])
+    n.add("Generator", ["gA", "gB"], bus=["A", "B"], p_nom=2000, marginal_cost=[5.0, 50.0])
+    n.add("Load", ["lA", "lB", "lX"], bus=["A", "B", "X"], p_set=[100.0, 500.0, 400.0])
+    n.add("Link", "A-X", bus0="A", bus1="X", p_nom=500, p_min_pu=-1)  # Core (bus0) -> external
+    ptdf = pd.DataFrame({"A": [0.3], "B": [-0.3], "A-X": [0.2]}, index=pd.Index(["c1"], name="name"))
+    n.c.flow_based_domains.add("c1", zonal_ptdf=ptdf, ram=5000.0)
+    n.optimize(log_to_console=False)
+
+    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
+    genA = n.generators_t.p.iloc[0]["gA"]
+    F = n.links_t.p0.iloc[0]["A-X"]
+    assert F == pytest.approx(400.0)  # cheap A serves the external load
+    assert np_var["A"] == pytest.approx(genA - 100.0)  # gen - load, no leak
+    assert np_var.sum() == pytest.approx(F)  # plate: Core exports F over the border
+
+
+def test_evfb_stays_off_the_plate():
+    """An internal EvFB corridor moves no zonal energy: sum(NP)=0 and NP stays gen-load."""
+    n = pypsa.Network()
+    n.add("Bus", ZONES)
+    n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
+    n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
+    n.add("Link", "AB", bus0="A", bus1="B", p_nom=800)  # EvFB (both ends zones)
+    d = _domain(SYMMETRIC)
+    d["AB"] = 0.2
+    n.c.flow_based_domains.add(d.index, zonal_ptdf=d[[*ZONES, "AB"]], ram=d["RAM"].values)
+    n.optimize(log_to_console=False)
+
+    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
+    assert np_var.sum() == pytest.approx(0.0)  # internal corridor -> no net Core exchange
+    assert np_var[ZONES].round(0).tolist() == _net_positions(n).tolist()  # gen - load
+
+
+def test_fully_external_link_column_is_constrained_not_cut():
+    """A link with neither end a zone loads the CNECs via its column but touches no NP."""
+    n = pypsa.Network()
+    n.add("Bus", [*ZONES, "X", "Y"])
+    n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
+    n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
+    n.add("Generator", ["gX", "gY"], bus=["X", "Y"], p_nom=1000, marginal_cost=[1.0, 100.0])
+    n.add("Load", "lY", bus="Y", p_set=300.0)
+    n.add("Link", "XY", bus0="X", bus1="Y", p_nom=1000, p_min_pu=-1)  # fully external
+    d = _domain(SYMMETRIC)
+    d["XY"] = 0.0
+    d.loc["ext"] = {"A": 0.0, "B": 0.0, "C": 0.0, "XY": 1.0, "RAM": 200.0}
+    n.c.flow_based_domains.add(d.index, zonal_ptdf=d[[*ZONES, "XY"]], ram=d["RAM"].values)
+    n.optimize(log_to_console=False)
+
+    assert n.links_t.p0.iloc[0]["XY"] == pytest.approx(200.0)  # capped by its own CNEC
+    assert _net_positions(n).to_dict() == {"A": 2000.0, "B": -1000.0, "C": -1000.0}
+    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
+    assert np_var.sum() == pytest.approx(0.0)  # external link is not on the plate
+
+
+def test_buses_p_is_physical_injection_hub_np_is_link_flow():
+    """With a corridor, buses_t.p is the physical injection; the hub NP is read from Link-p0."""
+    n = pypsa.Network()
+    n.add("Bus", ["A", "B", "X"])
+    n.add("Generator", ["gA", "gX"], bus=["A", "X"], p_nom=1000, marginal_cost=[10.0, 5.0])
+    n.add("Load", ["lA", "lB"], bus=["A", "B"], p_set=[200.0, 800.0])
+    n.add("Link", "X-A", bus0="X", bus1="A", p_nom=500, p_min_pu=-1)
+    ptdf = pd.DataFrame({"A": [0.4], "B": [-0.6], "X-A": [0.3]}, index=pd.Index(["c1"], name="name"))
+    n.c.flow_based_domains.add("c1", zonal_ptdf=ptdf, ram=800.0)
+    n.optimize(log_to_console=False)
+
+    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
+    assert np_var["A"] == pytest.approx(300.0)  # domain net position = gen - load
+    assert n.buses_t.p.iloc[0]["A"] == pytest.approx(800.0)  # physical injection = gen-load+import
+    assert n.links_t.p0.iloc[0]["X-A"] == pytest.approx(500.0)  # virtual hub NP = link flow
 
 
 def test_evfb_cross_zone_link_column_is_allowed():

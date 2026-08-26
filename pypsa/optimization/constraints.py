@@ -31,6 +31,7 @@ from pypsa.components.common import as_components
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
+from pypsa.optimization.flow_based import flow_based_balance_terms
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 from pypsa.optimization.window import snapshot_array
 
@@ -1523,12 +1524,11 @@ def define_nodal_balance_constraints(
                     exprs.append(_groupby_bus(expr, group_cbuses))
 
     # Flow-based domain: inject each zone's net position into its nodal balance
-    # (generation - load - net_position = 0), so no auxiliary buses/links are needed.
-    if "FlowBasedDomain-net_position" in m.variables:
-        np_var = m["FlowBasedDomain-net_position"].rename(bus="name")
-        fb_buses = np_var.indexes["name"].intersection(buses)
-        if not fb_buses.empty:
-            exprs.append(-1 * np_var.sel(name=fb_buses))
+    # (generation - load - net_position = 0) and cancel every corridor link's Core-side
+    # term, so no auxiliary buses/links are needed and net positions stay gen - load.
+    fb_terms = flow_based_balance_terms(n, buses)
+    if fb_terms is not None:
+        exprs.append(fb_terms)
 
     lhs = merge(exprs, join="outer").reindex(name=buses)
 

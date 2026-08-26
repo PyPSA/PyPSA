@@ -13,8 +13,8 @@ $$\text{zonal\_ptdf} \cdot NP \le \text{RAM},$$
 where each component (row) is one critical network element (CNEC). This replaces the internal transmission grid between zones with a compact market representation, as used in the Core region of the European day-ahead market.
 
 - The net position $NP_z$ of a zone is its net export (`generation - load`). During optimization it is added as a variable directly inside the nodal balance, so no auxiliary buses or links are needed and the zonal prices remain the native duals of the nodal balance.
-- A single zero-sum constraint $\sum_z NP_z = 0$ closes the copper-plate balance across zones.
-- The zone net positions are the bus net injections and are read from `n.buses_t.p`; the per-CNEC shadow prices are assigned to the `mu_domain` output when optimizing with `assign_all_duals=True`.
+- A single zero-sum constraint $\sum_z NP_z + \sum_v NP_v = 0$ closes the copper-plate balance across the zones and the AHC virtual hubs $v$ (see below); with no AHC borders it reduces to $\sum_z NP_z = 0$.
+- Without corridors the zone net positions equal the bus net injections `n.buses_t.p`. When AHC/EvFB corridors touch a zone, `n.buses_t.p` is the *physical* injection (it includes the corridor flow), which differs from the net position `generation - load` that the domain constrains; read the latter as `generation - load` per zone. The per-CNEC shadow prices are assigned to the `mu_domain` output when optimizing with `assign_all_duals=True`.
 
 ## Zonal PTDF
 
@@ -37,7 +37,7 @@ n.add("FlowBasedDomain", zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=[1000.0, 8
 
 ## Controllable link flows (AHC and EvFB)
 
-A domain column may also name a [`Link`][pypsa.components.Links] instead of a zone bus. These are the controllable HVDC corridors of *advanced hybrid coupling* (AHC, a link from a zone to an external hub) and *evolved flow-based coupling* (EvFB, a link between two zones). Both enter the constraint identically as `zonal_ptdf · Link-p` terms, so there is no AHC/EvFB distinction and no auxiliary variables — the link's own `p_nom` is its capacity, and its flow delivers power through the ordinary nodal balance.
+A domain column may also name a [`Link`][pypsa.components.Links] instead of a zone bus. These are the controllable HVDC corridors of *advanced hybrid coupling* (AHC, a link from a zone to an external hub) and *evolved flow-based coupling* (EvFB, a link between two zones). Each loads its CNECs through a `zonal_ptdf · Link-p` term on the existing interconnector (its `p_nom` is the capacity). To keep every zone's net position equal to `generation - load`, the corridor's contribution to its Core-side bus balance is cancelled — for EvFB (both ends zones) at both ends, for AHC (one end external) at the Core end only. An AHC border additionally enters the zero-sum balance as the net position $NP_v$ of its external virtual hub, so the imported power is priced by the external zone; EvFB, being internal and net-zero, stays out of the zero-sum. The AHC vs EvFB distinction is inferred from the link's endpoints — you do not declare it.
 
 ```python
 n.add("Link", "ALEGrO", bus0="BE", bus1="DE", p_nom=1000)  # EvFB (two zones)

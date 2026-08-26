@@ -15,11 +15,14 @@ The net position of a zone is added as a variable directly inside the nodal bala
 the zonal prices remain the duals of the nodal balance. A single ``sum(NP) = 0`` closes the
 copper-plate balance across zones.
 
-A domain column may also name a ``Link`` instead of a zone bus. Such columns are the
-controllable HVDC corridors of advanced hybrid coupling (to an external hub) and evolved
-flow-based coupling (between two zones); both are handled identically as
-``zonal_ptdf . Link-p`` terms, so no distinction and no auxiliary variables are required.
-The link capacity is the link's own ``p_nom``.
+A domain column may also name a ``Link`` instead of a zone bus: the controllable HVDC
+corridors of advanced hybrid coupling (AHC, a border to an external hub) and evolved
+flow-based coupling (EvFB, between two zones). Each such column loads the CNECs through a
+``zonal_ptdf . Link-p`` term, using the existing interconnector (its capacity is the link's
+``p_nom``). To keep every zone's net position equal to ``generation - load``, the corridor
+link's Core-side contribution is cancelled in the nodal balance (EvFB at both ends, AHC at
+its Core end); an AHC border additionally routes its flow onto the ``sum(NP) = 0`` balance,
+where it is the net position of the external virtual hub.
 
 This module is deliberately abstract: it implements linear constraints on grouped bus net
 positions and controllable link flows, and is not specific to any region or framework.
@@ -27,13 +30,12 @@ positions and controllable link flows, and is not specific to any region or fram
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+import xarray as xr
 
 if TYPE_CHECKING:
-    import xarray as xr
-
     from pypsa import Network
 
 NP_VAR = "FlowBasedDomain-net_position"
@@ -78,6 +80,60 @@ def _classify_columns(n: Network) -> tuple[list, list]:
         )
         raise ValueError(msg)
     return zone_cols, link_cols
+
+
+def _corridor_cut(n: Network) -> Any:
+    """Per-zone linear expression cancelling each corridor link's Core-side balance term.
+
+    The nodal balance adds ``-Link-p`` at ``bus0`` and ``+efficiency . Link-p`` at ``bus1``.
+    Cancelling those terms at a corridor's zone end(s) keeps every zone net position equal to
+    ``generation - load``, so the corridor loads the CNECs only through its own column. A
+    fully external link (neither end a zone) gets a zero column and drops out. Returns a
+    ``(snapshot, name)`` expression over zone buses, or ``None`` if no corridor has a zone
+    end. Its negated bus-sum is the AHC virtual hubs' net exchange with Core (see the plate
+    balance in :func:`define_flow_based_constraints`); internal lossless EvFB nets to zero.
+    """
+    zones = set(_classify_columns(n)[0])
+    links = n.c.links.static
+    eff = links["efficiency"]
+    coeff = pd.DataFrame(
+        0.0, index=pd.Index(sorted(zones), name="name"), columns=_classify_columns(n)[1]
+    )
+    for link in coeff.columns:
+        b0, b1 = links.at[link, "bus0"], links.at[link, "bus1"]
+        if b0 in zones:
+            coeff.at[b0, link] += 1.0
+        if b1 in zones:
+            coeff.at[b1, link] += -eff[link]
+    coeff = coeff.loc[:, (coeff != 0).any()]
+    if coeff.columns.empty:
+        return None
+    da = xr.DataArray(
+        coeff.values, dims=["name", "link"],
+        coords={"name": coeff.index, "link": coeff.columns},
+    )
+    link_p = n.model["Link-p"].sel(name=list(coeff.columns)).rename(name="link")
+    return (link_p * da).sum("link")
+
+
+def flow_based_balance_terms(n: Network, buses: pd.Index) -> Any:
+    """Terms the flow-based domain contributes to the nodal balance, or ``None``.
+
+    Each zone bus gets ``-net_position`` (its balance reads ``generation - load - NP = 0``)
+    plus the cancellation of any corridor link's Core-side term (see :func:`_corridor_cut`),
+    so net positions stay ``generation - load`` and corridors are not double-counted.
+    """
+    if NP_VAR not in n.model.variables:
+        return None
+    np_var = n.model[NP_VAR].rename(bus="name")
+    fb_buses = np_var.indexes["name"].intersection(buses)
+    if fb_buses.empty:
+        return None
+    cut = _corridor_cut(n)
+    expr = -1 * np_var
+    if cut is not None:
+        expr = expr + cut
+    return expr.sel(name=fb_buses)
 
 
 def _zonal_ptdf(n: Network) -> xr.DataArray:
@@ -140,10 +196,12 @@ def define_flow_based_constraints(n: Network, sns: pd.Index) -> None:
     """Define the flow-based constraints ``zonal_ptdf . NP <= RAM`` and ``sum(NP) = 0``.
 
     The net-position variables are injected into the nodal balance elsewhere; here we add
-    the domain half-spaces and the global zero-sum balance. Link columns (AHC/EvFB
-    corridors) contribute ``zonal_ptdf . Link-p`` terms, using the link flow in its
-    ``bus0 -> bus1`` direction (the domain column must follow that sign convention). The
-    constraint is indexed by the CNEC (component ``name``), so its dual is mapped to
+    the domain half-spaces and the global balance. Link columns (AHC/EvFB corridors)
+    contribute ``zonal_ptdf . Link-p`` terms, using the link flow in its ``bus0 -> bus1``
+    direction (the domain column must follow that sign convention). The global balance is
+    ``sum(NP) + sum(AHC hub net positions) = 0``: Core zones plus the AHC virtual hubs sum
+    to zero, so Core need not be internally balanced when it exchanges over AHC borders. The
+    domain constraint is indexed by the CNEC (component ``name``), so its dual is mapped to
     ``mu_domain`` by the standard dual assignment.
     """
     if not _has_flow_based(n):
@@ -159,4 +217,9 @@ def define_flow_based_constraints(n: Network, sns: pd.Index) -> None:
 
     ram = n.c.flow_based_domains.da.ram.sel(name=_active(n).index)
     m.add_constraints(lhs <= ram, name="FlowBasedDomain-domain")
-    m.add_constraints(m[NP_VAR].sum("bus") == 0, name="FlowBasedDomain-balance")
+
+    plate = m[NP_VAR].sum("bus")
+    cut = _corridor_cut(n)
+    if cut is not None:
+        plate = plate - cut.sum("name")  # AHC hubs' net exchange with Core
+    m.add_constraints(plate == 0, name="FlowBasedDomain-balance")
