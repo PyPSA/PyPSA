@@ -1619,7 +1619,7 @@ class SpatialClusteringMixin:
         # when voltage-aware electrical strategies aggregate parallel branches.
         _r_epsilon = 1e-6
         for component in ("lines", "transformers"):
-            static = getattr(clustered, component)
+            static = clustered.c[component].static
             if "r" in static.columns:
                 zero_r = static["r"] == 0
                 if zero_r.any():

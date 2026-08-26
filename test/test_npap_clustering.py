@@ -578,7 +578,9 @@ class TestBusmapByNpap:
         assert npap_busmap_result.nunique() == 50
 
     def test_covers_all_buses(self, npap_busmap_result, scipy_network_for_npap):
-        assert set(npap_busmap_result.index) == set(scipy_network_for_npap.buses.index)
+        assert set(npap_busmap_result.index) == set(
+            scipy_network_for_npap.c.buses.static.index
+        )
 
     def test_voltage_aware_haversine_single_ac_island(self, scipy_network_for_npap):
         from pypsa.clustering.spatial import busmap_by_npap
@@ -615,7 +617,7 @@ class TestGetNpapClusteringFromBusmap:
         self, npap_busmap_clustering_result, scipy_network_for_npap
     ):
         assert set(npap_busmap_clustering_result.busmap.index) == set(
-            scipy_network_for_npap.buses.index
+            scipy_network_for_npap.c.buses.static.index
         )
 
     def test_busmap_values_are_strings(self, npap_busmap_clustering_result):
@@ -627,13 +629,13 @@ class TestGetNpapClusteringFromBusmap:
     def test_linemap_index_subset_of_original_lines(
         self, npap_busmap_clustering_result, scipy_network_for_npap
     ):
-        original_lines = scipy_network_for_npap.lines.index
+        original_lines = scipy_network_for_npap.c.lines.static.index
         assert npap_busmap_clustering_result.linemap.index.isin(original_lines).all()
 
     def test_linemap_values_subset_of_aggregated_lines(
         self, npap_busmap_clustering_result
     ):
-        aggregated_lines = npap_busmap_clustering_result.n.lines.index
+        aggregated_lines = npap_busmap_clustering_result.n.c.lines.static.index
         assert npap_busmap_clustering_result.linemap.isin(aggregated_lines).all()
 
     def test_generators_carried_forward(
@@ -645,8 +647,8 @@ class TestGetNpapClusteringFromBusmap:
         )
 
     def test_generator_bus_references_valid(self, npap_busmap_clustering_result):
-        clustered_buses = npap_busmap_clustering_result.n.buses.index
-        gen_buses = npap_busmap_clustering_result.n.generators.bus
+        clustered_buses = npap_busmap_clustering_result.n.c.buses.static.index
+        gen_buses = npap_busmap_clustering_result.n.c.generators.static.bus
         assert gen_buses.isin(clustered_buses).all()
 
     def test_loads_carried_forward(
@@ -657,8 +659,8 @@ class TestGetNpapClusteringFromBusmap:
         )
 
     def test_load_bus_references_valid(self, npap_busmap_clustering_result):
-        clustered_buses = npap_busmap_clustering_result.n.buses.index
-        load_buses = npap_busmap_clustering_result.n.loads.bus
+        clustered_buses = npap_busmap_clustering_result.n.c.buses.static.index
+        load_buses = npap_busmap_clustering_result.n.c.loads.static.bus
         assert load_buses.isin(clustered_buses).all()
 
     def test_snapshots_preserved(
@@ -669,8 +671,8 @@ class TestGetNpapClusteringFromBusmap:
         )
 
     def test_aggregated_lines_have_valid_bus_refs(self, npap_busmap_clustering_result):
-        clustered_buses = npap_busmap_clustering_result.n.buses.index
-        lines = npap_busmap_clustering_result.n.lines
+        clustered_buses = npap_busmap_clustering_result.n.c.buses.static.index
+        lines = npap_busmap_clustering_result.n.c.lines.static
         assert lines.bus0.isin(clustered_buses).all()
         assert lines.bus1.isin(clustered_buses).all()
 
