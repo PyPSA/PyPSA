@@ -4,9 +4,9 @@ SPDX-FileCopyrightText: PyPSA Contributors
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Flow-Based Domain
+# Flow-Based Constraint
 
-The [`FlowBasedDomain`][pypsa.components.FlowBasedDomains] components describe a flow-based market-coupling domain: a set of linear constraints that bound the *net positions* of the market zones (buses) by
+The [`FlowBasedConstraint`][pypsa.components.FlowBasedConstraints] components describe a flow-based market-coupling domain: a set of linear constraints that bound the *net positions* of the market zones (buses) by
 
 $$\text{zonal\_ptdf} \cdot NP \le \text{RAM},$$
 
@@ -18,7 +18,7 @@ where each component (row) is one critical network element (CNEC). This replaces
 
 ## Zonal PTDF
 
-Unlike the scalar attributes below, the zonal power transfer distribution factors form a matrix (CNEC × zone) and are stored in the dedicated frame `n.c.flow_based_domains.zonal_ptdf` (rows = CNECs, columns = zone buses). The name distinguishes it from the *nodal* PTDF computed per [sub-network](sub-networks.md) via `sub_network.calculate_PTDF()`. Pass it directly to [`n.add`][pypsa.Network.add] together with the remaining available margin `ram` (which may be static or time-varying):
+Unlike the scalar attributes below, the zonal power transfer distribution factors form a matrix (CNEC × zone) and are stored in the dedicated frame `n.c.flow_based_constraints.zonal_ptdf` (rows = CNECs, columns = zone buses). The name distinguishes it from the *nodal* PTDF computed per [sub-network](sub-networks.md) via `sub_network.calculate_PTDF()`. Pass it directly to [`n.add`][pypsa.Network.add] together with the remaining available margin `ram` (which may be static or time-varying):
 
 ```python
 import pandas as pd
@@ -32,7 +32,7 @@ zonal_ptdf = pd.DataFrame(
     {"DE": [0.4, -0.3], "FR": [-0.2, 0.5], "BE": [0.1, 0.2]},
     index=["cnec_1", "cnec_2"],
 )
-n.add("FlowBasedDomain", zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=[1000.0, 800.0])
+n.add("FlowBasedConstraint", zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=[1000.0, 800.0])
 ```
 
 Both the `ram` (like any `static or series` attribute) and the zonal PTDF itself may be time-varying. For a time-varying domain, pass a `zonal_ptdf` with a `(snapshot, CNEC)` MultiIndex on the rows and the zones as columns; the frame keeps that MultiIndex, and `c.zonal_ptdf.loc[snapshot]` selects one hour's matrix. A domain is static or time-varying as a whole, not a mix.
@@ -40,7 +40,7 @@ Both the `ram` (like any `static or series` attribute) and the zonal PTDF itself
 ```python
 # one matrix per snapshot, stacked under a (snapshot, cnec) MultiIndex
 zonal_ptdf_t = pd.concat({sns: zonal_ptdf for sns in n.snapshots}, names=["snapshot", "name"])
-n.add("FlowBasedDomain", zonal_ptdf.index, zonal_ptdf=zonal_ptdf_t, ram=[1000.0, 800.0])
+n.add("FlowBasedConstraint", zonal_ptdf.index, zonal_ptdf=zonal_ptdf_t, ram=[1000.0, 800.0])
 ```
 
 The internal xarray view `c.da.zonal_ptdf` then carries a `snapshot` dimension, and the domain constraint broadcasts over it; nothing else in the API changes.
@@ -54,7 +54,7 @@ n.add("Link", "ALEGrO", bus0="BE", bus1="DE", p_nom=1000)  # EvFB (two zones)
 n.add("Link", "NorNed", bus0="NL", bus1="NO2", p_nom=700)   # AHC (zone to external NO2)
 zonal_ptdf["ALEGrO"] = ...  # sensitivity to the link flow in its bus0 -> bus1 direction
 zonal_ptdf["NorNed"] = ...
-n.c.flow_based_domains.add(cnecs, zonal_ptdf=zonal_ptdf, ram=ram)
+n.c.flow_based_constraints.add(cnecs, zonal_ptdf=zonal_ptdf, ram=ram)
 ```
 
 The link column's sign must follow the link's `bus0 → bus1` flow direction (the sign of `Link-p`); flip the column if your link orientation is opposite to the published convention.
@@ -68,18 +68,18 @@ The link column's sign must follow the link's `bus0 → bus1` flow direction (th
 Published flow-based domains can be read directly. `from_eraa` parses an ERAA `FB-Domain-CORE` Excel workbook (one target year and season); `from_jao` parses a JAO `finalComputation` CSV (one market hour); `from_tso` parses a TSO `MS_FBMC` domain CSV (one typical situation):
 
 ```python
-n.c.flow_based_domains.from_eraa(
+n.c.flow_based_constraints.from_eraa(
     "FB-Domain-CORE_simplified.xlsx", year="2030", season="winter1"
 )
-n.c.flow_based_domains.from_jao("finalComputation.csv")  # presolved rows by default
-n.c.flow_based_domains.from_tso("MS_FBMC_Domain_TS1.csv")  # one file, self-typed
+n.c.flow_based_constraints.from_jao("finalComputation.csv")  # presolved rows by default
+n.c.flow_based_constraints.from_tso("MS_FBMC_Domain_TS1.csv")  # one file, self-typed
 ```
 
 A single `season` reads one time-invariant ERAA domain. To build a *time-varying* domain, pass `season` as a `pandas.Series` indexed by the network snapshots, mapping each snapshot to a season name; `from_eraa` reads the referenced seasons and stacks them into the `(snapshot, CNEC)` frame described above:
 
 ```python
 season = pd.Series({t: "winter1" if t.month in (12, 1, 2) else "summer1" for t in n.snapshots})
-n.c.flow_based_domains.from_eraa("FB-Domain-CORE_simplified.xlsx", year="2030", season=season)
+n.c.flow_based_constraints.from_eraa("FB-Domain-CORE_simplified.xlsx", year="2030", season=season)
 ```
 
 The seasons need not share a CNEC list: the domain holds the union, and where a CNEC is absent in the season a snapshot maps to, its PTDF row is zero and its RAM infinite, so that constraint is present but never binds that hour. This assumes `CNEC_ID` identifies the same element across seasons. `from_jao` and `from_tso` remain time-invariant for now.
@@ -91,7 +91,7 @@ The importers map the file's zone labels to bus names of the same name; there is
 To bring in the AHC/EvFB corridors as link terms, pass a `links` mapping. For ERAA the border columns are directed labels `"A-B"`, so the sign is aligned automatically to the link's `bus0 → bus1` orientation; unmapped corridors are dropped:
 
 ```python
-n.c.flow_based_domains.from_eraa(
+n.c.flow_based_constraints.from_eraa(
     "FB-Domain-CORE_simplified.xlsx", year="2030", season="winter1",
     links={"CH00-AT00": "AT_CH_dc", "BE00-DE00": "ALEGrO"},
 )
@@ -99,4 +99,4 @@ n.c.flow_based_domains.from_eraa(
 
 For JAO the external hubs are undirected labels, so `links` only renames the column — set the link's orientation (or flip the column) to match the hub's net-position convention.
 
-{{ read_csv('../../../pypsa/data/component_attrs/flow_based_domains.csv') }}
+{{ read_csv('../../../pypsa/data/component_attrs/flow_based_constraints.csv') }}

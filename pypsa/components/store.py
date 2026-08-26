@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from pypsa.components._types.buses import Buses
     from pypsa.components._types.carriers import Carriers
     from pypsa.components._types.generators import Generators
-    from pypsa.components._types.flow_based_domains import FlowBasedDomains
+    from pypsa.components._types.flow_based_constraints import FlowBasedConstraints
     from pypsa.components._types.global_constraints import GlobalConstraints
     from pypsa.components._types.line_types import LineTypes
     from pypsa.components._types.lines import Lines
@@ -43,7 +43,7 @@ class ComponentsStore(dict):
     buses: Buses
     carriers: Carriers
     generators: Generators
-    flow_based_domains: FlowBasedDomains
+    flow_based_constraints: FlowBasedConstraints
     global_constraints: GlobalConstraints
     line_types: LineTypes
     lines: Lines

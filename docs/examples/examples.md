@@ -27,7 +27,7 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
 -   :material-notebook:{ .lg .middle } **Flow-Based Market Coupling**
 
-    Clears a flow-based domain with the `FlowBasedDomain` component: net positions, zonal prices, binding CNECs, and coupling to neighbours via AHC and EvFB.
+    Clears a flow-based domain with the `FlowBasedConstraint` component: net positions, zonal prices, binding CNECs, and coupling to neighbours via AHC and EvFB.
 
     [:octicons-arrow-right-24: Go to example](flow-based-market-coupling.ipynb)
 

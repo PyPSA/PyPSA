@@ -427,7 +427,7 @@ class Components(
         return static, dynamic, piecewise
 
     #: Matrix-valued attributes (cnec x zone etc.) passed to ``add`` but stored outside
-    #: the static/dynamic frames. Empty for standard components; see FlowBasedDomains.
+    #: the static/dynamic frames. Empty for standard components; see FlowBasedConstraints.
     frame_attrs: tuple[str, ...] = ()
 
     def _set_frame(self, attr: str, value: Any, names: pd.Index) -> None:

@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class FlowBasedDomains(Components):
+class FlowBasedConstraints(Components):
     """Flow-based domain components class.
 
     A non-physical component holding a flow-based market-coupling domain: a set of

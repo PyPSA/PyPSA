@@ -7,7 +7,7 @@
 A flow-based domain constrains the *net positions* of market zones (buses) by a set of
 linear inequalities ``zonal_ptdf . NP <= RAM``. Each row is a critical network element
 (CNEC). The zonal PTDF sensitivities are stored in the dedicated
-``n.c.flow_based_domains.zonal_ptdf`` frame (cnec x zone, or ``(snapshot, cnec) x zone``
+``n.c.flow_based_constraints.zonal_ptdf`` frame (cnec x zone, or ``(snapshot, cnec) x zone``
 when time-varying); the ``ram`` attribute (static or time-varying) is the right-hand
 side. Both the PTDF and the RAM may vary by snapshot; the constraint broadcasts either.
 
@@ -39,18 +39,18 @@ import xarray as xr
 if TYPE_CHECKING:
     from pypsa import Network
 
-NP_VAR = "FlowBasedDomain-net_position"
+NP_VAR = "FlowBasedConstraint-net_position"
 
 
 def _has_flow_based(n: Network) -> bool:
     """Whether the network carries at least one active flow-based constraint."""
-    static = n.c.flow_based_domains.static
+    static = n.c.flow_based_constraints.static
     return not static.empty and static["active"].any()
 
 
 def _active(n: Network) -> pd.DataFrame:
     """Active flow-based constraints (static frame)."""
-    static = n.c.flow_based_domains.static
+    static = n.c.flow_based_constraints.static
     return static[static["active"]]
 
 
@@ -68,7 +68,7 @@ def _classify_columns(n: Network) -> tuple[list, list]:
         If a column is neither a bus nor a link.
 
     """
-    cols = n.c.flow_based_domains.zonal_ptdf.columns
+    cols = n.c.flow_based_constraints.zonal_ptdf.columns
     buses = set(n.c.buses.static.index)
     links = set(n.c.links.static.index)
     zone_cols = [c for c in cols if c in buses]
@@ -139,7 +139,7 @@ def flow_based_balance_terms(n: Network, buses: pd.Index) -> Any:
 
 def _zonal_ptdf(n: Network) -> xr.DataArray:
     """Active zonal PTDF as a DataArray with dims (name, bus)."""
-    return n.c.flow_based_domains.da.zonal_ptdf.sel(name=_active(n).index)
+    return n.c.flow_based_constraints.da.zonal_ptdf.sel(name=_active(n).index)
 
 
 def validate_flow_based(n: Network) -> None:
@@ -216,11 +216,11 @@ def define_flow_based_constraints(n: Network, sns: pd.Index) -> None:
         link_p = m["Link-p"].sel(name=link_cols).rename(name="link")
         lhs = lhs + (link_p * ptdf.sel(bus=link_cols).rename(bus="link")).sum("link")
 
-    ram = n.c.flow_based_domains.da.ram.sel(name=_active(n).index)
-    m.add_constraints(lhs <= ram, name="FlowBasedDomain-domain")
+    ram = n.c.flow_based_constraints.da.ram.sel(name=_active(n).index)
+    m.add_constraints(lhs <= ram, name="FlowBasedConstraint-domain")
 
     plate = m[NP_VAR].sum("bus")
     cut = _corridor_cut(n)
     if cut is not None:
         plate = plate - cut.sum("name")  # AHC hubs' net exchange with Core
-    m.add_constraints(plate == 0, name="FlowBasedDomain-balance")
+    m.add_constraints(plate == 0, name="FlowBasedConstraint-balance")

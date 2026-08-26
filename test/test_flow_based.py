@@ -43,20 +43,23 @@ def _add_domain(
     if dynamic:
         ptdf = _dynamic_ptdf(domain, ZONES, n.snapshots)
         n.add(
-            "FlowBasedDomain", domain.index, zonal_ptdf=ptdf, ram=domain["RAM"].values
+            "FlowBasedConstraint",
+            domain.index,
+            zonal_ptdf=ptdf,
+            ram=domain["RAM"].values,
         )
         return
     if one_at_a_time:
         for cnec in domain.index:
             n.add(
-                "FlowBasedDomain",
+                "FlowBasedConstraint",
                 cnec,
                 zonal_ptdf=domain.loc[cnec, ZONES],
                 ram=float(domain.loc[cnec, "RAM"]),
             )
     else:
         n.add(
-            "FlowBasedDomain",
+            "FlowBasedConstraint",
             domain.index,
             zonal_ptdf=domain[ZONES],
             ram=domain["RAM"].values,
@@ -80,7 +83,14 @@ def _net_positions(n: pypsa.Network) -> pd.Series:
     return (n.generators_t.p.iloc[0] - LOADS)[ZONES].round(0)
 
 
-SYMMETRIC = {"AB+": 1000, "AB-": 1000, "BC+": 1500, "BC-": 1500, "AC+": 2000, "AC-": 2000}
+SYMMETRIC = {
+    "AB+": 1000,
+    "AB-": 1000,
+    "BC+": 1500,
+    "BC-": 1500,
+    "AC+": 2000,
+    "AC-": 2000,
+}
 
 
 @pytest.mark.parametrize("one_at_a_time", [False, True])
@@ -92,7 +102,11 @@ def test_symmetric_domain_reproduces_toy(one_at_a_time):
     assert _net_positions(n).to_dict() == {"A": 2000.0, "B": -1000.0, "C": -1000.0}
     prices = n.buses_t.marginal_price.iloc[0][ZONES].round(1)
     assert prices.to_dict() == {"A": 10.0, "B": 80.0, "C": 45.0}
-    mu = n.model.constraints["FlowBasedDomain-domain"].dual.isel(snapshot=0).to_pandas()
+    mu = (
+        n.model.constraints["FlowBasedConstraint-domain"]
+        .dual.isel(snapshot=0)
+        .to_pandas()
+    )
     binding = mu[mu.abs() > 1e-4].round(1)
     assert binding.index.tolist() == ["AB+"]
     assert binding.iloc[0] == pytest.approx(-105.0)
@@ -118,7 +132,18 @@ def test_prices_come_from_nodal_balance():
 
 def test_asymmetric_ram_shifts_the_optimum():
     """A tighter AB+ margin curbs A's export below the symmetric case."""
-    n = _network(_domain({"AB+": 600, "AB-": 1000, "BC+": 1500, "BC-": 1500, "AC+": 2000, "AC-": 2000}))
+    n = _network(
+        _domain(
+            {
+                "AB+": 600,
+                "AB-": 1000,
+                "BC+": 1500,
+                "BC-": 1500,
+                "AC+": 2000,
+                "AC-": 2000,
+            }
+        )
+    )
     n.optimize(log_to_console=False)
     assert _net_positions(n)["A"] < 2000.0
 
@@ -131,11 +156,18 @@ def test_shadow_prices_reproduce_zonal_price_spreads():
     """
     n = _network(
         _domain(
-            {"AB+": 600, "AB-": 1200, "BC+": 1500, "BC-": 1500, "AC+": 1400, "AC-": 2000}
+            {
+                "AB+": 600,
+                "AB-": 1200,
+                "BC+": 1500,
+                "BC-": 1500,
+                "AC+": 1400,
+                "AC-": 2000,
+            }
         )
     )
     n.optimize(log_to_console=False, assign_all_duals=True)
-    c = n.c.flow_based_domains
+    c = n.c.flow_based_constraints
 
     mu = c.dynamic["mu_domain"].iloc[0]  # per-CNEC shadow price via generic assignment
     assert (mu.abs() > 1e-4).any()  # at least one CNEC binds
@@ -153,7 +185,7 @@ def test_dual_assignment_is_clean():
     """mu_domain is assigned (per CNEC); the bus/scalar objects create no junk frames."""
     n = _network(_domain(SYMMETRIC))
     n.optimize(log_to_console=False, assign_all_duals=True)
-    dynamic = n.c.flow_based_domains.dynamic
+    dynamic = n.c.flow_based_constraints.dynamic
     assert list(dynamic["mu_domain"].columns) == sorted(SYMMETRIC)  # per-CNEC
     assert "net_position" not in dynamic  # net position lives in n.buses_t.net_position
     assert "mu_balance" not in dynamic  # scalar zero-sum dual has no component slot
@@ -181,8 +213,19 @@ def _ahc_evfb_network(dynamic: bool = False):
     if dynamic:
         n.set_snapshots([0, 1])
     n.add("Bus", ["A", "B", "C", "X"])
-    n.add("Load", ["A", "B", "C", "X"], bus=["A", "B", "C", "X"], p_set=[500.0, 1500.0, 1000.0, 200.0])
-    n.add("Generator", ["A", "B", "C"], bus=["A", "B", "C"], p_nom=4000, marginal_cost=[10.0, 80.0, 50.0])
+    n.add(
+        "Load",
+        ["A", "B", "C", "X"],
+        bus=["A", "B", "C", "X"],
+        p_set=[500.0, 1500.0, 1000.0, 200.0],
+    )
+    n.add(
+        "Generator",
+        ["A", "B", "C"],
+        bus=["A", "B", "C"],
+        p_nom=4000,
+        marginal_cost=[10.0, 80.0, 50.0],
+    )
     n.add("Generator", "Xgen", bus="X", p_nom=4000, marginal_cost=15.0)
     n.add("Link", "AB_hvdc", bus0="A", bus1="B", p_nom=800)  # EvFB (two zones)
     n.add("Link", "CX_hvdc", bus0="C", bus1="X", p_nom=600)  # AHC (zone to external)
@@ -190,7 +233,7 @@ def _ahc_evfb_network(dynamic: bool = False):
     d["AB_hvdc"], d["CX_hvdc"] = 0.2, 0.15
     cols = [*ZONES, "AB_hvdc", "CX_hvdc"]
     ptdf = _dynamic_ptdf(d, cols, n.snapshots) if dynamic else d[cols]
-    n.c.flow_based_domains.add(d.index, zonal_ptdf=ptdf, ram=d["RAM"].values)
+    n.c.flow_based_constraints.add(d.index, zonal_ptdf=ptdf, ram=d["RAM"].values)
     return n
 
 
@@ -204,15 +247,27 @@ def test_link_columns_reconstruct_cnec_loading():
     """
     n = _ahc_evfb_network()
     n.optimize(log_to_console=False, assign_all_duals=True)
-    c = n.c.flow_based_domains
+    c = n.c.flow_based_constraints
     zp = c.zonal_ptdf
     zone_cols = [col for col in zp.columns if col in n.buses.index]
     link_cols = [col for col in zp.columns if col in n.links.index]
-    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
+    np_var = (
+        n.model["FlowBasedConstraint-net_position"]
+        .solution.isel(snapshot=0)
+        .to_pandas()
+    )
     # the net position is gen - load, unaffected by the corridor flows
-    gen_load = (n.generators_t.p.iloc[0].groupby(n.generators.bus).sum() - n.loads_t.p.iloc[0].groupby(n.loads.bus).sum())
-    assert np_var[zone_cols].round(1).to_dict() == gen_load[zone_cols].round(1).to_dict()
-    loading = zp[zone_cols] @ np_var[zone_cols] + zp[link_cols] @ n.links_t.p0.iloc[0][link_cols]
+    gen_load = (
+        n.generators_t.p.iloc[0].groupby(n.generators.bus).sum()
+        - n.loads_t.p.iloc[0].groupby(n.loads.bus).sum()
+    )
+    assert (
+        np_var[zone_cols].round(1).to_dict() == gen_load[zone_cols].round(1).to_dict()
+    )
+    loading = (
+        zp[zone_cols] @ np_var[zone_cols]
+        + zp[link_cols] @ n.links_t.p0.iloc[0][link_cols]
+    )
     ram = c.static["ram"]
     assert (loading <= ram + 1e-6).all()  # feasible
     mu = c.dynamic["mu_domain"].iloc[0]
@@ -233,13 +288,21 @@ def test_ahc_import_not_double_counted():
     n.add("Generator", "gX", bus="X", p_nom=1000, marginal_cost=5)
     n.add("Load", ["lA", "lB"], bus=["A", "B"], p_set=[200.0, 800.0])
     n.add("Link", "X-A", bus0="X", bus1="A", p_nom=500, p_min_pu=-1)
-    ptdf = pd.DataFrame({"A": [0.4], "B": [-0.6], "X-A": [0.3]}, index=pd.Index(["c1"], name="name"))
-    n.c.flow_based_domains.add("c1", zonal_ptdf=ptdf, ram=800.0)
+    ptdf = pd.DataFrame(
+        {"A": [0.4], "B": [-0.6], "X-A": [0.3]}, index=pd.Index(["c1"], name="name")
+    )
+    n.c.flow_based_constraints.add("c1", zonal_ptdf=ptdf, ram=800.0)
     n.optimize(log_to_console=False)
 
-    assert n.links_t.p0.iloc[0]["X-A"] == pytest.approx(500.0)  # import flows (was blocked)
+    assert n.links_t.p0.iloc[0]["X-A"] == pytest.approx(
+        500.0
+    )  # import flows (was blocked)
     assert n.objective == pytest.approx(7500.0)  # cheap import used, not local gen
-    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
+    np_var = (
+        n.model["FlowBasedConstraint-net_position"]
+        .solution.isel(snapshot=0)
+        .to_pandas()
+    )
     assert np_var["A"] == pytest.approx(300.0)  # gen - load, no corridor leak
 
 
@@ -247,14 +310,24 @@ def test_ahc_export_keeps_net_position_and_plate_sign():
     """Core exports over an AHC border on bus0: net position stays gen-load, plate closes."""
     n = pypsa.Network()
     n.add("Bus", ["A", "B", "X"])
-    n.add("Generator", ["gA", "gB"], bus=["A", "B"], p_nom=2000, marginal_cost=[5.0, 50.0])
+    n.add(
+        "Generator", ["gA", "gB"], bus=["A", "B"], p_nom=2000, marginal_cost=[5.0, 50.0]
+    )
     n.add("Load", ["lA", "lB", "lX"], bus=["A", "B", "X"], p_set=[100.0, 500.0, 400.0])
-    n.add("Link", "A-X", bus0="A", bus1="X", p_nom=500, p_min_pu=-1)  # Core (bus0) -> external
-    ptdf = pd.DataFrame({"A": [0.3], "B": [-0.3], "A-X": [0.2]}, index=pd.Index(["c1"], name="name"))
-    n.c.flow_based_domains.add("c1", zonal_ptdf=ptdf, ram=5000.0)
+    n.add(
+        "Link", "A-X", bus0="A", bus1="X", p_nom=500, p_min_pu=-1
+    )  # Core (bus0) -> external
+    ptdf = pd.DataFrame(
+        {"A": [0.3], "B": [-0.3], "A-X": [0.2]}, index=pd.Index(["c1"], name="name")
+    )
+    n.c.flow_based_constraints.add("c1", zonal_ptdf=ptdf, ram=5000.0)
     n.optimize(log_to_console=False)
 
-    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
+    np_var = (
+        n.model["FlowBasedConstraint-net_position"]
+        .solution.isel(snapshot=0)
+        .to_pandas()
+    )
     genA = n.generators_t.p.iloc[0]["gA"]
     F = n.links_t.p0.iloc[0]["A-X"]
     assert F == pytest.approx(400.0)  # cheap A serves the external load
@@ -271,11 +344,19 @@ def test_evfb_stays_off_the_plate():
     n.add("Link", "AB", bus0="A", bus1="B", p_nom=800)  # EvFB (both ends zones)
     d = _domain(SYMMETRIC)
     d["AB"] = 0.2
-    n.c.flow_based_domains.add(d.index, zonal_ptdf=d[[*ZONES, "AB"]], ram=d["RAM"].values)
+    n.c.flow_based_constraints.add(
+        d.index, zonal_ptdf=d[[*ZONES, "AB"]], ram=d["RAM"].values
+    )
     n.optimize(log_to_console=False)
 
-    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
-    assert np_var.sum() == pytest.approx(0.0)  # internal corridor -> no net Core exchange
+    np_var = (
+        n.model["FlowBasedConstraint-net_position"]
+        .solution.isel(snapshot=0)
+        .to_pandas()
+    )
+    assert np_var.sum() == pytest.approx(
+        0.0
+    )  # internal corridor -> no net Core exchange
     assert np_var[ZONES].round(0).tolist() == _net_positions(n).tolist()  # gen - load
 
 
@@ -285,18 +366,30 @@ def test_fully_external_link_column_is_constrained_not_cut():
     n.add("Bus", [*ZONES, "X", "Y"])
     n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
     n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
-    n.add("Generator", ["gX", "gY"], bus=["X", "Y"], p_nom=1000, marginal_cost=[1.0, 100.0])
+    n.add(
+        "Generator",
+        ["gX", "gY"],
+        bus=["X", "Y"],
+        p_nom=1000,
+        marginal_cost=[1.0, 100.0],
+    )
     n.add("Load", "lY", bus="Y", p_set=300.0)
     n.add("Link", "XY", bus0="X", bus1="Y", p_nom=1000, p_min_pu=-1)  # fully external
     d = _domain(SYMMETRIC)
     d["XY"] = 0.0
     d.loc["ext"] = {"A": 0.0, "B": 0.0, "C": 0.0, "XY": 1.0, "RAM": 200.0}
-    n.c.flow_based_domains.add(d.index, zonal_ptdf=d[[*ZONES, "XY"]], ram=d["RAM"].values)
+    n.c.flow_based_constraints.add(
+        d.index, zonal_ptdf=d[[*ZONES, "XY"]], ram=d["RAM"].values
+    )
     n.optimize(log_to_console=False)
 
     assert n.links_t.p0.iloc[0]["XY"] == pytest.approx(200.0)  # capped by its own CNEC
     assert _net_positions(n).to_dict() == {"A": 2000.0, "B": -1000.0, "C": -1000.0}
-    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
+    np_var = (
+        n.model["FlowBasedConstraint-net_position"]
+        .solution.isel(snapshot=0)
+        .to_pandas()
+    )
     assert np_var.sum() == pytest.approx(0.0)  # external link is not on the plate
 
 
@@ -304,32 +397,48 @@ def test_buses_p_is_physical_injection_hub_np_is_link_flow():
     """With a corridor, buses_t.p is the physical injection; the hub NP is read from Link-p0."""
     n = pypsa.Network()
     n.add("Bus", ["A", "B", "X"])
-    n.add("Generator", ["gA", "gX"], bus=["A", "X"], p_nom=1000, marginal_cost=[10.0, 5.0])
+    n.add(
+        "Generator", ["gA", "gX"], bus=["A", "X"], p_nom=1000, marginal_cost=[10.0, 5.0]
+    )
     n.add("Load", ["lA", "lB"], bus=["A", "B"], p_set=[200.0, 800.0])
     n.add("Link", "X-A", bus0="X", bus1="A", p_nom=500, p_min_pu=-1)
-    ptdf = pd.DataFrame({"A": [0.4], "B": [-0.6], "X-A": [0.3]}, index=pd.Index(["c1"], name="name"))
-    n.c.flow_based_domains.add("c1", zonal_ptdf=ptdf, ram=800.0)
+    ptdf = pd.DataFrame(
+        {"A": [0.4], "B": [-0.6], "X-A": [0.3]}, index=pd.Index(["c1"], name="name")
+    )
+    n.c.flow_based_constraints.add("c1", zonal_ptdf=ptdf, ram=800.0)
     n.optimize(log_to_console=False)
 
-    np_var = n.model["FlowBasedDomain-net_position"].solution.isel(snapshot=0).to_pandas()
+    np_var = (
+        n.model["FlowBasedConstraint-net_position"]
+        .solution.isel(snapshot=0)
+        .to_pandas()
+    )
     assert np_var["A"] == pytest.approx(300.0)  # domain net position = gen - load
-    assert n.buses_t.net_position.iloc[0]["A"] == pytest.approx(300.0)  # exposed output = NP var
-    assert n.buses_t.p.iloc[0]["A"] == pytest.approx(800.0)  # physical injection = gen-load+import
-    assert n.links_t.p0.iloc[0]["X-A"] == pytest.approx(500.0)  # virtual hub NP = link flow
-    assert "X" not in n.buses_t.net_position.columns[n.buses_t.net_position.iloc[0] != 0]  # zones only
+    assert n.buses_t.net_position.iloc[0]["A"] == pytest.approx(
+        300.0
+    )  # exposed output = NP var
+    assert n.buses_t.p.iloc[0]["A"] == pytest.approx(
+        800.0
+    )  # physical injection = gen-load+import
+    assert n.links_t.p0.iloc[0]["X-A"] == pytest.approx(
+        500.0
+    )  # virtual hub NP = link flow
+    assert (
+        "X" not in n.buses_t.net_position.columns[n.buses_t.net_position.iloc[0] != 0]
+    )  # zones only
 
 
 def test_evfb_cross_zone_link_column_is_allowed():
     """A cross-zone link that is a declared domain column (EvFB) passes validation."""
     n = _ahc_evfb_network()  # AB_hvdc connects zones A and B and is a column
     n.optimize(log_to_console=False)
-    assert "FlowBasedDomain-domain" in n.model.constraints
+    assert "FlowBasedConstraint-domain" in n.model.constraints
 
 
 def test_unknown_domain_column_raises():
     """A domain column that is neither a bus nor a link fails fast at build time."""
     n = _network(_domain(SYMMETRIC))
-    n.c.flow_based_domains.zonal_ptdf["ghost"] = 0.1  # not a bus or link
+    n.c.flow_based_constraints.zonal_ptdf["ghost"] = 0.1  # not a bus or link
     with pytest.raises(ValueError, match="neither"):
         n.optimize(log_to_console=False)
 
@@ -341,9 +450,15 @@ def test_bus_takes_priority_over_link_on_name_clash():
     n.add("Link", "C", bus0="A", bus1="gas", p_nom=100)  # link named like bus "C"
     n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
     n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
-    n.c.flow_based_domains.add(_domain(SYMMETRIC).index, zonal_ptdf=_domain(SYMMETRIC)[ZONES], ram=_domain(SYMMETRIC)["RAM"].values)
+    n.c.flow_based_constraints.add(
+        _domain(SYMMETRIC).index,
+        zonal_ptdf=_domain(SYMMETRIC)[ZONES],
+        ram=_domain(SYMMETRIC)["RAM"].values,
+    )
     n.optimize(log_to_console=False)
-    assert "C" in n.model["FlowBasedDomain-net_position"].indexes["bus"]  # zone, not link
+    assert (
+        "C" in n.model["FlowBasedConstraint-net_position"].indexes["bus"]
+    )  # zone, not link
 
 
 def test_non_zone_link_is_allowed():
@@ -358,15 +473,15 @@ def test_non_zone_link_is_allowed():
 def test_inactive_domain_is_ignored():
     """Deactivating all constraints leaves an unconstrained copper-plate clearing."""
     n = _network(_domain(SYMMETRIC))
-    n.flow_based_domains["active"] = False
+    n.flow_based_constraints["active"] = False
     n.optimize(log_to_console=False)
     # cheapest generator (A) serves all demand; no binding domain
-    assert "FlowBasedDomain-domain" not in n.model.constraints
+    assert "FlowBasedConstraint-domain" not in n.model.constraints
 
 
 def test_zonal_ptdf_views_are_pandas_and_xarray():
     """Zonal PTDF is public pandas (cnec x zone) and internal xarray (name, bus)."""
-    c = _network(_domain(SYMMETRIC)).c.flow_based_domains
+    c = _network(_domain(SYMMETRIC)).c.flow_based_constraints
     assert isinstance(c.zonal_ptdf, pd.DataFrame)
     assert list(c.zonal_ptdf.columns) == ZONES
     assert c.zonal_ptdf.loc["AB+", "A"] == pytest.approx(1 / 3)
@@ -376,9 +491,9 @@ def test_zonal_ptdf_views_are_pandas_and_xarray():
 def test_deactivating_one_cnec_relaxes_the_domain():
     """An inactive CNEC drops out of the constraint and no longer limits trade."""
     n = _network(_domain(SYMMETRIC))
-    n.c.flow_based_domains.static.loc["AB+", "active"] = False
+    n.c.flow_based_constraints.static.loc["AB+", "active"] = False
     n.optimize(log_to_console=False)
-    con = n.model.constraints["FlowBasedDomain-domain"]
+    con = n.model.constraints["FlowBasedConstraint-domain"]
     assert "AB+" not in con.dual.indexes["name"]  # excluded from the constraint
     assert _net_positions(n)["A"] > 2000.0  # AB+ no longer binds -> more export
 
@@ -386,9 +501,9 @@ def test_deactivating_one_cnec_relaxes_the_domain():
 def test_readd_with_overwrite_replaces_the_row():
     """Re-adding a CNEC with overwrite updates its PTDF and RAM without duplicating it."""
     n = _network(_domain(SYMMETRIC))
-    c = n.c.flow_based_domains
+    c = n.c.flow_based_constraints
     n.add(
-        "FlowBasedDomain",
+        "FlowBasedConstraint",
         "AB+",
         zonal_ptdf=pd.Series({"A": 0.9, "B": 0.0, "C": 0.0}),
         ram=99.0,
@@ -403,9 +518,13 @@ def test_incremental_add_unions_zones_with_zero_fill():
     """CNECs added separately with different zone sets share one zero-filled frame."""
     n = pypsa.Network()
     n.add("Bus", ZONES)
-    n.c.flow_based_domains.add("c1", zonal_ptdf=pd.Series({"A": 0.5, "B": -0.5}), ram=100.0)
-    n.c.flow_based_domains.add("c2", zonal_ptdf=pd.Series({"A": 0.2, "C": 0.3}), ram=200.0)
-    z = n.c.flow_based_domains.zonal_ptdf
+    n.c.flow_based_constraints.add(
+        "c1", zonal_ptdf=pd.Series({"A": 0.5, "B": -0.5}), ram=100.0
+    )
+    n.c.flow_based_constraints.add(
+        "c2", zonal_ptdf=pd.Series({"A": 0.2, "C": 0.3}), ram=200.0
+    )
+    z = n.c.flow_based_constraints.zonal_ptdf
     assert set(z.columns) == set(ZONES)
     assert z.loc["c1", "C"] == 0.0  # zone absent for c1 -> zero sensitivity
     assert z.loc["c2", "B"] == 0.0
@@ -418,7 +537,7 @@ def test_no_domain_optimizes_normally():
     n.add("Load", "l", bus="b", p_set=10.0)
     n.add("Generator", "g", bus="b", p_nom=20.0, marginal_cost=5.0)
     n.optimize(log_to_console=False)
-    assert "FlowBasedDomain-domain" not in n.model.constraints
+    assert "FlowBasedConstraint-domain" not in n.model.constraints
     assert n.generators_t.p.iloc[0]["g"] == pytest.approx(10.0)
 
 
@@ -426,8 +545,13 @@ def test_copy_preserves_domain_and_re_solves():
     """n.copy() deep-copies the zonal PTDF store; the copy solves independently."""
     n = _network(_domain(SYMMETRIC))
     m = n.copy()
-    assert m.c.flow_based_domains.zonal_ptdf.equals(n.c.flow_based_domains.zonal_ptdf)
-    assert m.c.flow_based_domains.zonal_ptdf is not n.c.flow_based_domains.zonal_ptdf
+    assert m.c.flow_based_constraints.zonal_ptdf.equals(
+        n.c.flow_based_constraints.zonal_ptdf
+    )
+    assert (
+        m.c.flow_based_constraints.zonal_ptdf
+        is not n.c.flow_based_constraints.zonal_ptdf
+    )
     m.optimize(log_to_console=False)
     assert _net_positions(m).to_dict() == {"A": 2000.0, "B": -1000.0, "C": -1000.0}
 
@@ -437,8 +561,8 @@ def test_single_and_bulk_add_agree():
     n_bulk = _network(_domain(SYMMETRIC))
     n_single = _network(_domain(SYMMETRIC), one_at_a_time=True)
     pd.testing.assert_frame_equal(
-        n_single.c.flow_based_domains.zonal_ptdf.sort_index(),
-        n_bulk.c.flow_based_domains.zonal_ptdf.sort_index(),
+        n_single.c.flow_based_constraints.zonal_ptdf.sort_index(),
+        n_bulk.c.flow_based_constraints.zonal_ptdf.sort_index(),
     )
     n_bulk.optimize(log_to_console=False)
     n_single.optimize(log_to_console=False)
@@ -460,7 +584,7 @@ def _dynamic_network(dA: pd.DataFrame, dB: pd.DataFrame) -> pypsa.Network:
     n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
     n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
     ptdf = pd.concat({0: dA[ZONES], 1: dB[ZONES]}, names=["snapshot", "name"])
-    n.add("FlowBasedDomain", dA.index, zonal_ptdf=ptdf, ram=dA["RAM"].values)
+    n.add("FlowBasedConstraint", dA.index, zonal_ptdf=ptdf, ram=dA["RAM"].values)
     return n
 
 
@@ -469,7 +593,7 @@ def test_time_varying_zonal_ptdf_frontend_and_da():
     dA = _domain(SYMMETRIC)
     dB = dA.copy()
     dB[ZONES] = dB[ZONES] * 2.0
-    c = _dynamic_network(dA, dB).c.flow_based_domains
+    c = _dynamic_network(dA, dB).c.flow_based_constraints
     assert isinstance(c.zonal_ptdf.index, pd.MultiIndex)
     assert list(c.zonal_ptdf.columns) == ZONES
     assert set(c.da.zonal_ptdf.dims) == {"snapshot", "name", "bus"}
@@ -503,8 +627,8 @@ def test_time_varying_zonal_ptdf_round_trips(tmp_path):
     n.export_to_netcdf(path)
     m = pypsa.Network(path)
     pd.testing.assert_frame_equal(
-        m.c.flow_based_domains.zonal_ptdf,
-        n.c.flow_based_domains.zonal_ptdf,
+        m.c.flow_based_constraints.zonal_ptdf,
+        n.c.flow_based_constraints.zonal_ptdf,
         check_index_type=False,  # cnec labels come back object vs StringDtype (PyPSA-wide)
     )
     m.optimize(log_to_console=False)  # the recovered domain still solves
@@ -518,7 +642,7 @@ def test_copy_preserves_time_varying_domain():
     n = _dynamic_network(dA, dB)
     m = n.copy()
     pd.testing.assert_frame_equal(
-        m.c.flow_based_domains.zonal_ptdf, n.c.flow_based_domains.zonal_ptdf
+        m.c.flow_based_constraints.zonal_ptdf, n.c.flow_based_constraints.zonal_ptdf
     )
 
 
@@ -535,14 +659,14 @@ def test_time_varying_ram_matches_per_snapshot_static():
     n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
     n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
     ram = pd.DataFrame({0: d0["RAM"], 1: d1["RAM"]}).T  # snapshot x cnec
-    n.add("FlowBasedDomain", d0.index, zonal_ptdf=d0[ZONES], ram=ram)
+    n.add("FlowBasedConstraint", d0.index, zonal_ptdf=d0[ZONES], ram=ram)
     n.optimize(log_to_console=False, assign_all_duals=True)
 
     npos = n.buses_t.net_position[ZONES].round(0)
     assert npos.loc[0].equals(ref0)
     assert npos.loc[1].equals(ref1)
     # one dual per snapshot
-    assert len(n.c.flow_based_domains.dynamic["mu_domain"]) == 2
+    assert len(n.c.flow_based_constraints.dynamic["mu_domain"]) == 2
 
 
 def test_time_varying_ptdf_with_link_column_broadcasts():
@@ -560,7 +684,7 @@ def test_time_varying_ptdf_with_link_column_broadcasts():
     n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
     n.add("Link", "AB_hvdc", bus0="A", bus1="B", p_nom=800)  # EvFB (two zones)
     ptdf = pd.concat({0: dA[cols], 1: dB[cols]}, names=["snapshot", "name"])
-    n.add("FlowBasedDomain", dA.index, zonal_ptdf=ptdf, ram=dA["RAM"].values)
+    n.add("FlowBasedConstraint", dA.index, zonal_ptdf=ptdf, ram=dA["RAM"].values)
     n.optimize(log_to_console=False)
 
     npos = n.buses_t.net_position[ZONES].round(0)
@@ -583,8 +707,8 @@ def test_time_varying_reproduces_static(make):
     n.optimize(log_to_console=False, assign_all_duals=True)
 
     ref_np = ref.buses_t.net_position.iloc[0][ZONES].round(0)
-    ref_mu = ref.c.flow_based_domains.dynamic["mu_domain"].iloc[0].round(3)
-    mu = n.c.flow_based_domains.dynamic["mu_domain"]
+    ref_mu = ref.c.flow_based_constraints.dynamic["mu_domain"].iloc[0].round(3)
+    mu = n.c.flow_based_constraints.dynamic["mu_domain"]
     for sns in n.snapshots:
         assert n.buses_t.net_position.loc[sns][ZONES].round(0).equals(ref_np)
         assert mu.loc[sns].round(3).equals(ref_mu)

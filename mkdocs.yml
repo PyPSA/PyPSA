@@ -52,7 +52,7 @@ nav:
       - Transformer Types: user-guide/components/transformer-types.md
       - Shunt Impedance: user-guide/components/shunt-impedances.md
       - Global Constraints: user-guide/components/global-constraints.md
-      - Flow-Based Domain: user-guide/components/flow-based-domains.md
+      - Flow-Based Constraint: user-guide/components/flow-based-constraints.md
       - Shapes: user-guide/components/shapes.md
       - Sub-Network: user-guide/components/sub-networks.md
   - Optimization:
@@ -176,7 +176,7 @@ nav:
       - Transformer: api/components/types/transformers.md
       - Link: api/components/types/links.md
       - Process: api/components/types/processes.md
-      - Flow-Based Domain: api/components/types/flow-based-domains.md
+      - Flow-Based Constraint: api/components/types/flow-based-constraints.md
       - Shapes: api/components/types/shapes.md
     - Utilities: api/components/common.md
   - Other:

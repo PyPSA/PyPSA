@@ -1452,7 +1452,7 @@ class NetworkIOMixin(_NetworkABC):
             # under a prefix, so it round-trips through every format: a static domain as
             # prefixed static columns (cnec index); a time-varying one as prefixed varying
             # attributes (one snapshot x cnec frame per zone).
-            if component == "FlowBasedDomain" and not c.zonal_ptdf.empty:
+            if component == "FlowBasedConstraint" and not c.zonal_ptdf.empty:
                 z = c.zonal_ptdf
                 if isinstance(z.index, pd.MultiIndex):
                     dynamic = dict(dynamic)
@@ -1658,8 +1658,8 @@ class NetworkIOMixin(_NetworkABC):
             self._import_components_from_df(df, component)
 
             # Recover the flow-based zonal PTDF matrix from its prefixed static columns.
-            if component == "FlowBasedDomain":
-                c = self.c.flow_based_domains
+            if component == "FlowBasedConstraint":
+                c = self.c.flow_based_constraints
                 cols = [col for col in c.static.columns if col.startswith(_ZONAL_PTDF_PREFIX)]
                 if cols:
                     frame = c.static[cols].rename(
@@ -1674,8 +1674,8 @@ class NetworkIOMixin(_NetworkABC):
                     self._import_series_from_df(df, component, attr)
 
             # Reassemble a time-varying zonal PTDF from its prefixed varying attributes.
-            if component == "FlowBasedDomain" and not skip_time:
-                c = self.c.flow_based_domains
+            if component == "FlowBasedConstraint" and not skip_time:
+                c = self.c.flow_based_constraints
                 zkeys = [k for k in list(c.dynamic) if k.startswith(_ZONAL_PTDF_PREFIX)]
                 if zkeys:
                     frames = {k[len(_ZONAL_PTDF_PREFIX) :]: c.dynamic[k] for k in zkeys}

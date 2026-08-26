@@ -10,7 +10,7 @@ base class and might add additional functionality or override existing methods.
 
 from pypsa.components._types.buses import Buses
 from pypsa.components._types.carriers import Carriers
-from pypsa.components._types.flow_based_domains import FlowBasedDomains
+from pypsa.components._types.flow_based_constraints import FlowBasedConstraints
 from pypsa.components._types.generators import Generators
 from pypsa.components._types.global_constraints import GlobalConstraints
 from pypsa.components._types.line_types import LineTypes
@@ -29,7 +29,7 @@ from pypsa.components._types.transformers import Transformers
 __all__ = [
     "Buses",
     "Carriers",
-    "FlowBasedDomains",
+    "FlowBasedConstraints",
     "Generators",
     "GlobalConstraints",
     "LineTypes",

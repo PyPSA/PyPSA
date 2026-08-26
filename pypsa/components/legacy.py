@@ -12,7 +12,7 @@ from pypsa.common import UnexpectedError
 from pypsa.components._types import (
     Buses,
     Carriers,
-    FlowBasedDomains,
+    FlowBasedConstraints,
     Generators,
     GlobalConstraints,
     Lines,
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 _CLASS_MAPPING = {
     "Bus": Buses,
     "Carrier": Carriers,
-    "FlowBasedDomain": FlowBasedDomains,
+    "FlowBasedConstraint": FlowBasedConstraints,
     "Generator": Generators,
     "GlobalConstraint": GlobalConstraints,
     "Line": Lines,

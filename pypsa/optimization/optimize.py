@@ -1060,7 +1060,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             # The flow-based net-position variable is indexed by zone bus, not by CNEC,
             # so it is written to the Bus dynamic output rather than mapped by component
             # name (the domain dual is mapped generically to mu_domain).
-            if _c_name == "FlowBasedDomain":
+            if _c_name == "FlowBasedConstraint":
                 if attr == "net_position":
                     df = _from_xarray(sol.rename(bus="name"), n.c.buses)
                     _set_dynamic_data(n, "Bus", "net_position", df)
@@ -1190,7 +1190,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
             # The flow-based zero-sum balance dual is a scalar per snapshot (no CNEC
             # dimension), so it has no component slot; the domain dual is mapped normally.
-            if c.name == "FlowBasedDomain" and suffix == "balance":
+            if c.name == "FlowBasedConstraint" and suffix == "balance":
                 continue
 
             # Add placeholder for custom constraints, marked as GlobalConstraint
