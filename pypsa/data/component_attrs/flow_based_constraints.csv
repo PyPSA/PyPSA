@@ -1,5 +1,5 @@
 attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name of the flow-based constraint (critical network element / CNEC),Input (required)
-ram,static or series,MW,0.0,"Remaining available margin: the right-hand-side bound of the constraint zonal_ptdf . NP <= RAM. May be time-varying.",Input (required)
+ram,static or series,MW,0.0,"Remaining available margin: the right-hand-side bound of the flow-based domain.",Input (required)
 active,boolean,n/a,True,Whether the constraint is included in the optimisation.,Input (optional)
 mu_domain,series,currency/MW,0.0,Shadow price of the flow-based domain constraint (per snapshot).,Output

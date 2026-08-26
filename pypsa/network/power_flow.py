@@ -1179,30 +1179,26 @@ class SubNetworkPowerFlowMixin:
         gsk: str | pd.DataFrame = "uniform",
         branches: pd.Index | None = None,
     ) -> pd.DataFrame:
-        """Calculate the zonal PTDF (branch x zone) from the nodal PTDF and a GSK.
+        """Calculate the zonal PTDF (branch x zone) as ``nodal PTDF . GSK``.
 
-        A zone's net-position change is spread onto its nodes by the generation shift key
-        (GSK, a bus x zone frame whose columns sum to one). With the nodal ``F = PTDF . P``
-        and ``P = GSK . NP``, the zonal PTDF is ``PTDF . GSK``. Unlike
-        [calculate_PTDF][pypsa.SubNetwork.calculate_PTDF] (a numpy array), this returns a
-        labelled DataFrame ready to pass to a [FlowBasedConstraint][pypsa.components.FlowBasedConstraints].
+        A labelled counterpart of [calculate_PTDF][pypsa.SubNetwork.calculate_PTDF], ready
+        to pass to a [FlowBasedConstraint][pypsa.components.FlowBasedConstraints].
 
         Parameters
         ----------
         node_to_zone : pandas.Series
             Mapping every bus of the sub-network to its market zone.
         gsk : str or pandas.DataFrame, default "uniform"
-            Either a GSK scheme name (``"uniform"`` or ``"capacity"``), resolved by the
-            matching ``gsk_*`` builder, or a ready bus x zone GSK frame.
+            A GSK scheme name (``"uniform"`` or ``"capacity"``) resolved by the matching
+            ``gsk_*`` builder, or a ready bus x zone GSK frame.
         branches : pandas.Index, optional
             Restrict the result to these branches (the monitored CNECs); default all.
 
         Returns
         -------
         pandas.DataFrame
-            Zonal PTDF with one row per branch (a ``(type, name)`` MultiIndex) and one
-            column per zone. Empty (no rows) for a branch-free sub-network (e.g. a
-            single-node sub-network, common in sector-coupled models).
+            Zonal PTDF, one row per branch (a ``(type, name)`` MultiIndex), one column per
+            zone. Empty for a branch-free sub-network.
 
         """
         n = self.n

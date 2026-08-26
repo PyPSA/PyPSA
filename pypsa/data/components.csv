@@ -15,4 +15,4 @@ ShuntImpedance,shunt_impedances,"Shunt with voltage-dependent admittance.",passi
 GlobalConstraint,global_constraints,"Constraints in the optimisation problem that apply to multiple components at once."
 Shape,shapes,"Geographical shapes of network components.",shape
 SubNetwork,sub_networks,"Subsets of buses and passive branches (i.e. lines and transformers) that are connected (i.e. synchronous areas)."
-FlowBasedConstraint,flow_based_constraints,"Flow-based market-coupling constraint: one linear bound on zonal net positions (a CNEC row); together they form the domain (PTDF . NP <= RAM). Non-physical.",
+FlowBasedConstraint,flow_based_constraints,"Flow-based market-coupling constraint: one linear bound on zonal net positions, together forming a flow-based domain.",

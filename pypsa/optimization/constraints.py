@@ -1523,9 +1523,9 @@ def define_nodal_balance_constraints(
                         expr = expr * coeff.sel(name=group_names)
                     exprs.append(_groupby_bus(expr, group_cbuses))
 
-    # Flow-based domain: inject each zone's net position into its nodal balance
-    # (generation - load - net_position = 0) and cancel every corridor link's Core-side
-    # term, so no auxiliary buses/links are needed and net positions stay gen - load.
+    # Inject each zone's net position into its nodal balance
+    # (generation - load - net_position = 0) and cancel every corridor link's domain-internal
+    # term, so net positions stay gen - load.
     fb_terms = flow_based_balance_terms(n, buses)
     if fb_terms is not None:
         exprs.append(fb_terms)
