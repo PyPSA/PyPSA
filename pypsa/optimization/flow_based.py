@@ -6,13 +6,8 @@
 
 Bounds the net positions of market zones (buses) by ``zonal_ptdf . NP <= RAM``, one row
 per critical network element (CNEC), plus a zero-sum balance ``sum(NP) = 0``. Each net
-position is a variable inside the nodal balance, so zonal prices stay native. A domain
-column may instead name a ``Link`` (an AHC or EvFB HVDC corridor): its flow loads the
-CNECs through its own column while its Core-side balance term is cancelled, so net
-positions stay ``generation - load``.
-
-See the user guide on flow-based market coupling for the formulation and the AHC/EvFB
-treatment.
+position is a variable inside the nodal balance. A domain column may instead name a ``Link``
+(an AHC or EvFB HVDC corridor): its flow loads the CNECs through its own domain column.
 """
 
 from __future__ import annotations
@@ -43,10 +38,9 @@ def _active(n: Network) -> pd.DataFrame:
 def _classify_columns(n: Network) -> tuple[list, list]:
     """Split the domain columns into zone buses and (controllable) links.
 
-    A column is a **zone** if it names a bus and a **link** if it names a link (buses
+    A column is a zone if it names a bus and a link if it names a link (buses
     take priority on a name clash). Zone columns multiply the net-position variable;
-    link columns multiply the link flow ``Link-p`` (advanced hybrid coupling and evolved
-    flow-based corridors are both just link-flow terms, with no distinction needed).
+    link columns multiply the link flow ``Link-p``.
 
     Raises
     ------
@@ -59,22 +53,21 @@ def _classify_columns(n: Network) -> tuple[list, list]:
     is_link = cols.isin(n.c.links.static.index) & ~is_bus
     if unknown := cols[~is_bus & ~is_link].tolist():
         msg = (
-            f"Flow-based domain columns must be buses (zones) or links, but "
-            f"{unknown} are neither. Add them as buses/links."
+            f"Flow-based domain columns must be buses or links, but "
+            f"{unknown} are neither."
         )
         raise ValueError(msg)
     return cols[is_bus].tolist(), cols[is_link].tolist()
 
 
 def _corridor_cut(n: Network) -> Any:
-    """Per-zone expression cancelling each corridor link's Core-side balance term.
+    """Per-zone expression cancelling each corridor link's flow-based-side balance term.
 
     The nodal balance adds ``-Link-p`` at ``bus0`` and ``+efficiency . Link-p`` at ``bus1``;
-    cancelling those at a corridor's zone end(s) keeps every zone net position equal to
-    ``generation - load``. Returns a ``(snapshot, name)`` expression over zone buses, or
-    ``None`` if no corridor has a zone end. Its negated bus-sum is the AHC hubs' net
-    exchange with Core (the plate balance in `define_flow_based_constraints`); lossless
-    EvFB nets to zero.
+    cancelling those at a corridor's zone end(s) preserves every zone net position.
+    Returns a ``(snapshot, name)`` expression over zone buses, or
+    ``None``. Its negated bus-sum is the AHC hubs' net
+    exchange with flow-based region; EvFBs net to zero.
     """
     zone_cols, link_cols = _classify_columns(n)
     if not link_cols:
@@ -95,9 +88,9 @@ def _corridor_cut(n: Network) -> Any:
 def flow_based_balance_terms(n: Network, buses: pd.Index) -> Any:
     """Terms the flow-based domain contributes to the nodal balance, or ``None``.
 
-    Each zone bus gets ``-net_position`` (its balance reads ``generation - load - NP = 0``)
-    plus the cancellation of any corridor link's Core-side term (see `_corridor_cut`),
-    so net positions stay ``generation - load`` and corridors are not double-counted.
+    Each zone bus gets ``-net_position`` appended plus the cancellation of any
+    corridor link's flow-based-side term to preserve net positions and ensure
+    corridors are not double-counted.
     """
     if NP_VAR not in n.model.variables:
         return None
@@ -137,7 +130,9 @@ def validate_flow_based(n: Network) -> None:
         c = n.c[name].static
         if c.empty:
             return c.index[:0]
-        crossing = c[c["bus0"].isin(zones) & c["bus1"].isin(zones) & (c["bus0"] != c["bus1"])]
+        crossing = c[
+            c["bus0"].isin(zones) & c["bus1"].isin(zones) & (c["bus0"] != c["bus1"])
+        ]
         return crossing.index
 
     forbidden = {
@@ -150,8 +145,7 @@ def validate_flow_based(n: Network) -> None:
         msg = (
             "Flow-based domain requires the grid between zones to be represented only by "
             f"the domain; found branches connecting two zone buses: {offenders}. Remove "
-            "them (the domain replaces inter-zonal exchange), or, for a controllable HVDC "
-            "corridor, add it as a domain column."
+            "them, or, for a controllable HVDC corridor, add it as a domain column."
         )
         raise ValueError(msg)
 
@@ -169,8 +163,7 @@ def define_flow_based_constraints(n: Network, sns: pd.Index) -> None:
     """Define the domain half-spaces ``zonal_ptdf . NP <= RAM`` and the balance ``sum(NP) = 0``.
 
     Link columns (AHC/EvFB corridors) add ``zonal_ptdf . Link-p`` terms in the link's
-    ``bus0 -> bus1`` direction. AHC hubs join the balance via the corridor cut; the domain
-    dual is written to ``mu_domain``.
+    ``bus0 -> bus1`` direction.
     """
     if not _has_flow_based(n):
         return
@@ -189,5 +182,5 @@ def define_flow_based_constraints(n: Network, sns: pd.Index) -> None:
     plate = m[NP_VAR].sum("bus")
     cut = _corridor_cut(n)
     if cut is not None:
-        plate = plate - cut.sum("name")  # AHC hubs' net exchange with Core
+        plate = plate - cut.sum("name")  # AHC hubs' net exchange
     m.add_constraints(plate == 0, name="FlowBasedConstraint-balance")

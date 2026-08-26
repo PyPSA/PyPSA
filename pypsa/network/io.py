@@ -1686,8 +1686,6 @@ class NetworkIOMixin(_NetworkABC):
                     df.set_index(self.snapshots, inplace=True)
                     self._import_series_from_df(df, component, attr)
 
-            # Recover the zonal PTDF frame (static columns or, if time-varying, the varying
-            # attributes just imported) into its dedicated store.
             if component == "FlowBasedConstraint":
                 _import_zonal_ptdf(self.c.flow_based_constraints)
 

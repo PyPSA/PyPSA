@@ -31,10 +31,7 @@ class FlowBasedConstraints(FlowBasedImportersMixin, Components):
 
     A non-physical component holding a flow-based domain: linear constraints on the net
     positions of the market zones (buses), ``zonal_ptdf . NP <= RAM``, one entity per
-    critical network element (CNEC). The zonal PTDF sensitivities form a matrix and are
-    stored in the dedicated frame ``c.zonal_ptdf`` (rows = CNECs, columns = zone buses),
-    analogous to ``c.piecewise``. Pass it to ``add`` as ``zonal_ptdf``; a time-varying
-    domain passes a ``(snapshot, cnec)`` MultiIndex frame instead.
+    critical network element (CNEC).
 
     See Also
     --------
@@ -74,12 +71,11 @@ class FlowBasedConstraints(FlowBasedImportersMixin, Components):
 
     @property
     def zonal_ptdf(self) -> pd.DataFrame:
-        """Zonal PTDF sensitivities (one column per zone bus).
+        """Zonal PTDF sensitivities.
 
-        The stored frame itself, so in-place edits write through. For a static domain the
-        index is the CNEC; for a time-varying one it is a ``(snapshot, CNEC)`` MultiIndex,
-        so ``c.zonal_ptdf.loc[sns]`` selects one snapshot. The internal xarray view is
-        ``c.da.zonal_ptdf``.
+        For a static domain the index is the CNEC; for a time-varying one it is a
+        ``(snapshot, CNEC)`` MultiIndex, so ``c.zonal_ptdf.loc[sns]`` selects one
+        snapshot. The internal xarray view is ``c.da.zonal_ptdf``.
         """
         return self._zonal_ptdf
 
