@@ -63,10 +63,14 @@ See [the optimisation page](../optimization/flow-based-constraints.md#controllab
 
 ## Importing published domains
 
-Published domains can be read directly with `from_eraa`, `from_jao` and `from_tso`. Each maps the file's zone labels to buses of the same name (pass `buses=` to remap) and accepts a `links=` mapping to include AHC/EvFB corridors. See the [example notebook](../../examples/flow-based-market-coupling.ipynb).
+Published domains can be read directly with `from_eraa`, `from_jao` and `from_tso`. `from_eraa` reads the flow-based domains of ENTSO-E's European Resource Adequacy Assessment[^eraa], and `from_jao` the Core day-ahead domains published on the JAO Publication Tool[^core-pub]. Each maps the file's zone labels to buses of the same name (pass `buses=` to remap) and accepts a `links=` mapping to include AHC/EvFB corridors. See the [example notebook](../../examples/flow-based-market-coupling.ipynb).
 
 ```python
 n.c.flow_based_constraints.from_eraa("FB-Domain-CORE.xlsx", year="2030", season="winter1")
 ```
 
 {{ read_csv('../../../pypsa/data/component_attrs/flow_based_constraints.csv', disable_numparse=True) }}
+
+[^eraa]: ENTSO-E (2024), [European Resource Adequacy Assessment 2024, Annex 2: Methodology](https://www.entsoe.eu/eraa/2024/).
+
+[^core-pub]: Core TSOs / JAO (2024), [Publication Tool for the Core day-ahead capacity calculation methodology, Publication Handbook v2.2](https://publicationtool.jao.eu/core/).
