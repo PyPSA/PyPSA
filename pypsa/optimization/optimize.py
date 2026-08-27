@@ -21,7 +21,10 @@ from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
-from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
+from pypsa.consistency import (
+    check_big_m_exceeded,
+    check_no_modular_purchasable_committables,
+)
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
@@ -40,6 +43,7 @@ from pypsa.optimization.constraints import (
     define_operational_constraints_for_committables,
     define_operational_constraints_for_extendables,
     define_operational_constraints_for_non_extendables,
+    define_purchase_constraints,
     define_ramp_limit_constraints,
     define_secant_loss_constraints,
     define_storage_unit_constraints,
@@ -69,6 +73,7 @@ from pypsa.optimization.variables import (
     define_nominal_variables,
     define_operational_variables,
     define_phase_shift_variables,
+    define_purchase_variables,
     define_shut_down_variables,
     define_spillage_variables,
     define_start_up_variables,
@@ -412,6 +417,13 @@ def define_objective(
             capex_terms.append(
                 (caps_lin * cost_weight * periodic_cost).sum(dim=sum_dim)
             )
+        if (
+            not (purchasables := c.purchasables.difference(c.inactive_assets)).empty
+            and (unit_cost := c.unit_cost.sel(name=purchasables)).size > 0
+            and not (unit_cost == 0).all()
+        ):
+            purchased = m[f"{c.name}-purchased"].sel(name=purchasables)
+            capex_terms.append((unit_cost * cost_weight * purchased).sum(dim="name"))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -761,7 +773,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             }
         )
         if linearized_unit_commitment:
-            check_no_modular_committables(n)
+            check_no_modular_purchasable_committables(n)
 
         if consistency_check:
             n.consistency_check()
@@ -789,6 +801,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         for c, attr in lookup.query("nominal").index:
             define_nominal_variables(n, c, attr)
             define_modular_variables(n, c, attr)
+            define_purchase_variables(n, c, attr, sns)
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
             define_operational_variables(n, sns, c, attr)
@@ -822,6 +835,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_committability_variables_constraints_with_variable_upper_limit(
                 n, sns, c, attr
             )
+            define_purchase_constraints(n, c, attr)
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
             define_maintenance_constraints(n, sns, c)
@@ -1041,6 +1055,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if attr in ("maintenance_capacity", "maintenance_status"):
                 continue
 
+            # Skip auxiliary unit purchase variables
+            if attr in ("available_p_nom", "available_s_nom", "available_e_nom"):
+                continue
+
             if not hasattr(n.c, _c_name):
                 # Custom variables might correspond to a designated component
                 logger.info(
@@ -1113,6 +1131,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 c.static.update(
                     df.replace(-0.0, 0.0).rename(attr + "_opt"), overwrite=True
                 )
+
         # If nominal capacity was no variable set optimal value to nominal
         for c_name, attr in lookup.query("nominal").index:
             c = n.components[c_name]

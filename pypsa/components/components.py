@@ -1047,6 +1047,31 @@ class Components(
 
         return idx
 
+    @property
+    def purchasables(self) -> pd.Index:
+        """Get the index of unit purchasable elements of this component.
+
+        Purchasable components have a purchasable flag which introduces binary variables for unit capacity investment.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of purchasable elements.
+
+        """
+        if "purchasable" not in self.static:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static["purchasable"]].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
     def _infer_committable_big_m_scale(self) -> float:
         """Infer a reasonable big-M scale from network and component data."""
         candidates: list[float] = []
@@ -1167,6 +1192,31 @@ class Components(
             fom_cost=None,
             nyears=self.nyears,
         )
+
+    @property
+    def unit_cost(self) -> xarray.DataArray:
+        """Calculate periodized unit investment cost from component attributes as xarray DataArray.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        See Also
+        --------
+        `pypsa.costs.unit_cost`
+
+        """
+        static = self.static
+        cost = periodized_cost(
+            capital_cost=static["unit_cost"],
+            overnight_cost=static["unit_cost_overnight"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=0,
+            nyears=self.nyears,
+        )
+        da = xarray.DataArray(cost)
+        if self.has_scenarios:
+            da = da.unstack().reindex(name=self.names, scenario=self.scenarios)
+        return da
 
     @property
     def nyears(self) -> float | pd.Series:

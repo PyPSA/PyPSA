@@ -1553,8 +1553,8 @@ def check_maintenance_attributes(
         )
 
 
-def check_no_modular_committables(n: Network) -> None:
-    """Check that no modular committable components exist.
+def check_no_modular_purchasable_committables(n: Network) -> None:
+    """Check that no modular/purchasable committable components exist if linearized_unit_commitment is used.
 
     Raises ValueError if linearized_unit_commitment is used with modular
     committable components, as this combination is semantically invalid.
@@ -1576,7 +1576,7 @@ def check_no_modular_committables(n: Network) -> None:
         if com_i.empty:
             continue
         com_i = com_i.difference(c.inactive_assets)
-        mod_com_i = com_i.intersection(c.modulars)
+        mod_com_i = com_i.intersection(c.modulars.union(c.purchasables))
         if not mod_com_i.empty:
             modular_committables.extend(f"{c.name}:{name}" for name in mod_com_i)
 
@@ -1585,7 +1585,7 @@ def check_no_modular_committables(n: Network) -> None:
         if len(modular_committables) > 5:
             components_str += f", ... ({len(modular_committables)} total)"
         msg = (
-            f"linearized_unit_commitment=True cannot be used with modular "
+            f"linearized_unit_commitment=True cannot be used with modular/purchasable "
             f"committable components: {components_str}. "
             f"Modular components use integer status variables representing the "
             f"number of committed modules, which cannot be meaningfully relaxed "
