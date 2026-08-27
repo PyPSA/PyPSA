@@ -99,9 +99,7 @@ def flow_based_balance_terms(n: Network, buses: pd.Index) -> Any:
     if fb_buses.empty:
         return None
     cut = _corridor_cut(n)
-    expr = -1 * np_var
-    if cut is not None:
-        expr = expr + cut
+    expr = -1 * np_var if cut is None else cut - np_var
     return expr.sel(name=fb_buses)
 
 

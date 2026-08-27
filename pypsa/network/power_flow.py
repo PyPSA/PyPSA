@@ -1161,16 +1161,14 @@ class SubNetworkPowerFlowMixin:
             A bus x zone GSK whose columns sum to one.
 
         """
-        buses = self.components.buses.static.index
-        self._check_zone_cover(node_to_zone, buses)
-        dummies = pd.get_dummies(node_to_zone.reindex(buses)).astype(float)
+        uniform = self.gsk_uniform(node_to_zone)
+        buses = uniform.index
         gens = self.n.c.generators.static
         gens = gens[gens["bus"].isin(buses)]
         if carrier is not None:
             gens = gens[gens["carrier"] == carrier]
         cap = gens.groupby("bus")["p_nom"].sum().reindex(buses).fillna(0.0)
-        weighted = dummies.mul(cap, axis=0)
-        uniform = dummies / dummies.sum()
+        weighted = uniform.mul(cap, axis=0)
         return (weighted / weighted.sum()).fillna(uniform)
 
     def calculate_zonal_PTDF(

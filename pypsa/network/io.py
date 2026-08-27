@@ -80,7 +80,10 @@ def _import_zonal_ptdf(c: FlowBasedConstraints) -> None:
     """Recover the zonal PTDF frame from its prefixed static columns or varying attributes."""
     cols = [col for col in c.static.columns if col.startswith(_ZONAL_PTDF_PREFIX)]
     zkeys = [k for k in list(c.dynamic) if k.startswith(_ZONAL_PTDF_PREFIX)]
-    strip = lambda s: s[len(_ZONAL_PTDF_PREFIX) :]  # noqa: E731
+
+    def strip(s: str) -> str:
+        return s.removeprefix(_ZONAL_PTDF_PREFIX)
+
     if cols:
         frame = c.static[cols].rename(columns=strip)
         c._set_frame("zonal_ptdf", frame, frame.index)
