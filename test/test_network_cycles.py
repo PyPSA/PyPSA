@@ -2,15 +2,109 @@
 #
 # SPDX-License-Identifier: MIT
 
+import os
+
 import numpy as np
+import pytest
 
 import pypsa
+
+
+def _cycle_metrics(cycles_df):
+    """Return structural statistics used in algorithm comparisons."""
+    cycle_lengths = cycles_df.ne(0).sum(axis=0)
+    return {
+        "cycles": cycles_df.shape[1],
+        "total_size": int(cycle_lengths.sum()),
+        "max_cycle_length": int(cycle_lengths.max()) if len(cycle_lengths) else 0,
+    }
+
+
+@pytest.mark.parametrize("method", ["paton", "bfs", "bfs-refined"])
+def test_scigrid_de_cycle_basis_methods(scigrid_de_network, method) -> None:
+    """All non-MILP methods yield a complete SciGRID-DE cycle basis."""
+    scigrid_de_network.cycle_basis_method = method
+    cycles_df = scigrid_de_network.cycle_matrix()
+    metrics = _cycle_metrics(cycles_df)
+
+    expected_rank = (
+        len(scigrid_de_network.c.lines.static)
+        + len(scigrid_de_network.c.transformers.static)
+        - len(scigrid_de_network.c.buses.static)
+        + 1
+    )
+    assert metrics["cycles"] == expected_rank
+    assert metrics["total_size"] >= 2 * expected_rank
+    assert metrics["max_cycle_length"] >= 2
+    assert np.linalg.matrix_rank(cycles_df.to_numpy()) == expected_rank
+
+
+@pytest.mark.skipif(
+    os.environ.get("PYPSA_RUN_MCB_BENCHMARK") != "1",
+    reason="set PYPSA_RUN_MCB_BENCHMARK=1 to run the SciGRID-DE MILP benchmark",
+)
+@pytest.mark.parametrize("solver", ["scipy", "gurobi"])
+def test_scigrid_de_mcb_cycle_basis(scigrid_de_network, solver) -> None:
+    """Optional end-to-end SciGRID-DE benchmark for both MCB MILP backends."""
+    if solver == "gurobi":
+        pytest.importorskip("gurobipy")
+    scigrid_de_network.cycle_basis_method = "mcb"
+    scigrid_de_network.cycle_basis_solver = solver
+    cycles_df = scigrid_de_network.cycle_matrix()
+    metrics = _cycle_metrics(cycles_df)
+    expected_rank = (
+        len(scigrid_de_network.c.lines.static)
+        + len(scigrid_de_network.c.transformers.static)
+        - len(scigrid_de_network.c.buses.static)
+        + 1
+    )
+    assert metrics["cycles"] == expected_rank
+    assert metrics["total_size"] >= 2 * expected_rank
+    assert np.linalg.matrix_rank(cycles_df.to_numpy()) == expected_rank
+
+
+@pytest.mark.parametrize("solver", ["scipy", "gurobi"])
+def test_mcb_cycle_matrix_is_interface_compatible(solver) -> None:
+    """Both MILP backends produce a valid directed cycle matrix."""
+    if solver == "gurobi":
+        pytest.importorskip("gurobipy")
+    n = pypsa.Network()
+    for row in range(3):
+        for column in range(3):
+            n.add("Bus", f"{row}-{column}")
+    for row in range(3):
+        for column in range(2):
+            n.add(
+                "Line",
+                f"h-{row}-{column}",
+                bus0=f"{row}-{column}",
+                bus1=f"{row}-{column + 1}",
+                x=0.1,
+            )
+    for row in range(2):
+        for column in range(3):
+            n.add(
+                "Line",
+                f"v-{row}-{column}",
+                bus0=f"{row}-{column}",
+                bus1=f"{row + 1}-{column}",
+                x=0.1,
+            )
+    n.cycle_basis_method = "mcb"
+    n.cycle_basis_solver = solver
+    cycles_df = n.cycle_matrix()
+    assert _cycle_metrics(cycles_df) == {
+        "cycles": 4,
+        "total_size": 16,
+        "max_cycle_length": 4,
+    }
 
 
 def test_simple_cycle() -> None:
     """Test the cycles function in a simple network with a known cycle."""
     # Create a test network with a cycle
     n = pypsa.Network()
+    assert n.cycle_basis_method == "bfs-refined"
 
     # Add buses
     for i in range(3):

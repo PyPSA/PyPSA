@@ -26,6 +26,12 @@ from pypsa.common import as_index, deprecated_common_kwargs
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
+from pypsa.network.cycle_basis import (
+    bfs_cycle_basis,
+    bfs_refined_cycle_basis,
+    initial_cycle_basis_incidence,
+    minimum_cycle_basis_ip,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -697,7 +703,12 @@ def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
             sub_network.T[branch_i, j] = sign
 
 
-def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
+def find_cycles(
+    sub_network: SubNetwork,
+    weight: str = "x_pu",
+    method: str = "bfs-refined",
+    solver: str = "scipy",
+) -> None:
     """Find all cycles in the sub_network and record them in sub_network.C.
 
     networkx collects the cycles with more than 2 edges; then the 2-edge
@@ -705,6 +716,18 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     where there are multiple lines between the same pairs of buses).
 
     Cycles with infinite impedance are skipped.
+
+    Parameters
+    ----------
+    sub_network : SubNetwork
+        Sub-network for which to construct the cycle basis.
+    weight : str, default "x_pu"
+        Branch attribute used to exclude infinite-impedance branches.
+    method : {"paton", "bfs", "bfs-refined", "mcb"}, default "bfs-refined"
+        Cycle-basis construction method.
+    solver : {"scipy", "gurobi"}, default "scipy"
+        MILP backend used only by ``method="mcb"``.
+
     """
     branches_bus0 = sub_network.branches()["bus0"]
 
@@ -718,7 +741,18 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     mgraph = sub_network.graph(weight=weight, inf_weight=False)
     graph = nx.Graph(mgraph)
 
-    cycles = nx.cycle_basis(graph)
+    if method == "paton":
+        cycles = nx.cycle_basis(graph)
+    elif method == "bfs":
+        cycles = bfs_cycle_basis(graph)
+    elif method == "bfs-refined":
+        cycles = bfs_refined_cycle_basis(graph)
+    elif method == "mcb":
+        _set_minimum_cycle_basis(sub_network, mgraph, branches_bus0, solver)
+        return
+    else:
+        msg = "method must be 'paton', 'bfs', 'bfs-refined', or 'mcb'"
+        raise ValueError(msg)
 
     # number of 2-edge cycles
     num_multi = len(mgraph.edges()) - len(graph.edges())
@@ -749,6 +783,61 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
                 sub_network.C[first_i, c] = 1
                 sub_network.C[b_i, c] = sign
                 c += 1
+
+
+def _set_minimum_cycle_basis(
+    sub_network: SubNetwork,
+    graph: nx.MultiGraph,
+    branches_bus0: pd.Series,
+    solver: str,
+) -> None:
+    """Set a directed minimum cycle-basis matrix."""
+    basis, edge_order = initial_cycle_basis_incidence(graph)
+    if not len(basis):
+        sub_network.C = dok_matrix((len(branches_bus0), 0))
+        return
+    basis = minimum_cycle_basis_ip(basis, solver=solver)
+    branches_i = branches_bus0.index
+    cycle_matrix = dok_matrix((len(branches_i), len(basis)))
+
+    for column, row in enumerate(basis):
+        supported = np.flatnonzero(row)
+        adjacency: dict[Any, list[tuple[Any, int]]] = {}
+        for edge_position in supported:
+            u, v, _ = edge_order[edge_position]
+            adjacency.setdefault(u, []).append((v, edge_position))
+            adjacency.setdefault(v, []).append((u, edge_position))
+        if not adjacency or any(
+            len(neighbours) != 2 for neighbours in adjacency.values()
+        ):
+            msg = "MCB solver returned a non-simple cycle"
+            raise RuntimeError(msg)
+
+        start = next(iter(adjacency))
+        current, previous_edge, traversed = start, -1, 0
+        while True:
+            next_node, edge_position = next(
+                candidate
+                for candidate in adjacency[current]
+                if candidate[1] != previous_edge
+            )
+            branch = edge_order[edge_position][2]
+            branch_position = branches_i.get_loc(branch)
+            cycle_matrix[branch_position, column] = (
+                1 if branches_bus0.iat[branch_position] == current else -1
+            )
+            traversed += 1
+            previous_edge, current = edge_position, next_node
+            if current == start:
+                break
+            if traversed > len(supported):
+                msg = "MCB solver returned a disconnected cycle"
+                raise RuntimeError(msg)
+        if traversed != len(supported):
+            msg = "MCB solver returned a disconnected cycle"
+            raise RuntimeError(msg)
+
+    sub_network.C = cycle_matrix
 
 
 @deprecated_common_kwargs

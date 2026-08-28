@@ -166,6 +166,9 @@ class Network(
         self._committable_big_m: float | None = None
         self._optimize_window: SnapshotWindow | None = None
 
+        self.cycle_basis_method: str = "bfs-refined"
+        self.cycle_basis_solver: str = "scipy"
+
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
         """
@@ -1278,8 +1281,10 @@ class Network(
                 # set non active assets to NaN
                 c.static.loc[~active, "sub_network"] = np.nan
 
+        cycle_basis_method = getattr(self, "cycle_basis_method", "bfs-refined")
+        cycle_basis_solver = getattr(self, "cycle_basis_solver", "scipy")
         for sub in self.c.sub_networks.static.obj:
-            find_cycles(sub)
+            find_cycles(sub, method=cycle_basis_method, solver=cycle_basis_solver)
             sub.find_bus_controls()
 
         return self
@@ -1308,6 +1313,13 @@ class Network(
         apply_weights : bool, default False
             Whether to apply weights (e.g., reactance for AC lines,
             resistance for DC lines) to the cycles.
+
+        Notes
+        -----
+        ``n.cycle_basis_method`` defaults to ``"bfs-refined"`` and accepts
+        ``"paton"``, ``"bfs"``, and ``"mcb"``. Set
+        ``n.cycle_basis_solver`` to ``"scipy"`` or ``"gurobi"`` for
+        ``"mcb"``.
 
         Returns
         -------
