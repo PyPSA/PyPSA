@@ -225,7 +225,7 @@ def _minimum_cycle_basis_ip_gurobi(
         raise ImportError(msg) from exc
 
     n_cycles, n_edges = basis.shape
-    gurobi_options = {"OutputFlag": 0}
+    gurobi_options: dict[str, object] = {"OutputFlag": 0}
     if options is not None:
         gurobi_options.update(options)
 

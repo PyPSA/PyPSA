@@ -803,7 +803,8 @@ def _set_minimum_cycle_basis(
     for column, row in enumerate(basis):
         supported = np.flatnonzero(row)
         adjacency: dict[Any, list[tuple[Any, int]]] = {}
-        for edge_position in supported:
+        for raw_edge_position in supported:
+            edge_position = int(raw_edge_position)
             u, v, _ = edge_order[edge_position]
             adjacency.setdefault(u, []).append((v, edge_position))
             adjacency.setdefault(v, []).append((u, edge_position))
