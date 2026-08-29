@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-import os
-
 import numpy as np
 import pytest
 
@@ -20,9 +18,9 @@ def _cycle_metrics(cycles_df):
     }
 
 
-@pytest.mark.parametrize("method", ["paton", "bfs", "bfs-refined"])
+@pytest.mark.parametrize("method", ["paton", "bfs-refined"])
 def test_scigrid_de_cycle_basis_methods(scigrid_de_network, method) -> None:
-    """All non-MILP methods yield a complete SciGRID-DE cycle basis."""
+    """Both cycle-basis methods yield a complete SciGRID-DE cycle basis."""
     scigrid_de_network.cycle_basis_method = method
     cycles_df = scigrid_de_network.cycle_matrix()
     metrics = _cycle_metrics(cycles_df)
@@ -39,65 +37,25 @@ def test_scigrid_de_cycle_basis_methods(scigrid_de_network, method) -> None:
     assert np.linalg.matrix_rank(cycles_df.to_numpy()) == expected_rank
 
 
-@pytest.mark.skipif(
-    os.environ.get("PYPSA_RUN_MCB_BENCHMARK") != "1",
-    reason="set PYPSA_RUN_MCB_BENCHMARK=1 to run the SciGRID-DE MILP benchmark",
-)
-@pytest.mark.parametrize("solver", ["scipy", "gurobi"])
-def test_scigrid_de_mcb_cycle_basis(scigrid_de_network, solver) -> None:
-    """Optional end-to-end SciGRID-DE benchmark for both MCB MILP backends."""
-    if solver == "gurobi":
-        pytest.importorskip("gurobipy")
-    scigrid_de_network.cycle_basis_method = "mcb"
-    scigrid_de_network.cycle_basis_solver = solver
-    cycles_df = scigrid_de_network.cycle_matrix()
-    metrics = _cycle_metrics(cycles_df)
-    expected_rank = (
-        len(scigrid_de_network.c.lines.static)
-        + len(scigrid_de_network.c.transformers.static)
-        - len(scigrid_de_network.c.buses.static)
-        + 1
-    )
-    assert metrics["cycles"] == expected_rank
-    assert metrics["total_size"] >= 2 * expected_rank
-    assert np.linalg.matrix_rank(cycles_df.to_numpy()) == expected_rank
-
-
-@pytest.mark.parametrize("solver", ["scipy", "gurobi"])
-def test_mcb_cycle_matrix_is_interface_compatible(solver) -> None:
-    """Both MILP backends produce a valid directed cycle matrix."""
-    if solver == "gurobi":
-        pytest.importorskip("gurobipy")
+@pytest.mark.parametrize("method", ["bfs", "mcb"])
+def test_cycle_basis_rejects_removed_methods(method) -> None:
+    """Only the documented cycle-basis methods are accepted."""
     n = pypsa.Network()
-    for row in range(3):
-        for column in range(3):
-            n.add("Bus", f"{row}-{column}")
-    for row in range(3):
-        for column in range(2):
-            n.add(
-                "Line",
-                f"h-{row}-{column}",
-                bus0=f"{row}-{column}",
-                bus1=f"{row}-{column + 1}",
-                x=0.1,
-            )
-    for row in range(2):
-        for column in range(3):
-            n.add(
-                "Line",
-                f"v-{row}-{column}",
-                bus0=f"{row}-{column}",
-                bus1=f"{row + 1}-{column}",
-                x=0.1,
-            )
-    n.cycle_basis_method = "mcb"
-    n.cycle_basis_solver = solver
-    cycles_df = n.cycle_matrix()
-    assert _cycle_metrics(cycles_df) == {
-        "cycles": 4,
-        "total_size": 16,
-        "max_cycle_length": 4,
-    }
+    for i in range(3):
+        n.add("Bus", f"bus{i}")
+    for i in range(3):
+        n.add(
+            "Line",
+            f"line{i}",
+            bus0=f"bus{i}",
+            bus1=f"bus{(i + 1) % 3}",
+            x=0.1,
+        )
+
+    n.cycle_basis_method = method
+
+    with pytest.raises(ValueError, match="method must be 'paton' or 'bfs-refined'"):
+        n.cycle_matrix()
 
 
 def test_simple_cycle() -> None:
