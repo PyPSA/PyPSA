@@ -772,6 +772,8 @@ def find_cycles(
                 sub_network.C[first_i, c] = 1
                 sub_network.C[b_i, c] = sign
                 c += 1
+
+
 @deprecated_common_kwargs
 def network_batch_lpf(n: Network, snapshots: Sequence | None = None) -> None:
     """Batched linear power flow with numpy.dot for several snapshots."""
