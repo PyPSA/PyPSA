@@ -96,6 +96,49 @@ n.generators.loc["wind", "fom_cost"] = 0.02 * n.generators.loc["wind", "overnigh
     | $n$               | `n.{generators,...}.lifetime` | Parameter |
     | $c_{\text{fom}}$  | `n.{generators,...}.fom_cost` | Parameter |
 
+## Unit Purchase Costs
+
+For [purchasable components](capacity-limits.md#unit-purchase-decisions)
+(`purchasable=True`), a capacity-independent investment cost is charged as soon as
+the asset is bought:
+
+$$+ \sum_{n,s} uc_{n,s} y_{n,s} + \sum_{l} uc_{l} y_{l} + \sum_{m} uc_{m} y_{m}$$
+
+where $uc_{*}$ are the unit costs and $y_{*} \in \mathbb{B}$ are the binary purchase
+decisions. Unlike the capital costs above, unit costs are *not* multiplied by a
+capacity, which makes them suitable for one-off costs such as grid connection, land
+acquisition or project development. Like capital costs, they are weighted by the
+investment period weightings in a [pathway optimisation](pathway-planning.md).
+
+As for `capital_cost`, the unit cost can either be given directly as a periodized
+value via `unit_cost`, or as an upfront value via `unit_cost_overnight` which is
+annuitised with `discount_rate` and `lifetime`:
+
+$$uc = uc_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}}$$
+
+If `unit_cost_overnight` is given, it takes precedence over `unit_cost`.
+
+``` py
+n.add("Generator", "wind",
+      bus="bus",
+      p_nom_extendable=True,
+      capital_cost=50000,       # €/MW
+      purchasable=True,
+      unit_cost_overnight=2e6,  # one-off €, e.g. grid connection
+      discount_rate=0.07,
+      lifetime=25)
+```
+
+??? note "Mapping of symbols to attributes"
+
+    | Symbol | Attribute | Type |
+    |-------------------|-----------|-------------|
+    | $y_{n,s}$         | `n.{generators,storage_units,stores}.purchased_opt` | Decision variable |
+    | $y_{l}$           | `n.{links,lines}.purchased_opt` | Decision variable |
+    | $y_{m}$           | `n.processes.purchased_opt` | Decision variable |
+    | $uc_{*}$          | `n.{generators,...}.unit_cost` | Parameter |
+    | $uc_{\text{overnight}}$ | `n.{generators,...}.unit_cost_overnight` | Parameter |
+
 ## Marginal Costs
 
 The marginal costs of dispatch are given by

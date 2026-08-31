@@ -268,6 +268,122 @@ These constraints are defined in the function `define_operational_constraints_fo
         | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu` | Parameter |
 
 
+## Unit Purchase Decisions
+
+Some investment costs do not scale with the capacity that is built:
+connecting a site to the grid, acquiring the land, or the project development itself are paid once, as soon as the asset is built at all.
+Setting `purchasable=True` introduces a binary purchase variable $y \in \mathbb{B}$ per asset which decides *whether* the asset is bought,
+separately from the continuous or integer decision on *how much* capacity is built.
+The associated capacity-independent cost is given by `unit_cost` (see [Unit Purchase Costs](objective.md#unit-purchase-costs)).
+
+Purchase variables are created by `define_purchase_variables()` and are available as `n.model.variables['{Component}-purchased']`.
+The optimised decision is written back to the static output `purchased_opt` (e.g. `n.generators.purchased_opt`),
+which is `NaN` for assets that are not purchasable.
+
+The purchase decision is a single decision per asset.
+It carries neither a snapshot nor a scenario dimension, so an asset is either bought for the whole horizon or not at all.
+
+### Capacity Bound
+
+For a purchasable extendable asset with a **continuous** capacity, the capacity is bounded above by the purchase decision, so that nothing can be built unless the asset is bought:
+
+| Constraint | Dual Variable | Name |
+|-------------------|------------------|------------------|
+| $G_{n,s} \leq \bar{G}_{n,s} \cdot y_{n,s}$ | N/A | `Generator-p_nom_cap_binary` |
+| $F_{l} \leq \bar{F}_{l} \cdot y_{l}$ | N/A | `Link-p_nom_cap_binary` |
+| $R_{m} \leq \bar{R}_{m} \cdot y_{m}$ | N/A | `Process-p_nom_cap_binary` |
+| $P_{l} \leq \bar{P}_{l} \cdot y_{l}$ | N/A | `Line-s_nom_cap_binary` |
+| $E_{n,s} \leq \bar{E}_{n,s} \cdot y_{n,s}$ | N/A | `Store-e_nom_cap_binary` |
+
+Where the maximum capacity is infinite, the [big-M constant](#big-m-parameter-configuration) is used in its place.
+
+Symmetrically, the lower capacity bound is scaled by the purchase decision, so that a minimum capacity only has to be respected if the asset is actually bought:
+
+| Constraint | Dual Variable | Name |
+|-------------------|------------------|------------------|
+| $G_{n,s} \geq \underline{G}_{n,s} \cdot y_{n,s}$ | `n.generators.mu_lower` | `Generator-ext-p_nom-lower` |
+
+This replaces the plain lower bound described in [Upper and Lower Bounds](#upper-and-lower-bounds) and is set in `define_nominal_constraints_for_extendables()`.
+All other purchase constraints are set in `define_purchase_constraints()`.
+
+### Modular Components
+
+[Modular](#modularity-constraints) assets are bounded through their module count instead.
+The number of installed modules is tied to the purchase decision with a big-M constraint, and the modularity constraint
+$G_{n,s} = G^{\textrm{mod}}_{n,s} \cdot \tilde{G}_{n,s}$ then forces the capacity to zero whenever the asset is not bought:
+
+| Constraint | Dual Variable | Name |
+|-------------------|------------------|------------------|
+| $G^{\textrm{mod}}_{n,s} \leq M \cdot y_{n,s}$ | N/A | `Generator-p_nom_modularity_purchased_bigM` |
+| $F^{\textrm{mod}}_{l} \leq M \cdot y_{l}$ | N/A | `Link-p_nom_modularity_purchased_bigM` |
+| $R^{\textrm{mod}}_{m} \leq M \cdot y_{m}$ | N/A | `Process-p_nom_modularity_purchased_bigM` |
+| $P^{\textrm{mod}}_{l} \leq M \cdot y_{l}$ | N/A | `Line-s_nom_modularity_purchased_bigM` |
+| $E^{\textrm{mod}}_{n,s} \leq M \cdot y_{n,s}$ | N/A | `Store-e_nom_modularity_purchased_bigM` |
+
+### Purchase and Unit Commitment
+
+Purchasable components that are also **committable** cannot use the big-M dispatch formulation of [Committable and Extendable Components](#committable-and-extendable-components) directly, because the dispatch bounds would depend on the product of the capacity, the commitment status and the purchase decision.
+Instead, an auxiliary variable
+$A_{n,s,t}$ (the **capacity available** in each snapshot, i.e. the product $G_{n,s} \cdot u_{n,s,t}$ of capacity and commitment status) is introduced and linearised against the purchase decision:
+
+=== "Generator"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $u_{n,s,t} \leq y_{n,s}$ | `Generator-p_nom_status_purchased_limit` |
+    | $A_{n,s,t} \leq G_{n,s}$ | `Generator-p_nom_available_continuous` |
+    | $A_{n,s,t} \leq \bar{G}_{n,s} \cdot u_{n,s,t}$ | `Generator-p_nom_available_binary` |
+    | $A_{n,s,t} \geq G_{n,s} + (u_{n,s,t} - y_{n,s}) \cdot \bar{G}_{n,s}$ | `Generator-p_nom_available_switch` |
+    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot A_{n,s,t}$ | `Generator-com-purchase-p-lower` |
+    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot A_{n,s,t}$ | `Generator-com-purchase-p-upper` |
+
+=== "Link"
+
+    | Constraint | Name |
+    |-------------------|------------------|
+    | $u_{l,t} \leq y_{l}$ | `Link-p_nom_status_purchased_limit` |
+    | $A_{l,t} \leq F_{l}$ | `Link-p_nom_available_continuous` |
+    | $A_{l,t} \leq \bar{F}_{l} \cdot u_{l,t}$ | `Link-p_nom_available_binary` |
+    | $A_{l,t} \geq F_{l} + (u_{l,t} - y_{l}) \cdot \bar{F}_{l}$ | `Link-p_nom_available_switch` |
+    | $f_{l,t} \geq \underline{f}_{l,t} \cdot A_{l,t}$ | `Link-com-purchase-p-lower` |
+    | $f_{l,t} \leq \bar{f}_{l,t} \cdot A_{l,t}$ | `Link-com-purchase-p-upper` |
+
+An asset that is not bought can never be committed ($u \leq y$), so $A = 0$ and the dispatch is forced to zero.
+An asset that is bought and committed has $A_{n,s,t} = G_{n,s}$ and behaves exactly as an ordinary committable component.
+When it is bought but not committed, the availability constraint drives $A_{n,s,t}$ to zero without affecting the installed capacity.
+The availability variable is only created for **non-modular** committable purchasables; modular committable assets use the [integer module status](#modular-and-committable-components) formulation instead.
+
+Like modular committable components, purchasable committable components cannot be used with `n.optimize(linearized_unit_commitment=True)`, because relaxing the integrality of the purchase decision is not meaningful.
+Doing so raises a `ValueError`.
+
+!!! note "Initial status of modular committable purchasables"
+
+    For [modular committable](#modular-and-committable-components) assets the `status` attribute defaults to 1.
+    That is, one module is assumed to be committed before the optimisation horizon starts, which implicitly forces the asset to be purchased.
+    Set `status=0` and `up_time_before=0` to leave the purchase decision entirely to the optimiser.
+
+!!! warning "Current limitations"
+
+    - `purchasable` is only supported for extendable components.
+      Setting it on a component with a fixed capacity raises a `KeyError` while building the model.
+    - `StorageUnit` purchase constraints raise a `ValueError` when the model is built.
+    - Purchasable components combined with `n.set_scenarios()` fail when the capacity lower bound is built.
+    - `Transformer` has no `purchasable` attribute.
+
+??? note "Mapping of symbols to component attributes"
+
+    | Symbol | Attribute | Type |
+    |-------------------|-----------|-------------|
+    | $y_{n,s}$         | `n.generators.purchased_opt` | Decision variable (binary) |
+    | $y_{l}$           | `n.{links,lines}.purchased_opt` | Decision variable (binary) |
+    | $A_{n,s,t}$       | `n.model.variables['Generator-available_p_nom']` | Decision variable |
+    | $G^{\textrm{mod}}_{n,s}$ | `n.model.variables['Generator-n_mod']` | Decision variable (integer) |
+    | $u_{n,s,t}$       | `n.generators_t.status` | Decision variable (binary) |
+    | $\tilde{G}_{n,s}$ | `n.generators.p_nom_mod` | Parameter |
+    | $\underline{G}_{n,s}$ | `n.generators.p_nom_min` | Parameter |
+    | $\bar{G}_{n,s}$   | `n.generators.p_nom_max` | Parameter |
+    | $M$               | auto-inferred or `committable_big_m` parameter | Parameter |
+
 ## Compatibility of Capacity Expansion with Unit Commitment Features
 
 The following table summarizes which unit commitment features are compatible with the two formulations:

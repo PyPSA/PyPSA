@@ -399,8 +399,14 @@ def define_purchase_variables(
     purchased_continuous_com = purchase_i.difference(mod_i).intersection(c.committables)
 
     n.model.add_variables(coords=[purchase_i], name=f"{c.name}-purchased", binary=True)
+
+    if purchased_continuous_com.empty:
+        return
+
     active = c.da.active.sel(name=purchased_continuous_com, snapshot=sns)
-    n.model.add_variables(coords=active.coords, name=f"{c.name}-available_{attr}")
+    n.model.add_variables(
+        coords=active.coords, name=f"{c.name}-available_{attr}", mask=active
+    )
 
 
 def define_spillage_variables(n: Network, sns: Sequence) -> None:

@@ -1836,11 +1836,14 @@ def define_purchase_constraints(n: Network, component: str, attr: str) -> None:
         )
     if not purchased_continuous.empty:
         cap_max = c.da[attr + "_max"]
-        cap_max = cap_max.where(~isinf(cap_max)).fillna(M).sel(name=purchase_i)
-        cap_var = n.model[f"{c.name}-{attr}"].sel(name=purchase_i)
+        cap_max = (
+            cap_max.where(~isinf(cap_max)).fillna(M).sel(name=purchased_continuous)
+        )
+        cap_var = n.model[f"{c.name}-{attr}"].sel(name=purchased_continuous)
+        purchased_con = purchased.sel(name=purchased_continuous)
 
         n.model.add_constraints(
-            cap_var <= cap_max * purchased_continuous,
+            cap_var <= cap_max * purchased_con,
             name=f"{c.name}-{attr}_cap_binary",
             mask=None,
         )

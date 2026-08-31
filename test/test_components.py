@@ -207,3 +207,95 @@ def test_modulars_different_components():
     store_modulars = n.c.stores.modulars
 
     assert "store_mod" in store_modulars
+
+
+def test_purchasables_property():
+    """Test the purchasables property returns correct indices."""
+    n = Network()
+    n.add("Bus", "bus")
+
+    n.add("Generator", "gen_purchasable", bus="bus", p_nom=100, purchasable=True)
+    n.add("Generator", "gen_nonpurchasable", bus="bus", p_nom=100, purchasable=False)
+    # Generator without the attribute set (defaults to False)
+    n.add("Generator", "gen_default", bus="bus", p_nom=100)
+
+    purchasables = n.c.generators.purchasables
+
+    assert "gen_purchasable" in purchasables
+    assert "gen_nonpurchasable" not in purchasables
+    assert "gen_default" not in purchasables
+
+
+def test_purchasables_without_attribute():
+    """Components without a `purchasable` attribute return an empty index."""
+    n = Network()
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=100)
+
+    assert n.c.loads.purchasables.empty
+
+
+def test_purchasables_different_components():
+    """Test purchasables property works for different component types."""
+    n = Network()
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+
+    n.add("Line", "line_p", bus0="bus1", bus1="bus2", x=0.1, purchasable=True)
+    n.add("Line", "line_np", bus0="bus1", bus1="bus2", x=0.1)
+    n.add("Link", "link_p", bus0="bus1", bus1="bus2", purchasable=True)
+    n.add("Link", "link_np", bus0="bus1", bus1="bus2")
+    n.add("Store", "store_p", bus="bus1", purchasable=True)
+    n.add("Store", "store_np", bus="bus1")
+    n.add("StorageUnit", "su_p", bus="bus1", purchasable=True)
+    n.add("StorageUnit", "su_np", bus="bus1")
+
+    assert list(n.c.lines.purchasables) == ["line_p"]
+    assert list(n.c.links.purchasables) == ["link_p"]
+    assert list(n.c.stores.purchasables) == ["store_p"]
+    assert list(n.c.storage_units.purchasables) == ["su_p"]
+
+
+def test_purchasables_with_scenarios():
+    """The purchase decision cannot vary across scenarios."""
+    n = Network(snapshots=range(2))
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    n.add("Bus", "bus")
+    n.add("Generator", "gen_purchasable", bus="bus", p_nom=100, purchasable=True)
+    n.add("Generator", "gen_default", bus="bus", p_nom=100)
+
+    purchasables = n.c.generators.purchasables
+
+    assert not isinstance(purchasables, pd.MultiIndex)
+    assert list(purchasables) == ["gen_purchasable"]
+
+
+def test_unit_cost_property():
+    """`unit_cost` is passed through when given directly."""
+    n = Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, purchasable=True, unit_cost=1234.0)
+
+    assert n.c.generators.unit_cost.sel(name="gen").item() == 1234.0
+
+
+def test_unit_cost_property_overnight():
+    """`unit_cost_overnight` is annuitised and takes precedence over `unit_cost`."""
+    from pypsa.costs import annuity
+
+    n = Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        purchasable=True,
+        unit_cost=1.0,
+        unit_cost_overnight=1000.0,
+        discount_rate=0.07,
+        lifetime=25,
+    )
+
+    expected = 1000.0 * annuity(0.07, 25) * n.c.generators.nyears
+    assert n.c.generators.unit_cost.sel(name="gen").item() == pytest.approx(expected)
