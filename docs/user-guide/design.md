@@ -62,7 +62,7 @@ be used for other, non-electric energy carriers (e.g. hydrogen, heat, oil) or
 even non-energy carriers (e.g. CO~2~ or steel) in different locations.
 
 ``` py
->>> n.add("Bus", "my_bus")
+n.add("Bus", "my_bus")
 ```
 
 <figure markdown="span">
