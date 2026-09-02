@@ -10,17 +10,17 @@ PyPSA has an options system that allows users to customise its global behaviour.
 
 Options can be set by assigning values to attributes of the `pypsa.options` object. For example, to change the default solver used in optimizations to `"gurobi"` (see [Parameters options](#parameters-options)), run:
 ``` py
->>> pypsa.options.params.optimize.solver_name = "gurobi" # doctest: +SKIP
+pypsa.options.params.optimize.solver_name = "gurobi" # doctest: +SKIP
 ```
 
 This will set the option **globally** for the current Python session.
 
 You can also use a context manager to set options temporarily within a `with` block via [`pypsa.option_context`][pypsa.option_context]. This is useful if you want to change an option for a particular section of your code without altering the rest of it. For example:
 ``` py
->>> with pypsa.option_context(params.optimize.solver_name="gurobi"):
-...     n.optimize()  # "gurobi" as the solver # doctest: +SKIP
-...
->>> n.optimize()  # "highs" as the solver # doctest: +SKIP
+with pypsa.option_context(params.optimize.solver_name="gurobi"):
+    n.optimize()  # "gurobi" as the solver # doctest: +SKIP
+
+n.optimize()  # "highs" as the solver # doctest: +SKIP
 ```
 
 To reset options to their default values, simply remove the assignment or use [pypsa.reset_option][].
@@ -82,7 +82,7 @@ allow_network_requests:
     make network requests independently.
 ```
 
-### Parameters options
+### Parameters optionsc
 
 The `params` category allows to change the default parameters used in some PyPSA functions. For example the default solver used in optimizations is `highs`. When running [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] you would need to pass `solver_name="gurobi"` to use a different solver. Instead you can also
 change the default globally by setting the option `pypsa.options.params.optimize.solver_name="gurobi"` as shown above.
