@@ -297,7 +297,7 @@ def define_operational_constraints_for_committables(
 
     ext_i = c.extendables.intersection(c.active_assets)
     com_ext_i = com_i.intersection(ext_i).difference(c.modulars)
-    com_fix_i = com_i.difference(ext_i)
+    com_fix_i = com_i.difference(ext_i).difference(c.modulars)
 
     # parameters
     nominal = c.da[c._operational_attrs["nom"]].sel(name=com_i)
