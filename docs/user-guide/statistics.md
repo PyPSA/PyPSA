@@ -78,7 +78,7 @@ Select which components to include:
 
 ``` py
 # Only generators with wind carrier on AC buses
-n.statistics.supply(components=["Generator"], carrier="wind", bus_carrier="AC")  # doctest: +SKIP
+>>> n.statistics.supply(components=["Generator"], carrier="wind", bus_carrier="AC")  # doctest: +SKIP
 ```
 
 ### Grouping

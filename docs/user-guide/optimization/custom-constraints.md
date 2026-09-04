@@ -33,7 +33,7 @@ This model instance contains all variables, constraints, and the objective
 function of the optimization problem.
 
 ``` py
-m = n.optimize.create_model()
+>>> m = n.optimize.create_model()
 ```
 
 This will create a Linopy model instance `m` for the network `n` and is also
@@ -68,7 +68,7 @@ dictionary-like structure containing the variables associated with each
 component. For example, the following call retrieves generator active power variables:
 
 ``` py
-gen_p = m.variables["Generator-p"]
+>>> gen_p = m.variables["Generator-p"]
 ```
 
 This will return a `linopy.Variable`, and array of variables with generators and
@@ -101,10 +101,10 @@ forces the total generation at a bus to be at least 80% of the total demand,
 would be written as follows:
 
 ``` py
-bus = n.generators.bus.to_xarray()
-total_generation = gen_p.groupby(bus).sum().sum("snapshot")
-total_demand = n.loads_t.p_set.sum().sum()
-constraint_expression = total_generation >= 0.8 * total_demand
+>>> bus = n.generators.bus.to_xarray()
+>>> total_generation = gen_p.groupby(bus).sum().sum("snapshot")
+>>> total_demand = n.loads_t.p_set.sum().sum()
+>>> constraint_expression = total_generation >= 0.8 * total_demand
 ```
 
 After defining the constraint expression, it is added to the Linopy model instance using the
@@ -132,7 +132,7 @@ and writes the solution.
 Generally, optimised values for custom variables are not written back to the network object `n`. They must be retrieved seperately from the Linopy model instance `n.model`. For example, if you created a custom variable `custom_var`, you can access its optimised values as follows:
 
 ``` py
-custom_var_values = n.model.variables["custom_var"].solution  # doctest: +SKIP
+>>> custom_var_values = n.model.variables["custom_var"].solution  # doctest: +SKIP
 ```
 
 <!-- However, if you follow the naming convention `{component}-{variable}`, where `component` is the name of the component (e.g., "Generator") and `variable` is the name of the variable (e.g., "custom_var"),
@@ -159,11 +159,11 @@ Migrating existing `extra_functionality` to the flat representation:
     The workflow described above is the recommended way to add custom constraints to a PyPSA network. It allows for direct access to the Linopy model instance and provides flexibility in defining and modifying constraints.  However, if you prefer a more integrated approach, you can use the `extra_functionality` argument in the [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] function. This allows you to pass a function that will be executed after the model is created and before it is solved, enabling you to add custom constraints or modify the model as needed:
 
     ``` py
-    def custom_constraints(n: pypsa.Network, sns: pd.Index) -> None:
-        m = n.model
-        # Define and add custom constraints here
-        ...
-    n.optimize(extra_functionality=custom_constraints)
+    >>> def custom_constraints(n: pypsa.Network, sns: pd.Index) -> None:
+    ...     m = n.model
+    ...     # Define and add custom constraints here
+    ...     ...
+    >>> n.optimize(extra_functionality=custom_constraints)
     ```
 
 !!! warning "Persistence of Linopy model instances"

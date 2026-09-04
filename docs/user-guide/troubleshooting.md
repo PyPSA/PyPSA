@@ -136,15 +136,15 @@ There are some steps you can take to distinguish these two cases:
   angles differences across branches are less than 40 degrees. You can do this with the following code:
 
   ``` py
-  import pandas as pd
-  import numpy as np
-  now = n.snapshots[0]  #
-  angle_diff = pd.Series(
-      n.buses_t.v_ang.loc[now,n.lines.bus0].values -
-      n.buses_t.v_ang.loc[now,n.lines.bus1].values,
-      index=n.lines.index
-  )
-  (angle_diff * 180 / np.pi).describe()  #D doctest: +SKIP
+  >>> import pandas as pd
+  >>> import numpy as np
+  >>> now = n.snapshots[0]  #
+  >>> angle_diff = pd.Series(
+  ...     n.buses_t.v_ang.loc[now,n.lines.bus0].values -
+  ...     n.buses_t.v_ang.loc[now,n.lines.bus1].values,
+  ...     index=n.lines.index
+  ... )
+  >>> (angle_diff * 180 / np.pi).describe()  #D doctest: +SKIP
   ```
 
 * You can seed the non-linear power flow initial guess with the

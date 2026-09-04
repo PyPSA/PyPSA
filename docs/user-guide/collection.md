@@ -167,8 +167,8 @@ the same for both networks.
 
 Create a plot for the same energy balance:
 ``` py
-fig = nc.statistics.energy_balance.iplot()
-fig.write_html("docs/assets/interactive/ac_dc_collection_energy_balance_iplot.html") # docs-hide
+>>> fig = nc.statistics.energy_balance.iplot()
+>>> fig.write_html("docs/assets/interactive/ac_dc_collection_energy_balance_iplot.html") # docs-hide
 ```
 <div style="width: 100%; height: 500px;">
     <iframe src="../../assets/interactive/ac_dc_collection_energy_balance_iplot.html"

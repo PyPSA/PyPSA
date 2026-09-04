@@ -115,7 +115,7 @@ dtype: float64
 Now suppose we want to consider the case that with a 20% probability, a volcano erupts which reduces the solar capacity factor time series uniformly by 90%. For such a scenario, we can use PyPSA's stochastic optimization functionality. First, we need to define the scenarios with probabilities that must sum to 1:
 
 ``` py
-n.set_scenarios({"volcano": 0.2, "no_volcano": 0.8})
+>>> n.set_scenarios({"volcano": 0.2, "no_volcano": 0.8})
 ```
 
 We can check that the scenarios have been set correctly:
