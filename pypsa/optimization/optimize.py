@@ -52,6 +52,10 @@ from pypsa.optimization.constraints import (
     define_total_supply_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
+from pypsa.optimization.flow_based import (
+    define_flow_based_constraints,
+    define_flow_based_variables,
+)
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
@@ -816,6 +820,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
         define_phase_shift_variables(n, sns)
+        define_flow_based_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -924,6 +929,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
+        define_flow_based_constraints(n, sns)
 
         define_objective(n, sns, include_objective_constant, piecewise_opts)
 
@@ -1051,6 +1057,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if attr in ("maintenance_capacity", "maintenance_status"):
                 continue
 
+            # The flow-based net-position variable is indexed by zone bus, not by CNEC,
+            # so it is written to the Bus dynamic output rather than mapped by component
+            # name
+            if _c_name == "FlowBasedConstraint":
+                if attr == "net_position":
+                    df = _from_xarray(sol.rename(bus="name"), n.c.buses)
+                    _set_dynamic_data(n, "Bus", "net_position", df)
+                continue
+
             if not hasattr(n.c, _c_name):
                 # Custom variables might correspond to a designated component
                 logger.info(
@@ -1171,6 +1186,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 c = self._n.components[prefix]
             except (ValueError, KeyError):
                 unassigned_constraints.append(constraint_name)
+                continue
+
+            # The flow-based zero-sum balance dual is a scalar per snapshot,
+            # so it has no component slot.
+            if c.name == "FlowBasedConstraint" and suffix == "balance":
                 continue
 
             # Add placeholder for custom constraints, marked as GlobalConstraint

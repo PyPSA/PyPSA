@@ -52,6 +52,7 @@ nav:
       - Transformer Types: user-guide/components/transformer-types.md
       - Shunt Impedance: user-guide/components/shunt-impedances.md
       - Global Constraints: user-guide/components/global-constraints.md
+      - Flow-Based Constraint: user-guide/components/flow-based-constraints.md
       - Shapes: user-guide/components/shapes.md
       - Sub-Network: user-guide/components/sub-networks.md
   - Optimization:
@@ -66,6 +67,7 @@ nav:
       - Storage: user-guide/optimization/storage.md
       - Power Flow: user-guide/optimization/power-flow.md
       - Contingencies: user-guide/optimization/contingencies.md
+      - Flow-Based Market Coupling: user-guide/optimization/flow-based-constraints.md
       - Global Constraints: user-guide/optimization/global-constraints.md
       - Piecewise Constraints: user-guide/optimization/piecewise.md
       - Custom Constraints: user-guide/optimization/custom-constraints.md
@@ -105,6 +107,7 @@ nav:
     - examples/rolling-horizon.ipynb
     - examples/water-value.ipynb
     - examples/demand-supply-bids.ipynb
+    - examples/flow-based-market-coupling.ipynb
   - Planning Problems:
     - examples/capacity-expansion-planning-single-node.ipynb
     - examples/3-node-cem.ipynb
@@ -174,6 +177,7 @@ nav:
       - Transformer: api/components/types/transformers.md
       - Link: api/components/types/links.md
       - Process: api/components/types/processes.md
+      - Flow-Based Constraint: api/components/types/flow-based-constraints.md
       - Shapes: api/components/types/shapes.md
     - Utilities: api/components/common.md
   - Other:

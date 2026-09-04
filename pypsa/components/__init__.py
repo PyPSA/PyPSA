@@ -9,6 +9,7 @@ from typing import Any
 from pypsa.components._types import (
     Buses,
     Carriers,
+    FlowBasedConstraints,
     Generators,
     GlobalConstraints,
     Lines,
@@ -43,6 +44,7 @@ __all__ = [
     "Components",
     "Buses",
     "Carriers",
+    "FlowBasedConstraints",
     "Generators",
     "GlobalConstraints",
     "LineTypes",
