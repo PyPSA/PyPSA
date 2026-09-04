@@ -82,6 +82,7 @@ class ComponentsStore(dict):
         - 1 'GlobalConstraint' Components
         - 0 'Shape' Components
         - 3 'SubNetwork' Components
+        - 0 'FlowBasedConstraint' Components
 
         """
         return "PyPSA Components Store\n======================\n- " + "\n- ".join(
@@ -121,6 +122,7 @@ class ComponentsStore(dict):
         - 1 'GlobalConstraint' Components
         - 0 'Shape' Components
         - 3 'SubNetwork' Components
+        - 0 'FlowBasedConstraint' Components
         >>> n.components["generators"]
         'Generator' Components
         ----------------------
