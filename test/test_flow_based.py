@@ -249,8 +249,8 @@ def test_link_columns_reconstruct_cnec_loading():
     n.optimize(log_to_console=False, assign_all_duals=True)
     c = n.c.flow_based_constraints
     zp = c.zonal_ptdf
-    zone_cols = [col for col in zp.columns if col in n.buses.index]
-    link_cols = [col for col in zp.columns if col in n.links.index]
+    zone_cols = [col for col in zp.columns if col in n.c.buses.static.index]
+    link_cols = [col for col in zp.columns if col in n.c.links.static.index]
     np_var = (
         n.model["FlowBasedConstraint-net_position"]
         .solution.isel(snapshot=0)
@@ -258,8 +258,8 @@ def test_link_columns_reconstruct_cnec_loading():
     )
     # the net position is gen - load, unaffected by the corridor flows
     gen_load = (
-        n.generators_t.p.iloc[0].groupby(n.generators.bus).sum()
-        - n.loads_t.p.iloc[0].groupby(n.loads.bus).sum()
+        n.generators_t.p.iloc[0].groupby(n.c.generators.static.bus).sum()
+        - n.loads_t.p.iloc[0].groupby(n.c.loads.static.bus).sum()
     )
     assert (
         np_var[zone_cols].round(1).to_dict() == gen_load[zone_cols].round(1).to_dict()
@@ -473,7 +473,7 @@ def test_non_zone_link_is_allowed():
 def test_inactive_domain_is_ignored():
     """Deactivating all constraints leaves an unconstrained copper-plate clearing."""
     n = _network(_domain(SYMMETRIC))
-    n.flow_based_constraints["active"] = False
+    n.c.flow_based_constraints.static["active"] = False
     n.optimize(log_to_console=False)
     # cheapest generator (A) serves all demand; no binding domain
     assert "FlowBasedConstraint-domain" not in n.model.constraints
