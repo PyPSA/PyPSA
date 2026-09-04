@@ -176,6 +176,19 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](scigrid-redispatch.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Flow-Based Market Coupling**
+
+    Sketches how flow-based market coupling can be modelled with
+    a given flow-based domain.
+
+    [:octicons-arrow-right-24: Go to example](fbmc-simple-example.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Calculating Flow-Based Domains**
+
+    Demonstrates how a flow-based domain can be calculated from a nodal network.
+
+    [:octicons-arrow-right-24: Go to example](fbmc-building-domain.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Demand Elasticity**
 
     Demonstrates modelling of price-responsive electricity demands and how they

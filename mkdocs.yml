@@ -126,6 +126,8 @@ nav:
     - examples/biomass-synthetic-fuels-carbon-management.ipynb
   - Advanced Topics:
     - examples/scigrid-redispatch.ipynb
+    - examples/fbmc-simple-example.ipynb
+    - examples/fbmc-building-domain.ipynb
     - examples/demand-elasticity.ipynb
     - examples/imperfect-competition.ipynb
     - examples/generation-investment-screening-curve.ipynb
