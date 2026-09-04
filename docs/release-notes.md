@@ -24,6 +24,9 @@ SPDX-License-Identifier: CC-BY-4.0
     - **Support for AHC and EvFB:** A domain column may instead name a `Link` covering advanced hybrid coupling (a link to an external hub) and evolved flow-based coupling (a link between two domain-internal zones).
     - **Importing zonal PTDFs:** Published domains can be imported with `n.c.flow_based_constraints.from_eraa()`, `.from_jao(path)`, and `.from_tso(path)`.
     - **Calculating zonal PTDFs:** A zonal PTDF can be derived from a nodal, grid-resolved network with [`SubNetwork.calculate_zonal_PTDF`][pypsa.SubNetwork.calculate_zonal_PTDF] (`= nodal PTDF · GSK`). Generation shift keys can be added as arguments.
+### Bug Fixes
+
+- Fix [`n.optimize(transmission_losses=True)`][pypsa.optimization.OptimizationAccessor.__call__] failing for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]) when assigning line losses during post-processing. (<!-- md:pr 1892 -->)
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
 

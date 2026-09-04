@@ -1288,7 +1288,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # line losses
         if "Line-loss" in n.model.variables:
-            losses = n.model["Line-loss"].solution.to_pandas()
+            losses = _from_xarray(n.model["Line-loss"].solution, n.c["Line"])
             n.c.lines.dynamic.p0 += losses / 2
             n.c.lines.dynamic.p1 += losses / 2
 
