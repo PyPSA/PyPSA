@@ -83,7 +83,7 @@ def _net_positions(n: pypsa.Network) -> pd.Series:
     return (n.generators_t.p.iloc[0] - LOADS)[ZONES].round(0)
 
 
-SYMMETRIC = {
+SYMMETRIC: dict[str, float] = {
     "AB+": 1000,
     "AB-": 1000,
     "BC+": 1500,
