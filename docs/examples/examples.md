@@ -63,7 +63,7 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
 -   :material-notebook:{ .lg .middle } **Line Loading Limits**
 
-    Demonstrates static and time-varying `s_max_pu` derating and a manual voltage angle difference limit as existing-parameter approaches to restrict line loading.
+    Demonstrates static and time-varying `s_max_pu` derating, voltage angle difference limits via `v_ang_max` (with extendable capacities), and a temporary overloading (TATL) energy budget added through `extra_functionality`.
 
     [:octicons-arrow-right-24: Go to example](line-loading-limits.ipynb)
 
