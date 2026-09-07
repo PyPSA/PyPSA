@@ -35,6 +35,7 @@ class ComponentsTransformMixin:
 
     static: pd.DataFrame
     dynamic: Dict
+    piecewise: Dict
     attached: Any
     n_save: Any
     name: Any
@@ -191,7 +192,7 @@ class ComponentsTransformMixin:
         Which updates the bus components
 
         >>> c.static.index
-        Index(['bus2'], dtype='object', name='name')
+        Index(['bus2'], dtype='str', name='name')
 
         and all references in the network
 

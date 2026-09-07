@@ -2,8 +2,11 @@
 #
 # SPDX-License-Identifier: MIT
 
+from types import SimpleNamespace
+
 import numpy as np
 import pandas as pd
+import pytest
 import xarray
 
 from pypsa.components.array import _from_xarray
@@ -219,6 +222,7 @@ def test_from_xarray_auxiliary_dimensions():
             self.component_names = ["gen1", "gen2"]
             self.scenarios = ["s1", "s2"]
             self.has_scenarios = True
+            self.n_save = SimpleNamespace(_snapshot_window=None)
 
     c = MockComponent()
 
@@ -263,6 +267,7 @@ def test_from_xarray_edge_cases():
             self.names = ["gen1", "gen2"]
             self.scenarios = ["s1", "s2"]
             self.has_scenarios = False
+            self.n_save = SimpleNamespace(_snapshot_window=None)
 
     c = MockComponent()
 
@@ -290,3 +295,12 @@ def test_from_xarray_edge_cases():
     assert isinstance(result_2d, pd.DataFrame)
     # After name expansion, we have 3+ dimensions, so combined index is created
     assert len(result_2d.columns) == 4  # gen1*c1, gen1*c2, gen2*c1, gen2*c2
+
+
+def test_da_accessor_not_iterable(ac_dc_network):
+    da = ac_dc_network.c.generators.da
+
+    with pytest.raises(TypeError, match="not iterable"):
+        iter(da)
+    with pytest.raises(TypeError, match="not iterable"):
+        list(da)

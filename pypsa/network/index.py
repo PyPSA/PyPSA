@@ -79,7 +79,7 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.snapshots
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
 
         """
         # Check if snapshots contain timezones
@@ -247,11 +247,11 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.timesteps
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
         >>> n.snapshots
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
 
         For a Network with investment periods, the timesteps are are the unqiue set
         of timesteps in across all investment periods:
@@ -259,7 +259,7 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.timesteps
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='timestep', freq=None)
+                      dtype='datetime64[us]', name='timestep', freq=None)
         >>> n.snapshots
         MultiIndex([(1, '2015-01-01 00:00:00'),
                 (1, '2015-01-01 01:00:00'),
@@ -318,7 +318,7 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.snapshots
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
         >>> n.investment_periods = [1, 2]
         >>> n.snapshots
         MultiIndex([(1, '2015-01-01 00:00:00'),
@@ -405,7 +405,7 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.snapshots
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
 
         Add investment periods:
         >>> n.periods = [1, 2]
@@ -501,7 +501,7 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.snapshots
         DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
                        '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
+                      dtype='datetime64[us]', name='snapshot', freq='h')
 
         Add investment periods:
         >>> n.investment_periods = [1, 2]
@@ -781,6 +781,17 @@ class NetworkIndexMixin(_NetworkABC):
         scenarios_ = scenarios_.rename("weight")
         scenarios_.index = scenarios_.index.astype(str)
         scenarios_.index.name = "scenario"
+
+        if any(
+            not df.empty
+            for c in self.components.values()
+            for df in c.piecewise.values()
+        ):
+            msg = (
+                "Setting scenarios on a network with piecewise attribute data is "
+                "not yet supported."
+            )
+            raise NotImplementedError(msg)
 
         for c in self.components.values():  # Loop all components, not just empty ones
             c.static = pd.concat(

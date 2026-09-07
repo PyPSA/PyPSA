@@ -228,6 +228,58 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
             )
 
 
+def check_phase_shift_bounds(component: Components, strict: bool = False) -> None:
+    """Check phase shift bounds for transformers with an optimisable phase shift.
+
+    A transformer phase shift is optimised when `phase_shift_min < phase_shift_max`;
+    in that case both bounds must be finite for the per-snapshot tap angle to be a
+    well-posed decision variable. `phase_shift_min > phase_shift_max` is flagged as
+    a likely mistake (the shift is held fixed at `phase_shift`).
+
+    Activate strict mode in general consistency check by passing
+    `['phase_shift_bounds']` to the `strict` argument.
+
+    Parameters
+    ----------
+    component : pypsa.Component
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if "phase_shift_min" not in component.static.columns:
+        return
+    ps_min = component.static["phase_shift_min"]
+    ps_max = component.static["phase_shift_max"]
+
+    inverted = component.static.index[ps_min > ps_max]
+    if not inverted.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have phase_shift_min greater than phase_shift_max; "
+            "the phase shift is held fixed at phase_shift, which is likely "
+            "unintended (set phase_shift_min < phase_shift_max to optimise it):\n%s",
+            component.list_name,
+            inverted,
+        )
+
+    var = component.static.index[ps_min < ps_max]
+    non_finite = var[~np.isfinite(ps_min[var]) | ~np.isfinite(ps_max[var])]
+    if not non_finite.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have an optimisable phase shift "
+            "(phase_shift_min < phase_shift_max) but a non-finite bound, which "
+            "leaves the optimised tap angle unbounded:\n%s",
+            component.list_name,
+            non_finite,
+        )
+
+
 def check_time_series(
     n: NetworkType, component: Components, strict: bool = False
 ) -> None:
@@ -658,10 +710,15 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
     [pypsa.Network.consistency_check][]
 
     """
-    dtypes_soll = component.defaults.loc[component.defaults["static"], "dtype"].drop(
-        "name"
-    )
-    unmatched = component.static.dtypes[dtypes_soll.index] != dtypes_soll
+    dtypes_expected = component.defaults.loc[
+        component.defaults["static"], "dtype"
+    ].drop("name")
+    dtypes_is = component.static.dtypes[dtypes_expected.index]
+    unmatched = dtypes_is != dtypes_expected
+    # String attributes are either object or pandas' `str` dtype, depending on
+    # `pypsa.options.api.legacy_string_dtype`
+    is_string_attr = component.defaults.loc[dtypes_expected.index, "type"] == "string"
+    unmatched &= ~(is_string_attr & dtypes_is.map(pd.api.types.is_string_dtype))
 
     if unmatched.any():
         _log_or_raise(
@@ -670,15 +727,17 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
             " the wrong dtype:\n%s\nThey are:\n%s\nbut should be:\n%s",
             component.list_name,
             unmatched.index[unmatched],
-            component.static.dtypes[dtypes_soll.index[unmatched]],
-            dtypes_soll[unmatched],
+            dtypes_is[unmatched],
+            dtypes_expected[unmatched],
         )
 
     # now check varying attributes
 
-    types_soll = component.defaults.loc[component.defaults["varying"], ["typ", "dtype"]]
+    types_expected = component.defaults.loc[
+        component.defaults["varying"], ["typ", "dtype"]
+    ]
 
-    for attr, typ, dtype in types_soll.itertuples():
+    for attr, typ, dtype in types_expected.itertuples():
         if component.dynamic[attr].empty:
             continue
 
@@ -888,7 +947,8 @@ class NetworkConsistencyMixin(_NetworkABC):
         strict : list, optional
             If some checks should raise an error instead of logging a warning, pass a list
             of strings with the names of the checks to be strict about. If 'all' is passed,
-            all checks will be strict. By default, 'dispatch_delays' is always strict.
+            all checks will be strict. By default, 'dispatch_delays', 'maintenance' and
+            'phase_shift_bounds' are always strict.
 
         Raises
         ------
@@ -897,7 +957,7 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         """
         if strict is None:
-            strict = ["dispatch_delays"]
+            strict = ["dispatch_delays", "maintenance", "phase_shift_bounds"]
 
         strict_options = [
             "unknown_buses",
@@ -908,9 +968,11 @@ class NetworkConsistencyMixin(_NetworkABC):
             "nans_for_component_default_attrs",
             "zero_impedances",
             "zero_s_nom",
+            "phase_shift_bounds",
             "generators",
             "cost_consistency",
             "dispatch_delays",
+            "maintenance",
             "disconnected_buses",
             "investment_periods",
             "shapes",
@@ -954,8 +1016,10 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_for_zero_impedances(self, c, "zero_impedances" in strict)
             # Checks transformers
             check_for_zero_s_nom(c, "zero_s_nom" in strict)
+            check_phase_shift_bounds(c, "phase_shift_bounds" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
+            check_maintenance_attributes(self, c, "maintenance" in strict)
             # Checks cost attributes consistency
             check_cost_consistency(c)
             # Checks dispatch delay attributes
@@ -1346,11 +1410,11 @@ def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
         if c.static.empty:
             continue
 
-        com_i = c.committables.difference(c.inactive_assets)
+        com_i = c.committables.intersection(c.active_assets)
         if com_i.empty:
             continue
 
-        ext_i = c.extendables.difference(c.inactive_assets)
+        ext_i = c.extendables.intersection(c.active_assets)
         com_ext_i = com_i.intersection(ext_i)
         if com_ext_i.empty:
             continue
@@ -1413,6 +1477,89 @@ def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
             )
 
 
+def check_maintenance_attributes(
+    n: NetworkType, component: Components, strict: bool = False
+) -> None:
+    """Check maintainable components have valid maintenance parameters.
+
+    Parameters
+    ----------
+    n : NetworkType
+        The network to check.
+    component : Components
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if "maintainable" not in component.static:
+        return
+
+    maintainable = component.static[component.static.maintainable]
+    if maintainable.empty:
+        return
+
+    bad_duration = maintainable[maintainable.maintenance_duration <= 0]
+    if not bad_duration.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintainable=True but maintenance_duration <= 0,"
+            " which is invalid for maintenance scheduling:\n%s",
+            component.list_name,
+            bad_duration.index,
+        )
+
+    bad_events = maintainable[maintainable.maintenance_events <= 0]
+    if not bad_events.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintainable=True but maintenance_events <= 0,"
+            " so no maintenance will be scheduled:\n%s",
+            component.list_name,
+            bad_events.index,
+        )
+
+    horizon_hours = n.snapshot_weightings.generators.sum()
+    bad_horizon = maintainable[maintainable.maintenance_duration > horizon_hours]
+    if not bad_horizon.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintenance_duration > total weighted snapshot"
+            " hours (%s), which will cause infeasibility:\n%s",
+            component.list_name,
+            horizon_hours,
+            bad_horizon.index,
+        )
+
+    total = maintainable.maintenance_duration * maintainable.maintenance_events
+    bad_total = maintainable[total > horizon_hours]
+    if not bad_total.empty:
+        _log_or_raise(
+            strict,
+            "The following %s have maintenance_duration * maintenance_events > total"
+            " weighted snapshot hours (%s), which will cause infeasibility:\n%s",
+            component.list_name,
+            horizon_hours,
+            bad_total.index,
+        )
+
+    ext = maintainable[maintainable.p_nom_extendable]
+    bad_max = ext[np.isinf(ext.p_nom_max)]
+    if not bad_max.empty:
+        _log_or_raise(
+            strict,
+            "The following extendable maintainable %s have infinite p_nom_max,"
+            " which is required to be finite for linearizing the maintenance"
+            " capacity reduction:\n%s",
+            component.list_name,
+            bad_max.index,
+        )
+
+
 def check_no_modular_committables(n: Network) -> None:
     """Check that no modular committable components exist.
 
@@ -1435,7 +1582,7 @@ def check_no_modular_committables(n: Network) -> None:
         com_i = c.committables
         if com_i.empty:
             continue
-        com_i = com_i.difference(c.inactive_assets)
+        com_i = com_i.intersection(c.active_assets)
         mod_com_i = com_i.intersection(c.modulars)
         if not mod_com_i.empty:
             modular_committables.extend(f"{c.name}:{name}" for name in mod_com_i)

@@ -37,6 +37,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](uc-prices.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Maintenance Scheduling**
+
+    Schedules optimal maintenance windows for generators, links and processes with contiguous downtime blocks, partial outages, and multiple events.
+
+    [:octicons-arrow-right-24: Go to example](maintenance-scheduling.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Meshed AC-DC Networks**
 
     Builds a stylized 3-node AC network coupled via AC-DC converters to a 3-node DC network.
@@ -184,6 +190,13 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](imperfect-competition.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Subsidies, CfDs and PPAs**
+
+    Settles support schemes (two-sided CfD, one-sided feed-in premium, cap-and-floor,
+    virtual and baseload PPAs) as a post-processing step on a solved network.
+
+    [:octicons-arrow-right-24: Go to example](cfd-ppa-settlement.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Screening Curves**
 
     Determines optimal generation capacity mix based on screening curves.
@@ -216,6 +229,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
     Demonstrates time-delayed energy transport through links, modeling pipeline or shipping delays with cyclic and non-cyclic boundary behavior.
 
     [:octicons-arrow-right-24: Go to example](transport-delay.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Piecewise costs & constraints**
+
+    Demonstrates the application of piecewise linear costs and part-load efficiency constraints.
+
+    [:octicons-arrow-right-24: Go to example](piecewise-constraints.ipynb)
 
 </div>
 

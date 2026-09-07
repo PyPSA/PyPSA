@@ -11,8 +11,22 @@ updates:
   directory: /
   schedule:
     interval: monthly
+  # actions are pinned to commit SHAs, so every release needs an explicit bump.
+  # all of them land in the single monthly pull-request below.
   groups:
     # open a single pull-request for all GitHub actions updates
     github-actions:
+      patterns:
+      - '*'
+- package-ecosystem: uv
+  directory: /
+  schedule:
+    interval: weekly
+  cooldown:
+    default-days: 7
+  allow:
+  - dependency-type: all
+  groups:
+    uv:
       patterns:
       - '*'

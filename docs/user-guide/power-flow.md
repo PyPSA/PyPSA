@@ -113,7 +113,7 @@ v_0 \\ v_1
 
 ## Transformer model
 
-The transformer models here are largely based on the implementation in [pandapower](https://github.com/panda-power/pandapower), which is loosely based on [DIgSILENT PowerFactory](http://www.digsilent.de/index.php/products-powerfactory.html).
+The transformer models here are largely based on the implementation in [pandapower](https://github.com/panda-power/pandapower), which is loosely based on [DIgSILENT PowerFactory](https://www.digsilent.de/en/powerfactory.html).
 
 !!! note "Impedance units"
     Transformer `r`, `x`, `g`, `b` are given in per unit (base power `s_nom`, base voltage `v_nom`), as found on transformer datasheets, whereas line impedances are given in physical units (Ω and S). PyPSA rescales the transformer impedances to a common 1 MVA base via `x_pu = x / s_nom`.
