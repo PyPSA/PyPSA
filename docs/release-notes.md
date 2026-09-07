@@ -123,6 +123,13 @@ SPDX-License-Identifier: CC-BY-4.0
 - Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. (<!-- md:pr 1686 -->)
 
 
+### Documentation
+
+- Added an [example notebook](./examples/cfd-ppa-settlement.ipynb) on settling support
+  schemes (two-sided CfDs, one-sided feed-in premiums, cap-and-floor, and virtual /
+  baseload PPAs) as a post-processing step on a solved network. (<!-- md:pr 1727 -->)
+
+
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
 
 ### Documentation
