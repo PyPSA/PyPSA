@@ -227,8 +227,8 @@ where $sbc_{*,t}$, $suc_{*,t}$, and $sdc_{*,t}$ are the stand-by, start-up, and 
         | $su_{m,t}$        | `n.processes_t.start_up` | Decision variable |
         | $sd_{m,t}$        | `n.processes_t.shut_down` | Decision variable |
         | $sbc_{m,t}$       | `n.processes_t.stand_by_cost` | Parameter |
-        | $suc_{m,t}$       | `n.processes.start_up_cost` | Parameter |
-        | $sdc_{m,t}$       | `n.processes.shut_down_cost` | Parameter |
+        | $suc_{m,t}$       | `n.processes_t.start_up_cost` | Parameter |
+        | $sdc_{m,t}$       | `n.processes_t.shut_down_cost` | Parameter |
         | $w_t^o$           | `n.snapshots.weightings.objective` | Parameter |
 
 Some decision variables do not show up in the objective function, such as the power flow on lines and transformers ($p_{l,t} \in \mathbb{R}$) and the storage unit charging ($h_{n,s,t}^+ \in \mathbb{R}$). They are only used to enforce constraints, e.g. the power flow on lines and transformers.
