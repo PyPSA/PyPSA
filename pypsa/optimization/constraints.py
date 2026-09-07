@@ -630,10 +630,10 @@ def define_operational_constraints_for_committables(
     # linearized approximation because committable can partly start up and shut down
     start_up_cost = c.da.start_up_cost.sel(name=com_i)
     shut_down_cost = c.da.shut_down_cost.sel(name=com_i)
-    cost_equal = start_up_cost == shut_down_cost
-    if "snapshot" in cost_equal.dims:
-        cost_equal = cost_equal.all("snapshot")
-    cost_equal = cost_equal.values
+    cost_equal_da = start_up_cost == shut_down_cost
+    if "snapshot" in cost_equal_da.dims:
+        cost_equal_da = cost_equal_da.all("snapshot")
+    cost_equal = cost_equal_da.values
 
     # only valid additional constraints if start up costs equal to shut down costs
     if n._linearized_uc and not cost_equal.all():
