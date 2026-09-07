@@ -2019,7 +2019,7 @@ def define_fixed_operation_constraints(
         n.model.add_constraints(var, "=", fix, name=f"{c.name}-" + attr_set, mask=mask)
 
 
-def _warn_affected(mask: DataArray, names: pd.Index, msg: str) -> None:
+def _warn_storage_level_precedence(mask: DataArray, names: pd.Index, msg: str) -> None:
     if "scenario" in mask.dims:
         mask = mask.any("scenario")
     if mask.any():
@@ -2138,7 +2138,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     has_initial = soc_init != 0
     ignored = has_initial & (cyclic_pp | (cyclic & ~initial_pp))
-    _warn_affected(
+    _warn_storage_level_precedence(
         ignored,
         c.active_assets,
         "StorageUnits %s: Cyclic state of charge constraint overrules initial storage level setting. "
@@ -2146,7 +2146,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     )
 
     ip_overrides_c = cyclic & initial_pp & ~cyclic_pp
-    _warn_affected(
+    _warn_storage_level_precedence(
         ip_overrides_c,
         c.active_assets,
         "StorageUnits %s: Per-period initial state of charge "
@@ -2157,7 +2157,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     )
 
     cp_overrides_c = cyclic & cyclic_pp
-    _warn_affected(
+    _warn_storage_level_precedence(
         cp_overrides_c,
         c.active_assets,
         "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
@@ -2285,7 +2285,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     has_initial = e_init != 0
     ignored = has_initial & (cyclic_pp | (cyclic & ~initial_pp))
-    _warn_affected(
+    _warn_storage_level_precedence(
         ignored,
         c.active_assets,
         "Stores %s: Cyclic energy level constraint overrules initial value setting. "
@@ -2293,7 +2293,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     )
 
     ip_overrides_c = cyclic & initial_pp & ~cyclic_pp
-    _warn_affected(
+    _warn_storage_level_precedence(
         ip_overrides_c,
         c.active_assets,
         "Stores %s: Per-period initial energy level (e_initial_per_period=True) "
@@ -2303,7 +2303,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     )
 
     cp_overrides_c = cyclic & cyclic_pp
-    _warn_affected(
+    _warn_storage_level_precedence(
         cp_overrides_c,
         c.active_assets,
         "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
