@@ -2019,6 +2019,13 @@ def define_fixed_operation_constraints(
         n.model.add_constraints(var, "=", fix, name=f"{c.name}-" + attr_set, mask=mask)
 
 
+def _warn_affected(mask: DataArray, names: pd.Index, msg: str) -> None:
+    if "scenario" in mask.dims:
+        mask = mask.any("scenario")
+    if mask.any():
+        logger.warning(msg, names[mask.values].tolist())
+
+
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     """Define energy balance constraints for storage units.
 
@@ -2131,35 +2138,32 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     has_initial = soc_init != 0
     ignored = has_initial & (cyclic_pp | (cyclic & ~initial_pp))
-    if ignored.any():
-        affected = c.active_assets[ignored.values].tolist()
-        logger.warning(
-            "StorageUnits %s: Cyclic state of charge constraint overrules initial storage level setting. "
-            "User-defined state_of_charge_initial will be ignored.",
-            affected,
-        )
+    _warn_affected(
+        ignored,
+        c.active_assets,
+        "StorageUnits %s: Cyclic state of charge constraint overrules initial storage level setting. "
+        "User-defined state_of_charge_initial will be ignored.",
+    )
 
     ip_overrides_c = cyclic & initial_pp & ~cyclic_pp
-    if ip_overrides_c.any():
-        affected = c.active_assets[ip_overrides_c.values].tolist()
-        logger.warning(
-            "StorageUnits %s: Per-period initial state of charge "
-            "(state_of_charge_initial_per_period=True) overrides global cyclic "
-            "(cyclic_state_of_charge=True). State of charge is reset to "
-            "state_of_charge_initial at the start of each investment period instead of "
-            "cycling across the entire horizon.",
-            affected,
-        )
+    _warn_affected(
+        ip_overrides_c,
+        c.active_assets,
+        "StorageUnits %s: Per-period initial state of charge "
+        "(state_of_charge_initial_per_period=True) overrides global cyclic "
+        "(cyclic_state_of_charge=True). State of charge is reset to "
+        "state_of_charge_initial at the start of each investment period instead of "
+        "cycling across the entire horizon.",
+    )
 
     cp_overrides_c = cyclic & cyclic_pp
-    if cp_overrides_c.any():
-        affected = c.active_assets[cp_overrides_c.values].tolist()
-        logger.warning(
-            "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
-            "overrides global cyclic (cyclic_state_of_charge=True). "
-            "Storage will cycle within each investment period, not across the entire horizon.",
-            affected,
-        )
+    _warn_affected(
+        cp_overrides_c,
+        c.active_assets,
+        "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
+        "overrides global cyclic (cyclic_state_of_charge=True). "
+        "Storage will cycle within each investment period, not across the entire horizon.",
+    )
 
     lhs += [(eff_stand * include_previous_soc, previous_soc)]
 
@@ -2281,34 +2285,31 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     has_initial = e_init != 0
     ignored = has_initial & (cyclic_pp | (cyclic & ~initial_pp))
-    if ignored.any():
-        affected = c.active_assets[ignored.values].tolist()
-        logger.warning(
-            "Stores %s: Cyclic energy level constraint overrules initial value setting. "
-            "User-defined e_initial will be ignored.",
-            affected,
-        )
+    _warn_affected(
+        ignored,
+        c.active_assets,
+        "Stores %s: Cyclic energy level constraint overrules initial value setting. "
+        "User-defined e_initial will be ignored.",
+    )
 
     ip_overrides_c = cyclic & initial_pp & ~cyclic_pp
-    if ip_overrides_c.any():
-        affected = c.active_assets[ip_overrides_c.values].tolist()
-        logger.warning(
-            "Stores %s: Per-period initial energy level (e_initial_per_period=True) "
-            "overrides global cyclic (e_cyclic=True). Energy level is reset to e_initial "
-            "at the start of each investment period instead of cycling across the entire "
-            "horizon.",
-            affected,
-        )
+    _warn_affected(
+        ip_overrides_c,
+        c.active_assets,
+        "Stores %s: Per-period initial energy level (e_initial_per_period=True) "
+        "overrides global cyclic (e_cyclic=True). Energy level is reset to e_initial "
+        "at the start of each investment period instead of cycling across the entire "
+        "horizon.",
+    )
 
     cp_overrides_c = cyclic & cyclic_pp
-    if cp_overrides_c.any():
-        affected = c.active_assets[cp_overrides_c.values].tolist()
-        logger.warning(
-            "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
-            "overrides global cyclic (e_cyclic=True). "
-            "Storage will cycle within each investment period, not across the entire horizon.",
-            affected,
-        )
+    _warn_affected(
+        cp_overrides_c,
+        c.active_assets,
+        "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
+        "overrides global cyclic (e_cyclic=True). "
+        "Storage will cycle within each investment period, not across the entire horizon.",
+    )
 
     # Add the previous energy term with standing efficiency factor
     lhs += [(eff_stand * include_previous_e, previous_e)]

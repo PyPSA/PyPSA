@@ -114,3 +114,15 @@ def test_warning_initial_per_period_overrides_global(network, spec, caplog):
 
     assert any(spec["ip_wins"] in message for message in messages)
     assert not any(spec["ignored"] in message for message in messages)
+
+
+@SPECS
+def test_warning_with_scenarios(network, spec, caplog):
+    """Warnings also work for stochastic networks, where flags carry a scenario dimension."""
+    n = network()
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+    messages = optimize_with_flags(n, spec, caplog, c=True)
+
+    assert any(
+        spec["ignored"] in message and "storage" in message for message in messages
+    )
