@@ -16,6 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix infeasibility for fixed-capacity modular committable components, which were given operating bounds based on both nominal capacity and module size. (<!-- md:pr 1901 -->)
 - Fix [`n.optimize(transmission_losses=True)`][pypsa.optimization.OptimizationAccessor.__call__] failing for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]) when assigning line losses during post-processing. (<!-- md:pr 1892 -->)
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
