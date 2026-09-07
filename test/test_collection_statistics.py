@@ -225,6 +225,13 @@ def test_network_collection_carrier_nice_names():
     assert "solar" in carriers_raw
     assert "Wind Power" not in carriers_raw
 
+    # Filtering by carrier must collapse the MultiIndexed nice-name series
+    # instead of raising NotImplementedError.
+    filtered = nc.statistics.installed_capacity(groupby="carrier", carrier=["wind"])
+    assert filtered.index.get_level_values("carrier").unique().tolist() == [
+        "Wind Power"
+    ]
+
 
 def test_network_collection_country_grouper(simple_network):
     """Test country grouper with NetworkCollection."""

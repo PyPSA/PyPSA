@@ -12,6 +12,7 @@ from pypsa.clustering.temporal import (
     downsample,
     from_snapshot_map,
     resample,
+    segment,
 )
 
 
@@ -444,6 +445,26 @@ class TestAggregationRulesDetailed:
 
         assert "e_max_pu" in result.n.c.storage_units.dynamic
 
+    def test_e_min_pu_clipped_below_e_max_pu(self, simple_network):
+        n = simple_network
+        rng = np.random.default_rng(0)
+        e_max_pu = rng.uniform(0.3, 0.7, 168)
+        e_min_pu = np.minimum(rng.uniform(0.3, 0.7, 168), e_max_pu)
+        n.add(
+            "Store",
+            "store0",
+            bus="bus0",
+            e_nom=100,
+            e_min_pu=e_min_pu,
+            e_max_pu=e_max_pu,
+        )
+
+        result = resample(n, "24h")
+
+        clustered_min = result.n.c.stores.dynamic["e_min_pu"]["store0"]
+        clustered_max = result.n.c.stores.dynamic["e_max_pu"]["store0"]
+        assert (clustered_min <= clustered_max).all()
+
 
 class TestAccessorFullResultsExtended:
     def test_get_from_snapshot_map_result(self, simple_network):
@@ -461,7 +482,6 @@ class TestAccessorFullResultsExtended:
 
 class TestSegmentErrors:
     def test_segment_invalid_num_segments(self, simple_network):
-        from pypsa.clustering.temporal import segment
 
         n = simple_network
         with pytest.raises(ValueError, match="num_segments must be >= 1"):
@@ -478,8 +498,6 @@ class TestSegmentErrors:
             p_max_pu=np.random.default_rng(42).uniform(0.5, 1.0, 48),
         )
 
-        from pypsa.clustering.temporal import segment
-
         with pytest.raises(NotImplementedError, match="does not yet support"):
             segment(n, 5)
 
@@ -490,8 +508,6 @@ class TestSegmentErrors:
         n.add("Bus", "bus0")
         n.add("Generator", "gen0", bus="bus0", p_nom=100)
 
-        from pypsa.clustering.temporal import segment
-
         with pytest.raises(ValueError, match="No time-varying data"):
             segment(n, 5)
 
@@ -500,8 +516,6 @@ class TestSegmentFunctionality:
     def test_segment_basic(self, simple_network):
         pytest.importorskip("tsam")
         n = simple_network
-
-        from pypsa.clustering.temporal import segment
 
         result = segment(n, 10)
 
@@ -520,6 +534,31 @@ class TestSegmentFunctionality:
 
         assert isinstance(m, pypsa.Network)
         assert len(m.snapshots) == 10
+
+    def test_segment_p_min_pu_not_above_p_max_pu(self, simple_network):
+        pytest.importorskip("tsam")
+        n = simple_network
+
+        rng = np.random.default_rng(0)
+        base = rng.uniform(0.3, 0.95, 168)
+        p_max_pu = base.copy()
+        p_min_pu = base.copy()
+        p_max_pu[0] = 1.0
+        p_min_pu[:2] = [0.1, 0.05]
+        n.add(
+            "Generator",
+            "gen_eq",
+            bus="bus0",
+            p_nom=100,
+            p_min_pu=p_min_pu,
+            p_max_pu=p_max_pu,
+        )
+
+        m = segment(n, 30).n
+
+        clustered_min = m.c.generators.dynamic["p_min_pu"]["gen_eq"]
+        clustered_max = m.c.generators.dynamic["p_max_pu"]["gen_eq"]
+        assert (clustered_min <= clustered_max).all()
 
     def test_get_segment_result(self, simple_network):
         pytest.importorskip("tsam")
@@ -558,7 +597,6 @@ class TestStochasticNotSupported:
 
     def test_segment_stochastic_raises(self, stochastic_network):
         pytest.importorskip("tsam")
-        from pypsa.clustering.temporal import segment
 
         with pytest.raises(NotImplementedError, match="stochastic networks"):
             segment(stochastic_network, 10)

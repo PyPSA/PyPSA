@@ -8,20 +8,25 @@ from __future__ import annotations
 
 import logging
 import warnings
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import Model, merge
+from linopy.constants import BREAKPOINT_DIM, LP_PIECE_DIM, PWL_LINK_DIM, SEGMENT_DIM
 from linopy.solvers import available_solvers
 
+from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
-from pypsa.common import UnexpectedError, as_index
+from pypsa.common import (
+    UnexpectedError,
+    as_index,
+)
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
+from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
@@ -32,6 +37,7 @@ from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
+    define_maintenance_constraints,
     define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
@@ -55,17 +61,24 @@ from pypsa.optimization.global_constraints import (
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
+from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
+    define_maintenance_capacity_variables,
+    define_maintenance_start_variables,
+    define_maintenance_status_variables,
+    define_maintenance_variables,
     define_modular_variables,
     define_nominal_variables,
     define_operational_variables,
+    define_phase_shift_variables,
     define_shut_down_variables,
     define_spillage_variables,
     define_start_up_variables,
     define_status_variables,
 )
+from pypsa.optimization.window import SnapshotWindow, apply_period_weighting
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -74,9 +87,8 @@ if TYPE_CHECKING:
     from pypsa.components import Links, Processes
 logger = logging.getLogger(__name__)
 
-
 lookup = pd.read_csv(
-    Path(__file__).parent / ".." / "data" / "variables.csv",
+    PYPSA_DATA_DIR / "variables.csv",
     index_col=["component", "variable"],
 )
 
@@ -138,7 +150,10 @@ def _resolve_include_objective_constant(
 
 
 def define_objective(
-    n: Network, sns: pd.Index, include_objective_constant: bool
+    n: Network,
+    sns: pd.Index,
+    include_objective_constant: bool,
+    piecewise_options: list[PiecewiseOptions],
 ) -> None:
     """Define and write the optimization objective function.
 
@@ -167,6 +182,9 @@ def define_objective(
         Snapshots (and, for multi-investment, periods) over which to build the objective.
     include_objective_constant : bool
         Whether to include the objective constant as a variable in the objective function.
+    piecewise_options : list[PiecewiseOptions]
+        Options to override defaults in piecewise constraint formulation.
+        List is of the form ``[PiecewiseOptions(...), ...]``.
 
     Notes
     -----
@@ -175,16 +193,17 @@ def define_objective(
     - For a stochastic problem, scenario probabilities are applied as weightings to all cost (includes *both* investment terms).
 
     """
-    weighted_cost: xr.DataArray | int
+    weighted_cost: xr.DataArray
     m = n.model
     # Separate lists to distinguish CAPEX and OPEX terms
     capex_terms = []
     opex_terms = []
     is_quadratic = False
 
+    window = n.optimize._window.subset(sns)
     if n._multi_invest:
-        periods = sns.unique("period")
-        period_weighting = n.investment_period_weightings.objective[periods]
+        period_weighting = n.investment_period_weightings.objective[window.periods]
+        period_weight = xr.DataArray(period_weighting)
 
     # constant for already done investment
     if include_objective_constant:
@@ -194,7 +213,7 @@ def define_objective(
 
         for c_name, attr in nom_attr:
             c = as_components(n, c_name)
-            ext_i = c.extendables.difference(c.inactive_assets)
+            ext_i = c.extendables.intersection(c.active_assets)
 
             if ext_i.empty:
                 continue
@@ -206,14 +225,11 @@ def define_objective(
             nominal = c.da[attr].sel(name=ext_i)
 
             if n._multi_invest:
-                weighted_cost = 0
-                for period in periods:
-                    active = c.da.active.sel(period=period, name=ext_i).any(
-                        dim="timestep"
-                    )
-                    weighted_cost += (
-                        active * periodic_cost * period_weighting.loc[period]
-                    )
+                active_by_period = (
+                    c.da.active.sel(name=ext_i).groupby("period").any("snapshot")
+                )
+                active_weight = (active_by_period * period_weight).sum("period")
+                weighted_cost = active_weight * periodic_cost
             else:
                 active = c.da.active.sel(name=ext_i).any(dim="snapshot")
                 weighted_cost = active * periodic_cost
@@ -226,7 +242,8 @@ def define_objective(
         if n.has_scenarios and isinstance(constant, xr.DataArray):
             # For stochastic networks, weight constant by scenario probabilities
             weighted_constant = sum(
-                constant.sel(scenario=s) * n.scenario_weightings.loc[s, "weight"]
+                constant.sel(scenario=s, drop=True)
+                * n.scenario_weightings.loc[s, "weight"]
                 for s in n.scenarios
             )
             n._objective_constant = float(weighted_constant)
@@ -243,33 +260,59 @@ def define_objective(
         n._objective_constant = 0.0
 
     # Weightings
-    weighting = n.snapshot_weightings.objective
+    weight = window.snapshot_weightings("objective")
     if n._multi_invest:
-        weighting = weighting.mul(period_weighting, level=0).loc[sns]
-    else:
-        weighting = weighting.loc[sns]
-    weight = xr.DataArray(weighting.values, coords={"snapshot": sns}, dims=["snapshot"])
+        weight = apply_period_weighting(weight, period_weighting)
 
     # marginal costs, marginal storage cost, and spill cost
+
     for cost_type in ["marginal_cost", "marginal_cost_storage", "spill_cost"]:
         for c_name, attr in lookup.query(cost_type).index:
             c = as_components(n, c_name)
 
             if c.static.empty:
                 continue
+            active_names = c.active_assets
+            if c.has_piecewise(cost_type):
+                x_var = m[c._piecewise_x_var(cost_type)].sel(snapshot=sns)
+                extra_options = filter(
+                    lambda p: p.component == c.name and p.attribute == cost_type,
+                    piecewise_options,
+                )
+                status = (
+                    None
+                    if c.committables.intersection(active_names).empty
+                    else m[f"{c.name}-status"]
+                )
+                pw_cost_var = define_piecewise(
+                    m,
+                    c,
+                    x_var=x_var,
+                    y_var=None,
+                    pw_attr=cost_type,
+                    aux_var_name=c._piecewise_aux_var(cost_type),
+                    active_names=active_names,
+                    sign=">=",
+                    cumulative_attr=True,
+                    extra_options=extra_options,
+                    status=status,
+                )
+                if pw_cost_var is not None:
+                    opex_terms.append(
+                        (pw_cost_var * weight).sum(dim=["name", "snapshot"])
+                    )
+                    active_names = active_names.difference(pw_cost_var.indexes["name"])
 
             var_name = f"{c.name}-{attr}"
             if var_name not in m.variables and cost_type == "spill_cost":
                 continue
 
-            cost = c.da[cost_type].sel(snapshot=sns, name=c.active_assets)
-            if cost.size == 0 or (cost == 0).all():
-                continue
-
-            cost = cost * weight
-
-            operation = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
-            opex_terms.append((operation * cost).sum(dim=["name", "snapshot"]))
+            cost = c.da[cost_type].sel(snapshot=sns, name=active_names)
+            if cost.size > 0 and not (cost == 0).all():
+                operation = m[var_name].sel(snapshot=sns, name=active_names)
+                opex_terms.append(
+                    (operation * cost * weight).sum(dim=["name", "snapshot"])
+                )
 
     # marginal cost quadratic
     for c_name, attr in lookup.query("marginal_cost_quadratic").index:
@@ -293,7 +336,7 @@ def define_objective(
     # stand-by cost
     for c_name in ["Generator", "Link", "Process"]:
         c = as_components(n, c_name)
-        com_i = c.committables.difference(c.inactive_assets)
+        com_i = c.committables.intersection(c.active_assets)
 
         if com_i.empty:
             continue
@@ -312,32 +355,67 @@ def define_objective(
     # investment
     for c_name, attr in nominal_attrs.items():
         c = as_components(n, c_name)
-        ext_i = c.extendables.difference(c.inactive_assets)
+        ext_i = c.extendables.intersection(c.active_assets)
 
         if ext_i.empty:
             continue
 
-        periodic_cost = c.periodized_cost.sel(name=ext_i)
-        if periodic_cost.size == 0 or (periodic_cost == 0).all():
-            continue
-
+        active_ext = c.da.active.sel(name=ext_i)
         if n._multi_invest:
-            weighted_cost = 0
-            for period in periods:
-                active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += active * periodic_cost * period_weighting.loc[period]
+            sum_dim = ["name", "period"]
+            cost_weight = active_ext.groupby("period").any("snapshot") * period_weight
         else:
-            active = c.da.active.sel(name=ext_i).any(dim="snapshot")
-            weighted_cost = active * periodic_cost
+            sum_dim = ["name"]
+            cost_weight = active_ext.any(dim="snapshot")
 
-        caps = m[f"{c.name}-{attr}"].sel(name=ext_i)
-        capex_terms.append((caps * weighted_cost).sum(dim=["name"]))
+        y_attr = "capital_cost"
+        pw_attr = c._piecewise_schema(y_attr)
+        if not pw_attr.empty:
+            x_var = m[f"{c.name}-{pw_attr.x}"]
+            extra_options = filter(
+                lambda p: p.component == c.name and p.attribute == y_attr,
+                piecewise_options,
+            )
+            piecewise_var = define_piecewise(
+                m,
+                c,
+                x_var=x_var,
+                pw_attr=y_attr,
+                aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
+                active_names=ext_i,
+                sign=">=",
+                cumulative_attr=True,
+                extra_options=extra_options,
+            )
+            if piecewise_var is not None:
+                pw_names = piecewise_var.indexes["name"]
+                overnight = c.static["overnight_cost"].loc[pw_names]
+                if overnight.notna().any():
+                    bad = overnight[overnight.notna()].index.tolist()
+                    msg = (
+                        f"Components {bad} of type {c.name} define both a piecewise "
+                        "'capital_cost' curve and 'overnight_cost'. The piecewise "
+                        "curve must already be periodized; remove 'overnight_cost'."
+                    )
+                    raise ValueError(msg)
+                ext_i = ext_i.difference(pw_names)
+                pw_weight = cost_weight.sel(name=pw_names)
+                capex_terms.append((piecewise_var * pw_weight).sum(dim=sum_dim))
+
+        periodic_cost = c.periodized_cost.sel(name=ext_i)
+        # Linear capital cost for non-piecewise components
+        if not ext_i.empty and (
+            periodic_cost.size > 0 and not (periodic_cost == 0).all()
+        ):
+            caps_lin = m[f"{c.name}-{attr}"].sel(name=ext_i)
+            lin_weight = cost_weight.sel(name=ext_i)
+            capex_terms.append((caps_lin * lin_weight * periodic_cost).sum(dim=sum_dim))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
     for c_name, attr in lookup.query("variable in @keys").index:
         c = as_components(n, c_name)
-        com_i = c.committables.difference(c.inactive_assets)
+        com_i = c.committables.intersection(c.active_assets)
 
         if com_i.empty:
             continue
@@ -358,18 +436,20 @@ def define_objective(
         raise ValueError(msg)
 
     # Build expected CAPEX and expected OPEX (scenario-weighted if stochastic)
-    def _expected(exprs: list) -> Any:
+    def _combine(exprs: list) -> Any:
         if not exprs:
             return 0
-        if n.has_scenarios:
-            terms = []
-            for s, p in n.scenario_weightings["weight"].items():
-                selected = [e.sel(scenario=s) for e in exprs]
-                # If quadratic terms exist, avoid merge (which is linear-only) and sum instead
-                merged = sum(selected) if is_quadratic else merge(selected)
-                terms.append(merged * p)
-            return sum(terms) if is_quadratic else merge(terms)
+        # If quadratic terms exist, avoid merge (which is linear-only) and sum instead
         return sum(exprs) if is_quadratic else merge(exprs)
+
+    def _combine_scenario(exprs: list, s: Any) -> Any:
+        return _combine([e.sel(scenario=s, drop=True) for e in exprs])
+
+    def _expected(exprs: list) -> Any:
+        if not exprs or not n.has_scenarios:
+            return _combine(exprs)
+        weights = n.scenario_weightings["weight"]
+        return _combine([_combine_scenario(exprs, s) * p for s, p in weights.items()])
 
     expected_capex = _expected(capex_terms)
     expected_opex = _expected(opex_terms)
@@ -394,14 +474,7 @@ def define_objective(
             raise ValueError(msg_q)
 
         # Create per-scenario OPEX expressions to use in constraints
-        scen_opex_exprs: dict[Any, Any] = {}
-        for s in n.scenarios:
-            scen_selected = [e.sel(scenario=s) for e in opex_terms]
-            scen_opex_exprs[s] = (
-                (sum(scen_selected) if is_quadratic else merge(scen_selected))
-                if scen_selected
-                else 0
-            )
+        scen_opex_exprs = {s: _combine_scenario(opex_terms, s) for s in n.scenarios}
 
         # Retrieve CVaR auxiliary variables
         a = m["CVaR-a"]
@@ -409,13 +482,13 @@ def define_objective(
         cvar = m["CVaR"]
 
         for s in n.scenarios:
-            lhs = a.sel(scenario=s) - scen_opex_exprs[s] + theta
+            lhs = a.sel(scenario=s, drop=True) - scen_opex_exprs[s] + theta
             m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
 
         inv_tail = 1.0 / (1.0 - alpha)
         weighted_a = None
         for s, p in n.scenario_weightings["weight"].items():
-            term = a.sel(scenario=s) * float(p)
+            term = a.sel(scenario=s, drop=True) * float(p)
             weighted_a = term if weighted_a is None else weighted_a + term
         if weighted_a is None:  # mypy type guard
             msg = "No scenarios found in scenario_weightings"
@@ -443,6 +516,19 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         self._n = n
         self.expressions = StatisticExpressionsAccessor(self._n)
 
+    @property
+    def _window(self) -> SnapshotWindow:
+        """Snapshot window of the live model build.
+
+        Maps between `n.snapshots` and the labels of the model's `snapshot`
+        dimension. Available from `create_model` onwards.
+        """
+        window = self._n._snapshot_window
+        if window is None:
+            msg = "No model has been built yet; call `n.optimize.create_model` first."
+            raise AttributeError(msg)
+        return window
+
     def __call__(
         self,
         snapshots: Sequence | None = None,
@@ -459,6 +545,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
+        piecewise_options: list[PiecewiseOptions | dict] | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -528,6 +615,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
+        piecewise_options : list[PiecewiseOptions | dict], optional
+            Options to override defaults in piecewise constraint formulation.
+            Each operator is interpreted as ``y operator f(x)``.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -558,13 +648,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         )
 
         n = self._n
-        sns = as_index(n, snapshots, "snapshots")
         n._multi_invest = int(multi_investment_periods)
         n._linearized_uc = linearized_unit_commitment
 
-        n.consistency_check(strict=["unknown_buses"])
+        n.consistency_check(
+            strict=["unknown_buses", "maintenance", "phase_shift_bounds"]
+        )
         m = n.optimize.create_model(
-            sns,
+            snapshots,
             multi_investment_periods,
             transmission_losses,
             linearized_unit_commitment,
@@ -572,10 +663,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             include_objective_constant=include_objective_constant,
             committable_big_m=committable_big_m,
             meshed_thresholds=meshed_thresholds,
+            piecewise_options=piecewise_options,
             **model_kwargs,
         )
         if extra_functionality:
-            extra_functionality(n, sns)
+            extra_functionality(n, self._window.model_index)
         if log_to_console is not None:
             kwargs["log_to_console"] = log_to_console
         status, condition = m.solve(
@@ -598,6 +690,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         return status, condition
 
+    @suppress_semantics_warnings()
     def create_model(
         self,
         snapshots: Sequence | None = None,
@@ -608,6 +701,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
+        piecewise_options: list[PiecewiseOptions | dict] | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -650,6 +744,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
+        piecewise_options : list[PiecewiseOptions | dict], optional
+            Options to override defaults in piecewise constraint formulation.
+            Each operator is interpreted as ``y operator f(x)``.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -663,7 +760,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._linearized_uc = int(linearized_unit_commitment)
         n._multi_invest = int(multi_investment_periods)
         n._committable_big_m = committable_big_m
-
+        piecewise_opts: list[PiecewiseOptions] = list(
+            {
+                PiecewiseOptions(**opt) if isinstance(opt, dict) else opt
+                for opt in (piecewise_options or [])
+            }
+        )
         if linearized_unit_commitment:
             check_no_modular_committables(n)
 
@@ -686,7 +788,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 meshed_thresholds = [meshed_threshold]
 
         kwargs.setdefault("force_dim_names", True)
+        window = SnapshotWindow.build(n, sns, options.optimization.model_snapshot_index)
+        n._optimize_window = window
+        sns = window.model_index
         n._model = Model(**kwargs)
+
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
         # Define variables
@@ -699,12 +805,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_status_variables(n, sns, c, linearized_unit_commitment)
             define_start_up_variables(n, sns, c, linearized_unit_commitment)
             define_shut_down_variables(n, sns, c, linearized_unit_commitment)
+            define_maintenance_variables(n, sns, c)
+            define_maintenance_start_variables(n, sns, c)
+            define_maintenance_capacity_variables(n, sns, c)
+            define_maintenance_status_variables(n, sns, c)
             define_committability_variables_constraints_with_fixed_upper_limit(
                 n, sns, c, attr
             )
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
+        define_phase_shift_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -723,6 +834,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             )
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
+            define_maintenance_constraints(n, sns, c)
             define_operational_constraints_for_non_extendables(
                 n, sns, c, attr, transmission_losses
             )
@@ -759,6 +871,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     transmission_losses=transmission_losses,
                     buses=buses,
                     suffix=suffix,
+                    piecewise_options=piecewise_opts,
                 )
             prev = t
 
@@ -804,7 +917,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     raise ValueError(msg)
 
         # Define global constraints
-        define_primary_energy_limit(n, sns)
+        define_primary_energy_limit(n, sns, piecewise_opts)
         define_transmission_expansion_cost_limit(n, sns)
         define_transmission_volume_expansion_limit(n, sns)
         define_tech_capacity_expansion_limit(n, sns)
@@ -812,7 +925,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
 
-        define_objective(n, sns, include_objective_constant)
+        define_objective(n, sns, include_objective_constant, piecewise_opts)
 
         return n.model
 
@@ -878,7 +991,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         n = self._n
         if extra_functionality:
-            extra_functionality(n, n.snapshots)
+            extra_functionality(n, self._window.model_index)
         m = n.model
         if log_to_console is not None:
             kwargs["log_to_console"] = log_to_console
@@ -903,7 +1016,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """Map solution to network components."""
         n = self._n
         m = n.model
-        sns = n.model.parameters.snapshots.to_index()
+        sns = self._window.network_index
+
+        if not n.c.transformers.empty:
+            setpoint = n.get_switchable_as_dense("Transformer", "phase_shift", sns)
+            _set_dynamic_data(n, "Transformer", "phase_shift_opt", setpoint)
 
         for name, variable in m.variables.items():
             sol = variable.solution
@@ -912,6 +1029,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
             # Skip auxiliary CVaR variables
             if name.startswith("CVaR"):
+                continue
+            if any(
+                i in variable.dims
+                for i in [BREAKPOINT_DIM, SEGMENT_DIM, LP_PIECE_DIM, PWL_LINK_DIM]
+            ):
                 continue
 
             # Log variables without component-attribute naming
@@ -924,6 +1046,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 continue
 
             _c_name, attr = name.split("-", 1)
+
+            # Skip auxiliary McCormick linearization variables
+            if attr in ("maintenance_capacity", "maintenance_status"):
+                continue
+
             if not hasattr(n.c, _c_name):
                 # Custom variables might correspond to a designated component
                 logger.info(
@@ -933,6 +1060,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 )
                 continue
             c = n.c[_c_name]
+            rows = c._piecewise_attrs
+            pw_schema = rows[rows.aux_variable == attr].squeeze()
+            if pw_schema.empty and attr.endswith("_piecewise"):
+                # We deal with these variables below when processing the `p` attr.
+                continue
+            # Piecewise variables are auxiliary and need to be processed before being passed back as a solution.
+            if not pw_schema.empty:
+                x_var = m.variables[c._piecewise_x_var(pw_schema.y)]
+                sol = sol / x_var.solution
+                if "snapshot" in sol.dims:
+                    attr += "_opt"
+
             df = _from_xarray(sol, c)
 
             if "snapshot" in sol.dims:
@@ -940,40 +1079,33 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p0", df)
                     _set_dynamic_data(n, c.name, "p1", -df)
 
-                elif c.name == "Link" and attr == "p":
-                    _set_dynamic_data(n, c.name, "p", df)
-                    _set_dynamic_data(n, c.name, "p0", df)
+                elif c.name == "Transformer" and attr == "phase_shift":
+                    _set_dynamic_data(n, c.name, "phase_shift_opt", df)
 
-                    for i in ["1"] + c.additional_ports:
-                        i_suffix = "" if i == "1" else i
-                        eff = n.get_switchable_as_dense(
-                            "Link", f"efficiency{i_suffix}", sns
-                        )
+                elif c.name in ("Link", "Process") and attr == "p":
+                    _set_dynamic_data(n, c.name, "p", df)
+                    if c.name == "Link":
+                        _set_dynamic_data(n, c.name, "p0", df)
+                        ports = ["1"] + c.additional_ports
+                    elif c.name == "Process":
+                        ports = c.ports
+
+                    for i in ports:
+                        i_suffix = c._port_suffix(i)
+                        eff_attr = c._port_coefficient_attr(i)
+                        eff = n.get_switchable_as_dense(c.name, eff_attr, sns)
                         port_df = -df * eff
+                        if c.has_piecewise(eff_attr):
+                            df_piecewise = _from_xarray(
+                                m.variables[f"{_c_name}-{attr}{i}_piecewise"].solution,
+                                c,
+                            )
+                            port_df.update(-df_piecewise)
                         _apply_delay_shift(
                             port_df,
                             c,
                             f"delay{i_suffix}",
                             f"cyclic_delay{i_suffix}",
-                            sns,
-                            n,
-                        )
-                        _set_dynamic_data(n, c.name, f"p{i}", port_df)
-                        c.dynamic[f"p{i}"].loc[
-                            sns, c.static.index[c.static[f"bus{i}"] == ""]
-                        ] = float(c.defaults.loc[f"p{i}", "default"])
-
-                elif c.name == "Process" and attr == "p":
-                    _set_dynamic_data(n, c.name, "p", df)
-
-                    for i in c.ports:
-                        rate = n.get_switchable_as_dense(c.name, f"rate{i}", sns)
-                        port_df = -df * rate
-                        _apply_delay_shift(
-                            port_df,
-                            c,
-                            f"delay{i}",
-                            f"cyclic_delay{i}",
                             sns,
                             n,
                         )
@@ -988,8 +1120,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             elif attr == "n_mod":
                 pass
             else:
-                c.static.update(df.rename(attr + "_opt"), overwrite=True)
-
+                c.static.update(
+                    df.replace(-0.0, 0.0).rename(attr + "_opt"), overwrite=True
+                )
         # If nominal capacity was no variable set optimal value to nominal
         for c_name, attr in lookup.query("nominal").index:
             c = n.components[c_name]
@@ -1112,18 +1245,16 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         power injection per bus and snapshot, voltage angle.
         """
         n = self._n
-        sns = n.model.parameters.snapshots.to_index()
+        sns = self._window.network_index
 
         check_big_m_exceeded(n)
 
         # correct prices with objective weightings
+        objective = n.snapshot_weightings.objective
         if n._multi_invest:
             period_weighting = n.investment_period_weightings.objective
-            weightings = n.snapshot_weightings.objective.mul(
-                period_weighting, level=0, axis=0
-            ).loc[sns]
-        else:
-            weightings = n.snapshot_weightings.objective.loc[sns]
+            objective = objective.mul(period_weighting, level=0, axis=0)
+        weightings = objective.loc[sns]
 
         n.c.buses.dynamic.marginal_price.loc[sns] = (
             n.c.buses.dynamic.marginal_price.loc[sns].divide(weightings, axis=0)
@@ -1137,7 +1268,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # line losses
         if "Line-loss" in n.model.variables:
-            losses = n.model["Line-loss"].solution.to_pandas()
+            losses = _from_xarray(n.model["Line-loss"].solution, n.c["Line"])
             n.c.lines.dynamic.p0 += losses / 2
             n.c.lines.dynamic.p1 += losses / 2
 
@@ -1204,7 +1335,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n = self._n
         for c, attr in nominal_attrs.items():
             c = n.components[c]
-            ext_i = c.extendables.difference(c.inactive_assets)
+            ext_i = c.extendables.intersection(c.active_assets)
             c.static.loc[ext_i, attr] = c.static.loc[ext_i, attr + "_opt"]
             c.static[attr + "_extendable"] = False
 

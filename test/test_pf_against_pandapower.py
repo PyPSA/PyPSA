@@ -51,11 +51,24 @@ def test_pandapower_custom_case(
     # compare bus voltage magnitudes
     equal(n.c.buses.dynamic.v_mag_pu.loc[DEFAULT_TIMESTAMP], net.res_bus.vm_pu)
 
-    # compare bus active power (NB: pandapower uses load signs)
-    equal(n.c.buses.dynamic.p.loc[DEFAULT_TIMESTAMP], -net.res_bus.p_mw)
+    # pandapower folds shunt impedance power into the bus totals, while PyPSA
+    # reports it on the shunt component (p positive if load, q positive if
+    # generation), so add it back in the bus injection convention before comparing
+    buses_i = n.c.buses.static.index
+    shunt = n.c.shunt_impedances
+    by_bus = shunt.static.bus
+    p_per_shunt = shunt.dynamic.p.loc[DEFAULT_TIMESTAMP]
+    q_per_shunt = shunt.dynamic.q.loc[DEFAULT_TIMESTAMP]
+    shunt_p = p_per_shunt.groupby(by_bus).sum().reindex(buses_i, fill_value=0.0)
+    shunt_q = q_per_shunt.groupby(by_bus).sum().reindex(buses_i, fill_value=0.0)
+    bus_p = n.c.buses.dynamic.p.loc[DEFAULT_TIMESTAMP] - shunt_p
+    bus_q = n.c.buses.dynamic.q.loc[DEFAULT_TIMESTAMP] + shunt_q
 
     # compare bus active power (NB: pandapower uses load signs)
-    equal(n.c.buses.dynamic.q.loc[DEFAULT_TIMESTAMP], -net.res_bus.q_mvar)
+    equal(bus_p, -net.res_bus.p_mw)
+
+    # compare bus reactive power (NB: pandapower uses load signs)
+    equal(bus_q, -net.res_bus.q_mvar)
 
     # compare branch flows
     equal(n.c.lines.dynamic.p0.loc[DEFAULT_TIMESTAMP], net.res_line.p_from_mw)

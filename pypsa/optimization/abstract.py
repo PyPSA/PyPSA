@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import xarray as xr
+from pandas.api.types import is_list_like
 
 from pypsa._options import options
 from pypsa.descriptors import nominal_attrs
@@ -185,7 +186,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         n.c.lines.static["carrier"] = n.c.lines.static.bus0.map(
             n.c.buses.static.carrier
         )
-        ext_i = n.c.lines.extendables.difference(n.c.lines.inactive_assets)
+        ext_i = n.c.lines.extendables.intersection(n.c.lines.active_assets)
         typed_i = n.c.lines.static.query('type != ""').index
         ext_untyped_i = ext_i.difference(typed_i)
         ext_typed_i = ext_i.intersection(typed_i)
@@ -360,12 +361,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         ## add costs of additional infrastructure to objective value of last iteration
         obj_links = (
-            n.c.links.static[ext_links_to_fix_b]
-            .eval("capital_cost * (p_nom_opt - p_nom_min)")
-            .sum()
-        )
-        obj_lines = n.c.lines.static.eval(
-            "capital_cost * (s_nom_opt - s_nom_min)"
+            n.c.links.periodized_cost.to_series()
+            * n.c.links.static.eval("p_nom_opt - p_nom_min")
+        )[ext_links_to_fix_b].sum()
+        obj_lines = (
+            n.c.lines.periodized_cost.to_series()
+            * n.c.lines.static.eval("s_nom_opt - s_nom_min")
         ).sum()
         n._objective += obj_links + obj_lines
         n._objective_constant -= obj_links + obj_lines
@@ -416,7 +417,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         if branch_outages is None:
             branch_outages = all_passive_branches
-        elif isinstance(branch_outages, (list | pd.Index)) and not isinstance(
+        elif is_list_like(branch_outages) and not isinstance(
             branch_outages, pd.MultiIndex
         ):
             branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])

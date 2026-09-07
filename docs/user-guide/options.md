@@ -156,6 +156,12 @@ Make changes to the PyPSA API. See <!-- md:guide components.md#new-components-cl
 >>> pypsa.options.api.describe()  # doctest: +NORMALIZE_WHITESPACE
 PyPSA Options
 =============
+legacy_string_dtype:
+    Default: None
+    Description: Whether to convert string data to numpy `object` dtype on import. pandas 3
+    	reads strings as `str` dtype, which PyPSA undoes by default to stay
+    	compatible with earlier versions. Set to False to keep the `str` dtype.
+    	PyPSA v2 will always keep it and drop this option.
 new_components_api:
     Default: False
     Description: Activate the new components API, which replaces the static components data access

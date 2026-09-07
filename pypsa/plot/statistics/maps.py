@@ -52,7 +52,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
     def derive_statistic_parameters(
         self,
         *args: str | None,
-        method_name: str = "",  # make required
+        method_name: str,
     ) -> dict[str, Any]:
         """Handle default statistics kwargs based on provided plot kwargs."""
         return {}

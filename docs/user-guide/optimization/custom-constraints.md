@@ -80,8 +80,15 @@ To create custom constraints, sets of variables are first combined into
 addition, subtraction, multiplication, division) that represent the relationship
 between variables involved in the constraint.
 
+Operands with different labels along a shared dimension (here `name`: generators
+and links) need explicit alignment. Under linopy's current default semantics a
+plain `expr1 + expr2` still works and silently combines the two label sets with
+an outer join. Under the v1 semantics the same `+` raises a `ValueError`, so the intended
+alignment is stated with the `join` argument on `.add()`/`.sub()` or
+`linopy.merge`:
+
 ``` py
->>> 2 * m.variables["Generator-p"] + 0.5 * m.variables["Link-p"]  # doctest: +ELLIPSIS
+>>> (2 * m.variables["Generator-p"]).add(0.5 * m.variables["Link-p"], join="outer")  # doctest: +ELLIPSIS
 LinearExpression [snapshot: 10, name: 10]:
 ------------------------------------------
 [2015-01-01 00:00:00, Bremen Converter]: +0.5 Link-p[2015-01-01 00:00:00, Bremen Converter]
@@ -130,6 +137,22 @@ Generally, optimised values for custom variables are not written back to the net
 
 <!-- However, if you follow the naming convention `{component}-{variable}`, where `component` is the name of the component (e.g., "Generator") and `variable` is the name of the variable (e.g., "custom_var"),
 the optimised values will be stored for the network component (e.g. `n.generators_t.custom_var`). -->
+
+## Handling snapshots in multi-investment optimizations
+
+In multi-period networks, `n.snapshots` is a `pandas.MultiIndex`. linopy's v1
+semantics do not allow a `MultiIndex` on a model dimension, so under v1 PyPSA
+builds `snapshot` as a flat dimension labelled by the `(period, timestep)`
+tuples, with `period` and `timestep` as auxiliary coordinates. Auxiliary
+coordinates are extra labels on a dimension that do not index it but still work
+for selecting and grouping, e.g. `expr.groupby("period")`. `n.snapshots` stays
+a `MultiIndex` and results are unchanged.
+
+Migrating existing `extra_functionality` to the flat representation:
+
+* `n.c.<component>.da.<attr>` instead of `n.get_switchable_as_dense(...).loc[sns]`. The arrays are already on the model's labels; select the snapshots you need with `.sel(snapshot=sns)`.
+* `expr.groupby("period").sum()` instead of slicing `sns` by `sns.unique("period")` — the auxiliary coordinate takes the role of the `MultiIndex` level.
+* For data that has to stay in pandas, the flat labels *are* the `(period, timestep)` tuples of `n.snapshots`. The `sns` argument of `extra_functionality` carries the model's labels, so `net_sns = pd.MultiIndex.from_tuples(sns, names=n.snapshots.names)` recovers the network's labelling and `df.loc[net_sns].set_axis(sns)` relabels a snapshot-indexed frame onto the model's.
 
 !!! note "Alternative approach using `n.optimize(extra_functionality=...)`"
 

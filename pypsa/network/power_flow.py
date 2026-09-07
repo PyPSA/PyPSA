@@ -422,6 +422,22 @@ def sub_network_pf_singlebus(
     return 0, 0.0, True  # dummy substitute for newton raphson output
 
 
+def _warn_type_param_override(
+    component: str, current: pd.DataFrame, new: pd.DataFrame, attrs: list[str]
+) -> None:
+    """Warn if non-default manual impedance values are overridden by a standard type."""
+    differs = (current[attrs].to_numpy() != 0) & ~np.isclose(current[attrs], new[attrs])
+    overridden = current.index[differs.any(axis=1)]
+    if not overridden.empty:
+        logger.warning(
+            "%s %s have a 'type' set; the manually provided values for %s are "
+            "overridden by the standard type. Set 'type' to \"\" to keep manual values.",
+            component,
+            overridden.tolist(),
+            ", ".join(attrs),
+        )
+
+
 def apply_line_types(n: Network) -> None:
     """Calculate line electrical parameters x, r, b, g from standard types."""
     lines_with_types_b = n.c.lines.static.type != ""
@@ -466,7 +482,11 @@ def apply_line_types(n: Network) -> None:
     )
 
     # now set calculated values on live lines
-    for attr in ["r", "x", "b"]:
+    line_attrs = ["r", "x", "b"]
+    _warn_type_param_override(
+        "Line(s)", n.c.lines.static.loc[lines_with_types_b], lines, line_attrs
+    )
+    for attr in line_attrs:
         n.c.lines.static.loc[lines_with_types_b, attr] = lines[attr]
 
 
@@ -533,6 +553,12 @@ def apply_transformer_types(n: Network) -> None:
 
     # now set calculated values on live transformers
     attrs = ["r", "x", "g", "b", "phase_shift", "s_nom", "tap_side", "tap_ratio"]
+    _warn_type_param_override(
+        "Transformer(s)",
+        n.c.transformers.static.loc[trafos_with_types_b],
+        t,
+        ["r", "x", "g", "b", "s_nom"],
+    )
     n.c.transformers.static.loc[trafos_with_types_b, attrs] = t[attrs].astype(
         n.c.transformers.static[attrs].dtypes
     )
@@ -1654,8 +1680,9 @@ class SubNetworkPowerFlowMixin:
 
         s0 = pd.DataFrame(v0 * np.conj(i0), columns=branches_i, index=sns)
         s1 = pd.DataFrame(v1 * np.conj(i1), columns=branches_i, index=sns)
+        branch_types = branches_i.unique("type")
         for c in self.components:
-            if c.name not in n.passive_branch_components:
+            if c.name not in branch_types:
                 continue
             s0t = s0.loc[:, c.name]
             s1t = s1.loc[:, c.name]
@@ -1844,8 +1871,9 @@ class SubNetworkPowerFlowMixin:
                 + self.p_branch_shift
             )
 
+            branch_types = branches_i.unique("type")
             for c in self.components:
-                if c.name not in n.passive_branch_components:
+                if c.name not in branch_types:
                     continue
                 f = flows.loc[:, c.name]
                 n.c[c.name].dynamic.p0.loc[sns, f.columns] = f

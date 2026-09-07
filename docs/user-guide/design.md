@@ -101,7 +101,7 @@ Index([0, 1, 2], dtype='int64', name='snapshot')
 
 !!! note
 
-    For many applications, snapshots represent time intervals and are commonly defined as a `pandas.DatetimeIndex`, for example using `pd.date_range("2024-01-01", periods=168, freq="H")` to create hourly intervals for a week.
+    For many applications, snapshots represent time intervals and are commonly defined as a `pandas.DatetimeIndex`, for example using `pd.date_range("2024-01-01", periods=168, freq="h")` to create hourly intervals for a week.
 
 Snapshot weightings are applied to each snapshot, so that snapshots can
 represent more than one hour or fractions of one hour. Three different
@@ -203,7 +203,7 @@ with [`n.set_scenarios()`][pypsa.Network.set_scenarios].
 >>> n = pypsa.Network() # docs-hide
 >>> n.set_scenarios(["low", "high"])
 >>> n.scenarios
-Index(['low', 'high'], dtype='object', name='scenario')
+Index(['low', 'high'], dtype='str', name='scenario')
 ```
 
 Probabilities for each scenario can also be set with
@@ -343,7 +343,7 @@ The units for physical quantities follow the general rules.
 | Time | h |
 | Energy | MWh |
 | Voltage | kV phase-phase for `n.buses.v_nom`; per-unit for `n.buses.v_mag_pu` |
-| Angles | radians, except `n.transformers.phase_shift` which is in degrees |
+| Angles | radians, except the `Transformer` phase-shift attributes (`phase_shift`, `phase_shift_min`, `phase_shift_max` and the output `phase_shift_opt`) which are in degrees |
 | Impedance | Ohm, except transformers which are per-unit, using `n.transformers.s_nom` for the base power |
 | CO~2~ emissions | tonnes of CO~2~ per MWh~thermal~ of energy carrier |
 

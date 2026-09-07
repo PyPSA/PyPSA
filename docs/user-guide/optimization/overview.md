@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 PyPSA can optimise the following types of problems:
 
-1. **Economic Dispatch (ED)** market model with unit commitment and storage operation with perfect foresight or rolling horizon, coupled across different energy carriers (electricity, heat, hydrogen, etc.) and with conversion between them ([:material-notebook: Example](../../examples/simple-electricity-market-examples.ipynb)),
+1. **Economic Dispatch (ED)** market model with unit commitment, maintenance scheduling, and storage operation with perfect foresight or rolling horizon, coupled across different energy carriers (electricity, heat, hydrogen, etc.) and with conversion between them ([:material-notebook: Example](../../examples/simple-electricity-market-examples.ipynb)),
 
 2. **Linear Optimal Power Flow (LOPF)** with network constraints for Kirchhoff's Voltage Law (KVL) and Kirchhoff's Current Law (KCL) ([:material-notebook: Example](../../examples/scigrid-lopf-then-pf.ipynb)),
 

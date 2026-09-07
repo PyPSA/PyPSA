@@ -46,8 +46,8 @@ class Processes(_Multiport):
     def _output_ports(self) -> list[str]:
         return self.ports
 
-    def _port_suffix(self, port: str) -> str:
-        return port
+    def _port_suffix(self, port: str | int) -> str:
+        return str(port)
 
     @property
     def _coefficient_attr(self) -> str:
@@ -81,7 +81,7 @@ class Processes(_Multiport):
     def add(
         self,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
         overwrite: bool = False,
         return_names: bool | None = None,
         **kwargs: Any,
