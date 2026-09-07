@@ -1674,15 +1674,16 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
 def define_line_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
     """Define voltage angle difference limits for lines.
 
-    Caps the linearised voltage angle difference across each AC line to the
-    range ``[v_ang_min, v_ang_max]`` (in degrees). Since the angle difference
-    equals ``x_pu_eff * s``, the limit is imposed as a bound on the flow ``s``
-    by dividing through the strictly positive ``x_pu_eff`` to keep the flow
-    coefficient at one:
+    Caps the magnitude of the linearised voltage angle difference across each
+    AC line to ``v_ang_max`` (in degrees). Since the angle difference equals
+    ``x_pu_eff * s``, the limit is imposed as a symmetric bound on the flow
+    ``s`` by dividing through the strictly positive ``x_pu_eff`` to keep the
+    flow coefficient at one:
 
-    deg2rad(v_ang_min) / x_pu_eff <= s <= deg2rad(v_ang_max) / x_pu_eff
+    -deg2rad(v_ang_max) / x_pu_eff <= s <= deg2rad(v_ang_max) / x_pu_eff
 
-    Constraints are only created for lines with a finite bound.
+    Constraints are only created for lines with a finite ``v_ang_max``. The
+    attribute ``v_ang_min`` is not used in the optimisation.
 
     Parameters
     ----------
@@ -1694,41 +1695,21 @@ def define_line_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
     """
     c = as_components(n, "Line")
     ac_i = c.static.index[c.static.carrier == "AC"].intersection(c.active_assets)
-    if ac_i.empty:
+    v_ang_max = c.da["v_ang_max"].sel(name=ac_i)
+    lines_i = ac_i[isfinite(v_ang_max).values]
+    if lines_i.empty:
         return
 
     n.calculate_dependent_values()
     sns = n.optimize._window.subset(sns).model_index
-    deg_to_rad = np.pi / 180.0
 
-    x_pu_eff = c.da["x_pu_eff"].sel(name=ac_i)
-    v_ang_min = c.da["v_ang_min"].sel(name=ac_i)
-    v_ang_max = c.da["v_ang_max"].sel(name=ac_i)
-    s = n.model["Line-s"]
+    x_pu_eff = c.da["x_pu_eff"].sel(name=lines_i)
+    cap = np.deg2rad(v_ang_max.sel(name=lines_i)) / x_pu_eff
+    s = n.model["Line-s"].sel(name=lines_i, snapshot=sns)
+    active = c.da.active.sel(name=lines_i, snapshot=sns)
 
-    lower_i = ac_i[isfinite(v_ang_min).values]
-    if not lower_i.empty:
-        rhs = deg_to_rad * v_ang_min.sel(name=lower_i) / x_pu_eff.sel(name=lower_i)
-        active = c.da.active.sel(name=lower_i, snapshot=sns)
-        n.model.add_constraints(
-            s.sel(name=lower_i, snapshot=sns),
-            ">=",
-            rhs,
-            name="Line-v_ang-lower",
-            mask=active,
-        )
-
-    upper_i = ac_i[isfinite(v_ang_max).values]
-    if not upper_i.empty:
-        rhs = deg_to_rad * v_ang_max.sel(name=upper_i) / x_pu_eff.sel(name=upper_i)
-        active = c.da.active.sel(name=upper_i, snapshot=sns)
-        n.model.add_constraints(
-            s.sel(name=upper_i, snapshot=sns),
-            "<=",
-            rhs,
-            name="Line-v_ang-upper",
-            mask=active,
-        )
+    n.model.add_constraints(s, ">=", -cap, name="Line-v_ang-lower", mask=active)
+    n.model.add_constraints(s, "<=", cap, name="Line-v_ang-upper", mask=active)
 
 
 def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:

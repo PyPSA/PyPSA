@@ -25,8 +25,8 @@ length,float,km,0,"Length of line used when `type` is set. Also useful for calcu
 carrier,string,"n/a","","Type of current. ""AC"" is the only valid value for lines.",Input (optional)
 terrain_factor,float,per unit,1,"Terrain factor for increasing `length` for `capital_cost` calculation.",Input (optional)
 num_parallel,float,n/a,1,"When `type` is set, this is the number of parallel circuits. Can also be fractional. If `type` is empty """" this value is ignored.",Input (optional)
-v_ang_min,float,degrees,-inf,Minimum voltage angle difference across the line in degrees. Enforced in the linear optimisation (LOPF) as a lower cap on the line's angle difference. Ignored when -inf.,Input (optional)
-v_ang_max,float,degrees,inf,Maximum voltage angle difference across the line in degrees. Enforced in the linear optimisation (LOPF) as an upper cap on the line's angle difference. Ignored when inf.,Input (optional)
+v_ang_min,float,degrees,-inf,Minimum voltage angle difference across the line in degrees. Not used in the optimisation since `v_ang_max` applies symmetrically.,Input (optional)
+v_ang_max,float,degrees,inf,Maximum magnitude of the voltage angle difference across the line in degrees. Enforced in the linear optimisation (LOPF) as a symmetric cap on the line's angle difference. Ignored when inf.,Input (optional)
 sub_network,string,n/a,n/a,"Name of sub-network to which lines belongs, as calculated by `n.determine_network_topology()`. Do not set by hand.",Output
 p0,series,MW,0,Active power at `bus0` (positive if branch is withdrawing power from `bus0`).,Output
 q0,series,MVar,0,Reactive power at `bus0` (positive if branch is withdrawing power from `bus0`).,Output

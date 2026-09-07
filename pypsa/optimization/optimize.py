@@ -877,7 +877,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             prev = t
 
         define_kirchhoff_voltage_constraints(n, sns)
-        if np.isfinite(n.c.lines.static[["v_ang_min", "v_ang_max"]].to_numpy()).any():
+        if np.isfinite(n.c.lines.static["v_ang_max"]).any():
             define_line_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)

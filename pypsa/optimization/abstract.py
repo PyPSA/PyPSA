@@ -296,7 +296,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
             s_nom_prev = (
                 n.c.lines.static.s_nom_opt.copy()
-                if iteration
+                if iteration > 1
                 else n.c.lines.static.s_nom.copy()
             )
             status, termination_condition = n.optimize(snapshots, **kwargs)

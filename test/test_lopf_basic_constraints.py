@@ -573,23 +573,23 @@ def angle_difference_from_lpf(n, line):
 
 
 @pytest.mark.parametrize(
-    ("bound", "cap_deg", "sign", "kwargs"),
+    ("cap_deg", "sign", "kwargs"),
     [
-        ("v_ang_max", 0.1, 1, {}),
-        ("v_ang_min", -0.05, -1, {"mc0": 20, "mc2": 10, "load_bus": "b0"}),
+        (0.1, 1, {}),
+        (0.05, -1, {"mc0": 20, "mc2": 10, "load_bus": "b0"}),
     ],
 )
-def test_line_voltage_angle_limit(bound, cap_deg, sign, kwargs):
+def test_line_voltage_angle_limit(cap_deg, sign, kwargs):
     n = meshed_triangle_network(**kwargs)
     n.optimize()
     n.calculate_dependent_values()
     unconstrained = n.lines.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
 
-    cap_rad = np.deg2rad(cap_deg)
+    cap_rad = sign * np.deg2rad(cap_deg)
     assert sign * unconstrained > sign * cap_rad
 
     n = meshed_triangle_network(**kwargs)
-    n.lines.loc["l01", bound] = cap_deg
+    n.lines.loc["l01", "v_ang_max"] = cap_deg
     n.optimize()
     n.calculate_dependent_values()
 
@@ -605,8 +605,11 @@ def test_line_voltage_angle_constraint_names():
     n.lines.loc["l01", "v_ang_max"] = 0.1
     n.lines.loc["l12", "v_ang_min"] = -0.1
     n.optimize()
-    assert "Line-v_ang-upper" in n.model.constraints
-    assert "Line-v_ang-lower" in n.model.constraints
+    upper = n.model.constraints["Line-v_ang-upper"]
+    lower = n.model.constraints["Line-v_ang-lower"]
+    assert list(upper.coords["name"].values) == ["l01"]
+    assert list(lower.coords["name"].values) == ["l01"]
+    assert np.isclose(lower.rhs, -upper.rhs).all()
 
 
 def test_line_voltage_angle_no_bound():
