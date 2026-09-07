@@ -42,11 +42,9 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Documentation
 
-- Added example notebooks on settling support schemes as a post-processing step on a
-  solved network: [single-year](./examples/cfd-ppa-settlement.ipynb) (two-sided CfDs,
-  one-sided feed-in premiums, cap-and-floor, and virtual / baseload PPAs) and
-  [multi-year](./examples/cfd-multi-year-settlement.ipynb) (CPI strike indexation and
-  vintage stacking). (<!-- md:pr -->)
+- Added an [example notebook](./examples/cfd-ppa-settlement.ipynb) on settling support
+  schemes (two-sided CfDs, one-sided feed-in premiums, cap-and-floor, and virtual /
+  baseload PPAs) as a post-processing step on a solved network. (<!-- md:pr 1727 -->)
 
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
