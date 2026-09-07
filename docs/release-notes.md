@@ -16,7 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
-- `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1425 -->)
+- `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
 
 ### Bug Fixes
 
