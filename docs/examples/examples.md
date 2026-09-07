@@ -61,6 +61,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](scigrid-sclopf.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Line Loading Limits**
+
+    Demonstrates static and time-varying `s_max_pu` derating and a manual voltage angle difference limit as existing-parameter approaches to restrict line loading.
+
+    [:octicons-arrow-right-24: Go to example](line-loading-limits.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Newton-Raphson Power Flow**
 
     Solves non-linear AC power flow equations using the Newton-Raphson method to inspect voltage magnitudes and angles.

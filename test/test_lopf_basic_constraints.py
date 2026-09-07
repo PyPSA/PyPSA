@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -545,3 +546,81 @@ def test_515():
     n.optimize()
 
     assert n.objective == 10
+
+
+def meshed_triangle_network(mc0=10, mc2=20, load_bus="b1"):
+    n = pypsa.Network()
+    n.set_snapshots(["now"])
+    for b in ["b0", "b1", "b2"]:
+        n.add("Bus", b, v_nom=380.0)
+    n.add("Line", "l01", bus0="b0", bus1="b1", x=0.5, r=0.01, s_nom=2000)
+    n.add("Line", "l12", bus0="b1", bus1="b2", x=1.0, r=0.02, s_nom=2000)
+    n.add("Line", "l02", bus0="b0", bus1="b2", x=2.0, r=0.05, s_nom=2000)
+    n.add("Generator", "g0", bus="b0", p_nom=1000, marginal_cost=mc0)
+    n.add("Generator", "g2", bus="b2", p_nom=1000, marginal_cost=mc2)
+    n.add("Load", "load", bus=load_bus, p_set=800)
+    return n
+
+
+def angle_difference_from_lpf(n, line):
+    n.generators_t.p_set = n.generators_t.p.copy()
+    n.generators["control"] = "PV"
+    n.generators.loc["g0", "control"] = "Slack"
+    n.lpf()
+    b0, b1 = n.lines.loc[line, ["bus0", "bus1"]]
+    v_ang = n.buses_t.v_ang.loc["now"]
+    return v_ang[b0] - v_ang[b1]
+
+
+@pytest.mark.parametrize(
+    ("bound", "cap_deg", "sign", "kwargs"),
+    [
+        ("v_ang_max", 0.1, 1, {}),
+        ("v_ang_min", -0.05, -1, {"mc0": 20, "mc2": 10, "load_bus": "b0"}),
+    ],
+)
+def test_line_voltage_angle_limit(bound, cap_deg, sign, kwargs):
+    n = meshed_triangle_network(**kwargs)
+    n.optimize()
+    n.calculate_dependent_values()
+    unconstrained = n.lines.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+
+    cap_rad = np.deg2rad(cap_deg)
+    assert sign * unconstrained > sign * cap_rad
+
+    n = meshed_triangle_network(**kwargs)
+    n.lines.loc["l01", bound] = cap_deg
+    n.optimize()
+    n.calculate_dependent_values()
+
+    angle = n.lines.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+    assert sign * angle <= sign * cap_rad + 1e-9
+
+    lpf_diff = angle_difference_from_lpf(n, "l01")
+    assert np.isclose(lpf_diff, cap_rad, atol=1e-6)
+
+
+def test_line_voltage_angle_constraint_names():
+    n = meshed_triangle_network()
+    n.lines.loc["l01", "v_ang_max"] = 0.1
+    n.lines.loc["l12", "v_ang_min"] = -0.1
+    n.optimize()
+    assert "Line-v_ang-upper" in n.model.constraints
+    assert "Line-v_ang-lower" in n.model.constraints
+
+
+def test_line_voltage_angle_no_bound():
+    n = meshed_triangle_network()
+    n.optimize()
+    assert "Line-v_ang-upper" not in n.model.constraints
+    assert "Line-v_ang-lower" not in n.model.constraints
+
+    n.calculate_dependent_values()
+    unconstrained = n.lines.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+
+    n2 = meshed_triangle_network()
+    n2.lines.loc["l01", "v_ang_max"] = 10.0
+    n2.optimize()
+    n2.calculate_dependent_values()
+    slack = n2.lines.x_pu_eff["l01"] * n2.lines_t.p0.loc["now", "l01"]
+    assert np.isclose(unconstrained, slack)

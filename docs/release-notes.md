@@ -14,6 +14,10 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Features
+
+- Enforce voltage angle difference limits on [Line](./user-guide/components/lines.md) components in linear optimal power flow. Setting a finite `v_ang_min` and/or `v_ang_max` (degrees) on an AC line now caps its linearised voltage angle difference `x_pu_eff * s` in `n.optimize()`, formulated as a bound on the line flow `s` to keep the problem well conditioned. Resolves part of [#1481](https://github.com/PyPSA/PyPSA/issues/1481). (<!-- md:pr 1481 -->)
+
 ### Bug Fixes
 
 - Fix [`n.optimize(transmission_losses=True)`][pypsa.optimization.OptimizationAccessor.__call__] failing for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]) when assigning line losses during post-processing. (<!-- md:pr 1892 -->)
