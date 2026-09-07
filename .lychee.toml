@@ -29,6 +29,7 @@ exclude = [
   "sun.ac.za",
   "agora-energiewende.de",
   "isa.co",
+  "tugraz.at",
 ]
 
 # Release notes are an immutable historical record whose links rot over time.
