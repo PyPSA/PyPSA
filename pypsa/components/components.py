@@ -754,7 +754,7 @@ class Components(
         --------
         >>> c = n.components.generators
         >>> c.ds  # doctest: +ELLIPSIS
-        <xarray.Dataset> Size: 7kB
+        <xarray.Dataset> Size: 8kB
         Dimensions:                     (name: 6, snapshot: 10)
         Coordinates:
           * name                        (name) object 48B 'Manchester Wind' ... 'Fran...

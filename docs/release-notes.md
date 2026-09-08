@@ -14,6 +14,10 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Features
+
+- `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
+
 ### Bug Fixes
 
 - Fix infeasibility for fixed-capacity modular committable components, which were given operating bounds based on both nominal capacity and module size. (<!-- md:pr 1901 -->)
