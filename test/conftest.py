@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+import os
 import warnings
 from pathlib import Path
 
@@ -97,6 +98,33 @@ def pytest_configure(config):
     """Configure pytest session with custom options."""
     if config.getoption("--new-components-api"):
         pypsa.options.api.new_components_api = True
+    _configure_linopy_semantics(config)
+
+
+def _configure_linopy_semantics(config):
+    """Select linopy arithmetic semantics and fail on divergence warnings.
+
+    Controlled via `LINOPY_SEMANTICS` (`legacy` | `v1`); no `PYPSA_`
+    prefix, to avoid PyPSA's own env-var option loader, so old linopy (without
+    the `semantics` option) is untouched. When set, any
+    `LinopySemanticsWarning` escaping PyPSA's own targeted suppression fails
+    the test. The filter is added here rather than in `pyproject.toml` because
+    the warning class only exists on linopy with v1 semantics.
+    """
+    import linopy
+
+    mode = os.environ.get("LINOPY_SEMANTICS")
+    if not mode:
+        return
+    try:
+        linopy.options["semantics"] = mode
+    except (KeyError, TypeError):
+        # linopy < 0.10 has no "semantics" option; setting it is a no-op.
+        return
+    config.addinivalue_line(
+        "filterwarnings",
+        "error::linopy.config.LinopySemanticsWarning",
+    )
 
 
 def pytest_collection_modifyitems(config, items):

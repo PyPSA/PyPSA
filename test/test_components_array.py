@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+from types import SimpleNamespace
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -220,6 +222,7 @@ def test_from_xarray_auxiliary_dimensions():
             self.component_names = ["gen1", "gen2"]
             self.scenarios = ["s1", "s2"]
             self.has_scenarios = True
+            self.n_save = SimpleNamespace(_snapshot_window=None)
 
     c = MockComponent()
 
@@ -264,6 +267,7 @@ def test_from_xarray_edge_cases():
             self.names = ["gen1", "gen2"]
             self.scenarios = ["s1", "s2"]
             self.has_scenarios = False
+            self.n_save = SimpleNamespace(_snapshot_window=None)
 
     c = MockComponent()
 

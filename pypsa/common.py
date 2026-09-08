@@ -379,8 +379,8 @@ def equals(
             return True
         if not a.equals(b):
             # TODO: Resolve with data validation PR
-            # Fallback with dtype tolerance for pandas 2 vs 3 differences
-            # (object vs StringDtype, datetime64[ns] vs datetime64[us])
+            # Tolerate what CSV/Excel round-trips lose, float precision and the
+            # dtype of undeclared columns
             try:
                 if isinstance(a, pd.DataFrame):
                     pd_testing.assert_frame_equal(
@@ -972,8 +972,8 @@ def normalize_carrier_nice_names(
     if isinstance(carrier, str):
         carriers = [carrier]
         scalar = True
-    elif isinstance(carrier, list):
-        carriers = carrier
+    elif is_list_like(carrier):
+        carriers = list(carrier)
         scalar = False
     else:
         return carrier

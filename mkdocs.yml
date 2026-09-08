@@ -128,6 +128,7 @@ nav:
     - examples/scigrid-redispatch.ipynb
     - examples/demand-elasticity.ipynb
     - examples/imperfect-competition.ipynb
+    - examples/cfd-ppa-settlement.ipynb
     - examples/generation-investment-screening-curve.ipynb
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer-example.ipynb
@@ -235,6 +236,7 @@ extra_css:
 
 extra_javascript:
 - assets/javascripts/readthedocs.js
+- assets/javascripts/copy-doctest.js
 - assets/javascripts/mathjax.js
 - assets/javascripts/gurubase-widget.js
 - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
@@ -382,10 +384,10 @@ plugins:
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.violin
               - pypsa.plot.statistics.plotter.InteractiveStatisticPlotter.histogram
 
-# This will rebuild and execute the notebooks during any modifications when running `mkdocs serve`
-# For local development, this can be commented out/ filtered to only include the notebooks of interest
+# Notebooks are pre-executed by the build-docs GitHub Action and stored on the
+# `docs-notebooks` branch. For local development set execute: true to run on serve.
 - mkdocs-jupyter:
-    execute: true
+    execute: false
     include: ["*.ipynb"]
     allow_errors: false
     include_source: true

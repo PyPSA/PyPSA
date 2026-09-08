@@ -101,7 +101,7 @@ Index([0, 1, 2], dtype='int64', name='snapshot')
 
 !!! note
 
-    For many applications, snapshots represent time intervals and are commonly defined as a `pandas.DatetimeIndex`, for example using `pd.date_range("2024-01-01", periods=168, freq="H")` to create hourly intervals for a week.
+    For many applications, snapshots represent time intervals and are commonly defined as a `pandas.DatetimeIndex`, for example using `pd.date_range("2024-01-01", periods=168, freq="h")` to create hourly intervals for a week.
 
 Snapshot weightings are applied to each snapshot, so that snapshots can
 represent more than one hour or fractions of one hour. Three different
@@ -203,7 +203,7 @@ with [`n.set_scenarios()`][pypsa.Network.set_scenarios].
 >>> n = pypsa.Network() # docs-hide
 >>> n.set_scenarios(["low", "high"])
 >>> n.scenarios
-Index(['low', 'high'], dtype='object', name='scenario')
+Index(['low', 'high'], dtype='str', name='scenario')
 ```
 
 Probabilities for each scenario can also be set with

@@ -17,9 +17,11 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any
 
+    import linopy
     import pandas as pd
 
     from pypsa.components.store import ComponentsStore
+    from pypsa.optimization.window import SnapshotWindow
 
 
 class _NetworkABC(ABC):
@@ -67,6 +69,15 @@ class _NetworkABC(ABC):
     calculate_dependent_values: Callable
 
     passive_branches: pd.DataFrame
+
+    # Optimization
+    _model: linopy.Model | None
+    _optimize_window: SnapshotWindow | None
+
+    @property
+    def _snapshot_window(self) -> SnapshotWindow | None:
+        """Snapshot window of the live model build, if any."""
+        return self._optimize_window if self._model is not None else None
 
     @property
     @abstractmethod

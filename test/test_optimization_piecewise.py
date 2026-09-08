@@ -148,7 +148,7 @@ class TestGetBreakpoints:
         self, component_extendable, pw_names, cumulative_attr, invert_attr
     ) -> None:
         """Test expected x breakpoints are returned for extendable components when x_attr is nominal."""
-        x_breakpoints, _ = _get_breakpoints(
+        x_breakpoints, _, _ = _get_breakpoints(
             component_extendable, "capital_cost", pw_names, cumulative_attr, invert_attr
         )
         expected_x = [0, 0.5, 1.0]
@@ -160,7 +160,7 @@ class TestGetBreakpoints:
         self, component, pw_names, cumulative_attr, invert_attr
     ) -> None:
         """Test expected x breakpoints are returned for non-extendable components when x_attr is per-unit."""
-        x_breakpoints, _ = _get_breakpoints(
+        x_breakpoints, _, _ = _get_breakpoints(
             component, "marginal_cost", pw_names, cumulative_attr, invert_attr
         )
         expected_x = [0, 50, 100]
@@ -168,7 +168,7 @@ class TestGetBreakpoints:
 
     def test_cumulative_attr(self, component, pw_names) -> None:
         """Test expected y breakpoints are returned when cumulative_attr is True."""
-        _, y_breakpoints = _get_breakpoints(
+        _, y_breakpoints, _ = _get_breakpoints(
             component,
             "marginal_cost",
             pw_names,
@@ -179,7 +179,7 @@ class TestGetBreakpoints:
 
     def test_not_cumulative_attr(self, component, pw_names) -> None:
         """Test expected y breakpoints are returned when cumulative_attr is False."""
-        _, y_breakpoints = _get_breakpoints(
+        _, y_breakpoints, _ = _get_breakpoints(
             component,
             "marginal_cost",
             pw_names,
@@ -190,7 +190,7 @@ class TestGetBreakpoints:
 
     def test_invert_attr(self, component, pw_names) -> None:
         """Test expected y breakpoints are returned when invert_attr is True."""
-        _, y_breakpoints = _get_breakpoints(
+        _, y_breakpoints, _ = _get_breakpoints(
             component,
             "marginal_cost",
             pw_names,
@@ -201,7 +201,7 @@ class TestGetBreakpoints:
 
     def test_invert_cumulative_attr(self, component, pw_names) -> None:
         """Test expected y breakpoints are returned when invert_attr and cumulative_attr are True."""
-        _, y_breakpoints = _get_breakpoints(
+        _, y_breakpoints, _ = _get_breakpoints(
             component, "marginal_cost", pw_names, cumulative_attr=True, invert_attr=True
         )
         assert np.allclose(y_breakpoints.sel(name="gen"), [0, 2.5, 3.75])
@@ -449,7 +449,8 @@ class TestDefinePiecewise:
             active_names=pd.Index(["gen1"], name="name"),
             **default_kwargs,
         )
-        assert result == linopy_model["y_static"]
+        assert result.name == "y_static"
+        assert list(result.indexes["name"]) == ["gen1"]
         assert "foo_static" not in linopy_model.variables
 
     @pytest.mark.parametrize(

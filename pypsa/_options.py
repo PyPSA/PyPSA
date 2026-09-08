@@ -485,6 +485,16 @@ options._add_option(
     "Values within this tolerance of the boundary are not flagged as inconsistent. "
     "Set to 0 to disable tolerance and flag any violation.",
 )
+# Optimization category
+options._add_option(
+    "optimization.model_snapshot_index",
+    "auto",
+    "Snapshot dimension of multi-period models: 'multiindex' keeps the "
+    "(period, timestep) MultiIndex, 'flat' uses tuple labels "
+    "with period/timestep auxiliary coordinates, 'auto' picks by linopy's active "
+    "semantics ('flat' under v1, else 'multiindex'). Applies to newly built "
+    "models only.",
+)
 # Warnings category
 options._add_option(
     "warnings.components_store_iter",
@@ -500,6 +510,14 @@ options._add_option(
 )
 
 # API
+options._add_option(
+    "api.legacy_string_dtype",
+    None,
+    "Whether to convert string data to numpy `object` dtype on import. pandas 3\n\t"
+    "reads strings as `str` dtype, which PyPSA undoes by default to stay\n\t"
+    "compatible with earlier versions. Set to False to keep the `str` dtype.\n\t"
+    "PyPSA v2 will always keep it and drop this option.",
+)
 options._add_option(
     "api.new_components_api",
     False,

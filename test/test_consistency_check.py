@@ -695,3 +695,25 @@ class TestNumericalTolerance:
         caplog.clear()
         n.consistency_check()
         assert any(self.E_SUM_MSG in r.message for r in caplog.records)
+
+
+def test_nomansland_bus(caplog):
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.add("Generator", "generator1", bus="bus", p_nom=15, marginal_cost=10)
+
+    n.consistency_check()
+    assert "The following buses have no attached components" not in caplog.text, (
+        "warning should not trigger..."
+    )
+
+    n.add("Bus", "extrabus")
+
+    n.consistency_check()
+    assert "The following buses have no attached components" in caplog.text, (
+        "warning is not working..."
+    )
+
+    n.optimize()
