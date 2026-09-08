@@ -28,6 +28,7 @@ from pypsa.components.common import as_components
 from pypsa.consistency import (
     check_big_m_exceeded,
     check_no_modular_purchasable_committables,
+    check_purchasable_consistency,
 )
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
@@ -415,14 +416,15 @@ def define_objective(
             caps_lin = m[f"{c.name}-{attr}"].sel(name=ext_i)
             lin_weight = cost_weight.sel(name=ext_i)
             capex_terms.append((caps_lin * lin_weight * periodic_cost).sum(dim=sum_dim))
-        if (
-            not (purchasables := c.purchasables.difference(c.inactive_assets)).empty
-            and (unit_cost := c.unit_cost.sel(name=purchasables)).size > 0
-            and not (unit_cost == 0).all()
-        ):
-            purchased = m[f"{c.name}-purchased"].sel(name=purchasables)
-            unit_weight = cost_weight.sel(name=purchasables)
-            capex_terms.append((unit_cost * unit_weight * purchased).sum(dim="name"))
+        purchasables = c.active_purchasables
+        if not purchasables.empty:
+            unit_cost = c.periodized_unit_cost.sel(name=purchasables)
+            if unit_cost.size > 0 and not (unit_cost == 0).all():
+                purchased = m[f"{c.name}-purchased"].sel(name=purchasables)
+                unit_weight = cost_weight.sel(name=purchasables)
+                capex_terms.append(
+                    (unit_cost * unit_weight * purchased).sum(dim=sum_dim)
+                )
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -779,6 +781,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 for opt in (piecewise_options or [])
             }
         )
+        check_purchasable_consistency(n)
+
         if linearized_unit_commitment:
             check_no_modular_purchasable_committables(n)
 
@@ -1067,7 +1071,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 continue
 
             # Skip auxiliary unit purchase variables
-            if attr in ("available_p_nom", "available_s_nom", "available_e_nom"):
+            if attr.startswith("available_"):
                 continue
 
             if not hasattr(n.c, _c_name):

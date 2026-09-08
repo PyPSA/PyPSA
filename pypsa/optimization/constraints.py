@@ -297,7 +297,9 @@ def define_operational_constraints_for_committables(
 
     ext_i = c.extendables.intersection(c.active_assets)
     com_ext_i = (
-        com_i.intersection(ext_i).difference(c.modulars).difference(c.purchasables)
+        com_i.intersection(ext_i)
+        .difference(c.modulars)
+        .difference(c.active_purchasables)
     )
     com_fix_i = com_i.difference(ext_i).difference(c.modulars)
 
@@ -549,60 +551,18 @@ def define_operational_constraints_for_committables(
             mask=active_mod,
         )
 
-    # Operational constraints for purchasable committable components
-    # For purchasable components, use p_nom_available instead of p_nom * status
-    com_pur_i = com_i.intersection(c.purchasables).difference(c.modulars)
+    com_pur_i = com_i.intersection(c.active_purchasables).difference(c.modulars)
     if not com_pur_i.empty:
         p_pur = p.sel(name=com_pur_i)
-        nominal_pur = nominal.name
-        available_cap = n.model[f"{c.name}-available_{nominal_pur}"].sel(name=com_pur_i)
+        nom_attr = c._operational_attrs["nom"]
+        available_cap = n.model[f"{c.name}-available_{nom_attr}"].sel(name=com_pur_i)
         active_pur = active.sel(name=com_pur_i)
 
-        # Get min/max_pu for modular components
         min_pu_pur = min_pu.sel(name=com_pur_i)
         max_pu_pur = max_pu.sel(name=com_pur_i)
 
-        # Calculate bounds using module size
-        lower_p_pur = min_pu_pur * available_cap
-        upper_p_pur = max_pu_pur * available_cap
-
-        lhs_lower_pur = p_pur - lower_p_pur
-        lhs_upper_pur = p_pur - upper_p_pur
-
-        maint_pur_i = com_pur_i.intersection(maint_i)
-        if not maint_pur_i.empty:
-            nom_max = c.da[f"{c._operational_attrs['nom']}_max"].sel(name=maint_pur_i)
-            modules_max = nom_max / nominal_mod.sel(name=maint_pur_i)
-            alpha = c.da.maintenance_pu.sel(name=maint_pur_i)
-            u = status.sel(name=maint_pur_i)
-            m = n.model[f"{c.name}-maintenance"].sel(name=maint_pur_i)
-            w = n.model[f"{c.name}-maintenance_status"].sel(name=maint_pur_i)
-            active_maint = active.sel(name=maint_pur_i)
-
-            n.model.add_constraints(
-                w - u <= 0,
-                name=f"{c.name}-maint-purchase-le-status",
-                mask=active_maint,
-            )
-            n.model.add_constraints(
-                w - modules_max * m <= 0,
-                name=f"{c.name}-maint-purchase-le-maint",
-                mask=active_maint,
-            )
-            n.model.add_constraints(
-                w - u - modules_max * m >= -modules_max,
-                name=f"{c.name}-maint-purchase-lb",
-                mask=active_maint,
-            )
-
-            maint_lower = (lower_p_pur.sel(name=maint_pur_i) * alpha * w).reindex(
-                name=com_pur_i, fill_value=0
-            )
-            maint_upper = (upper_p_pur.sel(name=maint_pur_i) * alpha * w).reindex(
-                name=com_pur_i, fill_value=0
-            )
-            lhs_lower_pur = lhs_lower_pur + maint_lower
-            lhs_upper_pur = lhs_upper_pur + maint_upper
+        lhs_lower_pur = p_pur - min_pu_pur * available_cap
+        lhs_upper_pur = p_pur - max_pu_pur * available_cap
 
         n.model.add_constraints(
             lhs_lower_pur,
@@ -957,14 +917,21 @@ def define_nominal_constraints_for_extendables(
     lower = c.da[attr + "_min"].sel(name=ext_i)
     upper = c.da[attr + "_max"].sel(name=ext_i)
 
-    if not c.purchasables.intersection(ext_i).empty:
-        lower = (
-            n.model[f"{c.name}-purchased"]
-            .mul(lower)
-            .reindex(lower.coords)
-            .fillna(lower)
+    purchase_i = c.active_purchasables
+    plain_i = ext_i.difference(purchase_i)
+    if not plain_i.empty:
+        n.model.add_constraints(
+            capacity.sel(name=plain_i),
+            ">=",
+            lower.sel(name=plain_i),
+            name=f"{c.name}-ext-{attr}-lower",
         )
-    n.model.add_constraints(capacity, ">=", lower, name=f"{c.name}-ext-{attr}-lower")
+    if not purchase_i.empty:
+        purchased = n.model[f"{c.name}-purchased"].sel(name=purchase_i)
+        lhs = capacity.sel(name=purchase_i) - purchased * lower.sel(name=purchase_i)
+        n.model.add_constraints(
+            lhs, ">=", 0, name=f"{c.name}-ext-{attr}-lower-purchased"
+        )
 
     is_finite = upper != inf
     if is_finite.any():
@@ -1799,10 +1766,11 @@ def define_purchase_constraints(n: Network, component: str, attr: str) -> None:
 
     For each purchasable component, the constraint enforces:
 
-    capacity = 0 if purchase is 0, otherwise capacity = n_modules * module_size (if modular) or capacity <= max_capacity (if non-modular).
+    capacity = 0 if purchase is 0, otherwise capacity <= max_capacity. For modular
+    assets the separate modularity equality then forces the module count to zero
+    whenever the asset is not bought.
 
-    Applies to Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
-    Store (e_nom), StorageUnit (p_nom).
+    Applies to Generator (p_nom), Line (s_nom), Link (p_nom), Store (e_nom).
 
     Parameters
     ----------
@@ -1825,75 +1793,46 @@ def define_purchase_constraints(n: Network, component: str, attr: str) -> None:
     m = n.model
     c = as_components(n, component)
 
-    # Get components that are both extendable and purchasable
-    purchase_i = c.purchasables
-    # Get components that are both extendable and modular
-    mod_i = c.extendables.intersection(c.modulars)
-
-    # Unique component names for purchasable components (in absence of c.purchasables helper)
-    if isinstance(purchase_i, pd.MultiIndex):
-        purchase_i = purchase_i.unique(level="name")
-
+    purchase_i = c.active_purchasables
     if purchase_i.empty:
         return
 
     purchased = m[f"{c.name}-purchased"]
-    purchased_modular = purchase_i.intersection(mod_i)
-    purchased_continuous = purchase_i.difference(mod_i)
-    purchased_continuous_com = purchase_i.difference(mod_i).intersection(c.committables)
 
-    M = c.get_committable_big_m_values(
-        names=purchase_i, committable_big_m=n._committable_big_m
+    nom_max = c.da[attr + "_max"].sel(name=purchase_i)
+    big_m = c._resolve_big_m_default(n._committable_big_m)
+    cap_max = nom_max.where(np.isfinite(nom_max) & (nom_max > 0), big_m)
+
+    cap_var = m[f"{c.name}-{attr}"].sel(name=purchase_i)
+    m.add_constraints(
+        cap_var <= cap_max * purchased.sel(name=purchase_i),
+        name=f"{c.name}-{attr}_cap_binary",
     )
-    # If the unit is modular, only allow non-zero modules if unit is purchased
-    if not purchased_modular.empty:
-        modularity = m[f"{c.name}-n_mod"].sel(name=purchased_modular)
-        purchased_mod = purchased.sel(name=purchased_modular)
 
-        n.model.add_constraints(
-            modularity <= purchased_mod * M.sel(name=purchased_modular),
-            name=f"{c.name}-{attr}_modularity_purchased_bigM",
-            mask=None,
-        )
-    if not purchased_continuous.empty:
-        cap_max = c.da[attr + "_max"]
-        cap_max = (
-            cap_max.where(~isinf(cap_max)).fillna(M).sel(name=purchased_continuous)
-        )
-        cap_var = n.model[f"{c.name}-{attr}"].sel(name=purchased_continuous)
-        purchased_con = purchased.sel(name=purchased_continuous)
+    com_i = purchase_i.difference(c.modulars).intersection(c.committables)
+    if com_i.empty:
+        return
 
-        n.model.add_constraints(
-            cap_var <= cap_max * purchased_con,
-            name=f"{c.name}-{attr}_cap_binary",
-            mask=None,
-        )
-        if not purchased_continuous_com.empty:
-            purchased_com = purchased.sel(name=purchased_continuous_com)
-            available_cap = m[f"{c.name}-available_{attr}"].sel(
-                name=purchased_continuous_com
-            )
-            status = m[f"{c.name}-status"].sel(name=purchased_continuous_com)
-            n.model.add_constraints(
-                status <= purchased_com,
-                name=f"{c.name}-{attr}_status_purchased_limit",
-                mask=None,
-            )
-            n.model.add_constraints(
-                available_cap <= cap_var,
-                name=f"{c.name}-{attr}_available_continuous",
-                mask=None,
-            )
-            n.model.add_constraints(
-                available_cap <= cap_max * status,
-                name=f"{c.name}-{attr}_available_binary",
-                mask=None,
-            )
-            n.model.add_constraints(
-                available_cap >= cap_var + (status - purchased_com) * cap_max,
-                name=f"{c.name}-{attr}_available_switch",
-                mask=None,
-            )
+    available_cap = m[f"{c.name}-available_{attr}"].sel(name=com_i)
+    status = m[f"{c.name}-status"].sel(name=com_i)
+    cap_var_com = cap_var.sel(name=com_i)
+    cap_max_com = cap_max.sel(name=com_i)
+    purchased_com = purchased.sel(name=com_i)
+
+    m.add_constraints(
+        status <= purchased_com, name=f"{c.name}-{attr}_status_purchased_limit"
+    )
+    m.add_constraints(
+        available_cap <= cap_var_com, name=f"{c.name}-{attr}_available_continuous"
+    )
+    m.add_constraints(
+        available_cap <= cap_max_com * status,
+        name=f"{c.name}-{attr}_available_binary",
+    )
+    m.add_constraints(
+        available_cap >= cap_var_com + (status - purchased_com) * cap_max_com,
+        name=f"{c.name}-{attr}_available_switch",
+    )
 
 
 def define_modular_constraints(n: Network, component: str, attr: str) -> None:

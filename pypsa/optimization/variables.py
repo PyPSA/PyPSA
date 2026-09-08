@@ -392,18 +392,17 @@ def define_purchase_variables(
 ) -> None:
     """Define the unit purchase variables for extendable components."""
     c = n.components[c_name]
-    purchase_i = c.purchasables
+    purchase_i = c.active_purchasables
     if purchase_i.empty:
         return
-    mod_i = c.extendables.intersection(c.modulars)
-    purchased_continuous_com = purchase_i.difference(mod_i).intersection(c.committables)
+    com_i = purchase_i.difference(c.modulars).intersection(c.committables)
 
     n.model.add_variables(coords=[purchase_i], name=f"{c.name}-purchased", binary=True)
 
-    if purchased_continuous_com.empty:
+    if com_i.empty:
         return
 
-    active = c.da.active.sel(name=purchased_continuous_com, snapshot=sns)
+    active = c.da.active.sel(name=com_i, snapshot=sns)
     n.model.add_variables(
         coords=active.coords, name=f"{c.name}-available_{attr}", mask=active
     )

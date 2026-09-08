@@ -1072,6 +1072,43 @@ class Components(
 
         return idx
 
+    @property
+    def active_purchasables(self) -> pd.Index:
+        """Get the index of purchasable elements considered in the optimization.
+
+        These are the elements that are purchasable, extendable and active, i.e.
+        the ones for which a purchase decision variable is created.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of active, extendable, purchasable elements.
+
+        """
+        purchasables = self.purchasables
+        if purchasables.empty:
+            return purchasables
+        return purchasables.intersection(self.extendables).intersection(
+            self.active_assets
+        )
+
+    def _resolve_big_m_default(self, committable_big_m: float | None) -> float:
+        """Resolve the scalar big-M fallback for committable/purchasable bounds."""
+        big_m_default = committable_big_m
+        if big_m_default is None and self.n is not None:
+            big_m_default = self.n._committable_big_m
+        if big_m_default is None:
+            return self._infer_committable_big_m_scale()
+        if not np.isfinite(big_m_default):
+            msg = f"committable_big_m must be finite, got {big_m_default}."
+            raise ValueError(msg)
+        if big_m_default <= 0:
+            msg = f"committable_big_m must be positive, got {big_m_default}."
+            raise ValueError(msg)
+        return big_m_default
+
     def _infer_committable_big_m_scale(self) -> float:
         """Infer a reasonable big-M scale from network and component data."""
         candidates: list[float] = []
@@ -1127,18 +1164,7 @@ class Components(
         if "snapshot" in max_pu_values.dims:
             max_pu_values = max_pu_values.max("snapshot")
 
-        big_m_default = committable_big_m
-        if big_m_default is None and self.n is not None:
-            big_m_default = self.n._committable_big_m
-        if big_m_default is None:
-            big_m_default = self._infer_committable_big_m_scale()
-        else:
-            if not np.isfinite(big_m_default):
-                msg = f"committable_big_m must be finite, got {big_m_default}."
-                raise ValueError(msg)
-            if big_m_default <= 0:
-                msg = f"committable_big_m must be positive, got {big_m_default}."
-                raise ValueError(msg)
+        big_m_default = self._resolve_big_m_default(committable_big_m)
 
         fallback_values = big_m_default * max_pu_values.fillna(1)
         return xarray.where(
@@ -1194,14 +1220,14 @@ class Components(
         )
 
     @property
-    def unit_cost(self) -> xarray.DataArray:
+    def periodized_unit_cost(self) -> xarray.DataArray:
         """Calculate periodized unit investment cost from component attributes as xarray DataArray.
 
         <!-- md:badge-version v1.1.0 -->
 
         See Also
         --------
-        `pypsa.costs.unit_cost`
+        `pypsa.costs.periodized_cost`
 
         """
         static = self.static
