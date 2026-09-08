@@ -378,10 +378,11 @@ def test_purchase_with_scenarios(base_network):
 
 
 def test_purchase_with_investment_periods():
-    """Unit costs are weighted by the investment period weightings."""
+    """Unit costs are weighted by the investment period objective weightings."""
     n = pypsa.Network()
     n.set_snapshots(pd.MultiIndex.from_product([[2020, 2030], range(2)]))
     n.investment_periods = [2020, 2030]
+    n.investment_period_weightings["objective"] = [3, 7]
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=100)
     n.add("Generator", "backup", bus="bus", p_nom=1000, marginal_cost=100)
@@ -398,13 +399,14 @@ def test_purchase_with_investment_periods():
         build_year=2020,
         lifetime=100,
     )
-    status, _ = n.optimize()
+    status, _ = n.optimize(multi_investment_periods=True)
 
     assert status == "ok"
     assert n.generators.at["gas", "purchased_opt"] == 1
     assert n.generators.at["gas", "p_nom_opt"] == 100
-    # 4 snapshots served by gas (10 * 100) plus the one-off unit cost.
-    assert n.objective == pytest.approx(4 * 100 * 10 + 500)
+    operating = (3 + 7) * 2 * 100 * 10
+    unit = 500 * (3 + 7)
+    assert n.objective == pytest.approx(operating + unit)
 
 
 def test_continuous_purchase_blocks_capacity(base_network):

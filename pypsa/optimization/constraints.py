@@ -1770,7 +1770,8 @@ def define_purchase_constraints(n: Network, component: str, attr: str) -> None:
     assets the separate modularity equality then forces the module count to zero
     whenever the asset is not bought.
 
-    Applies to Generator (p_nom), Line (s_nom), Link (p_nom), Store (e_nom).
+    Applies to Generator (p_nom), Line (s_nom), Link (p_nom), Process (p_nom),
+    Store (e_nom) and StorageUnit (p_nom).
 
     Parameters
     ----------
@@ -1787,7 +1788,7 @@ def define_purchase_constraints(n: Network, component: str, attr: str) -> None:
     independently of the capacity decision (equivalent of unit commitment in dispatch),
     reflecting the reality of many investment decisions in energy systems (e.g., land purchase)
 
-    The function applies to extendable and non-extendable components.
+    The function applies only to extendable components.
 
     """
     m = n.model
