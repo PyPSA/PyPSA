@@ -50,9 +50,51 @@ if TYPE_CHECKING:
     from pandapower.auxiliary import pandapowerNet
 
     from pypsa import Network
+    from pypsa.components import FlowBasedConstraints
 logger = logging.getLogger(__name__)
 
 _legacy_string_dtype_warned = False
+
+# Prefix under which the flow-based zonal PTDF matrix is serialised (as static columns, or
+# as one snapshot x cnec varying frame per zone when time-varying).
+_ZONAL_PTDF_PREFIX = "zonal_ptdf:"
+
+
+def _export_zonal_ptdf(
+    c: FlowBasedConstraints, static: pd.DataFrame, dynamic: dict
+) -> tuple[pd.DataFrame, dict]:
+    """Fold the zonal PTDF frame into the serialised static/dynamic data under the prefix."""
+    z = c.zonal_ptdf
+    if z.empty:
+        return static, dynamic
+    if isinstance(z.index, pd.MultiIndex):
+        dynamic = dict(dynamic)
+        for zone in z.columns:
+            dynamic[_ZONAL_PTDF_PREFIX + zone] = z[zone].unstack("name")
+    else:
+        static = pd.concat([static, z.add_prefix(_ZONAL_PTDF_PREFIX)], axis=1)
+    return static, dynamic
+
+
+def _import_zonal_ptdf(c: FlowBasedConstraints) -> None:
+    """Recover the zonal PTDF frame from its prefixed static columns or varying attributes."""
+    cols = [col for col in c.static.columns if col.startswith(_ZONAL_PTDF_PREFIX)]
+    zkeys = [k for k in list(c.dynamic) if k.startswith(_ZONAL_PTDF_PREFIX)]
+
+    def strip(s: str) -> str:
+        return s.removeprefix(_ZONAL_PTDF_PREFIX)
+
+    if cols:
+        frame = c.static[cols].rename(columns=strip)
+        c._set_frame("zonal_ptdf", frame, frame.index)
+        c.static.drop(columns=cols, inplace=True)
+    elif zkeys:
+        stacked = {strip(k): c.dynamic[k].stack(future_stack=True) for k in zkeys}
+        frame = pd.concat(stacked, axis=1)
+        frame.columns.name = "bus"
+        c._set_frame("zonal_ptdf", frame, c.static.index)
+        for k in zkeys:
+            del c.dynamic[k]
 
 
 def _use_legacy_string_dtype() -> bool:
@@ -1445,6 +1487,9 @@ class NetworkIOMixin(_NetworkABC):
             dynamic = c.dynamic
             piecewise = c.piecewise
 
+            if component == "FlowBasedConstraint":
+                static, dynamic = _export_zonal_ptdf(c, static, dynamic)
+
             if component == "Shape":
                 static = pd.DataFrame(static).assign(
                     geometry=static["geometry"].to_wkt()
@@ -1643,6 +1688,9 @@ class NetworkIOMixin(_NetworkABC):
                 for attr, df in importer.get_series(list_name):
                     df.set_index(self.snapshots, inplace=True)
                     self._import_series_from_df(df, component, attr)
+
+            if component == "FlowBasedConstraint":
+                _import_zonal_ptdf(self.c.flow_based_constraints)
 
             for attr, df in importer.get_piecewise(list_name):
                 self._import_piecewise_from_df(df, component, attr)

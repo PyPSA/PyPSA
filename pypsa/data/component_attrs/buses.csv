@@ -18,3 +18,4 @@ q,series,MVar,0.,reactive power (positive if net generation at bus),Output
 v_mag_pu,series,per unit,1.,"Voltage magnitude, per unit of `v_nom`",Output
 v_ang,series,radians,0.,Voltage angle,Output
 marginal_price,series,currency/MWh,0.,Shadow price from energy balance constraint,Output
+net_position,series,MW,0.,"Zonal net position under a flow-based domain; it differs from `p` only when a link (AHC/EvFB) touches the zone.",Output

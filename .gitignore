@@ -53,3 +53,6 @@ CLAUDE.md
 AGENTS.md
 test.nc
 docs/assets/interactive/ac_dc_collection_energy_balance_iplot.html
+
+# Local-only FBMC example data for tests (not committed)
+test/data/fbmc/
