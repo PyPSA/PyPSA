@@ -199,4 +199,5 @@ def periodized_cost(
         fom_cost = fom_cost.fillna(0.0)
     elif np.isnan(fom_cost):
         fom_cost = 0.0
+
     return base + fom_cost

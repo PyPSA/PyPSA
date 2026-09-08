@@ -753,6 +753,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 attr_vals = comp.static[cost_attribute]
             piecewise_costs = comp.static.get(cost_attribute + "_piecewise_opt", 0)
             capex = capacity * (attr_vals + piecewise_costs)
+            if cost_attribute == "capital_cost" and "purchased_opt" in comp.static:
+                purchased = comp.static["purchased_opt"].fillna(0.0)
+                unit_cost = comp.periodized_unit_cost.to_series()
+                if isinstance(purchased.index, pd.MultiIndex):
+                    unit_cost = unit_cost.reorder_levels(purchased.index.names)
+                unit_cost = unit_cost.reindex(purchased.index).fillna(0.0)
+                capex = capex + purchased * unit_cost
             return capex
 
         df = self._aggregate_components(
