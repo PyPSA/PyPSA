@@ -1700,7 +1700,6 @@ def define_line_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
     if lines_i.empty:
         return
 
-    n.calculate_dependent_values()
     sns = n.optimize._window.subset(sns).model_index
 
     x_pu_eff = c.da["x_pu_eff"].sel(name=lines_i)
