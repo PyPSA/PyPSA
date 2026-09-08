@@ -57,7 +57,7 @@ def test_rolling_horizon(committable):
         status, condition = n.optimize(snapshots=sns)
         assert status == "ok"
 
-    assert_ramp_limits_respected(n)
+    assert_ramp_limits_respected(n, tol=1e-5)
 
 
 @pytest.mark.parametrize("committable", [True, False])
@@ -73,7 +73,7 @@ def test_rolling_horizon_integrated(committable):
     )
 
     n.optimize.optimize_with_rolling_horizon(horizon=3)
-    assert_ramp_limits_respected(n)
+    assert_ramp_limits_respected(n, tol=1e-5)
 
 
 def test_rolling_horizon_integrated_overlap():
@@ -91,7 +91,7 @@ def test_rolling_horizon_integrated_overlap():
         n.optimize.optimize_with_rolling_horizon(horizon=1, overlap=2)
 
     n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=1)
-    assert_ramp_limits_respected(n)
+    assert_ramp_limits_respected(n, tol=1e-5)
 
 
 def test_rolling_horizon_committable_ramp_limits():

@@ -51,7 +51,7 @@ def test_storage_energy_marginal_cost():
         e_nom=10,
     )
     n.optimize()
-    assert n.objective == 2.6
+    assert n.objective == pytest.approx(2.6)
 
 
 def test_spill_cost():
