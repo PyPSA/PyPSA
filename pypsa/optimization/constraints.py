@@ -1660,7 +1660,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
             for names, angle in contributions:
                 C = DataArray(C_trafos.loc[names])
                 sel = angle.sel(name=names, snapshot=snapshots)
-                lhs_period = lhs_period + (sel @ C) * deg_to_rad * 1e5
+                lhs_period = lhs_period + (sel @ C) * (deg_to_rad * 1e5)
 
         lhs_parts.append(lhs_period)
 

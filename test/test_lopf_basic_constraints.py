@@ -349,12 +349,12 @@ def test_define_fixed_operational_constraints_positive(mode):
 
     n.optimize()
 
-    assert n.c.generators.dynamic.p["gen2"].eq(8).all()
+    assert n.c.generators.dynamic.p["gen2"].to_numpy() == pytest.approx(8, abs=1e-6)
     if mode == "mixed":
-        assert n.c.generators.dynamic.p["gen1"].eq(1).all()
-        assert n.c.generators.dynamic.p["gen0"].eq(1).all()
+        assert n.c.generators.dynamic.p["gen1"].to_numpy() == pytest.approx(1, abs=1e-6)
+        assert n.c.generators.dynamic.p["gen0"].to_numpy() == pytest.approx(1, abs=1e-6)
     else:
-        assert n.c.generators.dynamic.p["gen0"].eq(2).all()
+        assert n.c.generators.dynamic.p["gen0"].to_numpy() == pytest.approx(2, abs=1e-6)
 
 
 @pytest.mark.parametrize("static", [False, True])

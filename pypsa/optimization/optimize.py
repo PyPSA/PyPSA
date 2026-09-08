@@ -62,6 +62,13 @@ from pypsa.optimization.global_constraints import (
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
+from pypsa.optimization.scaling import (
+    _unscalable,
+    apply_factors,
+    choose_factors,
+    resolve_factors,
+    resolve_scaling,
+)
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -545,6 +552,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
+        scaling: bool | dict | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
@@ -615,6 +623,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
+        scaling : bool | dict | None, default None
+            Numerical scaling of the built model, results come back in
+            original units. `True` tunes energy and cost unit factors
+            automatically. A dict sets `energy`, `cost` and per-group
+            `constraint_factors` manually. `None` uses
+            `options.params.optimize.scaling`. See the user guide on
+            numerical scaling for details.
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
             Each operator is interpreted as ``y operator f(x)``.
@@ -633,15 +648,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
         """
-        # Handle default parameters from options
+        # Handle default parameters from options (rest resolves in solve_model)
         if model_kwargs is None:
             model_kwargs = options.params.optimize.model_kwargs.copy()
-        if solver_name is None:
-            solver_name = options.params.optimize.solver_name
-        if solver_options is None:
-            solver_options = options.params.optimize.solver_options.copy()
-        if log_to_console is None:
-            log_to_console = options.params.optimize.log_to_console
 
         include_objective_constant = _resolve_include_objective_constant(
             include_objective_constant
@@ -654,7 +663,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n.consistency_check(
             strict=["unknown_buses", "maintenance", "phase_shift_bounds"]
         )
-        m = n.optimize.create_model(
+
+        n.optimize.create_model(
             snapshots,
             multi_investment_periods,
             transmission_losses,
@@ -663,23 +673,19 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             include_objective_constant=include_objective_constant,
             committable_big_m=committable_big_m,
             meshed_thresholds=meshed_thresholds,
+            scaling=scaling,
             piecewise_options=piecewise_options,
             **model_kwargs,
         )
-        if extra_functionality:
-            extra_functionality(n, self._window.model_index)
-        if log_to_console is not None:
-            kwargs["log_to_console"] = log_to_console
-        status, condition = m.solve(
+        # solve_model owns the solve, scaling, assign and post lifecycle
+        status, condition = n.optimize.solve_model(
+            extra_functionality=extra_functionality,
             solver_name=solver_name,
-            **solver_options,
+            solver_options=solver_options,
+            log_to_console=log_to_console,
+            assign_all_duals=assign_all_duals,
             **kwargs,
         )
-
-        if status == "ok":
-            n.optimize.assign_solution()
-            n.optimize.assign_duals(assign_all_duals)
-            n.optimize.post_processing()
 
         if (
             condition == "infeasible"
@@ -701,6 +707,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant: bool | None = None,
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
+        scaling: bool | dict | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         **kwargs: Any,
     ) -> Model:
@@ -744,6 +751,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds : Sequence[int] | None, default: None
             Thresholds for splitting buses into nodal-balance constraint groups by
             bus connectivity count. Defaults to ``[30, 100, 400]``.
+        scaling : bool | dict | None, default None
+            Numerical scaling of the built model, results come back in
+            original units. `True` tunes energy and cost unit factors
+            automatically. A dict sets `energy`, `cost` and per-group
+            `constraint_factors` manually. `None` uses
+            `options.params.optimize.scaling`. See the user guide on
+            numerical scaling for details.
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
             Each operator is interpreted as ``y operator f(x)``.
@@ -772,6 +786,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if consistency_check:
             n.consistency_check()
 
+        spec = resolve_scaling(
+            scaling if scaling is not None else options.params.optimize.scaling
+        )
+        n._scaling_spec = spec
         include_objective_constant = _resolve_include_objective_constant(
             include_objective_constant
         )
@@ -990,27 +1008,53 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             log_to_console = options.params.optimize.log_to_console
 
         n = self._n
-        if extra_functionality:
-            extra_functionality(n, self._window.model_index)
         m = n.model
+        sns = self._window.model_index
+        if extra_functionality:
+            extra_functionality(n, sns)
         if log_to_console is not None:
             kwargs["log_to_console"] = log_to_console
-        status, condition = m.solve(
-            solver_name=solver_name,
-            **solver_options,
-            **kwargs,
-        )
+
+        spec = n._scaling_spec
+        n._scaling_factors = None
+        factors = resolve_factors(m, spec) if spec is not None else None
+        if factors is not None:
+            n._scaling_factors = factors._asdict()
+            apply_factors(m, factors)
+        status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
 
         if status == "ok":
-            self._n.optimize.assign_solution()
-            self._n.optimize.assign_duals(assign_all_duals)
-            self._n.optimize.post_processing()
+            n.optimize.assign_solution()
+            n.optimize.assign_duals(assign_all_duals)
+            n.optimize.post_processing()
 
         # Optional runtime verification
         if options.debug.runtime_verification:
             _assert_data_integrity(self._n)
 
         return status, condition
+
+    def tune_scaling(self, constraint_factors: bool = False) -> dict:
+        """Return the ILP scaling choice for the built model in `scaling` dict form.
+
+        Parameters
+        ----------
+        constraint_factors : bool, default False
+            Tune a separate factor per constraint group instead of tying
+            rows to their unit.
+
+        Returns
+        -------
+        dict
+            Keys `energy`, `cost` and `constraint_factors`, ready to be edited
+            and passed as `n.optimize(scaling=...)`.
+
+        """
+        m = self._n.model
+        if reason := _unscalable(m):
+            msg = f"scaling not possible: {reason}"
+            raise ValueError(msg)
+        return choose_factors(m, constraint_factors)._asdict()
 
     def assign_solution(self) -> None:
         """Map solution to network components."""
@@ -1151,7 +1195,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             have a designated place in the network.
 
         """
-        m = self._n.model
+        n = self._n
+        m = n.model
         unassigned_constraints = []
 
         # Early return if no dual values are available

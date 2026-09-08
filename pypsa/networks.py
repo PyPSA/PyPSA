@@ -9,7 +9,7 @@ from __future__ import annotations
 import copy
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any, Literal, NoReturn
 from weakref import ref
 
 from deprecation import deprecated
@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from scipy.sparse import spmatrix
 
     from pypsa.components.legacy import Component
+    from pypsa.optimization.scaling import ScalingFactors
 
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,8 @@ class Network(
     _multi_invest: int
     _linearized_uc: int
     _committable_big_m: float | None
+    _scaling_spec: ScalingFactors | Literal[True] | None
+    _scaling_factors: dict | None
     _optimize_window: SnapshotWindow | None
     iteration: int
 
@@ -164,6 +167,8 @@ class Network(
         self._objective_constant: float | None = None
         self._multi_invest: int = 0
         self._committable_big_m: float | None = None
+        self._scaling_spec: ScalingFactors | Literal[True] | None = None
+        self._scaling_factors: dict | None = None
         self._optimize_window: SnapshotWindow | None = None
 
         # Initialize accessors
@@ -547,6 +552,8 @@ class Network(
         not_equal = False
         if isinstance(other, self.__class__):
             for key, value in self.__dict__.items():
+                if key in ("_scaling_spec", "_scaling_factors"):
+                    continue  # solve-time state, not persisted
                 if not equals(
                     value,
                     other.__dict__[key],
