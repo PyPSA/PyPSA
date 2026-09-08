@@ -1696,7 +1696,7 @@ def define_line_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
     c = as_components(n, "Line")
     ac_i = c.static.index[c.static.carrier == "AC"].intersection(c.active_assets)
     v_ang_max = c.da["v_ang_max"].sel(name=ac_i)
-    lines_i = ac_i[isfinite(v_ang_max).values]
+    lines_i = ac_i[isfinite(v_ang_max.values)]
     if lines_i.empty:
         return
 
