@@ -759,7 +759,7 @@ class Components(
         Coordinates:
           * name                        (name) object 48B 'Manchester Wind' ... 'Fran...
           * snapshot                    (snapshot) datetime64[ns] 80B 2015-01-01 ... ...
-        Data variables: (12/48)
+        Data variables: (12/52)
             bus                         (name) object 48B 'Manchester' ... 'Frankfurt'
             control                     (name) object 48B 'Slack' 'PQ' ... 'Slack' 'PQ'
             type                        (name) object 48B '' '' '' '' '' ''
@@ -767,11 +767,11 @@ class Components(
             p_nom_mod                   (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
             p_nom_extendable            (name) bool 6B True True True True True True
             ...                          ...
-            ramp_limit_start_up         (name) float64 48B nan nan nan nan nan nan
             ramp_limit_shut_down        (name) float64 48B nan nan nan nan nan nan
             weight                      (name) float64 48B 1.0 1.0 1.0 1.0 1.0 1.0
             p_nom_opt                   (name) float64 48B 4.091e+03 0.0 ... 982.0
             capital_cost_piecewise_opt  (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
+            purchased_opt               (name) float64 48B nan nan nan nan nan nan
             p                           (snapshot, name) float64 480B 742.0 ... 483.2
 
         """
