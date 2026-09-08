@@ -233,7 +233,9 @@ The battery in our system is modelled with two links and a store. We should make
 ``` py
 >>> capacity = m.variables["Link-p_nom"]
 >>> eff = n.links.at["battery_power", "efficiency"]
->>> lhs = capacity.loc["battery_power"] - eff * capacity.loc["battery_discharge"]
+>>> lhs = capacity.sel(name="battery_power", drop=True) - eff * capacity.sel(
+...     name="battery_discharge", drop=True
+... )
 >>> m.add_constraints(lhs == 0, name="Link-battery_fix_ratio")  # doctest: +SKIP
 ```
 

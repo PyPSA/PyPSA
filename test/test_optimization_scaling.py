@@ -92,7 +92,7 @@ def test_scaling_equivalence(request, network, scaling):
         np.testing.assert_allclose(a.values, b.values, rtol=1e-5, atol=1e-6)
 
     # global constraint mu
-    gc_a, gc_b = got.global_constraints, ref.global_constraints
+    gc_a, gc_b = got.c.global_constraints.static, ref.c.global_constraints.static
     if len(gc_a) and "mu" in gc_a:
         np.testing.assert_allclose(
             gc_a["mu"].values, gc_b["mu"].values, rtol=1e-5, atol=1e-6
@@ -234,8 +234,8 @@ def test_scaling_emissions():
 
     np.testing.assert_allclose(got.objective, ref.objective, rtol=1e-6)
     np.testing.assert_allclose(
-        got.global_constraints["mu"].values,
-        ref.global_constraints["mu"].values,
+        got.c.global_constraints.static["mu"].values,
+        ref.c.global_constraints.static["mu"].values,
         rtol=1e-5,
         atol=1e-6,
     )
@@ -643,7 +643,7 @@ def test_apply_factors_solve_matches_plain(ac_dc_network):
 
     n = ac_dc_network
     # a zero p_nom_opt makes the bound duals degenerate, floor it
-    n.generators["p_nom_min"] = 10.0
+    n.c.generators.static["p_nom_min"] = 10.0
     ref = n.copy()
     ref.optimize.create_model(include_objective_constant=False)
     ref.model.solve()
