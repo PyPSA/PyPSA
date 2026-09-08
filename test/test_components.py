@@ -276,7 +276,7 @@ def test_unit_cost_property():
     n.add("Bus", "bus")
     n.add("Generator", "gen", bus="bus", p_nom=100, purchasable=True, unit_cost=1234.0)
 
-    assert n.c.generators.unit_cost.sel(name="gen").item() == 1234.0
+    assert n.c.generators.periodized_unit_cost.sel(name="gen").item() == 1234.0
 
 
 def test_unit_cost_property_overnight():
@@ -298,4 +298,6 @@ def test_unit_cost_property_overnight():
     )
 
     expected = 1000.0 * annuity(0.07, 25) * n.c.generators.nyears
-    assert n.c.generators.unit_cost.sel(name="gen").item() == pytest.approx(expected)
+    assert n.c.generators.periodized_unit_cost.sel(name="gen").item() == pytest.approx(
+        expected
+    )

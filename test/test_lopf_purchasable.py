@@ -62,8 +62,8 @@ def test_purchase_variables_and_constraints(base_network):
     assert list(purchased.dims) == ["name"]
     assert list(purchased.indexes["name"]) == ["gas"]
 
-    # Modular purchasables tie the number of modules to the purchase decision.
-    assert "Generator-p_nom_modularity_purchased_bigM" in n.model.constraints
+    # The capacity is bounded by the purchase decision.
+    assert "Generator-p_nom_cap_binary" in n.model.constraints
 
 
 def test_no_purchase_variables_without_purchasable(base_network):
@@ -72,7 +72,7 @@ def test_no_purchase_variables_without_purchasable(base_network):
     n.optimize.create_model()
 
     assert "Generator-purchased" not in n.model.variables
-    assert "Generator-p_nom_modularity_purchased_bigM" not in n.model.constraints
+    assert "Generator-p_nom_cap_binary" not in n.model.constraints
 
 
 def test_purchase_worthwhile(base_network):
@@ -99,14 +99,18 @@ def test_purchase_not_worthwhile(base_network):
     assert n.objective == pytest.approx(BACKUP_ONLY_COST)
 
 
-def test_purchase_just_below_and_above_break_even(base_network):
-    """Purchase flips from 1 to 0 as the unit cost crosses break-even."""
-    savings = 450 * (100 - 10) - 200 * 10
+SAVINGS = 450 * (100 - 10) - 200 * 10
 
-    for unit_cost, expected in [(savings - 100, 1), (savings + 100, 0)]:
-        n = add_modular_generator(base_network.copy(), unit_cost=unit_cost)
-        n.optimize()
-        assert n.generators.at["gas", "purchased_opt"] == expected
+
+@pytest.mark.parametrize(
+    ("unit_cost", "expected"),
+    [(SAVINGS - 100, 1), (SAVINGS + 100, 0)],
+)
+def test_purchase_just_below_and_above_break_even(base_network, unit_cost, expected):
+    """Purchase flips from 1 to 0 as the unit cost crosses break-even."""
+    n = add_modular_generator(base_network, unit_cost=unit_cost)
+    n.optimize()
+    assert n.generators.at["gas", "purchased_opt"] == expected
 
 
 def test_purchased_opt_only_for_purchasables(base_network):
@@ -131,7 +135,9 @@ def test_unit_cost_overnight_is_annuitised(base_network):
     nyears = n.c.generators.nyears
     expected = overnight * annuity(rate, lifetime) * nyears
 
-    assert n.c.generators.unit_cost.sel(name="gas").item() == pytest.approx(expected)
+    assert n.c.generators.periodized_unit_cost.sel(name="gas").item() == pytest.approx(
+        expected
+    )
 
     n.optimize()
     assert n.generators.at["gas", "purchased_opt"] == 1
@@ -148,7 +154,7 @@ def test_unit_cost_overnight_takes_precedence(base_network):
         lifetime=10,
     )
     nyears = n.c.generators.nyears
-    assert n.c.generators.unit_cost.sel(name="gas").item() == pytest.approx(
+    assert n.c.generators.periodized_unit_cost.sel(name="gas").item() == pytest.approx(
         1e6 / 10 * nyears
     )
 
@@ -162,104 +168,31 @@ def test_zero_unit_cost_not_in_objective(base_network):
     assert n.objective == pytest.approx(450 * 10 + 200 * 10)
 
 
-@pytest.mark.parametrize(
-    "component",
-    [
-        "Generator",
-        "Link",
-        "Line",
-        "Process",
-        "Store",
-        pytest.param(
-            "StorageUnit",
-            marks=pytest.mark.xfail(
-                reason="define_purchase_constraints derives big-M values via "
-                "get_bounds_pu with the component's base attribute, which "
-                "StorageUnit does not accept",
-                raises=ValueError,
-                strict=True,
-            ),
-        ),
-    ],
-)
+COMPONENT_KWARGS = {
+    "Generator": {"bus": "bus", "p_nom_extendable": True, "marginal_cost": 1},
+    "Link": {"bus0": "bus1", "bus1": "bus", "p_nom_extendable": True},
+    "Process": {"bus0": "bus1", "bus1": "bus", "p_nom_extendable": True},
+    "Line": {"bus0": "bus1", "bus1": "bus", "x": 0.1, "s_nom_extendable": True},
+    "Store": {"bus": "bus", "e_nom_extendable": True},
+    "StorageUnit": {"bus": "bus", "p_nom_extendable": True},
+}
+
+
+@pytest.mark.parametrize("component", list(COMPONENT_KWARGS))
 def test_prohibitive_unit_cost_blocks_all_components(base_network, component):
     """A prohibitive unit cost prevents the purchase for every component type."""
     n = base_network
     n.add("Bus", "bus1")
     n.add("Generator", "cheap", bus="bus1", p_nom=1000, marginal_cost=1)
 
-    common = {"purchasable": True, "unit_cost": 1e9}
-    if component == "Generator":
-        n.add(
-            "Generator",
-            "asset",
-            bus="bus",
-            p_nom_extendable=True,
-            p_nom_max=500,
-            p_nom_mod=100,
-            marginal_cost=1,
-            **common,
-        )
-        nom_attr = "p_nom"
-    elif component == "Link":
-        n.add(
-            "Link",
-            "asset",
-            bus0="bus1",
-            bus1="bus",
-            p_nom_extendable=True,
-            p_nom_max=500,
-            p_nom_mod=100,
-            **common,
-        )
-        nom_attr = "p_nom"
-    elif component == "Process":
-        n.add(
-            "Process",
-            "asset",
-            bus0="bus1",
-            bus1="bus",
-            p_nom_extendable=True,
-            p_nom_max=500,
-            p_nom_mod=100,
-            **common,
-        )
-        nom_attr = "p_nom"
-    elif component == "Line":
-        n.add(
-            "Line",
-            "asset",
-            bus0="bus1",
-            bus1="bus",
-            x=0.1,
-            s_nom_extendable=True,
-            s_nom_max=500,
-            s_nom_mod=100,
-            **common,
-        )
-        nom_attr = "s_nom"
-    elif component == "Store":
-        n.add(
-            "Store",
-            "asset",
-            bus="bus",
-            e_nom_extendable=True,
-            e_nom_max=500,
-            e_nom_mod=100,
-            **common,
-        )
-        nom_attr = "e_nom"
-    else:
-        n.add(
-            "StorageUnit",
-            "asset",
-            bus="bus",
-            p_nom_extendable=True,
-            p_nom_max=500,
-            p_nom_mod=100,
-            **common,
-        )
-        nom_attr = "p_nom"
+    nom_attr = {"Line": "s_nom", "Store": "e_nom"}.get(component, "p_nom")
+    kwargs = COMPONENT_KWARGS[component] | {
+        f"{nom_attr}_max": 500,
+        f"{nom_attr}_mod": 100,
+        "purchasable": True,
+        "unit_cost": 1e9,
+    }
+    n.add(component, "asset", **kwargs)
 
     status, _ = n.optimize()
 
@@ -428,12 +361,6 @@ def test_linearized_unit_commitment_rejects_purchasables(base_network):
         n.optimize(linearized_unit_commitment=True)
 
 
-@pytest.mark.xfail(
-    reason="the purchase-dependent lower capacity bound in "
-    "`define_nominal_constraints_for_extendables` does not broadcast the "
-    "scenario-less purchase variable against the scenario-indexed bound",
-    strict=True,
-)
 def test_purchase_with_scenarios(base_network):
     """The purchase decision is shared across scenarios."""
     n = base_network
@@ -447,6 +374,7 @@ def test_purchase_with_scenarios(base_network):
     n.optimize()
     purchased_opt = n.generators.xs("gas", level="name")["purchased_opt"]
     assert (purchased_opt == 1).all()
+    assert n.objective == pytest.approx(450 * 10 + 200 * 10 + 500)
 
 
 def test_purchase_with_investment_periods():
@@ -475,6 +403,8 @@ def test_purchase_with_investment_periods():
     assert status == "ok"
     assert n.generators.at["gas", "purchased_opt"] == 1
     assert n.generators.at["gas", "p_nom_opt"] == 100
+    # 4 snapshots served by gas (10 * 100) plus the one-off unit cost.
+    assert n.objective == pytest.approx(4 * 100 * 10 + 500)
 
 
 def test_continuous_purchase_blocks_capacity(base_network):
@@ -551,12 +481,6 @@ def test_mixed_purchasable_flavours(base_network):
     assert n.objective == pytest.approx(BACKUP_ONLY_COST)
 
 
-@pytest.mark.xfail(
-    reason="`purchasable` is only supported for extendable components, but a "
-    "non-extendable purchasable raises an opaque `KeyError: 'Generator-p_nom'` from "
-    "`define_purchase_constraints` instead of a consistency error",
-    strict=True,
-)
 def test_non_extendable_purchasable_raises_clear_error(base_network):
     """Purchasable is meaningless without an extendable capacity."""
     n = base_network
@@ -570,8 +494,177 @@ def test_non_extendable_purchasable_raises_clear_error(base_network):
         unit_cost=500,
     )
 
-    with pytest.raises(ValueError, match="purchasable"):
+    with pytest.raises(ValueError, match="only supported for extendable"):
         n.optimize()
+
+
+def test_maintainable_committable_purchasable_raises(base_network):
+    """A non-modular purchasable that is committable and maintainable is rejected."""
+    n = base_network
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        p_nom_extendable=True,
+        p_nom_max=500,
+        committable=True,
+        maintainable=True,
+        maintenance_duration=1,
+        marginal_cost=10,
+        purchasable=True,
+        unit_cost=500,
+    )
+
+    with pytest.raises(ValueError, match="maintainable but not modular"):
+        n.optimize()
+
+
+def test_inactive_purchasable_extendable(base_network):
+    """An inactive purchasable extendable does not crash and is not purchased."""
+    n = base_network
+    add_modular_generator(n, unit_cost=500)
+    n.add(
+        "Generator",
+        "gas_off",
+        bus="bus",
+        p_nom_extendable=True,
+        p_nom_max=500,
+        marginal_cost=10,
+        capital_cost=10,
+        purchasable=True,
+        unit_cost=500,
+        active=False,
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    assert "gas_off" not in n.model["Generator-purchased"].indexes["name"]
+    assert n.generators.at["gas", "purchased_opt"] == 1
+    assert np.isnan(n.generators.at["gas_off", "purchased_opt"])
+
+
+def test_mixed_purchasable_and_non_purchasable_with_min(base_network):
+    """A forced non-purchasable extendable coexists with an unbought purchasable."""
+    n = base_network
+    n.add(
+        "Generator",
+        "forced",
+        bus="bus",
+        p_nom_extendable=True,
+        p_nom_min=50,
+        marginal_cost=10,
+        capital_cost=10,
+    )
+    n.add(
+        "Generator",
+        "opt",
+        bus="bus",
+        p_nom_extendable=True,
+        p_nom_min=50,
+        p_nom_max=500,
+        marginal_cost=10,
+        capital_cost=10,
+        purchasable=True,
+        unit_cost=1e9,
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    assert n.generators.at["forced", "p_nom_opt"] >= 50 - 1e-6
+    assert n.generators.at["opt", "purchased_opt"] == 0
+    assert n.generators.at["opt", "p_nom_opt"] == pytest.approx(0, abs=1e-6)
+
+
+def test_small_module_size_purchasable(base_network):
+    """A small module size still reaches the capacity needed to serve the load."""
+    n = pypsa.Network(snapshots=range(1))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add("Generator", "backup", bus="bus", p_nom=1000, marginal_cost=100)
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        p_nom_extendable=True,
+        p_nom_max=2,
+        p_nom_mod=0.1,
+        marginal_cost=10,
+        purchasable=True,
+        unit_cost=1,
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    assert n.generators.at["gas", "purchased_opt"] == 1
+    assert n.generators.at["gas", "p_nom_opt"] == pytest.approx(1.0)
+
+
+def test_infinite_nom_max_with_low_max_pu(base_network):
+    """An unbounded capacity with max_pu < 1 is not silently capped by the big-M."""
+    n = base_network
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        p_nom_extendable=True,
+        p_nom_max=inf,
+        p_max_pu=0.1,
+        marginal_cost=10,
+        capital_cost=0.01,
+        purchasable=True,
+        unit_cost=1,
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    assert n.generators.at["gas", "purchased_opt"] == 1
+    # Peak load is 200 and p_max_pu is 0.1, so 2000 MW of capacity are needed.
+    # The old big-M scaled by max_pu would have capped this near the peak load.
+    assert n.generators.at["gas", "p_nom_opt"] == pytest.approx(2000)
+    assert n.generators_t.p["backup"].sum() == pytest.approx(0, abs=1e-6)
+
+
+def test_committable_link_negative_p_min_pu_purchasable(base_network):
+    """A committable purchasable link with a negative p_min_pu solves consistently."""
+    n = base_network
+    n.add("Bus", "bus1")
+    n.add("Generator", "cheap", bus="bus1", p_nom=1000, marginal_cost=1)
+    n.add(
+        "Link",
+        "link",
+        bus0="bus1",
+        bus1="bus",
+        p_nom_extendable=True,
+        p_nom_max=500,
+        committable=True,
+        p_min_pu=-1,
+        status=0,
+        up_time_before=0,
+        marginal_cost=1,
+        purchasable=True,
+        unit_cost=1,
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    purchased = n.links.at["link", "purchased_opt"]
+    assert (n.links_t.status["link"] <= purchased + 1e-6).all()
+
+
+def test_capex_reconciles_with_objective(base_network):
+    """`n.statistics.capex()` includes the purchase cost and reconciles the objective."""
+    n = add_modular_generator(base_network, unit_cost=500)
+    n.optimize()
+
+    capex = n.statistics.capex().sum()
+    opex = n.statistics.opex().sum()
+    assert capex == pytest.approx(200 * 10 + 500)
+    assert capex + opex == pytest.approx(n.objective)
 
 
 # --------------------------------------------------------------------------- #
@@ -653,7 +746,7 @@ def assert_solution_consistent(n, mod, com, p_min_pu, p_nom_max, p_nom_min):
         10 * p.sum()
         + 100 * n.generators_t.p["backup"].sum()
         + 10 * p_nom
-        + float(n.c.generators.unit_cost.sel(name="gas").item()) * purchased
+        + float(n.c.generators.periodized_unit_cost.sel(name="gas").item()) * purchased
     )
     assert n.objective == pytest.approx(expected)
 
@@ -695,7 +788,9 @@ def test_matrix_unit_cost_overnight(base_network, combo):
         lifetime=25,
     )
     expected = 1e6 * annuity(0.07, 25) * n.c.generators.nyears
-    assert n.c.generators.unit_cost.sel(name="gas").item() == pytest.approx(expected)
+    assert n.c.generators.periodized_unit_cost.sel(name="gas").item() == pytest.approx(
+        expected
+    )
 
     status, condition = n.optimize()
 
