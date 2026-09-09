@@ -422,6 +422,8 @@ def define_objective(
             continue
 
         cost = c.da[attr + "_cost"].sel(name=com_i)
+        if "snapshot" in cost.dims:
+            cost = cost.sel(snapshot=sns)
 
         if cost.size == 0 or cost.sum().item() == 0:
             continue

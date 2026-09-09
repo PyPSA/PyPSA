@@ -17,6 +17,7 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Features
 
 - Enforce voltage angle difference limits on [Line](./user-guide/components/lines.md) components in linear optimal power flow. Setting a finite `v_ang_max` (degrees) on an AC line now caps the magnitude of its linearised voltage angle difference `x_pu_eff * s` in `n.optimize()`. The limit is formulated as a bound on the line flow `s` to keep the problem well conditioned. Resolves part of [#1481](https://github.com/PyPSA/PyPSA/issues/1481). (<!-- md:pr 1481 -->)
+- `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
 
 ### Bug Fixes
 
