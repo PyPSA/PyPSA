@@ -3,14 +3,66 @@
 # SPDX-License-Identifier: MIT
 
 import numpy as np
+import pytest
 
 import pypsa
+
+
+def _cycle_metrics(cycles_df):
+    """Return structural statistics used in algorithm comparisons."""
+    cycle_lengths = cycles_df.ne(0).sum(axis=0)
+    return {
+        "cycles": cycles_df.shape[1],
+        "total_size": int(cycle_lengths.sum()),
+        "max_cycle_length": int(cycle_lengths.max()) if len(cycle_lengths) else 0,
+    }
+
+
+@pytest.mark.parametrize("method", ["paton", "bfs-refined"])
+def test_scigrid_de_cycle_basis_methods(scigrid_de_network, method) -> None:
+    """Both cycle-basis methods yield a complete SciGRID-DE cycle basis."""
+    scigrid_de_network.cycle_basis_method = method
+    cycles_df = scigrid_de_network.cycle_matrix()
+    metrics = _cycle_metrics(cycles_df)
+
+    expected_rank = (
+        len(scigrid_de_network.c.lines.static)
+        + len(scigrid_de_network.c.transformers.static)
+        - len(scigrid_de_network.c.buses.static)
+        + 1
+    )
+    assert metrics["cycles"] == expected_rank
+    assert metrics["total_size"] >= 2 * expected_rank
+    assert metrics["max_cycle_length"] >= 2
+    assert np.linalg.matrix_rank(cycles_df.to_numpy()) == expected_rank
+
+
+@pytest.mark.parametrize("method", ["bfs", "mcb"])
+def test_cycle_basis_rejects_removed_methods(method) -> None:
+    """Only the documented cycle-basis methods are accepted."""
+    n = pypsa.Network()
+    for i in range(3):
+        n.add("Bus", f"bus{i}")
+    for i in range(3):
+        n.add(
+            "Line",
+            f"line{i}",
+            bus0=f"bus{i}",
+            bus1=f"bus{(i + 1) % 3}",
+            x=0.1,
+        )
+
+    n.cycle_basis_method = method
+
+    with pytest.raises(ValueError, match="method must be 'paton' or 'bfs-refined'"):
+        n.cycle_matrix()
 
 
 def test_simple_cycle() -> None:
     """Test the cycles function in a simple network with a known cycle."""
     # Create a test network with a cycle
     n = pypsa.Network()
+    assert n.cycle_basis_method == "bfs-refined"
 
     # Add buses
     for i in range(3):

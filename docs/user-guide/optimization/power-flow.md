@@ -34,6 +34,9 @@ space as other standard linearised formulations based on voltage angles that is
 commonly found in textbooks (B-Theta) or the formulation based on Power Transfer
 Distribution Factors (PTDFs).
 
+By default, PyPSA constructs the cycle basis from breadth-first spanning trees by Deo et
+al. (1982)[^2] and refines it through cycle exchanges to shorten the cycles.
+
 These constraints are set in the function `define_kirchhoff_voltage_constraints()` and carry the name `Kirchhoff-Voltage-Law`.
 
 !!! tip "Tip: KVL with DC networks"
@@ -52,7 +55,7 @@ These constraints are set in the function `define_kirchhoff_voltage_constraints(
 
     If $F_l$ is also subject to optimisation (`s_nom_extendable=True`), the impedance $x$ of the line is **not** automatically changed with the capacity (e.g. to represent added parallel lines).
     However, the extension [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] covers this through an
-    iterative process as done Hagspiel et al. (2014)[^2] .
+    iterative process as done Hagspiel et al. (2014)[^3] .
 
 ## Phase-Shifting Transformers (PSTs)
 
@@ -97,7 +100,7 @@ $$
 \psi_{l,t} = r_{l} p_{l,t}^2,
 $$
 
-where $r_l$ is the resistance of line $l$, following Neumann et al. (2022)[^3].
+where $r_l$ is the resistance of line $l$, following Neumann et al. (2022)[^5].
 
 In PyPSA this non-linear function is linearized with piecewise linear constraints:
 
@@ -200,7 +203,7 @@ $$
 The higher the number of tangents, the more accurate the approximation, but also the more constraints are added to the optimisation problem. Typically, 2-4 tangents are sufficient for a reasonably accurate approximation.
 
 
-More details on this implementation can be found in Neumann et al. (2022)[^3].
+More details on this implementation can be found in Neumann et al. (2022)[^5].
 
 ## Examples
 
@@ -228,8 +231,10 @@ More details on this implementation can be found in Neumann et al. (2022)[^3].
 
 [^1]: J. Hörsch, H. Ronellenfitsch, D. Witthaut, T. Brown (2018), [Linear optimal power flow using cycle flows](https://www.sciencedirect.com/science/article/abs/pii/S0378779617305138), Electric Power Systems Research, 158, 126-135, doi:10.1016/j.epsr.2017.12.034.
 
-[^2]: S. Hagspiel, C. Jägemann, D. Lindenberger, T. Brown, S. Cherevatskiy, E. Tröster (2014), [Cost-optimal power system extension under flow-based market coupling](https://doi.org/10.1016/j.energy.2014.01.025), Energy, 66, 654-666, doi:10.1016/j.energy.2014.01.025.
+[^2]: N. Deo, G. M. Prabhu, M. S. Krishnamoorthy (1982), [Algorithms for Generating Fundamental Cycles in a Graph](https://doi.org/10.1145/355984.355988), ACM Transactions on Mathematical Software, 8 (1), 26-42, doi:10.1145/355984.355988.
 
-[^3]: F. Neumann, V. Hagenmeyer, T. Brown (2022), [Assessments of linear power flow and transmission loss approximations in coordinated capacity expansion problems](https://doi.org/10.1016/j.apenergy.2022.118859), Applied Energy, 314, 118859, doi:10.1016/j.apenergy.2022.118859.
+[^3]: S. Hagspiel, C. Jägemann, D. Lindenberger, T. Brown, S. Cherevatskiy, E. Tröster (2014), [Cost-optimal power system extension under flow-based market coupling](https://doi.org/10.1016/j.energy.2014.01.025), Energy, 66, 654-666, doi:10.1016/j.energy.2014.01.025.
 
 [^4]: J. Verboomen, D. Van Hertem, P. H. Schavemaker, W. L. Kling, R. Belmans (2008), [Analytical Approach to Grid Operation With Phase Shifting Transformers](https://doi.org/10.1109/TPWRS.2007.913197), IEEE Transactions on Power Systems, 23 (1), 41-46, doi:10.1109/TPWRS.2007.913197. See Section III-A "Linearized Power Flow", eq. (3).
+
+[^5]: F. Neumann, V. Hagenmeyer, T. Brown (2022), [Assessments of linear power flow and transmission loss approximations in coordinated capacity expansion problems](https://doi.org/10.1016/j.apenergy.2022.118859), Applied Energy, 314, 118859, doi:10.1016/j.apenergy.2022.118859.
