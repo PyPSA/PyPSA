@@ -1289,6 +1289,34 @@ class Components(
         lifetime = static["lifetime"]
         return annuity(discount_rate, lifetime)
 
+    def _overnight_from_annuitized(
+        self, annuitized: pd.Series, overnight: pd.Series, label: str
+    ) -> pd.Series:
+        """Back-calculate overnight cost from an annuitized cost where missing."""
+        static = self.static
+        has_overnight = overnight.notna()
+
+        needs_back_calc = ~has_overnight & (annuitized != 0)
+        discount_rate = static["discount_rate"]
+        lifetime = static["lifetime"]
+        missing_params = needs_back_calc & (discount_rate.isna() | lifetime.isna())
+
+        if missing_params.any():
+            bad = static.index[missing_params].tolist()
+            msg = (
+                f"Cannot back-calculate {label} for {bad}: "
+                "both 'discount_rate' and 'lifetime' must be provided "
+                f"when '{label}' is not set."
+            )
+            raise ValueError(msg)
+
+        ann_factor = self.annuity
+        nyears = self.nyears
+        nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
+        back_calculated = annuitized / (ann_factor * nyears_scalar)
+
+        return overnight.where(has_overnight, back_calculated)
+
     @property
     def overnight_cost(self) -> pd.Series:
         """Calculate overnight cost from component attributes.
@@ -1322,30 +1350,35 @@ class Components(
 
         """
         static = self.static
-        overnight = static["overnight_cost"]
-        capital = static["capital_cost"]
-        has_overnight = overnight.notna()
+        return self._overnight_from_annuitized(
+            static["capital_cost"], static["overnight_cost"], "overnight_cost"
+        )
 
-        needs_back_calc = ~has_overnight & (capital != 0)
-        discount_rate = static["discount_rate"]
-        lifetime = static["lifetime"]
-        missing_params = needs_back_calc & (discount_rate.isna() | lifetime.isna())
+    @property
+    def overnight_unit_cost(self) -> pd.Series:
+        """Calculate overnight unit investment cost from component attributes.
 
-        if missing_params.any():
-            bad = static.index[missing_params].tolist()
-            msg = (
-                f"Cannot back-calculate overnight_cost for {bad}: "
-                "both 'discount_rate' and 'lifetime' must be provided "
-                "when 'overnight_cost' is not set."
-            )
-            raise ValueError(msg)
+        <!-- md:badge-version v1.1.0 -->
 
-        ann_factor = self.annuity
-        nyears = self.nyears
-        nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
-        back_calculated = capital / (ann_factor * nyears_scalar)
+        If unit_cost_overnight column is provided (not NaN), returns it directly.
+        Otherwise, converts periodized unit_cost back to overnight cost using
+        the formula: unit_cost_overnight = unit_cost / (annuity_factor × nyears).
 
-        return overnight.where(has_overnight, back_calculated)
+        Returns
+        -------
+        pd.Series
+            Overnight (upfront) unit investment cost for the purchase decision.
+
+        See Also
+        --------
+        `periodized_unit_cost` : Periodized unit investment cost for the modeled horizon.
+        `overnight_cost` : Overnight cost per unit of capacity.
+
+        """
+        static = self.static
+        return self._overnight_from_annuitized(
+            static["unit_cost"], static["unit_cost_overnight"], "unit_cost_overnight"
+        )
 
 
 class SubNetworkComponents:

@@ -668,6 +668,34 @@ def test_capex_reconciles_with_objective(base_network):
     assert capex == pytest.approx(200 * 10 + 500)
     assert capex + opex == pytest.approx(n.objective)
 
+    capacity = n.statistics.capex(cost_attribute="capital_cost").sum()
+    purchase = n.statistics.capex(cost_attribute="unit_cost").sum()
+    assert capacity == pytest.approx(200 * 10)
+    assert purchase == pytest.approx(500)
+    assert capex == pytest.approx(capacity + purchase)
+    assert n.statistics.installed_capex(cost_attribute="unit_cost").empty
+    assert n.statistics.expanded_capex(
+        cost_attribute="unit_cost"
+    ).sum() == pytest.approx(500)
+
+
+def test_overnight_cost_composes_purchase(base_network):
+    """`overnight_cost` composes the capacity and purchase overnight terms."""
+    n = add_modular_generator(
+        base_network, unit_cost=500, discount_rate=0.07, lifetime=25
+    )
+    n.optimize()
+
+    total = n.statistics.overnight_cost().sum()
+    capacity = n.statistics.overnight_cost(cost_attribute="overnight_cost").sum()
+    purchase = n.statistics.overnight_cost(cost_attribute="unit_cost").sum()
+    assert capacity == pytest.approx(200 * n.c.generators.overnight_cost["gas"])
+    assert purchase == pytest.approx(n.c.generators.overnight_unit_cost["gas"])
+    assert total == pytest.approx(capacity + purchase)
+
+    with pytest.raises(ValueError, match="cost_attribute must be"):
+        n.statistics.overnight_cost(cost_attribute="capital_cost")
+
 
 # --------------------------------------------------------------------------- #
 # Attribute matrix
