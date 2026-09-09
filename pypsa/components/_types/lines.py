@@ -163,7 +163,7 @@ class Lines(Components):
         >>> n.c.lines.apply_seasonal_rating(ratings)
         >>> float(n.lines.at['a-b', 's_nom'])  # unchanged
         1000.0
-        >>> n.lines_t.s_max_pu['a-b'].iloc[3000]  # mid-summer hour
+        >>> float(n.lines_t.s_max_pu['a-b'].iloc[3000])  # mid-summer hour
         0.8
 
         """
