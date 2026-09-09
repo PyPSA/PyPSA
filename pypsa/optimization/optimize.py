@@ -37,6 +37,7 @@ from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
+    define_line_voltage_angle_constraints,
     define_maintenance_constraints,
     define_modular_constraints,
     define_nodal_balance_constraints,
@@ -878,6 +879,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             prev = t
 
         define_kirchhoff_voltage_constraints(n, sns)
+        if np.isfinite(n.c.lines.static["v_ang_max"]).any():
+            define_line_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
         define_total_supply_constraints(n, sns)
