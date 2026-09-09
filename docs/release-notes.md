@@ -17,6 +17,7 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Features
 
 - Add unit purchase decisions for extendable `Generator`, `Link`, `Line`, `Process` and `Store` components via the new attributes `purchasable`, `unit_cost` and `unit_cost_overnight`. Setting `purchasable=True` introduces a binary variable per asset which decides whether the asset is bought at all, separately from the decision on how much capacity is built, and charges the capacity-independent `unit_cost` (or the annuitised `unit_cost_overnight`) in the objective. The optimised decision is written to the new static output `purchased_opt`. Purchase decisions can be combined with modular capacities and with unit commitment, where an auxiliary per-snapshot availability variable links the purchase decision, the commitment status and the dispatch bounds. See the [capacity limits user guide](./user-guide/optimization/capacity-limits.md#unit-purchase-decisions) for the formulation and its current limitations. (<!-- md:pr 1900 -->)
+- `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
 
 ### Bug Fixes
 

@@ -224,7 +224,7 @@ For generators, links and processes with unit commitment (`committable=True`), s
 
 === "Generator"
 
-    $$+ \sum_{n,s,t} w_t^o sbc_{n,s,t} u_{n,s,t} + \sum_{n,s} suc_{n,s} su_{n,s,t} + \sum_{n,s} sdc_{n,s} sd_{n,s,t}$$
+    $$+ \sum_{n,s,t} w_t^o sbc_{n,s,t} u_{n,s,t} + \sum_{n,s,t} suc_{n,s,t} su_{n,s,t} + \sum_{n,s,t} sdc_{n,s,t} sd_{n,s,t}$$
 
 === "Link"
 
@@ -246,8 +246,8 @@ where $sbc_{*,t}$, $suc_{*,t}$, and $sdc_{*,t}$ are the stand-by, start-up, and 
         | $su_{n,s,t}$      | `n.generators_t.start_up` | Decision variable |
         | $sd_{n,s,t}$      | `n.generators_t.shut_down` | Decision variable |
         | $sbc_{n,s,t}$     | `n.generators_t.stand_by_cost` | Parameter |
-        | $suc_{n,s}$       | `n.generators.start_up_cost` | Parameter |
-        | $sdc_{n,s}$       | `n.generators.shut_down_cost` | Parameter |
+        | $suc_{n,s,t}$     | `n.generators_t.start_up_cost` | Parameter |
+        | $sdc_{n,s,t}$     | `n.generators_t.shut_down_cost` | Parameter |
         | $w_t^o$           | `n.snapshots.weightings.objective` | Parameter |
 
     === "Link"
@@ -258,8 +258,8 @@ where $sbc_{*,t}$, $suc_{*,t}$, and $sdc_{*,t}$ are the stand-by, start-up, and 
         | $su_{l,t}$        | `n.links_t.start_up` | Decision variable |
         | $sd_{l,t}$        | `n.links_t.shut_down` | Decision variable |
         | $sbc_{l,t}$       | `n.links_t.stand_by_cost` | Parameter |
-        | $suc_{l,t}$       | `n.links.start_up_cost` | Parameter |
-        | $sdc_{l,t}$       | `n.links.shut_down_cost` | Parameter |
+        | $suc_{l,t}$       | `n.links_t.start_up_cost` | Parameter |
+        | $sdc_{l,t}$       | `n.links_t.shut_down_cost` | Parameter |
         | $w_t^o$           | `n.snapshots.weightings.objective` | Parameter |
 
     === "Process"
@@ -270,8 +270,8 @@ where $sbc_{*,t}$, $suc_{*,t}$, and $sdc_{*,t}$ are the stand-by, start-up, and 
         | $su_{m,t}$        | `n.processes_t.start_up` | Decision variable |
         | $sd_{m,t}$        | `n.processes_t.shut_down` | Decision variable |
         | $sbc_{m,t}$       | `n.processes_t.stand_by_cost` | Parameter |
-        | $suc_{m,t}$       | `n.processes.start_up_cost` | Parameter |
-        | $sdc_{m,t}$       | `n.processes.shut_down_cost` | Parameter |
+        | $suc_{m,t}$       | `n.processes_t.start_up_cost` | Parameter |
+        | $sdc_{m,t}$       | `n.processes_t.shut_down_cost` | Parameter |
         | $w_t^o$           | `n.snapshots.weightings.objective` | Parameter |
 
 Some decision variables do not show up in the objective function, such as the power flow on lines and transformers ($p_{l,t} \in \mathbb{R}$) and the storage unit charging ($h_{n,s,t}^+ \in \mathbb{R}$). They are only used to enforce constraints, e.g. the power flow on lines and transformers.
