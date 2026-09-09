@@ -16,6 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
+- Add [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] to scale per-line summer / winter MVA ratings onto `n.lines_t.s_max_pu` based on the snapshot month, leaving `s_nom` unchanged. (<!-- md:pr 1694 -->)
 - `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
 
 ### Bug Fixes
