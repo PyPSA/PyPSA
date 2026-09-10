@@ -24,6 +24,9 @@ lifetime,float,years,inf,Lifetime of line.,Input (optional)
 length,float,km,0,"Length of line used when `type` is set. Also useful for calculating `capital_cost`.",Input (optional)
 carrier,string,"n/a","","Type of current. ""AC"" is the only valid value for lines.",Input (optional)
 terrain_factor,float,per unit,1,"Terrain factor for increasing `length` for `capital_cost` calculation.",Input (optional)
+purchasable,boolean,n/a,False,Apply unit purchase constraints.,Input (optional)
+unit_cost,float,currency,0.,"Annuitised cost for purchasing a line, irrespective of its capacity",Input (optional)
+unit_cost_overnight,float,currency,NaN,"Upfront cost for purchasing a line, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `unit_cost`.",Input (optional)
 num_parallel,float,n/a,1,"When `type` is set, this is the number of parallel circuits. Can also be fractional. If `type` is empty """" this value is ignored.",Input (optional)
 v_ang_min,float,degrees,-inf,Minimum voltage angle difference across the line.  Placeholder attribute not currently used.,Input (optional)
 v_ang_max,float,degrees,inf,Maximum voltage angle difference across the line. Placeholder attribute not currently used.,Input (optional)
@@ -42,3 +45,4 @@ s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
 mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit $-F \\leq f$. Always non-negative.,Output
 mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit $f \\leq F$. Always non-negative.,Output
 capital_cost_piecewise_opt,float,currency/MVA,0.,Optimised capital cost when using piecewise linearisation.,Output
+purchased_opt,float,n/a,n/a,Optimised unit purchase decision,Output

@@ -384,6 +384,30 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     n.model.add_variables(lower=0, coords=[mod_i], name=f"{c.name}-n_mod", integer=True)
 
 
+def define_purchase_variables(
+    n: Network,
+    c_name: str,
+    attr: str,
+    sns: Sequence,
+) -> None:
+    """Define the unit purchase variables for extendable components."""
+    c = n.components[c_name]
+    purchase_i = c.active_purchasables
+    if purchase_i.empty:
+        return
+    com_i = purchase_i.difference(c.modulars).intersection(c.committables)
+
+    n.model.add_variables(coords=[purchase_i], name=f"{c.name}-purchased", binary=True)
+
+    if com_i.empty:
+        return
+
+    active = c.da.active.sel(name=com_i, snapshot=sns)
+    n.model.add_variables(
+        coords=active.coords, name=f"{c.name}-available_{attr}", mask=active
+    )
+
+
 def define_spillage_variables(n: Network, sns: Sequence) -> None:
     """Define the spillage variables for storage units."""
     c_name = "StorageUnit"
