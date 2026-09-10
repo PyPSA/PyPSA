@@ -285,7 +285,7 @@ It carries neither a snapshot nor a scenario dimension, so an asset is either bo
 
 ### Capacity Bound
 
-For a purchasable extendable asset with a **continuous** capacity, the capacity is bounded above by the purchase decision, so that nothing can be built unless the asset is bought:
+For a purchasable extendable asset, the capacity is bounded above by the purchase decision, so that nothing can be built unless the asset is bought:
 
 | Constraint | Dual Variable | Name |
 |-------------------|------------------|------------------|
@@ -301,24 +301,16 @@ Symmetrically, the lower capacity bound is scaled by the purchase decision, so t
 
 | Constraint | Dual Variable | Name |
 |-------------------|------------------|------------------|
-| $G_{n,s} \geq \underline{G}_{n,s} \cdot y_{n,s}$ | `n.generators.mu_lower` | `Generator-ext-p_nom-lower` |
+| $G_{n,s} \geq \underline{G}_{n,s} \cdot y_{n,s}$ | N/A | `Generator-ext-p_nom-lower-purchased` |
 
 This replaces the plain lower bound described in [Upper and Lower Bounds](#upper-and-lower-bounds) and is set in `define_nominal_constraints_for_extendables()`.
 All other purchase constraints are set in `define_purchase_constraints()`.
 
 ### Modular Components
 
-[Modular](#modularity-constraints) assets are bounded through their module count instead.
-The number of installed modules is tied to the purchase decision with a big-M constraint, and the modularity constraint
-$G_{n,s} = G^{\textrm{mod}}_{n,s} \cdot \tilde{G}_{n,s}$ then forces the capacity to zero whenever the asset is not bought:
-
-| Constraint | Dual Variable | Name |
-|-------------------|------------------|------------------|
-| $G^{\textrm{mod}}_{n,s} \leq M \cdot y_{n,s}$ | N/A | `Generator-p_nom_modularity_purchased_bigM` |
-| $F^{\textrm{mod}}_{l} \leq M \cdot y_{l}$ | N/A | `Link-p_nom_modularity_purchased_bigM` |
-| $R^{\textrm{mod}}_{m} \leq M \cdot y_{m}$ | N/A | `Process-p_nom_modularity_purchased_bigM` |
-| $P^{\textrm{mod}}_{l} \leq M \cdot y_{l}$ | N/A | `Line-s_nom_modularity_purchased_bigM` |
-| $E^{\textrm{mod}}_{n,s} \leq M \cdot y_{n,s}$ | N/A | `Store-e_nom_modularity_purchased_bigM` |
+[Modular](#modularity-constraints) assets use the same capacity bound as continuous assets.
+The capacity is bounded above by the purchase decision through `Generator-p_nom_cap_binary`, and the modularity constraint
+$G_{n,s} = G^{\textrm{mod}}_{n,s} \cdot \tilde{G}_{n,s}$ then forces the module count to zero whenever the asset is not bought.
 
 ### Purchase and Unit Commitment
 
@@ -365,9 +357,8 @@ Doing so raises a `ValueError`.
 !!! warning "Current limitations"
 
     - `purchasable` is only supported for extendable components.
-      Setting it on a component with a fixed capacity raises a `KeyError` while building the model.
-    - `StorageUnit` purchase constraints raise a `ValueError` when the model is built.
-    - Purchasable components combined with `n.set_scenarios()` fail when the capacity lower bound is built.
+      Setting it on a component with a fixed capacity raises a `ValueError` before the model is built.
+    - A purchasable component that is both committable and maintainable must be modular; the non-modular combination raises a `ValueError`.
     - `Transformer` has no `purchasable` attribute.
 
 ??? note "Mapping of symbols to component attributes"

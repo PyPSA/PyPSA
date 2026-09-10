@@ -759,7 +759,7 @@ class Components(
         Coordinates:
           * name                        (name) object 48B 'Manchester Wind' ... 'Fran...
           * snapshot                    (snapshot) datetime64[ns] 80B 2015-01-01 ... ...
-        Data variables: (12/48)
+        Data variables: (12/52)
             bus                         (name) object 48B 'Manchester' ... 'Frankfurt'
             control                     (name) object 48B 'Slack' 'PQ' ... 'Slack' 'PQ'
             type                        (name) object 48B '' '' '' '' '' ''
@@ -767,11 +767,11 @@ class Components(
             p_nom_mod                   (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
             p_nom_extendable            (name) bool 6B True True True True True True
             ...                          ...
-            ramp_limit_start_up         (name) float64 48B nan nan nan nan nan nan
             ramp_limit_shut_down        (name) float64 48B nan nan nan nan nan nan
             weight                      (name) float64 48B 1.0 1.0 1.0 1.0 1.0 1.0
             p_nom_opt                   (name) float64 48B 4.091e+03 0.0 ... 982.0
             capital_cost_piecewise_opt  (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
+            purchased_opt               (name) float64 48B nan nan nan nan nan nan
             p                           (snapshot, name) float64 480B 742.0 ... 483.2
 
         """
@@ -1072,6 +1072,43 @@ class Components(
 
         return idx
 
+    @property
+    def active_purchasables(self) -> pd.Index:
+        """Get the index of purchasable elements considered in the optimization.
+
+        These are the elements that are purchasable, extendable and active, i.e.
+        the ones for which a purchase decision variable is created.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of active, extendable, purchasable elements.
+
+        """
+        purchasables = self.purchasables
+        if purchasables.empty:
+            return purchasables
+        return purchasables.intersection(self.extendables).intersection(
+            self.active_assets
+        )
+
+    def _resolve_big_m_default(self, committable_big_m: float | None) -> float:
+        """Resolve the scalar big-M fallback for committable/purchasable bounds."""
+        big_m_default = committable_big_m
+        if big_m_default is None and self.n is not None:
+            big_m_default = self.n._committable_big_m
+        if big_m_default is None:
+            return self._infer_committable_big_m_scale()
+        if not np.isfinite(big_m_default):
+            msg = f"committable_big_m must be finite, got {big_m_default}."
+            raise ValueError(msg)
+        if big_m_default <= 0:
+            msg = f"committable_big_m must be positive, got {big_m_default}."
+            raise ValueError(msg)
+        return big_m_default
+
     def _infer_committable_big_m_scale(self) -> float:
         """Infer a reasonable big-M scale from network and component data."""
         candidates: list[float] = []
@@ -1127,18 +1164,7 @@ class Components(
         if "snapshot" in max_pu_values.dims:
             max_pu_values = max_pu_values.max("snapshot")
 
-        big_m_default = committable_big_m
-        if big_m_default is None and self.n is not None:
-            big_m_default = self.n._committable_big_m
-        if big_m_default is None:
-            big_m_default = self._infer_committable_big_m_scale()
-        else:
-            if not np.isfinite(big_m_default):
-                msg = f"committable_big_m must be finite, got {big_m_default}."
-                raise ValueError(msg)
-            if big_m_default <= 0:
-                msg = f"committable_big_m must be positive, got {big_m_default}."
-                raise ValueError(msg)
+        big_m_default = self._resolve_big_m_default(committable_big_m)
 
         fallback_values = big_m_default * max_pu_values.fillna(1)
         return xarray.where(
@@ -1194,14 +1220,14 @@ class Components(
         )
 
     @property
-    def unit_cost(self) -> xarray.DataArray:
+    def periodized_unit_cost(self) -> xarray.DataArray:
         """Calculate periodized unit investment cost from component attributes as xarray DataArray.
 
         <!-- md:badge-version v1.1.0 -->
 
         See Also
         --------
-        `pypsa.costs.unit_cost`
+        `pypsa.costs.periodized_cost`
 
         """
         static = self.static
@@ -1263,6 +1289,34 @@ class Components(
         lifetime = static["lifetime"]
         return annuity(discount_rate, lifetime)
 
+    def _overnight_from_annuitized(
+        self, annuitized: pd.Series, overnight: pd.Series, label: str
+    ) -> pd.Series:
+        """Back-calculate overnight cost from an annuitized cost where missing."""
+        static = self.static
+        has_overnight = overnight.notna()
+
+        needs_back_calc = ~has_overnight & (annuitized != 0)
+        discount_rate = static["discount_rate"]
+        lifetime = static["lifetime"]
+        missing_params = needs_back_calc & (discount_rate.isna() | lifetime.isna())
+
+        if missing_params.any():
+            bad = static.index[missing_params].tolist()
+            msg = (
+                f"Cannot back-calculate {label} for {bad}: "
+                "both 'discount_rate' and 'lifetime' must be provided "
+                f"when '{label}' is not set."
+            )
+            raise ValueError(msg)
+
+        ann_factor = self.annuity
+        nyears = self.nyears
+        nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
+        back_calculated = annuitized / (ann_factor * nyears_scalar)
+
+        return overnight.where(has_overnight, back_calculated)
+
     @property
     def overnight_cost(self) -> pd.Series:
         """Calculate overnight cost from component attributes.
@@ -1296,30 +1350,35 @@ class Components(
 
         """
         static = self.static
-        overnight = static["overnight_cost"]
-        capital = static["capital_cost"]
-        has_overnight = overnight.notna()
+        return self._overnight_from_annuitized(
+            static["capital_cost"], static["overnight_cost"], "overnight_cost"
+        )
 
-        needs_back_calc = ~has_overnight & (capital != 0)
-        discount_rate = static["discount_rate"]
-        lifetime = static["lifetime"]
-        missing_params = needs_back_calc & (discount_rate.isna() | lifetime.isna())
+    @property
+    def overnight_unit_cost(self) -> pd.Series:
+        """Calculate overnight unit investment cost from component attributes.
 
-        if missing_params.any():
-            bad = static.index[missing_params].tolist()
-            msg = (
-                f"Cannot back-calculate overnight_cost for {bad}: "
-                "both 'discount_rate' and 'lifetime' must be provided "
-                "when 'overnight_cost' is not set."
-            )
-            raise ValueError(msg)
+        <!-- md:badge-version v1.1.0 -->
 
-        ann_factor = self.annuity
-        nyears = self.nyears
-        nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
-        back_calculated = capital / (ann_factor * nyears_scalar)
+        If unit_cost_overnight column is provided (not NaN), returns it directly.
+        Otherwise, converts periodized unit_cost back to overnight cost using
+        the formula: unit_cost_overnight = unit_cost / (annuity_factor × nyears).
 
-        return overnight.where(has_overnight, back_calculated)
+        Returns
+        -------
+        pd.Series
+            Overnight (upfront) unit investment cost for the purchase decision.
+
+        See Also
+        --------
+        `periodized_unit_cost` : Periodized unit investment cost for the modeled horizon.
+        `overnight_cost` : Overnight cost per unit of capacity.
+
+        """
+        static = self.static
+        return self._overnight_from_annuitized(
+            static["unit_cost"], static["unit_cost_overnight"], "unit_cost_overnight"
+        )
 
 
 class SubNetworkComponents:
