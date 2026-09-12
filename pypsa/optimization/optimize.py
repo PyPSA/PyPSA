@@ -929,6 +929,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         define_objective(n, sns, include_objective_constant, piecewise_opts)
 
+        n.composites._add_spec_layers(n.model)
+
         return n.model
 
     def solve_model(

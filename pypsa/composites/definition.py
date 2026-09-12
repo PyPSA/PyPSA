@@ -1,0 +1,250 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+"""Composite definitions: a recipe of fundamental components plus a math-spec fragment."""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from pypsa.components import types as component_types
+
+PARAM_PREFIX = "$"
+MEMBER_PREFIX = "@"
+MATH_KEYS = frozenset({"variables", "expressions", "constraints"})
+PARAM_DTYPES = {bool: "bool", int: "float", float: "float", str: "str"}
+
+
+@dataclass(frozen=True)
+class CompositeDefinition:
+    """A reusable recipe of fundamental components.
+
+    Parameters
+    ----------
+    name : str
+        Definition name, also the instance dimension in the math fragment.
+    parameters : dict
+        Exposed parameters with defaults. A ``None`` default marks a required
+        parameter of ``add``.
+    components : dict
+        ``{class_name: {member: {attr: value}}}``. Values starting with ``$``
+        reference an exposed parameter, values starting with ``@`` reference a
+        member component of the same instance.
+    math : dict
+        math-spec fragment with keys ``variables``, ``expressions`` and
+        ``constraints``. Variables bind PyPSA model variables, named
+        ``<Component>_<attr>``.
+
+    """
+
+    name: str
+    parameters: dict[str, Any]
+    components: dict[str, dict[str, dict[str, Any]]]
+    math: dict[str, Any] = field(default_factory=dict)
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        """Validate references, classes and the math fragment."""
+        self._validate()
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CompositeDefinition:
+        """Build a definition from a mapping with the YAML layout."""
+        return cls(
+            name=data["name"],
+            parameters=dict(data.get("parameters", {})),
+            components=data["components"],
+            math=dict(data.get("math", {})),
+            description=data.get("description", ""),
+        )
+
+    @classmethod
+    def from_yaml(cls, source: str | Path) -> CompositeDefinition:
+        """Load a definition from a YAML file path or YAML text."""
+        import yaml  # noqa: PLC0415
+
+        text = (
+            source
+            if isinstance(source, str) and "\n" in source
+            else Path(source).read_text()
+        )
+        return cls.from_dict(yaml.safe_load(text))
+
+    @property
+    def members(self) -> dict[str, str]:
+        """Member name mapped to its component class."""
+        return {m: cls for cls, members in self.components.items() for m in members}
+
+    @property
+    def required(self) -> list[str]:
+        """Exposed parameters without a default."""
+        return [k for k, v in self.parameters.items() if v is None]
+
+    @property
+    def bound_class(self) -> str | None:
+        """The one component class whose model variables the math binds."""
+        return _bound_class(self.name, self.math)
+
+    def _validate(self) -> None:
+        members = self.members
+        if len(members) != sum(len(m) for m in self.components.values()):
+            msg = (
+                f"Composite '{self.name}': member names must be unique across classes."
+            )
+            raise ValueError(msg)
+        for cls in self.components:
+            component_types.get(cls)
+        for member, attrs in self._member_attrs():
+            for attr, value in attrs.items():
+                ref = _reference(value)
+                if ref is None:
+                    continue
+                prefix, target = ref
+                pool = self.parameters if prefix == PARAM_PREFIX else members
+                if target not in pool:
+                    msg = (
+                        f"Composite '{self.name}', member '{member}', attribute "
+                        f"'{attr}': unknown reference '{value}'."
+                    )
+                    raise ValueError(msg)
+        unknown = set(self.math) - MATH_KEYS
+        if unknown:
+            msg = f"Composite '{self.name}': unsupported math keys {sorted(unknown)}."
+            raise ValueError(msg)
+        for name, decl in self.math.get("variables", {}).items():
+            if not isinstance(decl, dict):
+                msg = (
+                    f"Composite '{self.name}': bound variable '{name}' must be a "
+                    "mapping declaring 'foreach'."
+                )
+                raise ValueError(msg)  # noqa: TRY004
+            extra = set(decl) - {"foreach"}
+            if extra:
+                msg = (
+                    f"Composite '{self.name}': bound variable '{name}' may only "
+                    f"declare 'foreach', found {sorted(extra)}."
+                )
+                raise ValueError(msg)
+        _bound_class(self.name, self.math)
+
+    def _member_attrs(self) -> list[tuple[str, dict[str, Any]]]:
+        return [
+            (m, a) for members in self.components.values() for m, a in members.items()
+        ]
+
+    def values(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Exposed parameter values for one instance, defaults filled in."""
+        missing = [k for k in self.required if k not in params]
+        if missing:
+            msg = f"Composite '{self.name}': missing required parameters {missing}."
+            raise ValueError(msg)
+        unknown = set(params) - set(self.parameters)
+        if unknown:
+            msg = f"Composite '{self.name}': unknown parameters {sorted(unknown)}."
+            raise ValueError(msg)
+        return {**self.parameters, **params}
+
+    @property
+    def primary_member(self) -> str:
+        """The member that carries the instance parameters, first of the bound class."""
+        cls = self.bound_class
+        return next(m for m, c in self.members.items() if cls is None or c == cls)
+
+    def resolve(
+        self, instance: str, values: dict[str, Any]
+    ) -> dict[str, dict[str, Any]]:
+        """Component attributes per member for one instance, references resolved."""
+        resolved = {}
+        for member, attrs in self._member_attrs():
+            resolved[member] = {
+                attr: _resolve_value(value, values, instance)
+                for attr, value in attrs.items()
+            }
+        return resolved
+
+    def spec(self) -> dict[str, Any]:
+        """Expand the fragment into a complete math-spec dict for ``add_spec``."""
+        cls = self.bound_class
+        dims: dict[str, Any] = {
+            "snapshot": {"dtype": "datetime"},
+            self.name: {"dtype": "str"},
+        }
+        if cls is not None:
+            dims["name"] = {"dtype": "str"}
+        lookups = {
+            member: {"over": "name", "into": self.name}
+            for member, mcls in self.members.items()
+            if mcls == cls
+        }
+        return {
+            "description": self.description or f"composite '{self.name}'",
+            "dimensions": dims,
+            "lookups": lookups,
+            "parameters": self.parameter_decls(),
+            **{
+                key: self.math.get(key, {})
+                for key in ("variables", "expressions", "constraints")
+            },
+        }
+
+    def parameter_decls(self) -> dict[str, dict[str, Any]]:
+        """Spec declarations for exposed scalar parameters used by the math."""
+        used = set(re.findall(r"[A-Za-z_]\w*", " ".join(self._math_bodies())))
+        return {
+            key: {"dims": [self.name], "dtype": PARAM_DTYPES[type(value)]}
+            for key, value in self.parameters.items()
+            if type(value) in PARAM_DTYPES and key in used
+        }
+
+    def _math_bodies(self) -> list[str]:
+        bodies = []
+        for key in ("expressions", "constraints"):
+            for decl in self.math.get(key, {}).values():
+                if isinstance(decl, str):
+                    bodies.append(decl)
+                else:
+                    bodies.extend(str(decl.get(k, "")) for k in ("expression", "where"))
+        return bodies
+
+    def spec_text(self) -> str:
+        """Dump the expanded spec as YAML text."""
+        import yaml  # noqa: PLC0415
+
+        return yaml.safe_dump(self.spec(), sort_keys=False)
+
+
+def _bound_class(name: str, math: dict[str, Any]) -> str | None:
+    prefixes = {v.split("_", 1)[0] for v in math.get("variables", {})}
+    if len(prefixes) > 1:
+        msg = (
+            f"Composite '{name}' binds variables of several component classes "
+            f"{sorted(prefixes)}. linopy names every component axis 'name', so one "
+            "math fragment can bind a single class only."
+        )
+        raise ValueError(msg)
+    return next(iter(prefixes), None)
+
+
+def member_name(instance: str, member: str) -> str:
+    """Component name of a member inside an instance."""
+    return f"{instance}-{member}"
+
+
+def _reference(value: Any) -> tuple[str, str] | None:
+    if isinstance(value, str) and value[:1] in (PARAM_PREFIX, MEMBER_PREFIX):
+        return value[0], value[1:]
+    return None
+
+
+def _resolve_value(value: Any, params: dict[str, Any], instance: str) -> Any:
+    ref = _reference(value)
+    if ref is None:
+        return value
+    prefix, target = ref
+    if prefix == PARAM_PREFIX:
+        return params[target]
+    return member_name(instance, target)
