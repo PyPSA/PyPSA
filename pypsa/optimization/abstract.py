@@ -536,12 +536,22 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                     n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
                         snapshots[start - 1]
                     ].values
+                    throughput = n.c.stores.dynamic.throughput
+                    if not throughput.empty:
+                        n.c.stores.static.throughput_initial = throughput.loc[
+                            snapshots[start - 1]
+                        ].values
                 if not n.c.storage_units.static.empty:
                     n.c.storage_units.static.state_of_charge_initial = (
                         n.c.storage_units.dynamic.state_of_charge.loc[
                             snapshots[start - 1]
                         ].values
                     )
+                    throughput = n.c.storage_units.dynamic.throughput
+                    if not throughput.empty:
+                        n.c.storage_units.static.throughput_initial = throughput.loc[
+                            snapshots[start - 1]
+                        ].values
 
             status, condition = n.optimize(sns, **kwargs)
             if status != "ok":

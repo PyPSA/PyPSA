@@ -12,6 +12,9 @@ e_nom_set,float,MWh,n/a,"If `e_nom_extendable=True`, set the value of `e_nom_opt
 e_min_pu,static or series,per unit,0,Minimal value of `e` relative to `e_nom` for the optimisation.,Input (optional)
 e_max_pu,static or series,per unit,1,Maximal value of `e` relative to `e_nom` for the optimisation.,Input (optional)
 e_initial,float,MWh,0,Energy before the snapshots in the optimisation.,Input (optional)
+degradation_per_cycle,float,per unit,0,"Capacity fade per equivalent full cycle, as a fraction of `e_nom`. Zero disables the capacity fade constraint.",Input (optional)
+throughput_initial,float,MWh,0,Energy throughput of the energy level before the snapshots in the optimisation.,Input (optional)
+cycles_max,float,cycles,inf,"Equivalent full cycles allowed over the optimised snapshots; one cycle is `2 * e_nom` MWh of throughput. Infinite disables the cycle budget constraint.",Input (optional)
 e_initial_per_period,boolean,n/a,False,"Switch: if True, then at the beginning of each investment period `e` is set to `e_initial`.",Input (optional)
 e_cyclic,boolean,n/a,False,"Switch: if True, then `e_initial` is ignored and the initial energy is set to the final energy for the group of snapshots in the optimisation.",Input (optional)
 e_cyclic_per_period,boolean,n/a,False,"Switch: if True, then the cyclic constraints are applied to each investment period separately.",Input (optional)
@@ -33,9 +36,12 @@ lifetime,float,years,inf,Lifetime,Input (optional)
 p,series,MW,0,Power at bus (positive if net supply),Output
 q,series,MVar,0,Reactive power (positive if net supply),Output
 e,series,MWh,0,Energy level of store as calculated by the optimisation.,Output
+p_dispatch,series,MW,0,"Auxiliary non-negative dispatch of stores with a capacity fade or cycle budget; equals `max(p, 0)` where they bind.",Output
+throughput,series,MWh,0,Cumulative energy throughput of the energy level as calculated by the optimisation.,Output
 e_nom_opt,float,MWh,0,Optimised nominal energy capacity outputed by optimisation.,Output
 mu_upper,series,currency/MWh,n/a,Shadow price of upper `e_nom` limit,Output
 mu_lower,series,currency/MWh,n/a,Shadow price of lower `e_nom` limit,Output
+mu_cycles_max,float,currency/MWh,n/a,Shadow price of the cycle budget `cycles_max`.,Output
 mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations (i.e. water values),Output
 capital_cost_piecewise_opt,float,currency/MWh,0.,Optimised capital cost when using piecewise linearisation.,Output
 marginal_cost_piecewise_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output

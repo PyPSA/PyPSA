@@ -29,6 +29,9 @@ active,boolean,n/a,True,Whether to consider the component in optimisation or not
 build_year,int,year,0,Build year,Input (optional)
 lifetime,float,years,inf,Lifetime,Input (optional)
 state_of_charge_initial,float,MWh,0,State of charge before the snapshots in the optimisation.,Input (optional)
+degradation_per_cycle,float,per unit,0,"Capacity fade per equivalent full cycle, as a fraction of `max_hours * p_nom`. Zero disables the capacity fade constraint.",Input (optional)
+throughput_initial,float,MWh,0,Energy throughput of the state of charge before the snapshots in the optimisation.,Input (optional)
+cycles_max,float,cycles,inf,"Equivalent full cycles allowed over the optimised snapshots; one cycle is `2 * max_hours * p_nom` MWh of throughput. Infinite disables the cycle budget constraint.",Input (optional)
 state_of_charge_initial_per_period,boolean,n/a,False,"Switch: if True, the state of charge at the beginning of an investment period is set to `state_of_charge_initial`.",Input (optional)
 state_of_charge_set,static or series,MWh,NaN,State of charge set points for snapshots in the optimisation.,Input (optional)
 cyclic_state_of_charge,boolean,n/a,False,"Switch: if True, then `state_of_charge_initial` is ignored and the initial state of charge is set to the final state of charge for the group of snapshots in the optimisation (`soc[-1] = soc[len(snapshots)-1]`).",Input (optional)
@@ -44,9 +47,11 @@ p_store,series,MW,0,Active power charging at bus,Output
 q,series,MVar,0,Reactive power (positive if net generation),Output
 state_of_charge,series,MWh,NaN,State of charge as calculated by the optimisation.,Output
 spill,series,MW,0,Spillage for each snapshot (e.g. hydro-dam letting water flow over the spillway without generating electricity).,Output
+throughput,series,MWh,0,Cumulative energy throughput of the state of charge as calculated by the optimisation.,Output
 p_nom_opt,float,MW,0,Optimised nominal power.,Output
 mu_upper,series,currency/MWh,n/a,Shadow price of upper p_nom limit,Output
 mu_lower,series,currency/MWh,n/a,Shadow price of lower p_nom limit,Output
+mu_cycles_max,float,currency/MWh,n/a,Shadow price of the cycle budget `cycles_max`.,Output
 mu_state_of_charge_set,series,currency/MWh,n/a,Shadow price of fixed state of charge state_of_charge_set,Output
 mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations,Output
 capital_cost_piecewise_opt,float,currency/MW,0.,Optimised capital cost when using piecewise linearisation.,Output
