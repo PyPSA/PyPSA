@@ -1021,6 +1021,52 @@ class Components(
         return idx
 
     @property
+    def degradables(self) -> pd.Index:
+        """Get the index of degrading elements of this component.
+
+        Degrading elements have a positive `degradation_per_cycle`, i.e. their
+        energy capacity fades with the cumulative energy throughput.
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of degrading elements.
+
+        """
+        if "degradation_per_cycle" not in self.static:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static["degradation_per_cycle"] > 0].index
+
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
+    @property
+    def cycle_budgeted(self) -> pd.Index:
+        """Get the index of cycle-budgeted elements of this component.
+
+        Cycle-budgeted elements have a finite `cycles_max`, i.e. a budget of
+        equivalent full cycles over the optimised snapshots.
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of cycle-budgeted elements.
+
+        """
+        if "cycles_max" not in self.static:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static["cycles_max"] < np.inf].index
+
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
+    @property
     def modulars(self) -> pd.Index:
         """Get the index of modular elements of this component.
 

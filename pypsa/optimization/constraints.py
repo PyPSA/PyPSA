@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
+    from pypsa.components.components import Components
 
     ArgItem = list[str | int | float | DataArray]
 
@@ -2352,6 +2353,304 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     rhs = -e_init.where(~include_previous_e, 0)
 
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
+
+
+def define_store_p_dispatch_constraints(n: Network, sns: pd.Index) -> None:
+    """Define constraints linking the auxiliary dispatch of stores to their power.
+
+    For each store with a capacity fade or a cycle budget and each snapshot,
+    the constraint enforces:
+
+    p_dispatch(t) ≥ p(t)
+
+    Together with the lower bound of zero on p_dispatch this gives
+    p_dispatch ≥ max(p, 0), so that 2 * p_dispatch - p ≥ |p| with equality
+    wherever the capacity fade or the cycle budget binds, since a larger
+    auxiliary only tightens them.
+
+    Applies to Store (p, p_dispatch).
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+
+    """
+    m = n.model
+    c = as_components(n, "Store")
+    aux_i = c.degradables.union(c.cycle_budgeted).intersection(c.active_assets)
+
+    if aux_i.empty:
+        return
+
+    active = c.da.active.sel(name=aux_i, snapshot=sns)
+    p = m[f"{c.name}-p"].sel(name=aux_i)
+    p_dispatch = m[f"{c.name}-p_dispatch"]
+
+    m.add_constraints(
+        p_dispatch - p, ">=", 0, name=f"{c.name}-p_dispatch_link", mask=active
+    )
+
+
+def _throughput_flow(
+    n: Network, c: Components, sns: pd.Index, names: pd.Index
+) -> LinearExpression:
+    """Get the energy throughput of the storage level per snapshot.
+
+    The throughput of a snapshot is the energy charged into the storage level
+    plus the energy discharged from it, weighted by the elapsed hours:
+
+    (eff_store * p_store(t) + p_dispatch(t) / eff_dispatch) * weighting(t)
+
+    for storage units, and
+
+    (2 * p_dispatch(t) - p(t)) * weighting(t), i.e. |p(t)| * weighting(t)
+
+    for stores, see define_store_p_dispatch_constraints for the auxiliary.
+    Shared by the throughput balance and the cycle budget so that both count
+    the same energy.
+    """
+    m = n.model
+    eh = n.optimize._window.subset(sns).snapshot_weightings("stores")
+
+    if c.name == "StorageUnit":
+        eff_store = c.da.efficiency_store.sel(snapshot=sns, name=names)
+        eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=names)
+        return m.linexpr(
+            (eff_store * eh, m[f"{c.name}-p_store"].sel(name=names)),
+            (1 / eff_dispatch * eh, m[f"{c.name}-p_dispatch"].sel(name=names)),
+        )
+
+    return m.linexpr(
+        (2 * eh, m[f"{c.name}-p_dispatch"].sel(name=names)),
+        (-eh, m[f"{c.name}-p"].sel(name=names)),
+    )
+
+
+def define_throughput_constraints(n: Network, sns: pd.Index, component: str) -> None:
+    """Define throughput balance constraints for degrading storage.
+
+    Creates constraints tracking the cumulative energy throughput of assets
+    with a positive `degradation_per_cycle`. For each asset and snapshot, the
+    constraint enforces:
+
+    throughput(t) = throughput(t-1) + flow(t)
+
+    where flow is the energy charged into and discharged from the storage
+    level in the snapshot (see _throughput_flow) and
+    throughput(-1) = throughput_initial. Throughput accumulates over the whole
+    horizon: unlike the storage level it is never cyclic and is not reset per
+    investment period.
+
+    Applies to StorageUnit (p_dispatch, p_store, throughput) and
+    Store (p, p_dispatch, throughput).
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component ("StorageUnit" or "Store")
+
+    """
+    m = n.model
+    dim = "snapshot"
+    c = as_components(n, component)
+    deg_i = c.degradables.intersection(c.active_assets)
+
+    if deg_i.empty:
+        return
+
+    active = c.da.active.sel(snapshot=sns, name=deg_i)
+    throughput = m[f"{c.name}-throughput"]
+
+    # We create a mask `include_previous` which excludes the first active
+    # snapshot of each asset, where the initial throughput enters the rhs
+    include_previous = active.cumsum(dim) != 1
+    previous = throughput.where(active).ffill(dim).roll(snapshot=1).ffill(dim)
+
+    lhs = [(-1, throughput), (include_previous.astype(float), previous)]
+    lhs = m.linexpr(*lhs) + _throughput_flow(n, c, sns, deg_i)
+
+    initial = c.da.throughput_initial.sel(name=deg_i)
+    rhs = -initial.where(~include_previous, 0)
+
+    m.add_constraints(lhs, "=", rhs, name=f"{c.name}-throughput_balance", mask=active)
+
+
+def define_capacity_fade_constraints(
+    n: Network, sns: pd.Index, component: str, attr: str
+) -> None:
+    """Define capacity fade constraints for degrading storage.
+
+    Creates constraints derating the ceiling of the storage level of assets
+    with a positive `degradation_per_cycle` k by the degradation accrued with
+    their cumulative energy throughput. The state of health falls by k per
+    equivalent full cycle, one cycle being twice the nominal energy capacity
+    of throughput, so the constraint enforces:
+
+    state_of_charge(t) + k/2 * throughput(t) ≤ max_hours * p_nom
+
+    for storage units and
+
+    e(t) + e_max_pu(t) * k/2 * throughput(t) ≤ e_max_pu(t) * e_nom
+
+    for stores. The nominal capacity cancels out of the fade term, so the
+    constraint stays linear for extendable assets, whose capacity variable
+    takes the place of the nominal capacity. The plain upper bound on the
+    storage level is implied by this constraint and left in place.
+
+    Applies to StorageUnit (state_of_charge) and Store (e).
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component ("StorageUnit" or "Store")
+    attr : str
+        Name of the storage level attribute ("state_of_charge" or "e")
+
+    """
+    m = n.model
+    c = as_components(n, component)
+    deg_i = c.degradables.intersection(c.active_assets)
+
+    if deg_i.empty:
+        return
+
+    fix_i = c.fixed.intersection(deg_i)
+    ext_i = c.extendables.intersection(deg_i)
+    nom_attr = nominal_attrs[c.name]
+
+    _, max_pu = c.get_bounds_pu(attr=attr)
+    max_pu = max_pu.sel(name=deg_i)
+    if "snapshot" in max_pu.dims:
+        max_pu = max_pu.sel(snapshot=sns)
+
+    # capacity lost per MWh of throughput, one cycle being 2 * e_nom MWh
+    fade = c.da.degradation_per_cycle.sel(name=deg_i) / 2
+    if c.name == "Store":
+        # e_max_pu is a usable window of the derated nameplate and scales the
+        # fade as well; max_hours of a storage unit is the nameplate itself
+        fade = fade * max_pu
+
+    level = m[f"{c.name}-{attr}"].sel(name=deg_i)
+    throughput = m[f"{c.name}-throughput"]
+    active = c.da.active.sel(name=deg_i, snapshot=sns)
+
+    lhs = level + fade * throughput
+
+    if not fix_i.empty:
+        nominal = c.da[nom_attr].sel(name=fix_i)
+        upper = max_pu.sel(name=fix_i) * nominal
+
+        # Warn if the throughput before the horizon already exceeds the
+        # capacity in fade, which makes the ceiling negative from the start
+        initial = c.da.throughput_initial.sel(name=fix_i)
+        exhausted = fade.sel(name=fix_i) * initial > upper
+        exhausted = exhausted.any([d for d in exhausted.dims if d != "name"])
+        if exhausted.any():
+            affected = fix_i[exhausted.values].tolist()
+            logger.warning(
+                "%s %s: throughput_initial degrades the capacity by more than "
+                "the nominal energy capacity. The model will be infeasible.",
+                c.name,
+                affected,
+            )
+
+        m.add_constraints(
+            lhs.sel(name=fix_i),
+            "<=",
+            upper,
+            name=f"{c.name}-fix-{attr}-fade",
+            mask=active.sel(name=fix_i),
+        )
+
+    if not ext_i.empty:
+        capacity = m[f"{c.name}-{nom_attr}"].sel(name=ext_i)
+        m.add_constraints(
+            lhs.sel(name=ext_i) - max_pu.sel(name=ext_i) * capacity,
+            "<=",
+            0,
+            name=f"{c.name}-ext-{attr}-fade",
+            mask=active.sel(name=ext_i),
+        )
+
+
+def define_cycle_budget_constraints(n: Network, sns: pd.Index, component: str) -> None:
+    """Define cycle budget constraints for storage.
+
+    Creates constraints keeping the equivalent full cycles of assets with a
+    finite `cycles_max` over the optimised snapshots within that budget. One
+    cycle is twice the nominal energy capacity of energy throughput, so for
+    each asset the constraint enforces:
+
+    sum(flow(t)) ≤ 2 * cycles_max * max_hours * p_nom
+
+    for storage units and
+
+    sum(flow(t)) ≤ 2 * cycles_max * e_nom
+
+    for stores, where flow is the energy charged into and discharged from the
+    storage level in the snapshot (see _throughput_flow) and the sum is taken
+    over all snapshots. For extendable assets the budget scales with the
+    capacity to be optimised. Cycles before the horizon are not subtracted;
+    they enter through `throughput_initial` and the capacity fade.
+
+    Applies to StorageUnit (p_dispatch, p_store) and Store (p, p_dispatch).
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component ("StorageUnit" or "Store")
+
+    """
+    m = n.model
+    c = as_components(n, component)
+    bud_i = c.cycle_budgeted.intersection(c.active_assets)
+
+    if bud_i.empty:
+        return
+
+    fix_i = c.fixed.intersection(bud_i)
+    ext_i = c.extendables.intersection(bud_i)
+    nom_attr = nominal_attrs[c.name]
+
+    # throughput allowed per unit of nominal capacity
+    throughput_max_pu = 2 * c.da.cycles_max.sel(name=bud_i)
+    if c.name == "StorageUnit":
+        throughput_max_pu = throughput_max_pu * c.da.max_hours.sel(name=bud_i)
+
+    throughput = _throughput_flow(n, c, sns, bud_i).sum("snapshot")
+
+    if not fix_i.empty:
+        nominal = c.da[nom_attr].sel(name=fix_i)
+        m.add_constraints(
+            throughput.sel(name=fix_i),
+            "<=",
+            throughput_max_pu.sel(name=fix_i) * nominal,
+            name=f"{c.name}-fix-cycles_max",
+        )
+
+    if not ext_i.empty:
+        capacity = m[f"{c.name}-{nom_attr}"].sel(name=ext_i)
+        m.add_constraints(
+            throughput.sel(name=ext_i) - throughput_max_pu.sel(name=ext_i) * capacity,
+            "<=",
+            0,
+            name=f"{c.name}-ext-cycles_max",
+        )
 
 
 def define_tangent_loss_constraints(
