@@ -2389,9 +2389,7 @@ def define_store_p_dispatch_constraints(n: Network, sns: pd.Index) -> None:
     p = m[f"{c.name}-p"].sel(name=aux_i)
     p_dispatch = m[f"{c.name}-p_dispatch"]
 
-    m.add_constraints(
-        p_dispatch - p, ">=", 0, name=f"{c.name}-p_dispatch_link", mask=active
-    )
+    m.add_constraints(p_dispatch >= p, name=f"{c.name}-p_dispatch_link", mask=active)
 
 
 def _throughput_flow(
@@ -2399,8 +2397,8 @@ def _throughput_flow(
 ) -> LinearExpression:
     """Get the energy throughput of the storage level per snapshot.
 
-    The throughput of a snapshot is the energy charged into the storage level
-    plus the energy discharged from it, weighted by the elapsed hours:
+    The energy charged into the storage level plus the energy discharged from
+    it, weighted by the elapsed hours:
 
     (eff_store * p_store(t) + p_dispatch(t) / eff_dispatch) * weighting(t)
 
@@ -2409,24 +2407,33 @@ def _throughput_flow(
     (2 * p_dispatch(t) - p(t)) * weighting(t), i.e. |p(t)| * weighting(t)
 
     for stores, see define_store_p_dispatch_constraints for the auxiliary.
-    Shared by the throughput balance and the cycle budget so that both count
-    the same energy.
     """
     m = n.model
     eh = n.optimize._window.subset(sns).snapshot_weightings("stores")
+    p_dispatch = m[f"{c.name}-p_dispatch"].sel(name=names)
 
-    if c.name == "StorageUnit":
-        eff_store = c.da.efficiency_store.sel(snapshot=sns, name=names)
-        eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=names)
-        return m.linexpr(
-            (eff_store * eh, m[f"{c.name}-p_store"].sel(name=names)),
-            (1 / eff_dispatch * eh, m[f"{c.name}-p_dispatch"].sel(name=names)),
-        )
+    if c.name == "Store":
+        return m.linexpr((2 * eh, p_dispatch), (-eh, m[f"{c.name}-p"].sel(name=names)))
 
-    return m.linexpr(
-        (2 * eh, m[f"{c.name}-p_dispatch"].sel(name=names)),
-        (-eh, m[f"{c.name}-p"].sel(name=names)),
-    )
+    eff_store = c.da.efficiency_store.sel(snapshot=sns, name=names)
+    eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=names)
+    p_store = m[f"{c.name}-p_store"].sel(name=names)
+    return m.linexpr((eff_store * eh, p_store), (eh / eff_dispatch, p_dispatch))
+
+
+def _nominal_expression(n: Network, c: Components, names: pd.Index) -> LinearExpression:
+    """Get the nominal capacity of `names` as an expression.
+
+    The capacity variable for extendable assets, the parameter otherwise.
+    """
+    m = n.model
+    nom_attr = nominal_attrs[c.name]
+    ext_i = c.extendables.intersection(names)
+    fixed = c.da[nom_attr].sel(name=names.difference(ext_i))
+    capacity = LinearExpression.from_constant(m, fixed)
+    if ext_i.empty:
+        return capacity
+    return capacity.add(m[f"{c.name}-{nom_attr}"].sel(name=ext_i), join="outer")
 
 
 def define_throughput_constraints(n: Network, sns: pd.Index, component: str) -> None:
@@ -2468,16 +2475,14 @@ def define_throughput_constraints(n: Network, sns: pd.Index, component: str) -> 
     active = c.da.active.sel(snapshot=sns, name=deg_i)
     throughput = m[f"{c.name}-throughput"]
 
-    # We create a mask `include_previous` which excludes the first active
-    # snapshot of each asset, where the initial throughput enters the rhs
+    # `include_previous` excludes the first active snapshot of each asset,
+    # where the initial throughput enters the rhs instead
     include_previous = active.cumsum(dim) != 1
     previous = throughput.where(active).ffill(dim).roll(snapshot=1).ffill(dim)
 
-    lhs = [(-1, throughput), (include_previous.astype(float), previous)]
-    lhs = m.linexpr(*lhs) + _throughput_flow(n, c, sns, deg_i)
-
-    initial = c.da.throughput_initial.sel(name=deg_i)
-    rhs = -initial.where(~include_previous, 0)
+    lhs = m.linexpr((-1, throughput), (include_previous.astype(float), previous))
+    lhs = lhs + _throughput_flow(n, c, sns, deg_i)
+    rhs = -c.da.throughput_initial.sel(name=deg_i).where(~include_previous, 0)
 
     m.add_constraints(lhs, "=", rhs, name=f"{c.name}-throughput_balance", mask=active)
 
@@ -2525,63 +2530,36 @@ def define_capacity_fade_constraints(
     if deg_i.empty:
         return
 
-    fix_i = c.fixed.intersection(deg_i)
-    ext_i = c.extendables.intersection(deg_i)
-    nom_attr = nominal_attrs[c.name]
-
     _, max_pu = c.get_bounds_pu(attr=attr)
     max_pu = max_pu.sel(name=deg_i)
     if "snapshot" in max_pu.dims:
         max_pu = max_pu.sel(snapshot=sns)
 
-    # capacity lost per MWh of throughput, one cycle being 2 * e_nom MWh
+    # capacity lost per MWh of throughput, one cycle being 2 * e_nom MWh; the
+    # usable window e_max_pu of a store applies to the derated nameplate
     fade = c.da.degradation_per_cycle.sel(name=deg_i) / 2
     if c.name == "Store":
-        # e_max_pu is a usable window of the derated nameplate and scales the
-        # fade as well; max_hours of a storage unit is the nameplate itself
         fade = fade * max_pu
+
+    fix_i = c.fixed.intersection(deg_i)
+    upper = max_pu.sel(name=fix_i) * c.da[nominal_attrs[c.name]].sel(name=fix_i)
+    initial_fade = fade.sel(name=fix_i) * c.da.throughput_initial.sel(name=fix_i)
+    exhausted = (initial_fade > upper).any(set(upper.dims) - {"name"})
+    if exhausted.any():
+        logger.warning(
+            "%s %s: throughput_initial degrades the capacity by more than the "
+            "nominal energy capacity. The model will be infeasible.",
+            c.name,
+            fix_i[exhausted.values].tolist(),
+        )
 
     level = m[f"{c.name}-{attr}"].sel(name=deg_i)
     throughput = m[f"{c.name}-throughput"]
+    capacity = _nominal_expression(n, c, deg_i)
     active = c.da.active.sel(name=deg_i, snapshot=sns)
 
-    lhs = level + fade * throughput
-
-    if not fix_i.empty:
-        nominal = c.da[nom_attr].sel(name=fix_i)
-        upper = max_pu.sel(name=fix_i) * nominal
-
-        # Warn if the throughput before the horizon already exceeds the
-        # capacity in fade, which makes the ceiling negative from the start
-        initial = c.da.throughput_initial.sel(name=fix_i)
-        exhausted = fade.sel(name=fix_i) * initial > upper
-        exhausted = exhausted.any([d for d in exhausted.dims if d != "name"])
-        if exhausted.any():
-            affected = fix_i[exhausted.values].tolist()
-            logger.warning(
-                "%s %s: throughput_initial degrades the capacity by more than "
-                "the nominal energy capacity. The model will be infeasible.",
-                c.name,
-                affected,
-            )
-
-        m.add_constraints(
-            lhs.sel(name=fix_i),
-            "<=",
-            upper,
-            name=f"{c.name}-fix-{attr}-fade",
-            mask=active.sel(name=fix_i),
-        )
-
-    if not ext_i.empty:
-        capacity = m[f"{c.name}-{nom_attr}"].sel(name=ext_i)
-        m.add_constraints(
-            lhs.sel(name=ext_i) - max_pu.sel(name=ext_i) * capacity,
-            "<=",
-            0,
-            name=f"{c.name}-ext-{attr}-fade",
-            mask=active.sel(name=ext_i),
-        )
+    lhs = level + fade * throughput - max_pu * capacity
+    m.add_constraints(lhs, "<=", 0, name=f"{c.name}-{attr}-fade", mask=active)
 
 
 def define_cycle_budget_constraints(n: Network, sns: pd.Index, component: str) -> None:
@@ -2623,34 +2601,16 @@ def define_cycle_budget_constraints(n: Network, sns: pd.Index, component: str) -
     if bud_i.empty:
         return
 
-    fix_i = c.fixed.intersection(bud_i)
-    ext_i = c.extendables.intersection(bud_i)
-    nom_attr = nominal_attrs[c.name]
-
     # throughput allowed per unit of nominal capacity
     throughput_max_pu = 2 * c.da.cycles_max.sel(name=bud_i)
     if c.name == "StorageUnit":
         throughput_max_pu = throughput_max_pu * c.da.max_hours.sel(name=bud_i)
 
     throughput = _throughput_flow(n, c, sns, bud_i).sum("snapshot")
+    capacity = _nominal_expression(n, c, bud_i)
 
-    if not fix_i.empty:
-        nominal = c.da[nom_attr].sel(name=fix_i)
-        m.add_constraints(
-            throughput.sel(name=fix_i),
-            "<=",
-            throughput_max_pu.sel(name=fix_i) * nominal,
-            name=f"{c.name}-fix-cycles_max",
-        )
-
-    if not ext_i.empty:
-        capacity = m[f"{c.name}-{nom_attr}"].sel(name=ext_i)
-        m.add_constraints(
-            throughput.sel(name=ext_i) - throughput_max_pu.sel(name=ext_i) * capacity,
-            "<=",
-            0,
-            name=f"{c.name}-ext-cycles_max",
-        )
+    lhs = throughput - throughput_max_pu * capacity
+    m.add_constraints(lhs, "<=", 0, name=f"{c.name}-cycles_max")
 
 
 def define_tangent_loss_constraints(

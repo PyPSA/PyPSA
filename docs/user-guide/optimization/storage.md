@@ -215,15 +215,13 @@ The **energy throughput** $Q_{n,s,t}$ of the storage level is the energy that ha
 
 **Cycle budget.** With a finite `cycles_max` $N^{\max}_{n,s}$ the throughput summed over the optimised snapshots may not exceed $2 E N^{\max}_{n,s}$. Nothing before the horizon is subtracted; with investment periods the budget covers the whole horizon, and with rolling-horizon optimisation every window receives it in full. Its shadow price is written to `n.storage_units.mu_cycles_max` and `n.stores.mu_cycles_max`.
 
-For storage units:
+The nominal capacity ($H_{n,s}$, $E_{n,s}$) is the capacity variable of extendable assets and the parameter ($\hat{h}_{n,s}$, $\hat{e}_{n,s}$) of the others, in the same constraint. For storage units:
 
 | Constraint | Dual Variable | Name |
 |------------|---------------|------|
 | $Q_{n,s,t} = Q_{n,s,t-1} + w_t^s \left( \eta_{\textrm{store};n,s} h_{n,s,t}^+ + \eta^{-1}_{\textrm{dispatch};n,s} h_{n,s,t}^- \right), \quad Q_{n,s,t=-1} = Q^0_{n,s}$ | only in `n.model` | `StorageUnit-throughput_balance` |
-| $soc_{n,s,t} + \tfrac{k_{n,s}}{2} Q_{n,s,t} \leq r_{n,s} \hat{h}_{n,s}$ | only in `n.model` | `StorageUnit-fix-state_of_charge-fade` |
-| $soc_{n,s,t} + \tfrac{k_{n,s}}{2} Q_{n,s,t} \leq r_{n,s} H_{n,s}$ | only in `n.model` | `StorageUnit-ext-state_of_charge-fade` |
-| $\sum_t w_t^s \left( \eta_{\textrm{store};n,s} h_{n,s,t}^+ + \eta^{-1}_{\textrm{dispatch};n,s} h_{n,s,t}^- \right) \leq 2 r_{n,s} \hat{h}_{n,s} N^{\max}_{n,s}$ | `n.storage_units.mu_cycles_max` | `StorageUnit-fix-cycles_max` |
-| $\sum_t w_t^s \left( \eta_{\textrm{store};n,s} h_{n,s,t}^+ + \eta^{-1}_{\textrm{dispatch};n,s} h_{n,s,t}^- \right) \leq 2 r_{n,s} H_{n,s} N^{\max}_{n,s}$ | `n.storage_units.mu_cycles_max` | `StorageUnit-ext-cycles_max` |
+| $soc_{n,s,t} + \tfrac{k_{n,s}}{2} Q_{n,s,t} \leq r_{n,s} H_{n,s}$ | only in `n.model` | `StorageUnit-state_of_charge-fade` |
+| $\sum_t w_t^s \left( \eta_{\textrm{store};n,s} h_{n,s,t}^+ + \eta^{-1}_{\textrm{dispatch};n,s} h_{n,s,t}^- \right) \leq 2 r_{n,s} H_{n,s} N^{\max}_{n,s}$ | `n.storage_units.mu_cycles_max` | `StorageUnit-cycles_max` |
 
 A store has a single signed dispatch $h_{n,s,t}$, so its throughput $|h_{n,s,t}|$ is counted through an auxiliary variable $h^{\textrm{aux}}_{n,s,t} \geq 0$ with $h^{\textrm{aux}}_{n,s,t} \geq h_{n,s,t}$, created only for stores with a capacity fade or a cycle budget: $2 h^{\textrm{aux}}_{n,s,t} - h_{n,s,t} \geq |h_{n,s,t}|$, with equality wherever the fade or the cycle budget binds, since a larger auxiliary only tightens them. It is written to `n.stores_t.p_dispatch`. The usable window $\bar{e}_{n,s,t}$ applies to the derated nameplate, so it multiplies the fade term as well:
 
@@ -231,10 +229,8 @@ A store has a single signed dispatch $h_{n,s,t}$, so its throughput $|h_{n,s,t}|
 |------------|---------------|------|
 | $h^{\textrm{aux}}_{n,s,t} - h_{n,s,t} \geq 0$ | only in `n.model` | `Store-p_dispatch_link` |
 | $Q_{n,s,t} = Q_{n,s,t-1} + w_t^s \left( 2 h^{\textrm{aux}}_{n,s,t} - h_{n,s,t} \right), \quad Q_{n,s,t=-1} = Q^0_{n,s}$ | only in `n.model` | `Store-throughput_balance` |
-| $e_{n,s,t} + \bar{e}_{n,s,t} \tfrac{k_{n,s}}{2} Q_{n,s,t} \leq \bar{e}_{n,s,t} \hat{e}_{n,s}$ | only in `n.model` | `Store-fix-e-fade` |
-| $e_{n,s,t} + \bar{e}_{n,s,t} \tfrac{k_{n,s}}{2} Q_{n,s,t} \leq \bar{e}_{n,s,t} E_{n,s}$ | only in `n.model` | `Store-ext-e-fade` |
-| $\sum_t w_t^s \left( 2 h^{\textrm{aux}}_{n,s,t} - h_{n,s,t} \right) \leq 2 \hat{e}_{n,s} N^{\max}_{n,s}$ | `n.stores.mu_cycles_max` | `Store-fix-cycles_max` |
-| $\sum_t w_t^s \left( 2 h^{\textrm{aux}}_{n,s,t} - h_{n,s,t} \right) \leq 2 E_{n,s} N^{\max}_{n,s}$ | `n.stores.mu_cycles_max` | `Store-ext-cycles_max` |
+| $e_{n,s,t} + \bar{e}_{n,s,t} \tfrac{k_{n,s}}{2} Q_{n,s,t} \leq \bar{e}_{n,s,t} E_{n,s}$ | only in `n.model` | `Store-e-fade` |
+| $\sum_t w_t^s \left( 2 h^{\textrm{aux}}_{n,s,t} - h_{n,s,t} \right) \leq 2 E_{n,s} N^{\max}_{n,s}$ | `n.stores.mu_cycles_max` | `Store-cycles_max` |
 
 **From technology data.** For a cycle life $N$ at an end-of-life state of health $\sigma$ (for instance 6000 cycles to 80 %) and a technical `lifetime` $L$ in years, `n.c.storage_units.set_cycle_life(N, soh_end=σ)` (likewise on `n.c.stores`) sets `degradation_per_cycle` $= (1 - \sigma) / N$ and `cycles_max` $= N \cdot \left(\sum_t w_t^s / 8760\right) / L$, the share of the cycle life that the optimised snapshots may use; assets with an infinite `lifetime` keep `cycles_max = inf`. An asset that has already performed $c$ full cycles on capacity $E$ has `throughput_initial` $= 2 E c$. After the solve, `get_cycles()` on either component returns the equivalent full cycles performed over the snapshots from the solved dispatch, with or without these constraints.
 

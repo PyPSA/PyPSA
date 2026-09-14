@@ -399,8 +399,7 @@ def test_cycle_budget_binds_at_cycles_max(component, extendable):
     n = _fade_network(component, extendable=extendable, cycles_max=1.0)
     status, _ = n.optimize()
     assert status == "ok"
-    kind = "ext" if extendable else "fix"
-    assert f"{component}-{kind}-cycles_max" in n.model.constraints
+    assert f"{component}-cycles_max" in n.model.constraints
     assert f"{component}-throughput" not in n.model.variables  # no state needed
     cycles = n.components[component].get_cycles()["battery"]
     assert cycles == pytest.approx(1.0, abs=1e-6)
@@ -415,8 +414,8 @@ def test_cycle_budget_with_capacity_fade(component):
     assert status == "ok"
 
     level_attr = "state_of_charge" if component == "StorageUnit" else "e"
-    assert f"{component}-fix-cycles_max" in n.model.constraints
-    assert f"{component}-fix-{level_attr}-fade" in n.model.constraints
+    assert f"{component}-cycles_max" in n.model.constraints
+    assert f"{component}-{level_attr}-fade" in n.model.constraints
     q = n.components[component].dynamic.throughput["battery"]
     assert q.iloc[-1] == pytest.approx(2 * 40.0 * 1.0, abs=1e-6)  # one cycle
     assert (_level(n, component) <= 40.0 - 0.01 * q + 1e-6).all()
@@ -466,3 +465,25 @@ def test_set_cycle_life_warns_on_infinite_lifetime(component, caplog):
     assert c.static.degradation_per_cycle["battery"] == pytest.approx(0.2 / 6000)
     assert c.static.cycles_max["battery"] == np.inf
     assert "lifetime" in caplog.text
+
+
+@pytest.mark.parametrize("component", COMPONENTS)
+@pytest.mark.parametrize("scenarios", [False, True])
+def test_fade_and_budget_mix_fixed_and_extendable(component, scenarios):
+    """One constraint covers fixed and extendable assets, per scenario."""
+    n = _fade_network(component, k=0.02, cycles_max=1.0)
+    c = n.components[component]
+    n.add(component, "battery_ext", **c.static.loc["battery"].to_dict())
+    nom = "p_nom" if component == "StorageUnit" else "e_nom"
+    c.static.loc["battery_ext", f"{nom}_extendable"] = True
+    if scenarios:
+        n.set_scenarios({"a": 0.5, "b": 0.5})
+    status, _ = n.optimize()
+    assert status == "ok"
+
+    cycles = c.get_cycles()
+    assert np.allclose(cycles, 1.0, atol=1e-6)
+    level_attr = "state_of_charge" if component == "StorageUnit" else "e"
+    q = c.dynamic.throughput
+    assert (c.dynamic[level_attr] <= 40.0 - 0.01 * q + 1e-6).all().all()
+    assert np.isfinite(c.static.mu_cycles_max).all()
