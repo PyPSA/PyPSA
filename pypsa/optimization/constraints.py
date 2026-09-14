@@ -47,6 +47,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+DEG2RAD = np.pi / 180.0
+
 lookup = pd.read_csv(
     PYPSA_DATA_DIR / "variables.csv",
     index_col=["component", "variable"],
@@ -1679,8 +1681,17 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
     """Define voltage angle difference limits for lines and transformers.
 
     Caps the magnitude of the linearised voltage angle difference across each
-    AC line and transformer to ``v_ang_max`` (in degrees). The deprecated
-    attribute ``v_ang_min`` is ignored; ``v_ang_max`` applies symmetrically.
+    AC line and transformer to ``v_ang_max`` (in degrees). The difference
+    equals ``x_pu_eff * s`` for lines and ``x_pu_eff * s + phase_shift`` for
+    transformers, so the limit becomes a symmetric bound after dividing
+    through the strictly positive ``x_pu_eff``:
+
+    -deg2rad(v_ang_max) / x_pu_eff <= s + phase_shift / x_pu_eff <= deg2rad(v_ang_max) / x_pu_eff
+
+    A fixed ``phase_shift`` shifts the flow bounds; an optimised phase shift
+    (``phase_shift_min < phase_shift_max``) enters the constraint as a variable.
+    Constraints are only created for assets with a finite ``v_ang_max``. The
+    deprecated ``v_ang_min`` is ignored; ``v_ang_max`` applies symmetrically.
 
     Parameters
     ----------
@@ -1690,8 +1701,13 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
         Set of snapshots for which to define the constraints
 
     """
+    model_sns = n.optimize._window.subset(sns).model_index
+
     for c_name in ("Line", "Transformer"):
-        if isfinite(n.c[c_name].static["v_ang_min"]).any():
+        c = as_components(n, c_name)
+        static = c.static
+
+        if isfinite(static["v_ang_min"]).any():
             warnings.warn(
                 f"The `v_ang_min` attribute of {c_name} is deprecated and "
                 "ignored. `v_ang_max` applies symmetrically as an absolute "
@@ -1699,121 +1715,66 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
                 DeprecationWarning,
                 stacklevel=2,
             )
-    define_line_voltage_angle_constraints(n, sns)
-    define_transformer_voltage_angle_constraints(n, sns)
 
-
-def define_line_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
-    """Define voltage angle difference limits for lines.
-
-    Caps the magnitude of the linearised voltage angle difference across each
-    AC line to ``v_ang_max`` (in degrees). Since the angle difference equals
-    ``x_pu_eff * s``, the limit is imposed as a symmetric bound on the flow
-    ``s`` by dividing through the strictly positive ``x_pu_eff`` to keep the
-    flow coefficient at one:
-
-    -deg2rad(v_ang_max) / x_pu_eff <= s <= deg2rad(v_ang_max) / x_pu_eff
-
-    Constraints are only created for lines with a finite ``v_ang_max``.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network instance containing the model and component data
-    sns : pd.Index
-        Set of snapshots for which to define the constraints
-
-    """
-    c = as_components(n, "Line")
-    ac_i = c.static.index[c.static.carrier == "AC"].intersection(c.active_assets)
-    v_ang_max = c.da["v_ang_max"].sel(name=ac_i)
-    lines_i = ac_i[isfinite(v_ang_max.values)]
-    if lines_i.empty:
-        return
-
-    sns = n.optimize._window.subset(sns).model_index
-
-    x_pu_eff = c.da["x_pu_eff"].sel(name=lines_i)
-    cap = np.deg2rad(v_ang_max.sel(name=lines_i)) / x_pu_eff
-    s = n.model["Line-s"].sel(name=lines_i, snapshot=sns)
-    active = c.da.active.sel(name=lines_i, snapshot=sns)
-
-    n.model.add_constraints(s, ">=", -cap, name="Line-v_ang-lower", mask=active)
-    n.model.add_constraints(s, "<=", cap, name="Line-v_ang-upper", mask=active)
-
-
-def define_transformer_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
-    """Define voltage angle difference limits for transformers.
-
-    Caps the magnitude of the linearised voltage angle difference across each
-    transformer to ``v_ang_max`` (in degrees). The angle difference equals
-    ``x_pu_eff * s + phase_shift``, so the limit is imposed as a symmetric
-    bound after dividing through the strictly positive ``x_pu_eff``:
-
-    -deg2rad(v_ang_max) / x_pu_eff <= s + phase_shift / x_pu_eff <= deg2rad(v_ang_max) / x_pu_eff
-
-    A fixed ``phase_shift`` shifts the flow bounds; an optimised phase shift
-    (``phase_shift_min < phase_shift_max``) enters the constraint as a variable.
-    Constraints are only created for transformers with a finite ``v_ang_max``.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network instance containing the model and component data
-    sns : pd.Index
-        Set of snapshots for which to define the constraints
-
-    """
-    c = as_components(n, "Transformer")
-    trafos_i = c.static.index[isfinite(c.static["v_ang_max"])].intersection(
-        c.active_assets
-    )
-    if trafos_i.empty:
-        return
-
-    sns = n.optimize._window.subset(sns).model_index
-    deg_to_rad = np.pi / 180.0
-
-    x_pu_eff = c.da["x_pu_eff"].sel(name=trafos_i)
-    cap = c.da["v_ang_max"].sel(name=trafos_i) * deg_to_rad / x_pu_eff
-    s = n.model["Transformer-s"].sel(name=trafos_i, snapshot=sns)
-    active = c.da.active.sel(name=trafos_i, snapshot=sns)
-
-    varying = (
-        c.static.loc[trafos_i, "phase_shift_min"]
-        < c.static.loc[trafos_i, "phase_shift_max"]
-    )
-    fixed_i = trafos_i[~varying]
-    var_i = trafos_i[varying]
-
-    if not fixed_i.empty:
-        offset = (
-            deg_to_rad
-            * c.da["phase_shift"].sel(name=fixed_i, snapshot=sns)
-            / x_pu_eff.sel(name=fixed_i)
+        assets_i = static.index[isfinite(static["v_ang_max"])].intersection(
+            c.active_assets
         )
-        lhs = s.sel(name=fixed_i)
-        mask = active.sel(name=fixed_i)
-        upper = cap.sel(name=fixed_i) - offset
-        lower = -cap.sel(name=fixed_i) - offset
-        n.model.add_constraints(
-            lhs, ">=", lower, name="Transformer-v_ang-lower", mask=mask
-        )
-        n.model.add_constraints(
-            lhs, "<=", upper, name="Transformer-v_ang-upper", mask=mask
-        )
+        if c_name == "Line":
+            assets_i = assets_i[static.loc[assets_i, "carrier"] == "AC"]
+        if assets_i.empty:
+            continue
 
-    if not var_i.empty:
-        ps = n.model["Transformer-phase_shift"].sel(name=var_i, snapshot=sns)
-        lhs = s.sel(name=var_i) + ps * (deg_to_rad / x_pu_eff.sel(name=var_i))
-        mask = active.sel(name=var_i)
-        cap_var = cap.sel(name=var_i)
-        n.model.add_constraints(
-            lhs, ">=", -cap_var, name="Transformer-v_ang-var-lower", mask=mask
+        x_pu_eff = c.da["x_pu_eff"].sel(name=assets_i)
+        cap = c.da["v_ang_max"].sel(name=assets_i) * DEG2RAD / x_pu_eff
+        s = n.model[f"{c_name}-s"].sel(name=assets_i, snapshot=model_sns)
+        active = c.da.active.sel(name=assets_i, snapshot=model_sns)
+
+        if c_name == "Line":
+            n.model.add_constraints(s, ">=", -cap, name="Line-v_ang-lower", mask=active)
+            n.model.add_constraints(s, "<=", cap, name="Line-v_ang-upper", mask=active)
+            continue
+
+        varying = (
+            static.loc[assets_i, "phase_shift_min"]
+            < static.loc[assets_i, "phase_shift_max"]
         )
-        n.model.add_constraints(
-            lhs, "<=", cap_var, name="Transformer-v_ang-var-upper", mask=mask
-        )
+        fixed_i = assets_i[~varying]
+        var_i = assets_i[varying]
+
+        if not fixed_i.empty:
+            offset = (
+                DEG2RAD
+                * c.da["phase_shift"].sel(name=fixed_i, snapshot=model_sns)
+                / x_pu_eff.sel(name=fixed_i)
+            )
+            lhs = s.sel(name=fixed_i)
+            mask = active.sel(name=fixed_i)
+            n.model.add_constraints(
+                lhs,
+                ">=",
+                -cap.sel(name=fixed_i) - offset,
+                name="Transformer-v_ang-lower",
+                mask=mask,
+            )
+            n.model.add_constraints(
+                lhs,
+                "<=",
+                cap.sel(name=fixed_i) - offset,
+                name="Transformer-v_ang-upper",
+                mask=mask,
+            )
+
+        if not var_i.empty:
+            ps = n.model["Transformer-phase_shift"].sel(name=var_i, snapshot=model_sns)
+            lhs = s.sel(name=var_i) + ps * (DEG2RAD / x_pu_eff.sel(name=var_i))
+            mask = active.sel(name=var_i)
+            cap_var = cap.sel(name=var_i)
+            n.model.add_constraints(
+                lhs, ">=", -cap_var, name="Transformer-v_ang-var-lower", mask=mask
+            )
+            n.model.add_constraints(
+                lhs, "<=", cap_var, name="Transformer-v_ang-var-upper", mask=mask
+            )
 
 
 def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:
