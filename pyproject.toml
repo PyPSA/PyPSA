@@ -49,6 +49,7 @@ dependencies = [
     "highspy",
     "rapidfuzz>=3.9.0",
     "platformdirs",
+    "pydantic>=2",
 ]
 
 [project.urls]
@@ -104,6 +105,13 @@ docs = [
     "salib",
     "pytest",
     "cartopy>=0.16",
+]
+
+[dependency-groups]
+composites = [
+    "linopy @ git+https://github.com/PyPSA/linopy@incremental-spec",
+    "math-spec @ git+https://github.com/energy-models/math-spec.git@v0.0.0-alpha.76 ; python_version >= '3.12'",
+    "pyyaml",
 ]
 
 # setuptools_scm settings

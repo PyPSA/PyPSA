@@ -145,7 +145,8 @@ class NetworkTransformMixin(_NetworkABC):
         ----------
         class_name : str
             Component class name in ("Bus", "Generator", "Load", "StorageUnit",
-            "Store", "ShuntImpedance", "Line", "Transformer", "Link", "Process").
+            "Store", "ShuntImpedance", "Line", "Transformer", "Link", "Process"),
+            or the name of a composite registered via `n.composites.register`.
         name : str or int or list of str or list of int
             Component name(s)
         suffix : str or list of str, default ""
@@ -212,6 +213,15 @@ class NetworkTransformMixin(_NetworkABC):
 
 
         """
+        if class_name in self.composites:
+            return self.composites[class_name].add(
+                name,
+                suffix=suffix,
+                overwrite=overwrite,
+                return_names=return_names,
+                **kwargs,
+            )
+
         # Handle default parameters from options
         if return_names is None:
             return_names = options.params.add.return_names
@@ -456,7 +466,7 @@ class NetworkTransformMixin(_NetworkABC):
         Parameters
         ----------
         class_name : str
-            Component class name
+            Component class name, or the name of a registered composite.
         name : str, int, list-like or pandas.Index
             Component name(s)
         suffix : str or list of str, default ""
@@ -504,6 +514,10 @@ class NetworkTransformMixin(_NetworkABC):
         Index: []
 
         """
+        if class_name in self.composites:
+            self.composites[class_name].remove(name, suffix=suffix)
+            return
+
         c = as_components(self, class_name)
 
         # Process name/names to pandas.Index of strings and add suffix

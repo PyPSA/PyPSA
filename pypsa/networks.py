@@ -40,6 +40,7 @@ from pypsa.common import (
 )
 from pypsa.components.components import SubNetworkComponents
 from pypsa.components.store import ComponentsStore
+from pypsa.composites import CompositesAccessor
 from pypsa.consistency import NetworkConsistencyMixin
 from pypsa.definitions.structures import Dict
 from pypsa.network.components import NetworkComponentsMixin
@@ -182,6 +183,10 @@ class Network(
         self.plot: PlotAccessor = PlotAccessor(self)
         """
         Network [plotting functionality][pypsa.plot.PlotAccessor] accessor.
+        """
+        self.composites: CompositesAccessor = CompositesAccessor(self)
+        """
+        Network [composite components][pypsa.composites.CompositesAccessor] accessor.
         """
 
         NetworkComponentsMixin.__init__(self)

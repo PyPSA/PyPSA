@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from pypsa.components.store import ComponentsStore
+    from pypsa.composites import CompositesAccessor
     from pypsa.optimization.window import SnapshotWindow
 
 
@@ -45,6 +46,7 @@ class _NetworkABC(ABC):
     srid: Any
     set_snapshots: Callable
     remove: Callable
+    composites: CompositesAccessor
     iterate_components: Callable
     copy: Callable
     _import_components_from_df: Callable

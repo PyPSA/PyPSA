@@ -1,0 +1,63 @@
+name: battery
+description: Battery storage as a DC bus, a charger, a discharger and a store.
+
+parameters:
+  bus: null
+  carrier: battery
+  p_nom_extendable: true
+  p_nom: 0.0
+  max_hours: 4.0
+  efficiency: 0.95
+  capital_cost: 0.0
+  marginal_cost: 0.0
+  availability: 1.0
+
+components:
+  Bus:
+    dc:
+      carrier: $carrier
+  Link:
+    charger:
+      bus0: $bus
+      bus1: "@dc"
+      efficiency: $efficiency
+      p_nom: $p_nom
+      p_nom_extendable: $p_nom_extendable
+      capital_cost: $capital_cost
+      carrier: $carrier
+    discharger:
+      bus0: "@dc"
+      bus1: $bus
+      efficiency: $efficiency
+      p_nom: $p_nom
+      p_nom_extendable: $p_nom_extendable
+      marginal_cost: $marginal_cost
+      carrier: $carrier
+  Store:
+    store:
+      bus: "@dc"
+      e_nom_extendable: $p_nom_extendable
+      carrier: $carrier
+
+math:
+  variables:
+    Link_p_nom:
+      foreach: [name]
+    Link_p:
+      foreach: [snapshot, name]
+    Store_e_nom:
+      foreach: [name]
+  expressions:
+    p: sum(Link_p, by=discharger) - sum(Link_p, by=charger)
+    p_nom: sum(Link_p_nom, by=discharger)
+    e_nom: sum(Store_e_nom, by=store)
+  constraints:
+    symmetric_power:
+      foreach: [battery]
+      expression: sum(Link_p_nom, by=charger) == sum(Link_p_nom, by=discharger)
+    energy_capacity:
+      foreach: [battery]
+      expression: sum(Store_e_nom, by=store) == max_hours * sum(Link_p_nom, by=discharger)
+    discharge_availability:
+      foreach: [snapshot, battery]
+      expression: sum(Link_p, by=discharger) <= availability * sum(Link_p_nom, by=discharger)
