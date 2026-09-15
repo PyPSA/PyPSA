@@ -16,7 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
-- The [Load](./user-guide/components/loads.md) component can now dispatch actively (price-responsive/flexible demand) instead of only imposing a fixed consumption. Wherever `p_set` is `NaN`, the load is dispatched as a variable within `[p_min_pu, p_max_pu] * p_nom` and reuses the generator dispatch code path, including `marginal_cost` (set negative for willingness-to-pay), unit commitment (`committable`) and ramp limits. (<!-- md:pr 1736 -->)
+- The [Load](./user-guide/components/loads.md) component can now dispatch actively (price-responsive/flexible demand) instead of only imposing a fixed consumption. Wherever `p_set` is `NaN`, the load is dispatched as a variable within `[p_min_pu, p_max_pu] * p_nom` and reuses the generator dispatch code path, including `marginal_cost` (set negative for willingness-to-pay), unit commitment (`committable`) and ramp limits. (<!-- md:pr 1917 -->)
 
 - `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
 

@@ -1430,11 +1430,7 @@ def define_nodal_balance_constraints(
         if c.static.empty:
             continue
 
-        var_name = f"{c.name}-{attr}"
-        if var_name not in m.variables:
-            # No dispatch variable was created (e.g. only passive loads).
-            continue
-        var = m[var_name]
+        var = m[f"{c.name}-{attr}"]
         if "sign" in c.static:
             sign = sign * c.da.sign.sel(name=var.indexes["name"].values)
 
