@@ -13,7 +13,7 @@ $$\begin{gather*}\sum_{s} g_{n,s,t} + \sum_{s} \left(h_{n,s,t}^- - h_{n,s,t}^+ \
 
 where the **decision variables** are represented by:
 
-- $d_{n,s,t}$ for the demand of [`Load`][pypsa.components.Loads] components
+- $d_{n,s,t}$ for the demand of [`Load`][pypsa.components.Loads] components; this is a fixed **parameter** (`p_set`) wherever `p_set` is set (passive load) and a **decision variable** bounded by `[p_min_pu, p_max_pu] * p_nom` wherever `p_set` is `NaN` (active load)
 - $g_{n,s,t}$ for the dispatch of [`Generator`][pypsa.components.Generators] components
 - $h_{n,s,t}^-$ for the discharging of [`StorageUnit`][pypsa.components.StorageUnits] components
 - $h_{n,s,t}^+$ for the charging of [`StorageUnit`][pypsa.components.StorageUnits] components
@@ -51,7 +51,7 @@ The energy balance constraints are set in the function `define_nodal_balance_con
     | $f_{l,t}$         | `n.links_t.p0` | Decision variable |
     | $r_{m,t}$         | `n.processes_t.p` | Decision variable |
     | $p_{l,t}$         | `n.lines_t.p0` or `n.transformers_t.p0` | Decision variable |
-    | $d_{n,s,t}$     | `n.loads_t.p_set` | Decision variable |
+    | $d_{n,s,t}$     | `n.loads_t.p_set` (passive) / `n.loads_t.p` (active) | Parameter or decision variable |
     | $\lambda_{n,t}$  | `n.buses_t.marginal_price` | Dual variable |
     | $K_{n,l}$ | Calculated internally by `n.incidence_matrix()` | Parameter |
     | $L_{n,l,t}$ | Calculated internally from `efficiency{i}` attributes | Parameter |
