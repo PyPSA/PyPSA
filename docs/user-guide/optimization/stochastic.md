@@ -214,6 +214,7 @@ Variables:
  * Store-e_nom (name)
  * StorageUnit-p_nom (name)
  * Generator-p (scenario, name, snapshot)
+ * Load-p (scenario, name, snapshot)
  * Link-p (scenario, name, snapshot)
  * Store-e (scenario, name, snapshot)
  * StorageUnit-p_dispatch (scenario, name, snapshot)

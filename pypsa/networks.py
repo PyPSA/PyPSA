@@ -671,6 +671,7 @@ class Network(
          * Line-s_nom (name)
          * Link-p_nom (name)
          * Generator-p (snapshot, name)
+         * Load-p (snapshot, name)
          * Line-s (snapshot, name)
          * Link-p (snapshot, name)
          * objective_constant
