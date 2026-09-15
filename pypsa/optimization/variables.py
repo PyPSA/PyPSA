@@ -41,7 +41,10 @@ def define_operational_variables(
     if c.empty:
         return
 
-    active = c.da.active.sel(name=c.active_assets, snapshot=sns)
+    names = c.dispatchable
+    if not len(names):
+        return
+    active = c.da.active.sel(name=names, snapshot=sns)
     coords = active.coords
     n.model.add_variables(coords=coords, name=f"{c.name}-{attr}", mask=active)
 

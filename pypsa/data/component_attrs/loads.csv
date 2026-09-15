@@ -3,9 +3,38 @@ name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,Name of bus to which load is attached.,Input (required)
 carrier,string,n/a,n/a,Carrier of the load.,Input (optional)
 type,string,n/a,n/a,Placeholder for load type. Not implemented.,Input (optional)
-p_set,static or series,MW,0,Active power consumption (positive if the load is consuming power).,Input (optional)
+p_nom,float,MW,0,Nominal power for limits on `p` in optimization when the load is dispatched actively (i.e. `p_set` has NaN entries). Loads are never extendable.,Input (optional)
+p_nom_mod,float,MW,0,Nominal power of the load module (fixed unit size). Introduces integer variables if set together with `committable`.,Input (optional)
+p_min_pu,static or series,per unit,0.,The minimum consumption for each snapshot per unit of `p_nom` for the optimization. Only relevant where `p_set` is NaN.,Input (optional)
+p_max_pu,static or series,per unit,1,The maximum consumption for each snapshot per unit of `p_nom` for the optimization. Only relevant where `p_set` is NaN.,Input (optional)
+p_set,static or series,MW,NaN,"Active power consumption (positive if the load is consuming power). If NaN for a snapshot, the consumption is dispatched actively within `[p_min_pu, p_max_pu] * p_nom`; if set, it fixes the consumption (passive load).",Input (optional)
+p_init,static,MW,NaN,Active power used as a starting point for limiting the ramp in the very first snapshot (for optimisation),Input (optional)
 q_set,static or series,MVar,0,Reactive power consumption (positive if the load is inductive).,Input (optional)
 sign,float,n/a,-1,Sign (opposite sign to generator),Input (optional)
+marginal_cost,static or series,currency/MWh,0.,"Marginal cost of consuming 1 MWh. Set negative to represent willingness-to-pay for served demand (active loads).",Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost of consuming 1 MWh.,Input (optional)
+stand_by_cost,static or series,currency/h,0.,Stand-by cost incurred whenever the status is 1 (committable loads).,Input (optional)
+e_sum_min,float,MWh,-inf,The minimum total energy consumed during a single optimization horizon.,Input (optional)
+e_sum_max,float,MWh,inf,The maximum total energy consumed during a single optimization horizon.,Input (optional)
+committable,boolean,n/a,False,Apply unit commitment constraints. Only relevant for active loads.,Input (optional)
+start_up_cost,static or series,currency,0,Cost to start up the load. Only used if `committable=True`.,Input (optional)
+shut_down_cost,static or series,currency,0,Cost to shut down the load. Only used if `committable=True`.,Input (optional)
+min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
+min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
+up_time_before,int,snapshots,1,Number of snapshots that the load was online before `n.snapshots` start. Only used if `committable=True` and `min_up_time>0`. Does not consider snapshot weightings.,Input (optional)
+down_time_before,int,snapshots,0,Number of snapshots that the load was offline before `n.snapshots` start. Only used if `committable=True` and `min_down_time>0`. Does not consider snapshot weightings.,Input (optional)
+ramp_limit_up,static or series,per unit,NaN,"Maximum active power increase from one snapshot to the next, per unit of the nominal power. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
+ramp_limit_down,static or series,per unit,NaN,"Maximum active power decrease from one snapshot to the next, per unit of the nominal power. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
+ramp_limit_start_up,float,per unit,NaN,"Maximum active power increase at start up, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional)
+ramp_limit_shut_down,float,per unit,NaN,"Maximum active power decrease at shut down, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional)
 p,series,MW,0,Active power at bus (positive if net load),Output
 q,series,MVar,0,Reactive power (positive if net load),Output
+status,series,n/a,1,"Status in the snapshot (1 is on, 0 is off). Only returned if `committable=True`.",Output
+start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only returned if `committable=True`.",Output
+shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no). Only returned if `committable=True`.",Output
+mu_upper,series,currency/MWh,n/a,Shadow price of upper `p_nom` limit,Output
+mu_lower,series,currency/MWh,n/a,Shadow price of lower `p_nom` limit,Output
+mu_p_set,series,currency/MWh,n/a,Shadow price of fixed power consumption `p_set`,Output
+mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
+mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
 active,boolean,n/a,True,Whether to consider the component in optimisation or not.,Input (optional)

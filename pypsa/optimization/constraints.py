@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import pandas as pd
@@ -36,11 +36,13 @@ from pypsa.optimization.window import snapshot_array
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
+    from typing import Any
 
     from linopy import Variable
     from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
+    from pypsa.components import Loads
 
     ArgItem = list[str | int | float | DataArray]
 
@@ -1400,6 +1402,7 @@ def define_nodal_balance_constraints(
 
     args: list[Any] = [
         ["Generator", "p", "bus", 1],
+        ["Load", "p", "bus", 1],
         ["Store", "p", "bus", 1],
         ["StorageUnit", "p_dispatch", "bus", 1],
         ["StorageUnit", "p_store", "bus", -1],
@@ -1427,14 +1430,18 @@ def define_nodal_balance_constraints(
         if c.static.empty:
             continue
 
-        var = m[f"{c.name}-{attr}"]
+        var_name = f"{c.name}-{attr}"
+        if var_name not in m.variables:
+            # No dispatch variable was created (e.g. only passive loads).
+            continue
+        var = m[var_name]
         if "sign" in c.static:
             sign = sign * c.da.sign.sel(name=var.indexes["name"].values)
 
         expr = sign * var
 
         cbuses = c._as_xarray(column)
-        cbuses = cbuses.sel(name=c.active_assets)
+        cbuses = cbuses.sel(name=c.dispatchable)
         # Only keep the first scenario if there are multiple
         if n.has_scenarios:
             cbuses = cbuses.isel(scenario=0, drop=True)
@@ -1527,20 +1534,21 @@ def define_nodal_balance_constraints(
 
     lhs = merge(exprs, join="outer").reindex(name=buses)
 
-    # Prepare the RHS
-    loads = as_components(n, "Load")
+    # Prepare the RHS.
+    loads = cast("Loads", as_components(n, "Load"))
+    passive_loads = loads.passive
 
-    if loads.static.empty:
+    if passive_loads.empty:
         rhs = DataArray(
             0.0,
             coords={"snapshot": sns, "name": buses},
             dims=["snapshot", "name"],
         )
     else:
-        active_mask = loads.da.active.sel(name=loads.active_assets, snapshot=sns)
+        active_mask = loads.da.active.sel(name=passive_loads, snapshot=sns)
         loads_values = (-loads.da.p_set * loads.da.sign).where(active_mask)
-        loads_values = loads_values.reindex(name=loads.static.index.unique("name"))
-        load_buses = loads._as_xarray("bus").rename("Bus")
+        loads_values = loads_values.reindex(name=passive_loads)
+        load_buses = loads._as_xarray("bus").sel(name=passive_loads).rename("Bus")
         if n.has_scenarios:
             load_buses = load_buses.isel(scenario=0, drop=True)
 
@@ -2003,7 +2011,7 @@ def define_fixed_operation_constraints(
     if attr_set not in c.dynamic.keys():
         return
 
-    fix = c.da[attr_set].sel(snapshot=sns, name=c.active_assets)
+    fix = c.da[attr_set].sel(snapshot=sns, name=c.dispatchable)
 
     if fix.isnull().all():
         return

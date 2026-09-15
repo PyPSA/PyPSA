@@ -108,7 +108,7 @@ def _calculate_controllable_nodal_power_balance(
             )
             network.c[c.name].dynamic[power].loc[
                 snapshots, c.static.query("active").index
-            ] = c_n_set
+            ] = c_n_set.fillna(0.0)
 
         # set the power injection at each node from controllable components
         network.c.buses.dynamic[power].loc[snapshots, buses_o] = sum(
