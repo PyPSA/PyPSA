@@ -189,8 +189,8 @@ def test_add_varying_single(n_5bus_7sn):
     assert (n_5bus_7sn.c.loads.static.bus == buses[0]).all()
     assert (p_set == n_5bus_7sn.c.loads.dynamic.p_set.T).all().all()
     assert (
-        n_5bus_7sn.c.loads.static.p_set == 0
-    ).all()  # Assert that default value is set
+        n_5bus_7sn.c.loads.static.p_set.isna()
+    ).all()  # Assert that default value (NaN) is set
 
     # Test different snapshots shape
     with pytest.raises(ValueError, match="for each snapshot"):
@@ -221,8 +221,8 @@ def test_add_varying_multiple(n_5bus_7sn, slicer):
     assert (n_5bus_7sn.c.loads.static.bus == buses).all()
     assert (n_5bus_7sn.c.loads.dynamic.p_set == p_set).all().all()
     assert (
-        n_5bus_7sn.c.loads.static.p_set == 0
-    ).all()  # Assert that default value is set
+        n_5bus_7sn.c.loads.static.p_set.isna()
+    ).all()  # Assert that default value (NaN) is set
 
     if len(buses) > 1:
         # Test different names shape
@@ -258,8 +258,8 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
     assert (n_5bus_7sn.c.loads.static.bus == buses).all()
     assert (n_5bus_7sn.c.loads.dynamic.p_set == p_set).all().all()
     assert (
-        n_5bus_7sn.c.loads.static.p_set == 0
-    ).all()  # Assert that default value is set
+        n_5bus_7sn.c.loads.static.p_set.isna()
+    ).all()  # Assert that default value (NaN) is set
 
     # Test different names shape
     with pytest.raises(ValueError, match="columns which do not align"):
@@ -401,10 +401,9 @@ def test_multiple_add_defaults(n_5bus):
         == n_5bus.components.Generator.defaults.loc["control", "default"]
     )
 
-    assert (
-        n_5bus.c.loads.static.loc[line_names[0], "p_set"]
-        == n_5bus.components.Load.defaults.loc["p_set", "default"]
-    )
+    # p_set defaults to NaN (dispatchable load); compare NaN-aware.
+    assert pd.isna(n_5bus.c.loads.static.loc[line_names[0], "p_set"])
+    assert pd.isna(n_5bus.components.Load.defaults.loc["p_set", "default"])
 
 
 def test_add_return_names():

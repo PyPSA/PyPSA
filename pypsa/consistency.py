@@ -359,11 +359,11 @@ def check_static_power_attributes(
     """
     static_attrs = ["p_nom", "s_nom", "e_nom"]
     if component.name in n.all_components - {"TransformerType"}:
-        static_attr = component.defaults.query("static").index.intersection(
-            static_attrs
+        attr = next(
+            iter(component.defaults.query("static").index.intersection(static_attrs)),
+            None,
         )
-        if len(static_attr):
-            attr = static_attr[0]
+        if attr is not None and f"{attr}_extendable" in component.static.columns:
             tol = options.params.consistency.numerical_tolerance
             bad = (
                 component.static[attr + "_max"] < component.static[attr + "_min"] - tol
@@ -377,7 +377,6 @@ def check_static_power_attributes(
                     component.static.index[bad],
                 )
 
-            attr = static_attr[0]
             for col in [attr + "_min", attr + "_max"]:
                 if (
                     component.static[col][component.static[attr + "_extendable"]]

@@ -12,7 +12,9 @@ attach. They can be used to represent dispatchable conventional power plants,
 renewable generators with variable availability, supply of grid electricity or
 biomass from an external source. With inverted `sign`, they can also be used to
 represent withdrawal of power at a given price or elastic demands following a
-linear demand curve.
+linear demand curve, although the [`Load`][pypsa.components.Loads] component
+(dispatched actively where `p_set` is `NaN`) is usually the clearer choice for
+price-responsive demand.
 
 !!! note "When to use [`Link`][pypsa.components.Links] instead?"
 

@@ -272,7 +272,7 @@ def define_objective(
 
             if c.static.empty:
                 continue
-            active_names = c.active_assets
+            active_names = c.dispatchable.intersection(c.active_assets)
             if c.has_piecewise(cost_type):
                 x_var = m[c._piecewise_x_var(cost_type)].sel(snapshot=sns)
                 extra_options = filter(
@@ -321,7 +321,9 @@ def define_objective(
         if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
             continue
 
-        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns)
+        cost = c.da.marginal_cost_quadratic.sel(
+            snapshot=sns, name=c.dispatchable.intersection(c.active_assets)
+        )
         if cost.size == 0 or (cost == 0).all():
             continue
 
@@ -1262,7 +1264,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             n.c.buses.dynamic.marginal_price.loc[sns].divide(weightings, axis=0)
         )
 
-        # load
+        # load: active loads were assigned in assign_solution, passive loads merged in here
         if len(n.loads):
             _set_dynamic_data(
                 n, "Load", "p", n.get_switchable_as_dense("Load", "p_set", sns)

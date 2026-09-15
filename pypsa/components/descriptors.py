@@ -169,6 +169,20 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         return active_assets[active_assets].index.unique("name")
 
     @property
+    def dispatchable(self) -> pd.Index:
+        """Get the assets that receive an operational dispatch variable.
+
+        Defaults to all assets.
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of assets with a dispatch variable.
+
+        """
+        return self.names
+
+    @property
     def inactive_assets(self) -> pd.Index:
         """Get list of inactive assets.
 

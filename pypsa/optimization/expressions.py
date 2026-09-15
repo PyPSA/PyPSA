@@ -320,9 +320,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         m = self._n.model
 
         if c == "Load":
-            window = self._n.optimize._window
-            p_set = self._n.c[c].da.p_set.sel(snapshot=window.model_index)
-            return LinearExpression.from_constant(m, p_set)
+            loads = self._n.c[c]
+            p_set = loads.da.p_set.sel(
+                snapshot=self._n.optimize._window.model_index,
+                name=loads.active_assets.intersection(loads.passive),
+            )
+            const = LinearExpression.from_constant(m, p_set)
+            return m.variables["Load-p"].to_linexpr().add(const, join="outer")
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
             return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
@@ -497,6 +501,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if var is None:
                 return None
             var = n.model.variables[f"{c}-{var}"]
+            if not len(var.indexes["name"]):
+                # e.g. only passive loads => empty dispatch variable, no opex
+                return None
             sns = var.indexes["snapshot"]
 
             var, add_opex = _split_piecewise(var, n.model, n.c[c], attr)

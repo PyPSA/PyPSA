@@ -59,7 +59,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         Index(['g1', 'g2'], dtype='object', name='name')
 
         """
-        return self.static.index.get_level_values("name").drop_duplicates()
+        return self.static.index.unique("name")
 
     @property
     def component_names(self) -> pd.Series:

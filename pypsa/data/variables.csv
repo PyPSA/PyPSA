@@ -6,6 +6,10 @@ Generator,shut_down,False,False,False,False,False,True
 Generator,maintenance,False,False,False,False,False,True
 Generator,p_nom,False,False,False,False,True,False
 Generator,n_mod,False,False,False,False,False,True
+Load,p,True,True,False,False,False,False
+Load,status,False,False,False,False,False,True
+Load,start_up,False,False,False,False,False,True
+Load,shut_down,False,False,False,False,False,True
 Line,s,False,False,False,False,False,False
 Line,s_nom,False,False,False,False,True,False
 Line,n_mod,False,False,False,False,False,True
