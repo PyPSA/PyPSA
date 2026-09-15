@@ -1693,6 +1693,9 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
     Constraints are only created for assets with a finite ``v_ang_max``. The
     deprecated ``v_ang_min`` is ignored; ``v_ang_max`` applies symmetrically.
 
+    See the MATPOWER manual (https://matpower.org/docs/MATPOWER-manual.pdf),
+    pages 76-77, for background on voltage angle difference limits.
+
     Parameters
     ----------
     n : pypsa.Network

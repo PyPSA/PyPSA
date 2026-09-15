@@ -92,7 +92,7 @@ For a line the angle difference is $\theta_{l,t} = x^\text{pu,eff}_l \, p_{l,t}$
 | $p_{t,t} + \phi_{t,t} / x^\text{pu,eff}_t \geq -\bar{\theta}_t / x^\text{pu,eff}_t$ | `Transformer-v_ang-lower` |
 | $p_{t,t} + \phi_{t,t} / x^\text{pu,eff}_t \leq \bar{\theta}_t / x^\text{pu,eff}_t$ | `Transformer-v_ang-upper` |
 
-These constraints are set in the function `define_voltage_angle_constraints()`.
+These constraints are set in the function `define_voltage_angle_constraints()`. For background on voltage angle difference limits, see the [MATPOWER manual](https://matpower.org/docs/MATPOWER-manual.pdf), pages 76-77.
 
 
 !!! note "Mapping of symbols to attributes"
