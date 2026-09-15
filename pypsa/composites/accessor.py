@@ -8,18 +8,22 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
 from linopy import options as linopy_options
 
+from pypsa._options import options
 from pypsa.composites.definition import (
     PARAM_DTYPES,
     CompositeDefinition,
     member_name,
 )
+from pypsa.deprecations import COMPONENT_ALIAS_DICT
+from pypsa.network.transform import _build_suffixed_names
 from pypsa.statistics.grouping import groupers
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
     from pathlib import Path
 
     import xarray as xr
@@ -58,40 +62,75 @@ class Composite:
             f"and {len(self.instances)} instance(s)"
         )
 
-    def add(self, name: str, **params: Any) -> str:
-        """Add one instance, creating every member component.
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str | Sequence[str] = "",
+        overwrite: bool = False,
+        return_names: bool | None = None,
+        **params: Any,
+    ) -> pd.Index | None:
+        """Add instances, creating every member component.
+
+        Follows the calling convention of ``Network.add``: a single name treats
+        non-scalar parameters as time series, a list of names treats them as
+        per-instance values (2D for time series per instance).
 
         Parameters
         ----------
-        name : str
-            Instance name. Member components are named ``<name>-<member>``.
+        name : str or list of str
+            Instance name(s). Member components are named ``<name>-<member>``.
+        suffix : str or list of str, default ""
+            Suffix added to each name.
+        overwrite : bool, default False
+            Overwrite existing instances instead of raising.
+        return_names : bool | None, default None
+            Return the instance names. Defaults to the module wide option.
         **params
-            Exposed parameters of the definition. Scalars or time series.
+            Exposed parameters of the definition.
 
         """
-        if name in self.instances:
-            msg = f"Composite '{self.name}' already holds an instance '{name}'."
+        if return_names is None:
+            return_names = options.params.add.return_names
+        names = _build_suffixed_names(name, suffix)
+        single = np.isscalar(name) and isinstance(suffix, str)
+        existing = names.intersection(self.instances)
+        if not existing.empty and not overwrite:
+            msg = (
+                f"Composite '{self.name}' already holds instances "
+                f"{existing.tolist()}. Pass overwrite=True to replace them."
+            )
             raise ValueError(msg)
         definition = self.definition
         values = definition.values(params)
+        instance = names[0] if single else names
         stored = {
             f"{PARAM_COL_PREFIX}{k}": v
             for k, v in values.items()
-            if type(v) in PARAM_DTYPES
+            if _storable(v, single, len(names))
         }
-        for member, attrs in definition.resolve(name, values).items():
+        for member, attrs in definition.resolve(instance, values).items():
             if member == definition.primary_member:
                 attrs.update(stored)
-            attrs.update({INSTANCE_COL: name, TYPE_COL: self.name})
-            self._n.add(definition.members[member], member_name(name, member), **attrs)
-        return name
+            attrs.update({INSTANCE_COL: instance, TYPE_COL: self.name})
+            components = member_name(instance, member)
+            if not single:
+                attrs = {k: _relabel(v, names, components) for k, v in attrs.items()}
+            self._n.add(
+                definition.members[member], components, overwrite=overwrite, **attrs
+            )
+        return names if return_names else None
 
-    def remove(self, name: str) -> None:
-        """Remove one instance and all its member components."""
-        rows = self.members.query("instance == @name")
-        if rows.empty:
-            msg = f"Composite '{self.name}' has no instance '{name}'."
+    def remove(
+        self, name: str | int | Sequence[int | str], suffix: str | Sequence[str] = ""
+    ) -> None:
+        """Remove instances and all their member components."""
+        names = _build_suffixed_names(name, suffix)
+        missing = names.difference(self.instances)
+        if not missing.empty:
+            msg = f"Composite '{self.name}' has no instances {missing.tolist()}."
             raise ValueError(msg)
+        rows = self.members[self.members["instance"].isin(names)]
         for cls, group in rows.groupby("class"):
             self._n.remove(cls, group["component"].tolist())
 
@@ -205,6 +244,11 @@ class CompositesAccessor:
         if definition.name in self._definitions:
             msg = f"Composite '{definition.name}' is already registered."
             raise ValueError(msg)
+        if definition.name in COMPONENT_ALIAS_DICT.keys() | set(
+            COMPONENT_ALIAS_DICT.values()
+        ):
+            msg = f"Composite '{definition.name}' clashes with a component class name."
+            raise ValueError(msg)
         composite = Composite(self._n, definition)
         self._definitions[definition.name] = composite
         return composite
@@ -262,6 +306,20 @@ def composite_grouper(
 
 
 groupers.add_grouper(INSTANCE_COL, composite_grouper)
+
+
+def _relabel(value: Any, instances: pd.Index, components: pd.Index) -> Any:
+    if isinstance(value, pd.DataFrame) and value.columns.equals(instances):
+        return value.set_axis(components, axis=1)
+    if isinstance(value, pd.Series) and value.index.equals(instances):
+        return value.set_axis(components)
+    return value
+
+
+def _storable(value: Any, single: bool, count: int) -> bool:
+    if type(value) in PARAM_DTYPES:
+        return True
+    return not single and np.ndim(value) == 1 and len(value) == count
 
 
 def _to_pandas(da: xr.DataArray) -> pd.Series | pd.DataFrame:

@@ -79,9 +79,48 @@ def test_add_rejects_duplicate_instance(n):
         battery.add("bat1", bus="elec")
 
 
+def test_add_overwrites_instance(n):
+    n.composites.register(BATTERY)
+    n.add("battery", "bat1", bus="elec", capital_cost=1)
+    n.add("battery", "bat1", bus="elec", capital_cost=7, overwrite=True)
+    assert n.c.links.static.at["bat1-charger", "capital_cost"] == 7
+    assert n.composites.battery.instances.tolist() == ["bat1"]
+
+
+def test_network_add_and_remove_dispatch(n):
+    n.composites.register(BATTERY)
+    names = n.add("battery", "bat", suffix=["1", "2"], bus="elec", return_names=True)
+    assert names.tolist() == ["bat1", "bat2"]
+    assert n.composites.battery.instances.tolist() == ["bat1", "bat2"]
+    n.remove("battery", ["bat1", "bat2"])
+    assert n.composites.battery.instances.empty
+    assert n.c.stores.static.empty
+
+
+def test_add_many_with_per_instance_and_time_varying_parameters(n):
+    battery = n.composites.register(BATTERY)
+    n.add("Bus", "elec2")
+    cost = pd.DataFrame(
+        np.arange(24.0).reshape(12, 2), index=n.snapshots, columns=["a", "b"]
+    )
+    battery.add(
+        ["a", "b"], bus=["elec", "elec2"], capital_cost=[10, 20], marginal_cost=cost
+    )
+    links = n.c.links.static
+    assert links.loc[["a-charger", "b-charger"], "bus0"].tolist() == ["elec", "elec2"]
+    assert links.loc[["a-charger", "b-charger"], "capital_cost"].tolist() == [10, 20]
+    assert links.at["b-charger", "bus1"] == "b-dc"
+    assert (
+        n.c.links.dynamic.marginal_cost["b-discharger"].tolist() == cost["b"].tolist()
+    )
+    assert links.loc[
+        ["a-charger", "b-charger"], "composite_param_capital_cost"
+    ].tolist() == [10, 20]
+
+
 def test_remove_rejects_unknown_instance(n):
     battery = n.composites.register(BATTERY)
-    with pytest.raises(ValueError, match="no instance"):
+    with pytest.raises(ValueError, match="no instances"):
         battery.remove("ghost")
 
 
@@ -89,6 +128,14 @@ def test_register_rejects_duplicate_name(n):
     n.composites.register(BATTERY)
     with pytest.raises(ValueError, match="already registered"):
         n.composites.register(BATTERY)
+
+
+@pytest.mark.parametrize("name", ["Store", "links"])
+def test_register_rejects_component_class_name(name):
+    with pytest.raises(ValueError, match="clashes"):
+        pypsa.Network().composites.register(
+            {"name": name, "components": {"Link": {"a": {}}}}
+        )
 
 
 def test_register_accepts_dict_and_text():

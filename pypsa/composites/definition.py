@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 from pypsa.components import types as component_types
 
 PARAM_PREFIX = "$"
@@ -155,7 +157,7 @@ class CompositeDefinition:
         return next(m for m, c in self.members.items() if cls is None or c == cls)
 
     def resolve(
-        self, instance: str, values: dict[str, Any]
+        self, instance: str | pd.Index, values: dict[str, Any]
     ) -> dict[str, dict[str, Any]]:
         """Component attributes per member for one instance, references resolved."""
         resolved = {}
@@ -229,8 +231,10 @@ def _bound_class(name: str, math: dict[str, Any]) -> str | None:
     return next(iter(prefixes), None)
 
 
-def member_name(instance: str, member: str) -> str:
-    """Component name of a member inside an instance."""
+def member_name(instance: str | pd.Index, member: str) -> str | pd.Index:
+    """Component name of a member inside one instance or an index of instances."""
+    if isinstance(instance, pd.Index):
+        return instance.astype(str) + f"-{member}"
     return f"{instance}-{member}"
 
 
@@ -240,7 +244,7 @@ def _reference(value: Any) -> tuple[str, str] | None:
     return None
 
 
-def _resolve_value(value: Any, params: dict[str, Any], instance: str) -> Any:
+def _resolve_value(value: Any, params: dict[str, Any], instance: str | pd.Index) -> Any:
     ref = _reference(value)
     if ref is None:
         return value
