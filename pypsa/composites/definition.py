@@ -97,7 +97,6 @@ class CompositeDefinition(BaseModel):
                     f"declare 'foreach', found {sorted(extra)}."
                 )
                 raise ValueError(msg)
-        _bound_class(self.name, self.math)
         return self
 
     @classmethod
@@ -128,9 +127,11 @@ class CompositeDefinition(BaseModel):
         return [k for k, v in self.parameters.items() if v is None]
 
     @property
-    def bound_class(self) -> str | None:
-        """The one component class whose model variables the math binds."""
-        return _bound_class(self.name, self.math)
+    def bound_classes(self) -> list[str]:
+        """Component classes whose model variables the math binds, in declaration order."""
+        return list(
+            dict.fromkeys(v.split("_", 1)[0] for v in self.math.get("variables", {}))
+        )
 
     def _member_attrs(self) -> list[tuple[str, dict[str, Any]]]:
         return [
@@ -151,9 +152,9 @@ class CompositeDefinition(BaseModel):
 
     @property
     def primary_member(self) -> str:
-        """The member that carries the instance parameters, first of the bound class."""
-        cls = self.bound_class
-        return next(m for m, c in self.members.items() if cls is None or c == cls)
+        """The member that carries the instance parameters, first of a bound class."""
+        bound = self.bound_classes
+        return next(m for m, c in self.members.items() if not bound or c in bound)
 
     def resolve(
         self, instance: str | pd.Index, values: dict[str, Any]
@@ -173,17 +174,17 @@ class CompositeDefinition(BaseModel):
         Parameters in ``dynamic`` are declared over ``[snapshot, <name>]``
         instead of ``[<name>]``.
         """
-        cls = self.bound_class
+        bound = self.bound_classes
         dims: dict[str, Any] = {
             "snapshot": {"dtype": "datetime"},
             self.name: {"dtype": "str"},
         }
-        if cls is not None:
+        if bound:
             dims["name"] = {"dtype": "str"}
         lookups = {
             member: {"over": "name", "into": self.name}
             for member, mcls in self.members.items()
-            if mcls == cls
+            if mcls in bound
         }
         return {
             "description": self.description or f"composite '{self.name}'",
@@ -225,18 +226,6 @@ class CompositeDefinition(BaseModel):
         import yaml  # noqa: PLC0415
 
         return yaml.safe_dump(self.spec(dynamic), sort_keys=False)
-
-
-def _bound_class(name: str, math: dict[str, Any]) -> str | None:
-    prefixes = {v.split("_", 1)[0] for v in math.get("variables", {})}
-    if len(prefixes) > 1:
-        msg = (
-            f"Composite '{name}' binds variables of several component classes "
-            f"{sorted(prefixes)}. linopy names every component axis 'name', so one "
-            "math fragment can bind a single class only."
-        )
-        raise ValueError(msg)
-    return next(iter(prefixes), None)
 
 
 def member_name(instance: str | pd.Index, member: str) -> str | pd.Index:

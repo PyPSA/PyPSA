@@ -189,37 +189,26 @@ def test_definition_rejects_bad_variable_decl(variables, match):
         )
 
 
-def test_definition_rejects_several_bound_classes():
-    with pytest.raises(ValueError, match="single class"):
-        pypsa.composites.CompositeDefinition.from_dict(
-            {
-                "name": "x",
-                "components": {"Link": {"a": {}}},
-                "math": {
-                    "variables": {
-                        "Link_p": {"foreach": ["snapshot", "name"]},
-                        "Store_e": {"foreach": ["snapshot", "name"]},
-                    }
-                },
-            }
-        )
-
-
 @pytest.mark.usefixtures("v1_semantics")
 def test_optimize_with_math_layer(n):
     battery = n.composites.register(BATTERY)
     battery.add("bat1", bus="elec", capital_cost=10, efficiency=0.9)
-    battery.add("bat2", bus="elec", capital_cost=20)
+    battery.add("bat2", bus="elec", capital_cost=20, max_hours=2)
     status, _ = n.optimize()
     assert status == "ok"
     links = n.c.links.static
-    for inst in ("bat1", "bat2"):
-        assert links.at[f"{inst}-charger", "p_nom_opt"] == pytest.approx(
-            links.at[f"{inst}-discharger", "p_nom_opt"]
+    stores = n.c.stores.static
+    for inst, max_hours in (("bat1", 4), ("bat2", 2)):
+        p_nom_opt = links.at[f"{inst}-discharger", "p_nom_opt"]
+        assert links.at[f"{inst}-charger", "p_nom_opt"] == pytest.approx(p_nom_opt)
+        assert stores.at[f"{inst}-store", "e_nom_opt"] == pytest.approx(
+            max_hours * p_nom_opt
         )
     p_nom = battery.expressions["p_nom"]
     assert p_nom.index.tolist() == ["bat1", "bat2"]
     assert p_nom["bat1"] == pytest.approx(links.at["bat1-discharger", "p_nom_opt"])
+    e_nom = battery.expressions["e_nom"]
+    assert e_nom["bat2"] == pytest.approx(stores.at["bat2-store", "e_nom_opt"])
     p = battery.expressions["p"]
     flows = n.c.links.dynamic.p
     expected = flows["bat1-discharger"] - flows["bat1-charger"]
@@ -229,6 +218,37 @@ def test_optimize_with_math_layer(n):
     capacity = n.statistics.optimal_capacity(groupby="composite")
     assert capacity.loc["Link"].index.tolist() == ["bat1", "bat2"]
     assert "Generator" not in capacity.index.get_level_values(0)
+
+
+@pytest.mark.usefixtures("v1_semantics")
+def test_several_composites_bind_different_classes(n):
+    battery = n.composites.register(BATTERY)
+    peaker = n.composites.register(PEAKER)
+    battery.add("bat1", bus="elec", capital_cost=10)
+    peaker.add("pk1", bus="elec", availability=0.5)
+    status, _ = n.optimize()
+    assert status == "ok"
+    assert n.c.generators.dynamic.p["pk1-gen"].max() == pytest.approx(25)
+    assert {battery.layer, peaker.layer} <= set(n.model.spec.layers)
+
+
+@pytest.mark.usefixtures("v1_semantics")
+def test_math_without_bound_variables(n):
+    math = {"expressions": {"cap": "availability * p_nom"}}
+    peaker = n.composites.register({**PEAKER, "math": math})
+    peaker.add("pk1", bus="elec", availability=0.5)
+    status, _ = n.optimize()
+    assert status == "ok"
+    assert peaker.expressions["cap"]["pk1"] == pytest.approx(50)
+
+
+@pytest.mark.usefixtures("v1_semantics")
+def test_bound_classes_reject_shared_component_names(n):
+    n.composites.register(BATTERY)
+    n.add("battery", "bat1", bus="elec")
+    n.add("Store", "bat1-charger", bus="elec")
+    with pytest.raises(ValueError, match="unique across classes"):
+        n.optimize.create_model()
 
 
 def test_optimize_requires_v1_semantics(n):

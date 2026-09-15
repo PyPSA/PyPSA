@@ -171,12 +171,12 @@ class Composite:
 
     def _lookups(self) -> dict[str, pd.Series]:
         members = self.members
-        cls = self.definition.bound_class
+        bound = members[members["class"].isin(self.definition.bound_classes)]
         return {
             member: group.set_index("component")["instance"]
             .rename_axis("name")
             .rename(member)
-            for member, group in members[members["class"] == cls].groupby("member")
+            for member, group in bound.groupby("member")
         }
 
     def _parameters(self) -> dict[str, pd.Series | pd.DataFrame]:
@@ -211,9 +211,12 @@ class Composite:
             out[key] = frame.astype(dtype)
         return out
 
-    def sources(self, model: Model) -> dict[str, Any]:
-        """Build the ``sources`` mapping for ``Model.add_spec``."""
-        cls = self.definition.bound_class
+    def sources(self, model: Model, names: pd.Index) -> dict[str, Any]:
+        """Build the ``sources`` mapping for ``Model.add_spec``.
+
+        ``names`` is the component axis shared by every composite layer on
+        ``model``: the union of the assets of all bound classes.
+        """
         parameters = self._parameters()
         sources: dict[str, Any] = {
             self.name: self.instances,
@@ -222,17 +225,15 @@ class Composite:
         }
         if any(isinstance(v, pd.DataFrame) for v in parameters.values()):
             sources["snapshot"] = self._n.snapshots
-        if cls is not None:
-            sources["name"] = self._n.c[cls].active_assets
+        if self.definition.bound_classes:
+            sources["name"] = names
             for var in self.definition.math["variables"]:
                 sources[var] = model.variables[var.replace("_", "-", 1)]
         return sources
 
-    def add_spec(self, model: Model) -> None:
-        """Layer the math fragment onto ``model``."""
-        if not self.definition.math or self.instances.empty:
-            return
-        sources = self.sources(model)
+    def add_spec(self, model: Model, names: pd.Index) -> None:
+        """Layer the math fragment onto ``model``, binding variables over ``names``."""
+        sources = self.sources(model, names)
         dynamic = [k for k, v in sources.items() if isinstance(v, pd.DataFrame)]
         model.add_spec(self.definition.spec_text(dynamic), sources, name=self.layer)
 
@@ -313,8 +314,23 @@ class CompositesAccessor:
                 "linopy.options['semantics'] = 'v1' before optimizing."
             )
             raise ValueError(msg)
+        names = self._component_axis(active)
         for composite in active:
-            composite.add_spec(model)
+            composite.add_spec(model, names)
+
+    def _component_axis(self, active: list[Composite]) -> pd.Index:
+        """One ``name`` axis for all layers: the assets of every bound class, concatenated."""
+        classes = dict.fromkeys(c for a in active for c in a.definition.bound_classes)
+        assets = [self._n.c[cls].active_assets for cls in classes]
+        names = pd.Index([], dtype=object, name="name").append(assets)
+        if names.has_duplicates:
+            duplicated = names[names.duplicated()].unique().tolist()
+            msg = (
+                f"Component names {duplicated} occur in several of the classes "
+                f"{list(classes)} bound by composite math and must be unique across classes."
+            )
+            raise ValueError(msg)
+        return names
 
 
 def composite_grouper(

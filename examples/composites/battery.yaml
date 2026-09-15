@@ -45,13 +45,19 @@ math:
       foreach: [name]
     Link_p:
       foreach: [snapshot, name]
+    Store_e_nom:
+      foreach: [name]
   expressions:
     p: sum(Link_p, by=discharger) - sum(Link_p, by=charger)
     p_nom: sum(Link_p_nom, by=discharger)
+    e_nom: sum(Store_e_nom, by=store)
   constraints:
     symmetric_power:
       foreach: [battery]
       expression: sum(Link_p_nom, by=charger) == sum(Link_p_nom, by=discharger)
+    energy_capacity:
+      foreach: [battery]
+      expression: sum(Store_e_nom, by=store) == max_hours * sum(Link_p_nom, by=discharger)
     discharge_availability:
       foreach: [snapshot, battery]
       expression: sum(Link_p, by=discharger) <= availability * sum(Link_p_nom, by=discharger)
