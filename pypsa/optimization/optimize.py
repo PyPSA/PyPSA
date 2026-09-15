@@ -32,8 +32,10 @@ from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data, get_bus_counts
 from pypsa.optimization.constraints import (
+    define_capacity_fade_constraints,
     define_committability_variables_constraints_with_fixed_upper_limit,
     define_committability_variables_constraints_with_variable_upper_limit,
+    define_cycle_budget_constraints,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
@@ -48,7 +50,9 @@ from pypsa.optimization.constraints import (
     define_secant_loss_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
+    define_store_p_dispatch_constraints,
     define_tangent_loss_constraints,
+    define_throughput_constraints,
     define_total_supply_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
@@ -77,6 +81,8 @@ from pypsa.optimization.variables import (
     define_spillage_variables,
     define_start_up_variables,
     define_status_variables,
+    define_store_p_dispatch_variables,
+    define_throughput_variables,
 )
 from pypsa.optimization.window import SnapshotWindow, apply_period_weighting
 
@@ -817,6 +823,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
+        define_store_p_dispatch_variables(n, sns)
+        define_throughput_variables(n, sns, "StorageUnit")
+        define_throughput_variables(n, sns, "Store")
         define_phase_shift_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
@@ -880,6 +889,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_kirchhoff_voltage_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
+        define_store_p_dispatch_constraints(n, sns)
+        define_throughput_constraints(n, sns, "StorageUnit")
+        define_throughput_constraints(n, sns, "Store")
+        define_capacity_fade_constraints(n, sns, "StorageUnit", "state_of_charge")
+        define_capacity_fade_constraints(n, sns, "Store", "e")
+        define_cycle_budget_constraints(n, sns, "StorageUnit")
+        define_cycle_budget_constraints(n, sns, "Store")
         define_total_supply_constraints(n, sns)
 
         if transmission_losses:
@@ -1227,12 +1243,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 _set_dynamic_data(self._n, c.name, dual_attr_name, dual_df)
 
             # SCALAR DUALS (constraints without snapshot dimension)
-            # else:
             elif c.name == "GlobalConstraint" and suffix in c.static.index:
                 if c.has_scenarios:
                     raise NotImplementedError()
 
                 c.static.loc[suffix, "mu"] = constraint.dual
+
+            # Per-asset duals are assigned as "mu_<spec>" if the component has
+            # a placeholder, e.g. "StorageUnit-fix-cycles_max" -> "mu_cycles_max"
+            elif (dual_attr_name := f"mu_{suffix.rsplit('-', 1)[-1]}") in c.static:
+                dual = _from_xarray(constraint.dual, c)
+                c.static.loc[dual.index, dual_attr_name] = dual.to_numpy()
 
         if unassigned_constraints:
             logger.info(
