@@ -518,7 +518,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         if round_:
             df = df.round(round_)
         if drop_zero_:
-            df = df[df != 0]
+            df = (
+                df[(df != 0).any(axis=1)]
+                if isinstance(df, pd.DataFrame)
+                else df[df != 0]
+            )
 
         return df
 
