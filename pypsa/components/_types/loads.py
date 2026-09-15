@@ -58,10 +58,9 @@ class Loads(Components):
 
         # A load is dispatchable if its static p_set is NaN, or (where a p_set
         # time series is given) any snapshot value is NaN.
+        dynamic = self.dynamic["p_set"]
         has_nan = self.static["p_set"].isnull()
-        dynamic = self.dynamic.get("p_set")
-        if dynamic is not None and not dynamic.empty:
-            has_nan.loc[dynamic.columns] = dynamic.isnull().any()
+        has_nan.loc[dynamic.columns] = dynamic.isnull().any()
         has_nan = has_nan.groupby(level="name").any()
         return active[has_nan.reindex(active, fill_value=False)]
 
