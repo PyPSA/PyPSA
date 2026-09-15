@@ -172,10 +172,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
     def dispatchable(self) -> pd.Index:
         """Get the assets that receive an operational dispatch variable.
 
-        Defaults to all :attr:`active_assets`. Components that keep some active
-        assets out of the model as constants (e.g. passive ``Load`` with a fully
-        set ``p_set``, which enters the nodal balance on the right-hand side)
-        override this to return only the dispatched subset.
+        Defaults to all assets.
 
         Returns
         -------
@@ -183,7 +180,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             Single-level index of assets with a dispatch variable.
 
         """
-        return self.active_assets
+        return self.names
 
     @property
     def inactive_assets(self) -> pd.Index:

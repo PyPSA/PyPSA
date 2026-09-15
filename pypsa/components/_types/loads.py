@@ -46,15 +46,14 @@ class Loads(Components):
 
     @property
     def dispatchable(self) -> pd.Index:
-        """Active loads dispatched as variables, i.e. with any NaN ``p_set`` entry.
+        """Loads dispatched as variables, i.e. with any NaN ``p_set`` entry.
 
-        These receive a ``Load-p`` dispatch variable, while the remaining :attr:`passive`
-        loads enter the nodal balance as a constant. Overrides the base
-        :attr:`~pypsa.Components.dispatchable` (all active assets).
+        These receive a ``Load-p`` dispatch variable, while the remaining
+        :attr:`passive` loads enter the nodal balance as a constant.
         """
-        active = self.active_assets
-        if active.empty:
-            return active
+        names = self.names
+        if names.empty:
+            return names
 
         # A load is dispatchable if its static p_set is NaN, or (where a p_set
         # time series is given) any snapshot value is NaN.
@@ -62,15 +61,15 @@ class Loads(Components):
         has_nan = self.static["p_set"].isnull()
         has_nan.loc[dynamic.columns] = dynamic.isnull().any()
         has_nan = has_nan.groupby(level="name").any()
-        return active[has_nan.reindex(active, fill_value=False)]
+        return names[has_nan.reindex(names, fill_value=False)]
 
     @property
     def passive(self) -> pd.Index:
         """Passive loads (fully set ``p_set``) that enter the balance as a constant.
 
-        The complement of :attr:`dispatchable` within :attr:`active_assets`.
+        The complement of :attr:`dispatchable`.
         """
-        return self.active_assets.difference(self.dispatchable)
+        return self.names.difference(self.dispatchable)
 
     @property
     def extendables(self) -> pd.Index:

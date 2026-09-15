@@ -35,6 +35,19 @@ def test_passive_load_classification(base_network):
     assert list(n.c.loads.dispatchable) == []
 
 
+def test_dispatchable_includes_inactive(base_network):
+    # Like fixed/extendables, dispatchable/passive include inactive loads;
+    # call sites intersect with active_assets.
+    n = base_network
+    n.add("Load", "flex", bus="b", p_nom=50, active=False)  # dispatchable, inactive
+    n.add(
+        "Load", "base", bus="b", p_set=[30, 120, 60], active=False
+    )  # passive, inactive
+    assert list(n.c.loads.active_assets) == []
+    assert set(n.c.loads.dispatchable) == {"flex"}
+    assert set(n.c.loads.passive) == {"base"}
+
+
 def test_active_load_classification(base_network):
     n = base_network
     n.add("Load", "flex", bus="b", p_nom=50, marginal_cost=-40)  # p_set NaN

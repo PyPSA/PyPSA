@@ -272,7 +272,7 @@ def define_objective(
 
             if c.static.empty:
                 continue
-            active_names = c.dispatchable
+            active_names = c.dispatchable.intersection(c.active_assets)
             if c.has_piecewise(cost_type):
                 x_var = m[c._piecewise_x_var(cost_type)].sel(snapshot=sns)
                 extra_options = filter(
@@ -321,7 +321,9 @@ def define_objective(
         if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
             continue
 
-        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns, name=c.dispatchable)
+        cost = c.da.marginal_cost_quadratic.sel(
+            snapshot=sns, name=c.dispatchable.intersection(c.active_assets)
+        )
         if cost.size == 0 or (cost == 0).all():
             continue
 

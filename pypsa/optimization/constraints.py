@@ -1437,7 +1437,7 @@ def define_nodal_balance_constraints(
         expr = sign * var
 
         cbuses = c._as_xarray(column)
-        cbuses = cbuses.sel(name=c.dispatchable)
+        cbuses = cbuses.sel(name=c.dispatchable.intersection(c.active_assets))
         # Only keep the first scenario if there are multiple
         if n.has_scenarios:
             cbuses = cbuses.isel(scenario=0, drop=True)
@@ -1532,7 +1532,7 @@ def define_nodal_balance_constraints(
 
     # Prepare the RHS.
     loads = cast("Loads", as_components(n, "Load"))
-    passive_loads = loads.passive
+    passive_loads = loads.passive.intersection(loads.active_assets)
 
     if passive_loads.empty:
         rhs = DataArray(
@@ -2007,7 +2007,9 @@ def define_fixed_operation_constraints(
     if attr_set not in c.dynamic.keys():
         return
 
-    fix = c.da[attr_set].sel(snapshot=sns, name=c.dispatchable)
+    fix = c.da[attr_set].sel(
+        snapshot=sns, name=c.dispatchable.intersection(c.active_assets)
+    )
 
     if fix.isnull().all():
         return
