@@ -35,10 +35,9 @@ class _Cycling(Components):
     def _throughput_flow(self) -> pd.DataFrame:
         """Get the energy passing through the storage level per snapshot in MW."""
 
-    @property
     @abstractmethod
-    def _energy_capacity_opt(self) -> pd.Series:
-        """Get the optimised nominal energy capacity in MWh."""
+    def _energy_capacity(self, nom_attr: str) -> pd.Series:
+        """Get the nominal energy capacity in MWh from a nominal power or energy attribute."""
 
     def get_cycles(self) -> pd.Series:
         """Get the equivalent full cycles performed over the snapshots.
@@ -60,7 +59,8 @@ class _Cycling(Components):
         """
         weights = self.n_save.snapshot_weightings.stores
         throughput = self._throughput_flow().mul(weights, axis=0).sum()
-        return throughput / (2 * self._energy_capacity_opt)
+        nom_attr = self._operational_attrs["nom"]
+        return throughput / (2 * self._energy_capacity(f"{nom_attr}_opt"))
 
     def set_cycle_life(
         self,
@@ -71,11 +71,15 @@ class _Cycling(Components):
         """Set `degradation_per_cycle` and `cycles_max` from a cycle life.
 
         Sets `degradation_per_cycle = (1 - soh_end) / cycles_life` and
-        `cycles_max = cycles_life * horizon_years / lifetime`, the share of the
-        cycle life that fits into the optimised snapshots without shortening the
-        technical `lifetime`. The horizon is measured with the `stores` snapshot
-        weighting, which the cycle budget sums over. Assets with an infinite
-        `lifetime` keep an infinite `cycles_max`.
+        `cycles_max = cycles_life * horizon_years / lifetime` plus the cycles
+        already in `throughput_initial`, the share of the cycle life that fits
+        into the snapshots without shortening the technical `lifetime`. The
+        horizon is measured with the `stores` snapshot weighting over all
+        snapshots of the network, so the budget covers every rolling-horizon
+        window together. Assets with an infinite `lifetime` keep an infinite
+        `cycles_max`. This assumes `lifetime` is at least the horizon; a shorter
+        lifetime over-budgets a single row, which should instead be modelled as
+        separate rebuilds.
 
         Parameters
         ----------
@@ -101,7 +105,12 @@ class _Cycling(Components):
         rows = self.static.index.get_level_values("name").isin(selected)
         lifetime = self.static.loc[rows, "lifetime"]
         horizon_years = self.n_save.snapshot_weightings.stores.sum() / HOURS_PER_YEAR
-        cycles_max = cycles_life * horizon_years / lifetime
+        throughput_initial = self.static.loc[rows, "throughput_initial"]
+        capacity = self._energy_capacity(self._operational_attrs["nom"]).loc[rows]
+        prior_cycles = (throughput_initial / (2 * capacity)).where(
+            throughput_initial > 0, 0
+        )
+        cycles_max = prior_cycles + cycles_life * horizon_years / lifetime
 
         self.static.loc[rows, "degradation_per_cycle"] = (1 - soh_end) / cycles_life
         self.static.loc[rows, "cycles_max"] = cycles_max.where(

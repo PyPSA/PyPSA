@@ -233,10 +233,13 @@ def _fade_network(
     return n
 
 
+def _level_attr(component):
+    return "state_of_charge" if component == "StorageUnit" else "e"
+
+
 def _level(n, component="StorageUnit"):
     """Solved storage level of the battery: state of charge or energy level."""
-    attr = "state_of_charge" if component == "StorageUnit" else "e"
-    return n.components[component].dynamic[attr]["battery"]
+    return n.components[component].dynamic[_level_attr(component)]["battery"]
 
 
 def _capacity(n, component="StorageUnit"):
@@ -400,10 +403,32 @@ def test_cycle_budget_binds_at_cycles_max(component, extendable):
     status, _ = n.optimize()
     assert status == "ok"
     assert f"{component}-cycles_max" in n.model.constraints
-    assert f"{component}-throughput" not in n.model.variables  # no state needed
+    assert f"{component}-{_level_attr(component)}-fade" not in n.model.constraints
     cycles = n.components[component].get_cycles()["battery"]
     assert cycles == pytest.approx(1.0, abs=1e-6)
     assert n.objective > free.objective
+
+
+@pytest.mark.parametrize("component", COMPONENTS)
+def test_cycle_budget_counts_throughput_initial(component):
+    """Cycles performed before the horizon use up the budget."""
+    n = _fade_network(component, cycles_max=1.0, throughput_initial=40.0)
+    status, _ = n.optimize()
+    assert status == "ok"
+    cycles = n.components[component].get_cycles()["battery"]
+    assert cycles == pytest.approx(0.5, abs=1e-6)
+
+
+@pytest.mark.parametrize("component", COMPONENTS)
+def test_cycle_budget_rolling_horizon_is_cumulative(component):
+    """One budget spans all windows through the carried `throughput_initial`."""
+    n = _fade_network(component, cycles_max=1.0)
+    n.optimize.optimize_with_rolling_horizon(horizon=24, overlap=0)
+    q = n.components[component].dynamic.throughput["battery"]
+    assert q.iloc[-1] <= 2 * 40.0 * 1.0 + 1e-6
+    assert n.components[component].get_cycles()["battery"] == pytest.approx(
+        1.0, abs=1e-6
+    )
 
 
 @pytest.mark.parametrize("component", COMPONENTS)
@@ -413,9 +438,8 @@ def test_cycle_budget_with_capacity_fade(component):
     status, _ = n.optimize()
     assert status == "ok"
 
-    level_attr = "state_of_charge" if component == "StorageUnit" else "e"
     assert f"{component}-cycles_max" in n.model.constraints
-    assert f"{component}-{level_attr}-fade" in n.model.constraints
+    assert f"{component}-{_level_attr(component)}-fade" in n.model.constraints
     q = n.components[component].dynamic.throughput["battery"]
     assert q.iloc[-1] == pytest.approx(2 * 40.0 * 1.0, abs=1e-6)  # one cycle
     assert (_level(n, component) <= 40.0 - 0.01 * q + 1e-6).all()
@@ -445,6 +469,17 @@ def test_set_cycle_life_uses_stores_weighting(component, scenarios):
     assert c.static.degradation_per_cycle.to_numpy() == pytest.approx(0.2 / 6000)
     assert c.static.cycles_max.to_numpy() == pytest.approx(6000 * (48 / 8760) / 20)
     assert n.nyears == pytest.approx(2.0)
+
+
+@pytest.mark.parametrize("component", COMPONENTS)
+def test_set_cycle_life_adds_prior_cycles(component):
+    """Cycles already in `throughput_initial` are added to the budget."""
+    n = _fade_network(component, throughput_initial=400.0)
+    c = n.components[component]
+    c.static.lifetime = 20.0
+    c.set_cycle_life(6000)
+    expected = 400.0 / (2 * 40.0) + 6000 * (48 / 8760) / 20
+    assert c.static.cycles_max["battery"] == pytest.approx(expected)
 
 
 @pytest.mark.parametrize("component", COMPONENTS)
@@ -483,7 +518,6 @@ def test_fade_and_budget_mix_fixed_and_extendable(component, scenarios):
 
     cycles = c.get_cycles()
     assert np.allclose(cycles, 1.0, atol=1e-6)
-    level_attr = "state_of_charge" if component == "StorageUnit" else "e"
     q = c.dynamic.throughput
-    assert (c.dynamic[level_attr] <= 40.0 - 0.01 * q + 1e-6).all().all()
+    assert (c.dynamic[_level_attr(component)] <= 40.0 - 0.01 * q + 1e-6).all().all()
     assert np.isfinite(c.static.mu_cycles_max).all()

@@ -69,9 +69,8 @@ class Stores(_Cycling):
     def _throughput_flow(self) -> pd.DataFrame:
         return self.dynamic.p.abs()
 
-    @property
-    def _energy_capacity_opt(self) -> pd.Series:
-        return self.static.e_nom_opt
+    def _energy_capacity(self, nom_attr: str) -> pd.Series:
+        return self.static[nom_attr]
 
     def add(
         self,

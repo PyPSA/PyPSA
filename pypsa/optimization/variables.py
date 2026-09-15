@@ -409,9 +409,9 @@ def define_throughput_variables(n: Network, sns: Sequence, c_name: str) -> None:
 
     The throughput at a snapshot is the energy charged into and discharged from
     the storage level up to and including that snapshot, `throughput_initial`
-    included. Only defined for assets with a positive `degradation_per_cycle`;
-    the capacity fade constraints derate the ceiling of the storage level
-    against it.
+    included. Only defined for assets with a positive `degradation_per_cycle`
+    or a finite `cycles_max`: the capacity fade constraints derate the ceiling
+    of the storage level against it and the cycle budget caps it.
 
     Parameters
     ----------
@@ -453,7 +453,7 @@ def define_store_p_dispatch_variables(n: Network, sns: Sequence) -> None:
 
     """
     c = n.c["Store"]
-    aux_i = c.degradables.union(c.cycle_budgeted).intersection(c.active_assets)
+    aux_i = c.degradables.intersection(c.active_assets)
 
     if aux_i.empty:
         return

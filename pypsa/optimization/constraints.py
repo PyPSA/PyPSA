@@ -2380,7 +2380,7 @@ def define_store_p_dispatch_constraints(n: Network, sns: pd.Index) -> None:
     """
     m = n.model
     c = as_components(n, "Store")
-    aux_i = c.degradables.union(c.cycle_budgeted).intersection(c.active_assets)
+    aux_i = c.degradables.intersection(c.active_assets)
 
     if aux_i.empty:
         return
@@ -2440,7 +2440,8 @@ def define_throughput_constraints(n: Network, sns: pd.Index, component: str) -> 
     """Define throughput balance constraints for degrading storage.
 
     Creates constraints tracking the cumulative energy throughput of assets
-    with a positive `degradation_per_cycle`. For each asset and snapshot, the
+    with a positive `degradation_per_cycle` or a finite `cycles_max`. For each
+    asset and snapshot, the
     constraint enforces:
 
     throughput(t) = throughput(t-1) + flow(t)
@@ -2527,7 +2528,8 @@ def define_capacity_fade_constraints(
     c = as_components(n, component)
     deg_i = c.degradables.intersection(c.active_assets)
 
-    if deg_i.empty:
+    fades = c.da.degradation_per_cycle.sel(name=deg_i) > 0
+    if deg_i.empty or not fades.any():
         return
 
     _, max_pu = c.get_bounds_pu(attr=attr)
@@ -2559,30 +2561,31 @@ def define_capacity_fade_constraints(
     active = c.da.active.sel(name=deg_i, snapshot=sns)
 
     lhs = level + fade * throughput - max_pu * capacity
-    m.add_constraints(lhs, "<=", 0, name=f"{c.name}-{attr}-fade", mask=active)
+    mask = active & fades
+    m.add_constraints(lhs, "<=", 0, name=f"{c.name}-{attr}-fade", mask=mask)
 
 
 def define_cycle_budget_constraints(n: Network, sns: pd.Index, component: str) -> None:
     """Define cycle budget constraints for storage.
 
-    Creates constraints keeping the equivalent full cycles of assets with a
-    finite `cycles_max` over the optimised snapshots within that budget. One
-    cycle is twice the nominal energy capacity of energy throughput, so for
-    each asset the constraint enforces:
+    Creates constraints keeping the cumulative energy throughput of assets with
+    a finite `cycles_max` within that budget. One cycle is twice the nominal
+    energy capacity of energy throughput, so for each asset the constraint
+    enforces:
 
-    sum(flow(t)) ≤ 2 * cycles_max * max_hours * p_nom
+    throughput(T) ≤ 2 * cycles_max * max_hours * p_nom
 
     for storage units and
 
-    sum(flow(t)) ≤ 2 * cycles_max * e_nom
+    throughput(T) ≤ 2 * cycles_max * e_nom
 
-    for stores, where flow is the energy charged into and discharged from the
-    storage level in the snapshot (see _throughput_flow) and the sum is taken
-    over all snapshots. For extendable assets the budget scales with the
-    capacity to be optimised. Cycles before the horizon are not subtracted;
-    they enter through `throughput_initial` and the capacity fade.
+    for stores, where T is the last active snapshot. The throughput is
+    monotone, so this caps it at every snapshot. `throughput_initial` counts
+    against the budget, so it spans rolling-horizon windows and any cycles
+    performed before the horizon. For extendable assets the budget scales with
+    the capacity to be optimised.
 
-    Applies to StorageUnit (p_dispatch, p_store) and Store (p, p_dispatch).
+    Applies to StorageUnit (throughput) and Store (throughput).
 
     Parameters
     ----------
@@ -2596,21 +2599,28 @@ def define_cycle_budget_constraints(n: Network, sns: pd.Index, component: str) -
     """
     m = n.model
     c = as_components(n, component)
-    bud_i = c.cycle_budgeted.intersection(c.active_assets)
+    deg_i = c.degradables.intersection(c.active_assets)
 
-    if bud_i.empty:
+    if deg_i.empty:
+        return
+
+    cycles_max = c.da.cycles_max.sel(name=deg_i)
+    budgeted = cycles_max < np.inf
+    if not budgeted.any():
         return
 
     # throughput allowed per unit of nominal capacity
-    throughput_max_pu = 2 * c.da.cycles_max.sel(name=bud_i)
+    throughput_max_pu = (2 * cycles_max).where(budgeted, 0)
     if c.name == "StorageUnit":
-        throughput_max_pu = throughput_max_pu * c.da.max_hours.sel(name=bud_i)
+        throughput_max_pu = throughput_max_pu * c.da.max_hours.sel(name=deg_i)
 
-    throughput = _throughput_flow(n, c, sns, bud_i).sum("snapshot")
-    capacity = _nominal_expression(n, c, bud_i)
+    active = c.da.active.sel(name=deg_i, snapshot=sns)
+    throughput = m[f"{c.name}-throughput"]
+    last = throughput.where(active).ffill("snapshot").isel(snapshot=-1, drop=True)
+    capacity = _nominal_expression(n, c, deg_i)
 
-    lhs = throughput - throughput_max_pu * capacity
-    m.add_constraints(lhs, "<=", 0, name=f"{c.name}-cycles_max")
+    lhs = last - throughput_max_pu * capacity
+    m.add_constraints(lhs, "<=", 0, name=f"{c.name}-cycles_max", mask=budgeted)
 
 
 def define_tangent_loss_constraints(

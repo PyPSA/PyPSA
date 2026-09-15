@@ -80,9 +80,8 @@ class StorageUnits(_Cycling):
         )
         return self.dynamic.p_store * eff_store + self.dynamic.p_dispatch / eff_dispatch
 
-    @property
-    def _energy_capacity_opt(self) -> pd.Series:
-        return self.static.max_hours * self.static.p_nom_opt
+    def _energy_capacity(self, nom_attr: str) -> pd.Series:
+        return self.static.max_hours * self.static[nom_attr]
 
     def add(
         self,
