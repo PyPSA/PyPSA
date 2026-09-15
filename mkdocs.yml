@@ -100,6 +100,7 @@ nav:
     - examples/ac-dc-lopf.ipynb
     - examples/scigrid-lopf-then-pf.ipynb
     - examples/scigrid-sclopf.ipynb
+    - examples/line-loading-limits.ipynb
     - examples/minimal-example-pf.ipynb
     - examples/negative-prices-kvl-baker.ipynb
     - examples/rolling-horizon.ipynb
