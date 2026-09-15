@@ -564,10 +564,10 @@ def meshed_triangle_network(mc0=10, mc2=20, load_bus="b1"):
 
 def angle_difference_from_lpf(n, line):
     n.generators_t.p_set = n.generators_t.p.copy()
-    n.generators["control"] = "PV"
-    n.generators.loc["g0", "control"] = "Slack"
+    n.c.generators.static["control"] = "PV"
+    n.c.generators.static.loc["g0", "control"] = "Slack"
     n.lpf()
-    b0, b1 = n.lines.loc[line, ["bus0", "bus1"]]
+    b0, b1 = n.c.lines.static.loc[line, ["bus0", "bus1"]]
     v_ang = n.buses_t.v_ang.loc["now"]
     return v_ang[b0] - v_ang[b1]
 
@@ -583,17 +583,17 @@ def test_line_voltage_angle_limit(cap_deg, sign, kwargs):
     n = meshed_triangle_network(**kwargs)
     n.optimize()
     n.calculate_dependent_values()
-    unconstrained = n.lines.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+    unconstrained = n.c.lines.static.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
 
     cap_rad = sign * np.deg2rad(cap_deg)
     assert sign * unconstrained > sign * cap_rad
 
     n = meshed_triangle_network(**kwargs)
-    n.lines.loc["l01", "v_ang_max"] = cap_deg
+    n.c.lines.static.loc["l01", "v_ang_max"] = cap_deg
     n.optimize()
     n.calculate_dependent_values()
 
-    angle = n.lines.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+    angle = n.c.lines.static.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
     assert sign * angle <= sign * cap_rad + 1e-9
 
     lpf_diff = angle_difference_from_lpf(n, "l01")
@@ -602,8 +602,8 @@ def test_line_voltage_angle_limit(cap_deg, sign, kwargs):
 
 def test_line_voltage_angle_constraint_names():
     n = meshed_triangle_network()
-    n.lines.loc["l01", "v_ang_max"] = 0.1
-    n.lines.loc["l12", "v_ang_min"] = -0.1
+    n.c.lines.static.loc["l01", "v_ang_max"] = 0.1
+    n.c.lines.static.loc["l12", "v_ang_min"] = -0.1
     with pytest.warns(DeprecationWarning, match="v_ang_min"):
         n.optimize()
     upper = n.model.constraints["Line-v_ang-upper"]
@@ -644,23 +644,23 @@ def test_transformer_voltage_angle_limit(phase_shift):
     n = meshed_transformer_network(phase_shift=phase_shift)
     n.optimize()
     n.calculate_dependent_values()
-    unconstrained = n.transformers.x_pu_eff["t02"] * n.transformers_t.p0.loc[
+    unconstrained = n.c.transformers.static.x_pu_eff["t02"] * n.transformers_t.p0.loc[
         "now", "t02"
     ] + np.deg2rad(phase_shift)
     assert abs(unconstrained) > np.deg2rad(cap_deg)
 
     n = meshed_transformer_network(phase_shift=phase_shift)
-    n.transformers.loc["t02", "v_ang_max"] = cap_deg
+    n.c.transformers.static.loc["t02", "v_ang_max"] = cap_deg
     n.optimize()
     n.calculate_dependent_values()
-    angle = n.transformers.x_pu_eff["t02"] * n.transformers_t.p0.loc[
+    angle = n.c.transformers.static.x_pu_eff["t02"] * n.transformers_t.p0.loc[
         "now", "t02"
     ] + np.deg2rad(phase_shift)
     assert abs(angle) <= np.deg2rad(cap_deg) + 1e-9
 
     n.generators_t.p_set = n.generators_t.p.copy()
-    n.generators["control"] = "PV"
-    n.generators.loc["g0", "control"] = "Slack"
+    n.c.generators.static["control"] = "PV"
+    n.c.generators.static.loc["g0", "control"] = "Slack"
     n.lpf()
     lpf_diff = n.buses_t.v_ang.loc["now", "b0"] - n.buses_t.v_ang.loc["now", "b2"]
     assert np.isclose(abs(lpf_diff), np.deg2rad(cap_deg), atol=1e-6)
@@ -668,7 +668,7 @@ def test_transformer_voltage_angle_limit(phase_shift):
 
 def test_transformer_voltage_angle_variable_phase_shift():
     n = meshed_transformer_network(ps_min=-5.0, ps_max=5.0)
-    n.transformers.loc["t02", "v_ang_max"] = 0.3
+    n.c.transformers.static.loc["t02", "v_ang_max"] = 0.3
     n.optimize()
     upper = n.model.constraints["Transformer-v_ang-var-upper"]
     lower = n.model.constraints["Transformer-v_ang-var-lower"]
@@ -683,11 +683,11 @@ def test_line_voltage_angle_no_bound():
     assert "Line-v_ang-lower" not in n.model.constraints
 
     n.calculate_dependent_values()
-    unconstrained = n.lines.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+    unconstrained = n.c.lines.static.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
 
     n2 = meshed_triangle_network()
-    n2.lines.loc["l01", "v_ang_max"] = 10.0
+    n2.c.lines.static.loc["l01", "v_ang_max"] = 10.0
     n2.optimize()
     n2.calculate_dependent_values()
-    slack = n2.lines.x_pu_eff["l01"] * n2.lines_t.p0.loc["now", "l01"]
+    slack = n2.c.lines.static.x_pu_eff["l01"] * n2.lines_t.p0.loc["now", "l01"]
     assert np.isclose(unconstrained, slack)
