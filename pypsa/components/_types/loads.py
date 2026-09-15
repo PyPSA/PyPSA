@@ -49,7 +49,8 @@ class Loads(Components):
         """Loads dispatched as variables, i.e. with any NaN ``p_set`` entry.
 
         These receive a ``Load-p`` dispatch variable, while the remaining
-        :attr:`passive` loads enter the nodal balance as a constant.
+        [passive][pypsa.components.Loads.passive] loads enter the nodal balance as
+        a constant.
         """
         names = self.names
         if names.empty:
@@ -67,7 +68,7 @@ class Loads(Components):
     def passive(self) -> pd.Index:
         """Passive loads (fully set ``p_set``) that enter the balance as a constant.
 
-        The complement of :attr:`dispatchable`.
+        The complement of [dispatchable][pypsa.components.Loads.dispatchable].
         """
         return self.names.difference(self.dispatchable)
 

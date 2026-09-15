@@ -106,6 +106,11 @@ def test_mixed_p_set_pins_set_snapshots(base_network):
     # WTP (40) > cost (10) so free snapshots serve full p_nom; snapshot 1 pinned
     np.testing.assert_allclose(n.loads_t.p["flex"], [50, 20, 50])
 
+    # the withdrawal expression must not double-count the pinned snapshot: it
+    # equals the variable, not variable + p_set constant.
+    w = n.statistics.withdrawal(components="Load", groupby_time=False)
+    np.testing.assert_allclose(w.sum().to_numpy(), [50, 20, 50], atol=1e-6)
+
 
 def test_committable_active_load(base_network):
     n = base_network
@@ -123,6 +128,19 @@ def test_committable_active_load(base_network):
     assert "c" in n.loads_t.status.columns
     # serving is valuable, so the load stays on at full power
     np.testing.assert_allclose(n.loads_t.p["c"], 50)
+
+
+def test_expressions_with_dispatchable_load(base_network):
+    """Statistics expressions cover both passive and dispatchable loads."""
+    n = base_network
+    n.add("Load", "base", bus="b", p_set=[30, 120, 60])  # passive
+    n.add("Load", "flex", bus="b", p_nom=50, marginal_cost=-40)  # dispatchable
+    n.optimize(solver_name="highs")
+
+    # withdrawal must equal served consumption of both loads
+    w = n.statistics.withdrawal(components="Load", groupby_time=False)
+    served = n.loads_t.p[["base", "flex"]].sum().sum()
+    np.testing.assert_allclose(w.sum().sum(), served, atol=1e-6)
 
 
 def test_zero_p_nom_active_load_is_noop(base_network):
