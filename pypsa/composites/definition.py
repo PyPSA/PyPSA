@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pypsa.components import types as component_types
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
 
 PARAM_PREFIX = "$"
 MEMBER_PREFIX = "@"
@@ -164,8 +167,12 @@ class CompositeDefinition(BaseModel):
             }
         return resolved
 
-    def spec(self) -> dict[str, Any]:
-        """Expand the fragment into a complete math-spec dict for ``add_spec``."""
+    def spec(self, dynamic: Collection[str] = ()) -> dict[str, Any]:
+        """Expand the fragment into a complete math-spec dict for ``add_spec``.
+
+        Parameters in ``dynamic`` are declared over ``[snapshot, <name>]``
+        instead of ``[<name>]``.
+        """
         cls = self.bound_class
         dims: dict[str, Any] = {
             "snapshot": {"dtype": "datetime"},
@@ -182,18 +189,23 @@ class CompositeDefinition(BaseModel):
             "description": self.description or f"composite '{self.name}'",
             "dimensions": dims,
             "lookups": lookups,
-            "parameters": self.parameter_decls(),
+            "parameters": self.parameter_decls(dynamic),
             **{
                 key: self.math.get(key, {})
                 for key in ("variables", "expressions", "constraints")
             },
         }
 
-    def parameter_decls(self) -> dict[str, dict[str, Any]]:
-        """Spec declarations for exposed scalar parameters used by the math."""
+    def parameter_decls(
+        self, dynamic: Collection[str] = ()
+    ) -> dict[str, dict[str, Any]]:
+        """Spec declarations for exposed parameters used by the math."""
         used = set(re.findall(r"[A-Za-z_]\w*", " ".join(self._math_bodies())))
         return {
-            key: {"dims": [self.name], "dtype": PARAM_DTYPES[type(value)]}
+            key: {
+                "dims": ["snapshot", self.name] if key in dynamic else [self.name],
+                "dtype": PARAM_DTYPES[type(value)],
+            }
             for key, value in self.parameters.items()
             if type(value) in PARAM_DTYPES and key in used
         }
@@ -208,11 +220,11 @@ class CompositeDefinition(BaseModel):
                     bodies.extend(str(decl.get(k, "")) for k in ("expression", "where"))
         return bodies
 
-    def spec_text(self) -> str:
+    def spec_text(self, dynamic: Collection[str] = ()) -> str:
         """Dump the expanded spec as YAML text."""
         import yaml  # noqa: PLC0415
 
-        return yaml.safe_dump(self.spec(), sort_keys=False)
+        return yaml.safe_dump(self.spec(dynamic), sort_keys=False)
 
 
 def _bound_class(name: str, math: dict[str, Any]) -> str | None:

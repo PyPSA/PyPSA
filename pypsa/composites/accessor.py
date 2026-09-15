@@ -95,19 +95,21 @@ class Composite:
         names = _build_suffixed_names(name, suffix)
         single = np.isscalar(name) and isinstance(suffix, str)
         existing = names.intersection(self.instances)
-        if not existing.empty and not overwrite:
-            msg = (
-                f"Composite '{self.name}' already holds instances "
-                f"{existing.tolist()}. Pass overwrite=True to replace them."
-            )
-            raise ValueError(msg)
+        if not existing.empty:
+            if not overwrite:
+                msg = (
+                    f"Composite '{self.name}' already holds instances "
+                    f"{existing.tolist()}. Pass overwrite=True to replace them."
+                )
+                raise ValueError(msg)
+            self.remove(existing)
         definition = self.definition
         values = definition.values(params)
         instance = names[0] if single else names
         stored = {
             f"{PARAM_COL_PREFIX}{k}": v
             for k, v in values.items()
-            if _storable(v, single, len(names))
+            if type(definition.parameters[k]) in PARAM_DTYPES
         }
         for member, attrs in definition.resolve(instance, values).items():
             if member == definition.primary_member:
@@ -177,29 +179,49 @@ class Composite:
             for member, group in members[members["class"] == cls].groupby("member")
         }
 
-    def _parameters(self) -> dict[str, pd.Series]:
+    def _parameters(self) -> dict[str, pd.Series | pd.DataFrame]:
+        """Math parameters per instance, as a DataFrame over snapshots where dynamic."""
         definition = self.definition
         members = self.members
         primary = members[members["member"] == definition.primary_member]
-        static = self._n.c[definition.members[definition.primary_member]].static
-        rows = static.loc[primary["component"]].set_index(INSTANCE_COL)
-        out = {}
+        components = primary.set_index("instance")["component"].reindex(self.instances)
+        c = self._n.c[definition.members[definition.primary_member]]
+        out: dict[str, pd.Series | pd.DataFrame] = {}
         for key, decl in definition.parameter_decls().items():
             col = f"{PARAM_COL_PREFIX}{key}"
-            series = rows[col] if col in rows.columns else pd.Series(index=rows.index)
-            series = series.fillna(definition.parameters[key]).rename(key)
-            series = series.astype(PANDAS_DTYPES[decl["dtype"]])
-            out[key] = series.rename_axis(self.name).reindex(self.instances)
+            dtype = PANDAS_DTYPES[decl["dtype"]]
+            static = c.static.reindex(index=components, columns=[col])[col]
+            series = static.set_axis(self.instances).fillna(definition.parameters[key])
+            series = series.astype(dtype).rename(key)
+            dynamic = c.dynamic.get(col, pd.DataFrame())
+            varying = components[components.isin(dynamic.columns)]
+            if varying.empty:
+                out[key] = series
+                continue
+            if self._n.has_investment_periods:
+                msg = (
+                    f"Composite '{self.name}': dynamic parameter '{key}' is "
+                    "not supported on networks with investment periods."
+                )
+                raise NotImplementedError(msg)
+            frame = pd.DataFrame(
+                [series] * len(self._n.snapshots), index=self._n.snapshots
+            )
+            frame.update(dynamic[varying.to_numpy()].set_axis(varying.index, axis=1))
+            out[key] = frame.astype(dtype)
         return out
 
     def sources(self, model: Model) -> dict[str, Any]:
         """Build the ``sources`` mapping for ``Model.add_spec``."""
         cls = self.definition.bound_class
+        parameters = self._parameters()
         sources: dict[str, Any] = {
             self.name: self.instances,
             **self._lookups(),
-            **self._parameters(),
+            **parameters,
         }
+        if any(isinstance(v, pd.DataFrame) for v in parameters.values()):
+            sources["snapshot"] = self._n.snapshots
         if cls is not None:
             sources["name"] = self._n.c[cls].active_assets
             for var in self.definition.math["variables"]:
@@ -210,9 +232,9 @@ class Composite:
         """Layer the math fragment onto ``model``."""
         if not self.definition.math or self.instances.empty:
             return
-        model.add_spec(
-            self.definition.spec_text(), self.sources(model), name=self.layer
-        )
+        sources = self.sources(model)
+        dynamic = [k for k, v in sources.items() if isinstance(v, pd.DataFrame)]
+        model.add_spec(self.definition.spec_text(dynamic), sources, name=self.layer)
 
     @property
     def expressions(self) -> dict[str, pd.Series | pd.DataFrame]:
@@ -314,12 +336,6 @@ def _relabel(value: Any, instances: pd.Index, components: pd.Index) -> Any:
     if isinstance(value, pd.Series) and value.index.equals(instances):
         return value.set_axis(components)
     return value
-
-
-def _storable(value: Any, single: bool, count: int) -> bool:
-    if type(value) in PARAM_DTYPES:
-        return True
-    return not single and np.ndim(value) == 1 and len(value) == count
 
 
 def _to_pandas(da: xr.DataArray) -> pd.Series | pd.DataFrame:

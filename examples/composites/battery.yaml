@@ -10,6 +10,7 @@ parameters:
   efficiency: 0.95
   capital_cost: 0.0
   marginal_cost: 0.0
+  availability: 1.0
 
 components:
   Bus:
@@ -51,3 +52,6 @@ math:
     symmetric_power:
       foreach: [battery]
       expression: sum(Link_p_nom, by=charger) == sum(Link_p_nom, by=discharger)
+    discharge_availability:
+      foreach: [snapshot, battery]
+      expression: sum(Link_p, by=discharger) <= availability * sum(Link_p_nom, by=discharger)

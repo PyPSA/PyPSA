@@ -12,6 +12,22 @@ import pypsa
 pytest.importorskip("math_spec")
 
 BATTERY = "examples/composites/battery.yaml"
+PEAKER = {
+    "name": "peaker",
+    "parameters": {"bus": None, "availability": 1.0, "p_nom": 100.0},
+    "components": {
+        "Generator": {"gen": {"bus": "$bus", "p_nom": "$p_nom", "marginal_cost": 10}}
+    },
+    "math": {
+        "variables": {"Generator_p": {"foreach": ["snapshot", "name"]}},
+        "constraints": {
+            "cap": {
+                "foreach": ["snapshot", "peaker"],
+                "expression": "sum(Generator_p, by=gen) <= 0.5 * availability * p_nom",
+            }
+        },
+    },
+}
 
 
 @pytest.fixture
@@ -116,6 +132,9 @@ def test_add_many_with_per_instance_and_time_varying_parameters(n):
     assert links.loc[
         ["a-charger", "b-charger"], "composite_param_capital_cost"
     ].tolist() == [10, 20]
+    stored = n.c.links.dynamic.composite_param_marginal_cost
+    assert stored.columns.tolist() == ["a-charger", "b-charger"]
+    assert stored["b-charger"].tolist() == cost["b"].tolist()
 
 
 def test_remove_rejects_unknown_instance(n):
@@ -237,3 +256,111 @@ def test_register_python_definition(n):
     assert n.c.links.static.loc["c1-a", "p_nom"] == 10.0
     with pytest.raises(ValueError, match="extra"):
         Coupled(unknown=1)
+
+
+@pytest.fixture
+def availability(n):
+    series = pd.Series(1.0, index=n.snapshots, name="availability")
+    series.iloc[4:7] = 0.0
+    return series
+
+
+def _assert_capped_dispatch(n, instance, availability, cap=50):
+    p = n.c.generators.dynamic.p[f"{instance}-gen"]
+    assert (p[availability == 0] == 0).all()
+    assert p[n.snapshots[[3, 7]]].tolist() == pytest.approx([cap, cap])
+
+
+@pytest.mark.usefixtures("v1_semantics")
+def test_time_varying_parameter_reaches_math(n, availability):
+    peaker = n.composites.register(PEAKER)
+    peaker.add("pk", bus="elec", availability=availability)
+    status, _ = n.optimize()
+    assert status == "ok"
+    _assert_capped_dispatch(n, "pk", availability)
+    frame = peaker._parameters()["availability"]
+    assert isinstance(frame, pd.DataFrame)
+    assert frame.columns.name == "peaker"
+    pd.testing.assert_series_equal(
+        frame["pk"], availability, check_names=False, check_freq=False
+    )
+    assert isinstance(peaker._parameters()["p_nom"], pd.Series)
+
+
+@pytest.mark.usefixtures("v1_semantics")
+@pytest.mark.parametrize("as_frame", [True, False])
+def test_mixed_time_varying_and_scalar_instances(n, availability, as_frame):
+    peaker = n.composites.register(PEAKER)
+    if as_frame:
+        values = pd.DataFrame({"a": availability, "b": 0.5})
+        peaker.add(["a", "b"], bus="elec", availability=values)
+    else:
+        peaker.add("a", bus="elec", availability=availability)
+        peaker.add("b", bus="elec", availability=0.5)
+    frame = peaker._parameters()["availability"]
+    assert frame.columns.tolist() == ["a", "b"]
+    assert frame["a"].tolist() == availability.tolist()
+    assert (frame["b"] == 0.5).all()
+    status, _ = n.optimize()
+    assert status == "ok"
+    _assert_capped_dispatch(n, "a", availability)
+    _assert_capped_dispatch(n, "b", pd.Series(0.5, index=n.snapshots), cap=25)
+
+
+@pytest.mark.usefixtures("v1_semantics")
+@pytest.mark.parametrize("via", ["netcdf", "copy"])
+def test_time_varying_parameter_roundtrip(n, availability, tmp_path, via):
+    peaker = n.composites.register(PEAKER)
+    peaker.add("pk", bus="elec", availability=availability)
+    if via == "netcdf":
+        n.export_to_netcdf(tmp_path / "n.nc")
+        m = pypsa.Network(tmp_path / "n.nc")
+        m.composites.register(PEAKER)
+    else:
+        m = n.copy()
+    n.optimize()
+    m.optimize()
+    np.testing.assert_allclose(
+        m.c.generators.dynamic.p["pk-gen"], n.c.generators.dynamic.p["pk-gen"]
+    )
+
+
+def test_overwrite_replaces_time_varying_with_scalar(n, availability):
+    peaker = n.composites.register(PEAKER)
+    peaker.add("pk", bus="elec", availability=availability)
+    assert "pk-gen" in n.c.generators.dynamic.composite_param_availability
+    peaker.add("pk", bus="elec", availability=0.25, overwrite=True)
+    assert "pk-gen" not in n.c.generators.dynamic.composite_param_availability
+    param = peaker._parameters()["availability"]
+    assert isinstance(param, pd.Series)
+    assert param.tolist() == [0.25]
+
+
+@pytest.mark.usefixtures("v1_semantics")
+def test_fragment_cannot_broadcast_time_varying_parameter(n, availability):
+    definition = {
+        **PEAKER,
+        "math": {
+            **PEAKER["math"],
+            "constraints": {
+                "cap": {
+                    "foreach": ["peaker"],
+                    "expression": "sum(sum(Generator_p, by=gen), over=snapshot) <= availability * p_nom",
+                }
+            },
+        },
+    }
+    peaker = n.composites.register(definition)
+    peaker.add("pk", bus="elec", availability=availability)
+    with pytest.raises(
+        Exception, match="dims \\['snapshot'\\] that are not in foreach"
+    ):
+        n.optimize.create_model()
+
+
+def test_time_varying_parameter_rejects_investment_periods(n, availability):
+    n.investment_periods = [2030]
+    peaker = n.composites.register(PEAKER)
+    peaker.add("pk", bus="elec", availability=availability.set_axis(n.snapshots))
+    with pytest.raises(NotImplementedError, match="investment periods"):
+        peaker._parameters()
