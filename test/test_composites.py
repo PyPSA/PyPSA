@@ -222,3 +222,18 @@ def test_optimize_requires_v1_semantics(n):
             n.optimize.create_model()
     finally:
         linopy.options["semantics"] = previous
+
+
+def test_register_python_definition(n):
+    class Coupled(pypsa.composites.CompositeDefinition):
+        name: str = "coupled"
+        parameters: dict = {"bus": None, "p_nom": 10.0}
+        components: dict = {
+            "Link": {"a": {"bus0": "$bus", "bus1": "$bus", "p_nom": "$p_nom"}}
+        }
+
+    coupled = n.composites.register(Coupled())
+    coupled.add("c1", bus="elec")
+    assert n.c.links.static.loc["c1-a", "p_nom"] == 10.0
+    with pytest.raises(ValueError, match="extra"):
+        Coupled(unknown=1)

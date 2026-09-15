@@ -7,11 +7,11 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pypsa.components import types as component_types
 
@@ -21,9 +21,11 @@ MATH_KEYS = frozenset({"variables", "expressions", "constraints"})
 PARAM_DTYPES = {bool: "bool", int: "float", float: "float", str: "str"}
 
 
-@dataclass(frozen=True)
-class CompositeDefinition:
+class CompositeDefinition(BaseModel):
     """A reusable recipe of fundamental components.
+
+    A pydantic model. Subclass it to define a composite in Python, or build it
+    from a YAML file or dict with ``from_yaml`` and ``from_dict``.
 
     Parameters
     ----------
@@ -43,55 +45,16 @@ class CompositeDefinition:
 
     """
 
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
     name: str
-    parameters: dict[str, Any]
     components: dict[str, dict[str, dict[str, Any]]]
-    math: dict[str, Any] = field(default_factory=dict)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    math: dict[str, Any] = Field(default_factory=dict)
     description: str = ""
 
-    def __post_init__(self) -> None:
-        """Validate references, classes and the math fragment."""
-        self._validate()
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> CompositeDefinition:
-        """Build a definition from a mapping with the YAML layout."""
-        return cls(
-            name=data["name"],
-            parameters=dict(data.get("parameters", {})),
-            components=data["components"],
-            math=dict(data.get("math", {})),
-            description=data.get("description", ""),
-        )
-
-    @classmethod
-    def from_yaml(cls, source: str | Path) -> CompositeDefinition:
-        """Load a definition from a YAML file path or YAML text."""
-        import yaml  # noqa: PLC0415
-
-        text = (
-            source
-            if isinstance(source, str) and "\n" in source
-            else Path(source).read_text()
-        )
-        return cls.from_dict(yaml.safe_load(text))
-
-    @property
-    def members(self) -> dict[str, str]:
-        """Member name mapped to its component class."""
-        return {m: cls for cls, members in self.components.items() for m in members}
-
-    @property
-    def required(self) -> list[str]:
-        """Exposed parameters without a default."""
-        return [k for k, v in self.parameters.items() if v is None]
-
-    @property
-    def bound_class(self) -> str | None:
-        """The one component class whose model variables the math binds."""
-        return _bound_class(self.name, self.math)
-
-    def _validate(self) -> None:
+    @model_validator(mode="after")
+    def _validate(self) -> CompositeDefinition:
         members = self.members
         if len(members) != sum(len(m) for m in self.components.values()):
             msg = (
@@ -132,6 +95,39 @@ class CompositeDefinition:
                 )
                 raise ValueError(msg)
         _bound_class(self.name, self.math)
+        return self
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CompositeDefinition:
+        """Build a definition from a mapping with the YAML layout."""
+        return cls.model_validate(data)
+
+    @classmethod
+    def from_yaml(cls, source: str | Path) -> CompositeDefinition:
+        """Load a definition from a YAML file path or YAML text."""
+        import yaml  # noqa: PLC0415
+
+        text = (
+            source
+            if isinstance(source, str) and "\n" in source
+            else Path(source).read_text()
+        )
+        return cls.from_dict(yaml.safe_load(text))
+
+    @property
+    def members(self) -> dict[str, str]:
+        """Member name mapped to its component class."""
+        return {m: cls for cls, members in self.components.items() for m in members}
+
+    @property
+    def required(self) -> list[str]:
+        """Exposed parameters without a default."""
+        return [k for k, v in self.parameters.items() if v is None]
+
+    @property
+    def bound_class(self) -> str | None:
+        """The one component class whose model variables the math binds."""
+        return _bound_class(self.name, self.math)
 
     def _member_attrs(self) -> list[tuple[str, dict[str, Any]]]:
         return [
