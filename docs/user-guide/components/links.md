@@ -115,3 +115,7 @@ plant).
 
 
 {{ read_csv('../../../pypsa/data/component_attrs/links.csv', disable_numparse=True) }}
+
+!!! note "Time-varying unit commitment costs"
+
+    For committable links, `start_up_cost` and `shut_down_cost` can be provided as time series, allowing costs to vary per snapshot. See the [Unit Commitment](../optimization/unit-commitment.md#start-up-and-shut-down) documentation for details.

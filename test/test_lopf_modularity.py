@@ -97,3 +97,26 @@ def test_modular_committable_with_ramp_limits():
         shutdown = max(0, u_prev - u_cur)
         assert delta <= ru * p_nom_mod * u_prev + 1.0 * p_nom_mod * startup + 1e-6
         assert delta >= -rd * p_nom_mod * u_cur - 1.0 * p_nom_mod * shutdown - 1e-6
+
+
+def test_modular_fixed_committable_dispatch():
+    """Regression test for https://github.com/PyPSA/PyPSA/issues/1899."""
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=150)
+    n.add(
+        "Generator",
+        "modgen",
+        bus="bus",
+        p_nom=300,
+        p_nom_mod=100,
+        committable=True,
+        p_min_pu=0.4,
+        marginal_cost=1,
+    )
+
+    status, _ = n.optimize(solver_name="highs")
+
+    assert status == "ok"
+    assert (n.c.generators.dynamic.p["modgen"] == 150).all()
+    assert "Generator-com-p-lower" not in n.model.constraints

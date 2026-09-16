@@ -17,6 +17,13 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Features
 
 - The cycle basis underlying the Kirchhoff voltage law constraints is now selectable via [`n.cycle_basis_method`][pypsa.Network.cycle_basis_method]. The new default `"bfs-refined"` constructs the basis from breadth-first spanning trees and shortens it through cycle exchanges, yielding sparser KVL constraints than the previous default `"paton"`, which remains available. (<!-- md:pr 1898 -->)
+- Add [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] to scale per-line summer / winter MVA ratings onto `n.lines_t.s_max_pu` based on the snapshot month, leaving `s_nom` unchanged. (<!-- md:pr 1694 -->)
+- `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
+
+### Bug Fixes
+
+- Fix infeasibility for fixed-capacity modular committable components, which were given operating bounds based on both nominal capacity and module size. (<!-- md:pr 1901 -->)
+- Fix [`n.optimize(transmission_losses=True)`][pypsa.optimization.OptimizationAccessor.__call__] failing for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]) when assigning line losses during post-processing. (<!-- md:pr 1892 -->)
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
 
@@ -121,6 +128,13 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly. (<!-- md:pr 1683 -->)
 
 - Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. (<!-- md:pr 1686 -->)
+
+
+### Documentation
+
+- Added an [example notebook](./examples/cfd-ppa-settlement.ipynb) on settling support
+  schemes (two-sided CfDs, one-sided feed-in premiums, cap-and-floor, and virtual /
+  baseload PPAs) as a post-processing step on a solved network. (<!-- md:pr 1727 -->)
 
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }

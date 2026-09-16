@@ -421,6 +421,8 @@ def define_objective(
             continue
 
         cost = c.da[attr + "_cost"].sel(name=com_i)
+        if "snapshot" in cost.dims:
+            cost = cost.sel(snapshot=sns)
 
         if cost.size == 0 or cost.sum().item() == 0:
             continue
@@ -1268,7 +1270,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # line losses
         if "Line-loss" in n.model.variables:
-            losses = n.model["Line-loss"].solution.to_pandas()
+            losses = _from_xarray(n.model["Line-loss"].solution, n.c["Line"])
             n.c.lines.dynamic.p0 += losses / 2
             n.c.lines.dynamic.p1 += losses / 2
 
