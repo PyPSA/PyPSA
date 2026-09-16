@@ -140,7 +140,7 @@ def test_edge_set_to_cycle(edges, is_cycle) -> None:
     """A single simple cycle is recovered; disjoint or open edge sets are rejected."""
     result = _edge_set_to_cycle({frozenset(edge) for edge in edges})
     assert (result is not None) == is_cycle
-    if is_cycle:
+    if result is not None:
         assert len(result) == len({node for edge in edges for node in edge})
 
 
