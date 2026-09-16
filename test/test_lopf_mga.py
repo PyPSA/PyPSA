@@ -132,6 +132,7 @@ def test_mga_in_direction():
         )
 
 
+@pytest.mark.filterwarnings("ignore:numpy.ndarray size changed:RuntimeWarning")
 def test_mga_in_multiple_directions():
     n = pypsa.Network()
     n.add("Bus", "bus")
@@ -213,3 +214,101 @@ def test_generate_directions():
     assert halton_directions.shape == (n_directions, len(keys))
     for _, row in halton_directions.iterrows():
         almost_equal(sum(val**2 for val in row), 1.0)  # Check unit vector normalization
+
+
+@pytest.mark.filterwarnings("ignore:numpy.ndarray size changed:RuntimeWarning")
+def test_mga_caching():
+    """Test MGA per-direction caching functionality."""
+    import tempfile
+    from pathlib import Path
+
+    import pandas as pd
+
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "coal",
+        bus="bus",
+        marginal_cost=20,
+        capital_cost=200,
+        p_nom_extendable=True,
+    )
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        marginal_cost=40,
+        capital_cost=230,
+        p_nom_extendable=True,
+    )
+    n.add("Load", "load", bus="bus", p_set=100)
+    n.optimize()
+
+    # Define dimensions for the MGA
+    dimensions = {
+        "coal_cap": {"Generator": {"p_nom": {"coal": 1}}},
+        "gas_cap": {"Generator": {"p_nom": {"gas": 1}}},
+    }
+
+    # Generate some example directions
+    directions_list = [
+        {"coal_cap": -1, "gas_cap": 1},
+    ]
+
+    with tempfile.TemporaryDirectory() as cache_dir:
+        # First run - should compute and cache
+        successful_directions_1, successful_coordinates_1 = (
+            n.optimize.optimize_mga_in_multiple_directions(
+                directions=directions_list,
+                dimensions=dimensions,
+                cache_dir=cache_dir,
+                max_parallel=1,  # use 1 for reliable testing
+            )
+        )
+
+        assert not successful_directions_1.empty
+        assert not successful_coordinates_1.empty
+        assert "coal_cap" in successful_coordinates_1.columns
+        assert "gas_cap" in successful_coordinates_1.columns
+
+        # Verify cache file created
+        cache_files = list(Path(cache_dir).glob("mga_cache_*.csv"))
+        assert len(cache_files) == 1
+
+        # Verify CSV structure
+        cache_db = pd.read_csv(cache_files[0], index_col="dir_hash")
+        assert "dir_coal_cap" in cache_db.columns
+        assert "dir_gas_cap" in cache_db.columns
+        assert "coord_coal_cap" in cache_db.columns
+        assert "coord_gas_cap" in cache_db.columns
+        assert len(cache_db) == 1
+
+        # Second run - should hit cache
+        successful_directions_2, successful_coordinates_2 = (
+            n.optimize.optimize_mga_in_multiple_directions(
+                directions=directions_list,
+                dimensions=dimensions,
+                cache_dir=cache_dir,
+                max_parallel=1,
+            )
+        )
+
+        # Results should be identical
+        pd.testing.assert_frame_equal(
+            successful_coordinates_1, successful_coordinates_2
+        )
+
+        # Different slack → different cache file
+        successful_directions_3, successful_coordinates_3 = (
+            n.optimize.optimize_mga_in_multiple_directions(
+                directions=directions_list,
+                dimensions=dimensions,
+                cache_dir=cache_dir,
+                slack=0.10,  # Different from default 0.05
+                max_parallel=1,
+            )
+        )
+
+        cache_files_after = list(Path(cache_dir).glob("mga_cache_*.csv"))
+        assert len(cache_files_after) == 2
