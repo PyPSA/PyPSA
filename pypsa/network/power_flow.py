@@ -53,6 +53,8 @@ def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
 
 pd.Series.zsum = zsum
 
+CYCLE_BASIS_METHODS = ("paton", "bfs-refined")
+
 logger = logging.getLogger(__name__)
 
 
@@ -700,16 +702,14 @@ def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
             sub_network.T[branch_i, j] = sign
 
 
-def find_cycles(
-    sub_network: SubNetwork,
-    weight: str = "x_pu",
-    method: str = "bfs-refined",
-) -> None:
+def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     """Find all cycles in the sub_network and record them in sub_network.C.
 
-    networkx collects the cycles with more than 2 edges; then the 2-edge
-    cycles from the MultiGraph must be collected separately (for cases
-    where there are multiple lines between the same pairs of buses).
+    The cycle basis is constructed with the method set on the parent network's
+    [pypsa.Network.cycle_basis_method][], which collects the cycles with more
+    than 2 edges; then the 2-edge cycles from the MultiGraph must be collected
+    separately (for cases where there are multiple lines between the same pairs
+    of buses).
 
     Cycles with infinite impedance are skipped.
 
@@ -719,8 +719,6 @@ def find_cycles(
         Sub-network for which to construct the cycle basis.
     weight : str, default "x_pu"
         Branch attribute used to exclude infinite-impedance branches.
-    method : {"paton", "bfs-refined"}, default "bfs-refined"
-        Cycle-basis construction method.
 
     """
     branches_bus0 = sub_network.branches()["bus0"]
@@ -735,13 +733,10 @@ def find_cycles(
     mgraph = sub_network.graph(weight=weight, inf_weight=False)
     graph = nx.Graph(mgraph)
 
-    if method == "paton":
+    if sub_network.n.cycle_basis_method == "paton":
         cycles = nx.cycle_basis(graph)
-    elif method == "bfs-refined":
-        cycles = bfs_refined_cycle_basis(graph)
     else:
-        msg = "method must be 'paton' or 'bfs-refined'"
-        raise ValueError(msg)
+        cycles = bfs_refined_cycle_basis(graph)
 
     # number of 2-edge cycles
     num_multi = len(mgraph.edges()) - len(graph.edges())

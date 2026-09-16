@@ -48,6 +48,7 @@ from pypsa.network.graph import NetworkGraphMixin
 from pypsa.network.index import NetworkIndexMixin
 from pypsa.network.io import NetworkIOMixin
 from pypsa.network.power_flow import (
+    CYCLE_BASIS_METHODS,
     NetworkPowerFlowMixin,
     SubNetworkPowerFlowMixin,
     find_cycles,
@@ -93,6 +94,7 @@ class Network(
     _linearized_uc: int
     _committable_big_m: float | None
     _optimize_window: SnapshotWindow | None
+    _cycle_basis_method: str
     iteration: int
 
     # ----------------
@@ -166,7 +168,7 @@ class Network(
         self._committable_big_m: float | None = None
         self._optimize_window: SnapshotWindow | None = None
 
-        self.cycle_basis_method: str = "bfs-refined"
+        self._cycle_basis_method: str = "bfs-refined"
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -653,6 +655,35 @@ class Network(
         self._meta = new
 
     @property
+    def cycle_basis_method(self) -> str:
+        """Method used to construct the cycle basis for Kirchhoff voltage constraints.
+
+        <!-- md:badge-version v1.4.0 -->
+
+        Defaults to ``"bfs-refined"`` and also accepts ``"paton"``. The choice
+        determines the sparsity of the cycle-based power flow formulation.
+
+        Examples
+        --------
+        >>> n.cycle_basis_method
+        'bfs-refined'
+
+        >>> n.cycle_basis_method = 'paton'
+        >>> n.cycle_basis_method
+        'paton'
+
+        """
+        return self._cycle_basis_method
+
+    @cycle_basis_method.setter
+    def cycle_basis_method(self, new: str) -> None:
+        """Set the cycle-basis construction method."""
+        if new not in CYCLE_BASIS_METHODS:
+            msg = f"cycle_basis_method must be one of {CYCLE_BASIS_METHODS}"
+            raise ValueError(msg)
+        self._cycle_basis_method = new
+
+    @property
     def model(self) -> linopy.Model:
         """Access to linopy model object.
 
@@ -1024,6 +1055,7 @@ class Network(
             "_linearized_uc",
             "_multi_invest",
             "_committable_big_m",
+            "_cycle_basis_method",
             "_objective",
             "_objective_constant",
             "now",
@@ -1280,9 +1312,8 @@ class Network(
                 # set non active assets to NaN
                 c.static.loc[~active, "sub_network"] = np.nan
 
-        cycle_basis_method = getattr(self, "cycle_basis_method", "bfs-refined")
         for sub in self.c.sub_networks.static.obj:
-            find_cycles(sub, method=cycle_basis_method)
+            find_cycles(sub)
             sub.find_bus_controls()
 
         return self

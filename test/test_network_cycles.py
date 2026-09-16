@@ -2,10 +2,16 @@
 #
 # SPDX-License-Identifier: MIT
 
+import networkx as nx
 import numpy as np
 import pytest
 
 import pypsa
+from pypsa.network.cycle_basis import (
+    _bfs_cycle_basis,
+    _edge_set_to_cycle,
+    bfs_refined_cycle_basis,
+)
 
 
 def _cycle_metrics(cycles_df):
@@ -38,24 +44,104 @@ def test_scigrid_de_cycle_basis_methods(scigrid_de_network, method) -> None:
 
 
 @pytest.mark.parametrize("method", ["bfs", "mcb"])
-def test_cycle_basis_rejects_removed_methods(method) -> None:
-    """Only the documented cycle-basis methods are accepted."""
+def test_cycle_basis_method_rejects_unknown(method) -> None:
+    """The setter rejects unknown cycle-basis methods at assignment time."""
     n = pypsa.Network()
-    for i in range(3):
-        n.add("Bus", f"bus{i}")
-    for i in range(3):
-        n.add(
-            "Line",
-            f"line{i}",
-            bus0=f"bus{i}",
-            bus1=f"bus{(i + 1) % 3}",
-            x=0.1,
-        )
+    with pytest.raises(ValueError, match="cycle_basis_method must be one of"):
+        n.cycle_basis_method = method
 
-    n.cycle_basis_method = method
 
-    with pytest.raises(ValueError, match="method must be 'paton' or 'bfs-refined'"):
-        n.cycle_matrix()
+def test_cycle_basis_method_survives_copy() -> None:
+    """The cycle-basis method is preserved through the snapshot-subset copy path."""
+    n = pypsa.Network()
+    n.set_snapshots(range(3))
+    n.cycle_basis_method = "paton"
+    assert n.copy(snapshots=[0, 1]).cycle_basis_method == "paton"
+
+
+def _gf2_rank(masks) -> int:
+    """Rank over GF(2) of edge-membership bitmasks."""
+    pivots: dict[int, int] = {}
+    rank = 0
+    for mask in masks:
+        while mask:
+            bit = mask.bit_length() - 1
+            if bit in pivots:
+                mask ^= pivots[bit]
+            else:
+                pivots[bit] = mask
+                rank += 1
+                break
+    return rank
+
+
+def _assert_valid_basis(graph: nx.Graph, basis: list[list]) -> None:
+    """Assert ``basis`` is a set of independent simple cycles spanning the cycle space."""
+    edge_index = {frozenset(edge): i for i, edge in enumerate(graph.edges())}
+    dimension = (
+        graph.number_of_edges()
+        - graph.number_of_nodes()
+        + nx.number_connected_components(graph)
+    )
+    assert len(basis) == dimension
+    masks = []
+    for cycle in basis:
+        assert len(set(cycle)) == len(cycle)  # simple cycle: distinct nodes
+        mask = 0
+        for i in range(len(cycle)):
+            edge = frozenset((cycle[i], cycle[(i + 1) % len(cycle)]))
+            assert edge in edge_index  # edge exists in the graph
+            mask |= 1 << edge_index[edge]
+        assert bin(mask).count("1") == len(cycle)  # no repeated edges
+        masks.append(mask)
+    assert _gf2_rank(masks) == dimension  # independent and spanning
+
+
+_CYCLE_TEST_GRAPHS = {
+    "triangle": nx.cycle_graph(3),
+    "grid": nx.grid_2d_graph(4, 4),
+    "complete": nx.complete_graph(6),
+    "petersen": nx.petersen_graph(),
+    "disconnected": nx.disjoint_union(nx.cycle_graph(4), nx.complete_graph(4)),
+}
+
+
+@pytest.mark.parametrize(
+    "graph", _CYCLE_TEST_GRAPHS.values(), ids=_CYCLE_TEST_GRAPHS.keys()
+)
+@pytest.mark.parametrize("basis_fn", [_bfs_cycle_basis, bfs_refined_cycle_basis])
+def test_cycle_basis_functions_valid(graph, basis_fn) -> None:
+    """Cycle-basis functions return independent simple cycles spanning the cycle space."""
+    _assert_valid_basis(graph, basis_fn(graph))
+
+
+def test_bfs_refinement_shortens_basis() -> None:
+    """Refinement keeps each basis no longer, is deterministic, and shortens some."""
+    improved = False
+    for graph in _CYCLE_TEST_GRAPHS.values():
+        coarse = sum(map(len, _bfs_cycle_basis(graph)))
+        refined = bfs_refined_cycle_basis(graph)
+        assert sum(map(len, refined)) <= coarse
+        assert bfs_refined_cycle_basis(graph) == refined  # deterministic
+        improved |= sum(map(len, refined)) < coarse
+    assert improved  # refinement is not a no-op
+
+
+@pytest.mark.parametrize(
+    ("edges", "is_cycle"),
+    [
+        ([(0, 1), (1, 2), (2, 0)], True),  # triangle
+        ([(0, 1), (1, 2), (2, 3), (3, 0)], True),  # square
+        ([(0, 1), (1, 2), (2, 0), (3, 4), (4, 5), (5, 3)], False),  # two cycles
+        ([(0, 1), (1, 2)], False),  # open path
+    ],
+)
+def test_edge_set_to_cycle(edges, is_cycle) -> None:
+    """A single simple cycle is recovered; disjoint or open edge sets are rejected."""
+    result = _edge_set_to_cycle({frozenset(edge) for edge in edges})
+    assert (result is not None) == is_cycle
+    if is_cycle:
+        assert len(result) == len({node for edge in edges for node in edge})
 
 
 def test_simple_cycle() -> None:

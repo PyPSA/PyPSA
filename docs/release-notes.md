@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -14,7 +13,10 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Features
+
+- The cycle basis underlying the Kirchhoff voltage law constraints is now selectable via [`n.cycle_basis_method`][pypsa.Network.cycle_basis_method]. The new default `"bfs-refined"` constructs the basis from breadth-first spanning trees and shortens it through cycle exchanges, yielding sparser KVL constraints than the previous default `"paton"`, which remains available. (<!-- md:pr 1898 -->)
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
 

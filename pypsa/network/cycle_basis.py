@@ -16,7 +16,19 @@ if TYPE_CHECKING:
 
 
 def _bfs_fundamental_cycles(graph: nx.Graph, root: Hashable) -> list[list[Hashable]]:
-    """Return the fundamental cycles of a breadth-first spanning tree."""
+    """Return the fundamental cycles of a breadth-first spanning tree.
+
+    A breadth-first spanning tree connects every node to ``root`` by a
+    shortest-hop path; each remaining non-tree edge then closes exactly one
+    fundamental cycle with the tree path between its endpoints [1].
+
+    References
+    ----------
+    [1] N. Deo, G. M. Prabhu, M. S. Krishnamoorthy (1982), Algorithms for
+    Generating Fundamental Cycles in a Graph, ACM Transactions on Mathematical
+    Software 8 (1), 26-42, https://doi.org/10.1145/355984.355988
+
+    """
     tree = nx.bfs_tree(graph, root)
     parent = {root: root} | {child: parent_node for parent_node, child in tree.edges()}
     tree_edges = {frozenset(edge) for edge in tree.edges()}
@@ -42,8 +54,20 @@ def _bfs_fundamental_cycles(graph: nx.Graph, root: Hashable) -> list[list[Hashab
     return cycles
 
 
-def bfs_cycle_basis(graph: nx.Graph, num_roots: int = 5) -> list[list[Hashable]]:
-    """Choose the best of several high-degree-root BFS fundamental bases."""
+def _bfs_cycle_basis(graph: nx.Graph, num_roots: int = 5) -> list[list[Hashable]]:
+    """Choose the best of several high-degree-root BFS fundamental bases.
+
+    Each candidate is the fundamental cycle basis of a breadth-first spanning
+    tree [1] grown from a different high-degree root; the basis with the shortest
+    cycles is kept as a heuristic to reduce the total basis size.
+
+    References
+    ----------
+    [1] N. Deo, G. M. Prabhu, M. S. Krishnamoorthy (1982), Algorithms for
+    Generating Fundamental Cycles in a Graph, ACM Transactions on Mathematical
+    Software 8 (1), 26-42, https://doi.org/10.1145/355984.355988
+
+    """
     cycles: list[list[Hashable]] = []
     for component in nx.connected_components(graph):
         subgraph = graph.subgraph(component)
@@ -90,8 +114,21 @@ def _edge_set_to_cycle(edges: set[frozenset[Hashable]]) -> list[Hashable] | None
 def bfs_refined_cycle_basis(
     graph: nx.Graph, max_passes: int = 50
 ) -> list[list[Hashable]]:
-    """Locally shorten a BFS basis by independent pairwise XOR exchanges."""
-    cycles = bfs_cycle_basis(graph)
+    """Shorten a BFS cycle basis by greedy pairwise XOR exchanges.
+
+    Replacing a basis cycle by its XOR (symmetric difference) with another is an
+    elementary operation in the GF(2) cycle space, so the basis stays valid;
+    each pass greedily applies exchanges that yield a shorter simple cycle. This
+    is a heuristic without a minimality guarantee; see Kavitha et al. (2009) [1].
+
+    References
+    ----------
+    [1] T. Kavitha, C. Liebchen, K. Mehlhorn, et al. (2009), Cycle bases in
+    graphs: characterization, algorithms, complexity, and applications, Computer
+    Science Review 3 (4), 199-243, https://doi.org/10.1016/j.cosrev.2009.08.001
+
+    """
+    cycles = _bfs_cycle_basis(graph)
     edge_sets = [
         {frozenset((cycle[i], cycle[(i + 1) % len(cycle)])) for i in range(len(cycle))}
         for cycle in cycles
