@@ -51,10 +51,12 @@ def no_warnings():
 
 
 @pytest.fixture(autouse=True)
-def _set_test_options():
+def _set_test_options(request):
     """Ensure test-specific options are set before each test."""
     pypsa.options.debug.runtime_verification = True
     pypsa.options.params.optimize.include_objective_constant = True
+    if request.config.getoption("--scaling"):
+        pypsa.options.params.optimize.scaling = True
     return
 
 
@@ -73,6 +75,12 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Activate the new components API (options.api.new_components_api)",
+    )
+    parser.addoption(
+        "--scaling",
+        action="store_true",
+        default=False,
+        help="Enable optimization scaling by default (options.params.optimize.scaling)",
     )
     parser.addoption(
         "--test-docs",
@@ -98,6 +106,8 @@ def pytest_configure(config):
     """Configure pytest session with custom options."""
     if config.getoption("--new-components-api"):
         pypsa.options.api.new_components_api = True
+    if config.getoption("--scaling"):
+        pypsa.options.params.optimize.scaling = True
     _configure_linopy_semantics(config)
 
 
@@ -128,7 +138,7 @@ def _configure_linopy_semantics(config):
 
 
 def pytest_collection_modifyitems(config, items):
-    """Skip image comparison tests unless --run-plot-tests is given."""
+    """Skip image comparison tests unless requested."""
     if config.getoption("--run-plot-tests"):
         return
     skip = pytest.mark.skip(

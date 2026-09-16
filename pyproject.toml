@@ -106,6 +106,10 @@ docs = [
     "cartopy>=0.16",
 ]
 
+# scaling needs linopy#817, unreleased. Drop once linopy > 0.9.1 ships
+[tool.uv.sources]
+linopy = { git = "https://github.com/PyPSA/linopy", branch = "master" }
+
 # setuptools_scm settings
 
 [tool.setuptools_scm]
