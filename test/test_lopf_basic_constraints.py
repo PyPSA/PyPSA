@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -545,3 +546,148 @@ def test_515():
     n.optimize()
 
     assert n.objective == 10
+
+
+def meshed_triangle_network(mc0=10, mc2=20, load_bus="b1"):
+    n = pypsa.Network()
+    n.set_snapshots(["now"])
+    for b in ["b0", "b1", "b2"]:
+        n.add("Bus", b, v_nom=380.0)
+    n.add("Line", "l01", bus0="b0", bus1="b1", x=0.5, r=0.01, s_nom=2000)
+    n.add("Line", "l12", bus0="b1", bus1="b2", x=1.0, r=0.02, s_nom=2000)
+    n.add("Line", "l02", bus0="b0", bus1="b2", x=2.0, r=0.05, s_nom=2000)
+    n.add("Generator", "g0", bus="b0", p_nom=1000, marginal_cost=mc0)
+    n.add("Generator", "g2", bus="b2", p_nom=1000, marginal_cost=mc2)
+    n.add("Load", "load", bus=load_bus, p_set=800)
+    return n
+
+
+def angle_difference_from_lpf(n, line):
+    n.generators_t.p_set = n.generators_t.p.copy()
+    n.c.generators.static["control"] = "PV"
+    n.c.generators.static.loc["g0", "control"] = "Slack"
+    n.lpf()
+    b0, b1 = n.c.lines.static.loc[line, ["bus0", "bus1"]]
+    v_ang = n.buses_t.v_ang.loc["now"]
+    return v_ang[b0] - v_ang[b1]
+
+
+@pytest.mark.parametrize(
+    ("cap_deg", "sign", "kwargs"),
+    [
+        (0.1, 1, {}),
+        (0.05, -1, {"mc0": 20, "mc2": 10, "load_bus": "b0"}),
+    ],
+)
+def test_line_voltage_angle_limit(cap_deg, sign, kwargs):
+    n = meshed_triangle_network(**kwargs)
+    n.optimize()
+    n.calculate_dependent_values()
+    unconstrained = n.c.lines.static.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+
+    cap_rad = sign * np.deg2rad(cap_deg)
+    assert sign * unconstrained > sign * cap_rad
+
+    n = meshed_triangle_network(**kwargs)
+    n.c.lines.static.loc["l01", "v_ang_max"] = cap_deg
+    n.optimize()
+    n.calculate_dependent_values()
+
+    angle = n.c.lines.static.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+    assert sign * angle <= sign * cap_rad + 1e-9
+
+    lpf_diff = angle_difference_from_lpf(n, "l01")
+    assert np.isclose(lpf_diff, cap_rad, atol=1e-6)
+
+
+def test_line_voltage_angle_constraint_names():
+    n = meshed_triangle_network()
+    n.c.lines.static.loc["l01", "v_ang_max"] = 0.1
+    n.c.lines.static.loc["l12", "v_ang_min"] = -0.1
+    with pytest.warns(DeprecationWarning, match="v_ang_min"):
+        n.optimize()
+    upper = n.model.constraints["Line-v_ang-upper"]
+    lower = n.model.constraints["Line-v_ang-lower"]
+    assert list(upper.coords["name"].values) == ["l01"]
+    assert list(lower.coords["name"].values) == ["l01"]
+    assert np.isclose(lower.rhs, -upper.rhs).all()
+
+
+def meshed_transformer_network(phase_shift=0.0, ps_min=0.0, ps_max=0.0):
+    n = pypsa.Network()
+    n.set_snapshots(["now"])
+    for b in ["b0", "b1", "b2"]:
+        n.add("Bus", b, v_nom=380.0)
+    n.add("Line", "l01", bus0="b0", bus1="b1", x=0.5, r=0.01, s_nom=2000)
+    n.add("Line", "l12", bus0="b1", bus1="b2", x=1.0, r=0.02, s_nom=2000)
+    n.add(
+        "Transformer",
+        "t02",
+        bus0="b0",
+        bus1="b2",
+        x=2.0,
+        r=0.05,
+        s_nom=2000,
+        phase_shift=phase_shift,
+        phase_shift_min=ps_min,
+        phase_shift_max=ps_max,
+    )
+    n.add("Generator", "g0", bus="b0", p_nom=1000, marginal_cost=5)
+    n.add("Generator", "g2", bus="b2", p_nom=1000, marginal_cost=10)
+    n.add("Load", "load", bus="b2", p_set=800)
+    return n
+
+
+@pytest.mark.parametrize("phase_shift", [0.0, 0.15, -0.15])
+def test_transformer_voltage_angle_limit(phase_shift):
+    cap_deg = 0.3
+    n = meshed_transformer_network(phase_shift=phase_shift)
+    n.optimize()
+    n.calculate_dependent_values()
+    unconstrained = n.c.transformers.static.x_pu_eff["t02"] * n.transformers_t.p0.loc[
+        "now", "t02"
+    ] + np.deg2rad(phase_shift)
+    assert abs(unconstrained) > np.deg2rad(cap_deg)
+
+    n = meshed_transformer_network(phase_shift=phase_shift)
+    n.c.transformers.static.loc["t02", "v_ang_max"] = cap_deg
+    n.optimize()
+    n.calculate_dependent_values()
+    angle = n.c.transformers.static.x_pu_eff["t02"] * n.transformers_t.p0.loc[
+        "now", "t02"
+    ] + np.deg2rad(phase_shift)
+    assert abs(angle) <= np.deg2rad(cap_deg) + 1e-9
+
+    n.generators_t.p_set = n.generators_t.p.copy()
+    n.c.generators.static["control"] = "PV"
+    n.c.generators.static.loc["g0", "control"] = "Slack"
+    n.lpf()
+    lpf_diff = n.buses_t.v_ang.loc["now", "b0"] - n.buses_t.v_ang.loc["now", "b2"]
+    assert np.isclose(abs(lpf_diff), np.deg2rad(cap_deg), atol=1e-6)
+
+
+def test_transformer_voltage_angle_variable_phase_shift():
+    n = meshed_transformer_network(ps_min=-5.0, ps_max=5.0)
+    n.c.transformers.static.loc["t02", "v_ang_max"] = 0.3
+    n.optimize()
+    upper = n.model.constraints["Transformer-v_ang-var-upper"]
+    lower = n.model.constraints["Transformer-v_ang-var-lower"]
+    assert list(upper.coords["name"].values) == ["t02"]
+    assert np.isclose(lower.rhs, -upper.rhs).all()
+
+
+def test_line_voltage_angle_no_bound():
+    n = meshed_triangle_network()
+    n.optimize()
+    assert "Line-v_ang-upper" not in n.model.constraints
+    assert "Line-v_ang-lower" not in n.model.constraints
+
+    n.calculate_dependent_values()
+    unconstrained = n.c.lines.static.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+
+    n2 = meshed_triangle_network()
+    n2.c.lines.static.loc["l01", "v_ang_max"] = 10.0
+    n2.optimize()
+    n2.calculate_dependent_values()
+    slack = n2.c.lines.static.x_pu_eff["l01"] * n2.lines_t.p0.loc["now", "l01"]
+    assert np.isclose(unconstrained, slack)

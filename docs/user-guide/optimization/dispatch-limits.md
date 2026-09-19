@@ -79,6 +79,21 @@ Generators, links and processes can also have volume limits, i.e. the total disp
 
 These constraints are set in the function `define_total_supply_constraints()`.
 
+## Voltage Angle Limits
+
+AC lines and transformers can limit the magnitude of their linearised voltage angle difference to $\bar{\theta}$ (attribute `v_ang_max` in degrees). The limit applies symmetrically to both flow directions; the attribute `v_ang_min` is deprecated and ignored. The limit is imposed as a bound on the flow by dividing through the strictly positive $x^\text{pu,eff}$, and is only added for branches with a finite `v_ang_max`. Unlike a manual conversion into `s_max_pu`, this formulation contains no $s^\text{nom}$ and therefore stays linear for extendable branches, although the reactance is a fixed parameter in the optimisation (see [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively]).
+
+For a line the angle difference is $\theta_{l,t} = x^\text{pu,eff}_l \, p_{l,t}$. For a transformer it additionally includes the phase shift $\phi_{t,t}$ (either the fixed `phase_shift` or, when `phase_shift_min < phase_shift_max`, the optimised phase-shift variable), so $\theta_{t,t} = x^\text{pu,eff}_t \, p_{t,t} + \phi_{t,t}$.
+
+| Constraint | Name |
+|-------------------|------------------|
+| $p_{l,t} \geq -\bar{\theta}_l / x^\text{pu,eff}_l$ | `Line-v_ang-lower` |
+| $p_{l,t} \leq \bar{\theta}_l / x^\text{pu,eff}_l$ | `Line-v_ang-upper` |
+| $p_{t,t} + \phi_{t,t} / x^\text{pu,eff}_t \geq -\bar{\theta}_t / x^\text{pu,eff}_t$ | `Transformer-v_ang-lower` |
+| $p_{t,t} + \phi_{t,t} / x^\text{pu,eff}_t \leq \bar{\theta}_t / x^\text{pu,eff}_t$ | `Transformer-v_ang-upper` |
+
+These constraints are set in the function `define_voltage_angle_constraints()`. For background on voltage angle difference limits, see the [MATPOWER manual](https://matpower.org/docs/MATPOWER-manual.pdf), pages 76-77.
+
 
 !!! note "Mapping of symbols to attributes"
 

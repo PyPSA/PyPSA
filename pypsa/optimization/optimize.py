@@ -50,6 +50,7 @@ from pypsa.optimization.constraints import (
     define_store_constraints,
     define_tangent_loss_constraints,
     define_total_supply_constraints,
+    define_voltage_angle_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
 from pypsa.optimization.global_constraints import (
@@ -889,6 +890,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             prev = t
 
         define_kirchhoff_voltage_constraints(n, sns, cycle_basis_method)
+        define_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
         define_total_supply_constraints(n, sns)
