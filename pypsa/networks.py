@@ -48,7 +48,6 @@ from pypsa.network.graph import NetworkGraphMixin
 from pypsa.network.index import NetworkIndexMixin
 from pypsa.network.io import NetworkIOMixin
 from pypsa.network.power_flow import (
-    CYCLE_BASIS_METHODS,
     NetworkPowerFlowMixin,
     SubNetworkPowerFlowMixin,
     find_cycles,
@@ -94,7 +93,6 @@ class Network(
     _linearized_uc: int
     _committable_big_m: float | None
     _optimize_window: SnapshotWindow | None
-    _cycle_basis_method: str
     iteration: int
 
     # ----------------
@@ -167,8 +165,6 @@ class Network(
         self._multi_invest: int = 0
         self._committable_big_m: float | None = None
         self._optimize_window: SnapshotWindow | None = None
-
-        self._cycle_basis_method: str = "bfs-refined"
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -655,35 +651,6 @@ class Network(
         self._meta = new
 
     @property
-    def cycle_basis_method(self) -> str:
-        """Method used to construct the cycle basis for Kirchhoff voltage constraints.
-
-        <!-- md:badge-version v1.4.0 -->
-
-        Defaults to ``"bfs-refined"`` and also accepts ``"paton"``. The choice
-        determines the sparsity of the cycle-based power flow formulation.
-
-        Examples
-        --------
-        >>> n.cycle_basis_method
-        'bfs-refined'
-
-        >>> n.cycle_basis_method = 'paton'
-        >>> n.cycle_basis_method
-        'paton'
-
-        """
-        return self._cycle_basis_method
-
-    @cycle_basis_method.setter
-    def cycle_basis_method(self, new: str) -> None:
-        """Set the cycle-basis construction method."""
-        if new not in CYCLE_BASIS_METHODS:
-            msg = f"cycle_basis_method must be one of {CYCLE_BASIS_METHODS}"
-            raise ValueError(msg)
-        self._cycle_basis_method = new
-
-    @property
     def model(self) -> linopy.Model:
         """Access to linopy model object.
 
@@ -1055,7 +1022,6 @@ class Network(
             "_linearized_uc",
             "_multi_invest",
             "_committable_big_m",
-            "_cycle_basis_method",
             "_objective",
             "_objective_constant",
             "now",
@@ -1221,6 +1187,7 @@ class Network(
         self,
         investment_period: int | str | None = None,
         skip_isolated_buses: bool = False,
+        cycle_basis_method: str = "bfs-refined",
     ) -> Network:
         """Build sub_networks from topology.
 
@@ -1231,6 +1198,17 @@ class Network(
         build_year and lifetime). If the investment_period is specified,
         the network topology is determined on the basis of the active
         branches.
+
+        Parameters
+        ----------
+        investment_period : int or str, optional
+            Investment period to consider when determining active branches.
+        skip_isolated_buses : bool, default False
+            Whether to skip sub-networks consisting of a single bus.
+        cycle_basis_method : str, default "bfs-refined"
+            Method used to construct the cycle basis of each sub-network, either
+            ``"bfs-refined"`` or ``"paton"``.
+
         """
         adjacency_matrix = self.adjacency_matrix(
             branch_components=self.passive_branch_components,
@@ -1313,13 +1291,16 @@ class Network(
                 c.static.loc[~active, "sub_network"] = np.nan
 
         for sub in self.c.sub_networks.static.obj:
-            find_cycles(sub)
+            find_cycles(sub, cycle_basis_method=cycle_basis_method)
             sub.find_bus_controls()
 
         return self
 
     def cycle_matrix(
-        self, investment_period: str | int | None = None, apply_weights: bool = False
+        self,
+        investment_period: str | int | None = None,
+        apply_weights: bool = False,
+        cycle_basis_method: str = "bfs-refined",
     ) -> pd.DataFrame:
         """Get the cycles in the network and represent them as a DataFrame.
 
@@ -1342,11 +1323,9 @@ class Network(
         apply_weights : bool, default False
             Whether to apply weights (e.g., reactance for AC lines,
             resistance for DC lines) to the cycles.
-
-        Notes
-        -----
-        ``n.cycle_basis_method`` defaults to ``"bfs-refined"`` and accepts
-        ``"paton"``.
+        cycle_basis_method : str, default "bfs-refined"
+            Method used to construct the cycle basis, either ``"bfs-refined"``
+            or ``"paton"``. The default ``"bfs-refined"`` yields sparser cycles.
 
         Returns
         -------
@@ -1357,7 +1336,9 @@ class Network(
 
         """
         self.determine_network_topology(
-            investment_period=investment_period, skip_isolated_buses=True
+            investment_period=investment_period,
+            skip_isolated_buses=True,
+            cycle_basis_method=cycle_basis_method,
         )
         self.calculate_dependent_values()
 

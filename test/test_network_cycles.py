@@ -27,8 +27,7 @@ def _cycle_metrics(cycles_df):
 @pytest.mark.parametrize("method", ["paton", "bfs-refined"])
 def test_scigrid_de_cycle_basis_methods(scigrid_de_network, method) -> None:
     """Both cycle-basis methods yield a complete SciGRID-DE cycle basis."""
-    scigrid_de_network.cycle_basis_method = method
-    cycles_df = scigrid_de_network.cycle_matrix()
+    cycles_df = scigrid_de_network.cycle_matrix(cycle_basis_method=method)
     metrics = _cycle_metrics(cycles_df)
 
     expected_rank = (
@@ -45,18 +44,14 @@ def test_scigrid_de_cycle_basis_methods(scigrid_de_network, method) -> None:
 
 @pytest.mark.parametrize("method", ["bfs", "mcb"])
 def test_cycle_basis_method_rejects_unknown(method) -> None:
-    """The setter rejects unknown cycle-basis methods at assignment time."""
+    """An unknown cycle-basis method is rejected when the basis is built."""
     n = pypsa.Network()
+    for i in range(3):
+        n.add("Bus", f"bus{i}", v_nom=220)
+    for i in range(3):
+        n.add("Line", f"line{i}", bus0=f"bus{i}", bus1=f"bus{(i + 1) % 3}", x=0.1)
     with pytest.raises(ValueError, match="cycle_basis_method must be one of"):
-        n.cycle_basis_method = method
-
-
-def test_cycle_basis_method_survives_copy() -> None:
-    """The cycle-basis method is preserved through the snapshot-subset copy path."""
-    n = pypsa.Network()
-    n.set_snapshots(range(3))
-    n.cycle_basis_method = "paton"
-    assert n.copy(snapshots=[0, 1]).cycle_basis_method == "paton"
+        n.cycle_matrix(cycle_basis_method=method)
 
 
 def _gf2_rank(masks) -> int:
@@ -148,7 +143,6 @@ def test_simple_cycle() -> None:
     """Test the cycles function in a simple network with a known cycle."""
     # Create a test network with a cycle
     n = pypsa.Network()
-    assert n.cycle_basis_method == "bfs-refined"
 
     # Add buses
     for i in range(3):

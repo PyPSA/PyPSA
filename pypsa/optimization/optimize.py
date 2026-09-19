@@ -548,6 +548,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
+        cycle_basis_method: str = "bfs-refined",
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -620,6 +621,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
             Each operator is interpreted as ``y operator f(x)``.
+        cycle_basis_method : str, default "bfs-refined"
+            Method used to construct the cycle basis for the Kirchhoff voltage
+            law constraints, either ``"bfs-refined"`` or ``"paton"``. The
+            default ``"bfs-refined"`` yields sparser constraints.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -666,6 +671,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             committable_big_m=committable_big_m,
             meshed_thresholds=meshed_thresholds,
             piecewise_options=piecewise_options,
+            cycle_basis_method=cycle_basis_method,
             **model_kwargs,
         )
         if extra_functionality:
@@ -704,6 +710,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
+        cycle_basis_method: str = "bfs-refined",
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -749,6 +756,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
             Each operator is interpreted as ``y operator f(x)``.
+        cycle_basis_method : str, default "bfs-refined"
+            Method used to construct the cycle basis for the Kirchhoff voltage
+            law constraints, either ``"bfs-refined"`` or ``"paton"``. The
+            default ``"bfs-refined"`` yields sparser constraints.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -877,7 +888,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 )
             prev = t
 
-        define_kirchhoff_voltage_constraints(n, sns)
+        define_kirchhoff_voltage_constraints(n, sns, cycle_basis_method)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
         define_total_supply_constraints(n, sns)

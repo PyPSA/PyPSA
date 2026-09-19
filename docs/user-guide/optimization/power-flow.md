@@ -35,7 +35,8 @@ commonly found in textbooks (B-Theta) or the formulation based on Power Transfer
 Distribution Factors (PTDFs).
 
 By default, PyPSA constructs the cycle basis from breadth-first spanning trees by Deo et
-al. (1982)[^2] and refines it through cycle exchanges to shorten the cycles.
+al. (1982)[^2] and refines it through cycle exchanges to shorten the cycles
+(`n.optimize(cycle_basis_method="bfs-refined")`).
 
 These constraints are set in the function `define_kirchhoff_voltage_constraints()` and carry the name `Kirchhoff-Voltage-Law`.
 

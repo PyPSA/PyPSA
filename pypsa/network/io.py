@@ -1384,7 +1384,6 @@ class NetworkIOMixin(_NetworkABC):
             "iterate_components",
             "_name",
             "_pypsa_version",
-            "_cycle_basis_method",
         }
 
         _attrs = {}
