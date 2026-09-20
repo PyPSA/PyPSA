@@ -1249,12 +1249,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
                 c.static.loc[suffix, "mu"] = constraint.dual
 
-            # Per-asset duals are assigned as "mu_<spec>" if the component has
-            # a placeholder, e.g. "StorageUnit-fix-cycles_max" -> "mu_cycles_max"
-            elif (dual_attr_name := f"mu_{suffix.rsplit('-', 1)[-1]}") in c.static:
-                dual = _from_xarray(constraint.dual, c)
-                c.static.loc[dual.index, dual_attr_name] = dual.to_numpy()
-
         if unassigned_constraints:
             logger.info(
                 "The shadow-prices of the constraints %s were not assigned to the network.",

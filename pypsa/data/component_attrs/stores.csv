@@ -41,7 +41,6 @@ throughput,series,MWh,0,Cumulative energy throughput of the energy level as calc
 e_nom_opt,float,MWh,0,Optimised nominal energy capacity outputed by optimisation.,Output
 mu_upper,series,currency/MWh,n/a,Shadow price of upper `e_nom` limit,Output
 mu_lower,series,currency/MWh,n/a,Shadow price of lower `e_nom` limit,Output
-mu_cycles_max,float,currency/MWh,n/a,Shadow price of the cycle budget `cycles_max`.,Output
 mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations (i.e. water values),Output
 capital_cost_piecewise_opt,float,currency/MWh,0.,Optimised capital cost when using piecewise linearisation.,Output
 marginal_cost_piecewise_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output

@@ -282,7 +282,6 @@ def test_capacity_fade_attributes_default_off(component):
     assert "Store-p_dispatch" not in n.model.variables
     assert not [name for name in n.model.constraints if any(s in name for s in new)]
     assert c.dynamic.throughput.empty
-    assert np.isnan(c.static.mu_cycles_max["battery"])
     if component == "Store":
         assert c.dynamic.p_dispatch.empty
 
@@ -446,16 +445,6 @@ def test_cycle_budget_with_capacity_fade(component):
 
 
 @pytest.mark.parametrize("component", COMPONENTS)
-def test_mu_cycles_max_is_assigned(component):
-    """The shadow price of a binding cycle budget lands in `mu_cycles_max`."""
-    n = _fade_network(component, cycles_max=1.0)
-    n.optimize()
-    mu = n.components[component].static.mu_cycles_max["battery"]
-    assert np.isfinite(mu)
-    assert abs(mu) > 1e-6
-
-
-@pytest.mark.parametrize("component", COMPONENTS)
 @pytest.mark.parametrize("scenarios", [False, True])
 def test_set_cycle_life_uses_stores_weighting(component, scenarios):
     """The budget scales with the `stores` weighting, not with `nyears`."""
@@ -520,4 +509,3 @@ def test_fade_and_budget_mix_fixed_and_extendable(component, scenarios):
     assert np.allclose(cycles, 1.0, atol=1e-6)
     q = c.dynamic.throughput
     assert (c.dynamic[_level_attr(component)] <= 40.0 - 0.01 * q + 1e-6).all().all()
-    assert np.isfinite(c.static.mu_cycles_max).all()

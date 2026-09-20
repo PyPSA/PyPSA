@@ -51,7 +51,6 @@ throughput,series,MWh,0,Cumulative energy throughput of the state of charge as c
 p_nom_opt,float,MW,0,Optimised nominal power.,Output
 mu_upper,series,currency/MWh,n/a,Shadow price of upper p_nom limit,Output
 mu_lower,series,currency/MWh,n/a,Shadow price of lower p_nom limit,Output
-mu_cycles_max,float,currency/MWh,n/a,Shadow price of the cycle budget `cycles_max`.,Output
 mu_state_of_charge_set,series,currency/MWh,n/a,Shadow price of fixed state of charge state_of_charge_set,Output
 mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations,Output
 capital_cost_piecewise_opt,float,currency/MW,0.,Optimised capital cost when using piecewise linearisation.,Output
