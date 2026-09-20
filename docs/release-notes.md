@@ -22,6 +22,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix the replacements named by three deprecation warnings. `sub_network.stores_i()` pointed at `sub_network.components.stores.index.static`, which raises an `AttributeError`; `sub_network.stores()` and the `aggregate_across_components` warning named replacements containing documentation markup instead of the object path. (<!-- md:pr 1922 -->)
 - Fix [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] using the unavailable `s_nom_opt` instead of `s_nom` as the reference capacity in the first iteration. On a fresh network this divided the line reactances by zero and set them to zero. (<!-- md:pr 1910 -->)
 - Fix infeasibility for fixed-capacity modular committable components, which were given operating bounds based on both nominal capacity and module size. (<!-- md:pr 1901 -->)
 - Fix [`n.optimize(transmission_losses=True)`][pypsa.optimization.OptimizationAccessor.__call__] failing for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]) when assigning line losses during post-processing. (<!-- md:pr 1892 -->)
