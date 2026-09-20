@@ -1887,12 +1887,12 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     @deprecated(
         deprecated_in="1.0.0",
         removed_in="2.0.0",
-        details="Use `sub_network.components.stores.index.static` instead.",
+        details="Use `sub_network.components.stores.static.index` instead.",
     )
     def stores_i(self) -> pd.Index:
         """Get the index of the stores in the sub-network.
 
-        !!! warning "Deprecated in <!-- md:badge-version
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
 
             Use `sub_network.components.stores.static.index` instead.
 
@@ -2001,7 +2001,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     @deprecated(
         deprecated_in="1.0.0",
         removed_in="2.0.0",
-        details="Use `!!! deprecated.components.stores.static` instead.",
+        details="Use `sub_network.components.stores.static` instead.",
     )
     def stores(self) -> pd.DataFrame:
         """Get the stores in the sub-network.
