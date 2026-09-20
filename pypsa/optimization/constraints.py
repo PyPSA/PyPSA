@@ -2358,15 +2358,14 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 def define_store_p_dispatch_constraints(n: Network, sns: pd.Index) -> None:
     """Define constraints linking the auxiliary dispatch of stores to their power.
 
-    For each store with a capacity fade or a cycle budget and each snapshot,
-    the constraint enforces:
+    Creates constraints for stores with a capacity fade or a cycle budget. For
+    each store and snapshot, the constraint enforces:
 
     p_dispatch(t) ≥ p(t)
 
-    Together with the lower bound of zero on p_dispatch this gives
-    p_dispatch ≥ max(p, 0), so that 2 * p_dispatch - p ≥ |p| with equality
-    wherever the capacity fade or the cycle budget binds, since a larger
-    auxiliary only tightens them.
+    where p_dispatch is a non-negative auxiliary variable. Where the capacity
+    fade or the cycle budget binds it settles at max(p(t), 0), so that
+    2 * p_dispatch(t) - p(t) is the throughput |p(t)| of the store.
 
     Applies to Store (p, p_dispatch).
 
@@ -2398,15 +2397,7 @@ def _throughput_flow(
     """Get the energy throughput of the storage level per snapshot.
 
     The energy charged into the storage level plus the energy discharged from
-    it, weighted by the elapsed hours:
-
-    (eff_store * p_store(t) + p_dispatch(t) / eff_dispatch) * weighting(t)
-
-    for storage units, and
-
-    (2 * p_dispatch(t) - p(t)) * weighting(t), i.e. |p(t)| * weighting(t)
-
-    for stores, see define_store_p_dispatch_constraints for the auxiliary.
+    it, weighted by the elapsed hours.
     """
     m = n.model
     eh = n.optimize._window.subset(sns).snapshot_weightings("stores")
@@ -2439,18 +2430,15 @@ def _nominal_expression(n: Network, c: Components, names: pd.Index) -> LinearExp
 def define_throughput_constraints(n: Network, sns: pd.Index, component: str) -> None:
     """Define throughput balance constraints for degrading storage.
 
-    Creates constraints tracking the cumulative energy throughput of assets
-    with a positive `degradation_per_cycle` or a finite `cycles_max`. For each
-    asset and snapshot, the
-    constraint enforces:
+    Creates constraints accumulating the energy throughput of assets with a
+    positive `degradation_per_cycle` or a finite `cycles_max`. For each asset
+    and snapshot, the constraint enforces:
 
     throughput(t) = throughput(t-1) + flow(t)
 
-    where flow is the energy charged into and discharged from the storage
-    level in the snapshot (see _throughput_flow) and
-    throughput(-1) = throughput_initial. Throughput accumulates over the whole
-    horizon: unlike the storage level it is never cyclic and is not reset per
-    investment period.
+    where flow is the energy charged into and discharged from the storage level
+    in the snapshot. The first snapshot starts from `throughput_initial`; unlike
+    the storage level, throughput is never cyclic nor reset per investment period.
 
     Applies to StorageUnit (p_dispatch, p_store, throughput) and
     Store (p, p_dispatch, throughput).
@@ -2493,22 +2481,15 @@ def define_capacity_fade_constraints(
 ) -> None:
     """Define capacity fade constraints for degrading storage.
 
-    Creates constraints derating the ceiling of the storage level of assets
-    with a positive `degradation_per_cycle` k by the degradation accrued with
-    their cumulative energy throughput. The state of health falls by k per
-    equivalent full cycle, one cycle being twice the nominal energy capacity
-    of throughput, so the constraint enforces:
+    Creates constraints lowering the upper limit of the storage level of assets
+    with a positive `degradation_per_cycle` k. For each asset and snapshot, the
+    constraint enforces:
 
-    state_of_charge(t) + k/2 * throughput(t) ≤ max_hours * p_nom
+    level(t) + k/2 * throughput(t) ≤ capacity
 
-    for storage units and
-
-    e(t) + e_max_pu(t) * k/2 * throughput(t) ≤ e_max_pu(t) * e_nom
-
-    for stores. The nominal capacity cancels out of the fade term, so the
-    constraint stays linear for extendable assets, whose capacity variable
-    takes the place of the nominal capacity. The plain upper bound on the
-    storage level is implied by this constraint and left in place.
+    where level is state_of_charge or e, capacity is max_hours * p_nom or e_nom,
+    and each MWh of throughput removes k/2 MWh of capacity. For stores the fade
+    and the capacity are scaled by e_max_pu(t).
 
     Applies to StorageUnit (state_of_charge) and Store (e).
 
@@ -2569,21 +2550,14 @@ def define_cycle_budget_constraints(n: Network, sns: pd.Index, component: str) -
     """Define cycle budget constraints for storage.
 
     Creates constraints keeping the cumulative energy throughput of assets with
-    a finite `cycles_max` within that budget. One cycle is twice the nominal
-    energy capacity of energy throughput, so for each asset the constraint
+    a finite `cycles_max` within that budget. For each asset, the constraint
     enforces:
 
-    throughput(T) ≤ 2 * cycles_max * max_hours * p_nom
+    throughput(T) ≤ 2 * cycles_max * capacity
 
-    for storage units and
-
-    throughput(T) ≤ 2 * cycles_max * e_nom
-
-    for stores, where T is the last active snapshot. The throughput is
-    monotone, so this caps it at every snapshot. `throughput_initial` counts
-    against the budget, so it spans rolling-horizon windows and any cycles
-    performed before the horizon. For extendable assets the budget scales with
-    the capacity to be optimised.
+    where T is the last active snapshot, capacity is max_hours * p_nom or e_nom,
+    and one cycle is a throughput of twice the capacity. `throughput_initial`
+    counts against the budget, so it spans rolling-horizon windows.
 
     Applies to StorageUnit (throughput) and Store (throughput).
 
