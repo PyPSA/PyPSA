@@ -92,7 +92,7 @@ def test_deprecated_sub_network_accessors_suggest_working_code(ac_dc_network):
 
     n = ac_dc_network.copy()
     n.determine_network_topology()
-    sub_network = n.sub_networks.obj.iloc[0]
+    sub_network = n.c.sub_networks.static.obj.iloc[0]
 
     for name in [
         "buses_i",
