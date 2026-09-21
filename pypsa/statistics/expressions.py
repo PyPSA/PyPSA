@@ -383,6 +383,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         "capacity_factor",
         "revenue",
         "market_value",
+        "capture_rate",
         "prices",
     ]
 
@@ -2838,6 +2839,114 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / operational unit"
+        return df
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    def capture_rate(  # noqa: D417
+        self,
+        components: str | Sequence[str] | None = None,
+        groupby_method: Callable | str = "sum",
+        aggregate_across_components: bool = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
+        weighting: str = "time",
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+    ) -> pd.DataFrame:
+        r"""Calculate the **capture rate** of components in the network.
+
+        The [market value][pypsa.statistics.StatisticsAccessor.market_value]
+        relative to the average of [prices][pypsa.statistics.StatisticsAccessor.prices]
+        over the buses of `bus_carrier`, also called value factor [^1]. With the
+        default `weighting="time"`, the average is the base price over the snapshot
+        weightings.
+
+        !!! note
+
+            - Pass `bus_carrier` in sector-coupled networks, otherwise prices of
+              different carriers are averaged.
+            - For storage the market value is the net revenue per unit charged and
+              discharged, not the price captured when discharging.
+
+        [^1]: Hirth, L. (2013). The market value of variable renewables. Energy
+            Economics, 38, 218-236. https://doi.org/10.1016/j.eneco.2013.02.004
+
+        Parameters
+        ----------
+        components : str | Sequence[str] | None, default=None
+            Components to include in the calculation. If None, includes all one-port
+            and branch components. Available components are 'Generator', 'StorageUnit',
+            'Store', 'Load', 'Line', 'Transformer' and'Link'.
+        groupby_method : Callable | str, default="sum"
+            Function to aggregate groups when using the groupby parameter.
+            Any pandas aggregation function can be used.
+        aggregate_across_components : bool, default=False
+            Whether to aggregate across components. If there are different components
+            which would be grouped together due to the same index, this is avoided.
+        groupby : str | Sequence[str] | Callable, default="carrier"
+            How to group components:
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
+            - callable: Function that takes network and component name as arguments
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of connected buses. Restricts both the market value and
+            the buses over which the average price is taken.
+        weighting : str, default="time"
+            Weighting of the average price over time, either 'time' or 'load'. See
+            [prices][pypsa.statistics.StatisticsAccessor.prices].
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `https://go.pypsa.org/options-params` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
+
+        Returns
+        -------
+        pd.DataFrame
+            Capture rate of the components in the network, dimensionless.
+
+        Examples
+        --------
+        >>> n.statistics.capture_rate(components="Generator", bus_carrier="AC")
+        carrier
+        gas     2.82819
+        wind    1.06963
+        dtype: float64
+
+        """
+        market_value = self.market_value(
+            components=components,
+            groupby_method=groupby_method,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=False,
+            round=None,
+        )
+        prices = self.prices(
+            bus_carrier=bus_carrier, weighting=weighting, drop_zero=False, round=None
+        )
+        levels = [level for level in prices.index.names if level != "name"]
+        average = prices.groupby(level=levels).mean() if levels else prices.mean()
+        df = market_value / average
+
+        df = self._apply_option_kwargs(
+            df, drop_zero=drop_zero, round=round, nice_names=nice_names
+        )
+        df.attrs["name"] = "Capture Rate"
+        df.attrs["unit"] = "per unit"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
