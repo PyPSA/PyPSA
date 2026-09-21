@@ -105,6 +105,7 @@ nav:
     - examples/minimal-example-pf.ipynb
     - examples/negative-prices-kvl-baker.ipynb
     - examples/rolling-horizon.ipynb
+    - examples/forecast-errors.ipynb
     - examples/water-value.ipynb
     - examples/demand-supply-bids.ipynb
   - Planning Problems:
