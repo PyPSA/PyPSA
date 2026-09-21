@@ -526,9 +526,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self, df: pd.Series | pd.DataFrame, agg: Callable | str
     ) -> pd.Series | pd.DataFrame:
         warnings.warn(
-            "Passing `aggregate_across_components` was Deprecated in <!-- md:badge-version v1.0.0 -->.0 and "
+            "Passing `aggregate_across_components` was deprecated in v1.0.0 and "
             "will be removed with v2.0.0. Use e.g. "
-            "`n.statistics.installed_capacity.groupby(<col_name>).sum() instead.",
+            "`n.statistics.installed_capacity.groupby(<col_name>).sum()` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
