@@ -26,7 +26,7 @@ from pypsa.common import as_index, deprecated_common_kwargs
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
-from pypsa.network.cycle_basis import (
+from pypsa.network.graph import (
     bfs_refined_cycle_basis,
 )
 
