@@ -45,29 +45,83 @@ The `gsk` argument is a scheme name or a ready bus × zone frame. Two builders a
 
 ## Controllable link flows (AHC and EvFB)
 
-A domain column may name a [`Link`][pypsa.components.Links] instead of a zone bus: the controllable HVDC corridors of *advanced hybrid coupling* (AHC, a link to an external hub) and *evolved flow-based coupling* (EvFB, a link between two zones). The link flow then loads its CNECs directly. The column's sign must follow the link's `bus0 -> bus1` direction.
+A domain column may name a [`Link`][pypsa.components.Links] instead of a zone bus. This covers HVDC and other controllable corridors:
+
+- **Advanced hybrid coupling (AHC):** a link from a bus outside the flow-based region into a zone.
+- **Evolved flow-based (EvFB):** a link between two zones.
+
+The link column holds the CNEC's sensitivity to the link flow in its `bus0 -> bus1` direction. An EvFB link has one column for both ends.
 
 ```python
-n.add("Link", "ALEGrO", bus0="BE", bus1="DE", p_nom=1000)  # EvFB (two zones)
-n.add("Link", "NorNed", bus0="NL", bus1="NO2", p_nom=700)   # AHC (zone to external NO2)
-zonal_ptdf["ALEGrO"] = ...  # sensitivity to the link flow in its bus0 -> bus1 direction
-zonal_ptdf["NorNed"] = ...
+n.add("Link", "BE-DE", bus0="BE", bus1="DE", p_nom=1000, p_min_pu=-1)  # EvFB
+n.add("Link", "NO2-NL", bus0="NO2", bus1="NL", p_nom=700, p_min_pu=-1)  # AHC
+zonal_ptdf["BE-DE"] = ...
+zonal_ptdf["NO2-NL"] = ...
 n.c.flow_based_constraints.add(cnecs, zonal_ptdf=zonal_ptdf, ram=ram)
 ```
 
-See [the optimisation page](../optimization/flow-based-constraints.md#controllable-link-flows-ahc-and-evfb) for how corridors are handled.
+See [the optimisation page](../optimization/flow-based-constraints.md#controllable-link-flows-ahc-and-evfb) for the definition of the link column.
 
 !!! note "Cross-zone branches"
 
-    The domain replaces the electrical grid *between* zones, so the network must not contain a [`Line`][pypsa.components.Lines], [`Transformer`][pypsa.components.Transformers] or [`Link`][pypsa.components.Links] directly connecting two flow-based zone buses; except a `Link` that is a declared domain column (an AHC/EvFB corridor).
+    The domain replaces the grid *between* zones. The network must not contain a [`Line`][pypsa.components.Lines], [`Transformer`][pypsa.components.Transformers] or [`Link`][pypsa.components.Links] between two zone buses, except a `Link` that is a domain column.
 
 ## Importing published domains
 
-Published domains can be read directly with `from_eraa`, `from_jao` and `from_tso`. `from_eraa` reads the flow-based domains of ENTSO-E's European Resource Adequacy Assessment[^eraa], and `from_jao` the Core day-ahead domains published on the JAO Publication Tool[^core-pub]. Each maps the file's zone labels to buses of the same name (pass `buses=` to remap) and accepts a `links=` mapping to include AHC/EvFB corridors. See the [example notebook](../../examples/flow-based-market-coupling.ipynb).
+`from_eraa` reads the flow-based domains of ENTSO-E's European Resource Adequacy Assessment,[^eraa] `from_jao` the Core day-ahead domains of the JAO Publication Tool,[^core-pub] and `from_tso` domains in the TSO `MS_FBMC` CSV format. See the [example notebook](../../examples/flow-based-market-coupling.ipynb).
 
-```python
-n.c.flow_based_constraints.from_eraa("FB-Domain-CORE.xlsx", year="2030", season="winter1")
-```
+The network needs one bus per zone and one link per corridor, named as in the file:
+
+| Format | Zone buses | EvFB link | AHC link |
+|---|---|---|---|
+| ERAA | `BE00`, `DE00`, ... | `BE00-DE00` | `DKE1-DE00` (from `DKE1` into `DE00`) |
+| JAO | `BE`, `DE`, ... | `ALBE-ALDE` (between `BE` and `DE`) | `DE_SE4_Baltic` (from `SE4` into `DE`) |
+| TSO | `BE`, `DE`, ... | `KONV_BE-DE1` | `KONV_AHC_DE-SE04` (HVDC into `DE`), `DKW` (AC exchange of `DKW`) |
+
+Pass `buses=` or `links=` to use other names. The importer flips a corridor's sign if the link runs the other way, and drops corridors without a link (with a warning). It also converts each corridor to the definition above: it merges the two end columns of an EvFB link (JAO, TSO), and adds the zone PTDF to ERAA's AHC columns, which ERAA publishes relative to their zone. JAO's `CH` column is dropped, as Core publishes Swiss PTDFs for transparency only.
+
+Each zone bus carries its own generation and load. A bus outside the flow-based region, such as `DKE1`, needs its own supply or price. For example, for ERAA:
+
+=== "ERAA"
+
+    ```python
+    zones = ["AT00", "BE00", "CZ00", "DE00", "FR00", "HR00", "HU00",
+             "ITN1", "NL00", "PL00", "RO00", "SI00", "SK00"]
+    n = pypsa.Network()
+    n.add("Bus", zones + ["DKE1"])
+    n.add("Load", zones, bus=zones, p_set=demand)
+    n.add("Generator", zones, bus=zones, p_nom=capacity, marginal_cost=cost)
+    n.add("Generator", "DKE1", bus="DKE1", p_nom=5000, marginal_cost=20)
+    n.add("Link", "BE00-DE00", bus0="BE00", bus1="DE00", p_nom=1000, p_min_pu=-1)
+    n.add("Link", "DKE1-DE00", bus0="DKE1", bus1="DE00", p_nom=600, p_min_pu=-1)
+    n.c.flow_based_constraints.from_eraa("FB-Domain-CORE.xlsx", year=2030, season="winter1")
+    ```
+
+=== "JAO"
+
+    ```python
+    zones = ["AT", "BE", "CZ", "DE", "FR", "HR", "HU", "NL", "PL", "RO", "SI", "SK"]
+    n = pypsa.Network()
+    n.add("Bus", zones + ["SE4"])
+    ...  # loads and generators as for ERAA
+    n.add("Link", "ALBE-ALDE", bus0="BE", bus1="DE", p_nom=1000, p_min_pu=-1)
+    n.add("Link", "DE_SE4_Baltic", bus0="SE4", bus1="DE", p_nom=600, p_min_pu=-1)
+    n.c.flow_based_constraints.from_jao("finalComputation.csv")
+    ```
+
+=== "TSO"
+
+    ```python
+    zones = ["AT", "BE", "CZ", "DE", "FR", "HR", "HU", "NL", "PL", "RO", "SI", "SK"]
+    n = pypsa.Network()
+    n.add("Bus", zones + ["SE04", "DKW"])
+    ...  # loads and generators as for ERAA
+    n.add("Link", "KONV_BE-DE1", bus0="BE", bus1="DE", p_nom=1000, p_min_pu=-1)
+    n.add("Link", "KONV_AHC_DE-SE04", bus0="SE04", bus1="DE", p_nom=600, p_min_pu=-1)
+    n.add("Link", "DKW-DE", bus0="DKW", bus1="DE", p_nom=2500, p_min_pu=-1)
+    # the corridor "DKW" is named like its bus, so it needs a distinct link name
+    n.c.flow_based_constraints.from_tso("MS_FBMC_Domain_TS1.csv", links={"DKW": "DKW-DE"})
+    ```
 
 {{ read_csv('../../../pypsa/data/component_attrs/flow_based_constraints.csv', disable_numparse=True) }}
 

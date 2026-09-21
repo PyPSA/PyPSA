@@ -39,32 +39,30 @@ These constraints are added in `define_flow_based_constraints()`; the net-positi
 
 ## Controllable link flows (AHC and EvFB)
 
-A domain column may name a [`Link`](../components/links.md) instead of a zone [`Bus`](../components/buses.md), e.g. representing a controllable HVDC corridor. These hybrid-coupling schemes extend the flow-based domain to borders that are otherwise not flow-based; for their market-design background see Estermann et al. (2025)[^estermann]. Two cases arise, distinguished only by the link's endpoints:
+A domain column may name a [`Link`](../components/links.md) instead of a zone [`Bus`](../components/buses.md). This extends the domain to controllable corridors, such as HVDC links;[^estermann] PyPSA tells the two cases apart by the link's ends:
 
-- **Advanced hybrid coupling (AHC):** a border from a flow-based zone bus to an *external* virtual hub bus $v$.
-- **Evolved flow-based coupling (EvFB):** an HVDC *between two flow-based zones*.
+- **Advanced hybrid coupling (AHC):** one end is a zone, the other a bus outside the flow-based region.
+- **Evolved flow-based (EvFB):** both ends are flow-based zones.
 
-The flow through the link loads its CNECs through its own column in the zonal PTDF, so the domain constraint gains a link-flow term with $f_{\ell,t}$ the link flow (`Link-p`, in its `bus0 -> bus1` direction):
+The link flow $f_{\ell,t}$ (`Link-p`, in the `bus0 -> bus1` direction) adds a term to each CNEC:
 
 $$\sum_{z} \text{PTDF}_{c,z,t}\, NP_{z,t} + \sum_{\ell} \text{PTDF}_{c,\ell,t}\, f_{\ell,t} \;\le\; \text{RAM}_{c,t} \quad \leftrightarrow \quad \mu_{c,t}$$
 
-### Keeping net positions consistent
+The link column $\text{PTDF}_{c,\ell}$ is the sensitivity of CNEC $c$ to the link flow while each zone keeps its net position $NP_z = g_z - d_z$. The link power then enters the grid only where the link connects. Let $h_{c,\ell,z}$ be the sensitivity of CNEC $c$ to an injection at the node where link $\ell$ connects in zone $z$. For an AHC link, the column is $h$ at its zone end, with a positive sign for flow into the zone. For an EvFB link, it is $h_{\text{bus1}} - h_{\text{bus0}}$. The Core methodology publishes the two ends of an EvFB link as two separate columns;[^core-ccm] here they form one. Some published domains count the link flow in the zone net position instead, and publish $h_{c,\ell,z} - \text{PTDF}_{c,z}$. The [importers](../components/flow-based-constraints.md#importing-published-domains) convert both cases.
 
-A `Link` is a physical component, so PyPSA's nodal balance already adds $-f_{\ell,t}$ at `bus0` and $+\eta_\ell f_{\ell,t}$ at `bus1`. Left alone, that flow would enter the adjacent zone's net position *and* affect the CNEC through its column, double-counting the contribution. To prevent it, the corridor's contribution to its flow-based-side bus balance is cancelled, defining the cut
+### Net positions with links
+
+The link flow already enters the CNECs through its column, so it must not enter the zone net position as well. PyPSA removes the link from the nodal balance of its zone end(s):
 
 $$\kappa_{z,t} = \sum_{\ell:\, \text{bus0}_\ell = z} f_{\ell,t} \; - \sum_{\ell:\, \text{bus1}_\ell = z} \eta_\ell\, f_{\ell,t},$$
 
-which restores $NP_{z,t} = g_{z,t} - d_{z,t}$ at every zone. The zero-sum balance becomes
+which keeps $NP_{z,t} = g_{z,t} - d_{z,t}$. The zero-sum balance becomes
 
 $$\sum_{z} NP_{z,t} - \sum_{z} \kappa_{z,t} = 0.$$
 
-For an EvFB link (both ends are flow-based zone buses, lossless) the two cut terms cancel. This is consistent with the methodology, where the corridor's two virtual hubs have a combined net position of zero. For an AHC link (one end external) only the flow-based-side term survives, and $-\sum_z \kappa_{z,t}$ is the net position $NP_{v,t}$ of the external virtual hub, so the balance reads
+For a lossless EvFB link the two terms cancel. For an AHC link, $-\sum_z \kappa_{z,t}$ is the import into the flow-based region, so the zone net positions sum to minus the AHC imports.
 
-$$\sum_z NP_{z,t} + \sum_v NP_{v,t} = 0$$
-
-In this case, the flow-based region need not be internally balanced when it exchanges over AHC borders.
-
-The cut is built in `flow_based_balance_terms()` (nodal balance) and `define_flow_based_constraints()` (plate).
+These terms are built in `flow_based_balance_terms()` (nodal balance) and `define_flow_based_constraints()` (balance).
 
 ## Deriving a zonal PTDF from a nodal grid
 

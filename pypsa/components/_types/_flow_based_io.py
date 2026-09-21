@@ -4,9 +4,10 @@
 
 """Importers for published flow-based domains (ERAA, JAO, TSO).
 
-Mixed into [pypsa.components.FlowBasedConstraints][]; each parser builds a
-``(zonal_ptdf, ram)`` pair and forwards it to ``add``. See the flow-based constraint
-user guide for the file formats and mappings.
+Mixed into [pypsa.components.FlowBasedConstraints][]. Each importer reads the zone
+columns, the RAM and the corridor columns of its format, and converts every corridor to
+one column per corridor: the CNEC sensitivity to the corridor flow while zone net positions stay
+at generation minus load.
 """
 
 from __future__ import annotations
@@ -28,7 +29,10 @@ _EXCEL_HINT = (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
+
+    # corridor name -> (column for a flow frm -> to, frm zone, to zone)
+    Corridors = dict[str, tuple[pd.Series, str | None, str | None]]
 
 
 class FlowBasedImportersMixin(_ComponentsABC):
@@ -53,13 +57,13 @@ class FlowBasedImportersMixin(_ComponentsABC):
         *,
         buses: dict[str, str] | None = None,
         links: dict[str, str] | None = None,
-        ptdf_sheet: str | None = None,
-        ram_sheet: str | None = None,
     ) -> pd.Index | None:
         """Add a domain from an ERAA ``FB-Domain-CORE`` Excel workbook (needs the ``excel`` extra).
 
-        The PTDF sheet has a *kind* header row (``PTDF_SZ`` zones, ``PTDF*_AHC,SZ`` and
-        ``PTDF_EvFB`` corridors) and a *label* row.
+        The PTDF sheet has a header row with the column kind (``PTDF_SZ`` zones,
+        ``PTDF*_AHC,SZ`` and ``PTDF_EvFB`` corridors) and a row with the labels. A corridor
+        label ``"A-B"`` is a flow from A to B. ERAA publishes AHC columns minus the PTDF of
+        the receiving zone B (``FB_README.xlsx``, expression 5); the importer adds it back.
 
         Parameters
         ----------
@@ -70,63 +74,49 @@ class FlowBasedImportersMixin(_ComponentsABC):
         season : str or pandas.Series
             A season name (e.g. ``"winter1"``) selects one static domain. A Series indexed
             by the snapshots (values = season names) builds a time-varying domain from the
-            union of the seasons' CNECs; a CNEC absent in a snapshot's season gets PTDF 0
-            and RAM infinite, so it never binds that hour.
-        buses, links : dict, optional
-            Map ERAA zone / border labels (``"A-B"``) to network bus / link names. The link
-            sign is aligned to the link's ``bus0 -> bus1`` orientation; unmapped corridors
-            are dropped.
-        ptdf_sheet, ram_sheet : str, optional
-            Override the default sheet names.
+            union of the seasons' CNECs; a CNEC absent in a season gets PTDF 0 and RAM
+            infinite, so it never binds.
+        buses : dict, optional
+            Map ERAA zone labels to bus names (default: same name).
+        links : dict, optional
+            Map corridor labels (e.g. ``"BE00-DE00"``) to link names (default: same name).
+            Corridors without a link are dropped.
 
         """
         check_optional_dependency("openpyxl", _EXCEL_HINT)
-        ptdf_sheet = ptdf_sheet or f"PTDF {year}"
-        ram_sheet = ram_sheet or f"RAM {year}"
-
-        raw = pd.read_excel(path, sheet_name=ptdf_sheet, header=None)
+        raw = pd.read_excel(path, sheet_name=f"PTDF {year}", header=None)
         kind, label = raw.iloc[0], raw.iloc[1]
         zones = label[kind == "PTDF_SZ"].tolist()
-        corridors = label[kind.isin(["PTDF*_AHC,SZ", "PTDF_EvFB"])].tolist()
+        ahc = label[kind == "PTDF*_AHC,SZ"].tolist()
+        evfb = label[kind == "PTDF_EvFB"].tolist()
         body = raw.iloc[2:].copy()
         body.columns = list(label)
-        ram_all = pd.read_excel(path, sheet_name=ram_sheet).set_index("CNEC_ID")
-
-        if unknown := [b for b in (links or {}) if b not in corridors]:
-            msg = f"{unknown} are not ERAA AHC/EvFB columns; available: {corridors}."
-            raise ValueError(msg)
-        if dropped := [c for c in corridors if c not in (links or {})]:
-            logger.warning(
-                "Dropping %d unmapped ERAA AHC/EvFB corridor(s): %s. Pass them in "
-                "`links` to include them as link terms.",
-                len(dropped),
-                dropped,
-            )
+        ram_all = pd.read_excel(path, sheet_name=f"RAM {year}").set_index("CNEC_ID")
 
         def parse(s: str) -> tuple[pd.DataFrame, pd.Series]:
             rows = body[body["FB_ID"] == s].set_index("CNEC_ID")
-            ram = ram_all[s]
-            keep = rows.index[rows.index.isin(ram.dropna().index)]
-            zonal_ptdf = rows.loc[keep, zones].astype(float)
-            for border, link in (links or {}).items():
-                sign = self._link_sign(border, link, buses or {})
-                zonal_ptdf[link] = rows.loc[keep, border].astype(float) * sign
-            return zonal_ptdf, ram.loc[keep]
+            ram = ram_all[s].dropna()
+            keep = rows.index.intersection(ram.index)
+            return rows.loc[keep, zones + ahc + evfb].astype(float), ram.loc[keep]
 
         if isinstance(season, pd.Series):
-            return self._add_eraa_dynamic(season, parse, buses)
-        zonal_ptdf, ram = parse(season)
-        return self._add_domain_frame(zonal_ptdf, ram, buses)
+            ptdf, ram = self._stack_seasons(season, parse)
+        else:
+            ptdf, ram = parse(season)
 
-    def _add_eraa_dynamic(
-        self,
-        season: pd.Series,
-        parse: Any,
-        buses: dict[str, str] | None,
-    ) -> pd.Index | None:
-        """Stack a ``snapshot -> season`` mapping into a time-varying domain (union of CNECs)."""
-        sns = self.n_save.snapshots
-        season = season.reindex(sns)
+        corridors: Corridors = {}
+        for border in ahc + evfb:
+            frm, to = border.split("-", 1)
+            to = to.split("_")[0]  # numbered borders, e.g. "UK00-FR00_1"
+            col = ptdf[border] + ptdf[to] if border in ahc else ptdf[border]
+            corridors[border] = (col, frm, to)
+        return self._add_domain(ptdf[zones], corridors, ram, buses, links)
+
+    def _stack_seasons(
+        self, season: pd.Series, parse: Callable[[str], tuple[pd.DataFrame, pd.Series]]
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Stack a ``snapshot -> season`` mapping into a time-varying PTDF and RAM."""
+        season = season.reindex(self.n_save.snapshots)
         if season.isna().any():
             msg = "`season` Series must map every network snapshot to an ERAA season."
             raise ValueError(msg)
@@ -139,69 +129,55 @@ class FlowBasedImportersMixin(_ComponentsABC):
         ram = pd.DataFrame(
             {t: parsed[s][1].reindex(cnecs) for t, s in season.items()}
         ).T.fillna(float("inf"))
-        if buses:
-            ptdf = ptdf.rename(columns=buses)
-        self._require_components(ptdf.columns)
-        return self.add(cnecs, zonal_ptdf=ptdf, ram=ram)
-
-    def _link_sign(self, border: str, link: str, buses: dict[str, str]) -> float:
-        """Sign aligning an ERAA border ``"A-B"`` (flow A->B) to a link's ``bus0 -> bus1``."""
-        frm, to = (buses.get(x, x) for x in border.split("-", 1))
-        static = self.n_save.c.links.static
-        if link not in static.index:
-            msg = f"{link!r} is not a network link."
-            raise ValueError(msg)
-        ends = (static.at[link, "bus0"], static.at[link, "bus1"])
-        if ends == (frm, to):
-            return 1.0
-        if ends == (to, frm):
-            return -1.0
-        msg = (
-            f"Link {link!r} ({ends[0]} -> {ends[1]}) does not connect the border "
-            f"{border!r} endpoints ({frm}, {to}); check the `buses` mapping."
-        )
-        raise ValueError(msg)
+        return ptdf, ram
 
     def from_jao(
         self,
         path: str,
         *,
-        presolved: bool = True,
         buses: dict[str, str] | None = None,
         links: dict[str, str] | None = None,
-        name_col: str = "Id",
-        sep: str = ";",
     ) -> pd.Index | None:
         """Add a domain from a JAO ``finalComputation`` CSV (one static market hour).
 
-        The zonal PTDF is read from the ``Ptdf_<hub>`` columns (the prefix is stripped); the
-        ``Direction`` is already baked into the sign.
+        Only the presolved rows are read (the others never bind), named by their ``Id``.
+        The PTDF is read from the ``Ptdf_<hub>`` columns; the ``Direction`` is already in
+        the sign. Two kinds of hub are corridors:
+
+        - ``ALBE`` and ``ALDE``, the Belgian and German ends of the ALEGrO HVDC, form one
+          corridor ``"ALBE-ALDE"`` (a flow from BE to DE).
+        - AHC hubs ``<zone>_<external>_<name>`` (e.g. ``DE_SE4_Baltic``) are a flow from
+          ``<external>`` into ``<zone>``.
+
+        ``CH`` is dropped: its PTDFs are published for transparency only, as the Swiss net
+        position is a fixed forecast inside the RAM. All other hubs are zones.
 
         Parameters
         ----------
         path : str
             Path to the JAO ``finalComputation`` CSV.
-        presolved : bool, default True
-            Keep only the presolved rows (the actual domain).
-        buses, links : dict, optional
-            Map hub names to network bus / link names. JAO hubs are undirected, so a link
-            column is only renamed, not sign-adjusted; flip it if your link orientation
-            differs.
-        name_col : str, default "Id"
-            Unique CNEC name column (``CneName`` is not unique across directions).
-        sep : str, default ";"
-            CSV field separator.
+        buses : dict, optional
+            Map zone hubs to bus names (default: same name).
+        links : dict, optional
+            Map corridor names to link names (default: same name). Corridors without a
+            link are dropped.
 
         """
-        raw = pd.read_csv(path, sep=sep, low_memory=False)
-        rows = (raw[raw["Presolved"]] if presolved else raw).copy()
-        rows[name_col] = rows[name_col].astype(str)
-        rows = rows.set_index(name_col)
-
+        raw = pd.read_csv(path, sep=";", low_memory=False)
+        rows = raw[raw["Presolved"]]
+        rows = rows.set_index(rows["Id"].astype(str))
         ptdf_cols = [c for c in rows.columns if c.startswith("Ptdf_")]
-        zonal_ptdf = rows[ptdf_cols].rename(columns=lambda c: c.removeprefix("Ptdf_"))
-        mapping = {**(buses or {}), **(links or {})}
-        return self._add_domain_frame(zonal_ptdf, rows["Ram"], mapping)
+        ptdf = rows[ptdf_cols].rename(columns=lambda c: c.removeprefix("Ptdf_"))
+
+        corridors: Corridors = {}
+        if {"ALBE", "ALDE"} <= set(ptdf.columns):
+            corridors["ALBE-ALDE"] = (ptdf["ALDE"] - ptdf["ALBE"], "BE", "DE")
+        for hub in ptdf.columns[ptdf.columns.str.contains("_")]:
+            zone, external = hub.split("_")[:2]
+            corridors[hub] = (ptdf[hub], external, zone)
+        not_zones = {"ALBE", "ALDE", "CH"}
+        zones = [h for h in ptdf.columns if "_" not in h and h not in not_zones]
+        return self._add_domain(ptdf[zones], corridors, rows["Ram"], buses, links)
 
     def from_tso(
         self,
@@ -209,87 +185,117 @@ class FlowBasedImportersMixin(_ComponentsABC):
         *,
         buses: dict[str, str] | None = None,
         links: dict[str, str] | None = None,
-        encoding: str = "latin-1",
-        decimal: str | None = None,
     ) -> pd.Index | None:
         """Add a domain from a TSO ``MS_FBMC`` domain CSV (one static typical situation).
 
-        A ``!!OBJEKTTYP`` header row types every column: ``RAM_MW`` is the RAM,
-        ``FB_DOMAIN``/``FB_DOMAIN_AHC`` are zones, ``HGUE``/``HGUE_AHC`` are HVDC converters.
+        A ``!!OBJEKTTYP`` row gives each column's type: ``FB_RAM`` is the RAM and
+        ``FB_DOMAIN`` are zones. Corridors are:
+
+        - ``HGUE``: the two converters of an HVDC between two zones,
+          ``KONV_<A>-<B><n>_A`` and ``KONV_<A>-<B><n>_B``, form one corridor
+          ``KONV_<A>-<B><n>`` (a flow from A to B).
+        - ``HGUE_AHC``: the converter ``KONV_AHC_<pair>_<zone>`` of an HVDC to a
+          non-flow-based zone is corridor ``KONV_AHC_<pair>``, a flow into ``<zone>``.
+        - ``FB_DOMAIN_AHC``: the AC exchange of a non-flow-based zone (e.g. ``DKW``) with the
+          flow-based region, a flow into the region.
 
         Parameters
         ----------
         path : str
             Path to the ``MS_FBMC`` domain CSV (semicolon-separated).
-        buses, links : dict, optional
-            Map zone labels / converter columns (e.g. ``"KONV_BE-DE1_DE"``) to network bus /
-            link names. Converter columns are not sign-adjusted; unmapped ones are dropped.
-        encoding : str, default "latin-1"
-            File encoding.
-        decimal : str, optional
-            Decimal separator; auto-detected from the ``RAM_MW`` column when omitted.
+        buses : dict, optional
+            Map zone labels to bus names (default: same name).
+        links : dict, optional
+            Map corridor names to link names (default: same name). Corridors without a
+            link are dropped. ``FB_DOMAIN_AHC`` corridors are named like their zone, so
+            map them to a link name that is not a bus name (e.g. ``{"DKW": "DKW-DE"}``).
 
         """
-        raw = Path(path).read_text(encoding=encoding).splitlines()
+        raw = Path(path).read_text(encoding="latin-1").splitlines()
         meta = [i for i, line in enumerate(raw) if line.startswith("!")]
-        objtyp = raw[meta[-1]].split(";")[1:]  # !!OBJEKTTYP row, aligns to header[1:]
         header = raw[meta[-1] + 1].split(";")
-        types = {
-            header[i + 1]: t
-            for i, t in enumerate(objtyp)
-            if i + 1 < len(header) and header[i + 1]
-        }
-
-        ram_col = next(c for c in header if types.get(c) == "FB_RAM")
-        zones = [c for c in header if types.get(c) in ("FB_DOMAIN", "FB_DOMAIN_AHC")]
-        converters = [c for c in header if types.get(c) in ("HGUE", "HGUE_AHC")]
-
-        if decimal is None:
-            cells = (
-                line.split(";")[header.index(ram_col)] for line in raw[meta[-1] + 2 :]
-            )
-            decimal = "," if any("," in c for c in cells) else "."
-
+        types = dict(zip(header[1:], raw[meta[-1]].split(";")[1:], strict=False))
+        ram_col = next(c for c, t in types.items() if t == "FB_RAM")
+        cells = (line.split(";")[header.index(ram_col)] for line in raw[meta[-1] + 2 :])
+        decimal = "," if any("," in c for c in cells) else "."
         df = pd.read_csv(
-            path, sep=";", skiprows=meta, encoding=encoding, decimal=decimal
+            path, sep=";", skiprows=meta, encoding="latin-1", decimal=decimal
         ).set_index("CNEC_ID")
 
-        zonal_ptdf = df[zones].astype(float)
-        for col, link in (links or {}).items():
-            if col not in converters:
-                msg = f"{col!r} is not a TSO converter column; available: {converters}."
-                raise ValueError(msg)
-            zonal_ptdf[link] = df[col].astype(float)
+        def of_type(t: str) -> list[str]:
+            return [c for c in header if types.get(c) == t]
 
-        if dropped := [c for c in converters if c not in (links or {})]:
+        corridors: Corridors = {}
+        for col in of_type("HGUE"):
+            name, zone = col.rsplit("_", 1)
+            frm = name.split("_")[-1].split("-")[0]
+            if zone != frm:  # each pair once, from the receiving end
+                corridors[name] = (df[col] - df[f"{name}_{frm}"], frm, zone)
+        for col in of_type("HGUE_AHC"):
+            name, zone = col.rsplit("_", 1)
+            corridors[name] = (df[col], None, zone)
+        for col in of_type("FB_DOMAIN_AHC"):
+            corridors[col] = (df[col], None, None)
+        zones = of_type("FB_DOMAIN")
+        return self._add_domain(df[zones], corridors, df[ram_col], buses, links)
+
+    def _add_domain(
+        self,
+        zonal_ptdf: pd.DataFrame,
+        corridors: Corridors,
+        ram: pd.Series | pd.DataFrame,
+        buses: dict[str, str] | None,
+        links: dict[str, str] | None,
+    ) -> pd.Index | None:
+        """Add zone columns plus one column per corridor that has a network link.
+
+        A corridor column describes a flow ``frm -> to``; its sign is flipped if the link
+        runs ``to -> frm``. A ``None`` zone is not checked; ``to=None`` means the link's
+        only flow-based end.
+        """
+        buses, links = buses or {}, links or {}
+        if unknown := sorted(set(links) - set(corridors)):
+            msg = f"{unknown} are not corridors of this domain; available: {list(corridors)}."
+            raise ValueError(msg)
+
+        n = self.n_save
+        zonal_ptdf = zonal_ptdf.rename(columns=buses)
+        if missing := sorted(set(zonal_ptdf.columns) - set(n.c.buses.static.index)):
+            msg = f"Zones {missing} are not network buses; pass a `buses` mapping."
+            raise ValueError(msg)
+
+        zones = set(zonal_ptdf.columns)
+        static = n.c.links.static
+        dropped = []
+        for name, (col, frm, to) in corridors.items():
+            link = links.get(name, name)
+            if link not in static.index:
+                dropped.append(name)
+                continue
+            if link in n.c.buses.static.index:
+                msg = f"Link name {link!r} is also a bus name; rename it via `links`."
+                raise ValueError(msg)
+            bus0, bus1 = static.loc[link, ["bus0", "bus1"]]
+            ends = {bus0, bus1} & zones
+            frm, to = (buses.get(x, x) if x else None for x in (frm, to))
+            to = to or (next(iter(ends)) if len(ends) == 1 else None)
+            if to not in (bus0, bus1) or ends != {frm, to} & zones:
+                msg = (
+                    f"Link {link!r} ({bus0} -> {bus1}) does not fit corridor {name!r} "
+                    f"({frm} -> {to}); check the `buses` mapping."
+                )
+                raise ValueError(msg)
+            zonal_ptdf[link] = col if to == bus1 else -col
+        if dropped:
             logger.warning(
-                "Dropping %d unmapped TSO converter(s): %s. Pass them in `links` to "
-                "include them as link terms.",
+                "Dropping %d corridor(s) without a network link: %s. Add links of the "
+                "same name or pass a `links` mapping.",
                 len(dropped),
                 dropped,
             )
-        return self._add_domain_frame(zonal_ptdf, df[ram_col], buses)
 
-    def _add_domain_frame(
-        self,
-        zonal_ptdf: pd.DataFrame,
-        ram: pd.Series,
-        mapping: dict[str, str] | None,
-    ) -> pd.Index | None:
-        """Rename columns, check they are buses/links, and add the parsed domain."""
-        if mapping:
-            zonal_ptdf = zonal_ptdf.rename(columns=mapping)
-        self._require_components(zonal_ptdf.columns)
-        ram = ram.reindex(zonal_ptdf.index)
-        return self.add(zonal_ptdf.index, zonal_ptdf=zonal_ptdf, ram=ram.values)
-
-    def _require_components(self, columns: pd.Index) -> None:
-        """Fail fast if any domain column is neither a bus (zone) nor a link."""
-        n = self.n_save
-        known = set(n.c.buses.static.index) | set(n.c.links.static.index)
-        if missing := sorted(set(columns) - known):
-            msg = (
-                f"Flow-based domain references columns that are not network buses or "
-                f"links: {missing}. Add them or pass a `buses` mapping to the importer."
-            )
-            raise ValueError(msg)
+        if isinstance(zonal_ptdf.index, pd.MultiIndex):
+            names = zonal_ptdf.index.unique("name")
+        else:
+            names = zonal_ptdf.index
+        return self.add(names, zonal_ptdf=zonal_ptdf, ram=ram)

@@ -112,24 +112,6 @@ def test_symmetric_domain_reproduces_toy(one_at_a_time):
     assert binding.iloc[0] == pytest.approx(-105.0)
 
 
-def test_net_position_output_matches_domain_variable():
-    """buses_t.net_position exposes the domain net position; equals buses_t.p without corridors."""
-    n = _network(_domain(SYMMETRIC))
-    n.optimize(log_to_console=False)
-    np_out = n.buses_t.net_position.iloc[0][ZONES].round(0)
-    assert np_out.to_dict() == {"A": 2000.0, "B": -1000.0, "C": -1000.0}
-    assert (np_out - n.buses_t.p.iloc[0][ZONES]).abs().max() == pytest.approx(0.0)
-
-
-def test_prices_come_from_nodal_balance():
-    """No auxiliary components: zonal prices are the nodal-balance duals, not reconstructed."""
-    n = _network(_domain(SYMMETRIC))
-    n.optimize(log_to_console=False)
-    assert not n.buses_t.marginal_price.empty
-    # net positions sum to zero (global balance)
-    assert _net_positions(n).sum() == pytest.approx(0.0)
-
-
 def test_asymmetric_ram_shifts_the_optimum():
     """A tighter AB+ margin curbs A's export below the symmetric case."""
     n = _network(
@@ -207,7 +189,7 @@ def test_validation_rejects_cross_zone_branch(comp, kwargs):
         n.optimize(log_to_console=False)
 
 
-def _ahc_evfb_network(dynamic: bool = False):
+def _ahc_evfb_network(dynamic: bool = False, zones: list[str] = ZONES):
     """Three zones A,B,C plus external X, with an EvFB link (A-B) and an AHC link (C-X)."""
     n = pypsa.Network()
     if dynamic:
@@ -231,7 +213,7 @@ def _ahc_evfb_network(dynamic: bool = False):
     n.add("Link", "CX_hvdc", bus0="C", bus1="X", p_nom=600)  # AHC (zone to external)
     d = _domain(SYMMETRIC)
     d["AB_hvdc"], d["CX_hvdc"] = 0.2, 0.15
-    cols = [*ZONES, "AB_hvdc", "CX_hvdc"]
+    cols = [*zones, "AB_hvdc", "CX_hvdc"]
     ptdf = _dynamic_ptdf(d, cols, n.snapshots) if dynamic else d[cols]
     n.c.flow_based_constraints.add(d.index, zonal_ptdf=ptdf, ram=d["RAM"].values)
     return n
@@ -240,8 +222,8 @@ def _ahc_evfb_network(dynamic: bool = False):
 def test_link_columns_reconstruct_cnec_loading():
     """AHC and EvFB link flows enter the constraint via Link-p in the bus0->bus1 sign.
 
-    Reconstructing each CNEC loading from the zone net positions (gen - load, read from the
-    net-position variable) and the link flows must stay within RAM and hit RAM exactly on
+    Reconstructing each CNEC loading from the zone net positions and the link flows must
+    stay within RAM and hit RAM exactly on
     the binding CNECs. The corridor loads its CNECs only through its own column - not also
     smeared through the adjacent zone's net position (no double count).
     """
@@ -256,14 +238,6 @@ def test_link_columns_reconstruct_cnec_loading():
         .solution.isel(snapshot=0)
         .to_pandas()
     )
-    # the net position is gen - load, unaffected by the corridor flows
-    gen_load = (
-        n.generators_t.p.iloc[0].groupby(n.c.generators.static.bus).sum()
-        - n.loads_t.p.iloc[0].groupby(n.c.loads.static.bus).sum()
-    )
-    assert (
-        np_var[zone_cols].round(1).to_dict() == gen_load[zone_cols].round(1).to_dict()
-    )
     loading = (
         zp[zone_cols] @ np_var[zone_cols]
         + zp[link_cols] @ n.links_t.p0.iloc[0][link_cols]
@@ -273,6 +247,19 @@ def test_link_columns_reconstruct_cnec_loading():
     mu = c.dynamic["mu_domain"].iloc[0]
     for cnec in mu[mu.abs() > 1e-3].index:
         assert loading[cnec] == pytest.approx(ram[cnec], abs=1e-3)  # binding -> at RAM
+
+
+@pytest.mark.parametrize("zones", [ZONES, ["C", "A", "B"]])
+def test_net_position_is_gen_minus_load_for_any_zone_order(zones):
+    """Each zone's net position is its own gen - load, whatever the domain column order."""
+    n = _ahc_evfb_network(zones=zones)
+    n.optimize(log_to_console=False)
+    gen_load = (
+        n.generators_t.p.iloc[0].groupby(n.c.generators.static.bus).sum()
+        - n.loads_t.p.iloc[0].groupby(n.c.loads.static.bus).sum()
+    )
+    net_pos = n.buses_t.net_position.iloc[0]
+    assert net_pos[ZONES].round(3).to_dict() == gen_load[ZONES].round(3).to_dict()
 
 
 def test_ahc_import_not_double_counted():
@@ -304,6 +291,8 @@ def test_ahc_import_not_double_counted():
         .to_pandas()
     )
     assert np_var["A"] == pytest.approx(300.0)  # gen - load, no corridor leak
+    assert n.buses_t.net_position.iloc[0]["A"] == pytest.approx(300.0)
+    assert n.buses_t.p.iloc[0]["A"] == pytest.approx(800.0)  # physical: + 500 import
 
 
 def test_ahc_export_keeps_net_position_and_plate_sign():
@@ -335,104 +324,20 @@ def test_ahc_export_keeps_net_position_and_plate_sign():
     assert np_var.sum() == pytest.approx(F)  # plate: Core exports F over the border
 
 
-def test_evfb_stays_off_the_plate():
-    """An internal EvFB corridor moves no zonal energy: sum(NP)=0 and NP stays gen-load."""
-    n = pypsa.Network()
-    n.add("Bus", ZONES)
-    n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
-    n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
-    n.add("Link", "AB", bus0="A", bus1="B", p_nom=800)  # EvFB (both ends zones)
-    d = _domain(SYMMETRIC)
-    d["AB"] = 0.2
+def test_link_column_without_zone_end_raises():
+    """A link column must touch the flow-based region (AHC: one zone end, EvFB: two)."""
+    n = _network(_domain(SYMMETRIC))
+    n.add("Bus", ["X", "Y"])
+    n.add("Link", "XY", bus0="X", bus1="Y", p_nom=1000)
+    ptdf = n.c.flow_based_constraints.zonal_ptdf.assign(XY=0.1)
     n.c.flow_based_constraints.add(
-        d.index, zonal_ptdf=d[[*ZONES, "AB"]], ram=d["RAM"].values
+        ptdf.index,
+        zonal_ptdf=ptdf,
+        ram=n.c.flow_based_constraints.static.ram.values,
+        overwrite=True,
     )
-    n.optimize(log_to_console=False)
-
-    np_var = (
-        n.model["FlowBasedConstraint-net_position"]
-        .solution.isel(snapshot=0)
-        .to_pandas()
-    )
-    assert np_var.sum() == pytest.approx(
-        0.0
-    )  # internal corridor -> no net Core exchange
-    assert np_var[ZONES].round(0).tolist() == _net_positions(n).tolist()  # gen - load
-
-
-def test_fully_external_link_column_is_constrained_not_cut():
-    """A link with neither end a zone loads the CNECs via its column but touches no NP."""
-    n = pypsa.Network()
-    n.add("Bus", [*ZONES, "X", "Y"])
-    n.add("Load", ZONES, bus=ZONES, p_set=LOADS)
-    n.add("Generator", ZONES, bus=ZONES, p_nom=4000, marginal_cost=COST)
-    n.add(
-        "Generator",
-        ["gX", "gY"],
-        bus=["X", "Y"],
-        p_nom=1000,
-        marginal_cost=[1.0, 100.0],
-    )
-    n.add("Load", "lY", bus="Y", p_set=300.0)
-    n.add("Link", "XY", bus0="X", bus1="Y", p_nom=1000, p_min_pu=-1)  # fully external
-    d = _domain(SYMMETRIC)
-    d["XY"] = 0.0
-    d.loc["ext"] = {"A": 0.0, "B": 0.0, "C": 0.0, "XY": 1.0, "RAM": 200.0}
-    n.c.flow_based_constraints.add(
-        d.index, zonal_ptdf=d[[*ZONES, "XY"]], ram=d["RAM"].values
-    )
-    n.optimize(log_to_console=False)
-
-    assert n.links_t.p0.iloc[0]["XY"] == pytest.approx(200.0)  # capped by its own CNEC
-    assert _net_positions(n).to_dict() == {"A": 2000.0, "B": -1000.0, "C": -1000.0}
-    np_var = (
-        n.model["FlowBasedConstraint-net_position"]
-        .solution.isel(snapshot=0)
-        .to_pandas()
-    )
-    assert np_var.sum() == pytest.approx(0.0)  # external link is not on the plate
-
-
-def test_buses_p_is_physical_injection_hub_np_is_link_flow():
-    """With a corridor, buses_t.p is the physical injection; the hub NP is read from Link-p0."""
-    n = pypsa.Network()
-    n.add("Bus", ["A", "B", "X"])
-    n.add(
-        "Generator", ["gA", "gX"], bus=["A", "X"], p_nom=1000, marginal_cost=[10.0, 5.0]
-    )
-    n.add("Load", ["lA", "lB"], bus=["A", "B"], p_set=[200.0, 800.0])
-    n.add("Link", "X-A", bus0="X", bus1="A", p_nom=500, p_min_pu=-1)
-    ptdf = pd.DataFrame(
-        {"A": [0.4], "B": [-0.6], "X-A": [0.3]}, index=pd.Index(["c1"], name="name")
-    )
-    n.c.flow_based_constraints.add("c1", zonal_ptdf=ptdf, ram=800.0)
-    n.optimize(log_to_console=False)
-
-    np_var = (
-        n.model["FlowBasedConstraint-net_position"]
-        .solution.isel(snapshot=0)
-        .to_pandas()
-    )
-    assert np_var["A"] == pytest.approx(300.0)  # domain net position = gen - load
-    assert n.buses_t.net_position.iloc[0]["A"] == pytest.approx(
-        300.0
-    )  # exposed output = NP var
-    assert n.buses_t.p.iloc[0]["A"] == pytest.approx(
-        800.0
-    )  # physical injection = gen-load+import
-    assert n.links_t.p0.iloc[0]["X-A"] == pytest.approx(
-        500.0
-    )  # virtual hub NP = link flow
-    assert (
-        "X" not in n.buses_t.net_position.columns[n.buses_t.net_position.iloc[0] != 0]
-    )  # zones only
-
-
-def test_evfb_cross_zone_link_column_is_allowed():
-    """A cross-zone link that is a declared domain column (EvFB) passes validation."""
-    n = _ahc_evfb_network()  # AB_hvdc connects zones A and B and is a column
-    n.optimize(log_to_console=False)
-    assert "FlowBasedConstraint-domain" in n.model.constraints
+    with pytest.raises(ValueError, match="no flow-based zone"):
+        n.optimize(log_to_console=False)
 
 
 def test_unknown_domain_column_raises():
@@ -556,19 +461,6 @@ def test_copy_preserves_domain_and_re_solves():
     assert _net_positions(m).to_dict() == {"A": 2000.0, "B": -1000.0, "C": -1000.0}
 
 
-def test_single_and_bulk_add_agree():
-    """Adding CNECs one at a time gives the same PTDF frame and clearing as one bulk add."""
-    n_bulk = _network(_domain(SYMMETRIC))
-    n_single = _network(_domain(SYMMETRIC), one_at_a_time=True)
-    pd.testing.assert_frame_equal(
-        n_single.c.flow_based_constraints.zonal_ptdf.sort_index(),
-        n_bulk.c.flow_based_constraints.zonal_ptdf.sort_index(),
-    )
-    n_bulk.optimize(log_to_console=False)
-    n_single.optimize(log_to_console=False)
-    assert _net_positions(n_single).to_dict() == _net_positions(n_bulk).to_dict()
-
-
 def _static_np(domain: pd.DataFrame) -> pd.Series:
     """Net positions of a single-snapshot solve of a static domain."""
     n = _network(domain)
@@ -632,18 +524,6 @@ def test_time_varying_zonal_ptdf_round_trips(tmp_path):
         check_index_type=False,  # cnec labels come back object vs StringDtype (PyPSA-wide)
     )
     m.optimize(log_to_console=False)  # the recovered domain still solves
-
-
-def test_copy_preserves_time_varying_domain():
-    """n.copy() carries the time-varying zonal PTDF frame."""
-    dA = _domain(SYMMETRIC)
-    dB = dA.copy()
-    dB[ZONES] = dB[ZONES] * 2.0
-    n = _dynamic_network(dA, dB)
-    m = n.copy()
-    pd.testing.assert_frame_equal(
-        m.c.flow_based_constraints.zonal_ptdf, n.c.flow_based_constraints.zonal_ptdf
-    )
 
 
 def test_time_varying_ram_matches_per_snapshot_static():

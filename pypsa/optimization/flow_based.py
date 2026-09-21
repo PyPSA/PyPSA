@@ -73,15 +73,12 @@ def _corridor_cut(n: Network) -> Any:
     if not link_cols:
         return None
     links = n.c.links.static.loc[link_cols]
-    zones = pd.Index(sorted(zone_cols), name="name")
+    zones = pd.Index(zone_cols, name="name")
     plus = pd.get_dummies(links["bus0"]).reindex(columns=zones, fill_value=0)
     minus = pd.get_dummies(links["bus1"]).reindex(columns=zones, fill_value=0)
     coeff = (plus - minus.mul(links["efficiency"], axis=0)).T
-    coeff = coeff.loc[:, (coeff != 0).any()]
-    if coeff.columns.empty:
-        return None
     coeff.columns.name = "link"
-    link_p = n.model["Link-p"].sel(name=list(coeff.columns)).rename(name="link")
+    link_p = n.model["Link-p"].sel(name=link_cols).rename(name="link")
     return (link_p * xr.DataArray(coeff)).sum("link")
 
 
@@ -109,16 +106,17 @@ def _zonal_ptdf(n: Network) -> xr.DataArray:
 
 
 def validate_flow_based(n: Network) -> None:
-    """Reject branches directly connecting two zone buses.
+    """Reject branches directly connecting two zone buses and links outside the region.
 
     The domain replaces the grid *between* zones, so a cross-zone ``Line``, ``Transformer``
     or ``Link`` is forbidden, except a ``Link`` that is a declared domain column (an AHC/EvFB
-    corridor), whose flow enters the constraint explicitly.
+    corridor), whose flow enters the constraint explicitly. Such a link column must have
+    at least one zone end.
 
     Raises
     ------
     ValueError
-        If a forbidden cross-zone branch is found.
+        If a forbidden branch or link column is found.
 
     """
     zone_cols, link_cols = _classify_columns(n)
@@ -145,6 +143,13 @@ def validate_flow_based(n: Network) -> None:
             f"the domain; found branches connecting two zone buses: {offenders}. Remove "
             "them, or, for a controllable HVDC corridor, add it as a domain column."
         )
+        raise ValueError(msg)
+
+    links = n.c.links.static.loc[link_cols]
+    if outside := links.index[
+        ~links.bus0.isin(zones) & ~links.bus1.isin(zones)
+    ].tolist():
+        msg = f"Link columns {outside} have no flow-based zone at either end."
         raise ValueError(msg)
 
 

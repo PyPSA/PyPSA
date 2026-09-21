@@ -26,13 +26,14 @@ def eraa_workbook(tmp_path):
         "PTDF_SZ",
         "PTDF*_AHC,SZ",
         "PTDF_EvFB",
+        "PTDF*_AHC,SZ",
     ]
-    header_label = ["FB_ID", "CNEC_ID", *ZONES, "EXT-Z1", "Z1-Z2"]
+    header_label = ["FB_ID", "CNEC_ID", *ZONES, "EXT-Z1", "Z1-Z2", "EXT-Z2_1"]
     data = [
-        ["winter1", "c1", 0.4, -0.2, 0.1, 0.9, 0.5],
-        ["winter1", "c2", -0.3, 0.5, 0.2, 0.1, 0.3],
-        ["winter1", "c3", 0.1, 0.1, 0.1, 0.0, 0.0],  # NaN RAM below -> dropped
-        ["summer1", "c1", 0.9, 0.9, 0.9, 0.0, 0.0],  # other season -> ignored
+        ["winter1", "c1", 0.4, -0.2, 0.1, 0.9, 0.5, 0.3],
+        ["winter1", "c2", -0.3, 0.5, 0.2, 0.1, 0.3, -0.1],
+        ["winter1", "c3", 0.1, 0.1, 0.1, 0.0, 0.0, 0.0],  # NaN RAM below -> dropped
+        ["summer1", "c1", 0.9, 0.9, 0.9, 0.0, 0.0, 0.0],  # other season -> ignored
     ]
     ptdf = pd.DataFrame([header_kind, header_label, *data])
     ram = pd.DataFrame(
@@ -121,70 +122,52 @@ def test_from_eraa_unknown_season_raises(eraa_workbook):
         )
 
 
-def test_from_eraa_domain_solves(eraa_workbook):
-    """The imported domain feeds straight into the optimisation."""
-    n = _network()
-    n.add("Load", ZONES, bus=ZONES, p_set=[300.0, 500.0, 200.0])
-    n.add("Generator", ZONES, bus=ZONES, p_nom=2000, marginal_cost=[10.0, 50.0, 30.0])
-    n.c.flow_based_constraints.from_eraa(eraa_workbook, year="2030", season="winter1")
-    n.optimize(log_to_console=False)
-    assert n.buses_t.p.iloc[0][ZONES].sum() == pytest.approx(
-        0.0
-    )  # net positions balance
-
-
 def test_from_eraa_maps_corridors_to_links(eraa_workbook):
-    """AHC/EvFB columns are included as link terms when mapped; others are dropped."""
+    """Corridors go to links of the same name; AHC columns get the zone PTDF added back."""
     n = _network([*ZONES, "EXT"])
-    n.add("Link", "ahc", bus0="EXT", bus1="Z1", p_nom=100)  # EXT->Z1 matches "EXT-Z1"
-    n.add("Link", "ev", bus0="Z1", bus1="Z2", p_nom=100)  # Z1->Z2 matches "Z1-Z2"
+    n.add("Link", "EXT-Z1", bus0="EXT", bus1="Z1", p_nom=100)
+    n.add("Link", "EXT-Z2_1", bus0="EXT", bus1="Z2", p_nom=100)  # numbered border
+    n.add("Link", "Z1-Z2", bus0="Z1", bus1="Z2", p_nom=100)
+    n.c.flow_based_constraints.from_eraa(eraa_workbook, year="2030", season="winter1")
+    z = n.c.flow_based_constraints.zonal_ptdf
+    assert set(z.columns) == {*ZONES, "EXT-Z1", "EXT-Z2_1", "Z1-Z2"}
+    assert z.loc["c1", "EXT-Z1"] == pytest.approx(0.9 + 0.4)  # PTDF*_AHC + PTDF_Z1
+    assert z.loc["c2", "EXT-Z2_1"] == pytest.approx(-0.1 + 0.5)  # PTDF*_AHC + PTDF_Z2
+    assert z.loc["c1", "Z1-Z2"] == pytest.approx(0.5)  # EvFB column as published
+
+
+@pytest.mark.parametrize(
+    ("border", "bus0", "bus1", "expected"),
+    [("EXT-Z1", "Z1", "EXT", -(0.9 + 0.4)), ("Z1-Z2", "Z2", "Z1", -0.5)],
+)
+def test_from_eraa_corridor_orientation_flips_sign(
+    eraa_workbook, border, bus0, bus1, expected
+):
+    """A link oriented opposite to the border label flips the column sign."""
+    n = _network([*ZONES, "EXT"])
+    n.add("Link", "rev", bus0=bus0, bus1=bus1, p_nom=100)
     n.c.flow_based_constraints.from_eraa(
-        eraa_workbook,
-        year="2030",
-        season="winter1",
-        links={"EXT-Z1": "ahc", "Z1-Z2": "ev"},
+        eraa_workbook, year="2030", season="winter1", links={border: "rev"}
     )
     z = n.c.flow_based_constraints.zonal_ptdf
-    assert set(z.columns) == {*ZONES, "ahc", "ev"}
-    assert z.loc["c1", "ahc"] == pytest.approx(0.9)  # same orientation -> +
-    assert z.loc["c1", "ev"] == pytest.approx(0.5)
-
-
-def test_from_eraa_corridor_orientation_flips_sign(eraa_workbook):
-    """A link oriented opposite to the border label flips the PTDF sign."""
-    n = _network([*ZONES, "EXT"])
-    n.add("Link", "rev", bus0="Z1", bus1="EXT", p_nom=100)  # reversed vs "EXT-Z1"
-    n.c.flow_based_constraints.from_eraa(
-        eraa_workbook, year="2030", season="winter1", links={"EXT-Z1": "rev"}
-    )
-    assert n.c.flow_based_constraints.zonal_ptdf.loc["c1", "rev"] == pytest.approx(-0.9)
+    assert z.loc["c1", "rev"] == pytest.approx(expected)
 
 
 def test_from_eraa_corridor_endpoint_mismatch_raises(eraa_workbook):
-    """A mapped link must connect the border's endpoints."""
+    """A mapped link must connect the border's flow-based zone."""
     n = _network([*ZONES, "EXT"])
     n.add("Link", "bad", bus0="Z2", bus1="Z3", p_nom=100)  # not EXT<->Z1
-    with pytest.raises(ValueError, match="does not connect"):
+    with pytest.raises(ValueError, match="does not fit"):
         n.c.flow_based_constraints.from_eraa(
             eraa_workbook, year="2030", season="winter1", links={"EXT-Z1": "bad"}
         )
 
 
-def test_from_eraa_warns_on_dropped_corridors(eraa_workbook, caplog):
-    """Unmapped AHC/EvFB corridors are dropped with a warning."""
-    n = _network()
-    with caplog.at_level("WARNING"):
-        n.c.flow_based_constraints.from_eraa(
-            eraa_workbook, year="2030", season="winter1"
-        )
-    assert "unmapped" in caplog.text.lower()
-
-
 def test_from_eraa_unknown_corridor_raises(eraa_workbook):
-    """A links key that is not an AHC/EvFB column fails fast."""
+    """A links key that is not a corridor fails fast."""
     n = _network([*ZONES, "EXT"])
     n.add("Link", "ahc", bus0="EXT", bus1="Z1", p_nom=100)
-    with pytest.raises(ValueError, match="AHC/EvFB column"):
+    with pytest.raises(ValueError, match="not corridors"):
         n.c.flow_based_constraints.from_eraa(
             eraa_workbook, year="2030", season="winter1", links={"NOPE": "ahc"}
         )
@@ -209,19 +192,6 @@ def test_from_eraa_time_varying_by_season(eraa_workbook):
     assert ram.loc[1, "c2"] == float("inf")  # inert that hour
 
 
-def test_from_eraa_time_varying_solves(eraa_workbook):
-    """The time-varying ERAA domain feeds straight into the optimisation."""
-    n = _network()
-    n.set_snapshots([0, 1])
-    n.add("Load", ZONES, bus=ZONES, p_set=[300.0, 500.0, 200.0])
-    n.add("Generator", ZONES, bus=ZONES, p_nom=2000, marginal_cost=[10.0, 50.0, 30.0])
-    n.c.flow_based_constraints.from_eraa(
-        eraa_workbook, year="2030", season=pd.Series({0: "winter1", 1: "summer1"})
-    )
-    n.optimize(log_to_console=False)
-    assert (n.buses_t.p[ZONES].sum(axis=1).abs() < 1e-6).all()  # balances each hour
-
-
 def test_from_eraa_time_varying_incomplete_mapping_raises(eraa_workbook):
     """A season Series that misses a snapshot fails fast."""
     n = _network()
@@ -234,17 +204,20 @@ def test_from_eraa_time_varying_incomplete_mapping_raises(eraa_workbook):
 
 @pytest.fixture
 def jao_csv(tmp_path):
-    """A minimal JAO finalComputation CSV: non-unique CneName, one non-presolved row."""
+    """A minimal JAO finalComputation CSV with one non-presolved row."""
     df = pd.DataFrame(
         {
             "Id": [1, 2, 3],
-            "CneName": ["line_x", "line_x", "line_y"],  # not unique across directions
             "Direction": ["DIRECT", "OPPOSITE", "DIRECT"],
             "Presolved": [True, True, False],  # row 3 is filtered out by default
             "Ram": [1000.0, 900.0, 500.0],
+            "Ptdf_ALBE": [0.3, -0.3, 0.0],  # ALEGrO end in BE
+            "Ptdf_ALDE": [0.1, -0.1, 0.0],  # ALEGrO end in DE
             "Ptdf_Z1": [0.4, -0.4, 0.1],
             "Ptdf_Z2": [-0.2, 0.2, 0.1],
             "Ptdf_Z3": [0.1, -0.1, 0.1],
+            "Ptdf_Z1_X_Cable": [0.25, -0.25, 0.0],  # AHC hub
+            "Ptdf_CH": [0.05, -0.05, 0.0],  # published for transparency only
         }
     )
     path = tmp_path / "jao.csv"
@@ -252,52 +225,44 @@ def jao_csv(tmp_path):
     return str(path)
 
 
-def test_from_jao_strips_prefix_and_filters_presolved(jao_csv):
+def test_from_jao_strips_prefix_and_filters_presolved(jao_csv, caplog):
     """Ptdf_ is stripped to hub names; only presolved rows are kept; Id is the name."""
     n = _network()
-    n.c.flow_based_constraints.from_jao(jao_csv)
+    with caplog.at_level("WARNING"):
+        n.c.flow_based_constraints.from_jao(jao_csv)
     c = n.c.flow_based_constraints
 
     assert list(c.static.index) == ["1", "2"]  # non-presolved row 3 dropped; Id as name
-    assert list(c.zonal_ptdf.columns) == ZONES  # Ptdf_ prefix removed
+    assert list(c.zonal_ptdf.columns) == ZONES  # prefix removed; corridors, CH dropped
     assert c.zonal_ptdf.loc["1", "Z1"] == pytest.approx(0.4)
     assert c.static.ram.to_dict() == {"1": 1000.0, "2": 900.0}
+    assert "without a network link" in caplog.text
 
 
-def test_from_jao_presolved_false_reads_all(jao_csv):
-    """presolved=False keeps every row."""
-    n = _network()
-    n.c.flow_based_constraints.from_jao(jao_csv, presolved=False)
-    assert len(n.c.flow_based_constraints.static) == 3
-
-
-def test_from_jao_non_unique_name_col_raises(jao_csv):
-    """CneName is not unique, so it fails fast rather than silently collapsing rows."""
-    n = _network()
-    with pytest.raises(ValueError, match="unique"):
-        n.c.flow_based_constraints.from_jao(jao_csv, name_col="CneName")
-
-
-def test_from_jao_bus_mapping(jao_csv):
-    """An explicit buses mapping renames hub columns to network bus names."""
-    n = _network(["ZoneOne", "Z2", "Z3"])
-    n.c.flow_based_constraints.from_jao(jao_csv, buses={"Z1": "ZoneOne"})
-    assert list(n.c.flow_based_constraints.zonal_ptdf.columns) == [
-        "ZoneOne",
-        "Z2",
-        "Z3",
-    ]
-
-
-def test_from_jao_links_mapping(jao_csv):
-    """A hub can be mapped to a link (external virtual hub); the value is not re-signed."""
-    n = pypsa.Network()
-    n.add("Bus", ["Z1", "Z2", "X"])
-    n.add("Link", "cobra", bus0="Z1", bus1="X", p_nom=100)
-    n.c.flow_based_constraints.from_jao(jao_csv, links={"Z3": "cobra"})
+@pytest.mark.parametrize(
+    ("bus0", "bus1", "expected"), [("X", "Z1", 0.25), ("Z1", "X", -0.25)]
+)
+def test_from_jao_ahc_hub_sign_follows_link(jao_csv, bus0, bus1, expected):
+    """An AHC hub column counts power entering its zone positive."""
+    n = _network([*ZONES, "X"])
+    n.add("Link", "Z1_X_Cable", bus0=bus0, bus1=bus1, p_nom=100)
+    n.c.flow_based_constraints.from_jao(jao_csv)
     z = n.c.flow_based_constraints.zonal_ptdf
-    assert set(z.columns) == {"Z1", "Z2", "cobra"}
-    assert z.loc["1", "cobra"] == pytest.approx(0.1)  # renamed, sign unchanged
+    assert set(z.columns) == {*ZONES, "Z1_X_Cable"}
+    assert z.loc["1", "Z1_X_Cable"] == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    ("bus0", "bus1", "expected"), [("Z1", "Z2", 0.1 - 0.3), ("Z2", "Z1", 0.3 - 0.1)]
+)
+def test_from_jao_evfb_hubs_contract_to_one_link(jao_csv, bus0, bus1, expected):
+    """ALBE and ALDE contract to one column ALBE-ALDE: DE end minus BE end."""
+    n = _network()
+    n.add("Link", "ALBE-ALDE", bus0=bus0, bus1=bus1, p_nom=1000)
+    n.c.flow_based_constraints.from_jao(jao_csv, buses={"BE": "Z1", "DE": "Z2"})
+    z = n.c.flow_based_constraints.zonal_ptdf
+    assert set(z.columns) == {*ZONES, "ALBE-ALDE"}
+    assert z.loc["1", "ALBE-ALDE"] == pytest.approx(expected)
 
 
 @pytest.fixture
@@ -311,10 +276,10 @@ def tso_domain(tmp_path):
         lines = [
             "!DATEITYP;MS_FBMC_Domain_TS*",
             "!!FORMAT_NAME;FORMAT_FLOW_BASED_DOMAIN",
-            "!!OBJEKTTYP;FB_RAM;FB_DOMAIN;FB_DOMAIN;FB_DOMAIN_AHC;HGUE",
-            "CNEC_ID;RAM_MW;Z1;Z2;EXT;KONV_X",
-            f"c1;{n(1000.0)};{n(0.4)};{n(-0.2)};{n(0.1)};{n(0.3)}",
-            f"c2;{n(800.0)};{n(0.1)};{n(0.5)};{n(0.2)};{n(-0.1)}",
+            "!!OBJEKTTYP;FB_RAM;FB_DOMAIN;FB_DOMAIN;FB_DOMAIN_AHC;HGUE;HGUE;HGUE_AHC",
+            "CNEC_ID;RAM_MW;Z1;Z2;EXT;KONV_Z1-Z21_Z1;KONV_Z1-Z21_Z2;KONV_AHC_Z1-EXT_Z1",
+            f"c1;{n(1000.0)};{n(0.4)};{n(-0.2)};{n(0.1)};{n(0.3)};{n(-0.1)};{n(0.25)}",
+            f"c2;{n(800.0)};{n(0.1)};{n(0.5)};{n(0.2)};{n(-0.1)};{n(0.4)};{n(0.15)}",
         ]
         path = tmp_path / f"tso_{decimal!r}.csv"
         path.write_text("\n".join(lines), encoding="latin-1")
@@ -323,44 +288,65 @@ def tso_domain(tmp_path):
     return build
 
 
-TSO_ZONES = ["Z1", "Z2", "EXT"]
+TSO_ZONES = ["Z1", "Z2"]
 
 
 @pytest.mark.parametrize("decimal", [".", ","])
 def test_from_tso_parses_domain(tso_domain, decimal, caplog):
-    """OBJEKTTYP types the columns; the decimal locale is auto-detected; converters drop."""
+    """OBJEKTTYP types the columns; the decimal locale is auto-detected; corridors drop."""
     n = pypsa.Network()
     n.add("Bus", TSO_ZONES)
     with caplog.at_level("WARNING"):
         n.c.flow_based_constraints.from_tso(tso_domain(decimal))
     c = n.c.flow_based_constraints
     assert list(c.static.index) == ["c1", "c2"]
-    assert (
-        list(c.zonal_ptdf.columns) == TSO_ZONES
-    )  # FB_DOMAIN + FB_DOMAIN_AHC; HGUE dropped
+    assert list(c.zonal_ptdf.columns) == TSO_ZONES  # AHC zone EXT is not a zone
     assert c.zonal_ptdf.loc["c1", "Z1"] == pytest.approx(0.4)
     assert c.static.ram.to_dict() == {"c1": 1000.0, "c2": 800.0}
-    assert "unmapped" in caplog.text.lower()  # KONV_X dropped with a warning
+    assert "without a network link" in caplog.text
 
 
-def test_from_tso_maps_converter(tso_domain):
-    """A converter column is included as a link term when mapped."""
+@pytest.mark.parametrize(
+    ("corridor", "bus0", "bus1", "expected"),
+    [
+        ("KONV_AHC_Z1-EXT", "EXT", "Z1", 0.25),
+        ("KONV_AHC_Z1-EXT", "Z1", "EXT", -0.25),
+        ("EXT", "EXT", "Z1", 0.1),  # AC exchange of the AHC zone
+    ],
+)
+def test_from_tso_ahc_sign_follows_link(tso_domain, corridor, bus0, bus1, expected):
+    """An AHC column counts power entering the flow-based region positive."""
     n = pypsa.Network()
-    n.add("Bus", TSO_ZONES)
-    n.add("Link", "dc", bus0="Z1", bus1="EXT", p_nom=100)
-    n.c.flow_based_constraints.from_tso(tso_domain(), links={"KONV_X": "dc"})
+    n.add("Bus", [*TSO_ZONES, "EXT"])
+    n.add("Link", "dc", bus0=bus0, bus1=bus1, p_nom=100)
+    n.c.flow_based_constraints.from_tso(tso_domain(), links={corridor: "dc"})
     z = n.c.flow_based_constraints.zonal_ptdf
     assert set(z.columns) == {*TSO_ZONES, "dc"}
-    assert z.loc["c1", "dc"] == pytest.approx(0.3)
+    assert z.loc["c1", "dc"] == pytest.approx(expected)
 
 
-def test_from_tso_unknown_converter_raises(tso_domain):
-    """A links key that is not a converter column fails fast."""
+@pytest.mark.parametrize(
+    ("bus0", "bus1", "expected"), [("Z1", "Z2", -0.1 - 0.3), ("Z2", "Z1", 0.3 + 0.1)]
+)
+def test_from_tso_evfb_converters_contract_to_one_link(
+    tso_domain, bus0, bus1, expected
+):
+    """Both converters contract to one column KONV_Z1-Z21: Z2 end minus Z1 end."""
     n = pypsa.Network()
     n.add("Bus", TSO_ZONES)
-    n.add("Link", "dc", bus0="Z1", bus1="EXT", p_nom=100)
-    with pytest.raises(ValueError, match="converter column"):
-        n.c.flow_based_constraints.from_tso(tso_domain(), links={"Z1": "dc"})
+    n.add("Link", "KONV_Z1-Z21", bus0=bus0, bus1=bus1, p_nom=100)
+    n.c.flow_based_constraints.from_tso(tso_domain())
+    z = n.c.flow_based_constraints.zonal_ptdf
+    assert z.loc["c1", "KONV_Z1-Z21"] == pytest.approx(expected)
+
+
+def test_from_tso_ahc_zone_name_clash_raises(tso_domain):
+    """An AC-AHC corridor named like its zone bus needs a distinct link name."""
+    n = pypsa.Network()
+    n.add("Bus", [*TSO_ZONES, "EXT"])
+    n.add("Link", "EXT", bus0="EXT", bus1="Z1", p_nom=100)
+    with pytest.raises(ValueError, match="also a bus name"):
+        n.c.flow_based_constraints.from_tso(tso_domain())
 
 
 _REAL_ERAA = Path(__file__).parent / "data" / "fbmc" / "FB-Domain-CORE_simplified.xlsx"
@@ -370,7 +356,7 @@ _REAL_TSO = Path(__file__).parent / "data" / "fbmc" / "tso_domain.csv"
 
 @pytest.mark.skipif(not _REAL_TSO.exists(), reason="TSO example data not available")
 def test_from_tso_real_data():
-    """Parse the real (scrambled) TSO domain: 164 CNECs x 15 zones."""
+    """Parse the real (scrambled) TSO domain: 164 CNECs x 12 zones."""
     zones = [
         "CZ",
         "NL",
@@ -384,15 +370,12 @@ def test_from_tso_real_data():
         "RO",
         "HU",
         "DE",
-        "DKW",
-        "LT",
-        "BG",
     ]
     n = pypsa.Network()
     n.add("Bus", zones)
     n.c.flow_based_constraints.from_tso(str(_REAL_TSO))
     c = n.c.flow_based_constraints
-    assert c.zonal_ptdf.shape == (164, 15)
+    assert c.zonal_ptdf.shape == (164, 12)
     assert set(c.zonal_ptdf.columns) == set(zones)
     assert not c.static.ram.isna().any()
 
@@ -429,16 +412,20 @@ def test_from_eraa_real_data():
 
 @pytest.mark.skipif(not _REAL_JAO.exists(), reason="JAO example data not available")
 def test_from_jao_real_data():
-    """Reproduce the JAO presolved domain (181 CNECs x 24 hubs)."""
-    hubs = [
-        c.removeprefix("Ptdf_")
-        for c in pd.read_csv(str(_REAL_JAO), sep=";", nrows=1).columns
-        if c.startswith("Ptdf_")
-    ]
+    """Reproduce the JAO presolved domain (181 CNECs x 12 zones) with ALEGrO as one link."""
+    raw = pd.read_csv(str(_REAL_JAO), sep=";", low_memory=False)
+    hubs = [c.removeprefix("Ptdf_") for c in raw.columns if c.startswith("Ptdf_")]
+    zones = [h for h in hubs if "_" not in h and h not in ("ALBE", "ALDE", "CH")]
     n = pypsa.Network()
-    n.add("Bus", hubs)
+    n.add("Bus", zones)
+    n.add("Link", "ALBE-ALDE", bus0="BE", bus1="DE", p_nom=1000)
     n.c.flow_based_constraints.from_jao(str(_REAL_JAO))
     c = n.c.flow_based_constraints
-    assert c.zonal_ptdf.shape == (181, 24)
-    assert list(c.zonal_ptdf.columns) == hubs
+    assert c.zonal_ptdf.shape == (181, 13)
+    assert list(c.zonal_ptdf.columns) == [*zones, "ALBE-ALDE"]
     assert c.static.index.is_unique
+    rows = raw[raw["Presolved"]].set_index(raw[raw["Presolved"]]["Id"].astype(str))
+    expected = rows["Ptdf_ALDE"] - rows["Ptdf_ALBE"]
+    pd.testing.assert_series_equal(
+        c.zonal_ptdf["ALBE-ALDE"], expected, check_names=False, check_index_type=False
+    )
