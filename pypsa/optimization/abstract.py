@@ -378,6 +378,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         snapshots: Sequence | None = None,
         branch_outages: Sequence | pd.Index | pd.MultiIndex | None = None,
         threshold: float = 0.0,
+        capacity_weighted_threshold: bool = True,
         multi_investment_periods: bool = False,
         model_kwargs: dict | None = None,
         **kwargs: Any,
@@ -398,8 +399,18 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             to be considered.
         threshold : float, default 0.0
             Only formulate a security constraint for an affected branch and outage
-            pair if the absolute branch outage distribution factor (BODF) reaches
-            this threshold.
+            pair if the outage can shift at least this fraction of the affected
+            branch's capacity onto it, i.e. if the absolute branch outage
+            distribution factor (BODF) weighted by the capacity of the outaged
+            branch relative to that of the affected branch reaches the threshold
+            (Weinhold and Mieth, 2020). For extendable branches, the largest
+            outaged and the smallest affected capacity are assumed, so that they are
+            only screened out if their capacities are bounded.
+        capacity_weighted_threshold : bool, default True
+            Whether the pre-screening of security constraints with `threshold` weights
+            the BODF by the ratio of the nominal capacities of the outaged and the
+            affected branch. If False, the absolute BODF is compared to `threshold`
+            directly, which assumes equal capacities. Has no effect if `threshold` is 0.
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
             investment periods. Then, snapshots should be a `pd.MultiIndex`.
@@ -431,6 +442,14 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             if diff := set(branch_outages) - set(all_passive_branches):
                 msg = f"The following passive branches are not in the network: {diff}"
                 raise ValueError(msg)
+
+        extendable = passive_branches.s_nom_extendable
+        capacity_max = passive_branches.s_nom.where(
+            ~extendable, passive_branches.s_nom_max
+        )
+        capacity_min = passive_branches.s_nom.where(
+            ~extendable, passive_branches.s_nom_min
+        )
 
         num_parallel = passive_branches.num_parallel.reindex(branch_outages)
         if (num_parallel > 1).any():
@@ -475,7 +494,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 c_outage_ = c_outage + "-outage"
                 bodf = BODF.loc[c_affected, c_outage]
 
-                significant = bodf.abs() >= threshold if threshold > 0 else None
+                impact = bodf.abs()
+                if capacity_weighted_threshold:
+                    impact = impact.mul(capacity_max.loc[c_outage], axis=1).div(
+                        capacity_min.loc[c_affected], axis=0
+                    )
+                significant = impact >= threshold if threshold > 0 else None
                 if significant is not None:
                     bodf = bodf.loc[significant.any(axis=1), significant.any(axis=0)]
                     if bodf.empty:

@@ -55,6 +55,34 @@ These constraints are added in the function [`n.optimize_security_constrained()`
     from the branch capacity for contingencies (e.g. by setting `s_max_pu=0.7` to prevent line loading above 70% of the branches' rated capacity).
     See, for example, the discussion in Gazafroudi et al. (2022)[^4].
 
+!!! tip "Tip: Screening low-impact contingencies before optimisation"
+
+    The number of $N-1$ constraints can be reduced beforehand by discarding
+    contingency pairs whose worst-case impact is negligible, following Weinhold and
+    Mieth (2020)[^5]. Since the pre-outage flow $p_c$ is bounded by the branch
+    capacity $P_c$, the flow change on branch $b$ after the outage of branch $c$ is
+    bounded by:
+
+    $$|p_b^{(c)} - p_b| = |BODF_{bc}\, p_c| \leq |BODF_{bc}\, P_c|$$
+
+    Introducing a screening margin $\eta$, the contingency constraint for the pair
+    $(b, c)$ can be omitted whenever
+
+    $$\frac{|BODF_{bc}\, P_c|}{|P_b|} < \eta$$
+
+    i.e. when the outage of $c$ cannot shift more than a fraction $\eta$ of branch
+    $b$'s capacity onto it. Typical values are $\eta \in [0.01, 0.05]$, trading a
+    post-contingency overload of at most $\eta P_b$ on the omitted pairs for a large
+    reduction in the number of constraints. Because $\eta$ acts as a hard pre-filter that may alter the optimum,
+    it is advisable to re-check the reduced problem against a lower $\eta$ (or the full
+    $N-1$ set) and re-add any binding constraints.
+
+    The margin $\eta$ is set with the `threshold` argument of
+    [`n.optimize.optimize_security_constrained()`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained].
+    The capacities $P_b$ and $P_c$ are taken as the nominal capacities `s_nom`, not
+    considering `s_max_pu`. With `capacity_weighted_threshold=False`, $|BODF_{bc}|$ is
+    compared to $\eta$ directly, which assumes equal capacities.
+
 ??? note "Mapping of symbols to component attributes"
 
     The following table maps the symbols used in this section to the component attributes in PyPSA:
@@ -129,3 +157,5 @@ $$BODF_{bb} = -1$$
 [^3]: J. Guo, Y. Fu, Z. Li and M. Shahidehpour (2009), [Direct Calculation of Line Outage Distribution Factors](https://doi.org/10.1109/TPWRS.2009.2023273), in IEEE Transactions on Power Systems, vol. 24, no. 3, pp. 1633-1634, doi:10.1109/TPWRS.2009.2023273.
 
 [^4]: A. S. Gazafroudi, F. Neumann, T. Brown, [Topology-based approximations for N−1 contingency constraints in power transmission networks](https://doi.org/10.1016/j.ijepes.2021.107702), International Journal of Electrical Power & Energy Systems, 137, 107702, doi:10.1016/j.ijepes.2021.107702.
+
+[^5]: R. Weinhold and R. Mieth (2020), [Fast Security-Constrained Optimal Power Flow Through Low-Impact and Redundancy Screening](https://doi.org/10.1109/TPWRS.2020.2994764), in IEEE Transactions on Power Systems, vol. 35, no. 6, pp. 4574-4584, doi:10.1109/TPWRS.2020.2994764.
