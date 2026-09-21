@@ -487,8 +487,7 @@ def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
     assert result.empty
 
 
-@pytest.fixture(scope="module")
-def multi_invest_network():
+def build_multi_invest_network(fom_cost=0.0):
     n = pypsa.Network(snapshots=range(10))
     n.investment_periods = [2020, 2030, 2040]
     n.investment_period_weightings.loc[2020, "years"] = 10
@@ -536,8 +535,14 @@ def multi_invest_network():
     )
     load = pd.DataFrame({"load": range(100, 100 + len(n.snapshots))}, index=n.snapshots)
     n.add("Load", "load", bus="elec", p_set=load["load"])
+    n.c.generators.static["fom_cost"] = fom_cost
     n.optimize(solver_name="highs", multi_investment_periods=True)
     return n
+
+
+@pytest.fixture(scope="module")
+def multi_invest_network():
+    return build_multi_invest_network()
 
 
 class TestMultiInvest:
@@ -617,6 +622,12 @@ class TestMultiInvest:
     ):
         assert np.nansum(system_cost.values) == pytest.approx(
             multi_invest_network.objective, rel=1e-3
+        )
+
+    def test_system_cost_with_fom_consistent_with_objective(self):
+        n = build_multi_invest_network(fom_cost=5.0)
+        assert np.nansum(n.statistics.system_cost().values) == pytest.approx(
+            n.objective, rel=1e-3
         )
 
 

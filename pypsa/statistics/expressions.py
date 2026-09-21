@@ -1175,6 +1175,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
+        if self._n.has_investment_periods and not df.empty:
+            weights = self._n.investment_period_weightings["objective"]
+            df = df.multiply(weights, level="period")
         df.attrs["name"] = "Fixed O&M Cost"
         df.attrs["unit"] = "currency"
         return df
