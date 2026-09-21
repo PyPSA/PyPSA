@@ -54,6 +54,24 @@ These constraints are set in the function `define_kirchhoff_voltage_constraints(
     However, the extension [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] covers this through an
     iterative process as done Hagspiel et al. (2014)[^2] .
 
+## Zonal PTDF and Generation Shift Keys
+
+Zonal market models, such as a flow-based market coupling, need the sensitivity of each branch to the net position of a whole *zone* rather than to a single bus. A zone's net-position change is distributed to its buses by a *generation shift key* (GSK) $\text{GSK}_{b,z}$, a bus x zone matrix whose columns sum to one, so with the nodal $F = \text{PTDF}\cdot P$ and $P = \text{GSK}\cdot NP$,
+
+$$\text{PTDF}^{\text{zonal}} = \text{PTDF}^{\text{nodal}} \cdot \text{GSK}.$$
+
+The GSK choice (uniform, weighted by installed capacity, ...) shapes the result; see Schönheit et al. (2020)[^gsk] for a comparison of strategies. The zonal PTDF is computed per sub-network with [`calculate_zonal_PTDF`][pypsa.SubNetwork.calculate_zonal_PTDF], which returns a labelled `branch x zone` frame:
+
+```python
+n.determine_network_topology()
+sub = n.c.sub_networks.static.obj.iloc[0]
+node_to_zone = n.buses["country"]  # any bus -> zone mapping (a pandas Series)
+
+zonal_ptdf = sub.calculate_zonal_PTDF(node_to_zone, gsk="capacity")  # or "uniform"
+```
+
+The `gsk` argument is a scheme name or a ready bus x zone frame. Two builders are provided: [`gsk_uniform`][pypsa.SubNetwork.gsk_uniform] (equal weight per bus) and [`gsk_by_capacity`][pypsa.SubNetwork.gsk_by_capacity] (weight proportional to generator `p_nom`, optionally filtered by `carrier`). A zone without capacity falls back to uniform weights.
+
 ## Phase-Shifting Transformers (PSTs)
 
 A phase-shifting transformer (PST) inserts a controllable voltage phase-angle
@@ -233,3 +251,5 @@ More details on this implementation can be found in Neumann et al. (2022)[^3].
 [^3]: F. Neumann, V. Hagenmeyer, T. Brown (2022), [Assessments of linear power flow and transmission loss approximations in coordinated capacity expansion problems](https://doi.org/10.1016/j.apenergy.2022.118859), Applied Energy, 314, 118859, doi:10.1016/j.apenergy.2022.118859.
 
 [^4]: J. Verboomen, D. Van Hertem, P. H. Schavemaker, W. L. Kling, R. Belmans (2008), [Analytical Approach to Grid Operation With Phase Shifting Transformers](https://doi.org/10.1109/TPWRS.2007.913197), IEEE Transactions on Power Systems, 23 (1), 41-46, doi:10.1109/TPWRS.2007.913197. See Section III-A "Linearized Power Flow", eq. (3).
+
+[^gsk]: D. Schönheit, R. Weinhold and C. Dierstein (2020), [The impact of different strategies for generation shift keys (GSKs) on the flow-based market coupling domain: A model-based analysis of Central Western Europe](https://doi.org/10.1016/j.apenergy.2019.114067), Applied Energy, 258, 114067, doi:10.1016/j.apenergy.2019.114067.
