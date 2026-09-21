@@ -15,7 +15,8 @@ def test_statistics_deprecated_kwargs(ac_dc_solved):
 
     # Test each method for deprecated 'comps' parameter
     for method_name in StatisticsAccessor._methods:
-        if method_name in ["prices"]:
+        # methods which never carried the legacy `comps` argument
+        if method_name in ["prices", "congestion_rent"]:
             continue
         with pytest.raises(DeprecationWarning) as excinfo:
             getattr(n.statistics, method_name)(comps="Generator")

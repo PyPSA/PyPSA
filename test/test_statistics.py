@@ -134,6 +134,38 @@ def test_net_and_gross_revenue(ac_dc_network_r):
     assert np.allclose(revenue[comps], target[comps])
 
 
+def test_congestion_rent_price_spread(ac_dc_network_r):
+    n = ac_dc_network_r
+    rent = n.statistics.congestion_rent(
+        components="Line", groupby=False, drop_zero=False
+    ).droplevel("component")
+    prices = n.c.buses.dynamic.marginal_price
+    lines = n.c.lines.static
+    spread = prices[lines.bus1].to_numpy() - prices[lines.bus0].to_numpy()
+    expected = (
+        (n.c.lines.dynamic.p0 * spread)
+        .mul(n.snapshot_weightings.objective, axis=0)
+        .sum()
+    )
+    assert np.allclose(rent.reindex(expected.index), expected)
+
+
+@pytest.mark.parametrize("components", ["Generator", ["Line", "Load"]])
+def test_congestion_rent_rejects_non_branches(ac_dc_network_r, components):
+    with pytest.raises(ValueError, match="only defined for branch components"):
+        ac_dc_network_r.statistics.congestion_rent(components=components)
+
+
+def test_congestion_rent_without_congestion():
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", ["a", "b"])
+    n.add("Line", "ab", bus0="a", bus1="b", s_nom=100, x=0.1)
+    n.add("Generator", "gen", bus="a", p_nom=100, marginal_cost=50)
+    n.add("Load", "load", bus="b", p_set=50)
+    n.optimize()
+    assert n.statistics.congestion_rent(drop_zero=False).sum() == 0
+
+
 def test_supply_withdrawal(ac_dc_network_r):
     n = ac_dc_network_r
     target = n.statistics.energy_balance()
