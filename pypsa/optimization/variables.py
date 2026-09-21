@@ -384,28 +384,13 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     n.model.add_variables(lower=0, coords=[mod_i], name=f"{c.name}-n_mod", integer=True)
 
 
-def define_purchase_variables(
-    n: Network,
-    c_name: str,
-    attr: str,
-    sns: Sequence,
-) -> None:
-    """Define the unit purchase variables for extendable components."""
+def define_build_variables(n: Network, c_name: str) -> None:
+    """Define the binary build decisions for extendable components with offset cost."""
     c = n.components[c_name]
-    purchase_i = c.active_purchasables
-    if purchase_i.empty:
+    build_i = c._offset_assets
+    if build_i.empty:
         return
-    com_i = purchase_i.difference(c.modulars).intersection(c.committables)
-
-    n.model.add_variables(coords=[purchase_i], name=f"{c.name}-purchased", binary=True)
-
-    if com_i.empty:
-        return
-
-    active = c.da.active.sel(name=com_i, snapshot=sns)
-    n.model.add_variables(
-        coords=active.coords, name=f"{c.name}-available_{attr}", mask=active
-    )
+    n.model.add_variables(coords=[build_i], name=f"{c.name}-built", binary=True)
 
 
 def define_spillage_variables(n: Network, sns: Sequence) -> None:

@@ -94,35 +94,25 @@ n.generators.loc["wind", "fom_cost"] = 0.02 * n.generators.loc["wind", "overnigh
     | $n$               | `n.{generators,...}.lifetime` | Parameter |
     | $c_{\text{fom}}$  | `n.{generators,...}.fom_cost` | Parameter |
 
-## Unit Purchase Costs
+## Offset Costs
 
-For [purchasable components](capacity-limits.md#unit-purchase-decisions)
-(`purchasable=True`), a capacity-independent investment cost is charged as soon as
-the asset is bought:
+Some investment costs are paid once as soon as an extendable asset is built at all, independent of its capacity, for instance grid connection, land acquisition or project development.
+These offset costs $o_{*}$ are charged via the binary [build decisions](capacity-limits.md#build-decisions) $y_{*} \in \mathbb{B}$:
 
-$$+ \sum_{n,s} uc_{n,s} y_{n,s} + \sum_{l} uc_{l} y_{l} + \sum_{m} uc_{m} y_{m}$$
+$$+ \sum_{n,s} o_{n,s} y_{n,s} + \sum_{l} o_{l} y_{l} + \sum_{m} o_{m} y_{m}$$
 
-where $uc_{*}$ are the unit costs and $y_{*} \in \mathbb{B}$ are the binary purchase
-decisions. Unlike the capital costs above, unit costs are *not* multiplied by a
-capacity, which makes them suitable for one-off costs such as grid connection, land
-acquisition or project development. Like capital costs, they are weighted by the
-investment period weightings in a [pathway optimisation](pathway-planning.md).
+Together with `capital_cost`, the investment cost of an asset is then an affine function of its capacity with an offset at zero.
+Like capital costs, offset costs are weighted by the investment period weightings in a [pathway optimisation](pathway-planning.md).
 
-As for `capital_cost`, the unit cost can either be given directly as a periodized
-value via `unit_cost`, or as an upfront value via `unit_cost_overnight` which is
-annuitised with `discount_rate` and `lifetime`:
-
-$$uc = uc_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}}$$
-
-If `unit_cost_overnight` is given, it takes precedence over `unit_cost`.
+The offset cost can be given directly as a periodized value via `capital_cost_offset`, or as an upfront value via `overnight_cost_offset`, which is annuitised with `discount_rate` and `lifetime` like `overnight_cost`.
+If `overnight_cost_offset` is given, it takes precedence over `capital_cost_offset`.
 
 ``` py
 n.add("Generator", "wind",
       bus="bus",
       p_nom_extendable=True,
-      capital_cost=50000,       # €/MW
-      purchasable=True,
-      unit_cost_overnight=2e6,  # one-off €, e.g. grid connection
+      capital_cost=50000,         # €/MW
+      overnight_cost_offset=2e6,  # one-off €, e.g. grid connection
       discount_rate=0.07,
       lifetime=25)
 ```
@@ -131,11 +121,11 @@ n.add("Generator", "wind",
 
     | Symbol | Attribute | Type |
     |-------------------|-----------|-------------|
-    | $y_{n,s}$         | `n.{generators,storage_units,stores}.purchased_opt` | Decision variable |
-    | $y_{l}$           | `n.{links,lines}.purchased_opt` | Decision variable |
-    | $y_{m}$           | `n.processes.purchased_opt` | Decision variable |
-    | $uc_{*}$          | `n.{generators,...}.unit_cost` | Parameter |
-    | $uc_{\text{overnight}}$ | `n.{generators,...}.unit_cost_overnight` | Parameter |
+    | $y_{n,s}$         | `n.{generators,storage_units,stores}.built` | Decision variable |
+    | $y_{l}$           | `n.{links,lines}.built` | Decision variable |
+    | $y_{m}$           | `n.processes.built` | Decision variable |
+    | $o_{*}$           | `n.{generators,...}.capital_cost_offset` | Parameter |
+    | $o_{\text{overnight}}$ | `n.{generators,...}.overnight_cost_offset` | Parameter |
 
 ## Marginal Costs
 
