@@ -16,12 +16,20 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
+- Add flow-based market coupling as [`GlobalConstraint`][pypsa.components.GlobalConstraints] components of `type="flow_based"`: they bound the net positions of market zone buses by linear inequalities `zonal_ptdf . NP <= RAM` (RAM in `constant`) and `sum(NP) = 0`. See the [:material-book-open-variant: user guide](./user-guide/components/global-constraints.md#flow-based-domain).
+    - **Addition:** The zonal PTDF is stored as one `ptdf_<zone>` attribute per zone; [`add_flow_based`][pypsa.components.GlobalConstraints.add_flow_based] adds a whole `CNEC x zone` matrix with its RAM, and `n.c.global_constraints.zonal_ptdf` reads it back.
+    - **Time-varying data:** The RAM (`constant`, time-varying only for this type) and each zone column of the PTDF may be static or time-varying. With multiple investment periods, `investment_period` ties a row to one period.
+    - Each zone's net position is an auxiliary variable added to the nodal balance, so it equals the bus's net injection `n.buses_t.p`.
+    - **Shadow prices of CNECs:** Shadow prices are written per snapshot to `n.global_constraints_t.mu`.
+    - **Support for AHC and EvFB:** A domain column may instead name a `Link` covering advanced hybrid coupling (a link to an external hub) and evolved flow-based coupling (a link between two domain-internal zones). The column is the sensitivity to the link flow with the zone net positions held fixed (ERAA's `PTDF*` form); the importers convert JAO and TSO hub sensitivities.
+    - **Importing zonal PTDFs:** Published domains can be imported with `n.c.global_constraints.flow_based_from_eraa()`, `.flow_based_from_jao(path)`, and `.flow_based_from_tso(path)`.
 - Enforce voltage angle difference limits on [Line](./user-guide/components/lines.md) and [Transformer](./user-guide/components/transformers.md) components in optimisation. Setting a finite `v_ang_max` (degrees) now caps the magnitude of the component's voltage angle difference. For lines this equals `x_pu_eff * s`; for transformers the phase shift is included. The limit is formulated as a bound on the flow. The `v_ang_min` attribute is deprecated. Resolves part of [#1481](https://github.com/PyPSA/PyPSA/issues/1481). (<!-- md:pr 1481 -->)
 - Add [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] to scale per-line summer / winter MVA ratings onto `n.lines_t.s_max_pu` based on the snapshot month, leaving `s_nom` unchanged. (<!-- md:pr 1694 -->)
 - `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
 
 ### Bug Fixes
 
+- Fix [`n.add`][pypsa.Network.add] silently dropping a custom time-varying attribute when components carrying it are added incrementally (or re-added after `n.remove`); the new columns are now merged into the existing series.
 - Fix [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] using the unavailable `s_nom_opt` instead of `s_nom` as the reference capacity in the first iteration. On a fresh network this divided the line reactances by zero and set them to zero. (<!-- md:pr 1910 -->)
 - Fix infeasibility for fixed-capacity modular committable components, which were given operating bounds based on both nominal capacity and module size. (<!-- md:pr 1901 -->)
 - Fix [`n.optimize(transmission_losses=True)`][pypsa.optimization.OptimizationAccessor.__call__] failing for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]) when assigning line losses during post-processing. (<!-- md:pr 1892 -->)

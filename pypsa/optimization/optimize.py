@@ -53,6 +53,11 @@ from pypsa.optimization.constraints import (
     define_voltage_angle_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
+from pypsa.optimization.flow_based import (
+    NP_VAR,
+    define_flow_based_constraints,
+    define_flow_based_variables,
+)
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
@@ -819,6 +824,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
         define_phase_shift_variables(n, sns)
+        define_flow_based_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -928,6 +934,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
+        define_flow_based_constraints(n, sns)
 
         define_objective(n, sns, include_objective_constant, piecewise_opts)
 
@@ -1031,8 +1038,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if name == "objective_constant":
                 continue
 
-            # Skip auxiliary CVaR variables
-            if name.startswith("CVaR"):
+            # Skip auxiliary CVaR variables and the flow-based net position, which
+            # equals the zone bus's net injection `buses_t.p`
+            if name.startswith("CVaR") or name == NP_VAR:
                 continue
             if any(
                 i in variable.dims
@@ -1177,11 +1185,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 unassigned_constraints.append(constraint_name)
                 continue
 
+            # The flow-based zero-sum balance dual is a scalar per snapshot,
+            # so it has no component slot.
+            if c.name == "GlobalConstraint" and suffix == "flow_based_balance":
+                continue
+
             # Add placeholder for custom constraints, marked as GlobalConstraint
             # TODO This should go to an actual custom constraint
             if (
                 c.name == "GlobalConstraint"
                 and suffix not in c.static.index
+                and suffix != "flow_based"
                 and assign_all_duals
             ):
                 if c.has_scenarios:
@@ -1214,6 +1228,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 # 1. Nodal balance duals become marginal prices
                 if suffix.endswith("nodal_balance"):
                     dual_attr_name = "marginal_price"
+
+                # 2. Flow-based duals are the per-snapshot `mu` of their rows
+                elif c.name == "GlobalConstraint" and suffix == "flow_based":
+                    dual_attr_name = "mu"
 
                 # Standard case: assign as "mu_<spec>"
                 # (e.g., "mu_upper", "mu_generation_limit_dynamic")

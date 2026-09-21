@@ -2154,11 +2154,13 @@ class NetworkIOMixin(_NetworkABC):
         # Get all attributes for the component
         attrs = self.components[cls_name]["defaults"]
 
-        # Add all unknown attributes to the dataframe without any checks
+        # Add all unknown attributes to the dataframe without any checks, merging
+        # the new components' columns into any existing frame
         expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
         if attr not in expected_attrs:
-            if overwrite or attr not in dynamic:
-                dynamic[attr] = df
+            existing = dynamic.get(attr, df.iloc[:, :0])
+            existing = existing.drop(columns=df.columns, errors="ignore")
+            dynamic[attr] = pd.concat([existing, df], axis=1)
             return
 
         # Check if any snapshots are missing
