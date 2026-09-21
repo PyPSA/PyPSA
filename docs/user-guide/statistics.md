@@ -36,6 +36,7 @@ Currently supported metrics are:
 - [System costs][pypsa.statistics.StatisticsAccessor.system_cost]: The total system costs after optimization, including capital and operational expenditure.
 - [Marginal prices][pypsa.statistics.StatisticsAccessor.prices]: The marginal prices at the buses for all snapshots.
 - [Transmission][pypsa.statistics.StatisticsAccessor.transmission]: The energy transmitted through transmission components (links, lines, transformers connecting to buses of the same carrier).
+- [Congestion rent][pypsa.statistics.StatisticsAccessor.congestion_rent]: The congestion rent collected on branch components (lines, links, processes, transformers).
 
 These metrics can be calculated using the `n.statistics` accessor, for instance:
 
