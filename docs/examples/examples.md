@@ -67,6 +67,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](scigrid-sclopf.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Line Loading Limits**
+
+    Demonstrates static and time-varying `s_max_pu` derating, voltage angle difference limits via `v_ang_max` (with extendable capacities), and a temporary overloading (TATL) energy budget added through `extra_functionality`.
+
+    [:octicons-arrow-right-24: Go to example](line-loading-limits.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Newton-Raphson Power Flow**
 
     Solves non-linear AC power flow equations using the Newton-Raphson method to inspect voltage magnitudes and angles.
@@ -182,6 +188,19 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](scigrid-redispatch.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Flow-Based Market Coupling**
+
+    Sketches how flow-based market coupling can be modelled with
+    a given flow-based domain.
+
+    [:octicons-arrow-right-24: Go to example](fbmc-simple-example.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Calculating Flow-Based Domains**
+
+    Demonstrates how a flow-based domain can be calculated from a nodal network.
+
+    [:octicons-arrow-right-24: Go to example](fbmc-building-domain.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Demand Elasticity**
 
     Demonstrates modelling of price-responsive electricity demands and how they
@@ -195,6 +214,13 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
     with the fictitious objective approach, avoiding KKT conditions.
 
     [:octicons-arrow-right-24: Go to example](imperfect-competition.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Subsidies, CfDs and PPAs**
+
+    Settles support schemes (two-sided CfD, one-sided feed-in premium, cap-and-floor,
+    virtual and baseload PPAs) as a post-processing step on a solved network.
+
+    [:octicons-arrow-right-24: Go to example](cfd-ppa-settlement.ipynb)
 
 -   :material-notebook:{ .lg .middle } **Screening Curves**
 

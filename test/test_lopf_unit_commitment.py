@@ -1396,3 +1396,64 @@ def test_inactive_asset_with_modular_committable_ramp():
 
     ramp_up = n.model.constraints["Generator-p-ramp_limit_up"]
     assert "inactive" not in ramp_up.indexes["name"]
+
+
+@pytest.mark.parametrize("linearized", [False, True])
+def test_time_varying_start_up_and_shut_down_costs(linearized):
+    """Cheap start-up before and cheap shut-down after the peak extend the commitment."""
+    n = pypsa.Network(snapshots=range(5))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "cheap",
+        bus="bus",
+        committable=True,
+        p_nom=10,
+        p_min_pu=0.01,
+        stand_by_cost=10,
+        up_time_before=0,
+        start_up_cost=pd.Series([0.0, 0.0, 100.0, 100.0, 100.0], index=n.snapshots),
+        shut_down_cost=pd.Series([100.0, 100.0, 100.0, 100.0, 0.0], index=n.snapshots),
+    )
+    n.add("Generator", "expensive", bus="bus", p_nom=10, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=[0.0, 0.1, 10.0, 0.1, 0.1])
+
+    status, _ = n.optimize(solver_name="highs", linearized_unit_commitment=linearized)
+    assert status == "ok"
+    if linearized:
+        return
+    expected = pd.Series([0.0, 1.0, 1.0, 1.0, 0.0], index=n.snapshots, name="cheap")
+    pd.testing.assert_series_equal(n.c.generators.dynamic.status["cheap"], expected)
+    assert n.objective == pytest.approx(10 * 3 + 0.1 * 100)
+
+
+def test_linearized_uc_tightening_with_time_varying_costs(caplog):
+    """Tightening applies per unit only if costs are equal in every snapshot."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    equal = pd.Series([10.0, 20.0, 30.0], index=n.snapshots)
+    n.add(
+        "Generator",
+        "equal",
+        bus="bus",
+        committable=True,
+        p_nom=100,
+        start_up_cost=equal,
+        shut_down_cost=equal,
+    )
+    n.add(
+        "Generator",
+        "unequal",
+        bus="bus",
+        committable=True,
+        p_nom=100,
+        start_up_cost=equal,
+        shut_down_cost=equal + [0.0, 1.0, 0.0],
+    )
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    n.optimize.create_model(linearized_unit_commitment=True)
+
+    names = n.model.constraints["Generator-com-p-current"].indexes["name"]
+    assert list(names) == ["equal"]
+    assert "cannot be tightened" in caplog.text

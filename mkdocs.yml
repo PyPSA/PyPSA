@@ -88,6 +88,7 @@ nav:
       - Maps (Static): user-guide/plotting/static-map.ipynb
       - Maps (Interactive): user-guide/plotting/explore.ipynb
     - Network Collection: user-guide/collection.md
+    - Seasonal Line Ratings: user-guide/seasonal-line-ratings.md
     - Options: user-guide/options.md
     - Logging: user-guide/logging.ipynb
     - Warnings: user-guide/warnings.md
@@ -102,6 +103,7 @@ nav:
     - examples/ac-dc-lopf.ipynb
     - examples/scigrid-lopf-then-pf.ipynb
     - examples/scigrid-sclopf.ipynb
+    - examples/line-loading-limits.ipynb
     - examples/minimal-example-pf.ipynb
     - examples/negative-prices-kvl-baker.ipynb
     - examples/rolling-horizon.ipynb
@@ -129,8 +131,11 @@ nav:
     - examples/biomass-synthetic-fuels-carbon-management.ipynb
   - Advanced Topics:
     - examples/scigrid-redispatch.ipynb
+    - examples/fbmc-simple-example.ipynb
+    - examples/fbmc-building-domain.ipynb
     - examples/demand-elasticity.ipynb
     - examples/imperfect-competition.ipynb
+    - examples/cfd-ppa-settlement.ipynb
     - examples/generation-investment-screening-curve.ipynb
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer-example.ipynb
@@ -239,6 +244,7 @@ extra_css:
 
 extra_javascript:
 - assets/javascripts/readthedocs.js
+- assets/javascripts/copy-doctest.js
 - assets/javascripts/mathjax.js
 - assets/javascripts/gurubase-widget.js
 - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js

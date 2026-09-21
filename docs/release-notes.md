@@ -24,8 +24,14 @@ SPDX-License-Identifier: CC-BY-4.0
     - **Support for AHC and EvFB:** A domain column may instead name a `Link` covering advanced hybrid coupling (a link to an external hub) and evolved flow-based coupling (a link between two domain-internal zones).
     - **Importing zonal PTDFs:** Published domains can be imported with `n.c.flow_based_constraints.from_eraa()`, `.from_jao(path)`, and `.from_tso(path)`.
     - **Calculating zonal PTDFs:** A zonal PTDF can be derived from a nodal, grid-resolved network with [`SubNetwork.calculate_zonal_PTDF`][pypsa.SubNetwork.calculate_zonal_PTDF] (`= nodal PTDF · GSK`). Generation shift keys can be added as arguments.
+- Enforce voltage angle difference limits on [Line](./user-guide/components/lines.md) and [Transformer](./user-guide/components/transformers.md) components in optimisation. Setting a finite `v_ang_max` (degrees) now caps the magnitude of the component's voltage angle difference. For lines this equals `x_pu_eff * s`; for transformers the phase shift is included. The limit is formulated as a bound on the flow. The `v_ang_min` attribute is deprecated. Resolves part of [#1481](https://github.com/PyPSA/PyPSA/issues/1481). (<!-- md:pr 1481 -->)
+- Add [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] to scale per-line summer / winter MVA ratings onto `n.lines_t.s_max_pu` based on the snapshot month, leaving `s_nom` unchanged. (<!-- md:pr 1694 -->)
+- `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
+
 ### Bug Fixes
 
+- Fix [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] using the unavailable `s_nom_opt` instead of `s_nom` as the reference capacity in the first iteration. On a fresh network this divided the line reactances by zero and set them to zero. (<!-- md:pr 1910 -->)
+- Fix infeasibility for fixed-capacity modular committable components, which were given operating bounds based on both nominal capacity and module size. (<!-- md:pr 1901 -->)
 - Fix [`n.optimize(transmission_losses=True)`][pypsa.optimization.OptimizationAccessor.__call__] failing for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]) when assigning line losses during post-processing. (<!-- md:pr 1892 -->)
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
@@ -131,6 +137,13 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix operational constraints for non-extendable components producing `NaN` bounds when `p_nom` is infinite and `p_min_pu`/`p_max_pu` is zero. The bound now falls back to zero in this case. Relevant for linopy versions `>=0.7` where `NaN` bounds are not dropped explicitly. (<!-- md:pr 1683 -->)
 
 - Lift `xarray<2026.4` upper bound and bump `linopy>=0.7.0` floor. (<!-- md:pr 1686 -->)
+
+
+### Documentation
+
+- Added an [example notebook](./examples/cfd-ppa-settlement.ipynb) on settling support
+  schemes (two-sided CfDs, one-sided feed-in premiums, cap-and-floor, and virtual /
+  baseload PPAs) as a post-processing step on a solved network. (<!-- md:pr 1727 -->)
 
 
 ## [**v1.2.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.2.1) <small>19th May 2026</small> { id="v1.2.1" }
