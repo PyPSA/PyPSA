@@ -16,6 +16,8 @@ s_nom_set,float,MVA,n/a,"If `s_nom` is extendable in optimization, set the value
 s_max_pu,static or series,per unit,1,"The maximum allowed absolute apparent power flow per unit of `s_nom` for the optimisation (e.g. can set `s_max_pu<1` to approximate $N-1$ contingency factor, or can be time-varying to represent weather-dependent dynamic line rating for overhead lines).",Input (optional)
 capital_cost,float,currency/MVA,0,"Fixed period costs of extending `s_nom` by 1 MVA (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified. Any `length` factor must already be included.",Input (optional)
 overnight_cost,float,currency/MVA,NaN,"Overnight (upfront) investment cost per MVA. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
+capital_cost_offset,float,currency,0,"Fixed period cost incurred once if the asset is built, independent of its capacity. A non-zero value adds a binary build decision. Only used if the capacity is extendable.",Input (optional)
+overnight_cost_offset,float,currency,NaN,"Overnight (upfront) investment cost incurred once if the asset is built, independent of its capacity. If set, it is annuitised with `discount_rate` and `lifetime` and takes precedence over `capital_cost_offset`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MVA,0,"Fixed period operation and maintenance cost per MVA, added to annuitized investment cost.",Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
@@ -24,9 +26,6 @@ lifetime,float,years,inf,Lifetime of line.,Input (optional)
 length,float,km,0,"Length of line used when `type` is set. Also useful for calculating `capital_cost`.",Input (optional)
 carrier,string,"n/a","","Type of current. ""AC"" is the only valid value for lines.",Input (optional)
 terrain_factor,float,per unit,1,"Terrain factor for increasing `length` for `capital_cost` calculation.",Input (optional)
-purchasable,boolean,n/a,False,Apply unit purchase constraints.,Input (optional)
-unit_cost,float,currency,0.,"Annuitised cost for purchasing a line, irrespective of its capacity",Input (optional)
-unit_cost_overnight,float,currency,NaN,"Upfront cost for purchasing a line, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `unit_cost`.",Input (optional)
 num_parallel,float,n/a,1,"When `type` is set, this is the number of parallel circuits. Can also be fractional. If `type` is empty """" this value is ignored.",Input (optional)
 v_ang_min,float,degrees,-inf,Minimum voltage angle difference across the line.  Placeholder attribute not currently used.,Input (optional)
 v_ang_max,float,degrees,inf,Maximum voltage angle difference across the line. Placeholder attribute not currently used.,Input (optional)
@@ -45,4 +44,4 @@ s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
 mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit $-F \\leq f$. Always non-negative.,Output
 mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit $f \\leq F$. Always non-negative.,Output
 capital_cost_piecewise_opt,float,currency/MVA,0.,Optimised capital cost when using piecewise linearisation.,Output
-purchased_opt,float,n/a,n/a,Optimised unit purchase decision,Output
+built,float,n/a,n/a,"Optimised build decision (1 if built, 0 otherwise). Only set for extendable assets with an offset cost.",Output

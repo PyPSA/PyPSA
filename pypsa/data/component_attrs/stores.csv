@@ -24,15 +24,14 @@ marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost 
 marginal_cost_storage,static or series,currency/MWh/h,0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional)
 capital_cost,float,currency/MWh,0,"Fixed period costs of extending `e_nom` by 1 MWh (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified.",Input (optional)
 overnight_cost,float,currency/MWh,NaN,"Overnight (upfront) investment cost per MWh. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
+capital_cost_offset,float,currency,0,"Fixed period cost incurred once if the asset is built, independent of its capacity. A non-zero value adds a binary build decision. Only used if the capacity is extendable.",Input (optional)
+overnight_cost_offset,float,currency,NaN,"Overnight (upfront) investment cost incurred once if the asset is built, independent of its capacity. If set, it is annuitised with `discount_rate` and `lifetime` and takes precedence over `capital_cost_offset`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MWh,0,"Fixed period operation and maintenance costs per MWh, added to annuitized investment cost.",Input (optional)
 standing_loss,static or series,per unit,0,Losses per hour to energy level.,Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
 build_year,int,year,0,Build year,Input (optional)
 lifetime,float,years,inf,Lifetime,Input (optional)
-purchasable,boolean,n/a,False,Apply unit purchase constraints.,Input (optional)
-unit_cost,float,currency,0.,"Annuitised cost for purchasing a store, irrespective of its capacity",Input (optional)
-unit_cost_overnight,float,currency,NaN,"Upfront cost for purchasing a store, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `unit_cost`.",Input (optional)
 p,series,MW,0,Power at bus (positive if net supply),Output
 q,series,MVar,0,Reactive power (positive if net supply),Output
 e,series,MWh,0,Energy level of store as calculated by the optimisation.,Output
@@ -42,4 +41,4 @@ mu_lower,series,currency/MWh,n/a,Shadow price of lower `e_nom` limit,Output
 mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations (i.e. water values),Output
 capital_cost_piecewise_opt,float,currency/MWh,0.,Optimised capital cost when using piecewise linearisation.,Output
 marginal_cost_piecewise_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output
-purchased_opt,float,n/a,n/a,Optimised unit purchase decision,Output
+built,float,n/a,n/a,"Optimised build decision (1 if built, 0 otherwise). Only set for extendable assets with an offset cost.",Output

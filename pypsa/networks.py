@@ -1120,7 +1120,7 @@ class Network(
                   5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
                   6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 48 columns]
+        [7 rows x 47 columns]
 
         """
         comps = sorted(
@@ -1153,14 +1153,14 @@ class Network(
         Examples
         --------
         >>> n.controllable_branches() # doctest: +ELLIPSIS
-                                     active  ...  up_time_before
-        component name                       ...
-        Link      Norwich Converter    True  ...               1
-                  Norway Converter     True  ...               1
-                  Bremen Converter     True  ...               1
-                  DC link              True  ...               1
+                                     active  build_year  ...  type up_time_before
+        component name                                   ...
+        Link      Norwich Converter    True           0  ...                    1
+                  Norway Converter     True           0  ...                    1
+                  Bremen Converter     True           0  ...                    1
+                  DC link              True           0  ...                    1
         <BLANKLINE>
-        [4 rows x 56 columns]
+        [4 rows x 55 columns]
 
         See Also
         --------

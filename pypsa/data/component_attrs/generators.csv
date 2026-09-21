@@ -25,6 +25,8 @@ build_year,int,year,0,Build year of the generator.,Input (optional)
 lifetime,float,years,inf,Lifetime of the generator.,Input (optional)
 capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly in optimization unless `overnight_cost` is specified.",Input (optional)
 overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
+capital_cost_offset,float,currency,0,"Fixed period cost incurred once if the asset is built, independent of its capacity. A non-zero value adds a binary build decision. Only used if the capacity is extendable.",Input (optional)
+overnight_cost_offset,float,currency,NaN,"Overnight (upfront) investment cost incurred once if the asset is built, independent of its capacity. If set, it is annuitised with `discount_rate` and `lifetime` and takes precedence over `capital_cost_offset`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional)
 efficiency,static or piecewise or series,per unit,1,"Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.",Input (optional)
@@ -33,12 +35,9 @@ maintainable,boolean,n/a,False,Apply maintenance scheduling constraints.,Input (
 maintenance_duration,float,hours,0,Elapsed time per maintenance event. Each event covers consecutive snapshots whose weightings sum to at least this value. Only if `maintainable=True`.,Input (optional)
 maintenance_pu,float,per unit,1.0,Fraction of capacity unavailable during maintenance (0-1). Only if `maintainable=True`.,Input (optional)
 maintenance_events,int,n/a,1,Number of required maintenance events per optimization horizon. Only if `maintainable=True`.,Input (optional)
-purchasable,boolean,n/a,False,Apply unit purchase constraints.,Input (optional)
 start_up_cost,static or series,currency,0,Cost to start up the generator. Only used if `committable=True`.,Input (optional)
 shut_down_cost,static or series,currency,0,Cost to shut down the generator. Only used if `committable=True`.,Input (optional)
 stand_by_cost,static or series,currency/h,0.,Stand-by cost for running the generator. This cost is incurred whenever the status is 1 (including when the dispatch decision is zero).,Input (optional)
-unit_cost,float,currency,0.,"Annuitised cost for purchasing a generator, irrespective of its capacity",Input (optional)
-unit_cost_overnight,float,currency,NaN,"Upfront cost for purchasing a generator, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `unit_cost`.",Input (optional)
 min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
 min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
 up_time_before,int,snapshots,1,Number of snapshots that the generator was online before `n.snapshots` start. Only used if `committable=True` and `min_up_time>0`. Does not consider snapshot weightings.,Input (optional)
@@ -63,4 +62,4 @@ mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Out
 mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
 capital_cost_piecewise_opt,float,currency/MW,0.,Optimised capital cost when using piecewise linearisation.,Output
 marginal_cost_piecewise_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output
-purchased_opt,float,n/a,n/a,Optimised unit purchase decision,Output
+built,float,n/a,n/a,"Optimised build decision (1 if built, 0 otherwise). Only set for extendable assets with an offset cost.",Output

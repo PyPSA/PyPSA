@@ -76,22 +76,22 @@ class NetworkCollection:
     Access component data across all networks:
 
     >>> nc.generators  # doctest: +ELLIPSIS
-                                                       bus  ... purchased_opt
+                                                       bus  ... built
     network                    name                         ...
-    AC-DC-Meshed               Manchester Wind  Manchester  ...           NaN
-                               Manchester Gas   Manchester  ...           NaN
-                               Norway Wind          Norway  ...           NaN
-                               Norway Gas           Norway  ...           NaN
-                               Frankfurt Wind    Frankfurt  ...           NaN
-                               Frankfurt Gas     Frankfurt  ...           NaN
-    AC-DC-Meshed-Shuffled-Load Manchester Wind  Manchester  ...           NaN
-                               Manchester Gas   Manchester  ...           NaN
-                               Norway Wind          Norway  ...           NaN
-                               Norway Gas           Norway  ...           NaN
-                               Frankfurt Wind    Frankfurt  ...           NaN
-                               Frankfurt Gas     Frankfurt  ...           NaN
+    AC-DC-Meshed               Manchester Wind  Manchester  ...   NaN
+                               Manchester Gas   Manchester  ...   NaN
+                               Norway Wind          Norway  ...   NaN
+                               Norway Gas           Norway  ...   NaN
+                               Frankfurt Wind    Frankfurt  ...   NaN
+                               Frankfurt Gas     Frankfurt  ...   NaN
+    AC-DC-Meshed-Shuffled-Load Manchester Wind  Manchester  ...   NaN
+                               Manchester Gas   Manchester  ...   NaN
+                               Norway Wind          Norway  ...   NaN
+                               Norway Gas           Norway  ...   NaN
+                               Frankfurt Wind    Frankfurt  ...   NaN
+                               Frankfurt Gas     Frankfurt  ...   NaN
     <BLANKLINE>
-    [12 rows x 51 columns]
+    [12 rows x 50 columns]
 
 
     >>> nc.statistics.energy_balance()  # doctest: +ELLIPSIS
@@ -522,6 +522,7 @@ def _get_method_patterns() -> dict[str, str]:
         rf"({_component_classes}.static)|"
         rf"({_component_classes}.get_active_assets)|"
         rf"({_component_classes}.capital_cost)|"
+        rf"({_component_classes}.capital_cost_offset)|"
         rf"({_component_classes}.annuity)|"
         rf"static|"
         rf"get_active_assets|"

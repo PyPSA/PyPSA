@@ -20,6 +20,8 @@ p_min_pu,static or series,per unit of p_nom,0.,Minimal dispatch per unit of `p_n
 p_max_pu,static or series,per unit of p_nom,1.,Maximal dispatch per unit of `p_nom` for the link. Can also be negative.,Input (optional)
 capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW (unit of `bus0`, e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified. Any `length` factor must already be included.",Input (optional)
 overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW (unit of `bus0`). If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
+capital_cost_offset,float,currency,0,"Fixed period cost incurred once if the asset is built, independent of its capacity. A non-zero value adds a binary build decision. Only used if the capacity is extendable.",Input (optional)
+overnight_cost_offset,float,currency,NaN,"Overnight (upfront) investment cost incurred once if the asset is built, independent of its capacity. If set, it is annuitised with `discount_rate` and `lifetime` and takes precedence over `capital_cost_offset`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW (unit of `bus0`), added to annuitized investment cost.",Input (optional)
 marginal_cost,static or piecewise or series,currency/MWh,0.,Marginal cost of 1 MWh consumption from `bus0` (e.g. including variable operation and maintenance costs of an electrolyser but excluding electricity costs).,Input (optional)
@@ -32,13 +34,10 @@ maintainable,boolean,n/a,False,Apply maintenance scheduling constraints.,Input (
 maintenance_duration,float,hours,0,Elapsed time per maintenance event. Each event covers consecutive snapshots whose weightings sum to at least this value. Only if `maintainable=True`.,Input (optional)
 maintenance_pu,float,per unit,1.0,Fraction of capacity unavailable during maintenance (0-1). Only if `maintainable=True`.,Input (optional)
 maintenance_events,int,n/a,1,Number of required maintenance events per optimization horizon. Only if `maintainable=True`.,Input (optional)
-purchasable,boolean,n/a,False,Apply unit purchase constraints.,Input (optional)
 start_up_cost,static or series,currency,0,Cost to start up the link. Only used if `committable=True`.,Input (optional)
 shut_down_cost,static or series,currency,0,Cost to shut down the link. Only used if `committable=True`.,Input (optional)
 min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1.  Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
 min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0.  Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
-unit_cost,float,currency,0.,"Annuitised cost for purchasing a link, irrespective of its capacity",Input (optional)
-unit_cost_overnight,float,currency,NaN,"Upfront cost for purchasing a link, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `unit_cost`.",Input (optional)
 up_time_before,int,snapshots,1,Number of snapshots that the link was online before network.snapshots start. Only read if `committable=True` and `min_up_time>0`. Does not consider snapshot weightings.,Input (optional)
 down_time_before,int,snapshots,0,Number of snapshots that the link was offline before network.snapshots start. Only read if `committable=True` and `min_down_time>0`. Does not consider snapshot weightings.,Input (optional)
 ramp_limit_up,static or series,per unit,NaN,"Maximum increase from one snapshot to the next, per unit of `p_nom`. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
@@ -63,4 +62,4 @@ mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Out
 mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
 capital_cost_piecewise_opt,float,currency/MW,0.,Optimised capital cost when using piecewise linearisation.,Output
 marginal_cost_piecewise_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output
-purchased_opt,float,n/a,n/a,Optimised unit purchase decision,Output
+built,float,n/a,n/a,"Optimised build decision (1 if built, 0 otherwise). Only set for extendable assets with an offset cost.",Output

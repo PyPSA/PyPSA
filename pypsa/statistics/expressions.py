@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
     from pypsa import Network, NetworkCollection
-    from pypsa.components.components import Components, PortsLike
+    from pypsa.components.components import PortsLike
 
 logger = logging.getLogger(__name__)
 
@@ -65,15 +65,6 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
         # Fallback for legacy networks where only p0 is stored (for Links)
         return n.c[c].dynamic.p0
     return p
-
-
-def _purchase_cost(comp: Components, unit_cost: pd.Series) -> pd.Series:
-    """Distribute a per-unit purchase cost over the optimized purchase decisions."""
-    purchased = comp.static["purchased_opt"].fillna(0.0)
-    if isinstance(purchased.index, pd.MultiIndex):
-        unit_cost = unit_cost.reorder_levels(purchased.index.names)
-    unit_cost = unit_cost.reindex(purchased.index).fillna(0.0)
-    return purchased * unit_cost
 
 
 def port_efficiency(
@@ -685,7 +676,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        cost_attribute: str | None = None,
+        cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
         """Calculate the **capital expenditure**.
 
@@ -734,14 +725,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        cost_attribute : str | None, default=None
-            Which cost attribute(s) to sum:
-            - `None`: All attributes, i.e. capacity capital_cost plus purchase unit_cost.
-            - `"capital_cost"`: Capacity term only, using annuitized investment cost
-              (without fixed O&M).
-            - `"unit_cost"`: Purchase term only, i.e. the periodized unit cost of
-              purchasable assets.
-            - any other column name: Capacity times that static column.
+        cost_attribute : str
+            Network attribute that should be used to calculate Capital Expenditure.
+            Defaults to `capital_cost`. When set to `capital_cost`, the calculation uses
+            annuitized investment cost (without fixed O&M) and includes the
+            annuitized offset cost of built assets.
 
         Returns
         -------
@@ -760,19 +748,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             comp = n.c[c]
             capacity = comp.static[f"{nominal_attrs[c]}_opt"]
-            capex = pd.Series(0.0, index=capacity.index)
-            if cost_attribute != "unit_cost":
-                if cost_attribute in (None, "capital_cost"):
-                    attr_vals = comp.capital_cost
-                else:
-                    attr_vals = comp.static[cost_attribute]
-                piecewise_key = (cost_attribute or "capital_cost") + "_piecewise_opt"
-                piecewise_costs = comp.static.get(piecewise_key, 0)
-                capex = capex + capacity * (attr_vals + piecewise_costs)
-            if cost_attribute in (None, "unit_cost") and "purchased_opt" in comp.static:
-                capex = capex + _purchase_cost(
-                    comp, comp.periodized_unit_cost.to_series()
-                )
+            if cost_attribute == "capital_cost":
+                attr_vals = comp.capital_cost
+            else:
+                attr_vals = comp.static[cost_attribute]
+            piecewise_costs = comp.static.get(cost_attribute + "_piecewise_opt", 0)
+            capex = capacity * (attr_vals + piecewise_costs)
+            if cost_attribute == "capital_cost" and "built" in comp.static:
+                capex += comp.static["built"].fillna(0) * comp.capital_cost_offset
             return capex
 
         df = self._aggregate_components(
@@ -815,7 +798,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        cost_attribute: str | None = None,
+        cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
         """Calculate the **capital expenditure** of already built capacities.
 
@@ -861,13 +844,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        cost_attribute : str | None, default=None
-            Which cost attribute(s) to sum:
-            - `None` or `"capital_cost"`: Capacity times annuitized investment cost
-              (without fixed O&M).
-            - `"unit_cost"`: Zero, since no purchase decision exists for already
-              installed (non-optimized) capacities (dropped unless `drop_zero=False`).
-            - any other column name: Capacity times that static column.
+        cost_attribute : str
+            Network attribute that should be used to calculate Capital Expenditure.
+            Defaults to `capital_cost`.
 
         Returns
         -------
@@ -891,9 +870,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             comp = n.c[c]
             capacity = comp.static[nominal_attrs[c]]
-            if cost_attribute == "unit_cost":
-                return pd.Series(0.0, index=capacity.index)
-            if cost_attribute in (None, "capital_cost"):
+            if cost_attribute == "capital_cost":
                 return capacity * comp.capital_cost
             return capacity * comp.static[cost_attribute]
 
@@ -937,7 +914,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        cost_attribute: str | None = None,
+        cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
         """Calculate the **capital expenditure** of expanded capacities.
 
@@ -983,14 +960,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        cost_attribute : str | None, default=None
-            Which cost attribute(s) to sum, forwarded to `capex` and `installed_capex`:
-            - `None`: All attributes, i.e. capacity capital_cost plus purchase unit_cost.
-            - `"capital_cost"`: Capacity term only, using annuitized investment cost
-              (without fixed O&M).
-            - `"unit_cost"`: Purchase term only, i.e. the periodized unit cost of
-              purchasable assets.
-            - any other column name: Capacity times that static column.
+        cost_attribute : str
+            Network attribute that should be used to calculate Capital Expenditure.
+            Defaults to `capital_cost`.
 
         Returns
         -------
@@ -1052,7 +1024,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        cost_attribute: str | None = None,
     ) -> pd.DataFrame:
         """Calculate the **overnight investment costs** (excluding fom).
 
@@ -1089,16 +1060,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round : int | None, default=None
             Number of decimal places to round the result to.
 
-        Other Parameters
-        ----------------
-        cost_attribute : str | None, default=None
-            Which cost attribute(s) to sum:
-            - `None`: All attributes, i.e. capacity overnight cost plus purchase
-              overnight cost.
-            - `"overnight_cost"`: Capacity term only.
-            - `"unit_cost"`: Purchase term only, i.e. the overnight unit cost of
-              purchasable assets.
-
         Returns
         -------
         pd.DataFrame
@@ -1111,22 +1072,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         :meth:`fom` : Returns fixed operation and maintenance costs.
 
         """
-        if cost_attribute not in (None, "overnight_cost", "unit_cost"):
-            msg = (
-                "cost_attribute must be None, 'overnight_cost' or 'unit_cost', "
-                f"got {cost_attribute!r}"
-            )
-            raise ValueError(msg)
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             comp = n.c[c]
             capacity = comp.static[f"{nominal_attrs[c]}_opt"]
-            cost = pd.Series(0.0, index=capacity.index)
-            if cost_attribute in (None, "overnight_cost"):
-                cost = cost + capacity * comp.overnight_cost
-            if cost_attribute in (None, "unit_cost") and "purchased_opt" in comp.static:
-                cost = cost + _purchase_cost(comp, comp.overnight_unit_cost)
+            cost = capacity * comp.overnight_cost
+            if "built" in comp.static:
+                cost += comp.static["built"].fillna(0) * comp.overnight_cost_offset
             return cost
 
         df = self._aggregate_components(
