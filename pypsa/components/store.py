@@ -18,6 +18,7 @@ from pypsa.deprecations import COMPONENT_ALIAS_DICT
 if TYPE_CHECKING:
     from pypsa.components._types.buses import Buses
     from pypsa.components._types.carriers import Carriers
+    from pypsa.components._types.flow_based_constraints import FlowBasedConstraints
     from pypsa.components._types.generators import Generators
     from pypsa.components._types.global_constraints import GlobalConstraints
     from pypsa.components._types.line_types import LineTypes
@@ -42,6 +43,7 @@ class ComponentsStore(dict):
     buses: Buses
     carriers: Carriers
     generators: Generators
+    flow_based_constraints: FlowBasedConstraints
     global_constraints: GlobalConstraints
     line_types: LineTypes
     lines: Lines
@@ -80,6 +82,7 @@ class ComponentsStore(dict):
         - 1 'GlobalConstraint' Components
         - 0 'Shape' Components
         - 3 'SubNetwork' Components
+        - 0 'FlowBasedConstraint' Components
 
         """
         return "PyPSA Components Store\n======================\n- " + "\n- ".join(
@@ -119,6 +122,7 @@ class ComponentsStore(dict):
         - 1 'GlobalConstraint' Components
         - 0 'Shape' Components
         - 3 'SubNetwork' Components
+        - 0 'FlowBasedConstraint' Components
         >>> n.components["generators"]
         'Generator' Components
         ----------------------

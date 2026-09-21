@@ -426,6 +426,15 @@ class Components(
 
         return static, dynamic, piecewise
 
+    #: Matrix-valued attributes (cnec x zone etc.) passed to ``add`` but stored outside
+    #: the static/dynamic frames. Empty for standard components; see FlowBasedConstraints.
+    frame_attrs: tuple[str, ...] = ()
+
+    def _set_frame(self, attr: str, value: Any, names: pd.Index) -> None:
+        """Store a matrix-valued attribute; overridden by components with frame_attrs."""
+        msg = f"{self.name!r} does not support the frame attribute {attr!r}."
+        raise NotImplementedError(msg)
+
     @property
     def _piecewise_attrs(self) -> pd.DataFrame:
         """Piecewise attribute rows for this component type."""

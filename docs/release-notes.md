@@ -16,6 +16,14 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
+- Add a `FlowBasedConstraint` component for flow-based market coupling: it bounds the net positions of market zone buses by linear inequalities `zonal_ptdf . NP <= RAM` and `sum(NP) = 0`. See the [:material-book-open-variant: user guide](./user-guide/components/flow-based-constraints.md).
+    - **Addition:** The zonal PTDF matrix is passed to [`n.add`][pypsa.Network.add] as `zonal_ptdf=<DataFrame>` and read back from `n.c.flow_based_constraints.zonal_ptdf`.
+    - **Time-varying data:** The `ram` right-hand side and the zonal PTDF itself may be static or time-varying.
+    - Each zone's net position is an auxiliary variable added to the nodal balance and written to `n.buses_t.net_position` after optimization.
+    - **Shadow prices of CNECs:** Shadow prices are written to `mu_domain` when optimizing with `assign_all_duals=True`.
+    - **Support for AHC and EvFB:** A domain column may instead name a `Link` covering advanced hybrid coupling (a link to an external hub) and evolved flow-based coupling (a link between two domain-internal zones).
+    - **Importing zonal PTDFs:** Published domains can be imported with `n.c.flow_based_constraints.from_eraa()`, `.from_jao(path)`, and `.from_tso(path)`.
+    - **Calculating zonal PTDFs:** A zonal PTDF can be derived from a nodal, grid-resolved network with [`SubNetwork.calculate_zonal_PTDF`][pypsa.SubNetwork.calculate_zonal_PTDF] (`= nodal PTDF · GSK`). Generation shift keys can be added as arguments.
 - Enforce voltage angle difference limits on [Line](./user-guide/components/lines.md) and [Transformer](./user-guide/components/transformers.md) components in optimisation. Setting a finite `v_ang_max` (degrees) now caps the magnitude of the component's voltage angle difference. For lines this equals `x_pu_eff * s`; for transformers the phase shift is included. The limit is formulated as a bound on the flow. The `v_ang_min` attribute is deprecated. Resolves part of [#1481](https://github.com/PyPSA/PyPSA/issues/1481). (<!-- md:pr 1481 -->)
 - Add [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] to scale per-line summer / winter MVA ratings onto `n.lines_t.s_max_pu` based on the snapshot month, leaving `s_nom` unchanged. (<!-- md:pr 1694 -->)
 - `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
