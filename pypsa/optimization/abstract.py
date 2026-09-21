@@ -379,6 +379,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         branch_outages: Sequence | pd.Index | pd.MultiIndex | None = None,
         multi_investment_periods: bool = False,
         model_kwargs: dict | None = None,
+        scaling: bool | dict | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Compute Security-Constrained Linear Optimal Power Flow (SCLOPF).
@@ -402,6 +403,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        scaling : bool | dict | None, default None
+            Scaling of the built model, see `n.optimize`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -431,12 +434,14 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 snapshots,
                 multi_investment_periods=multi_investment_periods,
                 model_kwargs=model_kwargs,
+                scaling=scaling,
                 **kwargs,
             )
 
         m = n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
+            scaling=scaling,
             **model_kwargs,
         )
 

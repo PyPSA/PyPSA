@@ -392,11 +392,15 @@ def test_simple_network_store_cyclic(n_sts):
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sts.c.stores.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert n_sts.c.stores.dynamic.p.loc[
+        [2050], "sto1-2020"
+    ].to_numpy() == pytest.approx(0, abs=1e-6)
 
     e = n_sts.c.stores.dynamic.e
     p = n_sts.c.stores.dynamic.p
-    assert e.loc[idx[2040, 9], "sto1-2020"] == (e + p).loc[idx[2020, 0], "sto1-2020"]
+    assert e.loc[idx[2040, 9], "sto1-2020"] == pytest.approx(
+        (e + p).loc[idx[2020, 0], "sto1-2020"]
+    )
 
 
 def test_simple_network_store_cyclic_per_period(n_sts):

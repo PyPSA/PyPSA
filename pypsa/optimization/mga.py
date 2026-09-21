@@ -279,6 +279,7 @@ class OptimizationAbstractMGAMixin:
         sense: str | int = "min",
         slack: float = 0.05,
         model_kwargs: dict | None = None,
+        scaling: bool | dict | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Run modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
@@ -306,6 +307,8 @@ class OptimizationAbstractMGAMixin:
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        scaling : bool | dict | None, default None
+            Scaling of the built model, see `n.optimize`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -343,11 +346,9 @@ class OptimizationAbstractMGAMixin:
         m = n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
+            scaling=scaling,
             **model_kwargs,
         )
-
-        # add budget constraint
-        self._n.optimize._add_near_opt_constraint(multi_investment_periods, slack)
 
         # parse optimization sense
         if (
@@ -368,7 +369,7 @@ class OptimizationAbstractMGAMixin:
             msg = f"Could not parse optimization sense {sense}"
             raise ValueError(msg)
 
-        # build alternate objective
+        self._n.optimize._add_near_opt_constraint(multi_investment_periods, slack)
         m.objective = self.build_linexpr_from_weights(weights, model=m) * sense
 
         status, condition = self._n.optimize.solve_model(**kwargs)
@@ -428,6 +429,7 @@ class OptimizationAbstractMGAMixin:
         multi_investment_periods: bool = False,
         slack: float = 0.05,
         model_kwargs: dict | None = None,
+        scaling: bool | dict | None = None,
         **kwargs: Any,
     ) -> tuple[str, str, pd.Series | None]:
         """Run MGA in a given direction in a low-dimension projection.
@@ -456,6 +458,8 @@ class OptimizationAbstractMGAMixin:
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        scaling : bool | dict | None, default None
+            Scaling of the built model, see `n.optimize`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -501,12 +505,11 @@ class OptimizationAbstractMGAMixin:
         m = self._n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
+            scaling=scaling,
             **model_kwargs,
         )
 
-        # build budget constraint
         self._n.optimize._add_near_opt_constraint(multi_investment_periods, slack)
-
         # Build objective as linear combination of direction and
         # dimensions. Flip the sign in order to maximize in the given
         # direction.
