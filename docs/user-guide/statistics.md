@@ -32,6 +32,8 @@ Currently supported metrics are:
 - [Capacity Factor][pypsa.statistics.StatisticsAccessor.capacity_factor]: The capacity factor / utilization rate of all components.
 - [Revenue][pypsa.statistics.StatisticsAccessor.revenue]: The revenue received by all components.
 - [Market value][pypsa.statistics.StatisticsAccessor.market_value]: The market value of all components.
+- [Levelised cost of energy][pypsa.statistics.StatisticsAccessor.lcoe]: The cost of the energy supplied by all components, including the inputs they buy and crediting the by-products they sell.
+- [Profit][pypsa.statistics.StatisticsAccessor.profit]: The revenue of all components minus their capital, fixed and operational costs.
 - [Energy balance][pypsa.statistics.StatisticsAccessor.energy_balance]: The energy balance of the network across all carriers and snapshots.
 - [System costs][pypsa.statistics.StatisticsAccessor.system_cost]: The total system costs after optimization, including capital and operational expenditure.
 - [Marginal prices][pypsa.statistics.StatisticsAccessor.prices]: The marginal prices at the buses for all snapshots.
