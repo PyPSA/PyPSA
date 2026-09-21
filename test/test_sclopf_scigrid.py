@@ -4,6 +4,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 from numpy.testing import assert_almost_equal as equal
 
 import pypsa
@@ -102,13 +103,44 @@ def test_optimize_security_constrained_threshold(scipy_network):
     branch_outages = n.c.lines.static.index[:2]
 
     counts = {}
-    for threshold in (0.0, 0.05, 1.1):
+    for threshold in (0.0, 0.05, 2.0):
         n.optimize.optimize_security_constrained(
             n.snapshots[0], branch_outages=branch_outages, threshold=threshold
         )
         counts[threshold] = _n_security_constraints(n.model)
 
-    assert counts[0.0] > counts[0.05] > counts[1.1] == 0
+    assert counts[0.0] > counts[0.05] > counts[2.0] == 0
+
+
+@pytest.mark.parametrize("capacity_weighted_threshold", [True, False])
+def test_optimize_security_constrained_threshold_weights_capacity(
+    capacity_weighted_threshold,
+):
+    """An outage shifting a small share of a large line's flow onto a small line is kept."""
+    n = pypsa.Network()
+    n.add("Bus", ["a", "b", "c", "d"])
+    for name, bus0, bus1 in [
+        ("big", "a", "b"),
+        ("ring1", "b", "c"),
+        ("small", "c", "d"),
+        ("ring2", "d", "a"),
+        ("chord", "a", "c"),
+    ]:
+        n.add("Line", name, bus0=bus0, bus1=bus1, x=0.1, s_nom=100)
+    n.add("Generator", "gen", bus="a", p_nom=100, marginal_cost=10)
+    n.add("Load", "load", bus="c", p_set=10)
+
+    counts = {}
+    for s_nom_big in (100, 1000):
+        n.c.lines.static.loc["big", "s_nom"] = s_nom_big
+        n.optimize.optimize_security_constrained(
+            branch_outages=pd.Index(["big"]),
+            threshold=0.5,
+            capacity_weighted_threshold=capacity_weighted_threshold,
+        )
+        counts[s_nom_big] = _n_security_constraints(n.model)
+
+    assert (counts[1000] > counts[100]) == capacity_weighted_threshold
 
 
 def test_optimize_security_constrained_num_parallel_warning(caplog):

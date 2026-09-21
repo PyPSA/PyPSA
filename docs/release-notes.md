@@ -24,7 +24,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
-- Add a `threshold` argument to [`optimize_security_constrained()`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained]. Security constraints are only formulated for outage/branch pairs whose absolute branch outage distribution factor (BODF) reaches the threshold, approximating the N-1 secure problem with far fewer constraints. Branch outages with `num_parallel > 1` now also raise a warning. (<!-- md:pr 1875 -->)
+- Add a `threshold` argument to [`optimize_security_constrained()`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained]. Security constraints are only formulated for outage/branch pairs where the outage can shift at least this fraction of the branch's capacity onto it, i.e. whose absolute branch outage distribution factor (BODF) weighted by the ratio of outaged to affected branch capacity reaches the threshold, following Weinhold and Mieth (2020). Pass `capacity_weighted_threshold=False` to compare the unweighted BODF instead. This approximates the N-1 secure problem with far fewer constraints. Branch outages with `num_parallel > 1` now also raise a warning. (<!-- md:pr 1875 -->)
 
 - Speed up netCDF I/O for networks with many components. [`export_to_netcdf()`][pypsa.Network.export_to_netcdf] avoids a costly `stack()` when writing dynamic data, and import avoids per-column boxing when coercing string dtypes. The on-disk format and round-trip behaviour are unchanged. (<!-- md:pr 1771 -->)
 
