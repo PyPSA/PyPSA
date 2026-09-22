@@ -384,9 +384,8 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     n.model.add_variables(lower=0, coords=[mod_i], name=f"{c.name}-n_mod", integer=True)
 
 
-def define_spillage_variables(n: Network, sns: Sequence) -> None:
-    """Define the spillage variables for storage units."""
-    c_name = "StorageUnit"
+def define_spillage_variables(n: Network, sns: Sequence, c_name: str) -> None:
+    """Define the spillage variables for storage units and stores with inflow."""
     c = n.components[c_name]
 
     if c.empty:

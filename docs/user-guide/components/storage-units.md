@@ -12,8 +12,8 @@ The [`StorageUnit`][pypsa.components.StorageUnits] components connect to a singl
 - An `inflow` attribute (an exogenous parameter representing an energy input from external sources) and `spill` (energy overflow/spillage) variable are supported
 - For storage units, if $p>0$ the storage unit is supplying active power to the bus (discharging) and if $q>0$ it is supplying reactive power.
 
-!!! note "When to use [`Store`][pypsa.components.Stores] instead?"
+!!! note "[`Store`][pypsa.components.Stores] covers all storage unit functionality"
 
-    For independent optimization of power and energy capacities, use the [`Store`][pypsa.components.Stores] component at an auxiliary [`Bus`][pypsa.components.Buses] combined with separate [`Link`][pypsa.components.Links] components for charging and discharging. Add a [`Generator`][pypsa.components.Generators] or [`Load`][pypsa.components.Loads] at the auxiliary [`Bus`][pypsa.components.Buses] for modelling spillage and inflow from an external source. See also [this example](../../examples/replace-generator-storage-units-with-store.ipynb).
+    The [`Store`][pypsa.components.Stores] component supports `max_hours`, `efficiency_store`, `efficiency_dispatch`, `inflow` and spillage as well. [`n.storage_units_to_stores()`][pypsa.Network.storage_units_to_stores] converts storage units into equivalent stores.
 
 {{ read_csv('../../../pypsa/data/component_attrs/storage_units.csv') }}

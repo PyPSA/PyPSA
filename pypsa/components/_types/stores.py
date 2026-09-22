@@ -9,7 +9,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
+import xarray as xr
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
@@ -19,7 +21,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     import pandas as pd
-    import xarray as xr
 
 
 @patch_add_docstring
@@ -41,7 +42,7 @@ class Stores(Components):
 
     """
 
-    _operational_variables = ["e"]
+    _operational_variables = ["e", "p", "p_store"]
 
     def get_bounds_pu(
         self,
@@ -51,10 +52,16 @@ class Stores(Components):
 
         <!-- md:badge-version v1.0.0 -->
 
+        Power bounds are given per unit of `e_nom`, i.e. `p_max_pu / max_hours`
+        for the discharge `p + p_store` and `-p_min_pu / max_hours` for the
+        charge `p_store`. They are infinite where `max_hours` is infinite. For
+        stores without a [split dispatch][pypsa.components.Stores.split_dispatch],
+        `p_store` is bounded to zero and the charging bound applies to `p`.
+
         Parameters
         ----------
         attr : string, optional
-            Attribute name for the bounds, e.g. "e"
+            Attribute name for the bounds, e.g. "e", "p", "p_store"
 
         Returns
         -------
@@ -66,7 +73,38 @@ class Stores(Components):
             msg = f"Bounds can only be retrieved for operational attributes. For stores those are: {list_as_string(self._operational_variables)}."
             raise ValueError(msg)
 
-        return self.da.e_min_pu, self.da.e_max_pu
+        if attr == "e":
+            return self.da.e_min_pu, self.da.e_max_pu
+
+        p_nom_pu = (1 / self.da.max_hours).where(np.isfinite(self.da.max_hours), np.inf)
+        store_pu = -self.da.p_min_pu * p_nom_pu
+        split = self.split_dispatch()
+
+        if attr == "p":
+            return -store_pu.where(~split, 0), self.da.p_max_pu * p_nom_pu
+        return xr.zeros_like(store_pu), store_pu.where(split, 0)
+
+    def split_dispatch(self) -> xr.DataArray:
+        """Get which stores need separate charging and discharging variables.
+
+        The net dispatch `p` is sufficient unless the efficiencies differ from
+        one or a cost applies to one direction only. Adding the charging
+        variable `p_store` only where needed avoids degenerate variable pairs
+        and speeds up solving.
+
+        Returns
+        -------
+        xr.DataArray
+            Boolean per store.
+
+        """
+        split = (
+            (self.da.efficiency_store != 1)
+            | (self.da.efficiency_dispatch != 1)
+            | (self.da.marginal_cost_dispatch != 0)
+            | (self.da.marginal_cost_store != 0)
+        )
+        return split.any("snapshot") if "snapshot" in split.dims else split
 
     def add(
         self,

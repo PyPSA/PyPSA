@@ -11,56 +11,64 @@ the conceptual differences.
 
 ## Stores
 
-Stores have two time-dependent variables, the store dispatch $h_{n,s,t}$ in MW and
-the store energy level $e_{n,s,t}$ in MWh.
+Stores have three time-dependent variables, the net dispatch $h_{n,s,t}$ in MW (positive when discharging), the charge $h_{n,s,t}^+$ in MW and the energy level $e_{n,s,t}$ in MWh. The discharge $h_{n,s,t}^- = h_{n,s,t} + h_{n,s,t}^+$ is derived. Only $h_{n,s,t}$ enters the nodal balance.
 
-The store dispatch $h_{n,s,t}$ is unconstrained, i.e. it can be positive (discharging) or negative (storing):
+The energy level $e_{n,s,t}$ is constrained by maximum and minimum energy levels.
 
-$$-\infty \leq h_{n,s,t} \leq +\infty$$
-
-The store energy level $e_{n,s,t}$ is constrained by maximum and minimum energy levels.
-
-For **non-extendable** stores (`e_nom_extendable=False`), the energy level is constrained by:
+For **non-extendable** stores (`e_nom_extendable=False`):
 
 | Constraint | Dual Variable | Name |
 |------------|---------------|------|
 | $e_{n,s,t} \geq \underline{e}_{n,s,t} \hat{e}_{n,s}$ | `n.stores_t.mu_lower` | `Store-fix-e-lower` |
 | $e_{n,s,t} \leq \bar{e}_{n,s,t} \hat{e}_{n,s}$ | `n.stores_t.mu_upper` | `Store-fix-e-upper` |
+| $h_{n,s,t}^- \geq 0$ | only in `n.model` | `Store-fix-p-lower` |
+| $h_{n,s,t}^- \leq \bar{h}_{n,s,t} \hat{e}_{n,s} / r_{n,s}$ | only in `n.model` | `Store-fix-p-upper` |
+| $h_{n,s,t}^+ \geq 0$ | only in `n.model` | `Store-fix-p_store-lower` |
+| $h_{n,s,t}^+ \leq - \underline{h}_{n,s,t} \hat{e}_{n,s} / r_{n,s}$ | only in `n.model` | `Store-fix-p_store-upper` |
 
-where $\hat{e}_{n,s}$ is the nominal energy capacity, $\underline{e}_{n,s,t}$ and $\bar{e}_{n,s,t}$ are time-dependent restrictions on the energy level given per unit of nominal capacity.
+where $\hat{e}_{n,s}$ is the nominal energy capacity, $\underline{e}_{n,s,t}$ and $\bar{e}_{n,s,t}$ are time-dependent restrictions on the energy level given per unit of nominal capacity, $r_{n,s}$ is the number of hours at full power that fill the store (`max_hours`), and $\bar{h}_{n,s,t}$ and $\underline{h}_{n,s,t}$ restrict discharging and charging per unit of the power capacity $\hat{e}_{n,s} / r_{n,s}$ (usually $\underline{h}_{n,s,t}$ is negative, -1 by default). The power constraints are only built where $r_{n,s}$ is finite; by default ($r_{n,s} = \infty$) charging and discharging power are unconstrained. For stores with unit efficiencies and no direction-specific marginal costs, $h_{n,s,t}^+$ is fixed to zero and the charging bound applies to $h_{n,s,t}$ directly, which avoids a degenerate pair of variables; the outputs `p_dispatch` and `p_store` are then split by sign.
 
 These constraints are set in the function `define_operational_constraints_for_non_extendables()`.
 
-For **extendable** stores (`e_nom_extendable=True`), the energy level is constrained by:
+For **extendable** stores (`e_nom_extendable=True`):
 
 | Constraint | Dual Variable | Name |
 |------------|---------------|------|
 | $e_{n,s,t} \geq \underline{e}_{n,s,t} E_{n,s}$ | `n.stores_t.mu_lower` | `Store-ext-e-lower` |
 | $e_{n,s,t} \leq \bar{e}_{n,s,t} E_{n,s}$ | `n.stores_t.mu_upper` | `Store-ext-e-upper` |
+| $h_{n,s,t}^- \geq 0$ | only in `n.model` | `Store-ext-p-lower` |
+| $h_{n,s,t}^- \leq \bar{h}_{n,s,t} E_{n,s} / r_{n,s}$ | only in `n.model` | `Store-ext-p-upper` |
+| $h_{n,s,t}^+ \geq 0$ | only in `n.model` | `Store-ext-p_store-lower` |
+| $h_{n,s,t}^+ \leq - \underline{h}_{n,s,t} E_{n,s} / r_{n,s}$ | only in `n.model` | `Store-ext-p_store-upper` |
 
 where $E_{n,s}$ is the energy capacity to be optimised.
 
-These constraints are set in the function [`define_operational_constraints_for_extendables`.
+These constraints are set in the function `define_operational_constraints_for_extendables()`.
 
 !!! note "Capacity limits of [`Store`][pypsa.components.Stores] components"
 
     For handling of capacity limits, see the <!-- md:guide optimization/capacity-limits.md --> section.
 
-The store energy level can also be fixed to a certain value $\tilde{e}_{n,s,t}$:
+The variables can also be fixed to certain values:
 
 | Constraint | Dual Variable | Name |
 |------------|---------------|------|
 | $e_{n,s,t} = \tilde{e}_{n,s,t}$ | only in `n.model` | `Store-e_set` |
+| $h_{n,s,t} = \tilde{h}_{n,s,t}$ | only in `n.model` | `Store-p_set` |
 
 These constraints are set in the function `define_fixed_operation_constraints()`.
 
 The power and energy variables are related by the **storage consistency** equation (`Store-energy_balance`):
 
-$$e_{n,s,t} = \eta_{\textrm{stand},n,s}^{w_t^s} e_{n,s,t-1} - w_t^s h_{n,s,t} \quad \leftrightarrow \quad \lambda_{n,s,t}^\textrm{MSV}$$
+$$\begin{gather*}e_{n,s,t} = \eta_{\textrm{stand},n,s}^{w_t^s} e_{n,s,t-1} - \eta^{-1}_{\textrm{dispatch};n,s} w_t^s h_{n,s,t} + \left(\eta_{\textrm{store};n,s} - \eta^{-1}_{\textrm{dispatch};n,s}\right) w_t^s h_{n,s,t}^+ \\ + w_t^s\textrm{inflow}_{n,s,t} - w_t^s\textrm{spillage}_{n,s,t} \quad \leftrightarrow \quad \lambda_{n,s,t}^\textrm{MSV} \end{gather*}$$
 
-where $\eta_{\textrm{stand},n,s}$ represents the storage efficiency after accounting for standing losses (e.g. thermal losses in thermal storage) per hour and $w_t^s$ is the snapshot weighting (defaulting to 1 hour). The dual variable $\lambda_{n,s,t}^\textrm{MSV}$ represents the marginal storage value (also known as water value in the hydro-electricity literature).
+which is equivalent to $\eta_{\textrm{store}} h^+ - \eta^{-1}_{\textrm{dispatch}} h^-$ in terms of charge and discharge.
+
+where $\eta_{\textrm{stand},n,s}$ represents the storage efficiency after accounting for standing losses (e.g. thermal losses in thermal storage) per hour, $\eta_{\textrm{store};n,s}$ and $\eta_{\textrm{dispatch};n,s}$ are the efficiencies for power going into and out of the store, and $w_t^s$ is the snapshot weighting (defaulting to 1 hour). The spillage variable $0 \leq \textrm{spillage}_{n,s,t} \leq \textrm{inflow}_{n,s,t}$ is only created for stores with positive inflow. The dual variable $\lambda_{n,s,t}^\textrm{MSV}$ represents the marginal storage value (also known as water value in the hydro-electricity literature).
 
 These constraints are set in the function `define_store_constraints()`.
+
+The marginal costs enter the objective as $o_{n,s,t} h_{n,s,t} + o^-_{n,s,t} h_{n,s,t}^- + o^+_{n,s,t} h_{n,s,t}^+$, i.e. `marginal_cost` applies to the net dispatch while `marginal_cost_dispatch` and `marginal_cost_store` apply to one direction each. See the [Store component](../components/stores.md#marginal-costs) description.
 
 Furthermore, there are two options for specifying the initial energy level $e_{n,s,t=-1}$:
 
@@ -81,14 +89,27 @@ $$e_{n,s,t=-1} = e_{n,s,t=|T|-1}$$
     | Symbol | Attribute | Type |
     |--------|-----------|------|
     | $h_{n,s,t}$ | `n.stores_t.p` | Decision Variable |
+    | $h_{n,s,t}^+$ | `n.stores_t.p_store` | Decision Variable |
+    | $h_{n,s,t}^-$ | `n.stores_t.p_dispatch` | Derived Output |
     | $e_{n,s,t}$ | `n.stores_t.e` | Decision Variable |
+    | $\textrm{spillage}_{n,s,t}$ | `n.stores_t.spill` | Decision Variable |
     | $E_{n,s}$ | `n.stores.e_nom_opt` | Decision Variable |
     | $\lambda_{n,s,t}^\textrm{MSV}$ | `n.stores_t.mu_energy_balance` | Dual Variable |
     | $\hat{e}_{n,s}$ | `n.stores.e_nom` | Parameter |
+    | $r_{n,s}$ | `n.stores.max_hours` | Parameter |
     | $\underline{e}_{n,s,t}$ | `n.stores_t.e_min_pu` | Parameter |
     | $\bar{e}_{n,s,t}$ | `n.stores_t.e_max_pu` | Parameter |
+    | $\underline{h}_{n,s,t}$ | `n.stores_t.p_min_pu` | Parameter |
+    | $\bar{h}_{n,s,t}$ | `n.stores_t.p_max_pu` | Parameter |
     | $\tilde{e}_{n,s,t}$ | `n.stores_t.e_set` | Parameter |
-    | $\eta_{\textrm{stand},n,s}$ | `n.stores.standing_loss` | Parameter |
+    | $\tilde{h}_{n,s,t}$ | `n.stores_t.p_set` | Parameter |
+    | $\textrm{inflow}_{n,s,t}$ | `n.stores_t.inflow` | Parameter |
+    | $\eta_{\textrm{stand};n,s}$ | `n.stores.standing_loss` | Parameter |
+    | $\eta_{\textrm{store};n,s}$ | `n.stores.efficiency_store` | Parameter |
+    | $\eta_{\textrm{dispatch};n,s}$ | `n.stores.efficiency_dispatch` | Parameter |
+    | $o_{n,s,t}$ | `n.stores_t.marginal_cost` | Parameter |
+    | $o^-_{n,s,t}$ | `n.stores_t.marginal_cost_dispatch` | Parameter |
+    | $o^+_{n,s,t}$ | `n.stores_t.marginal_cost_store` | Parameter |
     | $w_t^s$ | `n.snapshot_weightings.stores` | Parameter |
 
 ## Storage Units

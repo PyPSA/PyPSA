@@ -157,3 +157,54 @@ def test_store_p_set():
     n.optimize()
 
     equal(n.c.stores.dynamic.p["store"].values, [-10, 0, 5, 0], decimal=5)
+
+
+@pytest.mark.parametrize(
+    ("cost_attr", "objective"),
+    [
+        ("marginal_cost", -2500),
+        ("marginal_cost_dispatch", -500),
+        ("marginal_cost_store", 0),
+    ],
+)
+def test_store_marginal_cost_attributes(cost_attr, objective):
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=-5)
+    n.add("Store", "store", bus="bus", e_nom=100, **{cost_attr: 20})
+    n.optimize()
+    assert n.objective == pytest.approx(objective)
+    assert n.statistics.opex().sum() == pytest.approx(objective)
+
+
+@pytest.mark.parametrize("efficiency_dispatch", [1, 0.9])
+def test_store_max_hours_limits_power(efficiency_dispatch):
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=50)
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=100,
+        e_initial=100,
+        max_hours=4,
+        efficiency_dispatch=efficiency_dispatch,
+    )
+    n.optimize(assign_all_duals=True)
+    assert (n.stores_t.p["store"] == 25).all()
+    assert (n.generators_t.p["gen"] == 25).all()
+    # energy capacity duals stay in mu_upper, power bound duals get their own name
+    assert (n.stores_t.mu_upper["store"] == 0).all()
+    assert (n.stores_t.mu_p_upper["store"].abs() == 100).all()
+
+
+def test_store_inflow_and_spill():
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=5)
+    n.add("Store", "store", bus="bus", e_nom=0, inflow=10, spill_cost=1)
+    n.optimize()
+    assert (n.stores_t.p["store"] == 5).all()
+    assert (n.stores_t.spill["store"] == 5).all()
