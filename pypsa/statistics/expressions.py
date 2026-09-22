@@ -770,9 +770,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 piecewise_costs = comp.static.get(piecewise_key, 0)
                 capex = capex + capacity * (attr_vals + piecewise_costs)
             if cost_attribute in (None, "unit_cost") and "purchased_opt" in comp.static:
-                capex = capex + _purchase_cost(
-                    comp, comp.periodized_unit_cost.to_series()
-                )
+                capex = capex + _purchase_cost(comp, comp.unit_cost)
             return capex
 
         df = self._aggregate_components(

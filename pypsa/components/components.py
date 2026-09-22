@@ -1220,6 +1220,28 @@ class Components(
         )
 
     @property
+    def unit_cost(self) -> pd.Series:
+        """Calculate periodized unit investment cost per purchased unit.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        See Also
+        --------
+        `pypsa.costs.periodized_cost`
+        `periodized_unit_cost` : Same values as xarray DataArray.
+
+        """
+        static = self.static
+        return periodized_cost(
+            capital_cost=static["unit_cost"],
+            overnight_cost=static["unit_cost_overnight"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=0,
+            nyears=self.nyears,
+        )
+
+    @property
     def periodized_unit_cost(self) -> xarray.DataArray:
         """Calculate periodized unit investment cost from component attributes as xarray DataArray.
 
@@ -1230,16 +1252,7 @@ class Components(
         `pypsa.costs.periodized_cost`
 
         """
-        static = self.static
-        cost = periodized_cost(
-            capital_cost=static["unit_cost"],
-            overnight_cost=static["unit_cost_overnight"],
-            discount_rate=static["discount_rate"],
-            lifetime=static["lifetime"],
-            fom_cost=0,
-            nyears=self.nyears,
-        )
-        da = xarray.DataArray(cost)
+        da = xarray.DataArray(self.unit_cost)
         if self.has_scenarios:
             da = da.unstack().reindex(name=self.names, scenario=self.scenarios)
         return da
