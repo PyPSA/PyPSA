@@ -216,10 +216,11 @@ Variables:
  * Generator-p (scenario, name, snapshot)
  * Link-p (scenario, name, snapshot)
  * Store-e (scenario, name, snapshot)
+ * Store-p (scenario, name, snapshot)
+ * Store-p_store (scenario, name, snapshot)
  * StorageUnit-p_dispatch (scenario, name, snapshot)
  * StorageUnit-p_store (scenario, name, snapshot)
  * StorageUnit-state_of_charge (scenario, name, snapshot)
- * Store-p (scenario, name, snapshot)
 <BLANKLINE>
 Expressions:
 ------------
@@ -239,6 +240,10 @@ Constraints:
  * Link-ext-p-upper (scenario, name, snapshot)
  * Store-ext-e-lower (scenario, name, snapshot)
  * Store-ext-e-upper (scenario, name, snapshot)
+ * Store-ext-p-lower (scenario, name, snapshot)
+ * Store-ext-p-upper (scenario, name, snapshot)
+ * Store-ext-p_store-lower (scenario, name, snapshot)
+ * Store-ext-p_store-upper (scenario, name, snapshot)
  * StorageUnit-ext-p_dispatch-lower (scenario, name, snapshot)
  * StorageUnit-ext-p_dispatch-upper (scenario, name, snapshot)
  * StorageUnit-ext-p_store-lower (scenario, name, snapshot)
@@ -310,7 +315,7 @@ scenario                      no_volcano  volcano
 component   carrier
 Generator   fossil backup          12.15    22.91
             load shedding           0.01     0.04
-            solar                  17.01     1.67
+            solar                  17.01     1.66
             wind                   37.35    41.75
 Load        -                     -66.27   -66.27
 StorageUnit battery storage        -0.26    -0.10
