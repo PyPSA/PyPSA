@@ -1673,6 +1673,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     if cost_piecewise_opt is None or cost_piecewise_opt.empty:
                         cost_piecewise_opt = 0
                     p = n.c[c].dynamic[attr]
+                    if p.empty:
+                        continue
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
                     opex = var * (cost + cost_piecewise_opt)
                     term = self._aggregate_timeseries(opex, weights, agg=groupby_time)

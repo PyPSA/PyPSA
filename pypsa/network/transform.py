@@ -659,7 +659,10 @@ class NetworkTransformMixin(_NetworkABC):
         """Convert storage units into equivalent stores.
 
         Stores cover all functionality of storage units and both formulations
-        yield identical optimisation results. The attributes are mapped.
+        yield identical optimisation results. Exceptions: `marginal_cost_quadratic`
+        and piecewise `marginal_cost` apply to the net dispatch of the store
+        instead of the discharge only, and piecewise `capital_cost` breakpoints
+        are not rescaled from MW to MWh.
 
         Parameters
         ----------

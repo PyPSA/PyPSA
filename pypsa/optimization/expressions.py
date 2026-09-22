@@ -326,6 +326,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
             return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
+        if c == "Store":
+            return m.variables[f"{c}-p"]
         attr = attr.item()
         return m.variables[f"{c}-{attr}"]
 
