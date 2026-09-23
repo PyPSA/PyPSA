@@ -4,7 +4,6 @@
 
 """Storage units components module."""
 
-import warnings
 from collections.abc import Sequence
 from typing import Any
 
@@ -83,14 +82,6 @@ class StorageUnits(Components):
         **kwargs: Any,
     ) -> pd.Index | None:
         """Wrap Components.add() and docstring is patched via decorator."""
-        warnings.warn(
-            "The StorageUnit component is deprecated and will be removed in PyPSA 2.0. "
-            "Use the Store component, which supports `max_hours`, `efficiency_store`, "
-            "`efficiency_dispatch` and `inflow`, or convert existing storage units "
-            "with `n.storage_units_to_stores()`.",
-            FutureWarning,
-            stacklevel=2,
-        )
         return super().add(
             name=name,
             suffix=suffix,
