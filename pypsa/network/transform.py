@@ -14,6 +14,7 @@ Transform methods are methods which modify, restructure data and add or remove d
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -217,6 +218,15 @@ class NetworkTransformMixin(_NetworkABC):
             return_names = options.params.add.return_names
 
         c = as_components(self, class_name)
+        if c.name == "StorageUnit":
+            warnings.warn(
+                "The StorageUnit component is deprecated and will be removed in PyPSA 2.0. "
+                "Use the Store component, which supports `max_hours`, `efficiency_store`, "
+                "`efficiency_dispatch` and `inflow`, or convert existing storage units "
+                "with `n.storage_units_to_stores()`.",
+                FutureWarning,
+                stacklevel=2,
+            )
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name) and isinstance(suffix, str)
 
@@ -659,10 +669,10 @@ class NetworkTransformMixin(_NetworkABC):
         """Convert storage units into equivalent stores.
 
         Stores cover all functionality of storage units and both formulations
-        yield identical optimisation results. Exceptions: `marginal_cost_quadratic`
-        and piecewise `marginal_cost` apply to the net dispatch of the store
-        instead of the discharge only, and piecewise `capital_cost` breakpoints
-        are not rescaled from MW to MWh.
+        yield identical optimisation results. Storage units whose conversion
+        would change results raise a `ValueError`: those with `p_dispatch_set`,
+        `p_store_set`, piecewise costs or `marginal_cost_quadratic`, which stores
+        apply to the net dispatch instead of the discharge only.
 
         Parameters
         ----------
@@ -703,6 +713,25 @@ class NetworkTransformMixin(_NetworkABC):
             msg = "Storage units must have finite `max_hours` to be converted."
             raise ValueError(msg)
 
+        piecewise = [
+            attr
+            for attr, df in c.piecewise.items()
+            if not df.columns.get_level_values("name").intersection(index).empty
+        ]
+        if piecewise:
+            msg = f"Storage units with piecewise {piecewise} cannot be converted to stores."
+            raise ValueError(msg)
+
+        mc_quadratic = self.get_switchable_as_dense(
+            "StorageUnit", "marginal_cost_quadratic", inds=index
+        )
+        if (mc_quadratic != 0).any().any():
+            msg = (
+                "Storage units with `marginal_cost_quadratic` cannot be converted to "
+                "stores, since stores apply it to the net dispatch."
+            )
+            raise ValueError(msg)
+
         renamed = {
             "cyclic_state_of_charge": "e_cyclic",
             "cyclic_state_of_charge_per_period": "e_cyclic_per_period",
@@ -722,15 +751,18 @@ class NetworkTransformMixin(_NetworkABC):
             store_attr = renamed.get(
                 attr, attr.replace("p_nom", "e_nom").replace("state_of_charge", "e")
             )
-            if (
-                attr in c.defaults.index
-                and store_attr not in self.c.stores.defaults.index
-            ):
-                continue
             varying = (
                 attr in c.dynamic
                 and not c.dynamic[attr].columns.intersection(index).empty
             )
+            if (
+                attr in c.defaults.index
+                and store_attr not in self.c.stores.defaults.index
+            ):
+                if varying or c.static.loc[index, attr].notna().any():
+                    msg = f"Storage units with `{attr}` cannot be converted to stores."
+                    raise ValueError(msg)
+                continue
             if varying:
                 kwargs[store_attr] = self.get_switchable_as_dense(
                     "StorageUnit", attr, inds=index
