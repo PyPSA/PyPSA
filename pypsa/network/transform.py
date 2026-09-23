@@ -14,6 +14,7 @@ Transform methods are methods which modify, restructure data and add or remove d
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -217,6 +218,15 @@ class NetworkTransformMixin(_NetworkABC):
             return_names = options.params.add.return_names
 
         c = as_components(self, class_name)
+        if c.name == "StorageUnit":
+            warnings.warn(
+                "The StorageUnit component is deprecated and will be removed in PyPSA 2.0. "
+                "Use the Store component, which supports `max_hours`, `efficiency_store`, "
+                "`efficiency_dispatch` and `inflow`, or convert existing storage units "
+                "with `n.storage_units_to_stores()`.",
+                FutureWarning,
+                stacklevel=2,
+            )
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name) and isinstance(suffix, str)
 
@@ -654,3 +664,111 @@ class NetworkTransformMixin(_NetworkABC):
         """
         c = as_components(self, component)
         c.rename_component_names(**kwargs)
+
+    def storage_units_to_stores(self, names: Sequence[str] | None = None) -> pd.Index:
+        """Convert storage units into equivalent stores.
+
+        Stores cover all functionality of storage units and both formulations
+        yield identical optimisation results. Storage units whose conversion
+        would change results raise a `ValueError`: those with `p_dispatch_set`,
+        `p_store_set`, piecewise costs or `marginal_cost_quadratic`, which stores
+        apply to the net dispatch instead of the discharge only.
+
+        Parameters
+        ----------
+        names : Sequence[str] | None, optional
+            Names of the storage units to convert. Defaults to all.
+
+        Returns
+        -------
+        pd.Index
+            Names of the added stores.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus")
+        >>> n.add("StorageUnit", "su", bus="bus", p_nom=10, max_hours=4, capital_cost=8)
+        >>> n.storage_units_to_stores()
+        Index(['su'], dtype='str', name='name')
+        >>> n.stores[["e_nom", "max_hours", "capital_cost"]]
+              e_nom  max_hours  capital_cost
+        name
+        su     40.0        4.0           2.0
+
+        """
+        if self.has_scenarios:
+            msg = "Converting storage units is not supported for stochastic networks."
+            raise NotImplementedError(msg)
+
+        c = self.c.storage_units
+        index = c.static.index if names is None else pd.Index(names)
+        clash = index.intersection(self.c.stores.static.index)
+        if not clash.empty:
+            msg = f"Stores with names {clash.tolist()} already exist."
+            raise ValueError(msg)
+
+        max_hours = c.static.loc[index, "max_hours"]
+        if not np.isfinite(max_hours).all():
+            msg = "Storage units must have finite `max_hours` to be converted."
+            raise ValueError(msg)
+
+        piecewise = [
+            attr
+            for attr, df in c.piecewise.items()
+            if not df.columns.get_level_values("name").intersection(index).empty
+        ]
+        if piecewise:
+            msg = f"Storage units with piecewise {piecewise} cannot be converted to stores."
+            raise ValueError(msg)
+
+        mc_quadratic = self.get_switchable_as_dense(
+            "StorageUnit", "marginal_cost_quadratic", inds=index
+        )
+        if (mc_quadratic != 0).any().any():
+            msg = (
+                "Storage units with `marginal_cost_quadratic` cannot be converted to "
+                "stores, since stores apply it to the net dispatch."
+            )
+            raise ValueError(msg)
+
+        renamed = {
+            "cyclic_state_of_charge": "e_cyclic",
+            "cyclic_state_of_charge_per_period": "e_cyclic_per_period",
+            "marginal_cost": "marginal_cost_dispatch",
+        }
+        factors = {
+            **dict.fromkeys(
+                ["p_nom", "p_nom_min", "p_nom_max", "p_nom_set", "p_nom_mod"], max_hours
+            ),
+            **dict.fromkeys(
+                ["capital_cost", "overnight_cost", "fom_cost"], 1 / max_hours
+            ),
+        }
+        outputs = c.defaults.index[c.defaults.status.str.startswith("Output")]
+        kwargs: dict[str, Any] = {}
+        for attr in c.static.columns.difference(outputs):
+            store_attr = renamed.get(
+                attr, attr.replace("p_nom", "e_nom").replace("state_of_charge", "e")
+            )
+            varying = (
+                attr in c.dynamic
+                and not c.dynamic[attr].columns.intersection(index).empty
+            )
+            if (
+                attr in c.defaults.index
+                and store_attr not in self.c.stores.defaults.index
+            ):
+                if varying or c.static.loc[index, attr].notna().any():
+                    msg = f"Storage units with `{attr}` cannot be converted to stores."
+                    raise ValueError(msg)
+                continue
+            if varying:
+                kwargs[store_attr] = self.get_switchable_as_dense(
+                    "StorageUnit", attr, inds=index
+                )
+            else:
+                kwargs[store_attr] = c.static.loc[index, attr] * factors.get(attr, 1)
+
+        self.remove("StorageUnit", index)
+        return self.add("Store", index, return_names=True, **kwargs)

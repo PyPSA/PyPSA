@@ -4,7 +4,7 @@ Carrier,carriers,"Energy carriers of buses (e.g. ""AC"" for alternating current,
 Generator,generators,"Power generator for the bus carrier it attaches to.",controllable_one_port
 Load,loads,"Loads represent a demand at the bus they are connected to (e.g. PQ power consumer).",controllable_one_port
 Link,links,"Links are used for controllable directed flows between two or more buses with arbitrary energy carriers (e.g. HVDC links, converters, conversions between carriers).",controllable_branch
-Store,stores,"Stores provide fundamental inter-temporal storage functionality not limited in charging or discharging power.",controllable_one_port
+Store,stores,"Stores provide inter-temporal storage with an energy capacity. Charging and discharging power are unlimited unless coupled to the energy capacity via `max_hours`.",controllable_one_port
 StorageUnit,storage_units,"Storage units enable inter-temporal energy shifting with fixed nominal-energy-to-nominal-power ratio.",controllable_one_port
 Line,lines,"Lines include distribution and transmission lines, overhead lines and cables.",passive_branch
 LineType,line_types,"Standard line types with per length values for impedances.",standard_type
