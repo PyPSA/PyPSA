@@ -76,22 +76,22 @@ class NetworkCollection:
     Access component data across all networks:
 
     >>> nc.generators  # doctest: +ELLIPSIS
-                                                       bus  ... capital_cost_piecewise_opt
+                                                       bus  ... purchased_opt
     network                    name                         ...
-    AC-DC-Meshed               Manchester Wind  Manchester  ...                        0.0
-                               Manchester Gas   Manchester  ...                        0.0
-                               Norway Wind          Norway  ...                        0.0
-                               Norway Gas           Norway  ...                        0.0
-                               Frankfurt Wind    Frankfurt  ...                        0.0
-                               Frankfurt Gas     Frankfurt  ...                        0.0
-    AC-DC-Meshed-Shuffled-Load Manchester Wind  Manchester  ...                        0.0
-                               Manchester Gas   Manchester  ...                        0.0
-                               Norway Wind          Norway  ...                        0.0
-                               Norway Gas           Norway  ...                        0.0
-                               Frankfurt Wind    Frankfurt  ...                        0.0
-                               Frankfurt Gas     Frankfurt  ...                        0.0
+    AC-DC-Meshed               Manchester Wind  Manchester  ...           NaN
+                               Manchester Gas   Manchester  ...           NaN
+                               Norway Wind          Norway  ...           NaN
+                               Norway Gas           Norway  ...           NaN
+                               Frankfurt Wind    Frankfurt  ...           NaN
+                               Frankfurt Gas     Frankfurt  ...           NaN
+    AC-DC-Meshed-Shuffled-Load Manchester Wind  Manchester  ...           NaN
+                               Manchester Gas   Manchester  ...           NaN
+                               Norway Wind          Norway  ...           NaN
+                               Norway Gas           Norway  ...           NaN
+                               Frankfurt Wind    Frankfurt  ...           NaN
+                               Frankfurt Gas     Frankfurt  ...           NaN
     <BLANKLINE>
-    [12 rows x 47 columns]
+    [12 rows x 51 columns]
 
 
     >>> nc.statistics.energy_balance()  # doctest: +ELLIPSIS
@@ -522,6 +522,8 @@ def _get_method_patterns() -> dict[str, str]:
         rf"({_component_classes}.static)|"
         rf"({_component_classes}.get_active_assets)|"
         rf"({_component_classes}.capital_cost)|"
+        rf"({_component_classes}.unit_cost)|"
+        rf"({_component_classes}.overnight_unit_cost)|"
         rf"({_component_classes}.annuity)|"
         rf"static|"
         rf"get_active_assets|"

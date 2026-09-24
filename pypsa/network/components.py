@@ -105,16 +105,16 @@ class NetworkComponentsMixin(_NetworkABC):
 
         Which is the same reference when accessing the component directly:
         >>> n.generators # doctest: +ELLIPSIS
-                                bus control  ...    p_nom_opt  capital_cost_piecewise_opt
+                                bus control  ... capital_cost_piecewise_opt  purchased_opt
         name                                 ...
-        Manchester Wind  Manchester   Slack  ...  4090.809778                         0.0
-        Manchester Gas   Manchester      PQ  ...     0.000000                         0.0
-        Norway Wind          Norway      PQ  ...  1533.599858                         0.0
-        Norway Gas           Norway      PQ  ...     0.000000                         0.0
-        Frankfurt Wind    Frankfurt   Slack  ...  1667.724420                         0.0
-        Frankfurt Gas     Frankfurt      PQ  ...   982.034483                         0.0
+        Manchester Wind  Manchester   Slack  ...                        0.0            NaN
+        Manchester Gas   Manchester      PQ  ...                        0.0            NaN
+        Norway Wind          Norway      PQ  ...                        0.0            NaN
+        Norway Gas           Norway      PQ  ...                        0.0            NaN
+        Frankfurt Wind    Frankfurt   Slack  ...                        0.0            NaN
+        Frankfurt Gas     Frankfurt      PQ  ...                        0.0            NaN
         <BLANKLINE>
-        [6 rows x 47 columns]
+        [6 rows x 51 columns]
         >>> n.generators is n.components.generators.static
         True
 
