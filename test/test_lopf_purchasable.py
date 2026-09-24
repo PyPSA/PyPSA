@@ -81,8 +81,8 @@ def test_purchase_worthwhile(base_network):
     status, condition = n.optimize()
 
     assert (status, condition) == ("ok", "optimal")
-    assert n.generators.at["gas", "purchased_opt"] == 1
-    assert n.generators.at["gas", "p_nom_opt"] == 200
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 1
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == 200
 
     # marginal + capital + unit cost
     assert n.objective == pytest.approx(450 * 10 + 200 * 10 + 500)
@@ -94,8 +94,8 @@ def test_purchase_not_worthwhile(base_network):
     status, _ = n.optimize()
 
     assert status == "ok"
-    assert n.generators.at["gas", "purchased_opt"] == 0
-    assert n.generators.at["gas", "p_nom_opt"] == 0
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 0
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == 0
     assert n.objective == pytest.approx(BACKUP_ONLY_COST)
 
 
@@ -110,7 +110,7 @@ def test_purchase_just_below_and_above_break_even(base_network, unit_cost, expec
     """Purchase flips from 1 to 0 as the unit cost crosses break-even."""
     n = add_modular_generator(base_network, unit_cost=unit_cost)
     n.optimize()
-    assert n.generators.at["gas", "purchased_opt"] == expected
+    assert n.c.generators.static.at["gas", "purchased_opt"] == expected
 
 
 def test_purchased_opt_only_for_purchasables(base_network):
@@ -118,8 +118,8 @@ def test_purchased_opt_only_for_purchasables(base_network):
     n = add_modular_generator(base_network)
     n.optimize()
 
-    assert n.generators.at["gas", "purchased_opt"] == 1
-    assert np.isnan(n.generators.at["backup", "purchased_opt"])
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 1
+    assert np.isnan(n.c.generators.static.at["backup", "purchased_opt"])
 
 
 def test_unit_cost_overnight_is_annuitised(base_network):
@@ -140,7 +140,7 @@ def test_unit_cost_overnight_is_annuitised(base_network):
     )
 
     n.optimize()
-    assert n.generators.at["gas", "purchased_opt"] == 1
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 1
     assert n.objective == pytest.approx(450 * 10 + 200 * 10 + expected)
 
 
@@ -221,8 +221,8 @@ def test_purchasable_link(base_network):
     )
     n.optimize()
 
-    assert n.links.at["link", "purchased_opt"] == 1
-    assert n.links.at["link", "p_nom_opt"] == 200
+    assert n.c.links.static.at["link", "purchased_opt"] == 1
+    assert n.c.links.static.at["link", "p_nom_opt"] == 200
     assert n.objective == pytest.approx(450 * 10 + 200 * 10 + 500)
 
 
@@ -250,8 +250,8 @@ def test_purchasable_committable_generator(base_network):
     status, _ = n.optimize()
 
     assert status == "ok"
-    assert n.generators.at["gas", "purchased_opt"] == 0
-    assert n.generators.at["gas", "p_nom_opt"] == 0
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 0
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == 0
 
 
 def add_committable_generator(n, **kwargs):
@@ -301,15 +301,15 @@ def test_committable_purchase_worthwhile(base_network):
     down without forfeiting its capacity.
     """
     n = base_network
-    n.loads_t.p_set["load"] = [100, 200, 0]
+    n.c.loads.dynamic.p_set["load"] = [100, 200, 0]
     add_committable_generator(n)
 
     status, _ = n.optimize()
 
     assert status == "ok"
-    assert n.generators.at["gas", "purchased_opt"] == 1
-    assert n.generators.at["gas", "p_nom_opt"] == pytest.approx(200)
-    assert n.generators_t.status["gas"].tolist() == [1, 1, 0]
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 1
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == pytest.approx(200)
+    assert n.c.generators.dynamic.status["gas"].tolist() == [1, 1, 0]
     # marginal (300) + capital (200) + unit cost (1)
     assert n.objective == pytest.approx(501)
 
@@ -317,27 +317,27 @@ def test_committable_purchase_worthwhile(base_network):
 def test_committable_purchase_not_worthwhile(base_network):
     """A prohibitive unit cost blocks purchase, capacity and commitment."""
     n = base_network
-    n.loads_t.p_set["load"] = [100, 200, 0]
+    n.c.loads.dynamic.p_set["load"] = [100, 200, 0]
     add_committable_generator(n, unit_cost=1e6)
 
     status, _ = n.optimize()
 
     assert status == "ok"
-    assert n.generators.at["gas", "purchased_opt"] == 0
-    assert n.generators.at["gas", "p_nom_opt"] == 0
-    assert (n.generators_t.status["gas"] == 0).all()
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 0
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == 0
+    assert (n.c.generators.dynamic.status["gas"] == 0).all()
     assert n.objective == pytest.approx(300 * 100)
 
 
 def test_status_requires_purchase(base_network):
     """An unpurchased committable component can never be committed."""
     n = base_network
-    n.loads_t.p_set["load"] = [100, 200, 0]
+    n.c.loads.dynamic.p_set["load"] = [100, 200, 0]
     add_committable_generator(n, unit_cost=1e6)
     n.optimize()
 
-    purchased = n.generators.at["gas", "purchased_opt"]
-    assert (n.generators_t.status["gas"] <= purchased).all()
+    purchased = n.c.generators.static.at["gas", "purchased_opt"]
+    assert (n.c.generators.dynamic.status["gas"] <= purchased).all()
 
 
 def test_linearized_unit_commitment_rejects_purchasables(base_network):
@@ -372,7 +372,7 @@ def test_purchase_with_scenarios(base_network):
     assert "scenario" not in purchased.dims
 
     n.optimize()
-    purchased_opt = n.generators.xs("gas", level="name")["purchased_opt"]
+    purchased_opt = n.c.generators.static.xs("gas", level="name")["purchased_opt"]
     assert (purchased_opt == 1).all()
     assert n.objective == pytest.approx(450 * 10 + 200 * 10 + 500)
 
@@ -402,8 +402,8 @@ def test_purchase_with_investment_periods():
     status, _ = n.optimize(multi_investment_periods=True)
 
     assert status == "ok"
-    assert n.generators.at["gas", "purchased_opt"] == 1
-    assert n.generators.at["gas", "p_nom_opt"] == 100
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 1
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == 100
     operating = (3 + 7) * 2 * 100 * 10
     unit = 500 * (3 + 7)
     assert n.objective == pytest.approx(operating + unit)
@@ -414,8 +414,8 @@ def test_continuous_purchase_blocks_capacity(base_network):
     n = add_modular_generator(base_network, p_nom_mod=0, unit_cost=1e6)
     n.optimize()
 
-    assert n.generators.at["gas", "purchased_opt"] == 0
-    assert n.generators.at["gas", "p_nom_opt"] == 0
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 0
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == 0
     assert n.objective == pytest.approx(BACKUP_ONLY_COST)
 
 
@@ -424,8 +424,8 @@ def test_continuous_purchase_worthwhile(base_network):
     n = add_modular_generator(base_network, p_nom_mod=0, unit_cost=500)
     n.optimize()
 
-    assert n.generators.at["gas", "purchased_opt"] == 1
-    assert n.generators.at["gas", "p_nom_opt"] == pytest.approx(200)
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 1
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == pytest.approx(200)
     assert n.objective == pytest.approx(450 * 10 + 200 * 10 + 500)
 
 
@@ -434,8 +434,8 @@ def test_continuous_purchase_without_nom_max(base_network):
     n = add_modular_generator(base_network, p_nom_mod=0, p_nom_max=inf, unit_cost=1e9)
     n.optimize()
 
-    assert n.generators.at["gas", "purchased_opt"] == 0
-    assert n.generators.at["gas", "p_nom_opt"] == 0
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 0
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == 0
     assert n.objective == pytest.approx(BACKUP_ONLY_COST)
 
 
@@ -477,9 +477,9 @@ def test_mixed_purchasable_flavours(base_network):
     status, _ = n.optimize()
 
     assert status == "ok"
-    purchased = n.generators.loc[["plain", "mod", "com"], "purchased_opt"]
+    purchased = n.c.generators.static.loc[["plain", "mod", "com"], "purchased_opt"]
     assert (purchased == 0).all()
-    assert (n.generators.loc[["plain", "mod", "com"], "p_nom_opt"] == 0).all()
+    assert (n.c.generators.static.loc[["plain", "mod", "com"], "p_nom_opt"] == 0).all()
     assert n.objective == pytest.approx(BACKUP_ONLY_COST)
 
 
@@ -542,8 +542,8 @@ def test_inactive_purchasable_extendable(base_network):
 
     assert status == "ok"
     assert "gas_off" not in n.model["Generator-purchased"].indexes["name"]
-    assert n.generators.at["gas", "purchased_opt"] == 1
-    assert np.isnan(n.generators.at["gas_off", "purchased_opt"])
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 1
+    assert np.isnan(n.c.generators.static.at["gas_off", "purchased_opt"])
 
 
 def test_mixed_purchasable_and_non_purchasable_with_min(base_network):
@@ -574,9 +574,9 @@ def test_mixed_purchasable_and_non_purchasable_with_min(base_network):
     status, _ = n.optimize()
 
     assert status == "ok"
-    assert n.generators.at["forced", "p_nom_opt"] >= 50 - 1e-6
-    assert n.generators.at["opt", "purchased_opt"] == 0
-    assert n.generators.at["opt", "p_nom_opt"] == pytest.approx(0, abs=1e-6)
+    assert n.c.generators.static.at["forced", "p_nom_opt"] >= 50 - 1e-6
+    assert n.c.generators.static.at["opt", "purchased_opt"] == 0
+    assert n.c.generators.static.at["opt", "p_nom_opt"] == pytest.approx(0, abs=1e-6)
 
 
 def test_small_module_size_purchasable(base_network):
@@ -600,8 +600,8 @@ def test_small_module_size_purchasable(base_network):
     status, _ = n.optimize()
 
     assert status == "ok"
-    assert n.generators.at["gas", "purchased_opt"] == 1
-    assert n.generators.at["gas", "p_nom_opt"] == pytest.approx(1.0)
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 1
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == pytest.approx(1.0)
 
 
 def test_infinite_nom_max_with_low_max_pu(base_network):
@@ -623,11 +623,11 @@ def test_infinite_nom_max_with_low_max_pu(base_network):
     status, _ = n.optimize()
 
     assert status == "ok"
-    assert n.generators.at["gas", "purchased_opt"] == 1
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 1
     # Peak load is 200 and p_max_pu is 0.1, so 2000 MW of capacity are needed.
     # The old big-M scaled by max_pu would have capped this near the peak load.
-    assert n.generators.at["gas", "p_nom_opt"] == pytest.approx(2000)
-    assert n.generators_t.p["backup"].sum() == pytest.approx(0, abs=1e-6)
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == pytest.approx(2000)
+    assert n.c.generators.dynamic.p["backup"].sum() == pytest.approx(0, abs=1e-6)
 
 
 def test_committable_link_negative_p_min_pu_purchasable(base_network):
@@ -654,8 +654,8 @@ def test_committable_link_negative_p_min_pu_purchasable(base_network):
     status, _ = n.optimize()
 
     assert status == "ok"
-    purchased = n.links.at["link", "purchased_opt"]
-    assert (n.links_t.status["link"] <= purchased + 1e-6).all()
+    purchased = n.c.links.static.at["link", "purchased_opt"]
+    assert (n.c.links.dynamic.status["link"] <= purchased + 1e-6).all()
 
 
 def test_capex_reconciles_with_objective(base_network):
@@ -744,9 +744,9 @@ def add_matrix_generator(n, mod, com, p_min_pu, p_nom_max, p_nom_min, **cost):
 
 def assert_solution_consistent(n, mod, com, p_min_pu, p_nom_max, p_nom_min):
     """Check invariants that must hold for any purchasable solution."""
-    p_nom = n.generators.at["gas", "p_nom_opt"]
-    purchased = n.generators.at["gas", "purchased_opt"]
-    p = n.generators_t.p["gas"]
+    p_nom = n.c.generators.static.at["gas", "p_nom_opt"]
+    purchased = n.c.generators.static.at["gas", "purchased_opt"]
+    p = n.c.generators.dynamic.p["gas"]
 
     assert purchased in (0.0, 1.0)
     assert (p >= -1e-6).all()
@@ -759,7 +759,7 @@ def assert_solution_consistent(n, mod, com, p_min_pu, p_nom_max, p_nom_min):
     if mod:
         assert p_nom % 100 == pytest.approx(0, abs=1e-6)
     if com:
-        status = n.generators_t.status["gas"]
+        status = n.c.generators.dynamic.status["gas"]
         if mod:
             # For modular committables the status counts committed modules.
             assert (status * 100 <= p_nom + 1e-6).all()
@@ -774,7 +774,7 @@ def assert_solution_consistent(n, mod, com, p_min_pu, p_nom_max, p_nom_min):
     # The objective must be exactly reproducible from the solution.
     expected = (
         10 * p.sum()
-        + 100 * n.generators_t.p["backup"].sum()
+        + 100 * n.c.generators.dynamic.p["backup"].sum()
         + 10 * p_nom
         + float(n.c.generators.periodized_unit_cost.sel(name="gas").item()) * purchased
     )
@@ -788,8 +788,8 @@ def test_matrix_cheap_unit_cost_is_purchased(base_network, combo):
     status, condition = n.optimize()
 
     assert (status, condition) == ("ok", "optimal")
-    assert n.generators.at["gas", "purchased_opt"] == 1
-    assert n.generators.at["gas", "p_nom_opt"] > 0
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 1
+    assert n.c.generators.static.at["gas", "p_nom_opt"] > 0
     assert_solution_consistent(n, *combo)
 
 
@@ -800,8 +800,8 @@ def test_matrix_prohibitive_unit_cost_blocks_purchase(base_network, combo):
     status, condition = n.optimize()
 
     assert (status, condition) == ("ok", "optimal")
-    assert n.generators.at["gas", "purchased_opt"] == 0
-    assert n.generators.at["gas", "p_nom_opt"] == 0
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 0
+    assert n.c.generators.static.at["gas", "p_nom_opt"] == 0
     assert n.objective == pytest.approx(BACKUP_ONLY_COST)
     assert_solution_consistent(n, *combo)
 
@@ -826,5 +826,5 @@ def test_matrix_unit_cost_overnight(base_network, combo):
 
     assert (status, condition) == ("ok", "optimal")
     # The annuitised cost is small, so the asset is bought despite `unit_cost`.
-    assert n.generators.at["gas", "purchased_opt"] == 1
+    assert n.c.generators.static.at["gas", "purchased_opt"] == 1
     assert_solution_consistent(n, *combo)
