@@ -92,6 +92,19 @@ lookup = pd.read_csv(
     PYPSA_DATA_DIR / "variables.csv",
     index_col=["component", "variable"],
 )
+linear_cost_types = [
+    "marginal_cost",
+    "marginal_cost_dispatch",
+    "marginal_cost_store",
+    "marginal_cost_storage",
+    "spill_cost",
+]
+
+
+def cost_variables(component: str, cost_type: str) -> pd.Index:
+    """Get the operational variables of a component a cost type applies to."""
+    rows = lookup.query(f"component == @component and {cost_type}")
+    return rows.index.get_level_values("variable")
 
 
 def _apply_delay_shift(
@@ -267,13 +280,7 @@ def define_objective(
 
     # marginal costs, marginal storage cost, and spill cost
 
-    for cost_type in [
-        "marginal_cost",
-        "marginal_cost_dispatch",
-        "marginal_cost_store",
-        "marginal_cost_storage",
-        "spill_cost",
-    ]:
+    for cost_type in linear_cost_types:
         for c_name, attr in lookup.query(cost_type).index:
             c = as_components(n, c_name)
 

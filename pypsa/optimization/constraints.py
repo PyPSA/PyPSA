@@ -125,6 +125,8 @@ def define_operational_constraints_for_non_extendables(
 
     lower = (min_pu * nominal_fix).where(~(is_inf & is_zero_min), 0)
     upper = (max_pu * nominal_fix).where(~(is_inf & is_zero_max), 0)
+    lower = lower.where(~isinf(min_pu), min_pu)
+    upper = upper.where(~isinf(max_pu), max_pu)
 
     active = c.da.active.sel(name=fix_i, snapshot=sns)
     bounded_below = active & ~isinf(lower)
@@ -132,7 +134,8 @@ def define_operational_constraints_for_non_extendables(
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=fix_i)
     if c.name == "Store" and attr == "p":
-        dispatch = dispatch + n.model["Store-p_store"].sel(name=fix_i)
+        p_store = n.model["Store-p_store"].sel(name=fix_i)
+        dispatch = dispatch + p_store.to_linexpr().fillna(0)
 
     if c.name in n.passive_branch_components and transmission_losses:
         loss = n.model[f"{c.name}-loss"].sel(name=fix_i)
@@ -153,12 +156,22 @@ def define_operational_constraints_for_non_extendables(
         lhs_upper = lhs_upper + maint_upper
         lhs_lower = lhs_lower + maint_lower
 
-    n.model.add_constraints(
-        lhs_lower, ">=", lower, name=f"{c.name}-fix-{attr}-lower", mask=bounded_below
-    )
-    n.model.add_constraints(
-        lhs_upper, "<=", upper, name=f"{c.name}-fix-{attr}-upper", mask=bounded_above
-    )
+    if bounded_below.any():
+        n.model.add_constraints(
+            lhs_lower,
+            ">=",
+            lower,
+            name=f"{c.name}-fix-{attr}-lower",
+            mask=bounded_below,
+        )
+    if bounded_above.any():
+        n.model.add_constraints(
+            lhs_upper,
+            "<=",
+            upper,
+            name=f"{c.name}-fix-{attr}-upper",
+            mask=bounded_above,
+        )
 
 
 def define_operational_constraints_for_extendables(
@@ -218,7 +231,8 @@ def define_operational_constraints_for_extendables(
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=ext_i)
     if c.name == "Store" and attr == "p":
-        dispatch = dispatch + n.model["Store-p_store"].sel(name=ext_i)
+        p_store = n.model["Store-p_store"].sel(name=ext_i)
+        dispatch = dispatch + p_store.to_linexpr().fillna(0)
     capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"].sel(name=ext_i)
     active = c.da.active.sel(name=ext_i, snapshot=sns)
     bounded_below = active & ~isinf(min_pu)
@@ -247,12 +261,14 @@ def define_operational_constraints_for_extendables(
         lhs_upper = lhs_upper + maint_upper
         lhs_lower = lhs_lower + maint_lower
 
-    n.model.add_constraints(
-        lhs_lower, ">=", 0, name=f"{c.name}-ext-{attr}-lower", mask=bounded_below
-    )
-    n.model.add_constraints(
-        lhs_upper, "<=", 0, name=f"{c.name}-ext-{attr}-upper", mask=bounded_above
-    )
+    if bounded_below.any():
+        n.model.add_constraints(
+            lhs_lower, ">=", 0, name=f"{c.name}-ext-{attr}-lower", mask=bounded_below
+        )
+    if bounded_above.any():
+        n.model.add_constraints(
+            lhs_upper, "<=", 0, name=f"{c.name}-ext-{attr}-upper", mask=bounded_above
+        )
 
 
 def define_operational_constraints_for_committables(
@@ -2385,7 +2401,6 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     lhs = [
         (-1, e),
         (-1 / eff_dispatch * eh, m[f"{component}-p"]),
-        ((eff_store - 1 / eff_dispatch) * eh, m[f"{component}-p_store"]),
     ]
 
     # We create a mask `include_previous_e` which excludes the first snapshot
@@ -2470,6 +2485,8 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     lhs += [(eff_stand * include_previous_e, previous_e)]
 
     lhs = m.linexpr(*lhs)
+    p_store = m[f"{component}-p_store"]
+    lhs = lhs + ((eff_store - 1 / eff_dispatch) * eh * p_store).fillna(0)
     if f"{component}-spill" in m.variables:
         # Spill is masked for stores without inflow; fill the resulting
         # absent slots with 0 so those energy-balance rows are not dropped.

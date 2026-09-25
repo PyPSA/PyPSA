@@ -207,6 +207,23 @@ def test_expressions_store_energy_balance():
     assert np.allclose(balance.ravel(), n.stores_t.p["s"])
 
 
+@pytest.mark.parametrize(
+    "cost_attr", ["marginal_cost", "marginal_cost_dispatch", "marginal_cost_store"]
+)
+def test_expressions_store_opex(cost_attr):
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "b")
+    n.add("Generator", "g", bus="b", p_nom=200, marginal_cost=[1, 100])
+    n.add("Load", "l", bus="b", p_set=50)
+    n.add("Store", "s", bus="b", e_nom=100, e_initial=20, **{cost_attr: 0.5})
+    n.optimize()
+
+    opex = n.statistics.opex(components="Store").sum()
+    expr = n.optimize.expressions.opex(components="Store")
+    assert opex > 0
+    assert expr.solution.sum().item() == pytest.approx(opex)
+
+
 def test_expressions_transmission(prepared_network):
     n = prepared_network
     expr = n.optimize.expressions.transmission()

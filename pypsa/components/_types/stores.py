@@ -56,7 +56,8 @@ class Stores(Components):
         for the discharge `p + p_store` and `-p_min_pu / max_hours` for the
         charge `p_store`. They are infinite where `max_hours` is infinite. For
         stores without a [split dispatch][pypsa.components.Stores.split_dispatch],
-        `p_store` is bounded to zero and the charging bound applies to `p`.
+        `p_store` is not defined, its bounds are infinite and the charging
+        bound applies to `p`.
 
         Parameters
         ----------
@@ -76,13 +77,17 @@ class Stores(Components):
         if attr == "e":
             return self.da.e_min_pu, self.da.e_max_pu
 
-        p_nom_pu = (1 / self.da.max_hours).where(np.isfinite(self.da.max_hours), np.inf)
-        store_pu = -self.da.p_min_pu * p_nom_pu
+        finite = np.isfinite(self.da.max_hours)
+        store_pu = (-self.da.p_min_pu / self.da.max_hours).where(finite, np.inf)
+        dispatch_pu = (self.da.p_max_pu / self.da.max_hours).where(finite, np.inf)
         split = self.split_dispatch()
 
         if attr == "p":
-            return -store_pu.where(~split, 0), self.da.p_max_pu * p_nom_pu
-        return xr.zeros_like(store_pu), store_pu.where(split, 0)
+            return -store_pu.where(~split, 0), dispatch_pu
+
+        lower = xr.zeros_like(store_pu).where(split, -np.inf)
+        upper = store_pu.where(split, np.inf)
+        return lower, upper
 
     def split_dispatch(self) -> xr.DataArray:
         """Get which stores need separate charging and discharging variables.
