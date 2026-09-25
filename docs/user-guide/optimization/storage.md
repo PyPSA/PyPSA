@@ -201,7 +201,7 @@ $$soc_{n,s,t=-1} = soc_{n,s,t=|T|-1}$$
 
 Storage units and stores can age with use through three optional attributes, all off by default: `degradation_per_cycle` $k_{n,s}$, `cycles_max` $N^{\max}_{n,s}$ and `throughput_initial` $Q^0_{n,s}$.
 
-With a positive $k_{n,s}$ or a finite $N^{\max}_{n,s}$ the model tracks the **energy throughput** $Q_{n,s,t}$ of the storage level, starting from $Q^0_{n,s}$; it is never cyclic nor reset per investment period. One **equivalent full cycle** is $2E$ of throughput, with $E$ the nominal energy capacity, the capacity variable of extendable assets. The **capacity fade** lowers the upper limit of the storage level by $\tfrac{k_{n,s}}{2}$ per MWh of throughput. The **cycle budget** caps the throughput at $2 E N^{\max}_{n,s}$, `throughput_initial` included, so it spans investment periods and rolling-horizon windows.
+With a positive $k_{n,s}$ or a finite $N^{\max}_{n,s}$ the model tracks the **energy throughput** $Q_{n,s,t}$ of the storage level, starting from $Q^0_{n,s}$; it is never cyclic nor reset per investment period. One **equivalent full cycle** is $2E$ of throughput, with $E$ the nominal energy capacity, the capacity variable of extendable assets. The **capacity fade** lowers the upper limit of the storage level by $\tfrac{k_{n,s}}{2}$ per MWh of throughput.[^1][^2] The **cycle budget** caps the throughput at $2 E N^{\max}_{n,s}$, `throughput_initial` included, so it spans investment periods and rolling-horizon windows.[^3][^4][^5]
 
 For storage units:
 
@@ -238,3 +238,13 @@ These constraints are set in the functions `define_store_p_dispatch_constraints(
     [:octicons-arrow-right-24: Go to example](../../examples/replace-generator-storage-units-with-store.ipynb)
 
 </div>
+
+[^1]: J. Mao, M. Jafari, A. Botterud (2022), [Planning low-carbon distributed power systems: Evaluating the role of energy storage](https://doi.org/10.1016/j.energy.2021.121668). Energy, 238, 121668.
+
+[^2]: J. E. Contreras-Ocaña, Y. Chen, U. Siddiqi, B. Zhang (2020), [Non-Wire Alternatives: An Additional Value Stream for Distributed Energy Resources](https://doi.org/10.1109/TSTE.2019.2922882). IEEE Transactions on Sustainable Energy, 11(3), 1287–1299.
+
+[^3]: G. Cardoso, T. Brouhard, N. DeForest, D. Wang, M. Heleno, L. Kotzur (2018), [Battery aging in multi-energy microgrid design using mixed integer linear programming](https://doi.org/10.1016/j.apenergy.2018.09.185). Applied Energy, 231, 1059–1069. The cycle budget adapts its throughput cap to the whole asset life and to both charge and discharge.
+
+[^4]: A. Khazali et al. (2024), [Planning a Hybrid Battery Energy Storage System for Supplying Electric Vehicle Charging Station Microgrids](https://doi.org/10.3390/en17153631). Energies, 17(15), 3631.
+
+[^5]: Energy Exemplar, PLEXOS help, [`Battery.MaxCycles`](https://portal.energyexemplar.com/unified-help/plexos-desktop/Battery.MaxCycles.html).
