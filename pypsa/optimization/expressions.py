@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from functools import reduce
 from typing import TYPE_CHECKING, Any
 
 import linopy as ln
@@ -487,24 +488,33 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given in currency/hour. Defaults to 'sum'.
 
         """
-        from pypsa.optimization.optimize import lookup  # noqa: PLC0415
+        from pypsa.optimization.optimize import (  # noqa: PLC0415
+            cost_variables,
+            linear_cost_types,
+        )
 
         at_port = resolve_at_port(at_port, bus_carrier)
         weights = self._n.optimize._window.snapshot_weightings("objective")
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
-            attr = "marginal_cost"
-            var = lookup.query(f"not nominal and {attr}").loc[c].index.item()
-            if var is None:
+            terms = []
+            for cost_type in linear_cost_types:
+                for attr in cost_variables(c, cost_type):
+                    if f"{c}-{attr}" not in n.model.variables:
+                        continue
+                    var = n.model.variables[f"{c}-{attr}"]
+                    sns = var.indexes["snapshot"]
+                    var, add_opex = _split_piecewise(var, n.model, n.c[c], cost_type)
+                    names = var.indexes["name"]
+                    cost = n.c[c].da[cost_type].sel(snapshot=sns, name=names)
+                    unused = add_opex is None and (cost == 0).all()
+                    if unused and cost_type != "marginal_cost":
+                        continue
+                    terms.append(_add_optional(var * cost, add_opex))
+            if not terms:
                 return None
-            var = n.model.variables[f"{c}-{var}"]
-            sns = var.indexes["snapshot"]
-
-            var, add_opex = _split_piecewise(var, n.model, n.c[c], attr)
-
-            cost = n.c[c].da[attr].sel(snapshot=sns, name=var.indexes["name"])
-            opex = _add_optional(var * cost, add_opex)
+            opex = reduce(_add_optional, terms)
             return self._aggregate_timeseries(opex, weights, agg=groupby_time)
 
         return self._aggregate_components(

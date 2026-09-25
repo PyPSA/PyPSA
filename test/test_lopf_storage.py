@@ -162,19 +162,39 @@ def test_store_p_set():
 @pytest.mark.parametrize(
     ("cost_attr", "objective"),
     [
-        ("marginal_cost", -2500),
-        ("marginal_cost_dispatch", -500),
-        ("marginal_cost_store", 0),
+        ("marginal_cost", 90),
+        ("marginal_cost_dispatch", 105),
+        ("marginal_cost_store", 95),
     ],
 )
 def test_store_marginal_cost_attributes(cost_attr, objective):
     n = pypsa.Network(snapshots=range(2))
     n.add("Bus", "bus")
-    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=-5)
-    n.add("Store", "store", bus="bus", e_nom=100, **{cost_attr: 20})
+    n.add("Generator", "gen", bus="bus", p_nom=200, marginal_cost=[1, 100])
+    n.add("Load", "load", bus="bus", p_set=50)
+    n.add("Store", "store", bus="bus", e_nom=100, e_initial=20, **{cost_attr: 0.5})
     n.optimize()
+    equal(n.stores_t.p["store"], [-30, 50])
     assert n.objective == pytest.approx(objective)
     assert n.statistics.opex().sum() == pytest.approx(objective)
+
+
+@pytest.mark.parametrize("pu_kwargs", [{"p_min_pu": 0}, {"p_max_pu": 0}])
+def test_store_power_limits_ignored_without_max_hours(pu_kwargs):
+    def solve(**kwargs):
+        n = pypsa.Network(snapshots=range(2))
+        n.add("Bus", "bus")
+        n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=[10, 100])
+        n.add("Load", "load", bus="bus", p_set=50)
+        n.add(
+            "Store", "store", bus="bus", e_nom_extendable=True, capital_cost=1, **kwargs
+        )
+        n.optimize()
+        return n
+
+    n, default = solve(**pu_kwargs), solve()
+    assert n.objective == pytest.approx(default.objective)
+    equal(n.stores_t.p, default.stores_t.p)
 
 
 @pytest.mark.parametrize("efficiency_dispatch", [1, 0.9])
@@ -193,11 +213,11 @@ def test_store_max_hours_limits_power(efficiency_dispatch):
         efficiency_dispatch=efficiency_dispatch,
     )
     n.optimize(assign_all_duals=True)
-    assert (n.stores_t.p["store"] == 25).all()
-    assert (n.generators_t.p["gen"] == 25).all()
+    equal(n.stores_t.p["store"], [25, 25])
+    equal(n.generators_t.p["gen"], [25, 25])
     # energy capacity duals stay in mu_upper, power bound duals get their own name
-    assert (n.stores_t.mu_upper["store"] == 0).all()
-    assert (n.stores_t.mu_p_upper["store"].abs() == 100).all()
+    equal(n.stores_t.mu_upper["store"], [0, 0])
+    equal(n.stores_t.mu_p_upper["store"].abs(), [100, 100])
 
 
 def test_store_inflow_and_spill():
@@ -206,8 +226,8 @@ def test_store_inflow_and_spill():
     n.add("Load", "load", bus="bus", p_set=5)
     n.add("Store", "store", bus="bus", e_nom=0, inflow=10, spill_cost=1)
     n.optimize()
-    assert (n.stores_t.p["store"] == 5).all()
-    assert (n.stores_t.spill["store"] == 5).all()
+    equal(n.stores_t.p["store"], [5, 5, 5])
+    equal(n.stores_t.spill["store"], [5, 5, 5])
 
 
 @pytest.mark.parametrize("extendable", [False, True])
