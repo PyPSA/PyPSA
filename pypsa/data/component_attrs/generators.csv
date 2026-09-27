@@ -5,6 +5,9 @@ control,string,n/a,PQ,"P,Q,V control strategy for power flow, must be ""PQ"", ""
 type,string,n/a,n/a,Placeholder for generator type. Not implemented.,Input (optional)
 p_nom,float,MW,0,Nominal power for limits  on `p` in optimization. Ignored if `p_nom_extendable=True`.,Input (optional)
 p_nom_mod,float,MW,0,Nominal power of the generator module (e.g. fixed unit size of a nuclear power plant). Introduces integer variables if set.,Input (optional)
+modular,boolean,n/a,False,"Decide `p_nom` in modules, introducing an integer variable for the number of modules. If `p_nom_mod > 0` the capacity of each module is fixed, otherwise the total capacity of the modules is a continuous decision (a single module unless `n_mod_max` allows more). Implied if `p_nom_mod > 0`. Without `p_nom_mod`, only supported if `p_nom_extendable=True`.",Input (optional)
+n_mod_min,float,n/a,0,"Minimum number of modules. Only used if the generator is modular and `p_nom_extendable=True`.",Input (optional)
+n_mod_max,float,n/a,NaN,"Maximum number of modules. If NaN, defaults to `max(1, n_mod_min)` if `p_nom_mod = 0` (i.e. a single module of continuous capacity unless more are required) and to no limit otherwise. Only used if the generator is modular and `p_nom_extendable=True`.",Input (optional)
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity `p_nom` to be extended in optimization.,Input (optional)
 p_nom_min,float,MW,0,"If `p_nom` is extendable in optimization, set its minimum value.",Input (optional)
 p_nom_max,float,MW,inf,"If `p_nom` is extendable in optimization, set its maximum value (e.g. limited by technical potential).",Input (optional)
@@ -27,18 +30,17 @@ capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 M
 overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional)
+module_cost,float,currency,0.,"Annuitised cost per module of the generator, irrespective of its capacity. Only used if the generator is modular and `p_nom_extendable=True`.",Input (optional)
+module_cost_overnight,float,currency,NaN,"Upfront cost per module of the generator, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `module_cost`.",Input (optional)
 efficiency,static or piecewise or series,per unit,1,"Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.",Input (optional)
 committable,boolean,n/a,False,Apply unit commitment constraints.,Input (optional)
 maintainable,boolean,n/a,False,Apply maintenance scheduling constraints.,Input (optional)
 maintenance_duration,float,hours,0,Elapsed time per maintenance event. Each event covers consecutive snapshots whose weightings sum to at least this value. Only if `maintainable=True`.,Input (optional)
 maintenance_pu,float,per unit,1.0,Fraction of capacity unavailable during maintenance (0-1). Only if `maintainable=True`.,Input (optional)
 maintenance_events,int,n/a,1,Number of required maintenance events per optimization horizon. Only if `maintainable=True`.,Input (optional)
-purchasable,boolean,n/a,False,Apply unit purchase constraints.,Input (optional)
 start_up_cost,static or series,currency,0,Cost to start up the generator. Only used if `committable=True`.,Input (optional)
 shut_down_cost,static or series,currency,0,Cost to shut down the generator. Only used if `committable=True`.,Input (optional)
 stand_by_cost,static or series,currency/h,0.,Stand-by cost for running the generator. This cost is incurred whenever the status is 1 (including when the dispatch decision is zero).,Input (optional)
-unit_cost,float,currency,0.,"Annuitised cost for purchasing a generator, irrespective of its capacity",Input (optional)
-unit_cost_overnight,float,currency,NaN,"Upfront cost for purchasing a generator, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `unit_cost`.",Input (optional)
 min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
 min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
 up_time_before,int,snapshots,1,Number of snapshots that the generator was online before `n.snapshots` start. Only used if `committable=True` and `min_up_time>0`. Does not consider snapshot weightings.,Input (optional)
@@ -63,4 +65,4 @@ mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Out
 mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
 capital_cost_piecewise_opt,float,currency/MW,0.,Optimised capital cost when using piecewise linearisation.,Output
 marginal_cost_piecewise_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output
-purchased_opt,float,n/a,n/a,Optimised unit purchase decision,Output
+n_mod_opt,float,n/a,n/a,"Optimised number of modules. Only for modular components with `p_nom_extendable=True`.",Output

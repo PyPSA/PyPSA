@@ -151,7 +151,20 @@ These constraints are defined in the function `define_ramp_limit_constraints()`.
 
 ## Modularity Constraints
 
-The capacity expansion can be further constrained to be a multiple (e.g. $G^{\textrm{mod}}_{n,s} \in \mathbb{N}$) of a modular capacity (e.g. $\tilde{G}_{n,s}$) to represent fixed block sizes of added components (e.g. fixed block size of a nuclear power plant or a fixed capacity of a new circuit).
+The capacity expansion can be decided in **modules**, represented by an integer number of modules $n^{\textrm{mod}}_{*} \in \mathbb{N}$ per asset.
+A component is modular if `modular=True` or if it has a positive module size `{p,s,e}_nom_mod>0`, which implies `modular=True`.
+Modularity comes in two flavours:
+
+| `modular` | `{p,s,e}_nom_mod` | Capacity of each module | Typical use |
+|-----------|-------------------|-------------------------|-------------|
+| any | $> 0$ | Fixed to the module size | Fixed block sizes, e.g. a nuclear power plant or a new circuit |
+| `True` | $0$ | Continuous decision | Capacity-independent costs, e.g. grid connection, land acquisition or project development |
+
+Each module incurs the capacity-independent `module_cost` in the objective (see [Module Costs](objective.md#module-costs)).
+The module variables are available as `n.model.variables['{Component}-n_mod']` and the optimised number of modules is written back to the static output `n_mod_opt` (e.g. `n.generators.n_mod_opt`), which is `NaN` for assets that are not modular or not extendable.
+The module decision carries neither a snapshot nor a scenario dimension.
+
+### Fixed Module Sizes
 
 If `{p,s,e}_nom_mod>0`, the nominal capacity is given by:
 
@@ -164,11 +177,46 @@ If `{p,s,e}_nom_mod>0`, the nominal capacity is given by:
 | $E_{n,s} = E^{\textrm{mod}}_{n,s} \cdot \tilde{E}_{n,s}$ | N/A | `Store-e_nom_modularity` |
 | $H_{n,s} = H^{\textrm{mod}}_{n,s} \cdot \tilde{H}_{n,s}$ | N/A | `StorageUnit-p_nom_modularity` |
 
-These constraints are set in the function `define_modular_constraints()`.
+### Continuous Module Capacity
+
+If `modular=True` and `{p,s,e}_nom_mod=0`, the total capacity of the modules is a continuous decision, which requires at least one module to be built:
+
+| Constraint | Dual Variable | Name |
+|-------------------|------------------|------------------|
+| $G_{n,s} \leq \bar{G}_{n,s} \cdot G^{\textrm{mod}}_{n,s}$ | N/A | `Generator-p_nom_modularity_upper` |
+| $F_{l} \leq \bar{F}_{l} \cdot F^{\textrm{mod}}_{l}$ | N/A | `Link-p_nom_modularity_upper` |
+| $R_{m} \leq \bar{R}_{m} \cdot R^{\textrm{mod}}_{m}$ | N/A | `Process-p_nom_modularity_upper` |
+| $P_{l} \leq \bar{P}_{l} \cdot P^{\textrm{mod}}_{l}$ | N/A | `{Line,Transformer}-s_nom_modularity_upper` |
+| $E_{n,s} \leq \bar{E}_{n,s} \cdot E^{\textrm{mod}}_{n,s}$ | N/A | `Store-e_nom_modularity_upper` |
+| $H_{n,s} \leq \bar{H}_{n,s} \cdot H^{\textrm{mod}}_{n,s}$ | N/A | `StorageUnit-p_nom_modularity_upper` |
+
+Where the maximum capacity is infinite, the [big-M constant](#big-m-parameter-configuration) is used in its place.
+The minimum and maximum capacities `{p,s,e}_nom_{min,max}` always bound the **total** capacity of all modules.
+
+By default, a continuous modular asset consists of a single module ($n^{\textrm{mod}} \in \{0, 1\}$), i.e. the module decides *whether* the asset is built, separately from *how much* capacity is built.
+In that case, the lower capacity bound only has to be respected if the asset is built at all:
+
+| Constraint | Dual Variable | Name |
+|-------------------|------------------|------------------|
+| $G_{n,s} \geq \underline{G}_{n,s} \cdot G^{\textrm{mod}}_{n,s}$ | N/A | `Generator-ext-p_nom-lower-modular` |
+
+This replaces the plain lower bound described in [Upper and Lower Bounds](#upper-and-lower-bounds) and is set in `define_nominal_constraints_for_extendables()`.
+If more than one module is allowed, the plain lower bound applies, as for fixed module sizes.
+
+### Number of Modules
+
+The number of modules is bounded by `n_mod_min` (default 0) and `n_mod_max`:
+
+$$\underline{n}^{\textrm{mod}}_{*} \leq n^{\textrm{mod}}_{*} \leq \bar{n}^{\textrm{mod}}_{*}$$
+
+If `n_mod_max` is not set (`NaN`), there is no upper limit for fixed module sizes and a single module (or `n_mod_min` modules, if larger) for continuous module capacities.
+Setting `n_mod_min` forces a minimum number of modules to be built, e.g. to reproduce a known number of turbines whose total capacity is still optimised.
+
+All modularity constraints are set in the function `define_modular_constraints()`.
 
 ### Modular and Committable Components
 
-When extendable components additionally have **modular capacities** activated (`p_nom_mod > 0`) and are **committable** (`committable=True`), the formulation differs from the big-M approach above. Instead of a binary on/off status variable, the status variable becomes an **integer** representing the **number of committed modules** inside the component.
+When extendable components additionally have **fixed module sizes** (`p_nom_mod > 0`) and are **committable** (`committable=True`), the formulation differs from the big-M approach above. Instead of a binary on/off status variable, the status variable becomes an **integer** representing the **number of committed modules** inside the component.
 
 #### Module-Level Commitment Formulation
 
@@ -268,111 +316,69 @@ These constraints are defined in the function `define_operational_constraints_fo
         | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu` | Parameter |
 
 
-## Unit Purchase Decisions
+### Continuous Modules and Unit Commitment
 
-Some investment costs do not scale with the capacity that is built:
-connecting a site to the grid, acquiring the land, or the project development itself are paid once, as soon as the asset is built at all.
-Setting `purchasable=True` introduces a binary purchase variable $y \in \mathbb{B}$ per asset which decides *whether* the asset is bought,
-separately from the continuous or integer decision on *how much* capacity is built.
-The associated capacity-independent cost is given by `unit_cost` (see [Unit Purchase Costs](objective.md#unit-purchase-costs)).
-
-Purchase variables are created by `define_purchase_variables()` and are available as `n.model.variables['{Component}-purchased']`.
-The optimised decision is written back to the static output `purchased_opt` (e.g. `n.generators.purchased_opt`),
-which is `NaN` for assets that are not purchasable.
-
-The purchase decision is a single decision per asset.
-It carries neither a snapshot nor a scenario dimension, so an asset is either bought for the whole horizon or not at all.
-
-### Capacity Bound
-
-For a purchasable extendable asset, the capacity is bounded above by the purchase decision, so that nothing can be built unless the asset is bought:
-
-| Constraint | Dual Variable | Name |
-|-------------------|------------------|------------------|
-| $G_{n,s} \leq \bar{G}_{n,s} \cdot y_{n,s}$ | N/A | `Generator-p_nom_cap_binary` |
-| $F_{l} \leq \bar{F}_{l} \cdot y_{l}$ | N/A | `Link-p_nom_cap_binary` |
-| $R_{m} \leq \bar{R}_{m} \cdot y_{m}$ | N/A | `Process-p_nom_cap_binary` |
-| $P_{l} \leq \bar{P}_{l} \cdot y_{l}$ | N/A | `Line-s_nom_cap_binary` |
-| $E_{n,s} \leq \bar{E}_{n,s} \cdot y_{n,s}$ | N/A | `Store-e_nom_cap_binary` |
-
-Where the maximum capacity is infinite, the [big-M constant](#big-m-parameter-configuration) is used in its place.
-
-Symmetrically, the lower capacity bound is scaled by the purchase decision, so that a minimum capacity only has to be respected if the asset is actually bought:
-
-| Constraint | Dual Variable | Name |
-|-------------------|------------------|------------------|
-| $G_{n,s} \geq \underline{G}_{n,s} \cdot y_{n,s}$ | N/A | `Generator-ext-p_nom-lower-purchased` |
-
-This replaces the plain lower bound described in [Upper and Lower Bounds](#upper-and-lower-bounds) and is set in `define_nominal_constraints_for_extendables()`.
-All other purchase constraints are set in `define_purchase_constraints()`.
-
-### Modular Components
-
-[Modular](#modularity-constraints) assets use the same capacity bound as continuous assets.
-The capacity is bounded above by the purchase decision through `Generator-p_nom_cap_binary`, and the modularity constraint
-$G_{n,s} = G^{\textrm{mod}}_{n,s} \cdot \tilde{G}_{n,s}$ then forces the module count to zero whenever the asset is not bought.
-
-### Purchase and Unit Commitment
-
-Purchasable components that are also **committable** cannot use the big-M dispatch formulation of [Committable and Extendable Components](#committable-and-extendable-components) directly, because the dispatch bounds would depend on the product of the capacity, the commitment status and the purchase decision.
+Committable components with a single continuous module cannot use the big-M dispatch formulation of [Committable and Extendable Components](#committable-and-extendable-components) directly, because the dispatch bounds would depend on the product of the capacity, the commitment status and the module decision.
 Instead, an auxiliary variable
-$A_{n,s,t}$ (the **capacity available** in each snapshot, i.e. the product $G_{n,s} \cdot u_{n,s,t}$ of capacity and commitment status) is introduced and linearised against the purchase decision:
+$A_{n,s,t}$ (the **capacity available** in each snapshot, i.e. the product $G_{n,s} \cdot u_{n,s,t}$ of capacity and commitment status) is introduced and linearised against the module decision:
 
 === "Generator"
 
     | Constraint | Name |
     |-------------------|------------------|
-    | $u_{n,s,t} \leq y_{n,s}$ | `Generator-p_nom_status_purchased_limit` |
+    | $u_{n,s,t} \leq n^{\textrm{mod}}_{n,s}$ | `Generator-status-p_nom-variable-upper` |
     | $A_{n,s,t} \leq G_{n,s}$ | `Generator-p_nom_available_continuous` |
     | $A_{n,s,t} \leq \bar{G}_{n,s} \cdot u_{n,s,t}$ | `Generator-p_nom_available_binary` |
-    | $A_{n,s,t} \geq G_{n,s} + (u_{n,s,t} - y_{n,s}) \cdot \bar{G}_{n,s}$ | `Generator-p_nom_available_switch` |
-    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot A_{n,s,t}$ | `Generator-com-purchase-p-lower` |
-    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot A_{n,s,t}$ | `Generator-com-purchase-p-upper` |
+    | $A_{n,s,t} \geq G_{n,s} + (u_{n,s,t} - n^{\textrm{mod}}_{n,s}) \cdot \bar{G}_{n,s}$ | `Generator-p_nom_available_switch` |
+    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot A_{n,s,t}$ | `Generator-com-mod-continuous-p-lower` |
+    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot A_{n,s,t}$ | `Generator-com-mod-continuous-p-upper` |
 
 === "Link"
 
     | Constraint | Name |
     |-------------------|------------------|
-    | $u_{l,t} \leq y_{l}$ | `Link-p_nom_status_purchased_limit` |
+    | $u_{l,t} \leq n^{\textrm{mod}}_{l}$ | `Link-status-p_nom-variable-upper` |
     | $A_{l,t} \leq F_{l}$ | `Link-p_nom_available_continuous` |
     | $A_{l,t} \leq \bar{F}_{l} \cdot u_{l,t}$ | `Link-p_nom_available_binary` |
-    | $A_{l,t} \geq F_{l} + (u_{l,t} - y_{l}) \cdot \bar{F}_{l}$ | `Link-p_nom_available_switch` |
-    | $f_{l,t} \geq \underline{f}_{l,t} \cdot A_{l,t}$ | `Link-com-purchase-p-lower` |
-    | $f_{l,t} \leq \bar{f}_{l,t} \cdot A_{l,t}$ | `Link-com-purchase-p-upper` |
+    | $A_{l,t} \geq F_{l} + (u_{l,t} - n^{\textrm{mod}}_{l}) \cdot \bar{F}_{l}$ | `Link-p_nom_available_switch` |
+    | $f_{l,t} \geq \underline{f}_{l,t} \cdot A_{l,t}$ | `Link-com-mod-continuous-p-lower` |
+    | $f_{l,t} \leq \bar{f}_{l,t} \cdot A_{l,t}$ | `Link-com-mod-continuous-p-upper` |
 
-An asset that is not bought can never be committed ($u \leq y$), so $A = 0$ and the dispatch is forced to zero.
-An asset that is bought and committed has $A_{n,s,t} = G_{n,s}$ and behaves exactly as an ordinary committable component.
-When it is bought but not committed, the availability constraint drives $A_{n,s,t}$ to zero without affecting the installed capacity.
-The availability variable is only created for **non-modular** committable purchasables; modular committable assets use the [integer module status](#modular-and-committable-components) formulation instead.
+An asset without a module can never be committed ($u \leq n^{\textrm{mod}}$), so $A = 0$ and the dispatch is forced to zero.
+An asset that is built and committed has $A_{n,s,t} = G_{n,s}$ and behaves exactly as an ordinary committable component.
+When it is built but not committed, the availability constraint drives $A_{n,s,t}$ to zero without affecting the installed capacity.
+The status, start-up and shut-down variables stay binary.
 
-Like modular committable components, purchasable committable components cannot be used with `n.optimize(linearized_unit_commitment=True)`, because relaxing the integrality of the purchase decision is not meaningful.
+Like other modular committable components, they cannot be used with `n.optimize(linearized_unit_commitment=True)`, because relaxing the integrality of the module decision is not meaningful.
 Doing so raises a `ValueError`.
 
-!!! note "Initial status of modular committable purchasables"
+!!! note "Initial status of modular committables"
 
-    For [modular committable](#modular-and-committable-components) assets the `status` attribute defaults to 1.
-    That is, one module is assumed to be committed before the optimisation horizon starts, which implicitly forces the asset to be purchased.
-    Set `status=0` and `up_time_before=0` to leave the purchase decision entirely to the optimiser.
+    For [modular committable](#modular-and-committable-components) assets with fixed module sizes the `status` attribute defaults to 1.
+    That is, one module is assumed to be committed before the optimisation horizon starts, which implicitly forces at least one module to be built.
+    Set `status=0` and `up_time_before=0` to leave the module decision entirely to the optimiser.
 
 !!! warning "Current limitations"
 
-    - `purchasable` is only supported for extendable components.
-      Setting it on a component with a fixed capacity raises a `ValueError` before the model is built.
-    - A purchasable component that is both committable and maintainable must be modular; the non-modular combination raises a `ValueError`.
-    - `Transformer` has no `purchasable` attribute.
+    - Modular components without a module size are only supported for extendable components.
+      Setting `modular=True` on a component with a fixed capacity and `{p,s,e}_nom_mod=0` raises a `ValueError` before the model is built.
+    - A committable component without a module size must consist of a single module (`n_mod_max <= 1`), because the capacity available from a subset of several continuous modules is not linear.
+    - A committable component without a module size cannot also be maintainable.
+    - A one-off cost for the asset as a whole cannot be combined with fixed-size modules, since `module_cost` is charged per module.
 
 ??? note "Mapping of symbols to component attributes"
 
     | Symbol | Attribute | Type |
     |-------------------|-----------|-------------|
-    | $y_{n,s}$         | `n.generators.purchased_opt` | Decision variable (binary) |
-    | $y_{l}$           | `n.{links,lines}.purchased_opt` | Decision variable (binary) |
+    | $G^{\textrm{mod}}_{n,s}$ | `n.generators.n_mod_opt` | Decision variable (integer) |
+    | $F^{\textrm{mod}}_{l}$ | `n.links.n_mod_opt` | Decision variable (integer) |
     | $A_{n,s,t}$       | `n.model.variables['Generator-available_p_nom']` | Decision variable |
-    | $G^{\textrm{mod}}_{n,s}$ | `n.model.variables['Generator-n_mod']` | Decision variable (integer) |
     | $u_{n,s,t}$       | `n.generators_t.status` | Decision variable (binary) |
     | $\tilde{G}_{n,s}$ | `n.generators.p_nom_mod` | Parameter |
     | $\underline{G}_{n,s}$ | `n.generators.p_nom_min` | Parameter |
     | $\bar{G}_{n,s}$   | `n.generators.p_nom_max` | Parameter |
+    | $\underline{n}^{\textrm{mod}}_{*}$ | `n.{generators,...}.n_mod_min` | Parameter |
+    | $\bar{n}^{\textrm{mod}}_{*}$ | `n.{generators,...}.n_mod_max` | Parameter |
     | $M$               | auto-inferred or `committable_big_m` parameter | Parameter |
 
 ## Compatibility of Capacity Expansion with Unit Commitment Features

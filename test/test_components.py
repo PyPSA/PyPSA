@@ -4,6 +4,7 @@
 
 import warnings
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -209,78 +210,99 @@ def test_modulars_different_components():
     assert "store_mod" in store_modulars
 
 
-def test_purchasables_property():
-    """Test the purchasables property returns correct indices."""
+def test_modulars_property_with_flag():
+    """The `modular` flag and a module size both make an element modular."""
     n = Network()
     n.add("Bus", "bus")
 
-    n.add("Generator", "gen_purchasable", bus="bus", p_nom=100, purchasable=True)
-    n.add("Generator", "gen_nonpurchasable", bus="bus", p_nom=100, purchasable=False)
+    n.add("Generator", "gen_flag", bus="bus", p_nom=100, modular=True)
+    n.add("Generator", "gen_size", bus="bus", p_nom=100, p_nom_mod=50)
+    n.add("Generator", "gen_both", bus="bus", p_nom=100, modular=True, p_nom_mod=50)
+    n.add("Generator", "gen_off", bus="bus", p_nom=100, modular=False)
     # Generator without the attribute set (defaults to False)
     n.add("Generator", "gen_default", bus="bus", p_nom=100)
 
-    purchasables = n.c.generators.purchasables
+    c = n.c.generators
+    assert set(c.modulars) == {"gen_flag", "gen_size", "gen_both"}
+    assert set(c._fixed_size_modulars) == {"gen_size", "gen_both"}
+    assert set(c._continuous_modulars) == {"gen_flag"}
 
-    assert "gen_purchasable" in purchasables
-    assert "gen_nonpurchasable" not in purchasables
-    assert "gen_default" not in purchasables
 
-
-def test_purchasables_without_attribute():
-    """Components without a `purchasable` attribute return an empty index."""
+def test_modulars_without_attribute():
+    """Components without module attributes return an empty index."""
     n = Network()
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=100)
 
-    assert n.c.loads.purchasables.empty
+    assert n.c.loads.modulars.empty
+    assert n.c.buses.modulars.empty
 
 
-def test_purchasables_different_components():
-    """Test purchasables property works for different component types."""
+def test_modulars_flag_different_components():
+    """Test the `modular` flag works for different component types."""
     n = Network()
     n.add("Bus", "bus1")
     n.add("Bus", "bus2")
 
-    n.add("Line", "line_p", bus0="bus1", bus1="bus2", x=0.1, purchasable=True)
-    n.add("Line", "line_np", bus0="bus1", bus1="bus2", x=0.1)
-    n.add("Link", "link_p", bus0="bus1", bus1="bus2", purchasable=True)
-    n.add("Link", "link_np", bus0="bus1", bus1="bus2")
-    n.add("Store", "store_p", bus="bus1", purchasable=True)
-    n.add("Store", "store_np", bus="bus1")
-    n.add("StorageUnit", "su_p", bus="bus1", purchasable=True)
-    n.add("StorageUnit", "su_np", bus="bus1")
+    n.add("Line", "line_m", bus0="bus1", bus1="bus2", x=0.1, modular=True)
+    n.add("Line", "line_nm", bus0="bus1", bus1="bus2", x=0.1)
+    n.add("Transformer", "trafo_m", bus0="bus1", bus1="bus2", x=0.1, modular=True)
+    n.add("Transformer", "trafo_nm", bus0="bus1", bus1="bus2", x=0.1)
+    n.add("Link", "link_m", bus0="bus1", bus1="bus2", modular=True)
+    n.add("Link", "link_nm", bus0="bus1", bus1="bus2")
+    n.add("Store", "store_m", bus="bus1", modular=True)
+    n.add("Store", "store_nm", bus="bus1")
+    n.add("StorageUnit", "su_m", bus="bus1", modular=True)
+    n.add("StorageUnit", "su_nm", bus="bus1")
 
-    assert list(n.c.lines.purchasables) == ["line_p"]
-    assert list(n.c.links.purchasables) == ["link_p"]
-    assert list(n.c.stores.purchasables) == ["store_p"]
-    assert list(n.c.storage_units.purchasables) == ["su_p"]
+    assert list(n.c.lines.modulars) == ["line_m"]
+    assert list(n.c.transformers.modulars) == ["trafo_m"]
+    assert list(n.c.links.modulars) == ["link_m"]
+    assert list(n.c.stores.modulars) == ["store_m"]
+    assert list(n.c.storage_units.modulars) == ["su_m"]
 
 
-def test_purchasables_with_scenarios():
-    """The purchase decision cannot vary across scenarios."""
+def test_modulars_flag_with_scenarios():
+    """The module decision cannot vary across scenarios."""
     n = Network(snapshots=range(2))
     n.set_scenarios({"low": 0.5, "high": 0.5})
     n.add("Bus", "bus")
-    n.add("Generator", "gen_purchasable", bus="bus", p_nom=100, purchasable=True)
+    n.add("Generator", "gen_modular", bus="bus", p_nom=100, modular=True)
     n.add("Generator", "gen_default", bus="bus", p_nom=100)
 
-    purchasables = n.c.generators.purchasables
+    modulars = n.c.generators.modulars
 
-    assert not isinstance(purchasables, pd.MultiIndex)
-    assert list(purchasables) == ["gen_purchasable"]
+    assert not isinstance(modulars, pd.MultiIndex)
+    assert list(modulars) == ["gen_modular"]
 
 
-def test_unit_cost_property():
-    """`unit_cost` is passed through when given directly."""
+def test_n_mod_bounds_defaults():
+    """A missing `n_mod_max` means one module if continuous and no limit otherwise."""
+    n = Network()
+    n.add("Bus", "bus")
+    n.add("Generator", "cont", bus="bus", modular=True)
+    n.add("Generator", "cont_min", bus="bus", modular=True, n_mod_min=3)
+    n.add("Generator", "fixed", bus="bus", p_nom_mod=50)
+    n.add("Generator", "capped", bus="bus", p_nom_mod=50, n_mod_min=1, n_mod_max=4)
+
+    names = pd.Index(["cont", "cont_min", "fixed", "capped"], name="name")
+    lower, upper = n.c.generators._n_mod_bounds(names)
+
+    assert lower.tolist() == [0, 3, 0, 1]
+    assert upper.tolist() == [1, 3, np.inf, 4]
+
+
+def test_module_cost_property():
+    """`module_cost` is passed through when given directly."""
     n = Network(snapshots=range(2))
     n.add("Bus", "bus")
-    n.add("Generator", "gen", bus="bus", p_nom=100, purchasable=True, unit_cost=1234.0)
+    n.add("Generator", "gen", bus="bus", p_nom=100, modular=True, module_cost=1234.0)
 
-    assert n.c.generators.periodized_unit_cost.sel(name="gen").item() == 1234.0
+    assert n.c.generators.periodized_module_cost.sel(name="gen").item() == 1234.0
 
 
-def test_unit_cost_property_overnight():
-    """`unit_cost_overnight` is annuitised and takes precedence over `unit_cost`."""
+def test_module_cost_property_overnight():
+    """`module_cost_overnight` is annuitised and takes precedence over `module_cost`."""
     from pypsa.costs import annuity
 
     n = Network(snapshots=range(2))
@@ -290,14 +312,14 @@ def test_unit_cost_property_overnight():
         "gen",
         bus="bus",
         p_nom=100,
-        purchasable=True,
-        unit_cost=1.0,
-        unit_cost_overnight=1000.0,
+        modular=True,
+        module_cost=1.0,
+        module_cost_overnight=1000.0,
         discount_rate=0.07,
         lifetime=25,
     )
 
     expected = 1000.0 * annuity(0.07, 25) * n.c.generators.nyears
-    assert n.c.generators.periodized_unit_cost.sel(name="gen").item() == pytest.approx(
-        expected
-    )
+    assert n.c.generators.periodized_module_cost.sel(
+        name="gen"
+    ).item() == pytest.approx(expected)

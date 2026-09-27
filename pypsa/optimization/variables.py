@@ -77,7 +77,7 @@ def define_status_variables(
     coords = active.coords
 
     # Use integer variables if there are modular committables, binary otherwise
-    has_modular = not com_i.intersection(c.modulars).empty
+    has_modular = not com_i.intersection(c._fixed_size_modulars).empty
     is_integer = has_modular and not is_linearized
     is_binary = not has_modular and not is_linearized
 
@@ -128,7 +128,7 @@ def define_start_up_variables(
     coords = active.coords
 
     # Use integer variables if there are modular committables, binary otherwise
-    has_modular = not com_i.intersection(c.modulars).empty
+    has_modular = not com_i.intersection(c._fixed_size_modulars).empty
     is_integer = has_modular and not is_linearized
     is_binary = not has_modular and not is_linearized
 
@@ -179,7 +179,7 @@ def define_shut_down_variables(
     coords = active.coords
 
     # Use integer variables if there are modular committables, binary otherwise
-    has_modular = not com_i.intersection(c.modulars).empty
+    has_modular = not com_i.intersection(c._fixed_size_modulars).empty
     is_integer = has_modular and not is_linearized
     is_binary = not has_modular and not is_linearized
 
@@ -279,7 +279,7 @@ def define_maintenance_capacity_variables(
 
     """
     c = n.c[c_name]
-    modular_com = c.modulars.intersection(c.committables)
+    modular_com = c._fixed_size_modulars.intersection(c.committables)
     maint_ext_i = (
         c.maintainables.intersection(c.extendables)
         .intersection(c.active_assets)
@@ -322,7 +322,7 @@ def define_maintenance_status_variables(n: Network, sns: Sequence, c_name: str) 
     """
     c = n.c[c_name]
     com_i = c.committables.intersection(c.active_assets)
-    non_modular_ext = c.extendables.difference(c.modulars)
+    non_modular_ext = c.extendables.difference(c._fixed_size_modulars)
     maint_w_i = com_i.intersection(c.maintainables).difference(non_modular_ext)
 
     if maint_w_i.empty:
@@ -360,10 +360,13 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
     n.model.add_variables(coords=[ext_i], name=f"{c.name}-{attr}")
 
 
-def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
+def define_modular_variables(n: Network, c_name: str, attr: str, sns: Sequence) -> None:
     """Initialize variables 'attr' for a given component c to allow a modular expansion of the attribute 'attr_nom'.
 
-    It allows to define 'n_opt', the optimal number of installed modules.
+    It allows to define 'n_mod', the optimal number of installed modules, bounded
+    by `n_mod_min` and `n_mod_max`. For continuous modular committables (no module
+    size), it also defines the auxiliary variable 'available_{attr}', the capacity
+    available in each snapshot.
 
     Parameters
     ----------
@@ -373,32 +376,22 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
         name of network component of which the nominal capacity should be defined
     attr : str
         name of the variable to be handled attached to modular constraints, e.g. 'p_nom'
+    sns : Sequence
+        Set of snapshots for which to define the variables
 
     """
     c = n.components[c_name]
-    mod_i = c.extendables.intersection(c.modulars).intersection(c.active_assets)
+    mod_i = c._active_modulars
 
     if mod_i.empty:
         return
 
-    n.model.add_variables(lower=0, coords=[mod_i], name=f"{c.name}-n_mod", integer=True)
+    lower, upper = (xr.DataArray(bound) for bound in c._n_mod_bounds(mod_i))
+    n.model.add_variables(
+        lower=lower, upper=upper, coords=[mod_i], name=f"{c.name}-n_mod", integer=True
+    )
 
-
-def define_purchase_variables(
-    n: Network,
-    c_name: str,
-    attr: str,
-    sns: Sequence,
-) -> None:
-    """Define the unit purchase variables for extendable components."""
-    c = n.components[c_name]
-    purchase_i = c.active_purchasables
-    if purchase_i.empty:
-        return
-    com_i = purchase_i.difference(c.modulars).intersection(c.committables)
-
-    n.model.add_variables(coords=[purchase_i], name=f"{c.name}-purchased", binary=True)
-
+    com_i = c._single_module_continuous_modulars.intersection(c.committables)
     if com_i.empty:
         return
 

@@ -5,6 +5,9 @@ control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or 
 type,string,n/a,n/a,Placeholder for storage unit type. Not yet implemented.,Input (optional)
 p_nom,float,MW,0,Nominal power for limits on `p` in optimisation. Ignored if `p_nom_extendable=True`.,Input (optional)
 p_nom_mod,float,MW,0,Nominal power of the storage unit module. Introduces integer variables if set.,Input (optional)
+modular,boolean,n/a,False,"Decide `p_nom` in modules, introducing an integer variable for the number of modules. If `p_nom_mod > 0` the capacity of each module is fixed, otherwise the total capacity of the modules is a continuous decision (a single module unless `n_mod_max` allows more). Implied if `p_nom_mod > 0`. Without `p_nom_mod`, only supported if `p_nom_extendable=True`.",Input (optional)
+n_mod_min,float,n/a,0,"Minimum number of modules. Only used if the storage unit is modular and `p_nom_extendable=True`.",Input (optional)
+n_mod_max,float,n/a,NaN,"Maximum number of modules. If NaN, defaults to `max(1, n_mod_min)` if `p_nom_mod = 0` (i.e. a single module of continuous capacity unless more are required) and to no limit otherwise. Only used if the storage unit is modular and `p_nom_extendable=True`.",Input (optional)
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity `p_nom` to be extended in optimisation.,Input (optional)
 p_nom_min,float,MW,0,"If `p_nom_extendable=True`, set the minimum value of `p_nom_opt`.",Input (optional)
 p_nom_max,float,MW,inf,"If `p_nom_extendable=True`, set the maximum value of `p_nom_opt`.",Input (optional)
@@ -25,6 +28,8 @@ capital_cost,float,currency/MW,0,Fixed period costs of extending `p_nom` by 1 MW
 overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
 discount_rate,float,per unit,NaN,Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).,Input (optional)
 fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional)
+module_cost,float,currency,0.,"Annuitised cost per module of the storage unit, irrespective of its capacity. Only used if the storage unit is modular and `p_nom_extendable=True`.",Input (optional)
+module_cost_overnight,float,currency,NaN,"Upfront cost per module of the storage unit, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `module_cost`.",Input (optional)
 active,boolean,n/a,True,Whether to consider the component in optimisation or not,Input (optional)
 build_year,int,year,0,Build year,Input (optional)
 lifetime,float,years,inf,Lifetime,Input (optional)
@@ -38,9 +43,6 @@ efficiency_store,static or series,per unit,1,Efficiency of storage on the way in
 efficiency_dispatch,static or series,per unit,1,Efficiency of storage on the way out of the storage.,Input (optional)
 standing_loss,static or series,per unit,0,Losses per hour to state of charge.,Input (optional)
 inflow,static or series,MW,0,Inflow to the state of charge (e.g. due to river inflow in hydro reservoir).,Input (optional)
-purchasable,boolean,n/a,False,Apply unit purchase constraints.,Input (optional)
-unit_cost,float,currency,0.,"Annuitised cost for purchasing a storage unit, irrespective of its capacity",Input (optional)
-unit_cost_overnight,float,currency,NaN,"Upfront cost for purchasing a storage unit, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `unit_cost`.",Input (optional)
 p,series,MW,0,Active power at bus (positive if net generation),Output
 p_dispatch,series,MW,0,Active power dispatch at bus,Output
 p_store,series,MW,0,Active power charging at bus,Output
@@ -54,4 +56,4 @@ mu_state_of_charge_set,series,currency/MWh,n/a,Shadow price of fixed state of ch
 mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations,Output
 capital_cost_piecewise_opt,float,currency/MW,0.,Optimised capital cost when using piecewise linearisation.,Output
 marginal_cost_piecewise_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output
-purchased_opt,float,n/a,n/a,Optimised unit purchase decision,Output
+n_mod_opt,float,n/a,n/a,"Optimised number of modules. Only for modular components with `p_nom_extendable=True`.",Output
