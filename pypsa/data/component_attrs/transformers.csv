@@ -10,6 +10,9 @@ g,float,per unit,0,"Shunt conductivity (per unit, using `s_nom` as base power an
 b,float,per unit,0,"Shunt susceptance (per unit, using `s_nom` as base power and `v_nom` as base voltage). Ignored if type defined.",Input (optional)
 s_nom,float,MVA,0,Limit of apparent power which can pass through branch in either direction. Ignored if `s_nom_extendable=True`.,Input (optional)
 s_nom_mod,float,MVA,0,Modular unit size of transformer expansion of `s_nom`. Introduces integer variables.,Input (optional)
+modular,boolean,n/a,False,"Decide `s_nom` in modules, introducing an integer variable for the number of modules. If `s_nom_mod > 0` the capacity of each module is fixed, otherwise the total capacity of the modules is a continuous decision (a single module unless `n_mod_max` allows more). Implied if `s_nom_mod > 0`. Without `s_nom_mod`, only supported if `s_nom_extendable=True`.",Input (optional)
+n_mod_min,float,n/a,0,"Minimum number of modules. Only used if the transformer is modular and `s_nom_extendable=True`.",Input (optional)
+n_mod_max,float,n/a,NaN,"Maximum number of modules. If NaN, defaults to `max(1, n_mod_min)` if `s_nom_mod = 0` (i.e. a single module of continuous capacity unless more are required) and to no limit otherwise. Only used if the transformer is modular and `s_nom_extendable=True`.",Input (optional)
 s_nom_extendable,boolean,n/a,False,Switch to allow capacity `s_nom` to be extended in optimisation.,Input (optional)
 s_nom_min,float,MVA,0,"If `s_nom_extendable=True`, set the minimum value of `s_nom_opt`.",Input (optional)
 s_nom_max,float,MVA,inf,"If `s_nom_extendable=True`, set the maximum value of `s_nom_opt`.",Input (optional)
@@ -19,6 +22,8 @@ capital_cost,float,currency/MVA,0,"Fixed period costs of extending `s_nom` by 1 
 overnight_cost,float,currency/MVA,NaN,"Overnight (upfront) investment cost per MVA. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MVA,0,"Fixed period operation and maintenance costs, added to annuitized investment cost.",Input (optional)
+module_cost,float,currency,0.,"Annuitised cost per module of the transformer, irrespective of its capacity. Only used if the transformer is modular and `s_nom_extendable=True`.",Input (optional)
+module_cost_overnight,float,currency,NaN,"Upfront cost per module of the transformer, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `module_cost`.",Input (optional)
 num_parallel,float,n/a,1,"When `type` is set, this is the number of parallel transformers (can also be fractional). If `type` is empty """" this value is ignored.",Input (optional)
 tap_ratio,float,per unit,1,Ratio of per unit voltages at each bus for tap changed. Ignored if type defined.,Input (optional)
 tap_side,int,n/a,0,"Defines if tap changer is modelled at the primary 0 side (usually high-voltage) or the secondary 1 side (usually low voltage) (must be 0 or 1, defaults to 0). Ignored if type defined.",Input (optional)
@@ -46,3 +51,4 @@ s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
 mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit. Always non-negative.,Output
 mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit. Always non-negative.,Output
 phase_shift_opt,series,Degrees,0,"Realised per-snapshot voltage phase angle shift. Equals `phase_shift` for fixed transformers; for optimised transformers (`phase_shift_min < phase_shift_max`) it holds the value chosen by `n.optimize()`.",Output
+n_mod_opt,float,n/a,n/a,"Optimised number of modules. Only for modular components with `s_nom_extendable=True`.",Output

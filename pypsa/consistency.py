@@ -585,16 +585,18 @@ def check_cost_consistency(component: Components, strict: bool = False) -> None:
 
     """
     static = component.static
-    if {"unit_cost", "unit_cost_overnight"}.issubset(static.columns):
-        both_unit = (static["unit_cost_overnight"].notna()) & (static["unit_cost"] != 0)
-        if both_unit.any():
-            assets = static.index[both_unit].tolist()
+    if {"module_cost", "module_cost_overnight"}.issubset(static.columns):
+        both_module = (static["module_cost_overnight"].notna()) & (
+            static["module_cost"] != 0
+        )
+        if both_module.any():
+            assets = static.index[both_module].tolist()
             _log_or_raise(
                 strict,
-                "Component %s has assets with both 'unit_cost_overnight' and "
-                "'unit_cost' set: %s. When 'unit_cost_overnight' is provided, it takes "
-                "precedence and 'unit_cost' is ignored. Consider setting unit_cost=0 "
-                "for these assets.",
+                "Component %s has assets with both 'module_cost_overnight' and "
+                "'module_cost' set: %s. When 'module_cost_overnight' is provided, it "
+                "takes precedence and 'module_cost' is ignored. Consider setting "
+                "module_cost=0 for these assets.",
                 component.name,
                 ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
             )
@@ -1198,7 +1200,9 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
         "s_nom_mod",
         "e_nom_mod",
         "committable",  # changes mathematical problem
-        "purchasable",  # changes mathematical problem
+        "modular",  # changes mathematical problem
+        "n_mod_min",  # modular investment is first-stage decision
+        "n_mod_max",
         "sign",
         "carrier",
         "weight",
@@ -1492,18 +1496,18 @@ def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
             )
 
     for c in n.components:
-        purchase_i = c.active_purchasables
-        if purchase_i.empty:
+        cont_i = c._active_continuous_modulars
+        if cont_i.empty:
             continue
 
         nom_attr = nominal_attrs[c.name]
-        nom_max = c.da[f"{nom_attr}_max"].sel(name=purchase_i)
+        nom_max = c.da[f"{nom_attr}_max"].sel(name=cont_i)
         unbounded = ~(np.isfinite(nom_max) & (nom_max > 0))
         if not unbounded.any().item():
             continue
 
         big_m = c._resolve_big_m_default(n._committable_big_m)
-        nom_opt = c.da[f"{nom_attr}_opt"].sel(name=purchase_i)
+        nom_opt = c.da[f"{nom_attr}_opt"].sel(name=cont_i)
         exceeded = (nom_opt >= big_m - 1e-6) & unbounded
 
         reduce_dims = [dim for dim in exceeded.dims if dim != "name"]
@@ -1513,8 +1517,9 @@ def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
         if len(names):
             _log_or_raise(
                 strict,
-                "Optimized capacities reach the big-M fallback bound for purchasable %s "
-                "with unbounded %s_max: %s. Provide a finite %s_max to avoid a silent cap.",
+                "Optimized capacities reach the big-M fallback bound for continuous "
+                "modular %s with unbounded %s_max: %s. Provide a finite %s_max to "
+                "avoid a silent cap.",
                 c.name.lower(),
                 nom_attr,
                 ", ".join(str(name) for name in names),
@@ -1605,13 +1610,15 @@ def check_maintenance_attributes(
         )
 
 
-def check_purchasable_consistency(n: Network) -> None:
-    """Check that purchasable components use a supported feature combination.
+def check_modular_consistency(n: Network) -> None:
+    """Check that modular components use a supported feature combination.
 
-    Purchase decisions require an extendable capacity and, when combined with unit
-    commitment, cannot additionally be maintainable unless the asset is modular.
-    Both unsupported combinations would otherwise fail with an opaque error while
-    building the optimization model.
+    Modular components without a module size (e.g. `modular=True` and
+    `p_nom_mod=0`) require an extendable capacity. When combined with unit
+    commitment, they must consist of a single module and cannot additionally be
+    maintainable. The number of modules must be bounded by non-negative whole
+    numbers with `n_mod_min <= n_mod_max`. Unsupported combinations would
+    otherwise fail with an opaque error while building the optimization model.
 
     Parameters
     ----------
@@ -1624,37 +1631,67 @@ def check_purchasable_consistency(n: Network) -> None:
 
     """
     for c in n.components:
-        purchasables = c.purchasables
-        if purchasables.empty:
+        mod_i = c.modulars
+        if mod_i.empty:
             continue
 
-        non_extendable = purchasables.difference(c.extendables)
+        def _names(idx: pd.Index) -> str:
+            return ", ".join(str(name) for name in idx[:5])
+
+        nom_attr = c._operational_attrs["nom"]
+        cont_i = c._continuous_modulars
+        non_extendable = cont_i.difference(c.extendables)
         if not non_extendable.empty:
-            names = ", ".join(non_extendable[:5])
             msg = (
-                f"Component {c.name} has purchasable assets that are not extendable: "
-                f"{names}. `purchasable` is only supported for extendable components."
+                f"Component {c.name} has modular assets without a module size that are "
+                f"not extendable: {_names(non_extendable)}. Modular assets without "
+                f"`{nom_attr}_mod` are only supported if `{nom_attr}_extendable=True`."
             )
             raise ValueError(msg)
 
-        maint_com = (
-            purchasables.intersection(c.committables)
-            .intersection(c.maintainables)
-            .difference(c.modulars)
+        n_mod_min, n_mod_max = c._n_mod_bounds(mod_i)
+        invalid = (
+            (n_mod_min < 0)
+            | (n_mod_min > n_mod_max)
+            | (n_mod_min % 1 != 0)
+            | (np.isfinite(n_mod_max) & (n_mod_max % 1 != 0))
         )
-        if not maint_com.empty:
-            names = ", ".join(maint_com[:5])
+        if invalid.any():
             msg = (
-                f"Component {c.name} has purchasable committable assets that are also "
-                f"maintainable but not modular: {names}. This combination is not "
-                f"supported; set a module size (e.g. p_nom_mod > 0) or drop the "
-                f"maintenance attributes."
+                f"Component {c.name} has modular assets with invalid module bounds: "
+                f"{_names(mod_i[invalid.to_numpy()])}. `n_mod_min` and `n_mod_max` "
+                f"must be non-negative whole numbers with `n_mod_min <= n_mod_max`."
+            )
+            raise ValueError(msg)
+
+        cont_com = cont_i.intersection(c.committables)
+        if cont_com.empty:
+            continue
+
+        multi_com = cont_com.difference(c._single_module_continuous_modulars)
+        multi_com = multi_com.intersection(c.active_assets)
+        if not multi_com.empty:
+            msg = (
+                f"Component {c.name} has committable modular assets without a module "
+                f"size that allow more than one module: {_names(multi_com)}. This "
+                f"combination is not supported; set `n_mod_max=1` or a module size "
+                f"(`{nom_attr}_mod > 0`)."
+            )
+            raise ValueError(msg)
+
+        maint_com = cont_com.intersection(c.maintainables)
+        if not maint_com.empty:
+            msg = (
+                f"Component {c.name} has committable modular assets without a module "
+                f"size that are also maintainable: {_names(maint_com)}. This "
+                f"combination is not supported; set a module size "
+                f"(`{nom_attr}_mod > 0`) or drop the maintenance attributes."
             )
             raise ValueError(msg)
 
 
-def check_no_modular_purchasable_committables(n: Network) -> None:
-    """Check that no modular/purchasable committable components exist if linearized_unit_commitment is used.
+def check_no_modular_committables(n: Network) -> None:
+    """Check that no modular committable components exist if linearized_unit_commitment is used.
 
     Raises ValueError if linearized_unit_commitment is used with modular
     committable components, as this combination is semantically invalid.
@@ -1676,7 +1713,7 @@ def check_no_modular_purchasable_committables(n: Network) -> None:
         if com_i.empty:
             continue
         com_i = com_i.intersection(c.active_assets)
-        mod_com_i = com_i.intersection(c.modulars.union(c.purchasables))
+        mod_com_i = com_i.intersection(c.modulars)
         if not mod_com_i.empty:
             modular_committables.extend(f"{c.name}:{name}" for name in mod_com_i)
 
@@ -1685,13 +1722,13 @@ def check_no_modular_purchasable_committables(n: Network) -> None:
         if len(modular_committables) > 5:
             components_str += f", ... ({len(modular_committables)} total)"
         msg = (
-            f"linearized_unit_commitment=True cannot be used with modular/purchasable "
+            f"linearized_unit_commitment=True cannot be used with modular "
             f"committable components: {components_str}. "
             f"Modular components use integer status variables representing the "
             f"number of committed modules, which cannot be meaningfully relaxed "
             f"to continuous values. Use standard unit commitment "
             f"(linearized_unit_commitment=False) or remove modular sizing "
-            f"(set p_nom_mod=0). "
+            f"(set p_nom_mod=0 and modular=False). "
             f"See https://go.pypsa.org/modular-committable"
         )
         raise ValueError(msg)

@@ -5,6 +5,9 @@ type,string,n/a,n/a,Placeholder for store type. Not yet implemented.,Input (opti
 carrier,string,n/a,,"Carrier of the store.",Input (optional)
 e_nom,float,MWh,0,Nominal energy capacity (i.e. limit on `e`). Ignored if `e_nom_extendable=True`.,Input (optional)
 e_nom_mod,float,MWh,0,Nominal energy capacity of the store module. Introduces integer variables if set.,Input (optional)
+modular,boolean,n/a,False,"Decide `e_nom` in modules, introducing an integer variable for the number of modules. If `e_nom_mod > 0` the capacity of each module is fixed, otherwise the total capacity of the modules is a continuous decision (a single module unless `n_mod_max` allows more). Implied if `e_nom_mod > 0`. Without `e_nom_mod`, only supported if `e_nom_extendable=True`.",Input (optional)
+n_mod_min,float,n/a,0,"Minimum number of modules. Only used if the store is modular and `e_nom_extendable=True`.",Input (optional)
+n_mod_max,float,n/a,NaN,"Maximum number of modules. If NaN, defaults to `max(1, n_mod_min)` if `e_nom_mod = 0` (i.e. a single module of continuous capacity unless more are required) and to no limit otherwise. Only used if the store is modular and `e_nom_extendable=True`.",Input (optional)
 e_nom_extendable,boolean,n/a,False,Switch to allow capacity `e_nom` to be extended in optimisation.,Input (optional)
 e_nom_min,float,MWh,0,"If `e_nom_extendable=True`, set the minimum value of `e_nom_opt`.",Input (optional)
 e_nom_max,float,MWh,inf,"If `e_nom_extendable=True`, set the maximum value of `e_nom_opt`.",Input (optional)
@@ -26,13 +29,12 @@ capital_cost,float,currency/MWh,0,"Fixed period costs of extending `e_nom` by 1 
 overnight_cost,float,currency/MWh,NaN,"Overnight (upfront) investment cost per MWh. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MWh,0,"Fixed period operation and maintenance costs per MWh, added to annuitized investment cost.",Input (optional)
+module_cost,float,currency,0.,"Annuitised cost per module of the store, irrespective of its capacity. Only used if the store is modular and `e_nom_extendable=True`.",Input (optional)
+module_cost_overnight,float,currency,NaN,"Upfront cost per module of the store, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `module_cost`.",Input (optional)
 standing_loss,static or series,per unit,0,Losses per hour to energy level.,Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
 build_year,int,year,0,Build year,Input (optional)
 lifetime,float,years,inf,Lifetime,Input (optional)
-purchasable,boolean,n/a,False,Apply unit purchase constraints.,Input (optional)
-unit_cost,float,currency,0.,"Annuitised cost for purchasing a store, irrespective of its capacity",Input (optional)
-unit_cost_overnight,float,currency,NaN,"Upfront cost for purchasing a store, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `unit_cost`.",Input (optional)
 p,series,MW,0,Power at bus (positive if net supply),Output
 q,series,MVar,0,Reactive power (positive if net supply),Output
 e,series,MWh,0,Energy level of store as calculated by the optimisation.,Output
@@ -42,4 +44,4 @@ mu_lower,series,currency/MWh,n/a,Shadow price of lower `e_nom` limit,Output
 mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations (i.e. water values),Output
 capital_cost_piecewise_opt,float,currency/MWh,0.,Optimised capital cost when using piecewise linearisation.,Output
 marginal_cost_piecewise_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output
-purchased_opt,float,n/a,n/a,Optimised unit purchase decision,Output
+n_mod_opt,float,n/a,n/a,"Optimised number of modules. Only for modular components with `e_nom_extendable=True`.",Output

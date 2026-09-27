@@ -94,35 +94,37 @@ n.generators.loc["wind", "fom_cost"] = 0.02 * n.generators.loc["wind", "overnigh
     | $n$               | `n.{generators,...}.lifetime` | Parameter |
     | $c_{\text{fom}}$  | `n.{generators,...}.fom_cost` | Parameter |
 
-## Unit Purchase Costs
+## Module Costs
 
-For [purchasable components](capacity-limits.md#unit-purchase-decisions)
-(`purchasable=True`), a capacity-independent investment cost is charged as soon as
-the asset is bought:
+For [modular components](capacity-limits.md#modularity-constraints), a
+capacity-independent investment cost is charged for every module that is built:
 
-$$+ \sum_{n,s} uc_{n,s} y_{n,s} + \sum_{l} uc_{l} y_{l} + \sum_{m} uc_{m} y_{m}$$
+$$+ \sum_{n,s} mc_{n,s} n^{\textrm{mod}}_{n,s} + \sum_{l} mc_{l} n^{\textrm{mod}}_{l} + \sum_{m} mc_{m} n^{\textrm{mod}}_{m}$$
 
-where $uc_{*}$ are the unit costs and $y_{*} \in \mathbb{B}$ are the binary purchase
-decisions. Unlike the capital costs above, unit costs are *not* multiplied by a
-capacity, which makes them suitable for one-off costs such as grid connection, land
-acquisition or project development. Like capital costs, they are weighted by the
-investment period weightings in a [pathway optimisation](pathway-planning.md).
+where $mc_{*}$ are the module costs and $n^{\textrm{mod}}_{*} \in \mathbb{N}$ are the
+integer numbers of modules. Unlike the capital costs above, module costs are *not*
+multiplied by a capacity. For a single module of continuous capacity
+(`modular=True` without a module size), this makes them suitable for one-off
+costs such as grid connection, land acquisition or project development. For fixed
+module sizes (`{p,s,e}_nom_mod > 0`), the module cost is charged per module. Like
+capital costs, they are weighted by the investment period weightings in a
+[pathway optimisation](pathway-planning.md).
 
-As for `capital_cost`, the unit cost can either be given directly as a periodized
-value via `unit_cost`, or as an upfront value via `unit_cost_overnight` which is
-annuitised with `discount_rate` and `lifetime`:
+As for `capital_cost`, the module cost can either be given directly as a
+periodized value via `module_cost`, or as an upfront value via
+`module_cost_overnight` which is annuitised with `discount_rate` and `lifetime`:
 
-$$uc = uc_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}}$$
+$$mc = mc_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}}$$
 
-If `unit_cost_overnight` is given, it takes precedence over `unit_cost`.
+If `module_cost_overnight` is given, it takes precedence over `module_cost`.
 
 ``` py
 n.add("Generator", "wind",
       bus="bus",
       p_nom_extendable=True,
-      capital_cost=50000,       # €/MW
-      purchasable=True,
-      unit_cost_overnight=2e6,  # one-off €, e.g. grid connection
+      capital_cost=50000,         # €/MW
+      modular=True,
+      module_cost_overnight=2e6,  # one-off €, e.g. grid connection
       discount_rate=0.07,
       lifetime=25)
 ```
@@ -131,11 +133,11 @@ n.add("Generator", "wind",
 
     | Symbol | Attribute | Type |
     |-------------------|-----------|-------------|
-    | $y_{n,s}$         | `n.{generators,storage_units,stores}.purchased_opt` | Decision variable |
-    | $y_{l}$           | `n.{links,lines}.purchased_opt` | Decision variable |
-    | $y_{m}$           | `n.processes.purchased_opt` | Decision variable |
-    | $uc_{*}$          | `n.{generators,...}.unit_cost` | Parameter |
-    | $uc_{\text{overnight}}$ | `n.{generators,...}.unit_cost_overnight` | Parameter |
+    | $n^{\textrm{mod}}_{n,s}$ | `n.{generators,storage_units,stores}.n_mod_opt` | Decision variable |
+    | $n^{\textrm{mod}}_{l}$ | `n.{links,lines,transformers}.n_mod_opt` | Decision variable |
+    | $n^{\textrm{mod}}_{m}$ | `n.processes.n_mod_opt` | Decision variable |
+    | $mc_{*}$          | `n.{generators,...}.module_cost` | Parameter |
+    | $mc_{\text{overnight}}$ | `n.{generators,...}.module_cost_overnight` | Parameter |
 
 ## Marginal Costs
 

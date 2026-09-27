@@ -67,13 +67,13 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
     return p
 
 
-def _purchase_cost(comp: Components, unit_cost: pd.Series) -> pd.Series:
-    """Distribute a per-unit purchase cost over the optimized purchase decisions."""
-    purchased = comp.static["purchased_opt"].fillna(0.0)
-    if isinstance(purchased.index, pd.MultiIndex):
-        unit_cost = unit_cost.reorder_levels(purchased.index.names)
-    unit_cost = unit_cost.reindex(purchased.index).fillna(0.0)
-    return purchased * unit_cost
+def _module_cost(comp: Components, module_cost: pd.Series) -> pd.Series:
+    """Multiply a per-module cost with the optimized number of modules."""
+    n_mod = comp.static["n_mod_opt"].fillna(0.0)
+    if isinstance(n_mod.index, pd.MultiIndex):
+        module_cost = module_cost.reorder_levels(n_mod.index.names)
+    module_cost = module_cost.reindex(n_mod.index).fillna(0.0)
+    return n_mod * module_cost
 
 
 def port_efficiency(
@@ -736,11 +736,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         ----------------
         cost_attribute : str | None, default=None
             Which cost attribute(s) to sum:
-            - `None`: All attributes, i.e. capacity capital_cost plus purchase unit_cost.
+            - `None`: All attributes, i.e. capacity capital_cost plus module_cost.
             - `"capital_cost"`: Capacity term only, using annuitized investment cost
               (without fixed O&M).
-            - `"unit_cost"`: Purchase term only, i.e. the periodized unit cost of
-              purchasable assets.
+            - `"module_cost"`: Module term only, i.e. the periodized module cost of
+              modular assets times the number of modules.
             - any other column name: Capacity times that static column.
 
         Returns
@@ -761,7 +761,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             comp = n.c[c]
             capacity = comp.static[f"{nominal_attrs[c]}_opt"]
             capex = pd.Series(0.0, index=capacity.index)
-            if cost_attribute != "unit_cost":
+            if cost_attribute != "module_cost":
                 if cost_attribute in (None, "capital_cost"):
                     attr_vals = comp.capital_cost
                 else:
@@ -769,8 +769,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 piecewise_key = (cost_attribute or "capital_cost") + "_piecewise_opt"
                 piecewise_costs = comp.static.get(piecewise_key, 0)
                 capex = capex + capacity * (attr_vals + piecewise_costs)
-            if cost_attribute in (None, "unit_cost") and "purchased_opt" in comp.static:
-                capex = capex + _purchase_cost(comp, comp.unit_cost)
+            if cost_attribute in (None, "module_cost") and "n_mod_opt" in comp.static:
+                capex = capex + _module_cost(comp, comp.module_cost)
             return capex
 
         df = self._aggregate_components(
@@ -863,7 +863,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Which cost attribute(s) to sum:
             - `None` or `"capital_cost"`: Capacity times annuitized investment cost
               (without fixed O&M).
-            - `"unit_cost"`: Zero, since no purchase decision exists for already
+            - `"module_cost"`: Zero, since no module decision exists for already
               installed (non-optimized) capacities (dropped unless `drop_zero=False`).
             - any other column name: Capacity times that static column.
 
@@ -889,7 +889,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             comp = n.c[c]
             capacity = comp.static[nominal_attrs[c]]
-            if cost_attribute == "unit_cost":
+            if cost_attribute == "module_cost":
                 return pd.Series(0.0, index=capacity.index)
             if cost_attribute in (None, "capital_cost"):
                 return capacity * comp.capital_cost
@@ -983,11 +983,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         ----------------
         cost_attribute : str | None, default=None
             Which cost attribute(s) to sum, forwarded to `capex` and `installed_capex`:
-            - `None`: All attributes, i.e. capacity capital_cost plus purchase unit_cost.
+            - `None`: All attributes, i.e. capacity capital_cost plus module_cost.
             - `"capital_cost"`: Capacity term only, using annuitized investment cost
               (without fixed O&M).
-            - `"unit_cost"`: Purchase term only, i.e. the periodized unit cost of
-              purchasable assets.
+            - `"module_cost"`: Module term only, i.e. the periodized module cost of
+              modular assets times the number of modules.
             - any other column name: Capacity times that static column.
 
         Returns
@@ -1091,11 +1091,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         ----------------
         cost_attribute : str | None, default=None
             Which cost attribute(s) to sum:
-            - `None`: All attributes, i.e. capacity overnight cost plus purchase
+            - `None`: All attributes, i.e. capacity overnight cost plus module
               overnight cost.
             - `"overnight_cost"`: Capacity term only.
-            - `"unit_cost"`: Purchase term only, i.e. the overnight unit cost of
-              purchasable assets.
+            - `"module_cost"`: Module term only, i.e. the overnight module cost of
+              modular assets times the number of modules.
 
         Returns
         -------
@@ -1109,9 +1109,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         :meth:`fom` : Returns fixed operation and maintenance costs.
 
         """
-        if cost_attribute not in (None, "overnight_cost", "unit_cost"):
+        if cost_attribute not in (None, "overnight_cost", "module_cost"):
             msg = (
-                "cost_attribute must be None, 'overnight_cost' or 'unit_cost', "
+                "cost_attribute must be None, 'overnight_cost' or 'module_cost', "
                 f"got {cost_attribute!r}"
             )
             raise ValueError(msg)
@@ -1123,8 +1123,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             cost = pd.Series(0.0, index=capacity.index)
             if cost_attribute in (None, "overnight_cost"):
                 cost = cost + capacity * comp.overnight_cost
-            if cost_attribute in (None, "unit_cost") and "purchased_opt" in comp.static:
-                cost = cost + _purchase_cost(comp, comp.overnight_unit_cost)
+            if cost_attribute in (None, "module_cost") and "n_mod_opt" in comp.static:
+                cost = cost + _module_cost(comp, comp.overnight_module_cost)
             return cost
 
         df = self._aggregate_components(

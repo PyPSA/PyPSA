@@ -759,19 +759,19 @@ class Components(
         Coordinates:
           * name                        (name) object 48B 'Manchester Wind' ... 'Fran...
           * snapshot                    (snapshot) datetime64[ns] 80B 2015-01-01 ... ...
-        Data variables: (12/52)
+        Data variables: (12/54)
             bus                         (name) object 48B 'Manchester' ... 'Frankfurt'
             control                     (name) object 48B 'Slack' 'PQ' ... 'Slack' 'PQ'
             type                        (name) object 48B '' '' '' '' '' ''
             p_nom                       (name) float64 48B 80.0 5e+04 ... 110.0 8e+04
             p_nom_mod                   (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
-            p_nom_extendable            (name) bool 6B True True True True True True
+            modular                     (name) bool 6B False False False ... False False
             ...                          ...
             ramp_limit_shut_down        (name) float64 48B nan nan nan nan nan nan
             weight                      (name) float64 48B 1.0 1.0 1.0 1.0 1.0 1.0
             p_nom_opt                   (name) float64 48B 4.091e+03 0.0 ... 982.0
             capital_cost_piecewise_opt  (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
-            purchased_opt               (name) float64 48B nan nan nan nan nan nan
+            n_mod_opt                   (name) float64 48B nan nan nan nan nan nan
             p                           (snapshot, name) float64 480B 742.0 ... 483.2
 
         """
@@ -1020,12 +1020,25 @@ class Components(
 
         return idx
 
+    def _name_index(self, mask: pd.Series) -> pd.Index:
+        """Return the single-level name index of static rows selected by mask."""
+        idx = self.static.loc[mask].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
     @property
     def modulars(self) -> pd.Index:
         """Get the index of modular elements of this component.
 
-        Modular components have a positive module size (e.g., p_nom_mod > 0)
-        which introduces integer variables for capacity expansion.
+        Modular components decide their capacity in modules, which introduces an
+        integer variable for the number of modules. An element is modular if the
+        `modular` flag is set or if it has a positive module size (e.g.,
+        p_nom_mod > 0). With a module size, the capacity of each module is fixed;
+        without one, the total capacity of the modules is a continuous decision.
 
         <!-- md:badge-version v1.1.0 -->
 
@@ -1035,67 +1048,78 @@ class Components(
             Single-level index of modular elements.
 
         """
-        mod_col = self._operational_attrs["nom_mod"]
+        mask = self._fixed_size_mask()
+        if "modular" in self.static.columns:
+            mask |= self.static["modular"].eq(True)
+        return self._name_index(mask)
+
+    def _scenario_invariant_static(self, attr: str) -> pd.Series:
+        """Return a scenario-invariant static attribute indexed by name only."""
+        values = self.static[attr]
+        if self.has_scenarios:
+            values = values.groupby(level="name").first()
+        return values
+
+    def _n_mod_bounds(self, names: pd.Index) -> tuple[pd.Series, pd.Series]:
+        """Return the lower and upper bounds on the number of modules.
+
+        A missing `n_mod_max` defaults to a single module (or `n_mod_min` modules,
+        if larger) for continuous modular elements and to no limit for elements
+        with a fixed module size.
+        """
+        lower = self._scenario_invariant_static("n_mod_min").reindex(names)
+        upper = self._scenario_invariant_static("n_mod_max").reindex(names)
+        is_continuous = names.isin(self._continuous_modulars)
+        default = lower.clip(lower=1).where(is_continuous, np.inf)
+        return lower, upper.fillna(default)
+
+    @property
+    def _single_module_continuous_modulars(self) -> pd.Index:
+        """Get the index of active, extendable, continuous modular elements with at most one module."""
+        cont_i = self._active_continuous_modulars
+        if cont_i.empty:
+            return cont_i
+        _, n_mod_max = self._n_mod_bounds(cont_i)
+        return cont_i[(n_mod_max <= 1).to_numpy()]
+
+    def _fixed_size_mask(self) -> pd.Series:
+        """Return a mask of static rows with a positive module size (e.g. p_nom_mod > 0)."""
+        try:
+            mod_col = self._operational_attrs["nom_mod"]
+        except KeyError:  # component without nominal capacity, e.g. Bus
+            mod_col = None
         if mod_col not in self.static.columns:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[self.static[mod_col] > 0].index
-
-        # Remove scenario dimension, since they cannot vary across scenarios
-        if self.has_scenarios:
-            idx = idx.get_level_values("name").drop_duplicates()
-
-        return idx
+            return pd.Series(False, index=self.static.index)
+        return self.static[mod_col] > 0
 
     @property
-    def purchasables(self) -> pd.Index:
-        """Get the index of unit purchasable elements of this component.
-
-        Purchasable components have a purchasable flag which introduces binary variables for unit capacity investment.
-
-        <!-- md:badge-version v1.1.0 -->
-
-        Returns
-        -------
-        pd.Index
-            Single-level index of purchasable elements.
-
-        """
-        if "purchasable" not in self.static:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[self.static["purchasable"]].index
-
-        # Remove scenario dimension, since they cannot vary across scenarios
-        if self.has_scenarios:
-            idx = idx.get_level_values("name").drop_duplicates()
-
-        return idx
+    def _fixed_size_modulars(self) -> pd.Index:
+        """Get the index of modular elements with a fixed module size (e.g. p_nom_mod > 0)."""
+        return self._name_index(self._fixed_size_mask())
 
     @property
-    def active_purchasables(self) -> pd.Index:
-        """Get the index of purchasable elements considered in the optimization.
+    def _continuous_modulars(self) -> pd.Index:
+        """Get the index of modular elements whose module capacity is continuous."""
+        return self.modulars.difference(self._fixed_size_modulars)
 
-        These are the elements that are purchasable, extendable and active, i.e.
-        the ones for which a purchase decision variable is created.
+    @property
+    def _active_modulars(self) -> pd.Index:
+        """Get the index of active, extendable, modular elements.
 
-        <!-- md:badge-version v1.1.0 -->
-
-        Returns
-        -------
-        pd.Index
-            Single-level index of active, extendable, purchasable elements.
-
+        These are the elements for which a module count variable is created.
         """
-        purchasables = self.purchasables
-        if purchasables.empty:
-            return purchasables
-        return purchasables.intersection(self.extendables).intersection(
-            self.active_assets
-        )
+        mod_i = self.modulars
+        if mod_i.empty:
+            return mod_i
+        return mod_i.intersection(self.extendables).intersection(self.active_assets)
+
+    @property
+    def _active_continuous_modulars(self) -> pd.Index:
+        """Get the index of active, extendable, continuous modular elements."""
+        return self._active_modulars.difference(self._fixed_size_modulars)
 
     def _resolve_big_m_default(self, committable_big_m: float | None) -> float:
-        """Resolve the scalar big-M fallback for committable/purchasable bounds."""
+        """Resolve the scalar big-M fallback for committable/modular bounds."""
         big_m_default = committable_big_m
         if big_m_default is None and self.n is not None:
             big_m_default = self.n._committable_big_m
@@ -1220,21 +1244,21 @@ class Components(
         )
 
     @property
-    def unit_cost(self) -> pd.Series:
-        """Calculate periodized unit investment cost per purchased unit.
+    def module_cost(self) -> pd.Series:
+        """Calculate periodized investment cost per module.
 
         <!-- md:badge-version v1.1.0 -->
 
         See Also
         --------
         `pypsa.costs.periodized_cost`
-        `periodized_unit_cost` : Same values as xarray DataArray.
+        `periodized_module_cost` : Same values as xarray DataArray.
 
         """
         static = self.static
         return periodized_cost(
-            capital_cost=static["unit_cost"],
-            overnight_cost=static["unit_cost_overnight"],
+            capital_cost=static["module_cost"],
+            overnight_cost=static["module_cost_overnight"],
             discount_rate=static["discount_rate"],
             lifetime=static["lifetime"],
             fom_cost=0,
@@ -1242,8 +1266,8 @@ class Components(
         )
 
     @property
-    def periodized_unit_cost(self) -> xarray.DataArray:
-        """Calculate periodized unit investment cost from component attributes as xarray DataArray.
+    def periodized_module_cost(self) -> xarray.DataArray:
+        """Calculate periodized module investment cost from component attributes as xarray DataArray.
 
         <!-- md:badge-version v1.1.0 -->
 
@@ -1252,7 +1276,7 @@ class Components(
         `pypsa.costs.periodized_cost`
 
         """
-        da = xarray.DataArray(self.unit_cost)
+        da = xarray.DataArray(self.module_cost)
         if self.has_scenarios:
             da = da.unstack().reindex(name=self.names, scenario=self.scenarios)
         return da
@@ -1368,29 +1392,31 @@ class Components(
         )
 
     @property
-    def overnight_unit_cost(self) -> pd.Series:
-        """Calculate overnight unit investment cost from component attributes.
+    def overnight_module_cost(self) -> pd.Series:
+        """Calculate overnight module investment cost from component attributes.
 
         <!-- md:badge-version v1.1.0 -->
 
-        If unit_cost_overnight column is provided (not NaN), returns it directly.
-        Otherwise, converts periodized unit_cost back to overnight cost using
-        the formula: unit_cost_overnight = unit_cost / (annuity_factor × nyears).
+        If module_cost_overnight column is provided (not NaN), returns it directly.
+        Otherwise, converts periodized module_cost back to overnight cost using
+        the formula: module_cost_overnight = module_cost / (annuity_factor × nyears).
 
         Returns
         -------
         pd.Series
-            Overnight (upfront) unit investment cost for the purchase decision.
+            Overnight (upfront) investment cost per module.
 
         See Also
         --------
-        `periodized_unit_cost` : Periodized unit investment cost for the modeled horizon.
+        `periodized_module_cost` : Periodized module investment cost for the modeled horizon.
         `overnight_cost` : Overnight cost per unit of capacity.
 
         """
         static = self.static
         return self._overnight_from_annuitized(
-            static["unit_cost"], static["unit_cost_overnight"], "unit_cost_overnight"
+            static["module_cost"],
+            static["module_cost_overnight"],
+            "module_cost_overnight",
         )
 
 
