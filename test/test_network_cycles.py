@@ -369,13 +369,12 @@ def test_weighted_cycles_infinite_impedance_outside_cycle(
     n.add("Bus", ["a", "b", "c", "d"], carrier=carrier)
     n.add(
         "Line",
-        ["ab", "bc", "ca"],
-        bus0=["a", "b", "c"],
-        bus1=["b", "c", "a"],
-        **{attr: 0.1},
+        ["ab", "bc", "ca", "cd"],
+        bus0=["a", "b", "c", "c"],
+        bus1=["b", "c", "a", "d"],
         s_nom=100,
     )
-    n.add("Line", "cd", bus0="c", bus1="d", **{attr: np.inf}, s_nom=100)
+    n.c.lines.static[attr] = [0.1, 0.1, 0.1, np.inf]
 
     cycles = n.cycle_matrix(apply_weights=True)
 
