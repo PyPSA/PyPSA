@@ -282,16 +282,6 @@ jobs:
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
 
-    - name: Check external links
-      # Flaky external hosts, run on the daily schedule only, not PRs/master
-      if: ${{ !cancelled() && github.event_name == 'schedule' }}
-      uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
-      with:
-        args: "--config .lychee.toml --no-progress './**/*.md'"
-        fail: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Upload code coverage report
       if: ${{ !cancelled() }}
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
