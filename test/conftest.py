@@ -105,8 +105,8 @@ def _configure_linopy_semantics(config):
     """Select linopy arithmetic semantics and fail on divergence warnings.
 
     Controlled via `LINOPY_SEMANTICS` (`legacy` | `v1`); no `PYPSA_`
-    prefix, to avoid PyPSA's own env-var option loader, so old linopy (without
-    the `semantics` option) is untouched. When set, any
+    prefix, to avoid PyPSA's own env-var option loader. Setting it with a linopy
+    that lacks the `semantics` option raises. When set, any
     `LinopySemanticsWarning` escaping PyPSA's own targeted suppression fails
     the test. The filter is added here rather than in `pyproject.toml` because
     the warning class only exists on linopy with v1 semantics.
@@ -116,11 +116,7 @@ def _configure_linopy_semantics(config):
     mode = os.environ.get("LINOPY_SEMANTICS")
     if not mode:
         return
-    try:
-        linopy.options["semantics"] = mode
-    except (KeyError, TypeError):
-        # linopy < 0.10 has no "semantics" option; setting it is a no-op.
-        return
+    linopy.options["semantics"] = mode
     config.addinivalue_line(
         "filterwarnings",
         "error::linopy.config.LinopySemanticsWarning",
