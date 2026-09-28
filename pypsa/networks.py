@@ -1247,7 +1247,6 @@ class Network(
                     "flows are not allowed for non-electric networks! "
                     'Use "AC" or "DC" as carrier ("electricity" will '
                     "not work).",
-
                     i,
                 )
 
