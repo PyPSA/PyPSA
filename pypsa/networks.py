@@ -1360,7 +1360,9 @@ class Network(
             is_ac = branches.sub_network.map(self.c.sub_networks.static.carrier) == "AC"
             weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
             weights = weights[cycles_df.index]
-            cycles_df = cycles_df.multiply(weights, axis=0)
+            cycles_df = cycles_df.where(
+                cycles_df == 0, cycles_df.multiply(weights, axis=0)
+            )
 
         # Reindex to include all branches (even those not in cycles)
         return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
