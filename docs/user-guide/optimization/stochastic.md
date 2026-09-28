@@ -191,6 +191,10 @@ snapshot
 2019-07-21 21:00:00  0.0000  0.0896      0.000  0.0896
 ```
 
+!!! note
+
+    Attributes which define the topology or the structure of the optimisation problem must be identical across scenarios, e.g. `bus`, `carrier`, `p_nom_extendable`, `p_nom_set`, `committable`, `build_year`, `lifetime`, `active` or the `delay` and `cyclic_delay` attributes of links and processes (including their per-port variants, e.g. `delay0`, `delay2`, `cyclic_delay2`). The consistency check raises an error otherwise.
+
 ### Optimization
 
 When we now call `n.optimize()`, the network is solved as a stochastic problem considering all defined scenarios and their respective probabilities.

@@ -394,7 +394,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             or a pandas.Index is passed, it is assumed to identify lines. If a
             multiindex is passed, its first level has to contain the component names,
             the second the assets. The default None results in all passive branches
-            to be considered.
+            to be considered. For stochastic networks, outages are identified by
+            asset name and applied in all scenarios, using the branch outage
+            distribution factors of the first scenario.
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
             investment periods. Then, snapshots should be a `pd.MultiIndex`.
@@ -414,6 +416,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         n = self._n
 
         all_passive_branches = n.passive_branches().index
+        if n.has_scenarios:
+            all_passive_branches = all_passive_branches.droplevel("scenario").unique()
 
         if branch_outages is None:
             branch_outages = all_passive_branches
@@ -440,7 +444,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             **model_kwargs,
         )
 
-        for sub_network in n.c.sub_networks.static.obj:
+        n_topology = n
+        if n.has_scenarios:
+            n_topology = n.get_scenario(n.scenarios[0])
+            n_topology.determine_network_topology()
+
+        for sub_network in n_topology.c.sub_networks.static.obj:
             branches_i = sub_network.branches_i()
             outages = branches_i.intersection(branch_outages)
 
@@ -457,7 +466,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             ):
                 c_outage_ = c_outage + "-outage"
                 c_outages = outages.get_loc_level(c_outage)[1]
-                flow_outage = m.variables[c_outage + "-s"].loc[:, c_outages]
+                flow_outage = m.variables[c_outage + "-s"].sel(name=c_outages)
                 flow_outage = flow_outage.rename({"name": c_outage_})
 
                 bodf = BODF.loc[c_affected, c_outage]
