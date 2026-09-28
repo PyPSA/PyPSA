@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import numpy as np
+import pytest
 
 import pypsa
 
@@ -358,3 +359,25 @@ def test_weighted_cycles_dc_network() -> None:
             r_value = n.c.lines.static.at[line, "r_pu_eff"]
             weighted_val = cycles_weighted.loc[line_idx, col]
             assert np.isclose(weighted_val, r_value * unweighted_val)
+
+
+@pytest.mark.parametrize(("carrier", "attr"), [("AC", "x"), ("DC", "r")])
+def test_weighted_cycles_infinite_impedance_outside_cycle(
+    carrier: str, attr: str
+) -> None:
+    n = pypsa.Network()
+    n.add("Bus", ["a", "b", "c", "d"], carrier=carrier)
+    n.add(
+        "Line",
+        ["ab", "bc", "ca"],
+        bus0=["a", "b", "c"],
+        bus1=["b", "c", "a"],
+        **{attr: 0.1},
+        s_nom=100,
+    )
+    n.add("Line", "cd", bus0="c", bus1="d", **{attr: np.inf}, s_nom=100)
+
+    cycles = n.cycle_matrix(apply_weights=True)
+
+    assert (cycles.loc[("Line", "cd")] == 0).all()
+    assert (cycles.drop(("Line", "cd")) != 0).all().all()
