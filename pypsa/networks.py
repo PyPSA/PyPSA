@@ -1244,7 +1244,10 @@ class Network(
                 logger.warning(
                     "Warning, sub network %d is not electric but "
                     "contains multiple buses\nand branches. Passive "
-                    "flows are not allowed for non-electric networks!",
+                    "flows are not allowed for non-electric networks! "
+                    'Use "AC" or "DC" as carrier ("electricity" will '
+                    "not work).",
+
                     i,
                 )
 
