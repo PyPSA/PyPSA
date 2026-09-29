@@ -22,6 +22,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix the carrier `max_growth` and `max_relative_growth` constraints counting an asset again in every period after it retires. An asset is now counted only in its build period. Resolves [#1938](https://github.com/PyPSA/PyPSA/issues/1938).
 - Fix [`n.cycle_matrix(apply_weights=True)`][pypsa.Network.cycle_matrix] returning `NaN` for branches with infinite reactance or resistance that are not part of any cycle. These entries are now `0`. This allows building the Kirchhoff voltage law constraints under the upcoming linopy v1 semantics, which reject `NaN` constants. Resolves [#1944](https://github.com/PyPSA/PyPSA/issues/1944). (<!-- md:pr 1948 -->)
 - Fix the replacements named by three deprecation warnings. `sub_network.stores_i()` pointed at `sub_network.components.stores.index.static`, which raises an `AttributeError`; `sub_network.stores()` and the `aggregate_across_components` warning named replacements containing documentation markup instead of the object path. (<!-- md:pr 1922 -->)
 - Fix [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] using the unavailable `s_nom_opt` instead of `s_nom` as the reference capacity in the first iteration. On a fresh network this divided the line reactances by zero and set them to zero. (<!-- md:pr 1910 -->)

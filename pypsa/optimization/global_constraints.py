@@ -273,7 +273,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
             active = active.groupby(level="name").first()
 
         active = active.loc[limited_names].rename_axis(columns="periods").T
-        first_active = DataArray(active.cumsum() == 1)
+        first_active = DataArray(active & (active.cumsum() == 1))
         carriers = carrier_map.loc[limited_names].rename("Carrier")
 
         vars = m[var].sel(name=limited_names).where(first_active)
