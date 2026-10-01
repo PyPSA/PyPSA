@@ -370,7 +370,7 @@ def define_primary_energy_limit(
         for scenario in scenarios:
             glc = glc_group.loc[scenario]
 
-            if np.isnan(glc.investment_period):
+            if np.isnan(glc.investment_period) or not n._multi_invest:
                 period_sns = sns
             elif glc.investment_period in periods:
                 period_sns = sns[period_of == glc.investment_period]
@@ -597,7 +597,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
         for scenario in scenarios:
             glc = glc_group.loc[scenario]
 
-            if np.isnan(glc.investment_period):
+            if np.isnan(glc.investment_period) or not n._multi_invest:
                 in_period = None
             elif glc.investment_period in periods:
                 in_period = period_of == glc.investment_period
