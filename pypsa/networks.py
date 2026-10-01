@@ -323,6 +323,12 @@ class Network(
         self.__dict__.update(state)
         self._restore_references()
 
+    def __copy__(self) -> Network:
+        """Return a shallow copy, sharing data and SubNetwork objects with the original."""
+        n = self.__class__.__new__(self.__class__)
+        n.__dict__.update(self.__dict__)
+        return n
+
     def __deepcopy__(self, memo: dict[int, Any]) -> Network:
         """Return a deep copy, including SubNetwork objects linked to the copy."""
         n = self.__class__.__new__(self.__class__)
@@ -341,7 +347,8 @@ class Network(
     def _restore_references(self) -> None:
         """Restore snapshot index names and SubNetwork parent references.
 
-        Pickling drops the name of a `pd.MultiIndex` and the SubNetwork weakrefs.
+        pandas drops the name of a `pd.MultiIndex` on any copy, view or pickling, and
+        pickling drops the SubNetwork weakrefs.
         """
         self._snapshots_data.index.name = "snapshot"
         for c in self.components:
@@ -569,6 +576,7 @@ class Network(
             AbstractStatisticsAccessor,
             linopy.Model,
             SnapshotWindow,
+            SubNetwork,
         ]
         not_equal = False
         if isinstance(other, self.__class__):
@@ -1499,14 +1507,6 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         state = self.__dict__.copy()
         state.pop("_n", None)
         return state
-
-    def __eq__(self, other: object) -> bool:
-        """Check equality by name, like Components without the attached Network."""
-        return isinstance(other, SubNetwork) and self.name == other.name
-
-    def __hash__(self) -> int:
-        """Hash by name, consistent with equality."""
-        return hash(self.name)
 
     # TODO assign __str__ and __repr__
     @property
