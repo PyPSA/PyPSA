@@ -231,8 +231,8 @@ def test_options_include_objective_constant_create_model(
     ("multi_invest", "scenarios", "expected"),
     [
         (False, None, 101000.0),
-        (True, None, 150500.0),
-        (True, {"a": 0.3, "b": 0.7}, 150500.0),
+        (True, None, 100500.0),
+        (True, {"a": 0.3, "b": 0.7}, 100500.0),
     ],
 )
 def test_objective_constant_investment_periods(
@@ -255,7 +255,7 @@ def test_objective_constant_investment_periods(
             capital_cost=[1000, 100],
             marginal_cost=[10, 20],
             build_year=[2030, 2040],
-            lifetime=50,
+            lifetime=[10, 50],
         )
         n.add("Load", "load", bus="bus", p_set=50)
         if scenarios:
