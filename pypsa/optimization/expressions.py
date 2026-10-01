@@ -108,6 +108,19 @@ def _restack_flat_groups(expr: Any) -> Any:
     return indexed.rename(group=keys[0]) if len(keys) == 1 else indexed
 
 
+def _drop_scenario(data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
+    """Index static data by name, requiring identical values across scenarios."""
+    if "scenario" not in data.index.names:
+        return data
+    if (data.groupby(level="name").nunique(dropna=False) > 1).to_numpy().any():
+        msg = (
+            "Grouping and filtering optimization expressions requires static data "
+            f"which is identical across scenarios, got:\n{data}"
+        )
+        raise ValueError(msg)
+    return data.groupby(level="name", sort=False).first()
+
+
 def _capacity_expression(
     n: Network, component: str, include_non_extendable: bool = True
 ) -> LinearExpression | None:
@@ -120,14 +133,13 @@ def _capacity_expression(
     c = n.c[component]
     nom_attr = c._operational_attrs["nom"]
     var_name = f"{component}-{nom_attr}"
-    fixed_capacity = (
-        c.static.loc[c.fixed, nom_attr]
-        if include_non_extendable
-        else pd.Series(dtype=float)
-    )
+    fixed_capacity = c.da[nom_attr].sel(name=c.fixed if include_non_extendable else [])
     if var_name in m.variables:
-        return m.variables[var_name].to_linexpr().add(fixed_capacity, join="outer")
-    if fixed_capacity.empty:
+        capacity = m.variables[var_name].to_linexpr()
+        if fixed_capacity.size == 0:
+            return capacity
+        return capacity.add(fixed_capacity, join="outer")
+    if fixed_capacity.size == 0:
         return None
     return LinearExpression.from_constant(m, fixed_capacity)
 
@@ -198,11 +210,18 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         else:
             grouper = by
 
+        grouper = self._align_static(grouper)
         grouper.insert(0, "component", c)  # for tracking the component
         return grouper
 
     def _get_component_index(self, obj: LinearExpression, c: str) -> pd.Index:
         return obj.indexes["name"]
+
+    def _align_static(self, data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
+        return _drop_scenario(data)
+
+    def _select(self, obj: LinearExpression, idx: pd.Index) -> LinearExpression:
+        return obj.sel(name=idx)
 
     def _concat_periods(self, exprs: dict[str, LinearExpression], c: str) -> Any:
         periods = self._n.investment_periods
@@ -368,10 +387,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             capacity, add_capex = _split_piecewise(capacity, n.model, c, cost_attribute)
 
-            if cost_attribute == "capital_cost":
-                costs = c.capital_cost[capacity.indexes["name"]]
-            else:
-                costs = c.static[cost_attribute][capacity.indexes["name"]]
+            costs = (
+                c.capital_cost
+                if cost_attribute == "capital_cost"
+                else c.static[cost_attribute]
+            )
+            costs = c._to_xarray(costs, cost_attribute)
+            costs = costs.sel(name=capacity.indexes["name"])
             return _add_optional(capacity * costs, add_capex)
 
         return self._aggregate_components(
@@ -428,14 +450,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if capacity is None:
                 return None
 
-            efficiency = port_efficiency(n, component, port=port)[
-                capacity.indexes["name"]
-            ]
+            efficiency = port_efficiency(n, component, port=port, as_xarray=True)
+            efficiency = efficiency.sel(name=capacity.indexes["name"])
             if c._as_ports(at_port) == [0]:
                 efficiency = abs(efficiency)
             res = capacity * efficiency
             if storage and (component == "StorageUnit"):
-                res = res * c.static.max_hours
+                res = res * c.da.max_hours.sel(name=capacity.indexes["name"])
             return res
 
         return self._aggregate_components(
@@ -566,9 +587,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
             sns = var.indexes["snapshot"]
-            idx = transmission_branches.get_loc_level(c)[1].rename("name")
+            is_c = transmission_branches.get_level_values("component") == c
+            idx = transmission_branches[is_c].unique("name")
             efficiency = _port_coefficients(n, c, port, sns)
-            p = var.loc[:, idx] * efficiency.sel(name=idx)
+            p = var.sel(name=idx) * efficiency.sel(name=idx)
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         return self._aggregate_components(
@@ -656,7 +678,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             var = self._get_operational_variable(component)
             sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
-            sign = n.c[component].static.get("sign", 1.0)
+            sign = c.da.sign if "sign" in c.static else 1.0
             coeffs = _port_coefficients(n, component, port, sns) * sign
 
             pw_var = None
@@ -841,7 +863,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 return None
 
             idx = capacity.indexes["name"]
-            operation = self._get_operational_variable(component).loc[:, idx]
+            operation = self._get_operational_variable(component).sel(name=idx)
             sns = operation.indexes["snapshot"]
             p_max_pu = c.da.p_max_pu.sel(snapshot=sns, name=idx)
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting

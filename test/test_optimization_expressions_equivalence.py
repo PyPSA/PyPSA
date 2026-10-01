@@ -87,6 +87,18 @@ def solved_snapshot_subset():
     return n
 
 
+@pytest.fixture(scope="module")
+def solved_stochastic():
+    n = _ac_dc_network()
+    n.c.generators.static.loc["Frankfurt Gas", "p_nom_extendable"] = False
+    n.set_scenarios({"low": 0.3, "high": 0.7})
+    static = n.c.generators.static
+    static.loc[("high", "Frankfurt Gas"), ["p_nom", "capital_cost"]] = [2000, 50]
+    n.c.links.static.loc[("high", "Norway Converter"), "efficiency"] = 0.9
+    n.optimize(include_objective_constant=False)
+    return n
+
+
 def as_series(obj) -> pd.Series:
     """Expression solution or statistics result as a Series with canonical levels.
 
@@ -179,6 +191,19 @@ def test_multi_period_time_aggregation_matches_statistics(
 )
 def test_snapshot_subset_matches_statistics(solved_snapshot_subset, pair):
     compare(solved_snapshot_subset, pair)
+
+
+@pytest.mark.parametrize("pair", ALL_PAIRS, ids=lambda p: p[0])
+def test_stochastic_matches_statistics(solved_stochastic, pair):
+    compare(solved_stochastic, pair)
+
+
+@pytest.mark.parametrize("pair", REPRESENTATIVE_PAIRS, ids=lambda p: p[0])
+@pytest.mark.parametrize(
+    "kwargs", [*FILTER_PARAMETERS, {"groupby": ["bus", "carrier"]}], ids=str
+)
+def test_stochastic_filters_match_statistics(solved_stochastic, pair, kwargs):
+    compare(solved_stochastic, pair, **kwargs)
 
 
 def test_operation_matches_dispatch(solved_network):

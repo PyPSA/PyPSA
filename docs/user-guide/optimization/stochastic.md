@@ -266,6 +266,8 @@ As investment variables (i.e. `p_nom`, `s_nom`, `e_nom`) are scenario-independen
     - **Operational variables** scale as O(scenarios × components × snapshots)
     - **Constraint matrix size** grows almost linearly with the number of scenarios.
 
+Optimization expressions from `n.optimize.expressions`, e.g. for custom constraints, carry a `scenario` dimension with scenario-specific coefficients, e.g. `n.optimize.expressions.capex()` uses the capital costs of each scenario.
+
 
 ### Evaluation
 
