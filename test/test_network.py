@@ -653,6 +653,7 @@ def test_copy_keeps_snapshot_names(ac_dc_periods, copy_method):
     assert n_copy.snapshots.name == "snapshot"
     assert n_copy.snapshot_weightings.index.name == "snapshot"
     assert n_copy.c.generators.dynamic.p.index.name == "snapshot"
+    assert n_copy.c.generators.da.p_max_pu.dims == ("snapshot", "name")
 
 
 @pytest.mark.parametrize("by_snapshots", [True, False])
