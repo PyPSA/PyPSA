@@ -322,7 +322,7 @@ def define_objective(
         if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
             continue
 
-        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns)
+        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns, name=c.active_assets)
         if cost.size == 0 or (cost == 0).all():
             continue
 
