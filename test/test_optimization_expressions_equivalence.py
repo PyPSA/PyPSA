@@ -64,6 +64,11 @@ def _ac_dc_network() -> pypsa.Network:
     return n
 
 
+def _set_investment_periods(n: pypsa.Network) -> None:
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots])
+    n.investment_periods = [2020, 2030]
+
+
 @pytest.fixture(scope="module")
 def solved_network():
     n = _ac_dc_network()
@@ -74,8 +79,7 @@ def solved_network():
 @pytest.fixture(scope="module")
 def solved_multi_period():
     n = _ac_dc_network()
-    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots])
-    n.investment_periods = [2020, 2030]
+    _set_investment_periods(n)
     n.optimize(multi_investment_periods=True, include_objective_constant=False)
     return n
 
@@ -87,15 +91,17 @@ def solved_snapshot_subset():
     return n
 
 
-@pytest.fixture(scope="module")
-def solved_stochastic():
+@pytest.fixture(scope="module", params=[False, True], ids=["single", "multi_period"])
+def solved_stochastic(request):
     n = _ac_dc_network()
+    if request.param:
+        _set_investment_periods(n)
     n.c.generators.static.loc["Frankfurt Gas", "p_nom_extendable"] = False
     n.set_scenarios({"low": 0.3, "high": 0.7})
     static = n.c.generators.static
     static.loc[("high", "Frankfurt Gas"), ["p_nom", "capital_cost"]] = [2000, 50]
     n.c.links.static.loc[("high", "Norway Converter"), "efficiency"] = 0.9
-    n.optimize(include_objective_constant=False)
+    n.optimize(multi_investment_periods=request.param, include_objective_constant=False)
     return n
 
 
@@ -139,6 +145,9 @@ def compare(n: pypsa.Network, pair: tuple, **kwargs) -> None:
     call = {**shared, **kwargs}
     expr = getattr(n.optimize.expressions, expr_name)(**call)
     stat = getattr(n.statistics, stat_name)(**call)
+    if call.get("groupby") is False:
+        # ungrouped expressions are indexed by component name alone
+        stat = stat.droplevel("component")
     assert_matches(expr, stat, sign)
 
 
@@ -156,13 +165,7 @@ def test_time_aggregation_matches_statistics(solved_network, pair, groupby_time)
 @pytest.mark.parametrize("pair", REPRESENTATIVE_PAIRS, ids=lambda p: p[0])
 @pytest.mark.parametrize("groupby", GROUPER_PARAMETERS, ids=str)
 def test_grouping_matches_statistics(solved_network, pair, groupby):
-    expr_name, stat_name, _, sign = pair
-    expr = getattr(solved_network.optimize.expressions, expr_name)(groupby=groupby)
-    stat = getattr(solved_network.statistics, stat_name)(groupby=groupby)
-    if groupby is False:
-        # ungrouped expressions are indexed by component name alone
-        stat = stat.droplevel("component")
-    assert_matches(expr, stat, sign)
+    compare(solved_network, pair, groupby=groupby)
 
 
 @pytest.mark.parametrize("kwargs", FILTER_PARAMETERS, ids=str)
@@ -200,7 +203,9 @@ def test_stochastic_matches_statistics(solved_stochastic, pair):
 
 @pytest.mark.parametrize("pair", REPRESENTATIVE_PAIRS, ids=lambda p: p[0])
 @pytest.mark.parametrize(
-    "kwargs", [*FILTER_PARAMETERS, {"groupby": ["bus", "carrier"]}], ids=str
+    "kwargs",
+    [*FILTER_PARAMETERS, {"groupby": ["bus", "carrier"]}, {"groupby": False}],
+    ids=str,
 )
 def test_stochastic_filters_match_statistics(solved_stochastic, pair, kwargs):
     compare(solved_stochastic, pair, **kwargs)

@@ -17,7 +17,7 @@ from linopy import LinearExpression, Variable
 from packaging import version
 
 from pypsa._linopy_compat import suppress_semantics_warnings
-from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
+from pypsa.common import deprecated_kwargs
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.optimization.window import apply_period_weighting
 from pypsa.statistics import (
@@ -112,10 +112,16 @@ def _drop_scenario(data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
     """Index static data by name, requiring identical values across scenarios."""
     if "scenario" not in data.index.names:
         return data
-    if (data.groupby(level="name").nunique(dropna=False) > 1).to_numpy().any():
+    varies = data.groupby(level="name").nunique(dropna=False).gt(1)
+    where = ""
+    if isinstance(varies, pd.DataFrame):
+        where = f" in columns {varies.columns[varies.any()].tolist()}"
+        varies = varies.any(axis=1)
+    if varies.any():
         msg = (
             "Grouping and filtering optimization expressions requires static data "
-            f"which is identical across scenarios, got:\n{data}"
+            "which is identical across scenarios, got differing values for "
+            f"{varies.index[varies].tolist()}{where}."
         )
         raise ValueError(msg)
     return data.groupby(level="name", sort=False).first()
@@ -132,14 +138,16 @@ def _capacity_expression(
     m = n.model
     c = n.c[component]
     nom_attr = c._operational_attrs["nom"]
+    if nom_attr not in c.static:
+        return None
     var_name = f"{component}-{nom_attr}"
-    fixed_capacity = c.da[nom_attr].sel(name=c.fixed if include_non_extendable else [])
+    fixed = c.fixed
+    fixed_capacity = None
+    if include_non_extendable and not fixed.empty:
+        fixed_capacity = c.da[nom_attr].sel(name=fixed)
     if var_name in m.variables:
-        capacity = m.variables[var_name].to_linexpr()
-        if fixed_capacity.size == 0:
-            return capacity
-        return capacity.add(fixed_capacity, join="outer")
-    if fixed_capacity.size == 0:
+        return _add_optional(m.variables[var_name].to_linexpr(), fixed_capacity)
+    if fixed_capacity is None:
         return None
     return LinearExpression.from_constant(m, fixed_capacity)
 
@@ -155,7 +163,7 @@ def _split_piecewise(
 
 
 def _add_optional(
-    expr: LinearExpression, other: Variable | LinearExpression | None
+    expr: LinearExpression, other: Variable | LinearExpression | DataArray | None
 ) -> LinearExpression:
     """Outer-add `other` to `expr`, passing `expr` through if there is nothing to add."""
     return expr if other is None else expr.add(other, join="outer")
@@ -378,7 +386,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
         at_port = resolve_at_port(at_port, bus_carrier)
 
-        @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series | None:
             c = n.c[component]
             capacity = _capacity_expression(n, component, include_non_extendable)
@@ -443,7 +450,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             components = ("Store", "StorageUnit")
         at_port = resolve_at_port(at_port, bus_carrier)
 
-        @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series | None:
             c = n.c[component]
             capacity = _capacity_expression(n, component, include_non_extendable)
@@ -510,14 +516,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         at_port = resolve_at_port(at_port, bus_carrier)
         weights = self._n.optimize._window.snapshot_weightings("objective")
+        attr = "marginal_cost"
+        cost_vars = dict(lookup.query(f"not nominal and {attr}").index)
 
-        @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
-            attr = "marginal_cost"
-            var = lookup.query(f"not nominal and {attr}").loc[c].index.item()
-            if var is None:
+            if c not in cost_vars:
                 return None
-            var = n.model.variables[f"{c}-{var}"]
+            var = n.model.variables[f"{c}-{cost_vars[c]}"]
             sns = var.indexes["snapshot"]
 
             var, add_opex = _split_piecewise(var, n.model, n.c[c], attr)
@@ -583,7 +588,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         transmission_branches = get_transmission_branches(self._n, bus_carrier)
         weights = self._n.optimize._window.snapshot_weightings("generators")
 
-        @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
             sns = var.indexes["snapshot"]
@@ -672,7 +676,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         weights = self._n.optimize._window.snapshot_weightings("generators")
 
-        @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series:
             c = n.c[component]
             var = self._get_operational_variable(component)
@@ -853,7 +856,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         at_port = resolve_at_port(at_port, bus_carrier)
         weights = self._n.optimize._window.snapshot_weightings("generators")
 
-        @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series:
             c = n.c[component]
             if "p_max_pu" not in c.static.columns:
@@ -922,7 +924,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         weights = self._n.optimize._window.snapshot_weightings("generators")
 
-        @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             operation = self._get_operational_variable(c)
             return self._aggregate_timeseries(operation, weights, agg=groupby_time)

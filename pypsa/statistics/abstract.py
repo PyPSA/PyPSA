@@ -227,7 +227,7 @@ class AbstractStatisticsAccessor(ABC):
                     vals = self._aggregate_components_groupby(vals, grouping, agg, cn)
                 # Avoid having 'component' as index name in multiindex
                 elif isinstance(vals, pd.DataFrame | pd.Series):
-                    vals = vals.rename_axis("name", axis=0)
+                    vals = vals.rename_axis([*vals.index.names[:-1], "name"])
                 values.append(vals)
 
             if not values:

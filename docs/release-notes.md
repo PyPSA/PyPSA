@@ -46,6 +46,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix optimization expressions (`n.optimize.expressions`, see [`StatisticExpressionsAccessor`][pypsa.optimization.expressions.StatisticExpressionsAccessor]) for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]). All expressions silently returned `0` or failed, and now carry a `scenario` dimension with scenario-specific coefficients such as capital costs, efficiencies or fixed capacities. Grouping and filtering require identical static data across scenarios and raise an error otherwise. Resolves [#1952](https://github.com/PyPSA/PyPSA/issues/1952).
 - Fix the warnings on cyclic [StorageUnit](./user-guide/components/storage-units.md) and [Store](./user-guide/components/stores.md) components overruling their initial storage level raising an `IndexError` for stochastic networks. Resolves [#1953](https://github.com/PyPSA/PyPSA/issues/1953).
 - Fix [`n.optimize.fix_optimal_capacities()`][pypsa.optimization.OptimizationAccessor.fix_optimal_capacities] failing for stochastic networks.
+- Fix the statistics methods (see [`n.statistics`][pypsa.Network.statistics]) raising a `TypeError` with `groupby=False` for stochastic networks.
+- Optimization expressions no longer silently skip a component when one of its variables or attributes cannot be found, and raise the underlying `KeyError` or `AttributeError` instead. Components without a nominal capacity or without operational costs are still skipped.
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
 
