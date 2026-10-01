@@ -628,22 +628,39 @@ COPY_METHODS = {
 }
 
 
-@pytest.mark.parametrize("copy_method", COPY_METHODS.values(), ids=COPY_METHODS)
-def test_copy_relinks_sub_networks(ac_dc_network, copy_method):
+@pytest.mark.parametrize(
+    ("network", "method"),
+    [
+        (network, method)
+        for network in ["ac_dc_network", "ac_dc_stochastic"]
+        for method in COPY_METHODS
+        if not (network == "ac_dc_stochastic" and method == "copy_snapshots")
+    ],
+)
+def test_copy_relinks_sub_networks(request, network, method):
     """
     Copies own SubNetwork objects linked to the copy, the original stays linked.
     See https://github.com/PyPSA/PyPSA/issues/1888 and #1930.
     """
-    n = ac_dc_network
+    n = request.getfixturevalue(network)
     n.determine_network_topology()
-    n_copy = copy_method(n)
+    n_copy = COPY_METHODS[method](n)
     subs = n.c.sub_networks.static.obj
     subs_copy = n_copy.c.sub_networks.static.obj
+    assert len(subs) > 0
     assert subs_copy.index.equals(subs.index)
     for sub, sub_copy in zip(subs, subs_copy, strict=True):
         assert sub is not sub_copy
         assert sub.n is n
         assert sub_copy.n is n_copy
+
+
+def test_shallow_copy_keeps_original_sub_networks(ac_dc_network):
+    """copy.copy shares SubNetwork objects and leaves them linked to the original."""
+    n = ac_dc_network
+    n.determine_network_topology()
+    copy.copy(n)
+    assert all(sub.n is n for sub in n.c.sub_networks.static.obj)
 
 
 @pytest.mark.parametrize("copy_method", COPY_METHODS.values(), ids=COPY_METHODS)
@@ -656,8 +673,14 @@ def test_copy_keeps_snapshot_names(ac_dc_periods, copy_method):
     assert n_copy.c.generators.da.p_max_pu.dims == ("snapshot", "name")
 
 
-@pytest.mark.parametrize("by_snapshots", [True, False])
-def test_copy_selects_investment_periods(by_snapshots):
+@pytest.mark.parametrize(
+    ("kwargs", "period"),
+    [
+        ({"snapshots": pd.MultiIndex.from_product([[2030], range(2)])}, 2030),
+        ({"investment_periods": [2020]}, 2020),
+    ],
+)
+def test_copy_selects_investment_periods(kwargs, period):
     """Selecting snapshots or investment periods on copy selects the other."""
     n = pypsa.Network()
     n.snapshots = pd.MultiIndex.from_product([[2020, 2030], range(2)])
@@ -665,11 +688,7 @@ def test_copy_selects_investment_periods(by_snapshots):
     n.add("Bus", "bus")
     n.add("Generator", "gen", bus="bus", p_nom=10, marginal_cost=1)
     n.add("Load", "load", bus="bus", p_set=5)
-    period = 2030 if by_snapshots else 2020
-    if by_snapshots:
-        n_copy = n.copy(snapshots=n.snapshots[2:])
-    else:
-        n_copy = n.copy(investment_periods=[period])
+    n_copy = n.copy(**kwargs)
     assert n_copy.investment_periods.tolist() == [period]
     assert n_copy.snapshots.unique("period").tolist() == [period]
     status, _ = n_copy.optimize(multi_investment_periods=True)
@@ -677,6 +696,7 @@ def test_copy_selects_investment_periods(by_snapshots):
 
 
 def test_copy_snapshots_keeps_crs(ac_dc_network):
+    """Selective copies keep a non-default coordinate reference system."""
     n = ac_dc_network
     n.to_crs(3035)
     n_copy = n.copy(snapshots=n.snapshots[:3])
