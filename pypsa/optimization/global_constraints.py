@@ -370,8 +370,14 @@ def define_primary_energy_limit(
         for scenario in scenarios:
             glc = glc_group.loc[scenario]
 
-            if np.isnan(glc.investment_period) or not n._multi_invest:
+            if np.isnan(glc.investment_period):
                 period_sns = sns
+            elif not n._multi_invest:
+                msg = (
+                    f"GlobalConstraint '{name}' sets `investment_period`, but the "
+                    "network has no investment periods."
+                )
+                raise ValueError(msg)
             elif glc.investment_period in periods:
                 period_sns = sns[period_of == glc.investment_period]
             else:
@@ -597,8 +603,14 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
         for scenario in scenarios:
             glc = glc_group.loc[scenario]
 
-            if np.isnan(glc.investment_period) or not n._multi_invest:
+            if np.isnan(glc.investment_period):
                 in_period = None
+            elif not n._multi_invest:
+                msg = (
+                    f"GlobalConstraint '{name}' sets `investment_period`, but the "
+                    "network has no investment periods."
+                )
+                raise ValueError(msg)
             elif glc.investment_period in periods:
                 in_period = period_of == glc.investment_period
             else:

@@ -231,14 +231,13 @@ def test_1884():
 )
 def test_1954(glc_type, carrier_attribute):
     """
-    An investment_period is ignored if the network has no investment periods.
+    An investment_period raises if the network has no investment periods.
     See https://github.com/PyPSA/PyPSA/issues/1954.
     """
     n = pypsa.Network(snapshots=range(3))
     n.add("Bus", "b")
     n.add("Carrier", ["gas", "wind"], co2_emissions=[1, 0])
     n.add("Load", "l", bus="b", p_set=50)
-    # cheap gas is capped at 100, so expensive wind must cover the rest
     n.add(
         "Generator",
         ["gas", "wind"],
@@ -257,8 +256,8 @@ def test_1954(glc_type, carrier_attribute):
         investment_period=0,
     )
 
-    n.optimize()
-    assert n.c.generators.dynamic.p["gas"].sum() == pytest.approx(100)
+    with pytest.raises(ValueError, match="has no investment periods"):
+        n.optimize()
 
 
 def test_transmission_cost_limit_overnight_cost():
