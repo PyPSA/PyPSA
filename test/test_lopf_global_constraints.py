@@ -229,7 +229,7 @@ def test_1884():
     ("glc_type", "carrier_attribute"),
     [("primary_energy", "co2_emissions"), ("operational_limit", "gas")],
 )
-def test_1954(glc_type, carrier_attribute):
+def test_investment_period_without_multi_invest_raises(glc_type, carrier_attribute):
     """
     An investment_period raises if the network has no investment periods.
     See https://github.com/PyPSA/PyPSA/issues/1954.
