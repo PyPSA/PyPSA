@@ -319,8 +319,34 @@ class Network(
         return self.equals(other)
 
     def __setstate__(self, state: dict) -> None:
-        """Restore state and relink SubNetwork weakrefs dropped on pickling."""
+        """Restore state and the references lost on pickling."""
         self.__dict__.update(state)
+        self._restore_references()
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Network:
+        """Return a deep copy, including SubNetwork objects linked to the copy."""
+        n = self.__class__.__new__(self.__class__)
+        memo[id(self)] = n
+        n.__dict__.update(copy.deepcopy(self.__dict__, memo))
+        n._copy_sub_networks(memo)
+        n._restore_references()
+        return n
+
+    def _copy_sub_networks(self, memo: dict[int, Any]) -> None:
+        """Replace SubNetwork objects with deep copies, which pandas shares on copy."""
+        static = self.c.sub_networks.static
+        if "obj" in static:
+            static["obj"] = [copy.deepcopy(sub, memo) for sub in static["obj"]]
+
+    def _restore_references(self) -> None:
+        """Restore snapshot index names and SubNetwork parent references.
+
+        Pickling drops the name of a `pd.MultiIndex` and the SubNetwork weakrefs.
+        """
+        self._snapshots_data.index.name = "snapshot"
+        for c in self.components:
+            for df in c.dynamic.values():
+                df.index.name = "snapshot"
         for sub in self.c.sub_networks.static.get("obj", []):
             if isinstance(sub, SubNetwork):
                 sub._n = ref(self)
@@ -907,9 +933,11 @@ class Network(
         ----------
         snapshots : list or tuple or pd.Index , default self.snapshots
             A list of snapshots to copy, must be a subset of n.snapshots. Pass
-            an empty list ignore all snapshots.
+            an empty list ignore all snapshots. Only the investment periods of the
+            selected snapshots are kept.
         investment_periods : list or tuple or pd.Index, default self.investment_period_weightings.index
-            A list of investment periods to copy, must be a subset of n.investment_periods. Pass
+            A list of investment periods to copy, must be a subset of n.investment_periods.
+            If `snapshots` is not given, only the snapshots of these periods are kept.
         ignore_standard_types : boolean, default False
             Ignore the PyPSA standard types.
 
@@ -970,9 +998,18 @@ class Network(
         # Convert to pandas.Index
         snapshots_ = as_index(self, snapshots, "snapshots")
         investment_periods_ = as_index(self, investment_periods, "investment_periods")
+        if isinstance(snapshots_, pd.MultiIndex) and not investment_periods_.empty:
+            if snapshots is None:
+                snapshots_ = snapshots_[snapshots_.isin(investment_periods_, "period")]
+            elif investment_periods is None:
+                periods = snapshots_.unique("period")
+                investment_periods_ = investment_periods_[
+                    investment_periods_.isin(periods)
+                ]
 
         # Setup new network
         n = self.__class__(ignore_standard_types=ignore_standard_types)
+        n.to_crs(self.crs)
 
         # Copy components
         other_comps = sorted(self.all_components - {"Bus", "Carrier"})
@@ -1016,8 +1053,7 @@ class Network(
 
         # Catch all remaining attributes of network
         for attr in [
-            "name",
-            "srid",
+            "_name",
             "_meta",
             "_linearized_uc",
             "_multi_invest",
@@ -1026,9 +1062,11 @@ class Network(
             "_objective_constant",
             "now",
         ]:
-            if hasattr(self, attr):
-                setattr(n, attr, getattr(self, attr))
+            if attr in vars(self):
+                setattr(n, attr, copy.deepcopy(vars(self)[attr]))
 
+        n._copy_sub_networks({})
+        n._restore_references()
         return n
 
     # beware, this turns bools like s_nom_extendable into objects because of
@@ -1481,6 +1519,14 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         state = self.__dict__.copy()
         state.pop("_n", None)
         return state
+
+    def __eq__(self, other: object) -> bool:
+        """Check equality by name, like Components without the attached Network."""
+        return isinstance(other, SubNetwork) and self.name == other.name
+
+    def __hash__(self) -> int:
+        """Hash by name, consistent with equality."""
+        return hash(self.name)
 
     # TODO assign __str__ and __repr__
     @property

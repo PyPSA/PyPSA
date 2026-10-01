@@ -620,13 +620,67 @@ def test_copy_default_behavior(networks):
     assert n is not network_copy
 
 
-def test_copy_relinks_sub_networks(ac_dc_network):
-    """Copying relinks SubNetwork parent references to the copied network."""
+COPY_METHODS = {
+    "copy": lambda n: n.copy(),
+    "deepcopy": copy.deepcopy,
+    "pickle": lambda n: pickle.loads(pickle.dumps(n)),
+    "copy_snapshots": lambda n: n.copy(snapshots=n.snapshots[:3]),
+}
+
+
+@pytest.mark.parametrize("copy_method", COPY_METHODS.values(), ids=COPY_METHODS)
+def test_copy_relinks_sub_networks(ac_dc_network, copy_method):
+    """
+    Copies own SubNetwork objects linked to the copy, the original stays linked.
+    See https://github.com/PyPSA/PyPSA/issues/1888 and #1930.
+    """
     n = ac_dc_network
     n.determine_network_topology()
-    n_copy = n.copy()
-    for sub in n_copy.c.sub_networks.static.obj:
-        assert sub.n is n_copy
+    n_copy = copy_method(n)
+    subs = n.c.sub_networks.static.obj
+    subs_copy = n_copy.c.sub_networks.static.obj
+    assert subs_copy.index.equals(subs.index)
+    for sub, sub_copy in zip(subs, subs_copy, strict=True):
+        assert sub is not sub_copy
+        assert sub.n is n
+        assert sub_copy.n is n_copy
+
+
+@pytest.mark.parametrize("copy_method", COPY_METHODS.values(), ids=COPY_METHODS)
+def test_copy_keeps_snapshot_names(ac_dc_periods, copy_method):
+    """Copies keep the name of multi-indexed snapshots, see #1937."""
+    n_copy = copy_method(ac_dc_periods)
+    assert n_copy.snapshots.name == "snapshot"
+    assert n_copy.snapshot_weightings.index.name == "snapshot"
+    assert n_copy.c.generators.dynamic.p.index.name == "snapshot"
+
+
+@pytest.mark.parametrize("by_snapshots", [True, False])
+def test_copy_selects_investment_periods(by_snapshots):
+    """Selecting snapshots or investment periods on copy selects the other."""
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], range(2)])
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=10, marginal_cost=1)
+    n.add("Load", "load", bus="bus", p_set=5)
+    period = 2030 if by_snapshots else 2020
+    if by_snapshots:
+        n_copy = n.copy(snapshots=n.snapshots[2:])
+    else:
+        n_copy = n.copy(investment_periods=[period])
+    assert n_copy.investment_periods.tolist() == [period]
+    assert n_copy.snapshots.unique("period").tolist() == [period]
+    status, _ = n_copy.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+
+def test_copy_snapshots_keeps_crs(ac_dc_network):
+    n = ac_dc_network
+    n.to_crs(3035)
+    n_copy = n.copy(snapshots=n.snapshots[:3])
+    assert n_copy.crs == n.crs
+    assert n_copy.c.buses.static.x.equals(n.c.buses.static.x)
 
 
 def test_copy_with_model(ac_dc_network):
@@ -695,23 +749,6 @@ def test_1420(tmp_path):
     assert len(n_loaded.c.buses.static) == 1
     assert len(n_loaded.c.generators.static) == 1
     # tmp_path is automatically cleaned up by pytest
-
-
-def test_pickle_with_sub_networks(ac_dc_network):
-    """
-    Networks with sub-networks should be picklable despite the SubNetwork weakref.
-    See https://github.com/PyPSA/PyPSA/issues/1888.
-    """
-    n = ac_dc_network
-    n.determine_network_topology()
-    assert len(n.c.sub_networks.static) > 0
-
-    n_loaded = pickle.loads(pickle.dumps(n))
-
-    assert len(n_loaded.c.sub_networks.static) == len(n.c.sub_networks.static)
-    # SubNetwork weakref to the parent is restored to the loaded network
-    for sub in n_loaded.c.sub_networks.static.obj:
-        assert sub.n is n_loaded
 
 
 @pytest.mark.skipif(
