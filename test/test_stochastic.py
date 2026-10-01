@@ -1782,6 +1782,13 @@ def _add_committable(n: pypsa.Network) -> None:
     n.c.generators.static.loc["gen", ["shut_down_cost", "ramp_limit_up"]] = [5, 0.9]
 
 
+def _add_v_ang_max(n: pypsa.Network) -> None:
+    _add_lines(n)
+    _add_transformer_cycle(n)
+    n.c.lines.static["v_ang_max"] = 0.3
+    n.c.transformers.static["v_ang_max"] = 0.3
+
+
 def _add_e_sum_min(n: pypsa.Network) -> None:
     _add_lines(n)
     n.c.generators.static.loc["backup", "e_sum_min"] = 3
@@ -1796,6 +1803,7 @@ def _add_e_sum_min(n: pypsa.Network) -> None:
         (_add_nom_set, {}, False),
         (_add_committable, {}, False),
         (_add_committable, {"linearized_unit_commitment": True}, False),
+        (_add_v_ang_max, {}, False),
         (_add_e_sum_min, {}, False),
     ],
 )
