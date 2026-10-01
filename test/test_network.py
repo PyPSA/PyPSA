@@ -73,6 +73,27 @@ def test_remove(ac_dc_network):
     assert not generators.issubset(n.c.generators.dynamic.p_max_pu.columns)
 
 
+def test_remove_stochastic(ac_dc_stochastic):
+    """Components are removed from all scenarios (#1955)."""
+    n = ac_dc_stochastic
+    c = n.c.generators
+
+    generators = ["Manchester Wind", "Frankfurt Wind"]
+
+    n.remove("Generator", generators)
+    n.remove("GlobalConstraint", "co2_limit")
+
+    assert not c.static.index.isin(generators, level="name").any()
+    assert list(c.dynamic.p_max_pu.columns) == [
+        ("low", "Norway Wind"),
+        ("high", "Norway Wind"),
+    ]
+    assert n.c.global_constraints.static.empty
+
+    with pytest.raises(KeyError):
+        n.remove("Generator", "Manchester Wind")
+
+
 def test_remove_misspelled_component(ac_dc_network):
     """
     GIVEN   the AC DC exemplary pypsa network.
