@@ -225,3 +225,48 @@ def test_options_include_objective_constant_create_model(
         assert "objective_constant" in n.model.variables
     finally:
         pypsa.options.reset_option("params.optimize.include_objective_constant")
+
+
+@pytest.mark.parametrize(
+    ("multi_invest", "scenarios", "expected"),
+    [
+        (False, None, 101000.0),
+        (True, None, 150500.0),
+        (True, {"a": 0.3, "b": 0.7}, 150500.0),
+    ],
+)
+def test_objective_constant_investment_periods(
+    multi_invest: bool, scenarios: dict[str, float] | None, expected: float
+) -> None:
+    """Test objective constant with investment period weightings (#1957)."""
+
+    def build() -> pypsa.Network:
+        n = pypsa.Network(snapshots=range(3))
+        if multi_invest:
+            n.investment_periods = [2030, 2040]
+            n.investment_period_weightings["objective"] = [1.0, 0.5]
+        n.add("Bus", "bus")
+        n.add(
+            "Generator",
+            ["gen", "late"],
+            bus="bus",
+            p_nom=[100, 10],
+            p_nom_extendable=True,
+            capital_cost=[1000, 100],
+            marginal_cost=[10, 20],
+            build_year=[2030, 2040],
+            lifetime=50,
+        )
+        n.add("Load", "load", bus="bus", p_set=50)
+        if scenarios:
+            n.set_scenarios(scenarios)
+        return n
+
+    kwargs = {"log_to_console": False, "multi_investment_periods": multi_invest}
+    n1 = build()
+    n1.optimize(include_objective_constant=True, **kwargs)
+    n2 = build()
+    n2.optimize(include_objective_constant=False, **kwargs)
+
+    assert n1.objective_constant == pytest.approx(expected)
+    assert n1.objective + n1.objective_constant == pytest.approx(n2.objective)
