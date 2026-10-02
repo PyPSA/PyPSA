@@ -262,11 +262,15 @@ def test_objective_constant_investment_periods(
             n.set_scenarios(scenarios)
         return n
 
-    kwargs = {"log_to_console": False, "multi_investment_periods": multi_invest}
-    n1 = build()
-    n1.optimize(include_objective_constant=True, **kwargs)
-    n2 = build()
-    n2.optimize(include_objective_constant=False, **kwargs)
-
+    n1, n2 = build(), build()
+    for n, include in [(n1, True), (n2, False)]:
+        n.optimize(
+            multi_investment_periods=multi_invest,
+            include_objective_constant=include,
+            log_to_console=False,
+        )
+    assert n1.objective is not None
+    assert n2.objective is not None
+    assert n1.objective_constant is not None
     assert n1.objective_constant == pytest.approx(expected)
     assert n1.objective + n1.objective_constant == pytest.approx(n2.objective)
