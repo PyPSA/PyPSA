@@ -134,6 +134,43 @@ def test_net_and_gross_revenue(ac_dc_network_r):
     assert np.allclose(revenue[comps], target[comps])
 
 
+def test_emissions_match_co2_constraint(ac_dc_network_r):
+    n = ac_dc_network_r
+    limit = n.c.global_constraints.static.loc["co2_limit"]
+    assert limit.mu != 0
+    assert n.statistics.emissions().sum() == pytest.approx(limit.constant)
+
+
+def test_emissions_from_store_depletion():
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add(
+        "Store",
+        "gas tank",
+        bus="bus",
+        carrier="gas",
+        e_nom=100,
+        e_initial=100,
+        marginal_cost=1,
+    )
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.optimize()
+
+    emissions = n.statistics.emissions(groupby_time=False, groupby=False)
+    assert emissions.sum(axis=1).item() == pytest.approx(0.2 * 30)
+    assert np.allclose(emissions.to_numpy(), 0.2 * 10)
+
+
+def test_emissions_collection(network_collection, ac_dc_network_r):
+    collection = network_collection.statistics.emissions()
+    assert collection.sum() == ac_dc_network_r.statistics.emissions().sum()
+
+
+def test_emissions_empty_for_other_components(ac_dc_network_r):
+    assert ac_dc_network_r.statistics.emissions(components="Link").empty
+
+
 def test_supply_withdrawal(ac_dc_network_r):
     n = ac_dc_network_r
     target = n.statistics.energy_balance()

@@ -383,6 +383,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         "capacity_factor",
         "revenue",
         "market_value",
+        "emissions",
         "prices",
     ]
 
@@ -2838,6 +2839,148 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / operational unit"
+        return df
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    def emissions(  # noqa: D417
+        self,
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
+        aggregate_across_components: bool = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+        carrier_attribute: str = "co2_emissions",
+    ) -> pd.DataFrame:
+        """Calculate the **emissions** of components in the network.
+
+        Emissions are accounted as in the `primary_energy`
+        [global constraint](../../user-guide/optimization/global-constraints.md),
+        so that summing this statistic reproduces the emissions the constraint
+        limits. Each component emits its carrier's `carrier_attribute`, by default
+        `co2_emissions` in t/MWh, per unit of primary energy:
+
+        - **Generator**: the fuel burnt, `p / efficiency`, weighted by the snapshot
+          weightings of generators.
+        - **StorageUnit** and **Store**: the depletion of the stored energy between
+          consecutive snapshots, starting from `state_of_charge_initial` or
+          `e_initial`. Cyclic storage returns to its initial level and is excluded.
+
+        Emissions routed through a bus of their own, for instance with a `Link`
+        whose `bus2` is a CO2 bus, are not covered. Use
+        [supply][pypsa.statistics.StatisticsAccessor.supply] with that `bus_carrier`
+        for them.
+
+        Parameters
+        ----------
+        components : str | Sequence[str] | None, default=None
+            Components to include in the calculation. If None, includes 'Generator',
+            'StorageUnit' and 'Store', the only components with emissions.
+        groupby_method : Callable | str, default="sum"
+            Function to aggregate groups when using the groupby parameter.
+            Any pandas aggregation function can be used.
+        aggregate_across_components : bool, default=False
+            Whether to aggregate across components. If there are different components
+            which would be grouped together due to the same index, this is avoided.
+        groupby : str | Sequence[str] | Callable, default="carrier"
+            How to group components:
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
+            - callable: Function that takes network and component name as arguments
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of connected buses. If specified, only considers assets
+            connected to buses with the given carrier(s).
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `https://go.pypsa.org/options-params` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
+        carrier_attribute : str, default="co2_emissions"
+            Column of `n.carriers` holding the emission factor per unit of primary
+            energy.
+
+        Other Parameters
+        ----------------
+        groupby_time : str | bool, default="sum"
+            Type of aggregation when aggregating time series. Deactivate by setting to
+            False. Any pandas aggregation function can be used.
+
+        Returns
+        -------
+        pd.DataFrame
+            Emissions of the components in the network, in the unit of
+            `carrier_attribute` times MWh (t for `co2_emissions`).
+
+        Examples
+        --------
+        >>> n.statistics.emissions()
+        component  carrier
+        Generator  gas        1000.0
+        dtype: float64
+
+        """
+        emitting = {
+            "Generator": None,
+            "StorageUnit": (
+                "state_of_charge",
+                "state_of_charge_initial",
+                "cyclic_state_of_charge",
+            ),
+            "Store": ("e", "e_initial", "e_cyclic"),
+        }
+        if components is None:
+            components = list(emitting)
+
+        @pass_empty_series_if_keyerror
+        def func(n: Network, c: str, port: str) -> pd.Series:
+            stored = emitting[c]
+            comp = n.c[c]
+            rates = n.c.carriers.static[carrier_attribute]
+            if isinstance(rates.index, pd.MultiIndex):
+                rates = rates.droplevel(list(range(rates.index.nlevels - 1)))
+                rates = rates[~rates.index.duplicated()]
+            factor = comp.static.carrier.map(rates).fillna(0.0)
+
+            if stored is None:
+                primary = comp.dynamic.p / n.get_switchable_as_dense(c, "efficiency")
+                weights = n.snapshot_weightings.generators
+            else:
+                level_attr, initial_attr, cyclic_attr = stored
+                level = comp.dynamic[level_attr]
+                previous = level.shift(1)
+                previous.iloc[0] = comp.static[initial_attr]
+                primary = (previous - level).mul(~comp.static[cyclic_attr], axis=1)
+                weights = pd.Series(1.0, index=level.index)
+            emissions = primary.mul(factor, axis=1)
+            return self._aggregate_timeseries(emissions, weights, agg=groupby_time)
+
+        df = self._aggregate_components(
+            func,
+            components=components,
+            agg=groupby_method,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port=[0],
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
+        )
+        df.attrs["name"] = "Emissions"
+        df.attrs["unit"] = "carrier_attribute * MWh"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
