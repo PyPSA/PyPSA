@@ -1939,19 +1939,33 @@ def test_invariant():
     static.loc[("s2", "gen"), "p_nom"] = 5
     with pytest.raises(ValueError, match=r"\['gen'\] in columns \['p_nom'\]\."):
         invariant(static)
-    with pytest.raises(ValueError, match=r"values for \['gen'\]\.$"):
+    with pytest.raises(ValueError, match=r"values for \['gen'\] in 'p_nom'\.$"):
         invariant(static.p_nom)
 
 
-def _add_link(n: pypsa.Network) -> None:
-    n.add("Link", "link", bus0="a", bus1="b", p_nom=10)
+def test_get_switchable_inds_selects_names_in_all_scenarios():
+    n = _two_bus_network()
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    inds = pd.Index(["gen"])
+    expected = [("s1", "gen"), ("s2", "gen")]
+
+    dense = n.get_switchable_as_dense("Generator", "p_max_pu", inds=inds)
+    first = next(n.get_switchable_as_iter("Generator", "p_max_pu", n.snapshots, inds))
+    assert dense.columns.tolist() == expected
+    assert first.index.tolist() == expected
 
 
 @pytest.mark.parametrize(
     ("add", "component", "asset", "attr", "value"),
     [
         (_add_v_ang_max, "Line", "l1", "carrier", "DC"),
-        (_add_link, "Link", "link", "delay", 1),
+        (
+            lambda n: n.add("Link", "link", bus0="a", bus1="b", p_nom=10),
+            "Link",
+            "link",
+            "delay",
+            1,
+        ),
     ],
 )
 def test_varying_invariant_attribute_fails_model_build(

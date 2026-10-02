@@ -99,15 +99,17 @@ def invariant(data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
     """
     if "scenario" not in data.index.names:
         return data
-    varies = data.groupby(level="name").nunique(dropna=False).gt(1)
-    where = ""
+    g = data.groupby(level="name", sort=False)
+    varies = g.nunique(dropna=False).gt(1)
     if isinstance(varies, pd.DataFrame):
         where = f" in columns {varies.columns[varies.any()].tolist()}"
         varies = varies.any(axis=1)
+    else:
+        where = f" in '{data.name}'"
     if varies.any():
         msg = (
             "Expected static data which is identical across scenarios, got "
             f"differing values for {varies.index[varies].tolist()}{where}."
         )
         raise ValueError(msg)
-    return data.groupby(level="name", sort=False).first()
+    return g.first()

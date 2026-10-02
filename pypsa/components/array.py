@@ -264,7 +264,8 @@ class ComponentsArrayMixin(_ComponentsABC):
         snapshots : pandas.Index
             Restrict to these snapshots rather than n.snapshots.
         inds : pandas.Index
-            Restrict to these components rather than n.components.index
+            Restrict to these component names rather than all components. For
+            stochastic networks, the names are selected in all scenarios.
 
         Returns
         -------
@@ -293,7 +294,7 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         # Filter names
         if inds is not None:
-            index = index.intersection(inds)
+            index = index[index.get_level_values("name").isin(inds)]
 
         # Find columns that need to be filled from static data
         diff = index.difference(dynamic.columns)
