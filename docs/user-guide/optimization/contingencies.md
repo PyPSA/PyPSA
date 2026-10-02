@@ -47,7 +47,9 @@ $$|p_{b,t} + BODF_{bc}p_{c,t}| \leq |P_b| \quad \forall b,c,t$$
 
 These constraints are added in the function [`n.optimize_security_constrained()`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained].
 
-With `multi_investment_periods=True`, the BODF matrix is computed from the network topology of each investment period. The constraints of a period then only include the branches that are active in that period. Requested outages of branches that are not active in any period raise an error.
+With `multi_investment_periods=True`, the BODF matrix is computed from the network topology of each investment period. The constraints are added per investment period and sub-network, with the period as name suffix (e.g. `Line-fix-s-upper-security-for-Line-outage-in-sub-network-0-period-2030`). They only include the snapshots of that period and the branches active in it.
+
+Explicitly requested outages of branches that are not active in any optimized period raise an error. This includes an outage of a branch that is only active in periods outside the passed `snapshots`, which matters when you write your own rolling-horizon loop. With the default `branch_outages=None`, inactive branches are skipped.
 
 !!! tip "Tip: Avoiding the computational burden of $N-1$ security constraints"
 
