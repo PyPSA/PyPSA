@@ -30,6 +30,9 @@ standing_loss,static or series,per unit,0,Losses per hour to energy level.,Input
 active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
 build_year,int,year,0,Build year,Input (optional)
 lifetime,float,years,inf,Lifetime,Input (optional)
+purchasable,boolean,n/a,False,Apply unit purchase constraints.,Input (optional)
+unit_cost,float,currency,0.,"Annuitised cost for purchasing a store, irrespective of its capacity",Input (optional)
+unit_cost_overnight,float,currency,NaN,"Upfront cost for purchasing a store, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `unit_cost`.",Input (optional)
 p,series,MW,0,Power at bus (positive if net supply),Output
 q,series,MVar,0,Reactive power (positive if net supply),Output
 e,series,MWh,0,Energy level of store as calculated by the optimisation.,Output
@@ -39,3 +42,4 @@ mu_lower,series,currency/MWh,n/a,Shadow price of lower `e_nom` limit,Output
 mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations (i.e. water values),Output
 capital_cost_piecewise_opt,float,currency/MWh,0.,Optimised capital cost when using piecewise linearisation.,Output
 marginal_cost_piecewise_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output
+purchased_opt,float,n/a,n/a,Optimised unit purchase decision,Output

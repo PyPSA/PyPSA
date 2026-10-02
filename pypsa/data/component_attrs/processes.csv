@@ -43,10 +43,13 @@ maintainable,boolean,n/a,False,Apply maintenance scheduling constraints.,Input (
 maintenance_duration,float,hours,0,Elapsed time per maintenance event. Each event covers consecutive snapshots whose weightings sum to at least this value. Only if `maintainable=True`.,Input (optional)
 maintenance_pu,float,per unit,1.0,Fraction of capacity unavailable during maintenance (0-1). Only if `maintainable=True`.,Input (optional)
 maintenance_events,int,n/a,1,Number of required maintenance events per optimization horizon. Only if `maintainable=True`.,Input (optional)
+purchasable,boolean,n/a,False,Apply unit purchase constraints.,Input (optional)
 delay0,int,snapshot weighting units,0,"Delay of energy delivery to `bus0` in units of `n.snapshot_weightings.generators`. Energy withdrawn at snapshot `t` arrives at the first snapshot whose cumulative generator weighting start is at least `delay0` units later. Auto-expanded as `delay2`, `delay3`, etc. for additional ports.",Input (optional)
 cyclic_delay0,boolean,n/a,True,"Whether delayed energy wraps cyclically from end to start of the optimization period. If False, energy is lost at the tail and first snapshots receive nothing from delayed processes. Auto-expanded as `cyclic_delay2`, `cyclic_delay3`, etc. for additional ports.",Input (optional)
 delay1,int,snapshot weighting units,0,"Delay of energy delivery to `bus1` in units of `n.snapshot_weightings.generators`. Energy withdrawn at snapshot `t` arrives at the first snapshot whose cumulative generator weighting start is at least `delay1` units later. Auto-expanded as `delay2`, `delay3`, etc. for additional ports.",Input (optional)
 cyclic_delay1,boolean,n/a,True,"Whether delayed energy wraps cyclically from end to start of the optimization period. If False, energy is lost at the tail and first snapshots receive nothing from delayed processes. Auto-expanded as `cyclic_delay2`, `cyclic_delay3`, etc. for additional ports.",Input (optional)
+unit_cost,float,currency,0.,"Annuitised cost for purchasing a process, irrespective of its capacity",Input (optional)
+unit_cost_overnight,float,currency,NaN,"Upfront cost for purchasing a process, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `unit_cost`.",Input (optional)
 p,series,MW,0.,Power in component.,Output
 p0,series,MW,0.,Power at `bus0` (positive if process is withdrawing from `bus0`).,Output
 p1,series,MW,0.,Power at `bus1` (positive if process is withdrawing from `bus1`).,Output
@@ -63,3 +66,4 @@ mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Out
 mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
 capital_cost_piecewise_opt,float,currency/MW,0.,Optimised capital cost when using piecewise linearisation.,Output
 marginal_cost_piecewise_opt,series,currency/MWh,0.,Optimised marginal cost when using piecewise linearisation.,Output
+purchased_opt,float,n/a,n/a,Optimised unit purchase decision,Output
