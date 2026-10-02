@@ -383,6 +383,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         "capacity_factor",
         "revenue",
         "market_value",
+        "congestion_rent",
         "prices",
     ]
 
@@ -2838,6 +2839,146 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / operational unit"
+        return df
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    def congestion_rent(  # noqa: D417
+        self,
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
+        aggregate_across_components: bool = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+    ) -> pd.DataFrame:
+        r"""Calculate the **congestion rent** of branch components in the network.
+
+        The congestion rent, or merchandising surplus, of a branch is the value of
+        the power it delivers minus the value of the power it withdraws, both
+        evaluated at the marginal prices of the buses it connects
+
+        $$
+        - \sum_t w_t \sum_i \lambda_{i,t} p_{i,t}
+        $$
+
+        where $p_{i,t}$ is the power the branch withdraws from the bus at port $i$
+        and $\lambda_{i,t}$ the marginal price of that bus. It is the surplus that
+        accrues to the system operator and covers both the price difference across
+        the branch and the value of its losses.
+
+        Only branch components are accepted, i.e. 'Line', 'Link', 'Process' and
+        'Transformer'. Individual branches can carry a negative rent, for instance
+        when loop flows in meshed networks push power towards cheaper buses, but
+        the sum over all branches of a network is non-negative.
+
+        !!! note
+
+            For branches between buses of different carriers, such as
+            sector-coupling links, the same quantity is the margin earned on the
+            price spread between the carriers rather than a congestion rent in the
+            narrow sense. Restrict the calculation with `components` or `carrier`
+            to exclude them. Filtering by `bus_carrier` instead restricts the ports
+            entering the sum, so that only one side of such a branch contributes.
+
+        Parameters
+        ----------
+        components : str | Sequence[str] | None, default=None
+            Branch components to include in the calculation. If None, includes all
+            branch components, i.e. 'Line', 'Link', 'Process' and 'Transformer'.
+        groupby_method : Callable | str, default="sum"
+            Function to aggregate groups when using the groupby parameter.
+            Any pandas aggregation function can be used.
+        aggregate_across_components : bool, default=False
+            Whether to aggregate across components. If there are different components
+            which would be grouped together due to the same index, this is avoided.
+        groupby : str | Sequence[str] | Callable, default="carrier"
+            How to group components:
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
+            - callable: Function that takes network and component name as arguments
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of connected buses. If specified, only considers ports
+            connected to buses with the given carrier(s).
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `https://go.pypsa.org/options-params` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
+
+        Other Parameters
+        ----------------
+        groupby_time : str | bool, default="sum"
+            Type of aggregation when aggregating time series. Deactivate by setting to
+            False. Any pandas aggregation function can be used. Note that when
+            aggregating the time series are aggregated using snapshot weightings.
+
+        Returns
+        -------
+        pd.DataFrame
+            Congestion rent of branch components in the network with components as
+            rows and either time steps as columns (if groupby_time=False) or a single
+            column of aggregated values.
+
+        Raises
+        ------
+        ValueError
+            If `components` contains a component which is not a branch component.
+
+        See Also
+        --------
+        [pypsa.statistics.StatisticsAccessor.revenue][] :
+            Which yields the congestion rent when evaluated at all ports of a branch.
+
+        Examples
+        --------
+        >>> n.statistics.congestion_rent()
+        component  carrier
+        Line       AC         609.62732
+        Link       DC         798.60693
+        dtype: float64
+
+        """
+        n = self._n
+        if components is None:
+            components = sorted(n.branch_components)
+        elif isinstance(components, str):
+            components = [components]
+
+        invalid = set(components) - n.branch_components
+        if invalid:
+            msg = (
+                "Congestion rent is only defined for branch components "
+                f"{sorted(n.branch_components)}, got {sorted(invalid)}."
+            )
+            raise ValueError(msg)
+
+        df = self.revenue(
+            components=components,
+            groupby_time=groupby_time,
+            groupby_method=groupby_method,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port="all",
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
+        )
+        df.attrs["name"] = "Congestion Rent"
+        df.attrs["unit"] = "currency"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
