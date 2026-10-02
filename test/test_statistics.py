@@ -134,6 +134,128 @@ def test_net_and_gross_revenue(ac_dc_network_r):
     assert np.allclose(revenue[comps], target[comps])
 
 
+def test_lcoe_definition(ac_dc_network_r):
+    n = ac_dc_network_r
+    lcoe = n.statistics.lcoe(components="Generator", groupby=False, drop_zero=False)
+    cost = n.statistics.system_cost(
+        components="Generator", groupby=False, at_port=[0], drop_zero=False, round=10
+    )
+    energy = (
+        n.c.generators.dynamic.p.abs()
+        .mul(n.snapshot_weightings.generators, axis=0)
+        .sum()
+    )
+    operating = energy > 1  # assets without throughput have no levelised cost
+    expected = (cost / energy)[operating]
+    assert np.allclose(lcoe.reindex(expected.index), expected)
+
+
+def test_lcoe_gap_to_capture_price_is_profit(ac_dc_network_r):
+    n = ac_dc_network_r
+    kwargs = {"drop_zero": False, "round": 10}
+    supplied = n.statistics.supply(**kwargs)
+    captured = n.statistics.revenue(direction="output", **kwargs)
+    lcoe = n.statistics.lcoe(**kwargs)
+    profit = n.statistics.profit(**kwargs)
+
+    gap = (captured / supplied - lcoe) * supplied
+    assert np.allclose(gap.dropna(), profit[gap.dropna().index], atol=1e-2)
+
+
+def test_lcoe_below_market_value_with_scarcity_rent():
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Generator", "cheap", bus="bus", p_nom=50, marginal_cost=10)
+    n.add("Generator", "peaker", bus="bus", p_nom=100, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=80)
+    n.optimize()
+
+    lcoe = n.statistics.lcoe(groupby=False).xs("cheap", level="name").item()
+    market_value = (
+        n.statistics.market_value(groupby=False).xs("cheap", level="name").item()
+    )
+    profit = n.statistics.profit(groupby=False).xs("cheap", level="name").item()
+    assert lcoe == 10
+    assert market_value == 100
+    assert profit == (market_value - lcoe) * 50 * 2
+
+
+@pytest.fixture
+def chp_network():
+    """Gas-fired CHP with electricity and heat outputs, both priced by a backup."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Carrier", ["gas", "electricity", "heat", "chp", "backup", "boiler"])
+    n.add("Bus", ["gas", "electricity", "heat"], carrier=["gas", "electricity", "heat"])
+    n.add(
+        "Generator", "gas supply", bus="gas", carrier="gas", p_nom=200, marginal_cost=20
+    )
+    n.add(
+        "Link",
+        "chp",
+        bus0="gas",
+        bus1="electricity",
+        bus2="heat",
+        carrier="chp",
+        p_nom=100,
+        efficiency=0.4,
+        efficiency2=0.4,
+        capital_cost=150,
+    )
+    n.add(
+        "Generator",
+        "backup",
+        bus="electricity",
+        carrier="backup",
+        p_nom=100,
+        marginal_cost=100,
+    )
+    n.add(
+        "Generator", "boiler", bus="heat", carrier="boiler", p_nom=100, marginal_cost=40
+    )
+    n.add("Load", "power demand", bus="electricity", p_set=50)
+    n.add("Load", "heat demand", bus="heat", p_set=50)
+    n.optimize()
+    return n
+
+
+@pytest.mark.parametrize(
+    ("bus_carrier", "by_product_price", "expected"),
+    [("electricity", 40, 135), ("heat", 100, 75)],
+)
+def test_lcoe_credits_by_products(chp_network, bus_carrier, by_product_price, expected):
+    """Levelising over one output credits the revenue of the other output.
+
+    The CHP burns 100 MW of gas at 20 EUR/MWh and delivers 40 MW of electricity at
+    100 EUR/MWh and 40 MW of heat at 40 EUR/MWh in each of three snapshots.
+    """
+    capex, fuel, output = 150 * 100, 100 * 20 * 3, 40 * 3
+    credit = 40 * by_product_price * 3
+    lcoe = chp_network.statistics.lcoe(bus_carrier=bus_carrier, groupby=False)
+    assert lcoe["Link", "chp"] == pytest.approx((capex + fuel - credit) / output)
+    assert lcoe["Link", "chp"] == pytest.approx(expected)
+
+
+def test_lcoe_charges_inputs(chp_network):
+    """Without a by-product filter, the gas bought is part of the cost."""
+    lcoe = chp_network.statistics.lcoe(groupby=False)
+    capex, fuel, output = 150 * 100, 100 * 20 * 3, 80 * 3
+    assert lcoe["Link", "chp"] == pytest.approx((capex + fuel) / output)
+
+
+@pytest.mark.parametrize("statistic", ["profit", "lcoe"])
+def test_profit_rejects_investment_periods(ac_dc_periods, statistic):
+    with pytest.raises(NotImplementedError, match="investment periods"):
+        getattr(ac_dc_periods.statistics, statistic)()
+
+
+def test_profit_equals_carbon_rent(ac_dc_network_r):
+    """Under a binding cap, extendable emitters profit by the CO2 price on the cap."""
+    n = ac_dc_network_r
+    limit = n.c.global_constraints.static.loc["co2_limit"]
+    profit = n.statistics.profit(carrier="gas").sum()
+    assert profit == pytest.approx(abs(limit.mu) * limit.constant)
+
+
 def test_supply_withdrawal(ac_dc_network_r):
     n = ac_dc_network_r
     target = n.statistics.energy_balance()
