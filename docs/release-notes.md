@@ -39,6 +39,9 @@ SPDX-License-Identifier: CC-BY-4.0
     - Voltage angle difference limits (`v_ang_max`) of [Line](./user-guide/components/lines.md) and [Transformer](./user-guide/components/transformers.md) components were silently ignored.
 - The [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) attributes `delay`, `cyclic_delay` and their per-port variants (e.g. `delay0`, `delay2`, `cyclic_delay2`) must now be identical across scenarios, since they change the structure of the energy balance. The consistency check raises an error otherwise. Previously a link with a delay differing across scenarios had its flow counted twice. Resolves [#1941](https://github.com/PyPSA/PyPSA/issues/1941).
 - The attributes `p_nom_set`, `s_nom_set` and `e_nom_set` must now be identical across scenarios, since the nominal capacity is a first-stage decision. Previously a value set in only one scenario was silently applied to all scenarios.
+- The consistency check now also requires the ports `bus0`, `bus1`, `bus2`, ... of branch components to be identical across scenarios. Previously only `bus` was checked, so a [Link](./user-guide/components/links.md) with a scenario-dependent `bus1` passed unnoticed.
+- Building the model of a stochastic network now raises a `ValueError` naming the affected components if a scenario-invariant attribute such as `carrier` or `delay` differs across scenarios, e.g. with [`n.optimize.create_model(consistency_check=False)`][pypsa.optimization.OptimizationAccessor.create_model]. Previously the values of the first scenario were silently used.
+- Fix [`n.statistics.opex()`][pypsa.statistics.StatisticsAccessor.opex] returning no operational costs for components with committable assets in stochastic networks.
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
 

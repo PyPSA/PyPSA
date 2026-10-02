@@ -28,7 +28,7 @@ from numpy import (
 from xarray import DataArray, where
 
 from pypsa.components._types.mixin.multiports import _Multiport
-from pypsa.components.common import as_components
+from pypsa.components.common import as_components, invariant
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
@@ -1169,7 +1169,10 @@ def _get_delay_config(
         cyclic_col = f"cyclic_delay{suffix}"
 
         if delay_col in c.static.columns:
-            config[suffix] = (c._invariant(delay_col), c._invariant(cyclic_col))
+            config[suffix] = (
+                invariant(c.static[delay_col]),
+                invariant(c.static[cyclic_col]),
+            )
         else:
             config[suffix] = (0, True)
     return config
@@ -1689,7 +1692,7 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
         finite = isfinite(static["v_ang_max"])
         assets_i = finite[finite].index.unique("name").intersection(c.active_assets)
         if c_name == "Line":
-            assets_i = assets_i[c._invariant("carrier")[assets_i] == "AC"]
+            assets_i = assets_i[invariant(c.static.carrier)[assets_i] == "AC"]
         if assets_i.empty:
             continue
 

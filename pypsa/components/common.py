@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pandas as pd
+
 from pypsa.components.components import Components
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
@@ -62,3 +64,50 @@ def as_components(n: NetworkType, value: str | Components) -> Components:
         return value
     msg = "Value must be a string or Components class instance."
     raise TypeError(msg)
+
+
+def invariant(data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
+    """Index static data by name, requiring identical values across scenarios.
+
+    Parameters
+    ----------
+    data : pd.Series | pd.DataFrame
+        Static data, optionally with a `(scenario, name)` index.
+
+    Returns
+    -------
+    pd.Series | pd.DataFrame
+        `data` unchanged if it has no `scenario` level, otherwise reduced to
+        the `name` index.
+
+    Raises
+    ------
+    ValueError
+        If values differ across scenarios.
+
+    Examples
+    --------
+    >>> carrier = n_stochastic.c.generators.static.carrier
+    >>> pypsa.components.common.invariant(carrier)
+    name
+    solar        solar
+    wind          wind
+    gas            gas
+    lignite    lignite
+    Name: carrier, dtype: object
+
+    """
+    if "scenario" not in data.index.names:
+        return data
+    varies = data.groupby(level="name").nunique(dropna=False).gt(1)
+    where = ""
+    if isinstance(varies, pd.DataFrame):
+        where = f" in columns {varies.columns[varies.any()].tolist()}"
+        varies = varies.any(axis=1)
+    if varies.any():
+        msg = (
+            "Expected static data which is identical across scenarios, got "
+            f"differing values for {varies.index[varies].tolist()}{where}."
+        )
+        raise ValueError(msg)
+    return data.groupby(level="name", sort=False).first()

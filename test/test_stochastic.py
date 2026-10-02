@@ -7,6 +7,7 @@ Test stochastic functionality of PyPSA networks.
 """
 
 import warnings
+from operator import methodcaller
 from pathlib import Path
 
 import pandas as pd
@@ -17,7 +18,7 @@ from xarray import DataArray
 
 import pypsa
 from pypsa.common import expand_series
-from pypsa.components.common import as_components
+from pypsa.components.common import as_components, invariant
 
 
 def test_stoch_example():
@@ -1828,6 +1829,15 @@ def test_scenario_indexed_model_matches_deterministic(
     for name, con in n.model.constraints.items():
         assert n_stoch.model.constraints[name].ncons == 2 * con.ncons
 
+    for name in ["capex", "opex", "optimal_capacity", "supply"]:
+        stat = methodcaller(name, drop_zero=False)
+        expected = stat(n.statistics)
+        result = stat(n_stoch.statistics)
+        for scenario in n_stoch.scenarios:
+            pd.testing.assert_series_equal(
+                result.xs(scenario, level="scenario"), expected, atol=1e-6
+            )
+
 
 @pytest.mark.parametrize("scenarios", [True, False])
 @pytest.mark.parametrize(("attr", "value"), [("e_sum_min", inf), ("e_sum_max", -inf)])
@@ -1896,7 +1906,14 @@ def test_scenario_varying_attribute_matches_deterministic(
 
 @pytest.mark.parametrize(
     ("attr", "value"),
-    [("delay", 1), ("cyclic_delay", False), ("delay2", 1), ("p_nom_set", 5)],
+    [
+        ("delay", 1),
+        ("cyclic_delay", False),
+        ("delay2", 1),
+        ("p_nom_set", 5),
+        ("bus1", "a"),
+        ("bus2", "a"),
+    ],
 )
 def test_invariant_attribute_varying_across_scenarios_raises(attr, value):
     n = pypsa.Network(snapshots=range(2))
@@ -1907,6 +1924,46 @@ def test_invariant_attribute_varying_across_scenarios_raises(attr, value):
 
     with pytest.raises(pypsa.consistency.ConsistencyError, match=attr):
         n.optimize.create_model()
+
+
+def test_invariant():
+    n = _two_bus_network()
+    expected = n.c.generators.static[["bus", "p_nom"]]
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    static = n.c.generators.static[["bus", "p_nom"]].copy()
+
+    assert invariant(expected) is expected
+    pd.testing.assert_frame_equal(invariant(static), expected)
+    pd.testing.assert_series_equal(invariant(static.bus), expected.bus)
+
+    static.loc[("s2", "gen"), "p_nom"] = 5
+    with pytest.raises(ValueError, match=r"\['gen'\] in columns \['p_nom'\]\."):
+        invariant(static)
+    with pytest.raises(ValueError, match=r"values for \['gen'\]\.$"):
+        invariant(static.p_nom)
+
+
+def _add_link(n: pypsa.Network) -> None:
+    n.add("Link", "link", bus0="a", bus1="b", p_nom=10)
+
+
+@pytest.mark.parametrize(
+    ("add", "component", "asset", "attr", "value"),
+    [
+        (_add_v_ang_max, "Line", "l1", "carrier", "DC"),
+        (_add_link, "Link", "link", "delay", 1),
+    ],
+)
+def test_varying_invariant_attribute_fails_model_build(
+    add, component, asset, attr, value
+):
+    n = _two_bus_network()
+    add(n)
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    n.c[component].static.loc[("s2", asset), attr] = value
+
+    with pytest.raises(ValueError, match=rf"differing values for \['{asset}'\]"):
+        n.optimize.create_model(consistency_check=False)
 
 
 def _transmission_limit_network(scenarios: bool, multi_invest: bool) -> pypsa.Network:

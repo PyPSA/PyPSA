@@ -16,6 +16,7 @@ import pandas as pd
 from linopy import merge
 from xarray import DataArray
 
+from pypsa.components.common import invariant
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import define_piecewise
 from pypsa.optimization.window import apply_period_weighting
@@ -247,16 +248,8 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         if "carrier" not in static:
             continue
 
-        component_carriers = static.loc[:, "carrier"]
-
-        if n.has_scenarios:
-            unique_component_names = n.components[c].names
-            carrier_map = component_carriers.groupby(level="name").first()
-        else:
-            unique_component_names = static.index
-            carrier_map = component_carriers
-
-        carriers_match = unique_component_names[carrier_map.isin(carrier_i)]
+        carrier_map = invariant(static["carrier"])
+        carriers_match = carrier_map.index[carrier_map.isin(carrier_i)]
         limited_names = carriers_match.intersection(
             n.c[c].filter_by_active_assets(n.c[c].extendables)
         )
@@ -268,11 +261,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         active = pd.concat(
             {p: n.components[c].get_active_assets(p) for p in periods}, axis=1
         )
-
-        if n.has_scenarios:
-            active = active.groupby(level="name").first()
-
-        active = active.loc[limited_names].rename_axis(columns="periods").T
+        active = invariant(active).loc[limited_names].rename_axis(columns="periods").T
         first_active = DataArray(active & (active.cumsum() == 1))
         carriers = carrier_map.loc[limited_names].rename("Carrier")
 
@@ -811,7 +800,7 @@ def _define_transmission_expansion_limit(
 
             lhs = []
             for c in n.components[["Line", "Link"]]:
-                carriers = c._invariant("carrier")
+                carriers = invariant(c.static.carrier)
                 ext_i = c.extendables.intersection(carriers.index[carriers.isin(car)])
                 ext_i = c.filter_by_active_assets(ext_i, period_filter)
                 if ext_i.empty:

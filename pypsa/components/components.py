@@ -38,7 +38,6 @@ from pypsa.components.transform import ComponentsTransformMixin
 from pypsa.constants import (
     DEFAULT_EPSG,
     DEFAULT_TIMESTAMP,
-    RE_INVARIANT_ATTRS,
     RE_PORTS,
     piecewise_attrs,
     piecewise_schema,
@@ -929,36 +928,6 @@ class Components(
         c_carriers = self.static["carrier"].dropna()
         c_carriers = c_carriers[c_carriers != ""]
         return set(c_carriers.unique())
-
-    def _invariant(self, attr: str) -> pd.Series:
-        """Get a scenario-invariant static attribute indexed by name only.
-
-        Parameters
-        ----------
-        attr : str
-            Attribute matching `pypsa.constants.RE_INVARIANT_ATTRS`, see
-            `pypsa.consistency.check_scenario_invariant_attributes`.
-
-        Returns
-        -------
-        pd.Series
-            Attribute values with single-level `name` index. For stochastic
-            networks, the values of the first scenario are returned.
-
-        Raises
-        ------
-        ValueError
-            If `attr` is not scenario-invariant.
-
-        """
-        if not RE_INVARIANT_ATTRS.fullmatch(attr):
-            msg = f"Attribute '{attr}' of {self.name} is not scenario-invariant."
-            raise ValueError(msg)
-        static = self.static[attr]
-        if self.has_scenarios:
-            first = static.index.get_level_values("scenario") == self.scenarios[0]
-            static = static[first].droplevel("scenario")
-        return static
 
     @property
     def extendables(self) -> pd.Index:

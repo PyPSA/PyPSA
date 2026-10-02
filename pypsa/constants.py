@@ -26,8 +26,7 @@ RE_PORTS_GE_2 = re.compile(r"^bus((?:[2-9]|[1-9]\d+))$")
 RE_INVARIANT_ATTRS = re.compile(
     "|".join(
         [
-            "name",
-            "bus",
+            r"bus\d*",
             # "control" is excluded - different buses can have different control types across scenarios
             # but we ensure consistent slack bus selection separately
             "type",
