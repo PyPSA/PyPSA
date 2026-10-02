@@ -134,6 +134,22 @@ def test_net_and_gross_revenue(ac_dc_network_r):
     assert np.allclose(revenue[comps], target[comps])
 
 
+def test_capture_rate():
+    """Flat baseload captures the time-averaged price, a peaker captures more."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Generator", "baseload", bus="bus", p_nom=40, marginal_cost=10)
+    n.add("Generator", "mid", bus="bus", p_nom=60, marginal_cost=50)
+    n.add("Generator", "peaker", bus="bus", p_nom=100, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=[50, 80, 130])
+    n.optimize()
+
+    rate = n.statistics.capture_rate(groupby=False, weighting="time")
+    average = (50 + 50 + 100) / 3
+    assert rate["Generator", "baseload"] == pytest.approx(1)
+    assert rate["Generator", "peaker"] == pytest.approx(100 / average)
+
+
 def test_supply_withdrawal(ac_dc_network_r):
     n = ac_dc_network_r
     target = n.statistics.energy_balance()

@@ -155,6 +155,7 @@ STAT_OVERRIDES: dict = {
         "area": {"x": "snapshot", "color": "carrier"},
     },
     # Statistics with no special overrides
+    "capture_rate": {},
     "capex": {},
     "installed_capex": {},
     "expanded_capex": {},
