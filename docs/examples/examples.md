@@ -85,6 +85,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](rolling-horizon.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Forecast Errors and the Value of Foresight**
+
+    Explores how much of a battery's arbitrage value survives when its schedule is decided against imperfect price forecasts that are refreshed every day.
+
+    [:octicons-arrow-right-24: Go to example](forecast-errors.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Water Values**
 
     Explores how water values, the marginal values of stored energy, can improve seasonal storage operation in rolling-horizon optimization.
