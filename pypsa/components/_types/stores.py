@@ -9,11 +9,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-import pandas as pd
-
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components.components import Components
+from pypsa.components._types.mixin.cycling import _Cycling
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -23,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class Stores(Components):
+class Stores(_Cycling):
     """Stores components class.
 
     This class is used for store components. All functionality specific to
@@ -67,6 +65,12 @@ class Stores(Components):
             raise ValueError(msg)
 
         return self.da.e_min_pu, self.da.e_max_pu
+
+    def _throughput_flow(self) -> pd.DataFrame:
+        return self.dynamic.p.abs()
+
+    def _energy_capacity(self, nom_attr: str) -> pd.Series:
+        return self.static[nom_attr]
 
     def add(
         self,

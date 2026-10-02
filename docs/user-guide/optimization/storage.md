@@ -90,6 +90,11 @@ $$e_{n,s,t=-1} = e_{n,s,t=|T|-1}$$
     | $\tilde{e}_{n,s,t}$ | `n.stores_t.e_set` | Parameter |
     | $\eta_{\textrm{stand},n,s}$ | `n.stores.standing_loss` | Parameter |
     | $w_t^s$ | `n.snapshot_weightings.stores` | Parameter |
+    | $h^{\textrm{aux}}_{n,s,t}$ | `n.stores_t.p_dispatch` | Decision Variable |
+    | $Q_{n,s,t}$ | `n.stores_t.throughput` | Decision Variable |
+    | $k_{n,s}$ | `n.stores.degradation_per_cycle` | Parameter |
+    | $Q^0_{n,s}$ | `n.stores.throughput_initial` | Parameter |
+    | $N^{\max}_{n,s}$ | `n.stores.cycles_max` | Parameter |
 
 ## Storage Units
 
@@ -187,6 +192,37 @@ $$soc_{n,s,t=-1} = soc_{n,s,t=|T|-1}$$
     | $\eta_{\textrm{store};n,s}$ | `n.storage_units.store_efficiency` | Parameter |
     | $\eta_{\textrm{dispatch};n,s}$ | `n.storage_units.dispatch_efficiency` | Parameter |
     | $w_t^s$ | `n.snapshot_weightings.stores` | Parameter |
+    | $Q_{n,s,t}$ | `n.storage_units_t.throughput` | Decision Variable |
+    | $k_{n,s}$ | `n.storage_units.degradation_per_cycle` | Parameter |
+    | $Q^0_{n,s}$ | `n.storage_units.throughput_initial` | Parameter |
+    | $N^{\max}_{n,s}$ | `n.storage_units.cycles_max` | Parameter |
+
+## Capacity degradation and cycle budgets
+
+Storage units and stores can age with use through three optional attributes, all off by default: `degradation_per_cycle` $k_{n,s}$, `cycles_max` $N^{\max}_{n,s}$ and `throughput_initial` $Q^0_{n,s}$.
+
+With a positive $k_{n,s}$ or a finite $N^{\max}_{n,s}$ the model tracks the **energy throughput** $Q_{n,s,t}$ of the storage level, starting from $Q^0_{n,s}$; it is never cyclic nor reset per investment period. One **equivalent full cycle** is $2E$ of throughput, with $E$ the nominal energy capacity, the capacity variable of extendable assets. The **capacity fade** lowers the upper limit of the storage level by $\tfrac{k_{n,s}}{2}$ per MWh of throughput.[^1][^2] The **cycle budget** caps the throughput at $2 E N^{\max}_{n,s}$, `throughput_initial` included, so it spans investment periods and rolling-horizon windows.[^3][^4][^5]
+
+For storage units:
+
+| Constraint | Dual Variable | Name |
+|------------|---------------|------|
+| $Q_{n,s,t} = Q_{n,s,t-1} + w_t^s \left( \eta_{\textrm{store};n,s} h_{n,s,t}^+ + \eta^{-1}_{\textrm{dispatch};n,s} h_{n,s,t}^- \right), \quad Q_{n,s,t=-1} = Q^0_{n,s}$ | only in `n.model` | `StorageUnit-throughput_balance` |
+| $soc_{n,s,t} + \tfrac{k_{n,s}}{2} Q_{n,s,t} \leq r_{n,s} H_{n,s}$ | only in `n.model` | `StorageUnit-state_of_charge-fade` |
+| $Q_{n,s,T} \leq 2 r_{n,s} H_{n,s} N^{\max}_{n,s}$ | only in `n.model` | `StorageUnit-cycles_max` |
+
+For stores the throughput $|h_{n,s,t}|$ is counted as $2 h^{\textrm{aux}}_{n,s,t} - h_{n,s,t}$ with an auxiliary variable $h^{\textrm{aux}}_{n,s,t} \geq 0$, and the usable window $\bar{e}_{n,s,t}$ scales the fade term as well:
+
+| Constraint | Dual Variable | Name |
+|------------|---------------|------|
+| $h^{\textrm{aux}}_{n,s,t} - h_{n,s,t} \geq 0$ | only in `n.model` | `Store-p_dispatch_link` |
+| $Q_{n,s,t} = Q_{n,s,t-1} + w_t^s \left( 2 h^{\textrm{aux}}_{n,s,t} - h_{n,s,t} \right), \quad Q_{n,s,t=-1} = Q^0_{n,s}$ | only in `n.model` | `Store-throughput_balance` |
+| $e_{n,s,t} + \bar{e}_{n,s,t} \tfrac{k_{n,s}}{2} Q_{n,s,t} \leq \bar{e}_{n,s,t} E_{n,s}$ | only in `n.model` | `Store-e-fade` |
+| $Q_{n,s,T} \leq 2 E_{n,s} N^{\max}_{n,s}$ | only in `n.model` | `Store-cycles_max` |
+
+`set_cycle_life()` derives `degradation_per_cycle` and `cycles_max` from a cycle life, and `get_cycles()` returns the equivalent full cycles performed.
+
+These constraints are set in the functions `define_store_p_dispatch_constraints()`, `define_throughput_constraints()`, `define_capacity_fade_constraints()` and `define_cycle_budget_constraints()`.
 
 ## Examples
 
@@ -202,3 +238,13 @@ $$soc_{n,s,t=-1} = soc_{n,s,t=|T|-1}$$
     [:octicons-arrow-right-24: Go to example](../../examples/replace-generator-storage-units-with-store.ipynb)
 
 </div>
+
+[^1]: J. Mao, M. Jafari, A. Botterud (2022), [Planning low-carbon distributed power systems: Evaluating the role of energy storage](https://doi.org/10.1016/j.energy.2021.121668). Energy, 238, 121668.
+
+[^2]: J. E. Contreras-Ocaña, Y. Chen, U. Siddiqi, B. Zhang (2020), [Non-Wire Alternatives: An Additional Value Stream for Distributed Energy Resources](https://doi.org/10.1109/TSTE.2019.2922882). IEEE Transactions on Sustainable Energy, 11(3), 1287–1299.
+
+[^3]: G. Cardoso, T. Brouhard, N. DeForest, D. Wang, M. Heleno, L. Kotzur (2018), [Battery aging in multi-energy microgrid design using mixed integer linear programming](https://doi.org/10.1016/j.apenergy.2018.09.185). Applied Energy, 231, 1059–1069. The cycle budget adapts its throughput cap to the whole asset life and to both charge and discharge.
+
+[^4]: A. Khazali et al. (2024), [Planning a Hybrid Battery Energy Storage System for Supplying Electric Vehicle Charging Station Microgrids](https://doi.org/10.3390/en17153631). Energies, 17(15), 3631.
+
+[^5]: Energy Exemplar, PLEXOS help, [`Battery.MaxCycles`](https://portal.energyexemplar.com/unified-help/plexos-desktop/Battery.MaxCycles.html).
