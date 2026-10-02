@@ -206,6 +206,42 @@ class NetworkComponentsMixin(_NetworkABC):
         self.c.global_constraints.static = value
 
     @property
+    def flow_based_constraints(self) -> Any:
+        """Access to static data of [pypsa.components.FlowBasedConstraints][]."""
+        return (
+            self.c.flow_based_constraints.static
+            if not options.api.new_components_api
+            else self.c.flow_based_constraints
+        )
+
+    @flow_based_constraints.setter
+    def flow_based_constraints(self, value: pd.DataFrame) -> None:
+        if options.api.new_components_api:
+            raise AttributeError(_STATIC_SETTER_WARNING)
+        self.c.flow_based_constraints.static = value
+
+    @property
+    def flow_based_constraints_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.FlowBasedConstraints][]."""
+        if options.api.new_components_api:
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("flow_based_constraints"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return self.c.flow_based_constraints.dynamic
+
+    @flow_based_constraints_t.setter
+    def flow_based_constraints_t(self, value: Dict) -> None:
+        if options.api.new_components_api:
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("flow_based_constraints"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self.c.flow_based_constraints.dynamic = value
+
+    @property
     def lines(self) -> Any:
         """Access to static data of [pypsa.components.Lines][]."""
         return (
@@ -785,7 +821,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.all_components)
-        ['Bus', 'Carrier', 'Generator', 'GlobalConstraint', 'Line', 'LineType', 'Link', 'Load', 'Process', 'Shape', 'ShuntImpedance', 'StorageUnit', 'Store', 'SubNetwork', 'Transformer', 'TransformerType']
+        ['Bus', 'Carrier', 'FlowBasedConstraint', 'Generator', 'GlobalConstraint', 'Line', 'LineType', 'Link', 'Load', 'Process', 'Shape', 'ShuntImpedance', 'StorageUnit', 'Store', 'SubNetwork', 'Transformer', 'TransformerType']
 
         """
         return {
@@ -805,6 +841,7 @@ class NetworkComponentsMixin(_NetworkABC):
             "Bus",
             "Load",
             "Process",
+            "FlowBasedConstraint",
         }
 
     @property
