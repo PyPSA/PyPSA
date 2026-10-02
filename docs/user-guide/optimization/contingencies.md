@@ -47,6 +47,8 @@ $$|p_{b,t} + BODF_{bc}p_{c,t}| \leq |P_b| \quad \forall b,c,t$$
 
 These constraints are added in the function [`n.optimize_security_constrained()`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained].
 
+With `multi_investment_periods=True`, the BODF matrix is computed from the network topology of each investment period. The constraints of a period then only include the branches that are active in that period. Requested outages of branches that are not active in any period raise an error.
+
 !!! tip "Tip: Avoiding the computational burden of $N-1$ security constraints"
 
     Running security-constrained optimisation problems can be computationally expensive due to the product of lines, outages and snapshots.

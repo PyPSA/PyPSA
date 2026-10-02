@@ -2,8 +2,11 @@
 #
 # SPDX-License-Identifier: MIT
 
+from itertools import product
+
 import numpy as np
 import pandas as pd
+import pytest
 from numpy.testing import assert_almost_equal as equal
 
 import pypsa
@@ -99,3 +102,77 @@ def test_optimize_security_constrained_multiindex_branch_outages():
     status, _ = n.optimize.optimize_security_constrained(branch_outages=branch_outages)
 
     assert status == "ok"
+
+
+def _multi_period_network() -> pypsa.Network:
+    """See https://github.com/PyPSA/PyPSA/issues/1971."""
+    n = pypsa.Network()
+    n.set_snapshots(pd.MultiIndex.from_product([[2020, 2030], [0]]))
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", ["a", "b", "c"])
+    n.add("Line", ["ab", "bc"], bus0=["a", "b"], bus1=["b", "c"], x=1, s_nom=100)
+    n.add(
+        "Line",
+        "ab_old",
+        bus0="a",
+        bus1="b",
+        x=1,
+        s_nom=100,
+        build_year=2000,
+        lifetime=25,
+    )
+    n.add("Line", "ca", bus0="c", bus1="a", x=1, s_nom=100, build_year=2030)
+    n.add("Line", "future", bus0="b", bus1="c", x=1, s_nom=100, build_year=2040)
+    n.add("Generator", "g", bus="a", p_nom=100, marginal_cost=1)
+    n.add("Load", "l", bus="c", p_set=10)
+    return n
+
+
+@pytest.mark.parametrize("scenarios", [False, True])
+def test_optimize_security_constrained_multi_period_bodf(scenarios):
+    n = _multi_period_network()
+    if scenarios:
+        n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    status, _ = n.optimize.optimize_security_constrained(
+        branch_outages=["ab", "ab_old", "ca"], multi_investment_periods=True
+    )
+    assert status == "ok"
+
+    con = n.model.constraints[
+        "Line-fix-s-upper-security-for-Line-outage-in-sub-network-0"
+    ]
+    s = n.model.variables["Line-s"].labels
+    if scenarios:
+        con, s = con.sel(scenario="s1"), s.sel(scenario="s1")
+    coeffs = {}
+    for (period, _), out, aff in product(
+        n.snapshots, con.indexes["Line-outage"], con.indexes["name"]
+    ):
+        sel = {"snapshot": (period, 0), "name": aff, "Line-outage": out}
+        if out == aff or con.labels.sel(sel) == -1:
+            continue
+        lhs = con.lhs.sel(sel)
+        var = s.sel(snapshot=(period, 0), name=out)
+        coeffs[period, out, aff] = round(
+            float(lhs.coeffs.where(lhs.vars == var).sum()), 6
+        )
+
+    assert coeffs == {
+        (2020, "ab", "bc"): 0,
+        (2020, "ab", "ab_old"): 1,
+        (2020, "ab_old", "ab"): 1,
+        (2020, "ab_old", "bc"): 0,
+        (2030, "ab", "bc"): -1,
+        (2030, "ab", "ca"): -1,
+        (2030, "ca", "ab"): -1,
+        (2030, "ca", "bc"): -1,
+    }
+
+
+def test_optimize_security_constrained_never_active_outage_raises():
+    n = _multi_period_network()
+    with pytest.raises(ValueError, match="not active in any optimized"):
+        n.optimize.optimize_security_constrained(
+            branch_outages=["ab", "future"], multi_investment_periods=True
+        )
