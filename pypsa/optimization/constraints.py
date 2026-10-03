@@ -1060,7 +1060,8 @@ def define_ramp_limit_constraints(
             .sel(name=idx)
         )
     else:
-        initially_up = c.da.up_time_before.sel(name=idx) > 0
+        # up_time_before is only read for committable units
+        initially_up = (c.da.up_time_before.sel(name=idx) > 0) | ~is_com
         p_init = c.da.p_init.sel(name=idx).where(initially_up, 0)
         s_init = initially_up
         mask.loc[{"snapshot": sns[0]}] = p_init.notnull()
@@ -1091,7 +1092,7 @@ def define_ramp_limit_constraints(
                 .sel(name=ext_main_names)
             )
         else:
-            s_init_ext = (c.da.up_time_before.sel(name=ext_main_names) > 0) * 1.0
+            s_init_ext = initially_up.sel(name=ext_main_names) * 1.0
         sp_ext = (1 - filter_first_sn) + s_init_ext * filter_first_sn
         if not isinstance(rhs, LinearExpression):
             rhs = LinearExpression.from_constant(m, rhs)

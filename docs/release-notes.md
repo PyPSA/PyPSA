@@ -22,6 +22,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix the first-snapshot ramp limit of non-committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components reading `up_time_before`. With `up_time_before=0` such a unit was limited as if it started from zero output, and the limit changed when another unit of the component was committable. `up_time_before` is now only read for committable units, as documented. Resolves [#1943](https://github.com/PyPSA/PyPSA/issues/1943).
 - Fix the carrier `max_growth` and `max_relative_growth` constraints counting an asset again in every period after it retires. An asset is now counted only in its build period. Resolves [#1938](https://github.com/PyPSA/PyPSA/issues/1938).
 - Fix optimisation failing with a `KeyError` when quadratic marginal costs are used alongside inactive components. Quadratic costs now include only active assets. Resolves [#1956](https://github.com/PyPSA/PyPSA/issues/1956).
 - Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] raising an `UnboundLocalError` for `primary_energy` and `operational_limit` [GlobalConstraint](./user-guide/components/global-constraints.md) components with an `investment_period` on networks without investment periods. This now raises a `ValueError`, as for the expansion limit types. (<!-- md:pr 1961 -->)

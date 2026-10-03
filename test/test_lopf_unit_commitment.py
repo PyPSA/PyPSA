@@ -844,6 +844,44 @@ def test_link_ramp_constraints_mask_nan(direction):
     )
 
 
+@pytest.mark.parametrize("with_committable", [False, True])
+def test_non_committable_first_snapshot_ramp_ignores_up_time_before(with_committable):
+    """
+    `up_time_before` is only read for committable units. The first-snapshot
+    ramp limit of a non-committable unit follows `p_init` alone and does not
+    change when another unit of the component is committable.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=5)
+
+    kw = {
+        "bus": "bus",
+        "marginal_cost": 1,
+        "ramp_limit_up": 0.5,
+        "ramp_limit_down": 0.5,
+        "up_time_before": 0,
+    }
+    n.add("Generator", "fixed", p_nom=10, **kw)
+    n.add("Generator", "fixed_p_init", p_nom=10, p_init=3, **kw)
+    n.add("Generator", "ext", p_nom_extendable=True, **kw)
+    if with_committable:
+        n.add("Generator", "unit", bus="bus", p_nom=10, committable=True)
+
+    n.optimize.create_model()
+
+    first = n.snapshots[0]
+    for direction, rhs in [("up", 3 + 0.5 * 10), ("down", 3 - 0.5 * 10)]:
+        con = n.model.constraints[f"Generator-p-ramp_limit_{direction}"]
+        # No p_init: no ramp limit in the first snapshot
+        labels = con.labels.sel(name=["fixed", "ext"])
+        assert (labels.sel(snapshot=first) == -1).all()
+        assert (labels.sel(snapshot=n.snapshots[1]) != -1).all()
+        # With p_init: ramp from p_init, the unit counts as online before
+        assert con.rhs.sel(snapshot=first, name="fixed_p_init") == rhs
+
+
 def test_dynamic_start_up_rates_for_commitables():
     """
     This test checks that start up ramp rate constraints within unit commitment functionality runs through and is considered correctly.
