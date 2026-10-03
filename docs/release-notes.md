@@ -22,6 +22,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix `n.objective_constant` being `0` for multi-period optimisations (see [multi-investment periods](./user-guide/optimization/pathway-planning.md)). The capital costs of existing extendable capacity are again weighted by the investment period weightings and included in the constant.
 - Fix the carrier `max_growth` and `max_relative_growth` constraints counting an asset again in every period after it retires. An asset is now counted only in its build period. Resolves [#1938](https://github.com/PyPSA/PyPSA/issues/1938).
 - Fix optimisation failing with a `KeyError` when quadratic marginal costs are used alongside inactive components. Quadratic costs now include only active assets. Resolves [#1956](https://github.com/PyPSA/PyPSA/issues/1956).
 - Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] raising an `UnboundLocalError` for `primary_energy` and `operational_limit` [GlobalConstraint](./user-guide/components/global-constraints.md) components with an `investment_period` on networks without investment periods. This now raises a `ValueError`, as for the expansion limit types. (<!-- md:pr 1961 -->)

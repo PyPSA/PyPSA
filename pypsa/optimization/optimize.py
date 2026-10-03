@@ -235,7 +235,7 @@ def define_objective(
                 active = c.da.active.sel(name=ext_i).any(dim="snapshot")
                 weighted_cost = active * periodic_cost
 
-                terms.append((weighted_cost * nominal).sum(dim=["name"]))
+            terms.append((weighted_cost * nominal).sum(dim=["name"]))
 
         constant += sum(terms)
 
