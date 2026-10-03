@@ -566,6 +566,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         is the energy that can at most (`e_sum_min`) or must at least
         (`e_sum_max`) be produced in later windows. Without foresight the
         resulting dispatch pattern depends on the order of the windows.
+        A `ValueError` is raised if this energy is unbounded, e.g. for an
+        extendable generator with `p_nom_max=inf`.
 
         Parameters
         ----------
@@ -587,29 +589,44 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
+        starting_points = range(0, len(snapshots), horizon - overlap)
         c = n.c.generators
         limits = {
             attr: c.static[attr].copy()
             for attr in ("e_sum_min", "e_sum_max")
-            if np.isfinite(c.static[attr]).any()
+            if len(starting_points) > 1 and np.isfinite(c.static[attr]).any()
         }
         if limits:
+            weights = n.snapshot_weightings.generators.loc[snapshots]
+            ext = c.static.p_nom_extendable
+            noms = [
+                c.static.p_nom.where(~ext, c.static[a])
+                for a in ("p_nom_min", "p_nom_max")
+            ]
+            p_min = [c._as_dynamic("p_min_pu", snapshots) * nom for nom in noms]
+            p_max = [c._as_dynamic("p_max_pu", snapshots) * nom for nom in noms]
+            active = c.get_activity_mask(snapshots)
+            e_min = np.fmin(*p_min).where(active & ~c.static.committable, 0.0)
+            e_max = np.fmax(*p_max).where(active, 0.0)
+            e_min = e_min.mul(weights, axis=0).fillna(0.0)
+            e_max = e_max.mul(weights, axis=0).fillna(0.0)
+            unbounded = np.isfinite(c.static.e_sum_min) & np.isinf(e_max).any()
+            unbounded |= np.isfinite(c.static.e_sum_max) & np.isinf(e_min).any()
+            if unbounded.any():
+                msg = (
+                    f"Generators {list(unbounded.index[unbounded])} have a finite "
+                    "e_sum_min or e_sum_max and an unbounded capacity. Tracking "
+                    "these limits across the rolling horizon requires a finite "
+                    "p_nom_max."
+                )
+                raise ValueError(msg)
             logger.warning(
                 "Generator %s limits are tracked across the rolling horizon "
                 "without foresight: each window only sees what previous windows "
                 "left open. The dispatch pattern depends on the window order.",
                 " and ".join(limits),
             )
-            weights = n.snapshot_weightings.generators.loc[snapshots]
-            ext = c.static.p_nom_extendable
-            nom_min = c.static.p_nom.where(~ext, c.static.p_nom_min)
-            nom_max = c.static.p_nom.where(~ext, c.static.p_nom_max)
-            e_min = c._as_dynamic("p_min_pu", snapshots) * nom_min
-            e_max = c._as_dynamic("p_max_pu", snapshots) * nom_max
-            e_min = e_min.mul(weights, axis=0).fillna(0.0)
-            e_max = e_max.mul(weights, axis=0).fillna(0.0)
 
-        starting_points = range(0, len(snapshots), horizon - overlap)
         try:
             for i, start in enumerate(starting_points):
                 end = min(len(snapshots), start + horizon)
@@ -644,8 +661,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                         c.static["e_sum_min"] = open_min - e_max.loc[rest].sum()
                     if "e_sum_max" in limits:
                         open_max = limits["e_sum_max"] - produced
-                        open_max = open_max - e_min.loc[rest].sum()
-                        c.static["e_sum_max"] = open_max.clip(lower=0.0)
+                        c.static["e_sum_max"] = open_max - e_min.loc[rest].sum()
 
                 status, condition = n.optimize(sns, **kwargs)
                 if status != "ok":

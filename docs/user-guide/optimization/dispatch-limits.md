@@ -81,7 +81,9 @@ These constraints are set in the function `define_total_supply_constraints()`.
 
 !!! note "Rolling horizon"
 
-    In [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] the volume limits of generators refer to all snapshots of the rolling horizon. Each window is given the part of the limit that is still open after the previous windows and after accounting for what later windows can at most ($\bar{e}$) or must at least ($\underline{e}$) produce given their capacity. Without foresight, a maximum is depleted by the earliest windows and a minimum is filled by the latest windows, which may turn the last window infeasible.
+    In [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] the volume limits of generators refer to all snapshots of the rolling horizon. Each window is given the part of the limit that is still open after the previous windows and after accounting for what later windows can at most ($\bar{e}$) or must at least ($\underline{e}$) produce given their capacity. Committable and inactive generators are assumed to produce nothing in later windows. Without foresight, a maximum is depleted by the earliest windows and a minimum is filled by the latest windows, which may turn the last window infeasible.
+
+    The energy that later windows can produce must be bounded. If a generator with a finite $\underline{e}$ (or a finite $\bar{e}$ and a negative `p_min_pu`) is extendable with `p_nom_max=inf`, a `ValueError` is raised before the first window. Set a finite `p_nom_max` for these generators. The limits are not tracked if a single window covers all snapshots.
 
 ## Voltage Angle Limits
 

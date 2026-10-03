@@ -294,8 +294,11 @@ def test_rolling_horizon_linearized_uc_with_ramp_limits():
     assert (ramping.values <= ramp_limits.values[None, :] + 1e-5).all()
 
 
+@pytest.mark.parametrize(
+    ("min_time", "horizon", "overlap"), [(4, 24, 8), (6, 4, 1)], ids=["long", "short"]
+)
 @pytest.mark.parametrize("linearized", [False, True], ids=["milp", "linearized"])
-def test_rolling_horizon_unit_commitment_seams(linearized):
+def test_rolling_horizon_unit_commitment_seams(linearized, min_time, horizon, overlap):
     """Regression test for issue #1905.
 
     Start-ups, shut-downs and minimum up/down times stay consistent with the
@@ -311,8 +314,8 @@ def test_rolling_horizon_unit_commitment_seams(linearized):
         p_nom=100,
         p_min_pu=0.3,
         committable=True,
-        min_up_time=4,
-        min_down_time=4,
+        min_up_time=min_time,
+        min_down_time=min_time,
         start_up_cost=10000,
         shut_down_cost=5000,
         up_time_before=0,
@@ -324,7 +327,7 @@ def test_rolling_horizon_unit_commitment_seams(linearized):
     n.add("Load", "load", bus="bus", p_set=load)
 
     n.optimize.optimize_with_rolling_horizon(
-        linearized_unit_commitment=linearized, horizon=24, overlap=8
+        linearized_unit_commitment=linearized, horizon=horizon, overlap=overlap
     )
 
     status = n.c.generators.dynamic.status["gen"]
@@ -333,30 +336,70 @@ def test_rolling_horizon_unit_commitment_seams(linearized):
     switch = status.diff().fillna(status.iloc[0])
     assert np.allclose(start_up, switch.clip(lower=0), atol=1e-6)
     assert np.allclose(shut_down, (-switch).clip(lower=0), atol=1e-6)
-    assert (start_up.rolling(4, min_periods=1).sum() <= status + 1e-6).all()
-    assert (shut_down.rolling(4, min_periods=1).sum() <= 1 - status + 1e-6).all()
+    assert (start_up.rolling(min_time, min_periods=1).sum() <= status + 1e-6).all()
+    assert (shut_down.rolling(min_time, min_periods=1).sum() <= 1 - status + 1e-6).all()
     assert shut_down.sum() > 0
+
+
+SINK = {"p_nom": 100, "p_min_pu": -1, "p_max_pu": 0}
 
 
 @pytest.mark.parametrize("overlap", [0, 1])
 @pytest.mark.parametrize(
-    ("gen", "attr", "limit"),
-    [("gas", "e_sum_min", 1500.0), ("coal", "e_sum_max", 3000.0)],
+    ("kwargs", "attr", "limit", "first"),
+    [
+        ({"marginal_cost": 40}, "e_sum_min", 1500.0, 0.0),
+        ({"marginal_cost": 10}, "e_sum_max", 3000.0, 400.0),
+        (
+            {"marginal_cost": 10, "committable": True, "p_min_pu": 0.4},
+            "e_sum_max",
+            2800.0,
+            400.0,
+        ),
+        (SINK, "e_sum_max", -500.0, 0.0),
+        ({**SINK, "marginal_cost": 30}, "e_sum_min", -500.0, -100.0),
+    ],
+    ids=["min", "max", "max-committable", "sink-max", "sink-min"],
 )
-def test_rolling_horizon_e_sum(gen, attr, limit, overlap):
+def test_rolling_horizon_e_sum(kwargs, attr, limit, first, overlap):
     """Regression test for issue #1769.
 
     Volume limits refer to the whole horizon and are met exactly once, not
-    once per window.
+    once per window. Without foresight, a maximum is depleted and a minimum
+    is filled as late as possible.
     """
     n = pypsa.Network(snapshots=range(12))
     n.add("Bus", "bus")
     n.add("Generator", "coal", bus="bus", marginal_cost=20, p_nom=1000)
-    n.add("Generator", "gas", bus="bus", marginal_cost=40, p_nom=1000)
+    n.add("Generator", "gen", bus="bus", **{"p_nom": 1000, **kwargs, attr: limit})
     n.add("Load", "load", bus="bus", p_set=[400, 600, 500, 800] * 3)
-    n.c.generators.static.loc[gen, attr] = limit
 
     n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=overlap)
 
-    assert n.c.generators.dynamic.p[gen].sum() == pytest.approx(limit)
-    assert n.c.generators.static.loc[gen, attr] == limit
+    p = n.c.generators.dynamic.p["gen"]
+    assert p.sum() == pytest.approx(limit)
+    assert p.iloc[0] == pytest.approx(first)
+    assert n.c.generators.static.loc["gen", attr] == limit
+
+
+def test_rolling_horizon_e_sum_unbounded_capacity(caplog):
+    n = pypsa.Network(snapshots=range(12))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        marginal_cost=1,
+        capital_cost=1,
+        e_sum_min=1500,
+    )
+    n.add("Load", "load", bus="bus", p_set=500)
+
+    with pytest.raises(ValueError, match=r"\['gen'\].*finite p_nom_max"):
+        n.optimize.optimize_with_rolling_horizon(horizon=3)
+
+    n.optimize.optimize_with_rolling_horizon(horizon=12)
+
+    assert n.c.generators.dynamic.p["gen"].sum() == pytest.approx(6000)
+    assert "tracked across the rolling horizon" not in caplog.text

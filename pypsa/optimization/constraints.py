@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from linopy import Model, Variable
     from xarray import DataArray  # noqa: TC004
 
-    from pypsa import Network
+    from pypsa import Components, Network
 
     ArgItem = list[str | int | float | DataArray]
 
@@ -254,7 +254,7 @@ def _lagged(arr: DataArray, lags: range) -> DataArray:
 
 
 def _status_history(
-    n: Network, c: Any, idx: pd.Index, sns: pd.Index, length: int
+    n: Network, c: Components, idx: pd.Index, sns: pd.Index, length: int
 ) -> DataArray:
     """Get the commitment status at the `length` snapshots before the window.
 
@@ -279,7 +279,7 @@ def _status_history(
 
 
 def _dispatch_before(
-    n: Network, c: Any, idx: pd.Index, sns: pd.Index, status: DataArray
+    n: Network, c: Components, idx: pd.Index, sns: pd.Index, status: DataArray
 ) -> DataArray:
     """Dispatch right before the window given the status at that time.
 
@@ -642,7 +642,8 @@ def define_operational_constraints_for_committables(
         start_up_ce = start_up.sel(name=ce_i)
         status_ce = status.sel(name=ce_i)
         p_init_ce = _dispatch_before(n, c, ce_i, sns, status_before.sel(name=ce_i))
-        active_ce = active.sel(name=ce_i) & ((first == 0) | p_init_ce.notnull())
+        active_ce = active.sel(name=ce_i)
+        active_prev_ce = active_ce & ((first == 0) | p_init_ce.notnull())
 
         p_prev = p_ce.to_linexpr().shift(snapshot=1).fillna(0)
         p_prev = p_prev + p_init_ce.fillna(0) * first
@@ -667,7 +668,7 @@ def define_operational_constraints_for_committables(
             "<=",
             0,
             name=f"{c.name}-com-p-before",
-            mask=active_ce,
+            mask=active_prev_ce,
         )
 
         # dispatch limit for partly start up/shut down for t
@@ -697,7 +698,7 @@ def define_operational_constraints_for_committables(
             "<=",
             0,
             name=f"{c.name}-com-partly-start-up",
-            mask=active_ce,
+            mask=active_prev_ce,
         )
 
         # ramp down if committable is only partly active and some capacity is shutting up
@@ -713,7 +714,7 @@ def define_operational_constraints_for_committables(
             "<=",
             0,
             name=f"{c.name}-com-partly-shut-down",
-            mask=active_ce,
+            mask=active_prev_ce,
         )
 
 
