@@ -1384,6 +1384,8 @@ class NetworkIOMixin(_NetworkABC):
             "iterate_components",
             "_name",
             "_pypsa_version",
+            "_scaling_spec",  # solve-time state
+            "_scaling_factors",
         }
 
         _attrs = {}

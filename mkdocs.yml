@@ -72,6 +72,7 @@ nav:
       - Pathway Planning: user-guide/optimization/pathway-planning.md
       - Stochastic Optimization: user-guide/optimization/stochastic.md
       - Modelling-to-Generate-Alternatives (MGA): user-guide/optimization/modelling-to-generate-alternatives.md
+    - Numerical Scaling: user-guide/optimization/scaling.md
   - Simulation:
     - Power Flow: user-guide/power-flow.md
     - Linear Power Flow: user-guide/linear-power-flow.md
