@@ -211,6 +211,17 @@ def test_stochastic_filters_match_statistics(solved_stochastic, pair, kwargs):
     compare(solved_stochastic, pair, **kwargs)
 
 
+def test_stochastic_grouping_requires_invariant_static_data():
+    n = _ac_dc_network()
+    n.set_scenarios({"low": 0.3, "high": 0.7})
+    n.c.generators.static.loc[("high", "Frankfurt Gas"), "carrier"] = "wind"
+    n.optimize.create_model(consistency_check=False)
+    with pytest.raises(
+        ValueError, match=r"\['Frankfurt Gas'\] in columns \['carrier'\]"
+    ):
+        n.optimize.expressions.capacity(groupby="carrier")
+
+
 def test_operation_matches_dispatch(solved_network):
     """`operation` has no statistics counterpart; check it against the dispatch."""
     n = solved_network

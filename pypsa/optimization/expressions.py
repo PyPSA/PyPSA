@@ -19,6 +19,7 @@ from packaging import version
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa.common import deprecated_kwargs
 from pypsa.components._types.mixin.multiports import _Multiport
+from pypsa.components.common import invariant
 from pypsa.optimization.window import apply_period_weighting
 from pypsa.statistics import (
     get_transmission_branches,
@@ -106,25 +107,6 @@ def _restack_flat_groups(expr: Any) -> Any:
         return expr
     indexed = expr.set_index(group=keys)
     return indexed.rename(group=keys[0]) if len(keys) == 1 else indexed
-
-
-def _drop_scenario(data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
-    """Index static data by name, requiring identical values across scenarios."""
-    if "scenario" not in data.index.names:
-        return data
-    varies = data.groupby(level="name").nunique(dropna=False).gt(1)
-    where = ""
-    if isinstance(varies, pd.DataFrame):
-        where = f" in columns {varies.columns[varies.any()].tolist()}"
-        varies = varies.any(axis=1)
-    if varies.any():
-        msg = (
-            "Grouping and filtering optimization expressions requires static data "
-            "which is identical across scenarios, got differing values for "
-            f"{varies.index[varies].tolist()}{where}."
-        )
-        raise ValueError(msg)
-    return data.groupby(level="name", sort=False).first()
 
 
 def _capacity_expression(
@@ -226,7 +208,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         return obj.indexes["name"]
 
     def _align_static(self, data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
-        return _drop_scenario(data)
+        return invariant(data)
 
     def _select(self, obj: LinearExpression, idx: pd.Index) -> LinearExpression:
         return obj.sel(name=idx)
