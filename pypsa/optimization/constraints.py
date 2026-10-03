@@ -1145,6 +1145,12 @@ def define_ramp_limit_constraints(
         )
 
 
+def _flagged_names(mask: DataArray) -> list[str]:
+    """Names of the assets for which `mask` holds in any scenario."""
+    flagged = mask.any([d for d in mask.dims if d != "name"])
+    return flagged.indexes["name"][flagged.values].tolist()
+
+
 def _get_delay_config(
     c: _Multiport,
 ) -> dict[str, tuple[pd.Series | int, pd.Series | bool]]:
@@ -2214,7 +2220,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     ignored = global_conflict | period_conflict
     if ignored.any():
-        affected = c.active_assets[ignored.values].tolist()
+        affected = _flagged_names(ignored)
         logger.warning(
             "StorageUnits %s: Cyclic state of charge constraint overrules initial storage level setting. "
             "User-defined state_of_charge_initial will be ignored.",
@@ -2227,7 +2233,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
             name=c.active_assets
         ) & c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
         if cp_overrides_c.any():
-            affected = c.active_assets[cp_overrides_c.values].tolist()
+            affected = _flagged_names(cp_overrides_c)
             logger.warning(
                 "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
                 "overrides global cyclic (cyclic_state_of_charge=True). "
@@ -2377,7 +2383,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     ignored = global_conflict | period_conflict
     if ignored.any():
-        affected = c.active_assets[ignored.values].tolist()
+        affected = _flagged_names(ignored)
         logger.warning(
             "Stores %s: Cyclic energy level constraint overrules initial value setting. "
             "User-defined e_initial will be ignored.",
@@ -2390,7 +2396,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
             name=c.active_assets
         ) & c.da.e_cyclic_per_period.sel(name=c.active_assets)
         if cp_overrides_c.any():
-            affected = c.active_assets[cp_overrides_c.values].tolist()
+            affected = _flagged_names(cp_overrides_c)
             logger.warning(
                 "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
                 "overrides global cyclic (e_cyclic=True). "

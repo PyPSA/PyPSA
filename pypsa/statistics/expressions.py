@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 from pandas.api.types import is_list_like
 
 from pypsa._options import options
@@ -28,6 +27,8 @@ from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_por
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
+
+    import xarray as xr
 
     from pypsa import Network, NetworkCollection
     from pypsa.components.components import PortsLike
@@ -94,7 +95,7 @@ def port_efficiency(
         msg = f"port_efficiency has not been implemented for: {c.name}"
         raise NotImplementedError(msg)
 
-    return xr.DataArray(res) if as_xarray else res
+    return c._to_xarray(res, "efficiency") if as_xarray else res
 
 
 def get_transmission_branches(
