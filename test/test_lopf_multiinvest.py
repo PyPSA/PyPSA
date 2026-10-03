@@ -350,6 +350,27 @@ def test_simple_network_storage_cyclic_per_period(n_sus):
     )
 
 
+@pytest.mark.parametrize(
+    ("cyclic", "per_period"),
+    [(False, False), (False, True), (True, False), (True, True)],
+)
+def test_storage_units_to_stores_equivalence(n_sus, cyclic, per_period):
+    static = n_sus.c.storage_units.static
+    static["state_of_charge_initial"] = 0 if cyclic else 200
+    static["cyclic_state_of_charge"] = cyclic
+    static["cyclic_state_of_charge_per_period"] = per_period
+    static["state_of_charge_initial_per_period"] = per_period
+    n_sus.optimize(**kwargs)
+    objective = n_sus.objective
+    e_nom_opt = static.p_nom_opt * static.max_hours
+
+    n_sus.storage_units_to_stores()
+    n_sus.optimize(**kwargs)
+
+    assert n_sus.objective == pytest.approx(objective, rel=1e-6)
+    equal(n_sus.c.stores.static.e_nom_opt[e_nom_opt.index], e_nom_opt, decimal=4)
+
+
 def test_simple_network_store_noncyclic(n_sts):
     n_sts.c.stores.static["e_cyclic"] = False
     n_sts.c.stores.static["e_initial_per_period"] = False

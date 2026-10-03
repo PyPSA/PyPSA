@@ -1,6 +1,7 @@
 attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,Name of bus to which store is attached.,Input (required)
+control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
 type,string,n/a,n/a,Placeholder for store type. Not yet implemented.,Input (optional)
 carrier,string,n/a,,"Carrier of the store.",Input (optional)
 e_nom,float,MWh,0,Nominal energy capacity (i.e. limit on `e`). Ignored if `e_nom_extendable=True`.,Input (optional)
@@ -18,8 +19,13 @@ e_cyclic_per_period,boolean,n/a,False,"Switch: if True, then the cyclic constrai
 p_set,static or series,MW,n/a,Active power set point (for optimisation and power flow),Input (optional)
 q_set,static or series,MVar,0,Reactive power set point (for power flow only),Input (optional)
 e_set,static or series,MWh,NaN,Fixed energy filling level set point (for optimisation only),Input (optional)
+max_hours,float,hours,inf,"Ratio of energy capacity `e_nom` to power capacity. Limits discharging to `p_max_pu * e_nom / max_hours` and charging to `-p_min_pu * e_nom / max_hours`. Infinite by default, i.e. power is unconstrained.",Input (optional)
+p_min_pu,static or series,per unit,-1,"Minimum output per unit of power capacity `e_nom / max_hours`. Negative sign implies storing mode withdrawing power from bus. Only applied if `max_hours` is finite.",Input (optional)
+p_max_pu,static or series,per unit,1,"Maximum output per unit of power capacity `e_nom / max_hours`. Positive sign implies discharging mode injecting power into bus. Only applied if `max_hours` is finite.",Input (optional)
 sign,float,n/a,1,Sign denoting orientation of the energy variable (`e`).,Input (optional)
 marginal_cost,static or piecewise or series,currency/MWh,0,Marginal cost of net dispatch of 1 MWh (positive `p` incurs cost; negative `p` is credited).,Input (optional)
+marginal_cost_dispatch,static or series,currency/MWh,0,Marginal cost of discharging 1 MWh (`p_dispatch`).,Input (optional)
+marginal_cost_store,static or series,currency/MWh,0,Marginal cost of charging 1 MWh (`p_store`).,Input (optional)
 marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost of net dispatch of 1 MWh.,Input (optional)
 marginal_cost_storage,static or series,currency/MWh/h,0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional)
 capital_cost,float,currency/MWh,0,"Fixed period costs of extending `e_nom` by 1 MWh (e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified.",Input (optional)
@@ -27,10 +33,17 @@ overnight_cost,float,currency/MWh,NaN,"Overnight (upfront) investment cost per M
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MWh,0,"Fixed period operation and maintenance costs per MWh, added to annuitized investment cost.",Input (optional)
 standing_loss,static or series,per unit,0,Losses per hour to energy level.,Input (optional)
+efficiency_store,static or series,per unit,1,Efficiency of storage on the way into the storage.,Input (optional)
+efficiency_dispatch,static or series,per unit,1,Efficiency of storage on the way out of the storage.,Input (optional)
+inflow,static or series,MW,0,Inflow to the energy level (e.g. due to river inflow in hydro reservoir).,Input (optional)
+spill_cost,static or series,currency/MWh,0,Cost of spilling 1 MWh,Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
 build_year,int,year,0,Build year,Input (optional)
 lifetime,float,years,inf,Lifetime,Input (optional)
 p,series,MW,0,Power at bus (positive if net supply),Output
+p_dispatch,series,MW,0,Active power dispatch at bus,Output
+p_store,series,MW,0,Active power charging at bus,Output
+spill,series,MW,0,Spillage for each snapshot (e.g. hydro-dam letting water flow over the spillway without generating electricity).,Output
 q,series,MVar,0,Reactive power (positive if net supply),Output
 e,series,MWh,0,Energy level of store as calculated by the optimisation.,Output
 e_nom_opt,float,MWh,0,Optimised nominal energy capacity outputed by optimisation.,Output

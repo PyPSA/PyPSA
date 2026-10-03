@@ -267,7 +267,13 @@ def define_objective(
 
     # marginal costs, marginal storage cost, and spill cost
 
-    for cost_type in ["marginal_cost", "marginal_cost_storage", "spill_cost"]:
+    for cost_type in [
+        "marginal_cost",
+        "marginal_cost_dispatch",
+        "marginal_cost_store",
+        "marginal_cost_storage",
+        "spill_cost",
+    ]:
         for c_name, attr in lookup.query(cost_type).index:
             c = as_components(n, c_name)
 
@@ -816,8 +822,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 n, sns, c, attr
             )
 
-        define_spillage_variables(n, sns)
-        define_operational_variables(n, sns, "Store", "p")
+        for c in ("StorageUnit", "Store"):
+            define_spillage_variables(n, sns, c)
         define_phase_shift_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
@@ -850,8 +856,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # Handle StorageUnit p_set separately (fixes p_dispatch - p_store = p_set)
         define_fixed_operation_constraints(n, sns, "StorageUnit", "p")
-        # Handle Store p_set
-        define_fixed_operation_constraints(n, sns, "Store", "p")
 
         thresholds = (
             sorted(set(meshed_thresholds))
@@ -1143,6 +1147,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 storage_units.dynamic["p_dispatch"] - storage_units.dynamic["p_store"]
             )
 
+        # Split store net dispatch by sign where no charging variable was needed
+        stores = n.c.stores
+        if not stores.empty:
+            split = stores.split_dispatch().to_series()
+            p, p_store = stores.dynamic["p"], stores.dynamic["p_store"]
+            single = p.columns.intersection(split.index[~split])
+            p_store.loc[:, single] = -p[single].clip(upper=0)
+            stores.dynamic["p_dispatch"] = p + p_store
+
         n._objective = m.objective.value
 
     def assign_duals(self, assign_all_duals: bool = False) -> None:
@@ -1208,6 +1221,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 # component name instead of attribute name
                 if c.name == "GlobalConstraint":
                     dual_spec = suffix
+
+                # `mu_upper`/`mu_lower` refer to the bounds of the base operational
+                # variable; bounds of further variables (e.g. store power) get
+                # their own name, e.g. "Store-fix-p-upper" -> "mu_p_upper"
+                parts = suffix.split("-")
+                if (
+                    len(parts) == 3
+                    and parts[0] in ("fix", "ext")
+                    and parts[1] != c._operational_attrs["base"]
+                    and f"{c.name}-{c._operational_attrs['base']}" in m.variables
+                ):
+                    dual_spec = f"{parts[1]}_{parts[2]}"
 
                 # Handle special cases for dual attribute name
 
