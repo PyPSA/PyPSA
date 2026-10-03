@@ -292,3 +292,71 @@ def test_rolling_horizon_linearized_uc_with_ramp_limits():
     static = n.c.generators.static.loc[committable_gens]
     ramp_limits = static.eval("ramp_limit_up * p_nom_opt")
     assert (ramping.values <= ramp_limits.values[None, :] + 1e-5).all()
+
+
+@pytest.mark.parametrize("linearized", [False, True], ids=["milp", "linearized"])
+def test_rolling_horizon_unit_commitment_seams(linearized):
+    """Regression test for issue #1905.
+
+    Start-ups, shut-downs and minimum up/down times stay consistent with the
+    commitment status across window seams, also for fractional statuses.
+    """
+    n = pypsa.Network(snapshots=range(48))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        marginal_cost=50,
+        p_nom=100,
+        p_min_pu=0.3,
+        committable=True,
+        min_up_time=4,
+        min_down_time=4,
+        start_up_cost=10000,
+        shut_down_cost=5000,
+        up_time_before=0,
+        down_time_before=10,
+    )
+    availability = [0.8 if i % 24 < 12 else 0.3 for i in range(48)]
+    n.add("Generator", "renewable", bus="bus", p_nom=80, p_max_pu=availability)
+    load = [55.0] * 16 + [70.0] * 8 + [45.0, 55.0] * 4 + [35.0] * 16
+    n.add("Load", "load", bus="bus", p_set=load)
+
+    n.optimize.optimize_with_rolling_horizon(
+        linearized_unit_commitment=linearized, horizon=24, overlap=8
+    )
+
+    status = n.c.generators.dynamic.status["gen"]
+    start_up = n.c.generators.dynamic.start_up["gen"]
+    shut_down = n.c.generators.dynamic.shut_down["gen"]
+    switch = status.diff().fillna(status.iloc[0])
+    assert np.allclose(start_up, switch.clip(lower=0), atol=1e-6)
+    assert np.allclose(shut_down, (-switch).clip(lower=0), atol=1e-6)
+    assert (start_up.rolling(4, min_periods=1).sum() <= status + 1e-6).all()
+    assert (shut_down.rolling(4, min_periods=1).sum() <= 1 - status + 1e-6).all()
+    assert shut_down.sum() > 0
+
+
+@pytest.mark.parametrize("overlap", [0, 1])
+@pytest.mark.parametrize(
+    ("gen", "attr", "limit"),
+    [("gas", "e_sum_min", 1500.0), ("coal", "e_sum_max", 3000.0)],
+)
+def test_rolling_horizon_e_sum(gen, attr, limit, overlap):
+    """Regression test for issue #1769.
+
+    Volume limits refer to the whole horizon and are met exactly once, not
+    once per window.
+    """
+    n = pypsa.Network(snapshots=range(12))
+    n.add("Bus", "bus")
+    n.add("Generator", "coal", bus="bus", marginal_cost=20, p_nom=1000)
+    n.add("Generator", "gas", bus="bus", marginal_cost=40, p_nom=1000)
+    n.add("Load", "load", bus="bus", p_set=[400, 600, 500, 800] * 3)
+    n.c.generators.static.loc[gen, attr] = limit
+
+    n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=overlap)
+
+    assert n.c.generators.dynamic.p[gen].sum() == pytest.approx(limit)
+    assert n.c.generators.static.loc[gen, attr] == limit

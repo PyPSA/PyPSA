@@ -556,6 +556,17 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
     ) -> Network:
         """Optimizes the network in a rolling horizon fashion.
 
+        Each window starts from the state left by the previous one: the storage
+        levels of stores and storage units, and the dispatch and commitment
+        status of all components for the ramp and unit commitment constraints.
+
+        Finite `e_sum_min` and `e_sum_max` limits of generators refer to the
+        whole set of `snapshots`. Each window is given the part of them that is
+        still open: the energy produced in previous windows is subtracted, and so
+        is the energy that can at most (`e_sum_min`) or must at least
+        (`e_sum_max`) be produced in later windows. Without foresight the
+        resulting dispatch pattern depends on the order of the windows.
+
         Parameters
         ----------
         snapshots : list-like
@@ -576,37 +587,76 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
-        starting_points = range(0, len(snapshots), horizon - overlap)
-        for i, start in enumerate(starting_points):
-            end = min(len(snapshots), start + horizon)
-            sns = snapshots[start:end]
-            logger.info(
-                "Optimizing network for snapshot horizon [%s:%s] (%s/%s).",
-                sns[0],
-                sns[-1],
-                i + 1,
-                len(starting_points),
+        c = n.c.generators
+        limits = {
+            attr: c.static[attr].copy()
+            for attr in ("e_sum_min", "e_sum_max")
+            if np.isfinite(c.static[attr]).any()
+        }
+        if limits:
+            logger.warning(
+                "Generator %s limits are tracked across the rolling horizon "
+                "without foresight: each window only sees what previous windows "
+                "left open. The dispatch pattern depends on the window order.",
+                " and ".join(limits),
             )
+            weights = n.snapshot_weightings.generators.loc[snapshots]
+            ext = c.static.p_nom_extendable
+            nom_min = c.static.p_nom.where(~ext, c.static.p_nom_min)
+            nom_max = c.static.p_nom.where(~ext, c.static.p_nom_max)
+            e_min = c._as_dynamic("p_min_pu", snapshots) * nom_min
+            e_max = c._as_dynamic("p_max_pu", snapshots) * nom_max
+            e_min = e_min.mul(weights, axis=0).fillna(0.0)
+            e_max = e_max.mul(weights, axis=0).fillna(0.0)
 
-            if i:
-                if not n.c.stores.static.empty:
-                    n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
-                        snapshots[start - 1]
-                    ].values
-                if not n.c.storage_units.static.empty:
-                    n.c.storage_units.static.state_of_charge_initial = (
-                        n.c.storage_units.dynamic.state_of_charge.loc[
+        starting_points = range(0, len(snapshots), horizon - overlap)
+        try:
+            for i, start in enumerate(starting_points):
+                end = min(len(snapshots), start + horizon)
+                sns = snapshots[start:end]
+                logger.info(
+                    "Optimizing network for snapshot horizon [%s:%s] (%s/%s).",
+                    sns[0],
+                    sns[-1],
+                    i + 1,
+                    len(starting_points),
+                )
+
+                if i:
+                    if not n.c.stores.static.empty:
+                        n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
                             snapshots[start - 1]
                         ].values
+                    if not n.c.storage_units.static.empty:
+                        n.c.storage_units.static.state_of_charge_initial = (
+                            n.c.storage_units.dynamic.state_of_charge.loc[
+                                snapshots[start - 1]
+                            ].values
+                        )
+                if limits:
+                    done, rest = snapshots[:start], snapshots[end:]
+                    p = c.dynamic.p.reindex(
+                        index=done, columns=c.static.index, fill_value=0.0
                     )
+                    produced = p.mul(weights.loc[done], axis=0).sum()
+                    if "e_sum_min" in limits:
+                        open_min = limits["e_sum_min"] - produced
+                        c.static["e_sum_min"] = open_min - e_max.loc[rest].sum()
+                    if "e_sum_max" in limits:
+                        open_max = limits["e_sum_max"] - produced
+                        open_max = open_max - e_min.loc[rest].sum()
+                        c.static["e_sum_max"] = open_max.clip(lower=0.0)
 
-            status, condition = n.optimize(sns, **kwargs)
-            if status != "ok":
-                logger.warning(
-                    "Optimization failed with status %s and condition %s",
-                    status,
-                    condition,
-                )
+                status, condition = n.optimize(sns, **kwargs)
+                if status != "ok":
+                    logger.warning(
+                        "Optimization failed with status %s and condition %s",
+                        status,
+                        condition,
+                    )
+        finally:
+            for attr, orig in limits.items():
+                c.static[attr] = orig
         return n
 
     def optimize_and_run_non_linear_powerflow(
