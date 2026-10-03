@@ -22,6 +22,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix copying networks with sub-networks or multi-indexed snapshots. [`n.copy()`][pypsa.Network.copy], `copy.deepcopy` and pickling now give the copy its own sub-networks, linked to the copy. Before, the copy shared the original sub-networks and relinked them, so the original was modified. `copy.copy` no longer relinks the sub-networks of the original either. Copies keep the name of multi-indexed snapshots, so a copied multi-period network can be optimised. Resolves [#1930](https://github.com/PyPSA/PyPSA/issues/1930) and [#1937](https://github.com/PyPSA/PyPSA/issues/1937).
+- Fix [`n.copy(snapshots=...)`][pypsa.Network.copy] failing for networks with a non-default coordinate reference system.
+- Fix [`n.copy()`][pypsa.Network.copy] raising for multi-period networks when only `snapshots` or only `investment_periods` is given. The copy now selects the matching investment periods or snapshots.
+- Behavior change: [`n.copy()`][pypsa.Network.copy] now copies `n.meta` instead of sharing it with the original.
 - Fix the carrier `max_growth` and `max_relative_growth` constraints counting an asset again in every period after it retires. An asset is now counted only in its build period. Resolves [#1938](https://github.com/PyPSA/PyPSA/issues/1938).
 - Fix optimisation failing with a `KeyError` when quadratic marginal costs are used alongside inactive components. Quadratic costs now include only active assets. Resolves [#1956](https://github.com/PyPSA/PyPSA/issues/1956).
 - Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] raising an `UnboundLocalError` for `primary_energy` and `operational_limit` [GlobalConstraint](./user-guide/components/global-constraints.md) components with an `investment_period` on networks without investment periods. This now raises a `ValueError`, as for the expansion limit types. (<!-- md:pr 1961 -->)
