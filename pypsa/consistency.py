@@ -18,7 +18,7 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa._options import options
-from pypsa.constants import RE_PORTS_FILTER, RE_PORTS_GE_2
+from pypsa.constants import RE_INVARIANT_ATTRS, RE_PORTS_FILTER, RE_PORTS_GE_2
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
@@ -1170,39 +1170,16 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
     if not n.has_scenarios:
         return
 
-    # Attributes that must be identical across all scenarios
-    INVARIANT_ATTRS = {
-        "name",
-        "bus",
-        # "control" is excluded - different buses can have different control types across scenarios
-        # but we ensure consistent slack bus selection separately
-        "type",
-        "p_nom_extendable",  # changes mathematical problem
-        "s_nom_extendable",
-        "e_nom_extendable",
-        "p_nom_mod",  # modular investment is first-stage decision
-        "s_nom_mod",
-        "e_nom_mod",
-        "committable",  # changes mathematical problem
-        "sign",
-        "carrier",
-        "weight",
-        "p_nom_opt",  # optimization result
-        "s_nom_opt",
-        "e_nom_opt",
-        "build_year",
-        "lifetime",
-        "active",  # theoretically can be different, but problematic with "Line"
-    }
-
     for component in n.components:
         if component.static.index.nlevels < 2:
             continue  # No scenario dimension
 
         # Get attributes that exist for this component and are in invariant list
-        component_invariant_attrs = INVARIANT_ATTRS.intersection(
-            component.static.columns
-        )
+        component_invariant_attrs = {
+            attr
+            for attr in component.static.columns
+            if RE_INVARIANT_ATTRS.fullmatch(attr)
+        }
 
         if not component_invariant_attrs:
             continue

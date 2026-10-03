@@ -1682,7 +1682,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     and not com_i.empty
                 ):
                     cost = n.get_switchable_as_dense(c, cost_type, inds=com_i)
-                    var = n.c[c].dynamic[attr].loc[:, com_i]
+                    var = n.c[c].dynamic[attr].loc[:, cost.columns]
                     cost_piecewise_opt = n.c[c].dynamic.get(
                         f"{cost_type}_piecewise_opt", 0
                     )

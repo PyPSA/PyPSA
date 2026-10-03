@@ -9,21 +9,22 @@ from __future__ import annotations
 import logging
 import re
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 from linopy import merge
 from xarray import DataArray
 
+from pypsa.components.common import invariant
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import define_piecewise
 from pypsa.optimization.window import apply_period_weighting
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
-    from pypsa import Network
+    from pypsa import Components, Network
     from pypsa.optimization.piecewise import PiecewiseOptions
 logger = logging.getLogger(__name__)
 
@@ -247,16 +248,8 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         if "carrier" not in static:
             continue
 
-        component_carriers = static.loc[:, "carrier"]
-
-        if n.has_scenarios:
-            unique_component_names = n.components[c].names
-            carrier_map = component_carriers.groupby(level="name").first()
-        else:
-            unique_component_names = static.index
-            carrier_map = component_carriers
-
-        carriers_match = unique_component_names[carrier_map.isin(carrier_i)]
+        carrier_map = invariant(static["carrier"])
+        carriers_match = carrier_map.index[carrier_map.isin(carrier_i)]
         limited_names = carriers_match.intersection(
             n.c[c].filter_by_active_assets(n.c[c].extendables)
         )
@@ -268,11 +261,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         active = pd.concat(
             {p: n.components[c].get_active_assets(p) for p in periods}, axis=1
         )
-
-        if n.has_scenarios:
-            active = active.groupby(level="name").first()
-
-        active = active.loc[limited_names].rename_axis(columns="periods").T
+        active = invariant(active).loc[limited_names].rename_axis(columns="periods").T
         first_active = DataArray(active & (active.cumsum() == 1))
         carriers = carrier_map.loc[limited_names].rename("Carrier")
 
@@ -763,6 +752,84 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
         )
 
 
+def _define_transmission_expansion_limit(
+    n: Network,
+    sns: Sequence,
+    kind: str,
+    coefficient: Callable[[Components, pd.Index, Any, Any], pd.Series],
+) -> None:
+    """Add per-scenario limits on weighted Line and Link nominal capacities.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to apply constraints to.
+    sns : list-like
+        Set of snapshots to which the constraint should be applied.
+    kind : str
+        Global constraint type.
+    coefficient : callable
+        Returns the coefficients of the extendable assets for a component, asset
+        names, scenario selector and investment period filter.
+
+    """
+    m = n.model
+    glcs = n.c.global_constraints.static.query(f"type == '{kind}'")
+    if glcs.empty:
+        return
+
+    window = n.optimize._window.subset(sns)
+
+    for name in glcs.index.unique("name"):
+        if n.has_scenarios:
+            group = glcs.xs(name, level="name")
+            rows = list(group.iterrows())
+        else:
+            rows = [(slice(None), glcs.loc[name])]
+
+        scenarios, expressions = [], []
+        for scenario, glc in rows:
+            carrier_attribute = re.sub(r"[\[\]\(\)]", "", glc.carrier_attribute)
+            car = [s.strip() for s in carrier_attribute.split(",")]
+            if not np.isnan(glc.investment_period):
+                period_filter = glc.investment_period
+            elif window.has_periods:
+                period_filter = list(window.periods)
+            else:
+                period_filter = None
+
+            lhs = []
+            for c in n.components[["Line", "Link"]]:
+                carriers = invariant(c.static.carrier)
+                ext_i = c.extendables.intersection(carriers.index[carriers.isin(car)])
+                ext_i = c.filter_by_active_assets(ext_i, period_filter)
+                if ext_i.empty:
+                    continue
+                coeff = coefficient(c, ext_i, scenario, period_filter)
+                vars = m[f"{c.name}-{nominal_attrs[c.name]}"].loc[ext_i]
+                lhs.append(m.linexpr((coeff, vars)).sum())
+
+            if lhs:
+                scenarios.append(scenario)
+                expressions.append(merge(lhs))
+
+        if not expressions:
+            continue
+
+        if n.has_scenarios:
+            scenario_i = pd.Index(scenarios, name="scenario")
+            expression = merge(expressions, dim="scenario")
+            expression = expression.assign_coords(scenario=scenario_i)
+            glc = group.loc[scenario_i]
+        else:
+            expression = expressions[0]
+            glc = rows[0][1]
+
+        m.add_constraints(
+            expression, glc.sense, glc.constant, name=f"GlobalConstraint-{name}"
+        )
+
+
 def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> None:
     """Set a limit for line volume expansion.
 
@@ -776,103 +843,13 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
         Set of snapshots to which the constraint should be applied.
 
     """
-    m = n.model
-    glcs = n.c.global_constraints.static.query(
-        "type == 'transmission_volume_expansion_limit'"
+
+    def length(c: Components, ext_i: pd.Index, scenario: Any, _: Any) -> pd.Series:
+        return c.static.length.loc[scenario].reindex(ext_i)
+
+    _define_transmission_expansion_limit(
+        n, sns, "transmission_volume_expansion_limit", length
     )
-
-    def substr(s: str) -> str:
-        return re.sub("[\\[\\]\\(\\)]", "", s)
-
-    # Create one constraint per name, optionally with a scenario dimension
-    if glcs.empty:
-        return
-
-    unique_names = (
-        glcs.index.unique("name")
-        if isinstance(glcs.index, pd.MultiIndex)
-        else glcs.index.unique()
-    )
-
-    for name in unique_names:
-        if n.has_scenarios:
-            glc_group = glcs.xs(name, level="name")
-            scenarios = glc_group.index.get_level_values("scenario")
-        else:
-            glc_group = glcs.loc[name]
-            scenarios = [slice(None)]
-
-        expressions = []
-        for scenario in scenarios:
-            glc = glc_group.loc[scenario]
-
-            lhs = []
-            # fmt: off
-            car = [substr(c.strip()) for c in  # noqa: F841
-                   glc.carrier_attribute.split(",")]
-            # fmt: on
-            period = glc.investment_period
-
-            # Determine periods for active asset filtering
-            window = n.optimize._window.subset(sns)
-            if not np.isnan(period):
-                period_filter = period
-            elif window.has_periods:
-                period_filter = list(window.periods)
-            else:
-                period_filter = None
-
-            for c in n.components[["Line", "Link"]]:
-                attr = nominal_attrs[c.name]
-
-                # Filter by carrier, handling scenarios (MultiIndex) if present
-                if n.has_scenarios and isinstance(c.static.index, pd.MultiIndex):
-                    eligible_by_carrier = (
-                        c.static.query("carrier in @car")
-                        .groupby(level="name")
-                        .first()
-                        .index
-                    )
-                else:
-                    eligible_by_carrier = c.static.query("carrier in @car").index
-
-                ext_i = c.extendables.intersection(eligible_by_carrier)
-                ext_i = c.filter_by_active_assets(ext_i, period_filter)
-
-                if ext_i.empty:
-                    continue
-
-                # Length per name (collapse scenario level if present)
-                if n.has_scenarios and isinstance(c.static.index, pd.MultiIndex):
-                    length = (
-                        c.static.length.groupby(level="name").first().reindex(ext_i)
-                    )
-                else:
-                    length = c.static.length.reindex(ext_i)
-
-                vars = m[f"{c.name}-{attr}"].loc[ext_i]
-                lhs.append(m.linexpr((length, vars)).sum())
-
-            if not lhs:
-                continue
-
-            expr = merge(lhs)
-            expressions.append(expr)
-
-        if not expressions:
-            continue
-
-        if n.has_scenarios:
-            expression = merge(expressions, dim="scenario").assign_coords(
-                scenario=scenarios
-            )
-        else:
-            expression = expressions[0]
-
-        sign = glc_group.sense
-        rhs = glc_group.constant
-
-        m.add_constraints(expression, sign, rhs, name=f"GlobalConstraint-{name}")
 
 
 def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
@@ -888,69 +865,19 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         Set of snapshots to which the constraint should be applied.
 
     """
-    m = n.model
-    glcs = n.c.global_constraints.static.query(
-        "type == 'transmission_expansion_cost_limit'"
+    weightings = n.investment_period_weightings.objective
+
+    def cost(
+        c: Components, ext_i: pd.Index, scenario: Any, period_filter: Any
+    ) -> pd.Series:
+        capital_cost = c.capital_cost.loc[scenario].reindex(ext_i)
+        if not isinstance(period_filter, list):
+            return capital_cost
+        active = pd.DataFrame(
+            {p: ext_i.isin(c._active_names(p)) for p in period_filter}, index=ext_i
+        )
+        return capital_cost * (active @ weightings[period_filter])
+
+    _define_transmission_expansion_limit(
+        n, sns, "transmission_expansion_cost_limit", cost
     )
-    if glcs.empty:
-        return
-
-    window = n.optimize._window.subset(sns)
-    if n._multi_invest:
-        periods = window.periods
-        period_weighting = n.investment_period_weightings.objective[periods]
-
-    def substr(s: str) -> str:
-        return re.sub("[\\[\\]\\(\\)]", "", s)
-
-    for name, glc in glcs.iterrows():
-        lhs = []
-        # fmt: off
-        car = [substr(c.strip()) for c in  # noqa: F841
-               glc.carrier_attribute.split(",")]
-        # fmt: on
-        period = glc.investment_period
-
-        # Determine periods for active asset filtering and cost weighting
-        if not np.isnan(period):
-            period_filter = period
-            weights = 1
-        elif window.has_periods:
-            period_filter = list(window.periods)
-            weights = None  # computed per component below
-        else:
-            period_filter = None
-            weights = 1
-
-        for c in n.components[["Line", "Link"]]:
-            attr = nominal_attrs[c.name]
-
-            ext_i = c.extendables.intersection(c.static.query("carrier in @car").index)
-            ext_i = c.filter_by_active_assets(ext_i, period_filter)
-
-            if ext_i.empty:
-                continue
-
-            # For multi-period, weight costs by active periods
-            if weights is None:
-                active = pd.concat(
-                    {
-                        p: c.get_active_assets(investment_period=p)[ext_i]
-                        for p in period_filter
-                    },
-                    axis=1,
-                )
-                comp_weights = active @ period_weighting
-            else:
-                comp_weights = weights
-
-            cost = c.capital_cost.reindex(ext_i) * comp_weights
-            vars = m[f"{c.name}-{attr}"].loc[ext_i]
-            lhs.append(m.linexpr((cost, vars)).sum())
-
-        if not lhs:
-            continue
-
-        lhs = merge(lhs)
-        sign = "=" if glc.sense == "==" else glc.sense
-        m.add_constraints(lhs, sign, glc.constant, name=f"GlobalConstraint-{name}")
