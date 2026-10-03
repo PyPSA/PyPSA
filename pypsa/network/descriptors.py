@@ -130,7 +130,8 @@ class NetworkDescriptorsMixin(_NetworkABC):
         snapshots : pandas.Index
             Restrict to these snapshots rather than n.snapshots.
         inds : pandas.Index
-            Restrict to these components rather than n.components.index
+            Restrict to these component names rather than all components. For
+            stochastic networks, the names are selected in all scenarios.
 
         Returns
         -------
@@ -168,7 +169,8 @@ class NetworkDescriptorsMixin(_NetworkABC):
         snapshots : pandas.Index
             Restrict to these snapshots rather than n.snapshots.
         inds : pandas.Index
-            Restrict to these items rather than all of n.{generators, ..}.index
+            Restrict to these component names rather than all components. For
+            stochastic networks, the names are selected in all scenarios.
 
         Returns
         -------
@@ -196,10 +198,10 @@ class NetworkDescriptorsMixin(_NetworkABC):
         fixed_i = static.index.difference(varying_i)
 
         if inds is not None:
-            inds = pd.Index(inds)
-            index = inds.intersection(index)
-            varying_i = inds.intersection(varying_i)
-            fixed_i = inds.intersection(fixed_i)
+            index, varying_i, fixed_i = (
+                i[i.get_level_values("name").isin(inds)]
+                for i in (index, varying_i, fixed_i)
+            )
 
         # Short-circuit only fixed
         if len(varying_i) == 0:
