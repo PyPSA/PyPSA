@@ -1552,7 +1552,9 @@ def _optimised_phase_shifts(m: Model) -> pd.Index:
     return m[PHASE_SHIFT].indexes["name"]
 
 
-def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
+def define_kirchhoff_voltage_constraints(
+    n: Network, sns: pd.Index, cycle_basis_method: str = "bfs-refined"
+) -> None:
     """Define Kirchhoff's Voltage Law constraints for networks.
 
     Creates constraints ensuring that the sum of potential differences across
@@ -1579,6 +1581,9 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
+    cycle_basis_method : str, default "bfs-refined"
+        Method used to construct the cycle basis underlying the constraints,
+        either ``"bfs-refined"`` or ``"paton"``.
 
     Notes
     -----
@@ -1609,7 +1614,11 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     deg_to_rad = np.pi / 180.0
     lhs_parts = []
     for period, snapshots in window.iter_periods():
-        C_weighted = n.cycle_matrix(investment_period=period, apply_weights=True)
+        C_weighted = n.cycle_matrix(
+            investment_period=period,
+            apply_weights=True,
+            cycle_basis_method=cycle_basis_method,
+        )
         if C_weighted.empty:
             continue
 
@@ -1623,7 +1632,11 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         lhs_period = sum(exprs)
 
         if "Transformer" in C_weighted.index.unique("type"):
-            C_plain = n.cycle_matrix(investment_period=period, apply_weights=False)
+            C_plain = n.cycle_matrix(
+                investment_period=period,
+                apply_weights=False,
+                cycle_basis_method=cycle_basis_method,
+            )
             C_trafos = C_plain.loc["Transformer"]
 
             tr = n.c.Transformer
