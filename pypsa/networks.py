@@ -1256,7 +1256,9 @@ class Network(
                 logger.warning(
                     "Warning, sub network %d is not electric but "
                     "contains multiple buses\nand branches. Passive "
-                    "flows are not allowed for non-electric networks!",
+                    "flows are not allowed for non-electric networks! "
+                    'Use "AC" or "DC" as carrier ("electricity" will '
+                    "not work).",
                     i,
                 )
 
@@ -1380,7 +1382,9 @@ class Network(
             is_ac = branches.sub_network.map(self.c.sub_networks.static.carrier) == "AC"
             weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
             weights = weights[cycles_df.index]
-            cycles_df = cycles_df.multiply(weights, axis=0)
+            cycles_df = cycles_df.where(
+                cycles_df == 0, cycles_df.multiply(weights, axis=0)
+            )
 
         # Reindex to include all branches (even those not in cycles)
         return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
@@ -1907,12 +1911,12 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     @deprecated(
         deprecated_in="1.0.0",
         removed_in="2.0.0",
-        details="Use `sub_network.components.stores.index.static` instead.",
+        details="Use `sub_network.components.stores.static.index` instead.",
     )
     def stores_i(self) -> pd.Index:
         """Get the index of the stores in the sub-network.
 
-        !!! warning "Deprecated in <!-- md:badge-version
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
 
             Use `sub_network.components.stores.static.index` instead.
 
@@ -2021,7 +2025,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     @deprecated(
         deprecated_in="1.0.0",
         removed_in="2.0.0",
-        details="Use `!!! deprecated.components.stores.static` instead.",
+        details="Use `sub_network.components.stores.static` instead.",
     )
     def stores(self) -> pd.DataFrame:
         """Get the stores in the sub-network.

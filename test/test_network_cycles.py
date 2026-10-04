@@ -490,3 +490,24 @@ def test_weighted_cycles_dc_network() -> None:
             r_value = n.c.lines.static.at[line, "r_pu_eff"]
             weighted_val = cycles_weighted.loc[line_idx, col]
             assert np.isclose(weighted_val, r_value * unweighted_val)
+
+
+@pytest.mark.parametrize(("carrier", "attr"), [("AC", "x"), ("DC", "r")])
+def test_weighted_cycles_infinite_impedance_outside_cycle(
+    carrier: str, attr: str
+) -> None:
+    n = pypsa.Network()
+    n.add("Bus", ["a", "b", "c", "d"], carrier=carrier)
+    n.add(
+        "Line",
+        ["ab", "bc", "ca", "cd"],
+        bus0=["a", "b", "c", "c"],
+        bus1=["b", "c", "a", "d"],
+        s_nom=100,
+    )
+    n.c.lines.static[attr] = [0.1, 0.1, 0.1, np.inf]
+
+    cycles = n.cycle_matrix(apply_weights=True)
+
+    assert (cycles.loc[("Line", "cd")] == 0).all()
+    assert (cycles.drop(("Line", "cd")) != 0).all().all()
