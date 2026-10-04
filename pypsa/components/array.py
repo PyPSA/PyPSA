@@ -364,22 +364,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         return self._to_xarray(data, attr)
 
     def _to_xarray(self, data: pd.Series | pd.DataFrame, name: str) -> xr.DataArray:
-        """Convert component data indexed like `static` or `dynamic` to a DataArray.
-
-        Parameters
-        ----------
-        data : pd.Series | pd.DataFrame
-            Static data indexed by name (and scenario) or dynamic data with
-            snapshots as rows and names (and scenarios) as columns.
-        name : str
-            Name of the returned DataArray.
-
-        Returns
-        -------
-        xr.DataArray
-            Data with dimensions `name` (and `snapshot`, `scenario`).
-
-        """
+        """Convert component data indexed like `static` or `dynamic` to a DataArray."""
         res = xr.DataArray(_strings_to_object(data))
 
         # Unstack the dimension that contains the scenarios
