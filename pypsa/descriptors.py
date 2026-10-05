@@ -18,7 +18,7 @@ from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.constants import RE_PORTS_GE_2
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable, Iterator, Sequence
 
     from pypsa import Network, SubNetwork
     from pypsa.type_utils import NetworkType
@@ -59,7 +59,7 @@ def get_switchable_as_iter(
     attr: str,
     snapshots: Sequence,
     inds: pd.Index | None = None,
-) -> pd.DataFrame:
+) -> Iterator[pd.Series]:
     """Return an iterator over snapshots for a time-varying component attribute.
 
     Deprecation

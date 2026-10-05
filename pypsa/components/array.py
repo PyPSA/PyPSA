@@ -265,7 +265,9 @@ class ComponentsArrayMixin(_ComponentsABC):
             Restrict to these snapshots rather than n.snapshots.
         inds : pandas.Index
             Restrict to these component names rather than all components. For
-            stochastic networks, the names are selected in all scenarios.
+            stochastic networks, the names are selected in all scenarios. The
+            result follows the order of the component's static table, not the
+            order of `inds`. Duplicates and unknown names are dropped.
 
         Returns
         -------
