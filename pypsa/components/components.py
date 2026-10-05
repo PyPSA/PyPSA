@@ -334,9 +334,7 @@ class Components(
         """
         return len(self.static)
 
-    def equals(
-        self, other: Any, log_mode: str = "silent", ignored_classes: Any = None
-    ) -> bool:
+    def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check if two Components are equal.
 
         <!-- md:badge-version v0.33.0 -->
@@ -353,8 +351,6 @@ class Components(
             - 'silent': No logging, just returns True/False
             - 'verbose': Prints differences but doesn't raise errors
             - 'strict': Raises ValueError on first difference
-        ignored_classes : Any, default=None
-            Classes to ignore during comparison, e.g. in object columns.
 
         Raises
         ------
@@ -376,15 +372,13 @@ class Components(
         True
 
         """
-        pairs = {
-            "ctype": (self.ctype, other.ctype),
-            "static": (self.static, other.static),
-            "dynamic": (self.dynamic, other.dynamic),
-            "piecewise": (self.piecewise, other.piecewise),
-        }
-        return all(
-            equals(a, b, ignored_classes, log_mode, f"c.{attr}")
-            for attr, (a, b) in pairs.items()
+        return (
+            equals(self.ctype, other.ctype, log_mode=log_mode, path="c.ctype")
+            and equals(self.static, other.static, log_mode=log_mode, path="c.static")
+            and equals(self.dynamic, other.dynamic, log_mode=log_mode, path="c.dynamic")
+            and equals(
+                self.piecewise, other.piecewise, log_mode=log_mode, path="c.piecewise"
+            )
         )
 
     @staticmethod

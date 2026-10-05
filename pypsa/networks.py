@@ -538,6 +538,9 @@ class Network(
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check for equality of two networks.
 
+        Sub-networks are not compared, since they are derived from the other
+        components. The `sub_network` columns of buses and branches are compared.
+
         Parameters
         ----------
         other : Any
@@ -576,14 +579,19 @@ class Network(
             AbstractStatisticsAccessor,
             linopy.Model,
             SnapshotWindow,
-            SubNetwork,
         ]
         not_equal = False
         if isinstance(other, self.__class__):
             for key, value in self.__dict__.items():
+                other_value = other.__dict__[key]
+                if key == "_components":
+                    value = {k: v for k, v in value.items() if k != "sub_networks"}
+                    other_value = {
+                        k: v for k, v in other_value.items() if k != "sub_networks"
+                    }
                 if not equals(
                     value,
-                    other.__dict__[key],
+                    other_value,
                     ignored_classes=ignore,
                     log_mode=log_mode,
                     path="n." + key,

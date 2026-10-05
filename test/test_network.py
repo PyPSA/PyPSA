@@ -653,6 +653,19 @@ def test_copy_relinks_sub_networks(request, network, method):
         assert sub is not sub_copy
         assert sub.n is n
         assert sub_copy.n is n_copy
+    assert n.equals(n_copy) == (method != "copy_snapshots")
+
+
+@pytest.mark.parametrize("network", ["ac_dc_network", "ac_dc_stochastic"])
+def test_equals_skips_sub_networks(request, network):
+    """Networks differ in topology columns and component data, not in SubNetworks."""
+    n = request.getfixturevalue(network)
+    n_without_topology = n.copy()
+    n.determine_network_topology()
+    n_other_lines = n.copy()
+    n_other_lines.c.lines.static["x"] *= 2
+    assert not n.equals(n_without_topology)
+    assert not n.equals(n_other_lines)
 
 
 def test_shallow_copy_keeps_original_sub_networks(ac_dc_network):

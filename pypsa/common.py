@@ -377,14 +377,6 @@ def equals(
     elif isinstance(a, pd.DataFrame | pd.Series | pd.Index):
         if a.empty and b.empty:
             return True
-        if ignored_classes is not None and isinstance(a, pd.DataFrame):
-            ignored = [
-                k
-                for k, s in a.items()
-                if s.dtype == object
-                and s.map(lambda v: isinstance(v, tuple(ignored_classes))).all()
-            ]
-            a, b = a.drop(columns=ignored), b.drop(columns=ignored, errors="ignore")
         if not a.equals(b):
             # TODO: Resolve with data validation PR
             # Tolerate what CSV/Excel round-trips lose, float precision and the
@@ -409,7 +401,7 @@ def equals(
                 return handle_diff(msg)
 
     elif isinstance(a, Components):
-        if not a.equals(b, log_mode=log_mode, ignored_classes=ignored_classes):
+        if not a.equals(b, log_mode=log_mode):
             return False
 
     elif isinstance(a, ComponentsStore):
