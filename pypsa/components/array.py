@@ -330,8 +330,21 @@ class ComponentsArrayMixin(_ComponentsABC):
             res.columns.name = "name"
 
         if inds is not None:
+            inds_idx = pd.Index(inds)
             # Preserve requested order and raise KeyError for unknown names.
-            res = res[inds]
+            missing = inds_idx.difference(self.names)
+            if len(missing) > 0:
+                msg = f"Component names {missing.tolist()} not found in {self.name}"
+                raise KeyError(msg)
+
+            if self.has_scenarios:
+                scenarios = res.columns.get_level_values("scenario").unique()
+                cols = pd.MultiIndex.from_product(
+                    [scenarios, inds_idx], names=res.columns.names
+                )
+                res = res[cols]
+            else:
+                res = res[inds_idx]
 
         return res
 

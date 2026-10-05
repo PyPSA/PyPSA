@@ -1955,6 +1955,25 @@ def test_get_switchable_inds_selects_names_in_all_scenarios():
     assert first.index.tolist() == expected
 
 
+def test_get_switchable_inds_preserves_order_and_rejects_unknown_names_stochastic():
+    n = _two_bus_network()
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    n.add("Generator", "gen2", bus="bus1")
+    inds = pd.Index(["gen2", "gen"])
+    expected = [("s1", "gen2"), ("s1", "gen"), ("s2", "gen2"), ("s2", "gen")]
+
+    dense = n.get_switchable_as_dense("Generator", "p_max_pu", inds=inds)
+    assert dense.columns.tolist() == expected
+
+    with pytest.raises(KeyError):
+        n.get_switchable_as_dense(
+            "Generator",
+            "p_max_pu",
+            inds=pd.Index(["gen", "missing"]),
+        )
+
+
+
 @pytest.mark.parametrize(
     ("add", "component", "asset", "attr", "value"),
     [
