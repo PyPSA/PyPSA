@@ -1973,7 +1973,6 @@ def test_get_switchable_inds_preserves_order_and_rejects_unknown_names_stochasti
         )
 
 
-
 @pytest.mark.parametrize(
     ("add", "component", "asset", "attr", "value"),
     [

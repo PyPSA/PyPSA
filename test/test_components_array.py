@@ -30,9 +30,7 @@ def test_as_dynamic_inds_preserves_order_and_rejects_unknown_names():
     assert result.columns.tolist() == ["g3", "g1"]
 
     # Tuple input
-    result_tuple = n.get_switchable_as_dense(
-        "Generator", "p_max_pu", inds=("g3", "g1")
-    )
+    result_tuple = n.get_switchable_as_dense("Generator", "p_max_pu", inds=("g3", "g1"))
     assert result_tuple.columns.tolist() == ["g3", "g1"]
 
     with pytest.raises(KeyError):
