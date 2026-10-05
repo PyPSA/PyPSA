@@ -1351,7 +1351,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         for c, attr in nominal_attrs.items():
             c = n.components[c]
             ext_i = c.extendables.intersection(c.active_assets)
-            c.static.loc[ext_i, attr] = c.static.loc[ext_i, attr + "_opt"]
+            ext_b = c.static.index.get_level_values("name").isin(ext_i)
+            c.static.loc[ext_b, attr] = c.static.loc[ext_b, attr + "_opt"]
             c.static[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:

@@ -2045,3 +2045,20 @@ def test_transmission_global_constraints_stochastic(multi_investment_periods):
     periods = n.investment_period_weightings.objective.sum()
     s_nom_max = 2 / (periods if multi_investment_periods else 1)
     assert n_stoch.c.lines.static.s_nom_opt.tolist() == pytest.approx([s_nom_max] * 2)
+
+
+def test_fix_optimal_capacities_stochastic():
+    n = _two_bus_network()
+    n.add("Generator", "ext", bus="b", p_nom_extendable=True, capital_cost=1)
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    n.optimize()
+    p_nom_opt = n.c.generators.static.p_nom_opt.xs("ext", level="name")
+    assert (p_nom_opt == 8).all()
+
+    n.optimize.fix_optimal_capacities()
+    n.optimize()
+
+    static = n.c.generators.static
+    pd.testing.assert_series_equal(static.p_nom, static.p_nom_opt, check_names=False)
+    assert not static.p_nom_extendable.any()
+    assert n.objective == pytest.approx(0)

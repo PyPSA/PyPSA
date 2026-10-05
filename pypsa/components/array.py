@@ -356,11 +356,16 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         """
         if attr == "active":
-            res = xr.DataArray(self.get_activity_mask())
+            data = self.get_activity_mask()
         elif attr in self.dynamic.keys():
-            res = xr.DataArray(_strings_to_object(self._as_dynamic(attr)))
+            data = self._as_dynamic(attr)
         else:
-            res = xr.DataArray(_strings_to_object(self.static[attr]))
+            data = self.static[attr]
+        return self._to_xarray(data, attr)
+
+    def _to_xarray(self, data: pd.Series | pd.DataFrame, name: str) -> xr.DataArray:
+        """Convert component data indexed like `static` or `dynamic` to a DataArray."""
+        res = xr.DataArray(_strings_to_object(data))
 
         # Unstack the dimension that contains the scenarios
         if self.has_scenarios:
@@ -374,7 +379,7 @@ class ComponentsArrayMixin(_ComponentsABC):
             res = res.transpose(*[c for c in res.coords if c in res.dims])
 
         # Set attibute name as DataArray name
-        res.name = attr
+        res.name = name
 
         # Optional runtime verification
         if options.debug.runtime_verification:
