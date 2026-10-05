@@ -83,7 +83,11 @@ The options that you can override are defined in [pypsa.optimization.piecewise.P
     Assuming we are applying this to marginal costs of generators:
 
     ```python
-    n.optimize(piecewise_options=[{"component": "Generator", "attribute": "marginal_cost", "sign": "=="}])
+    n.optimize(
+        piecewise_options=[
+            {"component": "Generator", "attribute": "marginal_cost", "sign": "=="}
+        ]
+    )
     ```
 
 ## Cumulative vs direct curves

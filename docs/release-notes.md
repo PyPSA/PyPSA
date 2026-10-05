@@ -1647,14 +1647,11 @@ This release contains new features for plotting and storing metadata with Networ
   ```python title="Colorbar plotting example"
   import pypsa
   import matplotlib.pyplot as plt
+
   n = pypsa.examples.ac_dc_meshed()
   norm = plt.Normalize(vmin=0, vmax=10)
-  n.plot(
-      bus_colors=n.buses.x,
-      bus_cmap='viridis',
-      bus_norm=norm
-  )
-  plt.colorbar(plt.cm.ScalarMappable(cmap='viridis', norm=norm))
+  n.plot(bus_colors=n.buses.x, bus_cmap="viridis", bus_norm=norm)
+  plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm))
   ```
 
 * New utility functions to add legends for line widths (`pypsa.plot.add_legend_lines`), circles and pie chart areas (`pypsa.plot.add_legend_circles`), and patch colors (`pypsa.plot.add_legend_patches`).
@@ -1675,7 +1672,7 @@ This release contains new features for plotting and storing metadata with Networ
       ax,
       [1, 0.5],
       ["reference size", "reference size 2"],
-      legend_kw=dict(frameon=False, bbox_to_anchor=(1,0.1))
+      legend_kw=dict(frameon=False, bbox_to_anchor=(1, 0.1)),
   )
   ```
 
