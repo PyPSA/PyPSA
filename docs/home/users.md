@@ -137,6 +137,8 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_de: d-fine](https://www.d-fine.com/)**: uses a PyPSA-Eur-based approach for infrastructure analysis in Europe, e.g. in [Integrated Infrastructure Planning and 2050 Climate Neutrality: Deriving Future-Proof European Energy Infrastructures](https://www.agora-energiewende.org/publications/integrated-infrastructure-planning-and-2050-climate-neutrality) on future-proof European energy infrastructures (jointly with Fraunhofer IEG and Fraunhofer ISI.
 
+* **[:flag_de: greenventory](https://greenventory.de/en/home/)**: utilizes a customized implementation of PyPSA, to co-optimize sector-coupled capacities (electricity generators, heat pumps, CHP, batteries) and 8760-hour dispatch of these assets for proper [spatiotemporal capacity sizing](https://forum.openmod.org/t/openmod-workshop-freiburg-2026-lightning-talks-and-poster-contributions/5755/11).
+
 ## Governmental Organisation
 
 * **[:globe_with_meridians: International Energy Agency (IEA)](https://www.iea.org/)** uses PyPSA within their [Global Energy and Climate Model](https://www.iea.org/reports/global-energy-and-climate-model). A 2024 report [Managing the Seasonal Variability of Electricity Demand and Supply](https://www.iea.org/reports/managing-the-seasonal-variability-of-electricity-demand-and-supply) used PyPSA to explore how seasonal variations in both demand and supply affect electricity system operations in various world regions in 2050.
