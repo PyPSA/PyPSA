@@ -328,6 +328,11 @@ class ComponentsArrayMixin(_ComponentsABC):
             res.columns.name = None
         else:
             res.columns.name = "name"
+
+        if inds is not None:
+            # Preserve requested order and raise KeyError for unknown names.
+            res = res[inds]
+
         return res
 
     def _as_xarray(self, attr: str) -> xr.DataArray:

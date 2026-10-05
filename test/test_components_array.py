@@ -9,7 +9,33 @@ import pandas as pd
 import pytest
 import xarray
 
+import pypsa
 from pypsa.components.array import _from_xarray
+
+
+def test_as_dynamic_inds_preserves_order_and_rejects_unknown_names():
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", "b")
+    n.add(
+        "Generator",
+        ["g1", "g2", "g3"],
+        bus="b",
+        p_max_pu=[0.1, 0.2, 0.3],
+    )
+
+    inds = pd.Index(["g3", "g1"])
+
+    result = n.get_switchable_as_dense("Generator", "p_max_pu", inds=inds)
+
+    assert result.columns.tolist() == ["g3", "g1"]
+
+    with pytest.raises(KeyError):
+        n.get_switchable_as_dense(
+            "Generator",
+            "p_max_pu",
+            inds=pd.Index(["g3", "g1", "missing"]),
+        )
 
 
 def test_as_xarray_static(ac_dc_network):
