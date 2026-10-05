@@ -37,6 +37,51 @@ def test_get_switchable_as_dense(network):
         assert (df == val).all().all()
 
 
+DENSE_INDS_WARNING = "In PyPSA 2.0, `get_switchable_as_dense` will return columns"
+
+
+@pytest.fixture
+def dense_network(network: pypsa.Network) -> pypsa.Network:
+    network.add("Bus", "b")
+    network.add("Generator", ["g1", "g2", "g3"], bus="b", p_max_pu=[0.1, 0.2, 0.3])
+    return network
+
+
+@pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
+@pytest.mark.parametrize(
+    ("inds", "expected"),
+    [
+        (["g3", "g1"], ["g1", "g3"]),
+        (["g1", "missing"], ["g1"]),
+        (["g1", "g1"], ["g1"]),
+    ],
+)
+def test_get_switchable_as_dense_warns_on_inds(
+    dense_network: pypsa.Network,
+    scenarios: list[str] | None,
+    inds: list[str],
+    expected: list[str],
+) -> None:
+    n = dense_network
+    if scenarios:
+        n.set_scenarios(scenarios)
+    with pytest.warns(FutureWarning, match=DENSE_INDS_WARNING):
+        res = n.get_switchable_as_dense("Generator", "p_max_pu", inds=pd.Index(inds))
+    assert res.columns.unique("name").tolist() == expected
+
+
+@pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
+@pytest.mark.parametrize("inds", [["g1", "g3"], [], ["g1", "g2", "g3"]])
+def test_get_switchable_as_dense_inds_no_warning(
+    dense_network: pypsa.Network, scenarios: list[str] | None, inds: list[str]
+) -> None:
+    n = dense_network
+    if scenarios:
+        n.set_scenarios(scenarios)
+    res = n.get_switchable_as_dense("Generator", "p_max_pu", inds=pd.Index(inds))
+    assert res.columns.unique("name").tolist() == inds
+
+
 def test_get_switchable_as_iter(network):
     n = network
     n.add("Bus", "bus0")
@@ -79,7 +124,10 @@ def test_get_switchable_order(
         expected = expected.loc[keys]
 
     args = ("Generator", "p_max_pu", n.snapshots, inds)
-    if method == "dense":
+    if method == "dense" and inds:
+        with pytest.warns(FutureWarning, match=DENSE_INDS_WARNING):
+            result = n.get_switchable_as_dense(*args).iloc[0]
+    elif method == "dense":
         result = n.get_switchable_as_dense(*args).iloc[0]
     else:
         result = next(n.get_switchable_as_iter(*args))
