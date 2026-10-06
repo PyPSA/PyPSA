@@ -125,6 +125,13 @@ optimize.include_objective_constant:
         objective. Setting False sets n.objective_constant to zero and improves LP
         numerical conditioning. None defaults to True with a FutureWarning (changes to
         False in v2.0).
+optimize.scaling:
+    Default: False
+    Description: Default for `scaling` in `n.optimize`. Numerical scaling of the built
+        model, results come back in original units. False disables scaling. True tunes
+        energy and cost unit factors automatically. A dict sets `energy`, `cost` and
+        per-group `constraint_factors` manually. See the user guide on numerical
+        scaling for details.
 consistency.numerical_tolerance:
     Default: 1e-09
     Description: Tolerance for numerical comparisons in consistency checks (e.g. p_min_pu > p_max_pu).

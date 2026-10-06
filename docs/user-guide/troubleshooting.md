@@ -37,6 +37,9 @@ here are some suggestions to try out:
   confuse the solver. Consider e.g. removing values smaller than 0.001 with
   [`pandas.DataFrame.clip`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.clip.html).
 
+* Badly scaled coefficients slow solvers down and cause numerical trouble. Try
+  `n.optimize(scaling=True)`, see [Numerical Scaling](optimization/scaling.md).
+
 * Open source solvers like HiGHS can struggle with large problems; consider
   switching to a commercial solver like Gurobi or Xpress. Alternatively, scale
   down the model size to make it easier to debug the problem (e.g. reducing
