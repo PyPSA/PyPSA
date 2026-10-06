@@ -75,6 +75,27 @@ def flow_based_balance_terms(n: Network, buses: pd.Index) -> Any:
     return -1 * np_var.sel(name=np_var.indexes["name"].intersection(buses))
 
 
+def flow_based_net_position(n: Network) -> pd.DataFrame | None:
+    """Return generation minus load of each zone bus, or ``None`` without a domain.
+
+    This is the zone's injection ``buses_t.p`` without the flows of its corridor links
+    (the link columns of the domain), i.e. the net position of the virtual-hub convention.
+    """
+    if _active(n).empty:
+        return None
+    zones, corridors = _classify_columns(n)
+    links = n.c.links
+    withdrawn = pd.concat(
+        [
+            links.dynamic[f"p{i}"][corridors].rename(columns=links.static[f"bus{i}"])
+            for i in links.ports
+        ],
+        axis=1,
+    )
+    withdrawn = withdrawn.T.groupby(level=0).sum().T
+    return n.c.buses.dynamic.p[zones] + withdrawn.reindex(columns=zones, fill_value=0.0)
+
+
 def validate_flow_based(n: Network) -> None:
     """Reject branches directly connecting two zone buses and links outside the region.
 

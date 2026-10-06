@@ -57,6 +57,7 @@ from pypsa.optimization.flow_based import (
     NP_VAR,
     define_flow_based_constraints,
     define_flow_based_variables,
+    flow_based_net_position,
 )
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
@@ -1322,6 +1323,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             .sum()
             .T.reindex(columns=n.c.buses.static.index, fill_value=0.0)
         )
+
+        if (net_position := flow_based_net_position(n)) is not None:
+            _set_dynamic_data(n, "Bus", "net_position", net_position)
 
         if not n.has_scenarios:
 

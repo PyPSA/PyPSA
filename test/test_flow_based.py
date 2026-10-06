@@ -247,6 +247,24 @@ def test_net_position_is_the_bus_net_injection_for_any_zone_order(zones):
     assert not net_pos.round(0).equals(gen_load.round(0))  # corridors really flow
 
 
+@pytest.mark.parametrize("dynamic", [False, True])
+@pytest.mark.parametrize(
+    "make",
+    [lambda dynamic: _network(_domain(SYMMETRIC), dynamic=dynamic), _ahc_evfb_network],
+    ids=["zone-domain", "link-domain"],
+)
+def test_net_position_output_is_generation_minus_load(make, dynamic):
+    """`buses_t.net_position` is the zone injection without corridor flows: gen - load."""
+    n = make(dynamic)
+    n.optimize(log_to_console=False)
+    net_position = n.buses_t.net_position
+    gen_load = n.generators_t.p[ZONES] - n.loads_t.p[ZONES]
+    pd.testing.assert_frame_equal(
+        net_position[ZONES], gen_load, check_names=False, atol=1e-6
+    )
+    assert (net_position.drop(columns=ZONES) == 0).all().all()  # non-zone buses
+
+
 def test_ahc_link_column_is_the_sensitivity_beyond_the_net_position():
     """An AHC import is counted once: in the zone net position and via the link column.
 

@@ -346,6 +346,21 @@ def test_from_tso_ahc_sign_follows_link(tso_domain, corridor, bus0, bus1, expect
     assert z.loc["c1", "dc"] == pytest.approx(expected)
 
 
+def test_from_tso_corridor_maps_to_one_way_link_pair(tso_domain):
+    """A corridor mapped to two one-way links gives each the column in its direction."""
+    n = pypsa.Network()
+    n.add("Bus", [*TSO_ZONES, "EXT"])
+    n.add(
+        "Link", ["EXT-Z1", "Z1-EXT"], bus0=["EXT", "Z1"], bus1=["Z1", "EXT"], p_nom=100
+    )
+    n.c.global_constraints.flow_based_from_tso(
+        tso_domain(), links={"EXT": ["EXT-Z1", "Z1-EXT"]}
+    )
+    z = n.c.global_constraints.zonal_ptdf
+    assert z.loc["c1", "EXT-Z1"] == pytest.approx(0.1 - 0.4)
+    assert z.loc["c1", "Z1-EXT"] == pytest.approx(0.4 - 0.1)
+
+
 @pytest.mark.parametrize(
     ("bus0", "bus1", "expected"),
     [

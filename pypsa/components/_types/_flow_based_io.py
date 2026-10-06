@@ -36,6 +36,8 @@ if TYPE_CHECKING:
 
     # corridor name -> (column for a flow frm -> to, frm zone, to zone)
     Corridors = dict[str, tuple[pd.Series, str | None, str | None]]
+    # corridor name -> link name, or several (e.g. a pair of one-way links)
+    LinkMap = dict[str, str | list[str]]
 
 
 class FlowBasedImportersMixin(_ComponentsABC):
@@ -59,7 +61,7 @@ class FlowBasedImportersMixin(_ComponentsABC):
         season: str | pd.Series,
         *,
         buses: dict[str, str] | None = None,
-        links: dict[str, str] | None = None,
+        links: LinkMap | None = None,
         investment_period: int | None = None,
     ) -> pd.Index | None:
         """Add a domain from an ERAA ``FB-Domain-CORE`` Excel workbook (needs the ``excel`` extra).
@@ -86,6 +88,7 @@ class FlowBasedImportersMixin(_ComponentsABC):
             Map ERAA zone labels to bus names (default: same name).
         links : dict, optional
             Map corridor labels (e.g. ``"BE00-DE00"``) to link names (default: same name).
+            A list maps one corridor to several links, e.g. a pair of one-way links.
             Corridors without a link are dropped.
         investment_period : int, optional
             Apply the domain only in this investment period; its label is appended to the
@@ -153,7 +156,7 @@ class FlowBasedImportersMixin(_ComponentsABC):
         path: str,
         *,
         buses: dict[str, str] | None = None,
-        links: dict[str, str] | None = None,
+        links: LinkMap | None = None,
     ) -> pd.Index | None:
         """Add a domain from a JAO ``finalComputation`` CSV (one static market hour).
 
@@ -176,7 +179,8 @@ class FlowBasedImportersMixin(_ComponentsABC):
         buses : dict, optional
             Map zone hubs to bus names (default: same name).
         links : dict, optional
-            Map corridor names to link names (default: same name). Corridors without a
+            Map corridor names to link names (default: same name). A list maps one
+            corridor to several links, e.g. a pair of one-way links. Corridors without a
             link are dropped.
 
         """
@@ -201,7 +205,7 @@ class FlowBasedImportersMixin(_ComponentsABC):
         path: str,
         *,
         buses: dict[str, str] | None = None,
-        links: dict[str, str] | None = None,
+        links: LinkMap | None = None,
     ) -> pd.Index | None:
         """Add a domain from a TSO ``MS_FBMC`` domain CSV (one static typical situation).
 
@@ -223,7 +227,8 @@ class FlowBasedImportersMixin(_ComponentsABC):
         buses : dict, optional
             Map zone labels to bus names (default: same name).
         links : dict, optional
-            Map corridor names to link names (default: same name). Corridors without a
+            Map corridor names to link names (default: same name). A list maps one
+            corridor to several links, e.g. a pair of one-way links. Corridors without a
             link are dropped. ``FB_DOMAIN_AHC`` corridors are named like their zone, so
             map them to a link name that is not a bus name (e.g. ``{"DKW": "DKW-DE"}``).
 
@@ -262,7 +267,7 @@ class FlowBasedImportersMixin(_ComponentsABC):
         corridors: Corridors,
         ram: pd.Series | pd.DataFrame,
         buses: dict[str, str] | None,
-        links: dict[str, str] | None,
+        links: LinkMap | None,
         investment_period: int | None = None,
     ) -> pd.Index | None:
         """Add zone columns plus one column per corridor that has a network link.
@@ -286,10 +291,16 @@ class FlowBasedImportersMixin(_ComponentsABC):
         zones = set(zonal_ptdf.columns)
         static = n.c.links.static
         dropped = []
-        for name, (col, frm, to) in corridors.items():
-            link = links.get(name, name)
+        targets = {name: links.get(name, name) for name in corridors}
+        pairs = [
+            (name, link)
+            for name, target in targets.items()
+            for link in ([target] if isinstance(target, str) else target)
+        ]
+        for name, link in pairs:
+            col, frm, to = corridors[name]
             if link not in static.index:
-                dropped.append(name)
+                dropped += [name] if name not in dropped else []
                 continue
             if link in n.c.buses.static.index:
                 msg = f"Link name {link!r} is also a bus name; rename it via `links`."

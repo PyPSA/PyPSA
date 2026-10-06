@@ -225,15 +225,25 @@ $$\text{PTDF}_{c,\ell} = h_{c,\ell} - \sum_{z} a_{z,\ell}\, \text{PTDF}_{c,z},$$
 
 which is $h - \text{PTDF}_z$ for an AHC link into zone $z$, and $(h_B - h_A) - (\text{PTDF}_B - \text{PTDF}_A)$ for an EvFB link from $A$ to $B$. If the corridor lands where the zone's GSK puts its power anyway, the column is zero. The zero-sum balance is unchanged, $\sum_z NP_{z,t} = 0$, because the corridor imports are already inside the net positions.
 
-!!! note "Two equivalent conventions"
+!!! note "Two equivalent net-position conventions"
 
-    Published domains use one of two conventions for corridors. ERAA publishes AHC columns as above (`PTDF*_AHC = PTDF_AHC - PTDF_SZ`). The Core methodology, JAO and TSO files instead keep $NP_z = g_z - d_z$, treat each corridor end as a *virtual hub* with the raw hub sensitivity $h$ and count the hub's flow in the zero-sum balance.[^core-ccm] Both describe the same feasible set: moving the link term out of the zone's balance shifts its column by $-\sum_z a_{z,\ell}\text{PTDF}_{c,z}$. PyPSA uses the first because the link then needs no special treatment in the nodal balance; the [importers](../components/global-constraints.md#importing-published-domains) convert hub sensitivities accordingly. The commercial net position over all borders, $g_z - d_z$, is the net position minus the corridor inflow.
+    Published domains use one of two conventions for corridors. Both describe the same feasible set and give the same CNEC flows; they only split each flow differently between the zone terms and the link terms.
 
-    | | PyPSA (ERAA) | Virtual hub (Core, JAO, TSO) |
+    - **PyPSA:** the net position includes the corridor flow. The zone PTDF already spreads that flow as if the GSK placed it, so the link column keeps only the correction from the GSK to the landing node. ERAA publishes its AHC columns in this form (`PTDF*_AHC = PTDF_AHC - PTDF_SZ`).
+    - **Virtual hub:** the net position is generation minus load, $NP_z = g_z - d_z$. Each corridor end acts as a hub with its raw hub sensitivity $h$, and the hub flows join the zero-sum balance. The Core methodology,[^core-ccm] JAO and TSO files use this form, and so do ERAA's EvFB columns.
+
+    The conversion is one rule: what PyPSA adds to the net positions, it takes out of the link column,
+
+    $$NP_z = (g_z - d_z) + \sum_\ell a_{z,\ell}\, f_\ell \qquad \Longleftrightarrow \qquad \text{PTDF}_{c,\ell} = h_{c,\ell} - \sum_z a_{z,\ell}\, \text{PTDF}_{c,z} .$$
+
+    | | PyPSA | Virtual hub |
     |---|---|---|
-    | zone net position | $g_z - d_z + \sum_\ell a_{z,\ell} f_\ell$ | $g_z - d_z$ |
-    | link column | $h - \sum_z a_{z,\ell}\text{PTDF}_z$ | $h$ |
+    | zone net position | $g_z - d_z + \sum_\ell a_{z,\ell} f_\ell$ (`n.buses_t.p`) | $g_z - d_z$ (`n.buses_t.net_position`) |
+    | AHC column, $X \to A$ | $h_A - \text{PTDF}_A$ | $h_A$ |
+    | EvFB column, $A \to B$ | $(h_B - h_A) - (\text{PTDF}_B - \text{PTDF}_A)$ | $h_B - h_A$ |
     | zero-sum balance | $\sum_z NP_z = 0$ | $\sum_z NP_z + \sum_{\text{hubs}} f = 0$ |
+
+    PyPSA uses the first form because the link then needs no special treatment in the nodal balance. The [importers](../components/global-constraints.md#importing-published-domains) convert hub sensitivities to it. After solving, `n.buses_t.net_position` reports the virtual-hub net position $g_z - d_z$ of each zone bus, i.e. `n.buses_t.p` without the flows of its corridor links.
 
 These terms are built in `define_flow_based_constraints()`.
 
@@ -242,6 +252,7 @@ These terms are built in `define_flow_based_constraints()`.
     | Symbol | Attribute | Type |
     |--------|-----------|------|
     | $NP_{z,t}$ | `n.buses_t.p` (variable `Bus-net_position`) | Decision Variable |
+    | $g_{z,t} - d_{z,t}$ | `n.buses_t.net_position` | Output |
     | $f_{\ell,t}$ | `n.links_t.p0` | Decision Variable |
     | $\mu_{c,t}$ | `n.global_constraints_t.mu` | Dual Variable |
     | $\text{PTDF}_{c,z,t}$ | `n.c.global_constraints.zonal_ptdf` | Parameter |

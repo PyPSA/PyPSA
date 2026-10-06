@@ -14,6 +14,7 @@ control,string,n/a,PQ,"P,Q,V control strategy for power flow, must be ""PQ"", ""
 generator,string,n/a,n/a,Name of slack generator attached to slack bus.,Output
 sub_network,string,n/a,n/a,Name of connected sub-network to which bus belongs. This attribute is set by `n.determine_network_topology()`. Do not set by hand.,Output
 p,series,MW,0.,active power at bus (positive if net generation at bus),Output
+net_position,series,MW,0.,"Net position of a flow-based zone bus: generation minus load, i.e. `p` without the flows of its corridor links (domain columns). Only set for zone buses of a `flow_based` global constraint.",Output
 q,series,MVar,0.,reactive power (positive if net generation at bus),Output
 v_mag_pu,series,per unit,1.,"Voltage magnitude, per unit of `v_nom`",Output
 v_ang,series,radians,0.,Voltage angle,Output
