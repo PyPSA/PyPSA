@@ -137,7 +137,12 @@ def define_piecewise(
         )
         return None
     x_breakpoints, y_breakpoints, valid = _get_breakpoints(
-        c, pw_attr, pw_names, cumulative_attr, invert_attr
+        c,
+        pw_attr,
+        pw_names,
+        cumulative_attr,
+        invert_attr,
+        snapshots=x_var.indexes.get("snapshot"),
     )
 
     if y_var is None:
@@ -230,6 +235,8 @@ def _get_breakpoints(
     pw_names: pd.Index,
     cumulative_attr: bool,
     invert_attr: bool,
+    *,
+    snapshots: pd.Index | None = None,
 ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
     """Convert piecewise data to linopy breakpoints and their validity mask.
 
@@ -238,6 +245,18 @@ def _get_breakpoints(
     """
     piecewise_df = c.piecewise[pw_attr][pw_names]
     piecewise_attrs = c._piecewise_schema(pw_attr)
+    if isinstance(piecewise_df.index, pd.MultiIndex):
+        if snapshots is None:
+            msg = "Snapshot piecewise curves require a snapshot-dependent variable."
+            raise ValueError(msg)
+        if snapshots.has_duplicates:
+            msg = "Piecewise solve snapshots must be unique."
+            raise ValueError(msg)
+        available = piecewise_df.index.unique("snapshot")
+        if not snapshots.difference(available).empty:
+            msg = "Piecewise curves are missing requested solve snapshots."
+            raise ValueError(msg)
+        piecewise_df = piecewise_df.loc[snapshots]
 
     x_da = _to_da(piecewise_df, piecewise_attrs.x)
     y_da = _to_da(piecewise_df, pw_attr)
@@ -298,7 +317,13 @@ def _create_y_var(
 
 def _to_da(piecewise_df: pd.DataFrame, attr: str) -> xr.DataArray:
     """Convert input to DataArray with given coords and dims."""
-    da = xr.DataArray(piecewise_df.xs(attr, level="attribute", axis=1)).rename(
-        breakpoint=BREAKPOINT_DIM
-    )
+    frame = piecewise_df.xs(attr, level="attribute", axis=1)
+    if isinstance(frame.index, pd.MultiIndex):
+        return (
+            frame.stack(future_stack=True)
+            .to_xarray()
+            .rename(breakpoint=BREAKPOINT_DIM)
+            .transpose("snapshot", "name", BREAKPOINT_DIM)
+        )
+    da = xr.DataArray(frame).rename(breakpoint=BREAKPOINT_DIM)
     return da
