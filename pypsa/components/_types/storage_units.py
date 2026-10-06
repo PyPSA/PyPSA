@@ -12,11 +12,11 @@ import xarray as xr
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components.components import Components
+from pypsa.components._types.mixin.cycling import _Cycling
 
 
 @patch_add_docstring
-class StorageUnits(Components):
+class StorageUnits(_Cycling):
     """StorageUnits components class.
 
     This class is used for storage unit components. All functionality specific to
@@ -72,6 +72,16 @@ class StorageUnits(Components):
             min_pu = xr.zeros_like(max_pu)
 
         return min_pu, max_pu
+
+    def _throughput_flow(self) -> pd.DataFrame:
+        eff_store = self.n_save.get_switchable_as_dense(self.name, "efficiency_store")
+        eff_dispatch = self.n_save.get_switchable_as_dense(
+            self.name, "efficiency_dispatch"
+        )
+        return self.dynamic.p_store * eff_store + self.dynamic.p_dispatch / eff_dispatch
+
+    def _energy_capacity(self, nom_attr: str) -> pd.Series:
+        return self.static.max_hours * self.static[nom_attr]
 
     def add(
         self,
