@@ -16,6 +16,7 @@ old/
 
 test/.cache/
 .cache/
+build/
 
 test/results/*
 

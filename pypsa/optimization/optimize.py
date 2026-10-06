@@ -63,6 +63,7 @@ from pypsa.optimization.global_constraints import (
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
+from pypsa.optimization.smspp import SMSppAccessor
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -509,7 +510,7 @@ def define_objective(
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
-    """Optimization accessor for building and solving models using linopy.
+    """Optimization accessor for building and solving network models.
 
     <!-- md:guide network-optimization.md -->
     """
@@ -518,6 +519,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """Initialize the optimization accessor."""
         self._n = n
         self.expressions = StatisticExpressionsAccessor(self._n)
+        self.smspp = SMSppAccessor(self._n)
 
     @property
     def _window(self) -> SnapshotWindow:
@@ -552,7 +554,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         cycle_basis_method: str = "bfs-refined",
         **kwargs: Any,
     ) -> tuple[str, str]:
-        """Optimize the pypsa network using linopy.
+        """Optimize the pypsa network.
 
         Parameters
         ----------
@@ -596,6 +598,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             information.
         solver_options : dict, optional
             Keyword arguments used by the solver. Can also be passed via `**kwargs`.
+            With ``solver_name="smspp"``, these options are forwarded to
+            ``pypsa2smspp.Transformation``.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         log_to_console : bool, optional
@@ -650,6 +654,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             solver_options = options.params.optimize.solver_options.copy()
         if log_to_console is None:
             log_to_console = options.params.optimize.log_to_console
+        if str(solver_name).lower() == "smspp":
+            return self.smspp(solver_options=solver_options, **kwargs)
 
         include_objective_constant = _resolve_include_objective_constant(
             include_objective_constant

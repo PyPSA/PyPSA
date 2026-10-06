@@ -67,7 +67,6 @@ if TYPE_CHECKING:
 
     from pypsa.components.legacy import Component
 
-
 logger = logging.getLogger(__name__)
 
 inf = float("inf")
@@ -183,7 +182,6 @@ class Network(
         """
         Network [plotting functionality][pypsa.plot.PlotAccessor] accessor.
         """
-
         NetworkComponentsMixin.__init__(self)
 
         if not ignore_standard_types:

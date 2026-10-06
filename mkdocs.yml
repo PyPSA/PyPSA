@@ -56,6 +56,7 @@ nav:
       - Sub-Network: user-guide/components/sub-networks.md
   - Optimization:
     - Overview: user-guide/optimization/overview.md
+    - SMS++: user-guide/optimization/smspp.md
     - Formulations:
       - Objective: user-guide/optimization/objective.md
       - Energy Balance: user-guide/optimization/energy-balance.md
@@ -140,6 +141,7 @@ nav:
     - examples/transport-delay.ipynb
     - examples/periodic-operational-limits.ipynb
     - examples/piecewise-constraints.ipynb
+    - examples/smspp-optimization.ipynb
   - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
     - examples/gsa.ipynb
@@ -392,6 +394,8 @@ plugins:
 # `docs-notebooks` branch. For local development set execute: true to run on serve.
 - mkdocs-jupyter:
     execute: false
+    execute_ignore:
+    - docs/examples/smspp-optimization.ipynb
     include: ["*.ipynb"]
     allow_errors: false
     include_source: true
