@@ -139,7 +139,7 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_de: greenventory](https://greenventory.de/en/home/)**: utilizes a customized implementation of PyPSA, to co-optimize sector-coupled capacities (electricity generators, heat pumps, CHP, batteries) and 8760-hour dispatch of these assets for proper [spatiotemporal capacity sizing](https://forum.openmod.org/t/openmod-workshop-freiburg-2026-lightning-talks-and-poster-contributions/5755/11).
 
-* **[:flag_fr: EDF](https://www.edf.fr/en)**, the French electric utility, used PyPSA for a coupled electricity and hydrogen system study presented at the 2026 CIGRE Paris Session.
+* **[:flag_fr: EDF](https://www.edf.fr/en)**, the French electric utility, convenes [CIGRE](https://www.cigre.org/) Working Group C1.50, which used PyPSA for a 2050 pre-feasibility study of a coupled global electricity and hydrogen system. The 22-zone model co-optimises hourly investment and dispatch of power plants, storage, HVDC corridors, hydrogen pipelines and shipping, and was presented at the 2026 CIGRE Paris Session.
 
 ## Governmental Organisation
 
