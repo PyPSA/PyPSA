@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Public snapshot piecewise cost contracts.
 
 Failure list:
