@@ -14,6 +14,7 @@ Failure list:
 7. NetCDF drops the snapshot dimension or changes a restored solve.
 8. Static-only capital cost accidentally acquires a time-varying axis.
 9. Investment-period snapshots are silently flattened by the new row schema.
+10. Snapshot and component labels are lost during slope integration.
 
 Analytic dispatch, price and objective protect the public contract. The
 immutable upstream does not accept this row schema. Existing tests cover
@@ -243,3 +244,47 @@ def test_dynamic_netcdf_roundtrip_preserves_curve_and_solve(tmp_path: Path) -> N
         n.c.generators.piecewise["marginal_cost"],
     )
     assert_solve(restored)
+
+
+def test_labeled_dynamic_curves_preserve_dispatch_after_netcdf(tmp_path: Path) -> None:
+    # PyPSA requires naive snapshots; convert UTC explicitly at that boundary.
+    snapshots = (
+        pd.date_range("2025-01-01", periods=3, freq="h", tz="UTC")
+        .tz_localize(None)
+        .as_unit("ns")
+    )
+    curve = dynamic_curve()
+    curve.index = pd.MultiIndex.from_product(
+        [snapshots, [2, 4, 7, 9, 12]], names=["snapshot", "breakpoint"]
+    )
+    name = "unit: [2] / 01"
+    n = pypsa.Network()
+    n.set_snapshots(snapshots)
+    n.add("Bus", "bus")
+    n.add(
+        "Generator", "backup '00'", bus="bus", p_nom=100, marginal_cost={0: 0, 1: 1000}
+    )
+    n.add(
+        "Generator",
+        name,
+        bus="bus",
+        p_nom=100,
+        p_max_pu=[1, 0.5, 0],
+        marginal_cost=curve,
+    )
+    n.add("Load", "load", bus="bus", p_set=[97, 48.5, 10])
+    path = tmp_path / "labeled-cost.nc"
+    n.export_to_netcdf(path)
+    restored = pypsa.Network(path)
+    status, condition = restored.optimize(
+        solver_name="highs",
+        solver_options={"threads": 1},
+        include_objective_constant=False,
+    )
+    assert (status, condition) == ("ok", "optimal")
+    assert restored.objective == pytest.approx(17592.5)
+    pd.testing.assert_index_equal(restored.generators_t.p.index, n.snapshots)
+    np.testing.assert_allclose(restored.generators_t.p[name], [97, 48.5, 0])
+    np.testing.assert_allclose(restored.generators_t.p["backup '00'"], [0, 0, 10])
+    np.testing.assert_allclose(restored.buses_t.marginal_price["bus"], [60, 65, 1000])
+    restored.model.solver = None
