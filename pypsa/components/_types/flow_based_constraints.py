@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 import xarray as xr
 
-from pypsa.components._types._flow_based_io import FlowBasedImportersMixin
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
@@ -26,7 +25,7 @@ if TYPE_CHECKING:
 
 
 @patch_add_docstring
-class FlowBasedConstraints(FlowBasedImportersMixin, Components):
+class FlowBasedConstraints(Components):
     """Flow-based market-coupling constraint components.
 
     A non-physical component holding a flow-based domain: linear constraints on the net
