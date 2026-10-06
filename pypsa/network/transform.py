@@ -233,7 +233,7 @@ class NetworkTransformMixin(_NetworkABC):
         # Read kwargs into static, time-varying, and piecewise attributes
         series = {}
         static = {}
-        piecewise = {}  # {attr: DataFrame with columns [x_attr, attr], index = breakpoints}
+        piecewise = {}  # Curve frames indexed by breakpoint or (snapshot, breakpoint).
 
         # Check if names are unique
         if not names.is_unique:
@@ -308,7 +308,8 @@ class NetworkTransformMixin(_NetworkABC):
                             axis=1,
                         )
                         v.columns.names = ["name", "attribute"]
-                        v.index.name = "breakpoint"
+                        if not isinstance(v.index, pd.MultiIndex):
+                            v.index.name = "breakpoint"
                         piecewise[k] = v
                         continue
             elif isinstance(v, dict):
