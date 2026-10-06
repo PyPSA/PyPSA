@@ -243,7 +243,7 @@ which is $h - \text{PTDF}_z$ for an AHC link into zone $z$, and $(h_B - h_A) - (
     | EvFB column, $A \to B$ | $(h_B - h_A) - (\text{PTDF}_B - \text{PTDF}_A)$ | $h_B - h_A$ |
     | zero-sum balance | $\sum_z NP_z = 0$ | $\sum_z NP_z + \sum_{\text{hubs}} f = 0$ |
 
-    PyPSA uses the first form because the link then needs no special treatment in the nodal balance. The [importers](../components/global-constraints.md#importing-published-domains) convert hub sensitivities to it. After solving, `n.buses_t.net_position` reports the virtual-hub net position $g_z - d_z$ of each zone bus, i.e. `n.buses_t.p` without the flows of its corridor links.
+    PyPSA uses the first form because the link then needs no special treatment in the nodal balance. After solving, `n.buses_t.net_position` reports the virtual-hub net position $g_z - d_z$ of each zone bus, i.e. `n.buses_t.p` without the flows of its corridor links.
 
 These terms are built in `define_flow_based_constraints()`.
 

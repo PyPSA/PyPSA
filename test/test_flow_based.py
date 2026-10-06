@@ -426,6 +426,27 @@ def test_copy_preserves_domain_and_re_solves():
     assert _net_positions(m).to_dict() == {"A": 2000.0, "B": -1000.0, "C": -1000.0}
 
 
+@pytest.mark.parametrize("fmt", ["nc", "csv"])
+def test_round_trip_preserves_domain(tmp_path, fmt):
+    """Export/import preserves the static frame and the zonal PTDF matrix (incl. links)."""
+    n = pypsa.Network()
+    n.add("Bus", ZONES)
+    n.add("Link", "ev", bus0="A", bus1="B", p_nom=500)
+    ptdf = pd.DataFrame(
+        {"A": [0.4, 0.1], "B": [-0.2, 0.3], "C": [0.0, 0.0], "ev": [0.2, -0.1]},
+        index=["c1", "c2"],
+    )
+    n.c.global_constraints.add_flow_based(ptdf, pd.Series([1000.0, 800.0], ptdf.index))
+
+    path = tmp_path / ("net.nc" if fmt == "nc" else "csv")
+    (n.export_to_netcdf if fmt == "nc" else n.export_to_csv_folder)(str(path))
+    m = pypsa.Network(str(path))
+
+    c, cm = n.c.global_constraints, m.c.global_constraints
+    pd.testing.assert_frame_equal(cm.zonal_ptdf[c.zonal_ptdf.columns], c.zonal_ptdf)
+    pd.testing.assert_series_equal(cm.static["constant"], c.static["constant"])
+
+
 def _static_np(domain: pd.DataFrame) -> pd.Series:
     """Net positions of a single-snapshot solve of a static domain."""
     n = _network(domain)
