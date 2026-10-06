@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 import xarray as xr
 
+from pypsa.components._types._flow_based_io import FlowBasedImportersMixin
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
@@ -22,7 +23,7 @@ PTDF_PREFIX = "ptdf_"
 
 
 @patch_add_docstring
-class GlobalConstraints(Components):
+class GlobalConstraints(FlowBasedImportersMixin, Components):
     """Global constraints components class.
 
     This class is used for global constraint components. All functionality specific to
