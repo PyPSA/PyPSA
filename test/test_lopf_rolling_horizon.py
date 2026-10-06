@@ -356,3 +356,95 @@ def test_rolling_horizon_unit_commitment_seams(
     assert (start_up.rolling(min_time, min_periods=1).sum() <= status + 1e-6).all()
     assert (shut_down.rolling(min_time, min_periods=1).sum() <= 1 - status + 1e-6).all()
     assert shut_down.sum() > 0
+
+
+SINK = {"p_nom": 100, "p_min_pu": -1, "p_max_pu": 0}
+
+
+@pytest.mark.parametrize("overlap", [0, 1])
+@pytest.mark.parametrize(
+    ("kwargs", "attr", "limit", "first"),
+    [
+        ({"marginal_cost": 40}, "e_sum_min", 1500.0, 0.0),
+        ({"marginal_cost": 10}, "e_sum_max", 3000.0, 400.0),
+        (
+            {"marginal_cost": 10, "committable": True, "p_min_pu": 0.4},
+            "e_sum_max",
+            2800.0,
+            400.0,
+        ),
+        (SINK, "e_sum_max", -500.0, 0.0),
+        ({**SINK, "marginal_cost": 30}, "e_sum_min", -500.0, -100.0),
+        (
+            {"marginal_cost": 40, "build_year": 1, "lifetime": 1},
+            "e_sum_min",
+            1500.0,
+            0.0,
+        ),
+    ],
+    ids=["min", "max", "max-committable", "sink-max", "sink-min", "min-retiring"],
+)
+@pytest.mark.parametrize("periods", [None, [1, 2]], ids=["single", "multi-period"])
+def test_rolling_horizon_e_sum(kwargs, attr, limit, first, overlap, periods):
+    """Regression test for issue #1769.
+
+    Volume limits refer to the whole horizon and are met exactly once, not
+    once per window. Without foresight, a maximum is depleted and a minimum
+    is filled as late as possible. A generator that retires after the first
+    period is not expected to produce in later windows.
+    """
+    n = pypsa.Network(snapshots=range(12))
+    if periods:
+        n.set_snapshots(pd.MultiIndex.from_product([periods, range(6)]))
+        n.set_investment_periods(periods)
+    n.add("Bus", "bus")
+    n.add("Generator", "coal", bus="bus", marginal_cost=20, p_nom=1000)
+    n.add("Generator", "gen", bus="bus", **{"p_nom": 1000, **kwargs, attr: limit})
+    n.add("Load", "load", bus="bus", p_set=[400, 600, 500, 800] * 3)
+
+    n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=overlap)
+
+    p = n.c.generators.dynamic.p["gen"]
+    assert p.sum() == pytest.approx(limit)
+    assert p.iloc[0] == pytest.approx(first)
+    assert n.c.generators.static.loc["gen", attr] == limit
+
+
+def test_rolling_horizon_e_sum_unbounded_capacity(caplog):
+    n = pypsa.Network(snapshots=range(12))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        marginal_cost=1,
+        capital_cost=1,
+        e_sum_min=1500,
+    )
+    n.add("Load", "load", bus="bus", p_set=500)
+
+    with pytest.raises(ValueError, match=r"\['gen'\].*finite p_nom_max"):
+        n.optimize.optimize_with_rolling_horizon(horizon=3)
+
+    n.optimize.optimize_with_rolling_horizon(horizon=12)
+
+    assert n.c.generators.dynamic.p["gen"].sum() == pytest.approx(6000)
+    assert "tracked across the rolling horizon" not in caplog.text
+
+
+def test_rolling_horizon_failed_window(caplog):
+    n = pypsa.Network(snapshots=range(6))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=1)
+    n.add("Load", "load", bus="bus", p_set=[200] * 3 + [50] * 3)
+
+    n.optimize.optimize_with_rolling_horizon(horizon=3)
+
+    assert "Optimization failed" in caplog.text
+
+    n.c.generators.static.loc["gen", "e_sum_max"] = 1000
+    with pytest.raises(RuntimeError, match=r"\[0:2\] failed"):
+        n.optimize.optimize_with_rolling_horizon(horizon=3)
+
+    assert n.c.generators.static.loc["gen", "e_sum_max"] == 1000

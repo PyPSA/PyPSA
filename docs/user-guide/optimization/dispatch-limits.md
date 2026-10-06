@@ -66,18 +66,20 @@ These constraints are set in the function `define_fixed_operation_constraints()`
 
 ## Volume Limits
 
-Generators, links and processes can also have volume limits, i.e. the total dispatch over all snapshots must be above a minimum $\underline{e}_{*}$ or below a maximum $\bar{e}_{*}$.
+Generators can also have volume limits, i.e. the total dispatch over all snapshots must be above a minimum $\underline{e}_{*}$ or below a maximum $\bar{e}_{*}$.
 
 | Constraint | Dual Variable | Name |
 |-------------------|------------------|------------------|
 | $\sum_t w_t^g g_{n,s,t} \geq \underline{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Generator-e_sum_min` |
 | $\sum_t w_t^g g_{n,s,t} \leq \bar{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Generator-e_sum_max` |
-| $\sum_t w_t^g f_{l,t} \geq \underline{e}_{l} \quad \forall l$ | only in `n.model` | `Link-e_sum_min` |
-| $\sum_t w_t^g f_{l,t} \leq \bar{e}_{l} \quad \forall l$ | only in `n.model` | `Link-e_sum_max` |
-| $\sum_t w_t^g r_{m,t} \geq \underline{e}_{m} \quad \forall m$ | only in `n.model` | `Process-e_sum_min` |
-| $\sum_t w_t^g r_{m,t} \leq \bar{e}_{m} \quad \forall m$ | only in `n.model` | `Process-e_sum_max` |
 
 These constraints are set in the function `define_total_supply_constraints()`.
+
+!!! note "Rolling horizon"
+
+    In [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] the volume limits of generators refer to all snapshots of the rolling horizon. Each window is given the part of the limit that is still open after the previous windows and after accounting for what later windows can at most ($\bar{e}$) or must at least ($\underline{e}$) produce given their capacity. Committable and inactive generators are assumed to produce nothing in later windows. Without foresight, a maximum is depleted by the earliest windows and a minimum is filled by the latest windows, which may turn the last window infeasible.
+
+    The energy that later windows can produce must be bounded. If a generator with a finite $\underline{e}$ (or a finite $\bar{e}$ and a negative `p_min_pu`) is extendable with `p_nom_max=inf`, a `ValueError` is raised before the first window. Set a finite `p_nom_max` for these generators. The limits are not tracked if a single window covers all snapshots. If limits are tracked and a window fails to solve, a `RuntimeError` is raised, since the open limits of later windows depend on its dispatch.
 
 ## Voltage Angle Limits
 
@@ -123,8 +125,6 @@ These constraints are set in the function `define_voltage_angle_constraints()`. 
         | $\underline{f}_{l,t}$ | `n.links_t.p_min_pu` | Parameter |
         | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu` | Parameter |
         | $\tilde{f}_{l,t}$ | `n.links_t.p_set` | Parameter |
-        | $\underline{e}_{l}$          | `n.links.e_sum_min` | Parameter |
-        | $\bar{e}_{l}$          | `n.links.e_sum_max` | Parameter |
         | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
         | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
 
@@ -139,8 +139,6 @@ These constraints are set in the function `define_voltage_angle_constraints()`. 
         | $\underline{r}_{m,t}$ | `n.processes_t.p_min_pu` | Parameter |
         | $\bar{r}_{m,t}$   | `n.processes_t.p_max_pu` | Parameter |
         | $\tilde{r}_{m,t}$ | `n.processes_t.p_set` | Parameter |
-        | $\underline{e}_{m}$          | `n.processes.e_sum_min` | Parameter |
-        | $\bar{e}_{m}$          | `n.processes.e_sum_max` | Parameter |
         | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
         | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
 
