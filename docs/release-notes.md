@@ -24,6 +24,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix minimum up and down time constraints of committable components dropping their first rows under linopy's v1 arithmetic semantics. Shifted start-up and shut-down terms before the first snapshot now contribute zero instead of being absent, so a row near the start of the horizon keeps its in-window terms. Legacy semantics are unaffected.
 - Fix `n.objective_constant` being `0` for multi-period optimisations (see [multi-investment periods](./user-guide/optimization/pathway-planning.md)). The capital costs of existing extendable capacity are again weighted by the investment period weightings and included in the constant.
 - Fix copying networks with [`n.copy()`][pypsa.Network.copy], `copy.copy`, `copy.deepcopy` and pickling. Resolves [#1930](https://github.com/PyPSA/PyPSA/issues/1930) and [#1937](https://github.com/PyPSA/PyPSA/issues/1937). (<!-- md:pr 1968 -->)
     - `n.copy()`, `copy.deepcopy` and pickling now give the copy its own sub-networks, linked to the copy. Before, the copy shared the original sub-networks and relinked them, so the original was modified.
