@@ -54,6 +54,7 @@ from pypsa.network.power_flow import (
 )
 from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
+from pypsa.optimization.window import SnapshotWindow
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore
 from pypsa.statistics.expressions import StatisticsAccessor
@@ -90,6 +91,7 @@ class Network(
     _multi_invest: int
     _linearized_uc: int
     _committable_big_m: float | None
+    _optimize_window: SnapshotWindow | None
     iteration: int
 
     # ----------------
@@ -161,6 +163,7 @@ class Network(
         self._objective_constant: float | None = None
         self._multi_invest: int = 0
         self._committable_big_m: float | None = None
+        self._optimize_window: SnapshotWindow | None = None
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -312,6 +315,13 @@ class Network(
 
         """
         return self.equals(other)
+
+    def __setstate__(self, state: dict) -> None:
+        """Restore state and relink SubNetwork weakrefs dropped on pickling."""
+        self.__dict__.update(state)
+        for sub in self.c.sub_networks.static.get("obj", []):
+            if isinstance(sub, SubNetwork):
+                sub._n = ref(self)
 
     def __getitem__(self, key: str) -> Network:
         """Return a shallow slice of the Network object.
@@ -530,6 +540,7 @@ class Network(
             PlotAccessor,
             AbstractStatisticsAccessor,
             linopy.Model,
+            SnapshotWindow,
         ]
         not_equal = False
         if isinstance(other, self.__class__):
@@ -654,28 +665,32 @@ class Network(
         <BLANKLINE>
         Variables:
         ----------
-        * Generator-p_nom (name)
-        * Line-s_nom (name)
-        * Link-p_nom (name)
-        * Generator-p (snapshot, name)
-        * Line-s (snapshot, name)
-        * Link-p (snapshot, name)
-        * objective_constant
+         * Generator-p_nom (name)
+         * Line-s_nom (name)
+         * Link-p_nom (name)
+         * Generator-p (snapshot, name)
+         * Line-s (snapshot, name)
+         * Link-p (snapshot, name)
+         * objective_constant
+        <BLANKLINE>
+        Expressions:
+        ------------
+        <empty>
         <BLANKLINE>
         Constraints:
         ------------
-        * Generator-ext-p_nom-lower (name)
-        * Line-ext-s_nom-lower (name)
-        * Link-ext-p_nom-lower (name)
-        * Generator-ext-p-lower (snapshot, name)
-        * Generator-ext-p-upper (snapshot, name)
-        * Line-ext-s-lower (snapshot, name)
-        * Line-ext-s-upper (snapshot, name)
-        * Link-ext-p-lower (snapshot, name)
-        * Link-ext-p-upper (snapshot, name)
-        * Bus-nodal_balance (name, snapshot)
-        * Kirchhoff-Voltage-Law (snapshot, cycle)
-        * GlobalConstraint-co2_limit
+         * Generator-ext-p_nom-lower (name)
+         * Line-ext-s_nom-lower (name)
+         * Link-ext-p_nom-lower (name)
+         * Generator-ext-p-lower (snapshot, name)
+         * Generator-ext-p-upper (snapshot, name)
+         * Line-ext-s-lower (snapshot, name)
+         * Line-ext-s-upper (snapshot, name)
+         * Link-ext-p-lower (snapshot, name)
+         * Link-ext-p-upper (snapshot, name)
+         * Bus-nodal_balance (snapshot, name)
+         * Kirchhoff-Voltage-Law (snapshot, cycle)
+         * GlobalConstraint-co2_limit
         <BLANKLINE>
         Status:
         -------
@@ -1093,17 +1108,17 @@ class Network(
         Examples
         --------
         >>> n.passive_branches() # doctest: +ELLIPSIS
-                    active    b  b_pu  ...         x      x_pu  x_pu_eff
-        component                     ...
-        0            True  0.0   0.0  ...  0.796878  0.000006  0.000006
-        1            True  0.0   0.0  ...  0.391560  0.000003  0.000003
-        2            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-        3            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-        4            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-        5            True  0.0   0.0  ...  0.238800  0.000002  0.000002
-        6            True  0.0   0.0  ...  0.400000  0.000003  0.000003
+                        active    b  b_pu  ...         x      x_pu  x_pu_eff
+        component name                     ...
+        Line      0       True  0.0   0.0  ...  0.796878  0.000006  0.000006
+                  1       True  0.0   0.0  ...  0.391560  0.000003  0.000003
+                  2       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  3       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  4       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
+                  6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 41 columns]
+        [7 rows x 44 columns]
 
         """
         comps = sorted(
@@ -1143,7 +1158,7 @@ class Network(
                   Bremen Converter     True           0  ...                   1
                   DC link              True           0  ...                   1
         <BLANKLINE>
-        [4 rows x 47 columns]
+        [4 rows x 52 columns]
 
         See Also
         --------
@@ -1170,6 +1185,7 @@ class Network(
         self,
         investment_period: int | str | None = None,
         skip_isolated_buses: bool = False,
+        cycle_basis_method: str = "bfs-refined",
     ) -> Network:
         """Build sub_networks from topology.
 
@@ -1180,6 +1196,17 @@ class Network(
         build_year and lifetime). If the investment_period is specified,
         the network topology is determined on the basis of the active
         branches.
+
+        Parameters
+        ----------
+        investment_period : int or str, optional
+            Investment period to consider when determining active branches.
+        skip_isolated_buses : bool, default False
+            Whether to skip sub-networks consisting of a single bus.
+        cycle_basis_method : str, default "bfs-refined"
+            Method used to construct the cycle basis of each sub-network, either
+            ``"bfs-refined"`` or ``"paton"``.
+
         """
         adjacency_matrix = self.adjacency_matrix(
             branch_components=self.passive_branch_components,
@@ -1227,7 +1254,9 @@ class Network(
                 logger.warning(
                     "Warning, sub network %d is not electric but "
                     "contains multiple buses\nand branches. Passive "
-                    "flows are not allowed for non-electric networks!",
+                    "flows are not allowed for non-electric networks! "
+                    'Use "AC" or "DC" as carrier ("electricity" will '
+                    "not work).",
                     i,
                 )
 
@@ -1262,13 +1291,16 @@ class Network(
                 c.static.loc[~active, "sub_network"] = np.nan
 
         for sub in self.c.sub_networks.static.obj:
-            find_cycles(sub)
+            find_cycles(sub, cycle_basis_method=cycle_basis_method)
             sub.find_bus_controls()
 
         return self
 
     def cycle_matrix(
-        self, investment_period: str | int | None = None, apply_weights: bool = False
+        self,
+        investment_period: str | int | None = None,
+        apply_weights: bool = False,
+        cycle_basis_method: str = "bfs-refined",
     ) -> pd.DataFrame:
         """Get the cycles in the network and represent them as a DataFrame.
 
@@ -1291,6 +1323,9 @@ class Network(
         apply_weights : bool, default False
             Whether to apply weights (e.g., reactance for AC lines,
             resistance for DC lines) to the cycles.
+        cycle_basis_method : str, default "bfs-refined"
+            Method used to construct the cycle basis, either ``"bfs-refined"``
+            or ``"paton"``. The default ``"bfs-refined"`` yields sparser cycles.
 
         Returns
         -------
@@ -1301,7 +1336,9 @@ class Network(
 
         """
         self.determine_network_topology(
-            investment_period=investment_period, skip_isolated_buses=True
+            investment_period=investment_period,
+            skip_isolated_buses=True,
+            cycle_basis_method=cycle_basis_method,
         )
         self.calculate_dependent_values()
 
@@ -1343,7 +1380,9 @@ class Network(
             is_ac = branches.sub_network.map(self.c.sub_networks.static.carrier) == "AC"
             weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
             weights = weights[cycles_df.index]
-            cycles_df = cycles_df.multiply(weights, axis=0)
+            cycles_df = cycles_df.where(
+                cycles_df == 0, cycles_df.multiply(weights, axis=0)
+            )
 
         # Reindex to include all branches (even those not in cycles)
         return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
@@ -1434,6 +1473,12 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         self._n = ref(n)
         self.name = name
+
+    def __getstate__(self) -> dict:
+        """Drop the unpicklable parent weakref, relinked in Network.__setstate__."""
+        state = self.__dict__.copy()
+        state.pop("_n", None)
+        return state
 
     # TODO assign __str__ and __repr__
     @property
@@ -1864,12 +1909,12 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     @deprecated(
         deprecated_in="1.0.0",
         removed_in="2.0.0",
-        details="Use `sub_network.components.stores.index.static` instead.",
+        details="Use `sub_network.components.stores.static.index` instead.",
     )
     def stores_i(self) -> pd.Index:
         """Get the index of the stores in the sub-network.
 
-        !!! warning "Deprecated in <!-- md:badge-version
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
 
             Use `sub_network.components.stores.static.index` instead.
 
@@ -1978,7 +2023,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     @deprecated(
         deprecated_in="1.0.0",
         removed_in="2.0.0",
-        details="Use `!!! deprecated.components.stores.static` instead.",
+        details="Use `sub_network.components.stores.static` instead.",
     )
     def stores(self) -> pd.DataFrame:
         """Get the stores in the sub-network.

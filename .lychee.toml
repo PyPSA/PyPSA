@@ -28,11 +28,14 @@ exclude = [
   "gurobi.com",
   "sun.ac.za",
   "agora-energiewende.de",
+  "isa.co",
+  "tugraz.at",
 ]
 
 # Release notes are an immutable historical record whose links rot over time.
 exclude_path = ["docs/release-notes.md"]
 
 timeout = 30
-max_retries = 2
+max_retries = 5
 max_redirects = 10
+host_concurrency = 2

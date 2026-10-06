@@ -127,7 +127,7 @@ True
 
 ``` py
 >>> n.scenarios
-Index(['volcano', 'no_volcano'], dtype='object', name='scenario')
+Index(['volcano', 'no_volcano'], dtype='str', name='scenario')
 ```
 
 ``` py
@@ -191,6 +191,10 @@ snapshot
 2019-07-21 21:00:00  0.0000  0.0896      0.000  0.0896
 ```
 
+!!! note
+
+    Attributes which define the topology or the structure of the optimisation problem must be identical across scenarios, e.g. `bus`, `bus0`, `bus1`, ..., `carrier`, `p_nom_extendable`, `p_nom_set`, `committable`, `build_year`, `lifetime`, `active` or the `delay` and `cyclic_delay` attributes of links and processes (including their per-port variants, e.g. `delay0`, `delay2`, `cyclic_delay2`). The consistency check raises an error otherwise.
+
 ### Optimization
 
 When we now call `n.optimize()`, the network is solved as a stochastic problem considering all defined scenarios and their respective probabilities.
@@ -221,6 +225,10 @@ Variables:
  * StorageUnit-state_of_charge (scenario, name, snapshot)
  * Store-p (scenario, name, snapshot)
 <BLANKLINE>
+Expressions:
+------------
+<empty>
+<BLANKLINE>
 Constraints:
 ------------
  * Generator-ext-p_nom-lower (name, scenario)
@@ -241,7 +249,7 @@ Constraints:
  * StorageUnit-ext-p_store-upper (scenario, name, snapshot)
  * StorageUnit-ext-state_of_charge-lower (scenario, name, snapshot)
  * StorageUnit-ext-state_of_charge-upper (scenario, name, snapshot)
- * Bus-nodal_balance (name, scenario, snapshot)
+ * Bus-nodal_balance (scenario, name, snapshot)
  * StorageUnit-energy_balance (scenario, name, snapshot)
  * Store-energy_balance (scenario, name, snapshot)
 <BLANKLINE>
@@ -257,6 +265,8 @@ As investment variables (i.e. `p_nom`, `s_nom`, `e_nom`) are scenario-independen
     - **Investment variables** scale as O(components)
     - **Operational variables** scale as O(scenarios × components × snapshots)
     - **Constraint matrix size** grows almost linearly with the number of scenarios.
+
+Optimization expressions from `n.optimize.expressions`, e.g. for custom constraints, carry a `scenario` dimension with scenario-specific coefficients, e.g. `n.optimize.expressions.capex()` uses the capital costs of each scenario.
 
 
 ### Evaluation

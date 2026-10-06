@@ -583,6 +583,27 @@ def test_get_delay_source_indexer_multi_invest_non_cyclic():
     np.testing.assert_array_equal(valid, expected_valid)
 
 
+def test_get_delay_source_indexer_periods_argument_matches_multiindex():
+    """Explicit `periods` reproduce a MultiIndex horizon on a flat snapshot index."""
+    snapshots = pd.MultiIndex.from_product(
+        [[2020, 2030], range(4)], names=["period", "timestep"]
+    )
+    weightings = pd.Series(1.0, index=snapshots)
+    expected = _Multiport.get_delay_source_indexer(
+        snapshots, weightings, delay=2, is_cyclic=True
+    )
+    flat = pd.Index(list(snapshots), tupleize_cols=False)
+    result = _Multiport.get_delay_source_indexer(
+        flat,
+        np.ones(8),
+        delay=2,
+        is_cyclic=True,
+        periods=snapshots.get_level_values("period").to_numpy(),
+    )
+    np.testing.assert_array_equal(result[0], expected[0])
+    np.testing.assert_array_equal(result[1], expected[1])
+
+
 def test_consistency_delay_exceeds_period_horizon():
     n = pypsa.Network()
     snapshots = pd.MultiIndex.from_product(

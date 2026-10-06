@@ -7,16 +7,18 @@ Test stochastic functionality of PyPSA networks.
 """
 
 import warnings
+from operator import methodcaller
 from pathlib import Path
 
 import pandas as pd
 import pytest
+from numpy import inf
 from numpy.testing import assert_array_almost_equal as equal
 from xarray import DataArray
 
 import pypsa
 from pypsa.common import expand_series
-from pypsa.components.common import as_components
+from pypsa.components.common import as_components, invariant
 
 
 def test_stoch_example():
@@ -1653,3 +1655,410 @@ def test_transmission_volume_expansion_limit_constraint_stochastic():
     n.optimize.create_model()
     assert "GlobalConstraint-tx_vol" in n.model.constraints
     assert "scenario" in n.model.constraints["GlobalConstraint-tx_vol"].dims
+
+
+def test_1472():
+    """
+    Stochastic optimization with scenarios and meshed buses should not fail.
+    The bug was that weakly_meshed_buses had duplicate names when scenarios
+    were used, which wasn't catched with current tests and only with a strongly and
+    weakly meshed network/ PyPSA-Eur.
+    """
+    # Create network with hub bus having >45 component references (50 gens + 50 lines)
+    # and peripheral buses having <45 references (1 load + 1 line each).
+    n = pypsa.Network(snapshots=range(3))
+
+    n.add("Bus", "hub")
+    for i in range(50):
+        n.add("Bus", f"peripheral_{i}")
+
+    for i in range(50):
+        n.add("Generator", f"gen_{i}", bus="hub", p_nom=10, marginal_cost=i)
+
+    for i in range(50):
+        n.add("Load", f"load_{i}", bus=f"peripheral_{i}", p_set=1)
+
+    for i in range(50):
+        n.add(
+            "Line",
+            f"line_{i}",
+            bus0="hub",
+            bus1=f"peripheral_{i}",
+            s_nom=100,
+            x=0.1,
+            r=0.01,
+        )
+
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+    status, _ = n.optimize()
+    assert status == "ok"
+
+
+def test_ramp_limit_stochastic_optimization_bug():
+    """Ramp-limit constraints must build and hold under scenarios."""
+    p_nom = 10.0
+    ramp = 0.3
+
+    n = pypsa.Network()
+    n.set_snapshots(range(5))
+    n.add("Bus", "bus")
+    n.add(
+        "Load",
+        "load",
+        bus="bus",
+        p_set=[0.0, 3.0, 6.0, 2.0, 5.0],
+    )
+    n.add("Generator", "slack", bus="bus", p_nom=100, marginal_cost=100)
+    n.add(
+        "Generator",
+        "g",
+        bus="bus",
+        p_nom=p_nom,
+        marginal_cost=1,
+        ramp_limit_up=ramp,
+        ramp_limit_down=ramp,
+    )
+
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+    status, condition = n.optimize(solver_name="highs")
+    assert status == "ok"
+    assert condition == "optimal"
+
+    p = n.c["Generator"].dynamic["p"].xs("g", axis=1, level="name")
+    tol = 1e-6
+    diff = p.diff().dropna()
+    assert (diff.abs() <= ramp * p_nom + tol).all().all()
+
+
+def test_active_inactive_assets_per_scenario():
+    """Per-scenario activeness keeps active/inactive assets mutually exclusive."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Generator", "g", bus="bus", p_nom_extendable=True)
+    n.add("Generator", "h", bus="bus", p_nom_extendable=True)
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+
+    # Deactivate g only in scenario "b" (do not run consistency_check).
+    n.c.generators.static.loc[("b", "g"), "active"] = False
+
+    c = n.c.generators
+    active, inactive = c.active_assets, c.inactive_assets
+
+    # g is active in at least one scenario, so it must not be inactive.
+    assert "g" in active
+    assert "g" not in inactive
+    # Documented invariant: the two sets partition the names.
+    assert active.intersection(inactive).empty
+    # Model index must keep g (pre-fix it was dropped via .difference).
+    assert "g" in c.extendables.difference(inactive)
+
+
+def _two_bus_network() -> pypsa.Network:
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", ["a", "b"])
+    n.add("Generator", "gen", bus="a", p_nom=20, marginal_cost=1)
+    n.add("Generator", "backup", bus="b", p_nom=20, marginal_cost=50)
+    n.add("Load", "load", bus="b", p_set=[5, 7, 0, 8])
+    return n
+
+
+def _add_transformer_cycle(n: pypsa.Network) -> None:
+    n.add("Transformer", ["t1", "t2"], bus0="a", bus1="b", x=[0.1, 0.2], s_nom=4)
+
+
+def _add_lines(n: pypsa.Network) -> None:
+    n.add("Line", ["l1", "l2"], bus0="a", bus1="b", x=[0.1, 0.2], s_nom=6)
+
+
+def _add_nom_set(n: pypsa.Network) -> None:
+    _add_lines(n)
+    n.add("Generator", "ext", bus="a", p_nom_extendable=True, p_nom_set=3)
+
+
+def _add_committable(n: pypsa.Network) -> None:
+    _add_lines(n)
+    n.c.generators.static.loc["gen", ["committable", "p_min_pu"]] = [True, 0.2]
+    n.c.generators.static.loc["gen", ["min_up_time", "min_down_time"]] = [2, 2]
+    n.c.generators.static.loc["gen", ["up_time_before", "start_up_cost"]] = [1, 5]
+    n.c.generators.static.loc["gen", ["shut_down_cost", "ramp_limit_up"]] = [5, 0.9]
+
+
+def _add_v_ang_max(n: pypsa.Network) -> None:
+    _add_lines(n)
+    _add_transformer_cycle(n)
+    n.c.lines.static["v_ang_max"] = 0.3
+    n.c.transformers.static["v_ang_max"] = 0.3
+
+
+def _add_e_sum_min(n: pypsa.Network) -> None:
+    _add_lines(n)
+    n.c.generators.static.loc["backup", "e_sum_min"] = 3
+
+
+@pytest.mark.parametrize(
+    ("add", "kwargs", "security_constrained"),
+    [
+        (_add_transformer_cycle, {}, False),
+        (_add_lines, {"branch_outages": None}, True),
+        (_add_lines, {"branch_outages": ["l1"]}, True),
+        (_add_nom_set, {}, False),
+        (_add_committable, {}, False),
+        (_add_committable, {"linearized_unit_commitment": True}, False),
+        (_add_v_ang_max, {}, False),
+        (_add_e_sum_min, {}, False),
+    ],
+)
+def test_scenario_indexed_model_matches_deterministic(
+    add, kwargs, security_constrained
+):
+    n = _two_bus_network()
+    add(n)
+    n_stoch = n.copy()
+    n_stoch.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    for network in (n, n_stoch):
+        optimize = (
+            network.optimize.optimize_security_constrained
+            if security_constrained
+            else network.optimize
+        )
+        status, _ = optimize(**kwargs)
+        assert status == "ok"
+
+    assert n_stoch.objective == pytest.approx(n.objective)
+    for name, con in n.model.constraints.items():
+        assert n_stoch.model.constraints[name].ncons == 2 * con.ncons
+
+    for name in ["capex", "opex", "optimal_capacity", "supply"]:
+        stat = methodcaller(name, drop_zero=False)
+        expected = stat(n.statistics)
+        result = stat(n_stoch.statistics)
+        for scenario in n_stoch.scenarios:
+            pd.testing.assert_series_equal(
+                result.xs(scenario, level="scenario"), expected, atol=1e-6
+            )
+
+
+@pytest.mark.parametrize("scenarios", [True, False])
+@pytest.mark.parametrize(("attr", "value"), [("e_sum_min", inf), ("e_sum_max", -inf)])
+def test_e_sum_incorrect_infinite_values_raise(scenarios, attr, value):
+    n = _two_bus_network()
+    n.c.generators.static.loc["backup", attr] = value
+    if scenarios:
+        n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    with pytest.raises(ValueError, match="incorrect infinite values"):
+        n.optimize.create_model()
+
+
+def _add_phase_shifter(n: pypsa.Network) -> None:
+    _add_transformer_cycle(n)
+    n.c.transformers.static.loc["t1", "phase_shift"] = 5
+
+
+@pytest.mark.parametrize(
+    ("add", "component", "asset", "values", "compare"),
+    [
+        (
+            _add_committable,
+            "Generator",
+            "gen",
+            {"s1": {"min_up_time": 1}, "s2": {"min_up_time": 3}},
+            {"s1": "status", "s2": "status"},
+        ),
+        (
+            _add_phase_shifter,
+            "Transformer",
+            "t1",
+            {"s1": {"phase_shift_min": -30, "phase_shift_max": 30}, "s2": {}},
+            {"s2": "phase_shift_opt"},
+        ),
+    ],
+)
+def test_scenario_varying_attribute_matches_deterministic(
+    add, component, asset, values, compare
+):
+    n_stoch = _two_bus_network()
+    add(n_stoch)
+    n_stoch.set_scenarios(dict.fromkeys(values, 1 / len(values)))
+
+    deterministic = {}
+    for scenario, attrs in values.items():
+        n = _two_bus_network()
+        add(n)
+        for attr, value in attrs.items():
+            n.c[component].static.loc[asset, attr] = value
+            n_stoch.c[component].static.loc[(scenario, asset), attr] = value
+        n.optimize()
+        deterministic[scenario] = n
+    n_stoch.optimize()
+
+    objectives = [n.objective for n in deterministic.values()]
+    assert n_stoch.objective == pytest.approx(sum(objectives) / len(objectives))
+    for scenario, n in deterministic.items():
+        p = n_stoch.c.generators.dynamic.p[scenario]
+        pd.testing.assert_frame_equal(p, n.c.generators.dynamic.p, atol=1e-6)
+    for scenario, attr in compare.items():
+        result = n_stoch.c[component].dynamic[attr][scenario][asset]
+        expected = deterministic[scenario].c[component].dynamic[attr][asset]
+        pd.testing.assert_series_equal(result, expected, atol=1e-6)
+
+
+@pytest.mark.parametrize(
+    ("attr", "value"),
+    [
+        ("delay", 1),
+        ("cyclic_delay", False),
+        ("delay2", 1),
+        ("p_nom_set", 5),
+        ("bus1", "a"),
+        ("bus2", "a"),
+    ],
+)
+def test_invariant_attribute_varying_across_scenarios_raises(attr, value):
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", ["a", "b"])
+    n.add("Link", "link", bus0="a", bus1="b", bus2="b", p_nom=10)
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    n.c.links.static.loc[("s2", "link"), attr] = value
+
+    with pytest.raises(pypsa.consistency.ConsistencyError, match=attr):
+        n.optimize.create_model()
+
+
+def test_invariant():
+    n = _two_bus_network()
+    expected = n.c.generators.static[["bus", "p_nom"]]
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    static = n.c.generators.static[["bus", "p_nom"]].copy()
+
+    assert invariant(expected) is expected
+    pd.testing.assert_frame_equal(invariant(static), expected)
+    pd.testing.assert_series_equal(invariant(static.bus), expected.bus)
+
+    static.loc[("s2", "gen"), "p_nom"] = 5
+    with pytest.raises(ValueError, match=r"\['gen'\] in columns \['p_nom'\]\."):
+        invariant(static)
+    with pytest.raises(ValueError, match=r"values for \['gen'\] in 'p_nom'\.$"):
+        invariant(static.p_nom)
+
+
+def test_get_switchable_inds_selects_names_in_all_scenarios():
+    n = _two_bus_network()
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    inds = pd.Index(["gen"])
+    expected = [("s1", "gen"), ("s2", "gen")]
+
+    dense = n.get_switchable_as_dense("Generator", "p_max_pu", inds=inds)
+    first = next(n.get_switchable_as_iter("Generator", "p_max_pu", n.snapshots, inds))
+    assert dense.columns.tolist() == expected
+    assert first.index.tolist() == expected
+
+
+@pytest.mark.parametrize(
+    ("add", "component", "asset", "attr", "value"),
+    [
+        (_add_v_ang_max, "Line", "l1", "carrier", "DC"),
+        (
+            lambda n: n.add("Link", "link", bus0="a", bus1="b", p_nom=10),
+            "Link",
+            "link",
+            "delay",
+            1,
+        ),
+    ],
+)
+def test_varying_invariant_attribute_fails_model_build(
+    add, component, asset, attr, value
+):
+    n = _two_bus_network()
+    add(n)
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    n.c[component].static.loc[("s2", asset), attr] = value
+
+    with pytest.raises(ValueError, match=rf"differing values for \['{asset}'\]"):
+        n.optimize.create_model(consistency_check=False)
+
+
+def _transmission_limit_network(scenarios: bool, multi_invest: bool) -> pypsa.Network:
+    n = pypsa.Network(snapshots=range(2))
+    if multi_invest:
+        n.investment_periods = [2020, 2030]
+    n.add("Bus", ["bus", "bus2"])
+    n.add("Carrier", "AC")
+    n.add("Carrier", "gas", co2_emissions=1)
+    n.add("Load", "load", bus="bus2", p_set=5)
+    n.add("Generator", "gen", bus="bus", carrier="gas", p_nom=10, build_year=2020)
+    n.add("Generator", "backup", bus="bus2", p_nom=10, marginal_cost=100)
+    n.add(
+        "Line",
+        "line",
+        bus0="bus",
+        bus1="bus2",
+        carrier="AC",
+        x=0.1,
+        s_nom_extendable=True,
+        capital_cost=1,
+        build_year=2020,
+        lifetime=20,
+    )
+    for kind, constant in [
+        ("transmission_volume_expansion_limit", 1000),
+        ("transmission_expansion_cost_limit", 2),
+    ]:
+        n.add(
+            "GlobalConstraint",
+            kind,
+            type=kind,
+            carrier_attribute="AC",
+            sense="<=",
+            constant=constant,
+        )
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=1000,
+        investment_period=2030 if multi_invest else float("nan"),
+    )
+    if scenarios:
+        n.set_scenarios({"low": 0.5, "high": 0.5})
+    return n
+
+
+@pytest.mark.parametrize("multi_investment_periods", [True, False])
+def test_transmission_global_constraints_stochastic(multi_investment_periods):
+    n = _transmission_limit_network(False, multi_investment_periods)
+    n_stoch = _transmission_limit_network(True, multi_investment_periods)
+    for network in (n, n_stoch):
+        status, _ = network.optimize(multi_investment_periods=multi_investment_periods)
+        assert status == "ok"
+
+    glcs = [c for c in n.model.constraints if c.startswith("GlobalConstraint")]
+    assert len(glcs) == 3
+    for name in glcs:
+        con = n_stoch.model.constraints[name]
+        assert con.ncons == 2 * n.model.constraints[name].ncons
+
+    periods = n.investment_period_weightings.objective.sum()
+    s_nom_max = 2 / (periods if multi_investment_periods else 1)
+    assert n_stoch.c.lines.static.s_nom_opt.tolist() == pytest.approx([s_nom_max] * 2)
+
+
+def test_fix_optimal_capacities_stochastic():
+    n = _two_bus_network()
+    n.add("Generator", "ext", bus="b", p_nom_extendable=True, capital_cost=1)
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    n.optimize()
+    p_nom_opt = n.c.generators.static.p_nom_opt.xs("ext", level="name")
+    assert (p_nom_opt == 8).all()
+
+    n.optimize.fix_optimal_capacities()
+    n.optimize()
+
+    static = n.c.generators.static
+    pd.testing.assert_series_equal(static.p_nom, static.p_nom_opt, check_names=False)
+    assert not static.p_nom_extendable.any()
+    assert n.objective == pytest.approx(0)

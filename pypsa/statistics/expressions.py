@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import logging
 import warnings
+from functools import reduce
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_list_like
 
 from pypsa._options import options
 from pypsa.common import (
@@ -25,6 +27,8 @@ from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_por
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
+
+    import xarray as xr
 
     from pypsa import Network, NetworkCollection
     from pypsa.components.components import PortsLike
@@ -65,35 +69,33 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
 
 
 def port_efficiency(
-    n: Network, c_name: str, port: int | str = 0, dynamic: bool = False
-) -> pd.Series | pd.DataFrame:
+    n: Network,
+    c_name: str,
+    port: int | str = 0,
+    dynamic: bool = False,
+    as_xarray: bool = False,
+) -> pd.Series | pd.DataFrame | xr.DataArray:
     """Get the efficiency of a component at a specific port."""
     c = n.c[c_name]
     port = c._as_port(port)
 
     ones = pd.Series(1, index=c.static.index)
     if c.name in n.one_port_components:
-        return ones
+        res = ones
     elif c.name in n.passive_branch_components:
-        return -ones if port == 0 else ones
-    elif c.name == "Link":
-        if port == 0:
-            return -ones
-
-        key = "efficiency" if port == 1 else f"efficiency{port}"
+        res = -ones if port == 0 else ones
+    elif c.name == "Link" and port == 0:
+        res = -ones
+    elif c.name in ("Link", "Process"):
+        key = c._port_coefficient_attr(port)
         if dynamic and key in c.static:
-            return n.get_switchable_as_dense(c.name, key)
-
-        return c.static.get(key, ones)
-    elif c.name == "Process":
-        key = f"rate{port}"
-        if dynamic and key in c.static:
-            return n.get_switchable_as_dense(c.name, key)
-
-        return c.static.get(key, ones)
+            return c.da[key] if as_xarray else n.get_switchable_as_dense(c.name, key)
+        res = c.static.get(key, ones)
     else:
         msg = f"port_efficiency has not been implemented for: {c.name}"
         raise NotImplementedError(msg)
+
+    return c._to_xarray(res, "efficiency") if as_xarray else res
 
 
 def get_transmission_branches(
@@ -525,9 +527,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self, df: pd.Series | pd.DataFrame, agg: Callable | str
     ) -> pd.Series | pd.DataFrame:
         warnings.warn(
-            "Passing `aggregate_across_components` was Deprecated in <!-- md:badge-version v1.0.0 -->.0 and "
+            "Passing `aggregate_across_components` was deprecated in v1.0.0 and "
             "will be removed with v2.0.0. Use e.g. "
-            "`n.statistics.installed_capacity.groupby(<col_name>).sum() instead.",
+            "`n.statistics.installed_capacity.groupby(<col_name>).sum()` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -747,8 +749,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             comp = n.c[c]
             capacity = comp.static[f"{nominal_attrs[c]}_opt"]
             if cost_attribute == "capital_cost":
-                return capacity * comp.capital_cost
-            return capacity * comp.static[cost_attribute]
+                attr_vals = comp.capital_cost
+            else:
+                attr_vals = comp.static[cost_attribute]
+            piecewise_costs = comp.static.get(cost_attribute + "_piecewise_opt", 0)
+            capex = capacity * (attr_vals + piecewise_costs)
+            return capex
 
         df = self._aggregate_components(
             func,
@@ -862,7 +868,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             comp = n.c[c]
             capacity = comp.static[nominal_attrs[c]]
-            return capacity * comp.capital_cost
+            if cost_attribute == "capital_cost":
+                return capacity * comp.capital_cost
+            return capacity * comp.static[cost_attribute]
 
         df = self._aggregate_components(
             func,
@@ -1058,7 +1066,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         See Also
         --------
-        :meth:`capex` : Returns total fixed costs (overnight_cost + fom_cost).
+        :meth:`capex` : Returns periodized investment costs (excluding fom).
         :meth:`fom` : Returns fixed operation and maintenance costs.
 
         """
@@ -1142,8 +1150,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         See Also
         --------
-        :meth:`capex` : Returns total fixed costs (investment + fom_cost).
-        :meth:`overnight_cost` : Returns annuitized investment costs.
+        :meth:`capex` : Returns periodized investment costs (excluding fom).
+        :meth:`overnight_cost` : Returns overnight investment costs.
+        :meth:`system_cost` : Returns total system cost (capex + fom + opex).
 
         """
 
@@ -1651,9 +1660,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 if cost_type in cost_types_ and cost_type in n.c[c].static:
                     attr = lookup.query(cost_type).loc[c].index.item() + port
                     cost = n.get_switchable_as_dense(c, cost_type)
+                    cost_piecewise_opt = n.c[c].dynamic.get(
+                        f"{cost_type}_piecewise_opt"
+                    )
+                    if cost_piecewise_opt is None or cost_piecewise_opt.empty:
+                        cost_piecewise_opt = 0
                     p = n.c[c].dynamic[attr]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
-                    opex = var * cost
+                    opex = var * (cost + cost_piecewise_opt)
                     term = self._aggregate_timeseries(opex, weights, agg=groupby_time)
                     result.append(term)
 
@@ -1669,8 +1683,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     and not com_i.empty
                 ):
                     cost = n.get_switchable_as_dense(c, cost_type, inds=com_i)
-                    var = n.c[c].dynamic[attr].loc[:, com_i]
-                    opex = var * cost
+                    var = n.c[c].dynamic[attr].loc[:, cost.columns]
+                    cost_piecewise_opt = n.c[c].dynamic.get(
+                        f"{cost_type}_piecewise_opt", 0
+                    )
+                    opex = var * (cost + cost_piecewise_opt)
                     w = weights if attr == "status" else weights_one
                     term = self._aggregate_timeseries(opex, w, agg=groupby_time)
                     result.append(term)
@@ -1723,7 +1740,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **total system cost**.
 
-        Sum of the capital and operational expenditures.
+        Sum of the capital expenditures, fixed O&M costs and operational
+        expenditures.
 
         Parameters
         ----------
@@ -1808,6 +1826,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
+        fom = self.fom(
+            components=components,
+            groupby_method=groupby_method,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port=at_port,
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
+        )
         opex = self.opex(
             components=components,
             groupby_time=groupby_time,
@@ -1822,12 +1852,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             round=round,
         )
         # TODO It would be better if the empty series return has index names
-        if not capex.empty and not opex.empty:
-            df = capex.add(opex, fill_value=0)
-        elif not capex.empty:
-            df = capex
-        else:
-            df = opex
+        parts = [part for part in (capex, fom, opex) if not part.empty]
+        df = reduce(lambda a, b: a.add(b, fill_value=0), parts) if parts else capex
         df.attrs["name"] = "System Cost"
         df.attrs["unit"] = "currency"
         return df
@@ -2818,7 +2844,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def prices(  # noqa: D417
         self,
-        groupby: bool | str | Sequence[str] = False,
+        groupby: Literal[False] | str | Sequence[str] = False,
         weighting: str = "load",
         groupby_time: bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -2885,7 +2911,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             keys = []
         elif isinstance(groupby, str):
             keys = [groupby]
-        elif isinstance(groupby, (list, tuple)):
+        elif is_list_like(groupby):
             keys = list(groupby)
         else:
             msg = f"Grouping prices by {groupby!r} is not supported."

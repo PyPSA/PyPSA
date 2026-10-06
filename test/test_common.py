@@ -511,9 +511,10 @@ class TestNormalizeCarrierNiceNames:
     def test_string_canonical_passthrough(self):
         assert normalize_carrier_nice_names(self.nice_names, "gas") == "gas"
 
-    def test_list(self):
+    @pytest.mark.parametrize("container", [list, tuple])
+    def test_list_like(self, container):
         result = normalize_carrier_nice_names(
-            self.nice_names, ["Natural Gas", "Electricity"]
+            self.nice_names, container(["Natural Gas", "Electricity"])
         )
         assert result == ["gas", "electricity"]
 
@@ -524,7 +525,3 @@ class TestNormalizeCarrierNiceNames:
     def test_empty_nice_names(self):
         empty = pd.Series(["", ""], index=["a", "b"])
         assert normalize_carrier_nice_names(empty, "a") == "a"
-
-    def test_tuple_passthrough(self):
-        result = normalize_carrier_nice_names(self.nice_names, ("gas", "oil"))
-        assert result == ("gas", "oil")

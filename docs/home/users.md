@@ -137,6 +137,8 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_de: d-fine](https://www.d-fine.com/)**: uses a PyPSA-Eur-based approach for infrastructure analysis in Europe, e.g. in [Integrated Infrastructure Planning and 2050 Climate Neutrality: Deriving Future-Proof European Energy Infrastructures](https://www.agora-energiewende.org/publications/integrated-infrastructure-planning-and-2050-climate-neutrality) on future-proof European energy infrastructures (jointly with Fraunhofer IEG and Fraunhofer ISI.
 
+* **[:flag_de: greenventory](https://greenventory.de/en/home/)**: utilizes a customized implementation of PyPSA, to co-optimize sector-coupled capacities (electricity generators, heat pumps, CHP, batteries) and 8760-hour dispatch of these assets for proper [spatiotemporal capacity sizing](https://forum.openmod.org/t/openmod-workshop-freiburg-2026-lightning-talks-and-poster-contributions/5755/11).
+
 ## Governmental Organisation
 
 * **[:globe_with_meridians: International Energy Agency (IEA)](https://www.iea.org/)** uses PyPSA within their [Global Energy and Climate Model](https://www.iea.org/reports/global-energy-and-climate-model). A 2024 report [Managing the Seasonal Variability of Electricity Demand and Supply](https://www.iea.org/reports/managing-the-seasonal-variability-of-electricity-demand-and-supply) used PyPSA to explore how seasonal variations in both demand and supply affect electricity system operations in various world regions in 2050.
@@ -146,6 +148,8 @@ The following universities, research institutes, companies, governmental and non
 * **[:flag_de: GIZ](https://www.giz.de/en/html/index.html)**, the German Agency for International Cooperation (Deutsche Gesellschaft für Internationale Zusammenarbeit), published and supported several studies based on PyPSA for the integration of renewables into the Vietnamese power system, [power sector analysis for Thailand](https://static.agora-energiewende.de/fileadmin/Partnerpublikationen/2021/CASE_Beyond_Net_Zero_Empowering_Climate_Mitigation/Towards_a_collective_vision_of_Thai_energy_transition_full_report.pdf) within the CASE programme, [the future of the Indonesian power system](https://energynautics.com/en/pypsa/) within the 1000 Islands programme, and the [Brazilian electricity system](https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf).
 
 * **[:flag_ca: Canada Energy Regulator (CER)](https://www.cer-rec.gc.ca/en/)**, an agency of the Government of Canada, used PyPSA for its [Canada's Energy Future 2023](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2023/appendix-3/) and [Canada's Energy Future 2026 report](https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2026/canada-energy-futures-2026.pdf) report.
+
+* **[:flag_cl: Ministry of Energy of Chile](https://energia.gob.cl/)**, the Planning and Climate Change Unit of the Ministry of Energy of Chile, developed a capacity expansion model of the national electricity system based on PyPSA, used in the official Long-term Energy Planning process of Chile [PELP 2028-2032](https://energia.gob.cl/pelp/repositorio).
 
 ## Non-Governmental and Non-Profit Organisations
 

@@ -26,6 +26,9 @@ from pypsa.common import as_index, deprecated_common_kwargs
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
+from pypsa.network.graph import (
+    bfs_refined_cycle_basis,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -697,15 +700,35 @@ def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
             sub_network.T[branch_i, j] = sign
 
 
-def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
+def find_cycles(
+    sub_network: SubNetwork,
+    weight: str = "x_pu",
+    cycle_basis_method: str = "bfs-refined",
+) -> None:
     """Find all cycles in the sub_network and record them in sub_network.C.
 
-    networkx collects the cycles with more than 2 edges; then the 2-edge
-    cycles from the MultiGraph must be collected separately (for cases
-    where there are multiple lines between the same pairs of buses).
+    The cycle basis is constructed with ``cycle_basis_method``, which collects
+    the cycles with more than 2 edges; then the 2-edge cycles from the
+    MultiGraph must be collected separately (for cases where there are multiple
+    lines between the same pairs of buses).
 
     Cycles with infinite impedance are skipped.
+
+    Parameters
+    ----------
+    sub_network : SubNetwork
+        Sub-network for which to construct the cycle basis.
+    weight : str, default "x_pu"
+        Branch attribute used to exclude infinite-impedance branches.
+    cycle_basis_method : str, default "bfs-refined"
+        Method used to construct the cycle basis, either ``"bfs-refined"`` or
+        ``"paton"``.
+
     """
+    if cycle_basis_method not in ("bfs-refined", "paton"):
+        msg = 'cycle_basis_method must be one of "bfs-refined" or "paton"'
+        raise ValueError(msg)
+
     branches_bus0 = sub_network.branches()["bus0"]
 
     if sub_network.n.has_scenarios and not branches_bus0.empty:
@@ -718,7 +741,10 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     mgraph = sub_network.graph(weight=weight, inf_weight=False)
     graph = nx.Graph(mgraph)
 
-    cycles = nx.cycle_basis(graph)
+    if cycle_basis_method == "paton":
+        cycles = nx.cycle_basis(graph)
+    else:
+        cycles = bfs_refined_cycle_basis(graph)
 
     # number of 2-edge cycles
     num_multi = len(mgraph.edges()) - len(graph.edges())

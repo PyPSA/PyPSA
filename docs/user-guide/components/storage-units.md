@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Storage Unit
 
-The [`StorageUnit`][pypsa.components.StorageUnits] components connect to a single bus and enable inter-temporal energy shifting with coupled power and energy capacity modelling. This compoenent is suitable for modeling batteries, pumped hydro storage, and other storage technologies where power and energy capacities are coupled.
+The [`StorageUnit`][pypsa.components.StorageUnits] components connect to a single bus and enable inter-temporal energy shifting with coupled power and energy capacity modelling. This component is suitable for modeling batteries, pumped hydro storage, and other storage technologies where power and energy capacities are coupled.
 
 - Energy capacity is defined as a fixed ratio (`max_hours`) of power capacity: `e_nom = p_nom * max_hours` (MW × h = MWh)
 - An `inflow` attribute (an exogenous parameter representing an energy input from external sources) and `spill` (energy overflow/spillage) variable are supported

@@ -148,7 +148,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         return pd.DataFrame(active).any(axis=1) & self.static.active
 
     @property
-    def active_assets(self) -> pd.Series:
+    def active_assets(self) -> pd.Index:
         """Get list of active assets.
 
         <!-- md:badge-version v1.0.0 -->
@@ -157,19 +157,37 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         Returns
         -------
-        pd.Series
-            List of inactive assets
+        pd.Index
+            List of active assets
 
         See Also
         --------
         [pypsa.Components.inactive_assets][]
 
         """
-        active_assets = self.get_active_assets()
-        return active_assets[active_assets].index.get_level_values("name").unique()
+        return self._active_names()
+
+    def _active_names(
+        self, investment_period: int | str | Sequence | None = None
+    ) -> pd.Index:
+        """Get names of assets active in any scenario and given investment period(s).
+
+        Parameters
+        ----------
+        investment_period : int, str, Sequence, optional
+            Investment period(s) passed to [pypsa.Components.get_active_assets][].
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of active asset names.
+
+        """
+        active = self.get_active_assets(investment_period)
+        return active[active].index.unique("name")
 
     @property
-    def inactive_assets(self) -> pd.Series:
+    def inactive_assets(self) -> pd.Index:
         """Get list of inactive assets.
 
         <!-- md:badge-version v1.0.0 -->
@@ -183,7 +201,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         Returns
         -------
-        pd.Series
+        pd.Index
             List of inactive assets
 
         Examples
@@ -213,8 +231,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         [pypsa.Components.get_active_assets][]
 
         """
-        active_assets = self.get_active_assets()
-        return active_assets[~active_assets].index.get_level_values("name").unique()
+        return self.names.difference(self.active_assets)
 
     def filter_by_active_assets(
         self,
@@ -258,20 +275,11 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             else:
                 investment_period = int(investment_period)
 
-        if isinstance(data, pd.Index):
-            if investment_period is not None:
-                active = self.get_active_assets(investment_period)
-                return data[active.reindex(data, fill_value=False)]
-            return data.intersection(self.active_assets)
-
-        names = data.index.get_level_values("name").unique()
-        if investment_period is not None:
-            active = self.get_active_assets(investment_period)
-            names = names[active.reindex(names, fill_value=False)]
-        else:
-            names = names.intersection(self.active_assets)
-
-        return data[data.index.get_level_values("name").isin(names)]
+        active = self._active_names(investment_period)
+        index = data if isinstance(data, pd.Index) else data.index
+        if isinstance(index, pd.MultiIndex):
+            index = index.get_level_values("name")
+        return data[index.isin(active)]
 
     def get_activity_mask(
         self,

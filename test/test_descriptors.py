@@ -49,6 +49,45 @@ def test_get_switchable_as_iter(network):
     assert (df["gen0"] == 1.0).all()
 
 
+@pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
+@pytest.mark.parametrize("inds", [None, ["a", "z", "a", "x"]])
+@pytest.mark.parametrize("varying", [None, "a", "m"])
+@pytest.mark.parametrize("method", ["dense", "iter"])
+def test_get_switchable_order(
+    network: pypsa.Network,
+    method: str,
+    varying: str | None,
+    inds: list[str] | None,
+    scenarios: list[str] | None,
+) -> None:
+    n = network
+    n.add("Bus", "bus0")
+    for name, val in [("z", 0.5), ("m", 0.4), ("a", 0.25)]:
+        n.add("Generator", name, bus="bus0", p_max_pu=val)
+    if scenarios:
+        n.set_scenarios(scenarios)
+
+    expected = n.c.generators.static.p_max_pu.copy()
+    names = expected.index.get_level_values("name")
+    if varying:
+        for i in expected.index[names == varying]:
+            n.c.generators.dynamic.p_max_pu[i] = 0.75
+            expected[i] = 0.75
+    if inds:
+        order = ["a", "z"] if method == "iter" else ["z", "a"]
+        keys = pd.MultiIndex.from_product([scenarios, order]) if scenarios else order
+        expected = expected.loc[keys]
+
+    args = ("Generator", "p_max_pu", n.snapshots, inds)
+    if method == "dense":
+        result = n.get_switchable_as_dense(*args).iloc[0]
+    else:
+        result = next(n.get_switchable_as_iter(*args))
+
+    assert result.index.equals(expected.index)
+    assert (result == expected).all()
+
+
 def test_allocate_series_dataframes(network):
     n = network
     n.add("Bus", "bus0")

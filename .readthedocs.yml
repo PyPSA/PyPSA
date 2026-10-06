@@ -25,8 +25,11 @@ build:
     - printf '%b' "$GUROBI_LIC" > $HOME/gurobi.lic
     - python -c "p=\"$HOME/gurobi.lic\";t=open(p).read().replace(chr(39),\"\");open(p,\"w\").write(t)"
       # To create all doctest files
-    - PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv run --no-sync pytest test/test_docs.py --test-docs
+    - PYPSA_PARAMS__OPTIMIZE__SOLVER_NAME=gurobi uv run pytest test/test_docs.py --test-docs
+      # Overlay pre-executed notebooks from the docs-notebooks branch (built daily by build-docs.yml)
     - PATH="$HOME/smspp/bin:$PATH" LD_LIBRARY_PATH="$HOME/smspp/lib:${LD_LIBRARY_PATH:-}" UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv run --no-sync pytest test/test_smspp.py
+    - git fetch origin docs-notebooks
+    - git checkout FETCH_HEAD -- 'docs/*.ipynb'
 
 mkdocs:
   configuration: mkdocs.yml

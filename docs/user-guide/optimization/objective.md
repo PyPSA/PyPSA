@@ -51,27 +51,25 @@ PyPSA supports two approaches for specifying investment costs:
           p_nom_extendable=True,
           overnight_cost=1200000,  # Upfront cost: €/MW
           discount_rate=0.07,      # 7% discount rate
-          lifetime=25,             # 25 years
-          fom_cost=12000)          # Fixed O&M: €/MW/a
+          lifetime=25)             # 25 years
     ```
 
     The effective periodized cost per MW installation used in optimization is calculated as:
 
-    $$c = c_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}} + c_{\text{fom}}$$
-
+    $$c = c_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}}$$
     where $N_{\text{years}}$ refers to the model time span in units of years, derived from `n.snapshot_weightings["objective"]`.  The annuity factor converts overnight cost to annual payments:
 
     $$\text{annuity}(r, n) = \frac{r}{1 - (1 + r)^{-n}}$$
 
     or
 
-    $$1/n  /text{if} r=0$$
+    $$\frac{1}{n}  \text{if} r=0$$
 
 
 
 ### Fixed Operation & Maintenance Costs
 
-Fixed O&M costs (`fom_cost`) represent periodized costs that are incurred regardless of dispatch, such as maintenance, insurance, and land lease. They are added to the annualized investment cost (`capital_cost` / `overnight_cost`):
+Fixed O&M costs (`fom_cost`) represent another type of periodized costs that are incurred regardless of dispatch, such as maintenance, insurance, and land lease:
 
 ``` py
 # Wind turbine with 2% of overnight cost as annual FOM
@@ -183,7 +181,7 @@ For generators, links and processes with unit commitment (`committable=True`), s
 
 === "Generator"
 
-    $$+ \sum_{n,s,t} w_t^o sbc_{n,s,t} u_{n,s,t} + \sum_{n,s} suc_{n,s} su_{n,s,t} + \sum_{n,s} sdc_{n,s} sd_{n,s,t}$$
+    $$+ \sum_{n,s,t} w_t^o sbc_{n,s,t} u_{n,s,t} + \sum_{n,s,t} suc_{n,s,t} su_{n,s,t} + \sum_{n,s,t} sdc_{n,s,t} sd_{n,s,t}$$
 
 === "Link"
 
@@ -205,8 +203,8 @@ where $sbc_{*,t}$, $suc_{*,t}$, and $sdc_{*,t}$ are the stand-by, start-up, and 
         | $su_{n,s,t}$      | `n.generators_t.start_up` | Decision variable |
         | $sd_{n,s,t}$      | `n.generators_t.shut_down` | Decision variable |
         | $sbc_{n,s,t}$     | `n.generators_t.stand_by_cost` | Parameter |
-        | $suc_{n,s}$       | `n.generators.start_up_cost` | Parameter |
-        | $sdc_{n,s}$       | `n.generators.shut_down_cost` | Parameter |
+        | $suc_{n,s,t}$     | `n.generators_t.start_up_cost` | Parameter |
+        | $sdc_{n,s,t}$     | `n.generators_t.shut_down_cost` | Parameter |
         | $w_t^o$           | `n.snapshots.weightings.objective` | Parameter |
 
     === "Link"
@@ -217,8 +215,8 @@ where $sbc_{*,t}$, $suc_{*,t}$, and $sdc_{*,t}$ are the stand-by, start-up, and 
         | $su_{l,t}$        | `n.links_t.start_up` | Decision variable |
         | $sd_{l,t}$        | `n.links_t.shut_down` | Decision variable |
         | $sbc_{l,t}$       | `n.links_t.stand_by_cost` | Parameter |
-        | $suc_{l,t}$       | `n.links.start_up_cost` | Parameter |
-        | $sdc_{l,t}$       | `n.links.shut_down_cost` | Parameter |
+        | $suc_{l,t}$       | `n.links_t.start_up_cost` | Parameter |
+        | $sdc_{l,t}$       | `n.links_t.shut_down_cost` | Parameter |
         | $w_t^o$           | `n.snapshots.weightings.objective` | Parameter |
 
     === "Process"
@@ -229,8 +227,8 @@ where $sbc_{*,t}$, $suc_{*,t}$, and $sdc_{*,t}$ are the stand-by, start-up, and 
         | $su_{m,t}$        | `n.processes_t.start_up` | Decision variable |
         | $sd_{m,t}$        | `n.processes_t.shut_down` | Decision variable |
         | $sbc_{m,t}$       | `n.processes_t.stand_by_cost` | Parameter |
-        | $suc_{m,t}$       | `n.processes.start_up_cost` | Parameter |
-        | $sdc_{m,t}$       | `n.processes.shut_down_cost` | Parameter |
+        | $suc_{m,t}$       | `n.processes_t.start_up_cost` | Parameter |
+        | $sdc_{m,t}$       | `n.processes_t.shut_down_cost` | Parameter |
         | $w_t^o$           | `n.snapshots.weightings.objective` | Parameter |
 
 Some decision variables do not show up in the objective function, such as the power flow on lines and transformers ($p_{l,t} \in \mathbb{R}$) and the storage unit charging ($h_{n,s,t}^+ \in \mathbb{R}$). They are only used to enforce constraints, e.g. the power flow on lines and transformers.

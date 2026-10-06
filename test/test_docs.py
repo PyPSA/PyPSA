@@ -190,6 +190,8 @@ def test_notebooks(test_docs_flag, pytestconfig):
         "import pypsa\n",
         "\n",
         'warnings.filterwarnings("error", category=DeprecationWarning)\n',
+        "# pandas<3.0.3 sets the `locs` attribute deprecated in matplotlib>=3.11\n",
+        'warnings.filterwarnings("ignore", message="The locs attribute was deprecated")\n',
         'logging.getLogger("gurobipy").propagate = False\n',
         "pypsa.options.params.optimize.log_to_console = False",
     ]

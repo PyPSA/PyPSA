@@ -26,6 +26,7 @@ class _ComponentsABC(ABC):
     n: Network | None
     static: pd.DataFrame
     dynamic: Dict
+    piecewise: Dict
 
     @property
     @abstractmethod

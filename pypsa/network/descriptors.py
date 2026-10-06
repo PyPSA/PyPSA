@@ -25,7 +25,7 @@ from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
 
 logger = logging.getLogger(__name__)
@@ -130,7 +130,10 @@ class NetworkDescriptorsMixin(_NetworkABC):
         snapshots : pandas.Index
             Restrict to these snapshots rather than n.snapshots.
         inds : pandas.Index
-            Restrict to these components rather than n.components.index
+            Restrict to these component names rather than all components. For
+            stochastic networks, the names are selected in all scenarios. The
+            result follows the order of the component's static table, not the
+            order of `inds`. Duplicates and unknown names are dropped.
 
         Returns
         -------
@@ -153,7 +156,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
         attr: str,
         snapshots: Sequence,
         inds: pd.Index | None = None,
-    ) -> pd.DataFrame:
+    ) -> Iterator[pd.Series]:
         """Return an iterator over snapshots for a time-varying component attribute.
 
         Values for all non-time-varying components are filled in with the default
@@ -168,11 +171,15 @@ class NetworkDescriptorsMixin(_NetworkABC):
         snapshots : pandas.Index
             Restrict to these snapshots rather than n.snapshots.
         inds : pandas.Index
-            Restrict to these items rather than all of n.{generators, ..}.index
+            Restrict to these component names rather than all components. For
+            stochastic networks, the names are selected in all scenarios. The
+            result follows the order of `inds`. Duplicates and unknown names are
+            dropped.
 
         Returns
         -------
-        pandas.DataFrame
+        Iterator[pandas.Series]
+            One Series per snapshot, indexed by component.
 
         Examples
         --------
@@ -192,14 +199,13 @@ class NetworkDescriptorsMixin(_NetworkABC):
         dynamic = self.c[component].dynamic
 
         index = static.index
-        varying_i = dynamic[attr].columns
-        fixed_i = static.index.difference(varying_i)
-
         if inds is not None:
-            inds = pd.Index(inds)
-            index = inds.intersection(index)
-            varying_i = inds.intersection(varying_i)
-            fixed_i = inds.intersection(fixed_i)
+            names = pd.Index(inds, name="name").unique()
+            if isinstance(index, pd.MultiIndex):
+                names = pd.MultiIndex.from_product([index.unique("scenario"), names])
+            index = names[names.isin(index)]
+        varying_i = index[index.isin(dynamic[attr].columns)]
+        fixed_i = index[~index.isin(varying_i)]
 
         # Short-circuit only fixed
         if len(varying_i) == 0:
