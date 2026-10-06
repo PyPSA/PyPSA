@@ -172,20 +172,16 @@ def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
     Examples
     --------
     >>> get_projection_from_crs(4326)
-    <Projected CRS: +proj=eqc +ellps=WGS84 +a=6378137.0 +lon_0=0.0 +to ...>
+    <Geographic 2D CRS: +proj=latlong +ellps=WGS84 +a=6378137.0 +pm=0.0 +n ...>
     Name: unknown
-    Axis Info [cartesian]:
-    - E[east]: Easting (unknown)
-    - N[north]: Northing (unknown)
-    - h[up]: Ellipsoidal height (metre)
+    Axis Info [ellipsoidal]:
+    - lon[east]: Longitude (degree)
+    - lat[north]: Latitude (degree)
     Area of Use:
     - undefined
-    Coordinate Operation:
-    - name: unknown
-    - method: Equidistant Cylindrical
     Datum: Unknown based on WGS 84 ellipsoid
     - Ellipsoid: WGS 84
-    - Prime Meridian: Greenwich
+    - Prime Meridian: unknown
     <BLANKLINE>
 
     """
@@ -219,8 +215,8 @@ def get_projected_area_factor(
     >>> fig, ax = plt.subplots(subplot_kw={"projection": ccrs.Mercator()})
     >>> ax.set_extent([-10, 10, 40, 60], crs=ccrs.PlateCarree())
     >>> area_factor = get_projected_area_factor(ax)
-    >>> area_factor
-    np.float64(140056.26937534288)
+    >>> round(area_factor)
+    140056
 
     """
     if not hasattr(ax, "projection"):

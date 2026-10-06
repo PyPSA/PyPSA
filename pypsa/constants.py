@@ -22,6 +22,37 @@ RE_PORTS = re.compile(r"^bus(\d*)$")
 RE_PORTS_FILTER = re.compile(r"^bus\d*$")
 # Pattern to get port numbers greater or equal to 2
 RE_PORTS_GE_2 = re.compile(r"^bus((?:[2-9]|[1-9]\d+))$")
+# Attributes that must be identical across all scenarios
+RE_INVARIANT_ATTRS = re.compile(
+    "|".join(
+        [
+            r"bus\d*",
+            # "control" is excluded - different buses can have different control types across scenarios
+            # but we ensure consistent slack bus selection separately
+            "type",
+            "p_nom_extendable",  # changes mathematical problem
+            "s_nom_extendable",
+            "e_nom_extendable",
+            "p_nom_mod",  # modular investment is first-stage decision
+            "s_nom_mod",
+            "e_nom_mod",
+            "p_nom_set",
+            "s_nom_set",
+            "e_nom_set",
+            "committable",  # changes mathematical problem
+            "sign",
+            "carrier",
+            "weight",
+            "p_nom_opt",  # optimization result
+            "s_nom_opt",
+            "e_nom_opt",
+            "build_year",
+            "lifetime",
+            "active",  # theoretically can be different, but problematic with "Line"
+            r"(cyclic_)?delay\d*",
+        ]
+    )
+)
 
 
 @lru_cache
