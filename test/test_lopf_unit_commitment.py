@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 from contextlib import nullcontext
+from typing import Any
 
 import linopy
 import numpy as np
@@ -1504,7 +1505,9 @@ def test_minimum_time_rows_at_window_boundary(
     with linopy.options if supports_semantics else nullcontext():
         if supports_semantics:
             linopy.options.set_value(semantics=semantics)
-        kwargs = {"sparse": semantics == "v1"} if supports_semantics else {}
+        kwargs: dict[str, Any] = (
+            {"sparse": semantics == "v1"} if supports_semantics else {}
+        )
         model = n.optimize.create_model(**kwargs)
         status = model.variables["Generator-status"].labels.values
         for kind, sign, transition in [
