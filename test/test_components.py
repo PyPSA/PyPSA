@@ -207,3 +207,30 @@ def test_modulars_different_components():
     store_modulars = n.c.stores.modulars
 
     assert "store_mod" in store_modulars
+
+
+@pytest.mark.parametrize(
+    ("component", "kwargs"),
+    [
+        ("Bus", {}),
+        ("Line", {"bus0": "a", "bus1": "b", "x": 1}),
+        ("Transformer", {"bus0": "a", "bus1": "b", "x": 0.1, "s_nom": 1}),
+        ("Link", {"bus0": "a", "bus1": "b"}),
+        ("Generator", {"bus": "a"}),
+        ("StorageUnit", {"bus": "a"}),
+    ],
+)
+def test_add_fills_omitted_static_attributes_with_defaults(component, kwargs):
+    n = Network()
+    n.add("Bus", ["a", "b"])
+    n.add(component, "x", **kwargs)
+    static = n.c[component].static
+    empty = Network().c[component].static
+    defaults = n.components[component]["defaults"]
+    omitted = [
+        k for k in defaults.index[defaults.static] if k != "name" and k not in kwargs
+    ]
+    for k in omitted:
+        default, value = defaults.at[k, "default"], static.at["x", k]
+        assert static[k].dtype == empty[k].dtype, k
+        assert (pd.isna(value) and pd.isna(default)) or value == default, k

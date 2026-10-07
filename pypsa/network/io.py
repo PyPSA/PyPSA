@@ -2017,9 +2017,17 @@ class NetworkIOMixin(_NetworkABC):
         # Fill nan values with default values
         df = df.fillna(attrs["default"].to_dict())
 
+        # Add all missing attributes at once, inserting them one by one is slow
+        missing = [k for k in static_attrs.index if k not in df.columns]
+        defaults = [
+            pd.Series(static_attrs.at[k, "default"], index=df.index, name=k)
+            for k in missing
+        ]
+        df = pd.concat([df, *defaults], axis=1)
+
         for k in static_attrs.index:
-            if k not in df.columns:
-                df[k] = static_attrs.at[k, "default"]
+            if k in missing:
+                continue
             else:
                 if static_attrs.at[k, "type"] == "string":
                     df[k] = df[k].replace({np.nan: ""})

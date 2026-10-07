@@ -71,8 +71,13 @@ def check_for_unknown_buses(
     [pypsa.Network.consistency_check][], [pypsa.Network.sanitize][]
 
     """
+    names = n.c.buses.names
     for attr in _bus_columns(component.static):
-        missing = ~component.static[attr].astype(str).isin(n.c.buses.names)
+        ports = component.static[attr].astype(str)
+        if names.is_unique:
+            missing = pd.Series(names.get_indexer(ports) < 0, index=ports.index)
+        else:
+            missing = ~ports.isin(names)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and RE_PORTS_GE_2.match(attr):
             missing &= component.static[attr] != ""
