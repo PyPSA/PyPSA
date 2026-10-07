@@ -33,7 +33,13 @@ n.remove("Load", ["load_1", "load_2"])
 n.remove("Generator", "my_generator")
 ```
 
-Two networks with a disjunct set of component indices can be **merged** with [`n1.merge(n2)`][pypsa.network.transform.NetworkTransformMixin.merge]
+Two networks can be **merged** with [`n1.merge(n2)`][pypsa.network.transform.NetworkTransformMixin.merge]. By default, the component names must be disjunct. Use the `overlap` argument to merge networks with shared components, e.g. carriers or border buses:
+
+``` py
+n1.merge(n2, overlap="equal")  # keep shared components only if all input attributes are equal
+n1.merge(n2, overlap="left")  # keep the shared components of n1
+n1.merge(n2, overlap="right")  # use the shared components of n2
+```
 
 ## CSV Files
 
