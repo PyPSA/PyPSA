@@ -56,7 +56,7 @@ battery inverter or for wear costs per MWh moved.
 [`Store`][pypsa.components.Stores] covers all functionality of
 [`StorageUnit`][pypsa.components.StorageUnits] components and, with infinite
 `max_hours`, leaves the power unconstrained.
-[`n.storage_units_to_stores()`][pypsa.Network.storage_units_to_stores] converts
+[`n.c.storage_units.convert_to_stores()`][pypsa.components.StorageUnits.convert_to_stores] converts
 storage units into equivalent stores. In custom constraints, the net dispatch of
 a store is the variable `n.model["Store-p"]` and the charging power `n.model["Store-p_store"]`.
 

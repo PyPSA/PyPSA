@@ -14,6 +14,6 @@ The [`StorageUnit`][pypsa.components.StorageUnits] components connect to a singl
 
 !!! note "[`Store`][pypsa.components.Stores] covers all storage unit functionality"
 
-    The [`Store`][pypsa.components.Stores] component supports `max_hours`, `efficiency_store`, `efficiency_dispatch`, `inflow` and spillage as well. [`n.storage_units_to_stores()`][pypsa.Network.storage_units_to_stores] converts storage units into equivalent stores.
+    The [`Store`][pypsa.components.Stores] component supports `max_hours`, `efficiency_store`, `efficiency_dispatch`, `inflow` and spillage as well. [`n.c.storage_units.convert_to_stores()`][pypsa.components.StorageUnits.convert_to_stores] converts storage units into equivalent stores.
 
 {{ read_csv('../../../pypsa/data/component_attrs/storage_units.csv') }}

@@ -24,7 +24,7 @@ def test_optimization_equivalence(network):
     n = network
     names = n.storage_units.index
     n_store = n.copy()
-    n_store.storage_units_to_stores()
+    n_store.c.storage_units.convert_to_stores()
 
     n.optimize()
     n_store.optimize()
@@ -50,7 +50,7 @@ def test_dispatch_equivalence(storage_hvdc_network):
             columns=index,
         )
     n_store = n.copy()
-    n_store.storage_units_to_stores()
+    n_store.c.storage_units.convert_to_stores()
 
     n.optimize()
     n_store.optimize()
@@ -107,7 +107,7 @@ SERIES = [0.5, 1, 0.8, 1, 0.3, 1]
 def test_small_network_equivalence(su_kwargs: dict[str, Any]) -> None:
     n = small_network(**su_kwargs)
     n_store = n.copy()
-    n_store.storage_units_to_stores()
+    n_store.c.storage_units.convert_to_stores()
 
     n.optimize()
     n_store.optimize()
@@ -136,7 +136,7 @@ def test_small_network_equivalence(su_kwargs: dict[str, Any]) -> None:
 def test_rolling_horizon_equivalence() -> None:
     n = small_network(snapshots=9, max_hours=4, state_of_charge_initial=20, **EFF)
     n_store = n.copy()
-    n_store.storage_units_to_stores()
+    n_store.c.storage_units.convert_to_stores()
 
     n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=0)
     n_store.optimize.optimize_with_rolling_horizon(horizon=3, overlap=0)
@@ -151,7 +151,7 @@ def test_capacity_expression_storage() -> None:
     n = small_network(max_hours=4, p_nom_extendable=True, capital_cost=5)
     n.optimize()
     expected = n.statistics.optimal_capacity(storage=True, groupby=False)
-    n.storage_units_to_stores()
+    n.c.storage_units.convert_to_stores()
     n.optimize()
 
     capacity = n.optimize.expressions.capacity(storage=True, groupby=False)
@@ -204,7 +204,7 @@ def test_attribute_conversion(
     n = pypsa.Network(snapshots=range(2))
     n.add("Bus", "bus")
     n.add("StorageUnit", "su", bus="bus", **{"max_hours": 4, attr: value})
-    n.storage_units_to_stores()
+    n.c.storage_units.convert_to_stores()
 
     assert n.storage_units.empty
     if isinstance(expected, list):
@@ -230,8 +230,8 @@ def test_unsupported_attribute_raises(kwargs: dict[str, Any], match: str) -> Non
     n.add("StorageUnit", "su", bus="bus", max_hours=4, **kwargs)
     n.add("StorageUnit", "plain", bus="bus", max_hours=4)
     with pytest.raises(ValueError, match=match):
-        n.storage_units_to_stores()
-    assert n.storage_units_to_stores(["plain"]).tolist() == ["plain"]
+        n.c.storage_units.convert_to_stores()
+    assert n.c.storage_units.convert_to_stores(["plain"]).tolist() == ["plain"]
 
 
 def test_convert_subset():
@@ -241,7 +241,7 @@ def test_convert_subset():
     n.add("StorageUnit", "b", bus="bus", p_nom=5, max_hours=4, marginal_cost=[3, 4])
     b = n.storage_units.loc["b"].copy()
 
-    assert n.storage_units_to_stores(["a"]).tolist() == ["a"]
+    assert n.c.storage_units.convert_to_stores(["a"]).tolist() == ["a"]
 
     pd.testing.assert_series_equal(n.storage_units.loc["b"], b)
     assert n.storage_units_t.marginal_cost["b"].tolist() == [3, 4]
@@ -256,13 +256,13 @@ def test_non_finite_max_hours_raises(max_hours: float) -> None:
     n.add("StorageUnit", "su", bus="bus")
     n.storage_units.loc["su", "max_hours"] = max_hours
     with pytest.raises(ValueError, match="finite `max_hours`"):
-        n.storage_units_to_stores()
+        n.c.storage_units.convert_to_stores()
 
 
 def test_storage_unit_future_warning():
     n = pypsa.Network()
     n.add("Bus", "bus")
-    with pytest.warns(FutureWarning, match="storage_units_to_stores"):
+    with pytest.warns(FutureWarning, match="convert_to_stores"):
         n.add("StorageUnit", "su", bus="bus")
 
 
@@ -272,7 +272,7 @@ def test_name_clash_raises():
     n.add("StorageUnit", "x", bus="bus")
     n.add("Store", "x", bus="bus")
     with pytest.raises(ValueError, match="already exist"):
-        n.storage_units_to_stores()
+        n.c.storage_units.convert_to_stores()
 
 
 def test_stochastic_network_raises():
@@ -281,4 +281,4 @@ def test_stochastic_network_raises():
     n.add("StorageUnit", "su", bus="bus", max_hours=2)
     n.set_scenarios(["a", "b"])
     with pytest.raises(NotImplementedError, match="stochastic"):
-        n.storage_units_to_stores()
+        n.c.storage_units.convert_to_stores()

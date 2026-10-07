@@ -364,7 +364,7 @@ def test_storage_units_to_stores_equivalence(n_sus, cyclic, per_period):
     objective = n_sus.objective
     e_nom_opt = static.p_nom_opt * static.max_hours
 
-    n_sus.storage_units_to_stores()
+    n_sus.c.storage_units.convert_to_stores()
     n_sus.optimize(**kwargs)
 
     assert n_sus.objective == pytest.approx(objective, rel=1e-6)
