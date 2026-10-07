@@ -13,6 +13,7 @@ SPDX-License-Identifier: CC-BY-4.0
 [![Conda version](https://img.shields.io/conda/vn/conda-forge/pypsa.svg)](https://anaconda.org/conda-forge/pypsa)
 ![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FPyPSA%2FPyPSA%2Fmaster%2Fpyproject.toml)
 [![REUSE status](https://api.reuse.software/badge/github.com/pypsa/pypsa)](https://api.reuse.software/info/github.com/pypsa/pypsa)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13093/badge)](https://www.bestpractices.dev/projects/13093)
 [![License](https://img.shields.io/pypi/l/pypsa.svg)](https://github.com/PyPSA/pypsa?tab=MIT-1-ov-file)
 [![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg)](https://doi.org/10.5281/zenodo.3946412)
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)

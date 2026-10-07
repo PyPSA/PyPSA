@@ -20,6 +20,7 @@ SPDX-License-Identifier: MIT
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg)](https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master)
 [![Code coverage](https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr)](https://codecov.io/gh/PyPSA/PyPSA)
 [![REUSE status](https://api.reuse.software/badge/github.com/pypsa/pypsa)](https://api.reuse.software/info/github.com/pypsa/pypsa)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13093/badge)](https://www.bestpractices.dev/projects/13093)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/pypi/l/pypsa.svg)](LICENSE)
 [![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg)](https://doi.org/10.5281/zenodo.3946412)
