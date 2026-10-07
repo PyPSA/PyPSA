@@ -273,3 +273,12 @@ def test_name_clash_raises():
     n.add("Store", "x", bus="bus")
     with pytest.raises(ValueError, match="already exist"):
         n.storage_units_to_stores()
+
+
+def test_stochastic_network_raises():
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("StorageUnit", "su", bus="bus", max_hours=2)
+    n.set_scenarios(["a", "b"])
+    with pytest.raises(NotImplementedError, match="stochastic"):
+        n.storage_units_to_stores()

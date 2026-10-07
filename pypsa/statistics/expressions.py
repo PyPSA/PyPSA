@@ -1627,7 +1627,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        from pypsa.optimization.optimize import lookup  # noqa: PLC0415
+        from pypsa.optimization.optimize import cost_variables  # noqa: PLC0415
 
         if cost_types is None:
             cost_types_ = [
@@ -1662,17 +1662,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 "spill_cost",
             ]:
                 if cost_type in cost_types_ and cost_type in n.c[c].static:
-                    if c == "Store" and cost_type == "marginal_cost_dispatch":
-                        attr = "p_dispatch"
-                    else:
-                        attr = lookup.query(cost_type).loc[c].index.item() + port
+                    attrs = cost_variables(c, cost_type)
                     cost = n.get_switchable_as_dense(c, cost_type)
                     cost_piecewise_opt = n.c[c].dynamic.get(
                         f"{cost_type}_piecewise_opt"
                     )
                     if cost_piecewise_opt is None or cost_piecewise_opt.empty:
                         cost_piecewise_opt = 0
-                    p = n.c[c].dynamic[attr]
+                    p = sum(n.c[c].dynamic[attr + port] for attr in attrs)
                     if p.empty:
                         continue
                     var = p * p if cost_type == "marginal_cost_quadratic" else p

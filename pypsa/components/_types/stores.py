@@ -76,12 +76,13 @@ class Stores(Components):
         if attr == "e":
             return self.da.e_min_pu, self.da.e_max_pu
 
-        p_nom_pu = (1 / self.da.max_hours).where(np.isfinite(self.da.max_hours), np.inf)
-        store_pu = -self.da.p_min_pu * p_nom_pu
+        finite = np.isfinite(self.da.max_hours)
+        store_pu = (-self.da.p_min_pu / self.da.max_hours).where(finite, np.inf)
+        dispatch_pu = (self.da.p_max_pu / self.da.max_hours).where(finite, np.inf)
         split = self.split_dispatch()
 
         if attr == "p":
-            return -store_pu.where(~split, 0), self.da.p_max_pu * p_nom_pu
+            return -store_pu.where(~split, 0), dispatch_pu
         return xr.zeros_like(store_pu), store_pu.where(split, 0)
 
     def split_dispatch(self) -> xr.DataArray:

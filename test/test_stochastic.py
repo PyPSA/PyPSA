@@ -758,6 +758,46 @@ def test_store_stochastic_dimensions():
     assert condition == "optimal"
 
 
+def test_store_split_dispatch_per_scenario():
+    """Scenarios with and without split dispatch match deterministic runs."""
+    split = {
+        "efficiency_store": 0.9,
+        "efficiency_dispatch": 0.9,
+        "marginal_cost_dispatch": 0.5,
+        "inflow": [5, 0],
+        "spill_cost": 1,
+    }
+
+    def network(**kwargs):
+        n = pypsa.Network(snapshots=range(2))
+        n.add("Bus", "bus")
+        n.add("Generator", "gen", bus="bus", p_nom=200, marginal_cost=[1, 100])
+        n.add("Load", "load", bus="bus", p_set=50)
+        n.add("Store", "store", bus="bus", e_nom=100, max_hours=2, **kwargs)
+        return n
+
+    n = network()
+    n.set_scenarios({"plain": 0.5, "split": 0.5})
+    for attr, value in split.items():
+        if isinstance(value, list):
+            n.c.stores.dynamic[attr][("split", "store")] = value
+        else:
+            n.c.stores.static.loc[("split", "store"), attr] = value
+    n.optimize()
+
+    plain, det = network(), network(**split)
+    plain.optimize()
+    det.optimize()
+
+    assert n.objective == pytest.approx(0.5 * (plain.objective + det.objective))
+    for attr in ["p", "p_store", "e"]:
+        df = n.c.stores.dynamic[attr]
+        equal(df[("plain", "store")], plain.c.stores.dynamic[attr]["store"])
+        equal(df[("split", "store")], det.c.stores.dynamic[attr]["store"])
+    spill = n.c.stores.dynamic.spill[("split", "store")]
+    equal(spill, det.c.stores.dynamic.spill["store"])
+
+
 def test_scenario_ordering_bug():
     """Test that scenario ordering is preserved correctly in optimization results.
 

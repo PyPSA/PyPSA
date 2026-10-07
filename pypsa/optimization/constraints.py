@@ -125,6 +125,8 @@ def define_operational_constraints_for_non_extendables(
 
     lower = (min_pu * nominal_fix).where(~(is_inf & is_zero_min), 0)
     upper = (max_pu * nominal_fix).where(~(is_inf & is_zero_max), 0)
+    lower = lower.where(~isinf(min_pu), min_pu)
+    upper = upper.where(~isinf(max_pu), max_pu)
 
     active = c.da.active.sel(name=fix_i, snapshot=sns)
     bounded_below = active & ~isinf(lower)
