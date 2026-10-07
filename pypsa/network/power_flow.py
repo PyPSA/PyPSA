@@ -107,7 +107,7 @@ def _calculate_controllable_nodal_power_balance(
                 c.name,
                 power + "_set",
                 snapshots,
-                c.static.query("active").index,
+                c.static.query("active").index.unique("name"),
             )
             network.c[c.name].dynamic[power].loc[
                 snapshots, c.static.query("active").index
@@ -1853,7 +1853,7 @@ class SubNetworkPowerFlowMixin:
             if c.name not in n.controllable_one_port_components:
                 continue
             c_p_set = n.get_switchable_as_dense(
-                c.name, "p_set", sns, c.static.query("active").index
+                c.name, "p_set", sns, c.static.query("active").index.unique("name")
             )
             # power flow calculations require a starting point for the algorithm, while p_set default is n/a
             c_p_set = c_p_set.fillna(0)
