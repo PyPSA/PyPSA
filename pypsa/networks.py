@@ -319,8 +319,41 @@ class Network(
         return self.equals(other)
 
     def __setstate__(self, state: dict) -> None:
-        """Restore state and relink SubNetwork weakrefs dropped on pickling."""
+        """Restore state and the references lost on pickling."""
         self.__dict__.update(state)
+        self._restore_references()
+
+    def __copy__(self) -> Network:
+        """Return a shallow copy, sharing data and SubNetwork objects with the original."""
+        n = self.__class__.__new__(self.__class__)
+        n.__dict__.update(self.__dict__)
+        return n
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Network:
+        """Return a deep copy, including SubNetwork objects linked to the copy."""
+        n = self.__class__.__new__(self.__class__)
+        memo[id(self)] = n
+        n.__dict__.update(copy.deepcopy(self.__dict__, memo))
+        n._copy_sub_networks(memo)
+        n._restore_references()
+        return n
+
+    def _copy_sub_networks(self, memo: dict[int, Any]) -> None:
+        """Replace SubNetwork objects with deep copies, which pandas shares on copy."""
+        static = self.c.sub_networks.static
+        if "obj" in static:
+            static["obj"] = [copy.deepcopy(sub, memo) for sub in static["obj"]]
+
+    def _restore_references(self) -> None:
+        """Restore snapshot index names and SubNetwork parent references.
+
+        pandas drops the name of a `pd.MultiIndex` on any copy, view or pickling, and
+        pickling drops the SubNetwork weakrefs.
+        """
+        self._snapshots_data.index.name = "snapshot"
+        for c in self.components:
+            for df in c.dynamic.values():
+                df.index.name = "snapshot"
         for sub in self.c.sub_networks.static.get("obj", []):
             if isinstance(sub, SubNetwork):
                 sub._n = ref(self)
@@ -505,6 +538,9 @@ class Network(
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check for equality of two networks.
 
+        Sub-networks are not compared, since they are derived from the other
+        components. The `sub_network` columns of buses and branches are compared.
+
         Parameters
         ----------
         other : Any
@@ -547,9 +583,15 @@ class Network(
         not_equal = False
         if isinstance(other, self.__class__):
             for key, value in self.__dict__.items():
+                other_value = other.__dict__[key]
+                if key == "_components":
+                    value = {k: v for k, v in value.items() if k != "sub_networks"}
+                    other_value = {
+                        k: v for k, v in other_value.items() if k != "sub_networks"
+                    }
                 if not equals(
                     value,
-                    other.__dict__[key],
+                    other_value,
                     ignored_classes=ignore,
                     log_mode=log_mode,
                     path="n." + key,
@@ -907,9 +949,11 @@ class Network(
         ----------
         snapshots : list or tuple or pd.Index , default self.snapshots
             A list of snapshots to copy, must be a subset of n.snapshots. Pass
-            an empty list ignore all snapshots.
+            an empty list ignore all snapshots. Only the investment periods of the
+            selected snapshots are kept.
         investment_periods : list or tuple or pd.Index, default self.investment_period_weightings.index
-            A list of investment periods to copy, must be a subset of n.investment_periods. Pass
+            A list of investment periods to copy, must be a subset of n.investment_periods.
+            If `snapshots` is not given, only the snapshots of these periods are kept.
         ignore_standard_types : boolean, default False
             Ignore the PyPSA standard types.
 
@@ -970,9 +1014,18 @@ class Network(
         # Convert to pandas.Index
         snapshots_ = as_index(self, snapshots, "snapshots")
         investment_periods_ = as_index(self, investment_periods, "investment_periods")
+        if isinstance(snapshots_, pd.MultiIndex) and not investment_periods_.empty:
+            if snapshots is None:
+                snapshots_ = snapshots_[snapshots_.isin(investment_periods_, "period")]
+            elif investment_periods is None:
+                periods = snapshots_.unique("period")
+                investment_periods_ = investment_periods_[
+                    investment_periods_.isin(periods)
+                ]
 
         # Setup new network
         n = self.__class__(ignore_standard_types=ignore_standard_types)
+        n.to_crs(self.crs)
 
         # Copy components
         other_comps = sorted(self.all_components - {"Bus", "Carrier"})
@@ -1016,8 +1069,7 @@ class Network(
 
         # Catch all remaining attributes of network
         for attr in [
-            "name",
-            "srid",
+            "_name",
             "_meta",
             "_linearized_uc",
             "_multi_invest",
@@ -1026,9 +1078,11 @@ class Network(
             "_objective_constant",
             "now",
         ]:
-            if hasattr(self, attr):
-                setattr(n, attr, getattr(self, attr))
+            if attr in vars(self):
+                setattr(n, attr, copy.deepcopy(vars(self)[attr]))
 
+        n._copy_sub_networks({})
+        n._restore_references()
         return n
 
     # beware, this turns bools like s_nom_extendable into objects because of

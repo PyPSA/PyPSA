@@ -24,6 +24,14 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Bug Fixes
 
 - Fix `n.objective_constant` being `0` for multi-period optimisations (see [multi-investment periods](./user-guide/optimization/pathway-planning.md)). The capital costs of existing extendable capacity are again weighted by the investment period weightings and included in the constant.
+- Fix copying networks with [`n.copy()`][pypsa.Network.copy], `copy.copy`, `copy.deepcopy` and pickling. Resolves [#1930](https://github.com/PyPSA/PyPSA/issues/1930) and [#1937](https://github.com/PyPSA/PyPSA/issues/1937). (<!-- md:pr 1968 -->)
+    - `n.copy()`, `copy.deepcopy` and pickling now give the copy its own sub-networks, linked to the copy. Before, the copy shared the original sub-networks and relinked them, so the original was modified.
+    - `copy.copy` no longer relinks the sub-networks of the original.
+    - Copies keep the name of multi-indexed snapshots, so a copied multi-period network can be optimised.
+    - [`n.equals()`][pypsa.Network.equals] no longer compares sub-networks, since they are derived from the other components.
+    - [`n.copy(snapshots=...)`][pypsa.Network.copy] no longer fails for networks with a non-default coordinate reference system.
+    - [`n.copy()`][pypsa.Network.copy] no longer raises for multi-period networks when only `snapshots` or only `investment_periods` is given. The copy now selects the matching investment periods or snapshots.
+    - Behavior change: [`n.copy()`][pypsa.Network.copy] now copies `n.meta` instead of sharing it with the original.
 - Fix the carrier `max_growth` and `max_relative_growth` constraints counting an asset again in every period after it retires. An asset is now counted only in its build period. Resolves [#1938](https://github.com/PyPSA/PyPSA/issues/1938).
 - Fix optimisation failing with a `KeyError` when quadratic marginal costs are used alongside inactive components. Quadratic costs now include only active assets. Resolves [#1956](https://github.com/PyPSA/PyPSA/issues/1956).
 - Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] raising an `UnboundLocalError` for `primary_energy` and `operational_limit` [GlobalConstraint](./user-guide/components/global-constraints.md) components with an `investment_period` on networks without investment periods. This now raises a `ValueError`, as for the expansion limit types. (<!-- md:pr 1961 -->)
@@ -45,6 +53,11 @@ SPDX-License-Identifier: CC-BY-4.0
 - The consistency check now also requires the ports `bus0`, `bus1`, `bus2`, ... of branch components to be identical across scenarios. Previously only `bus` was checked, so a [Link](./user-guide/components/links.md) with a scenario-dependent `bus1` passed unnoticed.
 - Building the model of a stochastic network now raises a `ValueError` naming the affected components if one of the following attributes differs across scenarios, e.g. with [`n.optimize.create_model(consistency_check=False)`][pypsa.optimization.OptimizationAccessor.create_model]: `carrier` of [Line](./user-guide/components/lines.md) and [Link](./user-guide/components/links.md) components (including in growth limits), `delay`, `cyclic_delay` and `active` in growth limits. Previously the values of the first scenario were silently used.
 - Fix [`n.get_switchable_as_dense()`][pypsa.Network.get_switchable_as_dense] and [`n.get_switchable_as_iter()`][pypsa.Network.get_switchable_as_iter] with `inds` in stochastic networks. The component names in `inds` are now selected in all scenarios. Previously this failed or returned no data, so e.g. [`n.statistics.opex()`][pypsa.statistics.StatisticsAccessor.opex] missed the operational costs of committable components.
+- Fix optimization expressions (`n.optimize.expressions`, see [`StatisticExpressionsAccessor`][pypsa.optimization.expressions.StatisticExpressionsAccessor]) for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]). All expressions silently returned `0` or failed, and now carry a `scenario` dimension with scenario-specific coefficients such as capital costs, efficiencies or fixed capacities. Grouping and filtering require identical static data across scenarios and raise an error otherwise. Resolves [#1952](https://github.com/PyPSA/PyPSA/issues/1952).
+- Fix the warnings on cyclic [StorageUnit](./user-guide/components/storage-units.md) and [Store](./user-guide/components/stores.md) components overruling their initial storage level raising an `IndexError` for stochastic networks. Resolves [#1953](https://github.com/PyPSA/PyPSA/issues/1953).
+- Fix [`n.optimize.fix_optimal_capacities()`][pypsa.optimization.OptimizationAccessor.fix_optimal_capacities] failing for stochastic networks.
+- Fix the statistics methods (see [`n.statistics`][pypsa.Network.statistics]) raising a `TypeError` with `groupby=False` for stochastic networks.
+- Optimization expressions no longer silently skip a component when one of its variables or attributes cannot be found, and raise the underlying `KeyError` or `AttributeError` instead. Components without a nominal capacity or without operational costs are still skipped.
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
 
