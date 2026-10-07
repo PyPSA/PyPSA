@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 from pandas.api.types import is_list_like
 
 from pypsa._options import options
@@ -28,6 +27,8 @@ from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_por
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
+
+    import xarray as xr
 
     from pypsa import Network, NetworkCollection
     from pypsa.components.components import PortsLike
@@ -94,7 +95,7 @@ def port_efficiency(
         msg = f"port_efficiency has not been implemented for: {c.name}"
         raise NotImplementedError(msg)
 
-    return xr.DataArray(res) if as_xarray else res
+    return c._to_xarray(res, "efficiency") if as_xarray else res
 
 
 def get_transmission_branches(
@@ -526,9 +527,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self, df: pd.Series | pd.DataFrame, agg: Callable | str
     ) -> pd.Series | pd.DataFrame:
         warnings.warn(
-            "Passing `aggregate_across_components` was Deprecated in <!-- md:badge-version v1.0.0 -->.0 and "
+            "Passing `aggregate_across_components` was deprecated in v1.0.0 and "
             "will be removed with v2.0.0. Use e.g. "
-            "`n.statistics.installed_capacity.groupby(<col_name>).sum() instead.",
+            "`n.statistics.installed_capacity.groupby(<col_name>).sum()` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -1689,7 +1690,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     and not com_i.empty
                 ):
                     cost = n.get_switchable_as_dense(c, cost_type, inds=com_i)
-                    var = n.c[c].dynamic[attr].loc[:, com_i]
+                    var = n.c[c].dynamic[attr].loc[:, cost.columns]
                     cost_piecewise_opt = n.c[c].dynamic.get(
                         f"{cost_type}_piecewise_opt", 0
                     )

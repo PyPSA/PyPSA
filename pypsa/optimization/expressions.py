@@ -18,8 +18,9 @@ from linopy import LinearExpression, Variable
 from packaging import version
 
 from pypsa._linopy_compat import suppress_semantics_warnings
-from pypsa.common import deprecated_kwargs, pass_none_if_keyerror
+from pypsa.common import deprecated_kwargs
 from pypsa.components._types.mixin.multiports import _Multiport
+from pypsa.components.common import invariant
 from pypsa.optimization.window import apply_period_weighting
 from pypsa.statistics import (
     get_transmission_branches,
@@ -120,15 +121,16 @@ def _capacity_expression(
     m = n.model
     c = n.c[component]
     nom_attr = c._operational_attrs["nom"]
+    if nom_attr not in c.static:
+        return None
     var_name = f"{component}-{nom_attr}"
-    fixed_capacity = (
-        c.static.loc[c.fixed, nom_attr]
-        if include_non_extendable
-        else pd.Series(dtype=float)
-    )
+    fixed = c.fixed
+    fixed_capacity = None
+    if include_non_extendable and not fixed.empty:
+        fixed_capacity = c.da[nom_attr].sel(name=fixed)
     if var_name in m.variables:
-        return m.variables[var_name].to_linexpr().add(fixed_capacity, join="outer")
-    if fixed_capacity.empty:
+        return _add_optional(m.variables[var_name].to_linexpr(), fixed_capacity)
+    if fixed_capacity is None:
         return None
     return LinearExpression.from_constant(m, fixed_capacity)
 
@@ -144,7 +146,7 @@ def _split_piecewise(
 
 
 def _add_optional(
-    expr: LinearExpression, other: Variable | LinearExpression | None
+    expr: LinearExpression, other: Variable | LinearExpression | DataArray | None
 ) -> LinearExpression:
     """Outer-add `other` to `expr`, passing `expr` through if there is nothing to add."""
     return expr if other is None else expr.add(other, join="outer")
@@ -199,11 +201,18 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         else:
             grouper = by
 
+        grouper = self._align_static(grouper)
         grouper.insert(0, "component", c)  # for tracking the component
         return grouper
 
     def _get_component_index(self, obj: LinearExpression, c: str) -> pd.Index:
         return obj.indexes["name"]
+
+    def _align_static(self, data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
+        return invariant(data)
+
+    def _select(self, obj: LinearExpression, idx: pd.Index) -> LinearExpression:
+        return obj.sel(name=idx)
 
     def _concat_periods(self, exprs: dict[str, LinearExpression], c: str) -> Any:
         periods = self._n.investment_periods
@@ -362,7 +371,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         """
         at_port = resolve_at_port(at_port, bus_carrier)
 
-        @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series | None:
             c = n.c[component]
             capacity = _capacity_expression(n, component, include_non_extendable)
@@ -371,10 +379,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
             capacity, add_capex = _split_piecewise(capacity, n.model, c, cost_attribute)
 
-            if cost_attribute == "capital_cost":
-                costs = c.capital_cost[capacity.indexes["name"]]
-            else:
-                costs = c.static[cost_attribute][capacity.indexes["name"]]
+            costs = (
+                c.capital_cost
+                if cost_attribute == "capital_cost"
+                else c.static[cost_attribute]
+            )
+            costs = c._to_xarray(costs, cost_attribute)
+            costs = costs.sel(name=capacity.indexes["name"])
             return _add_optional(capacity * costs, add_capex)
 
         return self._aggregate_components(
@@ -424,21 +435,19 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             components = ("Store", "StorageUnit")
         at_port = resolve_at_port(at_port, bus_carrier)
 
-        @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series | None:
             c = n.c[component]
             capacity = _capacity_expression(n, component, include_non_extendable)
             if capacity is None:
                 return None
 
-            efficiency = port_efficiency(n, component, port=port)[
-                capacity.indexes["name"]
-            ]
+            efficiency = port_efficiency(n, component, port=port, as_xarray=True)
+            efficiency = efficiency.sel(name=capacity.indexes["name"])
             if c._as_ports(at_port) == [0]:
                 efficiency = abs(efficiency)
             res = capacity * efficiency
             if storage and (component == "StorageUnit"):
-                res = res * c.static.max_hours
+                res = res * c.da.max_hours.sel(name=capacity.indexes["name"])
             return res
 
         return self._aggregate_components(
@@ -496,12 +505,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         at_port = resolve_at_port(at_port, bus_carrier)
         weights = self._n.optimize._window.snapshot_weightings("objective")
 
-        @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
             terms = []
             for cost_type in linear_cost_types:
                 for attr in cost_variables(c, cost_type):
-                    if f"{c}-{attr}" not in n.model.variables:
+                    missing = f"{c}-{attr}" not in n.model.variables
+                    if missing and cost_type == "spill_cost":
                         continue
                     var = n.model.variables[f"{c}-{attr}"]
                     sns = var.indexes["snapshot"]
@@ -574,13 +583,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         transmission_branches = get_transmission_branches(self._n, bus_carrier)
         weights = self._n.optimize._window.snapshot_weightings("generators")
 
-        @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
             sns = var.indexes["snapshot"]
-            idx = transmission_branches.get_loc_level(c)[1].rename("name")
+            is_c = transmission_branches.get_level_values("component") == c
+            idx = transmission_branches[is_c].unique("name")
             efficiency = _port_coefficients(n, c, port, sns)
-            p = var.loc[:, idx] * efficiency.sel(name=idx)
+            p = var.sel(name=idx) * efficiency.sel(name=idx)
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         return self._aggregate_components(
@@ -662,13 +671,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         weights = self._n.optimize._window.snapshot_weightings("generators")
 
-        @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series:
             c = n.c[component]
             var = self._get_operational_variable(component)
             sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
-            sign = n.c[component].static.get("sign", 1.0)
+            sign = c.da.sign if "sign" in c.static else 1.0
             coeffs = _port_coefficients(n, component, port, sns) * sign
 
             pw_var = None
@@ -843,7 +851,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         at_port = resolve_at_port(at_port, bus_carrier)
         weights = self._n.optimize._window.snapshot_weightings("generators")
 
-        @pass_none_if_keyerror
         def func(n: Network, component: str, port: str) -> pd.Series:
             c = n.c[component]
             if "p_max_pu" not in c.static.columns:
@@ -853,7 +860,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 return None
 
             idx = capacity.indexes["name"]
-            operation = self._get_operational_variable(component).loc[:, idx]
+            operation = self._get_operational_variable(component).sel(name=idx)
             sns = operation.indexes["snapshot"]
             p_max_pu = c.da.p_max_pu.sel(snapshot=sns, name=idx)
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
@@ -912,7 +919,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         weights = self._n.optimize._window.snapshot_weightings("generators")
 
-        @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             operation = self._get_operational_variable(c)
             return self._aggregate_timeseries(operation, weights, agg=groupby_time)
