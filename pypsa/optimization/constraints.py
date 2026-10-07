@@ -570,11 +570,8 @@ def define_operational_constraints_for_committables(
     ):
         if not (min_time > 0).any():
             continue
-        snapshot_position = snapshot_array(arange(len(sns)), sns)
         shifted = [
-            transition.to_linexpr()
-            .shift(snapshot=k)
-            .where((snapshot_position >= k) & (k < min_time), other=0)
+            transition.to_linexpr().shift(snapshot=k).where(k < min_time).fillna(0)
             for k in range(int(min_time.max()))
         ]
         window_sum = merge(shifted)
