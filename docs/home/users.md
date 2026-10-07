@@ -71,6 +71,8 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_ca: Simon Fraser University](https://www.sfu.ca/)** at the [ΔE+ (Delta-E-plus)](https://www.sfu.ca/fas/research/fas-research-labs/delta-e/) uses PyPSA to explores the synergies and trade-offs at the nexus of energy+ to support effective policy development.
 
+- **[:flag_lu: Luxembourg Institute of Science & Technology (LIST)](https://www.list.lu/)** uses PyPSA-LU, a PyPSA-based model of Luxembourg’s multi-energy system to represent electricity, gas and thermal systems and their interactions. The model enables researchers to explore different scenarios and analyze how changes in one part of the energy system can affect others. Check [D2ET](https://www.d2et.lu/news-events/news?tx_news_pi1%5Baction%5D=detail&tx_news_pi1%5Bcontroller%5D=News&tx_news_pi1%5Bnews%5D=9&cHash=58881f5eb104ea6b14b3f448222af4e5) for more details.
+
 ## Research Institutes
 
 - **[:flag_eu: Joint Research Centre (JRC)](https://joint-research-centre.ec.europa.eu/index_en)** of the [European Commission](https://ec.europa.eu/info/index_en) converted METIS/PRIMES scenarios for the [Fit for 55 package to PyPSA networks](https://zenodo.org/record/7065568#.YygkDKRByMo) in 2022 and used PyPSA for further research: [doi:10.3390/en15124233](https://doi.org/10.3390/en15124233) in 2022. In 2023, JRC used PyPSA for the study ["MODECO – Modelling study on the role of energy communities in the energy transition"](https://publications.jrc.ec.europa.eu/repository/handle/JRC132896) and in 2024 for the study ["Redispatch and Congestion Management"](https://publications.jrc.ec.europa.eu/repository/handle/JRC137685)
