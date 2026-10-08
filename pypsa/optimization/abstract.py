@@ -556,6 +556,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
     ) -> Network:
         """Optimizes the network in a rolling horizon fashion.
 
+        Each window starts from the state left by the previous one: the storage
+        levels of stores and storage units, and the dispatch and commitment
+        status of all components for the ramp and unit commitment constraints.
+
         Parameters
         ----------
         snapshots : list-like

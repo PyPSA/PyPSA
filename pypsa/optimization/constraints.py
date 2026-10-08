@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from linopy import Model, Variable
     from xarray import DataArray  # noqa: TC004
 
-    from pypsa import Network
+    from pypsa import Components, Network
 
     ArgItem = list[str | int | float | DataArray]
 
@@ -245,6 +245,58 @@ def define_operational_constraints_for_extendables(
     )
 
 
+def _lagged(arr: DataArray, lags: range) -> DataArray:
+    """Relabel the `snapshot` dim of `arr` as `lag`, newest snapshot first."""
+    arr = arr.transpose("snapshot", ...)
+    dims = [d for d in arr.dims if d != "snapshot"]
+    coords = {"lag": list(lags), **{d: arr.coords[d] for d in dims}}
+    return DataArray(arr.values[::-1], coords=coords, dims=["lag", *dims])
+
+
+def _window_start(n: Network, sns: pd.Index) -> int:
+    """Position of the first snapshot of the window in `n.snapshots`."""
+    return n.snapshots.get_loc(n.optimize._window.subset(sns).start)
+
+
+def _status_history(
+    n: Network, c: Components, idx: pd.Index, sns: pd.Index, length: int
+) -> DataArray:
+    """Get the commitment status at the `length` snapshots before the window.
+
+    Snapshots solved in previous runs are read from `status`. The time before
+    `n.snapshots` is reconstructed from `up_time_before` and `down_time_before`.
+    Non-committable components are always on.
+    """
+    start_i = _window_start(n, sns)
+    solved = min(start_i, length) if not c.dynamic.status.empty else 0
+    rel = DataArray(range(1, length - solved + 1), dims="lag")
+    up = c.da.up_time_before.sel(name=idx)
+    down = c.da.down_time_before.sel(name=idx)
+    before = where(down > 0, rel > down, rel <= up).astype(float)
+    before = before.assign_coords(lag=rel + solved)
+    parts = [before]
+    if solved:
+        status = c.da.status.isel(snapshot=slice(start_i - solved, start_i))
+        parts.insert(0, _lagged(status.sel(name=idx), range(1, solved + 1)))
+    history = xr.concat(parts, dim="lag")
+    return history.where(c.da.committable.sel(name=idx), 1.0)
+
+
+def _dispatch_before(
+    n: Network, c: Components, idx: pd.Index, sns: pd.Index, status: DataArray
+) -> DataArray:
+    """Dispatch right before the window given the status at that time.
+
+    Within `n.snapshots` the solved dispatch is read; at its start `p_init` is
+    used, which is 0 for units that were off and NaN if unknown.
+    """
+    attr = "p0" if c.name in n.branch_components else "p"
+    start_i = _window_start(n, sns)
+    if start_i and not c.dynamic[attr].empty:
+        return c.da[attr].isel(snapshot=start_i - 1).sel(name=idx)
+    return c.da.p_init.sel(name=idx).where(status > 0, 0.0)
+
+
 def define_operational_constraints_for_committables(
     n: Network, sns: pd.Index, component: str
 ) -> None:
@@ -320,29 +372,12 @@ def define_operational_constraints_for_committables(
     ).fillna(1)
     ramp_start_up = nominal * c.da.ramp_limit_start_up.sel(name=com_i).fillna(1)
     ramp_shut_down = nominal * c.da.ramp_limit_shut_down.sel(name=com_i).fillna(1)
-    up_time_before_set = c.da.up_time_before.sel(name=com_i)
-    down_time_before_set = c.da.down_time_before.sel(name=com_i)
-    initially_up = up_time_before_set.astype(bool)
-    initially_down = down_time_before_set.astype(bool)
-
-    # check if there are status calculated/fixed before given sns interval
-    window = n.optimize._window.subset(sns)
-    if window.start != n.snapshots[0]:
-        start_i = n.snapshots.get_loc(window.start)
-        prev_sns = n.snapshots[:start_i][::-1]
-        until_start_up = c.da.status.sel(name=com_i, snapshot=prev_sns)
-        ref = DataArray(range(1, len(prev_sns) + 1), dims="snapshot")
-        up_time_before = until_start_up.where(
-            until_start_up.cumsum("snapshot") == ref
-        ).sum("snapshot")
-        up_time_before_set = up_time_before.clip(max=min_up_time_set)
-        initially_up = up_time_before_set.astype(bool)
-        until_start_down = ~until_start_up.astype(bool)
-        down_time_before = until_start_down.where(
-            until_start_down.cumsum("snapshot") == ref
-        ).sum("snapshot")
-        down_time_before_set = down_time_before.clip(max=min_down_time_set)
-        initially_down = down_time_before_set.astype(bool)
+    max_time = max(int(min_up_time_set.max()), int(min_down_time_set.max()), 1)
+    history = _status_history(n, c, com_i, sns, max_time + 1)
+    status_before = history.sel(lag=1, drop=True)
+    first = snapshot_array([1] + [0] * (len(sns) - 1), sns)
+    pos = snapshot_array(range(len(sns)), sns)
+    switches = -history.diff("lag", label="lower")
 
     maint_i = c.maintainables.intersection(c.active_assets)
 
@@ -551,8 +586,7 @@ def define_operational_constraints_for_committables(
             mask=active_mod,
         )
 
-    timesteps = xr.DataArray(range(1, len(sns) + 1), coords=[sns], dims=["snapshot"])
-    prior_status = ((timesteps == 1) & initially_up).astype(int)
+    prior_status = first * status_before
 
     lhs = start_up - status_diff
     n.model.add_constraints(
@@ -571,30 +605,16 @@ def define_operational_constraints_for_committables(
         if not (min_time > 0).any():
             continue
         shifted = [
-            transition.shift(snapshot=k).where(k < min_time).to_linexpr()
+            transition.to_linexpr().shift(snapshot=k).where(k < min_time).fillna(0)
             for k in range(int(min_time.max()))
         ]
-        window_sum = merge(shifted)
-        lhs = (sign * status + window_sum).sel(snapshot=sns[1:])
-        mask = (active & (min_time > 0)).sel(snapshot=sns[1:])
+        lhs = sign * status + merge(shifted)
+        past = (-sign * switches).clip(min=0)
+        rhs = bound - (past * (past.lag + pos < min_time)).sum("lag")
+        mask = active & (min_time > 0)
         n.model.add_constraints(
-            lhs, "<=", bound, name=f"{c.name}-com-{kind}-time", mask=mask
+            lhs, "<=", rhs, name=f"{c.name}-com-{kind}-time", mask=mask
         )
-
-    if initially_up.any():
-        must_stay_up = (min_up_time_set - up_time_before_set).clip(min=0)
-        mask = (must_stay_up >= timesteps) & initially_up
-        name = f"{c.name}-com-status-min_up_time_must_stay_up"
-        mask = mask & active if active is not None else mask
-        n.model.add_constraints(status, "=", 1, name=name, mask=mask)
-
-    # down time before
-    if initially_down.any():
-        must_stay_down = (min_down_time_set - down_time_before_set).clip(min=0)
-        mask = (must_stay_down >= timesteps) & initially_down
-        name = f"{c.name}-com-status-min_down_time_must_stay_up"
-        mask = mask & active if active is not None else mask
-        n.model.add_constraints(status, "=", 0, name=name, mask=mask)
 
     # linearized approximation because committable can partly start up and shut down
     start_up_cost = c.da.start_up_cost.sel(name=com_i)
@@ -624,7 +644,14 @@ def define_operational_constraints_for_committables(
         p_ce = p.sel(name=ce_i)
         start_up_ce = start_up.sel(name=ce_i)
         status_ce = status.sel(name=ce_i)
-        active_ce = active.sel(name=ce_i, snapshot=sns[1:])
+        p_init_ce = _dispatch_before(n, c, ce_i, sns, status_before.sel(name=ce_i))
+        active_ce = active.sel(name=ce_i)
+        active_prev_ce = active_ce & ((first == 0) | p_init_ce.notnull())
+
+        p_prev = p_ce.to_linexpr().shift(snapshot=1).fillna(0)
+        p_prev = p_prev + p_init_ce.fillna(0) * first
+        status_prev = status_ce.to_linexpr().shift(snapshot=1).fillna(0)
+        status_prev = status_prev + status_before.sel(name=ce_i) * first
 
         # parameters
         upper_p_ce = upper_p.sel(name=ce_i)
@@ -635,17 +662,16 @@ def define_operational_constraints_for_committables(
         ramp_down_limit_ce = ramp_down_limit.sel(name=ce_i)
 
         lhs = (
-            p_ce.shift(snapshot=1)
-            - ramp_shut_down_ce * status_ce.shift(snapshot=1)
+            p_prev
+            - ramp_shut_down_ce * status_prev
             - (upper_p_ce - ramp_shut_down_ce) * (status_ce - start_up_ce)
         )
-        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
             lhs,
             "<=",
             0,
             name=f"{c.name}-com-p-before",
-            mask=active_ce,
+            mask=active_prev_ce,
         )
 
         # dispatch limit for partly start up/shut down for t
@@ -654,7 +680,6 @@ def define_operational_constraints_for_committables(
             - upper_p_ce * status_ce
             + (upper_p_ce - ramp_start_up_ce) * start_up_ce
         )
-        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
             lhs,
             "<=",
@@ -666,35 +691,33 @@ def define_operational_constraints_for_committables(
         # ramp up if committable is only partly active and some capacity is starting up
         lhs = (
             p_ce
-            - p_ce.shift(snapshot=1)
+            - p_prev
             - (lower_p_ce + ramp_up_limit_ce) * status_ce
-            + lower_p_ce * status_ce.shift(snapshot=1)
+            + lower_p_ce * status_prev
             + (lower_p_ce + ramp_up_limit_ce - ramp_start_up_ce) * start_up_ce
         )
-        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
             lhs,
             "<=",
             0,
             name=f"{c.name}-com-partly-start-up",
-            mask=active_ce,
+            mask=active_prev_ce,
         )
 
         # ramp down if committable is only partly active and some capacity is shutting up
         lhs = (
-            p_ce.shift(snapshot=1)
+            p_prev
             - p_ce
-            - ramp_shut_down_ce * status_ce.shift(snapshot=1)
+            - ramp_shut_down_ce * status_prev
             + (ramp_shut_down_ce - ramp_down_limit_ce) * status_ce
             - (lower_p_ce + ramp_down_limit_ce - ramp_shut_down_ce) * start_up_ce
         )
-        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
             lhs,
             "<=",
             0,
             name=f"{c.name}-com-partly-shut-down",
-            mask=active_ce,
+            mask=active_prev_ce,
         )
 
 
@@ -884,11 +907,6 @@ def _define_ramp_limit_big_m(
     m = n.model
     var_attr = "p"
     nom_attr = c._operational_attrs["nom"]
-    hist_attr = "p0" if c.name in n.branch_components else "p"
-    window = n.optimize._window.subset(sns)
-    is_rolling_horizon = (window.start != n.snapshots[0]) & (
-        not c.dynamic[hist_attr].empty
-    )
     filter_first_sn = snapshot_array([1] + [0] * (len(sns) - 1), sns)
 
     M = c.get_committable_big_m_values(
@@ -901,21 +919,14 @@ def _define_ramp_limit_big_m(
     start_up = m[f"{c.name}-start_up"].sel(name=idx)
     shut_down = m[f"{c.name}-shut_down"].sel(name=idx)
 
-    if is_rolling_horizon:
-        start_i = n.snapshots.get_loc(window.start) - 1
-        p_init = c.da[hist_attr].isel(snapshot=start_i).sel(name=idx)
-        s_init = c.da.status.isel(snapshot=start_i).sel(name=idx).fillna(1)
-    else:
-        initially_up = c.da.up_time_before.sel(name=idx) > 0
-        p_init = c.da.p_init.sel(name=idx).where(initially_up, 0)
-        s_init = initially_up
+    s_init = _status_history(n, c, idx, sns, 1).squeeze("lag", drop=True)
+    p_init = _dispatch_before(n, c, idx, sns, s_init)
 
     p_prev_ce = (
         p.to_linexpr().shift(snapshot=1).fillna(0) + p_init.fillna(0) * filter_first_sn
     )
     status_prev_ce = (
-        status.to_linexpr().shift(snapshot=1).fillna(0)
-        + s_init.fillna(0) * filter_first_sn
+        status.to_linexpr().shift(snapshot=1).fillna(0) + s_init * filter_first_sn
     )
 
     lhs_delta = p - p_prev_ce
@@ -992,7 +1003,6 @@ def define_ramp_limit_constraints(
     c = n.c[component]
     var_attr = "p"
     nom_attr = c._operational_attrs["nom"]
-    hist_attr = "p0" if component in n.branch_components else "p"
 
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(c.static.columns):
         return
@@ -1027,9 +1037,6 @@ def define_ramp_limit_constraints(
     limit_shut = limit_shut.fillna(1.0)
 
     window = n.optimize._window.subset(sns)
-    is_rolling_horizon = (window.start != n.snapshots[0]) & (
-        not c.dynamic[hist_attr].empty
-    )
     filter_first_sn = snapshot_array([1] + [0] * (len(sns) - 1), sns)
 
     nom_mod_attr = c._operational_attrs["nom_mod"]
@@ -1050,20 +1057,9 @@ def define_ramp_limit_constraints(
         status_var = m[f"{c.name}-status"].sel(name=com_main_names)
         status = status.add(status_var, join="left")
 
-    if is_rolling_horizon:
-        start_i = n.snapshots.get_loc(window.start) - 1
-        p_init = c.da[hist_attr].isel(snapshot=start_i).sel(name=idx)
-        s_init = (
-            c.da.status.isel(snapshot=start_i)
-            .where(c.da.committable, 1)
-            .fillna(1)
-            .sel(name=idx)
-        )
-    else:
-        initially_up = c.da.up_time_before.sel(name=idx) > 0
-        p_init = c.da.p_init.sel(name=idx).where(initially_up, 0)
-        s_init = initially_up
-        mask.loc[{"snapshot": sns[0]}] = p_init.notnull()
+    s_init = _status_history(n, c, idx, sns, 1).squeeze("lag", drop=True)
+    p_init = _dispatch_before(n, c, idx, sns, s_init)
+    mask.loc[{"snapshot": sns[0]}] = p_init.notnull()
 
     # skip starts of periods except the first where p_init is used
     boundary = window.period_start_mask()
@@ -1075,7 +1071,7 @@ def define_ramp_limit_constraints(
         p.to_linexpr().shift(snapshot=1).fillna(0) + p_init.fillna(0) * filter_first_sn
     )
     status_shifted = status.shift(snapshot=1).fillna(0)
-    status_prev = status_shifted + s_init.fillna(0) * filter_first_sn
+    status_prev = status_shifted + s_init * filter_first_sn
 
     non_com_ext = ~is_com_ext
     lhs = p - p_prev
@@ -1083,27 +1079,9 @@ def define_ramp_limit_constraints(
     if is_com_fix.any():
         rhs = rhs + limit_start * p_nom * (status - status_prev)
     if p_nom_ext_var is not None:
-        if is_rolling_horizon:
-            s_init_ext = (
-                c.da.status[start_i]
-                .where(c.da.committable, 1)
-                .fillna(1)
-                .sel(name=ext_main_names)
-            )
-        else:
-            s_init_ext = (c.da.up_time_before.sel(name=ext_main_names) > 0) * 1.0
-        sp_ext = (1 - filter_first_sn) + s_init_ext * filter_first_sn
         if not isinstance(rhs, LinearExpression):
             rhs = LinearExpression.from_constant(m, rhs)
-        rhs = rhs.add(
-            limit_up.sel(name=ext_main_names) * p_nom_ext_var * sp_ext, join="left"
-        )
-        if is_com_fix.any():
-            ds_ext = filter_first_sn * (1 - s_init_ext)
-            rhs = rhs.add(
-                limit_start.sel(name=ext_main_names) * p_nom_ext_var * ds_ext,
-                join="left",
-            )
+        rhs = rhs.add(limit_up.sel(name=ext_main_names) * p_nom_ext_var, join="left")
         rhs = rhs.sel(name=idx)
     mask_up = mask & ~no_up_limit & non_com_ext
     m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_up", mask=mask_up)
@@ -1116,12 +1094,6 @@ def define_ramp_limit_constraints(
         if not isinstance(rhs, LinearExpression):
             rhs = LinearExpression.from_constant(m, rhs)
         rhs = rhs.add(-limit_down.sel(name=ext_main_names) * p_nom_ext_var, join="left")
-        if is_com_fix.any():
-            ds_ext = filter_first_sn * (1 - s_init_ext)
-            rhs = rhs.add(
-                limit_shut.sel(name=ext_main_names) * p_nom_ext_var * ds_ext,
-                join="left",
-            )
         rhs = rhs.sel(name=idx)
     mask_down = mask & ~no_down_limit & non_com_ext
     m.add_constraints(

@@ -1482,20 +1482,20 @@ class SubNetworkPowerFlowMixin:
 
         _calculate_controllable_nodal_power_balance(self, n, sns, buses_o)
 
+        def voltage(guess: np.ndarray, distribute_slack: bool) -> np.ndarray:
+            last_pq = -1 if distribute_slack else None
+            v_ang = v_ang_now.copy()
+            v_mag_pu = v_mag_pu_now.copy()
+            v_ang[1:] = guess[: len(self.pvpqs)]
+            v_mag_pu[1 + len(self.pvs) :] = guess[len(self.pvpqs) : last_pq]
+            return v_mag_pu * np.exp(1j * v_ang)
+
         def f(
             guess: np.ndarray,
             distribute_slack: bool = False,
             slack_weights: np.ndarray | None = None,
         ) -> np.ndarray:
-            last_pq = -1 if distribute_slack else None
-            n.c.buses.dynamic.v_ang.loc[now, self.pvpqs] = guess[: len(self.pvpqs)]
-            n.c.buses.dynamic.v_mag_pu.loc[now, self.pqs] = guess[
-                len(self.pvpqs) : last_pq
-            ]
-
-            v_mag_pu = n.c.buses.dynamic.v_mag_pu.loc[now, buses_o]
-            v_ang = n.c.buses.dynamic.v_ang.loc[now, buses_o]
-            V = v_mag_pu * np.exp(1j * v_ang)
+            V = voltage(guess, distribute_slack)
 
             if distribute_slack:
                 slack_power = slack_weights * guess[-1]
@@ -1504,9 +1504,9 @@ class SubNetworkPowerFlowMixin:
                 mismatch = V * np.conj(self.Y * V) - s
 
             if distribute_slack:
-                F = r_[real(mismatch)[:], imag(mismatch)[1 + len(self.pvs) :]]
+                F = r_[mismatch.real[:], mismatch.imag[1 + len(self.pvs) :]]
             else:
-                F = r_[real(mismatch)[1:], imag(mismatch)[1 + len(self.pvs) :]]
+                F = r_[mismatch.real[1:], mismatch.imag[1 + len(self.pvs) :]]
 
             return F
 
@@ -1515,16 +1515,7 @@ class SubNetworkPowerFlowMixin:
             distribute_slack: bool = False,
             slack_weights: np.ndarray | None = None,
         ) -> csr_matrix:
-            last_pq = -1 if distribute_slack else None
-            n.c.buses.dynamic.v_ang.loc[now, self.pvpqs] = guess[: len(self.pvpqs)]
-            n.c.buses.dynamic.v_mag_pu.loc[now, self.pqs] = guess[
-                len(self.pvpqs) : last_pq
-            ]
-
-            v_mag_pu = n.c.buses.dynamic.v_mag_pu.loc[now, buses_o]
-            v_ang = n.c.buses.dynamic.v_ang.loc[now, buses_o]
-
-            V = v_mag_pu * np.exp(1j * v_ang)
+            V = voltage(guess, distribute_slack)
 
             index = r_[: len(buses_o)]
 
@@ -1640,7 +1631,9 @@ class SubNetworkPowerFlowMixin:
         for i, now in enumerate(sns):
             p = n.c.buses.dynamic.p.loc[now, buses_o]
             q = n.c.buses.dynamic.q.loc[now, buses_o]
-            ss[i] = s = p + 1j * q
+            ss[i] = s = (p + 1j * q).to_numpy()
+            v_mag_pu_now = n.c.buses.dynamic.v_mag_pu.loc[now, buses_o].to_numpy()
+            v_ang_now = n.c.buses.dynamic.v_ang.loc[now, buses_o].to_numpy()
 
             # Make a guess for what we don't know: V_ang for PV and PQs and v_mag_pu for PQ buses
             guess = r_[
@@ -1652,9 +1645,9 @@ class SubNetworkPowerFlowMixin:
                 guess = np.append(guess, [0])  # for total slack power
                 if isinstance(slack_weights, str) and slack_weights == "p_set":
                     # snapshot-dependent slack weights
-                    slack_args["slack_weights"] = slack_weights_calc.loc[now]
+                    slack_args["slack_weights"] = slack_weights_calc.loc[now].to_numpy()
                 else:
-                    slack_args["slack_weights"] = slack_weights_calc
+                    slack_args["slack_weights"] = slack_weights_calc.to_numpy()
 
             # Now try and solve
             roots[i], n_iter, diff, converged = newton_raphson_sparse(
@@ -1755,9 +1748,6 @@ class SubNetworkPowerFlowMixin:
             )
             for bus, group in self.c.generators.static.groupby("bus"):
                 if isinstance(slack_weights, str) and slack_weights == "p_set":
-                    generators_t_p_choice = n.get_switchable_as_dense(
-                        "Generator", slack_weights, sns
-                    )
                     bus_generator_shares = (
                         generators_t_p_choice.loc[sns, group.index]
                         .apply(normed, axis=1)
