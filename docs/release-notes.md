@@ -16,6 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
+- Add a new example on [forecast errors and the value of foresight](./examples/forecast-errors.ipynb), which operates a price-taker battery against price forecasts that are reissued every day and settles the committed schedule at realised prices. (<!-- md:pr 1928 -->)
 - The cycle basis underlying the Kirchhoff voltage law constraints is now selectable via the `cycle_basis_method` keyword argument of [`n.optimize`][pypsa.optimization.optimize.OptimizationAccessor.__call__]. The new default `"bfs-refined"` constructs the basis from breadth-first spanning trees and shortens it through cycle exchanges, yielding sparser KVL constraints than the previous default `"paton"`, which remains available. (<!-- md:pr 1898 -->)
 - Enforce voltage angle difference limits on [Line](./user-guide/components/lines.md) and [Transformer](./user-guide/components/transformers.md) components in optimisation. Setting a finite `v_ang_max` (degrees) now caps the magnitude of the component's voltage angle difference. For lines this equals `x_pu_eff * s`; for transformers the phase shift is included. The limit is formulated as a bound on the flow. The `v_ang_min` attribute is deprecated. Resolves part of [#1481](https://github.com/PyPSA/PyPSA/issues/1481). (<!-- md:pr 1481 -->)
 - Add [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] to scale per-line summer / winter MVA ratings onto `n.lines_t.s_max_pu` based on the snapshot month, leaving `s_nom` unchanged. (<!-- md:pr 1694 -->)
