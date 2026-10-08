@@ -70,7 +70,7 @@ that the component is running for at least $T_{\textrm{min_up}}$ snapshots after
 
     $$\sum_{t'=t}^{t+T_\textrm{min_up}} u_{l,t'}\geq T_\textrm{min_up} (u_{l,t} - u_{l,t-1})$$
 
-The component may have been up for some periods before the optimisation period (`n.optimize(snapshots=snapshots)`). If the up-time before `snapshots` starts is less than the minimum up-time, the component is forced remain up for the difference at the start of `snapshots`. If the start of `snapshots` is the start of `n.snapshots`, the up-time before the simulation is read from the input attribute `up_time_before`. If `snapshots` falls in the middle of `n.snapshots`, then the statuses before `snapshots` are assumed to be set by previous runs. If the start of `snapshots` is very close to the start of `n.snapshots`, it will also take account of `up_time_before` as well as the statuses in between.
+The component may have been up for some periods before the optimisation period (`n.optimize(snapshots=snapshots)`). Start-ups before the start of `snapshots` count towards the sum in the constraint, so a component that started up less than $T_{\textrm{min_up}}$ snapshots before `snapshots` is forced to remain up for the difference. If `snapshots` starts at the beginning of `n.snapshots` or no statuses have been computed before, the time before is reconstructed from the input attributes: the component was up for `up_time_before` snapshots, or, if `down_time_before` is positive, down for `down_time_before` snapshots (`down_time_before` takes precedence). If `snapshots` starts in the middle of `n.snapshots`, the statuses before `snapshots` are read from `n.c.generators.dynamic.status` as set by previous runs, and `up_time_before`/`down_time_before` apply to the time before `n.snapshots`. All snapshots before `snapshots` count as solved once `n.c.generators.dynamic.status` is set. Successive runs must therefore solve the snapshots in order, starting from `n.snapshots[0]`, as [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] does. The start-ups before `snapshots` are the positive differences of these statuses, which may be fractional with the [linearized unit commitment](#linearization).
 
 At the end of `snapshots` the minimum up-time in the constraint is only enforced for the remaining snapshots, if the number of remaining snapshots is less than $T_{\textrm{min_up}}$.
 
@@ -88,7 +88,7 @@ If the **minimum down time** $T_{\textrm{min_down}}$ is set, status switches are
 
     $$\sum_{t'=t}^{t+T_\textrm{min_down}} (1-u_{l,t'})\geq T_\textrm{min_down} (u_{l,t-1} - u_{l,t})$$
 
-The component may have been down for some periods before the optimisation period (`n.optimize(snapshots=snapshots)`). If the down-time before `snapshots` starts is less than the minimum down-time, the component is forced to remain down for the difference at the start of `snapshots`. If the start of `snapshots` is the start of `n.snapshots`, the down-time before the simulation is read from the input attribute `down_time_before`. If `snapshots` falls in the middle of `n.snapshots`, then the statuses before `snapshots` are assumed to be set by previous runs. If the start of `snapshots` is very close to the start of `n.snapshots`, it will also take account of `down_time_before` as well as the statuses in between.
+The component may have been down for some periods before the optimisation period. Shut-downs before the start of `snapshots` count towards the sum in the constraint in the same way as start-ups do for the minimum up-time.
 
 Furthermore, two **state transition variables** for start-up ($su_{*,t} \in \{0,1\}$) and shut-down ($sd_{*,t} \in$ \{0,1\}) are introduced to associate them with start-up and shut-down cost terms in the objective function. Start-up and shut-down costs can be static or time series varying per snapshot. The constraints are set so that the start-up variable is only non-zero if the component has just started up, i.e. $u_{n,s,t} - u_{n,s,t-1} = 1$, and the shut-down variable is only non-zero if the component has just shut down, i.e. $u_{n,s,t-1} - u_{n,s,t} = 1$:
 
@@ -203,8 +203,8 @@ For extendable components, $\hat{g}_{n,s}$ is replaced by the capacity variable 
 
 The ramp constraints require knowledge of the previous snapshot's dispatch. At the first snapshot of the optimization horizon, this is handled as follows:
 
-- **Rolling horizon optimization**: When `n.optimize(snapshots=...)` starts after the first snapshot in `n.snapshots`, the dispatch from the previous snapshot is used automatically.
-- **First snapshot of `n.snapshots`**: The `p_init` attribute specifies the initial dispatch level. For committable components, the initial status is determined by `up_time_before > 0`. If `p_init` is not set (NaN), no ramp constraint is applied at the first snapshot.
+- **Rolling horizon optimization**: When `n.optimize(snapshots=...)` starts after the first snapshot in `n.snapshots` and previous runs have set the dispatch, the dispatch and the commitment status from the previous snapshot are used automatically. With the [linearized unit commitment](#linearization) the previous status may be fractional.
+- **First snapshot of `n.snapshots` or no previous run**: The `p_init` attribute specifies the initial dispatch level. For committable components, the initial status is determined by `up_time_before > 0` (or `down_time_before > 0`, which takes precedence) and the initial dispatch is zero if the component was off. If `p_init` is not set (NaN), no ramp constraint is applied at the first snapshot. Non-committable components are always on; `up_time_before` and `down_time_before` are ignored for them.
 
 These constraints are defined in the function `define_ramp_limit_constraints()`.
 
@@ -276,7 +276,7 @@ n.optimize(linearized_unit_commitment=True)
 
     Linearized unit commitment cannot be used with [modular committable components](capacity-limits.md#modular-and-committable-components) and will result in a `ValueError`.
 
-To tighten the relaxation, additional constraints are introduced that improve capturing the relationship between commitment status, ramping, and dispatch. The tightening is only applied to units whose start-up and shut-down costs are equal in every snapshot; for the other units the unit commitment variables are purely relaxed and a warning is logged. The added constraints limit the dispatch during partial start-up and shut-down, as well as ramping during partial commitment:
+To tighten the relaxation, additional constraints are introduced that improve capturing the relationship between commitment status, ramping, and dispatch. At the first snapshot they use the previous dispatch and status as described in [Initial Conditions](#initial-conditions) and are skipped if the previous dispatch is unknown. The tightening is only applied to units whose start-up and shut-down costs are equal in every snapshot; for the other units the unit commitment variables are purely relaxed and a warning is logged. The added constraints limit the dispatch during partial start-up and shut-down, as well as ramping during partial commitment:
 
 === "Generator"
 
