@@ -46,6 +46,7 @@ from pypsa.optimization.constraints import (
     define_operational_constraints_for_non_extendables,
     define_ramp_limit_constraints,
     define_secant_loss_constraints,
+    define_storage_cycle_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
     define_tangent_loss_constraints,
@@ -78,6 +79,7 @@ from pypsa.optimization.variables import (
     define_spillage_variables,
     define_start_up_variables,
     define_status_variables,
+    define_store_charging_variables,
 )
 from pypsa.optimization.window import SnapshotWindow, apply_period_weighting
 
@@ -829,6 +831,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
+        define_store_charging_variables(n, sns)
         define_phase_shift_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
@@ -893,6 +896,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
+        define_storage_cycle_constraints(n, sns, "StorageUnit")
+        define_storage_cycle_constraints(n, sns, "Store")
         define_total_supply_constraints(n, sns)
 
         if transmission_losses:
@@ -1061,6 +1066,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 continue
 
             _c_name, attr = name.split("-", 1)
+
+            # Skip the auxiliary charging variable of store cycle limits
+            if name == "Store-p_store":
+                continue
 
             # Skip auxiliary McCormick linearization variables
             if attr in ("maintenance_capacity", "maintenance_status"):

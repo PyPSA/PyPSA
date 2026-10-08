@@ -580,6 +580,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
+        su, st = n.c.storage_units, n.c.stores
+        cycles_max = {c.name: c.static.cycles_max.copy() for c in (su, st)}
+
         starting_points = range(0, len(snapshots), horizon - overlap)
         for i, start in enumerate(starting_points):
             end = min(len(snapshots), start + horizon)
@@ -604,6 +607,21 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                         ].values
                     )
 
+                # count the cycles of previous windows against `cycles_max`
+                done = snapshots[:start]
+                eh = n.snapshot_weightings.stores.loc[done]
+                for c, discharge, capacity in (
+                    (
+                        su,
+                        su.dynamic.p_dispatch,
+                        su.static.max_hours * su.static.p_nom_opt,
+                    ),
+                    (st, st.dynamic.p.clip(lower=0), st.static.e_nom_opt),
+                ):
+                    used = discharge.loc[done].mul(eh, axis=0).sum() / capacity
+                    remaining = cycles_max[c.name].sub(used.fillna(0), fill_value=0)
+                    c.static.cycles_max = remaining.clip(lower=0)
+
             status, condition = n.optimize(sns, **kwargs)
             if status != "ok":
                 logger.warning(
@@ -611,6 +629,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                     status,
                     condition,
                 )
+
+        for c in (su, st):
+            c.static.cycles_max = cycles_max[c.name]
         return n
 
     def optimize_and_run_non_linear_powerflow(
