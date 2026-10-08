@@ -1520,7 +1520,7 @@ def test_minimum_time_rows_at_window_boundary(
                 data.labels.values >= 0,
                 np.tile(
                     [True, short_time != 0] if short_time is not None else [True],
-                    (5, 1),
+                    (6, 1),
                 ),
             )
             for generator, duration in enumerate(
@@ -1529,9 +1529,9 @@ def test_minimum_time_rows_at_window_boundary(
                 assert duration is not None
                 if duration == 0:
                     continue
-                for row, snapshot in enumerate(range(1, 6)):
-                    variables = data.vars.values[row, generator]
-                    coefficients = data.coeffs.values[row, generator]
+                for snapshot in range(6):
+                    variables = data.vars.values[snapshot, generator]
+                    coefficients = data.coeffs.values[snapshot, generator]
                     actual = {
                         int(label): float(coefficient)
                         for label, coefficient in zip(variables, coefficients)
