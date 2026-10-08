@@ -21,6 +21,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - Add [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] to scale per-line summer / winter MVA ratings onto `n.lines_t.s_max_pu` based on the snapshot month, leaving `s_nom` unchanged. (<!-- md:pr 1694 -->)
 - `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
 - Deprecation: [`n.get_switchable_as_dense()`][pypsa.Network.get_switchable_as_dense] now emits a `FutureWarning` if `inds` contains unknown or duplicate names, or names out of component order. In PyPSA 2.0, it will return columns in `inds` order, keep duplicates and raise a `KeyError` for unknown names. To keep the current result, pass unique, known names in component order, e.g. `n.c.<component>.static.index.unique('name').intersection(inds)`. See [#1977](https://github.com/PyPSA/PyPSA/issues/1977). (<!-- md:pr 1982 -->)
+- Performance: [`n.import_from_netcdf`][pypsa.Network.import_from_netcdf] is faster. It reads dynamic data without a costly `unstack()`. (<!-- md:pr 1998 -->)
+- Performance: The non-linear power flow [`n.pf()`][pypsa.network.power_flow.NetworkPowerFlowMixin.pf] is faster. The Newton-Raphson iterations use NumPy arrays instead of writing every iteration to `n.buses_t`. (<!-- md:pr 1998 -->)
 
 ### Bug Fixes
 
