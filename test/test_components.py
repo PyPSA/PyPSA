@@ -224,13 +224,8 @@ def test_add_fills_omitted_static_attributes_with_defaults(component, kwargs):
     n = Network()
     n.add("Bus", ["a", "b"])
     n.add(component, "x", **kwargs)
-    static = n.c[component].static
-    empty = Network().c[component].static
-    defaults = n.components[component]["defaults"]
-    omitted = [
-        k for k in defaults.index[defaults.static] if k != "name" and k not in kwargs
-    ]
-    for k in omitted:
-        default, value = defaults.at[k, "default"], static.at["x", k]
-        assert static[k].dtype == empty[k].dtype, k
-        assert (pd.isna(value) and pd.isna(default)) or value == default, k
+    static = n.c[component].static.drop(columns=list(kwargs))
+    defaults = n.components[component]["defaults"].default[static.columns]
+    empty = Network().c[component].static[static.columns]
+    assert static.dtypes.equals(empty.dtypes)
+    assert static.loc["x"].astype(object).equals(defaults.astype(object))

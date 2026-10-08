@@ -2017,17 +2017,10 @@ class NetworkIOMixin(_NetworkABC):
         # Fill nan values with default values
         df = df.fillna(attrs["default"].to_dict())
 
-        # Add all missing attributes at once, inserting them one by one is slow
-        missing = [k for k in static_attrs.index if k not in df.columns]
-        defaults = [
-            pd.Series(static_attrs.at[k, "default"], index=df.index, name=k)
-            for k in missing
-        ]
-        df = pd.concat([df, *defaults], axis=1)
-
+        defaults = {}
         for k in static_attrs.index:
-            if k in missing:
-                continue
+            if k not in df.columns:
+                defaults[k] = static_attrs.at[k, "default"]
             else:
                 if static_attrs.at[k, "type"] == "string":
                     df[k] = df[k].replace({np.nan: ""})
@@ -2044,6 +2037,7 @@ class NetworkIOMixin(_NetworkABC):
                             df[k] = gpd.GeoSeries.from_wkt(geometry)
                     else:
                         df[k] = df[k].astype(static_attrs.at[k, "typ"])
+        df = pd.concat([df, pd.DataFrame(defaults, index=df.index)], axis=1)
 
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
         old_static = self.c[cls_name].static
