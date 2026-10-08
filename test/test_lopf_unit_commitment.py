@@ -1542,6 +1542,8 @@ def test_minimum_time_rows_at_window_boundary(
                         for t in range(max(0, snapshot - duration + 1), snapshot + 1)
                     }
                     assert actual == expected
+
+
 @pytest.mark.parametrize(
     "flex_kwargs",
     [{"p_nom": 10}, {"p_nom_extendable": True, "capital_cost": 1}],
