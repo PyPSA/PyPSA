@@ -190,7 +190,7 @@ $$soc_{n,s,t=-1} = soc_{n,s,t=|T|-1}$$
 
 ## Cycle Limits
 
-Batteries wear out with use. The attribute `cycles_max` $N_{n,s}$ limits the number of equivalent full cycles over all snapshots of the optimisation, including all investment periods. One cycle is a discharge equal to the energy capacity. The limit stays linear for extendable capacities. The formulation follows eq. (22) in Cardoso et al. (2018).[^1]
+Storage units may wear out with use. The attribute `cycles_max` $N_{n,s}$ limits the number of equivalent full cycles over all snapshots of the optimisation, including all investment periods. One cycle is a discharge equal to the energy capacity. The limit stays linear for extendable capacities. The formulation follows eq. (22) in Cardoso et al. (2018).[^1]
 
 | Constraint | Dual Variable | Name |
 |------------|---------------|------|
