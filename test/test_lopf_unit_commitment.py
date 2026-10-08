@@ -2,6 +2,10 @@
 #
 # SPDX-License-Identifier: MIT
 
+from contextlib import nullcontext
+from typing import Any
+
+import linopy
 import numpy as np
 import pandas as pd
 import pytest
@@ -1457,6 +1461,87 @@ def test_linearized_uc_tightening_with_time_varying_costs(caplog):
     names = n.model.constraints["Generator-com-p-current"].indexes["name"]
     assert list(names) == ["equal"]
     assert "cannot be tightened" in caplog.text
+
+
+@pytest.mark.parametrize("semantics", ["legacy", "v1"])
+@pytest.mark.parametrize("short_time", [None, 0, 1])
+def test_minimum_time_rows_at_window_boundary(
+    semantics: str, short_time: int | None
+) -> None:
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2026-01-01", periods=6, freq="h"))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "generator",
+        bus="bus",
+        p_nom=10,
+        committable=True,
+        marginal_cost=1,
+        min_up_time=3,
+        min_down_time=3,
+        up_time_before=0,
+    )
+    if short_time is not None:
+        n.add(
+            "Generator",
+            "short",
+            bus="bus",
+            p_nom=10,
+            committable=True,
+            marginal_cost=2,
+            min_up_time=short_time,
+            min_down_time=short_time,
+            up_time_before=0,
+        )
+    n.add("Load", "load", bus="bus", p_set=1)
+    try:
+        linopy.options["semantics"]
+        supports_semantics = True
+    except KeyError:
+        supports_semantics = False
+    if semantics == "v1" and not supports_semantics:
+        pytest.skip("Installed linopy predates v1 arithmetic semantics")
+    with linopy.options if supports_semantics else nullcontext():
+        if supports_semantics:
+            linopy.options.set_value(semantics=semantics)
+        kwargs: dict[str, Any] = (
+            {"sparse": semantics == "v1"} if supports_semantics else {}
+        )
+        model = n.optimize.create_model(**kwargs)
+        status = model.variables["Generator-status"].labels.values
+        for kind, sign, transition in [
+            ("up", -1, "start_up"),
+            ("down", 1, "shut_down"),
+        ]:
+            values = model.variables[f"Generator-{transition}"].labels.values
+            data = model.constraints[f"Generator-com-{kind}-time"].data
+            np.testing.assert_array_equal(
+                data.labels.values >= 0,
+                np.tile(
+                    [True, short_time != 0] if short_time is not None else [True],
+                    (6, 1),
+                ),
+            )
+            for generator, duration in enumerate(
+                [3, short_time] if short_time is not None else [3]
+            ):
+                assert duration is not None
+                if duration == 0:
+                    continue
+                for snapshot in range(6):
+                    variables = data.vars.values[snapshot, generator]
+                    coefficients = data.coeffs.values[snapshot, generator]
+                    actual = {
+                        int(label): float(coefficient)
+                        for label, coefficient in zip(variables, coefficients)
+                        if label >= 0 and coefficient != 0
+                    }
+                    expected = {int(status[snapshot, generator]): float(sign)} | {
+                        int(values[t, generator]): 1.0
+                        for t in range(max(0, snapshot - duration + 1), snapshot + 1)
+                    }
+                    assert actual == expected
 
 
 @pytest.mark.parametrize(
