@@ -405,8 +405,12 @@ def test_investment_periods() -> None:
 def test_inactive_branch_excluded_from_cycles(ac_dc_network) -> None:
     """An inactive line spans no cycle, so its cycle is dropped."""
     n = ac_dc_network
-    n.c.lines.static.loc["5", "active"] = False
+    cycles = n.cycle_matrix().loc["Line"]
 
+    assert (cycles.loc["5"] != 0).any()
+    assert cycles.shape[1] == 2
+
+    n.c.lines.static.loc["5", "active"] = False
     cycles = n.cycle_matrix().loc["Line"]
 
     assert (cycles.loc["5"] == 0).all()

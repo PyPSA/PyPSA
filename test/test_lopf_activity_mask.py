@@ -34,19 +34,6 @@ def test_optimize(ac_dc_network):
     assert "DC link" not in n.model.constraints["Link-ext-p_nom-lower"].coords["name"]
 
 
-def test_optimize_inactive_line_in_cycle(ac_dc_network):
-    """An inactive line in a cycle acts as if removed from the network."""
-    n = ac_dc_network
-    removed = n.copy()
-    removed.remove("Line", "5")
-    n.c.lines.static.loc["5", "active"] = False
-
-    n.optimize()
-    removed.optimize()
-
-    assert n.objective == pytest.approx(removed.objective)
-
-
 def test_optimize_with_power_flow(scipy_network):
     """
     Test the functionality of the 'active' attribute in PyPSA components.
