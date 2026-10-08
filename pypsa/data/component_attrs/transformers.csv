@@ -29,8 +29,8 @@ phase_shift_max,float,Degrees,0,"Upper bound (degrees) for the per-snapshot phas
 active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
 build_year,int,year,0,Build year of transformer.,Input (optional)
 lifetime,float,years,inf,Lifetime of transformer.,Input (optional)
-v_ang_min,float,Degrees,-inf,Minimum voltage angle difference across the transformer.Placeholder attribute not currently used.,Input (optional)
-v_ang_max,float,Degrees,inf,Maximum voltage angle difference across the transformer.Placeholder attribute not currently used.,Input (optional)
+v_ang_min,float,Degrees,-inf,Deprecated and ignored. `v_ang_max` applies symmetrically as an absolute voltage angle difference limit.,Input (optional)
+v_ang_max,float,Degrees,inf,Maximum magnitude of the voltage angle difference across the transformer in degrees. Enforced in the optimisation as a symmetric cap on the angle difference including the phase shift. Ignored when inf.,Input (optional)
 sub_network,string,n/a,n/a,"Name of connected sub-network to which transformer belongs, as calculated by `n.determine_network_topology()`. Do not set by hand.",Output
 p0,series,MW,0,Active power at `bus0` (positive if branch is withdrawing power from `bus0`).,Output
 q0,series,MVar,0,Reactive power at `bus0` (positive if branch is withdrawing power from `bus0`).,Output

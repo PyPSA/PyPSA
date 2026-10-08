@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -27,17 +28,16 @@ from numpy import (
 from xarray import DataArray, where
 
 from pypsa.components._types.mixin.multiports import _Multiport
-from pypsa.components.common import as_components
+from pypsa.components.common import as_components, invariant
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
-from pypsa.optimization.common import reindex
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 from pypsa.optimization.window import snapshot_array
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
-    from linopy import Variable
+    from linopy import Model, Variable
     from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
@@ -46,6 +46,10 @@ if TYPE_CHECKING:
     ArgItem = list[str | int | float | DataArray]
 
 logger = logging.getLogger(__name__)
+
+PHASE_SHIFT = "Transformer-phase_shift"
+
+DEG2RAD = np.pi / 180.0
 
 lookup = pd.read_csv(
     PYPSA_DATA_DIR / "variables.csv",
@@ -548,71 +552,36 @@ def define_operational_constraints_for_committables(
             mask=active_mod,
         )
 
-    # state-transition constraint
-    rhs = pd.DataFrame(0, sns, com_i)
-    # Convert xarray boolean to list of indices for DataFrame indexing
-    initially_up_indices = com_i[initially_up.values]
-    if not initially_up_indices.empty:
-        rhs.iloc[0, rhs.columns.get_indexer(initially_up_indices)] = -1
+    timesteps = xr.DataArray(range(1, len(sns) + 1), coords=[sns], dims=["snapshot"])
+    prior_status = ((timesteps == 1) & initially_up).astype(int)
 
     lhs = start_up - status_diff
     n.model.add_constraints(
-        lhs, ">=", rhs, name=f"{c.name}-com-transition-start-up", mask=active
+        lhs, ">=", -prior_status, name=f"{c.name}-com-transition-start-up", mask=active
     )
-
-    rhs = pd.DataFrame(0, sns, com_i)
-    if not initially_up_indices.empty:
-        rhs.iloc[0, rhs.columns.get_indexer(initially_up_indices)] = 1
 
     lhs = shut_down + status_diff
     n.model.add_constraints(
-        lhs, ">=", rhs, name=f"{c.name}-com-transition-shut-down", mask=active
+        lhs, ">=", prior_status, name=f"{c.name}-com-transition-shut-down", mask=active
     )
 
-    # min up time
-    min_up_time_i = com_i[min_up_time_set.astype(bool)]
-    if not min_up_time_i.empty:
-        expr = []
-        for g in min_up_time_i:
-            su = start_up.loc[:, [g]]
-            # Retrieve the minimum up time value for generator g and convert it to a scalar
-            up_time_value = min_up_time_set.sel(name=g).item()
-            expr.append(su.rolling(snapshot=up_time_value).sum())
-        lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
-        lhs = lhs.sel(snapshot=sns[1:])
+    for kind, min_time, transition, sign, bound in (
+        ("up", min_up_time_set, start_up, -1, 0),
+        ("down", min_down_time_set, shut_down, 1, 1),
+    ):
+        if not (min_time > 0).any():
+            continue
+        shifted = [
+            transition.shift(snapshot=k).where(k < min_time).to_linexpr()
+            for k in range(int(min_time.max()))
+        ]
+        window_sum = merge(shifted)
+        lhs = (sign * status + window_sum).sel(snapshot=sns[1:])
+        mask = (active & (min_time > 0)).sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs,
-            "<=",
-            0,
-            name=f"{c.name}-com-up-time",
-            mask=active.loc[sns[1:], min_up_time_i],
+            lhs, "<=", bound, name=f"{c.name}-com-{kind}-time", mask=mask
         )
 
-    # min down time
-    min_down_time_i = com_i[min_down_time_set.astype(bool)]
-    if not min_down_time_i.empty:
-        expr = []
-        for g in min_down_time_i:
-            su = shut_down.loc[:, [g]]
-            down_time_value = min_down_time_set.sel(
-                {min_down_time_set.dims[0]: g}
-            ).item()
-            expr.append(su.rolling(snapshot=down_time_value).sum())
-        lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
-        lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(
-            lhs,
-            "<=",
-            1,
-            name=f"{c.name}-com-down-time",
-            mask=active.loc[sns[1:], min_down_time_i],
-        )
-    # up time before
-    timesteps = xr.DataArray(
-        [range(1, len(sns) + 1)] * len(com_i),
-        coords=[com_i, sns],
-        dims=["name", "snapshot"],
-    )
     if initially_up.any():
         must_stay_up = (min_up_time_set - up_time_before_set).clip(min=0)
         mask = (must_stay_up >= timesteps) & initially_up
@@ -632,9 +601,8 @@ def define_operational_constraints_for_committables(
     start_up_cost = c.da.start_up_cost.sel(name=com_i)
     shut_down_cost = c.da.shut_down_cost.sel(name=com_i)
     cost_equal_da = start_up_cost == shut_down_cost
-    if "snapshot" in cost_equal_da.dims:
-        cost_equal_da = cost_equal_da.all("snapshot")
-    cost_equal = cost_equal_da.values
+    other_dims = [d for d in cost_equal_da.dims if d != "name"]
+    cost_equal = cost_equal_da.all(other_dims).values
 
     # only valid additional constraints if start up costs equal to shut down costs
     if n._linearized_uc and not cost_equal.all():
@@ -653,18 +621,19 @@ def define_operational_constraints_for_committables(
 
     if n._linearized_uc and cost_equal.any():
         # dispatch limit for partly start up/shut down for t-1
-        p_ce = p.loc[:, cost_equal]
-        start_up_ce = start_up.loc[:, cost_equal]
-        status_ce = status.loc[:, cost_equal]
-        active_ce = DataArray(active.loc[:, cost_equal]).sel(snapshot=sns[1:])
+        ce_i = com_i[cost_equal]
+        p_ce = p.sel(name=ce_i)
+        start_up_ce = start_up.sel(name=ce_i)
+        status_ce = status.sel(name=ce_i)
+        active_ce = active.sel(name=ce_i, snapshot=sns[1:])
 
         # parameters
-        upper_p_ce = upper_p.loc[:, cost_equal]
-        lower_p_ce = lower_p.loc[:, cost_equal]
-        ramp_shut_down_ce = ramp_shut_down.loc[cost_equal]
-        ramp_start_up_ce = ramp_start_up.loc[cost_equal]
-        ramp_up_limit_ce = ramp_up_limit.loc[cost_equal]
-        ramp_down_limit_ce = ramp_down_limit.loc[cost_equal]
+        upper_p_ce = upper_p.sel(name=ce_i)
+        lower_p_ce = lower_p.sel(name=ce_i)
+        ramp_shut_down_ce = ramp_shut_down.sel(name=ce_i)
+        ramp_start_up_ce = ramp_start_up.sel(name=ce_i)
+        ramp_up_limit_ce = ramp_up_limit.sel(name=ce_i)
+        ramp_down_limit_ce = ramp_down_limit.sel(name=ce_i)
 
         lhs = (
             p_ce.shift(snapshot=1)
@@ -1177,6 +1146,12 @@ def define_ramp_limit_constraints(
         )
 
 
+def _flagged_names(mask: DataArray) -> list[str]:
+    """Names of the assets for which `mask` holds in any scenario."""
+    flagged = mask.any([d for d in mask.dims if d != "name"])
+    return flagged.indexes["name"][flagged.values].tolist()
+
+
 def _get_delay_config(
     c: _Multiport,
 ) -> dict[str, tuple[pd.Series | int, pd.Series | bool]]:
@@ -1201,7 +1176,10 @@ def _get_delay_config(
         cyclic_col = f"cyclic_delay{suffix}"
 
         if delay_col in c.static.columns:
-            config[suffix] = (c.static[delay_col], c.static[cyclic_col])
+            config[suffix] = (
+                invariant(c.static[delay_col]),
+                invariant(c.static[cyclic_col]),
+            )
         else:
             config[suffix] = (0, True)
     return config
@@ -1270,15 +1248,10 @@ def _iter_balance_delay(
     delay_config = _get_delay_config(c)
     delays, cyclics = delay_config[suffix]
 
-    for (d, cyc), group in c.static.assign(_delay=delays, _cyclic=cyclics).groupby(
-        ["_delay", "_cyclic"]
-    ):
+    static = pd.DataFrame({"_delay": delays, "_cyclic": cyclics}, index=c.names)
+    for (d, cyc), group in static.groupby(["_delay", "_cyclic"]):
         delay_int = int(d)
-
-        names = group.index
-        if isinstance(names, pd.MultiIndex):
-            names = names.get_level_values("name").unique()
-        names = names.intersection(active)
+        names = group.index.intersection(active)
 
         if not names.empty:
             yield (
@@ -1579,7 +1552,16 @@ def _groupby_bus(
     )
 
 
-def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
+def _optimised_phase_shifts(m: Model) -> pd.Index:
+    """Get names of transformers with an optimised phase shift."""
+    if PHASE_SHIFT not in m.variables:
+        return pd.Index([])
+    return m[PHASE_SHIFT].indexes["name"]
+
+
+def define_kirchhoff_voltage_constraints(
+    n: Network, sns: pd.Index, cycle_basis_method: str = "bfs-refined"
+) -> None:
     """Define Kirchhoff's Voltage Law constraints for networks.
 
     Creates constraints ensuring that the sum of potential differences across
@@ -1606,6 +1588,9 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
+    cycle_basis_method : str, default "bfs-refined"
+        Method used to construct the cycle basis underlying the constraints,
+        either ``"bfs-refined"`` or ``"paton"``.
 
     Notes
     -----
@@ -1636,7 +1621,11 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     deg_to_rad = np.pi / 180.0
     lhs_parts = []
     for period, snapshots in window.iter_periods():
-        C_weighted = n.cycle_matrix(investment_period=period, apply_weights=True)
+        C_weighted = n.cycle_matrix(
+            investment_period=period,
+            apply_weights=True,
+            cycle_basis_method=cycle_basis_method,
+        )
         if C_weighted.empty:
             continue
 
@@ -1650,17 +1639,20 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         lhs_period = sum(exprs)
 
         if "Transformer" in C_weighted.index.unique("type"):
-            var = "Transformer-phase_shift"
-            C_plain = n.cycle_matrix(investment_period=period, apply_weights=False)
+            C_plain = n.cycle_matrix(
+                investment_period=period,
+                apply_weights=False,
+                cycle_basis_method=cycle_basis_method,
+            )
             C_trafos = C_plain.loc["Transformer"]
 
             tr = n.c.Transformer
-            active = tr.static.loc[C_trafos.index.intersection(tr.active_assets)]
-            varying = active["phase_shift_min"] < active["phase_shift_max"]
+            names = C_trafos.index.intersection(tr.active_assets)
+            optimised = names.isin(_optimised_phase_shifts(m))
 
-            contributions = [(active.index[~varying], tr.da["phase_shift"])]
-            if var in m.variables:
-                contributions.append((active.index[varying], m[var]))
+            contributions = [(names[~optimised], tr.da["phase_shift"])]
+            if optimised.any():
+                contributions.append((names[optimised], m[PHASE_SHIFT]))
             for names, angle in contributions:
                 C = DataArray(C_trafos.loc[names])
                 sel = angle.sel(name=names, snapshot=snapshots)
@@ -1673,6 +1665,105 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         con = lhs == 0
         mask = con.rhs.notnull()
         m.add_constraints(con, name="Kirchhoff-Voltage-Law", mask=mask)
+
+
+def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
+    """Define voltage angle difference limits for lines and transformers.
+
+    Caps the magnitude of the linearised voltage angle difference across each
+    AC line and transformer to ``v_ang_max`` (in degrees). The difference
+    equals ``x_pu_eff * s`` for lines and ``x_pu_eff * s + phase_shift`` for
+    transformers, so the limit becomes a symmetric bound after dividing
+    through the strictly positive ``x_pu_eff``:
+
+    -deg2rad(v_ang_max) / x_pu_eff <= s + phase_shift / x_pu_eff <= deg2rad(v_ang_max) / x_pu_eff
+
+    A fixed ``phase_shift`` shifts the flow bounds; an optimised phase shift
+    (``phase_shift_min < phase_shift_max``) enters the constraint as a variable.
+    Constraints are only created for assets with a finite ``v_ang_max``. The
+    deprecated ``v_ang_min`` is ignored; ``v_ang_max`` applies symmetrically.
+
+    See the MATPOWER manual (https://matpower.org/docs/MATPOWER-manual.pdf),
+    pages 76-77, for background on voltage angle difference limits.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+
+    """
+    model_sns = n.optimize._window.subset(sns).model_index
+
+    for c_name in ("Line", "Transformer"):
+        c = as_components(n, c_name)
+        static = c.static
+
+        if isfinite(static["v_ang_min"]).any():
+            warnings.warn(
+                f"The `v_ang_min` attribute of {c_name} is deprecated and "
+                "ignored. `v_ang_max` applies symmetrically as an absolute "
+                "voltage angle difference limit.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        finite = isfinite(static["v_ang_max"])
+        assets_i = finite[finite].index.unique("name").intersection(c.active_assets)
+        if c_name == "Line":
+            assets_i = assets_i[invariant(c.static.carrier)[assets_i] == "AC"]
+        if assets_i.empty:
+            continue
+
+        x_pu_eff = c.da["x_pu_eff"].sel(name=assets_i)
+        cap = c.da["v_ang_max"].sel(name=assets_i) * DEG2RAD / x_pu_eff
+        s = n.model[f"{c_name}-s"].sel(name=assets_i, snapshot=model_sns)
+        active = c.da.active.sel(name=assets_i, snapshot=model_sns) & isfinite(cap)
+
+        if c_name == "Line":
+            n.model.add_constraints(s, ">=", -cap, name="Line-v_ang-lower", mask=active)
+            n.model.add_constraints(s, "<=", cap, name="Line-v_ang-upper", mask=active)
+            continue
+
+        varying = assets_i.isin(_optimised_phase_shifts(n.model))
+        fixed_i = assets_i[~varying]
+        var_i = assets_i[varying]
+
+        if not fixed_i.empty:
+            offset = (
+                DEG2RAD
+                * c.da["phase_shift"].sel(name=fixed_i, snapshot=model_sns)
+                / x_pu_eff.sel(name=fixed_i)
+            )
+            lhs = s.sel(name=fixed_i)
+            mask = active.sel(name=fixed_i)
+            n.model.add_constraints(
+                lhs,
+                ">=",
+                -cap.sel(name=fixed_i) - offset,
+                name="Transformer-v_ang-lower",
+                mask=mask,
+            )
+            n.model.add_constraints(
+                lhs,
+                "<=",
+                cap.sel(name=fixed_i) - offset,
+                name="Transformer-v_ang-upper",
+                mask=mask,
+            )
+
+        if not var_i.empty:
+            ps = n.model[PHASE_SHIFT].sel(name=var_i, snapshot=model_sns)
+            lhs = s.sel(name=var_i) + ps * (DEG2RAD / x_pu_eff.sel(name=var_i))
+            mask = active.sel(name=var_i)
+            cap_var = cap.sel(name=var_i)
+            n.model.add_constraints(
+                lhs, ">=", -cap_var, name="Transformer-v_ang-var-lower", mask=mask
+            )
+            n.model.add_constraints(
+                lhs, "<=", cap_var, name="Transformer-v_ang-var-upper", mask=mask
+            )
 
 
 def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:
@@ -1703,17 +1794,17 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     if attr + "_set" not in c.static:
         return
 
-    fix = c.static[attr + "_set"].dropna()
+    names = c.static[attr + "_set"].dropna().index.unique("name")
 
-    if fix.empty:
+    if names.empty:
         return
 
     dim = f"{component}-{attr}_set_i"
-    fix = fix.rename_axis(dim)
-
-    var = n.model[f"{component}-{attr}"]
-    var = reindex(var, var.dims[0], fix.index)
-    n.model.add_constraints(var, "=", fix, name=f"{component}-{attr}_set")
+    fix = c.da[attr + "_set"].sel(name=names).rename(name=dim)
+    var = n.model[f"{component}-{attr}"].sel(name=names).rename(name=dim)
+    n.model.add_constraints(
+        var, "=", fix, name=f"{component}-{attr}_set", mask=fix.notnull()
+    )
 
 
 def define_modular_constraints(n: Network, component: str, attr: str) -> None:
@@ -1831,54 +1922,35 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
     if com_i.empty:
         return
 
-    inter_i = com_i.intersection(mod_i).intersection(fix_i)
+    mod_fix_i = com_i.intersection(mod_i).intersection(fix_i)
+    names = mod_fix_i.union(com_i.difference(mod_i))
 
-    if not inter_i.empty:
-        # Get nominal capacity and module size
-        nom_attr = c._operational_attrs["nom"]
-        mod_attr = c._operational_attrs["nom_mod"]
-
-        nom_values = c.static[nom_attr].loc[inter_i]
-        mod_values = c.static[mod_attr].loc[inter_i]
-
-        n_mod = nom_values / mod_values
-        diff_n_mod = abs(n_mod - round(n_mod))
-        non_integers_n_mod_i = diff_n_mod[diff_n_mod > 10**-6].index
-
-        if not non_integers_n_mod_i.empty:
-            msg = (
-                f"For non-extendable but committable assets, if both {nom_attr} and {mod_attr} are declared, "
-                f"{nom_attr} must be a multiple of {mod_attr}. Found assets in component {component} "
-                f"that do not respect this criterion:\n\n\t{', '.join(non_integers_n_mod_i)}"
-            )
-            raise ValueError(msg)
-
-        rhs = pd.DataFrame(0, sns, inter_i)
-        rhs.loc[sns, inter_i] = n_mod.loc[inter_i].values
-
-    inter_i2 = com_i.difference(mod_i)
-
-    if not inter_i2.empty:
-        if not inter_i.empty:
-            rhs = rhs.reindex(columns=rhs.columns.union(inter_i2))
-            rhs.loc[:, inter_i2] = 1
-            inter_i = inter_i.union(inter_i2)
-        else:
-            rhs = pd.DataFrame(0, sns, inter_i2)
-            rhs.loc[sns, inter_i2] = 1
-            inter_i = inter_i2
-
-    if inter_i.empty:
+    if names.empty:
         return
 
-    active = c.da.active.sel(snapshot=sns, name=inter_i) if n._multi_invest else None
+    nom_attr = c._operational_attrs["nom"]
+    mod_attr = c._operational_attrs["nom_mod"]
+    n_mod = c.da[nom_attr].sel(name=mod_fix_i) / c.da[mod_attr].sel(name=mod_fix_i)
+    non_integer = (abs(n_mod - n_mod.round()) > 10**-6).to_series()
+    non_integers_n_mod_i = non_integer[non_integer].index.unique("name")
 
-    status = m.variables[f"{component}-status"].loc[sns, inter_i]
+    if not non_integers_n_mod_i.empty:
+        msg = (
+            f"For non-extendable but committable assets, if both {nom_attr} and {mod_attr} are declared, "
+            f"{nom_attr} must be a multiple of {mod_attr}. Found assets in component {component} "
+            f"that do not respect this criterion:\n\n\t{', '.join(non_integers_n_mod_i)}"
+        )
+        raise ValueError(msg)
+
+    rhs = n_mod.reindex(name=names, fill_value=1)
+    active = c.da.active.sel(snapshot=sns, name=names) if n._multi_invest else None
+
+    status = m.variables[f"{component}-status"].sel(snapshot=sns, name=names)
     m.add_constraints(
         status, "<=", rhs, name=f"{component}-status-{attr}-fixed-upper", mask=active
     )
 
-    start_up = m.variables[f"{component}-start_up"].loc[sns, inter_i]
+    start_up = m.variables[f"{component}-start_up"].sel(snapshot=sns, name=names)
     m.add_constraints(
         start_up,
         "<=",
@@ -1887,7 +1959,7 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
         mask=active,
     )
 
-    shut_down = m.variables[f"{component}-shut_down"].loc[sns, inter_i]
+    shut_down = m.variables[f"{component}-shut_down"].sel(snapshot=sns, name=names)
     m.add_constraints(
         shut_down,
         "<=",
@@ -1943,19 +2015,19 @@ def define_committability_variables_constraints_with_variable_upper_limit(
 
     n_mod = m[f"{component}-n_mod"].loc[inter_i]
 
-    status = m.variables[f"{component}-status"].loc[sns, inter_i]
+    status = m.variables[f"{component}-status"].sel(snapshot=sns, name=inter_i)
     lhs = ((1, status), (-1, n_mod))
     m.add_constraints(
         lhs, "<=", 0, name=f"{component}-status-{attr}-variable-upper", mask=active
     )
 
-    start_up = m.variables[f"{component}-start_up"].loc[sns, inter_i]
+    start_up = m.variables[f"{component}-start_up"].sel(snapshot=sns, name=inter_i)
     lhs = ((1, start_up), (-1, n_mod))
     m.add_constraints(
         lhs, "<=", 0, name=f"{component}-start_up-{attr}-variable-upper", mask=active
     )
 
-    shut_down = m.variables[f"{component}-shut_down"].loc[sns, inter_i]
+    shut_down = m.variables[f"{component}-shut_down"].sel(snapshot=sns, name=inter_i)
     lhs = ((1, shut_down), (-1, n_mod))
     m.add_constraints(
         lhs, "<=", 0, name=f"{component}-shut_down-{attr}-variable-upper", mask=active
@@ -2162,7 +2234,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     ignored = global_conflict | period_conflict
     if ignored.any():
-        affected = c.active_assets[ignored.values].tolist()
+        affected = _flagged_names(ignored)
         logger.warning(
             "StorageUnits %s: Cyclic state of charge constraint overrules initial storage level setting. "
             "User-defined state_of_charge_initial will be ignored.",
@@ -2175,7 +2247,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
             name=c.active_assets
         ) & c.da.cyclic_state_of_charge_per_period.sel(name=c.active_assets)
         if cp_overrides_c.any():
-            affected = c.active_assets[cp_overrides_c.values].tolist()
+            affected = _flagged_names(cp_overrides_c)
             logger.warning(
                 "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
                 "overrides global cyclic (cyclic_state_of_charge=True). "
@@ -2325,7 +2397,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     ignored = global_conflict | period_conflict
     if ignored.any():
-        affected = c.active_assets[ignored.values].tolist()
+        affected = _flagged_names(ignored)
         logger.warning(
             "Stores %s: Cyclic energy level constraint overrules initial value setting. "
             "User-defined e_initial will be ignored.",
@@ -2338,7 +2410,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
             name=c.active_assets
         ) & c.da.e_cyclic_per_period.sel(name=c.active_assets)
         if cp_overrides_c.any():
-            affected = c.active_assets[cp_overrides_c.values].tolist()
+            affected = _flagged_names(cp_overrides_c)
             logger.warning(
                 "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
                 "overrides global cyclic (e_cyclic=True). "
@@ -2893,28 +2965,13 @@ def define_total_supply_constraints(
 
     eh = window.snapshot_weightings("generators")
 
-    def _extract_names(index: pd.Index) -> pd.Index:
-        """Extract name level from MultiIndex or return as-is."""
-        return (
-            index.get_level_values("name")
-            if isinstance(index, pd.MultiIndex)
-            else index
-        )
-
-    # minimum energy production constraints
-    e_sum_min_i = c.static.index[c.static.e_sum_min > -inf]
-    if not e_sum_min_i.empty:
-        names = _extract_names(e_sum_min_i)
-        e_sum_min = c.da.e_sum_min.sel(name=names)
+    for attr, sign, default in (("e_sum_min", ">=", -inf), ("e_sum_max", "<=", inf)):
+        bounded = c.static[attr] != default
+        names = bounded[bounded].index.unique("name")
+        if names.empty:
+            continue
+        rhs = c.da[attr].sel(name=names)
         p = m[f"{c.name}-p"].sel(name=names, snapshot=sns_)
         energy = (p * eh).sum(dim="snapshot")
-        m.add_constraints(energy, ">=", e_sum_min, name=f"{c.name}-e_sum_min")
-
-    # maximum energy production constraints
-    e_sum_max_i = c.static.index[c.static.e_sum_max < inf]
-    if not e_sum_max_i.empty:
-        names = _extract_names(e_sum_max_i)
-        e_sum_max = c.da.e_sum_max.sel(name=names)
-        p = m[f"{c.name}-p"].sel(name=names, snapshot=sns_)
-        energy = (p * eh).sum(dim="snapshot")
-        m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
+        mask = rhs != default
+        m.add_constraints(energy, sign, rhs, name=f"{c.name}-{attr}", mask=mask)

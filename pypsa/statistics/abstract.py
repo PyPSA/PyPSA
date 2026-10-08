@@ -156,6 +156,14 @@ class AbstractStatisticsAccessor(ABC):
     def _concat_periods(self, *args: Any, **kwargs: Any) -> Any:
         pass
 
+    def _align_static(self, data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
+        """Align static component data with the index of the aggregated objects."""
+        return data
+
+    def _select(self, obj: Any, idx: pd.Index) -> Any:
+        """Select the assets `idx` of the aggregated object `obj`."""
+        return obj.loc[idx]
+
     def _aggregate_components(
         self,
         func: Callable,
@@ -219,7 +227,7 @@ class AbstractStatisticsAccessor(ABC):
                     vals = self._aggregate_components_groupby(vals, grouping, agg, cn)
                 # Avoid having 'component' as index name in multiindex
                 elif isinstance(vals, pd.DataFrame | pd.Series):
-                    vals = vals.rename_axis("name", axis=0)
+                    vals = vals.rename_axis([*vals.index.names[:-1], "name"])
                 values.append(vals)
 
             if not values:
@@ -259,13 +267,13 @@ class AbstractStatisticsAccessor(ABC):
         idx = self._get_component_index(obj, c)
 
         if not self.is_multi_indexed:
-            mask = n.c[c].get_active_assets()
-            return obj.loc[mask.index[mask].intersection(idx)]
+            mask = self._align_static(n.c[c].get_active_assets())
+            return self._select(obj, mask.index[mask].intersection(idx))
 
         per_period = {}
         for p in n.investment_periods:
-            mask = n.c[c].get_active_assets(p)
-            per_period[p] = obj.loc[mask.index[mask].intersection(idx)]
+            mask = self._align_static(n.c[c].get_active_assets(p))
+            per_period[p] = self._select(obj, mask.index[mask].intersection(idx))
         return self._concat_periods(per_period, c)
 
     def _filter_bus_carrier(
@@ -281,7 +289,7 @@ class AbstractStatisticsAccessor(ABC):
             return obj
 
         idx = self._get_component_index(obj, c)
-        buses = n.c[c].static.loc[idx, f"bus{port}"]
+        buses = self._align_static(n.c[c].static[f"bus{port}"]).loc[idx]
 
         # Handle MultiIndex (Collection and Stochastic Networks)
         bus_carriers = n.c.buses.static.carrier
@@ -301,7 +309,7 @@ class AbstractStatisticsAccessor(ABC):
             raise TypeError(msg)
         # links may have empty ports which results in NaNs
         mask = mask.where(mask.notnull(), False)
-        return obj.loc[buses.index[mask]]
+        return self._select(obj, buses.index[mask])
 
     def _filter_carrier(
         self,
@@ -315,7 +323,7 @@ class AbstractStatisticsAccessor(ABC):
             return obj
 
         idx = self._get_component_index(obj, c)
-        carriers = n.c[c].static.loc[idx, "carrier"]
+        carriers = self._align_static(n.c[c].static["carrier"]).loc[idx]
 
         if isinstance(carrier, str):
             if carrier in carriers.unique():
@@ -330,4 +338,4 @@ class AbstractStatisticsAccessor(ABC):
             )
             raise TypeError(msg)
 
-        return obj.loc[carriers.index[mask]]
+        return self._select(obj, carriers.index[mask])

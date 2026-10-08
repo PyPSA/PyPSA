@@ -54,6 +54,7 @@ from pypsa.optimization.constraints import (
     define_tangent_loss_constraints,
     define_throughput_constraints,
     define_total_supply_constraints,
+    define_voltage_angle_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
 from pypsa.optimization.global_constraints import (
@@ -240,7 +241,7 @@ def define_objective(
                 active = c.da.active.sel(name=ext_i).any(dim="snapshot")
                 weighted_cost = active * periodic_cost
 
-                terms.append((weighted_cost * nominal).sum(dim=["name"]))
+            terms.append((weighted_cost * nominal).sum(dim=["name"]))
 
         constant += sum(terms)
 
@@ -327,7 +328,7 @@ def define_objective(
         if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
             continue
 
-        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns)
+        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns, name=c.active_assets)
         if cost.size == 0 or (cost == 0).all():
             continue
 
@@ -554,6 +555,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
+        cycle_basis_method: str = "bfs-refined",
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -626,6 +628,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
             Each operator is interpreted as ``y operator f(x)``.
+        cycle_basis_method : str, default "bfs-refined"
+            Method used to construct the cycle basis for the Kirchhoff voltage
+            law constraints, either ``"bfs-refined"`` or ``"paton"``. The
+            default ``"bfs-refined"`` yields sparser constraints.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -672,6 +678,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             committable_big_m=committable_big_m,
             meshed_thresholds=meshed_thresholds,
             piecewise_options=piecewise_options,
+            cycle_basis_method=cycle_basis_method,
             **model_kwargs,
         )
         if extra_functionality:
@@ -710,6 +717,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
+        cycle_basis_method: str = "bfs-refined",
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -755,6 +763,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
             Each operator is interpreted as ``y operator f(x)``.
+        cycle_basis_method : str, default "bfs-refined"
+            Method used to construct the cycle basis for the Kirchhoff voltage
+            law constraints, either ``"bfs-refined"`` or ``"paton"``. The
+            default ``"bfs-refined"`` yields sparser constraints.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -886,7 +898,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 )
             prev = t
 
-        define_kirchhoff_voltage_constraints(n, sns)
+        define_kirchhoff_voltage_constraints(n, sns, cycle_basis_method)
+        define_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
         define_store_p_dispatch_constraints(n, sns)
@@ -1353,7 +1366,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         for c, attr in nominal_attrs.items():
             c = n.components[c]
             ext_i = c.extendables.intersection(c.active_assets)
-            c.static.loc[ext_i, attr] = c.static.loc[ext_i, attr + "_opt"]
+            ext_b = c.static.index.get_level_values("name").isin(ext_i)
+            c.static.loc[ext_b, attr] = c.static.loc[ext_b, attr + "_opt"]
             c.static[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:

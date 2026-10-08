@@ -14,16 +14,18 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import xarray as xr
-from pandas.api.types import is_list_like
 
 from pypsa._options import options
+from pypsa.common import as_index
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from pypsa import Network
+    from linopy import Model
+
+    from pypsa import Network, SubNetwork
 logger = logging.getLogger(__name__)
 
 
@@ -111,6 +113,76 @@ def discretized_capacity(
             return nom_max
         return (nom_opt // unit_size) * unit_size
     return block_capacity
+
+
+def _add_security_constraints(
+    m: Model,
+    sub_network: SubNetwork,
+    branch_outages: pd.MultiIndex,
+    selection: dict[str, pd.Index],
+    suffix: str,
+) -> None:
+    """Add branch outage constraints of a sub-network to the model.
+
+    Parameters
+    ----------
+    m : linopy.Model
+        Model to add the constraints to.
+    sub_network : pypsa.SubNetwork
+        Sub-network whose branch outage distribution factors are used.
+    branch_outages : pandas.MultiIndex
+        Passive branches to consider as possible outages.
+    selection : dict
+        Selection applied to flows and branch flow constraints, e.g. the
+        snapshots of an investment period.
+    suffix : str
+        Suffix appended to the constraint names.
+
+    """
+    branches_i = sub_network.branches_i()
+    outages = branches_i.intersection(branch_outages)
+    if outages.empty:
+        return
+
+    sub_network.calculate_BODF()
+    BODF = pd.DataFrame(sub_network.BODF, index=branches_i, columns=branches_i)[outages]
+
+    for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
+        c_outage_ = c_outage + "-outage"
+        c_outages = outages.get_loc_level(c_outage)[1]
+        flow_outage = m.variables[c_outage + "-s"].sel(name=c_outages, **selection)
+        flow_outage = flow_outage.rename({"name": c_outage_})
+
+        bodf = BODF.loc[c_affected, c_outage]
+        bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
+        added_flow = flow_outage * bodf
+
+        for bound, kind in product(("lower", "upper"), ("fix", "ext")):
+            constraint = c_affected + "-" + kind + "-s-" + bound
+            if constraint not in m.constraints:
+                continue
+
+            con = m.constraints[constraint]
+
+            idx = con.lhs.indexes["name"].intersection(added_flow.indexes[c_affected])
+            con_selection = {"name": idx, **selection}
+
+            added_flow_aligned = added_flow.sel({c_affected: idx}).rename(
+                {c_affected: "name"}
+            )
+            lhs = con.lhs.sel(con_selection) + added_flow_aligned
+
+            name = (
+                constraint
+                + f"-security-for-{c_outage_}-in-sub-network-{sub_network.name}"
+                + suffix
+            )
+            m.add_constraints(
+                lhs,
+                con.sign.sel(con_selection),
+                con.rhs.sel(con_selection),
+                name=name,
+            )
 
 
 class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
@@ -296,7 +368,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
             s_nom_prev = (
                 n.c.lines.static.s_nom_opt.copy()
-                if iteration
+                if iteration > 1
                 else n.c.lines.static.s_nom.copy()
             )
             status, termination_condition = n.optimize(snapshots, **kwargs)
@@ -394,10 +466,15 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             or a pandas.Index is passed, it is assumed to identify lines. If a
             multiindex is passed, its first level has to contain the component names,
             the second the assets. The default None results in all passive branches
-            to be considered.
+            to be considered. For stochastic networks, outages are identified by
+            asset name and applied in all scenarios, using the branch outage
+            distribution factors of the first scenario. Explicitly passed outages
+            that are not active in any optimized period raise a `ValueError`.
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
-            investment periods. Then, snapshots should be a `pd.MultiIndex`.
+            investment periods. Then, snapshots should be a `pd.MultiIndex`. The
+            security constraints are added per investment period and sub-network,
+            using the topology and active branches of that period.
         model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
@@ -414,17 +491,20 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         n = self._n
 
         all_passive_branches = n.passive_branches().index
+        if n.has_scenarios:
+            all_passive_branches = all_passive_branches.droplevel("scenario").unique()
 
+        outages: pd.Index
         if branch_outages is None:
-            branch_outages = all_passive_branches
-        elif is_list_like(branch_outages) and not isinstance(
-            branch_outages, pd.MultiIndex
-        ):
-            branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])
+            outages = all_passive_branches
+        elif isinstance(branch_outages, pd.MultiIndex):
+            outages = branch_outages
+        else:
+            outages = pd.MultiIndex.from_product([("Line",), branch_outages])
 
-            if diff := set(branch_outages) - set(all_passive_branches):
-                msg = f"The following passive branches are not in the network: {diff}"
-                raise ValueError(msg)
+        if diff := set(outages) - set(all_passive_branches):
+            msg = f"The following passive branches are not in the network: {diff}"
+            raise ValueError(msg)
 
         if not len(all_passive_branches):
             return n.optimize(
@@ -434,59 +514,36 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 **kwargs,
             )
 
+        sns = as_index(n, snapshots, "snapshots")
+        periods = sns.unique("period") if multi_investment_periods else None
+        active = {c: n.c[c]._active_names(periods) for c in outages.unique(0)}
+        inactive = {(c, name) for c, name in outages if name not in active[c]}
+        if branch_outages is not None and inactive:
+            msg = (
+                "The following branch outages are not active in any optimized "
+                f"investment period: {inactive}"
+            )
+            raise ValueError(msg)
+
         m = n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
             **model_kwargs,
         )
 
-        for sub_network in n.c.sub_networks.static.obj:
-            branches_i = sub_network.branches_i()
-            outages = branches_i.intersection(branch_outages)
-
-            if outages.empty:
-                continue
-
-            sub_network.calculate_BODF()
-            BODF = pd.DataFrame(sub_network.BODF, index=branches_i, columns=branches_i)[
-                outages
-            ]
-
-            for c_outage, c_affected in product(
-                outages.unique(0), branches_i.unique(0)
-            ):
-                c_outage_ = c_outage + "-outage"
-                c_outages = outages.get_loc_level(c_outage)[1]
-                flow_outage = m.variables[c_outage + "-s"].loc[:, c_outages]
-                flow_outage = flow_outage.rename({"name": c_outage_})
-
-                bodf = BODF.loc[c_affected, c_outage]
-                bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
-                added_flow = flow_outage * bodf
-
-                for bound, kind in product(("lower", "upper"), ("fix", "ext")):
-                    constraint = c_affected + "-" + kind + "-s-" + bound
-                    if constraint not in m.constraints:
-                        continue
-
-                    con = m.constraints[constraint]
-
-                    idx = con.lhs.indexes["name"].intersection(
-                        added_flow.indexes[c_affected]
-                    )
-
-                    added_flow_aligned = added_flow.sel({c_affected: idx}).rename(
-                        {c_affected: "name"}
-                    )
-                    lhs = con.lhs.sel(name=idx) + added_flow_aligned
-
-                    name = (
-                        constraint
-                        + f"-security-for-{c_outage_}-in-sub-network-{sub_network.name}"
-                    )
-                    m.add_constraints(
-                        lhs, con.sign.sel(name=idx), con.rhs.sel(name=idx), name=name
-                    )
+        n_topology = n.get_scenario(n.scenarios[0]) if n.has_scenarios else n
+        for period, period_sns in n.optimize._window.iter_periods():
+            if period is None:
+                if n.has_scenarios:
+                    n_topology.determine_network_topology()
+                selection, suffix = {}, ""
+            else:
+                n_topology.determine_network_topology(
+                    investment_period=period, skip_isolated_buses=True
+                )
+                selection, suffix = {"snapshot": period_sns}, f"-period-{period}"
+            for sub_network in n_topology.c.sub_networks.static.obj:
+                _add_security_constraints(m, sub_network, outages, selection, suffix)
 
         return n.optimize.solve_model(**kwargs)
 
