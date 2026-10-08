@@ -110,16 +110,15 @@ def test_minimum_up_time():
     equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
-def test_minimum_up_time_up_time_before():
+@pytest.mark.parametrize("offset", [0, 2], ids=["full", "subset"])
+def test_minimum_up_time_up_time_before(offset):
     """
     This test is based on https://docs.pypsa.org/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
     n = pypsa.Network()
 
-    snapshots = range(4)
-
-    n.set_snapshots(snapshots)
+    n.set_snapshots(range(-offset, 4))
 
     n.add("Bus", "bus")
 
@@ -145,19 +144,19 @@ def test_minimum_up_time_up_time_before():
         p_nom=1000,
     )
 
-    n.add("Load", "load", bus="bus", p_set=[4000, 800, 5000, 3000])
+    n.add("Load", "load", bus="bus", p_set=[0] * offset + [4000, 800, 5000, 3000])
 
-    n.optimize()
+    n.optimize(snapshots=range(4))
 
     expected_status = np.array([[1, 0, 1, 1], [1, 1, 1, 0]], dtype=float).T
 
-    equal(n.c.generators.dynamic.status.values, expected_status)
+    equal(n.c.generators.dynamic.status.iloc[offset:].values, expected_status)
 
     expected_dispatch = np.array(
         [[3900, 0, 4900, 3000], [100, 800, 100, 0]], dtype=float
     ).T
 
-    equal(n.c.generators.dynamic.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.iloc[offset:].values, expected_dispatch)
 
 
 def test_minimum_down_time():
@@ -206,14 +205,15 @@ def test_minimum_down_time():
     equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
-def test_minimum_down_time_up_time_before():
+@pytest.mark.parametrize("offset", [0, 2], ids=["full", "subset"])
+def test_minimum_down_time_up_time_before(offset):
     """
     This test is based on https://docs.pypsa.org/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
     n = pypsa.Network()
 
-    n.set_snapshots(range(4))
+    n.set_snapshots(range(-offset, 4))
 
     n.add("Bus", "bus")
 
@@ -240,17 +240,17 @@ def test_minimum_down_time_up_time_before():
         p_nom=4000,
     )
 
-    n.add("Load", "load", bus="bus", p_set=[3000, 800, 3000, 8000])
+    n.add("Load", "load", bus="bus", p_set=[0] * offset + [3000, 800, 3000, 8000])
 
-    n.optimize()
+    n.optimize(snapshots=range(4))
 
     expected_status = np.array([[0, 0, 1, 1], [1, 1, 0, 0]], dtype=float).T
 
-    equal(n.c.generators.dynamic.status.values, expected_status)
+    equal(n.c.generators.dynamic.status.iloc[offset:].values, expected_status)
 
     expected_dispatch = np.array([[0, 0, 3000, 8000], [3000, 800, 0, 0]], dtype=float).T
 
-    equal(n.c.generators.dynamic.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.iloc[offset:].values, expected_dispatch)
 
 
 def test_start_up_costs():
@@ -1542,3 +1542,36 @@ def test_minimum_time_rows_at_window_boundary(
                         for t in range(max(0, snapshot - duration + 1), snapshot + 1)
                     }
                     assert actual == expected
+@pytest.mark.parametrize(
+    "flex_kwargs",
+    [{"p_nom": 10}, {"p_nom_extendable": True, "capital_cost": 1}],
+    ids=["fixed", "extendable"],
+)
+@pytest.mark.parametrize("with_committable", [False, True])
+def test_noncommittable_first_snapshot_ramp(flex_kwargs, with_committable):
+    """Regression test for issue #1943.
+
+    The first-snapshot ramp limit of a non-committable unit neither reads
+    `up_time_before` nor depends on other units being committable.
+    """
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=5)
+    n.add(
+        "Generator",
+        "flex",
+        bus="bus",
+        marginal_cost=1,
+        ramp_limit_up=0.5,
+        up_time_before=0,
+        **flex_kwargs,
+    )
+    if with_committable:
+        n.add(
+            "Generator", "unit", bus="bus", p_nom=10, marginal_cost=2, committable=True
+        )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    assert n.c.generators.dynamic.p.loc[0, "flex"] == pytest.approx(5)
