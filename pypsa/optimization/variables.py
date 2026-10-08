@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -404,64 +405,17 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     n.model.add_variables(0, upper_aligned, name=f"{c.name}-spill", mask=active)
 
 
-def define_throughput_variables(n: Network, sns: Sequence, c_name: str) -> None:
-    """Initialize variables for the cumulative energy throughput of degrading storage.
+def define_store_charging_variables(n: Network, sns: Sequence) -> None:
+    """Define the charging variables for stores with a finite `cycles_max`."""
+    c = n.components["Store"]
+    names = c.static.index[c.static.cycles_max < np.inf].unique("name")
+    names = names.intersection(c.active_assets)
 
-    The throughput at a snapshot is the energy charged into and discharged from
-    the storage level up to and including that snapshot, `throughput_initial`
-    included. Only defined for assets with a positive `degradation_per_cycle`
-    or a finite `cycles_max`: the capacity fade constraints derate the ceiling
-    of the storage level against it and the cycle budget caps it.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network instance containing the model and component data
-    sns : Sequence
-        Set of snapshots for which to define the variables
-    c_name : str
-        Name of the network component ("StorageUnit" or "Store")
-
-    """
-    c = n.c[c_name]
-    deg_i = c.degradables.intersection(c.active_assets)
-
-    if deg_i.empty:
+    if names.empty:
         return
 
-    active = c.da.active.sel(name=deg_i, snapshot=sns)
-    n.model.add_variables(
-        lower=0, coords=active.coords, name=f"{c.name}-throughput", mask=active
-    )
-
-
-def define_store_p_dispatch_variables(n: Network, sns: Sequence) -> None:
-    """Initialize auxiliary non-negative dispatch variables for stores.
-
-    A store has a single signed power `p`. For stores with a capacity fade or
-    a cycle budget, `p_dispatch >= max(p, 0)` is introduced (lower bound here,
-    `p_dispatch >= p` in define_store_p_dispatch_constraints) so that the
-    energy throughput `2 * p_dispatch - p = |p|` is linear. To be removed once
-    stores have separate charging and discharging variables (#1728).
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network instance containing the model and component data
-    sns : Sequence
-        Set of snapshots for which to define the variables
-
-    """
-    c = n.c["Store"]
-    aux_i = c.degradables.intersection(c.active_assets)
-
-    if aux_i.empty:
-        return
-
-    active = c.da.active.sel(name=aux_i, snapshot=sns)
-    n.model.add_variables(
-        lower=0, coords=active.coords, name=f"{c.name}-p_dispatch", mask=active
-    )
+    active = c.da.active.sel(snapshot=sns, name=names)
+    n.model.add_variables(0, coords=active.coords, name="Store-p_store", mask=active)
 
 
 def define_phase_shift_variables(n: Network, sns: Sequence) -> None:

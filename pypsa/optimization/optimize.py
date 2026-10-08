@@ -32,10 +32,8 @@ from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data, get_bus_counts
 from pypsa.optimization.constraints import (
-    define_capacity_fade_constraints,
     define_committability_variables_constraints_with_fixed_upper_limit,
     define_committability_variables_constraints_with_variable_upper_limit,
-    define_cycle_budget_constraints,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
@@ -48,11 +46,10 @@ from pypsa.optimization.constraints import (
     define_operational_constraints_for_non_extendables,
     define_ramp_limit_constraints,
     define_secant_loss_constraints,
+    define_storage_cycle_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
-    define_store_p_dispatch_constraints,
     define_tangent_loss_constraints,
-    define_throughput_constraints,
     define_total_supply_constraints,
     define_voltage_angle_constraints,
 )
@@ -82,8 +79,7 @@ from pypsa.optimization.variables import (
     define_spillage_variables,
     define_start_up_variables,
     define_status_variables,
-    define_store_p_dispatch_variables,
-    define_throughput_variables,
+    define_store_charging_variables,
 )
 from pypsa.optimization.window import SnapshotWindow, apply_period_weighting
 
@@ -835,9 +831,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
-        define_store_p_dispatch_variables(n, sns)
-        define_throughput_variables(n, sns, "StorageUnit")
-        define_throughput_variables(n, sns, "Store")
+        define_store_charging_variables(n, sns)
         define_phase_shift_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
@@ -902,13 +896,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
-        define_store_p_dispatch_constraints(n, sns)
-        define_throughput_constraints(n, sns, "StorageUnit")
-        define_throughput_constraints(n, sns, "Store")
-        define_capacity_fade_constraints(n, sns, "StorageUnit", "state_of_charge")
-        define_capacity_fade_constraints(n, sns, "Store", "e")
-        define_cycle_budget_constraints(n, sns, "StorageUnit")
-        define_cycle_budget_constraints(n, sns, "Store")
+        define_storage_cycle_constraints(n, sns, "StorageUnit")
+        define_storage_cycle_constraints(n, sns, "Store")
         define_total_supply_constraints(n, sns)
 
         if transmission_losses:
@@ -1077,6 +1066,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 continue
 
             _c_name, attr = name.split("-", 1)
+
+            # Skip the auxiliary charging variable of store cycle limits
+            if name == "Store-p_store":
+                continue
 
             # Skip auxiliary McCormick linearization variables
             if attr in ("maintenance_capacity", "maintenance_status"):
@@ -1256,6 +1249,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 _set_dynamic_data(self._n, c.name, dual_attr_name, dual_df)
 
             # SCALAR DUALS (constraints without snapshot dimension)
+            # else:
             elif c.name == "GlobalConstraint" and suffix in c.static.index:
                 if c.has_scenarios:
                     raise NotImplementedError()

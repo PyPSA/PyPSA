@@ -576,6 +576,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
+        su, st = n.c.storage_units, n.c.stores
+        cycles_max = {c.name: c.static.cycles_max.copy() for c in (su, st)}
+
         starting_points = range(0, len(snapshots), horizon - overlap)
         for i, start in enumerate(starting_points):
             end = min(len(snapshots), start + horizon)
@@ -589,18 +592,31 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             )
 
             if i:
-                previous = snapshots[start - 1]
-                for c, level in (
-                    (n.c.stores, "e"),
-                    (n.c.storage_units, "state_of_charge"),
-                ):
-                    if c.static.empty:
-                        continue
-                    c.static[f"{level}_initial"] = c.dynamic[level].loc[previous].values
-                    if not c.dynamic.throughput.empty:
-                        c.static["throughput_initial"] = c.dynamic.throughput.loc[
-                            previous
+                if not n.c.stores.static.empty:
+                    n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
+                        snapshots[start - 1]
+                    ].values
+                if not n.c.storage_units.static.empty:
+                    n.c.storage_units.static.state_of_charge_initial = (
+                        n.c.storage_units.dynamic.state_of_charge.loc[
+                            snapshots[start - 1]
                         ].values
+                    )
+
+                # count the cycles of previous windows against `cycles_max`
+                done = snapshots[:start]
+                eh = n.snapshot_weightings.stores.loc[done]
+                for c, discharge, capacity in (
+                    (
+                        su,
+                        su.dynamic.p_dispatch,
+                        su.static.max_hours * su.static.p_nom_opt,
+                    ),
+                    (st, st.dynamic.p.clip(lower=0), st.static.e_nom_opt),
+                ):
+                    used = discharge.loc[done].mul(eh, axis=0).sum() / capacity
+                    remaining = cycles_max[c.name].sub(used.fillna(0), fill_value=0)
+                    c.static.cycles_max = remaining.clip(lower=0)
 
             status, condition = n.optimize(sns, **kwargs)
             if status != "ok":
@@ -609,6 +625,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                     status,
                     condition,
                 )
+
+        for c in (su, st):
+            c.static.cycles_max = cycles_max[c.name]
         return n
 
     def optimize_and_run_non_linear_powerflow(
