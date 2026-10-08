@@ -26,6 +26,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix inactive branches (`active=False`) remaining in KVL cycles. The cycle basis now leaves inactive branches out. Resolves [#2004](https://github.com/PyPSA/PyPSA/issues/2004). (<!-- md:pr 2005 -->)
 - Fix minimum up and down time constraints of committable components dropping their first rows under linopy's v1 arithmetic semantics. Shifted start-up and shut-down terms before the first snapshot now contribute zero instead of being absent, so a row near the start of the horizon keeps its in-window terms. Legacy semantics are unaffected.
 - Fix `n.objective_constant` being `0` for multi-period optimisations (see [multi-investment periods](./user-guide/optimization/pathway-planning.md)). The capital costs of existing extendable capacity are again weighted by the investment period weightings and included in the constant.
 - Fix copying networks with [`n.copy()`][pypsa.Network.copy], `copy.copy`, `copy.deepcopy` and pickling. Resolves [#1930](https://github.com/PyPSA/PyPSA/issues/1930) and [#1937](https://github.com/PyPSA/PyPSA/issues/1937). (<!-- md:pr 1968 -->)
