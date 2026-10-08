@@ -402,6 +402,17 @@ def test_investment_periods() -> None:
     )
 
 
+def test_inactive_branch_excluded_from_cycles(ac_dc_network) -> None:
+    """An inactive line spans no cycle, so its cycle is dropped."""
+    n = ac_dc_network
+    n.c.lines.static.loc["5", "active"] = False
+
+    cycles = n.cycle_matrix().loc["Line"]
+
+    assert (cycles.loc["5"] == 0).all()
+    assert cycles.shape[1] == 1  # only the cycle of lines 2, 3, 4 remains
+
+
 def test_weighted_cycles() -> None:
     """Test the apply_weights parameter in the cycles function."""
     # Create a test network with a cycle
