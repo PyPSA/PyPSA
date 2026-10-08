@@ -1611,6 +1611,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         cost_types : str | Sequence[str] | None, default=None
             List of cost types to include in the calculation. Available options
             are: 'marginal_cost', 'marginal_cost_quadratic',
+            'marginal_cost_dispatch', 'marginal_cost_store',
             'marginal_cost_storage', 'spill_cost', 'start_up_cost',
             'shut_down_cost', 'stand_by_cost'. Defaults to all (when None).
 
@@ -1627,12 +1628,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        from pypsa.optimization.optimize import lookup  # noqa: PLC0415
+        from pypsa.optimization.optimize import cost_variables  # noqa: PLC0415
 
         if cost_types is None:
             cost_types_ = [
                 "marginal_cost",
                 "marginal_cost_quadratic",
+                "marginal_cost_dispatch",
+                "marginal_cost_store",
                 "marginal_cost_storage",
                 "spill_cost",
                 "start_up_cost",
@@ -1653,19 +1656,23 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
             for cost_type in [
                 "marginal_cost",
+                "marginal_cost_dispatch",
+                "marginal_cost_store",
                 "marginal_cost_storage",
                 "marginal_cost_quadratic",
                 "spill_cost",
             ]:
                 if cost_type in cost_types_ and cost_type in n.c[c].static:
-                    attr = lookup.query(cost_type).loc[c].index.item() + port
+                    attrs = cost_variables(c, cost_type)
                     cost = n.get_switchable_as_dense(c, cost_type)
                     cost_piecewise_opt = n.c[c].dynamic.get(
                         f"{cost_type}_piecewise_opt"
                     )
                     if cost_piecewise_opt is None or cost_piecewise_opt.empty:
                         cost_piecewise_opt = 0
-                    p = n.c[c].dynamic[attr]
+                    p = sum(n.c[c].dynamic[attr + port] for attr in attrs)
+                    if p.empty:
+                        continue
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
                     opex = var * (cost + cost_piecewise_opt)
                     term = self._aggregate_timeseries(opex, weights, agg=groupby_time)
