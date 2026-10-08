@@ -712,7 +712,7 @@ def find_cycles(
     MultiGraph must be collected separately (for cases where there are multiple
     lines between the same pairs of buses).
 
-    Cycles with infinite impedance are skipped.
+    Cycles with inactive branches and infinite impedance are skipped.
 
     Parameters
     ----------
@@ -738,7 +738,7 @@ def find_cycles(
     branches_i = branches_bus0.index
 
     # reduce to a non-multi-graph for cycles with > 2 edges
-    mgraph = sub_network.graph(weight=weight, inf_weight=False)
+    mgraph = sub_network.graph(weight=weight, inf_weight=False, include_inactive=False)
     graph = nx.Graph(mgraph)
 
     if cycle_basis_method == "paton":
