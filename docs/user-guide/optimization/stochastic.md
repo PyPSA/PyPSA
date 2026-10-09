@@ -12,6 +12,14 @@ Stochastic optimization in PyPSA enables modeling and solving energy system plan
 
 PyPSA implements a **two-stage stochastic programming framework** with scenario trees, allowing users to optimize investment decisions (first-stage) that are feasible across multiple possible future realizations (scenarios) of uncertain parameters and minimize expected system costs.
 
+!!! tip "Solving large problems by decomposition"
+
+    The default `n.optimize()` solves the whole scenario tree as one monolithic
+    extensive form. Very large stochastic problems can instead be solved by
+    **decomposition** (Progressive Hedging via
+    [mpi-sppy](https://github.com/Pyomo/mpi-sppy)) — see
+    [Stochastic Optimization by Decomposition](stochastic-decomposition.md).
+
 ## Risk-neutral Two-Stage Stochastic Programming
 
 ### Mathematical Formulation
