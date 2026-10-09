@@ -16,7 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 -->
 
-## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>8th October 2026</small> { id="v1.4.0" }
+## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 
 ### Changes from bug fixes
 
