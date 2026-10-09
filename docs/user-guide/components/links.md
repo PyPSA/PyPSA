@@ -79,10 +79,10 @@ plant).
         bus0="gas",
         bus1="electricity",
         bus2="heat",
-        efficiency=0.3,    # 0.3 units of electricity per unit of gas
-        efficiency2=0.7,   # 0.7 units of heat per unit of gas
+        efficiency=0.3,  # 0.3 units of electricity per unit of gas
+        efficiency2=0.7,  # 0.7 units of heat per unit of gas
         p_nom_extendable=True,
-        capital_cost=50,   # cost per MW of gas input
+        capital_cost=50,  # cost per MW of gas input
     )
     ```
 
@@ -105,9 +105,9 @@ plant).
         bus1="CO2",
         bus2="methane",
         bus3="heat",
-        efficiency=-0.5,   # consumes 0.5 units of CO2 per unit of hydrogen
-        efficiency2=0.8,   # produces 0.8 units of methane
-        efficiency3=0.2,   # produces 0.2 units of heat
+        efficiency=-0.5,  # consumes 0.5 units of CO2 per unit of hydrogen
+        efficiency2=0.8,  # produces 0.8 units of methane
+        efficiency3=0.2,  # produces 0.2 units of heat
         p_nom_extendable=True,
         capital_cost=100,  # cost per MW of hydrogen input
     )

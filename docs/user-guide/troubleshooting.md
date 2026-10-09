@@ -51,37 +51,37 @@ here are some suggestions to try out:
 === "HiGHS"
 
     ``` py
-    n.optimize(solver_name='highs', solver="ipm", run_crossover="off", random_seed=123)
+    n.optimize(solver_name="highs", solver="ipm", run_crossover="off", random_seed=123)
     ```
 
 === "SCIP"
 
     ``` py
-    n.optimize(solver_name='scip', solver_options={"lp/initalgorithm": "b"})
+    n.optimize(solver_name="scip", solver_options={"lp/initalgorithm": "b"})
     ```
 
 === "Gurobi"
 
     ``` py
-    n.optimize(solver_name='gurobi', method=2, crossover=0, Seed=123)
+    n.optimize(solver_name="gurobi", method=2, crossover=0, Seed=123)
     ```
 
 === "CPLEX"
 
     ``` py
-    n.optimize(solver_name='cplex', lpmethod=4, solutiontype=2)
+    n.optimize(solver_name="cplex", lpmethod=4, solutiontype=2)
     ```
 
 === "COPT"
 
     ``` py
-    n.optimize(solver_name='copt', LpMethod=2, Crossover=0)
+    n.optimize(solver_name="copt", LpMethod=2, Crossover=0)
     ```
 
 === "Xpress"
 
     ``` py
-    n.optimize(solver_name='xpress', LPFLAGS=4, CROSSOVER=0, BARALG=2)
+    n.optimize(solver_name="xpress", LPFLAGS=4, CROSSOVER=0, BARALG=2)
     ```
 
 * Your problem may be infeasible, i.e. there is no solution that satisfies all
@@ -92,7 +92,7 @@ here are some suggestions to try out:
   (IIS)](https://support.gurobi.com/hc/en-us/articles/360029969391-How-do-I-determine-why-my-model-is-infeasible):
 
   ``` py
-  n.optimize(solver_name='gurobi', compute_infeasibilities=True)
+  n.optimize(solver_name="gurobi", compute_infeasibilities=True)
   ```
 
 * Add a load shedding generator with high marginal cost to all buses, which can
@@ -103,13 +103,13 @@ here are some suggestions to try out:
 
   ``` py
   n.add(
-       "Generator",
-       n.buses.index,
-       suffix="load-shedding",
-       bus=n.buses.index,
-       marginal_cost=10_000, # high marginal cost
-       p_nom=1e9, # non-binding capacity
-       carrier="load_shedding",
+      "Generator",
+      n.buses.index,
+      suffix="load-shedding",
+      bus=n.buses.index,
+      marginal_cost=10_000,  # high marginal cost
+      p_nom=1e9,  # non-binding capacity
+      carrier="load_shedding",
   )
   ```
 

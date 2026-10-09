@@ -182,8 +182,10 @@ It is also possible to pass modifications as an `extra_functionality` argument t
 ``` py
 import pandas as pd
 
+
 def remove_kvl(n: pypsa.Network, sns: pd.Index) -> None:
     n.model.constraints.remove("Kirchhoff-Voltage-Law")
+
 
 n.optimize(extra_functionality=remove_kvl)
 ```

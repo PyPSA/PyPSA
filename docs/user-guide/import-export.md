@@ -119,6 +119,7 @@ version 2, run the function [`n.import_from_pypower_ppc()`][pypsa.network.io.Net
 
 ``` py
 from pypower.api import case30
+
 ppc = case30()
 n.import_from_pypower_ppc(ppc)
 ```
@@ -137,7 +138,8 @@ To **import** a network from [pandapower](http://www.pandapower.org/), run the f
 
 ```python
 import pandapower.networks as pn
-net = pn.create_cigre_network_mv(with_der='all')
+
+net = pn.create_cigre_network_mv(with_der="all")
 n = pypsa.Network()
 n.import_from_pandapower_net(net, extra_line_data=True)
 ```
@@ -159,11 +161,12 @@ storage provider via `cloudpathlib` (e.g. `boto3`, `google-cloud-storage` or
 
 ``` py
 from pypsa import Network
-n = Network('examples/ac-dc-meshed/ac-dc-data')
-n.export_to_csv_folder('s3://my-s3-bucket/ac-dc-data')
-n = Network('s3://my-s3-bucket/ac-dc-data')
-n.export_to_netcdf('gs://my-gs-bucket/ac-dc-data.nc')
-n = Network('gs://my-gs-bucket/ac-dc-data.nc')
-n.export_to_excel('az://my-az-bucket/ac-dc-data.xlsx')
-n = Network('az://my-az-bucket/ac-dc-data.xlsx')
+
+n = Network("examples/ac-dc-meshed/ac-dc-data")
+n.export_to_csv_folder("s3://my-s3-bucket/ac-dc-data")
+n = Network("s3://my-s3-bucket/ac-dc-data")
+n.export_to_netcdf("gs://my-gs-bucket/ac-dc-data.nc")
+n = Network("gs://my-gs-bucket/ac-dc-data.nc")
+n.export_to_excel("az://my-az-bucket/ac-dc-data.xlsx")
+n = Network("az://my-az-bucket/ac-dc-data.xlsx")
 ```

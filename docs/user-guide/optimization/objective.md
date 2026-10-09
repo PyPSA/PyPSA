@@ -35,10 +35,9 @@ PyPSA supports two approaches for specifying investment costs:
     Provide `capital_cost` directly as annualized cost per unit capacity (currency/MW or currency/MWh) per model period:
 
     ``` py
-    n.add("Generator", "wind",
-          bus="bus",
-          p_nom_extendable=True,
-          capital_cost=50000)  # Already periodized: €/MW
+    n.add(
+        "Generator", "wind", bus="bus", p_nom_extendable=True, capital_cost=50000
+    )  # Already periodized: €/MW
     ```
 
 === "Overnight cost with automatic periodization"
@@ -46,12 +45,15 @@ PyPSA supports two approaches for specifying investment costs:
     Provide `overnight_cost` (upfront investment cost), `discount_rate`, and `lifetime`. PyPSA automatically calculates the periodized cost:
 
     ``` py
-    n.add("Generator", "wind",
-          bus="bus",
-          p_nom_extendable=True,
-          overnight_cost=1200000,  # Upfront cost: €/MW
-          discount_rate=0.07,      # 7% discount rate
-          lifetime=25)             # 25 years
+    n.add(
+        "Generator",
+        "wind",
+        bus="bus",
+        p_nom_extendable=True,
+        overnight_cost=1200000,  # Upfront cost: €/MW
+        discount_rate=0.07,  # 7% discount rate
+        lifetime=25,
+    )  # 25 years
     ```
 
     The effective periodized cost per MW installation used in optimization is calculated as:
