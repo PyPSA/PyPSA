@@ -177,4 +177,4 @@ class ClusteringAccessor:
         return self.spatial.get_clustering_from_busmap(*args, **kwargs)
 
 
-__all__ = ["ClusteringAccessor", "SpatialClusteringAccessor", "spatial", "temporal"]
+__all__ = ["ClusteringAccessor", "spatial", "temporal"]
