@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal as almost_equal
 
@@ -213,3 +214,51 @@ def test_generate_directions():
     assert halton_directions.shape == (n_directions, len(keys))
     for _, row in halton_directions.iterrows():
         almost_equal(sum(val**2 for val in row), 1.0)  # Check unit vector normalization
+
+
+@pytest.mark.parametrize("slack", [0.05, 0.2])
+def test_mga_budget_multi_investment_periods(slack):
+    """The MGA budget must not apply investment period weights a second time."""
+    n = pypsa.Network()
+    n.set_snapshots(pd.MultiIndex.from_product([[2020, 2030], [0]]))
+    n.investment_periods = [2020, 2030]
+    n.investment_period_weightings.loc[:, "objective"] = [10.0, 5.0]
+    n.add("Bus", "b")
+    n.add(
+        "Generator",
+        "g",
+        bus="b",
+        p_nom_extendable=True,
+        capital_cost=2,
+        marginal_cost=1,
+    )
+    n.add(
+        "Generator",
+        "h",
+        bus="b",
+        p_nom_extendable=True,
+        capital_cost=3,
+        marginal_cost=1,
+    )
+    n.add("Generator", "old", bus="b", p_nom=3, capital_cost=4, marginal_cost=10)
+    n.add("Load", "l", bus="b", p_set=10)
+    n.optimize(multi_investment_periods=True, log_to_console=False)
+
+    # Statistics already carry the investment period weights
+    optimal_cost = (n.statistics.capex().sum() + n.statistics.opex().sum()).sum()
+    fixed_cost = n.statistics.installed_capex().sum().sum()
+    almost_equal(optimal_cost, 630)
+
+    n.optimize.optimize_mga(
+        multi_investment_periods=True,
+        slack=slack,
+        weights={"Generator": {"p_nom": {"g": 1}}},
+        log_to_console=False,
+    )
+
+    almost_equal(
+        float(n.model.constraints["budget"].rhs),
+        (1 + slack) * optimal_cost - fixed_cost,
+    )
+    mga_cost = (n.statistics.capex().sum() + n.statistics.opex().sum()).sum()
+    assert mga_cost <= (1 + slack) * optimal_cost + 1e-3
