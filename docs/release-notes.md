@@ -16,7 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- **Behavior change**: Fix ramp limits of fixed-capacity modular committable units (`committable=True`, `p_nom_mod > 0`, `p_nom_extendable=False`). They were scaled with `p_nom` instead of the module size `p_nom_mod` times the number of online modules, which allowed ramps far above the limit. Resolves [#1985](https://github.com/PyPSA/PyPSA/issues/1985).
+- **Behavior change**: Fix ramp limits of fixed-capacity modular committable units (`committable=True`, `p_nom_mod > 0`, `p_nom_extendable=False`). They were scaled with `p_nom` instead of the module size `p_nom_mod` times the number of online modules, which allowed ramps far above the limit. Resolves [#1985](https://github.com/PyPSA/PyPSA/issues/1985). (<!-- md:pr 2010 -->)
 
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 
