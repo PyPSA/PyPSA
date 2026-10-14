@@ -17,7 +17,7 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Changes from bug fixes
 
 - **Results change** where they were previously wrong:
-    - Start-up and shut-down costs of committable components in multi-investment-period optimizations now carry the investment period objective weighting, as marginal and stand-by costs already do. Resolves [#1986](https://github.com/PyPSA/PyPSA/issues/1986).
+    - Start-up and shut-down costs of committable components in multi-investment-period optimizations now carry the investment period objective weighting, as marginal and stand-by costs already do. (<!-- md:pr 2011 -->)
 
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 
