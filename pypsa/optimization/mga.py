@@ -239,7 +239,8 @@ class OptimizationAbstractMGAMixin:
         ----------
         multi_investment_periods : bool, default False
             Whether the optimization considers multiple investment periods.
-            If True, investment period weightings are applied to cost calculations.
+            Retained for API compatibility; the cost statistics used for the
+            budget already carry the investment period weightings.
         slack : float, default 0.05
             The percentage by which the total cost is allowed to exceed the
             optimal cost. For example, a slack of 0.05 means the total cost
@@ -251,16 +252,11 @@ class OptimizationAbstractMGAMixin:
         if not n.is_solved:
             msg = "Network needs to be solved with `n.optimize()` before adding near-optimal constraint."
             raise ValueError(msg)
-        # Find optimal costs and fixed costs
-        if not multi_investment_periods:
-            optimal_cost = n.statistics.capex().sum() + n.statistics.opex().sum()
-            fixed_cost = n.statistics.installed_capex().sum()
-        else:
-            w = n.investment_period_weightings.objective
-            optimal_cost = (
-                n.statistics.capex().sum() * w + n.statistics.opex().sum() * w
-            ).sum()
-            fixed_cost = (n.statistics.installed_capex().sum() * w).sum()
+        # Find optimal costs and fixed costs. With investment periods, the
+        # statistics already include the investment period weightings, matching
+        # the model objective, so no further weighting is applied here.
+        optimal_cost = (n.statistics.capex().sum() + n.statistics.opex().sum()).sum()
+        fixed_cost = n.statistics.installed_capex().sum().sum()
 
         # Add constraint
         objective = n.model.objective

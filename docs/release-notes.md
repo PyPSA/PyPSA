@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -14,7 +13,10 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Bug Fixes
+
+- **Behavior change**: Fix [`n.optimize.optimize_mga(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.optimize_mga] and [`n.optimize.optimize_mga_in_direction(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.optimize_mga_in_direction] applying the investment period weightings to the `capex`, `opex` and `installed_capex` statistics a second time in the near-optimal budget. The statistics already carry the weightings, so the budget was too loose by roughly a factor of the period weighting. Multi-period MGA budgets are now consistent with the model objective and results change. Resolves [#1984](https://github.com/PyPSA/PyPSA/issues/1984). (<!-- md:pr 2009 -->)
 
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 
