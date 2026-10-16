@@ -28,8 +28,8 @@ ratings = pd.DataFrame(
 n.c.lines.apply_seasonal_rating(ratings)
 
 # s_nom is left unchanged; s_max_pu carries rating / s_nom per season.
-float(n.lines.at["a-b", "s_nom"])         # 1000.0 (unchanged)
-n.lines_t.s_max_pu["a-b"].iloc[3000]      # 0.8 (mid-summer hour: 800 / 1000)
+float(n.lines.at["a-b", "s_nom"])  # 1000.0 (unchanged)
+n.lines_t.s_max_pu["a-b"].iloc[3000]  # 0.8 (mid-summer hour: 800 / 1000)
 ```
 
 Each snapshot's `s_max_pu` is `rating / s_nom` for the matching season: `800 / 1000 = 0.8` on summer hours and `1000 / 1000 = 1.0` elsewhere. A rating above `s_nom` yields `s_max_pu > 1`.
@@ -39,7 +39,7 @@ Each snapshot's `s_max_pu` is `rating / s_nom` for the matching season: `800 / 1
 By default the method multiplies the seasonal scaling into any pre-existing `s_max_pu` so N-1 margins survive:
 
 ```python
-n.lines.at["a-b", "s_max_pu"] = 0.9   # static N-1 margin
+n.lines.at["a-b", "s_max_pu"] = 0.9  # static N-1 margin
 n.c.lines.apply_seasonal_rating(ratings, compose=True)
 
 # Summer hour:  0.9 * 0.8 = 0.72
@@ -54,7 +54,8 @@ The default `summer_months=(4, 5, 6, 7, 8, 9)` is northern-hemisphere. Override 
 
 ```python
 n.c.lines.apply_seasonal_rating(
-    ratings, summer_months=(10, 11, 12, 1, 2, 3),
+    ratings,
+    summer_months=(10, 11, 12, 1, 2, 3),
 )
 ```
 

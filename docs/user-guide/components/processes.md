@@ -52,8 +52,8 @@ multi-carrier processes like electrolysis, heat pumps, or combined heat and powe
         "electrolyser",
         bus0="electricity",
         bus1="hydrogen",
-        rate0=-1,          # consumes 1 unit of electricity (reference bus)
-        rate1=0.7,         # produces 0.7 units of hydrogen
+        rate0=-1,  # consumes 1 unit of electricity (reference bus)
+        rate1=0.7,  # produces 0.7 units of hydrogen
         p_nom_extendable=True,
         capital_cost=100,  # cost per MW of electricity input
     )
@@ -72,9 +72,9 @@ multi-carrier processes like electrolysis, heat pumps, or combined heat and powe
         bus0="gas",
         bus1="electricity",
         bus2="heat",
-        rate0=-1,          # consumes 1 unit of gas
-        rate1=0.3,         # produces 0.3 units of electricity
-        rate2=0.5,         # produces 0.5 units of heat
+        rate0=-1,  # consumes 1 unit of gas
+        rate1=0.3,  # produces 0.3 units of electricity
+        rate2=0.5,  # produces 0.5 units of heat
         p_nom_extendable=True,
         capital_cost=50,
     )
@@ -93,11 +93,11 @@ multi-carrier processes like electrolysis, heat pumps, or combined heat and powe
         bus1="ammonia",
         bus2="hydrogen",
         rate0=-costs.at["Haber-Bosch", "electricity-input"],
-        rate1=1,           # reference bus
-        rate2=-costs.at["Haber-Bosch", "hydrogen-input"], # in tH2/tNH3
+        rate1=1,  # reference bus
+        rate2=-costs.at["Haber-Bosch", "hydrogen-input"],  # in tH2/tNH3
         p_nom_extendable=True,
-        capital_cost=costs.at["Haber-Bosch", "capital_cost"], # in Eur/(tNH3/h)
-        marginal_cost=costs.at["Haber-Bosch", "VOM"], # in Eur/tNH3
+        capital_cost=costs.at["Haber-Bosch", "capital_cost"],  # in Eur/(tNH3/h)
+        marginal_cost=costs.at["Haber-Bosch", "VOM"],  # in Eur/tNH3
     )
     ```
 

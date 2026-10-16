@@ -113,6 +113,7 @@ def group_by_voltage(n, c, port=""):
     voltage = n.c.buses.static.v_nom.rename("voltage")
     return buses.map(voltage)
 
+
 # Register the grouper on module level
 pypsa.statistics.groupers.add_grouper("voltage", group_by_voltage)
 
