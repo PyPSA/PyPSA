@@ -1402,6 +1402,35 @@ def test_inactive_asset_with_modular_committable_ramp():
     assert "inactive" not in ramp_up.indexes["name"]
 
 
+@pytest.mark.parametrize("extendable", [False, True])
+def test_modular_committable_ramp_limit_uses_module_size(extendable):
+    """Ramp limits of modular committables scale with p_nom_mod, fixed or extendable."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=[0, 50, 50])
+    capacity = (
+        {"p_nom_extendable": True, "p_nom_max": 50} if extendable else {"p_nom": 50}
+    )
+    n.add(
+        "Generator",
+        "mod",
+        bus="bus",
+        committable=True,
+        p_nom_mod=10,
+        ramp_limit_up=0.2,
+        ramp_limit_start_up=0.2,
+        marginal_cost=1,
+        **capacity,
+    )
+
+    status, _ = n.optimize(solver_name="highs")
+
+    assert status == "ok"
+    # Ramp-up is limited to 0.2 * p_nom_mod * online modules, not 0.2 * p_nom.
+    equal(n.generators_t.p["mod"].values, [0, 10, 20])
+
+
 @pytest.mark.parametrize("linearized", [False, True])
 def test_time_varying_start_up_and_shut_down_costs(linearized):
     """Cheap start-up before and cheap shut-down after the peak extend the commitment."""
