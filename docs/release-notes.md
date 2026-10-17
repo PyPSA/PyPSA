@@ -16,6 +16,18 @@ SPDX-License-Identifier: CC-BY-4.0
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 -->
 
+## Upcoming Release
+
+!!! info "Upcoming Release"
+
+    The features listed below have not yet been released, but will be included in the
+    next update! If you would like to use these features in the meantime, you will need
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Bug Fixes
+
+- [`n.lpf()`][pypsa.Network.lpf], [`n.pf()`][pypsa.Network.pf] and [`n.lpf_contingency()`][pypsa.Network.lpf_contingency] now raise a clear `ValueError` on stochastic networks instead of failing with `negative axis index: -1`. Power flow does not support stochastic networks yet. See [#1979](https://github.com/PyPSA/PyPSA/issues/1979).
+
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 
 ### Changes from bug fixes
