@@ -9,6 +9,8 @@ this covers the request in GH #478 to test the OPF against pandapower without
 depending on pandapower (which does not support pandas 3 yet).
 """
 
+import warnings
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -18,10 +20,17 @@ from pypower.idx_bus import LAM_P
 from pypower.idx_cost import COST, MODEL, NCOST, POLYNOMIAL
 from pypower.idx_gen import PG, PMAX, PMIN
 from pypower.ppoption import ppoption
-from pypower.rundcopf import rundcopf
 
 import pypsa
 from pypsa.constants import DEFAULT_TIMESTAMP
+
+with warnings.catch_warnings():
+    # PYPOWER 5.1.21 ships invalid escape sequences in qps_cplex.py and
+    # qps_mosek.py, which Python 3.11 reports as a DeprecationWarning when the
+    # modules are first compiled (an error under the test configuration).
+    warnings.simplefilter("ignore", DeprecationWarning)
+    warnings.simplefilter("ignore", SyntaxWarning)
+    from pypower.rundcopf import rundcopf
 
 
 @pytest.mark.parametrize(
