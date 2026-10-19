@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -14,7 +13,15 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Changes from bug fixes
+
+!!! note "Fixes that change behavior"
+
+    Breaking changes are reserved for major releases. Some bug fixes, however, change results or the optimization model structure. They are listed below and marked **Behavior change**.
+
+- **Results change** where they were previously wrong:
+    - Ramp limits of fixed modular committable units, which now scale with `p_nom_mod` like their extendable counterparts.
 
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 
