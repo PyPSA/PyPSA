@@ -1041,8 +1041,11 @@ def define_ramp_limit_constraints(
 
     nom_mod_attr = c._operational_attrs["nom_mod"]
     p_nom = c.da[nom_attr].sel(name=idx).where(~is_ext, 0)
-    if is_com_ext_mod.any():
-        p_nom = p_nom.where(~is_com_ext_mod, c.da[nom_mod_attr].sel(name=idx))
+    # Modular committable units (fixed or extendable) count running modules in
+    # `status`, so their ramp limits scale with the module size, not p_nom.
+    is_com_mod = is_com & is_modular
+    if is_com_mod.any():
+        p_nom = p_nom.where(~is_com_mod, c.da[nom_mod_attr].sel(name=idx))
     is_ext_main = is_ext & ~is_com_ext & ~is_com_ext_mod
     p_nom_ext_var = None
     if is_ext_main.any():
