@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -14,7 +13,10 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Bug Fixes
+
+- Fix `min_down_time` capping the status of modular committables (`p_nom_mod` set) at one module. The bound is now the number of modules. (<!-- md:pr 2021 -->)
 
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 
