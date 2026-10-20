@@ -2,6 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 
+import json
+import os
+import subprocess
+import sys
+import textwrap
+
 import networkx as nx
 import numpy as np
 import pytest
@@ -122,6 +128,44 @@ def test_bfs_refinement_shortens_basis() -> None:
     assert improved  # refinement is not a no-op
 
 
+def test_cycle_matrix_independent_of_hash_seed() -> None:
+    """Cycle matrices stay identical across processes with different hash seeds."""
+    code = textwrap.dedent("""
+        import json
+        import networkx as nx
+        import pypsa
+
+        graph = nx.random_regular_graph(3, 40, seed=1)
+        n = pypsa.Network()
+        n.add("Bus", [f"bus{i}" for i in graph.nodes])
+        for a, b in graph.edges:
+            n.add(
+                "Line", f"line{a}-{b}", bus0=f"bus{a}", bus1=f"bus{b}",
+                x=0.1, s_nom=100,
+            )
+        print(json.dumps({
+            method: n.cycle_matrix(cycle_basis_method=method).values.tolist()
+            for method in ["bfs-refined", "paton"]
+        }))
+    """)
+    outputs = []
+    for seed in range(4):
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            env={**os.environ, "PYTHONHASHSEED": str(seed)},
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
+        )
+        outputs.append(json.loads(result.stdout))
+    for seed, matrices in enumerate(outputs[1:], start=1):
+        for method, matrix in matrices.items():
+            assert matrix == outputs[0][method], (
+                f"{method} cycle matrix differs for PYTHONHASHSEED={seed}"
+            )
+
+
 @pytest.mark.parametrize(
     ("edges", "is_cycle"),
     [
@@ -133,10 +177,20 @@ def test_bfs_refinement_shortens_basis() -> None:
 )
 def test_edge_set_to_cycle(edges, is_cycle) -> None:
     """A single simple cycle is recovered; disjoint or open edge sets are rejected."""
-    result = _edge_set_to_cycle({frozenset(edge) for edge in edges})
+    nodes = dict.fromkeys(node for edge in edges for node in edge)
+    node_order = {node: index for index, node in enumerate(nodes)}
+    result = _edge_set_to_cycle({frozenset(edge) for edge in edges}, node_order)
     assert (result is not None) == is_cycle
     if result is not None:
         assert len(result) == len({node for edge in edges for node in edge})
+
+
+@pytest.mark.parametrize("nodes", [["z", "a", "b"], [1, "bus", (2, 3)]])
+def test_edge_set_to_cycle_node_order(nodes) -> None:
+    """Use the supplied node order without requiring comparable node labels."""
+    edges = {frozenset((nodes[i], nodes[(i + 1) % 3])) for i in range(3)}
+    node_order = {node: index for index, node in enumerate(nodes)}
+    assert _edge_set_to_cycle(edges, node_order) == nodes
 
 
 def test_simple_cycle() -> None:
