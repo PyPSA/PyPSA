@@ -598,9 +598,21 @@ def define_operational_constraints_for_committables(
         lhs, ">=", prior_status, name=f"{c.name}-com-transition-shut-down", mask=active
     )
 
-    for kind, min_time, transition, sign, bound in (
-        ("up", min_up_time_set, start_up, -1, 0),
-        ("down", min_down_time_set, shut_down, 1, 1),
+    # status is bounded by the number of modules for modular committables
+    com_mod_ext_i = com_i.intersection(c.modulars).intersection(ext_i)
+    is_mod = DataArray(com_i.isin(c.modulars), coords=[com_i])
+    is_mod_ext = DataArray(com_i.isin(com_mod_ext_i), coords=[com_i])
+    nominal_mod = c.da[c._operational_attrs["nom_mod"]].sel(name=com_i)
+    modules = nominal / nominal_mod.where(is_mod, 1)
+    modules = modules.where(is_mod, 1).where(~is_mod_ext, 0)
+    modules_var = 0
+    if not com_mod_ext_i.empty:
+        n_mod = n.model[f"{c.name}-n_mod"].sel(name=com_mod_ext_i)
+        modules_var = n_mod.to_linexpr().reindex(name=com_i)
+
+    for kind, min_time, transition, sign, bound, bound_var in (
+        ("up", min_up_time_set, start_up, -1, 0, 0),
+        ("down", min_down_time_set, shut_down, 1, modules, modules_var),
     ):
         if not (min_time > 0).any():
             continue
@@ -608,7 +620,7 @@ def define_operational_constraints_for_committables(
             transition.to_linexpr().shift(snapshot=k).where(k < min_time).fillna(0)
             for k in range(int(min_time.max()))
         ]
-        lhs = sign * status + merge(shifted)
+        lhs = sign * status + merge(shifted) - bound_var
         past = (-sign * switches).clip(min=0)
         rhs = bound - (past * (past.lag + pos < min_time)).sum("lag")
         mask = active & (min_time > 0)

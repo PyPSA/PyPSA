@@ -253,6 +253,61 @@ def test_minimum_down_time_up_time_before(offset):
     equal(n.c.generators.dynamic.p.iloc[offset:].values, expected_dispatch)
 
 
+def _modular_min_down_time_network(load, min_down_time, extendable):
+    n = pypsa.Network(snapshots=range(len(load)))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=load)
+    n.add("Generator", "shed", bus="bus", p_nom=1000, marginal_cost=1000)
+    capacity = (
+        {"p_nom_extendable": True, "p_nom_max": 150, "capital_cost": 1}
+        if extendable
+        else {"p_nom": 150}
+    )
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_mod=50,
+        committable=True,
+        p_min_pu=1,
+        marginal_cost=10,
+        min_down_time=min_down_time,
+        up_time_before=0,
+        **capacity,
+    )
+    return n
+
+
+@pytest.mark.parametrize("extendable", [False, True], ids=["fixed", "extendable"])
+@pytest.mark.parametrize("min_down_time", [0, 1, 2])
+def test_minimum_down_time_modular(min_down_time, extendable):
+    """Minimum down time must not cap the status of modular units at one module."""
+    n = _modular_min_down_time_network([100, 150, 150, 100], min_down_time, extendable)
+    n.optimize()
+
+    equal(n.c.generators.dynamic.status["gen"], [2, 3, 3, 2])
+    equal(n.c.generators.dynamic.p["shed"], [0, 0, 0, 0])
+
+
+@pytest.mark.parametrize(
+    ("extendable", "rolling"),
+    [(False, False), (True, False), (False, True)],
+    ids=["fixed", "extendable", "fixed-rolling"],
+)
+@pytest.mark.parametrize(("min_down_time", "shed"), [(1, 0), (2, 50)])
+def test_minimum_down_time_modular_binding(min_down_time, shed, extendable, rolling):
+    """A module shut down at t=1 cannot restart at t=2 if min_down_time=2."""
+    n = _modular_min_down_time_network([150, 100, 150], min_down_time, extendable)
+    if rolling:
+        n.optimize.optimize_with_rolling_horizon(horizon=1, overlap=0)
+    else:
+        n.optimize()
+
+    status = n.c.generators.dynamic.status["gen"]
+    assert status.max() == 3
+    assert n.c.generators.dynamic.p["shed"].sum() == pytest.approx(shed)
+
+
 def test_start_up_costs():
     n = pypsa.Network()
 
