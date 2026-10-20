@@ -17,7 +17,7 @@ import pandas as pd
 import scipy as sp
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Hashable, Iterable
+    from collections.abc import Collection, Hashable, Iterable, Mapping
 
 
 class OrderedGraph(nx.MultiGraph):
@@ -355,7 +355,9 @@ def _bfs_cycle_basis(graph: nx.Graph, num_roots: int = 5) -> list[list[Hashable]
     """
     cycles: list[list[Hashable]] = []
     for component in nx.connected_components(graph):
-        subgraph = graph.subgraph(component)
+        # filter without a ``nodes`` attribute, so the view keeps the node order
+        # of ``graph``; ``graph.subgraph`` iterates small components in set order
+        subgraph = nx.subgraph_view(graph, filter_node=component.__contains__)
         roots = [
             node
             for node, _ in sorted(subgraph.degree(), key=itemgetter(1), reverse=True)[
@@ -376,8 +378,14 @@ def _bfs_cycle_basis(graph: nx.Graph, num_roots: int = 5) -> list[list[Hashable]
     return cycles
 
 
-def _edge_set_to_cycle(edges: set[frozenset[Hashable]]) -> list[Hashable] | None:
-    """Return a cyclic node ordering if ``edges`` form exactly one simple cycle."""
+def _edge_set_to_cycle(
+    edges: set[frozenset[Hashable]], rank: Mapping[Hashable, int]
+) -> list[Hashable] | None:
+    """Return a cyclic node ordering if ``edges`` form exactly one simple cycle.
+
+    The cycle starts at its lowest-``rank`` node and continues to the lower-ranked
+    of its two neighbours, so the result does not depend on set iteration order.
+    """
     adjacency: dict[Hashable, list[Hashable]] = {}
     for edge in edges:
         u, v = tuple(edge)
@@ -385,15 +393,14 @@ def _edge_set_to_cycle(edges: set[frozenset[Hashable]]) -> list[Hashable] | None
         adjacency.setdefault(v, []).append(u)
     if not adjacency or any(len(neighbors) != 2 for neighbors in adjacency.values()):
         return None
-    start = next(iter(adjacency))
-    order, previous, current = [start], None, start
-    while True:
+    start = min(adjacency, key=rank.__getitem__)
+    order, previous = [start], start
+    current = min(adjacency[start], key=rank.__getitem__)
+    while current != start:
+        order.append(current)
         left, right = adjacency[current]
-        following = right if left == previous else left
-        if following == start:
-            return order if len(order) == len(edges) else None
-        order.append(following)
-        previous, current = current, following
+        previous, current = current, right if left == previous else left
+    return order if len(order) == len(edges) else None
 
 
 def bfs_refined_cycle_basis(
@@ -414,6 +421,7 @@ def bfs_refined_cycle_basis(
 
     """
     cycles = _bfs_cycle_basis(graph)
+    rank = {node: index for index, node in enumerate(graph)}
     edge_sets = [
         {frozenset((cycle[i], cycle[(i + 1) % len(cycle)])) for i in range(len(cycle))}
         for cycle in cycles
@@ -429,13 +437,13 @@ def bfs_refined_cycle_basis(
                 index for edge in edge_sets[left] for index in edge_to_cycles[edge]
             }
             candidates.discard(left)
-            for right in candidates:
+            for right in sorted(candidates):
                 if len(cycles[right]) >= len(cycles[left]):
                     continue
                 replacement_edges = edge_sets[left] ^ edge_sets[right]
                 if len(replacement_edges) >= len(cycles[left]):
                     continue
-                replacement = _edge_set_to_cycle(replacement_edges)
+                replacement = _edge_set_to_cycle(replacement_edges, rank)
                 if replacement is None:
                     continue
                 cycles[left], edge_sets[left] = replacement, replacement_edges
