@@ -376,8 +376,13 @@ def _bfs_cycle_basis(graph: nx.Graph, num_roots: int = 5) -> list[list[Hashable]
     return cycles
 
 
-def _edge_set_to_cycle(edges: set[frozenset[Hashable]]) -> list[Hashable] | None:
-    """Return a cyclic node ordering if ``edges`` form exactly one simple cycle."""
+def _edge_set_to_cycle(
+    edges: set[frozenset[Hashable]], node_order: dict[Hashable, int]
+) -> list[Hashable] | None:
+    """Return a cycle ordered by ``node_order``, or None unless it is simple.
+
+    The lowest-ranked node starts the cycle, followed by its lowest-ranked neighbor.
+    """
     adjacency: dict[Hashable, list[Hashable]] = {}
     for edge in edges:
         u, v = tuple(edge)
@@ -385,7 +390,9 @@ def _edge_set_to_cycle(edges: set[frozenset[Hashable]]) -> list[Hashable] | None
         adjacency.setdefault(v, []).append(u)
     if not adjacency or any(len(neighbors) != 2 for neighbors in adjacency.values()):
         return None
-    start = next(iter(adjacency))
+    start = min(adjacency, key=node_order.__getitem__)
+    # Choosing the first edge fixes the direction of the degree-two traversal.
+    adjacency[start].sort(key=node_order.__getitem__)
     order, previous, current = [start], None, start
     while True:
         left, right = adjacency[current]
@@ -414,6 +421,7 @@ def bfs_refined_cycle_basis(
 
     """
     cycles = _bfs_cycle_basis(graph)
+    node_order = {node: index for index, node in enumerate(graph)}
     edge_sets = [
         {frozenset((cycle[i], cycle[(i + 1) % len(cycle)])) for i in range(len(cycle))}
         for cycle in cycles
@@ -429,13 +437,13 @@ def bfs_refined_cycle_basis(
                 index for edge in edge_sets[left] for index in edge_to_cycles[edge]
             }
             candidates.discard(left)
-            for right in candidates:
+            for right in sorted(candidates):
                 if len(cycles[right]) >= len(cycles[left]):
                     continue
                 replacement_edges = edge_sets[left] ^ edge_sets[right]
                 if len(replacement_edges) >= len(cycles[left]):
                     continue
-                replacement = _edge_set_to_cycle(replacement_edges)
+                replacement = _edge_set_to_cycle(replacement_edges, node_order)
                 if replacement is None:
                     continue
                 cycles[left], edge_sets[left] = replacement, replacement_edges
