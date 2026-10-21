@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import geopandas as gpd
 import numpy as np
@@ -167,6 +167,9 @@ class Components(
     itself.
 
     """
+
+    _operational_variables: ClassVar[list[str]] = []
+    _energy_terms: ClassVar[tuple[tuple[str, int], ...]] = ()
 
     def __init__(
         self,

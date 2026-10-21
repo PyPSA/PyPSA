@@ -66,20 +66,30 @@ These constraints are set in the function `define_fixed_operation_constraints()`
 
 ## Volume Limits
 
-Generators can also have volume limits, i.e. the total dispatch over all snapshots must be above a minimum $\underline{e}_{*}$ or below a maximum $\bar{e}_{*}$.
+Generators, links, processes, storage units and stores can also have volume limits, i.e. the weighted sum of their power over all snapshots must be above a minimum $\underline{e}_{*}$ (`e_sum_min`) or below a maximum $\bar{e}_{*}$ (`e_sum_max`). The limits apply once over all snapshots, including all investment periods. They are not weighted by the investment period weightings.
 
 | Constraint | Dual Variable | Name |
 |-------------------|------------------|------------------|
 | $\sum_t w_t^g g_{n,s,t} \geq \underline{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Generator-e_sum_min` |
 | $\sum_t w_t^g g_{n,s,t} \leq \bar{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Generator-e_sum_max` |
+| $\sum_t w_t^g f_{l,t} \geq \underline{e}_{l} \quad \forall l$ | only in `n.model` | `Link-e_sum_min` |
+| $\sum_t w_t^g f_{l,t} \leq \bar{e}_{l} \quad \forall l$ | only in `n.model` | `Link-e_sum_max` |
+| $\sum_t w_t^g r_{m,t} \geq \underline{e}_{m} \quad \forall m$ | only in `n.model` | `Process-e_sum_min` |
+| $\sum_t w_t^g r_{m,t} \leq \bar{e}_{m} \quad \forall m$ | only in `n.model` | `Process-e_sum_max` |
+| $\sum_t w_t^g (h_{n,s,t}^- - h_{n,s,t}^+) \geq \underline{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `StorageUnit-e_sum_min` |
+| $\sum_t w_t^g (h_{n,s,t}^- - h_{n,s,t}^+) \leq \bar{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `StorageUnit-e_sum_max` |
+| $\sum_t w_t^g h_{n,s,t} \geq \underline{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Store-e_sum_min` |
+| $\sum_t w_t^g h_{n,s,t} \leq \bar{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Store-e_sum_max` |
+
+The limited power has the sign convention of `p`. For links it is the withdrawal at `bus0`, and for processes the internal power `p`. For storage units and stores it is the net power, i.e. discharge minus charge (see [Storage](storage.md) for the symbols $h$). All volume limits use the generator snapshot weightings $w_t^g$, as [`n.statistics.energy_balance()`][pypsa.statistics.StatisticsAccessor.energy_balance].
 
 These constraints are set in the function `define_total_supply_constraints()`.
 
 !!! note "Rolling horizon"
 
-    In [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] the volume limits of generators refer to all snapshots of the rolling horizon. Each window is given the part of the limit that is still open after the previous windows and after accounting for what later windows can at most ($\bar{e}$) or must at least ($\underline{e}$) produce given their capacity. Committable and inactive generators are assumed to produce nothing in later windows. Without foresight, a maximum is depleted by the earliest windows and a minimum is filled by the latest windows, which may turn the last window infeasible.
+    In [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] the volume limits refer to all snapshots of the rolling horizon. Each window is given the part of the limit that is still open after the previous windows and after accounting for what later windows can at most ($\bar{e}$) or must at least ($\underline{e}$) produce given their capacity, `p_min_pu` and `p_max_pu`. Committable and maintainable components may produce nothing in later windows, inactive components produce nothing. Without foresight, a maximum is depleted by the earliest windows and a minimum is filled by the latest windows, which may turn the last window infeasible. The state of charge of storage units is not considered when estimating later windows, so a late window may also fail if the storage cannot deliver the open limit.
 
-    The energy that later windows can produce must be bounded. If a generator with a finite $\underline{e}$ (or a finite $\bar{e}$ and a negative `p_min_pu`) is extendable with `p_nom_max=inf`, a `ValueError` is raised before the first window. Set a finite `p_nom_max` for these generators. The limits are not tracked if a single window covers all snapshots. If limits are tracked and a window fails to solve, a `RuntimeError` is raised, since the open limits of later windows depend on its dispatch.
+    The energy that later windows can produce must be bounded. If a component with a finite $\underline{e}$ (or a finite $\bar{e}$ and a negative `p_min_pu`) is extendable with `p_nom_max=inf`, a `ValueError` is raised before the first window. Set a finite `p_nom_max` for these components. The power of stores has no limit, so finite volume limits of stores raise a `ValueError` if there is more than one window. The limits are not tracked if a single window covers all snapshots. If limits are tracked and a window fails to solve, a `RuntimeError` is raised, since the open limits of later windows depend on its dispatch.
 
 ## Voltage Angle Limits
 
@@ -125,6 +135,8 @@ These constraints are set in the function `define_voltage_angle_constraints()`. 
         | $\underline{f}_{l,t}$ | `n.links_t.p_min_pu` | Parameter |
         | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu` | Parameter |
         | $\tilde{f}_{l,t}$ | `n.links_t.p_set` | Parameter |
+        | $\underline{e}_{l}$ | `n.links.e_sum_min` | Parameter |
+        | $\bar{e}_{l}$     | `n.links.e_sum_max` | Parameter |
         | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
         | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
 
@@ -139,8 +151,29 @@ These constraints are set in the function `define_voltage_angle_constraints()`. 
         | $\underline{r}_{m,t}$ | `n.processes_t.p_min_pu` | Parameter |
         | $\bar{r}_{m,t}$   | `n.processes_t.p_max_pu` | Parameter |
         | $\tilde{r}_{m,t}$ | `n.processes_t.p_set` | Parameter |
+        | $\underline{e}_{m}$ | `n.processes.e_sum_min` | Parameter |
+        | $\bar{e}_{m}$     | `n.processes.e_sum_max` | Parameter |
         | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
         | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
+
+    === "StorageUnit"
+
+        | Symbol | Attribute | Type |
+        |-------------------|-----------|-------------|
+        | $h_{n,s,t}^-$     | `n.storage_units_t.p_dispatch` | Decision variable |
+        | $h_{n,s,t}^+$     | `n.storage_units_t.p_store` | Decision variable |
+        | $\underline{e}_{n,s}$ | `n.storage_units.e_sum_min` | Parameter |
+        | $\bar{e}_{n,s}$   | `n.storage_units.e_sum_max` | Parameter |
+        | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
+
+    === "Store"
+
+        | Symbol | Attribute | Type |
+        |-------------------|-----------|-------------|
+        | $h_{n,s,t}$       | `n.stores_t.p` | Decision variable |
+        | $\underline{e}_{n,s}$ | `n.stores.e_sum_min` | Parameter |
+        | $\bar{e}_{n,s}$   | `n.stores.e_sum_max` | Parameter |
+        | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
 
     === "Line"
 

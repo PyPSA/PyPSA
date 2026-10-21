@@ -5,7 +5,7 @@
 """Storage units components module."""
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 import pandas as pd
 import xarray as xr
@@ -35,6 +35,10 @@ class StorageUnits(Components):
     """
 
     _operational_variables = ["p_dispatch", "p_store", "state_of_charge"]
+    _energy_terms: ClassVar[tuple[tuple[str, int], ...]] = (
+        ("p_dispatch", 1),
+        ("p_store", -1),
+    )
 
     def get_bounds_pu(
         self,

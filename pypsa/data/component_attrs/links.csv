@@ -18,6 +18,8 @@ p_set,static or series,MW,n/a,The dispatch set point for `p0` of the link (for o
 p_init,static,MW,n/a,Active power used as a starting point for limiting the ramp in the very first snapshot (for optimisation),Input (optional)
 p_min_pu,static or series,per unit of p_nom,0.,Minimal dispatch per unit of `p_nom` for the link. Can also be negative.,Input (optional)
 p_max_pu,static or series,per unit of p_nom,1.,Maximal dispatch per unit of `p_nom` for the link. Can also be negative.,Input (optional)
+e_sum_min,float,MWh,-inf,"The minimum total energy withdrawn at `bus0` (`p`) over all snapshots of the optimization, also across the windows of a rolling horizon optimization.",Input (optional)
+e_sum_max,float,MWh,inf,"The maximum total energy withdrawn at `bus0` (`p`) over all snapshots of the optimization, also across the windows of a rolling horizon optimization.",Input (optional)
 capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW (unit of `bus0`, e.g. annuitized investment costs). Used directly unless `overnight_cost` is specified. Any `length` factor must already be included.",Input (optional)
 overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW (unit of `bus0`). If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
