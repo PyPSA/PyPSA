@@ -229,14 +229,19 @@ class _TrackedLimit(NamedTuple):
         return self.original - used - self.later.loc[rest].sum()
 
 
+def _weighted(n: Network, power: pd.DataFrame, snapshots: Sequence) -> pd.DataFrame:
+    """Get the energy per snapshot of a power; missing power counts as zero."""
+    weights = n.snapshot_weightings[ENERGY_WEIGHTING].loc[snapshots]
+    return power.mul(weights, axis=0).fillna(0.0)
+
+
 def _energy(n: Network, c: Components, snapshots: Sequence) -> pd.Series:
     """Get the weighted sum of the signed power of `_energy_terms` per asset."""
     power = sum(
         sign * c.dynamic[var].reindex(index=snapshots, columns=c.static.index)
         for var, sign in c._energy_terms
     )
-    weights = n.snapshot_weightings[ENERGY_WEIGHTING].loc[snapshots]
-    return power.mul(weights, axis=0).fillna(0.0).sum()
+    return _weighted(n, power, snapshots).sum()
 
 
 def _power_bounds(
@@ -300,7 +305,8 @@ def _tracked_limits(
         If the power is unbounded for an asset with a tracked limit.
 
     """
-    limits = [(a, sign, d) for a, sign, d in ENERGY_LIMITS if (c.static[a] != d).any()]
+    bounded = {a: c.static[a] != d for a, _, d in ENERGY_LIMITS}
+    limits = [(a, sign) for a, sign, _ in ENERGY_LIMITS if bounded[a].any()]
     if not limits:
         return []
     if all(var in c._operational_variables for var, _ in c._energy_terms):
@@ -310,18 +316,19 @@ def _tracked_limits(
         upper = pd.DataFrame(np.inf, index=snapshots, columns=c.static.index)
         lower = -upper
         hint = "a single window"
-    flags = [a for a in ("committable", "maintainable") if a in c.static]
     active = c.get_activity_mask(snapshots)
-    fixed = active & ~c.static[flags].any(axis=1)
-    weights = n.snapshot_weightings[ENERGY_WEIGHTING].loc[snapshots]
+    lower = _weighted(n, lower.where(active, 0.0), snapshots)
+    upper = _weighted(n, upper.where(active, 0.0), snapshots)
+    flags = [a for a in ("committable", "maintainable") if a in c.static]
+    flexible = active & c.static[flags].any(axis=1)
     later = {
-        ">=": upper.where(fixed, np.fmax(upper, 0.0)),
-        "<=": lower.where(fixed, np.fmin(lower, 0.0)),
+        ">=": upper.mask(flexible, upper.clip(lower=0.0)),
+        "<=": lower.mask(flexible, lower.clip(upper=0.0)),
     }
     tracked = []
-    for attr, sign, default in limits:
-        energy = later[sign].where(active, 0.0).mul(weights, axis=0).fillna(0.0)
-        unbounded = (c.static[attr] != default) & np.isinf(energy).any()
+    for attr, sign in limits:
+        energy = later[sign]
+        unbounded = bounded[attr] & np.isinf(energy).any()
         if unbounded.any():
             msg = (
                 f"{c.name} {list(unbounded.index[unbounded])} have a finite "
@@ -333,9 +340,7 @@ def _tracked_limits(
     return tracked
 
 
-def _all_tracked_limits(
-    n: Network, snapshots: Sequence, windows: int
-) -> list[_TrackedLimit]:
+def _all_tracked_limits(n: Network, snapshots: Sequence) -> list[_TrackedLimit]:
     """Get the volume limits to track across rolling horizon windows.
 
     Parameters
@@ -344,18 +349,13 @@ def _all_tracked_limits(
         Network instance.
     snapshots : Sequence
         Snapshots of the rolling horizon.
-    windows : int
-        Number of windows.
 
     Returns
     -------
     list[_TrackedLimit]
-        Limits of all components with `_energy_terms`. Nothing is tracked for
-        a single window.
+        Limits of all components with `_energy_terms`.
 
     """
-    if windows == 1:
-        return []
     tracked = [
         limit
         for c in n.components
@@ -780,7 +780,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             raise ValueError(msg)
 
         starting_points = range(0, len(snapshots), horizon - overlap)
-        tracked = _all_tracked_limits(n, snapshots, len(starting_points))
+        tracked = [] if len(starting_points) == 1 else _all_tracked_limits(n, snapshots)
 
         try:
             for i, start in enumerate(starting_points):
@@ -811,14 +811,14 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                     c.static[t.attr] = t.remaining(_energy(n, c, done), rest)
 
                 status, condition = n.optimize(sns, **kwargs)
-                if status != "ok" and tracked:
-                    msg = (
-                        f"Optimization of window [{sns[0]}:{sns[-1]}] failed with "
-                        f"status {status} and condition {condition}. The volume "
-                        "limits of later windows cannot be tracked."
-                    )
-                    raise RuntimeError(msg)
                 if status != "ok":
+                    if tracked:
+                        msg = (
+                            f"Optimization of window [{sns[0]}:{sns[-1]}] failed "
+                            f"with status {status} and condition {condition}. The "
+                            "volume limits of later windows cannot be tracked."
+                        )
+                        raise RuntimeError(msg)
                     logger.warning(
                         "Optimization failed with status %s and condition %s",
                         status,
