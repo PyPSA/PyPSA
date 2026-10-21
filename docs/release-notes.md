@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -14,7 +13,9 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+- Add the attribute `cycles_max` to [StorageUnit](./user-guide/components/storage-units.md) and [Store](./user-guide/components/stores.md). It limits the number of equivalent full cycles over all snapshots of the optimisation, also for extendable capacities and across the windows of a rolling horizon. See the [:material-book-open-variant: user guide](./user-guide/optimization/storage.md#cycle-limits). (<!-- md:pr 2006 -->)
+
 
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 

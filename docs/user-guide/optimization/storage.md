@@ -188,6 +188,24 @@ $$soc_{n,s,t=-1} = soc_{n,s,t=|T|-1}$$
     | $\eta_{\textrm{dispatch};n,s}$ | `n.storage_units.dispatch_efficiency` | Parameter |
     | $w_t^s$ | `n.snapshot_weightings.stores` | Parameter |
 
+## Cycle Limits
+
+Storage units may wear out with use. The attribute `cycles_max` $N_{n,s}$ limits the number of equivalent full cycles over all snapshots of the optimisation, including all investment periods. One cycle is a discharge equal to the energy capacity. The limit stays linear for extendable capacities. The formulation follows eq. (22) in Cardoso et al. (2018).[^1]
+
+| Constraint | Dual Variable | Name |
+|------------|---------------|------|
+| $\sum_t w_t^s h_{n,s,t}^+ \leq N_{n,s} r_{n,s} H_{n,s} \quad \forall n,s$ | only in `n.model` | `StorageUnit-cycles_max` |
+| $\sum_t w_t^s (h_{n,s,t} + h_{n,s,t}^-) \leq N_{n,s} E_{n,s} \quad \forall n,s$ | only in `n.model` | `Store-cycles_max` |
+| $h_{n,s,t} + h_{n,s,t}^- \geq 0 \quad \forall n,s,t$ | only in `n.model` | `Store-p_store-lower` |
+
+For stores, an auxiliary non-negative charging power $h_{n,s,t}^-$ is added only for stores with a finite `cycles_max`, so that $h_{n,s,t} + h_{n,s,t}^-$ is the discharge.
+
+In a rolling horizon optimisation, the cycles of previous windows count against `cycles_max`.
+
+A cycle life $N^\textrm{life}$ over a technical lifetime $L$ translates into $N = N^\textrm{life} \cdot Y / L$ for an optimisation over $Y$ years.
+
+These constraints are set in the function `define_storage_cycle_constraints()`.
+
 ## Examples
 
 
@@ -202,3 +220,5 @@ $$soc_{n,s,t=-1} = soc_{n,s,t=|T|-1}$$
     [:octicons-arrow-right-24: Go to example](../../examples/replace-generator-storage-units-with-store.ipynb)
 
 </div>
+
+[^1]: G. Cardoso, T. Brouhard, N. DeForest, D. Wang, M. Heleno, L. Kotzur (2018), [Battery aging in multi-energy microgrid design using mixed integer linear programming](https://doi.org/10.1016/j.apenergy.2018.09.185), Applied Energy, 231, 1059-1069.
