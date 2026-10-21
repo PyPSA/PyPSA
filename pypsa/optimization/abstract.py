@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import as_index
 from pypsa.descriptors import nominal_attrs
@@ -115,6 +116,7 @@ def discretized_capacity(
     return block_capacity
 
 
+@suppress_semantics_warnings()
 def _add_security_constraints(
     m: Model,
     sub_network: SubNetwork,
