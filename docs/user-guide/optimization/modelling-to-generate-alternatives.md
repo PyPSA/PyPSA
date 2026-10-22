@@ -14,6 +14,8 @@ For example, the alternative objective function may represent total installed re
 
 In `optimize_mga`, the bound on total system cost is specified as a relative increase over the cost-optimum; the relative increase is called _slack_. Denote the slack as $\varepsilon$, as is common in the literature, and let $c$ be the total system cost objective function and $c^*$ its optimal value. Then the near-optimality constraint added in `optimize_mga` is $c \leq (1 + \varepsilon) \cdot c^*$. Typical values found in the literature range from about 2% to 20%, with 5% being a common starting value for exploration.
 
+The budget includes investment costs, fixed operation and maintenance costs, and operational costs of both extendable and non-extendable assets. Existing capacity is included in these total costs regardless of the `include_objective_constant` setting. For multi-period optimization, investment-period objective weights are applied once. Rounding options for statistics do not affect the budget.
+
 Numerous research articles cover the theory and application of MGA in the context of energy systems modelling; many of them have used PyPSA under the hood. See for instance [Brown et al. (2021)](https://doi.org/10.1016/j.epsr.2020.106690), [Grochowicz et al. (2023)](https://doi.org/10.1016/j.eneco.2022.106496) and [Lau et al. (2024)](https://doi.org/10.1088/2753-3751/ad7d10) (the latter containing a brief literature review) for an introduction to the topic.
 
 ## Exploring trade-offs in the near-optimal space
