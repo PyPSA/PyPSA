@@ -623,6 +623,36 @@ def test_max_relative_growth_constraint(n):
     assert all(built_per_period - built_per_period.shift(fill_value=0) * 1.5 <= 218)
 
 
+def test_max_growth_constraint_excludes_retired_asset():
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], [0]])
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "bus")
+    n.add("Carrier", "solar", max_growth=10)
+    n.add("Load", "load", bus="bus", p_set=5)
+    for name, year in [("old", 2020), ("new", 2030)]:
+        n.add(
+            "Generator",
+            name,
+            bus="bus",
+            carrier="solar",
+            p_nom_extendable=True,
+            build_year=year,
+            lifetime=10,
+            capital_cost=1,
+        )
+    n.optimize.create_model(multi_investment_periods=True)
+    con = n.model.constraints["Carrier-growth_limit"]
+    labels = n.model.variables["Generator-p_nom"].labels.to_series()
+
+    def vars_in(period):
+        return set(con.vars.sel(Carrier="solar", periods=period).values.ravel())
+
+    assert int(labels["old"]) in vars_in(2020)
+    assert int(labels["old"]) not in vars_in(2030)
+    assert int(labels["new"]) in vars_in(2030)
+
+
 def test_store_primary_energy_and_operational_limit_constraint_without_per_period():
     """Test that Store with primary energy constraint raises NotImplementedError without e_initial_per_period."""
 

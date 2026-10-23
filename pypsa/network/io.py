@@ -1131,13 +1131,10 @@ class _ImporterNetCDF(_Importer):
         for attr in self.ds.data_vars.keys():
             attr = str(attr)
             if attr.startswith(t):
-                df = (
-                    self.ds[attr]
-                    .rename({attr + "_i": "name"})
-                    .to_series()
-                    .unstack("snapshots")
-                    .T
-                )
+                da = self.ds[attr].rename({attr + "_i": "name"})
+                if da.ndim > 2:
+                    da = da.stack(columns=[d for d in da.dims if d != "snapshots"])
+                df = da.transpose("snapshots", ...).to_pandas()
                 yield attr[len(t) :], _coerce_string_dtypes(df)
 
     def get_piecewise(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:

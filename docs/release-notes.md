@@ -14,18 +14,80 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+- Fix [`fom`][pypsa.statistics.StatisticsAccessor.fom], and therefore [`system_cost`][pypsa.statistics.StatisticsAccessor.system_cost], ignoring the investment period weightings in networks with investment periods. Fixed operation and maintenance costs are now weighted like capital expenditures, consistent with the objective function. (<!-- md:pr 1923 -->)
+
+## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
+
+### Changes from bug fixes
+
+!!! note "Fixes that change behavior"
+
+    Breaking changes are reserved for major releases. Some bug fixes, however, change results or the optimization model structure. They are listed below and marked **Behavior change**.
+
+- **Results change** where they were previously wrong:
+    - Unit commitment with a rolling horizon, with `linearized_unit_commitment=True`, or with both `up_time_before` and `down_time_before` set. (<!-- md:pr 1973 -->)
+    - Ramp limits at the first snapshot of non-committable units with `up_time_before=0` or next to committable units. (<!-- md:pr 1973 -->)
+    - [`optimize_security_constrained(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained]. (<!-- md:pr 1951 -->)
+- **Optimization model structure changes**, relevant for custom constraints in `extra_functionality`:
+    - The `{c}-com-status-min_up_time_must_stay_up` and `{c}-com-status-min_down_time_must_stay_up` constraints are removed. The `{c}-com-up-time` and `{c}-com-down-time` constraints cover their role and now have a row for the first snapshot. (<!-- md:pr 1973 -->)
+    - Security constraint names of multi-period runs carry a period suffix, e.g. `...-period-2030`. (<!-- md:pr 1951 -->)
+- **Errors instead of silently wrong results** for invalid inputs:
+    - Stochastic networks with attributes that must be identical across scenarios but differ, e.g. `delay`, `p_nom_set` or the ports `bus0`, `bus1`, ... (<!-- md:pr 1951 -->)
+    - Branch outages that are not active in any optimized period in security-constrained optimization. (<!-- md:pr 1951 -->)
+    - Optimization expressions for components with missing variables or attributes. (<!-- md:pr 1969 -->)
+- [`n.copy()`][pypsa.Network.copy] now copies `n.meta` instead of sharing it with the original. (<!-- md:pr 1968 -->)
+
 ### Features
 
-- Enforce voltage angle difference limits on [Line](./user-guide/components/lines.md) and [Transformer](./user-guide/components/transformers.md) components in optimisation. Setting a finite `v_ang_max` (degrees) now caps the magnitude of the component's voltage angle difference. For lines this equals `x_pu_eff * s`; for transformers the phase shift is included. The limit is formulated as a bound on the flow. The `v_ang_min` attribute is deprecated. Resolves part of [#1481](https://github.com/PyPSA/PyPSA/issues/1481). (<!-- md:pr 1481 -->)
-- Add [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] to scale per-line summer / winter MVA ratings onto `n.lines_t.s_max_pu` based on the snapshot month, leaving `s_nom` unchanged. (<!-- md:pr 1694 -->)
-- `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be given as time series. The tightening constraints of the linearized unit commitment are applied per unit whenever start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
+- Select the cycle basis of the Kirchhoff voltage law constraints with the new `cycle_basis_method` argument of [`n.optimize`][pypsa.optimization.optimize.OptimizationAccessor.__call__]. The new default `"bfs-refined"` gives sparser constraints than the previous default `"paton"`, which remains available. (<!-- md:pr 1898 -->)
+- Enforce voltage angle difference limits on [Line](./user-guide/components/lines.md) and [Transformer](./user-guide/components/transformers.md) components in optimization. A finite `v_ang_max` (degrees) caps the angle difference, incl. transformer phase shifts. `v_ang_min` is deprecated. Resolves part of [#1481](https://github.com/PyPSA/PyPSA/issues/1481). (<!-- md:pr 1910 -->)
+- Add [`Lines.apply_seasonal_rating`][pypsa.components._types.lines.Lines.apply_seasonal_rating] to scale per-line summer / winter MVA ratings onto `n.lines_t.s_max_pu` by snapshot month, leaving `s_nom` unchanged. (<!-- md:pr 1694 -->)
+- `start_up_cost` and `shut_down_cost` of committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components can now be time series. The linearized unit commitment applies its tightening constraints to each unit whose start-up and shut-down costs are equal in every snapshot. (<!-- md:pr 1909 -->)
+
+### Enhancements
+
+- Deprecation: [`n.get_switchable_as_dense()`][pypsa.Network.get_switchable_as_dense] warns if `inds` has unknown, duplicate or out-of-order names. PyPSA 2.0 will return columns in `inds` order, keep duplicates and raise a `KeyError` for unknown names. To keep the current result, pass `n.c.<component>.static.index.unique('name').intersection(inds)`. See [#1977](https://github.com/PyPSA/PyPSA/issues/1977). (<!-- md:pr 1982 -->)
+- Performance: [`n.import_from_netcdf`][pypsa.Network.import_from_netcdf] and the non-linear power flow [`n.pf()`][pypsa.network.power_flow.NetworkPowerFlowMixin.pf] are faster. (<!-- md:pr 1998 -->)
+- Stochastic networks now require identical values across scenarios for `p_nom_set`, `s_nom_set`, `e_nom_set`, the ports `bus0`, `bus1`, ... and the [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) attributes `delay`, `cyclic_delay` and their per-port variants. Model building also raises a `ValueError` if `carrier` of Lines and Links (also in growth limits), `delay`, `cyclic_delay` or `active` in growth limits differ, e.g. with [`create_model(consistency_check=False)`][pypsa.optimization.OptimizationAccessor.create_model]. Previously one scenario's values were silently used, and a link with differing delays had its flow counted twice. Resolves [#1941](https://github.com/PyPSA/PyPSA/issues/1941). (<!-- md:pr 1951 -->)
 
 ### Bug Fixes
 
-- Fix [`fom`][pypsa.statistics.StatisticsAccessor.fom], and therefore [`system_cost`][pypsa.statistics.StatisticsAccessor.system_cost], ignoring the investment period weightings in networks with investment periods. Fixed operation and maintenance costs are now weighted like capital expenditures, consistent with the objective function. (<!-- md:pr 1923 -->)
-- Fix [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] using the unavailable `s_nom_opt` instead of `s_nom` as the reference capacity in the first iteration. On a fresh network this divided the line reactances by zero and set them to zero. (<!-- md:pr 1910 -->)
-- Fix infeasibility for fixed-capacity modular committable components, which were given operating bounds based on both nominal capacity and module size. (<!-- md:pr 1901 -->)
-- Fix [`n.optimize(transmission_losses=True)`][pypsa.optimization.OptimizationAccessor.__call__] failing for stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]) when assigning line losses during post-processing. (<!-- md:pr 1892 -->)
+- Fix inactive branches (`active=False`) remaining in the cycles of the Kirchhoff voltage law constraints. Resolves [#2004](https://github.com/PyPSA/PyPSA/issues/2004). (<!-- md:pr 2005 -->)
+- Fix minimum up and down time constraints of committable components losing their first rows under linopy v1 semantics; legacy semantics are unaffected. (<!-- md:pr 1990 -->)
+- Fix `n.objective_constant` being `0` for [multi-period](./user-guide/optimization/pathway-planning.md) optimizations; it again includes the period-weighted capital costs of existing extendable capacity. (<!-- md:pr 1967 -->)
+- Fix copying networks with [`n.copy()`][pypsa.Network.copy], `copy.copy`, `copy.deepcopy` and pickling. Resolves [#1930](https://github.com/PyPSA/PyPSA/issues/1930) and [#1937](https://github.com/PyPSA/PyPSA/issues/1937). (<!-- md:pr 1968 -->)
+    - Copies get their own sub-networks and no longer modify the original's.
+    - Multi-period copies can be optimized. `n.copy()` with only `snapshots` or only `investment_periods` selects the matching counterpart instead of raising.
+    - `n.copy(snapshots=...)` works with a non-default CRS. [`n.equals()`][pypsa.Network.equals] no longer compares derived sub-networks.
+    - **Behavior change**: `n.copy()` copies `n.meta` instead of sharing it with the original.
+- Fix carrier `max_growth` and `max_relative_growth` constraints counting an asset again in every period after it retires. Resolves [#1938](https://github.com/PyPSA/PyPSA/issues/1938). (<!-- md:pr 1958 -->)
+- Fix the ramp limit at the first snapshot of non-committable [Generator](./user-guide/components/generators.md), [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) components. It wrongly used `up_time_before` and the start-up terms of other committable units. Non-committable units now ramp from `p_init`, or are unconstrained if `p_init` is NaN. Resolves [#1943](https://github.com/PyPSA/PyPSA/issues/1943). (<!-- md:pr 1973 -->)
+- Fix the state carried into rolling horizon windows for committable components, especially with `linearized_unit_commitment=True`. Start-ups and shut-downs at window seams were missed or counted twice. Resolves [#1905](https://github.com/PyPSA/PyPSA/issues/1905). (<!-- md:pr 1973 -->)
+    - **Behavior change**: The `{c}-com-status-min_up_time_must_stay_up` and `{c}-com-status-min_down_time_must_stay_up` constraints are removed (`KeyError` if accessed). `{c}-com-up-time` and `{c}-com-down-time` replace them and gain a row for the first snapshot.
+    - **Behavior change**: A positive `down_time_before` overrides `up_time_before` (default 1), so the unit starts off; this can change integer unit commitment results. `n.optimize(snapshots=...)` starting inside `n.snapshots` without a prior solve takes the prior state from both attributes instead of assuming the unit was off.
+    - **Behavior change**: The linearized unit commitment tightening constraints also apply at the first snapshot. This changes its results only if `p_init` is set. Integer unit commitment results do not change.
+- Fix optimization failing with a `KeyError` for quadratic marginal costs alongside inactive components. Resolves [#1956](https://github.com/PyPSA/PyPSA/issues/1956). (<!-- md:pr 1959 -->)
+- Fix [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] raising an `UnboundLocalError` for `primary_energy` and `operational_limit` [GlobalConstraint](./user-guide/components/global-constraints.md) components with an `investment_period` on networks without investment periods. It now raises a `ValueError`. (<!-- md:pr 1961 -->)
+- Fix [`n.cycle_matrix(apply_weights=True)`][pypsa.Network.cycle_matrix] returning `NaN` instead of `0` for branches with infinite reactance or resistance outside any cycle, which broke the Kirchhoff voltage law constraints under linopy v1. Resolves [#1944](https://github.com/PyPSA/PyPSA/issues/1944). (<!-- md:pr 1948 -->)
+- Fix the replacements suggested by the deprecation warnings of `sub_network.stores_i()`, `sub_network.stores()` and `aggregate_across_components`. (<!-- md:pr 1922 -->)
+- Fix [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] setting line reactances to zero in the first iteration on a fresh network. (<!-- md:pr 1910 -->)
+- Fix infeasibility of fixed-capacity modular committable components, whose operating bounds used both nominal capacity and module size. (<!-- md:pr 1901 -->)
+- **Behavior change**: Fix [`optimize_security_constrained(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained] using the last period's outage distribution factors for all periods, which changes results. Security constraint names carry a period suffix, e.g. `...-period-2030`. Requested outages inactive in all optimized periods raise a `ValueError`; `pandas.MultiIndex` outages are checked to exist. Resolves [#1971](https://github.com/PyPSA/PyPSA/issues/1971). (<!-- md:pr 1951 -->)
+- Optimization expressions no longer silently skip a component whose variable or attribute is missing, and raise the underlying `KeyError` or `AttributeError`. Components without a nominal capacity or operational costs are still skipped. (<!-- md:pr 1969 -->)
+- Fix stochastic networks (see [`n.set_scenarios()`][pypsa.Network.set_scenarios]):
+    - [`n.remove()`][pypsa.Network.remove] raised a `KeyError`. Components are now removed from all scenarios. (<!-- md:pr 1962 -->)
+    - [`n.optimize(transmission_losses=True)`][pypsa.optimization.OptimizationAccessor.__call__] failed when assigning line losses in post-processing. (<!-- md:pr 1892 -->)
+    - Model builders treated the `(scenario, name)` index as a plain name index (<!-- md:pr 1951 -->):
+        - Unit commitment failed, including the linearized one. Minimum up/down times can now differ between scenarios; `{c}-com-up-time` and `{c}-com-down-time` span all committable components, masked where no minimum applies. Resolves [#1913](https://github.com/PyPSA/PyPSA/issues/1913).
+        - Cycles with [Transformer](./user-guide/components/transformers.md) components, `p_nom_set`/`s_nom_set`/`e_nom_set` and [`optimize_security_constrained()`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained] failed. Branch outages are now given by name and applied in all scenarios. Resolves [#1942](https://github.com/PyPSA/PyPSA/issues/1942).
+        - `transmission_volume_expansion_limit`, `transmission_expansion_cost_limit` and `primary_energy` global constraints with an `investment_period` were silently dropped with multi-period investment. `transmission_expansion_cost_limit` was also dropped in single-period networks and now respects scenario-specific attributes. Resolves [#1939](https://github.com/PyPSA/PyPSA/issues/1939).
+        - `e_sum_min` and `e_sum_max` constraints were duplicated for each scenario.
+        - `v_ang_max` of Lines and Transformers was silently ignored.
+    - [`n.get_switchable_as_dense()`][pypsa.Network.get_switchable_as_dense] and [`n.get_switchable_as_iter()`][pypsa.Network.get_switchable_as_iter] with `inds` failed or returned no data, so e.g. [`n.statistics.opex()`][pypsa.statistics.StatisticsAccessor.opex] missed committable components. (<!-- md:pr 1951 -->)
+    - Optimization expressions (`n.optimize.expressions`, see [`StatisticExpressionsAccessor`][pypsa.optimization.expressions.StatisticExpressionsAccessor]) silently returned `0` or failed. They now carry a `scenario` dimension; grouping and filtering require identical static data across scenarios. Resolves [#1952](https://github.com/PyPSA/PyPSA/issues/1952). (<!-- md:pr 1969 -->)
+    - Warnings on cyclic [StorageUnit](./user-guide/components/storage-units.md) and [Store](./user-guide/components/stores.md) components overruling their initial storage level raised an `IndexError`. Resolves [#1953](https://github.com/PyPSA/PyPSA/issues/1953). (<!-- md:pr 1969 -->)
+    - [`n.optimize.fix_optimal_capacities()`][pypsa.optimization.OptimizationAccessor.fix_optimal_capacities] failed. (<!-- md:pr 1969 -->)
+    - Statistics methods (see [`n.statistics`][pypsa.Network.statistics]) raised a `TypeError` with `groupby=False`. (<!-- md:pr 1969 -->)
 
 ## [**v1.3.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.3.0) <small>19th August 2026</small> { id="v1.3.0" }
 

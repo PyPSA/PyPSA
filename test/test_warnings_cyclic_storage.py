@@ -9,6 +9,7 @@ Test warnings for cyclic storage overriding initial values.
 import logging
 
 import pandas as pd
+import pytest
 
 import pypsa
 
@@ -232,3 +233,50 @@ def test_warning_store_cp_overrides_c(caplog):
         and "store" in record.message
         for record in caplog.records
     ), "Expected warning about CP overriding C not found"
+
+
+@pytest.mark.parametrize(
+    ("component", "attrs", "initial", "messages"),
+    [
+        (
+            "StorageUnit",
+            {
+                "p_nom": 1,
+                "cyclic_state_of_charge": True,
+                "cyclic_state_of_charge_per_period": True,
+            },
+            "state_of_charge_initial",
+            ["Cyclic state of charge constraint overrules", "Per-period cyclic"],
+        ),
+        (
+            "Store",
+            {
+                "e_nom": 1,
+                "e_cyclic": True,
+                "e_cyclic_per_period": True,
+            },
+            "e_initial",
+            ["Cyclic energy level constraint overrules", "Per-period cyclic"],
+        ),
+    ],
+)
+def test_warning_cyclic_storage_with_scenarios(
+    caplog, component, attrs, initial, messages
+):
+    n = pypsa.Network()
+    n.set_snapshots(pd.MultiIndex.from_product([[2030, 2040], [0, 1]]))
+    n.set_investment_periods([2030, 2040])
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=0.1)
+    n.add("Generator", "gen", bus="bus", p_nom=1, marginal_cost=10)
+    n.add(component, "storage", bus="bus", **attrs)
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    n.c[component].static.loc[("s2", "storage"), initial] = 0.5
+
+    with caplog.at_level(logging.WARNING):
+        n.optimize.create_model(multi_investment_periods=True)
+
+    for message in messages:
+        assert any(
+            message in r.message and "['storage']" in r.message for r in caplog.records
+        )

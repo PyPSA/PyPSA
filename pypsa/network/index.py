@@ -995,6 +995,8 @@ class NetworkIndexMixin(_NetworkABC):
         n._scenarios_data = n._scenarios_data.iloc[:0]
 
         for c in n.components.values():
+            if "scenario" not in c.static.index.names:
+                continue
             if not c.static.empty:
                 c.static = c.static.xs(scenario, level="scenario", axis=0)
             else:

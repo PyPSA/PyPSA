@@ -53,7 +53,7 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_ie: Dublin City University](https://dcu.ie/)** and the **[:flag_ie: SFI Insight Centre for Data Analytics](https://www.insight-centre.org/)**: use PyPSA for the [OESM project](https://sites.google.com/a/dcu.ie/dcuecrn/projects/oesm-ie) modelling the Irish energy system.
 
-- **[:flag_de: University of Freiburg](https://uni-freiburg.de/)** at [INATECH](https://www.inatech.uni-freiburg.de/en)
+- **[:flag_de: University of Freiburg](https://uni-freiburg.de/)** at [INATECH](https://www.inatech.uni-freiburg.de/en) used PyPSA for an independent replication and uncertainty analysis of European electricity price stability estimates, based on the open ENTSO-E European Resource Adequacy Assessment (ERAA) input data, as presented at the [OpenMod Workshop 2026](https://forum.openmod.org/t/openmod-workshop-freiburg-2026-lightning-talks-and-poster-contributions/5755/54).
 
 - **[:flag_de: Hochschule Offenburg](https://www.hs-offenburg.de/)** at [INES](https://www.ines.hs-offenburg.de/)
 
@@ -70,6 +70,14 @@ The following universities, research institutes, companies, governmental and non
 - **[:flag_th: Asian Institute of Technology](https://ait.ac.th/)** in the [South and South-East Asia Multidisciplinary Applied Research Network on Transforming Societies of Global South (SMARTS)](https://ait.ac.th/centre/smartscenter/) and the **[:flag_bd: International University of Business Agriculture and Technology (IUBAT), Dhaka](https://eee.iubat.edu/)** developed an adaptation of PyPSA-Earth, called PyPSA-BD to support the energy transition in Bangladesh [<https://doi.org/10.1016/j.ref.2024.100655>](https://doi.org/10.1016/j.ref.2024.100655)
 
 - **[:flag_ca: Simon Fraser University](https://www.sfu.ca/)** at the [ΔE+ (Delta-E-plus)](https://www.sfu.ca/fas/research/fas-research-labs/delta-e/) uses PyPSA to explores the synergies and trade-offs at the nexus of energy+ to support effective policy development.
+
+- **[:flag_lu: Luxembourg Institute of Science & Technology (LIST)](https://www.list.lu/)** uses PyPSA-LU, a PyPSA-based model of Luxembourg’s multi-energy system to represent electricity, gas and thermal systems and their interactions. The model enables researchers to explore different scenarios and analyze how changes in one part of the energy system can affect others. Check [D2ET](https://www.d2et.lu/news-events/news?tx_news_pi1%5Baction%5D=detail&tx_news_pi1%5Bcontroller%5D=News&tx_news_pi1%5Bnews%5D=9&cHash=58881f5eb104ea6b14b3f448222af4e5) for more details.
+
+- **[:flag_fr: University Le Havre Normandy](https://www.univ-lehavre.fr/)** and the **[:flag_es: University of the Balearic Islands](https://www.uib.eu/)** used PyPSA to characterise and compare the economic value of energy storage technologies in future grids: [doi:10.1155/er/1182085](https://doi.org/10.1155/er/1182085)
+
+- **[:flag_at: Graz University of Technology (TU Graz)](https://www.tugraz.at/)** at the [Institute of Electricity Economics and Energy Innovation (IEE)](https://www.tugraz.at/institute/iee/) developed [NPAP](https://github.com/IEE-TUGraz/NPAP), a network partitioning and aggregation package that is being integrated into PyPSA: [arXiv:2605.12137](https://doi.org/10.48550/arXiv.2605.12137)
+
+- **[:flag_de: TU Dresden](https://tu-dresden.de/)** at the [Chair of Energy Economics](https://tu-dresden.de/bu/wirtschaft/ee2), together with [Fraunhofer IEG](https://www.ieg.fraunhofer.de/), compared mixed-integer linear programming (MILP) formulations for non-linear hydrogen pipeline investment in a PyPSA-based energy system model, as presented at the [OpenMod Workshop 2026](https://forum.openmod.org/t/openmod-workshop-freiburg-2026-lightning-talks-and-poster-contributions/5755/45).
 
 ## Research Institutes
 
@@ -101,6 +109,8 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_ca: Natural Resources Canada (NRCan)](https://natural-resources.canada.ca/science-data/science-research/research-centres/canmetenergy)**: used PyPSA create a workflow-based modeling framework for power system analysis in Canada.
 
+- **[:flag_de: Potsdam Institute for Climate Impact Research (PIK)](https://www.pik-potsdam.de/)** coupled its integrated assessment model REMIND with PyPSA-Eur to study sector-coupled pathways for Germany: [arXiv:2510.04388](https://arxiv.org/abs/2510.04388), and uses PyPSA-based production cost curves for green steel to model global steel trade, as presented at the [OpenMod Workshop 2026](https://forum.openmod.org/t/openmod-workshop-freiburg-2026-lightning-talks-and-poster-contributions/5755/38).
+
 ## Companies
 
 * **[:flag_de: TransnetBW](https://www.transnetbw.de/)**, the electricity transmission system operator in southwest Germany, **[:flag_de: ONTRAS](https://www.ontras.com/)**, the gas transmission system operator in eastern Germany and **[:flag_de: d-fine](https://www.d-fine.com/)**, a consultancy firm, used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see [Stromnetz 2050](https://www.transnetbw.de/de/stromnetz2050/), for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen [Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050](https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf), and for their 2022 study [Energy System 2050 - Towards a decarbonised Europe](https://www.energysystem2050.net/).
@@ -111,9 +121,11 @@ The following universities, research institutes, companies, governmental and non
 
 * **[:flag_at: Austrian Power Grid (APG)](https://www.apg.at/)**, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in [this talk](https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf) and [this project description](https://www.apg.at/projekte/zusammen-2040/).
 
-- **[:flag_at: Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/)** develops and maintains a high-resolution, sector-coupled energy system model for [Austria](https://github.com/msalkeldp/pypsa-at) based on PyPSA-DE and PyPSA-EUR. The model is used to analyse long-term energy system projections up to 2050 and serves as a supplementary tool for AGGM’s bi-annual report, the Langfristige Integrierte Planung (LFiP).
+- **[:flag_at: Austrian Gas Grid Management AG (AGGM)](https://www.aggm.at/)** develops and maintains a high-resolution, sector-coupled energy system model for [Austria](https://github.com/AGGM-AG/pypsa-at) based on PyPSA-DE and PyPSA-EUR. The model is used to analyse long-term energy system projections up to 2050 and serves as a supplementary tool for AGGM’s bi-annual report, the Langfristige Integrierte Planung (LFiP).
 
 - **[:flag_nl: TenneT](https://www.tennet.eu/)**, the Dutch TSO, used PyPSA for [research](https://arxiv.org/abs/2104.13047) on ancillary services acquisition using agent-based modelling.
+
+* **[:flag_fr: RTE](https://www.rte-france.com/)**, the French TSO, develops through its Antares Simulator team the [PyPSA-to-GEMS Converter](https://github.com/AntaresSimulatorTeam/PyPSA-to-GEMS-Converter), which exports PyPSA networks into the [GEMS](https://gems-energy.readthedocs.io/) modelling format, as presented at the [OpenMod Workshop 2026](https://forum.openmod.org/t/openmod-workshop-freiburg-2026-lightning-talks-and-poster-contributions/5755/16).
 
 * **[:flag_za: Meridian Economics](https://meridianeconomics.co.za/)**, a consultancy based in South Africa, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa. Studies published in June 2022 were on [load shedding in 2021](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf) and [a plan to resolve load shedding](https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-B-The-Game-Plan-01.pdf). [Updated study in 2025](https://meridianeconomics.co.za/publications/re-thinking-the-future-of-south-africas-coal-fleet-the-value-of-flexibility/) including different types of flexibility of coal plant operation and retirement.
 
@@ -136,6 +148,10 @@ The following universities, research institutes, companies, governmental and non
 * **[:flag_jp: Tokyo Electric Power Services Company (TEPSCO)](https://www.tepsco.co.jp/english/)**, provides wide-ranging engineering services; planning, study, design, construction supervision and after care. See [Linkedin.com](https://www.linkedin.com/posts/takashi-yanase-850462a0_i-built-and-ran-a-preliminary-model-of-japan-activity-7401253510639648768-F3EB?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAp_3N8BMuXs2_8w1fGMmfRzJESnpY7vzI4).
 
 * **[:flag_de: d-fine](https://www.d-fine.com/)**: uses a PyPSA-Eur-based approach for infrastructure analysis in Europe, e.g. in [Integrated Infrastructure Planning and 2050 Climate Neutrality: Deriving Future-Proof European Energy Infrastructures](https://www.agora-energiewende.org/publications/integrated-infrastructure-planning-and-2050-climate-neutrality) on future-proof European energy infrastructures (jointly with Fraunhofer IEG and Fraunhofer ISI.
+
+* **[:flag_de: greenventory](https://greenventory.de/en/home/)**: utilizes a customized implementation of PyPSA, to co-optimize sector-coupled capacities (electricity generators, heat pumps, CHP, batteries) and 8760-hour dispatch of these assets for proper [spatiotemporal capacity sizing](https://forum.openmod.org/t/openmod-workshop-freiburg-2026-lightning-talks-and-poster-contributions/5755/13).
+
+* **[:flag_fr: EDF](https://www.edf.fr/en)**, the French electric utility, convenes [CIGRE](https://www.cigre.org/) Working Group C1.50, which used PyPSA for a 2050 pre-feasibility study of a coupled global electricity and hydrogen system. The 22-zone model co-optimises hourly investment and dispatch of power plants, storage, HVDC corridors, hydrogen pipelines and shipping, and was presented at the 2026 CIGRE Paris Session.
 
 ## Governmental Organisation
 
