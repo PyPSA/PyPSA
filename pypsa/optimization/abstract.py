@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import gc
 import logging
+from functools import reduce
 from itertools import product
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -18,7 +19,9 @@ import xarray as xr
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import as_index
+from pypsa.components.array import _from_xarray
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.constraints import ENERGY_LIMITS, ENERGY_WEIGHTING
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
 
 if TYPE_CHECKING:
@@ -26,7 +29,7 @@ if TYPE_CHECKING:
 
     from linopy import Model
 
-    from pypsa import Network, SubNetwork
+    from pypsa import Components, Network, SubNetwork
 logger = logging.getLogger(__name__)
 
 
@@ -185,6 +188,187 @@ def _add_security_constraints(
                 con.rhs.sel(con_selection),
                 name=name,
             )
+
+
+class _TrackedLimit(NamedTuple):
+    """Volume limit of a component tracked across rolling horizon windows.
+
+    Attributes
+    ----------
+    component : str
+        Name of the component.
+    attr : str
+        Name of the limit attribute.
+    original : pd.Series
+        Original limit of each asset.
+    later : pd.DataFrame
+        Weighted energy per snapshot that later windows can at most (lower
+        limits) or must at least (upper limits) contribute.
+
+    """
+
+    component: str
+    attr: str
+    original: pd.Series
+    later: pd.DataFrame
+
+    def remaining(self, used: pd.Series, rest: pd.Index) -> pd.Series:
+        """Get the limit that is still open for a window.
+
+        Parameters
+        ----------
+        used : pd.Series
+            Energy of each asset in the windows before.
+        rest : pd.Index
+            Snapshots of the windows after.
+
+        Returns
+        -------
+        pd.Series
+            Open limit of each asset.
+
+        """
+        return self.original - used - self.later.loc[rest].sum()
+
+
+def _weighted(n: Network, power: pd.DataFrame, snapshots: Sequence) -> pd.DataFrame:
+    """Get the energy per snapshot of a power."""
+    weights = n.snapshot_weightings[ENERGY_WEIGHTING].loc[snapshots]
+    return power.mul(weights, axis=0)
+
+
+def _energy(n: Network, c: Components, snapshots: Sequence) -> pd.Series:
+    """Get the weighted sum of the signed power of `_energy_terms` per asset."""
+    power = sum(
+        sign * c.dynamic[var].reindex(index=snapshots, columns=c.static.index)
+        for var, sign in c._energy_terms
+    )
+    return _weighted(n, power, snapshots).sum()
+
+
+def _power_bounds(
+    c: Components, snapshots: Sequence
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Get the bounds of the signed power sum of `_energy_terms` per snapshot.
+
+    Extendable assets are bounded by their minimum and maximum capacity.
+
+    Parameters
+    ----------
+    c : pypsa.Components
+        Components with `_energy_terms` that are all operational variables.
+    snapshots : Sequence
+        Snapshots to get the bounds for.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame]
+        Lower and upper bound of the power.
+
+    """
+    attrs = c._operational_attrs
+    ext = c.static[attrs["nom_extendable"]]
+    nom = c.static[attrs["nom"]]
+    noms = [nom.where(~ext, c.static[attrs[b]]) for b in ("nom_min", "nom_max")]
+    lower = upper = 0.0
+    for var, sign in c._energy_terms:
+        pus = [_from_xarray(sign * pu, c).loc[snapshots] for pu in c.get_bounds_pu(var)]
+        powers = [pu * nom for pu in pus for nom in noms]
+        lower = lower + reduce(np.fmin, powers)
+        upper = upper + reduce(np.fmax, powers)
+    return lower, upper
+
+
+def _tracked_limits(
+    n: Network, c: Components, snapshots: Sequence
+) -> list[_TrackedLimit]:
+    """Get the volume limits of a component to track across rolling horizon windows.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    c : pypsa.Components
+        Components with `_energy_terms`.
+    snapshots : Sequence
+        Snapshots of the rolling horizon.
+
+    Returns
+    -------
+    list[_TrackedLimit]
+        Limits that are not at their default. Committable, maintainable and
+        inactive assets may contribute nothing in later windows.
+
+    Raises
+    ------
+    ValueError
+        If the power is unbounded for an asset with a tracked limit.
+
+    """
+    limits = [(a, s, d) for a, s, d in ENERGY_LIMITS if (c.static[a] != d).any()]
+    if not limits:
+        return []
+    if all(var in c._operational_variables for var, _ in c._energy_terms):
+        lower, upper = _power_bounds(c, snapshots)
+        hint = f"a finite {c._operational_attrs['nom_max']}"
+    else:
+        upper = pd.DataFrame(np.inf, index=snapshots, columns=c.static.index)
+        lower = -upper
+        hint = "a single window"
+    active = c.get_activity_mask(snapshots)
+    lower = _weighted(n, lower.where(active, 0.0), snapshots)
+    upper = _weighted(n, upper.where(active, 0.0), snapshots)
+    flags = [a for a in ("committable", "maintainable") if a in c.static]
+    flexible = active & c.static[flags].any(axis=1)
+    later = {
+        ">=": upper.mask(flexible, upper.clip(lower=0.0)),
+        "<=": lower.mask(flexible, lower.clip(upper=0.0)),
+    }
+    tracked = []
+    for attr, sign, default in limits:
+        energy = later[sign]
+        unbounded = (c.static[attr] != default) & np.isinf(energy).any()
+        if unbounded.any():
+            msg = (
+                f"{c.name} {list(unbounded.index[unbounded])} have a finite "
+                f"{attr} and an unbounded power. Tracking {attr} across the "
+                f"rolling horizon requires {hint}."
+            )
+            raise ValueError(msg)
+        tracked.append(_TrackedLimit(c.name, attr, c.static[attr].copy(), energy))
+    return tracked
+
+
+def _all_tracked_limits(n: Network, snapshots: Sequence) -> list[_TrackedLimit]:
+    """Get the volume limits to track across rolling horizon windows.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    snapshots : Sequence
+        Snapshots of the rolling horizon.
+
+    Returns
+    -------
+    list[_TrackedLimit]
+        Limits of all components with `_energy_terms`.
+
+    """
+    tracked = [
+        limit
+        for c in n.components
+        if c._energy_terms
+        for limit in _tracked_limits(n, c, snapshots)
+    ]
+    if tracked:
+        logger.warning(
+            "Volume limits %s are tracked across the rolling horizon without "
+            "foresight: each window only sees what previous windows left open. "
+            "The dispatch pattern depends on the window order.",
+            ", ".join(f"{t.component}-{t.attr}" for t in tracked),
+        )
+    return tracked
 
 
 class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
@@ -562,6 +746,18 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         levels of stores and storage units, and the dispatch and commitment
         status of all components for the ramp and unit commitment constraints.
 
+        Finite `e_sum_min` and `e_sum_max` limits of generators, links,
+        processes, storage units and stores refer to the whole set of
+        `snapshots`. Each window is given the part of them that is still open:
+        the energy produced in previous windows is subtracted, and so is the
+        energy that can at most (`e_sum_min`) or must at least (`e_sum_max`) be
+        produced in later windows. Without foresight the resulting dispatch
+        pattern depends on the order of the windows. A `ValueError` is raised if
+        this energy is unbounded, e.g. for an extendable component with
+        `p_nom_max=inf` or for a store. If limits are tracked, a
+        `RuntimeError` is raised as soon as a window fails to solve. Otherwise,
+        a failed window only logs a warning.
+
         Parameters
         ----------
         snapshots : list-like
@@ -583,36 +779,53 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             raise ValueError(msg)
 
         starting_points = range(0, len(snapshots), horizon - overlap)
-        for i, start in enumerate(starting_points):
-            end = min(len(snapshots), start + horizon)
-            sns = snapshots[start:end]
-            logger.info(
-                "Optimizing network for snapshot horizon [%s:%s] (%s/%s).",
-                sns[0],
-                sns[-1],
-                i + 1,
-                len(starting_points),
-            )
+        tracked = [] if len(starting_points) == 1 else _all_tracked_limits(n, snapshots)
 
-            if i:
-                if not n.c.stores.static.empty:
-                    n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
-                        snapshots[start - 1]
-                    ].values
-                if not n.c.storage_units.static.empty:
-                    n.c.storage_units.static.state_of_charge_initial = (
-                        n.c.storage_units.dynamic.state_of_charge.loc[
+        try:
+            for i, start in enumerate(starting_points):
+                end = min(len(snapshots), start + horizon)
+                sns = snapshots[start:end]
+                logger.info(
+                    "Optimizing network for snapshot horizon [%s:%s] (%s/%s).",
+                    sns[0],
+                    sns[-1],
+                    i + 1,
+                    len(starting_points),
+                )
+
+                if i:
+                    if not n.c.stores.static.empty:
+                        n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
                             snapshots[start - 1]
                         ].values
-                    )
+                    if not n.c.storage_units.static.empty:
+                        n.c.storage_units.static.state_of_charge_initial = (
+                            n.c.storage_units.dynamic.state_of_charge.loc[
+                                snapshots[start - 1]
+                            ].values
+                        )
+                done, rest = snapshots[:start], snapshots[end:]
+                for t in tracked:
+                    c = n.c[t.component]
+                    c.static[t.attr] = t.remaining(_energy(n, c, done), rest)
 
-            status, condition = n.optimize(sns, **kwargs)
-            if status != "ok":
-                logger.warning(
-                    "Optimization failed with status %s and condition %s",
-                    status,
-                    condition,
-                )
+                status, condition = n.optimize(sns, **kwargs)
+                if status != "ok":
+                    if tracked:
+                        msg = (
+                            f"Optimization of window [{sns[0]}:{sns[-1]}] failed "
+                            f"with status {status} and condition {condition}. The "
+                            "volume limits of later windows cannot be tracked."
+                        )
+                        raise RuntimeError(msg)
+                    logger.warning(
+                        "Optimization failed with status %s and condition %s",
+                        status,
+                        condition,
+                    )
+        finally:
+            for t in tracked:
+                n.c[t.component].static[t.attr] = t.original
         return n
 
     def optimize_and_run_non_linear_powerflow(

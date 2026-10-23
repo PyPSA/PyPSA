@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
@@ -40,6 +40,7 @@ class Processes(_Multiport):
     """
 
     _operational_variables = ["p"]
+    _energy_terms: ClassVar[tuple[tuple[str, int], ...]] = (("p", 1),)
     _unsuffixed_attrs: set[str] = set()
 
     @property
