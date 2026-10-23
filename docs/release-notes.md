@@ -16,6 +16,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix [`fom`][pypsa.statistics.StatisticsAccessor.fom], and therefore [`system_cost`][pypsa.statistics.StatisticsAccessor.system_cost], ignoring the investment period weightings in networks with investment periods. Fixed operation and maintenance costs are now weighted like capital expenditures, consistent with the objective function. (<!-- md:pr 1923 -->)
 
+- [`optimize_transmission_expansion_iteratively`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] now raises a clear `ValueError` on stochastic networks instead of failing with a `KeyError` after all iterations have run.
+
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 
 ### Changes from bug fixes
