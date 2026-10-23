@@ -232,9 +232,9 @@ class _TrackedLimit(NamedTuple):
 
 
 def _weighted(n: Network, power: pd.DataFrame, snapshots: Sequence) -> pd.DataFrame:
-    """Get the energy per snapshot of a power; missing power counts as zero."""
+    """Get the energy per snapshot of a power."""
     weights = n.snapshot_weightings[ENERGY_WEIGHTING].loc[snapshots]
-    return power.mul(weights, axis=0).fillna(0.0)
+    return power.mul(weights, axis=0)
 
 
 def _energy(n: Network, c: Components, snapshots: Sequence) -> pd.Series:
@@ -268,16 +268,14 @@ def _power_bounds(
     """
     attrs = c._operational_attrs
     ext = c.static[attrs["nom_extendable"]]
-    noms = [
-        c.static[attrs["nom"]].where(~ext, c.static[attrs[b]])
-        for b in ("nom_min", "nom_max")
-    ]
-    products = []
+    nom = c.static[attrs["nom"]]
+    noms = [nom.where(~ext, c.static[attrs[b]]) for b in ("nom_min", "nom_max")]
+    lower = upper = 0.0
     for var, sign in c._energy_terms:
         pus = [_from_xarray(sign * pu, c).loc[snapshots] for pu in c.get_bounds_pu(var)]
-        products.append([pu * nom for pu in pus for nom in noms])
-    lower = sum(reduce(np.fmin, p) for p in products)
-    upper = sum(reduce(np.fmax, p) for p in products)
+        powers = [pu * nom for pu in pus for nom in noms]
+        lower = lower + reduce(np.fmin, powers)
+        upper = upper + reduce(np.fmax, powers)
     return lower, upper
 
 
@@ -307,8 +305,7 @@ def _tracked_limits(
         If the power is unbounded for an asset with a tracked limit.
 
     """
-    bounded = {a: c.static[a] != d for a, _, d in ENERGY_LIMITS}
-    limits = [(a, sign) for a, sign, _ in ENERGY_LIMITS if bounded[a].any()]
+    limits = [(a, s, d) for a, s, d in ENERGY_LIMITS if (c.static[a] != d).any()]
     if not limits:
         return []
     if all(var in c._operational_variables for var, _ in c._energy_terms):
@@ -328,9 +325,9 @@ def _tracked_limits(
         "<=": lower.mask(flexible, lower.clip(upper=0.0)),
     }
     tracked = []
-    for attr, sign in limits:
+    for attr, sign, default in limits:
         energy = later[sign]
-        unbounded = bounded[attr] & np.isinf(energy).any()
+        unbounded = (c.static[attr] != default) & np.isinf(energy).any()
         if unbounded.any():
             msg = (
                 f"{c.name} {list(unbounded.index[unbounded])} have a finite "
