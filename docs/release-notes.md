@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -14,7 +13,8 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+- Fix [`fom`][pypsa.statistics.StatisticsAccessor.fom], and therefore [`system_cost`][pypsa.statistics.StatisticsAccessor.system_cost], ignoring the investment period weightings in networks with investment periods. Fixed operation and maintenance costs are now weighted like capital expenditures, consistent with the objective function. (<!-- md:pr 1923 -->)
 
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 
