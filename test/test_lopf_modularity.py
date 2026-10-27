@@ -10,8 +10,8 @@ import pypsa
 
 def test_modular_components():
     """
-    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
-    commitment.html and is not very comprehensive.
+    This test is based on https://docs.pypsa.org/latest/examples/unit-commitment/
+    and is not very comprehensive.
     """
     n = pypsa.Network()
 
