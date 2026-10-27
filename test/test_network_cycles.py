@@ -118,9 +118,9 @@ def test_cycle_basis_functions_valid(graph, basis_fn) -> None:
 
 
 class _SaltedNode:
-    """Graph node whose hash, and thus its set iteration order, depends on ``salt``.
+    """Graph node whose hash, and thus its set iteration order, depends on `salt`.
 
-    The hash avoids ``hash(str)``, so the test does not depend on ``PYTHONHASHSEED``.
+    The hash avoids `hash(str)`, so the test does not depend on `PYTHONHASHSEED`.
     """
 
     def __init__(self, name: str, salt: int) -> None:
@@ -140,7 +140,7 @@ class _SaltedNode:
 def test_cycle_basis_independent_of_hash_order(graph, basis_fn) -> None:
     """The basis, including each cycle's start and direction, follows the node order only.
 
-    Bus names are strings, whose hashes change with ``PYTHONHASHSEED``; a basis
+    Bus names are strings, whose hashes change with `PYTHONHASHSEED`, and a basis
     that followed set order would flip KVL constraint signs between runs.
     """
     bases = set()

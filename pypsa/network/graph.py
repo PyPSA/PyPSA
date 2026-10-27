@@ -355,8 +355,8 @@ def _bfs_cycle_basis(graph: nx.Graph, num_roots: int = 5) -> list[list[Hashable]
     """
     cycles: list[list[Hashable]] = []
     for component in nx.connected_components(graph):
-        # filter without a ``nodes`` attribute, so the view keeps the node order
-        # of ``graph``; ``graph.subgraph`` iterates small components in set order
+        # filter without a `nodes` attribute, so the view keeps the node order
+        # of `graph`, since `graph.subgraph` iterates small components in set order
         subgraph = nx.subgraph_view(graph, filter_node=component.__contains__)
         roots = [
             node
@@ -381,9 +381,9 @@ def _bfs_cycle_basis(graph: nx.Graph, num_roots: int = 5) -> list[list[Hashable]
 def _edge_set_to_cycle(
     edges: set[frozenset[Hashable]], rank: Mapping[Hashable, int]
 ) -> list[Hashable] | None:
-    """Return a cyclic node ordering if ``edges`` form exactly one simple cycle.
+    """Return a cyclic node ordering if `edges` form exactly one simple cycle.
 
-    The cycle starts at its lowest-``rank`` node and continues to the lower-ranked
+    The cycle starts at its lowest-`rank` node and continues to the lower-ranked
     of its two neighbours, so the result does not depend on set iteration order.
     """
     adjacency: dict[Hashable, list[Hashable]] = {}
