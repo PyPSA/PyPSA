@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import as_index
 from pypsa.descriptors import nominal_attrs
@@ -115,6 +116,7 @@ def discretized_capacity(
     return block_capacity
 
 
+@suppress_semantics_warnings()
 def _add_security_constraints(
     m: Model,
     sub_network: SubNetwork,
@@ -555,6 +557,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         **kwargs: Any,
     ) -> Network:
         """Optimizes the network in a rolling horizon fashion.
+
+        Each window starts from the state left by the previous one: the storage
+        levels of stores and storage units, and the dispatch and commitment
+        status of all components for the ramp and unit commitment constraints.
 
         Parameters
         ----------

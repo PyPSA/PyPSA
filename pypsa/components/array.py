@@ -11,6 +11,7 @@ DataArray for each variable.
 from __future__ import annotations
 
 import copy
+import warnings
 from typing import TYPE_CHECKING, NoReturn
 
 import numpy as np
@@ -266,8 +267,9 @@ class ComponentsArrayMixin(_ComponentsABC):
         inds : pandas.Index
             Restrict to these component names rather than all components. For
             stochastic networks, the names are selected in all scenarios. The
-            result follows the order of the component's static table, not the
-            order of `inds`. Duplicates and unknown names are dropped.
+            columns follow component order, duplicates are collapsed and unknown
+            names dropped. In PyPSA 2.0, columns follow `inds` order, duplicates
+            are kept and unknown names raise a `KeyError`.
 
         Returns
         -------
@@ -297,6 +299,16 @@ class ComponentsArrayMixin(_ComponentsABC):
         # Filter names
         if inds is not None:
             index = index[index.get_level_values("name").isin(inds)]
+            if not index.unique("name").equals(pd.Index(inds)):
+                warnings.warn(
+                    "In PyPSA 2.0, `get_switchable_as_dense` will return columns in "
+                    "`inds` order, keep duplicates and raise a `KeyError` for "
+                    "unknown names. To keep the current result, pass unique, known "
+                    "names in component order, e.g. "
+                    "`n.c.<component>.static.index.unique('name').intersection(inds)`.",
+                    FutureWarning,
+                    stacklevel=3,
+                )
 
         # Find columns that need to be filled from static data
         diff = index.difference(dynamic.columns)
