@@ -1165,6 +1165,10 @@ class _ImporterNetCDF(_Importer):
                         combined=(f"{attr}_i", f"{attr}_attr_i")
                     ).to_pandas()
                     df.columns.names = ["name", "attribute"]
+                # xarray returns object levels; rebuild so pandas infers the string dtype
+                df.columns = pd.MultiIndex.from_tuples(
+                    df.columns, names=["name", "attribute"]
+                )
 
                 yield match.group(1), df
 
