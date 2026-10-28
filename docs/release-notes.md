@@ -14,10 +14,12 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
-### Changes from bug fixes
-
-- **Results change** where they were previously wrong:
-    - Start-up and shut-down costs of committable components in multi-investment-period optimizations now carry the investment period objective weighting, as marginal and stand-by costs already do. (<!-- md:pr 2011 -->)
+### Bug Fixes
+- Fix start-up and shut-down costs ignoring the investment period weightings in networks with investment periods. They are now weighted like all other costs of the period, consistent with the pathway objective and with [`opex`][pypsa.statistics.StatisticsAccessor.opex]. (<!-- md:pr 2011 -->)
+- **Behavior change**: Fix [MGA](./user-guide/optimization/modelling-to-generate-alternatives.md) near-optimal cost budgets for networks with existing extendable capacity when `include_objective_constant=False`, fixed O&M costs, or multiple investment periods. Budgets now use unrounded total system costs and apply investment-period objective weights once. Resolves [#2025](https://github.com/PyPSA/PyPSA/issues/2025) and [#1984](https://github.com/PyPSA/PyPSA/issues/1984).
+- Fix [`fom`][pypsa.statistics.StatisticsAccessor.fom], and therefore [`system_cost`][pypsa.statistics.StatisticsAccessor.system_cost], ignoring the investment period weightings in networks with investment periods. Fixed operation and maintenance costs are now weighted like capital expenditures, consistent with the objective function. (<!-- md:pr 1923 -->)
+- Fix [`n.add()`][pypsa.Network.add] to be about twice as fast for single components on mid-sized networks.
+- [`n.lpf()`][pypsa.Network.lpf], [`n.pf()`][pypsa.Network.pf] and [`n.lpf_contingency()`][pypsa.Network.lpf_contingency] now raise a clear `ValueError` on stochastic networks instead of failing with `negative axis index: -1`. Power flow does not support stochastic networks yet. See [#1979](https://github.com/PyPSA/PyPSA/issues/1979).
 
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 

@@ -16,8 +16,8 @@ import pypsa
 
 def test_unit_commitment():
     """
-    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
-    commitment.html and is not very comprehensive.
+    This test is based on https://docs.pypsa.org/latest/examples/unit-commitment/
+    and is not very comprehensive.
     """
     n = pypsa.Network()
 
@@ -62,8 +62,8 @@ def test_unit_commitment():
 
 def test_minimum_up_time():
     """
-    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
-    commitment.html and is not very comprehensive.
+    This test is based on https://docs.pypsa.org/latest/examples/unit-commitment/
+    and is not very comprehensive.
     """
     n = pypsa.Network()
 
@@ -113,8 +113,8 @@ def test_minimum_up_time():
 @pytest.mark.parametrize("offset", [0, 2], ids=["full", "subset"])
 def test_minimum_up_time_up_time_before(offset):
     """
-    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
-    commitment.html and is not very comprehensive.
+    This test is based on https://docs.pypsa.org/latest/examples/unit-commitment/
+    and is not very comprehensive.
     """
     n = pypsa.Network()
 
@@ -161,8 +161,8 @@ def test_minimum_up_time_up_time_before(offset):
 
 def test_minimum_down_time():
     """
-    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
-    commitment.html and is not very comprehensive.
+    This test is based on https://docs.pypsa.org/latest/examples/unit-commitment/
+    and is not very comprehensive.
     """
     n = pypsa.Network()
 
@@ -208,8 +208,8 @@ def test_minimum_down_time():
 @pytest.mark.parametrize("offset", [0, 2], ids=["full", "subset"])
 def test_minimum_down_time_up_time_before(offset):
     """
-    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
-    commitment.html and is not very comprehensive.
+    This test is based on https://docs.pypsa.org/latest/examples/unit-commitment/
+    and is not very comprehensive.
     """
     n = pypsa.Network()
 
