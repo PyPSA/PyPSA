@@ -31,6 +31,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - [`n.lpf()`][pypsa.Network.lpf], [`n.pf()`][pypsa.Network.pf] and [`n.lpf_contingency()`][pypsa.Network.lpf_contingency] now raise a clear `ValueError` on stochastic networks instead of failing with `negative axis index: -1`. Power flow does not support stochastic networks yet. See [#1979](https://github.com/PyPSA/PyPSA/issues/1979).
 
+- [`n.merge()`][pypsa.network.transform.NetworkTransformMixin.merge] can now merge networks with shared component names, e.g. carriers or border buses. The new `overlap` argument keeps the components of `n` only if their input attributes and time series are equal in both networks (`"equal"`), keeps the components of `n` (`"left"`) or uses the components of `other` (`"right"`). The default `"raise"` keeps the previous behaviour. Resolves [#1616](https://github.com/PyPSA/PyPSA/issues/1616). (<!-- md:pr 1996 -->)
+
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 
 ### Changes from bug fixes

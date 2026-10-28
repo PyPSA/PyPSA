@@ -14,7 +14,7 @@ Transform methods are methods which modify, restructure data and add or remove d
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -104,6 +104,42 @@ def _build_suffixed_names(
         return pd.Index([str(name) + s for s in suffix])
     names = pd.Index([name]) if single_name else pd.Index(name)
     return names.astype(str) + suffix
+
+
+def _check_overlap_equal(
+    c: Components, other: Components, names: pd.Index, with_time: bool
+) -> None:
+    """Raise if input attributes of components `names` differ between `c` and `other`.
+
+    Parameters
+    ----------
+    c, other : pypsa.Components
+        Components of the same type from two networks.
+    names : pandas.Index
+        Names of the components in both networks.
+    with_time : bool
+        If True, also compare time series.
+
+    """
+    inputs = ~c.defaults.status.str.startswith("Output")
+    outputs = c.defaults.index[~inputs]
+    cols = c.static.columns.intersection(other.static.columns).difference(outputs)
+    a, b = c.static.loc[names, cols], other.static.loc[names, cols]
+    dtypes = cols[a.dtypes.ne(b.dtypes)]
+    if not dtypes.empty:
+        msg = f"Dtypes of {c.name} attributes differ: {', '.join(dtypes)}."
+        raise ValueError(msg)
+    differing = a.compare(b).index
+    varying = c.defaults.index[c.defaults.varying & inputs] if with_time else []
+    for attr in varying:
+        a, b = (x.dynamic[attr].reindex(columns=names).T for x in (c, other))
+        differing = differing.union(a.compare(b).index)
+    if not differing.empty:
+        msg = (
+            f"Overlapping {c.name} components differ in input attributes: "
+            f"{', '.join(differing.unique('name'))}."
+        )
+        raise ValueError(msg)
 
 
 class NetworkTransformMixin(_NetworkABC):
@@ -530,13 +566,15 @@ class NetworkTransformMixin(_NetworkABC):
         components_to_skip: Collection[str] | None = None,
         inplace: bool = False,
         with_time: bool = True,
+        overlap: Literal["raise", "equal", "left", "right"] = "raise",
     ) -> Any:
         """Merge the components of two networks.
 
-        Requires disjunct sets of component indices and, if time-dependent data is
-        merged, identical snapshots and snapshot weightings.
+        Requires identical snapshots and snapshot weightings if time-dependent data
+        is merged. Components with the same name in both networks are handled as
+        specified by `overlap`.
 
-        If a component in `ther` does not have values for attributes present in
+        If a component in `other` does not have values for attributes present in
         `n`, default values are set.
 
         If a component in `other` has attributes which are not present in
@@ -552,26 +590,45 @@ class NetworkTransformMixin(_NetworkABC):
             If True, merge into `n` in-place, otherwise a copy is made.
         with_time : bool, default True
             If False, only static data is merged.
+        overlap : {"raise", "equal", "left", "right"}, default "raise"
+            How to handle components with the same name in both networks:
+
+            - "raise": Raise a ValueError.
+            - "equal": Keep the component of `n` if its input attributes are equal
+              in both networks, otherwise raise a ValueError. Static attributes
+              must also have the same dtypes. If `with_time`, time series must
+              also be equal and be given in both networks.
+            - "left": Keep the component of `n`.
+            - "right": Replace the component of `n` with the component of `other`.
 
         Returns
         -------
         receiving_n : pypsa.Network
             Merged network, or None if inplace=True
 
+        Examples
+        --------
+        Merge two networks which share the same carriers:
+
+        >>> n1 = pypsa.Network()
+        >>> n1.add("Carrier", "AC")
+        >>> n1.add("Bus", "DE", carrier="AC")
+        >>> n2 = pypsa.Network()
+        >>> n2.add("Carrier", "AC")
+        >>> n2.add("Bus", "FR", carrier="AC")
+        >>> n1.merge(n2, overlap="equal").buses.index
+        Index(['DE', 'FR'], dtype='object', name='name')
+
         """
+        if overlap not in {"raise", "equal", "left", "right"}:
+            msg = f"Invalid value for `overlap`: {overlap!r}."
+            raise ValueError(msg)
         to_skip = {"Network", "SubNetwork", "LineType", "TransformerType"}
         if components_to_skip:
             to_skip.update(components_to_skip)
         to_iterate = other.all_components - to_skip
         # ensure buses are merged first
         to_iterate_list = ["Bus"] + sorted(to_iterate - {"Bus"})
-        for c in other.components:
-            if c.name not in to_iterate_list:
-                continue
-            # for c in other.iterate_components(to_iterate_list):
-            if not c.static.index.intersection(self.c[c.name].static.index).empty:
-                msg = f"Component {c.name} has overlapping indices, cannot merge networks."
-                raise ValueError(msg)
         if with_time:
             snapshots_aligned = self.snapshots.equals(other.snapshots)
             if not snapshots_aligned:
@@ -594,6 +651,28 @@ class NetworkTransformMixin(_NetworkABC):
                 else:
                     msg = "Snapshot weightings do not agree, cannot merge networks."
                     raise ValueError(msg)
+        merged = [c for c in other.components if c.name in to_iterate_list]
+        skip: dict[str, pd.Index] = {}
+        for c in merged:
+            common = c.static.index.intersection(self.c[c.name].static.index)
+            if common.empty:
+                continue
+            if overlap == "raise":
+                msg = (
+                    f"Component {c.name} has overlapping indices, cannot merge "
+                    "networks. Use `overlap` to resolve them."
+                )
+                raise ValueError(msg)
+            if overlap == "equal":
+                _check_overlap_equal(self.c[c.name], c, common, with_time)
+            logger.info(
+                "Merging overlapping %s with overlap='%s': %s",
+                c.list_name,
+                overlap,
+                ", ".join(common.unique("name")),
+            )
+            if overlap != "right":
+                skip[c.name] = common
         new = self if inplace else self.copy()
         if other.srid != new.srid:
             logger.warning(
@@ -603,13 +682,15 @@ class NetworkTransformMixin(_NetworkABC):
                 other.srid,
                 new.srid,
             )
-        for c in other.components:
-            if c.name not in to_iterate_list:
-                continue
-            new.add(c.name, c.static.index, **c.static)
+        overwrite = overlap == "right"
+        for c in merged:
+            skipped = skip.get(c.name, [])
+            static = c.static.drop(skipped)
+            new.add(c.name, static.index, overwrite=overwrite, **static)
             if with_time:
                 for k, v in c.dynamic.items():
-                    new._import_series_from_df(v, c.name, k)
+                    v = v.drop(columns=skipped, errors="ignore")
+                    new._import_series_from_df(v, c.name, k, overwrite=overwrite)
 
         return None if inplace else new
 

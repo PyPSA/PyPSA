@@ -850,6 +850,82 @@ def test_single_add_network_with_time(ac_dc_network, n_5bus):
     assert new_buses.issuperset(n_5bus.c.buses.static.index)
 
 
+@pytest.fixture
+def regions():
+    """Two regional networks which share carriers and a border bus with a load."""
+
+    def region(name):
+        n = pypsa.Network()
+        n.set_snapshots(range(3))
+        n.add("Carrier", ["AC", "wind"], note=np.nan)
+        n.add("Bus", [name, "border"], carrier="AC")
+        n.add("Load", "border", bus="border", p_set=[1.0, 1.0, 1.0])
+        n.add("Generator", f"{name} wind", bus=name, p_max_pu=[0.1, 0.2, 0.3])
+        return n
+
+    return region("DE"), region("FR")
+
+
+def _change_static(n):
+    n.c.carriers.static.loc["wind", "color"] = "blue"
+
+
+def _change_series(n):
+    n.c.loads.dynamic.p_set["border"] *= 2
+
+
+def _change_dtype(n):
+    n.c.buses.static["v_nom"] = n.c.buses.static.v_nom.astype(int)
+
+
+def _change_to_static(n):
+    n.remove("Load", "border")
+    n.add("Load", "border", bus="border", p_set=1.0)
+
+
+def test_merge_overlap_raise(regions):
+    with pytest.raises(ValueError, match="overlapping indices"):
+        regions[0].merge(regions[1])
+
+
+@pytest.mark.parametrize("overlap", ["equal", "left", "right"])
+def test_merge_overlap_union(regions, overlap):
+    n = regions[0].merge(regions[1], overlap=overlap)
+    assert set(n.c.buses.static.index) == {"DE", "FR", "border"}
+    assert set(n.c.carriers.static.index) == {"AC", "wind"}
+    assert set(n.c.generators.dynamic.p_max_pu) == {"DE wind", "FR wind"}
+
+
+@pytest.mark.parametrize(("overlap", "winner"), [("left", 0), ("right", 1)])
+@pytest.mark.parametrize("with_time", [True, False])
+def test_merge_overlap_priority(regions, overlap, winner, with_time):
+    _change_static(regions[1])
+    _change_series(regions[1])
+    n = regions[0].merge(regions[1], overlap=overlap, with_time=with_time)
+    expected = regions[winner].c
+    assert n.c.carriers.static.color["wind"] == expected.carriers.static.color["wind"]
+    if with_time:
+        pd.testing.assert_series_equal(
+            n.c.loads.dynamic.p_set["border"], expected.loads.dynamic.p_set["border"]
+        )
+
+
+@pytest.mark.parametrize(
+    "change", [_change_static, _change_series, _change_dtype, _change_to_static]
+)
+def test_merge_overlap_equal_raises(regions, change):
+    change(regions[1])
+    with pytest.raises(ValueError, match="differ"):
+        regions[0].merge(regions[1], overlap="equal")
+
+
+def test_merge_overlap_keeps_static_value(regions):
+    """Kept components without time series do not get the series of `other`."""
+    _change_to_static(regions[0])
+    n = regions[0].merge(regions[1], overlap="left")
+    assert "border" not in n.c.loads.dynamic.p_set
+
+
 def test_shape_reprojection(ac_dc_shapes):
     n = ac_dc_shapes
 
