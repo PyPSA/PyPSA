@@ -632,7 +632,9 @@ def check_generators(component: Components, strict: bool = False) -> None:
 
     This function performs the following checks on generator components:
     1. Ensures that committable generators are not both up and down before the simulation.
-    2. Verifies that the minimum total energy to be produced (e_sum_min) is not greater
+    2. Ensures that start-up and shut-down ramp limits of committable generators are
+       not below p_min_pu.
+    3. Verifies that the minimum total energy to be produced (e_sum_min) is not greater
        than the maximum total energy to be produced (e_sum_max).
 
     A numerical tolerance from `params.consistency.numerical_tolerance` is applied
@@ -678,6 +680,28 @@ def check_generators(component: Components, strict: bool = False) -> None:
                 "before the simulation and have a p_init value. The latter will be ignored: %s.",
                 bad_uc_gens,
             )
+
+        p_min_pu = (
+            component.dynamic.p_min_pu.max()
+            .reindex(component.static.index)
+            .fillna(component.static.p_min_pu)
+        )
+        for ramp_limit, action in (
+            ("ramp_limit_start_up", "starting up"),
+            ("ramp_limit_shut_down", "shutting down"),
+        ):
+            bad_uc_gens = component.static.index[
+                component.static.committable & (component.static[ramp_limit] < p_min_pu)
+            ]
+            if not bad_uc_gens.empty:
+                _log_or_raise(
+                    strict,
+                    "The following committable generators have %s below their"
+                    " minimum part load p_min_pu, which prevents them from %s: %s.",
+                    ramp_limit,
+                    action,
+                    bad_uc_gens,
+                )
 
         tol = options.params.consistency.numerical_tolerance
         bad_e_sum_gens = component.static.index[
