@@ -27,6 +27,10 @@ SPDX-License-Identifier: CC-BY-4.0
     - **Behavior change**: A `ValueError` is raised before the first window if a component with a finite `e_sum_min` or `e_sum_max` has an unbounded capacity in the relevant direction, e.g. an extendable generator with `p_nom_max=inf`. Set a finite `p_nom_max`. The power of stores has no limit, so finite limits of stores always raise with more than one window.
     - **Behavior change**: If these limits are tracked, a `RuntimeError` is raised as soon as a window fails to solve. Previously, a warning was logged and the next window was solved. Without tracked limits, a failed window still only logs a warning.
 
+### Bug Fixes
+
+- **Behavior change**: Fix [MGA](./user-guide/optimization/modelling-to-generate-alternatives.md) near-optimal cost budgets for networks with existing extendable capacity when `include_objective_constant=False`, fixed O&M costs, or multiple investment periods. Budgets now use unrounded total system costs and apply investment-period objective weights once. Resolves [#2025](https://github.com/PyPSA/PyPSA/issues/2025) and [#1984](https://github.com/PyPSA/PyPSA/issues/1984).
+- Fix [`fom`][pypsa.statistics.StatisticsAccessor.fom], and therefore [`system_cost`][pypsa.statistics.StatisticsAccessor.system_cost], ignoring the investment period weightings in networks with investment periods. Fixed operation and maintenance costs are now weighted like capital expenditures, consistent with the objective function. (<!-- md:pr 1923 -->)
 
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 

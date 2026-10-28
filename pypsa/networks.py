@@ -126,7 +126,7 @@ class Network(
         --------
         >>> nw1 = pypsa.Network("network.nc") # doctest: +SKIP
         >>> nw2 = pypsa.Network("/my/folder") # doctest: +SKIP
-        >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc") # doctest: +SKIP
+        >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/networks/scigrid-de/scigrid-de.nc") # doctest: +SKIP
         >>> nw4 = pypsa.Network("s3://my-bucket/my-network.nc") # doctest: +SKIP
 
         """
@@ -1284,11 +1284,11 @@ class Network(
 
             # Clear the sub_networks DataFrame completely
             # This handles both regular and stochastic cases
-            self.c.sub_networks.static.drop(
-                self.c.sub_networks.static.index, inplace=True
+            self.c.sub_networks.static = self.c.sub_networks.static.drop(
+                self.c.sub_networks.static.index
             )
-            for dynamic in self.c.sub_networks.dynamic.values():
-                dynamic.drop(dynamic.columns, inplace=True)
+            for attr, dynamic in self.c.sub_networks.dynamic.items():
+                self.c.sub_networks.dynamic[attr] = dynamic.drop(dynamic.columns)
 
         if self.has_scenarios:
             bus_carrier = self.c.buses.static.carrier.xs(
