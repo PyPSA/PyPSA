@@ -1790,40 +1790,42 @@ def _add_v_ang_max(n: pypsa.Network) -> None:
     n.c.transformers.static["v_ang_max"] = 0.3
 
 
+ROLLING = "optimize_with_rolling_horizon"
+
+
 def _add_e_sum_min(n: pypsa.Network) -> None:
     _add_lines(n)
     n.c.generators.static.loc["backup", "e_sum_min"] = 3
 
 
 @pytest.mark.parametrize(
-    ("add", "kwargs", "security_constrained"),
+    ("add", "kwargs", "method"),
     [
-        (_add_transformer_cycle, {}, False),
-        (_add_lines, {"branch_outages": None}, True),
-        (_add_lines, {"branch_outages": ["l1"]}, True),
-        (_add_nom_set, {}, False),
-        (_add_committable, {}, False),
-        (_add_committable, {"linearized_unit_commitment": True}, False),
-        (_add_v_ang_max, {}, False),
-        (_add_e_sum_min, {}, False),
+        (_add_transformer_cycle, {}, "__call__"),
+        (_add_lines, {"branch_outages": None}, "optimize_security_constrained"),
+        (_add_lines, {"branch_outages": ["l1"]}, "optimize_security_constrained"),
+        (_add_nom_set, {}, "__call__"),
+        (_add_committable, {}, "__call__"),
+        (_add_committable, {"linearized_unit_commitment": True}, "__call__"),
+        (_add_v_ang_max, {}, "__call__"),
+        (_add_e_sum_min, {}, "__call__"),
+        (_add_committable, {"horizon": 2, "overlap": 1}, ROLLING),
+        (
+            _add_committable,
+            {"horizon": 2, "linearized_unit_commitment": True},
+            ROLLING,
+        ),
     ],
 )
-def test_scenario_indexed_model_matches_deterministic(
-    add, kwargs, security_constrained
-):
+def test_scenario_indexed_model_matches_deterministic(add, kwargs, method):
     n = _two_bus_network()
     add(n)
     n_stoch = n.copy()
     n_stoch.set_scenarios({"s1": 0.5, "s2": 0.5})
 
     for network in (n, n_stoch):
-        optimize = (
-            network.optimize.optimize_security_constrained
-            if security_constrained
-            else network.optimize
-        )
-        status, _ = optimize(**kwargs)
-        assert status == "ok"
+        methodcaller(method, **kwargs)(network.optimize)
+        assert network.model.status == "ok"
 
     assert n_stoch.objective == pytest.approx(n.objective)
     for name, con in n.model.constraints.items():
