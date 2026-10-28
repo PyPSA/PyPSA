@@ -63,7 +63,6 @@ from pypsa.optimization.global_constraints import (
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
-from pypsa.optimization.scaling import apply_scaling
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -255,7 +254,10 @@ def define_objective(
             has_const = constant != 0
         if has_const:
             object_const = m.add_variables(
-                constant, constant, name="objective_constant"
+                constant,
+                constant,
+                name="objective_constant",
+                scaling=m.objective.scaling,
             )
             capex_terms.append(-1 * object_const)
     else:
@@ -297,6 +299,7 @@ def define_objective(
                     sign=">=",
                     cumulative_attr=True,
                     extra_options=extra_options,
+                    scaling=m.objective.scaling,
                     status=status,
                 )
                 if pw_cost_var is not None:
@@ -388,6 +391,7 @@ def define_objective(
                 sign=">=",
                 cumulative_attr=True,
                 extra_options=extra_options,
+                scaling=m.objective.scaling,
             )
             if piecewise_var is not None:
                 pw_names = piecewise_var.indexes["name"]
@@ -487,7 +491,9 @@ def define_objective(
 
         for s in n.scenarios:
             lhs = a.sel(scenario=s, drop=True) - scen_opex_exprs[s] + theta
-            m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
+            m.add_constraints(
+                lhs, ">=", 0, name=f"CVaR-excess-{s}", scaling=m.objective.scaling
+            )
 
         inv_tail = 1.0 / (1.0 - alpha)
         weighted_a = None
@@ -497,7 +503,13 @@ def define_objective(
         if weighted_a is None:  # mypy type guard
             msg = "No scenarios found in scenario_weightings"
             raise UnexpectedError(msg)
-        m.add_constraints(theta + inv_tail * weighted_a, "<=", cvar, name="CVaR-def")
+        m.add_constraints(
+            theta + inv_tail * weighted_a,
+            "<=",
+            cvar,
+            name="CVaR-def",
+            scaling=m.objective.scaling,
+        )
 
         # Final objective: CAPEX + (1-omega) * E[OPEX] + omega * CVaR
         obj_expr = expected_capex + (1 - omega) * expected_opex + omega * cvar
@@ -505,8 +517,7 @@ def define_objective(
         # Deterministic or no risk: CAPEX + OPEX
         obj_expr = expected_capex + expected_opex
 
-    # Set objective
-    m.objective = obj_expr
+    m.add_objective(obj_expr, overwrite=True, scaling=m.objective.scaling)
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
@@ -820,6 +831,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._optimize_window = window
         sns = window.model_index
         n._model = Model(**kwargs)
+        n.model.objective.scaling = objective_scaling
 
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
@@ -955,7 +967,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_growth_limit(n, sns)
 
         define_objective(n, sns, include_objective_constant, piecewise_opts)
-        apply_scaling(n, objective_scaling)
 
         return n.model
 

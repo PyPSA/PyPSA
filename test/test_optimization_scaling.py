@@ -9,7 +9,7 @@ import pytest
 from linopy.constraints import CSRConstraint
 
 import pypsa
-from pypsa.optimization.scaling import KVL, KVL_SCALING, apply_scaling
+from pypsa.optimization.scaling import KVL, KVL_SCALING
 
 RTOL = 1e-5
 
@@ -225,6 +225,14 @@ def test_mixed_factors_in_sub_network_raise():
         n.optimize.create_model()
 
 
+def test_mixed_factors_in_radial_sub_network_pass():
+    n = pypsa.examples.ac_dc_meshed()
+    n.remove("Line", ["0", "2"])
+    n.c.buses.static.loc["Manchester", "scaling"] = 1e-3
+    n.optimize.create_model()
+    assert KVL not in n.model.constraints
+
+
 @pytest.mark.parametrize("value", [0.0, -1.0, np.inf])
 def test_invalid_objective_scaling_raises(value):
     n = pypsa.examples.ac_dc_meshed()
@@ -325,6 +333,22 @@ def feature_network() -> pypsa.Network:
     )
     n.add("Generator", "pw", bus="b", p_nom=50, marginal_cost={0: 0, 0.5: 5, 1: 20})
     n.add(
+        "Generator",
+        "pw_capex",
+        bus="b",
+        p_nom_extendable=True,
+        p_nom_max=100,
+        marginal_cost=12,
+        capital_cost={0: 0, 50: 40, 100: 100},
+    )
+    n.add(
+        "Generator",
+        "pw_eff",
+        **common | {"marginal_cost": 8},
+        p_nom=50,
+        efficiency={0: 0, 0.5: 0.4, 1: 0.5},
+    )
+    n.add(
         "Line",
         ["ab", "bc", "ca"],
         bus0=["a", "b", "c"],
@@ -396,7 +420,7 @@ def feature_network() -> pypsa.Network:
         {"linearized_unit_commitment": True},
     ],
 )
-def test_registry_covers_all_model_elements(kwargs):
+def test_feature_network_scaled_matches_unscaled(kwargs):
     n = feature_network()
     if kwargs.get("linearized_unit_commitment"):
         n.remove("Generator", "modular")
@@ -406,13 +430,14 @@ def test_registry_covers_all_model_elements(kwargs):
     ref.c.buses.static.scaling = 1.0
     ref.c.global_constraints.static.scaling = 1.0
     ref.optimize(**kwargs)
-    m = n.optimize.create_model(**kwargs)
+    m = n.optimize.create_model(objective_scaling=1e-2, **kwargs)
     assert (m.variables["Generator-p"].scaling == 1e-3).all()
     assert (m.variables["Store-e"].scaling == 1e-2).all()
-    assert (m.variables["Generator-marginal_cost_piecewise"].scaling == 1e-3).all()
+    assert (m.variables["Generator-marginal_cost_piecewise"].scaling == 1e-2).all()
     assert (
-        m.constraints["Generator-marginal_cost_piecewise_chord"].scaling == 1e-3
+        m.constraints["Generator-marginal_cost_piecewise_chord"].scaling == 1e-2
     ).all()
+    assert (m.variables["Link-p1_piecewise"].scaling == 1e-3).all()
     assert (m.variables["Generator-status"].scaling == 1).all()
     assert (m.variables["Link-p1_piecewise_delta"].scaling == 1).all()
     status, _ = n.optimize.solve_model()
@@ -460,14 +485,139 @@ def test_bus_nom_rows_take_bus_scaling():
     assert n.objective == pytest.approx(ref.objective, rel=RTOL)
 
 
-@pytest.mark.parametrize("kind", ["variable", "constraint"])
-@pytest.mark.parametrize("name", ["Generator-unregistered", "Unknown-p"])
-def test_unregistered_element_raises(kind, name):
-    n = scale(sector_network(), {"AC": 1e-3})
-    m = n.optimize.create_model()
-    if kind == "variable":
-        m.add_variables(name=name)
+def test_components_scaling():
+    n = pypsa.examples.ac_dc_meshed()
+    n.c.buses.static.loc["Manchester", "scaling"] = 1e-3
+    generators = n.c.generators.scaling.to_series()
+    assert generators["Manchester Wind"] == 1e-3
+    assert generators["Norway Wind"] == 1
+    lines = n.c.lines.scaling.to_series()
+    bus0 = n.c.lines.static.bus0
+    assert (lines[bus0 == "Manchester"] == 1e-3).all()
+    assert (lines[bus0 != "Manchester"] == 1).all()
+    assert n.c.buses.scaling.sel(name="Manchester") == 1e-3
+
+
+@pytest.mark.parametrize("component", ["carriers", "global_constraints"])
+def test_components_scaling_requires_bus(component):
+    n = pypsa.examples.ac_dc_meshed()
+    with pytest.raises(ValueError, match="not attached to a bus"):
+        n.c[component].scaling  # noqa: B018
+
+
+def test_sub_network_components_scaling():
+    n = pypsa.examples.ac_dc_meshed()
+    factors = {"AC": 1e-3, "DC": 1e-2}
+    n.c.buses.static.scaling = n.c.buses.static.carrier.map(factors)
+    n.determine_network_topology()
+    sub_networks = n.c.sub_networks.static
+    for sub_network, carrier in zip(sub_networks.obj, sub_networks.carrier):
+        lines = sub_network.c.lines
+        assert lines.scaling.indexes["name"].equals(lines.static.index)
+        assert (lines.scaling == factors[carrier]).all()
+
+
+S, OBJ, GLC = 1e-3, 1e-2, 1e-4
+COST_COLUMNS = (
+    "objective_constant",
+    "CVaR",
+    "CVaR-a",
+    "CVaR-theta",
+    "Generator-marginal_cost_piecewise",
+    "Generator-capital_cost_piecewise",
+)
+ROW_OVERRIDES = {KVL: S * KVL_SCALING, "budget": OBJ, "Carrier-growth_limit": 1.0}
+
+
+def element_factors(elements: linopy.Variables | linopy.Constraints) -> pd.DataFrame:
+    frames = []
+    for name in elements:
+        element = elements[name]
+        labels = element.labels.values.ravel()
+        scaling = element.scaling.broadcast_like(element.labels).values.ravel()
+        frame = pd.DataFrame({"name": name, "scaling": scaling}, index=labels)
+        frames.append(frame[labels != -1])
+    return pd.concat(frames)
+
+
+def stochastic_cvar() -> pypsa.Network:
+    n = pypsa.examples.ac_dc_meshed()
+    n.set_scenarios({"low": 0.3, "high": 0.7})
+    n.set_risk_preference(alpha=0.9, omega=0.5)
+    return n
+
+
+def multi_period() -> pypsa.Network:
+    n = pypsa.examples.ac_dc_meshed()
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots[:4]])
+    n.investment_periods = [2020, 2030]
+    return n
+
+
+def luc_network() -> pypsa.Network:
+    n = feature_network()
+    n.remove("Generator", "modular")
+    return n
+
+
+def build_model(n: pypsa.Network, mode: str, kwargs: dict) -> linopy.Model:
+    if mode == "rolling":
+        n.optimize.optimize_with_rolling_horizon(horizon=3, objective_scaling=OBJ)
+    elif mode == "sclopf":
+        with linopy.options:
+            linopy.options.set_value(semantics="v1")
+            n.optimize.optimize_security_constrained(
+                objective_scaling=OBJ, model_kwargs={"sparse": True}
+            )
+    elif mode == "mga":
+        n.optimize(objective_scaling=OBJ)
+        weights = {"Generator": {"p_nom": {"Manchester Wind": 1}}}
+        n.optimize.optimize_mga(weights=weights, objective_scaling=OBJ)
     else:
-        m.add_constraints(m["Generator-p"].sum() <= 1e4, name=name)
-    with pytest.raises(ValueError, match="No scaling rule"):
-        apply_scaling(n)
+        n.optimize.create_model(objective_scaling=OBJ, **kwargs)
+    return n.model
+
+
+@pytest.mark.parametrize(
+    ("build", "mode", "kwargs"),
+    [
+        (feature_network, "create", {}),
+        (feature_network, "create", {"transmission_losses": True}),
+        (
+            feature_network,
+            "create",
+            {"transmission_losses": {"mode": "tangents", "segments": 2}},
+        ),
+        (luc_network, "create", {"linearized_unit_commitment": True}),
+        (sector_network, "create", {"include_objective_constant": True}),
+        (stochastic_cvar, "create", {}),
+        (multi_period, "create", {"multi_investment_periods": True}),
+        (feature_network, "rolling", {}),
+        (pypsa.examples.ac_dc_meshed, "sclopf", {}),
+        (pypsa.examples.ac_dc_meshed, "mga", {}),
+    ],
+)
+def test_scaling_policy(build, mode, kwargs):
+    n = build()
+    n.c.buses.static.scaling = S
+    n.c.global_constraints.static.scaling = GLC
+    m = build_model(n, mode, kwargs)
+    M = m.matrices
+
+    cols = element_factors(m.variables).loc[M.vlabels]
+    np.testing.assert_allclose(M.var_scaling, cols.scaling)
+    assert cols.scaling.isin([1.0, S, OBJ]).all()
+    is_cost = cols.name.isin(COST_COLUMNS)
+    assert (cols.scaling[is_cost] == OBJ).all()
+    assert (cols.scaling[M.vtypes != "C"] == 1).all()
+
+    rows = element_factors(m.constraints).loc[M.clabels]
+    A = abs(M.A).tocsr()
+    has_cost = A @ (cols.scaling.values == OBJ) > 0
+    has_mw = A @ (cols.scaling.values == S) > 0
+    expected = pd.Series(np.select([has_cost, has_mw], [OBJ, S], 1.0), rows.index)
+    expected[rows.name.str.startswith("GlobalConstraint-")] = GLC
+    overrides = rows.name.map(ROW_OVERRIDES)
+    expected = overrides.fillna(expected)
+    mismatch = rows[~np.isclose(rows.scaling, expected)]
+    assert mismatch.empty, mismatch.groupby("name").scaling.first()

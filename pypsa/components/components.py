@@ -1047,6 +1047,63 @@ class Components(
 
         return idx
 
+    @property
+    def scaling(self) -> xarray.DataArray:
+        """Numerical scaling factor of each asset in the optimisation.
+
+        Read-only factor derived from `Bus.scaling`: buses take their own
+        factor, one-port components the factor of `bus` and branch components
+        the factor of `bus0`. Set factors via `n.c.buses.static.scaling`. See
+        [Numerical Scaling](../../user-guide/optimization/numerical-scaling.md).
+
+        Returns
+        -------
+        xarray.DataArray
+            Factor over dimension `name`.
+
+        Raises
+        ------
+        ValueError
+            If the component has no bus, if a factor is not finite and
+            positive, or if `Bus.scaling` differs across scenarios.
+
+        Examples
+        --------
+        >>> n_scaled = n.copy()
+        >>> n_scaled.c.buses.static.loc["Manchester", "scaling"] = 1e-3
+        >>> n_scaled.c.generators.scaling.to_series()
+        name
+        Manchester Wind    0.001
+        Manchester Gas     0.001
+        Norway Wind        1.000
+        Norway Gas         1.000
+        Frankfurt Wind     1.000
+        Frankfurt Gas      1.000
+        Name: scaling, dtype: float64
+
+        """
+        from pypsa.components.common import invariant  # noqa: PLC0415
+
+        n = self.n_save
+        buses = invariant(n.c.buses.static.scaling)
+        if self.name == "Bus":
+            factors = buses
+        elif self.name in n.one_port_components | n.branch_components:
+            col = "bus" if self.name in n.one_port_components else "bus0"
+            bus = invariant(self.static[col])
+            factors = pd.Series(buses.reindex(bus.values).values, bus.index)
+        else:
+            msg = (
+                f"Component '{self.name}' is not attached to a bus and has no scaling."
+            )
+            raise ValueError(msg)
+        invalid = ~np.isfinite(factors) | (factors <= 0)
+        if invalid.any():
+            msg = f"Bus.scaling must be finite and positive, got for {self.name}:\n{factors[invalid]}"
+            raise ValueError(msg)
+        factors = factors.rename("scaling").rename_axis("name")
+        return xarray.DataArray(factors)
+
     def _infer_committable_big_m_scale(self) -> float:
         """Infer a reasonable big-M scale from network and component data."""
         candidates: list[float] = []

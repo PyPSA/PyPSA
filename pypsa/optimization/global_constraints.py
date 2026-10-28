@@ -19,6 +19,7 @@ from xarray import DataArray
 from pypsa.components.common import invariant
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import define_piecewise
+from pypsa.optimization.scaling import factor, global_constraint_factor
 from pypsa.optimization.window import apply_period_weighting
 
 if TYPE_CHECKING:
@@ -109,7 +110,11 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
                 lhs = lhs_per_bus.sel(**{busdim: str(bus_glc)}, drop=True)
 
             n.model.add_constraints(
-                lhs, sign, glc.constant, name=f"GlobalConstraint-{name}"
+                lhs,
+                sign,
+                glc.constant,
+                name=f"GlobalConstraint-{name}",
+                scaling=global_constraint_factor(n, name),
             )
 
 
@@ -203,7 +208,14 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
         lhs = merge(lhs)
         rhs = n.c.buses.static.loc[buses, col]
         mask = rhs.notnull()
-        n.model.add_constraints(lhs, sign, rhs, name=f"Bus-{col}", mask=mask)
+        n.model.add_constraints(
+            lhs,
+            sign,
+            rhs,
+            name=f"Bus-{col}",
+            mask=mask,
+            scaling=factor(n.c.buses, buses, buses.name),
+        )
 
 
 def define_growth_limit(n: Network, sns: pd.Index) -> None:
@@ -344,6 +356,7 @@ def define_primary_energy_limit(
             cumulative_attr=False,
             extra_options=extra_options,
             invert_attr=True,
+            scaling=gen_c,
             status=status,
         )
 
@@ -551,6 +564,7 @@ def define_primary_energy_limit(
             glc_group.sense,
             glc_group.constant,
             name=f"GlobalConstraint-{name}",
+            scaling=global_constraint_factor(n, name),
         )
 
 
@@ -749,6 +763,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             glc_group.sense,
             glc_group.constant,
             name=f"GlobalConstraint-{name}",
+            scaling=global_constraint_factor(n, name),
         )
 
 
@@ -826,7 +841,11 @@ def _define_transmission_expansion_limit(
             glc = rows[0][1]
 
         m.add_constraints(
-            expression, glc.sense, glc.constant, name=f"GlobalConstraint-{name}"
+            expression,
+            glc.sense,
+            glc.constant,
+            name=f"GlobalConstraint-{name}",
+            scaling=global_constraint_factor(n, name),
         )
 
 

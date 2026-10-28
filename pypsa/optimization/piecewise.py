@@ -14,18 +14,36 @@ from typing import TYPE_CHECKING, Any, Literal
 import pandas as pd
 import xarray as xr
 from linopy import Model, Slopes, Variable, breakpoints
-from linopy.constants import BREAKPOINT_DIM, PWL_METHOD, EvolvingAPIWarning
+from linopy.constants import (
+    BREAKPOINT_DIM,
+    PWL_CHORD_SUFFIX,
+    PWL_DOMAIN_HI_SUFFIX,
+    PWL_DOMAIN_LO_SUFFIX,
+    PWL_LINK_DIM,
+    PWL_LINK_SUFFIX,
+    PWL_METHOD,
+    PWL_OUTPUT_LINK_SUFFIX,
+    EvolvingAPIWarning,
+)
+from linopy.constraints import CSRConstraint
 
 from pypsa._linopy_compat import (
     SUPPORTS_BREAKPOINT_MASK,
     suppress_semantics_warnings,
 )
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.scaling import factor
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from linopy.piecewise import PiecewiseFormulation
+
+    from pypsa.components.components import Components
 logger = logging.getLogger(__name__)
 SIGNS_T = Literal["=", "<=", ">="]
+Y_ROWS = (PWL_OUTPUT_LINK_SUFFIX, PWL_CHORD_SUFFIX)
+X_ROWS = (PWL_DOMAIN_LO_SUFFIX, PWL_DOMAIN_HI_SUFFIX)
 
 
 # TODO: update to pydantic once pydantic is a pypsa dependency.
@@ -75,6 +93,7 @@ def define_piecewise(
     invert_attr: bool = False,
     y_var: Any | None = None,
     method: PWL_METHOD = "auto",
+    scaling: Components | float = 1.0,
 ) -> Variable | None:
     """Add variable(s) and constraint(s) necessary to define a constraint along a piecewise linear curve.
 
@@ -121,6 +140,10 @@ def define_piecewise(
     method : str, optional
         The method to use for the piecewise constraint formulation, passed to the `linopy.add_piecewise_formulation` method.
         Default is "auto" (also the linopy default).
+    scaling : pypsa.Components | float, optional
+        Numerical scaling of the y-axis: a component for its `Components.scaling`
+        or a scalar such as the objective scaling for cost curves. The x-axis
+        takes the scaling of `c`. Default is `1.0`.
 
     Returns
     -------
@@ -141,7 +164,9 @@ def define_piecewise(
     )
 
     if y_var is None:
-        y_var = _create_y_var(m, x_var, pw_names, aux_var_name)
+        y_var = _create_y_var(
+            m, x_var, pw_names, aux_var_name, factor(scaling, pw_names)
+        )
     y_var_sel = y_var.sel(name=pw_names)
     sorted_options = sorted(extra_options, key=lambda x: x.name, reverse=True)
     for option in [*sorted_options, None]:
@@ -182,7 +207,7 @@ def define_piecewise(
         )
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
-            m.add_piecewise_formulation(
+            formulation = m.add_piecewise_formulation(
                 (y_var.sel(name=names), y_breakpoints.sel(name=names), opt_sign),
                 (x_var.sel(name=names), x_breakpoints.sel(name=names)),
                 **mask_kwargs,
@@ -190,6 +215,7 @@ def define_piecewise(
                 name=aux,
                 active=active,
             )
+        _scale_rows(formulation, y_name=y_var.name, scaling=scaling, c=c, names=names)
         pw_names = pw_names.difference(names)
     return y_var_sel
 
@@ -289,11 +315,51 @@ def _create_y_var(
     x_var: Variable,
     pw_names: pd.Index,
     aux_var_name: str,
+    scaling: xr.DataArray | float,
 ) -> Variable:
     """Create auxiliary y variable for piecewise constraint."""
     coords = x_var.coords.drop_dims("name", errors="ignore").assign(name=pw_names)
-    y_var = m.add_variables(coords=coords, name=aux_var_name)
-    return y_var
+    return m.add_variables(coords=coords, name=aux_var_name, scaling=scaling)
+
+
+def _scale_rows(
+    formulation: PiecewiseFormulation,
+    *,
+    y_name: str,
+    scaling: Components | float,
+    c: Components,
+    names: pd.Index,
+) -> None:
+    """Set row factors of the value-carrying rows of a piecewise formulation.
+
+    Output rows (`_output_link`, `_chord`) take the y factor, domain rows
+    (`_domain_lo`, `_domain_hi`) the x factor and `_link` rows the factor of
+    the variable linked in each `_pwl_var` entry. All other rows only involve
+    auxiliary weights or binaries and keep factor 1.
+    """
+    y, x = xr.broadcast(
+        xr.DataArray(factor(scaling, names)), xr.DataArray(factor(c, names))
+    )
+    if (y == 1).all() and (x == 1).all():
+        return
+    constraints = formulation.model.constraints
+    for name in formulation.constraint_names:
+        con = constraints[name]
+        if name.endswith(Y_ROWS):
+            row = y
+        elif name.endswith(X_ROWS):
+            row = x
+        elif name.endswith(PWL_LINK_SUFFIX):
+            pwl_var = con.indexes[PWL_LINK_DIM]
+            row = xr.concat([y if v == y_name else x for v in pwl_var], pwl_var)
+        else:
+            continue
+        if isinstance(con, CSRConstraint):
+            mutable = con.mutable()
+            mutable.scaling = row
+            constraints.add(mutable.freeze())
+        else:
+            con.scaling = row
 
 
 def _to_da(piecewise_df: pd.DataFrame, attr: str) -> xr.DataArray:
