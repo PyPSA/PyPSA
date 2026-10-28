@@ -549,16 +549,16 @@ class NetworkTransformMixin(_NetworkABC):
         labels = names
         if c.static.index.nlevels > 1:
             labels = pd.MultiIndex.from_product([self.scenarios, names])
-        c.static.drop(labels, inplace=True)
+        c.static = c.static.drop(labels)
 
         # Drop from time-varying components
-        for df in c.dynamic.values():
-            df.drop(df.columns.intersection(labels), axis=1, inplace=True)
+        for attr, df in c.dynamic.items():
+            c.dynamic[attr] = df.drop(df.columns.intersection(labels), axis=1)
 
         # Drop piecewise breakpoint data
-        for df in c.piecewise.values():
+        for attr, df in c.piecewise.items():
             stale = df.columns[df.columns.get_level_values("name").isin(names)]
-            df.drop(columns=stale, inplace=True)
+            c.piecewise[attr] = df.drop(columns=stale)
 
     def merge(
         self,
