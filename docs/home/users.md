@@ -65,7 +65,7 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:scotland: The University of Edinburgh](https://www.ed.ac.uk/)** introduced PyPSA-GB, an open-source model of Great Britain's power system for simulating future energy scenarios: [doi.org/10.1016/j.esr.2024.101375](https://doi.org/10.1016/j.esr.2024.101375)
 
-- **[:flag_kr: Korea University](https://www.korea.ac.kr/sites/ko/index.do)** at the [Energy Innovation Lab](https://energyinnovation.korea.ac.kr/) uses PyPSA-Earth to support development of the country's long-term energy strategy.
+- **[:flag_kr: Korea University](https://www.korea.ac.kr/)** at the [Energy Innovation Lab](https://energyinnovation.korea.ac.kr/) uses PyPSA-Earth to support development of the country's long-term energy strategy.
 
 - **[:flag_th: Asian Institute of Technology](https://ait.ac.th/)** in the [South and South-East Asia Multidisciplinary Applied Research Network on Transforming Societies of Global South (SMARTS)](https://ait.ac.th/centre/smartscenter/) and the **[:flag_bd: International University of Business Agriculture and Technology (IUBAT), Dhaka](https://eee.iubat.edu/)** developed an adaptation of PyPSA-Earth, called PyPSA-BD to support the energy transition in Bangladesh [<https://doi.org/10.1016/j.ref.2024.100655>](https://doi.org/10.1016/j.ref.2024.100655)
 
