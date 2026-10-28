@@ -598,9 +598,16 @@ def define_operational_constraints_for_committables(
         lhs, ">=", prior_status, name=f"{c.name}-com-transition-shut-down", mask=active
     )
 
+    com_mod_fix_i = com_mod_i.difference(ext_i)
+    com_mod_ext_i = com_mod_i.intersection(ext_i)
+    mod_attr = c._operational_attrs["nom_mod"]
+    modules = nominal.sel(name=com_mod_fix_i) / c.da[mod_attr].sel(name=com_mod_fix_i)
+    modules = modules.reindex(name=com_i, fill_value=1.0)
+    modules = modules.where(~modules["name"].isin(com_mod_ext_i), 0.0)
+
     for kind, min_time, transition, sign, bound in (
         ("up", min_up_time_set, start_up, -1, 0),
-        ("down", min_down_time_set, shut_down, 1, 1),
+        ("down", min_down_time_set, shut_down, 1, modules),
     ):
         if not (min_time > 0).any():
             continue
@@ -609,6 +616,9 @@ def define_operational_constraints_for_committables(
             for k in range(int(min_time.max()))
         ]
         lhs = sign * status + merge(shifted)
+        if kind == "down" and not com_mod_ext_i.empty:
+            n_mod = n.model[f"{c.name}-n_mod"].sel(name=com_mod_ext_i)
+            lhs = lhs.add(-n_mod, join="left")
         past = (-sign * switches).clip(min=0)
         rhs = bound - (past * (past.lag + pos < min_time)).sum("lag")
         mask = active & (min_time > 0)

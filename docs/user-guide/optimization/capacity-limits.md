@@ -280,7 +280,7 @@ The following table summarizes which unit commitment features are compatible wit
 | Ramp limits (`ramp_limit_up/down`) | ✓ | ✓² |
 | Stand-by costs | ✓ | ✓ |
 | Minimum up time (`min_up_time`) | ✓ | ✗ |
-| Minimum down time (`min_down_time`) | ✓ | ✗ |
+| Minimum down time (`min_down_time`) | ✓ | ✓ |
 | Up time before (`up_time_before`) | ✓ | ✗ |
 | Down time before (`down_time_before`) | ✓ | ✗ |
 

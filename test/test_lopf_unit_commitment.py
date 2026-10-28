@@ -1402,6 +1402,69 @@ def test_inactive_asset_with_modular_committable_ramp():
     assert "inactive" not in ramp_up.indexes["name"]
 
 
+@pytest.mark.parametrize("min_down_time", [0, 1, 2])
+def test_modular_min_down_time_keeps_other_modules_available(min_down_time):
+    """Min down time only holds back the shut-down modules, not the whole unit."""
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[100, 150, 150, 100])
+    n.add("Generator", "shed", bus="bus", p_nom=1e3, marginal_cost=1e3)
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=150,
+        p_nom_mod=50,
+        p_min_pu=1,
+        committable=True,
+        marginal_cost=10,
+        min_down_time=min_down_time,
+        up_time_before=0,
+    )
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+    assert n.generators_t.status["gen"].tolist() == [2, 3, 3, 2]
+    assert n.generators_t.p["shed"].round(6).eq(0).all()
+
+
+@pytest.mark.parametrize("extendable", [False, True])
+def test_modular_min_down_time_holds_back_shut_down_module(extendable):
+    """A shut-down module stays off for ``min_down_time`` while the others run."""
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[150, 100, 150, 150])
+    # shedding at the first snapshot is dearer, so the solution is unique
+    n.add("Generator", "shed", bus="bus", p_nom=1e3, marginal_cost=[2e3, 1e3, 1e3, 1e3])
+    capacity = (
+        {"p_nom_extendable": True, "p_nom_max": 150, "capital_cost": 1}
+        if extendable
+        else {"p_nom": 150}
+    )
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_mod=50,
+        p_min_pu=1,
+        committable=True,
+        marginal_cost=10,
+        min_down_time=2,
+        up_time_before=0,
+        **capacity,
+    )
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+    assert n.c.generators.static.p_nom_opt["gen"] == 150
+    assert n.generators_t.status["gen"].tolist() == [3, 2, 2, 3]
+    assert n.generators_t.p["shed"].round(6).tolist() == [0, 0, 50, 0]
+    if extendable:
+        n_mod_label = int(n.model.variables["Generator-n_mod"].labels.sel(name="gen"))
+        con = n.model.constraints["Generator-com-down-time"]
+        assert (con.lhs.vars == n_mod_label).any()
+
+
 @pytest.mark.parametrize("linearized", [False, True])
 def test_time_varying_start_up_and_shut_down_costs(linearized):
     """Cheap start-up before and cheap shut-down after the peak extend the commitment."""
