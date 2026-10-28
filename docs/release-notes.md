@@ -14,6 +14,10 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Enhancements
+
+- Allow a custom `carrier` in [`add_load_shedding`][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding], defaulting to `"load shedding"`. The selected carrier is registered if missing; existing carrier attributes are preserved. Resolves [#1848](https://github.com/PyPSA/PyPSA/issues/1848).
+
 ### Bug Fixes
 - Fix start-up and shut-down costs ignoring the investment period weightings in networks with investment periods. They are now weighted like all other costs of the period, consistent with the pathway objective and with [`opex`][pypsa.statistics.StatisticsAccessor.opex]. (<!-- md:pr 2011 -->)
 - **Behavior change**: Fix [MGA](./user-guide/optimization/modelling-to-generate-alternatives.md) near-optimal cost budgets for networks with existing extendable capacity when `include_objective_constant=False`, fixed O&M costs, or multiple investment periods. Budgets now use unrounded total system costs and apply investment-period objective weights once. Resolves [#2025](https://github.com/PyPSA/PyPSA/issues/2025) and [#1984](https://github.com/PyPSA/PyPSA/issues/1984).
