@@ -48,3 +48,18 @@ def test_clustering():
 
     with pytest.raises(ValueError, match="not yet implemented for stochastic networks"):
         n.cluster.spatial.get_clustering_from_busmap(busmap)
+
+
+@pytest.mark.parametrize("method", ["lpf", "pf", "lpf_contingency"])
+def test_power_flow(method):
+    """Test that power flow methods raise ValueError for stochastic networks."""
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", ["a", "b"], v_nom=380)
+    n.add("Line", "l", bus0="a", bus1="b", x=0.1, r=0.01, s_nom=100)
+    n.add("Generator", "g", bus="a", p_set=50, control="Slack")
+    n.add("Load", "d", bus="b", p_set=50)
+    n.set_scenarios(["s1", "s2"])
+
+    with pytest.raises(ValueError, match="not yet implemented for stochastic networks"):
+        getattr(n, method)()
