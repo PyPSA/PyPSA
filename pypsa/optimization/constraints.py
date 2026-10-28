@@ -32,6 +32,7 @@ from pypsa.components.common import as_components, invariant
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
+from pypsa.optimization.scaling import KVL, KVL_SCALING, component_scaling
 from pypsa.optimization.window import snapshot_array
 
 if TYPE_CHECKING:
@@ -1576,7 +1577,8 @@ def define_kirchhoff_voltage_constraints(
     For multi-investment period models, the function creates separate constraints
     for each investment period, reflecting the changing network topology over time.
 
-    The impedances are scaled by 1e5 to improve numerical conditioning.
+    The rows are scaled by `1e5` times the `Bus.scaling` of the sub-network
+    in the solver to improve numerical conditioning.
 
     References
     ----------
@@ -1591,6 +1593,7 @@ def define_kirchhoff_voltage_constraints(
     window = n.optimize._window.subset(sns)
     deg_to_rad = np.pi / 180.0
     lhs_parts = []
+    scaling_parts = []
     for period, snapshots in window.iter_periods():
         C_weighted = n.cycle_matrix(
             investment_period=period,
@@ -1601,13 +1604,17 @@ def define_kirchhoff_voltage_constraints(
             continue
 
         exprs = []
+        factors = []
         for c in C_weighted.index.unique("type"):
             C_branch = DataArray(C_weighted.loc[c])
             active_names = C_branch.indexes["name"].intersection(n.c[c].active_assets)
             C_branch = C_branch.sel(name=active_names)
             flow = m[f"{c}-s"].sel(snapshot=snapshots, name=active_names)
-            exprs.append(flow @ C_branch * 1e5)
+            exprs.append(flow @ C_branch)
+            factor = component_scaling(n, n.c[c]).sel(name=active_names)
+            factors.append(factor.where(C_branch != 0).max("name"))
         lhs_period = sum(exprs)
+        cycle_factor = xr.concat(factors, "type", join="outer").max("type")
 
         if "Transformer" in C_weighted.index.unique("type"):
             C_plain = n.cycle_matrix(
@@ -1627,15 +1634,17 @@ def define_kirchhoff_voltage_constraints(
             for names, angle in contributions:
                 C = DataArray(C_trafos.loc[names])
                 sel = angle.sel(name=names, snapshot=snapshots)
-                lhs_period = lhs_period + (sel @ C) * deg_to_rad * 1e5
+                lhs_period = lhs_period + (sel @ C) * deg_to_rad
 
         lhs_parts.append(lhs_period)
+        scaling_parts.append(cycle_factor.broadcast_like(lhs_period.const))
 
     if lhs_parts:
         lhs = window.merge(lhs_parts)
         con = lhs == 0
         mask = con.rhs.notnull()
-        m.add_constraints(con, name="Kirchhoff-Voltage-Law", mask=mask)
+        scaling = KVL_SCALING * window.concat(scaling_parts, 1.0).fillna(1.0)
+        m.add_constraints(con, name=KVL, mask=mask, scaling=scaling)
 
 
 def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:

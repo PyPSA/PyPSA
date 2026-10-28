@@ -63,6 +63,7 @@ from pypsa.optimization.global_constraints import (
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
+from pypsa.optimization.scaling import apply_scaling
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -550,6 +551,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -626,6 +628,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
             default ``"bfs-refined"`` yields sparser constraints.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver. The
+            objective value and duals are reported in original units. Column
+            and row factors are set via `Bus.scaling` and
+            `GlobalConstraint.scaling`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -673,6 +680,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             meshed_thresholds=meshed_thresholds,
             piecewise_options=piecewise_options,
             cycle_basis_method=cycle_basis_method,
+            objective_scaling=objective_scaling,
             **model_kwargs,
         )
         if extra_functionality:
@@ -712,6 +720,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -761,6 +770,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
             default ``"bfs-refined"`` yields sparser constraints.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver. The
+            objective value and duals are reported in original units. Column
+            and row factors are set via `Bus.scaling` and
+            `GlobalConstraint.scaling`.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -941,6 +955,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_growth_limit(n, sns)
 
         define_objective(n, sns, include_objective_constant, piecewise_opts)
+        apply_scaling(n, objective_scaling)
 
         return n.model
 

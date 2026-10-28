@@ -268,7 +268,9 @@ class OptimizationAbstractMGAMixin:
             objective = objective.expression
 
         n.model.add_constraints(
-            objective + fixed_cost <= (1 + slack) * optimal_cost, name="budget"
+            objective + fixed_cost <= (1 + slack) * optimal_cost,
+            name="budget",
+            scaling=n.model.objective.scaling,
         )
 
     def optimize_mga(
@@ -279,6 +281,7 @@ class OptimizationAbstractMGAMixin:
         sense: str | int = "min",
         slack: float = 0.05,
         model_kwargs: dict | None = None,
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Run modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
@@ -306,6 +309,9 @@ class OptimizationAbstractMGAMixin:
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver, see
+            `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -343,6 +349,7 @@ class OptimizationAbstractMGAMixin:
         m = n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
+            objective_scaling=objective_scaling,
             **model_kwargs,
         )
 
@@ -369,7 +376,11 @@ class OptimizationAbstractMGAMixin:
             raise ValueError(msg)
 
         # build alternate objective
-        m.objective = self.build_linexpr_from_weights(weights, model=m) * sense
+        m.add_objective(
+            self.build_linexpr_from_weights(weights, model=m) * sense,
+            overwrite=True,
+            scaling=m.objective.scaling,
+        )
 
         status, condition = self._n.optimize.solve_model(**kwargs)
 
@@ -428,6 +439,7 @@ class OptimizationAbstractMGAMixin:
         multi_investment_periods: bool = False,
         slack: float = 0.05,
         model_kwargs: dict | None = None,
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> tuple[str, str, pd.Series | None]:
         """Run MGA in a given direction in a low-dimension projection.
@@ -456,6 +468,9 @@ class OptimizationAbstractMGAMixin:
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver, see
+            `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -501,6 +516,7 @@ class OptimizationAbstractMGAMixin:
         m = self._n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
+            objective_scaling=objective_scaling,
             **model_kwargs,
         )
 
@@ -510,9 +526,14 @@ class OptimizationAbstractMGAMixin:
         # Build objective as linear combination of direction and
         # dimensions. Flip the sign in order to maximize in the given
         # direction.
-        m.objective = -sum(
-            direction[key] * self.build_linexpr_from_weights(dimensions[key], model=m)
-            for key in direction.keys()
+        m.add_objective(
+            -sum(
+                direction[key]
+                * self.build_linexpr_from_weights(dimensions[key], model=m)
+                for key in direction.keys()
+            ),
+            overwrite=True,
+            scaling=m.objective.scaling,
         )
 
         status, condition = self._n.optimize.solve_model(**kwargs)
@@ -534,6 +555,7 @@ class OptimizationAbstractMGAMixin:
         multi_investment_periods: bool,
         slack: float,
         model_kwargs: dict,
+        objective_scaling: float,
         kwargs: dict,
     ) -> tuple[dict, pd.Series | None]:
         """Solve a single direction for parallel execution (helper method).
@@ -553,6 +575,7 @@ class OptimizationAbstractMGAMixin:
                 multi_investment_periods=multi_investment_periods,
                 slack=slack,
                 model_kwargs=model_kwargs,
+                objective_scaling=objective_scaling,
                 **kwargs,
             )
         except KeyboardInterrupt:
@@ -578,6 +601,7 @@ class OptimizationAbstractMGAMixin:
         slack: float = 0.05,
         model_kwargs: dict | None = None,
         max_parallel: int = 4,
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Run MGA optimization in multiple directions in parallel.
@@ -620,6 +644,9 @@ class OptimizationAbstractMGAMixin:
         max_parallel : int
             Maximum number of parallel processes to use for solving multiple directions.
             Defaults to 4.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver, see
+            `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -695,6 +722,7 @@ class OptimizationAbstractMGAMixin:
                                 multi_investment_periods,
                                 slack,
                                 model_kwargs,
+                                objective_scaling,
                                 kwargs,
                             )
                             for direction in directions

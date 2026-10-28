@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Release Notes
 
-<!--
 ## Upcoming Release
 
 !!! info "Upcoming Release"
@@ -14,7 +13,17 @@ SPDX-License-Identifier: CC-BY-4.0
     The features listed below have not yet been released, but will be included in the
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
--->
+
+### Changes from bug fixes
+
+- **Optimization model structure changes**, relevant for custom constraints in `extra_functionality`:
+    - The `Kirchhoff-Voltage-Law` constraint no longer multiplies its coefficients by `1e5`. The factor is now a linopy row scaling (multiplied by the `Bus.scaling` of the sub-network), so raw duals in `n.model.constraints["Kirchhoff-Voltage-Law"].dual` are in original units and `1e5` times larger than before. LP files are unchanged.
+- PyPSA now requires `linopy>=0.10.0`.
+
+### Features
+
+- Add [numerical scaling](./user-guide/optimization/numerical-scaling.md) of optimization problems. The new attribute `scaling` of [Bus](./user-guide/components/buses.md) sets the solver unit of all columns and rows at a bus, `scaling` of [GlobalConstraint](./user-guide/components/global-constraints.md) scales its row, and the new argument `objective_scaling` of [`n.optimize`][pypsa.optimization.OptimizationAccessor.__call__], [`n.optimize.create_model`][pypsa.optimization.OptimizationAccessor.create_model], `optimize_security_constrained`, `optimize_mga`, `optimize_mga_in_direction` and `optimize_mga_in_multiple_directions` scales the objective. linopy reports solutions, duals and the objective in original units. With scaling active, LP files and `n.model.matrices` show solver units, and scaled and unscaled runs agree up to solver tolerance. Requires `linopy>=0.10.0`.
+
 
 ## [**v1.4.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.4.0) <small>9th October 2026</small> { id="v1.4.0" }
 
