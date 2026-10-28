@@ -16,6 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix the `"bfs-refined"` cycle basis depending on `PYTHONHASHSEED`. Start, direction and refinement order of each cycle now follow the bus order, so two runs write the same KVL constraints and LP files. The basis can differ from v1.4.0, the optimum does not. (<!-- md:pr 2023 -->)
 - **Behavior change**: Fix [MGA](./user-guide/optimization/modelling-to-generate-alternatives.md) near-optimal cost budgets for networks with existing extendable capacity when `include_objective_constant=False`, fixed O&M costs, or multiple investment periods. Budgets now use unrounded total system costs and apply investment-period objective weights once. Resolves [#2025](https://github.com/PyPSA/PyPSA/issues/2025) and [#1984](https://github.com/PyPSA/PyPSA/issues/1984).
 - Fix [`fom`][pypsa.statistics.StatisticsAccessor.fom], and therefore [`system_cost`][pypsa.statistics.StatisticsAccessor.system_cost], ignoring the investment period weightings in networks with investment periods. Fixed operation and maintenance costs are now weighted like capital expenditures, consistent with the objective function. (<!-- md:pr 1923 -->)
 

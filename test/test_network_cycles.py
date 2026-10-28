@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+import zlib
+
 import networkx as nx
 import numpy as np
 import pytest
@@ -98,6 +100,11 @@ _CYCLE_TEST_GRAPHS = {
     "complete": nx.complete_graph(6),
     "petersen": nx.petersen_graph(),
     "disconnected": nx.disjoint_union(nx.cycle_graph(4), nx.complete_graph(4)),
+    # a component smaller than half the graph makes networkx subgraph views
+    # iterate their nodes in set order
+    "unbalanced": nx.disjoint_union(nx.grid_2d_graph(4, 4), nx.complete_graph(4)),
+    # refinement visits candidate cycles in a hash-dependent order unless sorted
+    "small_world": nx.connected_watts_strogatz_graph(40, 4, 0.3, seed=26),
 }
 
 
@@ -108,6 +115,41 @@ _CYCLE_TEST_GRAPHS = {
 def test_cycle_basis_functions_valid(graph, basis_fn) -> None:
     """Cycle-basis functions return independent simple cycles spanning the cycle space."""
     _assert_valid_basis(graph, basis_fn(graph))
+
+
+class _SaltedNode:
+    """Graph node whose hash, and thus its set iteration order, depends on `salt`.
+
+    The hash avoids `hash(str)`, so the test does not depend on `PYTHONHASHSEED`.
+    """
+
+    def __init__(self, name: str, salt: int) -> None:
+        self.name, self.salt = name, salt
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _SaltedNode) and self.name == other.name
+
+    def __hash__(self) -> int:
+        return zlib.crc32(f"{self.name}/{self.salt}".encode())
+
+
+@pytest.mark.parametrize(
+    "graph", _CYCLE_TEST_GRAPHS.values(), ids=_CYCLE_TEST_GRAPHS.keys()
+)
+@pytest.mark.parametrize("basis_fn", [_bfs_cycle_basis, bfs_refined_cycle_basis])
+def test_cycle_basis_independent_of_hash_order(graph, basis_fn) -> None:
+    """The basis, including each cycle's start and direction, follows the node order only.
+
+    Bus names are strings, whose hashes change with `PYTHONHASHSEED`, and a basis
+    that followed set order would flip KVL constraint signs between runs.
+    """
+    bases = set()
+    for salt in range(10):
+        salted = nx.relabel_nodes(
+            graph, {node: _SaltedNode(str(node), salt) for node in graph}
+        )
+        bases.add(repr([[node.name for node in cycle] for cycle in basis_fn(salted)]))
+    assert len(bases) == 1
 
 
 def test_bfs_refinement_shortens_basis() -> None:
@@ -133,10 +175,12 @@ def test_bfs_refinement_shortens_basis() -> None:
 )
 def test_edge_set_to_cycle(edges, is_cycle) -> None:
     """A single simple cycle is recovered; disjoint or open edge sets are rejected."""
-    result = _edge_set_to_cycle({frozenset(edge) for edge in edges})
+    nodes = sorted({node for edge in edges for node in edge})
+    rank = {node: node for node in nodes}
+    result = _edge_set_to_cycle({frozenset(edge) for edge in edges}, rank)
     assert (result is not None) == is_cycle
     if result is not None:
-        assert len(result) == len({node for edge in edges for node in edge})
+        assert result == nodes  # starts at the lowest rank, towards the lower neighbour
 
 
 def test_simple_cycle() -> None:
