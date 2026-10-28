@@ -30,9 +30,7 @@ KVL = "Kirchhoff-Voltage-Law"
 KVL_SCALING = 1e5
 
 
-def factor(
-    scaling: Components | float, names: pd.Index, dim: str = "name"
-) -> DataArray | float:
+def factor(scaling: Components | float, names: pd.Index) -> DataArray | float:
     """Return scaling factors for a model element defined over `names`.
 
     Parameters
@@ -42,14 +40,11 @@ def factor(
         scalar.
     names : pd.Index
         Names the element is defined over.
-    dim : str, default "name"
-        Name of the element dimension holding `names`, e.g.
-        `Generator-p_nom_set_i`.
 
     Returns
     -------
     xr.DataArray | float
-        Factors over `dim`, or `1.0` if all factors are `1` so that unscaled
+        Factors over `name`, or `1.0` if all factors are `1` so that unscaled
         models stay unchanged.
 
     """
@@ -58,7 +53,7 @@ def factor(
     da = scaling.scaling.sel(name=names)
     if (da == 1).all():
         return 1.0
-    return da.rename(name=dim)
+    return da
 
 
 def global_constraint_factor(n: Network, name: str) -> float:

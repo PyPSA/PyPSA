@@ -1872,16 +1872,15 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     if names.empty:
         return
 
-    dim = f"{component}-{attr}_set_i"
-    fix = c.da[attr + "_set"].sel(name=names).rename(name=dim)
-    var = n.model[f"{component}-{attr}"].sel(name=names).rename(name=dim)
+    fix = c.da[attr + "_set"].sel(name=names)
+    var = n.model[f"{component}-{attr}"].sel(name=names)
     n.model.add_constraints(
         var,
         "=",
         fix,
         name=f"{component}-{attr}_set",
         mask=fix.notnull(),
-        scaling=factor(c, names, dim),
+        scaling=factor(c, names),
     )
 
 

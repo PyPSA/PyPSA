@@ -214,7 +214,7 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
             rhs,
             name=f"Bus-{col}",
             mask=mask,
-            scaling=factor(n.c.buses, buses, buses.name),
+            scaling=factor(n.c.buses, buses),
         )
 
 

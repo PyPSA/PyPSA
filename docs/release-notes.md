@@ -18,6 +18,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - **Optimization model structure changes**, relevant for custom constraints in `extra_functionality`:
     - The `Kirchhoff-Voltage-Law` constraint no longer multiplies its coefficients by `1e5`. The factor is now a linopy row scaling (multiplied by the `Bus.scaling` of the sub-network), so raw duals in `n.model.constraints["Kirchhoff-Voltage-Law"].dual` are in original units and `1e5` times larger than before. LP files are unchanged.
+    - The `{Component}-{attr}_set` constraints (e.g. `Generator-p_nom_set`) use the dimension `name` instead of `{Component}-{attr}_set_i`.
 - PyPSA now requires `linopy>=0.10.0`.
 
 ### Features
