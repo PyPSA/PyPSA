@@ -246,16 +246,6 @@ def _get_breakpoints(
     piecewise_df = c.piecewise[pw_attr][pw_names]
     piecewise_attrs = c._piecewise_schema(pw_attr)
     if isinstance(piecewise_df.index, pd.MultiIndex):
-        if snapshots is None:
-            msg = "Snapshot piecewise curves require a snapshot-dependent variable."
-            raise ValueError(msg)
-        if snapshots.has_duplicates:
-            msg = "Piecewise solve snapshots must be unique."
-            raise ValueError(msg)
-        available = piecewise_df.index.unique("snapshot")
-        if not snapshots.difference(available).empty:
-            msg = "Piecewise curves are missing requested solve snapshots."
-            raise ValueError(msg)
         piecewise_df = piecewise_df.loc[snapshots]
 
     x_da = _to_da(piecewise_df, piecewise_attrs.x)
@@ -296,35 +286,16 @@ def _get_breakpoints(
         if cumulative_attr:
             slopes = y_da.shift({BREAKPOINT_DIM: -1})
             if "snapshot" in x_da.dims:
-                # Released linopy accepts one entity axis and stringifies its
-                # labels. Use positions for integration, then restore labels.
-                entity_dim = "_piecewise_entity"
-                stacked_x = x_da.stack({entity_dim: ("snapshot", "name")})
-                stacked_slopes = slopes.stack({entity_dim: ("snapshot", "name")})
-                entity_index = stacked_x.indexes[entity_dim]
-                positions = pd.RangeIndex(len(entity_index), name=entity_dim)
-                stacked_x = stacked_x.reset_index(entity_dim, drop=True).assign_coords(
-                    {entity_dim: positions}
-                )
-                stacked_slopes = stacked_slopes.reset_index(
-                    entity_dim, drop=True
-                ).assign_coords({entity_dim: positions})
-                integrated = Slopes(stacked_slopes, y0=0).to_breakpoints(stacked_x)
-                y_breakpoints = xr.DataArray(
-                    integrated.data,
-                    dims=integrated.dims,
-                    coords={
-                        entity_dim: entity_index,
-                        BREAKPOINT_DIM: integrated.coords[BREAKPOINT_DIM],
-                    },
-                ).unstack(entity_dim)
-                y_breakpoints = (
-                    y_breakpoints.reindex(
-                        {BREAKPOINT_DIM: pd.RangeIndex(x_da.sizes[BREAKPOINT_DIM])}
-                    )
-                    .assign_coords({BREAKPOINT_DIM: x_da.coords[BREAKPOINT_DIM]})
-                    .transpose(*x_da.dims)
-                )
+                # Released linopy integrates one entity dimension (linopy#1013).
+                y_breakpoints = xr.concat(
+                    [
+                        Slopes(slopes.sel(snapshot=sn), y0=0).to_breakpoints(
+                            x_da.sel(snapshot=sn)
+                        )
+                        for sn in x_da.indexes["snapshot"]
+                    ],
+                    dim=x_da.indexes["snapshot"],
+                ).reindex_like(x_da)
             else:
                 y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
         else:
@@ -350,11 +321,6 @@ def _to_da(piecewise_df: pd.DataFrame, attr: str) -> xr.DataArray:
     """Convert input to DataArray with given coords and dims."""
     frame = piecewise_df.xs(attr, level="attribute", axis=1)
     if isinstance(frame.index, pd.MultiIndex):
-        return (
-            frame.stack(future_stack=True)
-            .to_xarray()
-            .rename(breakpoint=BREAKPOINT_DIM)
-            .transpose("snapshot", "name", BREAKPOINT_DIM)
-        )
-    da = xr.DataArray(frame).rename(breakpoint=BREAKPOINT_DIM)
-    return da
+        da = frame.stack(future_stack=True).to_xarray()
+        return da.rename(breakpoint=BREAKPOINT_DIM)
+    return xr.DataArray(frame).rename(breakpoint=BREAKPOINT_DIM)

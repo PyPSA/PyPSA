@@ -14,6 +14,10 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Features
+
+- Piecewise curves of time-varying attributes such as `marginal_cost` accept a `(snapshot, breakpoint)` row index, so breakpoints can change per snapshot. (<!-- md:pr 1988 -->)
+
 ### Bug Fixes
 
 - **Behavior change**: Fix [MGA](./user-guide/optimization/modelling-to-generate-alternatives.md) near-optimal cost budgets for networks with existing extendable capacity when `include_objective_constant=False`, fixed O&M costs, or multiple investment periods. Budgets now use unrounded total system costs and apply investment-period objective weights once. Resolves [#2025](https://github.com/PyPSA/PyPSA/issues/2025) and [#1984](https://github.com/PyPSA/PyPSA/issues/1984).

@@ -2222,42 +2222,21 @@ class NetworkIOMixin(_NetworkABC):
         """Sort segment rows by x-coordinate and align ragged curves with trailing NaNs."""
         x_attr, y_attr = piecewise_attrs.x, piecewise_attrs.y
         if isinstance(piecewise_df.index, pd.MultiIndex):
-            snapshots = piecewise_df.index.unique("snapshot")
-            positions = piecewise_df.index.unique("breakpoint")
-            names = pd.Index(piecewise_df.columns.unique("name").tolist(), name="name")
-            index = pd.MultiIndex.from_product(
-                [snapshots, positions], names=["snapshot", "breakpoint"]
-            )
-            columns = pd.MultiIndex.from_product(
-                [names, [x_attr, y_attr]], names=["name", "attribute"]
-            )
-            values = (
-                piecewise_df.reindex(index=index, columns=columns)
-                .to_numpy(dtype=float)
-                .reshape(len(snapshots), len(positions), len(names), 2)
-            )
-            present = ~np.isnan(values)
-            filled = present.any(axis=-1)
-            has_later = np.maximum.accumulate(filled[:, ::-1], axis=1)[:, ::-1]
-            if ((~filled) & has_later).any():
+            curves = ["snapshot", "name"]
+            long = piecewise_df.stack("name", future_stack=True)
+            filled = long.notna().any(axis=1)
+            has_later = filled.iloc[::-1].groupby(level=curves).cummax().iloc[::-1]
+            if (~filled & has_later).any():
                 msg = f"Piecewise '{y_attr}' curves contain non-trailing missing breakpoint rows."
                 raise ValueError(msg)
-            if (filled & ~present.all(axis=-1)).any():
+            if (filled & long.isna().any(axis=1)).any():
                 msg = f"Piecewise '{y_attr}' curves have incomplete breakpoint data."
                 raise ValueError(msg)
-            if (filled.sum(axis=1) < 2).any():
-                msg = f"Piecewise '{y_attr}' requires at least two breakpoints per snapshot and component."
-                raise ValueError(msg)
-            order = np.argsort(values[..., 0], axis=1, kind="stable")
-            values = np.take_along_axis(values, order[..., None], axis=1)
-            count = int(filled.sum(axis=1).max())
-            values = values[:, :count]
-            index = pd.MultiIndex.from_product(
-                [snapshots, range(count)], names=["snapshot", "breakpoint"]
-            )
-            return pd.DataFrame(
-                values.reshape(len(index), len(columns)), index=index, columns=columns
-            )
+            long = long[filled].sort_values([*curves, x_attr], kind="stable")
+            position = long.groupby(level=curves).cumcount().rename("breakpoint")
+            long = long.droplevel("breakpoint").set_index(position, append=True)
+            long = long.unstack("name").swaplevel(axis=1).sort_index(axis=1)
+            return long.astype(float)
 
         def __normalize(curve: pd.DataFrame) -> pd.DataFrame:
             filled = curve.notna().any()
@@ -2300,11 +2279,8 @@ class NetworkIOMixin(_NetworkABC):
         df : pandas.DataFrame
             DataFrame with MultiIndex columns ``(name, attribute)`` where the
             attribute level holds ``[x_attr, attr]`` (the x-axis coordinate and
-            the y-axis attribute). Static curves have a breakpoint index.
-            Snapshot-dependent curves use a MultiIndex ``(snapshot, breakpoint)``
-            and must cover all network snapshots for each component. They are
-            supported only for varying attributes and flat network snapshots.
-            Use NetCDF to export snapshot-dependent curves.
+            the y-axis attribute) and whose index is the breakpoint number, or
+            ``(snapshot, breakpoint)`` for snapshot-dependent curves.
         cls_name : str
             Component class name, e.g. ``"Generator"``.
         attr : str
@@ -2339,47 +2315,20 @@ class NetworkIOMixin(_NetworkABC):
             )
             raise TypeError(msg)
 
-        df = df.copy()
         if isinstance(df.index, pd.MultiIndex):
             if not c.defaults.at[attr, "varying"]:
-                msg_0 = (
-                    f"Snapshot piecewise '{attr}' requires a varying attribute; "
-                    "static attributes accept static curves only."
-                )
-                raise ValueError(msg_0)
-            if df.index.nlevels != 2 or isinstance(self.snapshots, pd.MultiIndex):
-                msg_0 = (
-                    "Snapshot piecewise curves require a flat network snapshot index "
-                    "and row levels ['snapshot', 'breakpoint']."
-                )
-                raise ValueError(msg_0)
+                msg = f"Snapshot-dependent piecewise '{attr}' curves require a time-varying attribute."
+                raise ValueError(msg)
+            if isinstance(self.snapshots, pd.MultiIndex):
+                msg = "Snapshot-dependent piecewise curves do not support investment periods."
+                raise NotImplementedError(msg)
             df.index = df.index.set_names(["snapshot", idx_name])
-            if df.index.has_duplicates:
-                msg_0 = (
-                    "Snapshot piecewise curves have duplicate snapshot/breakpoint rows."
-                )
-                raise ValueError(msg_0)
-            snapshots = df.index.unique("snapshot")
-            if not self.snapshots.difference(snapshots).empty:
-                msg_0 = "Snapshot piecewise curves are missing network snapshots."
-                raise ValueError(msg_0)
-            if not snapshots.difference(self.snapshots).empty:
-                msg_0 = "Snapshot piecewise curves contain unknown network snapshots."
-                raise ValueError(msg_0)
+            if not self.snapshots.isin(df.index.unique("snapshot")).all():
+                msg = f"Snapshot-dependent piecewise '{attr}' curves must cover all network snapshots."
+                raise ValueError(msg)
         else:
             df.index = df.index.set_names(idx_name)
         df.columns = df.columns.set_names(col_names)
-        if df.columns.has_duplicates:
-            msg_0 = "Piecewise curves have duplicate component/attribute columns."
-            raise ValueError(msg_0)
-
-        attribute_values = df.columns.unique("attribute")
-        if not attribute_values.symmetric_difference([x_attr, attr]).empty:
-            msg = (
-                f"DataFrame for piecewise attribute '{attr}' must have attribute "
-                f"level values ['{x_attr}', '{attr}']. Got: {sorted(attribute_values)}."
-            )
-            raise ValueError(msg)
 
         df = self._normalize_breakpoints(df, pw_attr)
         if not pw_attr.allow_extendable:
@@ -2398,33 +2347,20 @@ class NetworkIOMixin(_NetworkABC):
                 raise ValueError(msg)
         if pw_attr.y in ("rate", "efficiency"):
             curve = df.xs(attr, level="attribute", axis=1)
-            if isinstance(df.index, pd.MultiIndex):
-                is_pos = ((curve >= 0) | curve.isna()).groupby(level="snapshot").all()
-                is_neg = ((curve <= 0) | curve.isna()).groupby(level="snapshot").all()
-                is_pos = is_pos.all()
-                is_neg = is_neg.all()
-            else:
-                is_pos = ((curve >= 0) | curve.isna()).all()
-                is_neg = ((curve <= 0) | curve.isna()).all()
+            is_pos = ((curve >= 0) | curve.isna()).all()
+            is_neg = ((curve <= 0) | curve.isna()).all()
             if not (bad := curve.columns[~(is_pos | is_neg)]).empty:
                 msg = f"Cannot mix positive and negative values for piecewise {attr} curves of {c} components {bad.tolist()}"
                 raise NotImplementedError(msg)
 
-        x_values = df.xs(x_attr, level="attribute", axis=1)
-        y_values = df.xs(attr, level="attribute", axis=1)
         if isinstance(df.index, pd.MultiIndex):
-            first_x = x_values.groupby(level="snapshot", sort=False).head(1).stack()
-            first_y = y_values.groupby(level="snapshot", sort=False).head(1).stack()
-            last_x = (
-                x_values.groupby(level="snapshot", sort=False)
-                .ffill()
-                .groupby(level="snapshot", sort=False)
-                .tail(1)
-                .stack()
-            )
+            x = df.xs(x_attr, level="attribute", axis=1).groupby(level="snapshot")
+            y = df.xs(attr, level="attribute", axis=1).groupby(level="snapshot")
+            first_x, first_y, last_x = x.first().max(), y.first().max(), x.last().min()
         else:
-            first_x, first_y = x_values.iloc[0], y_values.iloc[0]
-            last_x = x_values.ffill().iloc[-1]
+            first_x = df.loc[0].loc[pd.IndexSlice[:, x_attr]]
+            first_y = df.loc[0].loc[pd.IndexSlice[:, attr]]
+            last_x = df.iloc[-1].loc[pd.IndexSlice[:, x_attr]].ffill()
         if (bad := first_x > 0).any():
             equivalents = {"p_pu": "p_min_pu", "p_nom": "p_nom_min"}
             msg = (
@@ -2468,23 +2404,30 @@ class NetworkIOMixin(_NetworkABC):
 
         existing = piecewise[attr]
 
+        attribute_values = df.columns.unique("attribute")
+        if not attribute_values.symmetric_difference([x_attr, attr]).empty:
+            msg = (
+                f"DataFrame for piecewise attribute '{attr}' must have attribute "
+                f"level values ['{x_attr}', '{attr}']. Got: {sorted(attribute_values)}."
+            )
+            raise ValueError(msg)
+
         if overwrite:
             # Drop existing entries for the new components
             new_names = df.columns.unique("name")
             keep = ~existing.columns.get_level_values("name").isin(new_names)
             existing = existing.loc[:, keep]
 
-        # Promote static curves only when a snapshot-dependent curve is present.
+        # Broadcast static curves over snapshots when mixed with snapshot-dependent ones.
         if isinstance(existing.index, pd.MultiIndex) or isinstance(
             df.index, pd.MultiIndex
         ):
-            snapshots = self.snapshots.rename("snapshot")
             if not isinstance(existing.index, pd.MultiIndex):
                 existing = pd.concat(
-                    dict.fromkeys(snapshots, existing), names=["snapshot"]
+                    dict.fromkeys(self.snapshots, existing), names=["snapshot"]
                 )
             if not isinstance(df.index, pd.MultiIndex):
-                df = pd.concat(dict.fromkeys(snapshots, df), names=["snapshot"])
+                df = pd.concat(dict.fromkeys(self.snapshots, df), names=["snapshot"])
 
         # Align piecewise indices: union of existing and new
         all_piecewise = existing.index.union(df.index)

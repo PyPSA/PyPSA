@@ -397,3 +397,105 @@ class TestPiecewiseCostsErrors:
         n.add("Load", "load", bus="bus0", p_set=50)
         with pytest.raises(ValueError, match="overnight_cost"):
             n.optimize.create_model(include_objective_constant=False)
+
+
+def snapshot_curve() -> pd.DataFrame:
+    return pd.concat(
+        {
+            0: pd.DataFrame(
+                {"p_pu": [0, 0.9, 0.95, 1], "marginal_cost": [0, 50, 56, 60]}
+            ),
+            1: pd.DataFrame(
+                {
+                    "p_pu": [0, 0.45, 0.475, 0.5, 1],
+                    "marginal_cost": [0, 55, 61, 65, 65],
+                }
+            ),
+            2: pd.DataFrame({"p_pu": [0, 1], "marginal_cost": [0, 47]}),
+        },
+        names=["snapshot", "breakpoint"],
+    )
+
+
+def snapshot_curve_network(curve: pd.DataFrame | None = None) -> pypsa.Network:
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        p_max_pu=[1, 0.5, 0],
+        marginal_cost=snapshot_curve() if curve is None else curve,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=1000)
+    n.add("Load", "load", bus="bus", p_set=[97, 48.5, 10])
+    return n
+
+
+def assert_snapshot_curve_dispatch(n: pypsa.Network, snapshots: list[int]) -> None:
+    status, _ = n.optimize(snapshots=snapshots, include_objective_constant=False)
+    assert status == "ok"
+    objective = pd.Series([4900, 2692.5, 10000])
+    assert n.objective == pytest.approx(objective[snapshots].sum())
+    p = n.generators_t.p.loc[snapshots, "gen"]
+    price = n.buses_t.marginal_price.loc[snapshots, "bus"]
+    assert p.tolist() == pytest.approx(pd.Series([97, 48.5, 0])[snapshots].tolist())
+    assert price.tolist() == pytest.approx(
+        pd.Series([60, 65, 1000])[snapshots].tolist()
+    )
+
+
+class TestSnapshotPiecewiseCosts:
+    @pytest.mark.parametrize("snapshots", [[0, 1, 2], [1]])
+    def test_snapshot_marginal_cost(self, snapshots: list[int]) -> None:
+        assert_snapshot_curve_dispatch(snapshot_curve_network(), snapshots)
+
+    @pytest.mark.parametrize("static_first", [True, False])
+    def test_mixed_static_and_snapshot_curves(self, static_first: bool) -> None:
+        n = pypsa.Network(snapshots=range(3))
+        n.add("Bus", "bus")
+        components = [
+            ("backup", {"marginal_cost": {0: 0, 1: 1000}}),
+            ("gen", {"marginal_cost": snapshot_curve(), "p_max_pu": [1, 0.5, 0]}),
+        ]
+        for name, kwargs in components if static_first else components[::-1]:
+            n.add("Generator", name, bus="bus", p_nom=100, **kwargs)
+        n.add("Load", "load", bus="bus", p_set=[97, 48.5, 10])
+        assert_snapshot_curve_dispatch(n, [0, 1, 2])
+
+    def test_snapshot_curve_netcdf_roundtrip(self, tmp_path: Any) -> None:
+        n = snapshot_curve_network()
+        n.export_to_netcdf(tmp_path / "network.nc")
+        m = pypsa.Network(tmp_path / "network.nc")
+        pd.testing.assert_frame_equal(
+            m.c.generators.piecewise["marginal_cost"],
+            n.c.generators.piecewise["marginal_cost"],
+        )
+        assert_snapshot_curve_dispatch(m, [0, 1, 2])
+
+    @pytest.mark.parametrize(
+        ("drop", "match"),
+        [
+            ({"index": 1, "level": "snapshot"}, "cover all network snapshots"),
+            ({"index": [(1, 4)]}, "end at p_pu=1"),
+        ],
+    )
+    def test_snapshot_curve_invalid(self, drop: dict, match: str) -> None:
+        curve = snapshot_curve().drop(**drop)
+        with pytest.raises(ValueError, match=match):
+            snapshot_curve_network(curve)
+
+    def test_snapshot_curve_static_attribute_raises(self) -> None:
+        curve = snapshot_curve().set_axis(["p_nom", "capital_cost"], axis=1)
+        n = pypsa.Network(snapshots=range(3))
+        n.add("Bus", "bus")
+        with pytest.raises(ValueError, match="time-varying"):
+            n.add("Generator", "gen", bus="bus", capital_cost=curve)
+
+    def test_snapshot_curve_investment_periods_raise(self) -> None:
+        n = pypsa.Network(snapshots=range(3))
+        n.investment_periods = [2030]
+        n.add("Bus", "bus")
+        with pytest.raises(NotImplementedError, match="investment periods"):
+            n.add("Generator", "gen", bus="bus", marginal_cost=snapshot_curve())

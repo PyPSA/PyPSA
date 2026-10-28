@@ -233,7 +233,7 @@ class NetworkTransformMixin(_NetworkABC):
         # Read kwargs into static, time-varying, and piecewise attributes
         series = {}
         static = {}
-        piecewise = {}  # Curve frames indexed by breakpoint or (snapshot, breakpoint).
+        piecewise = {}  # {attr: DataFrame with columns [x_attr, attr], index = breakpoints}
 
         # Check if names are unique
         if not names.is_unique:
