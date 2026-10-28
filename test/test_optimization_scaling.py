@@ -9,7 +9,7 @@ import pytest
 from linopy.constraints import CSRConstraint
 
 import pypsa
-from pypsa.optimization.scaling import KVL, KVL_SCALING
+from pypsa.optimization.scaling import KVL, KVL_SCALING, apply_scaling
 
 RTOL = 1e-5
 
@@ -95,8 +95,8 @@ def test_scaled_matches_unscaled(network, sparse):
         )
 
 
-def nodal_rows(n: pypsa.Network) -> np.ndarray:
-    labels = n.model.constraints["Bus-nodal_balance"].labels.values.ravel()
+def rows_of(n: pypsa.Network, name: str) -> np.ndarray:
+    labels = n.model.constraints[name].labels.values.ravel()
     return np.isin(n.model.matrices.clabels, labels)
 
 
@@ -108,8 +108,8 @@ def test_uniform_bus_scaling_keeps_nodal_balance_coefficients():
     n.optimize.create_model()
 
     A, A_ref = n.model.matrices.A, ref.model.matrices.A
-    rows = nodal_rows(n)
-    assert (rows == nodal_rows(ref)).all()
+    rows = rows_of(n, "Bus-nodal_balance")
+    assert (rows == rows_of(ref, "Bus-nodal_balance")).all()
     np.testing.assert_allclose(A[rows].toarray(), A_ref[rows].toarray())
     assert np.isin(np.abs(A[rows].data), [1.0, *ref.c.links.static.efficiency]).all()
 
@@ -145,11 +145,6 @@ def test_objective_constant_column_takes_objective_scaling(
     assert n.objective == pytest.approx(ref.objective, rel=RTOL)
 
 
-def kvl_rows(n: pypsa.Network) -> np.ndarray:
-    labels = n.model.constraints[KVL].labels.values.ravel()
-    return np.isin(n.model.matrices.clabels, labels)
-
-
 def test_kvl_independent_of_bus_scaling():
     ref = pypsa.examples.ac_dc_meshed()
     ref.optimize()
@@ -159,7 +154,7 @@ def test_kvl_independent_of_bus_scaling():
 
     A, A_ref = n.model.matrices.A, ref.model.matrices.A
     np.testing.assert_allclose(
-        A[kvl_rows(n)].toarray(), A_ref[kvl_rows(ref)].toarray(), rtol=1e-12
+        A[rows_of(n, KVL)].toarray(), A_ref[rows_of(ref, KVL)].toarray(), rtol=1e-12
     )
     np.testing.assert_allclose(
         n.model.constraints[KVL].dual,
@@ -425,9 +420,54 @@ def test_registry_covers_all_model_elements(kwargs):
     assert n.objective == pytest.approx(ref.objective, rel=RTOL)
 
 
-def test_registry_covers_cvar(stochastic_benchmark_network):
-    n = stochastic_benchmark_network
-    n.set_risk_preference(alpha=0.9, omega=0.5)
+def test_cvar_takes_objective_scaling(stochastic_benchmark_network):
+    ref = stochastic_benchmark_network
+    ref.set_risk_preference(alpha=0.9, omega=0.5)
+    n = ref.copy()
+    ref.optimize()
     n.c.buses.static.scaling = 1e-3
-    status, _ = n.optimize(objective_scaling=1e-3)
-    assert status == "ok"
+    n.optimize(objective_scaling=1e-3)
+
+    m = n.model
+    cvar = [
+        elements[name]
+        for elements in (m.variables, m.constraints)
+        for name in elements
+        if name.startswith("CVaR")
+    ]
+    assert len(cvar) == 3 + 1 + len(n.scenarios)
+    assert all((element.scaling == 1e-3).all() for element in cvar)
+    M = m.matrices
+    col = np.flatnonzero(M.vlabels == m.variables["CVaR"].labels.item()).item()
+    assert M.c[col] == pytest.approx(0.5)
+    assert n.objective == pytest.approx(ref.objective, rel=RTOL)
+    assert m.variables["CVaR"].solution.item() == pytest.approx(
+        ref.model.variables["CVaR"].solution.item(), rel=RTOL
+    )
+
+
+def test_bus_nom_rows_take_bus_scaling():
+    ref = sector_network()
+    ref.c.buses.static["nom_min_wind"] = [1000.0, np.nan, np.nan]
+    n = ref.copy()
+    n.c.buses.static.scaling = [1e-3, 1e-2, 1e-6]
+    with pytest.warns(DeprecationWarning, match="Nominal constraints"):
+        ref.optimize()
+    with pytest.warns(DeprecationWarning, match="Nominal constraints"):
+        n.optimize()
+    assert (n.model.constraints["Bus-nom_min_wind"].scaling == 1e-3).all()
+    assert n.c.generators.static.p_nom_opt["wind"] == pytest.approx(1000)
+    assert n.objective == pytest.approx(ref.objective, rel=RTOL)
+
+
+@pytest.mark.parametrize("kind", ["variable", "constraint"])
+@pytest.mark.parametrize("name", ["Generator-unregistered", "Unknown-p"])
+def test_unregistered_element_raises(kind, name):
+    n = scale(sector_network(), {"AC": 1e-3})
+    m = n.optimize.create_model()
+    if kind == "variable":
+        m.add_variables(name=name)
+    else:
+        m.add_constraints(m["Generator-p"].sum() <= 1e4, name=name)
+    with pytest.raises(ValueError, match="No scaling rule"):
+        apply_scaling(n)

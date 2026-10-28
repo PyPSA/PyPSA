@@ -33,6 +33,8 @@ KVL_SCALING = 1e5
 
 OBJECTIVE_CONSTANT = "objective_constant"
 
+OBJECTIVE_SCALED = (OBJECTIVE_CONSTANT, "CVaR", "CVaR-*")
+
 SCALED_VARIABLES = (
     "p",
     "p_nom",
@@ -100,8 +102,6 @@ UNSCALED = (
     "*-shut_down-*-upper",
     "Transformer-phase_shift",
     "Carrier-growth_limit",
-    "CVaR",
-    "CVaR-*",
 )
 
 
@@ -195,8 +195,9 @@ def apply_scaling(n: Network, objective_scaling: float = 1.0) -> None:
     factor of their bus and global constraint rows `GlobalConstraint.scaling`.
     Kirchhoff voltage law rows keep the factor `1e5` times the factor of their
     sub-network set on creation.
-    The fixed `objective_constant` column takes `objective_scaling`, so its
-    bound is expressed in objective units.
+    Cost-valued elements take `objective_scaling`: the fixed
+    `objective_constant` column, so its bound is expressed in objective units,
+    and the CVaR columns and rows, so their coefficients match the objective.
     Binary, integer, angle and auxiliary columns are not scaled.
 
     Parameters
@@ -227,7 +228,7 @@ def apply_scaling(n: Network, objective_scaling: float = 1.0) -> None:
     regular = {
         name: name.partition("-")
         for name in [*m.variables, *m.constraints]
-        if name not in {*special, OBJECTIVE_CONSTANT} and not _matches(name, UNSCALED)
+        if name not in special and not _matches(name, (*OBJECTIVE_SCALED, *UNSCALED))
     }
     unknown = [
         name
@@ -240,8 +241,10 @@ def apply_scaling(n: Network, objective_scaling: float = 1.0) -> None:
         raise ValueError(msg)
 
     m.objective.scaling = objective_scaling
-    if OBJECTIVE_CONSTANT in m.variables:
-        _set_scaling(m.variables[OBJECTIVE_CONSTANT], objective_scaling)
+    for name in [*m.variables, *m.constraints]:
+        if _matches(name, OBJECTIVE_SCALED):
+            obj = m.constraints[name] if name in rows else m.variables[name]
+            _set_scaling(obj, objective_scaling)
     buses = bus_scaling(n)
     glcs = _validated(
         invariant(n.c.global_constraints.static.scaling), "GlobalConstraint.scaling"
