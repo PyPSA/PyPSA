@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
@@ -45,7 +45,7 @@ class Generators(Components):
     """
 
     _operational_variables = ["p"]
-    _energy_terms: ClassVar[tuple[tuple[str, int], ...]] = (("p", 1),)
+    _energy_terms = (("p", 1),)
 
     def get_bounds_pu(
         self,

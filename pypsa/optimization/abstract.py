@@ -10,7 +10,7 @@ import gc
 import logging
 from functools import reduce
 from itertools import product
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -190,47 +190,6 @@ def _add_security_constraints(
             )
 
 
-class _TrackedLimit(NamedTuple):
-    """Volume limit of a component tracked across rolling horizon windows.
-
-    Attributes
-    ----------
-    component : str
-        Name of the component.
-    attr : str
-        Name of the limit attribute.
-    original : pd.Series
-        Original limit of each asset.
-    later : pd.DataFrame
-        Weighted energy per snapshot that later windows can at most (lower
-        limits) or must at least (upper limits) contribute.
-
-    """
-
-    component: str
-    attr: str
-    original: pd.Series
-    later: pd.DataFrame
-
-    def remaining(self, used: pd.Series, rest: pd.Index) -> pd.Series:
-        """Get the limit that is still open for a window.
-
-        Parameters
-        ----------
-        used : pd.Series
-            Energy of each asset in the windows before.
-        rest : pd.Index
-            Snapshots of the windows after.
-
-        Returns
-        -------
-        pd.Series
-            Open limit of each asset.
-
-        """
-        return self.original - used - self.later.loc[rest].sum()
-
-
 def _weighted(n: Network, power: pd.DataFrame, snapshots: Sequence) -> pd.DataFrame:
     """Get the energy per snapshot of a power."""
     weights = n.snapshot_weightings[ENERGY_WEIGHTING].loc[snapshots]
@@ -281,7 +240,7 @@ def _power_bounds(
 
 def _tracked_limits(
     n: Network, c: Components, snapshots: Sequence
-) -> list[_TrackedLimit]:
+) -> list[tuple[str, str, pd.Series, pd.DataFrame]]:
     """Get the volume limits of a component to track across rolling horizon windows.
 
     Parameters
@@ -295,9 +254,12 @@ def _tracked_limits(
 
     Returns
     -------
-    list[_TrackedLimit]
-        Limits that are not at their default. Committable, maintainable and
-        inactive assets may contribute nothing in later windows.
+    list[tuple[str, str, pd.Series, pd.DataFrame]]
+        Component name, limit attribute, original limit and the weighted energy
+        per snapshot that later windows can at most (lower limits) or must at
+        least (upper limits) contribute, for each limit not at its default.
+        Committable, maintainable and inactive assets may contribute nothing in
+        later windows.
 
     Raises
     ------
@@ -335,11 +297,13 @@ def _tracked_limits(
                 f"rolling horizon requires {hint}."
             )
             raise ValueError(msg)
-        tracked.append(_TrackedLimit(c.name, attr, c.static[attr].copy(), energy))
+        tracked.append((c.name, attr, c.static[attr].copy(), energy))
     return tracked
 
 
-def _all_tracked_limits(n: Network, snapshots: Sequence) -> list[_TrackedLimit]:
+def _all_tracked_limits(
+    n: Network, snapshots: Sequence
+) -> list[tuple[str, str, pd.Series, pd.DataFrame]]:
     """Get the volume limits to track across rolling horizon windows.
 
     Parameters
@@ -351,8 +315,8 @@ def _all_tracked_limits(n: Network, snapshots: Sequence) -> list[_TrackedLimit]:
 
     Returns
     -------
-    list[_TrackedLimit]
-        Limits of all components with `_energy_terms`.
+    list[tuple[str, str, pd.Series, pd.DataFrame]]
+        Limits of all components with `_energy_terms`, see `_tracked_limits`.
 
     """
     tracked = [
@@ -366,7 +330,7 @@ def _all_tracked_limits(n: Network, snapshots: Sequence) -> list[_TrackedLimit]:
             "Volume limits %s are tracked across the rolling horizon without "
             "foresight: each window only sees what previous windows left open. "
             "The dispatch pattern depends on the window order.",
-            ", ".join(f"{t.component}-{t.attr}" for t in tracked),
+            ", ".join(f"{name}-{attr}" for name, attr, *_ in tracked),
         )
     return tracked
 
@@ -805,9 +769,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                             ].values
                         )
                 done, rest = snapshots[:start], snapshots[end:]
-                for t in tracked:
-                    c = n.c[t.component]
-                    c.static[t.attr] = t.remaining(_energy(n, c, done), rest)
+                for name, attr, original, later in tracked:
+                    c = n.c[name]
+                    used = _energy(n, c, done)
+                    c.static[attr] = original - used - later.loc[rest].sum()
 
                 status, condition = n.optimize(sns, **kwargs)
                 if status != "ok":
@@ -824,8 +789,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                         condition,
                     )
         finally:
-            for t in tracked:
-                n.c[t.component].static[t.attr] = t.original
+            for name, attr, original, _ in tracked:
+                n.c[name].static[attr] = original
         return n
 
     def optimize_and_run_non_linear_powerflow(
