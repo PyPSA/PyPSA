@@ -137,7 +137,12 @@ def define_piecewise(
         )
         return None
     x_breakpoints, y_breakpoints, valid = _get_breakpoints(
-        c, pw_attr, pw_names, cumulative_attr, invert_attr
+        c,
+        pw_attr,
+        pw_names,
+        cumulative_attr,
+        invert_attr,
+        snapshots=x_var.indexes.get("snapshot"),
     )
 
     if y_var is None:
@@ -230,6 +235,8 @@ def _get_breakpoints(
     pw_names: pd.Index,
     cumulative_attr: bool,
     invert_attr: bool,
+    *,
+    snapshots: pd.Index | None = None,
 ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
     """Convert piecewise data to linopy breakpoints and their validity mask.
 
@@ -238,6 +245,8 @@ def _get_breakpoints(
     """
     piecewise_df = c.piecewise[pw_attr][pw_names]
     piecewise_attrs = c._piecewise_schema(pw_attr)
+    if isinstance(piecewise_df.index, pd.MultiIndex):
+        piecewise_df = piecewise_df.loc[snapshots]
 
     x_da = _to_da(piecewise_df, piecewise_attrs.x)
     y_da = _to_da(piecewise_df, pw_attr)
@@ -276,7 +285,19 @@ def _get_breakpoints(
         x_breakpoints = breakpoints(x_da)
         if cumulative_attr:
             slopes = y_da.shift({BREAKPOINT_DIM: -1})
-            y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
+            if "snapshot" in x_da.dims:
+                # Released linopy integrates one entity dimension (linopy#1013).
+                y_breakpoints = xr.concat(
+                    [
+                        Slopes(slopes.sel(snapshot=sn), y0=0).to_breakpoints(
+                            x_da.sel(snapshot=sn)
+                        )
+                        for sn in x_da.indexes["snapshot"]
+                    ],
+                    dim=x_da.indexes["snapshot"],
+                ).reindex_like(x_da)
+            else:
+                y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
         else:
             y_breakpoints = breakpoints(
                 (y_da * x_da).fillna(0).where(valid_breakpoints)
@@ -298,7 +319,8 @@ def _create_y_var(
 
 def _to_da(piecewise_df: pd.DataFrame, attr: str) -> xr.DataArray:
     """Convert input to DataArray with given coords and dims."""
-    da = xr.DataArray(piecewise_df.xs(attr, level="attribute", axis=1)).rename(
-        breakpoint=BREAKPOINT_DIM
-    )
-    return da
+    frame = piecewise_df.xs(attr, level="attribute", axis=1)
+    if isinstance(frame.index, pd.MultiIndex):
+        da = frame.stack(future_stack=True).to_xarray()
+        return da.rename(breakpoint=BREAKPOINT_DIM)
+    return xr.DataArray(frame).rename(breakpoint=BREAKPOINT_DIM)

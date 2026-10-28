@@ -308,7 +308,8 @@ class NetworkTransformMixin(_NetworkABC):
                             axis=1,
                         )
                         v.columns.names = ["name", "attribute"]
-                        v.index.name = "breakpoint"
+                        if not isinstance(v.index, pd.MultiIndex):
+                            v.index.name = "breakpoint"
                         piecewise[k] = v
                         continue
             elif isinstance(v, dict):
