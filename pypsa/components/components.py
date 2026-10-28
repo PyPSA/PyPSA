@@ -169,7 +169,6 @@ class Components(
     """
 
     _operational_variables: list[str] = []
-    _energy_terms: tuple[tuple[str, int], ...] = ()
 
     def __init__(
         self,

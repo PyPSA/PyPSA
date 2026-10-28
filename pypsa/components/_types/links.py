@@ -43,7 +43,6 @@ class Links(_Multiport):
     """
 
     _operational_variables = ["p"]
-    _energy_terms = (("p", 1),)
     _unsuffixed_attrs = {"efficiency", "delay", "cyclic_delay"}
 
     @property

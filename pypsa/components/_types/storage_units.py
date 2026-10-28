@@ -35,7 +35,6 @@ class StorageUnits(Components):
     """
 
     _operational_variables = ["p_dispatch", "p_store", "state_of_charge"]
-    _energy_terms = (("p_dispatch", 1), ("p_store", -1))
 
     def get_bounds_pu(
         self,

@@ -678,7 +678,7 @@ def check_generators(component: Components, strict: bool = False) -> None:
 def check_volume_limits(component: Components, strict: bool = False) -> None:
     """Check that `e_sum_min` is not greater than `e_sum_max`.
 
-    Applies to all components with `_energy_terms`. A numerical tolerance from
+    Applies to all components with volume limits. A numerical tolerance from
     `params.consistency.numerical_tolerance` is applied.
 
     Activate strict mode in general consistency check by passing
@@ -696,7 +696,7 @@ def check_volume_limits(component: Components, strict: bool = False) -> None:
     [pypsa.Network.consistency_check][]
 
     """
-    if not component._energy_terms:
+    if "e_sum_min" not in component.static:
         return
     tol = options.params.consistency.numerical_tolerance
     static = component.static

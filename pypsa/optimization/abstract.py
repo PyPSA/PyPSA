@@ -190,32 +190,32 @@ def _add_security_constraints(
             )
 
 
-def _weighted(n: Network, power: pd.DataFrame, snapshots: Sequence) -> pd.DataFrame:
-    """Get the energy per snapshot of a power."""
-    weights = n.snapshot_weightings[ENERGY_WEIGHTING].loc[snapshots]
-    return power.mul(weights, axis=0)
+def _energy_weightings(n: Network, multi_invest: bool) -> pd.Series:
+    """Get the snapshot weightings of volume limits, weighted by period years."""
+    weights = n.snapshot_weightings[ENERGY_WEIGHTING]
+    if not multi_invest:
+        return weights
+    period_of = weights.index.get_level_values("period")
+    return weights * n.investment_period_weightings.years.reindex(period_of).to_numpy()
 
 
-def _energy(n: Network, c: Components, snapshots: Sequence) -> pd.Series:
-    """Get the weighted sum of the signed power of `_energy_terms` per asset."""
-    power = sum(
-        sign * c.dynamic[var].reindex(index=snapshots, columns=c.static.index)
-        for var, sign in c._energy_terms
-    )
-    return _weighted(n, power, snapshots).sum()
+def _energy(c: Components, weights: pd.Series, snapshots: Sequence) -> pd.Series:
+    """Get the weighted sum of the power `p` per asset."""
+    power = c.dynamic.p.reindex(index=snapshots, columns=c.static.index)
+    return power.mul(weights.loc[snapshots], axis=0).sum()
 
 
 def _power_bounds(
     c: Components, snapshots: Sequence
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Get the bounds of the signed power sum of `_energy_terms` per snapshot.
+    """Get the bounds of the power `p` per snapshot.
 
     Extendable assets are bounded by their minimum and maximum capacity.
 
     Parameters
     ----------
     c : pypsa.Components
-        Components with `_energy_terms` that are all operational variables.
+        Components with the operational variable `p`.
     snapshots : Sequence
         Snapshots to get the bounds for.
 
@@ -229,26 +229,22 @@ def _power_bounds(
     ext = c.static[attrs["nom_extendable"]]
     nom = c.static[attrs["nom"]]
     noms = [nom.where(~ext, c.static[attrs[b]]) for b in ("nom_min", "nom_max")]
-    lower = upper = 0.0
-    for var, sign in c._energy_terms:
-        pus = [_from_xarray(sign * pu, c).loc[snapshots] for pu in c.get_bounds_pu(var)]
-        powers = [pu * nom for pu in pus for nom in noms]
-        lower = lower + reduce(np.fmin, powers)
-        upper = upper + reduce(np.fmax, powers)
-    return lower, upper
+    pus = [_from_xarray(pu, c).loc[snapshots] for pu in c.get_bounds_pu("p")]
+    powers = [pu * nom for pu in pus for nom in noms]
+    return reduce(np.fmin, powers), reduce(np.fmax, powers)
 
 
 def _tracked_limits(
-    n: Network, c: Components, snapshots: Sequence
+    c: Components, weights: pd.Series, snapshots: Sequence
 ) -> list[tuple[str, str, pd.Series, pd.DataFrame]]:
     """Get the volume limits of a component to track across rolling horizon windows.
 
     Parameters
     ----------
-    n : pypsa.Network
-        Network instance.
     c : pypsa.Components
-        Components with `_energy_terms`.
+        Components with volume limits.
+    weights : pd.Series
+        Snapshot weightings of volume limits, see `_energy_weightings`.
     snapshots : Sequence
         Snapshots of the rolling horizon.
 
@@ -270,7 +266,7 @@ def _tracked_limits(
     limits = [(a, s, d) for a, s, d in ENERGY_LIMITS if (c.static[a] != d).any()]
     if not limits:
         return []
-    if all(var in c._operational_variables for var, _ in c._energy_terms):
+    if "p" in c._operational_variables:
         lower, upper = _power_bounds(c, snapshots)
         hint = f"a finite {c._operational_attrs['nom_max']}"
     else:
@@ -278,8 +274,9 @@ def _tracked_limits(
         lower = -upper
         hint = "a single window"
     active = c.get_activity_mask(snapshots)
-    lower = _weighted(n, lower.where(active, 0.0), snapshots)
-    upper = _weighted(n, upper.where(active, 0.0), snapshots)
+    w = weights.loc[snapshots]
+    lower = lower.where(active, 0.0).mul(w, axis=0)
+    upper = upper.where(active, 0.0).mul(w, axis=0)
     flags = [a for a in ("committable", "maintainable") if a in c.static]
     flexible = active & c.static[flags].any(axis=1)
     later = {
@@ -302,7 +299,7 @@ def _tracked_limits(
 
 
 def _all_tracked_limits(
-    n: Network, snapshots: Sequence
+    n: Network, weights: pd.Series, snapshots: Sequence
 ) -> list[tuple[str, str, pd.Series, pd.DataFrame]]:
     """Get the volume limits to track across rolling horizon windows.
 
@@ -310,20 +307,22 @@ def _all_tracked_limits(
     ----------
     n : pypsa.Network
         Network instance.
+    weights : pd.Series
+        Snapshot weightings of volume limits, see `_energy_weightings`.
     snapshots : Sequence
         Snapshots of the rolling horizon.
 
     Returns
     -------
     list[tuple[str, str, pd.Series, pd.DataFrame]]
-        Limits of all components with `_energy_terms`, see `_tracked_limits`.
+        Limits of all components with volume limits, see `_tracked_limits`.
 
     """
     tracked = [
         limit
         for c in n.components
-        if c._energy_terms
-        for limit in _tracked_limits(n, c, snapshots)
+        if "e_sum_min" in c.static
+        for limit in _tracked_limits(c, weights, snapshots)
     ]
     if tracked:
         logger.warning(
@@ -711,7 +710,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         status of all components for the ramp and unit commitment constraints.
 
         Finite `e_sum_min` and `e_sum_max` limits of generators, links,
-        processes, storage units and stores refer to the whole set of
+        processes and stores refer to the whole set of
         `snapshots`. Each window is given the part of them that is still open:
         the energy produced in previous windows is subtracted, and so is the
         energy that can at most (`e_sum_min`) or must at least (`e_sum_max`) be
@@ -743,7 +742,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             raise ValueError(msg)
 
         starting_points = range(0, len(snapshots), horizon - overlap)
-        tracked = [] if len(starting_points) == 1 else _all_tracked_limits(n, snapshots)
+        weights = _energy_weightings(n, kwargs.get("multi_investment_periods", False))
+        tracked = (
+            []
+            if len(starting_points) == 1
+            else _all_tracked_limits(n, weights, snapshots)
+        )
 
         try:
             for i, start in enumerate(starting_points):
@@ -771,7 +775,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 done, rest = snapshots[:start], snapshots[end:]
                 for name, attr, original, later in tracked:
                     c = n.c[name]
-                    used = _energy(n, c, done)
+                    used = _energy(c, weights, done)
                     c.static[attr] = original - used - later.loc[rest].sum()
 
                 status, condition = n.optimize(sns, **kwargs)

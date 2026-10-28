@@ -362,13 +362,6 @@ ASSET = {
     "Generator": {"bus": "bus", "p_nom": 1000},
     "Link": {"bus0": "src", "bus1": "bus", "p_nom": 1000},
     "Process": {"bus0": "src", "bus1": "bus", "p_nom": 1000},
-    "StorageUnit": {
-        "bus": "bus",
-        "p_nom": 1000,
-        "p_min_pu": 0,
-        "max_hours": 1000,
-        "state_of_charge_initial": 1e4,
-    },
     "Store": {"bus": "bus", "e_nom": 1e5, "e_initial": 1e4},
 }
 
@@ -434,7 +427,6 @@ E_SUM_PARAMS = [
         for component, keys in {
             "Link": ("min", "sink-max", "max-committable"),
             "Process": ("min", "sink-max"),
-            "StorageUnit": ("min", "sink-max"),
         }.items()
         for key in keys
     ),
@@ -461,6 +453,22 @@ def test_rolling_horizon_e_sum(component, case, overlap, periods):
     assert n.c[component].static.loc["gen", attr] == limit
 
 
+@pytest.mark.parametrize("case", ["min", "max"])
+@pytest.mark.parametrize("horizon", [3, 12])
+def test_e_sum_multi_invest(case, horizon):
+    kwargs, attr, limit, _ = E_SUM_CASES[case]
+    n = get_e_sum_network("Generator", attr, limit, kwargs, periods=[1, 2])
+    n.investment_period_weightings["years"] = [1, 2]
+
+    n.optimize.optimize_with_rolling_horizon(
+        horizon=horizon, multi_investment_periods=True
+    )
+
+    p = n.c.generators.dynamic.p["gen"]
+    years = n.investment_period_weightings.years
+    assert p.mul(years, level="period").sum() == pytest.approx(limit)
+
+
 def test_e_sum_store():
     n = get_e_sum_network("Store", "e_sum_min", 1500.0, {"marginal_cost": 40})
 
@@ -471,18 +479,14 @@ def test_e_sum_store():
 
 def test_rolling_horizon_e_sum_stochastic():
     n = get_e_sum_network("Link", "e_sum_min", 900.0, {"marginal_cost": 40})
-    n.add(
-        "StorageUnit", "gen", **ASSET["StorageUnit"], marginal_cost=40, e_sum_min=600.0
-    )
     n.set_scenarios({"a": 0.5, "b": 0.5})
 
     n.optimize.optimize_with_rolling_horizon(horizon=3)
 
-    for component, limit in [("Link", 900.0), ("StorageUnit", 600.0)]:
-        c = n.c[component]
-        p = c.dynamic.p.xs("gen", axis=1, level="name")
-        assert p.sum().to_list() == pytest.approx([limit, limit])
-        assert (c.static.xs("gen", level="name").e_sum_min == limit).all()
+    c = n.c.links
+    p = c.dynamic.p.xs("gen", axis=1, level="name")
+    assert p.sum().to_list() == pytest.approx([900.0, 900.0])
+    assert (c.static.xs("gen", level="name").e_sum_min == 900.0).all()
 
 
 @pytest.mark.parametrize(
@@ -491,7 +495,6 @@ def test_rolling_horizon_e_sum_stochastic():
         ("Generator", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
         ("Link", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
         ("Process", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
-        ("StorageUnit", {"p_min_pu": -1}, "e_sum_max", -500, "finite p_nom_max"),
         ("Store", {"marginal_cost": 1}, "e_sum_max", 3000, "a single window"),
     ],
 )

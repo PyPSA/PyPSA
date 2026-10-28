@@ -45,7 +45,6 @@ class Generators(Components):
     """
 
     _operational_variables = ["p"]
-    _energy_terms = (("p", 1),)
 
     def get_bounds_pu(
         self,

@@ -32,7 +32,7 @@ from pypsa.components.common import as_components, invariant
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
-from pypsa.optimization.window import snapshot_array
+from pypsa.optimization.window import apply_period_weighting, snapshot_array
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -2652,18 +2652,19 @@ def define_total_supply_constraints(
     """Define volume limit constraints of a component.
 
     Creates constraints limiting the energy of each asset over the specified
-    snapshots. The energy is the weighted sum of the signed power variables
-    in `_energy_terms` of the component. Limits at their default are not
-    constrained. For `e_sum_min` and `e_sum_max` the constraints enforce:
+    snapshots. The energy is the weighted sum of the power variable `p` of the
+    component. Limits at their default are not constrained. For `e_sum_min`
+    and `e_sum_max` the constraints enforce:
 
     sum(p(t) * weighting(t)) ≥ e_sum_min
 
     sum(p(t) * weighting(t)) ≤ e_sum_max
 
-    where the sum is taken over all snapshots, including all investment
-    periods, and the generator weighting accounts for the duration of each
-    snapshot. The power p is `p` for Generator, Link (withdrawal at `bus0`),
-    Process and Store, and `p_dispatch - p_store` for StorageUnit.
+    where the sum is taken over all snapshots, and the generator weighting
+    accounts for the duration of each snapshot. With multiple investment
+    periods, the limits apply to the total over all periods and the weighting
+    is multiplied by the period weighting `years`, as for `operational_limit`
+    global constraints. For Link, p is the withdrawal at `bus0`.
 
     Parameters
     ----------
@@ -2691,16 +2692,15 @@ def define_total_supply_constraints(
         return
 
     eh = window.snapshot_weightings(ENERGY_WEIGHTING)
+    if n._multi_invest:
+        eh = apply_period_weighting(eh, n.investment_period_weightings.years)
     for attr, sign, default in ENERGY_LIMITS:
         bounded = c.static[attr] != default
         names = bounded[bounded].index.unique("name")
         if names.empty:
             continue
         rhs = c.da[attr].sel(name=names)
-        terms = [
-            factor * m[f"{c.name}-{var}"].sel(name=names, snapshot=sns_)
-            for var, factor in c._energy_terms
-        ]
-        energy = (merge(terms) * eh).sum(dim="snapshot")
+        p = m[f"{c.name}-p"].sel(name=names, snapshot=sns_)
+        energy = (p * eh).sum(dim="snapshot")
         mask = rhs != default
         m.add_constraints(energy, sign, rhs, name=f"{c.name}-{attr}", mask=mask)

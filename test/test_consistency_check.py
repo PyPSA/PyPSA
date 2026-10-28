@@ -148,7 +148,6 @@ def test_unknown_carriers(consistent_n, caplog, strict):
         ("Generator", {"bus": "one"}),
         ("Link", {"bus0": "one", "bus1": "two"}),
         ("Process", {"bus0": "one", "bus1": "two"}),
-        ("StorageUnit", {"bus": "one"}),
         ("Store", {"bus": "one"}),
     ],
 )

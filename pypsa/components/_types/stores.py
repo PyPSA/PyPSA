@@ -42,7 +42,6 @@ class Stores(Components):
     """
 
     _operational_variables = ["e"]
-    _energy_terms = (("p", 1),)
 
     def get_bounds_pu(
         self,

@@ -66,7 +66,7 @@ These constraints are set in the function `define_fixed_operation_constraints()`
 
 ## Volume Limits
 
-Generators, links, processes, storage units and stores can also have volume limits, i.e. the weighted sum of their power over all snapshots must be above a minimum $\underline{e}_{*}$ (`e_sum_min`) or below a maximum $\bar{e}_{*}$ (`e_sum_max`). The limits apply once over all snapshots, including all investment periods. They are not weighted by the investment period weightings.
+Generators, links, processes and stores can also have volume limits, i.e. the weighted sum of their power over all snapshots must be above a minimum $\underline{e}_{*}$ (`e_sum_min`) or below a maximum $\bar{e}_{*}$ (`e_sum_max`). The limits apply once over all snapshots. With multiple investment periods, they apply to the total over all periods, and the energy of each period is multiplied by its investment period weighting `years`, as for [`operational_limit`](global-constraints.md) global constraints.
 
 | Constraint | Dual Variable | Name |
 |-------------------|------------------|------------------|
@@ -76,18 +76,16 @@ Generators, links, processes, storage units and stores can also have volume limi
 | $\sum_t w_t^g f_{l,t} \leq \bar{e}_{l} \quad \forall l$ | only in `n.model` | `Link-e_sum_max` |
 | $\sum_t w_t^g r_{m,t} \geq \underline{e}_{m} \quad \forall m$ | only in `n.model` | `Process-e_sum_min` |
 | $\sum_t w_t^g r_{m,t} \leq \bar{e}_{m} \quad \forall m$ | only in `n.model` | `Process-e_sum_max` |
-| $\sum_t w_t^g (h_{n,s,t}^- - h_{n,s,t}^+) \geq \underline{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `StorageUnit-e_sum_min` |
-| $\sum_t w_t^g (h_{n,s,t}^- - h_{n,s,t}^+) \leq \bar{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `StorageUnit-e_sum_max` |
 | $\sum_t w_t^g h_{n,s,t} \geq \underline{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Store-e_sum_min` |
 | $\sum_t w_t^g h_{n,s,t} \leq \bar{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Store-e_sum_max` |
 
-The limited power has the sign convention of `p`. For links it is the withdrawal at `bus0`, and for processes the internal power `p`. For storage units and stores it is the net power, i.e. discharge minus charge (see [Storage](storage.md) for the symbols $h$). All volume limits use the generator snapshot weightings $w_t^g$, as [`n.statistics.energy_balance()`][pypsa.statistics.StatisticsAccessor.energy_balance].
+The limited power has the sign convention of `p`. For links it is the withdrawal at `bus0`, and for processes the internal power `p`. For stores it is the net power, i.e. discharge minus charge (see [Storage](storage.md) for the symbol $h$). All volume limits use the generator snapshot weightings $w_t^g$, as [`n.statistics.energy_balance()`][pypsa.statistics.StatisticsAccessor.energy_balance].
 
 These constraints are set in the function `define_total_supply_constraints()`.
 
 !!! note "Rolling horizon"
 
-    In [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] the volume limits apply to all snapshots of the rolling horizon. Each window gets the part of the limit left open by previous windows and by what later windows can at most ($\bar{e}$) or must at least ($\underline{e}$) produce given their capacity, `p_min_pu` and `p_max_pu`. Committable and maintainable components may produce nothing in later windows, inactive components produce nothing. Without foresight, a maximum is depleted by the earliest windows and a minimum is filled by the latest windows, which may turn the last window infeasible. The state of charge of storage units is not considered when estimating later windows, so a late window may also fail if the storage cannot deliver the open limit.
+    In [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] the volume limits apply to all snapshots of the rolling horizon. Each window gets the part of the limit left open by previous windows and by what later windows can at most ($\bar{e}$) or must at least ($\underline{e}$) produce given their capacity, `p_min_pu` and `p_max_pu`. Committable and maintainable components may produce nothing in later windows, inactive components produce nothing. Without foresight, a maximum is depleted by the earliest windows and a minimum is filled by the latest windows, which may turn the last window infeasible.
 
 ## Voltage Angle Limits
 
@@ -153,16 +151,6 @@ These constraints are set in the function `define_voltage_angle_constraints()`. 
         | $\bar{e}_{m}$     | `n.processes.e_sum_max` | Parameter |
         | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
         | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
-
-    === "StorageUnit"
-
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $h_{n,s,t}^-$     | `n.storage_units_t.p_dispatch` | Decision variable |
-        | $h_{n,s,t}^+$     | `n.storage_units_t.p_store` | Decision variable |
-        | $\underline{e}_{n,s}$ | `n.storage_units.e_sum_min` | Parameter |
-        | $\bar{e}_{n,s}$   | `n.storage_units.e_sum_max` | Parameter |
-        | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
 
     === "Store"
 
