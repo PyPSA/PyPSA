@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
@@ -292,3 +293,66 @@ def test_rolling_horizon_linearized_uc_with_ramp_limits():
     static = n.c.generators.static.loc[committable_gens]
     ramp_limits = static.eval("ramp_limit_up * p_nom_opt")
     assert (ramping.values <= ramp_limits.values[None, :] + 1e-5).all()
+
+
+UNIT = {"Generator": {"bus": "bus"}, "Link": {"bus0": "fuel", "bus1": "bus"}}
+UNIT["Process"] = UNIT["Link"]
+
+
+@pytest.mark.parametrize(
+    ("min_time", "horizon", "overlap"), [(4, 24, 8), (6, 4, 1)], ids=["long", "short"]
+)
+@pytest.mark.parametrize("linearized", [False, True], ids=["milp", "linearized"])
+@pytest.mark.parametrize(
+    ("component", "periods"),
+    [("Generator", None), ("Link", None), ("Process", None), ("Generator", [1, 2])],
+    ids=["Generator", "Link", "Process", "multi-period"],
+)
+def test_rolling_horizon_unit_commitment_seams(
+    linearized, min_time, horizon, overlap, component, periods
+):
+    """Regression test for issue #1905.
+
+    Start-ups, shut-downs and minimum up/down times stay consistent with the
+    commitment status across window seams, also for fractional statuses.
+    """
+    n = pypsa.Network(snapshots=range(48))
+    if periods:
+        n.set_snapshots(pd.MultiIndex.from_product([periods, range(24)]))
+        n.set_investment_periods(periods)
+    n.add("Bus", ["bus", "fuel"])
+    n.add("Generator", "supply", bus="fuel", p_nom=1000)
+    n.add(
+        component,
+        "gen",
+        **UNIT[component],
+        marginal_cost=50,
+        p_nom=100,
+        p_min_pu=0.3,
+        committable=True,
+        min_up_time=min_time,
+        min_down_time=min_time,
+        start_up_cost=10000,
+        shut_down_cost=5000,
+        up_time_before=0,
+        down_time_before=10,
+    )
+    availability = [0.8 if i % 24 < 12 else 0.3 for i in range(48)]
+    n.add("Generator", "renewable", bus="bus", p_nom=80, p_max_pu=availability)
+    load = [55.0] * 16 + [70.0] * 8 + [45.0, 55.0] * 4 + [35.0] * 16
+    n.add("Load", "load", bus="bus", p_set=load)
+
+    n.optimize.optimize_with_rolling_horizon(
+        linearized_unit_commitment=linearized, horizon=horizon, overlap=overlap
+    )
+
+    dynamic = n.c[component].dynamic
+    status = dynamic.status["gen"]
+    start_up = dynamic.start_up["gen"]
+    shut_down = dynamic.shut_down["gen"]
+    switch = status.diff().fillna(status.iloc[0])
+    assert np.allclose(start_up, switch.clip(lower=0), atol=1e-6)
+    assert np.allclose(shut_down, (-switch).clip(lower=0), atol=1e-6)
+    assert (start_up.rolling(min_time, min_periods=1).sum() <= status + 1e-6).all()
+    assert (shut_down.rolling(min_time, min_periods=1).sum() <= 1 - status + 1e-6).all()
+    assert shut_down.sum() > 0
