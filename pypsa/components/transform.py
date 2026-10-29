@@ -215,6 +215,12 @@ class ComponentsTransformMixin:
         if self.attached:
             for component in self.n_save.components:
                 col_name = self.name.lower()  # TODO: Generalize
-                cols = [f"{col_name}{port}" for port in component.ports]
+                cols = [
+                    c
+                    for port in component.ports
+                    if (c := f"{col_name}{port}") in component.static.columns
+                ]
+                if col_name in component.static.columns and col_name not in cols:
+                    cols.append(col_name)
                 if cols and not component.static.empty:
                     component.static[cols] = component.static[cols].replace(kwargs)
