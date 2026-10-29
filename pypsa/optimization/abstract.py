@@ -208,22 +208,9 @@ def _energy(c: Components, weights: pd.Series, snapshots: Sequence) -> pd.Series
 def _power_bounds(
     c: Components, snapshots: Sequence
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Get the bounds of the power `p` per snapshot.
+    """Get the lower and upper bound of the power `p` per snapshot.
 
     Extendable assets are bounded by their minimum and maximum capacity.
-
-    Parameters
-    ----------
-    c : pypsa.Components
-        Components with the operational variable `p`.
-    snapshots : Sequence
-        Snapshots to get the bounds for.
-
-    Returns
-    -------
-    tuple[pd.DataFrame, pd.DataFrame]
-        Lower and upper bound of the power.
-
     """
     attrs = c._operational_attrs
     ext = c.static[attrs["nom_extendable"]]
@@ -239,29 +226,10 @@ def _tracked_limits(
 ) -> list[tuple[str, str, pd.Series, pd.DataFrame]]:
     """Get the volume limits of a component to track across rolling horizon windows.
 
-    Parameters
-    ----------
-    c : pypsa.Components
-        Components with volume limits.
-    weights : pd.Series
-        Snapshot weightings of volume limits, see `_energy_weightings`.
-    snapshots : Sequence
-        Snapshots of the rolling horizon.
-
-    Returns
-    -------
-    list[tuple[str, str, pd.Series, pd.DataFrame]]
-        Component name, limit attribute, original limit and the weighted energy
-        per snapshot that later windows can at most (lower limits) or must at
-        least (upper limits) contribute, for each limit not at its default.
-        Committable, maintainable and inactive assets may contribute nothing in
-        later windows.
-
-    Raises
-    ------
-    ValueError
-        If the power is unbounded for an asset with a tracked limit.
-
+    Returns, for each limit not at its default, the component name, the limit
+    attribute, the original limit and the weighted energy per snapshot that
+    later windows can at most (`e_sum_min`) or must at least (`e_sum_max`)
+    contribute. Raises a `ValueError` if this energy is unbounded.
     """
     limits = [(a, s, d) for a, s, d in ENERGY_LIMITS if (c.static[a] != d).any()]
     if not limits:
@@ -301,23 +269,7 @@ def _tracked_limits(
 def _all_tracked_limits(
     n: Network, weights: pd.Series, snapshots: Sequence
 ) -> list[tuple[str, str, pd.Series, pd.DataFrame]]:
-    """Get the volume limits to track across rolling horizon windows.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network instance.
-    weights : pd.Series
-        Snapshot weightings of volume limits, see `_energy_weightings`.
-    snapshots : Sequence
-        Snapshots of the rolling horizon.
-
-    Returns
-    -------
-    list[tuple[str, str, pd.Series, pd.DataFrame]]
-        Limits of all components with volume limits, see `_tracked_limits`.
-
-    """
+    """Get the volume limits of all components, see `_tracked_limits`."""
     tracked = [
         limit
         for c in n.components
