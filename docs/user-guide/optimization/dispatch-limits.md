@@ -66,7 +66,7 @@ These constraints are set in the function `define_fixed_operation_constraints()`
 
 ## Volume Limits
 
-Generators, links, processes and stores can also have volume limits, i.e. the weighted sum of their power over all snapshots must be above a minimum $\underline{e}_{*}$ (`e_sum_min`) or below a maximum $\bar{e}_{*}$ (`e_sum_max`). The limits apply once over all snapshots. With multiple investment periods, they apply to the total over all periods, and the energy of each period is multiplied by its investment period weighting `years`, as for [`operational_limit`](global-constraints.md) global constraints.
+Generators, links, processes and stores can also have volume limits, i.e. the weighted sum of their power over all snapshots must be above a minimum $\underline{e}_{*}$ (`e_sum_min`) or below a maximum $\bar{e}_{*}$ (`e_sum_max`). The limits apply once over all snapshots. With multiple investment periods, they apply to the total over all periods, and the energy of each period is multiplied by its investment period weighting `years`, as for [`operational_limit`](./global-constraints.md) global constraints.
 
 | Constraint | Dual Variable | Name |
 |-------------------|------------------|------------------|
