@@ -281,6 +281,15 @@ def test_storage_capacity(ac_dc_network_r):
     assert df.sum() == 5
 
 
+def test_expanded_capacity_storage(ac_dc_network_r):
+    n = ac_dc_network_r
+    n.add("Store", "example", carrier="any", bus="Manchester", e_nom=5, e_nom_opt=10)
+    df = n.statistics.expanded_capacity(storage=True)
+    assert not df.empty
+    assert list(df.index.unique("component")) == ["Store"]
+    assert df.sum() == 5
+
+
 def test_single_component(ac_dc_network_r):
     n = ac_dc_network_r
     df = n.statistics.installed_capacity(components="Generator")
