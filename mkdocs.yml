@@ -131,6 +131,7 @@ nav:
     - examples/fbmc-simple-example.ipynb
     - examples/fbmc-building-domain.ipynb
     - examples/demand-elasticity.ipynb
+    - examples/data-centre-investment.ipynb
     - examples/imperfect-competition.ipynb
     - examples/cfd-ppa-settlement.ipynb
     - examples/generation-investment-screening-curve.ipynb
