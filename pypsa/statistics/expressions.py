@@ -1435,7 +1435,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_groups="groupby_method",
         aggregate_time="groupby_time",
     )
-    def expanded_capacity(
+    def expanded_capacity(  # noqa: D417
         self,
         components: str | Sequence[str] | None = None,
         groupby_method: Callable | str = "sum",
@@ -1447,6 +1447,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
+        storage: bool = False,
     ) -> pd.DataFrame:
         """Calculate the **expanded capacity** of the network components in MW.
 
@@ -1494,6 +1495,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Number of decimal places to round the result to. Defaults to module wide
             option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
+        Other Parameters
+        ----------------
+        storage : bool, default=False
+            Whether to consider only storage capacities of the components
+            `Store` and `StorageUnit`.
+
         Returns
         -------
         pd.DataFrame
@@ -1517,6 +1524,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
+            storage=storage,
         )
         installed = self.installed_capacity(
             components=components,
@@ -1529,6 +1537,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
+            storage=storage,
         )
         installed = installed.reindex(optimal.index, fill_value=0)
         df = optimal.sub(installed).where(optimal.abs() > installed.abs(), 0)
