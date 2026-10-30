@@ -63,6 +63,7 @@ from pypsa.optimization.global_constraints import (
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
+from pypsa.optimization.scaling import Scaling, with_scaling
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -563,6 +564,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
         objective_scaling: float = 1.0,
+        scaling: Scaling = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -644,6 +646,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             objective value and duals are reported in original units. Column
             and row factors are set via `Bus.scaling` and
             `GlobalConstraint.scaling`.
+        scaling : False | "standard" | ScalingFactors | Callable, default False
+            Set `Bus.scaling`, `GlobalConstraint.scaling` and
+            `objective_scaling` for the build, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -692,6 +697,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             piecewise_options=piecewise_options,
             cycle_basis_method=cycle_basis_method,
             objective_scaling=objective_scaling,
+            scaling=scaling,
             **model_kwargs,
         )
         if extra_functionality:
@@ -719,6 +725,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         return status, condition
 
     @suppress_semantics_warnings()
+    @with_scaling
     def create_model(
         self,
         snapshots: Sequence | None = None,
@@ -732,6 +739,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
         objective_scaling: float = 1.0,
+        scaling: Scaling = False,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -786,6 +794,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             objective value and duals are reported in original units. Column
             and row factors are set via `Bus.scaling` and
             `GlobalConstraint.scaling`.
+        scaling : False | "standard" | ScalingFactors | Callable, default False
+            Set `Bus.scaling`, `GlobalConstraint.scaling` and
+            `objective_scaling` for the build. `"standard"` applies the fixed
+            factors `pypsa.optimization.scaling.STANDARD`, a `ScalingFactors`
+            instance applies its factors and a callable
+            `f(n) -> ScalingFactors` returns them. All factors must be 1
+            beforehand, and the network attributes are restored after the
+            build. See
+            [Numerical Scaling](../../user-guide/optimization/numerical-scaling.md).
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -981,6 +998,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
     ) -> tuple[str, str]:
         """Solve an already created model and assign its solution to the network.
 
+        Scaling factors are fixed when the model is created, see the
+        `objective_scaling` and `scaling` arguments of `create_model`.
+
         Parameters
         ----------
         extra_functionality : callable
@@ -1022,6 +1042,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
         """
+        if "scaling" in kwargs:
+            msg = (
+                "`scaling` is fixed when the model is created, pass it to "
+                "`n.optimize` or `n.optimize.create_model` instead."
+            )
+            raise TypeError(msg)
         # Handle default parameters from options
         if solver_options is None:
             solver_options = options.params.optimize.solver_options.copy()

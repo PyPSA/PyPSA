@@ -41,7 +41,33 @@ The factors are passed to linopy where PyPSA creates each variable and constrain
 
 Factors must be finite and positive; all default to `1`. Results such as `n.c.generators.static.p_nom_opt`, `n.c.buses.dynamic.marginal_price` or `n.c.global_constraints.static.mu` and the duals in `n.model` are reported in original units. LP files and `n.model.matrices` show solver units. Use `n.model.matrices` (`A`, `b`, `c`, `lb`, `ub`) to check the four ranges a solver judges.
 
-Constraints added after [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model], e.g. in `extra_functionality`, are not scaled by PyPSA. Set their factor with linopy, e.g. `n.model.add_constraints(..., scaling=1e-3)` or `n.model.constraints["my-constraint"].scaling = 1e-3`; `n.c.generators.scaling` gives the factors PyPSA uses for an asset. Replacing the objective in `extra_functionality` via `n.model.objective = ...` resets the objective factor to `1`. Use `n.model.add_objective(expr, overwrite=True, scaling=n.model.objective.scaling)` to keep it. [`optimize_security_constrained`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained], [`optimize_mga`][pypsa.optimization.OptimizationAccessor.optimize_mga], [`optimize_mga_in_direction`][pypsa.optimization.OptimizationAccessor.optimize_mga_in_direction] and [`optimize_mga_in_multiple_directions`][pypsa.optimization.OptimizationAccessor.optimize_mga_in_multiple_directions] accept `objective_scaling` as well. In MGA, the budget constraint takes the factor, and the alternative objective keeps the factor of the cost objective although its units differ (e.g. MW for capacity weights). Choose the factor with both objectives in mind.
+Constraints added after [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model], e.g. in `extra_functionality`, are not scaled by PyPSA. Set their factor with linopy, e.g. `n.model.add_constraints(..., scaling=1e-3)` or `n.model.constraints["my-constraint"].scaling = 1e-3`; `n.c.generators.scaling` gives the factors PyPSA uses for an asset. Under `scaling`, the attributes are restored before `extra_functionality` runs, so take the factors from the model instead, e.g. `n.model.variables["Generator-p"].scaling`. Replacing the objective in `extra_functionality` via `n.model.objective = ...` resets the objective factor to `1`. Use `n.model.add_objective(expr, overwrite=True, scaling=n.model.objective.scaling)` to keep it. [`optimize_security_constrained`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained], [`optimize_mga`][pypsa.optimization.OptimizationAccessor.optimize_mga], [`optimize_mga_in_direction`][pypsa.optimization.OptimizationAccessor.optimize_mga_in_direction] and [`optimize_mga_in_multiple_directions`][pypsa.optimization.OptimizationAccessor.optimize_mga_in_multiple_directions] accept `objective_scaling` as well. In MGA, the budget constraint takes the factor, and the alternative objective keeps the factor of the cost objective although its units differ (e.g. MW for capacity weights). Choose the factor with both objectives in mind.
+
+## Automatic factors
+
+Instead of setting factors by hand, pass `scaling` to [`n.optimize`][pypsa.optimization.OptimizationAccessor.__call__] or [`n.optimize.create_model`][pypsa.optimization.OptimizationAccessor.create_model]:
+
+| `scaling` | Factors |
+|---|---|
+| `False` (default) | Taken from `Bus.scaling`, `GlobalConstraint.scaling` and `objective_scaling` |
+| `"standard"` | `pypsa.optimization.scaling.STANDARD`: `Bus.scaling = 1e-4`, `GlobalConstraint.scaling = 1e-6`, `objective_scaling = 2e-3` |
+| [`ScalingFactors`][pypsa.optimization.scaling.ScalingFactors] | The given factors |
+| Callable `f(n)` | The `ScalingFactors` returned by `f` |
+
+The `"standard"` constants were derived from benchmarks on networks in MW, MWh and currency units, such as PyPSA-Eur, and may not transfer to networks in other units.
+
+``` py
+from pypsa.optimization.scaling import STANDARD, ScalingFactors
+
+n.optimize(scaling="standard")
+n.optimize(scaling=ScalingFactors(bus=1e-3, objective=1e-4))
+
+# Or write them to the network
+STANDARD.apply(n)
+n.optimize(objective_scaling=STANDARD.objective)
+```
+
+`scaling` sets the attributes only for the build and restores them afterwards, so the network keeps factors of `1`. Since `scaling` sets all factors itself, it raises if `Bus.scaling`, `GlobalConstraint.scaling` or `objective_scaling` differ from `1`. `scaling=True` raises a `TypeError`. `optimize_with_rolling_horizon` and `optimize_transmission_expansion_iteratively` forward `scaling` to each run. `optimize_security_constrained` and the MGA methods do not accept `scaling`; use `ScalingFactors.apply` and `objective_scaling` instead.
 
 ## Choosing factors
 

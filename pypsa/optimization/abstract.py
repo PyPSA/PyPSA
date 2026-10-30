@@ -20,6 +20,7 @@ from pypsa._options import options
 from pypsa.common import as_index
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
+from pypsa.optimization.scaling import reject_scaling
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -494,6 +495,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         # Handle default parameters from options
         if model_kwargs is None:
             model_kwargs = options.params.optimize.model_kwargs.copy()
+        reject_scaling("optimize_security_constrained", kwargs, model_kwargs)
 
         n = self._n
 
