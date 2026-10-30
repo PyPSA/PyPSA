@@ -598,7 +598,7 @@ def test_nominal_constraint_bus_carrier_expansion_limit(n):
         status, cond = n.optimize(**kwargs)
     gen1s = [f"gen1-{period}" for period in n.investment_periods]
     assert round(n.c.generators.static.p_nom_opt[gen1s], 0).sum() == 100
-    n.c.buses.static.drop(["nom_max_gencarrier"], inplace=True, axis=1)
+    n.c.buses.static = n.c.buses.static.drop(columns=["nom_max_gencarrier"])
 
     n.c.buses.static.at["1", "nom_max_gencarrier_2020"] = 100
     with pytest.warns(
@@ -608,7 +608,7 @@ def test_nominal_constraint_bus_carrier_expansion_limit(n):
     ):
         status, cond = n.optimize(**kwargs)
     assert n.c.generators.static.at["gen1-2020", "p_nom_opt"] == 100
-    n.c.buses.static.drop(["nom_max_gencarrier_2020"], inplace=True, axis=1)
+    n.c.buses.static = n.c.buses.static.drop(columns=["nom_max_gencarrier_2020"])
 
     # make the constraint non-binding and check that the shadow price is zero
     n.c.buses.static.at["1", "nom_min_gencarrier_2020"] = 100

@@ -276,6 +276,8 @@ def define_objective(
     # Weightings
     weight = window.snapshot_weightings("objective")
     if n._multi_invest:
+        # start-up and shut-down costs are paid per event, not per elapsed hour
+        event_weight = apply_period_weighting(xr.ones_like(weight), period_weighting)
         weight = apply_period_weighting(weight, period_weighting)
 
     # marginal costs, marginal storage cost, and spill cost
@@ -440,6 +442,9 @@ def define_objective(
 
         if cost.size == 0 or cost.sum().item() == 0:
             continue
+
+        if n._multi_invest:
+            cost = cost * event_weight
 
         var = m[f"{c.name}-{attr}"].sel(name=com_i)
         opex_terms.append((var * cost).sum(dim=["name", "snapshot"]))
@@ -904,7 +909,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
-        define_total_supply_constraints(n, sns)
+        for c in n.components:
+            if "e_sum_min" in c.static:
+                define_total_supply_constraints(n, sns, c.name)
 
         if transmission_losses:
             if isinstance(transmission_losses, bool):
