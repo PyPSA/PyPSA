@@ -2402,21 +2402,16 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
 
 
-def define_storage_cycle_constraints(n: Network, sns: pd.Index, component: str) -> None:
-    """Define cycle limits for storage units and stores.
+def define_store_cycle_constraints(n: Network, sns: pd.Index) -> None:
+    """Define cycle limits for stores.
 
-    For storage with a finite `cycles_max`, the constraint enforces:
+    For stores with a finite `cycles_max`, the constraint enforces:
 
-    sum(p_dispatch(t) * weighting(t)) ≤ cycles_max * e_nom
+    sum((p(t) + p_store(t)) * weighting(t)) ≤ cycles_max * e_nom
 
-    where p_dispatch is the discharge at the bus, e_nom the energy capacity
-    (`max_hours * p_nom` for storage units) and the sum is taken over all
-    snapshots of the optimisation. The formulation follows eq. (22) in Cardoso et al. [1]_.
-
-    For stores, the discharge is `p + p_store`, where `p_store ≥ -p` is the
-    non-negative charging power.
-
-    Applies to StorageUnit (p_dispatch) and Store (p, p_store).
+    where `p + p_store` is the discharge at the bus, `p_store ≥ -p` the
+    non-negative charging power and the sum is taken over all snapshots of
+    the optimisation. The formulation follows eq. (22) in Cardoso et al. [1]_.
 
     Parameters
     ----------
@@ -2424,8 +2419,6 @@ def define_storage_cycle_constraints(n: Network, sns: pd.Index, component: str) 
         Network instance containing the model and component data
     sns : pd.Index
         Set of snapshots for which to define the constraints
-    component : str
-        Name of the network component ("StorageUnit" or "Store")
 
     References
     ----------
@@ -2435,36 +2428,30 @@ def define_storage_cycle_constraints(n: Network, sns: pd.Index, component: str) 
 
     """
     m = n.model
-    c = as_components(n, component)
+    c = as_components(n, "Store")
 
     names = c.static.index[c.static.cycles_max < inf].unique("name")
     names = names.intersection(c.active_assets)
     if names.empty:
         return
 
-    # discharge allowed per unit of nominal capacity
     cycles_max = c.da.cycles_max.sel(name=names)
     limited = cycles_max < inf
-    energy_max_pu = cycles_max.where(limited, 0)
-    if c.name == "Store":
-        active = c.da.active.sel(snapshot=sns, name=names)
-        discharge = m["Store-p"].sel(name=names) + m["Store-p_store"]
-        m.add_constraints(discharge, ">=", 0, name="Store-p_store-lower", mask=active)
-    else:
-        discharge = m["StorageUnit-p_dispatch"].sel(name=names)
-        energy_max_pu = energy_max_pu * c.da.max_hours.sel(name=names)
+    cycles_max = cycles_max.where(limited, 0)
+    active = c.da.active.sel(snapshot=sns, name=names)
+    discharge = m["Store-p"].sel(name=names) + m["Store-p_store"]
+    m.add_constraints(discharge, ">=", 0, name="Store-p_store-lower", mask=active)
 
-    nom = nominal_attrs[c.name]
     ext_i = c.extendables.unique("name").intersection(names)
     eh = n.optimize._window.subset(sns).snapshot_weightings("stores")
     lhs = (discharge * eh).sum("snapshot")
-    rhs = energy_max_pu * c.da[nom].sel(name=names)
+    rhs = cycles_max * c.da.e_nom.sel(name=names)
     if not ext_i.empty:
-        capacity = m[f"{c.name}-{nom}"].sel(name=ext_i)
-        lhs = lhs - energy_max_pu.sel(name=ext_i) * capacity
+        capacity = m["Store-e_nom"].sel(name=ext_i)
+        lhs = lhs - cycles_max.sel(name=ext_i) * capacity
         rhs = rhs.where(~rhs.coords["name"].isin(ext_i), 0)
 
-    m.add_constraints(lhs, "<=", rhs, name=f"{c.name}-cycles_max", mask=limited)
+    m.add_constraints(lhs, "<=", rhs, name="Store-cycles_max", mask=limited)
 
 
 def define_tangent_loss_constraints(

@@ -694,9 +694,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
-        su, st = n.c.storage_units, n.c.stores
-        cycles_max = {c.name: c.static.cycles_max.copy() for c in (su, st)}
-        track_cycles = any((limit < np.inf).any() for limit in cycles_max.values())
+        stores = n.c.stores
+        cycles_max = stores.static.cycles_max.copy()
+        track_cycles = (cycles_max < np.inf).any()
 
         starting_points = range(0, len(snapshots), horizon - overlap)
         weights = _energy_weightings(n, kwargs.get("multi_investment_periods", False))
@@ -737,17 +737,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
                 # count the cycles of previous windows against `cycles_max`
                 eh = n.snapshot_weightings.stores.loc[done]
-                for c, discharge, capacity in (
-                    (
-                        su,
-                        su.dynamic.p_dispatch,
-                        su.static.max_hours * su.static.p_nom_opt,
-                    ),
-                    (st, st.dynamic.p.clip(lower=0), st.static.e_nom_opt),
-                ):
-                    used = discharge.loc[done].mul(eh, axis=0).sum() / capacity
-                    remaining = cycles_max[c.name].sub(used.fillna(0), fill_value=0)
-                    c.static.cycles_max = remaining.clip(lower=0)
+                discharge = stores.dynamic.p.loc[done].clip(lower=0)
+                used = discharge.mul(eh, axis=0).sum() / stores.static.e_nom_opt
+                remaining = cycles_max.sub(used.fillna(0), fill_value=0)
+                stores.static.cycles_max = remaining.clip(lower=0)
 
                 status, condition = n.optimize(sns, **kwargs)
                 if status != "ok":
@@ -766,8 +759,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         finally:
             for name, attr, original, _ in tracked:
                 n.c[name].static[attr] = original
-            for c in (su, st):
-                c.static.cycles_max = cycles_max[c.name]
+            stores.static.cycles_max = cycles_max
         return n
 
     def optimize_and_run_non_linear_powerflow(
