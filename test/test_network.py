@@ -911,6 +911,46 @@ def test_rename_component_names(use_component):
     assert "bus3" in n.c.generators.static.bus.to_list()
 
 
+@pytest.mark.parametrize("use_component", [True, False])
+def test_rename_non_bus_component_names(use_component):
+    n = pypsa.Network()
+    n.snapshots = [0, 1]
+
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add("Carrier", "wind")
+    n.add("Generator", "gen1", bus="bus1", carrier="wind", p_min_pu=[0.1, 0.2])
+    n.add("Line", "line1", bus0="bus1", bus1="bus2", s_max_pu=[0.1, 0.2])
+    n.add("Link", "link1", bus0="bus1", bus1="bus2", p_nom=100)
+
+    if use_component:
+        n.c.links.rename_component_names(link1="link2")
+        n.c.lines.rename_component_names(line1="line2")
+        n.c.generators.rename_component_names(gen1="gen2")
+        n.c.carriers.rename_component_names(wind="offshore_wind")
+    else:
+        n.rename_component_names("Link", link1="link2")
+        n.rename_component_names("Line", line1="line2")
+        n.rename_component_names("Generator", gen1="gen2")
+        n.rename_component_names("Carrier", wind="offshore_wind")
+
+    assert "link1" not in n.c.links.static.index
+    assert "link2" in n.c.links.static.index
+    assert n.c.links.static.loc["link2", "bus0"] == "bus1"
+
+    assert "line1" not in n.c.lines.static.index
+    assert "line2" in n.c.lines.static.index
+    assert "line2" in n.c.lines.dynamic.s_max_pu.columns
+
+    assert "gen1" not in n.c.generators.static.index
+    assert "gen2" in n.c.generators.static.index
+    assert "gen2" in n.c.generators.dynamic.p_min_pu.columns
+    assert n.c.generators.static.loc["gen2", "carrier"] == "offshore_wind"
+
+    assert "wind" not in n.c.carriers.static.index
+    assert "offshore_wind" in n.c.carriers.static.index
+
+
 def test_components_repr(ac_dc_network):
     n = ac_dc_network
 
