@@ -120,3 +120,91 @@ def test_modular_fixed_committable_dispatch():
     assert status == "ok"
     assert (n.c.generators.dynamic.p["modgen"] == 150).all()
     assert "Generator-com-p-lower" not in n.model.constraints
+
+
+def test_modular_fixed_committable_ramp_limits():
+    """Regression test for https://github.com/PyPSA/PyPSA/issues/1985."""
+    dispatch = {}
+    for extendable in (False, True):
+        n = pypsa.Network(snapshots=range(2))
+        n.add("Bus", "bus")
+        n.add("Load", "load", bus="bus", p_set=[50, 100])
+        n.add("Generator", "peak", bus="bus", p_nom=1000, marginal_cost=100)
+        n.add(
+            "Generator",
+            "modgen",
+            bus="bus",
+            committable=True,
+            p_nom=0 if extendable else 100,
+            p_nom_extendable=extendable,
+            p_nom_min=100,
+            p_nom_max=100,
+            p_nom_mod=10,
+            ramp_limit_up=0.1,
+            ramp_limit_start_up=0.1,
+            marginal_cost=1,
+        )
+        status, _ = n.optimize(solver_name="highs")
+        assert status == "ok"
+        dispatch[extendable] = n.c.generators.dynamic.p["modgen"]
+
+    # 10 modules of 10 MW may ramp by 0.1 * 10 * 10 = 10 MW in total
+    equal(dispatch[False], [50, 60])
+    equal(dispatch[True], [50, 60])
+
+
+def test_modular_fixed_committable_ramp_limits_first_snapshot():
+    """A fixed modular unit that was on ramps from ``p_init`` with all modules."""
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=100)
+    n.add("Generator", "cheap", bus="bus", p_nom=1000, marginal_cost=0)
+    n.add(
+        "Generator",
+        "modgen",
+        bus="bus",
+        committable=True,
+        p_nom=100,
+        p_nom_mod=10,
+        p_init=100,
+        up_time_before=1,
+        ramp_limit_down=0.1,
+        ramp_limit_shut_down=0.1,
+        marginal_cost=1,
+    )
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    # 10 modules of 10 MW may ramp down by 0.1 * 10 * 10 = 10 MW per snapshot
+    equal(n.c.generators.dynamic.p["modgen"], [90, 80])
+
+
+def test_modular_fixed_committable_start_up_ramp_limits():
+    """Modules starting from zero ramp up one module allowance at a time."""
+    dispatch = {}
+    for extendable in (False, True):
+        n = pypsa.Network(snapshots=range(3))
+        n.add("Bus", "bus")
+        n.add("Load", "load", bus="bus", p_set=[0, 50, 50])
+        n.add("Generator", "backup", bus="bus", p_nom=1000, marginal_cost=1000)
+        n.add(
+            "Generator",
+            "modgen",
+            bus="bus",
+            committable=True,
+            p_nom=0 if extendable else 50,
+            p_nom_extendable=extendable,
+            p_nom_min=50,
+            p_nom_max=50,
+            p_nom_mod=10,
+            ramp_limit_up=0.2,
+            ramp_limit_start_up=0.2,
+            marginal_cost=1,
+        )
+        status, _ = n.optimize(solver_name="highs")
+        assert status == "ok"
+        dispatch[extendable] = n.c.generators.dynamic.p["modgen"]
+
+    # 5 modules of 10 MW may ramp by 0.2 * 10 * 5 = 10 MW in total
+    equal(dispatch[False], [0, 10, 20])
+    equal(dispatch[True], [0, 10, 20])

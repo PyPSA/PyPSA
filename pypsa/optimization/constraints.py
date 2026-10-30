@@ -1020,7 +1020,7 @@ def define_ramp_limit_constraints(
     is_com = DataArray(idx.isin(c.committables), coords=[idx])
     is_modular = DataArray(idx.isin(c.modulars), coords=[idx])
     is_com_ext = is_com & is_ext & ~is_modular
-    is_com_ext_mod = is_com & is_ext & is_modular
+    is_com_mod = is_com & is_modular
     is_com_fix = is_com & ~is_com_ext
 
     limit_up = c.da.ramp_limit_up.sel(snapshot=sns, name=idx)
@@ -1043,11 +1043,12 @@ def define_ramp_limit_constraints(
     window = n.optimize._window.subset(sns)
     filter_first_sn = snapshot_array([1] + [0] * (len(sns) - 1), sns)
 
+    # Status counts modules for modular committables, so they ramp per module
     nom_mod_attr = c._operational_attrs["nom_mod"]
     p_nom = c.da[nom_attr].sel(name=idx).where(~is_ext, 0)
-    if is_com_ext_mod.any():
-        p_nom = p_nom.where(~is_com_ext_mod, c.da[nom_mod_attr].sel(name=idx))
-    is_ext_main = is_ext & ~is_com_ext & ~is_com_ext_mod
+    if is_com_mod.any():
+        p_nom = p_nom.where(~is_com_mod, c.da[nom_mod_attr].sel(name=idx))
+    is_ext_main = is_ext & ~is_com
     p_nom_ext_var = None
     if is_ext_main.any():
         ext_main_names = idx[is_ext_main]
@@ -1064,6 +1065,12 @@ def define_ramp_limit_constraints(
     s_init = _status_history(n, c, idx, sns, 1).squeeze("lag", drop=True)
     p_init = _dispatch_before(n, c, idx, sns, s_init)
     mask.loc[{"snapshot": sns[0]}] = p_init.notnull()
+    is_com_fix_mod = is_com_mod & ~is_ext
+    if is_com_fix_mod.any() and (not _window_start(n, sns) or c.dynamic.status.empty):
+        # Before n.snapshots the status is a 0/1 flag, so a unit that was on
+        # counts all its installed modules as on
+        modules = c.da[nom_attr].sel(name=idx) / c.da[nom_mod_attr].sel(name=idx)
+        s_init = s_init.where(~is_com_fix_mod, s_init * modules)
 
     # skip starts of periods except the first where p_init is used
     boundary = window.period_start_mask()
