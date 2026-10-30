@@ -1412,6 +1412,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         sign: float | pd.Series = 1e-3,
         marginal_cost: float | pd.Series = 1e2,
         p_nom: float | pd.Series = 1e9,
+        carrier: str = "load",
     ) -> pd.Index:
         """Add load shedding in form of generators to all or a subset of buses.
 
@@ -1434,10 +1435,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Price of the load shedding. The default is 1e2.
         p_nom : float/Series, optional
             Maximal load shedding. The default is 1e9 (kW).
+        carrier : str, default: "load"
+            Carrier assigned to the load shedding generators. Created if missing.
 
         """
-        if "Load" not in self._n.c.carriers.static.index:
-            self._n.add("Carrier", "Load")
+        if carrier not in self._n.c.carriers.static.index:
+            self._n.add("Carrier", carrier)
         if buses is None:
             buses = self._n.c.buses.static.index
 
@@ -1446,7 +1449,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             buses,
             suffix,
             bus=buses,
-            carrier="load",
+            carrier=carrier,
             sign=sign,
             marginal_cost=marginal_cost,
             p_nom=p_nom,
