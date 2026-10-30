@@ -281,6 +281,15 @@ def test_storage_capacity(ac_dc_network_r):
     assert df.sum() == 5
 
 
+def test_expanded_capacity_storage(ac_dc_network_r):
+    n = ac_dc_network_r
+    n.add("Store", "example", carrier="any", bus="Manchester", e_nom=5, e_nom_opt=10)
+    df = n.statistics.expanded_capacity(storage=True)
+    assert not df.empty
+    assert list(df.index.unique("component")) == ["Store"]
+    assert df.sum() == 5
+
+
 def test_single_component(ac_dc_network_r):
     n = ac_dc_network_r
     df = n.statistics.installed_capacity(components="Generator")
@@ -420,6 +429,46 @@ def test_prices(ac_dc_network_r):
 
     with pytest.raises(ValueError, match="not supported"):
         n.statistics.prices(groupby="not_an_attribute")
+
+
+def test_prices_load_weighting_stochastic(ac_dc_network_r, ac_dc_stochastic_r):
+    """Load weights align on (scenario, name), not on the bare bus name."""
+    deterministic = ac_dc_network_r.statistics.prices(weighting="load")
+    n = ac_dc_stochastic_r
+
+    load_weighted = n.statistics.prices(weighting="load")
+    time_weighted = n.statistics.prices(weighting="time")
+    assert not load_weighted.equals(time_weighted)
+
+    for scenario in ["low", "high"]:
+        pd.testing.assert_series_equal(
+            load_weighted.xs(scenario, level="scenario"),
+            deterministic,
+            check_names=False,
+        )
+
+    n.c.loads.dynamic.p.loc[:, ("high", "London")] *= 2
+    load_weighted = n.statistics.prices(weighting="load")
+    assert load_weighted.loc[("high", "London")] != deterministic.loc["London"]
+    pd.testing.assert_series_equal(
+        load_weighted.xs("low", level="scenario"),
+        deterministic,
+        check_names=False,
+    )
+
+
+def test_prices_load_weighting_misaligned_raises(ac_dc_stochastic_r, monkeypatch):
+    """Weights that match no price column raise instead of falling back to 1."""
+    n = ac_dc_stochastic_r
+    withdrawal = n.statistics.withdrawal(
+        groupby="bus", nice_names=False, groupby_time=False
+    )
+    misaligned = withdrawal.rename(lambda s: f"other-{s}", level="scenario")
+    monkeypatch.setattr(
+        type(n.statistics), "withdrawal", lambda self, **kwargs: misaligned
+    )
+    with pytest.raises(ValueError, match="do not align"):
+        n.statistics.prices(weighting="load")
 
 
 @pytest.fixture

@@ -14,6 +14,7 @@ Transform methods are methods which modify and restructure data.
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -213,8 +214,9 @@ class ComponentsTransformMixin:
 
         # Rename cross references in network (if attached to one)
         if self.attached:
+            col_name = self.name.lower()  # TODO: Generalize
+            re_cols = re.compile(rf"{col_name}\d*")
             for component in self.n_save.components:
-                col_name = self.name.lower()  # TODO: Generalize
-                cols = [f"{col_name}{port}" for port in component.ports]
+                cols = [c for c in component.static.columns if re_cols.fullmatch(c)]
                 if cols and not component.static.empty:
                     component.static[cols] = component.static[cols].replace(kwargs)

@@ -15,17 +15,21 @@ SPDX-License-Identifier: CC-BY-4.0
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
 ### Features
-
+- [`add_load_shedding`][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding] takes a `carrier` argument, defaulting to `"load"`. (<!-- md:pr 2056 -->)
 - Add the volume limits `e_sum_min` and `e_sum_max` to [Link](./user-guide/components/links.md), [Process](./user-guide/components/processes.md) and [Store](./user-guide/components/stores.md) components. (<!-- md:pr 1987 -->)
     - **Behavior change**: With `multi_investment_periods=True`, `e_sum_min` and `e_sum_max` limit the total over all investment periods weighted by the investment period weighting `years`, as for `operational_limit` global constraints. Before, the energy of each period was counted once.
     - **Behavior change**: The consistency check for `e_sum_min > e_sum_max` raises with `strict=["volume_limits"]` instead of `strict=["generators"]`.
 
 ### Bug Fixes
 
+- Fix [`n.add()`][pypsa.Network.add] silently dropping custom time-varying attributes of all but the first call. Later calls now add their columns to the existing frame, and `overwrite=True` replaces them. (<!-- md:pr 2063 -->)
+- Fix [`n.statistics.prices(weighting="load")`][pypsa.statistics.StatisticsAccessor.prices] on stochastic networks and network collections. Before, the load weights were dropped and the prices silently fell back to time weighting. Each scenario and each collection member is now weighted by its own withdrawal. (<!-- md:pr 2054 -->)
+- Fix `KeyError` in [`rename_component_names`][pypsa.Components.rename_component_names] when renaming non-bus components (such as links, lines, and carriers) in an attached network ([#2057](https://github.com/PyPSA/PyPSA/issues/2057)).
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] applying the full `e_sum_min` and `e_sum_max` limits in every window. Each window now gets the part of the limit left open by previous windows and the capacity of later ones. (<!-- md:pr 1987 -->)
 - Fix start-up and shut-down costs ignoring the investment period weightings in networks with investment periods. They are now weighted like all other costs of the period, consistent with the pathway objective and with [`opex`][pypsa.statistics.StatisticsAccessor.opex]. (<!-- md:pr 2011 -->)
 - **Behavior change**: Fix [MGA](./user-guide/optimization/modelling-to-generate-alternatives.md) near-optimal cost budgets for networks with existing extendable capacity when `include_objective_constant=False`, fixed O&M costs, or multiple investment periods. Budgets now use unrounded total system costs and apply investment-period objective weights once. Resolves [#2025](https://github.com/PyPSA/PyPSA/issues/2025) and [#1984](https://github.com/PyPSA/PyPSA/issues/1984).
 - Fix [`fom`][pypsa.statistics.StatisticsAccessor.fom], and therefore [`system_cost`][pypsa.statistics.StatisticsAccessor.system_cost], ignoring the investment period weightings in networks with investment periods. Fixed operation and maintenance costs are now weighted like capital expenditures, consistent with the objective function. (<!-- md:pr 1923 -->)
+- Fix [`n.statistics.expanded_capacity`][pypsa.statistics.StatisticsAccessor.expanded_capacity] rejecting the `storage` argument that [`optimal_capacity`][pypsa.statistics.StatisticsAccessor.optimal_capacity] and [`installed_capacity`][pypsa.statistics.StatisticsAccessor.installed_capacity] accept; it now returns the expanded storage energy capacity. (<!-- md:pr 2060 -->)
 - [`optimize_transmission_expansion_iteratively`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] now raises a clear `ValueError` on stochastic networks instead of failing with a `KeyError` after all iterations have run.
 - Fix [`n.add()`][pypsa.Network.add] to be about twice as fast for single components on mid-sized networks.
 - [`n.lpf()`][pypsa.Network.lpf], [`n.pf()`][pypsa.Network.pf] and [`n.lpf_contingency()`][pypsa.Network.lpf_contingency] now raise a clear `ValueError` on stochastic networks instead of failing with `negative axis index: -1`. Power flow does not support stochastic networks yet. See [#1979](https://github.com/PyPSA/PyPSA/issues/1979).
