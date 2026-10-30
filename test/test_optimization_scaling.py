@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 from functools import cache
+from typing import Any
 
 import linopy
 import numpy as np
@@ -272,7 +273,7 @@ def feature_network() -> pypsa.Network:
     n.add("Carrier", ["gas", "AC"], co2_emissions=[0.2, 0], max_growth=[np.inf] * 2)
     n.add("Bus", ["a", "b", "c"], carrier="AC")
     n.add("Bus", "h2", carrier="H2")
-    common = {"bus": "a", "carrier": "gas", "marginal_cost": 10}
+    common: dict[str, Any] = {"bus": "a", "carrier": "gas", "marginal_cost": 10}
     n.add(
         "Generator",
         "uc",
@@ -393,7 +394,7 @@ def feature_network() -> pypsa.Network:
     n.add("Store", "h2_store", bus="h2", e_nom_extendable=True, e_cyclic=True)
     n.add("Load", "la", bus="c", p_set=80)
     n.add("Load", "lh2", bus="h2", p_set=5)
-    for glc_type, attrs in [
+    limits: list[tuple[str, dict[str, Any]]] = [
         ("primary_energy", {"carrier_attribute": "co2_emissions", "constant": 1e4}),
         ("operational_limit", {"carrier_attribute": "gas", "constant": 1e4}),
         (
@@ -408,7 +409,8 @@ def feature_network() -> pypsa.Network:
             "tech_capacity_expansion_limit",
             {"carrier_attribute": "gas", "constant": 1e4},
         ),
-    ]:
+    ]
+    for glc_type, attrs in limits:
         n.add("GlobalConstraint", glc_type, type=glc_type, sense="<=", **attrs)
     return n
 
@@ -640,6 +642,7 @@ def user_strategy(n: pypsa.Network) -> ScalingFactors:
 def unscaled_objective(network: str) -> float:
     n = NETWORKS[network][0]()
     n.optimize()
+    assert n.objective is not None
     return n.objective
 
 
