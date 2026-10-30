@@ -2970,6 +2970,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             return df
 
         if weighting == "load":
+            # Group by scenario/network too, a bare bus index matches no column.
+            levels = ["bus" if lvl == "name" else lvl for lvl in prices.columns.names]
             weights = (
                 n.statistics.withdrawal(
                     groupby="bus",
@@ -2977,10 +2979,15 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     nice_names=False,
                     groupby_time=False,
                 )
-                .groupby("bus")
+                .groupby(levels)
                 .sum()
                 .T
             )
+            weights.columns = weights.columns.set_names(prices.columns.names)
+            if not weights.columns.isin(prices.columns).all():
+                msg = "Load weights do not align with the price columns."
+                raise ValueError(msg)
+            # Buses without any withdrawal keep a weight of 1.
             weights = weights.reindex(prices.columns, axis=1, fill_value=1)
         elif weighting == "time":
             weights = pd.DataFrame(1, index=prices.index, columns=prices.columns)
