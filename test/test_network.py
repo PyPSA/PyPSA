@@ -345,11 +345,53 @@ def test_add_overwrite_clears_stale_dynamic():
     """
     n = pypsa.Network(snapshots=range(3))
     n.add("Bus", "b")
-    n.add("Generator", "g", bus="b", marginal_cost=[10.0, 20.0, 30.0])
+    n.add(
+        "Generator",
+        "g",
+        bus="b",
+        marginal_cost=[10.0, 20.0, 30.0],
+        custom_t=pd.Series([1.0, 2.0, 3.0], index=n.snapshots),
+    )
     assert "g" in n.c.generators.dynamic.marginal_cost.columns
+    assert "g" in n.c.generators.dynamic.custom_t.columns
 
     n.add("Generator", "g", bus="b", marginal_cost=5.0, overwrite=True)
     assert "g" not in n.c.generators.dynamic.marginal_cost.columns
+    assert "g" not in n.c.generators.dynamic.custom_t.columns
+
+
+@pytest.mark.parametrize(
+    ("component", "kwargs"), [("Generator", {"bus": "b"}), ("GlobalConstraint", {})]
+)
+def test_add_custom_dynamic_attribute_incremental(component, kwargs):
+    """Custom time-varying attributes of later `n.add` calls are merged."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "b")
+    c = n.c[component]
+    t1 = pd.Series([1.0, 2.0, 3.0], index=n.snapshots)
+    t2 = pd.Series([4.0, 5.0, 6.0], index=n.snapshots)
+    n.add(component, "g1", custom_t=t1, **kwargs)
+    n.add(component, "g2", custom_t=t2, **kwargs)
+
+    df = c.dynamic["custom_t"]
+    assert list(df.columns) == ["g1", "g2"]
+    assert df["g1"].tolist() == t1.tolist()
+    assert df["g2"].tolist() == t2.tolist()
+    assert df.index.equals(n.snapshots)
+
+    n.add(component, "g1", custom_t=t2 * 10, overwrite=True, **kwargs)
+    df = c.dynamic["custom_t"]
+    assert sorted(df.columns) == ["g1", "g2"]
+    assert df["g1"].tolist() == (t2 * 10).tolist()
+    assert df["g2"].tolist() == t2.tolist()
+
+    n.add(component, "g1", custom_t=t1, **kwargs)
+    assert c.dynamic["custom_t"]["g1"].tolist() == (t2 * 10).tolist()
+
+    n.add(component, "g3", custom_s=5, **kwargs)
+    assert c.static.loc["g3", "custom_s"] == 5
+    assert "custom_s" not in c.dynamic
+    assert "g3" not in c.dynamic["custom_t"].columns
 
 
 def test_add_stochastic():
