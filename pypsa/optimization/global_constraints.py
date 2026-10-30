@@ -253,6 +253,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         return
 
     lhs_list = []
+    factors = []
     for c, attr in nominal_attrs.items():
         var = f"{c}-{attr}"
         static = n.c[c].static
@@ -284,14 +285,19 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
             expr = expr - expr.shift(periods=1) * max_relative_growth
 
         lhs_list.append(expr)
+        asset_factors = n.c[c].scaling.sel(name=limited_names).values
+        factors.append(pd.Series(asset_factors, index=carriers.values))
 
     if not lhs_list:
         return
 
     lhs = merge(lhs_list)
     rhs = max_absolute_growth.reindex(lhs.indexes)
+    grouped = pd.concat(factors).groupby(level=0)
+    row_factor = np.sqrt(grouped.min() * grouped.max()).rename_axis("Carrier")
+    scaling = 1.0 if (row_factor == 1).all() else DataArray(row_factor)
 
-    m.add_constraints(lhs, "<=", rhs, name="Carrier-growth_limit")
+    m.add_constraints(lhs, "<=", rhs, name="Carrier-growth_limit", scaling=scaling)
 
 
 def define_primary_energy_limit(

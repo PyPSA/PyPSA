@@ -185,6 +185,7 @@ def ac_dc_multi_invest(ac_dc_network):
         build_year=2030,
         lifetime=50,
     )
+    n.c.carriers.static.loc["gas", "max_growth"] = 300
     return n
 
 
@@ -201,6 +202,7 @@ def test_scaled_objective_matches(request, network, kwargs):
     ref.optimize(**kwargs)
     scale(n, {"AC": 1e-3, "DC": 1e-2})
     n.optimize(objective_scaling=1e-6, **kwargs)
+    assert n.objective is not None
     assert n.objective == pytest.approx(ref.objective, rel=RTOL)
 
 
@@ -530,7 +532,7 @@ COST_COLUMNS = (
     "Generator-marginal_cost_piecewise",
     "Generator-capital_cost_piecewise",
 )
-ROW_OVERRIDES = {KVL: S * KVL_SCALING, "budget": OBJ, "Carrier-growth_limit": 1.0}
+ROW_OVERRIDES = {KVL: S * KVL_SCALING, "budget": OBJ}
 
 
 def element_factors(elements: linopy.Variables | linopy.Constraints) -> pd.DataFrame:
@@ -555,6 +557,7 @@ def multi_period() -> pypsa.Network:
     n = pypsa.examples.ac_dc_meshed()
     n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots[:4]])
     n.investment_periods = [2020, 2030]
+    n.c.carriers.static.loc["gas", "max_growth"] = 300
     return n
 
 
