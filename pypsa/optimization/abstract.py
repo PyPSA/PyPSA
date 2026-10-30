@@ -17,7 +17,7 @@ import xarray as xr
 
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
-from pypsa.common import as_index
+from pypsa.common import _scenarios_not_implemented, as_index
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
 from pypsa.optimization.scaling import reject_scaling
@@ -199,6 +199,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
     _n: Network
 
+    @_scenarios_not_implemented
     def optimize_transmission_expansion_iteratively(
         self,
         snapshots: Sequence | None = None,

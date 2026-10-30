@@ -1638,7 +1638,7 @@ class NetworkIOMixin(_NetworkABC):
 
             if not skip_time:
                 for attr, df in importer.get_series(list_name):
-                    df.set_index(self.snapshots, inplace=True)
+                    df = df.set_index(self.snapshots)
                     self._import_series_from_df(df, component, attr)
 
             for attr, df in importer.get_piecewise(list_name):
@@ -2014,9 +2014,10 @@ class NetworkIOMixin(_NetworkABC):
         # Fill nan values with default values
         df = df.fillna(attrs["default"].to_dict())
 
+        defaults = {}
         for k in static_attrs.index:
             if k not in df.columns:
-                df[k] = static_attrs.at[k, "default"]
+                defaults[k] = static_attrs.at[k, "default"]
             else:
                 if static_attrs.at[k, "type"] == "string":
                     df[k] = df[k].replace({np.nan: ""})
@@ -2033,13 +2034,15 @@ class NetworkIOMixin(_NetworkABC):
                             df[k] = gpd.GeoSeries.from_wkt(geometry)
                     else:
                         df[k] = df[k].astype(static_attrs.at[k, "typ"])
+        df = pd.concat([df, pd.DataFrame(defaults, index=df.index)], axis=1)
 
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
-        old_static = self.c[cls_name].static
         new_static = df.drop(non_static_attrs_in_df, axis=1)
 
         # Handle duplicates
-        duplicated_components = old_static.index.intersection(new_static.index)
+        duplicated_components = self.c[cls_name].static.index.intersection(
+            new_static.index
+        )
         if len(duplicated_components) > 0:
             if not overwrite:
                 logger.warning(
@@ -2051,6 +2054,9 @@ class NetworkIOMixin(_NetworkABC):
                 new_static = new_static.drop(duplicated_components)
             else:
                 self.remove(cls_name, duplicated_components)
+
+        # Read after remove, which replaces the frame rather than mutating it
+        old_static = self.c[cls_name].static
 
         # Concatenate to new dataframe
         if not old_static.empty:
@@ -2447,7 +2453,7 @@ class NetworkIOMixin(_NetworkABC):
             pdf["buses"][["Pd", "Qd"]].any(axis=1), ["Pd", "Qd"]
         ]
         pdf["loads"]["bus"] = pdf["loads"].index
-        pdf["loads"].rename(columns={"Qd": "q_set", "Pd": "p_set"}, inplace=True)
+        pdf["loads"] = pdf["loads"].rename(columns={"Qd": "q_set", "Pd": "p_set"})
         pdf["loads"].index = [f"L{str(i)}" for i in range(len(pdf["loads"]))]
 
         # add shunt impedances for any buses with Gs or Bs

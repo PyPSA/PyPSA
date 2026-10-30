@@ -267,6 +267,8 @@ def define_objective(
     # Weightings
     weight = window.snapshot_weightings("objective")
     if n._multi_invest:
+        # start-up and shut-down costs are paid per event, not per elapsed hour
+        event_weight = apply_period_weighting(xr.ones_like(weight), period_weighting)
         weight = apply_period_weighting(weight, period_weighting)
 
     # marginal costs, marginal storage cost, and spill cost
@@ -433,6 +435,9 @@ def define_objective(
 
         if cost.size == 0 or cost.sum().item() == 0:
             continue
+
+        if n._multi_invest:
+            cost = cost * event_weight
 
         var = m[f"{c.name}-{attr}"].sel(name=com_i)
         opex_terms.append((var * cost).sum(dim=["name", "snapshot"]))
