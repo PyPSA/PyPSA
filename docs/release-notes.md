@@ -70,6 +70,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- [`n.consistency_check()`][pypsa.Network.consistency_check] now warns when a committable generator has `ramp_limit_start_up` or `ramp_limit_shut_down` below `p_min_pu`, which blocks start-up or shut-down.
 - Fix inactive branches (`active=False`) remaining in the cycles of the Kirchhoff voltage law constraints. Resolves [#2004](https://github.com/PyPSA/PyPSA/issues/2004). (<!-- md:pr 2005 -->)
 - Fix minimum up and down time constraints of committable components losing their first rows under linopy v1 semantics; legacy semantics are unaffected. (<!-- md:pr 1990 -->)
 - Fix `n.objective_constant` being `0` for [multi-period](./user-guide/optimization/pathway-planning.md) optimizations; it again includes the period-weighted capital costs of existing extendable capacity. (<!-- md:pr 1967 -->)
