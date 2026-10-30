@@ -24,6 +24,8 @@ from pypsa.optimization.window import apply_period_weighting
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
+    from linopy import LinearExpression
+
     from pypsa import Components, Network
     from pypsa.optimization.piecewise import PiecewiseOptions
 logger = logging.getLogger(__name__)
@@ -46,6 +48,25 @@ def _period_last_storage_weightings(
         period_weighting.loc[periods[last]].to_numpy(), index=period_last_sns
     )
     return period_last_sns, storage_weightings
+
+
+def _storage_inflow_spill_expression(
+    n: Network,
+    component: Components,
+    assets: pd.Index,
+    snapshots: pd.Index,
+    weight: DataArray,
+) -> DataArray | LinearExpression:
+    """Return the weighted net energy contribution of storage inflow and spill."""
+    inflow = component.da.inflow.sel(name=assets, snapshot=snapshots)
+    expr = inflow * weight
+
+    spill_var = f"{component.name}-spill"
+    if spill_var in n.model.variables:
+        spill = n.model[spill_var].sel(name=assets, snapshot=snapshots)
+        expr = expr - (spill.fillna(0) * weight)
+
+    return expr.sum("snapshot")
 
 
 def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
@@ -308,11 +329,13 @@ def define_primary_energy_limit(
 
     window = n.optimize._window.subset(sns)
     weight = window.snapshot_weightings("generators")
+    storage_weight = window.snapshot_weightings("stores")
     if n._multi_invest:
         period_of = window.period_of
         periods = window.periods
         period_weighting = n.investment_period_weightings.years[periods]
         weight = apply_period_weighting(weight, period_weighting)
+        storage_weight = apply_period_weighting(storage_weight, period_weighting)
         period_last_sns, storage_weightings = _period_last_storage_weightings(
             sns, period_of, period_weighting
         )
@@ -382,6 +405,30 @@ def define_primary_energy_limit(
 
             # Determine investment period for active asset filtering
             period = glc.investment_period if n._multi_invest else None
+
+            # storage inflow and spill
+            w_storage = storage_weight.sel(snapshot=period_sns)
+
+            for component in (n.c.storage_units, n.c.stores):
+                assets = component.static.query("carrier in @emissions.index")
+                assets = component.filter_by_active_assets(assets, period)
+
+                if assets.empty:
+                    continue
+
+                assets = assets.loc[scenario]
+                em_pu = assets.carrier.map(emissions)
+
+                if n.has_scenarios:
+                    inflow_spill = _storage_inflow_spill_expression(
+                        n, component, assets.index, period_sns, w_storage
+                    ).sel(scenario=scenario, drop=True)
+                else:
+                    inflow_spill = _storage_inflow_spill_expression(
+                        n, component, assets.index, period_sns, w_storage
+                    )
+
+                lhs.append((inflow_spill * em_pu).sum())
 
             # generators
             gens = n.c.generators.static[
@@ -575,6 +622,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
     window = n.optimize._window.subset(sns)
     weight = window.snapshot_weightings("generators")
+    storage_weight = window.snapshot_weightings("stores")
     if n._multi_invest:
         period_of = window.period_of
         periods = window.periods
@@ -619,6 +667,32 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 )
 
             lhs = []
+
+            # storage inflow and spill
+            w_storage = storage_weight.sel(snapshot=period_sns)
+
+            if n._multi_invest:
+                w_storage = apply_period_weighting(w_storage, period_weighting)
+
+            for component in (n.c.storage_units, n.c.stores):
+                assets = component.static.query(
+                    "carrier == @glc.carrier_attribute and active"
+                )
+                if assets.empty:
+                    continue
+
+                assets = assets.loc[scenario]
+
+                if n.has_scenarios:
+                    inflow_spill = _storage_inflow_spill_expression(
+                        n, component, assets.index, period_sns, w_storage
+                    ).sel(scenario=scenario, drop=True)
+                else:
+                    inflow_spill = _storage_inflow_spill_expression(
+                        n, component, assets.index, period_sns, w_storage
+                    )
+
+                lhs.append(inflow_spill.sum())
 
             # generators
             gens = n.c.generators.static.query(
