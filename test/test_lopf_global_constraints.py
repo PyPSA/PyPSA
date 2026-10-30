@@ -50,11 +50,18 @@ def test_operational_limit_storage_hvdc(storage_hvdc_network):
 
     n.optimize()
 
+    weights = n.snapshot_weightings.stores
+
+    weighted_inflow = n.storage_units_t.inflow.mul(weights, axis=0).sum().sum()
+
+    weighted_spill = n.storage_units_t.spill.mul(weights, axis=0).sum().sum()
+
     soc_diff = (
         n.c.storage_units.static.state_of_charge_initial.sum()
         - n.c.storage_units.dynamic.state_of_charge.sum(axis=1).iloc[-1]
     )
-    assert soc_diff.round(3) == limit
+
+    assert (soc_diff + weighted_inflow - weighted_spill).round(3) == limit
 
 
 @pytest.mark.parametrize("assign", [True, False])
@@ -219,6 +226,83 @@ def test_1884():
 
     n.optimize()
     assert n.c.generators.static.p_nom_opt["wind"] == pytest.approx(50)
+
+
+@pytest.mark.parametrize("component", ["Store", "StorageUnit"])
+@pytest.mark.parametrize("cyclic", [True, False])
+@pytest.mark.parametrize(
+    ("glc_type", "carrier_attribute"),
+    [
+        ("primary_energy", "co2_emissions"),
+        ("operational_limit", "fuel"),
+    ],
+)
+def test_2000(component, cyclic, glc_type, carrier_attribute):
+    """Global constraints must account for storage inflow and spill."""
+
+    n = pypsa.Network(snapshots=range(4))
+
+    n.add("Carrier", "fuel", co2_emissions=1.0)
+    n.add("Bus", "b")
+    n.add("Load", "l", bus="b", p_set=10)
+
+    n.add(
+        "Generator",
+        "backup",
+        bus="b",
+        p_nom=100,
+        marginal_cost=100,
+    )
+
+    # Add storage
+    if component == "Store":
+        n.add(
+            "Store",
+            "s",
+            bus="b",
+            carrier="fuel",
+            e_nom=100,
+            max_hours=10,
+            e_cyclic=cyclic,
+            inflow=10,
+        )
+    else:
+        n.add(
+            "StorageUnit",
+            "s",
+            bus="b",
+            carrier="fuel",
+            p_nom=100,
+            max_hours=10,
+            cyclic_state_of_charge=cyclic,
+            inflow=10,
+        )
+
+    # Add global constraint
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=glc_type,
+        carrier_attribute=carrier_attribute,
+        sense="<=",
+        constant=0,
+    )
+
+    n.optimize()
+
+    if component == "Store":
+        spill = n.c.stores.dynamic.spill.sum().item()
+        initial_energy = n.stores.e_initial.sum()
+        final_energy = n.stores_t.e.iloc[-1].sum()
+    else:
+        spill = n.c.storage_units.dynamic.spill.sum().item()
+        initial_energy = n.storage_units.state_of_charge_initial.sum()
+        final_energy = n.storage_units_t.state_of_charge.iloc[-1].sum()
+
+    if cyclic:
+        assert spill == pytest.approx(40, abs=1e-6)
+    else:
+        assert spill + final_energy - initial_energy == pytest.approx(40, abs=1e-6)
 
 
 @pytest.mark.parametrize(
