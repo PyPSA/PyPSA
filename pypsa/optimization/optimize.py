@@ -941,7 +941,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
-        define_total_supply_constraints(n, sns)
+        for c in n.components:
+            if "e_sum_min" in c.static:
+                define_total_supply_constraints(n, sns, c.name)
 
         if transmission_losses:
             if isinstance(transmission_losses, bool):
