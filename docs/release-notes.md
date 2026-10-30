@@ -15,7 +15,7 @@ SPDX-License-Identifier: CC-BY-4.0
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
 ### Features
-
+- [`add_load_shedding`][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding] takes a `carrier` argument, defaulting to `"load"`. (<!-- md:pr 2056 -->)
 - Add the volume limits `e_sum_min` and `e_sum_max` to [Link](./user-guide/components/links.md), [Process](./user-guide/components/processes.md) and [Store](./user-guide/components/stores.md) components. (<!-- md:pr 1987 -->)
     - **Behavior change**: With `multi_investment_periods=True`, `e_sum_min` and `e_sum_max` limit the total over all investment periods weighted by the investment period weighting `years`, as for `operational_limit` global constraints. Before, the energy of each period was counted once.
     - **Behavior change**: The consistency check for `e_sum_min > e_sum_max` raises with `strict=["volume_limits"]` instead of `strict=["generators"]`.
