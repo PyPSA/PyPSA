@@ -13,9 +13,7 @@ def test_operational_limit_n_ac_dc_meshed(ac_dc_network):
 
     limit = 30_000
 
-    n.c.global_constraints.static.drop(
-        n.c.global_constraints.static.index, inplace=True
-    )
+    n.remove("GlobalConstraint", n.c.global_constraints.static.index)
 
     n.add(
         "GlobalConstraint",
@@ -35,9 +33,7 @@ def test_operational_limit_storage_hvdc(storage_hvdc_network):
 
     limit = 5_000
 
-    n.c.global_constraints.static.drop(
-        n.c.global_constraints.static.index, inplace=True
-    )
+    n.remove("GlobalConstraint", n.c.global_constraints.static.index)
 
     n.add(
         "GlobalConstraint",

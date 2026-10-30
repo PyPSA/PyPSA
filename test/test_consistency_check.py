@@ -141,14 +141,21 @@ def test_unknown_carriers(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
-@pytest.mark.parametrize("strict", [[], ["generators"]])
-def test_inconsistent_e_sum_values(consistent_n, caplog, strict):
+@pytest.mark.parametrize("strict", [[], ["volume_limits"]])
+@pytest.mark.parametrize(
+    ("component", "kwargs"),
+    [
+        ("Generator", {"bus": "one"}),
+        ("Link", {"bus0": "one", "bus1": "two"}),
+        ("Process", {"bus0": "one", "bus1": "two"}),
+        ("Store", {"bus": "one"}),
+    ],
+)
+def test_inconsistent_e_sum_values(consistent_n, caplog, strict, component, kwargs):
     """
     Test that the consistency check raises a warning if the e_sum_min is greater than e_sum_max.
     """
-    consistent_n.add(
-        "Generator", "gen_two", bus="one", p_nom_max=10, e_sum_min=10, e_sum_max=5
-    )
+    consistent_n.add(component, "two", **kwargs, e_sum_min=10, e_sum_max=5)
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
