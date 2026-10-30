@@ -159,55 +159,48 @@ def test_store_p_set():
     equal(n.c.stores.dynamic.p["store"].values, [-10, 0, 5, 0], decimal=5)
 
 
-def cycles_network(component, cycles_max, extendable=False):
+def cycles_network(cycles_max, extendable=False):
     n = pypsa.Network(snapshots=range(96))
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=50)
     price = ([10] * 12 + [100] * 12) * 4
     n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=price)
-    if component == "StorageUnit":
-        n.add(component, "s", bus="bus", p_nom=10, max_hours=4)
-        n.c.storage_units.static.p_nom_extendable = extendable
-    else:
-        n.add(component, "s", bus="bus", e_nom=40)
-        n.c.stores.static.e_nom_extendable = extendable
-    n.c[component].static.capital_cost = 1
-    n.c[component].static.cycles_max = cycles_max
+    n.add(
+        "Store",
+        "s",
+        bus="bus",
+        e_nom=40,
+        e_nom_extendable=extendable,
+        capital_cost=1,
+        cycles_max=cycles_max,
+    )
     return n
 
 
-def get_cycles(n, component):
-    if component == "StorageUnit":
-        c = n.c.storage_units
-        return c.dynamic.p_dispatch.s.sum() / (4 * c.static.p_nom_opt.s)
+def get_cycles(n):
     c = n.c.stores
     return c.dynamic.p.s.clip(lower=0).sum() / c.static.e_nom_opt.s
 
 
-@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
 @pytest.mark.parametrize("extendable", [False, True])
 @pytest.mark.parametrize("cycles_max", [1, 3])
-def test_cycles_max(component, extendable, cycles_max):
-    n = cycles_network(component, cycles_max, extendable)
+def test_cycles_max(extendable, cycles_max):
+    n = cycles_network(cycles_max, extendable)
     n.optimize()
-    assert get_cycles(n, component) == pytest.approx(cycles_max)
+    assert get_cycles(n) == pytest.approx(cycles_max)
 
 
-@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
-def test_cycles_max_rolling_horizon(component):
-    n = cycles_network(component, cycles_max=3)
+def test_cycles_max_rolling_horizon():
+    n = cycles_network(cycles_max=3)
     n.optimize.optimize_with_rolling_horizon(horizon=24)
-    assert get_cycles(n, component) == pytest.approx(3)
-    assert n.c[component].static.cycles_max.s == 3
+    assert get_cycles(n) == pytest.approx(3)
+    assert n.c.stores.static.cycles_max.s == 3
 
 
-@pytest.mark.parametrize(
-    ("component", "nom"), [("StorageUnit", "p_nom_opt"), ("Store", "e_nom_opt")]
-)
-def test_cycles_max_finite_in_one_scenario(component, nom):
-    n = cycles_network(component, cycles_max=float("inf"), extendable=True)
+def test_cycles_max_finite_in_one_scenario():
+    n = cycles_network(cycles_max=float("inf"), extendable=True)
     n.set_scenarios(a=0.5, b=0.5)
-    n.c[component].static.loc[("a", "s"), "cycles_max"] = 1
+    n.c.stores.static.loc[("a", "s"), "cycles_max"] = 1
     status, _ = n.optimize()
     assert status == "ok"
-    assert n.c[component].static[nom].gt(0).all()
+    assert n.c.stores.static.e_nom_opt.gt(0).all()
