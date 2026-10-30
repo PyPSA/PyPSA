@@ -237,6 +237,8 @@ def _tracked_limits(
     if "p" in c._operational_variables:
         lower, upper = _power_bounds(c, snapshots)
         hint = f"a finite {c._operational_attrs['nom_max']}"
+        if c.name == "Store":
+            hint += " and a finite max_hours"
     else:
         upper = pd.DataFrame(np.inf, index=snapshots, columns=c.static.index)
         lower = -upper
@@ -670,7 +672,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         produced in later windows. Without foresight the resulting dispatch
         pattern depends on the order of the windows. A `ValueError` is raised if
         this energy is unbounded, e.g. for an extendable component with
-        `p_nom_max=inf` or for a store. If limits are tracked, a
+        `p_nom_max=inf` or for a store with `max_hours=inf`. If limits are tracked, a
         `RuntimeError` is raised as soon as a window fails to solve. Otherwise,
         a failed window only logs a warning.
 
