@@ -16,7 +16,7 @@ def test_load_shedding_carrier(carrier):
     kwargs = {} if carrier is None else {"carrier": carrier}
     n.optimize.add_load_shedding(**kwargs)
     names = n.c.generators.static.index
-    expected = "load shedding" if carrier is None else carrier
+    expected = "load" if carrier is None else carrier
 
     assert names.equals(pd.Index(["a load shedding", "b load shedding"], name="name"))
     assert (n.c.generators.static.loc[names, "carrier"] == expected).all()
@@ -39,7 +39,9 @@ def test_load_shedding_keeps_positional_arguments():
     n = pypsa.Network()
     n.add("Bus", ["a", "b"])
 
-    n.optimize.add_load_shedding(" backup", pd.Index(["b"]), 1.0, 200.0, 50.0)
+    n.optimize.add_load_shedding(
+        " backup", pd.Index(["b"]), 1.0, 200.0, 50.0, "unserved energy"
+    )
     names = n.c.generators.static.index
 
     assert names.tolist() == ["b backup"]
@@ -48,3 +50,4 @@ def test_load_shedding_keeps_positional_arguments():
     assert generator["sign"] == 1.0
     assert generator["marginal_cost"] == 200.0
     assert generator["p_nom"] == 50.0
+    assert generator["carrier"] == "unserved energy"

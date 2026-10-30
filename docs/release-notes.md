@@ -16,7 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
-- Allow a custom `carrier` in [`add_load_shedding`][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding], defaulting to `"load shedding"`. The selected carrier is registered if missing; existing carrier attributes are preserved. Resolves [#1848](https://github.com/PyPSA/PyPSA/issues/1848).
+- [`add_load_shedding`][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding] takes a `carrier` argument, defaulting to `"load"`. (<!-- md:pr 2056 -->)
 
 ### Bug Fixes
 - Fix start-up and shut-down costs ignoring the investment period weightings in networks with investment periods. They are now weighted like all other costs of the period, consistent with the pathway objective and with [`opex`][pypsa.statistics.StatisticsAccessor.opex]. (<!-- md:pr 2011 -->)
