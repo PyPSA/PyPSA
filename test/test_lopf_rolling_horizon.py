@@ -356,3 +356,176 @@ def test_rolling_horizon_unit_commitment_seams(
     assert (start_up.rolling(min_time, min_periods=1).sum() <= status + 1e-6).all()
     assert (shut_down.rolling(min_time, min_periods=1).sum() <= 1 - status + 1e-6).all()
     assert shut_down.sum() > 0
+
+
+ASSET = {
+    "Generator": {"bus": "bus", "p_nom": 1000},
+    "Link": {"bus0": "src", "bus1": "bus", "p_nom": 1000},
+    "Process": {"bus0": "src", "bus1": "bus", "p_nom": 1000},
+    "Store": {"bus": "bus", "e_nom": 1e5, "e_initial": 1e4},
+}
+
+
+def get_e_sum_network(component, attr, limit, kwargs, periods=None):
+    n = pypsa.Network(snapshots=range(12))
+    if periods:
+        n.set_snapshots(pd.MultiIndex.from_product([periods, range(6)]))
+        n.set_investment_periods(periods)
+    n.add("Bus", ["bus", "src"])
+    n.add("Generator", "src", bus="src", p_nom=1e4, p_min_pu=-1)
+    n.add("Generator", "coal", bus="bus", marginal_cost=20, p_nom=1000)
+    n.add(component, "gen", **{**ASSET[component], **kwargs, attr: limit})
+    n.add("Load", "load", bus="bus", p_set=[400, 600, 500, 800] * 3)
+    return n
+
+
+SINK = {"p_nom": 100, "p_min_pu": -1, "p_max_pu": 0}
+E_SUM_CASES = {
+    "min": ({"marginal_cost": 40}, "e_sum_min", 1500.0, 0.0),
+    "max": ({"marginal_cost": 10}, "e_sum_max", 3000.0, 400.0),
+    "max-committable": (
+        {"marginal_cost": 10, "committable": True, "p_min_pu": 0.4},
+        "e_sum_max",
+        2800.0,
+        400.0,
+    ),
+    "sink-max": (SINK, "e_sum_max", -500.0, 0.0),
+    "sink-min": ({**SINK, "marginal_cost": 30}, "e_sum_min", -500.0, -100.0),
+    "min-retiring": (
+        {"marginal_cost": 40, "build_year": 1, "lifetime": 1},
+        "e_sum_min",
+        1500.0,
+        0.0,
+    ),
+    "min-extendable": (
+        {
+            "marginal_cost": 40,
+            "p_nom_extendable": True,
+            "p_nom_max": 1000,
+            "capital_cost": 1,
+        },
+        "e_sum_min",
+        1500.0,
+        0.0,
+    ),
+}
+E_SUM_PARAMS = [
+    *(
+        pytest.param(
+            "Generator",
+            key,
+            overlap,
+            periods,
+            id=f"Generator-{key}-overlap{overlap}-{'multi' if periods else 'single'}",
+        )
+        for key in E_SUM_CASES
+        for overlap in (0, 1)
+        for periods in (None, [1, 2])
+    ),
+    *(
+        pytest.param(component, key, 0, None, id=f"{component}-{key}")
+        for component, keys in {
+            "Link": ("min", "sink-max", "max-committable"),
+            "Process": ("min", "sink-max"),
+        }.items()
+        for key in keys
+    ),
+]
+
+
+@pytest.mark.parametrize(("component", "case", "overlap", "periods"), E_SUM_PARAMS)
+def test_rolling_horizon_e_sum(component, case, overlap, periods):
+    """Regression test for issue #1769.
+
+    Volume limits refer to the whole horizon and are met exactly once, not
+    once per window. Without foresight, a maximum is depleted and a minimum
+    is filled as late as possible. An asset that retires after the first
+    period is not expected to produce in later windows.
+    """
+    kwargs, attr, limit, first = E_SUM_CASES[case]
+    n = get_e_sum_network(component, attr, limit, kwargs, periods)
+
+    n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=overlap)
+
+    p = n.c[component].dynamic.p["gen"]
+    assert p.sum() == pytest.approx(limit)
+    assert p.iloc[0] == pytest.approx(first)
+    assert n.c[component].static.loc["gen", attr] == limit
+
+
+@pytest.mark.parametrize("case", ["min", "max"])
+@pytest.mark.parametrize("horizon", [3, 12])
+def test_e_sum_multi_invest(case, horizon):
+    kwargs, attr, limit, _ = E_SUM_CASES[case]
+    n = get_e_sum_network("Generator", attr, limit, kwargs, periods=[1, 2])
+    n.investment_period_weightings["years"] = [1, 2]
+
+    n.optimize.optimize_with_rolling_horizon(
+        horizon=horizon, multi_investment_periods=True
+    )
+
+    p = n.c.generators.dynamic.p["gen"]
+    years = n.investment_period_weightings.years
+    assert p.mul(years, level="period").sum() == pytest.approx(limit)
+
+
+def test_e_sum_store():
+    n = get_e_sum_network("Store", "e_sum_min", 1500.0, {"marginal_cost": 40})
+
+    n.optimize()
+
+    assert n.c.stores.dynamic.p["gen"].sum() == pytest.approx(1500.0)
+
+
+def test_rolling_horizon_e_sum_stochastic():
+    n = get_e_sum_network("Link", "e_sum_min", 900.0, {"marginal_cost": 40})
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+
+    n.optimize.optimize_with_rolling_horizon(horizon=3)
+
+    c = n.c.links
+    p = c.dynamic.p.xs("gen", axis=1, level="name")
+    assert p.sum().to_list() == pytest.approx([900.0, 900.0])
+    assert (c.static.xs("gen", level="name").e_sum_min == 900.0).all()
+
+
+@pytest.mark.parametrize(
+    ("component", "kwargs", "attr", "limit", "match"),
+    [
+        ("Generator", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
+        ("Link", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
+        ("Process", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
+        ("Store", {"marginal_cost": 1}, "e_sum_max", 3000, "a single window"),
+    ],
+)
+def test_rolling_horizon_e_sum_unbounded_capacity(
+    component, kwargs, attr, limit, match, caplog
+):
+    if component != "Store":
+        kwargs = {**kwargs, "p_nom_extendable": True, "capital_cost": 1}
+    n = get_e_sum_network(component, attr, limit, kwargs)
+
+    with pytest.raises(ValueError, match=rf"{component} \['gen'\].*{match}"):
+        n.optimize.optimize_with_rolling_horizon(horizon=3)
+
+    n.optimize.optimize_with_rolling_horizon(horizon=12)
+
+    assert n.c[component].dynamic.p["gen"].sum() == pytest.approx(limit)
+    assert "tracked across the rolling horizon" not in caplog.text
+
+
+def test_rolling_horizon_failed_window(caplog):
+    n = pypsa.Network(snapshots=range(6))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=1)
+    n.add("Load", "load", bus="bus", p_set=[200] * 3 + [50] * 3)
+
+    n.optimize.optimize_with_rolling_horizon(horizon=3)
+
+    assert "Optimization failed" in caplog.text
+
+    n.c.generators.static.loc["gen", "e_sum_max"] = 1000
+    with pytest.raises(RuntimeError, match=r"\[0:2\] failed"):
+        n.optimize.optimize_with_rolling_horizon(horizon=3)
+
+    assert n.c.generators.static.loc["gen", "e_sum_max"] == 1000
