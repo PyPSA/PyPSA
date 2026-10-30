@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -50,18 +51,26 @@ def test_operational_limit_storage_hvdc(storage_hvdc_network):
 
     n.optimize()
 
-    weights = n.snapshot_weightings.stores
+    # The limit applies to the energy drawn from the storage units: their
+    # discharge before and charge after conversion losses, plus standing losses.
+    # It is computed from the solved flows, independent of inflow and spill.
+    static = n.c.storage_units.static
+    dynamic = n.c.storage_units.dynamic
+    w = n.snapshot_weightings.stores
+    assert (dynamic.inflow.sum() > 0).any()
 
-    weighted_inflow = n.storage_units_t.inflow.mul(weights, axis=0).sum().sum()
-
-    weighted_spill = n.storage_units_t.spill.mul(weights, axis=0).sum().sum()
-
-    soc_diff = (
-        n.c.storage_units.static.state_of_charge_initial.sum()
-        - n.c.storage_units.dynamic.state_of_charge.sum(axis=1).iloc[-1]
+    conversion = (
+        dynamic.p_dispatch / static.efficiency_dispatch
+        - dynamic.p_store * static.efficiency_store
+    ).mul(w, axis=0)
+    eff_stand = pd.DataFrame(
+        {name: (1 - loss) ** w for name, loss in static.standing_loss.items()}
     )
+    # The energy balance applies standing losses from the second snapshot on,
+    # not to `state_of_charge_initial`.
+    standing = (1 - eff_stand) * dynamic.state_of_charge.shift()
 
-    assert (soc_diff + weighted_inflow - weighted_spill).round(3) == limit
+    assert conversion.sum().sum() + standing.sum().sum() == pytest.approx(limit)
 
 
 @pytest.mark.parametrize("assign", [True, False])
@@ -228,33 +237,23 @@ def test_1884():
     assert n.c.generators.static.p_nom_opt["wind"] == pytest.approx(50)
 
 
-@pytest.mark.parametrize("component", ["Store", "StorageUnit"])
-@pytest.mark.parametrize("cyclic", [True, False])
-@pytest.mark.parametrize(
-    ("glc_type", "carrier_attribute"),
-    [
-        ("primary_energy", "co2_emissions"),
-        ("operational_limit", "fuel"),
-    ],
-)
-def test_2000(component, cyclic, glc_type, carrier_attribute):
-    """Global constraints must account for storage inflow and spill."""
+GLC_TYPES = [("primary_energy", "co2_emissions"), ("operational_limit", "fuel")]
 
-    n = pypsa.Network(snapshots=range(4))
 
+def _fuel_network(snapshots=range(4), investment_periods=None):
+    """Network with a load of 10 MW, an expensive backup generator and fuel carrier."""
+    n = pypsa.Network(snapshots=snapshots)
+    if investment_periods is not None:
+        n.investment_periods = investment_periods
     n.add("Carrier", "fuel", co2_emissions=1.0)
     n.add("Bus", "b")
     n.add("Load", "l", bus="b", p_set=10)
+    n.add("Generator", "backup", bus="b", p_nom=100, marginal_cost=100)
+    return n
 
-    n.add(
-        "Generator",
-        "backup",
-        bus="b",
-        p_nom=100,
-        marginal_cost=100,
-    )
 
-    # Add storage
+def _add_fuel_storage(n, component, cyclic=False, per_period=False, **kwargs):
+    """Add a lossless fuel storage `s` with 10 MW and 100 MWh."""
     if component == "Store":
         n.add(
             "Store",
@@ -264,7 +263,8 @@ def test_2000(component, cyclic, glc_type, carrier_attribute):
             e_nom=100,
             max_hours=10,
             e_cyclic=cyclic,
-            inflow=10,
+            e_cyclic_per_period=per_period,
+            **kwargs,
         )
     else:
         n.add(
@@ -272,13 +272,22 @@ def test_2000(component, cyclic, glc_type, carrier_attribute):
             "s",
             bus="b",
             carrier="fuel",
-            p_nom=100,
+            p_nom=10,
             max_hours=10,
             cyclic_state_of_charge=cyclic,
-            inflow=10,
+            cyclic_state_of_charge_per_period=per_period,
+            **kwargs,
         )
 
-    # Add global constraint
+
+@pytest.mark.parametrize("component", ["Store", "StorageUnit"])
+@pytest.mark.parametrize("cyclic", [True, False])
+@pytest.mark.parametrize("inflow", [10, [0, 20, 5, 15]])
+@pytest.mark.parametrize(("glc_type", "carrier_attribute"), GLC_TYPES)
+def test_2000(component, cyclic, inflow, glc_type, carrier_attribute):
+    """A limit of zero forbids dispatching storage inflow, so the backup runs."""
+    n = _fuel_network()
+    _add_fuel_storage(n, component, cyclic=cyclic, inflow=inflow)
     n.add(
         "GlobalConstraint",
         "limit",
@@ -288,21 +297,204 @@ def test_2000(component, cyclic, glc_type, carrier_attribute):
         constant=0,
     )
 
-    n.optimize()
+    status, _ = n.optimize()
 
-    if component == "Store":
-        spill = n.c.stores.dynamic.spill.sum().item()
-        initial_energy = n.stores.e_initial.sum()
-        final_energy = n.stores_t.e.iloc[-1].sum()
-    else:
-        spill = n.c.storage_units.dynamic.spill.sum().item()
-        initial_energy = n.storage_units.state_of_charge_initial.sum()
-        final_energy = n.storage_units_t.state_of_charge.iloc[-1].sum()
+    assert status == "ok"
+    assert n.c.generators.dynamic.p["backup"].sum() == pytest.approx(40)
+    assert n.c[component].dynamic.p["s"].sum() == pytest.approx(0, abs=1e-6)
+    assert n.objective == pytest.approx(4000)
 
-    if cyclic:
-        assert spill == pytest.approx(40, abs=1e-6)
-    else:
-        assert spill + final_energy - initial_energy == pytest.approx(40, abs=1e-6)
+
+@pytest.mark.parametrize("component", ["Store", "StorageUnit"])
+@pytest.mark.parametrize("investment_period", [np.nan, 2030])
+@pytest.mark.parametrize(("glc_type", "carrier_attribute"), GLC_TYPES)
+def test_2000_inflow_counted_only_while_active(
+    component, investment_period, glc_type, carrier_attribute
+):
+    """Inflow counts only in snapshots in which the storage is active.
+
+    The storage is built in 2030 and cycles per period, so its dispatch equals its
+    net inflow. The limit counts dispatch weighted by snapshot and period weightings.
+    """
+    n = _fuel_network(range(2), [2020, 2030])
+    n.investment_period_weightings["years"] = [10, 5]
+    n.snapshot_weightings[["objective", "stores", "generators"]] = 2.0
+    _add_fuel_storage(
+        n, component, cyclic=True, per_period=True, inflow=10, build_year=2030
+    )
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=glc_type,
+        carrier_attribute=carrier_attribute,
+        investment_period=investment_period,
+        sense="<=",
+        constant=100,
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+
+    assert status == "ok"
+    p = n.c[component].dynamic.p["s"].mul(n.snapshot_weightings.stores)
+    weighted = p.groupby(level="period").sum() * n.investment_period_weightings.years
+    assert weighted.loc[2020] == pytest.approx(0, abs=1e-6)
+    assert weighted.loc[2030] == pytest.approx(100)
+
+
+@pytest.mark.parametrize("component", ["Store", "StorageUnit"])
+@pytest.mark.parametrize(("glc_type", "carrier_attribute"), GLC_TYPES)
+def test_2000_storage_without_inflow(component, glc_type, carrier_attribute):
+    """Storages without inflow have no spill variable and count their depletion."""
+    n = _fuel_network()
+    initial = "e_initial" if component == "Store" else "state_of_charge_initial"
+    _add_fuel_storage(n, component, **{initial: 30})
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=glc_type,
+        carrier_attribute=carrier_attribute,
+        sense="<=",
+        constant=20,
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    assert f"{component}-spill" not in n.model.variables
+    assert n.c[component].dynamic.p["s"].sum() == pytest.approx(20)
+
+
+@pytest.mark.parametrize(("glc_type", "carrier_attribute"), GLC_TYPES)
+def test_2000_spill_of_other_storage(glc_type, carrier_attribute):
+    """A spill variable of a storage with another carrier is not counted.
+
+    The cyclic fuel store without inflow does not contribute, so no constraint
+    is added, as without the spill variable.
+    """
+    n = _fuel_network()
+    n.add("Carrier", "water")
+    _add_fuel_storage(n, "Store", cyclic=True)
+    n.add("Store", "hydro", bus="b", carrier="water", e_nom=100, inflow=5)
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=glc_type,
+        carrier_attribute=carrier_attribute,
+        sense="<=",
+        constant=0,
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    assert "Store-spill" in n.model.variables
+    assert "GlobalConstraint-limit" not in n.model.constraints
+
+
+@pytest.mark.parametrize("component", ["Store", "StorageUnit"])
+@pytest.mark.parametrize(("glc_type", "carrier_attribute"), GLC_TYPES)
+def test_2000_negative_inflow(component, glc_type, carrier_attribute):
+    """Negative inflow withdraws fuel from the storage outside the network.
+
+    The cyclic storage has to be charged with 20 MWh from the bus, which offsets
+    20 MWh of fuel generation within the limit of zero.
+    """
+    n = _fuel_network()
+    n.add("Generator", "fuel", bus="b", carrier="fuel", p_nom=100, marginal_cost=1)
+    _add_fuel_storage(n, component, cyclic=True, inflow=-5)
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=glc_type,
+        carrier_attribute=carrier_attribute,
+        sense="<=",
+        constant=0,
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    assert f"{component}-spill" not in n.model.variables
+    assert n.c[component].dynamic.p["s"].sum() == pytest.approx(-20)
+    assert n.c.generators.dynamic.p["fuel"].sum() == pytest.approx(20)
+
+
+@pytest.mark.parametrize("component", ["Store", "StorageUnit"])
+@pytest.mark.parametrize(("glc_type", "carrier_attribute"), GLC_TYPES)
+def test_2000_mixed_sign_inflow(component, glc_type, carrier_attribute):
+    """Spill exists only with positive inflow, but negative inflow still counts.
+
+    The net inflow of 10 MWh must be spilled under a limit of zero. Ignoring the
+    negative inflow would require spilling 20 MWh and charging the storage.
+    """
+    n = _fuel_network()
+    _add_fuel_storage(n, component, cyclic=True, inflow=[10, -5, 10, -5])
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=glc_type,
+        carrier_attribute=carrier_attribute,
+        sense="<=",
+        constant=0,
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    assert n.c[component].dynamic.spill["s"].sum() == pytest.approx(10)
+    assert n.c[component].dynamic.p["s"].sum() == pytest.approx(0, abs=1e-6)
+    assert n.objective == pytest.approx(4000)
+
+
+@pytest.mark.parametrize(("glc_type", "carrier_attribute"), GLC_TYPES)
+def test_2000_only_constant_contribution_is_skipped(glc_type, carrier_attribute):
+    """Without decision variables, the constraint is skipped.
+
+    The net inflow of the cyclic store without spill variable is a constant.
+    """
+    n = _fuel_network()
+    _add_fuel_storage(n, "Store", cyclic=True, inflow=-5)
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=glc_type,
+        carrier_attribute=carrier_attribute,
+        sense="<=",
+        constant=0,
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    assert "GlobalConstraint-limit" not in n.model.constraints
+
+
+@pytest.mark.parametrize(("glc_type", "carrier_attribute"), GLC_TYPES)
+def test_2000_scenario_specific_inflow(glc_type, carrier_attribute):
+    """Each scenario counts its own inflow and spill."""
+    n = _fuel_network()
+    _add_fuel_storage(n, "Store", cyclic=True)
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=glc_type,
+        carrier_attribute=carrier_attribute,
+        sense="<=",
+        constant=10,
+    )
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    n.c.stores.dynamic.inflow[("low", "s")] = 5.0
+    n.c.stores.dynamic.inflow[("high", "s")] = 10.0
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    p = n.c.stores.dynamic.p
+    spill = n.c.stores.dynamic.spill
+    assert p[("low", "s")].sum() == pytest.approx(10)
+    assert p[("high", "s")].sum() == pytest.approx(10)
+    assert spill[("low", "s")].sum() == pytest.approx(10)
+    assert spill[("high", "s")].sum() == pytest.approx(30)
 
 
 @pytest.mark.parametrize(
