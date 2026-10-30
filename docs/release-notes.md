@@ -22,6 +22,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix [`n.add()`][pypsa.Network.add] silently dropping custom time-varying attributes of all but the first call. Later calls now add their columns to the existing frame, and `overwrite=True` replaces them. (<!-- md:pr XXXX -->)
 - Fix [`n.statistics.prices(weighting="load")`][pypsa.statistics.StatisticsAccessor.prices] on stochastic networks and network collections. Before, the load weights were dropped and the prices silently fell back to time weighting. Each scenario and each collection member is now weighted by its own withdrawal. (<!-- md:pr 2054 -->)
 - Fix `KeyError` in [`rename_component_names`][pypsa.Components.rename_component_names] when renaming non-bus components (such as links, lines, and carriers) in an attached network ([#2057](https://github.com/PyPSA/PyPSA/issues/2057)).
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] applying the full `e_sum_min` and `e_sum_max` limits in every window. Each window now gets the part of the limit left open by previous windows and the capacity of later ones. (<!-- md:pr 1987 -->)
