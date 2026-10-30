@@ -345,11 +345,53 @@ def test_add_overwrite_clears_stale_dynamic():
     """
     n = pypsa.Network(snapshots=range(3))
     n.add("Bus", "b")
-    n.add("Generator", "g", bus="b", marginal_cost=[10.0, 20.0, 30.0])
+    n.add(
+        "Generator",
+        "g",
+        bus="b",
+        marginal_cost=[10.0, 20.0, 30.0],
+        custom_t=pd.Series([1.0, 2.0, 3.0], index=n.snapshots),
+    )
     assert "g" in n.c.generators.dynamic.marginal_cost.columns
+    assert "g" in n.c.generators.dynamic.custom_t.columns
 
     n.add("Generator", "g", bus="b", marginal_cost=5.0, overwrite=True)
     assert "g" not in n.c.generators.dynamic.marginal_cost.columns
+    assert "g" not in n.c.generators.dynamic.custom_t.columns
+
+
+@pytest.mark.parametrize(
+    ("component", "kwargs"), [("Generator", {"bus": "b"}), ("GlobalConstraint", {})]
+)
+def test_add_custom_dynamic_attribute_incremental(component, kwargs):
+    """Custom time-varying attributes of later `n.add` calls are merged."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "b")
+    c = n.c[component]
+    t1 = pd.Series([1.0, 2.0, 3.0], index=n.snapshots)
+    t2 = pd.Series([4.0, 5.0, 6.0], index=n.snapshots)
+    n.add(component, "g1", custom_t=t1, **kwargs)
+    n.add(component, "g2", custom_t=t2, **kwargs)
+
+    df = c.dynamic["custom_t"]
+    assert list(df.columns) == ["g1", "g2"]
+    assert df["g1"].tolist() == t1.tolist()
+    assert df["g2"].tolist() == t2.tolist()
+    assert df.index.equals(n.snapshots)
+
+    n.add(component, "g1", custom_t=t2 * 10, overwrite=True, **kwargs)
+    df = c.dynamic["custom_t"]
+    assert sorted(df.columns) == ["g1", "g2"]
+    assert df["g1"].tolist() == (t2 * 10).tolist()
+    assert df["g2"].tolist() == t2.tolist()
+
+    n.add(component, "g1", custom_t=t1, **kwargs)
+    assert c.dynamic["custom_t"]["g1"].tolist() == (t2 * 10).tolist()
+
+    n.add(component, "g3", custom_s=5, **kwargs)
+    assert c.static.loc["g3", "custom_s"] == 5
+    assert "custom_s" not in c.dynamic
+    assert "g3" not in c.dynamic["custom_t"].columns
 
 
 def test_add_stochastic():
@@ -909,6 +951,46 @@ def test_rename_component_names(use_component):
 
     assert "bus1" not in n.c.generators.static.bus.to_list()
     assert "bus3" in n.c.generators.static.bus.to_list()
+
+
+@pytest.mark.parametrize("use_component", [True, False])
+def test_rename_non_bus_component_names(use_component):
+    n = pypsa.Network()
+    n.snapshots = [0, 1]
+
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add("Carrier", "wind")
+    n.add("Generator", "gen1", bus="bus1", carrier="wind", p_min_pu=[0.1, 0.2])
+    n.add("Line", "line1", bus0="bus1", bus1="bus2", s_max_pu=[0.1, 0.2])
+    n.add("Link", "link1", bus0="bus1", bus1="bus2", p_nom=100)
+
+    if use_component:
+        n.c.links.rename_component_names(link1="link2")
+        n.c.lines.rename_component_names(line1="line2")
+        n.c.generators.rename_component_names(gen1="gen2")
+        n.c.carriers.rename_component_names(wind="offshore_wind")
+    else:
+        n.rename_component_names("Link", link1="link2")
+        n.rename_component_names("Line", line1="line2")
+        n.rename_component_names("Generator", gen1="gen2")
+        n.rename_component_names("Carrier", wind="offshore_wind")
+
+    assert "link1" not in n.c.links.static.index
+    assert "link2" in n.c.links.static.index
+    assert n.c.links.static.loc["link2", "bus0"] == "bus1"
+
+    assert "line1" not in n.c.lines.static.index
+    assert "line2" in n.c.lines.static.index
+    assert "line2" in n.c.lines.dynamic.s_max_pu.columns
+
+    assert "gen1" not in n.c.generators.static.index
+    assert "gen2" in n.c.generators.static.index
+    assert "gen2" in n.c.generators.dynamic.p_min_pu.columns
+    assert n.c.generators.static.loc["gen2", "carrier"] == "offshore_wind"
+
+    assert "wind" not in n.c.carriers.static.index
+    assert "offshore_wind" in n.c.carriers.static.index
 
 
 def test_components_repr(ac_dc_network):
