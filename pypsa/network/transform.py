@@ -476,7 +476,7 @@ class NetworkTransformMixin(_NetworkABC):
         bus1         1.0       0.0  0.0  ...          inf      PQ
         bus2         1.0       0.0  0.0  ...          inf      PQ
         <BLANKLINE>
-        [3 rows x 13 columns]
+        [3 rows x 14 columns]
 
         Remove a single component:
         >>> n.remove("Bus", "bus2")
@@ -489,7 +489,7 @@ class NetworkTransformMixin(_NetworkABC):
         bus0         1.0       0.0  0.0  ...          inf      PQ
         bus1         1.0       0.0  0.0  ...          inf      PQ
         <BLANKLINE>
-        [2 rows x 13 columns]
+        [2 rows x 14 columns]
         >>> n.components.buses.dynamic.p_min_pu
         Empty DataFrame
         Columns: []
@@ -500,7 +500,7 @@ class NetworkTransformMixin(_NetworkABC):
 
         >>> n.components.buses.static
         Empty DataFrame
-        Columns: [v_nom, type, x, y, carrier, unit, location, v_mag_pu_set, v_mag_pu_min, v_mag_pu_max, control, generator, sub_network]
+        Columns: [v_nom, type, x, y, carrier, unit, scaling, location, v_mag_pu_set, v_mag_pu_min, v_mag_pu_max, control, generator, sub_network]
         Index: []
 
         """

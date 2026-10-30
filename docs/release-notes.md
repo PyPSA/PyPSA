@@ -14,8 +14,16 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Changes from bug fixes
+
+- **Optimization model structure changes**, relevant for custom constraints in `extra_functionality`:
+    - The `Kirchhoff-Voltage-Law` constraint no longer multiplies its coefficients by `1e5`. The factor is now a linopy row scaling (multiplied by the `Bus.scaling` of the sub-network), so raw duals in `n.model.constraints["Kirchhoff-Voltage-Law"].dual` are in original units and `1e5` times larger than before. LP files are unchanged.
+    - The `{Component}-{attr}_set` constraints (e.g. `Generator-p_nom_set`) use the dimension `name` instead of `{Component}-{attr}_set_i`.
+- PyPSA now requires `linopy>=0.10.0`.
+
 ### Features
 
+- Add [numerical scaling](./user-guide/optimization/numerical-scaling.md) of optimization problems. The new attribute `scaling` of [Bus](./user-guide/components/buses.md) sets the solver unit of all columns and rows at a bus, `scaling` of [GlobalConstraint](./user-guide/components/global-constraints.md) scales its row, and the new argument `objective_scaling` of [`n.optimize`][pypsa.optimization.OptimizationAccessor.__call__], [`n.optimize.create_model`][pypsa.optimization.OptimizationAccessor.create_model], `optimize_security_constrained`, `optimize_mga`, `optimize_mga_in_direction` and `optimize_mga_in_multiple_directions` scales the objective. Piecewise cost curves and CVaR elements take the objective factor. The new read-only property `scaling` of [`Components`][pypsa.components.Components] (e.g. `n.c.generators.scaling`) returns the factor of each asset. linopy reports solutions, duals and the objective in original units. With scaling active, LP files and `n.model.matrices` show solver units, and scaled and unscaled runs agree up to solver tolerance. The new argument `scaling` of `n.optimize` and `n.optimize.create_model` sets all factors at once: `"standard"` applies benchmark-derived constants for networks in MW, MWh and currency units, and a [`ScalingFactors`][pypsa.optimization.scaling.ScalingFactors] instance or a callable returning one sets custom factors. Requires `linopy>=0.10.0`.
 - Add the volume limits `e_sum_min` and `e_sum_max` to [Link](./user-guide/components/links.md), [Process](./user-guide/components/processes.md) and [Store](./user-guide/components/stores.md) components. (<!-- md:pr 1987 -->)
     - **Behavior change**: With `multi_investment_periods=True`, `e_sum_min` and `e_sum_max` limit the total over all investment periods weighted by the investment period weighting `years`, as for `operational_limit` global constraints. Before, the energy of each period was counted once.
     - **Behavior change**: The consistency check for `e_sum_min > e_sum_max` raises with `strict=["volume_limits"]` instead of `strict=["generators"]`.

@@ -63,6 +63,7 @@ from pypsa.optimization.global_constraints import (
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
+from pypsa.optimization.scaling import Scaling, with_scaling
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -254,7 +255,10 @@ def define_objective(
             has_const = constant != 0
         if has_const:
             object_const = m.add_variables(
-                constant, constant, name="objective_constant"
+                constant,
+                constant,
+                name="objective_constant",
+                scaling=m.objective.scaling,
             )
             capex_terms.append(-1 * object_const)
     else:
@@ -298,6 +302,7 @@ def define_objective(
                     sign=">=",
                     cumulative_attr=True,
                     extra_options=extra_options,
+                    scaling=m.objective.scaling,
                     status=status,
                 )
                 if pw_cost_var is not None:
@@ -389,6 +394,7 @@ def define_objective(
                 sign=">=",
                 cumulative_attr=True,
                 extra_options=extra_options,
+                scaling=m.objective.scaling,
             )
             if piecewise_var is not None:
                 pw_names = piecewise_var.indexes["name"]
@@ -491,7 +497,9 @@ def define_objective(
 
         for s in n.scenarios:
             lhs = a.sel(scenario=s, drop=True) - scen_opex_exprs[s] + theta
-            m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
+            m.add_constraints(
+                lhs, ">=", 0, name=f"CVaR-excess-{s}", scaling=m.objective.scaling
+            )
 
         inv_tail = 1.0 / (1.0 - alpha)
         weighted_a = None
@@ -501,7 +509,13 @@ def define_objective(
         if weighted_a is None:  # mypy type guard
             msg = "No scenarios found in scenario_weightings"
             raise UnexpectedError(msg)
-        m.add_constraints(theta + inv_tail * weighted_a, "<=", cvar, name="CVaR-def")
+        m.add_constraints(
+            theta + inv_tail * weighted_a,
+            "<=",
+            cvar,
+            name="CVaR-def",
+            scaling=m.objective.scaling,
+        )
 
         # Final objective: CAPEX + (1-omega) * E[OPEX] + omega * CVaR
         obj_expr = expected_capex + (1 - omega) * expected_opex + omega * cvar
@@ -509,8 +523,7 @@ def define_objective(
         # Deterministic or no risk: CAPEX + OPEX
         obj_expr = expected_capex + expected_opex
 
-    # Set objective
-    m.objective = obj_expr
+    m.add_objective(obj_expr, overwrite=True, scaling=m.objective.scaling)
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
@@ -555,6 +568,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
+        objective_scaling: float = 1.0,
+        scaling: Scaling = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -631,6 +646,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
             default ``"bfs-refined"`` yields sparser constraints.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver. The
+            objective value and duals are reported in original units. Column
+            and row factors are set via `Bus.scaling` and
+            `GlobalConstraint.scaling`.
+        scaling : False | "standard" | ScalingFactors | Callable, default False
+            Set `Bus.scaling`, `GlobalConstraint.scaling` and
+            `objective_scaling` for the build, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -678,6 +701,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             meshed_thresholds=meshed_thresholds,
             piecewise_options=piecewise_options,
             cycle_basis_method=cycle_basis_method,
+            objective_scaling=objective_scaling,
+            scaling=scaling,
             **model_kwargs,
         )
         if extra_functionality:
@@ -705,6 +730,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         return status, condition
 
     @suppress_semantics_warnings()
+    @with_scaling
     def create_model(
         self,
         snapshots: Sequence | None = None,
@@ -717,6 +743,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
+        objective_scaling: float = 1.0,
+        scaling: Scaling = False,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -766,6 +794,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
             default ``"bfs-refined"`` yields sparser constraints.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver. The
+            objective value and duals are reported in original units. Column
+            and row factors are set via `Bus.scaling` and
+            `GlobalConstraint.scaling`.
+        scaling : False | "standard" | ScalingFactors | Callable, default False
+            Set `Bus.scaling`, `GlobalConstraint.scaling` and
+            `objective_scaling` for the build. `"standard"` applies the fixed
+            factors `pypsa.optimization.scaling.STANDARD`, a `ScalingFactors`
+            instance applies its factors and a callable
+            `f(n) -> ScalingFactors` returns them. All factors must be 1
+            beforehand, and the network attributes are restored after the
+            build. See
+            [Numerical Scaling](../../user-guide/optimization/numerical-scaling.md).
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -811,6 +853,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._optimize_window = window
         sns = window.model_index
         n._model = Model(**kwargs)
+        n.model.objective.scaling = objective_scaling
 
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
@@ -962,6 +1005,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
     ) -> tuple[str, str]:
         """Solve an already created model and assign its solution to the network.
 
+        Scaling factors are fixed when the model is created, see the
+        `objective_scaling` and `scaling` arguments of `create_model`.
+
         Parameters
         ----------
         extra_functionality : callable
@@ -1003,6 +1049,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
         """
+        if "scaling" in kwargs:
+            msg = (
+                "`scaling` is fixed when the model is created, pass it to "
+                "`n.optimize` or `n.optimize.create_model` instead."
+            )
+            raise TypeError(msg)
         # Handle default parameters from options
         if solver_options is None:
             solver_options = options.params.optimize.solver_options.copy()
