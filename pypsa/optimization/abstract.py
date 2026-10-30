@@ -696,6 +696,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         su, st = n.c.storage_units, n.c.stores
         cycles_max = {c.name: c.static.cycles_max.copy() for c in (su, st)}
+        track_cycles = any((limit < np.inf).any() for limit in cycles_max.values())
 
         starting_points = range(0, len(snapshots), horizon - overlap)
         weights = _energy_weightings(n, kwargs.get("multi_investment_periods", False))
@@ -750,7 +751,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
                 status, condition = n.optimize(sns, **kwargs)
                 if status != "ok":
-                    if tracked:
+                    if tracked or track_cycles:
                         msg = (
                             f"Optimization of window [{sns[0]}:{sns[-1]}] failed "
                             f"with status {status} and condition {condition}. The "

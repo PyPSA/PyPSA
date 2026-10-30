@@ -199,3 +199,15 @@ def test_cycles_max_rolling_horizon(component):
     n.optimize.optimize_with_rolling_horizon(horizon=24)
     assert get_cycles(n, component) == pytest.approx(3)
     assert n.c[component].static.cycles_max.s == 3
+
+
+@pytest.mark.parametrize(
+    ("component", "nom"), [("StorageUnit", "p_nom_opt"), ("Store", "e_nom_opt")]
+)
+def test_cycles_max_finite_in_one_scenario(component, nom):
+    n = cycles_network(component, cycles_max=float("inf"), extendable=True)
+    n.set_scenarios(a=0.5, b=0.5)
+    n.c[component].static.loc[("a", "s"), "cycles_max"] = 1
+    status, _ = n.optimize()
+    assert status == "ok"
+    assert n.c[component].static[nom].gt(0).all()

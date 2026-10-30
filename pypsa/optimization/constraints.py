@@ -2443,7 +2443,9 @@ def define_storage_cycle_constraints(n: Network, sns: pd.Index, component: str) 
         return
 
     # discharge allowed per unit of nominal capacity
-    energy_max_pu = c.da.cycles_max.sel(name=names)
+    cycles_max = c.da.cycles_max.sel(name=names)
+    limited = cycles_max < inf
+    energy_max_pu = cycles_max.where(limited, 0)
     if c.name == "Store":
         active = c.da.active.sel(snapshot=sns, name=names)
         discharge = m["Store-p"].sel(name=names) + m["Store-p_store"]
@@ -2462,7 +2464,7 @@ def define_storage_cycle_constraints(n: Network, sns: pd.Index, component: str) 
         lhs = lhs - energy_max_pu.sel(name=ext_i) * capacity
         rhs = rhs.where(~rhs.coords["name"].isin(ext_i), 0)
 
-    m.add_constraints(lhs, "<=", rhs, name=f"{c.name}-cycles_max")
+    m.add_constraints(lhs, "<=", rhs, name=f"{c.name}-cycles_max", mask=limited)
 
 
 def define_tangent_loss_constraints(
