@@ -240,12 +240,12 @@ def test_1884():
 GLC_TYPES = [("primary_energy", "co2_emissions"), ("operational_limit", "fuel")]
 
 
-def _fuel_network(snapshots=range(4), investment_periods=None):
+def _fuel_network(snapshots=range(4), investment_periods=None, co2_emissions=1.0):
     """Network with a load of 10 MW, an expensive backup generator and fuel carrier."""
     n = pypsa.Network(snapshots=snapshots)
     if investment_periods is not None:
         n.investment_periods = investment_periods
-    n.add("Carrier", "fuel", co2_emissions=1.0)
+    n.add("Carrier", "fuel", co2_emissions=co2_emissions)
     n.add("Bus", "b")
     n.add("Load", "l", bus="b", p_set=10)
     n.add("Generator", "backup", bus="b", p_nom=100, marginal_cost=100)
@@ -306,6 +306,37 @@ def test_2000(component, cyclic, inflow, glc_type, carrier_attribute):
 
 
 @pytest.mark.parametrize("component", ["Store", "StorageUnit"])
+def test_2000_non_unit_emission_factor(component):
+    """Inflow and spill are both scaled by the emission factor exactly once.
+
+    The cyclic storage receives 4 x 10 MWh of inflow at 2 t/MWh, so the limit of
+    40 t allows 20 MWh of dispatch and the remaining 20 MWh must be spilled. The
+    backup covers the other 20 MWh of the 40 MWh load. Omitting the factor would
+    allow 40 MWh of dispatch, applying it twice only 10 MWh.
+    """
+    n = _fuel_network(co2_emissions=2.0)
+    _add_fuel_storage(n, component, cyclic=True, inflow=10)
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=40,
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+    assert n.c[component].dynamic.p["s"].sum() == pytest.approx(20)
+    assert n.c[component].dynamic.spill["s"].sum() == pytest.approx(20)
+    assert n.c.generators.dynamic.p["backup"].sum() == pytest.approx(20)
+    assert n.objective == pytest.approx(2000)
+    # 1 t more allows 0.5 MWh more storage dispatch, saving 0.5 MWh of backup at 100
+    assert n.c.global_constraints.static.mu["limit"] == pytest.approx(-50)
+
+
+@pytest.mark.parametrize("component", ["Store", "StorageUnit"])
 @pytest.mark.parametrize("investment_period", [np.nan, 2030])
 @pytest.mark.parametrize(("glc_type", "carrier_attribute"), GLC_TYPES)
 def test_2000_inflow_counted_only_while_active(
@@ -314,11 +345,16 @@ def test_2000_inflow_counted_only_while_active(
     """Inflow counts only in snapshots in which the storage is active.
 
     The storage is built in 2030 and cycles per period, so its dispatch equals its
-    net inflow. The limit counts dispatch weighted by snapshot and period weightings.
+    net inflow. The limit counts net inflow weighted by the stores snapshot weighting
+    and the period weighting, 2 h x 5 a, so 100 allows 10 MWh of dispatch in 2030.
+    The backup covers the remaining 20 + 10 MWh at 100 with objective weighting 3.
+    Weighting by the generators snapshot weighting instead would allow only 5 MWh.
     """
     n = _fuel_network(range(2), [2020, 2030])
     n.investment_period_weightings["years"] = [10, 5]
-    n.snapshot_weightings[["objective", "stores", "generators"]] = 2.0
+    n.snapshot_weightings["objective"] = 3.0
+    n.snapshot_weightings["stores"] = 2.0
+    n.snapshot_weightings["generators"] = 4.0
     _add_fuel_storage(
         n, component, cyclic=True, per_period=True, inflow=10, build_year=2030
     )
@@ -335,10 +371,71 @@ def test_2000_inflow_counted_only_while_active(
     status, _ = n.optimize(multi_investment_periods=True)
 
     assert status == "ok"
-    p = n.c[component].dynamic.p["s"].mul(n.snapshot_weightings.stores)
-    weighted = p.groupby(level="period").sum() * n.investment_period_weightings.years
-    assert weighted.loc[2020] == pytest.approx(0, abs=1e-6)
-    assert weighted.loc[2030] == pytest.approx(100)
+    p = n.c[component].dynamic.p["s"].groupby(level="period").sum()
+    assert p.loc[2020] == pytest.approx(0, abs=1e-6)
+    assert p.loc[2030] == pytest.approx(10)
+    backup = n.c.generators.dynamic.p["backup"].groupby(level="period").sum()
+    assert backup.loc[2020] == pytest.approx(20)
+    assert backup.loc[2030] == pytest.approx(10)
+    assert n.objective == pytest.approx(9000)
+
+
+@pytest.mark.parametrize("component", ["Store", "StorageUnit"])
+@pytest.mark.parametrize(("glc_type", "carrier_attribute"), GLC_TYPES)
+def test_2000_non_cyclic_per_period_inflow(component, glc_type, carrier_attribute):
+    """Non-cyclic storage counts its level change and net inflow in each period.
+
+    Each period starts at 10 MWh and ends at the pinned 4 and 6 MWh. The limit
+    weights the level change by the period years and the net inflow additionally
+    by the stores snapshot weighting of 2 h, so it counts 20 per unit of dispatch
+    in 2020 and 10 in 2030. Without spill, 2030 dispatches (10 - 6) / 2 + 2 x 5 =
+    12, leaving (200 - 120) / 20 = 4 for 2020, which spills 3 + 10 - 4 = 9. The
+    backup covers the remaining 16 + 8 at 100.
+    """
+    n = _fuel_network(range(2), [2020, 2030])
+    n.investment_period_weightings["years"] = [10, 5]
+    n.snapshot_weightings["stores"] = 2.0
+    end = pd.Series(np.nan, n.snapshots)
+    end.loc[(2020, 1)] = 4
+    end.loc[(2030, 1)] = 6
+    if component == "Store":
+        kwargs = {
+            "e_initial": 10,
+            "e_initial_per_period": True,
+            # relative to e_nom of 100 MWh
+            "e_min_pu": (end / 100).fillna(0),
+            "e_max_pu": (end / 100).fillna(1),
+        }
+    else:
+        kwargs = {
+            "state_of_charge_initial": 10,
+            "state_of_charge_initial_per_period": True,
+            "state_of_charge_set": end,
+        }
+    _add_fuel_storage(n, component, inflow=5, **kwargs)
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=glc_type,
+        carrier_attribute=carrier_attribute,
+        sense="<=",
+        constant=200,
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+
+    assert status == "ok"
+    dynamic = n.c[component].dynamic
+    p = dynamic.p["s"].groupby(level="period").sum()
+    spill = dynamic.spill["s"].groupby(level="period").sum()
+    backup = n.c.generators.dynamic.p["backup"].groupby(level="period").sum()
+    assert p.tolist() == pytest.approx([4, 12])
+    assert spill.tolist() == pytest.approx([9, 0], abs=1e-6)
+    assert backup.tolist() == pytest.approx([16, 8])
+    assert n.objective == pytest.approx(2400)
+    # 2030 dispatch is already capped by zero spill, so more allowance goes to
+    # 2020 dispatch at 20 per unit, saving 100 / 20.
+    assert n.c.global_constraints.static.mu["limit"] == pytest.approx(-5)
 
 
 @pytest.mark.parametrize("component", ["Store", "StorageUnit"])

@@ -19,7 +19,7 @@ By default, global constraints span across all investment periods. For models wi
 
 The primary energy constraints (`type="primary_energy"`) are used to limit byproducts of primary energy consumption of a carrier (e.g. CO~2~ emissions) in generators, storage units and stores. They depend on the generator efficiency and carrier-specific attributes (e.g. `co2_emissions`).
 
-Suppose there is a global constraint defined for CO~2~ emissions (`carrier_attribute`) with sense "<=" (`sense`) and a limit $\Gamma$ (`constant`). Emissions can come from generators whose energy carriers have CO~2~ emissions, and from stores and storage units whose storage medium releases or absorbs CO~2~ when it is converted. Summing the [storage energy balance](storage.md) over all snapshots shows that the energy drawn from a storage is its change in energy level between the start ($t=-1$) and end ($t=|T|-1$) of the optimisation period plus its net inflow. The change in energy level is counted for stores and storage units with non-cyclic state of charge, the net inflow for all stores and storage units in the snapshots in which they are active.
+Suppose there is a global constraint defined for CO~2~ emissions (`carrier_attribute`) with sense "<=" (`sense`) and a limit $\Gamma$ (`constant`). Emissions can come from generators whose energy carriers have CO~2~ emissions, and from stores and storage units whose storage medium releases or absorbs CO~2~ when it is converted. Summing the [storage energy balance](storage.md) over all snapshots shows that the energy withdrawn from a storage, including standing losses, is the decrease in its energy level between the start ($t=-1$) and end ($t=|T|-1$) of the optimisation period plus its weighted net inflow $\textrm{inflow} - \textrm{spill}$. The decrease in energy level is counted for stores and storage units with non-cyclic state of charge, the net inflow for all stores and storage units in the snapshots in which they are active.
 
 If the specific emissions of carrier $s$ is $\rho_s$ (`n.carriers.co2_emissions`) and the generator with carrier $s$ at node $n$ and snapshot $t$ has efficiency $\eta_{n,s,t}$ then the CO~2~ constraint is
 
@@ -63,7 +63,11 @@ $$\begin{gather*}\sum_{n,s,t}  w_t^g \cdot g_{n,s,t}+ \sum_{n,s}\left(e_{n,s,t=-
 The first sum is over generators; the second sum is over stores; the third over
 storage units; the fourth over stores and storage units, including cyclic ones.
 Structurally, it is similar to the primary energy limit, but
-without the consideration of specific emissions and efficiencies. The shadow
+without the consideration of specific emissions. Generators are counted at their
+electrical output, without their efficiencies. Stores and storage units are
+counted by the energy withdrawn on the storage side: discharge divided by the
+discharge efficiency, minus charging multiplied by the store efficiency, plus
+standing losses, which equals the last three sums. The shadow
 price $\mu$ (in currency/MWh) would represent the reduction in system costs if
 the operational limit were relaxed by one unit.
 
