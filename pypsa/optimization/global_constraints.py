@@ -24,6 +24,8 @@ from pypsa.optimization.window import apply_period_weighting
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
+    from linopy import LinearExpression
+
     from pypsa import Components, Network
     from pypsa.optimization.piecewise import PiecewiseOptions
 logger = logging.getLogger(__name__)
@@ -46,6 +48,44 @@ def _period_last_storage_weightings(
         period_weighting.loc[periods[last]].to_numpy(), index=period_last_sns
     )
     return period_last_sns, storage_weightings
+
+
+def _storage_inflow_spill(
+    n: Network,
+    component: Components,
+    assets: pd.Index,
+    snapshots: pd.Index,
+    weight: DataArray,
+    *,
+    scenario: Any,
+) -> tuple[pd.Series, LinearExpression | None]:
+    """Weighted inflow and spill of storage assets, summed over snapshots.
+
+    Summing the storage energy balance over the snapshots in which it is active
+    shows that the energy withdrawn from storage, including standing losses, is its
+    decrease in energy level plus its weighted net inflow `inflow - spill`.
+    The inflow is returned as a constant
+    per asset, masked to the active snapshots like the energy balance. The spill is
+    returned as a linear expression per asset, or `None` if none of the assets has
+    a spill variable, i.e. positive inflow in an active snapshot.
+    """
+    active = component.da.active.sel(name=assets, snapshot=snapshots)
+    inflow = component.da.inflow.sel(name=assets, snapshot=snapshots).where(active, 0)
+    if n.has_scenarios:
+        inflow = inflow.sel(scenario=scenario, drop=True)
+    inflow_sum = (inflow * weight).sum("snapshot").to_pandas()
+
+    spill_var = f"{component.name}-spill"
+    has_spill = (inflow > 0).any("snapshot").to_pandas()
+    if spill_var not in n.model.variables or not has_spill.any():
+        return inflow_sum, None
+
+    spill = n.model[spill_var].sel(name=has_spill.index[has_spill], snapshot=snapshots)
+    if n.has_scenarios:
+        spill = spill.sel(scenario=scenario, drop=True)
+    # Spill is masked in snapshots without positive inflow; fill with 0 as in the
+    # energy balance.
+    return inflow_sum, (spill * weight).fillna(0).sum("snapshot")
 
 
 def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
@@ -308,11 +348,13 @@ def define_primary_energy_limit(
 
     window = n.optimize._window.subset(sns)
     weight = window.snapshot_weightings("generators")
+    storage_weight = window.snapshot_weightings("stores")
     if n._multi_invest:
         period_of = window.period_of
         periods = window.periods
         period_weighting = n.investment_period_weightings.years[periods]
         weight = apply_period_weighting(weight, period_weighting)
+        storage_weight = apply_period_weighting(storage_weight, period_weighting)
         period_last_sns, storage_weightings = _period_last_storage_weightings(
             sns, period_of, period_weighting
         )
@@ -382,6 +424,25 @@ def define_primary_energy_limit(
 
             # Determine investment period for active asset filtering
             period = glc.investment_period if n._multi_invest else None
+
+            # storage inflow (constant) and spill, including cyclic storages
+            inflow_constant = 0.0
+            w_storage = storage_weight.sel(snapshot=period_sns)
+            for component in (n.c.storage_units, n.c.stores):
+                assets = component.static.query("carrier in @emissions.index")
+                assets = component.filter_by_active_assets(assets, period)
+                if assets.empty:
+                    continue
+
+                assets = assets.loc[scenario]
+                em_pu = assets.carrier.map(emissions)
+                inflow, spill = _storage_inflow_spill(
+                    n, component, assets.index, period_sns, w_storage, scenario=scenario
+                )
+                inflow_constant += em_pu @ inflow
+                if spill is not None:
+                    spill_em_pu = em_pu.loc[spill.indexes["name"]]
+                    lhs.append((spill * -spill_em_pu).sum())
 
             # generators
             gens = n.c.generators.static[
@@ -530,10 +591,12 @@ def define_primary_energy_limit(
                         e_final = e_final.sel(scenario=scenario, drop=True)
                     lhs.append((e_final * -em_pu).sum() + em_pu @ stores.e_initial)
 
+            # Without decision variables, the constraint is skipped like one
+            # without contributing assets.
             if not lhs:
                 continue
 
-            lhs = merge(lhs)
+            lhs = merge(lhs) + inflow_constant
             expressions.append(lhs)
 
         if not expressions:
@@ -575,6 +638,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
     window = n.optimize._window.subset(sns)
     weight = window.snapshot_weightings("generators")
+    storage_weight = window.snapshot_weightings("stores")
     if n._multi_invest:
         period_of = window.period_of
         periods = window.periods
@@ -619,6 +683,26 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 )
 
             lhs = []
+
+            # storage inflow (constant) and spill, including cyclic storages
+            inflow_constant = 0.0
+            w_storage = storage_weight.sel(snapshot=period_sns)
+            if n._multi_invest:
+                w_storage = apply_period_weighting(w_storage, period_weighting)
+            for component in (n.c.storage_units, n.c.stores):
+                assets = component.static.query(
+                    "carrier == @glc.carrier_attribute and active"
+                )
+                if assets.empty:
+                    continue
+
+                assets = assets.loc[scenario]
+                inflow, spill = _storage_inflow_spill(
+                    n, component, assets.index, period_sns, w_storage, scenario=scenario
+                )
+                inflow_constant += inflow.sum()
+                if spill is not None:
+                    lhs.append(-spill.sum())
 
             # generators
             gens = n.c.generators.static.query(
@@ -728,10 +812,12 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                         e_final = e_final.sel(scenario=scenario, drop=True)
                     lhs.append((-e_final).sum() + stores.e_initial.sum())
 
+            # Without decision variables, the constraint is skipped like one
+            # without contributing assets.
             if not lhs:
                 continue
 
-            lhs = merge(lhs)
+            lhs = merge(lhs) + inflow_constant
             expressions.append(lhs)
 
         if not expressions:
