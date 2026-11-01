@@ -53,6 +53,11 @@ from pypsa.optimization.constraints import (
     define_voltage_angle_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
+from pypsa.optimization.flow_based import (
+    NET_POSITION,
+    define_flow_based_constraints,
+    define_flow_based_variables,
+)
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
@@ -835,6 +840,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
         define_phase_shift_variables(n, sns)
+        flow_based_domain = define_flow_based_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -946,6 +952,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
+        define_flow_based_constraints(n, flow_based_domain)
 
         define_objective(n, sns, include_objective_constant, piecewise_opts)
 
@@ -1051,6 +1058,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
             # Skip auxiliary CVaR variables
             if name.startswith("CVaR"):
+                continue
+            if name == NET_POSITION:
+                df = _from_xarray(sol.rename({"bus": "name"}), n.c.buses)
+                _set_dynamic_data(n, "Bus", "net_position", df)
                 continue
             if any(
                 i in variable.dims
@@ -1195,11 +1206,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 unassigned_constraints.append(constraint_name)
                 continue
 
-            # Add placeholder for custom constraints, marked as GlobalConstraint
+            # Add placeholder for custom constraints, marked as GlobalConstraint.
+            # Constraints with a `name` dim are already per row, e.g. `ram`.
             # TODO This should go to an actual custom constraint
             if (
                 c.name == "GlobalConstraint"
                 and suffix not in c.static.index
+                and "name" not in constraint.dims
                 and assign_all_duals
             ):
                 if c.has_scenarios:

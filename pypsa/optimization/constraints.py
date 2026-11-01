@@ -31,6 +31,7 @@ from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components, invariant
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.flow_based import flow_based_balance_terms
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 from pypsa.optimization.window import apply_period_weighting, snapshot_array
 
@@ -1474,6 +1475,7 @@ def define_nodal_balance_constraints(
                         expr = expr * coeff.sel(name=group_names)
                     exprs.append(_groupby_bus(expr, group_cbuses))
 
+    exprs.extend(flow_based_balance_terms(n, buses))
     lhs = merge(exprs, join="outer").reindex(name=buses)
 
     # Prepare the RHS
