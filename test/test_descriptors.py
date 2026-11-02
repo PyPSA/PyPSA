@@ -37,9 +37,6 @@ def test_get_switchable_as_dense(network):
         assert (df == val).all().all()
 
 
-DENSE_INDS_WARNING = "In PyPSA 2.0, `get_switchable_as_dense` will return columns"
-
-
 @pytest.fixture
 def dense_network(network: pypsa.Network) -> pypsa.Network:
     network.add("Bus", "b")
@@ -51,12 +48,12 @@ def dense_network(network: pypsa.Network) -> pypsa.Network:
 @pytest.mark.parametrize(
     ("inds", "expected"),
     [
-        (["g3", "g1"], ["g1", "g3"]),
-        (["g1", "missing"], ["g1"]),
-        (["g1", "g1"], ["g1"]),
+        (["g3", "g1"], ["g3", "g1"]),
+        (["g1", "g1"], ["g1", "g1"]),
+        (["g1", "g3", "g1"], ["g1", "g3", "g1"]),
     ],
 )
-def test_get_switchable_as_dense_warns_on_inds(
+def test_get_switchable_as_dense_inds_order_and_duplicates(
     dense_network: pypsa.Network,
     scenarios: list[str] | None,
     inds: list[str],
@@ -65,9 +62,19 @@ def test_get_switchable_as_dense_warns_on_inds(
     n = dense_network
     if scenarios:
         n.set_scenarios(scenarios)
-    with pytest.warns(FutureWarning, match=DENSE_INDS_WARNING):
-        res = n.get_switchable_as_dense("Generator", "p_max_pu", inds=pd.Index(inds))
-    assert res.columns.unique("name").tolist() == expected
+    res = n.get_switchable_as_dense("Generator", "p_max_pu", inds=pd.Index(inds))
+    assert res.columns.get_level_values("name").tolist() == expected
+
+
+@pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
+def test_get_switchable_as_dense_unknown_name_raises(
+    dense_network: pypsa.Network, scenarios: list[str] | None
+) -> None:
+    n = dense_network
+    if scenarios:
+        n.set_scenarios(scenarios)
+    with pytest.raises(KeyError, match="Unknown component names"):
+        n.get_switchable_as_dense("Generator", "p_max_pu", inds=pd.Index(["g1", "missing"]))
 
 
 @pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
