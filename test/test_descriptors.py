@@ -74,7 +74,9 @@ def test_get_switchable_as_dense_unknown_name_raises(
     if scenarios:
         n.set_scenarios(scenarios)
     with pytest.raises(KeyError, match="Unknown component names"):
-        n.get_switchable_as_dense("Generator", "p_max_pu", inds=pd.Index(["g1", "missing"]))
+        n.get_switchable_as_dense(
+            "Generator", "p_max_pu", inds=pd.Index(["g1", "missing"])
+        )
 
 
 @pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
