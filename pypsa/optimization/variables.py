@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -385,9 +384,8 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     n.model.add_variables(lower=0, coords=[mod_i], name=f"{c.name}-n_mod", integer=True)
 
 
-def define_spillage_variables(n: Network, sns: Sequence) -> None:
-    """Define the spillage variables for storage units."""
-    c_name = "StorageUnit"
+def define_spillage_variables(n: Network, sns: Sequence, c_name: str) -> None:
+    """Define the spillage variables for storage units and stores with inflow."""
     c = n.components[c_name]
 
     if c.empty:
@@ -403,19 +401,6 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     active = active_aligned.where(upper_aligned > 0, False)
 
     n.model.add_variables(0, upper_aligned, name=f"{c.name}-spill", mask=active)
-
-
-def define_store_charging_variables(n: Network, sns: Sequence) -> None:
-    """Define the charging variables for stores with a finite `cycles_max`."""
-    c = n.components["Store"]
-    names = c.static.index[c.static.cycles_max < np.inf].unique("name")
-    names = names.intersection(c.active_assets)
-
-    if names.empty:
-        return
-
-    active = c.da.active.sel(snapshot=sns, name=names)
-    n.model.add_variables(0, coords=active.coords, name="Store-p_store", mask=active)
 
 
 def define_phase_shift_variables(n: Network, sns: Sequence) -> None:

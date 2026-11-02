@@ -495,7 +495,7 @@ def test_rolling_horizon_e_sum_stochastic():
         ("Generator", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
         ("Link", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
         ("Process", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
-        ("Store", {"marginal_cost": 1}, "e_sum_max", 3000, "a single window"),
+        ("Store", {"marginal_cost": 1}, "e_sum_max", 3000, "finite max_hours"),
     ],
 )
 def test_rolling_horizon_e_sum_unbounded_capacity(
