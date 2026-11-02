@@ -26,7 +26,7 @@ For **non-extendable** stores (`e_nom_extendable=False`):
 | $h_{n,s,t}^+ \geq 0$ | only in `n.model` | `Store-fix-p_store-lower` |
 | $h_{n,s,t}^+ \leq - \underline{h}_{n,s,t} \hat{e}_{n,s} / r_{n,s}$ | only in `n.model` | `Store-fix-p_store-upper` |
 
-where $\hat{e}_{n,s}$ is the nominal energy capacity, $\underline{e}_{n,s,t}$ and $\bar{e}_{n,s,t}$ are time-dependent restrictions on the energy level given per unit of nominal capacity, $r_{n,s}$ is the number of hours at full power that fill the store (`max_hours`), and $\bar{h}_{n,s,t}$ and $\underline{h}_{n,s,t}$ restrict discharging and charging per unit of the power capacity $\hat{e}_{n,s} / r_{n,s}$ (usually $\underline{h}_{n,s,t}$ is negative, -1 by default). The power constraints are only built where $r_{n,s}$ is finite; by default ($r_{n,s} = \infty$) charging and discharging power are unconstrained. For stores with unit efficiencies and no direction-specific marginal costs, $h_{n,s,t}^+$ is fixed to zero and the charging bound applies to $h_{n,s,t}$ directly, which avoids a degenerate pair of variables; the outputs `p_dispatch` and `p_store` are then split by sign.
+where $\hat{e}_{n,s}$ is the nominal energy capacity, $\underline{e}_{n,s,t}$ and $\bar{e}_{n,s,t}$ are time-dependent restrictions on the energy level given per unit of nominal capacity, $r_{n,s}$ is the number of hours at full power that fill the store (`max_hours`), and $\bar{h}_{n,s,t}$ and $\underline{h}_{n,s,t}$ restrict discharging and charging per unit of the power capacity $\hat{e}_{n,s} / r_{n,s}$ (usually $\underline{h}_{n,s,t}$ is negative, -1 by default). The power constraints are only built where $r_{n,s}$ is finite; by default ($r_{n,s} = \infty$) charging and discharging power are unconstrained. For stores with unit efficiencies, no direction-specific marginal costs and an infinite `cycles_max`, $h_{n,s,t}^+$ is fixed to zero and the charging bound applies to $h_{n,s,t}$ directly, which avoids a degenerate pair of variables; the outputs `p_dispatch` and `p_store` are then split by sign.
 
 These constraints are set in the function `define_operational_constraints_for_non_extendables()`.
 
@@ -84,6 +84,22 @@ $$e_{n,s,t=-1} = e_{n,s,t=|T|-1}$$
 
     For how storage cyclicity constraints are handled with multiple investment periods, see the [Pathway Planning](pathway-planning.md) section.
 
+### Cycle Limits
+
+Stores may wear out with use. The attribute `cycles_max` $N_{n,s}$ limits the number of equivalent full cycles over all snapshots of the optimisation, including all investment periods. One cycle is a discharge equal to the energy capacity $E_{n,s}$. The limit stays linear for extendable capacities. The formulation follows eq. (22) in Cardoso et al. (2018).[^1]
+
+| Constraint | Dual Variable | Name |
+|------------|---------------|------|
+| $\sum_t w_t^s h_{n,s,t}^- \leq N_{n,s} E_{n,s} \quad \forall n,s$ | only in `n.model` | `Store-cycles_max` |
+
+Stores with a finite `cycles_max` always get the separate charging variable $h_{n,s,t}^+$, so that the discharge $h_{n,s,t}^-$ is well defined. Where unit efficiencies and no direction-specific marginal costs make simultaneous charging and discharging free, the reported `p_store` and `p_dispatch` are netted and split by sign of $h_{n,s,t}$.
+
+In a rolling horizon optimisation, the cycles of previous windows count against `cycles_max`.
+
+A cycle life $N^\textrm{life}$ over a technical lifetime $L$ translates into $N = N^\textrm{life} \cdot Y / L$ for an optimisation over $Y$ years.
+
+This constraint is set in the function `define_store_cycle_constraints()`.
+
 ??? note "Mapping of symbols to component attributes"
 
     | Symbol | Attribute | Type |
@@ -110,6 +126,7 @@ $$e_{n,s,t=-1} = e_{n,s,t=|T|-1}$$
     | $o_{n,s,t}$ | `n.stores_t.marginal_cost` | Parameter |
     | $o^-_{n,s,t}$ | `n.stores_t.marginal_cost_dispatch` | Parameter |
     | $o^+_{n,s,t}$ | `n.stores_t.marginal_cost_store` | Parameter |
+    | $N_{n,s}$ | `n.stores.cycles_max` | Parameter |
     | $w_t^s$ | `n.snapshot_weightings.stores` | Parameter |
 
 ## Storage Units
@@ -223,3 +240,5 @@ $$soc_{n,s,t=-1} = soc_{n,s,t=|T|-1}$$
     [:octicons-arrow-right-24: Go to example](../../examples/replace-generator-storage-units-with-store.ipynb)
 
 </div>
+
+[^1]: G. Cardoso, T. Brouhard, N. DeForest, D. Wang, M. Heleno, L. Kotzur (2018), [Battery aging in multi-energy microgrid design using mixed integer linear programming](https://doi.org/10.1016/j.apenergy.2018.09.185), Applied Energy, 231, 1059-1069.

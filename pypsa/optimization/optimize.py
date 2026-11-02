@@ -48,6 +48,7 @@ from pypsa.optimization.constraints import (
     define_secant_loss_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
+    define_store_cycle_constraints,
     define_tangent_loss_constraints,
     define_total_supply_constraints,
     define_voltage_angle_constraints,
@@ -909,6 +910,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
+        define_store_cycle_constraints(n, sns)
         for c in n.components:
             if "e_sum_min" in c.static:
                 define_total_supply_constraints(n, sns, c.name)
@@ -1172,10 +1174,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 storage_units.dynamic["p_dispatch"] - storage_units.dynamic["p_store"]
             )
 
-        # Split store net dispatch by sign where no charging variable was needed
+        # Split store net dispatch by sign where charging and discharging net out
         stores = n.c.stores
         if not stores.empty:
-            split = stores.split_dispatch().to_series()
+            split = stores.split_dispatch(cycles=False).to_series()
             p, p_store = stores.dynamic["p"], stores.dynamic["p_store"]
             single = p.columns.intersection(split.index[~split])
             p_store.loc[:, single] = -p[single].clip(upper=0)
@@ -1360,7 +1362,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
                 buses_i = sub.buses_o
                 if len(buses_i) == 1:
-                    return pd.DataFrame(0, index=sns, columns=buses_i)
+                    return pd.DataFrame(
+                        0.0, index=n.c.buses.dynamic.p.index, columns=buses_i
+                    )
                 sub.calculate_B_H(skip_pre=True)
                 Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
                 Z -= Z[sub.slack_bus]

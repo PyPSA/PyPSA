@@ -615,9 +615,16 @@ def define_operational_constraints_for_committables(
         lhs, ">=", prior_status, name=f"{c.name}-com-transition-shut-down", mask=active
     )
 
+    com_mod_fix_i = com_mod_i.difference(ext_i)
+    com_mod_ext_i = com_mod_i.intersection(ext_i)
+    mod_attr = c._operational_attrs["nom_mod"]
+    modules = nominal.sel(name=com_mod_fix_i) / c.da[mod_attr].sel(name=com_mod_fix_i)
+    modules = modules.reindex(name=com_i, fill_value=1.0)
+    modules = modules.where(~modules["name"].isin(com_mod_ext_i), 0.0)
+
     for kind, min_time, transition, sign, bound in (
         ("up", min_up_time_set, start_up, -1, 0),
-        ("down", min_down_time_set, shut_down, 1, 1),
+        ("down", min_down_time_set, shut_down, 1, modules),
     ):
         if not (min_time > 0).any():
             continue
@@ -626,6 +633,9 @@ def define_operational_constraints_for_committables(
             for k in range(int(min_time.max()))
         ]
         lhs = sign * status + merge(shifted)
+        if kind == "down" and not com_mod_ext_i.empty:
+            n_mod = n.model[f"{c.name}-n_mod"].sel(name=com_mod_ext_i)
+            lhs = lhs.add(-n_mod, join="left")
         past = (-sign * switches).clip(min=0)
         rhs = bound - (past * (past.lag + pos < min_time)).sum("lag")
         mask = active & (min_time > 0)
@@ -1033,7 +1043,7 @@ def define_ramp_limit_constraints(
     is_com = DataArray(idx.isin(c.committables), coords=[idx])
     is_modular = DataArray(idx.isin(c.modulars), coords=[idx])
     is_com_ext = is_com & is_ext & ~is_modular
-    is_com_ext_mod = is_com & is_ext & is_modular
+    is_com_mod = is_com & is_modular
     is_com_fix = is_com & ~is_com_ext
 
     limit_up = c.da.ramp_limit_up.sel(snapshot=sns, name=idx)
@@ -1056,11 +1066,12 @@ def define_ramp_limit_constraints(
     window = n.optimize._window.subset(sns)
     filter_first_sn = snapshot_array([1] + [0] * (len(sns) - 1), sns)
 
+    # Status counts modules for modular committables, so they ramp per module
     nom_mod_attr = c._operational_attrs["nom_mod"]
     p_nom = c.da[nom_attr].sel(name=idx).where(~is_ext, 0)
-    if is_com_ext_mod.any():
-        p_nom = p_nom.where(~is_com_ext_mod, c.da[nom_mod_attr].sel(name=idx))
-    is_ext_main = is_ext & ~is_com_ext & ~is_com_ext_mod
+    if is_com_mod.any():
+        p_nom = p_nom.where(~is_com_mod, c.da[nom_mod_attr].sel(name=idx))
+    is_ext_main = is_ext & ~is_com
     p_nom_ext_var = None
     if is_ext_main.any():
         ext_main_names = idx[is_ext_main]
@@ -1077,6 +1088,12 @@ def define_ramp_limit_constraints(
     s_init = _status_history(n, c, idx, sns, 1).squeeze("lag", drop=True)
     p_init = _dispatch_before(n, c, idx, sns, s_init)
     mask.loc[{"snapshot": sns[0]}] = p_init.notnull()
+    is_com_fix_mod = is_com_mod & ~is_ext
+    if is_com_fix_mod.any() and (not _window_start(n, sns) or c.dynamic.status.empty):
+        # Before n.snapshots the status is a 0/1 flag, so a unit that was on
+        # counts all its installed modules as on
+        modules = c.da[nom_attr].sel(name=idx) / c.da[nom_mod_attr].sel(name=idx)
+        s_init = s_init.where(~is_com_fix_mod, s_init * modules)
 
     # skip starts of periods except the first where p_init is used
     boundary = window.period_start_mask()
@@ -2424,6 +2441,56 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     rhs = rhs.where(include_previous_e, rhs - e_init)
 
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
+
+
+def define_store_cycle_constraints(n: Network, sns: pd.Index) -> None:
+    """Define cycle limits for stores.
+
+    For stores with a finite `cycles_max`, the constraint enforces:
+
+    sum((p(t) + p_store(t)) * weighting(t)) ≤ cycles_max * e_nom
+
+    where `p + p_store` is the discharge at the bus and the sum is taken over
+    all snapshots of the optimisation. The formulation follows eq. (22) in
+    Cardoso et al. [1]_.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+
+    References
+    ----------
+    [1] G. Cardoso et al., "Battery aging in multi-energy microgrid design
+        using mixed integer linear programming", Applied Energy, 2018,
+        https://doi.org/10.1016/j.apenergy.2018.09.185
+
+    """
+    m = n.model
+    c = as_components(n, "Store")
+
+    names = c.static.index[c.static.cycles_max < inf].unique("name")
+    names = names.intersection(c.active_assets)
+    if names.empty:
+        return
+
+    cycles_max = c.da.cycles_max.sel(name=names)
+    limited = cycles_max < inf
+    cycles_max = cycles_max.where(limited, 0)
+    discharge = m["Store-p"].sel(name=names) + m["Store-p_store"].sel(name=names)
+
+    ext_i = c.extendables.unique("name").intersection(names)
+    eh = n.optimize._window.subset(sns).snapshot_weightings("stores")
+    lhs = (discharge * eh).sum("snapshot")
+    rhs = cycles_max * c.da.e_nom.sel(name=names)
+    if not ext_i.empty:
+        capacity = m["Store-e_nom"].sel(name=ext_i)
+        lhs = lhs - cycles_max.sel(name=ext_i) * capacity
+        rhs = rhs.where(~rhs.coords["name"].isin(ext_i), 0)
+
+    m.add_constraints(lhs, "<=", rhs, name="Store-cycles_max", mask=limited)
 
 
 def define_tangent_loss_constraints(
