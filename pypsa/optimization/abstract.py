@@ -656,6 +656,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         snapshots: Sequence | None = None,
         horizon: int = 100,
         overlap: int = 0,
+        consistency_check: bool = True,
         **kwargs: Any,
     ) -> Network:
         """Optimizes the network in a rolling horizon fashion.
@@ -684,13 +685,15 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             Number of snapshots to consider in each iteration. Defaults to 100.
         overlap : int
             Number of snapshots to overlap between two iterations. Defaults to 0.
+        consistency_check : bool
+            Whether to run the consistency check once for the whole network
+            before the first window. The windows themselves skip it. Defaults
+            to True.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`.
             Unless `io_api` or `problem_fn` is given, `io_api="direct"` is used
             for solvers that support linopy's direct API, which avoids writing
-            and reading a problem file for every window. The
-            consistency check runs once for the whole network instead of
-            for every window and is skipped with `consistency_check=False`.
+            and reading a problem file for every window.
 
         """
         n = self._n
@@ -701,7 +704,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
-        if kwargs.pop("consistency_check", True):
+        if consistency_check:
             n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
 
         starting_points = range(0, len(snapshots), horizon - overlap)

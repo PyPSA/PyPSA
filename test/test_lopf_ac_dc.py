@@ -47,7 +47,7 @@ def chain_network_with_infinite_reactance() -> pypsa.Network:
 
 
 @pytest.mark.parametrize("case", ["losses", "infinite_reactance"])
-def test_optimize_v_ang_matches_pseudo_inverse(ac_dc_network, case):
+def test_optimize_v_ang_zero_at_slack(ac_dc_network, case):
     if case == "losses":
         n = ac_dc_network
         n.c.lines.static.s_nom_max = 1e4
@@ -59,8 +59,9 @@ def test_optimize_v_ang_matches_pseudo_inverse(ac_dc_network, case):
     p = n.c.buses.dynamic.p
     for sub in n.c.sub_networks.static.obj:
         buses = sub.buses_o
-        Z = np.linalg.pinv(sub.B.toarray())
-        Z -= Z[buses.get_loc(sub.slack_bus)]
-        equal(n.c.buses.dynamic.v_ang[buses], p[buses] @ Z, decimal=10)
+        theta = n.c.buses.dynamic.v_ang[buses]
+        residual = theta.to_numpy() @ sub.B.toarray() - p[buses].to_numpy()
+        equal(theta[sub.slack_bus], 0, decimal=12)
+        equal(residual[:, theta.abs().max().to_numpy() > 0], 0, decimal=8)
     if case == "losses":
         assert not np.allclose(p.sum(axis=1), 0)

@@ -16,7 +16,6 @@ import xarray as xr
 from linopy import Model, merge
 from linopy.constants import BREAKPOINT_DIM, LP_PIECE_DIM, PWL_LINK_DIM, SEGMENT_DIM
 from linopy.solvers import available_solvers
-from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.sparse.linalg import splu
 
@@ -1344,20 +1343,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 B = sub.B.tocsc()
                 B.eliminate_zeros()
                 _, labels = connected_components(B, directed=False)
-                size = np.bincount(labels)
-                rows = np.arange(len(buses_i))
-                M = csr_matrix((1 / size[labels], (rows, labels)))
                 keep = np.ones(len(buses_i), dtype=bool)
                 keep[np.unique(labels, return_index=True)[1]] = False
                 p = n.c.buses.dynamic.p.reindex(columns=buses_i).to_numpy()
-                rhs = np.vstack([p, buses_i == sub.slack_bus])
-                rhs -= (rhs @ M)[:, labels]
-                x = np.zeros_like(rhs)
+                theta = np.zeros_like(p)
                 if keep.any():
                     lu = splu(B[keep][:, keep])
-                    x[:, keep] = lu.solve(rhs[:, keep].T).T
-                x -= (x @ M)[:, labels]
-                theta = x[:-1] - np.outer(p.sum(axis=1), x[-1])
+                    theta[:, keep] = lu.solve(p[:, keep].T).T
                 return pd.DataFrame(theta, n.c.buses.dynamic.p.index, buses_i)
 
             # TODO: if multi investment optimization, the network topology is not the necessarily the same,
