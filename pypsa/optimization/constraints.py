@@ -79,7 +79,7 @@ def define_operational_constraints_for_non_extendables(
     capacity and min/max per unit values.
 
     Applies to Generator (p), Line (s), Transformer (s), Link (p), Process(p),
-    Store (e), StorageUnit (p_dispatch, p_store, state_of_charge).
+    Store (e, p, p_store), StorageUnit (p_dispatch, p_store, state_of_charge).
 
     Parameters
     ----------
@@ -97,6 +97,8 @@ def define_operational_constraints_for_non_extendables(
 
     Notes
     -----
+    For stores, the bounds of `p` apply to the discharge `p + p_store`.
+
     For passive branches with transmission losses, the constraint accounts for
     the losses in both directions, see justification in [1]_.
 
@@ -128,10 +130,16 @@ def define_operational_constraints_for_non_extendables(
 
     lower = (min_pu * nominal_fix).where(~(is_inf & is_zero_min), 0)
     upper = (max_pu * nominal_fix).where(~(is_inf & is_zero_max), 0)
+    lower = lower.where(~isinf(min_pu), min_pu)
+    upper = upper.where(~isinf(max_pu), max_pu)
 
     active = c.da.active.sel(name=fix_i, snapshot=sns)
+    bounded_below = active & ~isinf(lower)
+    bounded_above = active & ~isinf(upper)
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=fix_i)
+    if c.name == "Store" and attr == "p":
+        dispatch = dispatch + n.model["Store-p_store"].sel(name=fix_i)
 
     if c.name in n.passive_branch_components and transmission_losses:
         loss = n.model[f"{c.name}-loss"].sel(name=fix_i)
@@ -153,10 +161,10 @@ def define_operational_constraints_for_non_extendables(
         lhs_lower = lhs_lower + maint_lower
 
     n.model.add_constraints(
-        lhs_lower, ">=", lower, name=f"{c.name}-fix-{attr}-lower", mask=active
+        lhs_lower, ">=", lower, name=f"{c.name}-fix-{attr}-lower", mask=bounded_below
     )
     n.model.add_constraints(
-        lhs_upper, "<=", upper, name=f"{c.name}-fix-{attr}-upper", mask=active
+        lhs_upper, "<=", upper, name=f"{c.name}-fix-{attr}-upper", mask=bounded_above
     )
 
 
@@ -178,7 +186,8 @@ def define_operational_constraints_for_extendables(
     capacity and min/max per unit values.
 
     Applies to Generator (p), Line (s), Transformer (s),Process (p), Link (p),
-    Store (e), StorageUnit (p_dispatch, p_store, state_of_charge).
+    Store (e, p, p_store), StorageUnit (p_dispatch, p_store, state_of_charge).
+    For stores, the bounds of `p` apply to the discharge `p + p_store`.
 
     Parameters
     ----------
@@ -215,8 +224,12 @@ def define_operational_constraints_for_extendables(
         max_pu = max_pu.sel(snapshot=sns)
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=ext_i)
+    if c.name == "Store" and attr == "p":
+        dispatch = dispatch + n.model["Store-p_store"].sel(name=ext_i)
     capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"].sel(name=ext_i)
     active = c.da.active.sel(name=ext_i, snapshot=sns)
+    bounded_below = active & ~isinf(min_pu)
+    bounded_above = active & ~isinf(max_pu)
 
     lhs_lower = dispatch - min_pu * capacity
     lhs_upper = dispatch - max_pu * capacity
@@ -242,10 +255,10 @@ def define_operational_constraints_for_extendables(
         lhs_lower = lhs_lower + maint_lower
 
     n.model.add_constraints(
-        lhs_lower, ">=", 0, name=f"{c.name}-ext-{attr}-lower", mask=active
+        lhs_lower, ">=", 0, name=f"{c.name}-ext-{attr}-lower", mask=bounded_below
     )
     n.model.add_constraints(
-        lhs_upper, "<=", 0, name=f"{c.name}-ext-{attr}-upper", mask=active
+        lhs_upper, "<=", 0, name=f"{c.name}-ext-{attr}-upper", mask=bounded_above
     )
 
 
@@ -1030,7 +1043,7 @@ def define_ramp_limit_constraints(
     is_com = DataArray(idx.isin(c.committables), coords=[idx])
     is_modular = DataArray(idx.isin(c.modulars), coords=[idx])
     is_com_ext = is_com & is_ext & ~is_modular
-    is_com_ext_mod = is_com & is_ext & is_modular
+    is_com_mod = is_com & is_modular
     is_com_fix = is_com & ~is_com_ext
 
     limit_up = c.da.ramp_limit_up.sel(snapshot=sns, name=idx)
@@ -1053,11 +1066,12 @@ def define_ramp_limit_constraints(
     window = n.optimize._window.subset(sns)
     filter_first_sn = snapshot_array([1] + [0] * (len(sns) - 1), sns)
 
+    # Status counts modules for modular committables, so they ramp per module
     nom_mod_attr = c._operational_attrs["nom_mod"]
     p_nom = c.da[nom_attr].sel(name=idx).where(~is_ext, 0)
-    if is_com_ext_mod.any():
-        p_nom = p_nom.where(~is_com_ext_mod, c.da[nom_mod_attr].sel(name=idx))
-    is_ext_main = is_ext & ~is_com_ext & ~is_com_ext_mod
+    if is_com_mod.any():
+        p_nom = p_nom.where(~is_com_mod, c.da[nom_mod_attr].sel(name=idx))
+    is_ext_main = is_ext & ~is_com
     p_nom_ext_var = None
     if is_ext_main.any():
         ext_main_names = idx[is_ext_main]
@@ -1074,6 +1088,12 @@ def define_ramp_limit_constraints(
     s_init = _status_history(n, c, idx, sns, 1).squeeze("lag", drop=True)
     p_init = _dispatch_before(n, c, idx, sns, s_init)
     mask.loc[{"snapshot": sns[0]}] = p_init.notnull()
+    is_com_fix_mod = is_com_mod & ~is_ext
+    if is_com_fix_mod.any() and (not _window_start(n, sns) or c.dynamic.status.empty):
+        # Before n.snapshots the status is a 0/1 flag, so a unit that was on
+        # counts all its installed modules as on
+        modules = c.da[nom_attr].sel(name=idx) / c.da[nom_mod_attr].sel(name=idx)
+        s_init = s_init.where(~is_com_fix_mod, s_init * modules)
 
     # skip starts of periods except the first where p_init is used
     boundary = window.period_start_mask()
@@ -2259,16 +2279,19 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     Creates constraints ensuring energy conservation for store components over time.
     For each store and snapshot, the constraint enforces:
 
-    e(t) = eff_stand * e(t-1) + p(t) * elapsed_hours
+    e(t) = eff_stand * e(t-1) - (1/eff_dispatch) * p(t) * elapsed_hours
+                + (eff_store - 1/eff_dispatch) * p_store(t) * elapsed_hours
+                + (inflow(t) - spill(t)) * elapsed_hours
 
     where
         e(t)        : energy level at time t
         eff_stand   : standing efficiency (1 - standing_loss)^elapsed_hours
         e(t-1)      : energy level at previous time step
-        p(t)        : energy charging (positive), or discharging (negative)
+        p(t)        : net dispatch (positive when discharging)
+        p_store(t)  : charging power, so that p(t) + p_store(t) is the discharge
         elapsed_hours: duration of the time step
 
-    Applies to Store (e, p).
+    Applies to Store (e, p, p_store, spill).
 
     Parameters
     ----------
@@ -2279,10 +2302,6 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     Notes
     -----
-    Stores differ from storage units in that they have a single power variable
-    that can be positive (charging) or negative (discharging) rather than
-    separate variables for charge and discharge.
-
     The function handles different store operating modes:
     - Cyclic storage (returning to initial energy level at the end of the period)
     - Non-cyclic storage (with specified initial energy level)
@@ -2318,12 +2337,17 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     # standing efficiency
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
+    eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=c.active_assets)
+    eff_store = c.da.efficiency_store.sel(snapshot=sns, name=c.active_assets)
 
     e = m[f"{component}-e"]
-    p = m[f"{component}-p"]
 
     # Define LHS expression
-    lhs = [(-1, e), (-eh, p)]
+    lhs = [
+        (-1, e),
+        (-1 / eff_dispatch * eh, m[f"{component}-p"]),
+        ((eff_store - 1 / eff_dispatch) * eh, m[f"{component}-p_store"]),
+    ]
 
     # We create a mask `include_previous_e` which excludes the first snapshot
     # for non-cyclic assets
@@ -2406,8 +2430,15 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     # Add the previous energy term with standing efficiency factor
     lhs += [(eff_stand * include_previous_e, previous_e)]
 
+    lhs = m.linexpr(*lhs)
+    if f"{component}-spill" in m.variables:
+        # Spill is masked for stores without inflow; fill the resulting
+        # absent slots with 0 so those energy-balance rows are not dropped.
+        lhs = lhs - (eh * m[f"{component}-spill"]).fillna(0)
+
     # For snapshots where we don't include previous_e, we need to account for initial values
-    rhs = -e_init.where(~include_previous_e, 0)
+    rhs = -c.da.inflow.sel(snapshot=sns, name=c.active_assets) * eh
+    rhs = rhs.where(include_previous_e, rhs - e_init)
 
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
 
@@ -2419,9 +2450,9 @@ def define_store_cycle_constraints(n: Network, sns: pd.Index) -> None:
 
     sum((p(t) + p_store(t)) * weighting(t)) ≤ cycles_max * e_nom
 
-    where `p + p_store` is the discharge at the bus, `p_store ≥ -p` the
-    non-negative charging power and the sum is taken over all snapshots of
-    the optimisation. The formulation follows eq. (22) in Cardoso et al. [1]_.
+    where `p + p_store` is the discharge at the bus and the sum is taken over
+    all snapshots of the optimisation. The formulation follows eq. (22) in
+    Cardoso et al. [1]_.
 
     Parameters
     ----------
@@ -2448,9 +2479,7 @@ def define_store_cycle_constraints(n: Network, sns: pd.Index) -> None:
     cycles_max = c.da.cycles_max.sel(name=names)
     limited = cycles_max < inf
     cycles_max = cycles_max.where(limited, 0)
-    active = c.da.active.sel(snapshot=sns, name=names)
-    discharge = m["Store-p"].sel(name=names) + m["Store-p_store"]
-    m.add_constraints(discharge, ">=", 0, name="Store-p_store-lower", mask=active)
+    discharge = m["Store-p"].sel(name=names) + m["Store-p_store"].sel(name=names)
 
     ext_i = c.extendables.unique("name").intersection(names)
     eh = n.optimize._window.subset(sns).snapshot_weightings("stores")
