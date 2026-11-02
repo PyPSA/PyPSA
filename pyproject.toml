@@ -68,12 +68,14 @@ test = [
     "pytest",
     "pytest-cov",
     "pytest-mpl",
+    "pytest-xdist",
     "coverage",
 ]
 dev = [
     "pytest",
     "pytest-cov",
     "pytest-mpl",
+    "pytest-xdist",
     "coverage",
     "pypower",
     "pandapower>=2.14.11",
