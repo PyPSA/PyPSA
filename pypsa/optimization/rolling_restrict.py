@@ -27,6 +27,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+LINOPY_REQUIREMENT = (
+    "`method='restrict'` requires linopy with `Model.restrict` and cold window "
+    "solves (`WindowModel.solve(warm_start=False)`, linopy >= 1.0.0)."
+)
 UNSUPPORTED_KWARGS = {"compute_infeasibilities"} | (
     set(inspect.signature(Model.solve).parameters) - {"self", "solver_name", "io_api"}
 )
@@ -75,14 +79,12 @@ def _write(
 def _solve_window(
     w: WindowModel, sns: pd.Index, solver_name: str, **solver_options: Any
 ) -> None:
-    """Solve a window cold with a fresh solver and raise unless optimal."""
-    w._solver = None
-    w.solve(solver_name, **solver_options)
-    status = w._solver.status
-    if status.status.value != "ok":
+    """Solve a window without warm start and raise unless optimal."""
+    w.solve(solver_name, warm_start=False, **solver_options)
+    if w.status != "ok":
         msg = (
             f"Optimization of window [{sns[0]}:{sns[-1]}] failed with status "
-            f"{status.status.value} and condition {status.termination_condition.value}."
+            f"{w.status} and condition {w.termination_condition}."
         )
         raise RuntimeError(msg)
 
@@ -105,7 +107,7 @@ def optimize_with_restricted_windows(
     """Optimize the network in windows of a single full-horizon model.
 
     The linopy model is built once for all `snapshots`. Each window is cut from
-    its matrices with `linopy.Model.restrict` and solved with a fresh solver,
+    its matrices with `linopy.Model.restrict` and solved without warm start,
     with all variables of earlier windows fixed to their optimized values. The
     windows are written back to one full-horizon solution, which is assigned to
     the network once at the end.
@@ -142,7 +144,7 @@ def optimize_with_restricted_windows(
     Raises
     ------
     ImportError
-        If the installed linopy lacks `linopy.Model.restrict`.
+        If the installed linopy lacks `linopy.Model.restrict` with cold window solves.
     NotImplementedError
         If the network or the arguments are out of scope.
     RuntimeError
@@ -150,11 +152,11 @@ def optimize_with_restricted_windows(
 
     """
     try:
-        from linopy.restrict import RestrictionError  # noqa: PLC0415
-        from linopy.restrict.window import _scatter  # noqa: PLC0415
+        from linopy.restrict import RestrictionError, WindowModel  # noqa: PLC0415
     except ImportError as e:
-        msg = "`method='restrict'` requires linopy with `Model.restrict` (linopy > 0.10.0)."
-        raise ImportError(msg) from e
+        raise ImportError(LINOPY_REQUIREMENT) from e
+    if "warm_start" not in inspect.signature(WindowModel.solve).parameters:
+        raise ImportError(LINOPY_REQUIREMENT)
 
     unsupported = sorted(UNSUPPORTED_KWARGS.intersection(kwargs))
     if io_api not in (None, "direct"):
@@ -224,15 +226,8 @@ def optimize_with_restricted_windows(
             )
             raise NotImplementedError(msg) from e
         _solve_window(w, sns, solver_name, **solver_options)
-        mat, result = w.matrices, w._result
-        primal_values = result.primal / mat.var_scaling
-        dual_values = result.dual * mat.con_scaling / mat.objective_scaling
-        _write(
-            primal, _scatter(w._variables, mat.vlabels, primal_values, m._xCounter), sns
-        )
-        _write(
-            dual, _scatter(w._constraints, mat.clabels, dual_values, m._cCounter), sns
-        )
+        _write(primal, w.solution, sns)
+        _write(dual, w.dual, sns)
 
     for k, v in primal.items():
         m.variables[k].solution = v

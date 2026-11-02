@@ -704,9 +704,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             windows cut from it with `linopy.Model.restrict`, fixing all
             variables of earlier windows. It supports linear, single-period
             models without global constraints, volume limits, cyclic storage
-            or committable components, raises if a window is not optimal and
-            sets `n.objective` to the objective of the whole horizon. Defaults
-            to `"rebuild"`.
+            or committable components and raises if a window is not optimal.
+            Extendable components are supported: `*_nom_opt` is taken from
+            the last window and `n.objective` covers the whole horizon,
+            including the capital costs of the final capacities. Windows are
+            solved without warm start. Requires `linopy>=1.0.0`. Defaults to
+            `"rebuild"`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`.
             Unless `io_api` or `problem_fn` is given, `io_api="direct"` is used

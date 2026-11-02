@@ -24,7 +24,35 @@ def get_network(scenarios: bool = False) -> pypsa.Network:
         marginal_cost=1,
         state_of_charge_initial=100,
     )
-    n.add("Store", "tank", bus="bus", e_nom=200, e_initial=50, marginal_cost=2)
+    n.add(
+        "Store",
+        "tank",
+        bus="bus",
+        e_nom_extendable=True,
+        capital_cost=1,
+        e_initial=50,
+        marginal_cost=2,
+    )
+    n.add("Bus", "remote")
+    n.add("Load", "remote_load", bus="remote", p_set=[50, 300, 100, 20, 400, 10] * 2)
+    n.add(
+        "Generator",
+        "solar",
+        bus="remote",
+        p_nom_extendable=True,
+        capital_cost=50,
+        p_max_pu=[0, 0.3, 0.8, 1, 0.6, 0.1] * 2,
+    )
+    n.add(
+        "Line",
+        "line",
+        bus0="bus",
+        bus1="remote",
+        x=0.1,
+        r=0.01,
+        s_nom_extendable=True,
+        capital_cost=1,
+    )
     if scenarios:
         n.set_scenarios({"low": 0.3, "high": 0.7})
         n.c.loads.dynamic.p_set.loc[:, ("high", "load")] *= 1.2
@@ -49,15 +77,26 @@ def test_restrict_matches_rebuild(horizon, overlap, scenarios):
         ("generators", "p"),
         ("storage_units", "state_of_charge"),
         ("stores", "e"),
+        ("lines", "p0"),
         ("buses", "marginal_price"),
     ]:
         pd.testing.assert_frame_equal(
             restrict.c[c].dynamic[attr], rebuild.c[c].dynamic[attr], atol=1e-6
         )
-    opex = rebuild.statistics.opex()
+    for c, attr in [
+        ("generators", "p_nom_opt"),
+        ("stores", "e_nom_opt"),
+        ("lines", "s_nom_opt"),
+    ]:
+        pd.testing.assert_series_equal(
+            restrict.c[c].static[attr], rebuild.c[c].static[attr], atol=1e-6
+        )
+    costs = pd.concat([rebuild.statistics.opex(), rebuild.statistics.expanded_capex()])
     if scenarios:
-        opex = opex.groupby(level="scenario").sum() * rebuild.scenario_weightings.weight
-    assert restrict.objective == pytest.approx(opex.sum())
+        costs = (
+            costs.groupby(level="scenario").sum() * rebuild.scenario_weightings.weight
+        )
+    assert restrict.objective == pytest.approx(costs.sum())
 
 
 def test_restrict_matches_rebuild_single_period_of_investment_periods():
@@ -153,6 +192,7 @@ def test_restrict_out_of_scope(modify, kwargs, match):
 
 def test_restrict_infeasible_window():
     n = get_network()
+    n.c.generators.static.loc["solar", "p_nom_max"] = 0
     n.c.loads.dynamic.p_set.loc[4, "load"] = 5000
 
     with pytest.raises(RuntimeError, match=r"window \[3:5\] failed .* infeasible"):
