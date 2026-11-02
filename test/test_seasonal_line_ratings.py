@@ -50,7 +50,7 @@ def test_seasonal_scaling(network, summer, winter, summer_months, summer_pu, win
     network.c.lines.apply_seasonal_rating(ratings, summer_months=summer_months)
 
     # s_nom is never mutated in place.
-    assert float(network.lines.at["a-b", "s_nom"]) == 1000.0
+    assert float(network.c.lines.static.at["a-b", "s_nom"]) == 1000.0
 
     s = network.lines_t.s_max_pu["a-b"]
     in_summer = s.index.month.isin(summer_months)
@@ -67,7 +67,7 @@ def test_seasonal_scaling(network, summer, winter, summer_months, summer_pu, win
 )
 def test_seasonal_compose_with_static_margin(network, compose, summer_pu, winter_pu):
     """compose=True multiplies a pre-existing static N-1 margin; False overwrites."""
-    network.lines.at["a-b", "s_max_pu"] = 0.9
+    network.c.lines.static.at["a-b", "s_max_pu"] = 0.9
     ratings = pd.DataFrame({"summer": [800], "winter": [1000]}, index=["a-b"])
     network.c.lines.apply_seasonal_rating(ratings, compose=compose)
 
@@ -101,8 +101,8 @@ def test_seasonal_partial_subset_leaves_others_untouched(network):
     ratings = pd.DataFrame({"summer": [800], "winter": [1000]}, index=["a-b"])
     network.c.lines.apply_seasonal_rating(ratings)
 
-    assert float(network.lines.at["a-b", "s_nom"]) == 1000.0
-    assert float(network.lines.at["b-c", "s_nom"]) == 500.0
+    assert float(network.c.lines.static.at["a-b", "s_nom"]) == 1000.0
+    assert float(network.c.lines.static.at["b-c", "s_nom"]) == 500.0
     assert "b-c" not in network.lines_t.s_max_pu.columns
 
 
@@ -157,7 +157,7 @@ def test_seasonal_rejects_non_datetime_snapshots():
 
 def test_seasonal_rejects_nonpositive_s_nom(network):
     """Scaling by rating / s_nom requires a strictly positive s_nom."""
-    network.lines.at["a-b", "s_nom"] = 0.0
+    network.c.lines.static.at["a-b", "s_nom"] = 0.0
     ratings = pd.DataFrame({"summer": [800], "winter": [1000]}, index=["a-b"])
     with pytest.raises(ValueError, match="s_nom"):
         network.c.lines.apply_seasonal_rating(ratings)
