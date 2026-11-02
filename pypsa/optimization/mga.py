@@ -21,7 +21,6 @@ from scipy.stats.qmc import Halton
 
 from pypsa._options import options
 from pypsa.descriptors import nominal_attrs
-from pypsa.optimization.scaling import reject_scaling
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -367,7 +366,6 @@ class OptimizationAbstractMGAMixin:
         # Handle default parameters from options
         if model_kwargs is None:
             model_kwargs = options.params.optimize.model_kwargs.copy()
-        reject_scaling("optimize_mga", kwargs, model_kwargs)
 
         n = self._n
 
@@ -534,7 +532,6 @@ class OptimizationAbstractMGAMixin:
         # Handle default parameters from options
         if model_kwargs is None:
             model_kwargs = options.params.optimize.model_kwargs.copy()
-        reject_scaling("optimize_mga_in_direction", kwargs, model_kwargs)
 
         # Check consistency of `direction` and `dimensions` arguments: keys have to be the same
         if set(direction.keys()) != set(dimensions.keys()):
@@ -727,7 +724,6 @@ class OptimizationAbstractMGAMixin:
         # Handle default parameters from options
         if model_kwargs is None:
             model_kwargs = options.params.optimize.model_kwargs.copy()
-        reject_scaling("optimize_mga_in_multiple_directions", kwargs, model_kwargs)
 
         # Iterate over rows of `directions` if a DataFrame
         if isinstance(directions, pd.DataFrame):

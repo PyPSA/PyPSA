@@ -343,10 +343,7 @@ class TestDefinePiecewise:
             name="Generator",
             extendables=pd.Index(["gen_extendable"], name="name"),
             _piecewise_schema=_piecewise_schema(attrs),
-            scaling=xr.DataArray(
-                np.ones(5),
-                coords={"name": [*(f"gen{i}" for i in range(4)), "gen_extendable"]},
-            ),
+            _scaling=lambda names: 1.0,
         )
         component.piecewise["efficiency"] = pd.DataFrame()
         return component

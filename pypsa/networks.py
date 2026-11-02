@@ -1602,9 +1602,6 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
                 for k, v in c.dynamic.items():
                     dynamic[k] = v[index.intersection(v.columns)]
                 return dynamic
-            if key == "scaling":
-                names = filter_down("static", c).index.unique("name")
-                return value.sel(name=names)
             return value
 
         return ComponentsStore(

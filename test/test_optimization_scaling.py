@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-from functools import cache
 from typing import Any
 
 import linopy
@@ -12,7 +11,7 @@ import pytest
 from linopy.constraints import CSRConstraint
 
 import pypsa
-from pypsa.optimization.scaling import KVL, KVL_SCALING, STANDARD, ScalingFactors
+from pypsa.optimization.scaling import KVL, KVL_SCALING
 
 RTOL = 1e-5
 
@@ -493,34 +492,23 @@ def test_bus_nom_rows_take_bus_scaling():
 
 def test_components_scaling():
     n = pypsa.examples.ac_dc_meshed()
+    assert n.c.generators._scaling(n.c.generators.static.index) == 1.0
     n.c.buses.static.loc["Manchester", "scaling"] = 1e-3
-    generators = n.c.generators.scaling.to_series()
+    generators = n.c.generators._scaling(n.c.generators.static.index).to_series()
     assert generators["Manchester Wind"] == 1e-3
     assert generators["Norway Wind"] == 1
-    lines = n.c.lines.scaling.to_series()
+    lines = n.c.lines._scaling(n.c.lines.static.index).to_series()
     bus0 = n.c.lines.static.bus0
     assert (lines[bus0 == "Manchester"] == 1e-3).all()
     assert (lines[bus0 != "Manchester"] == 1).all()
-    assert n.c.buses.scaling.sel(name="Manchester") == 1e-3
+    assert n.c.buses._scaling(pd.Index(["Manchester"])).item() == 1e-3
 
 
 @pytest.mark.parametrize("component", ["carriers", "global_constraints"])
 def test_components_scaling_requires_bus(component):
     n = pypsa.examples.ac_dc_meshed()
     with pytest.raises(ValueError, match="not attached to a bus"):
-        n.c[component].scaling  # noqa: B018
-
-
-def test_sub_network_components_scaling():
-    n = pypsa.examples.ac_dc_meshed()
-    factors = {"AC": 1e-3, "DC": 1e-2}
-    n.c.buses.static.scaling = n.c.buses.static.carrier.map(factors)
-    n.determine_network_topology()
-    sub_networks = n.c.sub_networks.static
-    for sub_network, carrier in zip(sub_networks.obj, sub_networks.carrier):
-        lines = sub_network.c.lines
-        assert lines.scaling.indexes["name"].equals(lines.static.index)
-        assert (lines.scaling == factors[carrier]).all()
+        n.c[component]._scaling(n.c[component].static.index)
 
 
 S, OBJ, GLC = 1e-3, 1e-2, 1e-4
@@ -630,120 +618,24 @@ def test_scaling_policy(build, mode, kwargs):
     assert mismatch.empty, mismatch.groupby("name").scaling.first()
 
 
-USER_FACTORS = ScalingFactors(bus=1e-3, objective=1e-6)
-
-
-def unit_attributes(n: pypsa.Network) -> bool:
-    return all((n.c[c].static.scaling == 1).all() for c in ("Bus", "GlobalConstraint"))
-
-
-def user_strategy(n: pypsa.Network) -> ScalingFactors:
-    return USER_FACTORS
-
-
-@cache
-def unscaled_objective(network: str) -> float:
-    n = NETWORKS[network][0]()
-    n.optimize()
-    assert n.objective is not None
-    return n.objective
-
-
 @pytest.mark.parametrize(
-    ("scaling", "factors"),
+    ("build", "rolling"),
     [
-        ("standard", STANDARD),
-        (user_strategy, USER_FACTORS),
-        (USER_FACTORS, USER_FACTORS),
+        (sector_network, False),
+        (pypsa.examples.ac_dc_meshed, False),
+        (feature_network, True),
     ],
-    ids=["standard", "callable", "instance"],
+    ids=["sector", "ac_dc_meshed", "rolling"],
 )
-@pytest.mark.parametrize("network", ["sector", "ac_dc_meshed"])
-def test_strategy_matches_unscaled(network, scaling, factors):
-    n = NETWORKS[network][0]()
-    n.optimize(scaling=scaling)
-    assert n.objective == pytest.approx(unscaled_objective(network), rel=RTOL)
-    assert n.model.objective.scaling == factors.objective
-    assert unit_attributes(n)
-
-
-def test_factors_reusable():
-    a = sector_network()
-    a.optimize.create_model(scaling=STANDARD)
-    b = sector_network()
-    STANDARD.apply(b)
-    b.optimize.create_model(objective_scaling=STANDARD.objective)
-    Ma, Mb = a.model.matrices, b.model.matrices
-    np.testing.assert_array_equal(Ma.var_scaling, Mb.var_scaling)
-    np.testing.assert_array_equal(Ma.b, Mb.b)
-    assert a.model.objective.scaling == b.model.objective.scaling
-
-
-@pytest.mark.parametrize("scaling", ["standard", user_strategy])
-@pytest.mark.parametrize(
-    ("component", "objective_scaling"),
-    [("Bus", 1.0), ("GlobalConstraint", 1.0), (None, 1e-3)],
-)
-def test_strategy_with_user_factors_raises(scaling, component, objective_scaling):
-    n = pypsa.examples.ac_dc_meshed()
-    if component:
-        n.c[component].static.scaling = 0.5
-    with pytest.raises(ValueError, match="scaling=False"):
-        n.optimize.create_model(scaling=scaling, objective_scaling=objective_scaling)
-
-
-@pytest.mark.parametrize(
-    ("scaling", "error"),
-    [
-        (True, TypeError),
-        (1e-3, TypeError),
-        ("tune", ValueError),
-        (lambda n: {}, TypeError),
-        (ScalingFactors(bus=pd.Series({"London": 0.5})), ValueError),
-    ],
-)
-def test_invalid_scaling_raises(scaling, error):
-    n = pypsa.examples.ac_dc_meshed()
-    with pytest.raises(error):
-        n.optimize.create_model(scaling=scaling)
-    assert unit_attributes(n)
-
-
-def test_invalid_scaling_type_precedes_user_factors():
-    n = pypsa.examples.ac_dc_meshed()
-    n.c.buses.static.scaling = 0.5
-    with pytest.raises(TypeError):
-        n.optimize.create_model(scaling=True)
-
-
-@pytest.mark.parametrize(
-    "passed",
-    [{"scaling": "standard"}, {"model_kwargs": {"scaling": "standard"}}],
-    ids=["kwargs", "model_kwargs"],
-)
-@pytest.mark.parametrize(
-    ("method", "args"),
-    [
-        (pypsa.optimization.OptimizationAccessor.optimize_security_constrained, ()),
-        (pypsa.optimization.OptimizationAccessor.optimize_mga, ()),
-        (pypsa.optimization.OptimizationAccessor.optimize_mga_in_direction, ({}, {})),
-        (
-            pypsa.optimization.OptimizationAccessor.optimize_mga_in_multiple_directions,
-            ([], {}),
-        ),
-    ],
-    ids=["security_constrained", "mga", "mga_in_direction", "mga_multiple"],
-)
-def test_rejects_scaling(method, args, passed):
-    n = pypsa.examples.ac_dc_meshed()
-    with pytest.raises(TypeError, match="does not accept"):
-        method(n.optimize, *args, **passed)
-
-
-def test_rolling_horizon_standard():
-    ref = feature_network()
-    ref.optimize.optimize_with_rolling_horizon(horizon=3)
-    n = feature_network()
-    n.optimize.optimize_with_rolling_horizon(horizon=3, scaling="standard")
+def test_recipe_matches_unscaled(build, rolling):
+    ref, n = build(), build()
+    n.c.buses.static["scaling"] = 1e-4
+    n.c.global_constraints.static["scaling"] = 1e-6
+    for network, objective_scaling in [(ref, 1.0), (n, 2e-3)]:
+        if rolling:
+            network.optimize.optimize_with_rolling_horizon(
+                horizon=3, objective_scaling=objective_scaling
+            )
+        else:
+            network.optimize(objective_scaling=objective_scaling)
     assert n.objective == pytest.approx(ref.objective, rel=RTOL)
-    assert unit_attributes(n)

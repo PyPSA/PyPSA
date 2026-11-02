@@ -19,7 +19,7 @@ from xarray import DataArray
 from pypsa.components.common import invariant
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import define_piecewise
-from pypsa.optimization.scaling import factor, global_constraint_factor
+from pypsa.optimization.scaling import global_constraint_factor
 from pypsa.optimization.window import apply_period_weighting
 
 if TYPE_CHECKING:
@@ -214,7 +214,7 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
             rhs,
             name=f"Bus-{col}",
             mask=mask,
-            scaling=factor(n.c.buses, buses),
+            scaling=n.c.buses._scaling(buses),
         )
 
 
@@ -285,7 +285,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
             expr = expr - expr.shift(periods=1) * max_relative_growth
 
         lhs_list.append(expr)
-        asset_factors = n.c[c].scaling.sel(name=limited_names).values
+        asset_factors = n.c[c]._scaling(limited_names)
         factors.append(pd.Series(asset_factors, index=carriers.values))
 
     if not lhs_list:

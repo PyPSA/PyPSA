@@ -13,8 +13,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypsa.optimization.scaling import factor
-
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -50,7 +48,7 @@ def define_operational_variables(
         coords=coords,
         name=f"{c.name}-{attr}",
         mask=active,
-        scaling=factor(c, c.active_assets),
+        scaling=c._scaling(c.active_assets),
     )
 
 
@@ -303,7 +301,7 @@ def define_maintenance_capacity_variables(
         coords=active.coords,
         name=f"{c.name}-maintenance_capacity",
         mask=active,
-        scaling=factor(c, maint_ext_i),
+        scaling=c._scaling(maint_ext_i),
     )
 
 
@@ -367,7 +365,7 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
         ext_i = ext_i.unique(level="name")
 
     n.model.add_variables(
-        coords=[ext_i], name=f"{c.name}-{attr}", scaling=factor(c, ext_i)
+        coords=[ext_i], name=f"{c.name}-{attr}", scaling=c._scaling(ext_i)
     )
 
 
@@ -417,7 +415,7 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
         upper_aligned,
         name=f"{c.name}-spill",
         mask=active,
-        scaling=factor(c, active.indexes["name"]),
+        scaling=c._scaling(active.indexes["name"]),
     )
 
 
@@ -497,7 +495,7 @@ def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
         coords=coords,
         name=f"{c.name}-loss",
         mask=active,
-        scaling=factor(c, c.active_assets),
+        scaling=c._scaling(c.active_assets),
     )
 
 

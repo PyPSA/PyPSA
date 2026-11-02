@@ -32,7 +32,7 @@ from pypsa.components.common import as_components, invariant
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
-from pypsa.optimization.scaling import KVL, KVL_SCALING, check_sub_networks, factor
+from pypsa.optimization.scaling import KVL, KVL_SCALING, check_sub_networks
 from pypsa.optimization.window import apply_period_weighting, snapshot_array
 
 if TYPE_CHECKING:
@@ -153,7 +153,7 @@ def define_operational_constraints_for_non_extendables(
         lhs_upper = lhs_upper + maint_upper
         lhs_lower = lhs_lower + maint_lower
 
-    scaling = factor(c, fix_i)
+    scaling = c._scaling(fix_i)
     n.model.add_constraints(
         lhs_lower,
         ">=",
@@ -253,7 +253,7 @@ def define_operational_constraints_for_extendables(
         lhs_upper = lhs_upper + maint_upper
         lhs_lower = lhs_lower + maint_lower
 
-    scaling = factor(c, ext_i)
+    scaling = c._scaling(ext_i)
     n.model.add_constraints(
         lhs_lower,
         ">=",
@@ -438,7 +438,7 @@ def define_operational_constraints_for_committables(
             lhs_lower_ext = lhs_lower_ext + maint_lower
             lhs_upper_cap = lhs_upper_cap + maint_upper
 
-        scaling = factor(c, com_ext_i)
+        scaling = c._scaling(com_ext_i)
         n.model.add_constraints(
             lhs_lower_ext,
             ">=",
@@ -483,7 +483,7 @@ def define_operational_constraints_for_committables(
                     0,
                     name=f"{c.name}-com-ext-p-lower-nonneg",
                     mask=active_nonneg,
-                    scaling=factor(c, nonneg_idx),
+                    scaling=c._scaling(nonneg_idx),
                 )
 
     if not com_fix_i.empty:
@@ -528,7 +528,7 @@ def define_operational_constraints_for_committables(
             lhs_lower_fix = lhs_lower_fix + maint_lower
             lhs_upper_fix = lhs_upper_fix + maint_upper
 
-        scaling = factor(c, com_fix_i)
+        scaling = c._scaling(com_fix_i)
         n.model.add_constraints(
             lhs_lower_fix,
             ">=",
@@ -606,7 +606,7 @@ def define_operational_constraints_for_committables(
             lhs_lower_mod = lhs_lower_mod + maint_lower
             lhs_upper_mod = lhs_upper_mod + maint_upper
 
-        scaling = factor(c, com_mod_i)
+        scaling = c._scaling(com_mod_i)
         n.model.add_constraints(
             lhs_lower_mod,
             ">=",
@@ -714,7 +714,7 @@ def define_operational_constraints_for_committables(
             - ramp_shut_down_ce * status_prev
             - (upper_p_ce - ramp_shut_down_ce) * (status_ce - start_up_ce)
         )
-        scaling = factor(c, ce_i)
+        scaling = c._scaling(ce_i)
         n.model.add_constraints(
             lhs,
             "<=",
@@ -867,7 +867,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
         z = n.model[f"{c.name}-maintenance_capacity"].sel(name=maint_ext_i)
         active_me = active.sel(name=maint_ext_i)
 
-        scaling = factor(c, maint_ext_i)
+        scaling = c._scaling(maint_ext_i)
         n.model.add_constraints(
             z + p_nom_min <= p_nom + p_nom_min * m,
             name=f"{c.name}-maintcap_upper",
@@ -938,7 +938,7 @@ def define_nominal_constraints_for_extendables(
     lower = c.da[attr + "_min"].sel(name=ext_i)
     upper = c.da[attr + "_max"].sel(name=ext_i)
 
-    scaling = factor(c, ext_i)
+    scaling = c._scaling(ext_i)
     n.model.add_constraints(
         capacity, ">=", lower, name=f"{c.name}-ext-{attr}-lower", scaling=scaling
     )
@@ -1005,7 +1005,7 @@ def _define_ramp_limit_big_m(
     ls = limit_start.sel(name=idx)
     lsh = limit_shut.sel(name=idx)
 
-    scaling = factor(c, idx)
+    scaling = c._scaling(idx)
     m.add_constraints(
         lhs_delta <= lu * p_nom + M * (1 - status_prev_ce),
         name=f"{c.name}-{attr}-ramp_limit_up-run-bigM",
@@ -1162,7 +1162,7 @@ def define_ramp_limit_constraints(
         rhs = rhs.add(limit_up.sel(name=ext_main_names) * p_nom_ext_var, join="left")
         rhs = rhs.sel(name=idx)
     mask_up = mask & ~no_up_limit & non_com_ext
-    scaling = factor(c, idx)
+    scaling = c._scaling(idx)
     m.add_constraints(
         lhs <= rhs,
         name=f"{c.name}-{attr}-ramp_limit_up",
@@ -1602,7 +1602,7 @@ def define_nodal_balance_constraints(
         rhs,
         name=f"Bus{suffix}-nodal_balance",
         mask=mask,
-        scaling=factor(n.c.buses, buses),
+        scaling=n.c.buses._scaling(buses),
     )
 
 
@@ -1705,7 +1705,7 @@ def define_kirchhoff_voltage_constraints(
             C_branch = C_branch.sel(name=active_names)
             flow = m[f"{c}-s"].sel(snapshot=snapshots, name=active_names)
             exprs.append(flow @ C_branch)
-            branch_factor = n.c[c].scaling.sel(name=active_names)
+            branch_factor = DataArray(n.c[c]._scaling(active_names))
             factors.append(branch_factor.where(C_branch != 0).max("name"))
         lhs_period = sum(exprs)
         cycle_factor = xr.concat(factors, "type", join="outer").max("type")
@@ -1797,7 +1797,7 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
         active = c.da.active.sel(name=assets_i, snapshot=model_sns) & isfinite(cap)
 
         if c_name == "Line":
-            scaling = factor(c, assets_i)
+            scaling = c._scaling(assets_i)
             n.model.add_constraints(
                 s, ">=", -cap, name="Line-v_ang-lower", mask=active, scaling=scaling
             )
@@ -1818,7 +1818,7 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
             )
             lhs = s.sel(name=fixed_i)
             mask = active.sel(name=fixed_i)
-            scaling = factor(c, fixed_i)
+            scaling = c._scaling(fixed_i)
             n.model.add_constraints(
                 lhs,
                 ">=",
@@ -1841,7 +1841,7 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
             lhs = s.sel(name=var_i) + ps * (DEG2RAD / x_pu_eff.sel(name=var_i))
             mask = active.sel(name=var_i)
             cap_var = cap.sel(name=var_i)
-            scaling = factor(c, var_i)
+            scaling = c._scaling(var_i)
             n.model.add_constraints(
                 lhs,
                 ">=",
@@ -1901,7 +1901,7 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
         fix,
         name=f"{component}-{attr}_set",
         mask=fix.notnull(),
-        scaling=factor(c, names),
+        scaling=c._scaling(names),
     )
 
 
@@ -1964,7 +1964,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
 
     con = capacity - modularity * modular_capacity == 0
     n.model.add_constraints(
-        con, name=f"{c.name}-{attr}_modularity", scaling=factor(c, mod_i)
+        con, name=f"{c.name}-{attr}_modularity", scaling=c._scaling(mod_i)
     )
 
 
@@ -2185,7 +2185,7 @@ def define_fixed_operation_constraints(
     mask = active & (~fix.isnull())
     fix = fix.fillna(0)
 
-    scaling = factor(c, c.active_assets)
+    scaling = c._scaling(c.active_assets)
     if component == "StorageUnit" and attr == "p":
         p_dispatch = n.model["StorageUnit-p_dispatch"]
         p_store = n.model["StorageUnit-p_store"]
@@ -2376,7 +2376,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         rhs,
         name=f"{component}-energy_balance",
         mask=active,
-        scaling=factor(c, c.active_assets),
+        scaling=c._scaling(c.active_assets),
     )
 
 
@@ -2542,7 +2542,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         rhs,
         name=f"{component}-energy_balance",
         mask=active,
-        scaling=factor(c, c.active_assets),
+        scaling=c._scaling(c.active_assets),
     )
 
 
@@ -2669,7 +2669,7 @@ def define_tangent_loss_constraints(
     flow = n.model[f"{c.name}-s"]
 
     # Add upper limit constraint
-    scaling = factor(c, c.active_assets)
+    scaling = c._scaling(c.active_assets)
     n.model.add_constraints(
         loss <= upper_limit,
         name=f"{c.name}-loss_upper",
@@ -2781,7 +2781,7 @@ def define_secant_loss_constraints(
     flow = n.model[f"{c.name}-s"]
 
     # Add upper limit constraint
-    scaling = factor(c, c.active_assets)
+    scaling = c._scaling(c.active_assets)
     n.model.add_constraints(
         loss <= upper_limit,
         name=f"{c.name}-loss_upper",
@@ -2915,5 +2915,5 @@ def define_total_supply_constraints(
             rhs,
             name=f"{c.name}-{attr}",
             mask=mask,
-            scaling=factor(c, names),
+            scaling=c._scaling(names),
         )

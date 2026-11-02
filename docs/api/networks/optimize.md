@@ -19,7 +19,3 @@ SPDX-License-Identifier: CC-BY-4.0
           - "!^_[^_]"
           - "!logger"
           - "!OptimizationAbstractMGAMixin"
-
-::: pypsa.optimization.scaling.ScalingFactors
-    options:
-        heading_level: 2

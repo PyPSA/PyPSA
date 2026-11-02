@@ -32,7 +32,6 @@ from pypsa._linopy_compat import (
     suppress_semantics_warnings,
 )
 from pypsa.descriptors import nominal_attrs
-from pypsa.optimization.scaling import factor
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -141,8 +140,8 @@ def define_piecewise(
         The method to use for the piecewise constraint formulation, passed to the `linopy.add_piecewise_formulation` method.
         Default is "auto" (also the linopy default).
     scaling : pypsa.Components | float, optional
-        Numerical scaling of the y-axis: a component for its `Components.scaling`
-        or a scalar such as the objective scaling for cost curves. The x-axis
+        Numerical scaling of the y-axis: a component for the `Bus.scaling` of
+        its assets or a scalar such as the objective scaling for cost curves. The x-axis
         takes the scaling of `c`. Default is `1.0`.
 
     Returns
@@ -164,9 +163,10 @@ def define_piecewise(
     )
 
     if y_var is None:
-        y_var = _create_y_var(
-            m, x_var, pw_names, aux_var_name, factor(scaling, pw_names)
+        y_scaling = (
+            scaling if isinstance(scaling, int | float) else scaling._scaling(pw_names)
         )
+        y_var = _create_y_var(m, x_var, pw_names, aux_var_name, y_scaling)
     y_var_sel = y_var.sel(name=pw_names)
     sorted_options = sorted(extra_options, key=lambda x: x.name, reverse=True)
     for option in [*sorted_options, None]:
@@ -338,7 +338,10 @@ def _scale_rows(
     auxiliary weights or binaries and keep factor 1.
     """
     y, x = xr.broadcast(
-        xr.DataArray(factor(scaling, names)), xr.DataArray(factor(c, names))
+        xr.DataArray(
+            scaling if isinstance(scaling, int | float) else scaling._scaling(names)
+        ),
+        xr.DataArray(c._scaling(names)),
     )
     if (y == 1).all() and (x == 1).all():
         return
