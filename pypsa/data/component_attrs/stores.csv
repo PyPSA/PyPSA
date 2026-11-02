@@ -12,6 +12,7 @@ e_nom_set,float,MWh,n/a,"If `e_nom_extendable=True`, set the value of `e_nom_opt
 e_min_pu,static or series,per unit,0,Minimal value of `e` relative to `e_nom` for the optimisation.,Input (optional)
 e_max_pu,static or series,per unit,1,Maximal value of `e` relative to `e_nom` for the optimisation.,Input (optional)
 e_initial,float,MWh,0,Energy before the snapshots in the optimisation.,Input (optional)
+cycles_max,float,cycles,inf,"Maximum number of equivalent full cycles over the snapshots of the optimisation, i.e. discharge at the bus divided by `e_nom`.",Input (optional)
 e_initial_per_period,boolean,n/a,False,"Switch: if True, then at the beginning of each investment period `e` is set to `e_initial`.",Input (optional)
 e_cyclic,boolean,n/a,False,"Switch: if True, then `e_initial` is ignored and the initial energy is set to the final energy for the group of snapshots in the optimisation.",Input (optional)
 e_cyclic_per_period,boolean,n/a,False,"Switch: if True, then the cyclic constraints are applied to each investment period separately.",Input (optional)
