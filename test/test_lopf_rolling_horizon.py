@@ -529,3 +529,14 @@ def test_rolling_horizon_failed_window(caplog):
         n.optimize.optimize_with_rolling_horizon(horizon=3)
 
     assert n.c.generators.static.loc["gen", "e_sum_max"] == 1000
+
+
+def test_rolling_horizon_v_ang_covers_all_snapshots():
+    n = pypsa.Network(snapshots=pd.date_range("2030-01-01", periods=6, freq="h"))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=1)
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    n.optimize.optimize_with_rolling_horizon(horizon=2, overlap=0)
+
+    assert n.c.buses.dynamic.v_ang.index.equals(n.snapshots)
