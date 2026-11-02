@@ -25,6 +25,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix ramp limits failing with linopy's strict coordinate alignment when optimizing a snapshot subset of a network with investment periods, e.g. in the windows of [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon]. The dispatch before the window no longer carries scalar `period` and `timestep` coordinates. ([#2078](https://github.com/PyPSA/PyPSA/issues/2078))
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] silently carrying storage levels to the wrong store or storage unit on stochastic networks. When components were added after `n.set_scenarios()`, the static index and the time-varying columns had a different order. The carried `e_initial` and `state_of_charge_initial` are now aligned by component and scenario. (<!-- md:pr 2077 -->)
 - Fix the `"bfs-refined"` cycle basis depending on `PYTHONHASHSEED`. Start, direction and refinement order of each cycle now follow the bus order, so two runs write the same KVL constraints and LP files. The basis can differ from v1.4.0, the optimum does not. (<!-- md:pr 2023 -->)
 - Fix [`n.lpf_contingency()`][pypsa.Network.lpf_contingency] returning `NaN` for branches in AC sub-networks unaffected by the outage. Those branches now keep their base-case flows. (<!-- md:pr 2068 -->)
