@@ -157,3 +157,50 @@ def test_store_p_set():
     n.optimize()
 
     equal(n.c.stores.dynamic.p["store"].values, [-10, 0, 5, 0], decimal=5)
+
+
+def cycles_network(cycles_max, extendable=False):
+    n = pypsa.Network(snapshots=range(96))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=50)
+    price = ([10] * 12 + [100] * 12) * 4
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=price)
+    n.add(
+        "Store",
+        "s",
+        bus="bus",
+        e_nom=40,
+        e_nom_extendable=extendable,
+        capital_cost=1,
+        cycles_max=cycles_max,
+    )
+    return n
+
+
+def get_cycles(n):
+    c = n.c.stores
+    return c.dynamic.p.s.clip(lower=0).sum() / c.static.e_nom_opt.s
+
+
+@pytest.mark.parametrize("extendable", [False, True])
+@pytest.mark.parametrize("cycles_max", [1, 3])
+def test_cycles_max(extendable, cycles_max):
+    n = cycles_network(cycles_max, extendable)
+    n.optimize()
+    assert get_cycles(n) == pytest.approx(cycles_max)
+
+
+def test_cycles_max_rolling_horizon():
+    n = cycles_network(cycles_max=3)
+    n.optimize.optimize_with_rolling_horizon(horizon=24)
+    assert get_cycles(n) == pytest.approx(3)
+    assert n.c.stores.static.cycles_max.s == 3
+
+
+def test_cycles_max_finite_in_one_scenario():
+    n = cycles_network(cycles_max=float("inf"), extendable=True)
+    n.set_scenarios(a=0.5, b=0.5)
+    n.c.stores.static.loc[("a", "s"), "cycles_max"] = 1
+    status, _ = n.optimize()
+    assert status == "ok"
+    assert n.c.stores.static.e_nom_opt.gt(0).all()

@@ -279,7 +279,7 @@ def test_aggregate_one_ports_no_time_series():
 
     assert n.storage_units_t.p.empty
 
-    busmap = pd.Series("x", n.buses.index)
+    busmap = pd.Series("x", n.c.buses.static.index)
     C = get_clustering_from_busmap(n, busmap, aggregate_one_ports=["StorageUnit"])
 
     assert C.n.storage_units_t.p.empty

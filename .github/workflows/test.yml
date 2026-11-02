@@ -110,7 +110,7 @@ jobs:
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
       run: >
-        uv run pytest
+        uv run pytest -n logical
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
 
@@ -120,14 +120,14 @@ jobs:
       env:
         PYPSA_API__LEGACY_STRING_DTYPE: "false"
       run: >
-        uv run pytest
+        uv run pytest -n logical
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
 
     - name: Run unit tests (new API)
       if: matrix.api == 'new_api'
       run: >
-        uv run pytest
+        uv run pytest -n logical
         --new-components-api
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
@@ -201,7 +201,7 @@ jobs:
         echo "LINOPY_SEMANTICS=$LINOPY_SEMANTICS"
 
     - name: Run unit tests
-      run: uv run --no-sync pytest
+      run: uv run --no-sync pytest -n logical
 
   test-plots:
     # Run the matplotlib image-comparison tests once, on a single instance.

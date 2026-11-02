@@ -851,12 +851,13 @@ def test_sort_attrs():
     ]
 
 
-def test_version_warning(caplog):
+def test_version_warning(caplog, tmp_path):
     # Assert no info logged with "version"
     n = pypsa.examples.ac_dc_meshed()
     assert "Importing network from PyPSA version" not in caplog.text
 
     n._pypsa_version = "0.10.0"
-    n.export_to_netcdf("test.nc")
-    pypsa.Network("test.nc")
+    fn = tmp_path / "test.nc"
+    n.export_to_netcdf(fn)
+    pypsa.Network(fn)
     assert "Importing network from PyPSA version v0.10.0" in caplog.text

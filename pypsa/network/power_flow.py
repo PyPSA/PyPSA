@@ -1019,7 +1019,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
             p0_new = p0_base + pd.Series(
                 sub_network.BODF[:, branch_i] * p0_base[branch],
                 sub_network._branches.index,
-            )
+            ).reindex(p0_base.index, fill_value=0)
             p0_new.name = branch
 
             p0 = pd.concat([p0, p0_new], axis=1)
