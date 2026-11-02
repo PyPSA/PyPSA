@@ -280,7 +280,7 @@ The following table summarizes which unit commitment features are compatible wit
 | Ramp limits (`ramp_limit_up/down`) | ✓ | ✓² |
 | Stand-by costs | ✓ | ✓ |
 | Minimum up time (`min_up_time`) | ✓ | ✗ |
-| Minimum down time (`min_down_time`) | ✓ | ✗ |
+| Minimum down time (`min_down_time`) | ✓ | ✓ |
 | Up time before (`up_time_before`) | ✓ | ✗ |
 | Down time before (`down_time_before`) | ✓ | ✗ |
 
@@ -288,7 +288,7 @@ The following table summarizes which unit commitment features are compatible wit
 
 ¹ For modular components, `p_min_pu` and `p_max_pu` apply to **each committed module**. The minimum/maximum power is calculated as `p_min_pu × p_nom_mod × status` where `status` is the number of committed modules.
 
-² For modular + committable components, ramp limits are applied to the **total installed capacity** (similar to standard committable components), not per module. The ramp constraint is `p_t - p_{t-1} ≤ ramp_limit_up × p_nom_opt`, where `p_nom_opt` is the total capacity of all installed modules. This differs from the per-module behavior of minimum/maximum part-load constraints.
+² For modular + committable components, ramp limits apply to **each committed module**, like the part-load constraints. The ramp-up constraint is `p_t - p_{t-1} ≤ ramp_limit_up × p_nom_mod × status_{t-1} + ramp_limit_start_up × p_nom_mod × (status_t - status_{t-1})`, where `status` is the number of committed modules. This holds for fixed and extendable modular committable components alike.
 
 
 ## Fixed Capacity
