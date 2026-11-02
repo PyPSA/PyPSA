@@ -24,6 +24,7 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Features
 
 - Add [numerical scaling](./user-guide/optimization/numerical-scaling.md) of optimization problems via linopy. The new attribute `scaling` of [Bus](./user-guide/components/buses.md) and [GlobalConstraint](./user-guide/components/global-constraints.md) sets the solver unit of a bus and a global constraint row, and the new argument `objective_scaling` of [`n.optimize`][pypsa.optimization.OptimizationAccessor.__call__] and related methods scales the objective. Results are reported in original units. Requires `linopy>=0.10.0`. (<!-- md:pr 2052 -->)
+- [Store](./user-guide/components/stores.md) components now cover all functionality of [StorageUnit](./user-guide/components/storage-units.md) components. Stores gain a charging variable `p_store` next to the dispatch variable `p` with the efficiencies `efficiency_dispatch` and `efficiency_store`; a finite `max_hours` couples the power limits to the energy capacity `e_nom`; and `inflow` with `spill_cost` model exogenous inflow and spillage. The new attributes `marginal_cost_dispatch` and `marginal_cost_store` price discharging and charging separately, while `marginal_cost` keeps applying to the net dispatch. The outputs `p_dispatch`, `p_store` and `spill` are added. Existing store models, their results and the model variable `Store-p` (net dispatch) are unchanged. The `StorageUnit` component is deprecated and will be removed in PyPSA 2.0; adding storage units raises a `FutureWarning`. Storage units can be converted into equivalent stores with [`n.c.storage_units.convert_to_stores()`][pypsa.components.StorageUnits.convert_to_stores]. See [#1728](https://github.com/PyPSA/PyPSA/issues/1728).
 - Add the attribute `cycles_max` to [Store](./user-guide/components/stores.md). It limits the number of equivalent full cycles over all snapshots of the optimisation, also for extendable capacities and across the windows of a rolling horizon. See the [:material-book-open-variant: user guide](./user-guide/optimization/storage.md#cycle-limits). (<!-- md:pr 2006 -->)
 - [`add_load_shedding`][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding] takes a `carrier` argument, defaulting to `"load"`. (<!-- md:pr 2056 -->)
 - Add the volume limits `e_sum_min` and `e_sum_max` to [Link](./user-guide/components/links.md), [Process](./user-guide/components/processes.md) and [Store](./user-guide/components/stores.md) components. (<!-- md:pr 1987 -->)
@@ -32,6 +33,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] silently carrying storage levels to the wrong store or storage unit on stochastic networks. When components were added after `n.set_scenarios()`, the static index and the time-varying columns had a different order. The carried `e_initial` and `state_of_charge_initial` are now aligned by component and scenario. (<!-- md:pr 2077 -->)
 - Fix the `"bfs-refined"` cycle basis depending on `PYTHONHASHSEED`. Start, direction and refinement order of each cycle now follow the bus order, so two runs write the same KVL constraints and LP files. The basis can differ from v1.4.0, the optimum does not. (<!-- md:pr 2023 -->)
 - Fix [`n.lpf_contingency()`][pypsa.Network.lpf_contingency] returning `NaN` for branches in AC sub-networks unaffected by the outage. Those branches now keep their base-case flows. (<!-- md:pr 2068 -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] leaving `n.buses_t.v_ang` with only the last window's snapshots when a sub-network has a single bus. The voltage angles now cover all snapshots, like the other time-varying outputs. (<!-- md:pr 2064 -->)
@@ -85,6 +87,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- [`n.consistency_check()`][pypsa.Network.consistency_check] now warns when a committable generator has `ramp_limit_start_up` or `ramp_limit_shut_down` below `p_min_pu`, which blocks start-up or shut-down. (<!-- md:pr 2053 -->)
 - Fix inactive branches (`active=False`) remaining in the cycles of the Kirchhoff voltage law constraints. Resolves [#2004](https://github.com/PyPSA/PyPSA/issues/2004). (<!-- md:pr 2005 -->)
 - Fix minimum up and down time constraints of committable components losing their first rows under linopy v1 semantics; legacy semantics are unaffected. (<!-- md:pr 1990 -->)
 - Fix `n.objective_constant` being `0` for [multi-period](./user-guide/optimization/pathway-planning.md) optimizations; it again includes the period-weighted capital costs of existing extendable capacity. (<!-- md:pr 1967 -->)
