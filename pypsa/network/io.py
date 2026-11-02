@@ -2014,9 +2014,10 @@ class NetworkIOMixin(_NetworkABC):
         # Fill nan values with default values
         df = df.fillna(attrs["default"].to_dict())
 
+        defaults = {}
         for k in static_attrs.index:
             if k not in df.columns:
-                df[k] = static_attrs.at[k, "default"]
+                defaults[k] = static_attrs.at[k, "default"]
             else:
                 if static_attrs.at[k, "type"] == "string":
                     df[k] = df[k].replace({np.nan: ""})
@@ -2033,6 +2034,7 @@ class NetworkIOMixin(_NetworkABC):
                             df[k] = gpd.GeoSeries.from_wkt(geometry)
                     else:
                         df[k] = df[k].astype(static_attrs.at[k, "typ"])
+        df = pd.concat([df, pd.DataFrame(defaults, index=df.index)], axis=1)
 
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
         new_static = df.drop(non_static_attrs_in_df, axis=1)
@@ -2158,8 +2160,14 @@ class NetworkIOMixin(_NetworkABC):
         # Add all unknown attributes to the dataframe without any checks
         expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
         if attr not in expected_attrs:
-            if overwrite or attr not in dynamic:
+            if attr not in dynamic:
                 dynamic[attr] = df
+            else:
+                existing = dynamic[attr]
+                existing = existing.drop(
+                    existing.columns.intersection(df.columns), axis=1
+                )
+                dynamic[attr] = pd.concat([existing, df], axis=1)
             return
 
         # Check if any snapshots are missing

@@ -22,7 +22,11 @@ from scipy.sparse import hstack as shstack
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
-from pypsa.common import as_index, deprecated_common_kwargs
+from pypsa.common import (
+    _scenarios_not_implemented,
+    as_index,
+    deprecated_common_kwargs,
+)
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
@@ -864,6 +868,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         _update_ports_component_attrs(self)
 
+    @_scenarios_not_implemented
     def lpf(
         n: Network, snapshots: Sequence | None = None, skip_pre: bool = False
     ) -> None:
@@ -884,6 +889,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
         sns = as_index(n, snapshots, "snapshots")
         _network_prepare_and_run_pf(n, sns, skip_pre, linear=True)
 
+    @_scenarios_not_implemented
     def pf(
         n: Network,
         snapshots: Sequence | None = None,
@@ -943,6 +949,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
             slack_weights=slack_weights,
         )  # type: ignore
 
+    @_scenarios_not_implemented
     def lpf_contingency(
         self,
         snapshots: Sequence | str | int | pd.Timestamp | None = None,

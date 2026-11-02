@@ -327,6 +327,51 @@ def test_shut_down_costs():
     assert n.objective == 358000
 
 
+@pytest.mark.parametrize("cost_attr", ["start_up_cost", "shut_down_cost"])
+def test_start_up_and_shut_down_costs_multi_investment_period(cost_attr):
+    """Start-up and shut-down costs follow the investment period objective weighting."""
+    n = pypsa.Network(snapshots=range(2))
+    n.investment_periods = [2020, 2030]
+    n.investment_period_weightings["objective"] = [1, 10]
+
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "committable",
+        bus="bus",
+        committable=True,
+        p_nom=100,
+        p_min_pu=0.5,
+        up_time_before=0,
+        marginal_cost=1,
+        **{cost_attr: 1000},
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=1000, marginal_cost=100)
+    n.add(
+        "Load",
+        "load",
+        bus="bus",
+        p_set=pd.Series([60.0, 0.0, 60.0, 0.0], index=n.snapshots),
+    )
+
+    status, _ = n.optimize(solver_name="highs", multi_investment_periods=True)
+    assert status == "ok"
+
+    # Per period the committable generator runs for one snapshot at 60 MW
+    # (marginal cost 60) and changes state once (cost 1000). Periods are
+    # weighted 1 and 10: (60 + 1000) * (1 + 10) = 11660.
+    expected_status = pd.Series(
+        [1.0, 0.0, 1.0, 0.0], index=n.snapshots, name="committable"
+    )
+    pd.testing.assert_series_equal(
+        n.c.generators.dynamic.status["committable"],
+        expected_status,
+        check_dtype=False,
+        check_index_type=False,
+    )
+    assert n.objective == pytest.approx(11660)
+
+
 def test_unit_commitment_rolling_horizon():
     n = pypsa.Network()
     n.snapshots = range(7)

@@ -1815,6 +1815,7 @@ def _add_e_sum_min(n: pypsa.Network) -> None:
             {"horizon": 2, "linearized_unit_commitment": True},
             ROLLING,
         ),
+        (_add_e_sum_min, {"horizon": 2}, ROLLING),
     ],
 )
 def test_scenario_indexed_model_matches_deterministic(add, kwargs, method):

@@ -263,6 +263,8 @@ def define_objective(
     # Weightings
     weight = window.snapshot_weightings("objective")
     if n._multi_invest:
+        # start-up and shut-down costs are paid per event, not per elapsed hour
+        event_weight = apply_period_weighting(xr.ones_like(weight), period_weighting)
         weight = apply_period_weighting(weight, period_weighting)
 
     # marginal costs, marginal storage cost, and spill cost
@@ -427,6 +429,9 @@ def define_objective(
 
         if cost.size == 0 or cost.sum().item() == 0:
             continue
+
+        if n._multi_invest:
+            cost = cost * event_weight
 
         var = m[f"{c.name}-{attr}"].sel(name=com_i)
         opex_terms.append((var * cost).sum(dim=["name", "snapshot"]))
@@ -893,7 +898,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
-        define_total_supply_constraints(n, sns)
+        for c in n.components:
+            if "e_sum_min" in c.static:
+                define_total_supply_constraints(n, sns, c.name)
 
         if transmission_losses:
             if isinstance(transmission_losses, bool):
@@ -1373,6 +1380,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         sign: float | pd.Series = 1e-3,
         marginal_cost: float | pd.Series = 1e2,
         p_nom: float | pd.Series = 1e9,
+        carrier: str = "load",
     ) -> pd.Index:
         """Add load shedding in form of generators to all or a subset of buses.
 
@@ -1395,10 +1403,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Price of the load shedding. The default is 1e2.
         p_nom : float/Series, optional
             Maximal load shedding. The default is 1e9 (kW).
+        carrier : str, default: "load"
+            Carrier assigned to the load shedding generators. Created if missing.
 
         """
-        if "Load" not in self._n.c.carriers.static.index:
-            self._n.add("Carrier", "Load")
+        if carrier not in self._n.c.carriers.static.index:
+            self._n.add("Carrier", carrier)
         if buses is None:
             buses = self._n.c.buses.static.index
 
@@ -1407,7 +1417,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             buses,
             suffix,
             bus=buses,
-            carrier="load",
+            carrier=carrier,
             sign=sign,
             marginal_cost=marginal_cost,
             p_nom=p_nom,
