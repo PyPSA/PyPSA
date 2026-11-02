@@ -694,6 +694,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
+        stores = n.c.stores
+        cycles_max = stores.static.cycles_max.copy()
+        track_cycles = (cycles_max < np.inf).any()
+
         starting_points = range(0, len(snapshots), horizon - overlap)
         weights = _energy_weightings(n, kwargs.get("multi_investment_periods", False))
         tracked = (
@@ -731,9 +735,16 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                     used = _energy(c, weights, done)
                     c.static[attr] = original - used - later.loc[rest].sum()
 
+                # count the cycles of previous windows against `cycles_max`
+                eh = n.snapshot_weightings.stores.loc[done]
+                discharge = stores.dynamic.p.loc[done].clip(lower=0)
+                used = discharge.mul(eh, axis=0).sum() / stores.static.e_nom_opt
+                remaining = cycles_max.sub(used.fillna(0), fill_value=0)
+                stores.static.cycles_max = remaining.clip(lower=0)
+
                 status, condition = n.optimize(sns, **kwargs)
                 if status != "ok":
-                    if tracked:
+                    if tracked or track_cycles:
                         msg = (
                             f"Optimization of window [{sns[0]}:{sns[-1]}] failed "
                             f"with status {status} and condition {condition}. The "
@@ -748,6 +759,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         finally:
             for name, attr, original, _ in tracked:
                 n.c[name].static[attr] = original
+            stores.static.cycles_max = cycles_max
         return n
 
     def optimize_and_run_non_linear_powerflow(
