@@ -1328,7 +1328,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
                 buses_i = sub.buses_o
                 if len(buses_i) == 1:
-                    return pd.DataFrame(0, index=sns, columns=buses_i)
+                    return pd.DataFrame(
+                        0.0, index=n.c.buses.dynamic.p.index, columns=buses_i
+                    )
                 sub.calculate_B_H(skip_pre=True)
                 Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
                 Z -= Z[sub.slack_bus]
