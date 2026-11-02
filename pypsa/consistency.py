@@ -632,13 +632,8 @@ def check_cost_consistency(component: Components, strict: bool = False) -> None:
 def check_generators(component: Components, strict: bool = False) -> None:
     """Check the consistency of generator attributes before the simulation.
 
-    This function performs the following checks on generator components:
-    1. Ensures that committable generators are not both up and down before the simulation.
-    2. Verifies that the minimum total energy to be produced (e_sum_min) is not greater
-       than the maximum total energy to be produced (e_sum_max).
-
-    A numerical tolerance from `params.consistency.numerical_tolerance` is applied
-    when comparing `e_sum_min` and `e_sum_max`.
+    Ensures that committable generators are not both up and down before the
+    simulation and that generators down before the simulation have no `p_init`.
 
     Activate strict mode in general consistency check by passing `['generators']` to the
     the `strict` argument.
@@ -681,17 +676,41 @@ def check_generators(component: Components, strict: bool = False) -> None:
                 bad_uc_gens,
             )
 
-        tol = options.params.consistency.numerical_tolerance
-        bad_e_sum_gens = component.static.index[
-            component.static.e_sum_min > component.static.e_sum_max + tol
-        ]
-        if not bad_e_sum_gens.empty:
-            _log_or_raise(
-                strict,
-                "The following generators have e_sum_min > e_sum_max,"
-                " which can lead to infeasibility:\n%s.",
-                bad_e_sum_gens,
-            )
+
+def check_volume_limits(component: Components, strict: bool = False) -> None:
+    """Check that `e_sum_min` is not greater than `e_sum_max`.
+
+    Applies to all components with volume limits. A numerical tolerance from
+    `params.consistency.numerical_tolerance` is applied.
+
+    Activate strict mode in general consistency check by passing
+    `['volume_limits']` to the `strict` argument.
+
+    Parameters
+    ----------
+    component : Component
+        The component to be checked.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if "e_sum_min" not in component.static:
+        return
+    tol = options.params.consistency.numerical_tolerance
+    static = component.static
+    bad = static.index[static.e_sum_min > static.e_sum_max + tol]
+    if not bad.empty:
+        _log_or_raise(
+            strict,
+            "The following %s components have e_sum_min > e_sum_max,"
+            " which can lead to infeasibility:\n%s.",
+            component.name,
+            bad,
+        )
 
 
 def check_dtypes_(component: Components, strict: bool = False) -> None:
@@ -972,6 +991,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "zero_s_nom",
             "phase_shift_bounds",
             "generators",
+            "volume_limits",
             "cost_consistency",
             "dispatch_delays",
             "maintenance",
@@ -1021,6 +1041,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_phase_shift_bounds(c, "phase_shift_bounds" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
+            check_volume_limits(c, "volume_limits" in strict)
             check_maintenance_attributes(self, c, "maintenance" in strict)
             # Checks cost attributes consistency
             check_cost_consistency(c)

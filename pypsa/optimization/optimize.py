@@ -48,6 +48,7 @@ from pypsa.optimization.constraints import (
     define_secant_loss_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
+    define_store_cycle_constraints,
     define_tangent_loss_constraints,
     define_total_supply_constraints,
     define_voltage_angle_constraints,
@@ -78,6 +79,7 @@ from pypsa.optimization.variables import (
     define_spillage_variables,
     define_start_up_variables,
     define_status_variables,
+    define_store_charging_variables,
 )
 from pypsa.optimization.window import SnapshotWindow, apply_period_weighting
 
@@ -834,6 +836,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
+        define_store_charging_variables(n, sns)
         define_phase_shift_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
@@ -898,7 +901,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
-        define_total_supply_constraints(n, sns)
+        define_store_cycle_constraints(n, sns)
+        for c in n.components:
+            if "e_sum_min" in c.static:
+                define_total_supply_constraints(n, sns, c.name)
 
         if transmission_losses:
             if isinstance(transmission_losses, bool):
@@ -1066,6 +1072,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 continue
 
             _c_name, attr = name.split("-", 1)
+
+            # Skip the auxiliary charging variable of store cycle limits
+            if name == "Store-p_store":
+                continue
 
             # Skip auxiliary McCormick linearization variables
             if attr in ("maintenance_capacity", "maintenance_status"):
@@ -1326,7 +1336,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
                 buses_i = sub.buses_o
                 if len(buses_i) == 1:
-                    return pd.DataFrame(0, index=sns, columns=buses_i)
+                    return pd.DataFrame(
+                        0.0, index=n.c.buses.dynamic.p.index, columns=buses_i
+                    )
                 sub.calculate_B_H(skip_pre=True)
                 Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
                 Z -= Z[sub.slack_bus]
@@ -1378,6 +1390,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         sign: float | pd.Series = 1e-3,
         marginal_cost: float | pd.Series = 1e2,
         p_nom: float | pd.Series = 1e9,
+        carrier: str = "load",
     ) -> pd.Index:
         """Add load shedding in form of generators to all or a subset of buses.
 
@@ -1400,10 +1413,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Price of the load shedding. The default is 1e2.
         p_nom : float/Series, optional
             Maximal load shedding. The default is 1e9 (kW).
+        carrier : str, default: "load"
+            Carrier assigned to the load shedding generators. Created if missing.
 
         """
-        if "Load" not in self._n.c.carriers.static.index:
-            self._n.add("Carrier", "Load")
+        if carrier not in self._n.c.carriers.static.index:
+            self._n.add("Carrier", carrier)
         if buses is None:
             buses = self._n.c.buses.static.index
 
@@ -1412,7 +1427,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             buses,
             suffix,
             bus=buses,
-            carrier="load",
+            carrier=carrier,
             sign=sign,
             marginal_cost=marginal_cost,
             p_nom=p_nom,

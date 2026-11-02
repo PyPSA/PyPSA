@@ -32,7 +32,7 @@ from pypsa.components.common import as_components, invariant
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
-from pypsa.optimization.window import snapshot_array
+from pypsa.optimization.window import apply_period_weighting, snapshot_array
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -54,6 +54,10 @@ lookup = pd.read_csv(
     PYPSA_DATA_DIR / "variables.csv",
     index_col=["component", "variable"],
 )
+
+
+ENERGY_WEIGHTING = "generators"
+ENERGY_LIMITS = (("e_sum_min", ">=", -inf), ("e_sum_max", "<=", inf))
 
 
 def define_operational_constraints_for_non_extendables(
@@ -598,9 +602,16 @@ def define_operational_constraints_for_committables(
         lhs, ">=", prior_status, name=f"{c.name}-com-transition-shut-down", mask=active
     )
 
+    com_mod_fix_i = com_mod_i.difference(ext_i)
+    com_mod_ext_i = com_mod_i.intersection(ext_i)
+    mod_attr = c._operational_attrs["nom_mod"]
+    modules = nominal.sel(name=com_mod_fix_i) / c.da[mod_attr].sel(name=com_mod_fix_i)
+    modules = modules.reindex(name=com_i, fill_value=1.0)
+    modules = modules.where(~modules["name"].isin(com_mod_ext_i), 0.0)
+
     for kind, min_time, transition, sign, bound in (
         ("up", min_up_time_set, start_up, -1, 0),
-        ("down", min_down_time_set, shut_down, 1, 1),
+        ("down", min_down_time_set, shut_down, 1, modules),
     ):
         if not (min_time > 0).any():
             continue
@@ -609,6 +620,9 @@ def define_operational_constraints_for_committables(
             for k in range(int(min_time.max()))
         ]
         lhs = sign * status + merge(shifted)
+        if kind == "down" and not com_mod_ext_i.empty:
+            n_mod = n.model[f"{c.name}-n_mod"].sel(name=com_mod_ext_i)
+            lhs = lhs.add(-n_mod, join="left")
         past = (-sign * switches).clip(min=0)
         rhs = bound - (past * (past.lag + pos < min_time)).sum("lag")
         mask = active & (min_time > 0)
@@ -1016,7 +1030,7 @@ def define_ramp_limit_constraints(
     is_com = DataArray(idx.isin(c.committables), coords=[idx])
     is_modular = DataArray(idx.isin(c.modulars), coords=[idx])
     is_com_ext = is_com & is_ext & ~is_modular
-    is_com_ext_mod = is_com & is_ext & is_modular
+    is_com_mod = is_com & is_modular
     is_com_fix = is_com & ~is_com_ext
 
     limit_up = c.da.ramp_limit_up.sel(snapshot=sns, name=idx)
@@ -1039,11 +1053,12 @@ def define_ramp_limit_constraints(
     window = n.optimize._window.subset(sns)
     filter_first_sn = snapshot_array([1] + [0] * (len(sns) - 1), sns)
 
+    # Status counts modules for modular committables, so they ramp per module
     nom_mod_attr = c._operational_attrs["nom_mod"]
     p_nom = c.da[nom_attr].sel(name=idx).where(~is_ext, 0)
-    if is_com_ext_mod.any():
-        p_nom = p_nom.where(~is_com_ext_mod, c.da[nom_mod_attr].sel(name=idx))
-    is_ext_main = is_ext & ~is_com_ext & ~is_com_ext_mod
+    if is_com_mod.any():
+        p_nom = p_nom.where(~is_com_mod, c.da[nom_mod_attr].sel(name=idx))
+    is_ext_main = is_ext & ~is_com
     p_nom_ext_var = None
     if is_ext_main.any():
         ext_main_names = idx[is_ext_main]
@@ -1060,6 +1075,12 @@ def define_ramp_limit_constraints(
     s_init = _status_history(n, c, idx, sns, 1).squeeze("lag", drop=True)
     p_init = _dispatch_before(n, c, idx, sns, s_init)
     mask.loc[{"snapshot": sns[0]}] = p_init.notnull()
+    is_com_fix_mod = is_com_mod & ~is_ext
+    if is_com_fix_mod.any() and (not _window_start(n, sns) or c.dynamic.status.empty):
+        # Before n.snapshots the status is a 0/1 flag, so a unit that was on
+        # counts all its installed modules as on
+        modules = c.da[nom_attr].sel(name=idx) / c.da[nom_mod_attr].sel(name=idx)
+        s_init = s_init.where(~is_com_fix_mod, s_init * modules)
 
     # skip starts of periods except the first where p_init is used
     boundary = window.period_start_mask()
@@ -2398,6 +2419,58 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
 
 
+def define_store_cycle_constraints(n: Network, sns: pd.Index) -> None:
+    """Define cycle limits for stores.
+
+    For stores with a finite `cycles_max`, the constraint enforces:
+
+    sum((p(t) + p_store(t)) * weighting(t)) ≤ cycles_max * e_nom
+
+    where `p + p_store` is the discharge at the bus, `p_store ≥ -p` the
+    non-negative charging power and the sum is taken over all snapshots of
+    the optimisation. The formulation follows eq. (22) in Cardoso et al. [1]_.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+
+    References
+    ----------
+    [1] G. Cardoso et al., "Battery aging in multi-energy microgrid design
+        using mixed integer linear programming", Applied Energy, 2018,
+        https://doi.org/10.1016/j.apenergy.2018.09.185
+
+    """
+    m = n.model
+    c = as_components(n, "Store")
+
+    names = c.static.index[c.static.cycles_max < inf].unique("name")
+    names = names.intersection(c.active_assets)
+    if names.empty:
+        return
+
+    cycles_max = c.da.cycles_max.sel(name=names)
+    limited = cycles_max < inf
+    cycles_max = cycles_max.where(limited, 0)
+    active = c.da.active.sel(snapshot=sns, name=names)
+    discharge = m["Store-p"].sel(name=names) + m["Store-p_store"]
+    m.add_constraints(discharge, ">=", 0, name="Store-p_store-lower", mask=active)
+
+    ext_i = c.extendables.unique("name").intersection(names)
+    eh = n.optimize._window.subset(sns).snapshot_weightings("stores")
+    lhs = (discharge * eh).sum("snapshot")
+    rhs = cycles_max * c.da.e_nom.sel(name=names)
+    if not ext_i.empty:
+        capacity = m["Store-e_nom"].sel(name=ext_i)
+        lhs = lhs - cycles_max.sel(name=ext_i) * capacity
+        rhs = rhs.where(~rhs.coords["name"].isin(ext_i), 0)
+
+    m.add_constraints(lhs, "<=", rhs, name="Store-cycles_max", mask=limited)
+
+
 def define_tangent_loss_constraints(
     n: Network,
     sns: pd.Index,
@@ -2645,24 +2718,22 @@ def define_secant_loss_constraints(
 def define_total_supply_constraints(
     n: Network, sns: pd.Index, component: str = "Generator"
 ) -> None:
-    """Define energy sum constraints for generators.
+    """Define volume limit constraints of a component.
 
-    Creates constraints limiting the total energy generated by each generator
-    over the specified snapshots. The constraints can enforce both minimum
-    and maximum energy production requirements.
-
-    For generators with e_sum_min, the constraint enforces:
+    Creates constraints limiting the energy of each asset over the specified
+    snapshots. The energy is the weighted sum of the power variable `p` of the
+    component. Limits at their default are not constrained. For `e_sum_min`
+    and `e_sum_max` the constraints enforce:
 
     sum(p(t) * weighting(t)) ≥ e_sum_min
 
-    For generators with e_sum_max, the constraint enforces:
-
     sum(p(t) * weighting(t)) ≤ e_sum_max
 
-    where the sum is taken over all snapshots and weighting accounts for the
-    duration of each snapshot.
-
-    Applies to Generator (by default, but component parameter can be changed).
+    where the sum is taken over all snapshots, and the generator weighting
+    accounts for the duration of each snapshot. With multiple investment
+    periods, the limits apply to the total over all periods and the weighting
+    is multiplied by the period weighting `years`, as for `operational_limit`
+    global constraints. For Link, p is the withdrawal at `bus0`.
 
     Parameters
     ----------
@@ -2680,9 +2751,6 @@ def define_total_supply_constraints(
     - Maximum energy production limits (e.g., fuel availability, water reservoir limits)
     - Must-run generators with flexibility in when to produce
 
-    The constraints only apply to generators that have finite e_sum_min or
-    e_sum_max values specified.
-
     """
     m = n.model
     window = n.optimize._window.subset(sns)
@@ -2692,9 +2760,10 @@ def define_total_supply_constraints(
     if c.static.empty:
         return
 
-    eh = window.snapshot_weightings("generators")
-
-    for attr, sign, default in (("e_sum_min", ">=", -inf), ("e_sum_max", "<=", inf)):
+    eh = window.snapshot_weightings(ENERGY_WEIGHTING)
+    if n._multi_invest:
+        eh = apply_period_weighting(eh, n.investment_period_weightings.years)
+    for attr, sign, default in ENERGY_LIMITS:
         bounded = c.static[attr] != default
         names = bounded[bounded].index.unique("name")
         if names.empty:
