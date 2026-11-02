@@ -159,6 +159,37 @@ def test_inconsistent_e_sum_values(consistent_n, caplog, strict, component, kwar
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("ramp_limit", ["ramp_limit_start_up", "ramp_limit_shut_down"])
+@pytest.mark.parametrize("p_min_pu", [0.5, [0.2, 0.5, 0.2]])
+def test_ramp_limit_below_p_min_pu(consistent_n, caplog, ramp_limit, p_min_pu):
+    consistent_n.set_snapshots(range(3))
+    consistent_n.add(
+        "Generator",
+        "gen_two",
+        bus="one",
+        p_nom=10,
+        committable=True,
+        p_min_pu=p_min_pu,
+        **{ramp_limit: 0.3},
+    )
+    consistent_n.add(
+        "Generator",
+        "gen_three",
+        bus="one",
+        p_nom=10,
+        committable=True,
+        p_min_pu=0.5,
+        ramp_limit_start_up=0.5,
+        ramp_limit_shut_down=0.7,
+    )
+    consistent_n.consistency_check()
+    messages = [r.message for r in caplog.records if "ramp_limit" in r.message]
+    assert len(messages) == 1
+    assert ramp_limit in messages[0]
+    assert "gen_two" in messages[0]
+    assert "gen_three" not in messages[0]
+
+
 @pytest.mark.parametrize("strict", [[], ["scenarios_sum"]])
 def test_scenarios_sum_to_one(consistent_n, caplog, strict):
     """
