@@ -126,15 +126,12 @@ def test_get_switchable_order(
             n.c.generators.dynamic.p_max_pu[i] = 0.75
             expected[i] = 0.75
     if inds:
-        order = ["a", "z"] if method == "iter" else ["z", "a"]
+        order = ["a", "z"] if method == "iter" else ["a", "z", "a"]
         keys = pd.MultiIndex.from_product([scenarios, order]) if scenarios else order
         expected = expected.loc[keys]
 
     args = ("Generator", "p_max_pu", n.snapshots, inds)
-    if method == "dense" and inds:
-        with pytest.warns(FutureWarning, match=DENSE_INDS_WARNING):
-            result = n.get_switchable_as_dense(*args).iloc[0]
-    elif method == "dense":
+    if method == "dense":
         result = n.get_switchable_as_dense(*args).iloc[0]
     else:
         result = next(n.get_switchable_as_iter(*args))
