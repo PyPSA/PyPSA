@@ -5,21 +5,15 @@
 name: Test models
 
 on:
-  push:
-    branches:
-    - master
-    - release-branch-v*
-  pull_request:
-    branches: ['*']
   schedule:
   - cron: "0 5 * * *"
+  workflow_dispatch:
 
 env:
   PACKAGE_NAME: 'pypsa'
   SNAKEMAKE_STORAGE_CACHED_HTTP_CACHE: ""
   SNAKEMAKE_STORAGE_CACHED_HTTP_SKIP_REMOTE_CHECKS: "1"
 
-# Cancel any in-progress runs when a new run is triggered
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -42,21 +36,7 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-      id: filter
-      with:
-        filters: |
-          src:
-            - 'pypsa/**'
-            - 'pyproject.toml'
-            - '.github/workflows/test-models.yml'
-
-    - name: Skip - no source changes
-      if: steps.filter.outputs.src != 'true' && github.event_name != 'schedule'
-      run: echo "Skipping tests because no source code changes detected"
-
     - name: Free up disk space
-      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
       run: |
         echo "Initial disk space"
         df -h
@@ -68,34 +48,29 @@ jobs:
         df -h
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
       with:
         repository: PyPSA/pypsa-eur
         ref: master
 
     - name: Check out latest release
-      if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && matrix.version == 'latest'
+      if: matrix.version == 'latest'
       run: |
         git fetch --tags
         latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
         git checkout $latest_tag
 
     - name: Setup Pixi
-      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
       uses: prefix-dev/setup-pixi@ad1da6449d9e506fd127fd67ab2d054a769f6a94 # v0.11.2
       with:
         cache: true
-        # Do not cache in branches
-        cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+        cache-write: ${{ github.event_name == 'schedule' }}
 
     - name: Setup cache keys
-      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
       run: |
         echo "WEEK=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
 
     # Only run check if package is not pinned
     - name: Check if inhouse package is pinned
-      if: steps.filter.outputs.src == 'true' || github.event_name == 'schedule'
       run: |
         grep_line=$(grep -- '- pypsa' envs/environment.yaml)
         if [[ $grep_line == *"<"* || $grep_line == *"=="* ]]; then
@@ -105,7 +80,7 @@ jobs:
         fi
 
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
+      if: env.pinned == 'false'
       with:
         path: |
           data
@@ -113,30 +88,30 @@ jobs:
         key: data-cutouts-pypsa-eur-${{ env.WEEK }}
 
     - name: Restore git-tracked files in data/
-      if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
+      if: env.pinned == 'false'
       run: git checkout HEAD -- data/
 
     - name: Install package from ref
-      if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
+      if: env.pinned == 'false'
       run: |
         # Allow upgrading internal packages without exclude-newer cap
         sed -i '/^exclude-newer\s*=/d' pixi.toml
         pixi remove ${{ env.PACKAGE_NAME }}
         pixi upgrade linopy
-        pixi add --pypi --git https://github.com/${{ github.repository }}.git ${{ github.event.repository.name }} --rev ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        pixi add --pypi --git https://github.com/${{ github.repository }}.git ${{ github.event.repository.name }} --rev ${{ github.sha }}
 
     - name: Run snakemake test workflows
-      if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
+      if: env.pinned == 'false'
       run: |
         pixi run integration-tests
 
     - name: Run unit tests
-      if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
+      if: env.pinned == 'false'
       run: |
         pixi run unit-tests
 
     - name: Upload artifacts
-      if: (steps.filter.outputs.src == 'true' || github.event_name == 'schedule') && env.pinned == 'false'
+      if: env.pinned == 'false'
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: results-pypsa-eur-${{ matrix.version }}

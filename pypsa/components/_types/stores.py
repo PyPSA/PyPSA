@@ -89,7 +89,7 @@ class Stores(Components):
         """Get which stores need separate charging and discharging variables.
 
         The net dispatch `p` is sufficient unless the efficiencies differ from
-        one or a cost applies to one direction only. Adding the charging
+        one, a cost applies to one direction only or `cycles_max` is finite. Adding the charging
         variable `p_store` only where needed avoids degenerate variable pairs
         and speeds up solving.
 
@@ -104,6 +104,7 @@ class Stores(Components):
             | (self.da.efficiency_dispatch != 1)
             | (self.da.marginal_cost_dispatch != 0)
             | (self.da.marginal_cost_store != 0)
+            | (self.da.cycles_max < np.inf)
         )
         return split.any("snapshot") if "snapshot" in split.dims else split
 
