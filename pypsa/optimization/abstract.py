@@ -15,11 +15,13 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import xarray as xr
+from linopy.solvers import Solver, SolverFeature, available_solvers
 
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import _scenarios_not_implemented, as_index
 from pypsa.components.array import _from_xarray
+from pypsa.consistency import OPTIMIZE_STRICT_CHECKS
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.constraints import ENERGY_LIMITS, ENERGY_WEIGHTING
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
@@ -683,7 +685,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         overlap : int
             Number of snapshots to overlap between two iterations. Defaults to 0.
         **kwargs:
-            Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+            Keyword argument used by `linopy.Model.solve`, such as `solver_name`.
+            Unless `io_api` or `problem_fn` is given, `io_api="direct"` is used
+            for solvers that support linopy's direct API, which avoids writing
+            and reading a problem file for every window. The
+            consistency check runs once for the whole network instead of
+            for every window and is skipped with `consistency_check=False`.
 
         """
         n = self._n
@@ -694,6 +701,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
+        if kwargs.pop("consistency_check", True):
+            n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
+
         starting_points = range(0, len(snapshots), horizon - overlap)
         weights = _energy_weightings(n, kwargs.get("multi_investment_periods", False))
         tracked = (
@@ -701,6 +711,14 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             if len(starting_points) == 1
             else _all_tracked_limits(n, weights, snapshots)
         )
+
+        solver_name = kwargs.get("solver_name") or options.params.optimize.solver_name
+        if (
+            kwargs.keys().isdisjoint({"io_api", "problem_fn"})
+            and solver_name in available_solvers
+            and Solver.from_name(solver_name).supports(SolverFeature.DIRECT_API)
+        ):
+            kwargs["io_api"] = "direct"
 
         try:
             for i, start in enumerate(starting_points):
@@ -731,7 +749,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                     used = _energy(c, weights, done)
                     c.static[attr] = original - used - later.loc[rest].sum()
 
-                status, condition = n.optimize(sns, **kwargs)
+                status, condition = n.optimize(sns, consistency_check=False, **kwargs)
                 if status != "ok":
                     if tracked:
                         msg = (

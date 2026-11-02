@@ -2,7 +2,11 @@
 #
 # SPDX-License-Identifier: MIT
 
+import numpy as np
+import pytest
 from numpy.testing import assert_array_almost_equal as equal
+
+import pypsa
 
 
 def test_optimize(ac_dc_network, ac_dc_network_r):
@@ -30,3 +34,33 @@ def test_optimize(ac_dc_network, ac_dc_network_r):
         n_r.c.links.dynamic.p0.loc[:, n.c.links.static.index],
         decimal=2,
     )
+
+
+def chain_network_with_infinite_reactance() -> pypsa.Network:
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", ["a", "b", "c"])
+    n.add("Line", "ab", bus0="a", bus1="b", x=0.1, s_nom=100)
+    n.add("Line", "bc", bus0="b", bus1="c", x=np.inf, s_nom=100)
+    n.add("Generator", ["ga", "gc"], bus=["a", "c"], p_nom=100, marginal_cost=[1, 2])
+    n.add("Load", ["lb", "lc"], bus=["b", "c"], p_set=[30, 10])
+    return n
+
+
+@pytest.mark.parametrize("case", ["losses", "infinite_reactance"])
+def test_optimize_v_ang_matches_pseudo_inverse(ac_dc_network, case):
+    if case == "losses":
+        n = ac_dc_network
+        n.c.lines.static.s_nom_max = 1e4
+        n.optimize(transmission_losses=True)
+    else:
+        n = chain_network_with_infinite_reactance()
+        n.optimize()
+
+    p = n.c.buses.dynamic.p
+    for sub in n.c.sub_networks.static.obj:
+        buses = sub.buses_o
+        Z = np.linalg.pinv(sub.B.toarray())
+        Z -= Z[buses.get_loc(sub.slack_bus)]
+        equal(n.c.buses.dynamic.v_ang[buses], p[buses] @ Z, decimal=10)
+    if case == "losses":
+        assert not np.allclose(p.sum(axis=1), 0)

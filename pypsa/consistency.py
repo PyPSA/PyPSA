@@ -33,6 +33,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+OPTIMIZE_STRICT_CHECKS = ["unknown_buses", "maintenance", "phase_shift_bounds"]
+
 
 class ConsistencyError(ValueError):
     """Error raised when a consistency check fails."""
@@ -480,15 +482,15 @@ def check_time_series_power_attributes(
 
             tol = options.params.consistency.numerical_tolerance
             diff = max_pu - min_pu
-            diff = diff[diff < -tol].dropna(axis=1, how="all")
-            for col in diff.columns:
+            violated = diff.to_numpy() < -tol
+            for j in np.flatnonzero(violated.any(axis=0)):
                 _log_or_raise(
                     strict,
                     "The element %s of %s has a smaller maximum than minimum operational"
                     " limit which can lead to infeasibility for the following snapshots:\n%s",
-                    col,
+                    diff.columns[j],
                     component.list_name,
-                    diff[col].dropna().index,
+                    diff.index[violated[:, j]],
                 )
 
 
