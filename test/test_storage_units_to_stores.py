@@ -22,7 +22,7 @@ def network(request):
 
 def test_optimization_equivalence(network):
     n = network
-    names = n.storage_units.index
+    names = n.c.storage_units.static.index
     n_store = n.copy()
     n_store.c.storage_units.convert_to_stores()
 
@@ -30,24 +30,27 @@ def test_optimization_equivalence(network):
     n_store.optimize()
 
     assert n_store.objective == pytest.approx(n.objective, rel=1e-6)
-    e_nom_opt = n.storage_units.p_nom_opt * n.storage_units.max_hours
+    e_nom_opt = n.c.storage_units.static.p_nom_opt * n.c.storage_units.static.max_hours
     pd.testing.assert_series_equal(
-        n_store.stores.e_nom_opt[names], e_nom_opt, check_names=False, atol=1e-4
+        n_store.c.stores.static.e_nom_opt[names],
+        e_nom_opt,
+        check_names=False,
+        atol=1e-4,
     )
 
 
 def test_dispatch_equivalence(storage_hvdc_network):
     n = storage_hvdc_network
-    names = n.storage_units.index
+    names = n.c.storage_units.static.index
     # perturb costs so that the optimal dispatch is unique
     rng = np.random.default_rng(0)
-    for c in ("generators", "storage_units"):
-        index = getattr(n, c).index
-        getattr(n, c + "_t")["marginal_cost"] = pd.DataFrame(
-            getattr(n, c).marginal_cost.values
-            + rng.uniform(0, 0.1, (len(n.snapshots), len(index))),
+    for c in (n.c.generators, n.c.storage_units):
+        static = c.static
+        noise = rng.uniform(0, 0.1, (len(n.snapshots), len(static)))
+        c.dynamic["marginal_cost"] = pd.DataFrame(
+            static.marginal_cost.values + noise,
             index=n.snapshots,
-            columns=index,
+            columns=static.index,
         )
     n_store = n.copy()
     n_store.c.storage_units.convert_to_stores()
@@ -55,7 +58,7 @@ def test_dispatch_equivalence(storage_hvdc_network):
     n.optimize()
     n_store.optimize()
 
-    su, st = n.storage_units_t, n_store.stores_t
+    su, st = n.c.storage_units.dynamic, n_store.c.stores.dynamic
     for attr in ("p_dispatch", "p_store", "spill"):
         pd.testing.assert_frame_equal(st[attr][names], su[attr][names], atol=1e-3)
     pd.testing.assert_frame_equal(st.e[names], su.state_of_charge[names], atol=1e-3)
@@ -113,13 +116,13 @@ def test_small_network_equivalence(su_kwargs: dict[str, Any]) -> None:
     n_store.optimize()
 
     assert n_store.objective == pytest.approx(n.objective, rel=1e-6)
-    su, st = n.storage_units_t, n_store.stores_t
+    su, st = n.c.storage_units.dynamic, n_store.c.stores.dynamic
     for attr in ("p", "p_dispatch", "p_store", "spill"):
         np.testing.assert_allclose(
             st[attr].get("su", 0), su[attr].get("su", 0), atol=1e-5
         )
     np.testing.assert_allclose(st.e["su"], su.state_of_charge["su"], atol=1e-5)
-    np.testing.assert_allclose(st.p["plain"], n.stores_t.p["plain"], atol=1e-5)
+    np.testing.assert_allclose(st.p["plain"], n.c.stores.dynamic.p["plain"], atol=1e-5)
 
     for stat in ("opex", "installed_capacity", "optimal_capacity"):
         kwargs = {"storage": True} if "capacity" in stat else {}
@@ -141,9 +144,13 @@ def test_rolling_horizon_equivalence() -> None:
     n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=0)
     n_store.optimize.optimize_with_rolling_horizon(horizon=3, overlap=0)
 
-    np.testing.assert_allclose(n_store.stores_t.p["su"], n.storage_units_t.p["su"])
     np.testing.assert_allclose(
-        n_store.stores_t.e["su"], n.storage_units_t.state_of_charge["su"], atol=1e-5
+        n_store.c.stores.dynamic.p["su"], n.c.storage_units.dynamic.p["su"]
+    )
+    np.testing.assert_allclose(
+        n_store.c.stores.dynamic.e["su"],
+        n.c.storage_units.dynamic.state_of_charge["su"],
+        atol=1e-5,
     )
 
 
@@ -206,11 +213,11 @@ def test_attribute_conversion(
     n.add("StorageUnit", "su", bus="bus", **{"max_hours": 4, attr: value})
     n.c.storage_units.convert_to_stores()
 
-    assert n.storage_units.empty
+    assert n.c.storage_units.static.empty
     if isinstance(expected, list):
-        np.testing.assert_equal(n.stores_t[store_attr]["su"].tolist(), expected)
+        np.testing.assert_equal(n.c.stores.dynamic[store_attr]["su"].tolist(), expected)
     else:
-        assert n.stores.at["su", store_attr] == expected
+        assert n.c.stores.static.at["su", store_attr] == expected
 
 
 @pytest.mark.parametrize(
@@ -239,14 +246,17 @@ def test_convert_subset():
     n.add("Bus", "bus")
     n.add("StorageUnit", "a", bus="bus", p_nom=10, max_hours=2, marginal_cost=1)
     n.add("StorageUnit", "b", bus="bus", p_nom=5, max_hours=4, marginal_cost=[3, 4])
-    b = n.storage_units.loc["b"].copy()
+    b = n.c.storage_units.static.loc["b"].copy()
 
     assert n.c.storage_units.convert_to_stores(["a"]).tolist() == ["a"]
 
-    pd.testing.assert_series_equal(n.storage_units.loc["b"], b)
-    assert n.storage_units_t.marginal_cost["b"].tolist() == [3, 4]
-    assert n.stores.loc["a", ["e_nom", "marginal_cost_dispatch"]].tolist() == [20, 1]
-    assert "a" not in n.stores_t.marginal_cost_dispatch
+    pd.testing.assert_series_equal(n.c.storage_units.static.loc["b"], b)
+    assert n.c.storage_units.dynamic.marginal_cost["b"].tolist() == [3, 4]
+    assert n.c.stores.static.loc["a", ["e_nom", "marginal_cost_dispatch"]].tolist() == [
+        20,
+        1,
+    ]
+    assert "a" not in n.c.stores.dynamic.marginal_cost_dispatch
 
 
 @pytest.mark.parametrize("max_hours", [np.inf, NAN])
@@ -254,7 +264,7 @@ def test_non_finite_max_hours_raises(max_hours: float) -> None:
     n = pypsa.Network()
     n.add("Bus", "bus")
     n.add("StorageUnit", "su", bus="bus")
-    n.storage_units.loc["su", "max_hours"] = max_hours
+    n.c.storage_units.static.loc["su", "max_hours"] = max_hours
     with pytest.raises(ValueError, match="finite `max_hours`"):
         n.c.storage_units.convert_to_stores()
 
