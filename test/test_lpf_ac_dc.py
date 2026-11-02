@@ -80,10 +80,6 @@ def test_pf_subnetwork_without_transformer(method):
 
 
 def test_lpf_contingency_unaffected_subnetwork():
-    # https://github.com/PyPSA/PyPSA/issues/2066
-    # Two disconnected AC sub-networks, each with two parallel lines.
-    # An outage in one sub-network must not turn the flows of the other
-    # into NaN: they keep their base-case values.
     n = pypsa.Network()
     n.set_snapshots(pd.date_range("2026-01-01", periods=1, freq="h"))
     for area, load in [("a", 100.0), ("b", 60.0)]:
