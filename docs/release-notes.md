@@ -15,6 +15,8 @@ SPDX-License-Identifier: CC-BY-4.0
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
 ### Features
+
+- Add the attribute `cycles_max` to [Store](./user-guide/components/stores.md). It limits the number of equivalent full cycles over all snapshots of the optimisation, also for extendable capacities and across the windows of a rolling horizon. See the [:material-book-open-variant: user guide](./user-guide/optimization/storage.md#cycle-limits). (<!-- md:pr 2006 -->)
 - [`add_load_shedding`][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding] takes a `carrier` argument, defaulting to `"load"`. (<!-- md:pr 2056 -->)
 - Add the volume limits `e_sum_min` and `e_sum_max` to [Link](./user-guide/components/links.md), [Process](./user-guide/components/processes.md) and [Store](./user-guide/components/stores.md) components. (<!-- md:pr 1987 -->)
     - **Behavior change**: With `multi_investment_periods=True`, `e_sum_min` and `e_sum_max` limit the total over all investment periods weighted by the investment period weighting `years`, as for `operational_limit` global constraints. Before, the energy of each period was counted once.

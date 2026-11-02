@@ -2402,6 +2402,58 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
 
 
+def define_store_cycle_constraints(n: Network, sns: pd.Index) -> None:
+    """Define cycle limits for stores.
+
+    For stores with a finite `cycles_max`, the constraint enforces:
+
+    sum((p(t) + p_store(t)) * weighting(t)) ≤ cycles_max * e_nom
+
+    where `p + p_store` is the discharge at the bus, `p_store ≥ -p` the
+    non-negative charging power and the sum is taken over all snapshots of
+    the optimisation. The formulation follows eq. (22) in Cardoso et al. [1]_.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+
+    References
+    ----------
+    [1] G. Cardoso et al., "Battery aging in multi-energy microgrid design
+        using mixed integer linear programming", Applied Energy, 2018,
+        https://doi.org/10.1016/j.apenergy.2018.09.185
+
+    """
+    m = n.model
+    c = as_components(n, "Store")
+
+    names = c.static.index[c.static.cycles_max < inf].unique("name")
+    names = names.intersection(c.active_assets)
+    if names.empty:
+        return
+
+    cycles_max = c.da.cycles_max.sel(name=names)
+    limited = cycles_max < inf
+    cycles_max = cycles_max.where(limited, 0)
+    active = c.da.active.sel(snapshot=sns, name=names)
+    discharge = m["Store-p"].sel(name=names) + m["Store-p_store"]
+    m.add_constraints(discharge, ">=", 0, name="Store-p_store-lower", mask=active)
+
+    ext_i = c.extendables.unique("name").intersection(names)
+    eh = n.optimize._window.subset(sns).snapshot_weightings("stores")
+    lhs = (discharge * eh).sum("snapshot")
+    rhs = cycles_max * c.da.e_nom.sel(name=names)
+    if not ext_i.empty:
+        capacity = m["Store-e_nom"].sel(name=ext_i)
+        lhs = lhs - cycles_max.sel(name=ext_i) * capacity
+        rhs = rhs.where(~rhs.coords["name"].isin(ext_i), 0)
+
+    m.add_constraints(lhs, "<=", rhs, name="Store-cycles_max", mask=limited)
+
+
 def define_tangent_loss_constraints(
     n: Network,
     sns: pd.Index,
