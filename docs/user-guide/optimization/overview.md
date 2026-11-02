@@ -38,3 +38,16 @@ A call to this function will formulate the optimisation problem with the [Linopy
 
     While most types of optimisation problems are dynamically formulated by [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] depending on data inputs, some features require different optimization functions to be called. For instance, to optimise dispatch in a sequential rolling horizon with myopic operational foresight,
     the function [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] can be used.
+
+!!! note "Rolling horizon with `method="restrict"`"
+
+    By default (`method="rebuild"`), the rolling horizon builds and solves a new model for every window. With `method="restrict"`, the model is built once for all snapshots and every window is cut from its matrices with linopy's `Model.restrict`, which saves the repeated model building on large networks. All variables of earlier windows are fixed at their optimized values, which carries over storage levels and the dispatch for ramp limits. Each window is solved from scratch with a fresh solver instance, and the solution of all windows is written to the network once at the end.
+
+    ``` py
+    n.optimize.optimize_with_rolling_horizon(horizon=48, overlap=8, method="restrict")
+    ```
+
+    The method requires a linopy version with `Model.restrict` and solvers with linopy's direct API. It supports linear problems without multi-period investment, also with scenarios. It raises a `NotImplementedError` for `multi_investment_periods=True`, global constraints, volume limits (`e_sum_min`, `e_sum_max`), cyclic stores or storage units, committable components, integer variables, risk preferences and custom constraints that couple a window to later snapshots, and a `RuntimeError` as soon as a window is not solved to optimality. Compared to `method="rebuild"`:
+
+    - `n.objective` is the objective of the whole horizon instead of the objective of the last window.
+    - The standing loss of stores and storage units is applied to the storage level carried over into a window, as in a full-horizon optimization. `method="rebuild"` carries the level over without loss.

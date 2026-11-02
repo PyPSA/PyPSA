@@ -10,7 +10,7 @@ import gc
 import logging
 from functools import reduce
 from itertools import product
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -25,6 +25,7 @@ from pypsa.consistency import OPTIMIZE_STRICT_CHECKS
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.constraints import ENERGY_LIMITS, ENERGY_WEIGHTING
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
+from pypsa.optimization.rolling_restrict import optimize_with_restricted_windows
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -664,6 +665,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         horizon: int = 100,
         overlap: int = 0,
         consistency_check: bool = True,
+        method: Literal["rebuild", "restrict"] = "rebuild",
         **kwargs: Any,
     ) -> Network:
         """Optimizes the network in a rolling horizon fashion.
@@ -696,6 +698,15 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             Whether to run the consistency check once for the whole network
             before the first window. The windows themselves skip it. Defaults
             to True.
+        method : {"rebuild", "restrict"}
+            `"rebuild"` builds and solves a new model for every window.
+            `"restrict"` builds the model once for all `snapshots` and solves
+            windows cut from it with `linopy.Model.restrict`, fixing all
+            variables of earlier windows. It supports linear, single-period
+            models without global constraints, volume limits, cyclic storage
+            or committable components, raises if a window is not optimal and
+            sets `n.objective` to the objective of the whole horizon. Defaults
+            to `"rebuild"`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`.
             Unless `io_api` or `problem_fn` is given, `io_api="direct"` is used
@@ -711,8 +722,16 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
+        if method not in ("rebuild", "restrict"):
+            msg = f"method must be 'rebuild' or 'restrict', got {method!r}"
+            raise ValueError(msg)
+
         if consistency_check:
             n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
+
+        if method == "restrict":
+            optimize_with_restricted_windows(n, snapshots, horizon, overlap, **kwargs)
+            return n
 
         stores = n.c.stores
         cycles_max = stores.static.cycles_max.copy()
