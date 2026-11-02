@@ -721,16 +721,11 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 )
 
                 if i:
-                    if not n.c.stores.static.empty:
-                        n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
-                            snapshots[start - 1]
-                        ].values
-                    if not n.c.storage_units.static.empty:
-                        n.c.storage_units.static.state_of_charge_initial = (
-                            n.c.storage_units.dynamic.state_of_charge.loc[
-                                snapshots[start - 1]
-                            ].values
-                        )
+                    prev = snapshots[start - 1]
+                    n.c.stores.static["e_initial"] = n.c.stores.dynamic.e.loc[prev]
+                    n.c.storage_units.static["state_of_charge_initial"] = (
+                        n.c.storage_units.dynamic.state_of_charge.loc[prev]
+                    )
                 done, rest = snapshots[:start], snapshots[end:]
                 for name, attr, original, later in tracked:
                     c = n.c[name]
