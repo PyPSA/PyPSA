@@ -495,7 +495,7 @@ def test_rolling_horizon_e_sum_stochastic():
         ("Generator", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
         ("Link", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
         ("Process", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
-        ("Store", {"marginal_cost": 1}, "e_sum_max", 3000, "a single window"),
+        ("Store", {"marginal_cost": 1}, "e_sum_max", 3000, "finite max_hours"),
     ],
 )
 def test_rolling_horizon_e_sum_unbounded_capacity(
@@ -590,3 +590,31 @@ def test_rolling_horizon_writes_problem_file(tmp_path, kwargs, writes_file):
     )
 
     assert any(fn.stat().st_size for fn in tmp_path.glob("*.lp")) == writes_file
+
+
+@pytest.mark.parametrize(
+    ("component", "initial", "level", "kwargs"),
+    [
+        ("Store", "e_initial", "e", {"e_nom": 1000}),
+        (
+            "StorageUnit",
+            "state_of_charge_initial",
+            "state_of_charge",
+            {"p_nom": 1, "max_hours": 1000},
+        ),
+    ],
+)
+def test_rolling_horizon_storage_carry_over_stochastic(
+    component, initial, level, kwargs
+):
+    n = get_network(committable=False)
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+    for name, value in [("s1", 10.0), ("s2", 100.0)]:
+        n.add("Bus", name)
+        n.add(component, name, bus=name, **kwargs, **{initial: value})
+
+    n.optimize.optimize_with_rolling_horizon(horizon=4)
+
+    result = n.c[component].dynamic[level]
+    assert (result.xs("s1", axis=1, level="name") == 10.0).all().all()
+    assert (result.xs("s2", axis=1, level="name") == 100.0).all().all()

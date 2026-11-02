@@ -239,6 +239,8 @@ def _tracked_limits(
     if "p" in c._operational_variables:
         lower, upper = _power_bounds(c, snapshots)
         hint = f"a finite {c._operational_attrs['nom_max']}"
+        if c.name == "Store":
+            hint += " and a finite max_hours"
     else:
         upper = pd.DataFrame(np.inf, index=snapshots, columns=c.static.index)
         lower = -upper
@@ -673,7 +675,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         produced in later windows. Without foresight the resulting dispatch
         pattern depends on the order of the windows. A `ValueError` is raised if
         this energy is unbounded, e.g. for an extendable component with
-        `p_nom_max=inf` or for a store. If limits are tracked, a
+        `p_nom_max=inf` or for a store with `max_hours=inf`. If limits are tracked, a
         `RuntimeError` is raised as soon as a window fails to solve. Otherwise,
         a failed window only logs a warning.
 
@@ -707,6 +709,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         if consistency_check:
             n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
 
+        stores = n.c.stores
+        cycles_max = stores.static.cycles_max.copy()
+        track_cycles = (cycles_max < np.inf).any()
+
         starting_points = range(0, len(snapshots), horizon - overlap)
         weights = _energy_weightings(n, kwargs.get("multi_investment_periods", False))
         tracked = (
@@ -736,25 +742,27 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 )
 
                 if i:
-                    if not n.c.stores.static.empty:
-                        n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
-                            snapshots[start - 1]
-                        ].values
-                    if not n.c.storage_units.static.empty:
-                        n.c.storage_units.static.state_of_charge_initial = (
-                            n.c.storage_units.dynamic.state_of_charge.loc[
-                                snapshots[start - 1]
-                            ].values
-                        )
+                    prev = snapshots[start - 1]
+                    n.c.stores.static["e_initial"] = n.c.stores.dynamic.e.loc[prev]
+                    n.c.storage_units.static["state_of_charge_initial"] = (
+                        n.c.storage_units.dynamic.state_of_charge.loc[prev]
+                    )
                 done, rest = snapshots[:start], snapshots[end:]
                 for name, attr, original, later in tracked:
                     c = n.c[name]
                     used = _energy(c, weights, done)
                     c.static[attr] = original - used - later.loc[rest].sum()
 
+                # count the cycles of previous windows against `cycles_max`
+                eh = n.snapshot_weightings.stores.loc[done]
+                discharge = stores.dynamic.p_dispatch.loc[done]
+                used = discharge.mul(eh, axis=0).sum() / stores.static.e_nom_opt
+                remaining = cycles_max.sub(used.fillna(0), fill_value=0)
+                stores.static.cycles_max = remaining.clip(lower=0)
+
                 status, condition = n.optimize(sns, consistency_check=False, **kwargs)
                 if status != "ok":
-                    if tracked:
+                    if tracked or track_cycles:
                         msg = (
                             f"Optimization of window [{sns[0]}:{sns[-1]}] failed "
                             f"with status {status} and condition {condition}. The "
@@ -769,6 +777,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         finally:
             for name, attr, original, _ in tracked:
                 n.c[name].static[attr] = original
+            stores.static.cycles_max = cycles_max
         return n
 
     def optimize_and_run_non_linear_powerflow(
