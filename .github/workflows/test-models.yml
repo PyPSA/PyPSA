@@ -6,7 +6,7 @@ name: Test models
 
 on:
   schedule:
-  - cron: "0 5 */2 * *"
+  - cron: "0 5 * * *"
   workflow_dispatch:
 
 env:
