@@ -85,13 +85,19 @@ class Stores(Components):
             return -store_pu.where(~split, 0), dispatch_pu
         return xr.zeros_like(store_pu), store_pu.where(split, 0)
 
-    def split_dispatch(self) -> xr.DataArray:
+    def split_dispatch(self, cycles: bool = True) -> xr.DataArray:
         """Get which stores need separate charging and discharging variables.
 
         The net dispatch `p` is sufficient unless the efficiencies differ from
-        one, a cost applies to one direction only or `cycles_max` is finite. Adding the charging
-        variable `p_store` only where needed avoids degenerate variable pairs
-        and speeds up solving.
+        one, a cost applies to one direction only or `cycles_max` is finite.
+        Adding the charging variable `p_store` only where needed avoids
+        degenerate variable pairs and speeds up solving.
+
+        Parameters
+        ----------
+        cycles : bool, default True
+            Whether a finite `cycles_max` requires the split. Without it, only
+            stores whose charging and discharging cannot be netted are split.
 
         Returns
         -------
@@ -104,8 +110,9 @@ class Stores(Components):
             | (self.da.efficiency_dispatch != 1)
             | (self.da.marginal_cost_dispatch != 0)
             | (self.da.marginal_cost_store != 0)
-            | (self.da.cycles_max < np.inf)
         )
+        if cycles:
+            split = split | (self.da.cycles_max < np.inf)
         return split.any("snapshot") if "snapshot" in split.dims else split
 
     def add(

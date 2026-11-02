@@ -379,11 +379,25 @@ def test_cycles_max(extendable, cycles_max):
     assert get_cycles(n) == pytest.approx(cycles_max)
 
 
-def test_cycles_max_rolling_horizon():
-    n = cycles_network(cycles_max=3)
+@pytest.mark.parametrize("extendable", [False, True])
+@pytest.mark.parametrize("cycles_max", [1, 3, 20, float("inf")])
+def test_cycles_max_dispatch_is_net(extendable, cycles_max):
+    n = cycles_network(cycles_max, extendable)
+    n.optimize()
+    p = n.c.stores.dynamic.p.s
+    equal(n.c.stores.dynamic.p_dispatch.s, p.clip(lower=0))
+    equal(n.c.stores.dynamic.p_store.s, -p.clip(upper=0))
+
+
+@pytest.mark.parametrize(
+    ("cycles_max", "daily"), [(3, [1, 1, 1, 0]), (20, [1, 1, 1, 1])]
+)
+def test_cycles_max_rolling_horizon(cycles_max, daily):
+    n = cycles_network(cycles_max)
     n.optimize.optimize_with_rolling_horizon(horizon=24)
-    assert get_cycles(n) == pytest.approx(3)
-    assert n.c.stores.static.cycles_max.s == 3
+    discharge = n.c.stores.dynamic.p_dispatch.s.groupby(lambda t: t // 24).sum()
+    equal(discharge / n.c.stores.static.e_nom_opt.s, daily)
+    assert n.c.stores.static.cycles_max.s == cycles_max
 
 
 def test_cycles_max_finite_in_one_scenario():

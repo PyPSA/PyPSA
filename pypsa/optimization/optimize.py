@@ -1174,10 +1174,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 storage_units.dynamic["p_dispatch"] - storage_units.dynamic["p_store"]
             )
 
-        # Split store net dispatch by sign where no charging variable was needed
+        # Split store net dispatch by sign where charging and discharging net out
         stores = n.c.stores
         if not stores.empty:
-            split = stores.split_dispatch().to_series()
+            split = stores.split_dispatch(cycles=False).to_series()
             p, p_store = stores.dynamic["p"], stores.dynamic["p_store"]
             single = p.columns.intersection(split.index[~split])
             p_store.loc[:, single] = -p[single].clip(upper=0)
