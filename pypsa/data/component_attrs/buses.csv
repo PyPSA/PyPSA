@@ -18,4 +18,4 @@ q,series,MVar,0.,reactive power (positive if net generation at bus),Output
 v_mag_pu,series,per unit,1.,"Voltage magnitude, per unit of `v_nom`",Output
 v_ang,series,radians,0.,Voltage angle,Output
 marginal_price,series,currency/MWh,0.,Shadow price from energy balance constraint,Output
-net_position,series,MW,0.,"Net position of a zone bus in a flow-based domain, set by `n.optimize()`",Output
+net_position,series,MW,0.,"Net position of a flow-based zone bus: generation minus load, i.e. its solved net position without the flows of its corridor links (the link columns of the domain). Only set for zone buses of a `flow_based` global constraint.",Output

@@ -404,7 +404,9 @@ def test_link_column_without_zone_raises():
 
 def test_unknown_column_raises():
     n = triangle()
-    n.add("GlobalConstraint", "Z (+)", type="flow_based", ram=100, ptdf_Z=1.0)
+    n.add(
+        "GlobalConstraint", "Z (+)", type="flow_based", sense="<=", ram=100, ptdf_Z=1.0
+    )
     with pytest.raises(ValueError, match="Unknown PTDF columns"):
         n.optimize.create_model()
 
@@ -420,14 +422,16 @@ def test_bus_link_clash_raises():
 def test_isolated_zone_raises():
     n = triangle()
     n.add("Bus", "D")
-    n.add("GlobalConstraint", "D (+)", type="flow_based", ram=100, ptdf_D=1.0)
+    n.add(
+        "GlobalConstraint", "D (+)", type="flow_based", sense="<=", ram=100, ptdf_D=1.0
+    )
     with pytest.raises(ValueError, match="no attached components"):
         n.optimize.create_model()
 
 
 def test_nan_ram_raises():
     n = triangle()
-    n.add("GlobalConstraint", "AB (x)", type="flow_based", ptdf_A=0.1)
+    n.add("GlobalConstraint", "AB (x)", type="flow_based", sense="<=", ptdf_A=0.1)
     with pytest.raises(ValueError, match="have no `ram`"):
         n.optimize.create_model()
 
@@ -461,6 +465,13 @@ def test_investment_period_without_periods_raises():
     n = triangle()
     n.c.global_constraints.static.loc["AB (+)", "investment_period"] = 2020
     with pytest.raises(ValueError, match="no investment periods"):
+        n.optimize.create_model()
+
+
+def test_sense_not_le_raises():
+    n = triangle()
+    n.c.global_constraints.static.loc["AB (+)", "sense"] = "=="
+    with pytest.raises(ValueError, match="need `sense"):
         n.optimize.create_model()
 
 
@@ -613,6 +624,9 @@ def test_advanced_hybrid_coupling_import():
     p_h = n.c.links.dynamic["p1"]["H"].iloc[0] * -1
     np_ = net_position(n).iloc[0]
     assert np_["B"] == pytest.approx(gen["gen B"] - 1500 + p_h)
+    out = n.c.buses.dynamic["net_position"].iloc[0]
+    assert out["B"] == pytest.approx(gen["gen B"] - 1500)
+    assert out["X"] == 0
 
 
 def test_corridor_export_enters_net_position():
@@ -627,9 +641,40 @@ def test_corridor_export_enters_net_position():
     gen_a = n.c.generators.dynamic["p"]["gen A"].iloc[0]
     assert n.c.links.dynamic["p0"]["H"].iloc[0] == pytest.approx(300)
     assert np_["A"] == pytest.approx(gen_a - 500 - 300)
+    assert n.c.buses.dynamic["net_position"].iloc[0]["A"] == pytest.approx(gen_a - 500)
     np.testing.assert_allclose(
         np_, n.c.buses.dynamic["p"].iloc[0][np_.index], atol=1e-6
     )
+
+
+@pytest.mark.parametrize("scenarios", [False, True])
+def test_net_position_output_is_generation_minus_load(scenarios):
+    """`buses_t.net_position` is the net position without the corridor flows."""
+    n = triangle()
+    n.add("Link", "L", bus0="A", bus1="B", p_nom=3000, p_min_pu=-1, efficiency=0.9)
+    add_corridor(n)
+    if scenarios:
+        n.set_scenarios({"low": 0.5, "high": 0.5})
+    n.optimize()
+
+    out = n.c.buses.dynamic["net_position"]
+    gen = n.c.generators.dynamic["p"].rename(columns=lambda s: s[-1], level="name")
+    load = n.c.loads.dynamic["p"].rename(columns=lambda s: s[-1], level="name")
+    pd.testing.assert_frame_equal(
+        out, gen - load, check_names=False, check_column_type=False, atol=1e-6
+    )
+
+    # The model's net position includes the corridor flow: -p0 at bus0, eta*p0 at bus1
+    flow = (
+        n.c.links.dynamic["p0"].reindex(columns=["L"], level="name").to_numpy().ravel()
+    )
+    assert (flow == 400).all()
+    np_ = n.model["FlowBased-net_position"].solution
+    for zone, factor in [("A", -1.0), ("B", 0.9)]:
+        expected = (
+            out.reindex(columns=[zone], level="name").to_numpy().ravel() + factor * flow
+        )
+        np.testing.assert_allclose(np_.sel(bus=zone).to_numpy().ravel(), expected)
 
 
 def _single_snapshot_solve(ram_ab, b_scale):

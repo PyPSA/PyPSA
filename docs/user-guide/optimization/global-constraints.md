@@ -190,7 +190,7 @@ The net position $NP_{z,t}$ of a market zone $z$ at snapshot $t$ is the power it
 
 $$g_{z,t} - d_{z,t} - NP_{z,t} = 0 ,$$
 
-so it equals the bus's net injection and is read from `n.buses_t.net_position` after solving (0 for buses that are no zone).
+so it equals the bus's net injection and is read from `n.buses_t.p` after solving. The output `n.buses_t.net_position` holds the generation minus load of each zone bus (0 for other buses), which is the net position itself unless corridor links are present (see below).
 
 ### Domain constraints
 
@@ -238,12 +238,12 @@ which is $h - \text{PTDF}_z$ for an AHC link into zone $z$, and $(h_B - h_A) - (
 
     | | PyPSA | Virtual hub |
     |---|---|---|
-    | zone net position | $g_z - d_z + \sum_\ell a_{z,\ell} f_\ell$ (`n.buses_t.net_position`) | $g_z - d_z$ |
+    | zone net position | $g_z - d_z + \sum_\ell a_{z,\ell} f_\ell$ (`n.buses_t.p`) | $g_z - d_z$ (`n.buses_t.net_position`) |
     | AHC column, $X \to A$ | $h_A - \text{PTDF}_A$ | $h_A$ |
     | EvFB column, $A \to B$ | $(h_B - h_A) - (\text{PTDF}_B - \text{PTDF}_A)$ | $h_B - h_A$ |
     | zero-sum balance | $\sum_z NP_z = 0$ | $\sum_z NP_z + \sum_{\text{hubs}} f = 0$ |
 
-    PyPSA uses the first form because the link then needs no special treatment in the nodal balance. After solving, `n.buses_t.net_position` reports the net position of each zone bus in this form; the virtual-hub net position $g_z - d_z$ is that value without the flows of its corridor links.
+    PyPSA uses the first form because the link then needs no special treatment in the nodal balance. After solving, `n.buses_t.net_position` reports the virtual-hub net position $g_z - d_z$ of each zone bus, i.e. `n.buses_t.p` without the flows of its corridor links.
 
 These terms are built in `define_flow_based_constraints()`.
 
@@ -251,7 +251,8 @@ These terms are built in `define_flow_based_constraints()`.
 
     | Symbol | Attribute | Type |
     |--------|-----------|------|
-    | $NP_{z,t}$ | `n.buses_t.net_position` (variable `FlowBased-net_position`) | Decision Variable |
+    | $NP_{z,t}$ | `n.buses_t.p` (variable `FlowBased-net_position`) | Decision Variable |
+    | $g_{z,t} - d_{z,t}$ | `n.buses_t.net_position` | Output |
     | $f_{\ell,t}$ | `n.links_t.p0` | Decision Variable |
     | $\mu_{c,t}$ | `n.global_constraints_t.mu_ram` | Dual Variable |
     | $\text{PTDF}_{c,z,t}$ | `n.c.global_constraints.zonal_ptdf` | Parameter |

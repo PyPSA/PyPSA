@@ -112,7 +112,7 @@ class GlobalConstraints(Components):
 
         Notes
         -----
-        `sense` and `constant` are ignored for `flow_based` rows. A link
+        `sense` must be `<=` and `constant` is ignored for `flow_based` rows. A link
         column carries `h - (eta * PTDF_bus1 - PTDF_bus0)`, where `h` is the
         CNEC's sensitivity to the link flow, since the net position of a zone
         includes the flows of its links. On a stochastic network this writes the

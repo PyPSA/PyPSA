@@ -13,7 +13,7 @@ problem that apply to multiple components at once. Constraints of `type="flow_ba
 
 ## Flow-Based Domain
 
-A flow-based market-coupling domain is a set of global constraints of `type="flow_based"`, one row per critical network element (CNEC), each with the remaining available margin (RAM) in `ram` (`sense` and `constant` are ignored for these rows). The concept and the constraints are explained on the [optimisation page](../optimization/global-constraints.md#flow-based-market-coupling); this section covers how to enter the data. See also the [example notebook](../../examples/fbmc-simple-example.ipynb).
+A flow-based market-coupling domain is a set of global constraints of `type="flow_based"`, one row per critical network element (CNEC), each with `sense="<="` and the remaining available margin (RAM) in `ram` (`constant` is ignored for these rows). The concept and the constraints are explained on the [optimisation page](../optimization/global-constraints.md#flow-based-market-coupling); this section covers how to enter the data. See also the [example notebook](../../examples/fbmc-simple-example.ipynb).
 
 ### Zonal PTDF
 

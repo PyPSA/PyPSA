@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pypsa.components.array import _from_xarray
 from pypsa.components.common import invariant
 from pypsa.optimization.common import get_bus_counts
 from pypsa.optimization.window import snapshot_array
@@ -69,6 +70,13 @@ def _build_domain(n: Network, sns: pd.Index) -> _FlowBasedDomain | None:
         msg = (
             "A global constraint named `ram` clashes with the flow-based "
             f"constraint `{RAM_CONSTRAINT}`. Rename it."
+        )
+        raise ValueError(msg)
+    sense = invariant(c.static["sense"]).loc[rows]
+    if (sense != "<=").any():
+        msg = (
+            f"Flow-based rows {sense.index[sense != '<='].tolist()} need "
+            f'`sense="<="`; got {sorted(set(sense))}.'
         )
         raise ValueError(msg)
 
@@ -224,7 +232,7 @@ def define_flow_based_constraints(n: Network, domain: _FlowBasedDomain | None) -
     Adds `GlobalConstraint-ram`, the PTDF-weighted net positions and corridor
     flows of every CNEC limited by its `ram`, and `FlowBased-balance`, the zone
     net positions summing to zero. A row with an `investment_period` binds only
-    in that period's snapshots. `sense` and `constant` are not read.
+    in that period's snapshots. `constant` is not read.
 
     Parameters
     ----------
@@ -245,3 +253,25 @@ def define_flow_based_constraints(n: Network, domain: _FlowBasedDomain | None) -
     mask = xr.broadcast(domain.mask, domain.ram)[0]
     m.add_constraints(lhs <= domain.ram, name=RAM_CONSTRAINT, mask=mask)
     m.add_constraints(net_position.sum("bus") == 0, name=BALANCE)
+
+
+def flow_based_net_position(n: Network) -> pd.DataFrame | None:
+    """Return generation minus load of each zone bus, or ``None`` without a domain.
+
+    This is the solved net position without the flows of the zone's corridor links
+    (the link columns of the domain), i.e. the net position of the virtual-hub
+    convention. Read from `n.buses_t.net_position` after solving.
+    """
+    if NET_POSITION not in n.model.variables:
+        return None
+    solution = n.model[NET_POSITION].solution.rename({"bus": "name"})
+    net_position = _from_xarray(solution, n.c.buses)
+    links = n.c.links
+    columns = n.c.global_constraints._ptdf_columns()
+    corridors = columns[columns.isin(links.static.index.unique("name"))].rename("name")
+    for i in links.ports:
+        flow = links.dynamic[f"p{i}"].reindex(columns=corridors, level="name")
+        flow = flow.rename(columns=invariant(links.static[f"bus{i}"]), level="name")
+        withdrawn = flow.T.groupby(level=list(range(flow.columns.nlevels))).sum().T
+        net_position += withdrawn.reindex(columns=net_position.columns, fill_value=0.0)
+    return net_position
