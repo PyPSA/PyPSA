@@ -2160,8 +2160,14 @@ class NetworkIOMixin(_NetworkABC):
         # Add all unknown attributes to the dataframe without any checks
         expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
         if attr not in expected_attrs:
-            if overwrite or attr not in dynamic:
+            if attr not in dynamic:
                 dynamic[attr] = df
+            else:
+                existing = dynamic[attr]
+                existing = existing.drop(
+                    existing.columns.intersection(df.columns), axis=1
+                )
+                dynamic[attr] = pd.concat([existing, df], axis=1)
             return
 
         # Check if any snapshots are missing
