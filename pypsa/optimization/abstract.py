@@ -35,8 +35,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _STORAGE_LEVELS = (
-    ("stores", "e_initial", "e"),
-    ("storage_units", "state_of_charge_initial", "state_of_charge"),
+    ("stores", "e_initial", "e", "e_initial_per_period"),
+    (
+        "storage_units",
+        "state_of_charge_initial",
+        "state_of_charge",
+        "state_of_charge_initial_per_period",
+    ),
 )
 
 
@@ -671,6 +676,14 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         Each window starts from the state left by the previous one: the storage
         levels of stores and storage units, and the dispatch and commitment
         status of all components for the ramp and unit commitment constraints.
+        `e_initial` and `state_of_charge_initial` are restored after the run.
+
+        With `multi_investment_periods=True`, windows are cut at investment
+        period boundaries, so that no window spans two periods. Within each
+        period, windows start every `horizon - overlap` snapshots and the last
+        one is shortened at the period end. In the first window of a period,
+        stores with `e_initial_per_period` and storage units with
+        `state_of_charge_initial_per_period` start from their initial value.
 
         Finite `e_sum_min` and `e_sum_max` limits of generators, links,
         processes and stores refer to the whole set of
@@ -718,13 +731,25 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         cycles_max = stores.static.cycles_max.copy()
         track_cycles = (cycles_max < np.inf).any()
 
-        starting_points = range(0, len(snapshots), horizon - overlap)
-        weights = _energy_weightings(n, kwargs.get("multi_investment_periods", False))
+        multi_invest = kwargs.get("multi_investment_periods", False)
+        bounds = [0, len(snapshots)]
+        if multi_invest:
+            periods = pd.MultiIndex.from_tuples(snapshots).get_level_values(0)
+            bounds = [
+                0,
+                *np.flatnonzero(periods[1:] != periods[:-1]) + 1,
+                len(snapshots),
+            ]
+        windows = [
+            (start, min(end, start + horizon))
+            for begin, end in zip(bounds[:-1], bounds[1:], strict=True)
+            for start in range(begin, end, horizon - overlap)
+        ]
+        weights = _energy_weightings(n, multi_invest)
         tracked = (
-            []
-            if len(starting_points) == 1
-            else _all_tracked_limits(n, weights, snapshots)
+            [] if len(windows) == 1 else _all_tracked_limits(n, weights, snapshots)
         )
+        initials = {c: n.c[c].static[attr].copy() for c, attr, _, _ in _STORAGE_LEVELS}
 
         solver_name = kwargs.get("solver_name") or options.params.optimize.solver_name
         if (
@@ -735,24 +760,26 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             kwargs["io_api"] = "direct"
 
         try:
-            for i, start in enumerate(starting_points):
-                end = min(len(snapshots), start + horizon)
+            for i, (start, end) in enumerate(windows):
                 sns = snapshots[start:end]
                 logger.info(
                     "Optimizing network for snapshot horizon [%s:%s] (%s/%s).",
                     sns[0],
                     sns[-1],
                     i + 1,
-                    len(starting_points),
+                    len(windows),
                 )
 
                 if i:
                     prev, first = snapshots[start - 1], sns[:1]
                     eh = n.snapshot_weightings.stores.loc[first].iloc[0]
-                    for c, attr, level in _STORAGE_LEVELS:
+                    for c, attr, level, per_period in _STORAGE_LEVELS:
+                        static = n.c[c].static
                         loss = n.c[c]._as_dynamic("standing_loss", first).iloc[0]
                         level_prev = n.c[c].dynamic[level].loc[prev]
-                        n.c[c].static[attr] = level_prev * (1 - loss) ** eh
+                        carried = level_prev * (1 - loss) ** eh
+                        reset = static[per_period] & (start in bounds)
+                        static[attr] = carried.where(~reset, initials[c])
                 done, rest = snapshots[:start], snapshots[end:]
                 for name, attr, original, later in tracked:
                     c = n.c[name]
@@ -783,6 +810,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         finally:
             for name, attr, original, _ in tracked:
                 n.c[name].static[attr] = original
+            for c, attr, _, _ in _STORAGE_LEVELS:
+                n.c[c].static[attr] = initials[c]
             stores.static.cycles_max = cycles_max
         return n
 

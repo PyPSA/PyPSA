@@ -644,3 +644,39 @@ def test_rolling_horizon_storage_standing_loss(component, level, kwargs):
     pd.testing.assert_frame_equal(
         rolling.c[component].dynamic[level], full.c[component].dynamic[level]
     )
+
+
+@pytest.mark.parametrize("horizon", [4, 3], ids=["aligned", "crossing"])
+@pytest.mark.parametrize(
+    ("component", "initial", "level", "kwargs"),
+    [
+        ("Store", "e_initial", "e", {"e_nom": 100}),
+        (
+            "StorageUnit",
+            "state_of_charge_initial",
+            "state_of_charge",
+            {"p_nom": 100, "max_hours": 1},
+        ),
+    ],
+)
+def test_rolling_horizon_initial_per_period(component, initial, level, kwargs, horizon):
+    def build():
+        n = pypsa.Network(snapshots=pd.MultiIndex.from_product([[1, 2], range(4)]))
+        n.set_investment_periods([1, 2])
+        n.add("Bus", "bus")
+        n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=100)
+        n.add("Load", "load", bus="bus", p_set=5)
+        attrs = {initial: 20, f"{initial}_per_period": True}
+        n.add(component, "storage", bus="bus", **kwargs, **attrs)
+        return n
+
+    full, rolling = build(), build()
+    full.optimize(multi_investment_periods=True)
+    rolling.optimize.optimize_with_rolling_horizon(
+        horizon=horizon, multi_investment_periods=True
+    )
+
+    pd.testing.assert_frame_equal(
+        rolling.c[component].dynamic[level], full.c[component].dynamic[level]
+    )
+    assert rolling.c[component].static.loc["storage", initial] == 20
