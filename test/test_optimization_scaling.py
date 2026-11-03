@@ -392,7 +392,14 @@ def feature_network() -> pypsa.Network:
         max_hours=4,
         p_set=[np.nan, 0, np.nan, np.nan, np.nan, np.nan],
     )
-    n.add("Store", "h2_store", bus="h2", e_nom_extendable=True, e_cyclic=True)
+    n.add(
+        "Store",
+        "h2_store",
+        bus="h2",
+        e_nom_extendable=True,
+        e_cyclic=True,
+        cycles_max=50,
+    )
     n.add("Load", "la", bus="c", p_set=80)
     n.add("Load", "lh2", bus="h2", p_set=5)
     limits: list[tuple[str, dict[str, Any]]] = [

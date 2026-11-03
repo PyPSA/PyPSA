@@ -2617,7 +2617,14 @@ def define_store_cycle_constraints(n: Network, sns: pd.Index) -> None:
         lhs = lhs - cycles_max.sel(name=ext_i) * capacity
         rhs = rhs.where(~rhs.coords["name"].isin(ext_i), 0)
 
-    m.add_constraints(lhs, "<=", rhs, name="Store-cycles_max", mask=limited)
+    m.add_constraints(
+        lhs,
+        "<=",
+        rhs,
+        name="Store-cycles_max",
+        mask=limited,
+        scaling=c._scaling(names),
+    )
 
 
 def define_tangent_loss_constraints(
