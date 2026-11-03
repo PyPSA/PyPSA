@@ -3,9 +3,49 @@ name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,Name of bus to which load is attached.,Input (required)
 carrier,string,n/a,n/a,Carrier of the load.,Input (optional)
 type,string,n/a,n/a,Placeholder for load type. Not implemented.,Input (optional)
-p_set,static or series,MW,0,Active power consumption (positive if the load is consuming power).,Input (optional)
+p_set,static or series,MW,n/a,"Active power consumption (positive if the load is consuming power). If `p_set` is given for all optimized snapshots, the load is passive and enters the optimization as a constant. Where `p_set` is NaN, the consumption is a decision variable within `[p_min_pu, p_max_pu] * p_nom`.",Input (optional)
 q_set,static or series,MVar,0,Reactive power consumption (positive if the load is inductive).,Input (optional)
-sign,float,n/a,-1,Sign (opposite sign to generator),Input (optional)
+sign,float,n/a,-1,"Sign denoting the orientation of the consumption variable (negative for consumption). Linear marginal costs are applied to the power injected at the bus, i.e. `sign * p`.",Input (optional)
+p_nom,float,MW,0,Nominal power for limits on `p` in optimization. Ignored if `p_nom_extendable=True`.,Input (optional)
+p_nom_mod,float,MW,0,Nominal power of the load module (fixed unit size). Introduces integer variables if set.,Input (optional)
+p_nom_extendable,boolean,n/a,False,Switch to allow capacity `p_nom` to be extended in optimization.,Input (optional)
+p_nom_min,float,MW,0,"If `p_nom` is extendable in optimization, set its minimum value.",Input (optional)
+p_nom_max,float,MW,inf,"If `p_nom` is extendable in optimization, set its maximum value.",Input (optional)
+p_nom_set,float,MW,n/a,"If `p_nom` is extendable in optimization, set its value.",Input (optional)
+p_min_pu,static or series,per unit,0.,"The minimum consumption for each snapshot per unit of `p_nom` for the optimization. Only relevant where `p_set` is NaN.",Input (optional)
+p_max_pu,static or series,per unit,1,"The maximum consumption for each snapshot per unit of `p_nom` for the optimization. Only relevant where `p_set` is NaN.",Input (optional)
+p_init,static,MW,n/a,Active power used as a starting point for limiting the ramp in the very first snapshot (for optimisation),Input (optional)
+e_sum_min,float,MWh,-inf,"The minimum total energy consumed over all snapshots of the optimization, with investment periods weighted by their `years`.",Input (optional)
+e_sum_max,float,MWh,inf,"The maximum total energy consumed over all snapshots of the optimization, with investment periods weighted by their `years`.",Input (optional)
+marginal_cost,static or series,currency/MWh,0.,"Marginal cost of 1 MWh injected at the bus. With the default `sign=-1`, a positive value is the price the consumer is willing to pay for 1 MWh consumed and enters the objective as revenue (`sign * marginal_cost * p`).",Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0.,"Quadratic marginal cost of 1 MWh injected at the bus. Enters the objective as `sign**2 * marginal_cost_quadratic * p**2`, so a positive value models a decreasing willingness to pay (elastic demand).",Input (optional)
+active,boolean,n/a,True,Whether to consider the component in optimisation or not.,Input (optional)
+build_year,int,year,0,Build year of the load.,Input (optional)
+lifetime,float,years,inf,Lifetime of the load.,Input (optional)
+capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW (e.g. annuitized investment costs). Used directly in optimization unless `overnight_cost` is specified.",Input (optional)
+overnight_cost,float,currency/MW,NaN,"Overnight (upfront) investment cost per MW. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
+discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
+fom_cost,float,currency/MW,0,"Fixed period operation and maintenance costs per MW, added to annuitized investment cost.",Input (optional)
+committable,boolean,n/a,False,Apply unit commitment constraints.,Input (optional)
+start_up_cost,static or series,currency,0,Cost to start up the load. Only used if `committable=True`.,Input (optional)
+shut_down_cost,static or series,currency,0,Cost to shut down the load. Only used if `committable=True`.,Input (optional)
+stand_by_cost,static or series,currency/h,0.,Stand-by cost incurred whenever the status is 1. Only used if `committable=True`.,Input (optional)
+min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
+min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
+up_time_before,int,snapshots,1,Number of snapshots that the load was online before the first optimized snapshot. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
+down_time_before,int,snapshots,0,Number of snapshots that the load was offline before the first optimized snapshot. Takes precedence over `up_time_before` if positive. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
+ramp_limit_up,static or series,per unit,NaN,"Maximum active power increase from one snapshot to the next, per unit of the nominal power. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
+ramp_limit_down,static or series,per unit,NaN,"Maximum active power decrease from one snapshot to the next, per unit of the nominal power. Ignored if NaN. Does not consider snapshot weightings.",Input (optional)
+ramp_limit_start_up,float,per unit,NaN,"Maximum active power increase at start up, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional)
+ramp_limit_shut_down,float,per unit,NaN,"Maximum active power decrease at shut down, per unit of the nominal power. Only used if `committable=True`. Ignored if NaN.",Input (optional)
 p,series,MW,0,Active power at bus (positive if net load),Output
 q,series,MVar,0,Reactive power (positive if net load),Output
-active,boolean,n/a,True,Whether to consider the component in optimisation or not.,Input (optional)
+p_nom_opt,float,MW,0.,Optimised nominal capacity.,Output
+status,series,n/a,1,"Status in the snapshot (1 is on, 0 is off). Only returned if `committable=True`.",Output
+start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only returned if `committable=True`.",Output
+shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no). Only returned if `committable=True`.",Output
+mu_upper,series,currency/MWh,n/a,Shadow price of upper `p_nom` limit,Output
+mu_lower,series,currency/MWh,n/a,Shadow price of lower `p_nom` limit,Output
+mu_p_set,series,currency/MWh,n/a,Shadow price of fixed power consumption `p_set`,Output
+mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
+mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output

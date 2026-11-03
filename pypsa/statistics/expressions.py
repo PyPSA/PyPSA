@@ -258,6 +258,16 @@ def get_transmission_carriers(
         return pd.MultiIndex.from_tuples([], names=result_names)
 
 
+def _cost_follows_sign(c: str) -> bool:
+    """Whether linear marginal costs of component type `c` follow its `sign`.
+
+    Resolved from the component class, so it also works for network collections.
+    """
+    from pypsa.components.legacy import _CLASS_MAPPING  # noqa: PLC0415
+
+    return getattr(_CLASS_MAPPING.get(c), "_cost_follows_sign", False)
+
+
 class StatisticHandler:
     """Statistic method handler.
 
@@ -1687,6 +1697,15 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                         continue
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
                     opex = var * (cost + cost_piecewise_opt)
+                    if _cost_follows_sign(c) and cost_type in (
+                        "marginal_cost",
+                        "marginal_cost_quadratic",
+                    ):
+                        # costs apply to the power injected at the bus
+                        sign = n.get_switchable_as_dense(c, "sign")
+                        if cost_type == "marginal_cost_quadratic":
+                            sign = sign**2
+                        opex = opex * sign
                     term = self._aggregate_timeseries(opex, weights, agg=groupby_time)
                     result.append(term)
 

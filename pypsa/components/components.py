@@ -169,6 +169,13 @@ class Components(
     """
 
     _operational_variables: list[str] = []
+    # Whether assets with a fully given `p_set` (and no feature requiring a
+    # decision variable) enter the optimization as constants.
+    _constant_fixed_operation: bool = False
+    # Whether linear marginal costs apply to the power injected at the bus
+    # (`sign * p`) instead of the dispatch variable `p`. Will be the default for
+    # all components with a `sign` attribute in PyPSA 2.0.
+    _cost_follows_sign: bool = False
 
     def __init__(
         self,
@@ -979,6 +986,30 @@ class Components(
 
         return idx
 
+    def _cost_sign(self, names: pd.Index | None = None) -> xarray.DataArray | float:
+        """Get the factor applied to linear marginal costs in the objective.
+
+        Returns the component's `sign` if linear marginal costs follow the
+        power injected at the bus (see `_cost_follows_sign`), otherwise 1.
+
+        Parameters
+        ----------
+        names : pd.Index, optional
+            Asset names to select.
+
+        Returns
+        -------
+        xr.DataArray | float
+            Factor per asset or scalar 1.
+
+        """
+        if not self._cost_follows_sign or "sign" not in self.static:
+            return 1.0
+        sign = self.da.sign
+        if names is not None:
+            sign = sign.sel(name=names)
+        return sign
+
     @property
     def committables(self) -> pd.Index:
         """Get the index of committable elements of this component.
@@ -1270,6 +1301,9 @@ class Components(
         nyears = self.nyears
         nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
         back_calculated = capital / (ann_factor * nyears_scalar)
+        # Without any investment cost, the overnight cost is zero (instead of
+        # NaN from a missing annuity).
+        back_calculated = back_calculated.where(needs_back_calc, 0.0)
 
         return overnight.where(has_overnight, back_calculated)
 

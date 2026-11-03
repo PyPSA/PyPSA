@@ -31,6 +31,10 @@ from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components, invariant
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.common import (
+    get_constant_operation_assets,
+    get_operational_assets,
+)
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 from pypsa.optimization.window import apply_period_weighting, snapshot_array
 
@@ -110,7 +114,9 @@ def define_operational_constraints_for_non_extendables(
 
     """
     c = as_components(n, component)
-    fix_i = c.fixed.difference(c.committables).intersection(c.active_assets)
+    fix_i = c.fixed.difference(c.committables).intersection(
+        get_operational_assets(n, c)
+    )
     maint_fix_i = c.maintainables.intersection(fix_i)
 
     if fix_i.empty:
@@ -1037,7 +1043,9 @@ def define_ramp_limit_constraints(
     if c.static.empty:
         return
 
-    idx = c.active_assets
+    idx = get_operational_assets(n, c)
+    if idx.empty:
+        return
     # Label-indexed on name so masks broadcast against the scenario arrays.
     is_ext = DataArray(idx.isin(c.extendables), coords=[idx])
     is_com = DataArray(idx.isin(c.committables), coords=[idx])
@@ -1379,6 +1387,7 @@ def define_nodal_balance_constraints(
 
     args: list[Any] = [
         ["Generator", "p", "bus", 1],
+        ["Load", "p", "bus", 1],
         ["Store", "p", "bus", 1],
         ["StorageUnit", "p_dispatch", "bus", 1],
         ["StorageUnit", "p_store", "bus", -1],
@@ -1405,6 +1414,9 @@ def define_nodal_balance_constraints(
         c = n.c[component]
         if c.static.empty:
             continue
+        if f"{c.name}-{attr}" not in m.variables:
+            # e.g. only loads entering the balance as constants
+            continue
 
         var = m[f"{c.name}-{attr}"]
         if "sign" in c.static:
@@ -1413,7 +1425,7 @@ def define_nodal_balance_constraints(
         expr = sign * var
 
         cbuses = c._as_xarray(column)
-        cbuses = cbuses.sel(name=c.active_assets)
+        cbuses = cbuses.sel(name=get_operational_assets(n, c))
         # Only keep the first scenario if there are multiple
         if n.has_scenarios:
             cbuses = cbuses.isel(scenario=0, drop=True)
@@ -1506,20 +1518,24 @@ def define_nodal_balance_constraints(
 
     lhs = merge(exprs, join="outer").reindex(name=buses)
 
-    # Prepare the RHS
+    # Prepare the RHS: loads with a fully given `p_set` enter as constants
     loads = as_components(n, "Load")
+    constant_loads = get_constant_operation_assets(n, loads)
 
-    if loads.static.empty:
+    if constant_loads.empty:
         rhs = DataArray(
             0.0,
             coords={"snapshot": sns, "name": buses},
             dims=["snapshot", "name"],
         )
     else:
-        active_mask = loads.da.active.sel(name=loads.active_assets, snapshot=sns)
-        loads_values = (-loads.da.p_set * loads.da.sign).where(active_mask)
-        loads_values = loads_values.reindex(name=loads.static.index.unique("name"))
-        load_buses = loads._as_xarray("bus").rename("Bus")
+        active_mask = loads.da.active.sel(name=constant_loads, snapshot=sns)
+        # NaN set points of loads without capacity mean zero consumption
+        loads_values = (
+            -loads.da.p_set.sel(name=constant_loads, snapshot=sns).fillna(0)
+            * loads.da.sign.sel(name=constant_loads)
+        ).where(active_mask)
+        load_buses = loads._as_xarray("bus").sel(name=constant_loads).rename("Bus")
         if n.has_scenarios:
             load_buses = load_buses.isel(scenario=0, drop=True)
 
@@ -2081,7 +2097,7 @@ def define_fixed_operation_constraints(
     if attr_set not in c.dynamic.keys():
         return
 
-    fix = c.da[attr_set].sel(snapshot=sns, name=c.active_assets)
+    fix = c.da[attr_set].sel(snapshot=sns, name=get_operational_assets(n, c))
 
     if fix.isnull().all():
         return
@@ -2096,7 +2112,7 @@ def define_fixed_operation_constraints(
         lhs = p_dispatch - p_store
         n.model.add_constraints(lhs, "=", fix, name="StorageUnit-p_set", mask=mask)
     else:
-        var = n.model[f"{c.name}-{attr}"]
+        var = n.model[f"{c.name}-{attr}"].sel(name=fix.coords["name"].values)
         n.model.add_constraints(var, "=", fix, name=f"{c.name}-" + attr_set, mask=mask)
 
 

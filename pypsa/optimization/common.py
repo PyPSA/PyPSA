@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     import xarray as xr
 
     from pypsa import Network
+    from pypsa.components import Components
 
 
 @deprecated(
@@ -82,6 +83,140 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
         result = result.reindex(c.names, level="name", axis=1)
 
     c.dynamic[attr] = result.fillna(0.0)
+
+
+_VARIABLE_FEATURE_DEFAULTS = (
+    ("e_sum_min", -float("inf")),
+    ("e_sum_max", float("inf")),
+    ("marginal_cost", 0.0),
+    ("marginal_cost_quadratic", 0.0),
+)
+
+
+def compute_constant_operation_assets(
+    n: Network, c: Components, sns: pd.Index
+) -> pd.Index:
+    """Get the assets of a component that enter the model as constants.
+
+    Only applies to components that opt in via `_constant_fixed_operation`
+    (currently `Load`). An asset is a constant if no feature requires a
+    decision variable, i.e. it is not extendable, committable, modular or
+    maintainable, has no ramp limits, no `e_sum_min`/`e_sum_max` limits and no
+    marginal costs, and either
+
+    - its `p_set` is given for all snapshots `sns` (and all scenarios), or
+    - it has no capacity (`p_nom == 0`), so its operation is zero wherever
+      `p_set` is NaN. This keeps loads stored with the former default
+      `p_set = 0` (which is not written to files) out of the model.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    c : pypsa.Components
+        Components to evaluate.
+    sns : pd.Index
+        Snapshots of the model build.
+
+    Returns
+    -------
+    pd.Index
+        Names of the assets whose operation is a constant.
+
+    """
+    empty = pd.Index([], name="name")
+    if not getattr(c, "_constant_fixed_operation", False) or c.empty:
+        return empty
+    names = c.active_assets
+    if names.empty or "p_set" not in c.static:
+        return empty
+
+    def _any(da: xr.DataArray) -> pd.Series:
+        dims = [d for d in da.dims if d != "name"]
+        reduced = da.any(dims) if dims else da
+        return reduced.to_series().reindex(names, fill_value=False)
+
+    p_set = c.da.p_set.sel(name=names, snapshot=sns)
+    constant = ~_any(p_set.isnull())
+    nom_attr = c._operational_attrs["nom"]
+    if nom_attr in c.static:
+        constant |= ~_any(c.da[nom_attr].sel(name=names) != 0)
+
+    needs_var = pd.Series(
+        names.isin(c.extendables)
+        | names.isin(c.committables)
+        | names.isin(c.modulars)
+        | names.isin(c.maintainables),
+        index=names,
+    )
+    for attr in (
+        "ramp_limit_up",
+        "ramp_limit_down",
+        "ramp_limit_start_up",
+        "ramp_limit_shut_down",
+    ):
+        if attr in c.static:
+            da = c.da[attr].sel(name=names)
+            if "snapshot" in da.dims:
+                da = da.sel(snapshot=sns)
+            needs_var |= _any(da.notnull())
+    for attr, default in _VARIABLE_FEATURE_DEFAULTS:
+        if attr in c.static:
+            da = c.da[attr].sel(name=names)
+            if "snapshot" in da.dims:
+                da = da.sel(snapshot=sns)
+            needs_var |= _any(da != default)
+
+    return names[(constant & ~needs_var).to_numpy()]
+
+
+def get_constant_operation_assets(n: Network, c: Components) -> pd.Index:
+    """Get the assets entering the current model build as constants.
+
+    The split is computed once per model build in `create_model` and stored on
+    the build's snapshot window. Falls back to computing it on the fly.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    c : pypsa.Components
+        Components to evaluate.
+
+    Returns
+    -------
+    pd.Index
+        Names of the assets whose operation is a constant.
+
+    """
+    window = n.optimize._window
+    if c.name in window.constant_assets:
+        return window.constant_assets[c.name]
+    return compute_constant_operation_assets(n, c, window.model_index)
+
+
+def get_operational_assets(n: Network, c: Components) -> pd.Index:
+    """Get the active assets that have an operational decision variable.
+
+    These are all active assets except the ones entering the model as
+    constants, see `get_constant_operation_assets`.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    c : pypsa.Components
+        Components to evaluate.
+
+    Returns
+    -------
+    pd.Index
+        Names of the assets with an operational variable.
+
+    """
+    if not getattr(c, "_constant_fixed_operation", False):
+        return c.active_assets
+    return c.active_assets.difference(get_constant_operation_assets(n, c))
 
 
 def get_bus_counts(n: Network) -> pd.Series:

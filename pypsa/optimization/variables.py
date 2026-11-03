@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import xarray as xr
 
+from pypsa.optimization.common import get_operational_assets
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -41,7 +43,10 @@ def define_operational_variables(
     if c.empty:
         return
 
-    active = c.da.active.sel(name=c.active_assets, snapshot=sns)
+    names = get_operational_assets(n, c)
+    if names.empty and c._constant_fixed_operation:
+        return
+    active = c.da.active.sel(name=names, snapshot=sns)
     coords = active.coords
     n.model.add_variables(coords=coords, name=f"{c.name}-{attr}", mask=active)
 
