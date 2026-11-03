@@ -531,6 +531,30 @@ def test_rolling_horizon_failed_window(caplog):
     assert n.c.generators.static.loc["gen", "e_sum_max"] == 1000
 
 
+@pytest.mark.parametrize("consistency_check", [True, False])
+@pytest.mark.parametrize(
+    "optimize",
+    [
+        lambda n, **kw: n.optimize(**kw),
+        lambda n, **kw: n.optimize.optimize_with_rolling_horizon(horizon=2, **kw),
+    ],
+    ids=["optimize", "rolling_horizon"],
+)
+def test_strict_consistency_check_before_solving(optimize, consistency_check):
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=1)
+    n.add("Load", "load", bus="unknown", p_set=50)
+
+    if consistency_check:
+        with pytest.raises(pypsa.consistency.ConsistencyError):
+            optimize(n, consistency_check=consistency_check)
+    else:
+        optimize(n, consistency_check=consistency_check)
+
+    assert n.c.generators.dynamic.p.empty == consistency_check
+
+
 def test_rolling_horizon_v_ang_covers_all_snapshots():
     n = pypsa.Network(snapshots=pd.date_range("2030-01-01", periods=6, freq="h"))
     n.add("Bus", "bus")
@@ -540,6 +564,32 @@ def test_rolling_horizon_v_ang_covers_all_snapshots():
     n.optimize.optimize_with_rolling_horizon(horizon=2, overlap=0)
 
     assert n.c.buses.dynamic.v_ang.index.equals(n.snapshots)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "writes_file"),
+    [
+        ({}, False),
+        ({"io_api": "lp"}, True),
+        ({"problem_fn": "problem.lp"}, True),
+    ],
+)
+def test_rolling_horizon_writes_problem_file(tmp_path, kwargs, writes_file):
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=1)
+    n.add("Load", "load", bus="bus", p_set=50)
+    if "problem_fn" in kwargs:
+        kwargs = {"problem_fn": tmp_path / kwargs["problem_fn"]}
+
+    n.optimize.optimize_with_rolling_horizon(
+        horizon=2,
+        keep_files=True,
+        model_kwargs={"solver_dir": tmp_path},
+        **kwargs,
+    )
+
+    assert any(fn.stat().st_size for fn in tmp_path.glob("*.lp")) == writes_file
 
 
 @pytest.mark.parametrize(
