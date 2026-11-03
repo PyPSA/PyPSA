@@ -68,3 +68,68 @@ A column may name a [`Link`][pypsa.components.Links] instead of a zone bus: an H
 ### Several domains side by side
 
 Europe couples more than one flow-based domain, e.g. Core and Nordic. Name the domain of each row with `domain`, e.g. `add_flow_based(zonal_ptdf, ram, domain="Nordic")`. Each named domain gets its own zero-sum balance of net positions. Its zones are the zone columns its rows set (not NaN), so a zone must be set in the rows of exactly one domain. A `Link` between zones of two domains is a column of both. Name the domain of every `flow_based` row or of none; without names, all zones share one balance.
+
+### Importing published domains
+
+`flow_based_from_eraa` reads the Core and Nordic flow-based domains of ENTSO-E's European Resource Adequacy Assessment 2025,[^eraa] `flow_based_from_jao` the Core day-ahead domains of the JAO Publication Tool,[^core-pub] and `flow_based_from_tso` domains in the TSO `MS_FBMC` CSV format. See the [example notebook](../../examples/fbmc-simple-example.ipynb).
+
+The network needs one bus per zone and one link per corridor, named as in the file:
+
+| Format | Zone buses | EvFB link | AHC link |
+|---|---|---|---|
+| ERAA | `BE00`, `DE00`, ... | `BE00-DE00` | `DKE1-DE00` (from `DKE1` into `DE00`) |
+| JAO | `BE`, `DE`, ... | `ALBE-ALDE` (between `BE` and `DE`) | `DE_SE4_Baltic` (from `SE4` into `DE`) |
+| TSO | `BE`, `DE`, ... | `KONV_BE-DE1` | `KONV_AHC_DE-SE04` (HVDC into `DE`), `DKW` (AC exchange of `DKW`) |
+
+Pass `buses=` or `links=` to use other names. A list in `links=` maps one corridor to several links, e.g. a pair of one-way links `{"DKW1-DE00": ["DKW1-DE00-DC", "DE00-DKW1-DC"]}`; each link gets the column in its own direction. The importer flips a corridor's sign if the link runs the other way, and drops corridors without a link (with a warning). JAO's `CH` column is dropped, as Core publishes Swiss PTDFs for transparency only.
+
+Each importer hands the zone PTDFs and the published hub sensitivities to [`add_flow_based_from_hubs`][pypsa.components.GlobalConstraints.add_flow_based_from_hubs], which also takes domains from other sources, such as a database. A hub is the CNEC's sensitivity to 1 MW injected where a corridor lands in a zone. For a link `bus0 -> bus1` with efficiency $\eta$, the sensitivity to its flow is $\eta\, h_1 - h_0$, from which the zone PTDFs of its ends are subtracted (see [two equivalent net-position conventions](../optimization/global-constraints.md#controllable-link-flows-ahc-and-evfb)). A lossy link therefore needs a hub at each zone end. ERAA publishes its EvFB columns as a hub difference only, so these links need `efficiency=1`.
+
+All importers take `domain=`, which names the domain and prefixes its CNEC names, e.g. `"Core 12345"`. A corridor between two domains maps to one link in both, e.g. ERAA's `DKE1-DE00` (Core) and `DE00-DKE1` (Nordic) via `links={"DE00-DKE1": "DKE1-DE00"}` for Nordic. For ERAA, `fb_id` selects one domain, e.g. `"winter1"` (Core) or a RAM column `0` to `6` (Nordic). A Series mapping snapshots to IDs gives a time-varying domain, and `weather_scenario="WS01"` reads this mapping from the workbook's `Domain Assignment` sheet. `investment_period=2030` ties the domain to one period and appends the period to the CNEC names, so several target years can coexist.
+
+Each zone bus carries its own generation and load. A bus outside the flow-based region, such as `DKE1`, needs its own supply or price. For an AC-coupled AHC zone such as `DKW`, the link carries the zone's AC exchange with the region. The zone's HVDC cables (e.g. to `NOS0`, or COBRA to `NL`) are ordinary links: they change that exchange through the zone's nodal balance, so their `DKW` ends need no column. For example, for ERAA:
+
+=== "ERAA"
+
+    ```python
+    zones = ["AT00", "BE00", "CZ00", "DE00", "FR00", "HR00", "HU00",
+             "ITN1", "NL00", "PL00", "RO00", "SI00", "SK00"]
+    n = pypsa.Network()
+    n.add("Bus", zones + ["DKE1"])
+    n.add("Load", zones, bus=zones, p_set=demand)
+    n.add("Generator", zones, bus=zones, p_nom=capacity, marginal_cost=cost)
+    n.add("Generator", "DKE1", bus="DKE1", p_nom=5000, marginal_cost=20)
+    n.add("Link", "BE00-DE00", bus0="BE00", bus1="DE00", p_nom=1000, p_min_pu=-1)
+    n.add("Link", "DKE1-DE00", bus0="DKE1", bus1="DE00", p_nom=600, p_min_pu=-1)
+    n.c.global_constraints.flow_based_from_eraa("FB-Domain-CORE_full.xlsx", year=2030, fb_id="winter1")
+    ```
+
+=== "JAO"
+
+    ```python
+    zones = ["AT", "BE", "CZ", "DE", "FR", "HR", "HU", "NL", "PL", "RO", "SI", "SK"]
+    n = pypsa.Network()
+    n.add("Bus", zones + ["SE4"])
+    ...  # loads and generators as for ERAA
+    n.add("Link", "ALBE-ALDE", bus0="BE", bus1="DE", p_nom=1000, p_min_pu=-1)
+    n.add("Link", "DE_SE4_Baltic", bus0="SE4", bus1="DE", p_nom=600, p_min_pu=-1)
+    n.c.global_constraints.flow_based_from_jao("finalComputation.csv")
+    ```
+
+=== "TSO"
+
+    ```python
+    zones = ["AT", "BE", "CZ", "DE", "FR", "HR", "HU", "NL", "PL", "RO", "SI", "SK"]
+    n = pypsa.Network()
+    n.add("Bus", zones + ["SE04", "DKW"])
+    ...  # loads and generators as for ERAA
+    n.add("Link", "KONV_BE-DE1", bus0="BE", bus1="DE", p_nom=1000, p_min_pu=-1)
+    n.add("Link", "KONV_AHC_DE-SE04", bus0="SE04", bus1="DE", p_nom=600, p_min_pu=-1)
+    n.add("Link", "DKW-DE", bus0="DKW", bus1="DE", p_nom=2500, p_min_pu=-1)
+    # the corridor "DKW" is named like its bus, so it needs a distinct link name
+    n.c.global_constraints.flow_based_from_tso("MS_FBMC_Domain_TS1.csv", links={"DKW": "DKW-DE"})
+    ```
+
+[^eraa]: ENTSO-E (2025), [European Resource Adequacy Assessment 2025](https://www.entsoe.eu/eraa/2025/).
+
+[^core-pub]: Core TSOs / JAO (2024), [Publication Tool for the Core day-ahead capacity calculation methodology, Publication Handbook v2.2](https://publicationtool.jao.eu/core/).

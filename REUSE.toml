@@ -49,3 +49,9 @@ path = [
 # We think this is the correct attribution (copyright holder and license)
 SPDX-FileCopyrightText = "Ministry for Economic Affairs and Climate Action"
 SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+# Trimmed published flow-based domains with scrambled numbers (ERAA 2025 Core and Nordic, JAO Core day-ahead)
+path = ["test/data/flow_based/**"]
+SPDX-FileCopyrightText = "PyPSA Contributors, derived from ENTSO-E (ERAA 2025) and JAO (Core Publication Tool)"
+SPDX-License-Identifier = "CC-BY-4.0"
