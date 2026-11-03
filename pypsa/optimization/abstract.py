@@ -34,6 +34,11 @@ if TYPE_CHECKING:
     from pypsa import Components, Network, SubNetwork
 logger = logging.getLogger(__name__)
 
+_STORAGE_LEVELS = (
+    ("stores", "e_initial", "e"),
+    ("storage_units", "state_of_charge_initial", "state_of_charge"),
+)
+
 
 def discretized_capacity(
     nom_opt: float,
@@ -742,11 +747,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 )
 
                 if i:
-                    prev = snapshots[start - 1]
-                    n.c.stores.static["e_initial"] = n.c.stores.dynamic.e.loc[prev]
-                    n.c.storage_units.static["state_of_charge_initial"] = (
-                        n.c.storage_units.dynamic.state_of_charge.loc[prev]
-                    )
+                    prev, first = snapshots[start - 1], sns[:1]
+                    eh = n.snapshot_weightings.stores.loc[first].iloc[0]
+                    for c, attr, level in _STORAGE_LEVELS:
+                        loss = n.c[c]._as_dynamic("standing_loss", first).iloc[0]
+                        level_prev = n.c[c].dynamic[level].loc[prev]
+                        n.c[c].static[attr] = level_prev * (1 - loss) ** eh
                 done, rest = snapshots[:start], snapshots[end:]
                 for name, attr, original, later in tracked:
                     c = n.c[name]

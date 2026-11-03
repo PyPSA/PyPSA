@@ -618,3 +618,29 @@ def test_rolling_horizon_storage_carry_over_stochastic(
     result = n.c[component].dynamic[level]
     assert (result.xs("s1", axis=1, level="name") == 10.0).all().all()
     assert (result.xs("s2", axis=1, level="name") == 100.0).all().all()
+
+
+@pytest.mark.parametrize(
+    ("component", "level", "kwargs"),
+    [
+        ("Store", "e", {"e_nom": 1000}),
+        ("StorageUnit", "state_of_charge", {"p_nom": 100, "max_hours": 10}),
+    ],
+)
+def test_rolling_horizon_storage_standing_loss(component, level, kwargs):
+    def build():
+        n = pypsa.Network(snapshots=range(4))
+        n.add("Bus", "bus")
+        n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=[1, 9, 9, 9])
+        n.add("Load", "load", bus="bus", p_set=[0, 0, 0, 10])
+        loss = pd.Series([0.1, 0.2, 0.3, 0.05], n.snapshots)
+        n.add(component, "storage", bus="bus", standing_loss=loss, **kwargs)
+        return n
+
+    full, rolling = build(), build()
+    full.optimize()
+    rolling.optimize.optimize_with_rolling_horizon(horizon=4, overlap=2)
+
+    pd.testing.assert_frame_equal(
+        rolling.c[component].dynamic[level], full.c[component].dynamic[level]
+    )
