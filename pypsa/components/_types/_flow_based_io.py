@@ -5,19 +5,16 @@
 """Importers for published flow-based domains (ERAA, JAO, TSO).
 
 Mixed into [pypsa.components.GlobalConstraints][]; the domain is added as global
-constraints of ``type="flow_based"``. Each importer reads the zone columns, the RAM and
-the corridor columns of its format and hands over one hub sensitivity per corridor (MW on
-the CNEC per MW injected at the corridor's landing node, for a flow from one named end to
-the other). ``_add_domain`` turns it into PyPSA's link column: the sensitivity to the link
-flow with the zone net positions held fixed, ``h - (eta PTDF_bus1 - PTDF_bus0)`` over the
-link's zone ends.
+constraints of ``type="flow_based"``. Each importer reads the zone PTDFs, the RAM and the
+hub sensitivities of its format and hands them to ``add_flow_based_from_hubs``, which
+turns the hubs into PyPSA's link columns.
 """
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pandas as pd
 
@@ -25,6 +22,13 @@ from pypsa.common import check_optional_dependency
 from pypsa.components.abstract import _ComponentsABC
 
 logger = logging.getLogger(__name__)
+
+
+def _corridors(rows: list[tuple[str | None, ...]]) -> pd.DataFrame:
+    """Corridor table from ``(name, bus0, bus1, hub0, hub1)`` rows."""
+    columns = ["name", "bus0", "bus1", "hub0", "hub1"]
+    return pd.DataFrame(rows, columns=columns).set_index("name")
+
 
 _EXCEL_HINT = (
     "Missing optional dependencies to read Excel files. Install them via "
@@ -34,14 +38,12 @@ _EXCEL_HINT = (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    # corridor name -> (column for a flow frm -> to, frm zone, to zone)
-    Corridors = dict[str, tuple[pd.Series, str | None, str | None]]
     # corridor name -> link name, or several (e.g. a pair of one-way links)
     LinkMap = dict[str, str | list[str]]
 
 
 class FlowBasedImportersMixin(_ComponentsABC):
-    """Mixin adding the ``flow_based_from_eraa`` / ``_jao`` / ``_tso`` domain importers."""
+    """Mixin adding ``add_flow_based_from_hubs`` and the ERAA, JAO and TSO importers."""
 
     if TYPE_CHECKING:
 
@@ -58,8 +60,9 @@ class FlowBasedImportersMixin(_ComponentsABC):
         self,
         path: str,
         year: str | int,
-        season: str | int | pd.Series,
+        fb_id: str | int | pd.Series | None = None,
         *,
+        weather_scenario: str | None = None,
         buses: dict[str, str] | None = None,
         links: LinkMap | None = None,
         investment_period: int | None = None,
@@ -70,11 +73,10 @@ class FlowBasedImportersMixin(_ComponentsABC):
         Reads the layout of ERAA 2025 (Core and Nordic). The PTDF sheet has a header row
         with the column kind (``PTDF_SZ`` zones, ``PTDF*_AHC,SZ`` and ``PTDF_EvFB``
         corridors) and a row with the labels. If the sheet holds a single ``FB_ID``
-        (Nordic), its PTDF serves every RAM column. A corridor
-        label ``"A-B"`` is a flow from A to B. ERAA publishes AHC columns already in
-        PyPSA's form, ``PTDF*_AHC = h - PTDF_B`` (``FB_README.xlsx``, expression 5), so they
-        arrive unchanged for a link into B; the EvFB columns are hub differences and get the
-        zone PTDFs subtracted.
+        (Nordic), its PTDF serves every RAM column. A corridor label ``"A-B"`` is a flow
+        from A to B. An AHC column is ``h - PTDF_B`` (``FB_README.xlsx``, expression 5), so
+        the hub sensitivity at B is recovered as ``h``. An EvFB column is the difference of
+        its two hubs; it is exact for a lossless link only.
 
         Parameters
         ----------
@@ -82,12 +84,16 @@ class FlowBasedImportersMixin(_ComponentsABC):
             Path to the ERAA workbook.
         year : str or int
             Selects the ``PTDF {year}`` / ``RAM {year}`` sheets.
-        season : str, int or pandas.Series
+        fb_id : str, int or pandas.Series, optional
             A domain ID, i.e. a RAM column such as ``"winter1"`` (Core) or ``3`` (Nordic),
             selects one static domain. A Series indexed by the snapshots (values = domain
-            IDs, e.g. a column of the ``Domain Assignment`` sheet) builds a time-varying domain from the
-            union of the seasons' CNECs; a CNEC absent in a season gets NaN RAM, so it
-            is dropped in those snapshots.
+            IDs) builds a time-varying domain from the union of the IDs' CNECs; a CNEC
+            absent under an ID gets NaN RAM, so it is dropped in those snapshots.
+        weather_scenario : str, optional
+            Instead of ``fb_id``, take the domain ID of each snapshot from the column of
+            this weather scenario (e.g. ``"WS01"``) in the ``Domain Assignment`` sheet,
+            matched by month, day and hour of the target ``year``. Needs datetime
+            snapshots.
         buses : dict, optional
             Map ERAA zone labels to bus names (default: same name).
         links : dict, optional
@@ -100,10 +106,17 @@ class FlowBasedImportersMixin(_ComponentsABC):
             applies in all periods.
         domain : str, optional
             Name of the flow-based domain, e.g. ``"Core"``; see
-            [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based].
+            [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based]. It
+            prefixes the CNEC names, e.g. ``"Core cnec_18"``.
 
         """
         check_optional_dependency("openpyxl", _EXCEL_HINT)
+        if (fb_id is None) == (weather_scenario is None):
+            msg = "Pass exactly one of `fb_id` and `weather_scenario`."
+            raise ValueError(msg)
+        if weather_scenario is not None:
+            fb_id = self._eraa_assignment(path, int(year), weather_scenario)
+        prefix = f"{domain} " if domain else ""
         suffix = "" if investment_period is None else f" {investment_period}"
         raw = pd.read_excel(path, sheet_name=f"PTDF {year}", header=None)
         kind, label = raw.iloc[0], raw.iloc[1]
@@ -122,51 +135,62 @@ class FlowBasedImportersMixin(_ComponentsABC):
             ram = ram_all[s].dropna()
             keep = rows.index.intersection(ram.index)
             ptdf = rows.loc[keep, zones + ahc + evfb].astype(float)
-            return ptdf.rename(lambda c: f"{c}{suffix}"), ram.loc[keep].rename(
-                lambda c: f"{c}{suffix}"
-            )
+            name = f"{prefix}{{}}{suffix}".format
+            return ptdf.rename(name), ram.loc[keep].rename(name)
 
-        if isinstance(season, pd.Series):
-            ptdf, ram = self._stack_seasons(season, parse)
+        if isinstance(fb_id, pd.Series):
+            ptdf, ram = self._stack_domains(fb_id, parse)
         else:
-            ptdf, ram = parse(season)
+            ptdf, ram = parse(cast("str | int", fb_id))
 
-        corridors: Corridors = {}
+        corridors: list[tuple[str | None, ...]] = []
         for border in ahc + evfb:
             frm, to = border.split("-", 1)
             to = to.split("_")[0]  # numbered borders, e.g. "UK00-FR00_1"
-            # recover the hub sensitivity h from PTDF*_AHC = h - PTDF_to
-            col = ptdf[border] + ptdf[to] if border in ahc else ptdf[border]
-            corridors[border] = (col, frm, to)
-        self._add_domain(
+            corridors.append((border, frm, to, None, border))
+            if border in ahc:  # PTDF*_AHC = h - PTDF_to
+                ptdf[border] += ptdf[to]
+        self.add_flow_based_from_hubs(
             ptdf[zones],
-            corridors,
+            ptdf,
+            _corridors(corridors),
             ram,
-            buses,
-            links,
+            buses=buses,
+            links=links,
             investment_period=investment_period,
             domain=domain,
         )
 
-    def _stack_seasons(
+    def _eraa_assignment(self, path: str, year: int, scenario: str) -> pd.Series:
+        """Map each snapshot to its ERAA domain ID in one weather scenario."""
+        timesteps = self.n_save.snapshots.get_level_values(-1)
+        if not isinstance(timesteps, pd.DatetimeIndex):
+            msg = "`weather_scenario` needs datetime snapshots."
+            raise TypeError(msg)
+        sheet = pd.read_excel(path, sheet_name="Domain Assignment")
+        ids = sheet[sheet["Year"] == year].set_index(["Month", "Day", "Hour"])[scenario]
+        keys = pd.MultiIndex.from_arrays(
+            [timesteps.month, timesteps.day, timesteps.hour]
+        )
+        return pd.Series(ids.reindex(keys).to_numpy(), index=self.n_save.snapshots)
+
+    def _stack_domains(
         self,
-        season: pd.Series,
+        fb_id: pd.Series,
         parse: Callable[[str | int], tuple[pd.DataFrame, pd.Series]],
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Stack a ``snapshot -> season`` mapping into a time-varying PTDF and RAM."""
-        season = season.reindex(self.n_save.snapshots)
-        if season.isna().any():
-            msg = "`season` Series must map every network snapshot to an ERAA season."
+        """Stack a ``snapshot -> domain ID`` mapping into a time-varying PTDF and RAM."""
+        fb_id = fb_id.reindex(self.n_save.snapshots)
+        if fb_id.isna().any():
+            msg = "The domain IDs must map every network snapshot to an ERAA domain."
             raise ValueError(msg)
-        parsed = {s: parse(s) for s in season.unique()}
+        parsed = {s: parse(s) for s in fb_id.unique()}
         cnecs = pd.Index(sorted(set().union(*(zp.index for zp, _ in parsed.values()))))
         ptdf = pd.concat(
-            {t: parsed[s][0].reindex(cnecs).fillna(0.0) for t, s in season.items()},
+            {t: parsed[s][0].reindex(cnecs).fillna(0.0) for t, s in fb_id.items()},
             names=["snapshot", "name"],
         )
-        ram = pd.DataFrame(
-            {t: parsed[s][1].reindex(cnecs) for t, s in season.items()}
-        ).T
+        ram = pd.DataFrame({t: parsed[s][1].reindex(cnecs) for t, s in fb_id.items()}).T
         return ptdf, ram
 
     def flow_based_from_jao(
@@ -183,7 +207,7 @@ class FlowBasedImportersMixin(_ComponentsABC):
         The PTDF is read from the ``Ptdf_<hub>`` columns; the ``Direction`` is already in
         the sign. Two kinds of hub are corridors:
 
-        - ``ALBE`` and ``ALDE``, the Belgian and German ends of the ALEGrO HVDC, form one
+        - ``ALBE`` and ``ALDE``, the Belgian and German hubs of the ALEGrO HVDC, form one
           corridor ``"ALBE-ALDE"`` (a flow from BE to DE).
         - AHC hubs ``<zone>_<external>_<name>`` (e.g. ``DE_SE4_Baltic``) are a flow from
           ``<external>`` into ``<zone>``.
@@ -203,25 +227,33 @@ class FlowBasedImportersMixin(_ComponentsABC):
             link are dropped.
         domain : str, optional
             Name of the flow-based domain, e.g. ``"Core"``; see
-            [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based].
+            [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based]. It
+            prefixes the CNEC names, e.g. ``"Core 12345"``.
 
         """
         raw = pd.read_csv(path, sep=";", low_memory=False)
         rows = raw[raw["Presolved"]]
-        rows = rows.set_index(rows["Id"].astype(str))
+        prefix = f"{domain} " if domain else ""
+        rows = rows.set_index(prefix + rows["Id"].astype(str))
         ptdf_cols = [c for c in rows.columns if c.startswith("Ptdf_")]
         ptdf = rows[ptdf_cols].rename(columns=lambda c: c.removeprefix("Ptdf_"))
 
-        corridors: Corridors = {}
+        corridors: list[tuple[str | None, ...]] = []
         if {"ALBE", "ALDE"} <= set(ptdf.columns):
-            corridors["ALBE-ALDE"] = (ptdf["ALDE"] - ptdf["ALBE"], "BE", "DE")
+            corridors.append(("ALBE-ALDE", "BE", "DE", "ALBE", "ALDE"))
         for hub in ptdf.columns[ptdf.columns.str.contains("_")]:
             zone, external = hub.split("_")[:2]
-            corridors[hub] = (ptdf[hub], external, zone)
+            corridors.append((hub, external, zone, None, hub))
         not_zones = {"ALBE", "ALDE", "CH"}
         zones = [h for h in ptdf.columns if "_" not in h and h not in not_zones]
-        self._add_domain(
-            ptdf[zones], corridors, rows["Ram"], buses, links, domain=domain
+        self.add_flow_based_from_hubs(
+            ptdf[zones],
+            ptdf,
+            _corridors(corridors),
+            rows["Ram"],
+            buses=buses,
+            links=links,
+            domain=domain,
         )
 
     def flow_based_from_tso(
@@ -258,7 +290,8 @@ class FlowBasedImportersMixin(_ComponentsABC):
             map them to a link name that is not a bus name (e.g. ``{"DKW": "DKW-DE"}``).
         domain : str, optional
             Name of the flow-based domain, e.g. ``"Core"``; see
-            [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based].
+            [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based]. It
+            prefixes the CNEC names.
 
         """
         raw = Path(path).read_text(encoding="latin-1").splitlines()
@@ -271,45 +304,105 @@ class FlowBasedImportersMixin(_ComponentsABC):
         df = pd.read_csv(
             path, sep=";", skiprows=meta, encoding="latin-1", decimal=decimal
         ).set_index("CNEC_ID")
+        df.index = (f"{domain} " if domain else "") + df.index.astype(str)
 
         def of_type(t: str) -> list[str]:
             return [c for c in header if types.get(c) == t]
 
-        corridors: Corridors = {}
+        corridors: list[tuple[str | None, ...]] = []
         for col in of_type("HGUE"):
             name, zone = col.rsplit("_", 1)
             frm = name.split("_")[-1].split("-")[0]
             if zone != frm:  # each pair once, from the receiving end
-                corridors[name] = (df[col] - df[f"{name}_{frm}"], frm, zone)
+                corridors.append((name, frm, zone, f"{name}_{frm}", col))
         for col in of_type("HGUE_AHC"):
             name, zone = col.rsplit("_", 1)
-            corridors[name] = (df[col], None, zone)
-        for col in of_type("FB_DOMAIN_AHC"):
-            corridors[col] = (df[col], None, None)
-        zones = of_type("FB_DOMAIN")
-        self._add_domain(df[zones], corridors, df[ram_col], buses, links, domain=domain)
+            corridors.append((name, None, zone, None, col))
+        corridors += [(c, None, None, None, c) for c in of_type("FB_DOMAIN_AHC")]
+        self.add_flow_based_from_hubs(
+            df[of_type("FB_DOMAIN")],
+            df,
+            _corridors(corridors),
+            df[ram_col],
+            buses=buses,
+            links=links,
+            domain=domain,
+        )
 
-    def _add_domain(
+    def add_flow_based_from_hubs(
         self,
         zonal_ptdf: pd.DataFrame,
-        corridors: Corridors,
-        ram: pd.Series | pd.DataFrame,
-        buses: dict[str, str] | None,
-        links: LinkMap | None,
+        hub_ptdf: pd.DataFrame,
+        corridors: pd.DataFrame,
+        ram: float | pd.Series | pd.DataFrame,
         *,
+        buses: dict[str, str] | None = None,
+        links: LinkMap | None = None,
         investment_period: int | None = None,
         domain: str | None = None,
     ) -> None:
-        """Add zone columns plus one column per corridor that has a network link.
+        """Add a flow-based domain whose corridors are given by hub sensitivities.
 
-        A corridor's hub sensitivity describes a flow ``frm -> to``; its sign is flipped if
-        the link runs ``to -> frm``, and the zone PTDFs of the link's ends are subtracted so
-        the column is the sensitivity with the zone net positions held fixed. A ``None``
-        zone is not checked; ``to=None`` means the link's only flow-based end.
+        Published domains (Core, JAO, TSO files) describe a controllable corridor, e.g.
+        an HVDC link, by its hubs: the CNEC's sensitivity to 1 MW injected where the
+        corridor lands in a zone. This method turns them into PyPSA's link columns for
+        [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based]. For a link
+        ``bus0 -> bus1`` with efficiency ``eta``, the sensitivity to its flow is
+        ``h = eta * hub1 - hub0``, and its column is ``h - (eta * PTDF_bus1 - PTDF_bus0)``
+        over the link's zone ends, the sensitivity with zone net positions held fixed.
+
+        Parameters
+        ----------
+        zonal_ptdf : pandas.DataFrame
+            Zone-to-slack PTDF, CNEC x zone, or ``(snapshot, CNEC)`` x zone if
+            time-varying.
+        hub_ptdf : pandas.DataFrame
+            Hub sensitivities with the same index; the ``corridors`` name its columns.
+        corridors : pandas.DataFrame
+            One row per corridor, indexed by its name, for a flow ``bus0 -> bus1``.
+            Columns ``bus0`` and ``bus1`` are the zones at the ends (NaN outside the
+            domain; a NaN ``bus1`` means the link's only zone end), ``hub0`` and ``hub1``
+            the ``hub_ptdf`` columns at the ends (NaN: no hub, sensitivity 0). A link
+            with ``efficiency != 1`` needs a hub at each of its zone ends.
+        ram : float, pandas.Series or pandas.DataFrame
+            Remaining available margin, as in ``add_flow_based``.
+        buses : dict, optional
+            Map zone labels to bus names (default: same name).
+        links : dict, optional
+            Map corridor names to link names (default: same name). A list maps one
+            corridor to several links, e.g. a pair of one-way links. Corridors without a
+            link are dropped.
+        investment_period : int, optional
+            Investment period the domain binds in, as in ``add_flow_based``.
+        domain : str, optional
+            Name of the flow-based domain, as in ``add_flow_based``.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", ["BE", "DE"])
+        >>> n.add("Link", "ALEGrO", bus0="BE", bus1="DE", p_nom=1000, p_min_pu=-1)
+        >>> zonal_ptdf = pd.DataFrame({"BE": [0.3], "DE": [-0.2]}, index=["c1"])
+        >>> hub_ptdf = pd.DataFrame({"ALBE": [0.4], "ALDE": [-0.4]}, index=["c1"])
+        >>> corridors = pd.DataFrame(
+        ...     {"bus0": "BE", "bus1": "DE", "hub0": "ALBE", "hub1": "ALDE"},
+        ...     index=["ALEGrO"],
+        ... )
+        >>> n.c.global_constraints.add_flow_based_from_hubs(
+        ...     zonal_ptdf, hub_ptdf, corridors, ram=500
+        ... )
+        >>> n.c.global_constraints.zonal_ptdf.round(3)
+        bus      BE   DE  ALEGrO
+        name
+        c1      0.3 -0.2    -0.3
+
         """
         buses, links = buses or {}, links or {}
-        if unknown := sorted(set(links) - set(corridors)):
-            msg = f"{unknown} are not corridors of this domain; available: {list(corridors)}."
+        if unknown := sorted(set(links) - set(corridors.index)):
+            msg = (
+                f"{unknown} are not corridors of this domain; "
+                f"available: {corridors.index.tolist()}."
+            )
             raise ValueError(msg)
 
         n = self.n_save
@@ -330,14 +423,14 @@ class FlowBasedImportersMixin(_ComponentsABC):
         static = n.c.links.static
         dynamic_eta = n.c.links.dynamic.efficiency.columns
         dropped = []
-        targets = {name: links.get(name, name) for name in corridors}
+        targets = {name: links.get(name, name) for name in corridors.index}
         pairs = [
             (name, link)
             for name, target in targets.items()
             for link in ([target] if isinstance(target, str) else target)
         ]
         for name, link in pairs:
-            col, frm, to = corridors[name]
+            frm, to, hub0, hub1 = corridors.loc[name, ["bus0", "bus1", "hub0", "hub1"]]
             if link not in static.index:
                 dropped += [name] if name not in dropped else []
                 continue
@@ -349,7 +442,7 @@ class FlowBasedImportersMixin(_ComponentsABC):
                 raise ValueError(msg)
             bus0, bus1 = static.loc[link, ["bus0", "bus1"]]
             ends = {bus0, bus1} & zones
-            frm, to = (buses.get(x, x) if x else None for x in (frm, to))
+            frm, to = (buses.get(x, x) if pd.notna(x) else None for x in (frm, to))
             to = to or (next(iter(ends)) if len(ends) == 1 else None)
             if to not in (bus0, bus1) or ends != {frm, to} & zones:
                 msg = (
@@ -357,11 +450,18 @@ class FlowBasedImportersMixin(_ComponentsABC):
                     f"({frm} -> {to}); check the `buses` mapping."
                 )
                 raise ValueError(msg)
-            h = col if to == bus1 else -col
             eta = static.at[link, "efficiency"]
-            shift = sum(
-                a * zonal_ptdf[b] for b, a in ((bus0, -1), (bus1, eta)) if b in zones
-            )
+            if to != bus1:
+                hub0, hub1 = hub1, hub0
+            sides = ((bus0, hub0, -1), (bus1, hub1, eta))  # (bus, hub, incidence)
+            if eta != 1 and any(pd.isna(hub) and b in zones for b, hub, _ in sides):
+                msg = (
+                    f"Corridor {name!r} needs a hub at each zone end for the lossy link "
+                    f"{link!r} (efficiency {eta})."
+                )
+                raise ValueError(msg)
+            h = sum(a * hub_ptdf[hub] for _, hub, a in sides if pd.notna(hub))
+            shift = sum(a * zonal_ptdf[b] for b, _, a in sides if b in zones)
             zonal_ptdf[link] = h - shift
         if dropped:
             logger.warning(
