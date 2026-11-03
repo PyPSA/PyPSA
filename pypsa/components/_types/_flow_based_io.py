@@ -47,12 +47,12 @@ class FlowBasedImportersMixin(_ComponentsABC):
 
         def add_flow_based(
             self,
-            zonal_ptdf: pd.DataFrame,
-            ram: pd.Series | pd.DataFrame,
-            *,
+            zonal_ptdf: pd.DataFrame | pd.Series,
+            ram: float | pd.Series | pd.DataFrame,
             investment_period: int | None = None,
+            domain: str | None = None,
             overwrite: bool = False,
-        ) -> pd.Index | None: ...
+        ) -> None: ...
 
     def flow_based_from_eraa(
         self,
@@ -63,7 +63,8 @@ class FlowBasedImportersMixin(_ComponentsABC):
         buses: dict[str, str] | None = None,
         links: LinkMap | None = None,
         investment_period: int | None = None,
-    ) -> pd.Index | None:
+        domain: str | None = None,
+    ) -> None:
         """Add a domain from an ERAA ``FB-Domain-CORE`` Excel workbook (needs the ``excel`` extra).
 
         The PTDF sheet has a header row with the column kind (``PTDF_SZ`` zones,
@@ -82,8 +83,8 @@ class FlowBasedImportersMixin(_ComponentsABC):
         season : str or pandas.Series
             A season name (e.g. ``"winter1"``) selects one static domain. A Series indexed
             by the snapshots (values = season names) builds a time-varying domain from the
-            union of the seasons' CNECs; a CNEC absent in a season gets PTDF 0 and RAM
-            infinite, so it never binds.
+            union of the seasons' CNECs; a CNEC absent in a season gets NaN RAM, so it
+            is dropped in those snapshots.
         buses : dict, optional
             Map ERAA zone labels to bus names (default: same name).
         links : dict, optional
@@ -94,6 +95,9 @@ class FlowBasedImportersMixin(_ComponentsABC):
             Apply the domain only in this investment period; its label is appended to the
             CNEC names, so domains of several years can coexist. By default the domain
             applies in all periods.
+        domain : str, optional
+            Name of the flow-based domain, e.g. ``"Core"``; see
+            [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based].
 
         """
         check_optional_dependency("openpyxl", _EXCEL_HINT)
@@ -128,8 +132,14 @@ class FlowBasedImportersMixin(_ComponentsABC):
             # recover the hub sensitivity h from PTDF*_AHC = h - PTDF_to
             col = ptdf[border] + ptdf[to] if border in ahc else ptdf[border]
             corridors[border] = (col, frm, to)
-        return self._add_domain(
-            ptdf[zones], corridors, ram, buses, links, investment_period
+        self._add_domain(
+            ptdf[zones],
+            corridors,
+            ram,
+            buses,
+            links,
+            investment_period=investment_period,
+            domain=domain,
         )
 
     def _stack_seasons(
@@ -148,7 +158,7 @@ class FlowBasedImportersMixin(_ComponentsABC):
         )
         ram = pd.DataFrame(
             {t: parsed[s][1].reindex(cnecs) for t, s in season.items()}
-        ).T.fillna(float("inf"))
+        ).T
         return ptdf, ram
 
     def flow_based_from_jao(
@@ -157,7 +167,8 @@ class FlowBasedImportersMixin(_ComponentsABC):
         *,
         buses: dict[str, str] | None = None,
         links: LinkMap | None = None,
-    ) -> pd.Index | None:
+        domain: str | None = None,
+    ) -> None:
         """Add a domain from a JAO ``finalComputation`` CSV (one static market hour).
 
         Only the presolved rows are read (the others never bind), named by their ``Id``.
@@ -182,6 +193,9 @@ class FlowBasedImportersMixin(_ComponentsABC):
             Map corridor names to link names (default: same name). A list maps one
             corridor to several links, e.g. a pair of one-way links. Corridors without a
             link are dropped.
+        domain : str, optional
+            Name of the flow-based domain, e.g. ``"Core"``; see
+            [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based].
 
         """
         raw = pd.read_csv(path, sep=";", low_memory=False)
@@ -198,7 +212,9 @@ class FlowBasedImportersMixin(_ComponentsABC):
             corridors[hub] = (ptdf[hub], external, zone)
         not_zones = {"ALBE", "ALDE", "CH"}
         zones = [h for h in ptdf.columns if "_" not in h and h not in not_zones]
-        return self._add_domain(ptdf[zones], corridors, rows["Ram"], buses, links)
+        self._add_domain(
+            ptdf[zones], corridors, rows["Ram"], buses, links, domain=domain
+        )
 
     def flow_based_from_tso(
         self,
@@ -206,7 +222,8 @@ class FlowBasedImportersMixin(_ComponentsABC):
         *,
         buses: dict[str, str] | None = None,
         links: LinkMap | None = None,
-    ) -> pd.Index | None:
+        domain: str | None = None,
+    ) -> None:
         """Add a domain from a TSO ``MS_FBMC`` domain CSV (one static typical situation).
 
         A ``!!OBJEKTTYP`` row gives each column's type: ``FB_RAM`` is the RAM and
@@ -231,6 +248,9 @@ class FlowBasedImportersMixin(_ComponentsABC):
             corridor to several links, e.g. a pair of one-way links. Corridors without a
             link are dropped. ``FB_DOMAIN_AHC`` corridors are named like their zone, so
             map them to a link name that is not a bus name (e.g. ``{"DKW": "DKW-DE"}``).
+        domain : str, optional
+            Name of the flow-based domain, e.g. ``"Core"``; see
+            [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based].
 
         """
         raw = Path(path).read_text(encoding="latin-1").splitlines()
@@ -259,7 +279,7 @@ class FlowBasedImportersMixin(_ComponentsABC):
         for col in of_type("FB_DOMAIN_AHC"):
             corridors[col] = (df[col], None, None)
         zones = of_type("FB_DOMAIN")
-        return self._add_domain(df[zones], corridors, df[ram_col], buses, links)
+        self._add_domain(df[zones], corridors, df[ram_col], buses, links, domain=domain)
 
     def _add_domain(
         self,
@@ -268,8 +288,10 @@ class FlowBasedImportersMixin(_ComponentsABC):
         ram: pd.Series | pd.DataFrame,
         buses: dict[str, str] | None,
         links: LinkMap | None,
+        *,
         investment_period: int | None = None,
-    ) -> pd.Index | None:
+        domain: str | None = None,
+    ) -> None:
         """Add zone columns plus one column per corridor that has a network link.
 
         A corridor's hub sensitivity describes a flow ``frm -> to``; its sign is flipped if
@@ -329,4 +351,4 @@ class FlowBasedImportersMixin(_ComponentsABC):
                 dropped,
             )
 
-        return self.add_flow_based(zonal_ptdf, ram, investment_period=investment_period)
+        self.add_flow_based(zonal_ptdf, ram, investment_period, domain)

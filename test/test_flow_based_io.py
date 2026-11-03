@@ -69,7 +69,7 @@ def test_from_eraa_parses_zones_season_and_ram(eraa_workbook):
     assert list(c.static.index) == ["c1", "c2"]  # c3 dropped (NaN RAM), summer ignored
     assert list(c.zonal_ptdf.columns) == ZONES  # AHC column X-Z1 ignored
     assert c.zonal_ptdf.loc["c1", "Z1"] == pytest.approx(0.4)
-    assert c.static.constant.to_dict() == {"c1": 1000.0, "c2": 800.0}
+    assert c.static.ram.to_dict() == {"c1": 1000.0, "c2": 800.0}
 
 
 def test_from_eraa_bus_mapping(eraa_workbook):
@@ -174,7 +174,7 @@ def test_from_eraa_investment_period(eraa_workbook, period, names):
 
 
 def test_from_eraa_time_varying_by_season(eraa_workbook):
-    """A snapshot->season Series builds a time-varying domain; unmatched CNECs go inert."""
+    """A snapshot->season Series builds a time-varying domain; unmatched CNECs are dropped."""
     n = _network()
     n.set_snapshots([0, 1])
     n.c.global_constraints.flow_based_from_eraa(
@@ -187,9 +187,9 @@ def test_from_eraa_time_varying_by_season(eraa_workbook):
     assert z.loc[(0, "c1"), "Z1"] == pytest.approx(0.4)  # winter1 PTDF
     assert z.loc[(1, "c1"), "Z1"] == pytest.approx(0.9)  # summer1 PTDF
     assert z.loc[(1, "c2")].eq(0.0).all()  # c2 absent in summer1 -> zero row
-    ram = c.dynamic["constant"]
+    ram = c.dynamic["ram"]
     assert ram.loc[0, "c2"] == pytest.approx(800.0)
-    assert ram.loc[1, "c2"] == float("inf")  # inert that hour
+    assert pd.isna(ram.loc[1, "c2"])  # dropped that hour
 
 
 def test_from_eraa_time_varying_incomplete_mapping_raises(eraa_workbook):
@@ -235,7 +235,7 @@ def test_from_jao_strips_prefix_and_filters_presolved(jao_csv, caplog):
     assert list(c.static.index) == ["1", "2"]  # non-presolved row 3 dropped; Id as name
     assert list(c.zonal_ptdf.columns) == ZONES  # prefix removed; corridors, CH dropped
     assert c.zonal_ptdf.loc["1", "Z1"] == pytest.approx(0.4)
-    assert c.static.constant.to_dict() == {"1": 1000.0, "2": 900.0}
+    assert c.static.ram.to_dict() == {"1": 1000.0, "2": 900.0}
     assert "without a network link" in caplog.text
 
 
@@ -303,7 +303,7 @@ def test_from_tso_parses_domain(tso_domain, decimal, caplog):
     assert list(c.static.index) == ["c1", "c2"]
     assert list(c.zonal_ptdf.columns) == TSO_ZONES  # AHC zone EXT is not a zone
     assert c.zonal_ptdf.loc["c1", "Z1"] == pytest.approx(0.4)
-    assert c.static.constant.to_dict() == {"c1": 1000.0, "c2": 800.0}
+    assert c.static.ram.to_dict() == {"c1": 1000.0, "c2": 800.0}
     assert "without a network link" in caplog.text
 
 
@@ -374,6 +374,27 @@ _REAL_JAO = Path(__file__).parent / "data" / "fbmc" / "finalComputation.csv"
 _REAL_TSO = Path(__file__).parent / "data" / "fbmc" / "tso_domain.csv"
 
 
+@pytest.mark.parametrize(
+    ("importer", "fixture", "kwargs"),
+    [
+        (
+            "flow_based_from_eraa",
+            "eraa_workbook",
+            {"year": "2030", "season": "winter1"},
+        ),
+        ("flow_based_from_jao", "jao_csv", {}),
+        ("flow_based_from_tso", "tso_domain", {}),
+    ],
+)
+def test_importers_name_the_domain(request, importer, fixture, kwargs):
+    """Every importer passes `domain` on to the rows it adds."""
+    path = request.getfixturevalue(fixture)
+    path = path(".") if callable(path) else path
+    n = _network()
+    getattr(n.c.global_constraints, importer)(path, domain="Core", **kwargs)
+    assert n.c.global_constraints.static.domain.eq("Core").all()
+
+
 @pytest.mark.skipif(not _REAL_TSO.exists(), reason="TSO example data not available")
 def test_from_tso_real_data():
     """Parse the real (scrambled) TSO domain: 164 CNECs x 12 zones."""
@@ -397,7 +418,7 @@ def test_from_tso_real_data():
     c = n.c.global_constraints
     assert c.zonal_ptdf.shape == (164, 12)
     assert set(c.zonal_ptdf.columns) == set(zones)
-    assert not c.static.constant.isna().any()
+    assert not c.static.ram.isna().any()
 
 
 @pytest.mark.skipif(not _REAL_ERAA.exists(), reason="ERAA example data not available")
@@ -427,9 +448,9 @@ def test_from_eraa_real_data():
     c = n.c.global_constraints
     assert c.zonal_ptdf.shape == (134, 13)
     assert list(c.zonal_ptdf.columns) == zones
-    assert not c.static.constant.isna().any()
-    assert c.static.constant.min() > 100
-    assert c.static.constant.max() < 5000
+    assert not c.static.ram.isna().any()
+    assert c.static.ram.min() > 100
+    assert c.static.ram.max() < 5000
 
 
 @pytest.mark.skipif(not _REAL_JAO.exists(), reason="JAO example data not available")
