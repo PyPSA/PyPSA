@@ -58,17 +58,19 @@ class FlowBasedImportersMixin(_ComponentsABC):
         self,
         path: str,
         year: str | int,
-        season: str | pd.Series,
+        season: str | int | pd.Series,
         *,
         buses: dict[str, str] | None = None,
         links: LinkMap | None = None,
         investment_period: int | None = None,
         domain: str | None = None,
     ) -> None:
-        """Add a domain from an ERAA ``FB-Domain-CORE`` Excel workbook (needs the ``excel`` extra).
+        """Add a domain from an ERAA ``FB-Domain-*`` Excel workbook (needs the ``excel`` extra).
 
-        The PTDF sheet has a header row with the column kind (``PTDF_SZ`` zones,
-        ``PTDF*_AHC,SZ`` and ``PTDF_EvFB`` corridors) and a row with the labels. A corridor
+        Reads the layout of ERAA 2025 (Core and Nordic). The PTDF sheet has a header row
+        with the column kind (``PTDF_SZ`` zones, ``PTDF*_AHC,SZ`` and ``PTDF_EvFB``
+        corridors) and a row with the labels. If the sheet holds a single ``FB_ID``
+        (Nordic), its PTDF serves every RAM column. A corridor
         label ``"A-B"`` is a flow from A to B. ERAA publishes AHC columns already in
         PyPSA's form, ``PTDF*_AHC = h - PTDF_B`` (``FB_README.xlsx``, expression 5), so they
         arrive unchanged for a link into B; the EvFB columns are hub differences and get the
@@ -80,9 +82,10 @@ class FlowBasedImportersMixin(_ComponentsABC):
             Path to the ERAA workbook.
         year : str or int
             Selects the ``PTDF {year}`` / ``RAM {year}`` sheets.
-        season : str or pandas.Series
-            A season name (e.g. ``"winter1"``) selects one static domain. A Series indexed
-            by the snapshots (values = season names) builds a time-varying domain from the
+        season : str, int or pandas.Series
+            A domain ID, i.e. a RAM column such as ``"winter1"`` (Core) or ``3`` (Nordic),
+            selects one static domain. A Series indexed by the snapshots (values = domain
+            IDs, e.g. a column of the ``Domain Assignment`` sheet) builds a time-varying domain from the
             union of the seasons' CNECs; a CNEC absent in a season gets NaN RAM, so it
             is dropped in those snapshots.
         buses : dict, optional
@@ -111,13 +114,16 @@ class FlowBasedImportersMixin(_ComponentsABC):
         body.columns = list(label)
         ram_all = pd.read_excel(path, sheet_name=f"RAM {year}").set_index("CNEC_ID")
 
-        def parse(s: str) -> tuple[pd.DataFrame, pd.Series]:
-            rows = body[body["FB_ID"] == s].set_index("CNEC_ID")
+        fb_ids = body["FB_ID"].unique()
+
+        def parse(s: str | int) -> tuple[pd.DataFrame, pd.Series]:
+            ptdf_id = fb_ids[0] if len(fb_ids) == 1 else s
+            rows = body[body["FB_ID"] == ptdf_id].set_index("CNEC_ID")
             ram = ram_all[s].dropna()
             keep = rows.index.intersection(ram.index)
             ptdf = rows.loc[keep, zones + ahc + evfb].astype(float)
-            return ptdf.rename(lambda c: c + suffix), ram.loc[keep].rename(
-                lambda c: c + suffix
+            return ptdf.rename(lambda c: f"{c}{suffix}"), ram.loc[keep].rename(
+                lambda c: f"{c}{suffix}"
             )
 
         if isinstance(season, pd.Series):
@@ -143,7 +149,9 @@ class FlowBasedImportersMixin(_ComponentsABC):
         )
 
     def _stack_seasons(
-        self, season: pd.Series, parse: Callable[[str], tuple[pd.DataFrame, pd.Series]]
+        self,
+        season: pd.Series,
+        parse: Callable[[str | int], tuple[pd.DataFrame, pd.Series]],
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Stack a ``snapshot -> season`` mapping into a time-varying PTDF and RAM."""
         season = season.reindex(self.n_save.snapshots)
@@ -310,8 +318,17 @@ class FlowBasedImportersMixin(_ComponentsABC):
             msg = f"Zones {missing} are not network buses; pass a `buses` mapping."
             raise ValueError(msg)
 
+        cnecs = zonal_ptdf.index.unique(-1)
+        if not (clash := cnecs.intersection(self.static.index.unique("name"))).empty:
+            msg = (
+                f"CNECs {clash.tolist()[:5]} already exist, e.g. from another domain; "
+                "rename the existing global constraints first."
+            )
+            raise ValueError(msg)
+
         zones = set(zonal_ptdf.columns)
         static = n.c.links.static
+        dynamic_eta = n.c.links.dynamic.efficiency.columns
         dropped = []
         targets = {name: links.get(name, name) for name in corridors}
         pairs = [
@@ -326,6 +343,9 @@ class FlowBasedImportersMixin(_ComponentsABC):
                 continue
             if link in n.c.buses.static.index:
                 msg = f"Link name {link!r} is also a bus name; rename it via `links`."
+                raise ValueError(msg)
+            if link in dynamic_eta:
+                msg = f"Corridor link {link!r} has a time-varying `efficiency`."
                 raise ValueError(msg)
             bus0, bus1 = static.loc[link, ["bus0", "bus1"]]
             ends = {bus0, bus1} & zones

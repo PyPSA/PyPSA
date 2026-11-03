@@ -52,10 +52,72 @@ def eraa_workbook(tmp_path):
     return str(path)
 
 
+@pytest.fixture
+def eraa_nordic_workbook(tmp_path):
+    """An ERAA Nordic-shaped workbook: one PTDF for all domain IDs, integer IDs."""
+    pytest.importorskip("openpyxl")
+    ptdf = pd.DataFrame(
+        [
+            [None, None, None, "PTDF_SZ", "PTDF_SZ", "PTDF_SZ"],
+            ["FB_ID", "CNEC_ID", "CNEC_Name", *ZONES],
+            [1, -5, "line a - reversed", 0.4, -0.2, 0.1],
+            [1, 3, "line b", -0.3, 0.5, 0.2],
+        ]
+    )
+    ram = pd.DataFrame(
+        {
+            "CNEC_ID": [-5, 3],
+            "CNEC_Name": ["line a - reversed", "line b"],
+            0: [1000.0, 800.0],
+            1: [600.0, 700.0],
+        }
+    )
+    path = tmp_path / "eraa_nordic.xlsx"
+    with pd.ExcelWriter(path) as xl:
+        ptdf.to_excel(xl, sheet_name="PTDF 2030", header=False, index=False)
+        ram.to_excel(xl, sheet_name="RAM 2030", index=False)
+    return str(path)
+
+
 def _network(buses=ZONES):
     n = pypsa.Network()
     n.add("Bus", buses)
     return n
+
+
+@pytest.mark.parametrize(("season", "ram"), [(0, [1000.0, 800.0]), (1, [600.0, 700.0])])
+def test_from_eraa_nordic_shares_ptdf_across_domain_ids(
+    eraa_nordic_workbook, season, ram
+):
+    """A single PTDF serves every RAM column; integer CNEC IDs become string names."""
+    n = _network()
+    n.c.global_constraints.flow_based_from_eraa(
+        eraa_nordic_workbook, year=2030, season=season
+    )
+    c = n.c.global_constraints
+    assert list(c.static.index) == ["-5", "3"]
+    assert c.zonal_ptdf.loc["-5", "Z1"] == pytest.approx(0.4)
+    assert c.static.ram.tolist() == ram
+
+
+def test_from_eraa_cnec_name_clash_raises(eraa_workbook):
+    """A second domain with the same CNEC names fails instead of being skipped."""
+    n = _network()
+    c = n.c.global_constraints
+    c.flow_based_from_eraa(eraa_workbook, year="2030", season="winter1", domain="A")
+    with pytest.raises(ValueError, match="already exist"):
+        c.flow_based_from_eraa(eraa_workbook, year="2030", season="winter1", domain="B")
+
+
+def test_from_eraa_time_varying_efficiency_raises(eraa_workbook):
+    """A corridor link with time-varying efficiency fails fast."""
+    n = _network()
+    n.set_snapshots([0, 1])
+    n.add("Link", "Z1-Z2", bus0="Z1", bus1="Z2", p_nom=100, efficiency=[0.9, 0.95])
+    with pytest.raises(ValueError, match="time-varying `efficiency`"):
+        n.c.global_constraints.flow_based_from_eraa(
+            eraa_workbook, year="2030", season="winter1"
+        )
 
 
 def test_from_eraa_parses_zones_season_and_ram(eraa_workbook):
