@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pypsa.components._types.global_constraints import PTDF_PREFIX
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import invariant
 from pypsa.optimization.common import get_bus_counts
@@ -46,6 +47,7 @@ class _FlowBasedDomain:
     ptdf: xr.DataArray
     ram: xr.DataArray
     mask: xr.DataArray
+    zone_domain: pd.Series | None
 
 
 def _over_snapshots(da: xr.DataArray, sns: pd.Index) -> xr.DataArray:
@@ -58,6 +60,37 @@ def _over_snapshots(da: xr.DataArray, sns: pd.Index) -> xr.DataArray:
 def _endpoints(n: Network, component: str) -> pd.DataFrame:
     """`bus0` and `bus1` of all assets of a branch component, indexed by name."""
     return invariant(n.components[component].static[["bus0", "bus1"]])
+
+
+def _zone_domains(n: Network, rows: pd.Index, zones: pd.Index) -> pd.Series | None:
+    """Map each zone bus to its named domain, None when no row names one.
+
+    A zone belongs to the domain whose rows set its `ptdf_<zone>` column.
+    """
+    c = n.c.global_constraints
+    names = invariant(c.static["domain"]).loc[rows]
+    unnamed = names == ""
+    if unnamed.all():
+        return None
+    if unnamed.any():
+        msg = (
+            f"Flow-based rows {rows[unnamed].tolist()} have no `domain`, but others do. "
+            "Name the domain of every flow-based row or of none."
+        )
+        raise ValueError(msg)
+    set_by_row = {}
+    for zone in zones:
+        da = c.da[f"{PTDF_PREFIX}{zone}"].notnull()
+        set_by_row[zone] = da.any([d for d in da.dims if d != "name"]).to_pandas()
+    member = pd.DataFrame(set_by_row).loc[rows].groupby(names).any()
+    ambiguous = member.columns[member.sum() != 1]
+    if not ambiguous.empty:
+        msg = (
+            f"Zone buses {ambiguous.tolist()} must belong to exactly one flow-based "
+            "domain. Set their `ptdf_<zone>` columns in the rows of one domain only."
+        )
+        raise ValueError(msg)
+    return member.idxmax().rename_axis("bus").rename("domain")
 
 
 def _build_domain(n: Network, sns: pd.Index) -> _FlowBasedDomain | None:
@@ -160,15 +193,15 @@ def _build_domain(n: Network, sns: pd.Index) -> _FlowBasedDomain | None:
         "snapshot", "name"
     )
 
-    missing = (ram.isnull() & mask).any([d for d in ram.dims if d != "name"])
-    if missing.any():
-        msg = (
-            f"Flow-based rows {rows[missing.to_numpy()].tolist()} have no `ram` "
-            "where they bind."
-        )
+    ram_all = c.da.ram.sel(name=rows).notnull()
+    no_ram = ~ram_all.any([d for d in ram_all.dims if d != "name"])
+    if no_ram.any():
+        msg = f"Flow-based rows {rows[no_ram.to_numpy()].tolist()} have no `ram`."
         raise ValueError(msg)
+    mask = mask & ram.notnull()
 
-    return _FlowBasedDomain(rows, zones, links, ptdf, ram, mask)
+    zone_domain = _zone_domains(n, rows, zones)
+    return _FlowBasedDomain(rows, zones, links, ptdf, ram, mask, zone_domain)
 
 
 def define_flow_based_variables(n: Network, sns: pd.Index) -> _FlowBasedDomain | None:
@@ -231,8 +264,9 @@ def define_flow_based_constraints(n: Network, domain: _FlowBasedDomain | None) -
 
     Adds `GlobalConstraint-ram`, the PTDF-weighted net positions and corridor
     flows of every CNEC limited by its `ram`, and `FlowBased-balance`, the zone
-    net positions summing to zero. A row with an `investment_period` binds only
-    in that period's snapshots. `constant` is not read.
+    net positions summing to zero, per named `domain` if rows name one. A row
+    with an `investment_period` binds only in that period's snapshots, and a
+    row with a NaN `ram` is dropped in that snapshot. `constant` is not read.
 
     Parameters
     ----------
@@ -252,7 +286,11 @@ def define_flow_based_constraints(n: Network, domain: _FlowBasedDomain | None) -
         lhs += (flows * domain.ptdf.sel(bus=domain.links)).sum("bus")
     mask = xr.broadcast(domain.mask, domain.ram)[0]
     m.add_constraints(lhs <= domain.ram, name=RAM_CONSTRAINT, mask=mask)
-    m.add_constraints(net_position.sum("bus") == 0, name=BALANCE)
+    if domain.zone_domain is None:
+        balance = net_position.sum("bus")
+    else:
+        balance = net_position.groupby(domain.zone_domain.to_xarray()).sum()
+    m.add_constraints(balance == 0, name=BALANCE)
 
 
 def flow_based_net_position(n: Network) -> pd.DataFrame | None:

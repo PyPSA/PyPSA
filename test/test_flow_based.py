@@ -738,9 +738,9 @@ def test_mixed_static_and_dynamic_columns():
     assert n.objective == pytest.approx(ref.objective)
 
 
-def _multi_period_triangle() -> pypsa.Network:
+def _multi_period_triangle(timesteps=1) -> pypsa.Network:
     n = triangle(domain=False)
-    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], [0]])
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], range(timesteps)])
     n.investment_periods = [2020, 2030]
     d = triangle_domain()
     for period, ram_ab in [(2020, 1000), (2030, 500)]:
@@ -826,3 +826,166 @@ def test_scenario_specific_ram():
     np_ = n.c.buses.dynamic["net_position"].iloc[0]
     np.testing.assert_allclose(np_["low"], [2000, -1000, -1000])
     np.testing.assert_allclose(np_["high"], [1250, -250, -1000])
+
+
+# Several flow-based domains
+
+
+def _core_and_nordic(named=True, nordic_nodal=False) -> pypsa.Network:
+    """Triangle "Core" (A, B, C) and "Nordic" (D, E), joined by corridor L from D to A.
+
+    With `nordic_nodal`, Nordic is no flow-based domain but a line D-E with the
+    capacity of its CNEC, so L is a plain AHC corridor of Core.
+    """
+    n = triangle(domain=False)
+    n.add("Bus", ["D", "E"])
+    n.add(
+        "Generator",
+        ["gen D", "gen E"],
+        bus=["D", "E"],
+        p_nom=4000,
+        marginal_cost=[5, 60],
+    )
+    n.add("Load", "load E", bus="E", p_set=500)
+    n.add("Link", "L", bus0="D", bus1="A", p_nom=800)
+    d = triangle_domain()
+    core = d[["A", "B", "C"]].assign(L=0.05 * d["A"])
+    c = n.c.global_constraints
+    c.add_flow_based(core, d["RAM"], domain="Core" if named else None)
+    if nordic_nodal:
+        n.add("Line", "DE", bus0="D", bus1="E", x=1, s_nom=300)
+        return n
+    nordic = pd.DataFrame(
+        {"D": [1.0, -1.0], "E": 0.0, "L": 0.0}, index=["DE (+)", "DE (-)"]
+    )
+    c.add_flow_based(nordic, 300, domain="Nordic" if named else None)
+    return n
+
+
+@pytest.mark.parametrize("scenarios", [False, True])
+def test_named_domains_match_nodal_reference(scenarios):
+    """A corridor between two domains acts as AHC in each, with unchanged columns."""
+    n = _core_and_nordic()
+    ref = _core_and_nordic(nordic_nodal=True)
+    for m in (n, ref):
+        if scenarios:
+            m.set_scenarios({"low": 0.5, "high": 0.5})
+        m.optimize()
+
+    assert n.objective == pytest.approx(ref.objective)
+    pd.testing.assert_frame_equal(
+        n.c.generators.dynamic["p"], ref.c.generators.dynamic["p"], atol=1e-6
+    )
+    np_ = n.model["FlowBased-net_position"].solution
+    for zones in (["A", "B", "C"], ["D", "E"]):
+        np.testing.assert_allclose(np_.sel(bus=zones).sum("bus"), 0, atol=1e-6)
+    assert (n.c.links.dynamic["p0"].to_numpy() > 1).all()
+
+
+def test_single_balance_allows_transfer_beside_corridor():
+    """Without named domains, Nordic trades with Core beyond the corridor L."""
+    n = _core_and_nordic(named=False)
+    ref = _core_and_nordic()
+    for m in (n, ref):
+        m.optimize()
+    nordic = net_position(n)[["D", "E"]].sum(axis=1).iloc[0]
+    assert abs(nordic) > 1
+    assert n.objective < ref.objective - 1
+
+
+@pytest.mark.parametrize(
+    ("rows", "attr", "value", "match"),
+    [
+        (["DE (+)"], "domain", "", "have no `domain`"),
+        (["DE (+)"], "ptdf_A", 0.0, r"\['A'\] must belong to exactly one"),
+        (["DE (+)", "DE (-)"], "ptdf_E", np.nan, r"\['E'\] must belong to exactly one"),
+    ],
+)
+def test_named_domain_validation(rows, attr, value, match):
+    n = _core_and_nordic()
+    n.c.global_constraints.static.loc[rows, attr] = value
+    with pytest.raises(ValueError, match=match):
+        n.optimize.create_model()
+
+
+# CNECs that change over snapshots (NaN ram)
+
+
+def _active_cnecs(n) -> pd.DataFrame:
+    return (n.model.constraints["GlobalConstraint-ram"].labels != -1).to_pandas()
+
+
+def _nan_ram_triangle(drops, snapshots=3) -> pypsa.Network:
+    """Triangle with time-varying `ram`, NaN for each `{cnec: snapshots}` in `drops`."""
+    n = triangle(snapshots=snapshots)
+    c = n.c.global_constraints
+    ram = pd.DataFrame([c.static.loc[CNECS, "ram"]] * snapshots, index=n.snapshots)
+    for cnec, sns in drops.items():
+        ram.loc[sns, cnec] = np.nan
+    c.static["ram"] = np.nan
+    c.dynamic["ram"] = ram
+    return n
+
+
+def _optimum_without(cnec) -> np.ndarray:
+    n = triangle(domain=False)
+    d = triangle_domain().drop(cnec)
+    n.c.global_constraints.add_flow_based(d[["A", "B", "C"]], d["RAM"])
+    n.optimize()
+    return net_position(n).iloc[0].to_numpy()
+
+
+def test_nan_ram_drops_cnec_in_that_snapshot_only():
+    n = _nan_ram_triangle({"AB (+)": [1], "AC (-)": [2]})
+    n.optimize.create_model()
+    expected = n.c.global_constraints.dynamic["ram"].notna()
+    pd.testing.assert_frame_equal(
+        _active_cnecs(n), expected, check_names=False, check_index_type=False
+    )
+
+    n.optimize()
+    np_ = net_position(n)
+    np.testing.assert_allclose(np_.iloc[0], [2000, -1000, -1000])
+    np.testing.assert_allclose(np_.iloc[1], _optimum_without("AB (+)"))
+    np.testing.assert_allclose(np_.iloc[2], [2000, -1000, -1000])
+    mu = n.c.global_constraints.dynamic["mu_ram"]["AB (+)"]
+    assert mu.iloc[0] < 0
+    assert mu.iloc[1] == 0
+
+
+def test_nan_ram_per_scenario():
+    n = triangle(snapshots=2)
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    c = n.c.global_constraints
+    ram = pd.DataFrame([c.static["ram"]] * 2, index=n.snapshots, columns=c.static.index)
+    ram.loc[1, ("high", "AB (+)")] = np.nan
+    c.static["ram"] = np.nan
+    c.dynamic["ram"] = ram
+    n.optimize.create_model()
+    active = n.model.constraints["GlobalConstraint-ram"].labels != -1
+    assert int(active.sum()) == 2 * 2 * len(CNECS) - 1
+    assert not active.sel(scenario="high", snapshot=1, name="AB (+)")
+    assert active.sel(scenario="low", snapshot=1, name="AB (+)")
+
+
+def test_nan_ram_with_investment_periods():
+    """Each of the 12 rows binds in the 2 snapshots of its period, minus one NaN."""
+    n = _multi_period_triangle(timesteps=2)
+    c = n.c.global_constraints
+    ram = pd.DataFrame([c.static["ram"]] * 4, index=n.snapshots)
+    ram.loc[(2020, 1), "AB (+) 2020"] = np.nan
+    c.static["ram"] = np.nan
+    c.dynamic["ram"] = ram
+    n.optimize.create_model(multi_investment_periods=True)
+    active = _active_cnecs(n)
+    assert active.to_numpy().sum() == 12 * 2 - 1
+    assert not active.loc[(2020, 1), "AB (+) 2020"]
+
+
+def test_nan_ram_rolling_horizon_window_without_cnec():
+    """A window in which a CNEC is absent everywhere still solves."""
+    n = _nan_ram_triangle({"AB (+)": [2, 3]}, snapshots=4)
+    n.optimize.optimize_with_rolling_horizon(horizon=2)
+    np_ = n.c.buses.dynamic["net_position"]
+    np.testing.assert_allclose(np_.iloc[:2], [[2000, -1000, -1000]] * 2)
+    np.testing.assert_allclose(np_.iloc[2:], [_optimum_without("AB (+)")] * 2)

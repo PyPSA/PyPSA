@@ -83,6 +83,7 @@ class GlobalConstraints(Components):
         zonal_ptdf: pd.DataFrame | pd.Series,
         ram: float | pd.Series | pd.DataFrame,
         investment_period: int | None = None,
+        domain: str | None = None,
         overwrite: bool = False,
     ) -> None:
         """Add a flow-based domain, one `flow_based` global constraint per CNEC.
@@ -103,10 +104,15 @@ class GlobalConstraints(Components):
             `n.snapshots`. A Series is a single CNEC named by its `name`.
         ram : float, pandas.Series or pandas.DataFrame
             Remaining available margin. A scalar applies to every CNEC, a Series
-            is indexed by CNEC and a DataFrame is `snapshot x CNEC`.
+            is indexed by CNEC and a DataFrame is `snapshot x CNEC`. A NaN in the
+            DataFrame drops the CNEC in that snapshot.
         investment_period : int, optional
             Investment period the domain binds in. By default it binds in all
             snapshots.
+        domain : str, optional
+            Name of the flow-based domain the CNECs belong to, e.g. "Core" or
+            "Nordic". Each named domain gets its own zero-sum balance of net
+            positions. By default all zones share one balance.
         overwrite : bool, default False
             Replace existing global constraints of the same names.
 
@@ -175,6 +181,8 @@ class GlobalConstraints(Components):
         kwargs: dict[str, Any] = {}
         if investment_period is not None:
             kwargs["investment_period"] = investment_period
+        if domain is not None:
+            kwargs["domain"] = domain
         self.add(
             list(cnecs),
             type="flow_based",

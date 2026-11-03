@@ -44,6 +44,8 @@ cnec_2 -0.3  0.5  0.2
 
 [`add_flow_based`][pypsa.components.GlobalConstraints.add_flow_based] does the same in one call, `n.c.global_constraints.add_flow_based(zonal_ptdf, ram)`, and also takes the time-varying layout: `zonal_ptdf` with a `(snapshot, CNEC)` MultiIndex (zones as columns) and `ram` as a snapshot x CNEC frame. Static and time-varying zone columns may be mixed; in the raw form a time-varying column is a snapshot x CNEC frame, e.g. `ptdf_DE=...`. `ram` may likewise be static or time-varying (`n.global_constraints_t.ram`). With multiple investment periods, `investment_period` ties a row to one period; rows without it apply in all periods.
 
+A NaN in a time-varying `ram` drops that CNEC in that snapshot. This suits presolved domains, whose set of CNECs changes from hour to hour.
+
 ### Controllable link flows (AHC and EvFB)
 
 A column may name a [`Link`][pypsa.components.Links] instead of a zone bus: an HVDC corridor into the region (AHC) or between two zones (EvFB). The column is the CNEC's sensitivity to the link flow (`bus0 -> bus1`) with the zone net positions held fixed; see [the optimisation page](../optimization/global-constraints.md#controllable-link-flows-ahc-and-evfb) for its definition and how it relates to published hub sensitivities.
@@ -62,3 +64,7 @@ A column may name a [`Link`][pypsa.components.Links] instead of a zone bus: an H
 !!! note "Cross-zone branches"
 
     The domain replaces the grid *between* zones. The network must not contain a [`Line`][pypsa.components.Lines], [`Transformer`][pypsa.components.Transformers] or [`Link`][pypsa.components.Links] between two zone buses, except a `Link` that is a domain column.
+
+### Several domains side by side
+
+Europe couples more than one flow-based domain, e.g. Core and Nordic. Name the domain of each row with `domain`, e.g. `add_flow_based(zonal_ptdf, ram, domain="Nordic")`. Each named domain gets its own zero-sum balance of net positions. Its zones are the zone columns its rows set (not NaN), so a zone must be set in the rows of exactly one domain. A `Link` between zones of two domains is a column of both. Name the domain of every `flow_based` row or of none; without names, all zones share one balance.

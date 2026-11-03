@@ -198,9 +198,11 @@ Each critical network element (CNEC) $c$ is one global constraint row, a monitor
 
 $$\sum_{z} \text{PTDF}_{c,z,t}\, NP_{z,t} \;\le\; \text{RAM}_{c,t} \quad \leftrightarrow \quad \mu_{c,t}$$
 
-The sensitivities $\text{PTDF}_{c,z,t}$ are the zonal power transfer distribution factors (attributes `ptdf_<zone>`, see the [component page](../components/global-constraints.md#zonal-ptdf)); both they and the RAM (`ram`) may be static or vary by snapshot, and the constraint broadcasts over $t$ either way. A row with an `investment_period` only applies in that period's snapshots. The shadow price $\mu_{c,t}$ is written to `n.global_constraints_t.mu_ram`. A single zero-sum balance closes the copper plate across the zones,
+The sensitivities $\text{PTDF}_{c,z,t}$ are the zonal power transfer distribution factors (attributes `ptdf_<zone>`, see the [component page](../components/global-constraints.md#zonal-ptdf)); both they and the RAM (`ram`) may be static or vary by snapshot, and the constraint broadcasts over $t$ either way. A row with an `investment_period` only applies in that period's snapshots, and a row with a NaN `ram` is dropped in that snapshot. The shadow price $\mu_{c,t}$ is written to `n.global_constraints_t.mu_ram`. A zero-sum balance closes the copper plate across the zones of each domain $D$,
 
-$$\sum_{z} NP_{z,t} = 0.$$
+$$\sum_{z \in D} NP_{z,t} = 0.$$
+
+By default all zones form one domain. Rows that name their `domain`, e.g. Core and Nordic, give one balance per named domain. A link between two domains then acts as an AHC corridor in each. The rows of one domain see neither the zones nor the hubs of the other ($\text{PTDF}$ and $h$ are 0 there), so the EvFB and AHC formulas below give the same column.
 
 The net-position variable is added in `define_flow_based_variables()` and these constraints in `define_flow_based_constraints()`; the net-position injection is added in `define_nodal_balance_constraints()` via `flow_based_balance_terms()`.
 
