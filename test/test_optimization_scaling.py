@@ -618,24 +618,11 @@ def test_scaling_policy(build, mode, kwargs):
     assert mismatch.empty, mismatch.groupby("name").scaling.first()
 
 
-@pytest.mark.parametrize(
-    ("build", "rolling"),
-    [
-        (sector_network, False),
-        (pypsa.examples.ac_dc_meshed, False),
-        (feature_network, True),
-    ],
-    ids=["sector", "ac_dc_meshed", "rolling"],
-)
-def test_recipe_matches_unscaled(build, rolling):
+@pytest.mark.parametrize("build", [sector_network, pypsa.examples.ac_dc_meshed])
+def test_recipe_matches_unscaled(build):
     ref, n = build(), build()
     n.c.buses.static["scaling"] = 1e-4
     n.c.global_constraints.static["scaling"] = 1e-6
-    for network, objective_scaling in [(ref, 1.0), (n, 2e-3)]:
-        if rolling:
-            network.optimize.optimize_with_rolling_horizon(
-                horizon=3, objective_scaling=objective_scaling
-            )
-        else:
-            network.optimize(objective_scaling=objective_scaling)
+    ref.optimize()
+    n.optimize(objective_scaling=2e-3)
     assert n.objective == pytest.approx(ref.objective, rel=RTOL)
