@@ -13,7 +13,7 @@ $$\begin{gather*}\sum_{s} g_{n,s,t} + \sum_{s} \left(h_{n,s,t}^- - h_{n,s,t}^+ \
 
 where the **decision variables** are represented by:
 
-- $d_{n,s,t}$ for the demand of [`Load`][pypsa.components.Loads] components
+- $d_{n,s,t}$ for the demand of [`Load`][pypsa.components.Loads] components (a constant given by `p_set` for passive loads, a decision variable for active loads)
 - $g_{n,s,t}$ for the dispatch of [`Generator`][pypsa.components.Generators] components
 - $h_{n,s,t}^-$ for the discharging of [`StorageUnit`][pypsa.components.StorageUnits] components
 - $h_{n,s,t}^+$ for the charging of [`StorageUnit`][pypsa.components.StorageUnits] components
