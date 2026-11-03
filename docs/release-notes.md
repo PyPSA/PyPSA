@@ -22,11 +22,16 @@ SPDX-License-Identifier: CC-BY-4.0
 - Add the volume limits `e_sum_min` and `e_sum_max` to [Link](./user-guide/components/links.md), [Process](./user-guide/components/processes.md) and [Store](./user-guide/components/stores.md) components. (<!-- md:pr 1987 -->)
     - **Behavior change**: With `multi_investment_periods=True`, `e_sum_min` and `e_sum_max` limit the total over all investment periods weighted by the investment period weighting `years`, as for `operational_limit` global constraints. Before, the energy of each period was counted once.
     - **Behavior change**: The consistency check for `e_sum_min > e_sum_max` raises with `strict=["volume_limits"]` instead of `strict=["generators"]`.
+- Speed up writing optimization results back to the network, the calculation of voltage angles after the optimization and the consistency check of `p_max_pu` and `p_min_pu`, which dominated the runtime of [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] on large networks. The rolling horizon now also uses `io_api="direct"` for solvers that support it, unless `io_api` or `problem_fn` is passed, and runs the consistency check once for the whole network instead of for every window.
+    - **Behavior change**: With `keep_files=True`, the rolling horizon no longer keeps a problem file unless `io_api` or `problem_fn` is passed, and the solver log follows the direct API.
+    - **Behavior change**: The voltage angles `v_ang` after the optimization are now zero at the slack bus of each sub-network, as in [`n.lpf()`][pypsa.Network.lpf]. Before, they were shifted to zero mean per sub-network. Angle differences across lines are unchanged.
+- Add the argument `consistency_check` to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] to skip the consistency check before building the model.
 
 ### Bug Fixes
 
 - Fix ramp limits failing with linopy's strict coordinate alignment when optimizing a snapshot subset of a network with investment periods, e.g. in the windows of [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon]. The dispatch before the window no longer carries scalar `period` and `timestep` coordinates. (<!-- md:pr 2079 -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] silently carrying storage levels to the wrong store or storage unit on stochastic networks. When components were added after `n.set_scenarios()`, the static index and the time-varying columns had a different order. The carried `e_initial` and `state_of_charge_initial` are now aligned by component and scenario. (<!-- md:pr 2077 -->)
+- Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] skipping one step of `standing_loss` at each window seam. The storage level carried into the next window as `e_initial` or `state_of_charge_initial` is now reduced by the standing loss of the window's first snapshot, so storage levels match a single optimization over all snapshots. (<!-- md:pr 2080 -->)
 - Fix the `"bfs-refined"` cycle basis depending on `PYTHONHASHSEED`. Start, direction and refinement order of each cycle now follow the bus order, so two runs write the same KVL constraints and LP files. The basis can differ from v1.4.0, the optimum does not. (<!-- md:pr 2023 -->)
 - Fix [`n.lpf_contingency()`][pypsa.Network.lpf_contingency] returning `NaN` for branches in AC sub-networks unaffected by the outage. Those branches now keep their base-case flows. (<!-- md:pr 2068 -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] leaving `n.buses_t.v_ang` with only the last window's snapshots when a sub-network has a single bus. The voltage angles now cover all snapshots, like the other time-varying outputs. (<!-- md:pr 2064 -->)
@@ -80,6 +85,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- [`n.consistency_check()`][pypsa.Network.consistency_check] now warns when a committable generator has `ramp_limit_start_up` or `ramp_limit_shut_down` below `p_min_pu`, which blocks start-up or shut-down. (<!-- md:pr 2053 -->)
 - Fix inactive branches (`active=False`) remaining in the cycles of the Kirchhoff voltage law constraints. Resolves [#2004](https://github.com/PyPSA/PyPSA/issues/2004). (<!-- md:pr 2005 -->)
 - Fix minimum up and down time constraints of committable components losing their first rows under linopy v1 semantics; legacy semantics are unaffected. (<!-- md:pr 1990 -->)
 - Fix `n.objective_constant` being `0` for [multi-period](./user-guide/optimization/pathway-planning.md) optimizations; it again includes the period-weighted capital costs of existing extendable capacity. (<!-- md:pr 1967 -->)

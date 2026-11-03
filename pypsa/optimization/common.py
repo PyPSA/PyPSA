@@ -21,9 +21,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 from deprecation import deprecated
-from numpy import hstack, ravel
 
 from pypsa.constants import RE_PORTS
 
@@ -66,7 +66,16 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
         c.dynamic[attr] = df.reindex(n.snapshots)
 
     else:
-        c.dynamic[attr] = df.combine_first(c.dynamic[attr])
+        current = c.dynamic[attr]
+        index = df.index.union(current.index)
+        columns = df.columns.union(current.columns)
+        values = current.reindex(index=index, columns=columns).to_numpy(
+            dtype=float, copy=True
+        )
+        block = np.ix_(index.get_indexer(df.index), columns.get_indexer(df.columns))
+        update = df.to_numpy(dtype=float)
+        values[block] = np.where(np.isnan(update), values[block], update)
+        c.dynamic[attr] = pd.DataFrame(values, index=index, columns=columns)
 
     # Reindex to match network snapshots and component names
     result = c.dynamic[attr].reindex(n.snapshots, level="snapshot", axis=0)
@@ -99,7 +108,9 @@ def get_bus_counts(n: Network) -> pd.Series:
 
     """
     all_buses = pd.Series(
-        hstack([ravel(c.static.filter(regex=RE_PORTS.pattern)) for c in n.components])
+        np.hstack(
+            [np.ravel(c.static.filter(regex=RE_PORTS.pattern)) for c in n.components]
+        )
     )
     all_buses = all_buses[all_buses != ""]
     return all_buses.value_counts()
