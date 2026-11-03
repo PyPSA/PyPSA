@@ -644,6 +644,8 @@ def test_ramp_limit_window_multi_period(committable):
     p = n.c.generators.dynamic.p.loc[2030]
     assert np.allclose(p["gen"], [50, 50, 75, 100])
     assert np.allclose(p["backup"], [0, 0, 25, 0])
+
+
 @pytest.mark.parametrize(
     ("component", "level", "kwargs"),
     [
@@ -651,8 +653,6 @@ def test_ramp_limit_window_multi_period(committable):
         ("StorageUnit", "state_of_charge", {"p_nom": 100, "max_hours": 10}),
     ],
 )
-
-
 def test_rolling_horizon_storage_standing_loss(component, level, kwargs):
     def build():
         n = pypsa.Network(snapshots=range(4))
