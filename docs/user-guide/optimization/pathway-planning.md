@@ -177,6 +177,10 @@ the storage is cyclic for each investment period, the
 `cyclic_state_of_charge_per_period` or `e_cyclic_per_period` attribute must be
 set to `True`.
 
+!!! note "Rolling horizon"
+
+    With `multi_investment_periods=True`, [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] cuts the windows at investment period boundaries, so that no window spans two periods. Within each period, windows start every `horizon - overlap` snapshots and the last one is shortened at the period end. Storage with `e_initial_per_period` or `state_of_charge_initial_per_period` starts each period from its initial value, other storage carries its level over from the previous window. Storage with `e_cyclic_per_period` or `cyclic_state_of_charge_per_period` is cyclic within each window, not within each period.
+
 !!! note "Technological learning"
 
     Technological learning, i.e. the reduction of investment costs for technologies over investment periods as experience grows, is currently not yet implemented in PyPSA. However, a study by Zeyen et al. (2023)[^2]
