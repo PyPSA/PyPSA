@@ -73,6 +73,37 @@ def test_remove(ac_dc_network):
     assert not generators.issubset(n.c.generators.dynamic.p_max_pu.columns)
 
 
+def test_remove_with_unnamed_dynamic_columns(ac_dc_network):
+    n = ac_dc_network
+    c = n.c.generators
+    c.dynamic.p_max_pu = c.dynamic.p_max_pu.rename_axis(columns=None)
+
+    n.remove("Generator", "Manchester Wind")
+
+    assert "Manchester Wind" not in c.dynamic.p_max_pu.columns
+
+
+def test_remove_stochastic(ac_dc_stochastic):
+    """Components are removed from all scenarios (#1955)."""
+    n = ac_dc_stochastic
+    c = n.c.generators
+
+    generators = ["Manchester Wind", "Frankfurt Wind"]
+
+    n.remove("Generator", generators)
+    n.remove("GlobalConstraint", "co2_limit")
+
+    assert not c.static.index.isin(generators, level="name").any()
+    assert list(c.dynamic.p_max_pu.columns) == [
+        ("low", "Norway Wind"),
+        ("high", "Norway Wind"),
+    ]
+    assert n.c.global_constraints.static.empty
+
+    with pytest.raises(KeyError):
+        n.remove("Generator", "Manchester Wind")
+
+
 def test_remove_misspelled_component(ac_dc_network):
     """
     GIVEN   the AC DC exemplary pypsa network.
@@ -314,11 +345,53 @@ def test_add_overwrite_clears_stale_dynamic():
     """
     n = pypsa.Network(snapshots=range(3))
     n.add("Bus", "b")
-    n.add("Generator", "g", bus="b", marginal_cost=[10.0, 20.0, 30.0])
+    n.add(
+        "Generator",
+        "g",
+        bus="b",
+        marginal_cost=[10.0, 20.0, 30.0],
+        custom_t=pd.Series([1.0, 2.0, 3.0], index=n.snapshots),
+    )
     assert "g" in n.c.generators.dynamic.marginal_cost.columns
+    assert "g" in n.c.generators.dynamic.custom_t.columns
 
     n.add("Generator", "g", bus="b", marginal_cost=5.0, overwrite=True)
     assert "g" not in n.c.generators.dynamic.marginal_cost.columns
+    assert "g" not in n.c.generators.dynamic.custom_t.columns
+
+
+@pytest.mark.parametrize(
+    ("component", "kwargs"), [("Generator", {"bus": "b"}), ("GlobalConstraint", {})]
+)
+def test_add_custom_dynamic_attribute_incremental(component, kwargs):
+    """Custom time-varying attributes of later `n.add` calls are merged."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "b")
+    c = n.c[component]
+    t1 = pd.Series([1.0, 2.0, 3.0], index=n.snapshots)
+    t2 = pd.Series([4.0, 5.0, 6.0], index=n.snapshots)
+    n.add(component, "g1", custom_t=t1, **kwargs)
+    n.add(component, "g2", custom_t=t2, **kwargs)
+
+    df = c.dynamic["custom_t"]
+    assert list(df.columns) == ["g1", "g2"]
+    assert df["g1"].tolist() == t1.tolist()
+    assert df["g2"].tolist() == t2.tolist()
+    assert df.index.equals(n.snapshots)
+
+    n.add(component, "g1", custom_t=t2 * 10, overwrite=True, **kwargs)
+    df = c.dynamic["custom_t"]
+    assert sorted(df.columns) == ["g1", "g2"]
+    assert df["g1"].tolist() == (t2 * 10).tolist()
+    assert df["g2"].tolist() == t2.tolist()
+
+    n.add(component, "g1", custom_t=t1, **kwargs)
+    assert c.dynamic["custom_t"]["g1"].tolist() == (t2 * 10).tolist()
+
+    n.add(component, "g3", custom_s=5, **kwargs)
+    assert c.static.loc["g3", "custom_s"] == 5
+    assert "custom_s" not in c.dynamic
+    assert "g3" not in c.dynamic["custom_t"].columns
 
 
 def test_add_stochastic():
@@ -589,13 +662,101 @@ def test_copy_default_behavior(networks):
     assert n is not network_copy
 
 
-def test_copy_relinks_sub_networks(ac_dc_network):
-    """Copying relinks SubNetwork parent references to the copied network."""
+COPY_METHODS = {
+    "copy": lambda n: n.copy(),
+    "deepcopy": copy.deepcopy,
+    "pickle": lambda n: pickle.loads(pickle.dumps(n)),
+    "copy_snapshots": lambda n: n.copy(snapshots=n.snapshots[:3]),
+}
+
+
+@pytest.mark.parametrize(
+    ("network", "method"),
+    [
+        (network, method)
+        for network in ["ac_dc_network", "ac_dc_stochastic"]
+        for method in COPY_METHODS
+        if not (network == "ac_dc_stochastic" and method == "copy_snapshots")
+    ],
+)
+def test_copy_relinks_sub_networks(request, network, method):
+    """
+    Copies own SubNetwork objects linked to the copy, the original stays linked.
+    See https://github.com/PyPSA/PyPSA/issues/1888 and #1930.
+    """
+    n = request.getfixturevalue(network)
+    n.determine_network_topology()
+    n_copy = COPY_METHODS[method](n)
+    subs = n.c.sub_networks.static.obj
+    subs_copy = n_copy.c.sub_networks.static.obj
+    assert len(subs) > 0
+    assert subs_copy.index.equals(subs.index)
+    for sub, sub_copy in zip(subs, subs_copy, strict=True):
+        assert sub is not sub_copy
+        assert sub.n is n
+        assert sub_copy.n is n_copy
+    assert n.equals(n_copy) == (method != "copy_snapshots")
+
+
+@pytest.mark.parametrize("network", ["ac_dc_network", "ac_dc_stochastic"])
+def test_equals_skips_sub_networks(request, network):
+    """Networks differ in topology columns and component data, not in SubNetworks."""
+    n = request.getfixturevalue(network)
+    n_without_topology = n.copy()
+    n.determine_network_topology()
+    n_other_lines = n.copy()
+    n_other_lines.c.lines.static["x"] *= 2
+    assert not n.equals(n_without_topology)
+    assert not n.equals(n_other_lines)
+
+
+def test_shallow_copy_keeps_original_sub_networks(ac_dc_network):
+    """copy.copy shares SubNetwork objects and leaves them linked to the original."""
     n = ac_dc_network
     n.determine_network_topology()
-    n_copy = n.copy()
-    for sub in n_copy.c.sub_networks.static.obj:
-        assert sub.n is n_copy
+    copy.copy(n)
+    assert all(sub.n is n for sub in n.c.sub_networks.static.obj)
+
+
+@pytest.mark.parametrize("copy_method", COPY_METHODS.values(), ids=COPY_METHODS)
+def test_copy_keeps_snapshot_names(ac_dc_periods, copy_method):
+    """Copies keep the name of multi-indexed snapshots, see #1937."""
+    n_copy = copy_method(ac_dc_periods)
+    assert n_copy.snapshots.name == "snapshot"
+    assert n_copy.snapshot_weightings.index.name == "snapshot"
+    assert n_copy.c.generators.dynamic.p.index.name == "snapshot"
+    assert n_copy.c.generators.da.p_max_pu.dims == ("snapshot", "name")
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "period"),
+    [
+        ({"snapshots": pd.MultiIndex.from_product([[2030], range(2)])}, 2030),
+        ({"investment_periods": [2020]}, 2020),
+    ],
+)
+def test_copy_selects_investment_periods(kwargs, period):
+    """Selecting snapshots or investment periods on copy selects the other."""
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], range(2)])
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=10, marginal_cost=1)
+    n.add("Load", "load", bus="bus", p_set=5)
+    n_copy = n.copy(**kwargs)
+    assert n_copy.investment_periods.tolist() == [period]
+    assert n_copy.snapshots.unique("period").tolist() == [period]
+    status, _ = n_copy.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+
+def test_copy_snapshots_keeps_crs(ac_dc_network):
+    """Selective copies keep a non-default coordinate reference system."""
+    n = ac_dc_network
+    n.to_crs(3035)
+    n_copy = n.copy(snapshots=n.snapshots[:3])
+    assert n_copy.crs == n.crs
+    assert n_copy.c.buses.static.x.equals(n.c.buses.static.x)
 
 
 def test_copy_with_model(ac_dc_network):
@@ -664,23 +825,6 @@ def test_1420(tmp_path):
     assert len(n_loaded.c.buses.static) == 1
     assert len(n_loaded.c.generators.static) == 1
     # tmp_path is automatically cleaned up by pytest
-
-
-def test_pickle_with_sub_networks(ac_dc_network):
-    """
-    Networks with sub-networks should be picklable despite the SubNetwork weakref.
-    See https://github.com/PyPSA/PyPSA/issues/1888.
-    """
-    n = ac_dc_network
-    n.determine_network_topology()
-    assert len(n.c.sub_networks.static) > 0
-
-    n_loaded = pickle.loads(pickle.dumps(n))
-
-    assert len(n_loaded.c.sub_networks.static) == len(n.c.sub_networks.static)
-    # SubNetwork weakref to the parent is restored to the loaded network
-    for sub in n_loaded.c.sub_networks.static.obj:
-        assert sub.n is n_loaded
 
 
 @pytest.mark.skipif(
@@ -807,6 +951,46 @@ def test_rename_component_names(use_component):
 
     assert "bus1" not in n.c.generators.static.bus.to_list()
     assert "bus3" in n.c.generators.static.bus.to_list()
+
+
+@pytest.mark.parametrize("use_component", [True, False])
+def test_rename_non_bus_component_names(use_component):
+    n = pypsa.Network()
+    n.snapshots = [0, 1]
+
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add("Carrier", "wind")
+    n.add("Generator", "gen1", bus="bus1", carrier="wind", p_min_pu=[0.1, 0.2])
+    n.add("Line", "line1", bus0="bus1", bus1="bus2", s_max_pu=[0.1, 0.2])
+    n.add("Link", "link1", bus0="bus1", bus1="bus2", p_nom=100)
+
+    if use_component:
+        n.c.links.rename_component_names(link1="link2")
+        n.c.lines.rename_component_names(line1="line2")
+        n.c.generators.rename_component_names(gen1="gen2")
+        n.c.carriers.rename_component_names(wind="offshore_wind")
+    else:
+        n.rename_component_names("Link", link1="link2")
+        n.rename_component_names("Line", line1="line2")
+        n.rename_component_names("Generator", gen1="gen2")
+        n.rename_component_names("Carrier", wind="offshore_wind")
+
+    assert "link1" not in n.c.links.static.index
+    assert "link2" in n.c.links.static.index
+    assert n.c.links.static.loc["link2", "bus0"] == "bus1"
+
+    assert "line1" not in n.c.lines.static.index
+    assert "line2" in n.c.lines.static.index
+    assert "line2" in n.c.lines.dynamic.s_max_pu.columns
+
+    assert "gen1" not in n.c.generators.static.index
+    assert "gen2" in n.c.generators.static.index
+    assert "gen2" in n.c.generators.dynamic.p_min_pu.columns
+    assert n.c.generators.static.loc["gen2", "carrier"] == "offshore_wind"
+
+    assert "wind" not in n.c.carriers.static.index
+    assert "offshore_wind" in n.c.carriers.static.index
 
 
 def test_components_repr(ac_dc_network):

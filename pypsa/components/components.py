@@ -168,6 +168,8 @@ class Components(
 
     """
 
+    _operational_variables: list[str] = []
+
     def __init__(
         self,
         ctype: ComponentType,

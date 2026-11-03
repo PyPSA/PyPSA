@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 from pandas.api.types import is_list_like
 
 from pypsa._options import options
@@ -28,6 +27,8 @@ from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_por
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
+
+    import xarray as xr
 
     from pypsa import Network, NetworkCollection
     from pypsa.components.components import PortsLike
@@ -94,7 +95,7 @@ def port_efficiency(
         msg = f"port_efficiency has not been implemented for: {c.name}"
         raise NotImplementedError(msg)
 
-    return xr.DataArray(res) if as_xarray else res
+    return c._to_xarray(res, "efficiency") if as_xarray else res
 
 
 def get_transmission_branches(
@@ -526,9 +527,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self, df: pd.Series | pd.DataFrame, agg: Callable | str
     ) -> pd.Series | pd.DataFrame:
         warnings.warn(
-            "Passing `aggregate_across_components` was Deprecated in <!-- md:badge-version v1.0.0 -->.0 and "
+            "Passing `aggregate_across_components` was deprecated in v1.0.0 and "
             "will be removed with v2.0.0. Use e.g. "
-            "`n.statistics.installed_capacity.groupby(<col_name>).sum() instead.",
+            "`n.statistics.installed_capacity.groupby(<col_name>).sum()` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -1175,6 +1176,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
+        if self._n.has_investment_periods and not df.empty:
+            weights = self._n.investment_period_weightings["objective"]
+            df = df.multiply(weights, level="period")
         df.attrs["name"] = "Fixed O&M Cost"
         df.attrs["unit"] = "currency"
         return df
@@ -1431,7 +1435,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_groups="groupby_method",
         aggregate_time="groupby_time",
     )
-    def expanded_capacity(
+    def expanded_capacity(  # noqa: D417
         self,
         components: str | Sequence[str] | None = None,
         groupby_method: Callable | str = "sum",
@@ -1443,6 +1447,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
+        storage: bool = False,
     ) -> pd.DataFrame:
         """Calculate the **expanded capacity** of the network components in MW.
 
@@ -1490,6 +1495,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Number of decimal places to round the result to. Defaults to module wide
             option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
+        Other Parameters
+        ----------------
+        storage : bool, default=False
+            Whether to consider only storage capacities of the components
+            `Store` and `StorageUnit`.
+
         Returns
         -------
         pd.DataFrame
@@ -1513,6 +1524,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
+            storage=storage,
         )
         installed = self.installed_capacity(
             components=components,
@@ -1525,6 +1537,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
+            storage=storage,
         )
         installed = installed.reindex(optimal.index, fill_value=0)
         df = optimal.sub(installed).where(optimal.abs() > installed.abs(), 0)
@@ -1610,6 +1623,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         cost_types : str | Sequence[str] | None, default=None
             List of cost types to include in the calculation. Available options
             are: 'marginal_cost', 'marginal_cost_quadratic',
+            'marginal_cost_dispatch', 'marginal_cost_store',
             'marginal_cost_storage', 'spill_cost', 'start_up_cost',
             'shut_down_cost', 'stand_by_cost'. Defaults to all (when None).
 
@@ -1626,12 +1640,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        from pypsa.optimization.optimize import lookup  # noqa: PLC0415
+        from pypsa.optimization.optimize import cost_variables  # noqa: PLC0415
 
         if cost_types is None:
             cost_types_ = [
                 "marginal_cost",
                 "marginal_cost_quadratic",
+                "marginal_cost_dispatch",
+                "marginal_cost_store",
                 "marginal_cost_storage",
                 "spill_cost",
                 "start_up_cost",
@@ -1652,19 +1668,23 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
             for cost_type in [
                 "marginal_cost",
+                "marginal_cost_dispatch",
+                "marginal_cost_store",
                 "marginal_cost_storage",
                 "marginal_cost_quadratic",
                 "spill_cost",
             ]:
                 if cost_type in cost_types_ and cost_type in n.c[c].static:
-                    attr = lookup.query(cost_type).loc[c].index.item() + port
+                    attrs = cost_variables(c, cost_type)
                     cost = n.get_switchable_as_dense(c, cost_type)
                     cost_piecewise_opt = n.c[c].dynamic.get(
                         f"{cost_type}_piecewise_opt"
                     )
                     if cost_piecewise_opt is None or cost_piecewise_opt.empty:
                         cost_piecewise_opt = 0
-                    p = n.c[c].dynamic[attr]
+                    p = sum(n.c[c].dynamic[attr + port] for attr in attrs)
+                    if p.empty:
+                        continue
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
                     opex = var * (cost + cost_piecewise_opt)
                     term = self._aggregate_timeseries(opex, weights, agg=groupby_time)
@@ -1682,7 +1702,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     and not com_i.empty
                 ):
                     cost = n.get_switchable_as_dense(c, cost_type, inds=com_i)
-                    var = n.c[c].dynamic[attr].loc[:, com_i]
+                    var = n.c[c].dynamic[attr].loc[:, cost.columns]
                     cost_piecewise_opt = n.c[c].dynamic.get(
                         f"{cost_type}_piecewise_opt", 0
                     )
@@ -2957,6 +2977,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             return df
 
         if weighting == "load":
+            # Group by scenario/network too, a bare bus index matches no column.
+            levels = ["bus" if lvl == "name" else lvl for lvl in prices.columns.names]
             weights = (
                 n.statistics.withdrawal(
                     groupby="bus",
@@ -2964,10 +2986,15 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     nice_names=False,
                     groupby_time=False,
                 )
-                .groupby("bus")
+                .groupby(levels)
                 .sum()
                 .T
             )
+            weights.columns = weights.columns.set_names(prices.columns.names)
+            if not weights.columns.isin(prices.columns).all():
+                msg = "Load weights do not align with the price columns."
+                raise ValueError(msg)
+            # Buses without any withdrawal keep a weight of 1.
             weights = weights.reindex(prices.columns, axis=1, fill_value=1)
         elif weighting == "time":
             weights = pd.DataFrame(1, index=prices.index, columns=prices.columns)

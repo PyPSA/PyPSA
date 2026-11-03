@@ -676,31 +676,6 @@ def list_as_string(
     raise ValueError(msg)
 
 
-def pass_none_if_keyerror(func: Callable) -> Callable:
-    """Decorate functions to pass None if a KeyError or AttributeError is raised.
-
-    Parameters
-    ----------
-    func : Callable
-        The function to decorate.
-
-    Returns
-    -------
-    Callable
-        The decorated function.
-
-    """
-
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return func(*args, **kwargs)
-        except (KeyError, AttributeError):
-            return None
-
-    return wrapper
-
-
 def pass_empty_series_if_keyerror(func: Callable) -> Callable:
     """Decorate functions to pass an empty series if a KeyError or AttributeError is raised.
 

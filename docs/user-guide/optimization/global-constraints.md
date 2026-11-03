@@ -9,11 +9,11 @@ SPDX-License-Identifier: CC-BY-4.0
 Global constraints apply to more than one component at once and are stored under a unique `name` in `n.global_constraints`. Several pre-defined types of global constraints are available (`type`).
 For instance, for defining emission limits, transmission expansion limits, or technology capacity expansion limits using the `sense` and `constant` attributes.
 
-By default, global constraints span across all investment periods. For models with multiple investment periods, global constraints can be limited to affect only single investment period (e.g. an emission limit for a specific year) by specifying the in the attribute `investment_period`. The shadow price of each global constraint is stored in the attribute `mu`.
+By default, global constraints span across all investment periods. For models with multiple investment periods, global constraints can be limited to affect only single investment period (e.g. an emission limit for a specific year) by specifying the in the attribute `investment_period`. The shadow price of each global constraint is stored in the attribute `mu`. Flow-based rows store theirs per snapshot in `mu_ram` instead.
 
 !!! note "Naming Convention"
 
-    Global constraints carry the name scheme `GlobalConstraint-{name}` in the Linopy model.
+    Global constraints carry the name scheme `GlobalConstraint-{name}` in the Linopy model. All `flow_based` rows share the one constraint `GlobalConstraint-ram`, indexed by `name`. Their net positions and the balance of the net positions are `FlowBased-net_position` and `FlowBased-balance`.
 
 ## Primary Energy
 
@@ -182,7 +182,7 @@ This global constraint is added in the function `define_growth_limit()` and carr
 
 Flow-based market coupling (FBMC) replaces the transmission grid constraints between market zones by a compact set of linear constraints on the zones' net positions. Instead of resolving every node and line, the market treats each zone as a copper plate and trades against a few linear limits that capture how zonal exchanges load the critical grid elements. This is the capacity-allocation method used in parts of the European day-ahead market, notably the Core region.[^core-ccm] For an introduction to the method and its parameters, see Van den Bergh et al. (2016)[^vandenbergh] and Schönheit et al. (2021)[^schonheit]. The domain of feasible net positions is stored as global constraints of `type="flow_based"`, see the [component page](../components/global-constraints.md#flow-based-domain).
 
-The net-position variable is `Bus-net_position`, the domain half-spaces are `GlobalConstraint-flow_based`, and the zero-sum balance is `GlobalConstraint-flow_based_balance`; see also the [example notebook](../../examples/flow-based-market-coupling.ipynb).
+The net-position variable is `FlowBased-net_position`, the domain half-spaces are `GlobalConstraint-ram`, and the zero-sum balance is `FlowBased-balance`; see also the [example notebook](../../examples/fbmc-simple-example.ipynb).
 
 ### Net position
 
@@ -190,19 +190,21 @@ The net position $NP_{z,t}$ of a market zone $z$ at snapshot $t$ is the power it
 
 $$g_{z,t} - d_{z,t} - NP_{z,t} = 0 ,$$
 
-so it equals the bus's net injection and is read from `n.buses_t.p` after solving.
+so it equals the bus's net injection and is read from `n.buses_t.p` after solving. The output `n.buses_t.net_position` holds the generation minus load of each zone bus (0 for other buses), which is the net position itself unless corridor links are present (see below).
 
 ### Domain constraints
 
-Each critical network element (CNEC) $c$ — one global constraint row, a monitored grid constraint such as a line under a given outage — contributes one half-space that bounds a weighted sum of net positions by its remaining available margin $\text{RAM}_{c,t}$, the headroom left on that element for cross-zonal trade:
+Each critical network element (CNEC) $c$ is one global constraint row, a monitored grid constraint such as a line under a given outage. It contributes one half-space that bounds a weighted sum of net positions by its remaining available margin $\text{RAM}_{c,t}$, the headroom left on that element for cross-zonal trade:
 
 $$\sum_{z} \text{PTDF}_{c,z,t}\, NP_{z,t} \;\le\; \text{RAM}_{c,t} \quad \leftrightarrow \quad \mu_{c,t}$$
 
-The sensitivities $\text{PTDF}_{c,z,t}$ are the zonal power transfer distribution factors (attributes `ptdf_<zone>`, see the [component page](../components/global-constraints.md#zonal-ptdf)); both they and the RAM (`constant`) may be static or vary by snapshot, and the constraint broadcasts over $t$ either way. A row with an `investment_period` only applies in that period's snapshots. The shadow price $\mu_{c,t}$ is written to `n.global_constraints_t.mu`. A single zero-sum balance closes the copper plate across the zones,
+The sensitivities $\text{PTDF}_{c,z,t}$ are the zonal power transfer distribution factors (attributes `ptdf_<zone>`, see the [component page](../components/global-constraints.md#zonal-ptdf)); both they and the RAM (`ram`) may be static or vary by snapshot, and the constraint broadcasts over $t$ either way. A row with an `investment_period` only applies in that period's snapshots, and a row with a NaN `ram` is dropped in that snapshot. The shadow price $\mu_{c,t}$ is written to `n.global_constraints_t.mu_ram`. A zero-sum balance closes the copper plate across the zones of each domain $D$,
 
-$$\sum_{z} NP_{z,t} = 0.$$
+$$\sum_{z \in D} NP_{z,t} = 0.$$
 
-These constraints are added in `define_flow_based_constraints()`; the net-position injection is added in `define_nodal_balance_constraints()` via `flow_based_balance_terms()`.
+By default all zones form one domain. Rows that name their `domain`, e.g. Core and Nordic, give one balance per named domain. A link between two domains then acts as an AHC corridor in each. The rows of one domain see neither the zones nor the hubs of the other ($\text{PTDF}$ and $h$ are 0 there), so the EvFB and AHC formulas below give the same column.
+
+The net-position variable is added in `define_flow_based_variables()` and these constraints in `define_flow_based_constraints()`; the net-position injection is added in `define_nodal_balance_constraints()` via `flow_based_balance_terms()`.
 
 ### Controllable link flows (AHC and EvFB)
 
@@ -251,12 +253,12 @@ These terms are built in `define_flow_based_constraints()`.
 
     | Symbol | Attribute | Type |
     |--------|-----------|------|
-    | $NP_{z,t}$ | `n.buses_t.p` (variable `Bus-net_position`) | Decision Variable |
+    | $NP_{z,t}$ | `n.buses_t.p` (variable `FlowBased-net_position`) | Decision Variable |
     | $g_{z,t} - d_{z,t}$ | `n.buses_t.net_position` | Output |
     | $f_{\ell,t}$ | `n.links_t.p0` | Decision Variable |
-    | $\mu_{c,t}$ | `n.global_constraints_t.mu` | Dual Variable |
+    | $\mu_{c,t}$ | `n.global_constraints_t.mu_ram` | Dual Variable |
     | $\text{PTDF}_{c,z,t}$ | `n.c.global_constraints.zonal_ptdf` | Parameter |
-    | $\text{RAM}_{c,t}$ | `n.c.global_constraints.constant` | Parameter |
+    | $\text{RAM}_{c,t}$ | `n.global_constraints.ram`, `n.global_constraints_t.ram` | Parameter |
     | $h_{c,\ell}$ | hub sensitivity of a published corridor column | Data |
     | $\eta_\ell$ | `n.links.efficiency` | Parameter |
 

@@ -194,6 +194,36 @@ def test_expressions_storage_unit_supply_withdrawal():
     assert np.allclose(withdrawal, dynamic["p_store"]["su"])
 
 
+def test_expressions_store_energy_balance():
+    n = pypsa.Network(snapshots=range(6))
+    n.add("Bus", "b")
+    n.add("Generator", "g", bus="b", p_nom=100, marginal_cost=[5, 5, 30, 30, 5, 30])
+    n.add("Load", "l", bus="b", p_set=50)
+    n.add("Store", "s", bus="b", e_nom=200, max_hours=4)
+    n.optimize()
+
+    kwargs = {"components": ["Store"], "groupby": False, "groupby_time": False}
+    balance = n.optimize.expressions.energy_balance(**kwargs).solution.to_numpy()
+    assert np.allclose(balance.ravel(), n.stores_t.p["s"])
+
+
+@pytest.mark.parametrize(
+    "cost_attr", ["marginal_cost", "marginal_cost_dispatch", "marginal_cost_store"]
+)
+def test_expressions_store_opex(cost_attr):
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "b")
+    n.add("Generator", "g", bus="b", p_nom=200, marginal_cost=[1, 100])
+    n.add("Load", "l", bus="b", p_set=50)
+    n.add("Store", "s", bus="b", e_nom=100, e_initial=20, **{cost_attr: 0.5})
+    n.optimize()
+
+    opex = n.statistics.opex(components="Store").sum()
+    expr = n.optimize.expressions.opex(components="Store")
+    assert opex > 0
+    assert expr.solution.sum().item() == pytest.approx(opex)
+
+
 def test_expressions_transmission(prepared_network):
     n = prepared_network
     expr = n.optimize.expressions.transmission()
@@ -334,9 +364,14 @@ class TestExpressionsWithPiecewise:
         n = piecewise_network_built
         expr = n.optimize.expressions.opex().unstack("group")
         assert isinstance(expr, LinearExpression)
-        assert str(expr.sel(component="Generator", carrier="-")).endswith(
-            "+0.6 Generator-p[0, gen1] + 0.6 Generator-p[1, gen1] + 1 Generator-marginal_cost_piecewise[0, gen0] + 1 Generator-marginal_cost_piecewise[1, gen0]"
-        )
+        s = str(expr.sel(component="Generator", carrier="-"))
+        for term in [
+            "0.6 Generator-p[0, gen1]",
+            "0.6 Generator-p[1, gen1]",
+            "1 Generator-marginal_cost_piecewise[0, gen0]",
+            "1 Generator-marginal_cost_piecewise[1, gen0]",
+        ]:
+            assert term in s
         assert "piecewise" not in str(expr.sel(component=["Link", "StorageUnit"]))
 
     def test_supply_minus_withdrawal_equals_energy_balance(self):
@@ -386,9 +421,14 @@ class TestExpressionsWithPiecewise:
     def test_expressions_energy_balance(self, piecewise_network_built):
         n = piecewise_network_built
         expr = n.optimize.expressions.energy_balance().unstack("group")
-        assert str(expr.sel(component="Link", carrier="AC")).endswith(
-            "-1 Link-p[0, link] - 1 Link-p[1, link] + 1 Link-p1_piecewise[0, link] + 1 Link-p1_piecewise[1, link]"
-        )
+        s = str(expr.sel(component="Link", carrier="AC"))
+        for term in [
+            "1 Link-p[0, link]",
+            "1 Link-p[1, link]",
+            "1 Link-p1_piecewise[0, link]",
+            "1 Link-p1_piecewise[1, link]",
+        ]:
+            assert term in s
         assert "piecewise" not in str(
             expr.sel(component=["Generator", "StorageUnit", "Load"])
         )

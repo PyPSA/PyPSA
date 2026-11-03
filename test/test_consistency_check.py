@@ -141,15 +141,53 @@ def test_unknown_carriers(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
-@pytest.mark.parametrize("strict", [[], ["generators"]])
-def test_inconsistent_e_sum_values(consistent_n, caplog, strict):
+@pytest.mark.parametrize("strict", [[], ["volume_limits"]])
+@pytest.mark.parametrize(
+    ("component", "kwargs"),
+    [
+        ("Generator", {"bus": "one"}),
+        ("Link", {"bus0": "one", "bus1": "two"}),
+        ("Process", {"bus0": "one", "bus1": "two"}),
+        ("Store", {"bus": "one"}),
+    ],
+)
+def test_inconsistent_e_sum_values(consistent_n, caplog, strict, component, kwargs):
     """
     Test that the consistency check raises a warning if the e_sum_min is greater than e_sum_max.
     """
-    consistent_n.add(
-        "Generator", "gen_two", bus="one", p_nom_max=10, e_sum_min=10, e_sum_max=5
-    )
+    consistent_n.add(component, "two", **kwargs, e_sum_min=10, e_sum_max=5)
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+@pytest.mark.parametrize("ramp_limit", ["ramp_limit_start_up", "ramp_limit_shut_down"])
+@pytest.mark.parametrize("p_min_pu", [0.5, [0.2, 0.5, 0.2]])
+def test_ramp_limit_below_p_min_pu(consistent_n, caplog, ramp_limit, p_min_pu):
+    consistent_n.set_snapshots(range(3))
+    consistent_n.add(
+        "Generator",
+        "gen_two",
+        bus="one",
+        p_nom=10,
+        committable=True,
+        p_min_pu=p_min_pu,
+        **{ramp_limit: 0.3},
+    )
+    consistent_n.add(
+        "Generator",
+        "gen_three",
+        bus="one",
+        p_nom=10,
+        committable=True,
+        p_min_pu=0.5,
+        ramp_limit_start_up=0.5,
+        ramp_limit_shut_down=0.7,
+    )
+    consistent_n.consistency_check()
+    messages = [r.message for r in caplog.records if "ramp_limit" in r.message]
+    assert len(messages) == 1
+    assert ramp_limit in messages[0]
+    assert "gen_two" in messages[0]
+    assert "gen_three" not in messages[0]
 
 
 @pytest.mark.parametrize("strict", [[], ["scenarios_sum"]])
