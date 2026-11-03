@@ -620,6 +620,32 @@ def test_rolling_horizon_storage_carry_over_stochastic(
     assert (result.xs("s2", axis=1, level="name") == 100.0).all().all()
 
 
+@pytest.mark.parametrize("committable", [False, True])
+def test_ramp_limit_window_multi_period(committable):
+    n = pypsa.Network()
+    n.set_snapshots(pd.MultiIndex.from_product([[2030, 2040], range(4)]))
+    n.set_investment_periods([2030, 2040])
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        marginal_cost=1,
+        ramp_limit_up=0.25,
+        committable=committable,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=[50, 50, 100, 100] * 2)
+
+    n.optimize(n.snapshots[:2])
+    n.optimize(n.snapshots[2:4])
+
+    p = n.c.generators.dynamic.p.loc[2030]
+    assert np.allclose(p["gen"], [50, 50, 75, 100])
+    assert np.allclose(p["backup"], [0, 0, 25, 0])
+
+
 @pytest.mark.parametrize(
     ("component", "level", "kwargs"),
     [

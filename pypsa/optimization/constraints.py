@@ -310,7 +310,7 @@ def _dispatch_before(
     attr = "p0" if c.name in n.branch_components else "p"
     start_i = _window_start(n, sns)
     if start_i and not c.dynamic[attr].empty:
-        return c.da[attr].isel(snapshot=start_i - 1).sel(name=idx)
+        return c.da[attr].isel(snapshot=start_i - 1, drop=True).sel(name=idx)
     return c.da.p_init.sel(name=idx).where(status > 0, 0.0)
 
 
