@@ -14,6 +14,7 @@ Transform methods are methods which modify, restructure data and add or remove d
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -217,6 +218,15 @@ class NetworkTransformMixin(_NetworkABC):
             return_names = options.params.add.return_names
 
         c = as_components(self, class_name)
+        if c.name == "StorageUnit":
+            warnings.warn(
+                "The StorageUnit component is deprecated and will be removed in PyPSA 2.0. "
+                "Use the Store component, which supports `max_hours`, `efficiency_store`, "
+                "`efficiency_dispatch` and `inflow`, or convert existing storage units "
+                "with `n.c.storage_units.convert_to_stores()`.",
+                FutureWarning,
+                stacklevel=2,
+            )
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name) and isinstance(suffix, str)
 
@@ -510,17 +520,19 @@ class NetworkTransformMixin(_NetworkABC):
         names = _build_suffixed_names(name, suffix)
 
         # Drop from static components
-        cls_static = c.static
-        cls_static.drop(names, inplace=True)
+        labels = names
+        if c.static.index.nlevels > 1:
+            labels = pd.MultiIndex.from_product([self.scenarios, names])
+        c.static = c.static.drop(labels)
 
         # Drop from time-varying components
-        for df in c.dynamic.values():
-            df.drop(df.columns.intersection(names), axis=1, inplace=True)
+        for attr, df in c.dynamic.items():
+            c.dynamic[attr] = df.drop(df.columns.intersection(labels), axis=1)
 
         # Drop piecewise breakpoint data
-        for df in c.piecewise.values():
+        for attr, df in c.piecewise.items():
             stale = df.columns[df.columns.get_level_values("name").isin(names)]
-            df.drop(columns=stale, inplace=True)
+            c.piecewise[attr] = df.drop(columns=stale)
 
     def merge(
         self,

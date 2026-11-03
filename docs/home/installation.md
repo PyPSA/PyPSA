@@ -30,6 +30,12 @@ You can install PyPSA via all common package managers:
     uv add pypsa
     ```
 
+=== "pixi"
+
+    ``` bash
+    pixi add pypsa
+    ```
+
 PyPSA is written and tested to be compatible with Python 3.11 and above. We recommend to use the latest version with active support (see [endoflife.date](https://endoflife.date/python)).
 
 ## Solvers
@@ -82,6 +88,14 @@ To upgrade PyPSA, run:
 
     ``` bash
     uv add --upgrade pypsa
+    # Or upgrade to a specific version:
+    uv add pypsa==0.35.2
+    ```
+
+=== "pixi"
+
+    ``` bash
+    pixi upgrade pypsa
     # Or upgrade to a specific version:
     uv add pypsa==0.35.2
     ```

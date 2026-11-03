@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 [build-system]
-requires = ["setuptools>=64", "setuptools_scm>=8"]
+requires = ["setuptools>=84.1", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -11,7 +11,7 @@ name="pypsa"
 dynamic = ["version"]
 description="Python for Power Systems Analysis"
 readme="README.md"
-authors=[{name = "PyPSA Developers, see https://docs.pypsa.org/latest/contributing/contributors.html", email = "t.brown@tu-berlin.de"}]
+authors=[{name = "PyPSA Developers, see https://docs.pypsa.org/latest/contributing/contributors/", email = "t.brown@tu-berlin.de"}]
 license = { file = "LICENSE" }
 classifiers=[
     "Programming Language :: Python :: 3.11",
@@ -68,12 +68,14 @@ test = [
     "pytest",
     "pytest-cov",
     "pytest-mpl",
+    "pytest-xdist",
     "coverage",
 ]
 dev = [
     "pytest",
     "pytest-cov",
     "pytest-mpl",
+    "pytest-xdist",
     "coverage",
     "pypower",
     "pandapower>=2.14.11",
@@ -131,6 +133,7 @@ filterwarnings = [
     "default:With PyPSA 1.0, the API for how to access components data has changed:DeprecationWarning",
     "default:When combining.*with other plots on a geographical axis.*:UserWarning", # TODO: needs to be checked
     "default:The default value of `include_objective_constant` will change:FutureWarning",
+    "default:The StorageUnit component is deprecated:FutureWarning",
     "default:pandas infers the `str` dtype for string data:FutureWarning",
 
     # Ignore linopy warnings

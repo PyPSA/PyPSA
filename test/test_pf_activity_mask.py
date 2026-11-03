@@ -6,31 +6,29 @@ import pytest
 
 
 @pytest.fixture
-def sub_network_full(scipy_network):
-    n = scipy_network.copy()
-    return n.c.sub_networks.static.obj.iloc[0]
+def n_full(scipy_network):
+    return scipy_network.copy()
 
 
 @pytest.fixture
-def sub_network_filtered(scipy_network):
+def n_filtered(scipy_network):
     n = scipy_network.copy()
     n.c.lines.static.loc["2", "active"] = False
-    return n.c.sub_networks.static.obj.iloc[0]
+    return n
 
 
-def test_different_shape_incidence_matrix(sub_network_full, sub_network_filtered):
-    k_full = sub_network_full.incidence_matrix()
-    k_filtered = sub_network_filtered.incidence_matrix()
+def test_different_shape_incidence_matrix(n_full, n_filtered):
+    k_full = n_full.c.sub_networks.static.obj.iloc[0].incidence_matrix()
+    k_filtered = n_filtered.c.sub_networks.static.obj.iloc[0].incidence_matrix()
 
-    assert k_full.shape[0] == k_filtered.shape[0]
-    assert k_full.shape[1] == k_filtered.shape[1]
-
-
-def test_subnetwork_full_pf(sub_network_full):
-    sub_network_full.pf(sub_network_full.snapshots[:3])
+    assert k_filtered.shape == (k_full.shape[0], k_full.shape[1] - 1)
 
 
-def test_subnetwork_filtered_pf(sub_network_filtered):
-    sub_network_filtered.pf(sub_network_filtered.snapshots[:3])
-    n = sub_network_filtered.n
+def test_subnetwork_full_pf(n_full):
+    n_full.c.sub_networks.static.obj.iloc[0].pf(n_full.snapshots[:3])
+
+
+def test_subnetwork_filtered_pf(n_filtered):
+    n_filtered.c.sub_networks.static.obj.iloc[0].pf(n_filtered.snapshots[:3])
+    n = n_filtered
     assert n.c.lines.dynamic.p0.loc[:, ~n.c.lines.static.active].eq(0).all().all()

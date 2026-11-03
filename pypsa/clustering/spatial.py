@@ -481,7 +481,7 @@ def aggregatelines(
                 continue
 
             strategy = dynamic_strategies[attr]
-            data = n.get_switchable_as_dense("Line", attr, inds=idx)
+            data = n.get_switchable_as_dense("Line", attr, inds=idx.unique("name"))
 
             if strategy == "capacity_weighted_average":
                 data = data * capacity_weights

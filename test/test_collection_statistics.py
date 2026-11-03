@@ -395,6 +395,25 @@ def test_network_collection_vs_single_network(ac_dc_network_r):
     )
 
 
+def test_prices_load_weighting_collection(ac_dc_network_r):
+    """Load weights align on (network, name) and are not dropped."""
+    deterministic = ac_dc_network_r.statistics.prices(weighting="load")
+    assert not deterministic.equals(ac_dc_network_r.statistics.prices(weighting="time"))
+
+    nc = pypsa.NetworkCollection(
+        [ac_dc_network_r.copy(), ac_dc_network_r.copy()],
+        index=pd.Index(["base", "variant"], name="network"),
+    )
+    load_weighted = nc.statistics.prices(weighting="load")
+
+    for network in ["base", "variant"]:
+        pd.testing.assert_series_equal(
+            load_weighted.xs(network, level="network"),
+            deterministic,
+            check_names=False,
+        )
+
+
 def test_network_collection_empty_results(ac_dc_network_r):
     """Test NetworkCollection behavior with filters that produce empty results."""
     nc = pypsa.NetworkCollection([ac_dc_network_r], index=pd.Index(["s1"]))

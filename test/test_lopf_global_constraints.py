@@ -13,9 +13,7 @@ def test_operational_limit_n_ac_dc_meshed(ac_dc_network):
 
     limit = 30_000
 
-    n.c.global_constraints.static.drop(
-        n.c.global_constraints.static.index, inplace=True
-    )
+    n.remove("GlobalConstraint", n.c.global_constraints.static.index)
 
     n.add(
         "GlobalConstraint",
@@ -35,9 +33,7 @@ def test_operational_limit_storage_hvdc(storage_hvdc_network):
 
     limit = 5_000
 
-    n.c.global_constraints.static.drop(
-        n.c.global_constraints.static.index, inplace=True
-    )
+    n.remove("GlobalConstraint", n.c.global_constraints.static.index)
 
     n.add(
         "GlobalConstraint",
@@ -223,6 +219,41 @@ def test_1884():
 
     n.optimize()
     assert n.c.generators.static.p_nom_opt["wind"] == pytest.approx(50)
+
+
+@pytest.mark.parametrize(
+    ("glc_type", "carrier_attribute"),
+    [("primary_energy", "co2_emissions"), ("operational_limit", "gas")],
+)
+def test_investment_period_without_multi_invest_raises(glc_type, carrier_attribute):
+    """
+    An investment_period raises if the network has no investment periods.
+    See https://github.com/PyPSA/PyPSA/issues/1954.
+    """
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "b")
+    n.add("Carrier", ["gas", "wind"], co2_emissions=[1, 0])
+    n.add("Load", "l", bus="b", p_set=50)
+    n.add(
+        "Generator",
+        ["gas", "wind"],
+        bus="b",
+        carrier=["gas", "wind"],
+        p_nom=100,
+        marginal_cost=[1, 100],
+    )
+    n.add(
+        "GlobalConstraint",
+        "gas_limit",
+        type=glc_type,
+        carrier_attribute=carrier_attribute,
+        sense="<=",
+        constant=100,
+        investment_period=0,
+    )
+
+    with pytest.raises(ValueError, match="has no investment periods"):
+        n.optimize()
 
 
 def test_transmission_cost_limit_overnight_cost():

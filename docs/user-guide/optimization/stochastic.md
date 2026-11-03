@@ -191,6 +191,10 @@ snapshot
 2019-07-21 21:00:00  0.0000  0.0896      0.000  0.0896
 ```
 
+!!! note
+
+    Attributes which define the topology or the structure of the optimisation problem must be identical across scenarios, e.g. `bus`, `bus0`, `bus1`, ..., `carrier`, `p_nom_extendable`, `p_nom_set`, `committable`, `build_year`, `lifetime`, `active` or the `delay` and `cyclic_delay` attributes of links and processes (including their per-port variants, e.g. `delay0`, `delay2`, `cyclic_delay2`). The consistency check raises an error otherwise.
+
 ### Optimization
 
 When we now call `n.optimize()`, the network is solved as a stochastic problem considering all defined scenarios and their respective probabilities.
@@ -216,10 +220,11 @@ Variables:
  * Generator-p (scenario, name, snapshot)
  * Link-p (scenario, name, snapshot)
  * Store-e (scenario, name, snapshot)
+ * Store-p (scenario, name, snapshot)
+ * Store-p_store (scenario, name, snapshot)
  * StorageUnit-p_dispatch (scenario, name, snapshot)
  * StorageUnit-p_store (scenario, name, snapshot)
  * StorageUnit-state_of_charge (scenario, name, snapshot)
- * Store-p (scenario, name, snapshot)
 <BLANKLINE>
 Expressions:
 ------------
@@ -239,6 +244,10 @@ Constraints:
  * Link-ext-p-upper (scenario, name, snapshot)
  * Store-ext-e-lower (scenario, name, snapshot)
  * Store-ext-e-upper (scenario, name, snapshot)
+ * Store-ext-p-lower (scenario, name, snapshot)
+ * Store-ext-p-upper (scenario, name, snapshot)
+ * Store-ext-p_store-lower (scenario, name, snapshot)
+ * Store-ext-p_store-upper (scenario, name, snapshot)
  * StorageUnit-ext-p_dispatch-lower (scenario, name, snapshot)
  * StorageUnit-ext-p_dispatch-upper (scenario, name, snapshot)
  * StorageUnit-ext-p_store-lower (scenario, name, snapshot)
@@ -261,6 +270,8 @@ As investment variables (i.e. `p_nom`, `s_nom`, `e_nom`) are scenario-independen
     - **Investment variables** scale as O(components)
     - **Operational variables** scale as O(scenarios × components × snapshots)
     - **Constraint matrix size** grows almost linearly with the number of scenarios.
+
+Optimization expressions from `n.optimize.expressions`, e.g. for custom constraints, carry a `scenario` dimension with scenario-specific coefficients, e.g. `n.optimize.expressions.capex()` uses the capital costs of each scenario.
 
 
 ### Evaluation
@@ -310,7 +321,7 @@ scenario                      no_volcano  volcano
 component   carrier
 Generator   fossil backup          12.15    22.91
             load shedding           0.01     0.04
-            solar                  17.01     1.67
+            solar                  17.01     1.66
             wind                   37.35    41.75
 Load        -                     -66.27   -66.27
 StorageUnit battery storage        -0.26    -0.10

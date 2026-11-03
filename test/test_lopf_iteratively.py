@@ -53,6 +53,28 @@ def test_optimize_post_discretization():
     )
 
 
+def test_line_reactance_rescaled_from_initial_capacity():
+    n = pypsa.Network()
+    n.add("Bus", ["a", "b"], v_nom=380.0)
+    n.add("Generator", "generator", bus="a", p_nom=900.0, marginal_cost=10.0)
+    n.add("Load", "load", bus="b", p_set=400.0)
+    n.add(
+        "Line",
+        "ab",
+        bus0="a",
+        bus1="b",
+        x=10.0,
+        s_nom=100.0,
+        s_nom_extendable=True,
+        capital_cost=1000,
+    )
+
+    n.optimize.optimize_transmission_expansion_iteratively(max_iterations=1)
+
+    assert n.c.lines.static.at["ab", "s_nom_opt"] == pytest.approx(400.0)
+    assert n.c.lines.static.at["ab", "x"] == pytest.approx(2.5)
+
+
 def test_post_discretization_objective_overnight_cost():
     def build(**cost):
         n = pypsa.Network()
@@ -81,3 +103,26 @@ def test_post_discretization_objective_overnight_cost():
     direct = build(capital_cost=100)
     overnight = build(overnight_cost=1000, discount_rate=0, lifetime=10)
     assert overnight.objective == pytest.approx(direct.objective)
+
+
+def test_iterative_expansion_stochastic_raises():
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", ["a", "b"])
+    n.add(
+        "Line",
+        "ab",
+        bus0="a",
+        bus1="b",
+        x=0.1,
+        r=0.01,
+        s_nom=10,
+        s_nom_extendable=True,
+        capital_cost=1,
+    )
+    n.add("Generator", "g", bus="a", p_nom=100, marginal_cost=1)
+    n.add("Load", "l", bus="b", p_set=50)
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+
+    with pytest.raises(ValueError, match="not yet implemented for stochastic"):
+        n.optimize.optimize_transmission_expansion_iteratively()

@@ -19,7 +19,8 @@ STORAGE_UNIT = {
     "c": "cyclic_state_of_charge",
     "cp": "cyclic_state_of_charge_per_period",
     "ip": "state_of_charge_initial_per_period",
-    "ignored": "Cyclic state of charge constraint overrules initial storage level setting",
+    "initial": "state_of_charge_initial",
+    "ignored": "Cyclic state of charge constraint overrules initial state of charge setting",
     "ip_wins": "Per-period initial state of charge (state_of_charge_initial_per_period=True) "
     "overrides global cyclic",
     "cp_wins": "Per-period cyclic (cyclic_state_of_charge_per_period=True) overrides global cyclic",
@@ -31,7 +32,8 @@ STORE = {
     "c": "e_cyclic",
     "cp": "e_cyclic_per_period",
     "ip": "e_initial_per_period",
-    "ignored": "Cyclic energy level constraint overrules initial value setting",
+    "initial": "e_initial",
+    "ignored": "Cyclic energy level constraint overrules initial energy level setting",
     "ip_wins": "Per-period initial energy level (e_initial_per_period=True) "
     "overrides global cyclic",
     "cp_wins": "Per-period cyclic (e_cyclic_per_period=True) overrides global cyclic",
@@ -118,11 +120,23 @@ def test_warning_initial_per_period_overrides_global(network, spec, caplog):
 
 @SPECS
 def test_warning_with_scenarios(network, spec, caplog):
-    """Warnings also work for stochastic networks, where flags carry a scenario dimension."""
+    """Warnings collapse the scenario dimension, also for scenario-specific levels."""
     n = network()
-    n.set_scenarios({"a": 0.5, "b": 0.5})
-    messages = optimize_with_flags(n, spec, caplog, c=True)
-
-    assert any(
-        spec["ignored"] in message and "storage" in message for message in messages
+    n.add(
+        spec["component"],
+        "storage",
+        bus="bus",
+        carrier="carrier",
+        **spec["attrs"],
+        **{spec["c"]: True, spec["cp"]: True},
     )
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    n.c[spec["component"]].static.loc[("s1", "storage"), spec["initial"]] = 0
+    with caplog.at_level(logging.WARNING):
+        n.optimize.create_model(multi_investment_periods=True)
+
+    for key in ["ignored", "cp_wins"]:
+        assert any(
+            spec[key] in r.message and "['storage']" in r.message
+            for r in caplog.records
+        )
