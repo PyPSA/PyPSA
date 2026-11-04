@@ -16,6 +16,8 @@ import xarray as xr
 from linopy import Model, merge
 from linopy.constants import BREAKPOINT_DIM, LP_PIECE_DIM, PWL_LINK_DIM, SEGMENT_DIM
 from linopy.solvers import available_solvers
+from scipy.sparse.csgraph import connected_components
+from scipy.sparse.linalg import splu
 
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
@@ -25,7 +27,11 @@ from pypsa.common import (
 )
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
-from pypsa.consistency import check_big_m_exceeded, check_no_modular_committables
+from pypsa.consistency import (
+    OPTIMIZE_STRICT_CHECKS,
+    check_big_m_exceeded,
+    check_no_modular_committables,
+)
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
@@ -625,6 +631,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
+        consistency_check: bool = True,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -701,6 +708,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
             default ``"bfs-refined"`` yields sparser constraints.
+        consistency_check : bool, default True
+            Whether to run the consistency check before building the model.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -734,9 +743,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._multi_invest = int(multi_investment_periods)
         n._linearized_uc = linearized_unit_commitment
 
-        n.consistency_check(
-            strict=["unknown_buses", "maintenance", "phase_shift_bounds"]
-        )
+        if consistency_check:
+            n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
         m = n.optimize.create_model(
             snapshots,
             multi_investment_periods,
@@ -1433,9 +1441,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                         0.0, index=n.c.buses.dynamic.p.index, columns=buses_i
                     )
                 sub.calculate_B_H(skip_pre=True)
-                Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
-                Z -= Z[sub.slack_bus]
-                return n.c.buses.dynamic.p.reindex(columns=buses_i) @ Z
+                B = sub.B.tocsc()
+                B.eliminate_zeros()
+                _, labels = connected_components(B, directed=False)
+                keep = np.ones(len(buses_i), dtype=bool)
+                keep[np.unique(labels, return_index=True)[1]] = False
+                p = n.c.buses.dynamic.p.reindex(columns=buses_i).to_numpy()
+                theta = np.zeros_like(p)
+                if keep.any():
+                    lu = splu(B[keep][:, keep])
+                    theta[:, keep] = lu.solve(p[:, keep].T).T
+                return pd.DataFrame(theta, n.c.buses.dynamic.p.index, buses_i)
 
             # TODO: if multi investment optimization, the network topology is not the necessarily the same,
             # i.e. one has to iterate over the periods in order to get the correct angles.
