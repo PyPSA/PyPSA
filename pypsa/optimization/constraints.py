@@ -29,6 +29,7 @@ from xarray import DataArray, where
 
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components, invariant
+from pypsa.consistency import check_scenario_invariant_impedances
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
@@ -1621,6 +1622,7 @@ def define_kirchhoff_voltage_constraints(
     """
     m = n.model
     n.calculate_dependent_values()
+    check_scenario_invariant_impedances(n)
 
     window = n.optimize._window.subset(sns)
     deg_to_rad = np.pi / 180.0

@@ -1082,6 +1082,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         check_shapes(self, "shapes" in strict)
         check_scenarios_sum_to_one(self, "scenarios_sum" in strict)
         check_scenario_invariant_attributes(self, "scenario_invariant_attrs" in strict)
+        check_scenario_invariant_impedances(self)
         check_line_types_consistency(self, "line_types" in strict)
         check_transformer_types_consistency(self, "transformer_types" in strict)
         check_stochastic_slack_bus_consistency(self, "slack_bus_consistency" in strict)
@@ -1258,6 +1259,72 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
                         scenarios_with_diff,
                         group[attr].to_dict(),
                     )
+
+
+def check_scenario_invariant_impedances(n: NetworkType) -> None:
+    """Check that bus voltages and branch impedances are identical across scenarios.
+
+    The Kirchhoff voltage law and the branch outage distribution factors of
+    [pypsa.optimization.OptimizationAccessor.optimize_security_constrained][] are
+    built from the impedances of the first scenario only. Hence, the nominal
+    voltage `v_nom` of buses and the effective impedances `x_pu_eff` and
+    `r_pu_eff` of lines and transformers must be identical across scenarios.
+    Inputs such as `s_nom` or `tap_ratio` of transformers may differ, as long as
+    the effective impedances agree. The effective impedances are read as they are,
+    so call [pypsa.Network.calculate_dependent_values][] first.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+
+    Raises
+    ------
+    ConsistencyError
+        If any of these attributes differ across scenarios.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if not n.has_scenarios:
+        return
+
+    for c_name, attrs in (
+        ("Bus", ["v_nom"]),
+        ("Line", ["x_pu_eff", "r_pu_eff"]),
+        ("Transformer", ["x_pu_eff", "r_pu_eff"]),
+    ):
+        static = n.c[c_name].static
+        if static.empty:
+            continue
+        for attr in attrs:
+            values = static[attr].unstack("scenario")
+            same = values.apply(
+                np.isclose,
+                b=values[n.scenarios[0]],
+                rtol=1e-9,
+                atol=0,
+                equal_nan=True,
+            )
+            differs = ~same[~same.all(axis=1)]
+            if differs.empty:
+                continue
+            _log_or_raise(
+                True,
+                "Attribute '%s' of %s differs across scenarios: %s (scenarios "
+                "that differ from scenario '%s'). Bus voltages and branch "
+                "impedances must be identical across scenarios, since the "
+                "Kirchhoff voltage law and the branch outage distribution "
+                "factors use those of the first scenario. The effective "
+                "impedances follow from e.g. 'x', 'r', 'length' and 'type' of "
+                "lines, 's_nom' and 'tap_ratio' of transformers, and bus 'v_nom'.",
+                attr,
+                n.c[c_name].list_name,
+                {name: row.index[row].tolist() for name, row in differs.iterrows()},
+                n.scenarios[0],
+            )
 
 
 def check_line_types_consistency(n: NetworkType, strict: bool = False) -> None:

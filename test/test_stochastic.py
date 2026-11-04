@@ -2023,6 +2023,79 @@ def test_varying_invariant_attribute_fails_model_build(
         n.optimize.create_model(consistency_check=False)
 
 
+def _triangle() -> pypsa.Network:
+    n = pypsa.Network(snapshots=[0])
+    n.add("Bus", ["a", "b", "c"])
+    n.add("Line", "ab", bus0="a", bus1="b", x=0.1, s_nom=1000)
+    n.add("Line", "bc", bus0="b", bus1="c", x=0.1, s_nom=1000)
+    n.add("Line", "ca", bus0="c", bus1="a", x=0.1, s_nom=1000)
+    n.add("Transformer", "t", bus0="a", bus1="b", x=0.1, s_nom=100)
+    n.add("Generator", "g", bus="a", p_nom=100, marginal_cost=1)
+    n.add("Load", "d", bus="c", p_set=90)
+    return n
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        pytest.param(lambda n: n.consistency_check(), id="consistency-check"),
+        pytest.param(
+            lambda n: n.optimize.create_model(consistency_check=False),
+            id="no-consistency-check",
+        ),
+        pytest.param(
+            lambda n: n.optimize.optimize_security_constrained(),
+            id="security-constrained",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    ("component", "asset", "attr", "value"),
+    [
+        ("Line", "ab", "x", 10.0),
+        ("Line", "ab", "r", 0.5),
+        ("Transformer", "t", "s_nom", 200.0),
+        ("Bus", "a", "v_nom", 220.0),
+    ],
+)
+def test_impedance_varying_across_scenarios_raises(
+    build, component, asset, attr, value
+):
+    """
+    Impedances differing across scenarios are refused (#2092).
+
+    The Kirchhoff voltage law used the impedances of the first scenario in all
+    scenarios, so the flows of the other scenarios were silently wrong.
+    """
+    n = _triangle()
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    n.c[component].static.loc[("high", asset), attr] = value
+
+    with pytest.raises(ValueError, match=rf"'{asset}'.*\['high'\]"):
+        build(n)
+
+
+def test_impedance_identical_across_scenarios_optimizes():
+    """
+    Transformer `s_nom` may differ across scenarios if `x_pu_eff` agrees.
+
+    0.141 / 141 differs from 0.1 / 100 in the last bit, which is tolerated.
+    """
+    n = _triangle()
+    n_stoch = _triangle()
+    n_stoch.set_scenarios({"low": 0.5, "high": 0.5})
+    n_stoch.c.transformers.static.loc[("high", "t"), ["s_nom", "x"]] = [141, 0.141]
+
+    n.optimize()
+    n_stoch.optimize()
+
+    assert n_stoch.model.status == "ok"
+    for scenario in n_stoch.scenarios:
+        pd.testing.assert_frame_equal(
+            n_stoch.c.lines.dynamic.p0[scenario], n.c.lines.dynamic.p0, atol=1e-6
+        )
+
+
 def _transmission_limit_network(scenarios: bool, multi_invest: bool) -> pypsa.Network:
     n = pypsa.Network(snapshots=range(2))
     if multi_invest:
