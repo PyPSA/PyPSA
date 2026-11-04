@@ -18,7 +18,12 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa._options import options
-from pypsa.constants import RE_INVARIANT_ATTRS, RE_PORTS_FILTER, RE_PORTS_GE_2
+from pypsa.constants import (
+    RE_INVARIANT_ATTRS,
+    RE_PORT_ATTRS_GE_2,
+    RE_PORTS_FILTER,
+    RE_PORTS_GE_2,
+)
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
@@ -884,7 +889,9 @@ def check_nans_for_component_default_attrs(
     the `strict` argument.
 
     Checks for all attributes if they are nan but have a default value, which is not
-     nan.
+     nan. Attributes of additional ports (e.g. `efficiency2`) are only checked for
+     components where the corresponding port is connected (e.g. `bus2` is set),
+     since they are never used otherwise.
 
     Parameters
     ----------
@@ -912,7 +919,18 @@ def check_nans_for_component_default_attrs(
     ]
 
     # Run the check for nan values on relevant static data
-    if (isna := relevant_static_df.isna().any()).any():
+    isna = relevant_static_df.isna()
+    # Attributes of additional ports (e.g. `efficiency2`) only apply to rows
+    # where the corresponding port is connected, i.e. `bus2` is set. Ignore
+    # nans in such attributes for rows without the port, since the values
+    # are never used there.
+    for col in relevant_static_df.columns:
+        if (match := RE_PORT_ATTRS_GE_2.search(col)) is not None:
+            bus_col = f"bus{match.group(1)}"
+            if bus_col in component.static.columns:
+                buses = component.static[bus_col]
+                isna.loc[buses.isna() | buses.eq(""), col] = False
+    if (isna := isna.any()).any():
         nan_cols = relevant_static_df.columns[isna]
         _log_or_raise(
             strict,

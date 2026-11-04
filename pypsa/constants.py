@@ -22,6 +22,9 @@ RE_PORTS = re.compile(r"^bus(\d*)$")
 RE_PORTS_FILTER = re.compile(r"^bus\d*$")
 # Pattern to get port numbers greater or equal to 2
 RE_PORTS_GE_2 = re.compile(r"^bus((?:[2-9]|[1-9]\d+))$")
+# Pattern to get the port number (greater or equal to 2) of attributes of
+# additional ports, e.g. `efficiency2`
+RE_PORT_ATTRS_GE_2 = re.compile(r"^.+?((?:[2-9]|[1-9]\d+))$")
 # Attributes that must be identical across all scenarios
 RE_INVARIANT_ATTRS = re.compile(
     "|".join(
