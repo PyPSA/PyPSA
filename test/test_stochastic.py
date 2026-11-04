@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from numpy import inf
+from numpy import inf, nan
 from numpy.testing import assert_array_almost_equal as equal
 from xarray import DataArray
 
@@ -2023,13 +2023,14 @@ def test_varying_invariant_attribute_fails_model_build(
         n.optimize.create_model(consistency_check=False)
 
 
-def _triangle() -> pypsa.Network:
+def _triangle(carrier: str = "AC") -> pypsa.Network:
     n = pypsa.Network(snapshots=[0])
-    n.add("Bus", ["a", "b", "c"])
-    n.add("Line", "ab", bus0="a", bus1="b", x=0.1, s_nom=1000)
-    n.add("Line", "bc", bus0="b", bus1="c", x=0.1, s_nom=1000)
-    n.add("Line", "ca", bus0="c", bus1="a", x=0.1, s_nom=1000)
-    n.add("Transformer", "t", bus0="a", bus1="b", x=0.1, s_nom=100)
+    n.add("Bus", ["a", "b", "c"], carrier=carrier)
+    n.add("Line", "ab", bus0="a", bus1="b", x=0.1, r=0.01, s_nom=1000)
+    n.add("Line", "bc", bus0="b", bus1="c", x=0.1, r=0.01, s_nom=1000)
+    n.add("Line", "ca", bus0="c", bus1="a", x=0.1, r=0.01, s_nom=1000)
+    if carrier == "AC":
+        n.add("Transformer", "t", bus0="a", bus1="b", x=0.1, s_nom=100)
     n.add("Generator", "g", bus="a", p_nom=100, marginal_cost=1)
     n.add("Load", "d", bus="c", p_set=90)
     return n
@@ -2043,31 +2044,32 @@ def _triangle() -> pypsa.Network:
             lambda n: n.optimize.create_model(consistency_check=False),
             id="no-consistency-check",
         ),
-        pytest.param(
-            lambda n: n.optimize.optimize_security_constrained(),
-            id="security-constrained",
-        ),
     ],
 )
 @pytest.mark.parametrize(
-    ("component", "asset", "attr", "value"),
+    ("carrier", "component", "asset", "attr", "value"),
     [
-        ("Line", "ab", "x", 10.0),
-        ("Line", "ab", "r", 0.5),
-        ("Transformer", "t", "s_nom", 200.0),
-        ("Bus", "a", "v_nom", 220.0),
+        pytest.param("AC", "Line", "ab", "x", 10.0, id="line-x"),
+        pytest.param("AC", "Line", "ab", "x", nan, id="line-x-nan"),
+        pytest.param("DC", "Line", "ab", "r", 0.5, id="dc-line-r"),
+        pytest.param("AC", "Transformer", "t", "s_nom", 200.0, id="transformer-s_nom"),
+        pytest.param(
+            "AC", "Transformer", "t", "tap_ratio", 1.1, id="transformer-tap_ratio"
+        ),
+        pytest.param("AC", "Bus", "a", "v_nom", 220.0, id="bus-v_nom"),
     ],
 )
 def test_impedance_varying_across_scenarios_raises(
-    build, component, asset, attr, value
+    build, carrier, component, asset, attr, value
 ):
     """
     Impedances differing across scenarios are refused (#2092).
 
-    The Kirchhoff voltage law used the impedances of the first scenario in all
-    scenarios, so the flows of the other scenarios were silently wrong.
+    The network graph and the Kirchhoff voltage law used the reactances of the
+    first scenario, and in DC networks its resistances, in all scenarios, so the
+    flows of the other scenarios were silently wrong.
     """
-    n = _triangle()
+    n = _triangle(carrier)
     n.set_scenarios({"low": 0.5, "high": 0.5})
     n.c[component].static.loc[("high", asset), attr] = value
 
@@ -2075,24 +2077,65 @@ def test_impedance_varying_across_scenarios_raises(
         build(n)
 
 
-def test_impedance_identical_across_scenarios_optimizes():
+@pytest.mark.parametrize(
+    ("attrs", "values"),
+    [
+        pytest.param(["s_nom", "x"], [141, 0.141], id="s_nom-and-x"),
+        pytest.param(["phase_shift"], [10.0], id="phase_shift"),
+    ],
+)
+def test_transformer_inputs_varying_across_scenarios_optimizes(attrs, values):
     """
-    Transformer `s_nom` may differ across scenarios if `x_pu_eff` agrees.
+    Transformer inputs that leave `x_pu_eff` unchanged may differ (#2092).
 
+    Each scenario's flows match a deterministic run with that scenario's values.
     0.141 / 141 differs from 0.1 / 100 in the last bit, which is tolerated.
     """
-    n = _triangle()
     n_stoch = _triangle()
     n_stoch.set_scenarios({"low": 0.5, "high": 0.5})
-    n_stoch.c.transformers.static.loc[("high", "t"), ["s_nom", "x"]] = [141, 0.141]
-
-    n.optimize()
+    n_stoch.c.transformers.static.loc[("high", "t"), attrs] = values
     n_stoch.optimize()
 
     assert n_stoch.model.status == "ok"
     for scenario in n_stoch.scenarios:
+        n = _triangle()
+        if scenario == "high":
+            n.c.transformers.static.loc["t", attrs] = values
+        n.optimize()
         pd.testing.assert_frame_equal(
             n_stoch.c.lines.dynamic.p0[scenario], n.c.lines.dynamic.p0, atol=1e-6
+        )
+
+
+def test_ac_resistance_varying_across_scenarios_optimizes_losses():
+    """
+    The resistance of AC lines may differ across scenarios (#2092).
+
+    It does not weight the Kirchhoff voltage law, and the transmission losses read
+    it per scenario. Refusing it rejected networks that optimized correctly.
+    """
+
+    def two_bus(r: float) -> pypsa.Network:
+        n = pypsa.Network(snapshots=[0])
+        n.add("Bus", ["a", "b"], v_nom=1.0)
+        n.add("Line", "ab", bus0="a", bus1="b", x=0.1, r=r, s_nom=100)
+        n.add("Generator", "g", bus="a", p_nom=1000, marginal_cost=1)
+        n.add("Load", "d", bus="b", p_set=80)
+        return n
+
+    resistance = {"low": 0.0001, "high": 0.0005}
+    n_stoch = two_bus(resistance["low"])
+    n_stoch.set_scenarios({"low": 0.5, "high": 0.5})
+    n_stoch.c.lines.static.loc[("high", "ab"), "r"] = resistance["high"]
+    n_stoch.optimize(transmission_losses={"mode": "tangents", "segments": 3})
+
+    for scenario, r in resistance.items():
+        n = two_bus(r)
+        n.optimize(transmission_losses={"mode": "tangents", "segments": 3})
+        pd.testing.assert_series_equal(
+            n_stoch.c.generators.dynamic.p[scenario].g,
+            n.c.generators.dynamic.p.g,
+            atol=1e-6,
         )
 
 

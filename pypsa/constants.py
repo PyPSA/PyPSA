@@ -50,7 +50,6 @@ RE_INVARIANT_ATTRS = re.compile(
             "lifetime",
             "active",  # theoretically can be different, but problematic with "Line"
             r"(cyclic_)?delay\d*",
-            "v_nom",  # per unit conversion of line impedances
         ]
     )
 )

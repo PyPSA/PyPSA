@@ -193,7 +193,7 @@ snapshot
 
 !!! note
 
-    Attributes which define the topology or the structure of the optimisation problem must be identical across scenarios, e.g. `bus`, `bus0`, `bus1`, ..., `carrier`, `p_nom_extendable`, `p_nom_set`, `committable`, `build_year`, `lifetime`, `active` or the `delay` and `cyclic_delay` attributes of links and processes (including their per-port variants, e.g. `delay0`, `delay2`, `cyclic_delay2`). The same holds for the nominal voltage `v_nom` of buses and the effective impedances `x_pu_eff` and `r_pu_eff` of lines and transformers. Inputs from which these are derived, such as `s_nom` or `tap_ratio` of transformers, may differ as long as the effective impedances agree. The consistency check raises an error otherwise.
+    Attributes which define the topology or the structure of the optimisation problem must be identical across scenarios, e.g. `bus`, `bus0`, `bus1`, ..., `carrier`, `p_nom_extendable`, `p_nom_set`, `committable`, `build_year`, `lifetime`, `active` or the `delay` and `cyclic_delay` attributes of links and processes (including their per-port variants, e.g. `delay0`, `delay2`, `cyclic_delay2`). The same holds for the nominal voltage `v_nom` of buses, the effective reactance `x_pu_eff` of every line and transformer, and the effective resistance `r_pu_eff` of lines and transformers outside AC networks, such as DC lines, also for radial and inactive branches. The consistency check raises an error otherwise. The network graph, the Kirchhoff voltage law and the outage distribution factors of security-constrained optimisation use the values of the first scenario. The resistance of AC branches, transformer `phase_shift`, and transformer `s_nom` and `tap_ratio` that leave `x_pu_eff` unchanged may differ.
 
 ### Optimization
 
