@@ -30,6 +30,9 @@ RE_INVARIANT_ATTRS = re.compile(
             # "control" is excluded - different buses can have different control types across scenarios
             # but we ensure consistent slack bus selection separately
             "type",
+            "v_nom",  # per-unit base of line impedances
+            "x_pu_eff",  # weights of Kirchhoff voltage law
+            "r_pu_eff",
             "p_nom_extendable",  # changes mathematical problem
             "s_nom_extendable",
             "e_nom_extendable",
