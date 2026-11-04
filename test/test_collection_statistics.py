@@ -619,6 +619,32 @@ def test_network_collection_revenue(
         )
 
 
+def test_network_collection_prices_grouped(ac_dc_network_r):
+    """Grouped prices keep the collection level and match the member networks."""
+    # Scaled prices make mixing across members fail the value check.
+    variant = ac_dc_network_r.copy()
+    variant.c.buses.dynamic.marginal_price *= 2
+    nc = pypsa.NetworkCollection(
+        [ac_dc_network_r, variant],
+        index=pd.Index(["base", "variant"], name="scenario"),
+    )
+
+    assert nc.statistics.prices(groupby="bus_carrier").index.names == [
+        "scenario",
+        "bus_carrier",
+    ]
+
+    grouped = nc.statistics.prices(groupby="bus_carrier", weighting="time")
+    assert grouped.index.names == ["scenario", "bus_carrier"]
+
+    for label, n in nc.networks.items():
+        pd.testing.assert_series_equal(
+            grouped.xs(label, level="scenario"),
+            n.statistics.prices(groupby="bus_carrier", weighting="time"),
+            check_names=False,
+        )
+
+
 def test_network_collection_bus_carrier_filter(
     optimized_network_collection_from_ac_dc,
 ):
