@@ -23,8 +23,6 @@ if TYPE_CHECKING:
 
 KVL = "Kirchhoff-Voltage-Law"
 
-KVL_SCALING = 1e5
-
 
 def global_constraint_factor(n: Network, name: str) -> float:
     """Return the row factor of the global constraint `name`.

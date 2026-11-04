@@ -11,7 +11,7 @@ import pytest
 from linopy.constraints import CSRConstraint
 
 import pypsa
-from pypsa.optimization.scaling import KVL, KVL_SCALING
+from pypsa.optimization.scaling import KVL
 
 RTOL = 1e-5
 
@@ -84,7 +84,7 @@ def test_scaled_matches_unscaled(network, sparse):
         if name.startswith("GlobalConstraint-"):
             assert (cons[name].scaling == 1e-3).all()
     if KVL in cons:
-        bus_factors = KVL_SCALING * n.c.buses.static.scaling.unique()
+        bus_factors = n.c.buses.static.scaling.unique()
         assert np.isin(cons[KVL].scaling, bus_factors).all()
     assert n.objective == pytest.approx(ref.objective, rel=RTOL)
     for c, attr in [("generators", "p_nom_opt"), ("global_constraints", "mu")]:
@@ -527,7 +527,7 @@ COST_COLUMNS = (
     "Generator-marginal_cost_piecewise",
     "Generator-capital_cost_piecewise",
 )
-ROW_OVERRIDES = {KVL: S * KVL_SCALING, "budget": OBJ}
+ROW_OVERRIDES = {"budget": OBJ}
 
 
 def element_factors(elements: linopy.Variables | linopy.Constraints) -> pd.DataFrame:
