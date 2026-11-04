@@ -554,10 +554,10 @@ def define_operational_constraints_for_committables(
         maint_com_mod_i = com_mod_i.intersection(maint_i)
         if not maint_com_mod_i.empty:
             nom_attr = c._operational_attrs["nom"]
-            nom_max = c.da[f"{nom_attr}_max"].where(
+            nom_bound = c.da[f"{nom_attr}_max"].where(
                 c.da[f"{nom_attr}_extendable"], c.da[nom_attr]
             )
-            modules_max = nom_max.sel(name=maint_com_mod_i) / nominal_mod.sel(
+            modules_max = nom_bound.sel(name=maint_com_mod_i) / nominal_mod.sel(
                 name=maint_com_mod_i
             )
             alpha = c.da.maintenance_pu.sel(name=maint_com_mod_i)

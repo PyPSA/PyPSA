@@ -386,7 +386,7 @@ def test_fixed_modular_committable_maintenance(component, p_attr):
     The number of modules was taken from ``p_nom_max``, which is infinite for a
     unit that is not extendable, so the solver refused the model (#2094).
     """
-    objectives = []
+    modules = 100 / 25
     for extendable in [False, True]:
         n = pypsa.Network()
         n.set_snapshots(range(6))
@@ -418,15 +418,28 @@ def test_fixed_modular_committable_maintenance(component, p_attr):
         status = n.optimize()
         assert status == ("ok", "optimal")
 
+        le_maint = n.model.constraints[f"{component}-maint-modstatus-le-maint"]
+        lb = n.model.constraints[f"{component}-maint-modstatus-lb"]
+        bound = (
+            "modules bound is p_nom_max/p_nom_mod if extendable, else p_nom/p_nom_mod"
+        )
+        np.testing.assert_array_equal(
+            np.unique(le_maint.coeffs), [-modules, 1], err_msg=bound
+        )
+        np.testing.assert_array_equal(
+            np.unique(lb.coeffs), [-modules, -1, 1], err_msg=bound
+        )
+        np.testing.assert_array_equal(lb.rhs, -modules, err_msg=bound)
+
         c = n.c[component]
         in_maint = c.dynamic.maintenance["unit"].values > 0.5
         p = c.dynamic[p_attr]["unit"].values
         assert in_maint.sum() == 2
         np.testing.assert_allclose(p[in_maint], 0, atol=1e-5)
         np.testing.assert_allclose(p[~in_maint], 80, atol=1e-5)
-        objectives.append(n.objective)
-
-    assert objectives[0] == pytest.approx(objectives[1])
+        assert n.objective == pytest.approx(2 * 80 * 100 + 4 * 80 * 1), (
+            "backup serves 80 at 100 in 2 maintenance snapshots, the unit at 1 in 4"
+        )
 
 
 def test_multiple_generators_no_simultaneous_overlap(basic_network):
