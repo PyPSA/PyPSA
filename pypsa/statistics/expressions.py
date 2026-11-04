@@ -2962,16 +2962,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             mask = n.c.buses.static.carrier.isin(bus_carrier)
             prices = prices.loc[:, mask]
 
+        extra_levels = [level for level in prices.columns.names if level != "name"]
+
         if not groupby_time:
             df = prices.T
             if groupers:
-                # Keep collection index levels (e.g. network) and replace the
-                # bus name level with the requested groupers.
-                kept = [
-                    df.index.get_level_values(level)
-                    for level in df.index.names
-                    if level != "name"
-                ]
+                kept = [df.index.get_level_values(level) for level in extra_levels]
                 aligned = [g.reindex(df.index) for g in groupers]
                 df = df.set_index(kept + aligned)
             return df
@@ -3008,8 +3004,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df = a / b
 
         if groupers:
+            kept = [df.index.get_level_values(level) for level in extra_levels]
             aligned = [g.reindex(df.index) for g in groupers]
-            df = df.groupby(aligned).apply(
+            df = df.groupby(kept + aligned).apply(
                 lambda g: (g * b.loc[g.index]).sum() / b.loc[g.index].sum()
             )
 
