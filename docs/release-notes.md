@@ -29,6 +29,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix [`n.statistics.prices()`][pypsa.statistics.StatisticsAccessor.prices] with `groupby` dropping the `scenario` level of stochastic networks and the `network` level of network collections, averaging their prices together. Grouped prices now keep these levels like the ungrouped prices. (<!-- md:pr XXXX -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] silently carrying storage levels to the wrong store or storage unit on stochastic networks. When components were added after `n.set_scenarios()`, the static index and the time-varying columns had a different order. The carried `e_initial` and `state_of_charge_initial` are now aligned by component and scenario. (<!-- md:pr 2077 -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] skipping one step of `standing_loss` at each window seam. The storage level carried into the next window as `e_initial` or `state_of_charge_initial` is now reduced by the standing loss of the window's first snapshot, so storage levels match a single optimization over all snapshots. (<!-- md:pr 2080 -->)
 - Fix the `"bfs-refined"` cycle basis depending on `PYTHONHASHSEED`. Start, direction and refinement order of each cycle now follow the bus order, so two runs write the same KVL constraints and LP files. The basis can differ from v1.4.0, the optimum does not. (<!-- md:pr 2023 -->)
