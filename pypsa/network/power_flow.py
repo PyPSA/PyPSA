@@ -1107,9 +1107,7 @@ class SubNetworkPowerFlowMixin:
         with np.errstate(divide="ignore", invalid="ignore"):
             denominator = 1 / (1 - np.diag(branch_PTDF))
         denominator[~np.isfinite(denominator)] = 0
-        denominator = csr_matrix(
-            (denominator, (r_[:num_branches], r_[:num_branches]))
-        )
+        denominator = csr_matrix((denominator, (r_[:num_branches], r_[:num_branches])))
 
         self.BODF = branch_PTDF * denominator
 
