@@ -15,11 +15,13 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import xarray as xr
+from linopy.solvers import Solver, SolverFeature, available_solvers
 
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import _scenarios_not_implemented, as_index
 from pypsa.components.array import _from_xarray
+from pypsa.consistency import OPTIMIZE_STRICT_CHECKS
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.constraints import ENERGY_LIMITS, ENERGY_WEIGHTING
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
@@ -31,6 +33,11 @@ if TYPE_CHECKING:
 
     from pypsa import Components, Network, SubNetwork
 logger = logging.getLogger(__name__)
+
+_STORAGE_LEVELS = (
+    ("stores", "e_initial", "e"),
+    ("storage_units", "state_of_charge_initial", "state_of_charge"),
+)
 
 
 def discretized_capacity(
@@ -656,6 +663,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         snapshots: Sequence | None = None,
         horizon: int = 100,
         overlap: int = 0,
+        consistency_check: bool = True,
         **kwargs: Any,
     ) -> Network:
         """Optimizes the network in a rolling horizon fashion.
@@ -684,8 +692,15 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             Number of snapshots to consider in each iteration. Defaults to 100.
         overlap : int
             Number of snapshots to overlap between two iterations. Defaults to 0.
+        consistency_check : bool
+            Whether to run the consistency check once for the whole network
+            before the first window. The windows themselves skip it. Defaults
+            to True.
         **kwargs:
-            Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+            Keyword argument used by `linopy.Model.solve`, such as `solver_name`.
+            Unless `io_api` or `problem_fn` is given, `io_api="direct"` is used
+            for solvers that support linopy's direct API, which avoids writing
+            and reading a problem file for every window.
 
         """
         n = self._n
@@ -695,6 +710,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         if horizon <= overlap:
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
+
+        if consistency_check:
+            n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
 
         stores = n.c.stores
         cycles_max = stores.static.cycles_max.copy()
@@ -707,6 +725,14 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             if len(starting_points) == 1
             else _all_tracked_limits(n, weights, snapshots)
         )
+
+        solver_name = kwargs.get("solver_name") or options.params.optimize.solver_name
+        if (
+            kwargs.keys().isdisjoint({"io_api", "problem_fn"})
+            and solver_name in available_solvers
+            and Solver.from_name(solver_name).supports(SolverFeature.DIRECT_API)
+        ):
+            kwargs["io_api"] = "direct"
 
         try:
             for i, start in enumerate(starting_points):
@@ -721,11 +747,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 )
 
                 if i:
-                    prev = snapshots[start - 1]
-                    n.c.stores.static["e_initial"] = n.c.stores.dynamic.e.loc[prev]
-                    n.c.storage_units.static["state_of_charge_initial"] = (
-                        n.c.storage_units.dynamic.state_of_charge.loc[prev]
-                    )
+                    prev, first = snapshots[start - 1], sns[:1]
+                    eh = n.snapshot_weightings.stores.loc[first].iloc[0]
+                    for c, attr, level in _STORAGE_LEVELS:
+                        loss = n.c[c]._as_dynamic("standing_loss", first).iloc[0]
+                        level_prev = n.c[c].dynamic[level].loc[prev]
+                        n.c[c].static[attr] = level_prev * (1 - loss) ** eh
                 done, rest = snapshots[:start], snapshots[end:]
                 for name, attr, original, later in tracked:
                     c = n.c[name]
@@ -739,7 +766,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 remaining = cycles_max.sub(used.fillna(0), fill_value=0)
                 stores.static.cycles_max = remaining.clip(lower=0)
 
-                status, condition = n.optimize(sns, **kwargs)
+                status, condition = n.optimize(sns, consistency_check=False, **kwargs)
                 if status != "ok":
                     if tracked or track_cycles:
                         msg = (
