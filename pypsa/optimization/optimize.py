@@ -60,6 +60,12 @@ from pypsa.optimization.constraints import (
     define_voltage_angle_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
+from pypsa.optimization.flow_based import (
+    NET_POSITION,
+    define_flow_based_constraints,
+    define_flow_based_variables,
+    flow_based_net_position,
+)
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
@@ -857,6 +863,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         for c in ("StorageUnit", "Store"):
             define_spillage_variables(n, sns, c)
         define_phase_shift_variables(n, sns)
+        flow_based_domain = define_flow_based_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -967,6 +974,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
+        define_flow_based_constraints(n, flow_based_domain)
 
         define_objective(n, sns, include_objective_constant, piecewise_opts)
 
@@ -1072,6 +1080,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
             # Skip auxiliary CVaR variables
             if name.startswith("CVaR"):
+                continue
+            # The flow-based net position is written in `post_processing`
+            if name == NET_POSITION:
                 continue
             if any(
                 i in variable.dims
@@ -1225,11 +1236,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 unassigned_constraints.append(constraint_name)
                 continue
 
-            # Add placeholder for custom constraints, marked as GlobalConstraint
+            # Add placeholder for custom constraints, marked as GlobalConstraint.
+            # Constraints with a `name` dim are already per row, e.g. `ram`.
             # TODO This should go to an actual custom constraint
             if (
                 c.name == "GlobalConstraint"
                 and suffix not in c.static.index
+                and "name" not in constraint.dims
                 and assign_all_duals
             ):
                 if c.has_scenarios:
@@ -1364,6 +1377,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             .sum()
             .T.reindex(columns=n.c.buses.static.index, fill_value=0.0)
         )
+
+        if (net_position := flow_based_net_position(n)) is not None:
+            _set_dynamic_data(n, "Bus", "net_position", net_position)
 
         if not n.has_scenarios:
 
