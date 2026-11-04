@@ -258,6 +258,18 @@ def get_transmission_carriers(
         return pd.MultiIndex.from_tuples([], names=result_names)
 
 
+def _has_constant_operation(c: str) -> bool:
+    """Whether assets of component type `c` can enter the optimization as constants.
+
+    For these components (e.g. passive loads), assets without costs or capacity
+    are left out of cost and curtailment statistics. Resolved from the component
+    class, so it also works for network collections.
+    """
+    from pypsa.components.legacy import _CLASS_MAPPING  # noqa: PLC0415
+
+    return getattr(_CLASS_MAPPING.get(c), "_constant_fixed_operation", False)
+
+
 def _cost_follows_sign(c: str) -> bool:
     """Whether linear marginal costs of component type `c` follow its `sign`.
 
@@ -1695,6 +1707,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     p = sum(n.c[c].dynamic[attr + port] for attr in attrs)
                     if p.empty:
                         continue
+                    if _has_constant_operation(c):
+                        # skip assets without this cost (e.g. passive loads)
+                        priced = (cost != 0).any() | (
+                            (cost_piecewise_opt != 0).any()
+                            if isinstance(cost_piecewise_opt, pd.DataFrame)
+                            else False
+                        )
+                        cols = priced.index[priced]
+                        if cols.empty:
+                            continue
+                        p = p.loc[:, p.columns.isin(cols)]
+                        cost = cost.loc[:, cols]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
                     opex = var * (cost + cost_piecewise_opt)
                     if _cost_follows_sign(c) and cost_type in (
@@ -2465,6 +2489,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 n.get_switchable_as_dense(c, "p_max_pu") * n.c[c].static.p_nom_opt
                 - n.c[c].dynamic.p
             ).clip(lower=0)
+            if _has_constant_operation(c):
+                # assets without capacity (e.g. passive loads) cannot curtail
+                capacity = n.c[c].static.p_nom_opt
+                p = p.loc[:, p.columns.isin(capacity.index[capacity > 0])]
             weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
