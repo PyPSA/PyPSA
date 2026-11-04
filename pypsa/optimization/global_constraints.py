@@ -313,9 +313,6 @@ def define_primary_energy_limit(
         periods = window.periods
         period_weighting = n.investment_period_weightings.years[periods]
         weight = apply_period_weighting(weight, period_weighting)
-        period_last_sns, storage_weightings = _period_last_storage_weightings(
-            sns, period_of, period_weighting
-        )
 
     unique_names = glcs.index.unique("name")
 
@@ -360,7 +357,7 @@ def define_primary_energy_limit(
             glc = glc_group.loc[scenario]
 
             if np.isnan(glc.investment_period):
-                period_sns = sns
+                in_period = slice(None)
             elif not n._multi_invest:
                 msg = (
                     f"GlobalConstraint '{name}' sets `investment_period`, but the "
@@ -368,9 +365,14 @@ def define_primary_energy_limit(
                 )
                 raise ValueError(msg)
             elif glc.investment_period in periods:
-                period_sns = sns[period_of == glc.investment_period]
+                in_period = period_of == glc.investment_period
             else:
                 continue
+            period_sns = sns[in_period]
+            if n._multi_invest:
+                period_last_sns, storage_weightings = _period_last_storage_weightings(
+                    period_sns, period_of[in_period], period_weighting
+                )
 
             lhs = []
             emissions = n.c.carriers.static[glc.carrier_attribute][
