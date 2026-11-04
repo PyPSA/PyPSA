@@ -182,6 +182,30 @@ def test_nans_in_partially_connected_port_attributes(caplog):
     )
 
 
+def test_nans_in_port_attributes_with_nan_bus(caplog):
+    """A port counts as unconnected when its bus is nan, not only ""."""
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "heat bus")
+    n.add(
+        "Link",
+        "multi-output",
+        bus0="bus",
+        bus1="bus",
+        bus2="heat bus",
+        efficiency=0.3,
+        efficiency2=0.3,
+    )
+    n.add("Link", "single-output", bus0="bus", bus1="bus", efficiency=0.4)
+    # Set the nans directly, as n.add() would replace them with defaults
+    n.c.links.static.loc["single-output", "bus2"] = np.nan
+    n.c.links.static.loc["single-output", "efficiency2"] = np.nan
+
+    caplog.clear()
+    n.consistency_check()
+    assert not any("nan's in static data" in r.message for r in caplog.records)
+
+
 @pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
 def test_phase_shift_unbounded(consistent_n, caplog, strict):
     # phase_shift_min < phase_shift_max makes the shift a variable; a non-finite
