@@ -69,6 +69,119 @@ def test_nans_in_capacity_limits(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("order", ["single_output_first", "multi_output_first"])
+def test_nans_in_unused_port_attributes(caplog, order):
+    """Nans in attributes of unconnected ports must not warn.
+
+    The `efficiency2` of a link without `bus2` is never used. Regression
+    test for #1064, where the warning depended on the order in which the
+    links were added: adding the multi-output link last left a nan in the
+    single-output link's `efficiency2`, adding it first backfilled the
+    default value instead.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "heat bus")
+
+    def add_single_output():
+        n.add("Link", "single-output", bus0="bus", bus1="bus", efficiency=0.4)
+
+    def add_multi_output():
+        n.add(
+            "Link",
+            "multi-output",
+            bus0="bus",
+            bus1="bus",
+            bus2="heat bus",
+            efficiency=0.3,
+            efficiency2=0.3,
+        )
+
+    if order == "single_output_first":
+        add_single_output()
+        add_multi_output()
+    else:
+        add_multi_output()
+        add_single_output()
+
+    caplog.clear()
+    n.consistency_check()
+    assert not any("nan's in static data" in r.message for r in caplog.records)
+
+
+@pytest.mark.parametrize("strict", [[], ["nans_for_component_default_attrs"]])
+def test_nans_in_used_port_attributes(caplog, strict):
+    """Nans in attributes of connected ports must still warn."""
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "heat bus")
+    n.add(
+        "Link",
+        "multi-output",
+        bus0="bus",
+        bus1="bus",
+        bus2="heat bus",
+        efficiency=0.3,
+        efficiency2=0.3,
+    )
+    # n.add() replaces nans with the default value, so set the nan directly
+    n.c.links.static.loc["multi-output", "efficiency2"] = np.nan
+
+    caplog.clear()
+    if strict:
+        with pytest.raises(pypsa.consistency.ConsistencyError, match="efficiency2"):
+            n.consistency_check(strict=strict)
+    else:
+        n.consistency_check()
+        assert any(
+            "Encountered nan's in static data for columns ['efficiency2']" in r.message
+            for r in caplog.records
+        )
+
+
+def test_nans_in_partially_connected_port_attributes(caplog):
+    """The exemption applies per port, not per component."""
+    n = pypsa.Network()
+    for bus in ["bus", "heat bus", "second heat bus"]:
+        n.add("Bus", bus)
+    # The second link brings in the `efficiency3` column, which leaves a
+    # nan in the first link's `efficiency3`. Its `bus3` is not connected,
+    # so the nan must not warn.
+    n.add(
+        "Link",
+        "two-output",
+        bus0="bus",
+        bus1="bus",
+        bus2="heat bus",
+        efficiency=0.3,
+        efficiency2=0.3,
+    )
+    n.add(
+        "Link",
+        "three-output",
+        bus0="bus",
+        bus1="bus",
+        bus2="heat bus",
+        bus3="second heat bus",
+        efficiency=0.3,
+        efficiency2=0.3,
+        efficiency3=0.3,
+    )
+
+    caplog.clear()
+    n.consistency_check()
+    assert not any("nan's in static data" in r.message for r in caplog.records)
+
+    # A nan in the attribute of a connected port of the same link warns.
+    n.c.links.static.loc["two-output", "efficiency2"] = np.nan
+    caplog.clear()
+    n.consistency_check()
+    assert any(
+        "nan's in static data" in r.message and "efficiency2" in r.message
+        for r in caplog.records
+    )
+
+
 @pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
 def test_phase_shift_unbounded(consistent_n, caplog, strict):
     # phase_shift_min < phase_shift_max makes the shift a variable; a non-finite
