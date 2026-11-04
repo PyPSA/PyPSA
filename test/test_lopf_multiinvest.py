@@ -1391,3 +1391,68 @@ def test_extra_functionality_receives_the_build_snapshots(n, representation):
         n.optimize.create_model(snapshots=n.snapshots[:12], **kwargs)
         n.optimize.solve_model(extra_functionality=lambda _, sns: seen.append(sns))
     pd.testing.assert_index_equal(seen[0], n.model.parameters.snapshots.to_index())
+
+
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize(
+    ("period", "level"),
+    [(2030, 9.5), (2040, 9)],
+)
+def test_primary_energy_investment_period_storage_initial_per_period(
+    component, period, level
+):
+    """
+    A primary energy limit on one period counts only that period's storage change.
+
+    See https://github.com/PyPSA/PyPSA/issues/2093.
+    """
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [0, 1]])
+    n.investment_periods = [2030, 2040]
+    n.investment_period_weightings["years"] = [10, 5]
+
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add("Generator", "gen", bus="bus", p_nom=2, marginal_cost=10)
+    if component == "StorageUnit":
+        n.add(
+            "StorageUnit",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            p_nom=10,
+            max_hours=1,
+            state_of_charge_initial=10,
+            state_of_charge_initial_per_period=True,
+        )
+    else:
+        n.add(
+            "Store",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            e_nom=10,
+            e_initial=10,
+            e_initial_per_period=True,
+        )
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=1,
+        investment_period=period,
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+    levels = n.c[component].dynamic[
+        "state_of_charge" if component == "StorageUnit" else "e"
+    ]["storage"]
+    final = levels.groupby(level=0).last()
+    expected = pd.Series({2030: 8.0, 2040: 8.0})
+    expected[period] = level
+    equal(final.to_numpy(), expected.to_numpy())
