@@ -1099,10 +1099,17 @@ class SubNetworkPowerFlowMixin:
         # build LxL version of PTDF
         branch_PTDF = self.PTDF * self.K
 
-        with np.errstate(divide="ignore"):
-            denominator = csr_matrix(
-                (1 / (1 - np.diag(branch_PTDF)), (r_[:num_branches], r_[:num_branches]))
-            )
+        # Branches whose outage disconnects the sub-network (bridges) have
+        # PTDF_ii == 1, so 1 / (1 - PTDF_ii) is infinite and the BODF column
+        # becomes NaN/inf. A bridge outage cannot redistribute flow to other
+        # branches in the linear model, so set those factors to 0 (the flow
+        # on the branch itself is set to -1 below).
+        with np.errstate(divide="ignore", invalid="ignore"):
+            denominator = 1 / (1 - np.diag(branch_PTDF))
+        denominator[~np.isfinite(denominator)] = 0
+        denominator = csr_matrix(
+            (denominator, (r_[:num_branches], r_[:num_branches]))
+        )
 
         self.BODF = branch_PTDF * denominator
 
