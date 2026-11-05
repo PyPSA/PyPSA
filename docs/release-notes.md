@@ -30,7 +30,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
-- Deprecation: `c.n_save` and `c.attached` of [`Components`][pypsa.Components] are deprecated and will be removed in PyPSA 2.0. Components are attached to a network, use `c.n`. (<!-- md:pr XXXX -->)
+- Deprecation: `c.n_save` and `c.attached` of [`Components`][pypsa.Components] are deprecated and will be removed in PyPSA 2.0. Components are attached to a network, use `c.n`. (<!-- md:pr 2106 -->)
 
 ### Bug Fixes
 
