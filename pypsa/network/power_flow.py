@@ -1145,15 +1145,43 @@ class SubNetworkPowerFlowMixin:
 
         self.PTDF = self.H * B_inverse
 
-    def _check_zone_cover(self, node_to_zone: pd.Series, buses: pd.Index) -> None:
-        """Fail fast if any sub-network bus is not mapped to a zone."""
-        missing = buses.difference(node_to_zone.dropna().index)
-        if not missing.empty:
+    def _bus_zones(self, node_to_zone: pd.Series) -> pd.Series:
+        """Zone of every sub-network bus; fail fast where the domain is ambiguous."""
+        n = self.n
+        if n.has_scenarios:
+            msg = "Zonal PTDFs are not yet implemented for stochastic networks."
+            raise NotImplementedError(msg)
+        zones = node_to_zone.reindex(self.c.buses.static.index)
+        if zones.isna().any():
             msg = (
                 f"`node_to_zone` must map every sub-network bus to a zone; "
-                f"unmapped: {list(missing)}."
+                f"unmapped: {zones.index[zones.isna()].tolist()}."
             )
             raise ValueError(msg)
+        sub_network = n.c.buses.static["sub_network"]
+        elsewhere = node_to_zone.reindex(sub_network.index[sub_network != self.name])
+        split = zones[zones.isin(elsewhere)].unique()
+        if split.size:
+            msg = (
+                f"Zones {split.tolist()} have buses in several sub-networks. A "
+                "per-sub-network GSK cannot spread their net position."
+            )
+            raise ValueError(msg)
+        return zones
+
+    def _check_period_invariant(self, components: list[str]) -> None:
+        """Fail fast if an asset is active in some investment periods only."""
+        periods = self.n.investment_periods
+        for c in self.components[components]:
+            active = pd.DataFrame({p: c.get_active_assets(p) for p in periods})
+            varying = active.index[active.nunique(axis=1) > 1]
+            if not varying.empty:
+                msg = (
+                    f"{c.name} {varying.tolist()} are not active in every investment "
+                    "period, so the zonal PTDF would differ by period. This is not "
+                    "yet implemented."
+                )
+                raise NotImplementedError(msg)
 
     def gsk_uniform(self, node_to_zone: pd.Series) -> pd.DataFrame:
         """Uniform generation shift key: equal weight on every bus of a zone.
@@ -1169,15 +1197,16 @@ class SubNetworkPowerFlowMixin:
             A bus x zone GSK whose columns sum to one.
 
         """
-        buses = self.components.buses.static.index
-        self._check_zone_cover(node_to_zone, buses)
-        dummies = pd.get_dummies(node_to_zone.reindex(buses)).astype(float)
+        dummies = pd.get_dummies(self._bus_zones(node_to_zone)).astype(float)
         return dummies / dummies.sum()
 
     def gsk_by_capacity(
-        self, node_to_zone: pd.Series, carrier: str | None = None
+        self,
+        node_to_zone: pd.Series,
+        carrier: str | Sequence[str] | None = None,
+        attr: str = "p_nom",
     ) -> pd.DataFrame:
-        """Capacity-weighted generation shift key: bus weight follows generator ``p_nom``.
+        """Capacity-weighted generation shift key: bus weight follows generator capacity.
 
         A zone with no generation capacity falls back to a uniform key.
 
@@ -1185,8 +1214,10 @@ class SubNetworkPowerFlowMixin:
         ----------
         node_to_zone : pandas.Series
             Mapping every bus of the sub-network to its market zone.
-        carrier : str, optional
-            Restrict the capacity to generators of this carrier.
+        carrier : str or sequence of str, optional
+            Restrict the capacity to generators of these carriers.
+        attr : str, default "p_nom"
+            Generator capacity attribute, e.g. ``"p_nom_opt"`` after an optimisation.
 
         Returns
         -------
@@ -1195,12 +1226,11 @@ class SubNetworkPowerFlowMixin:
 
         """
         uniform = self.gsk_uniform(node_to_zone)
-        buses = uniform.index
-        gens = self.n.c.generators.static
-        gens = gens[gens["bus"].isin(buses)]
+        self._check_period_invariant(["Generator"])
+        gens = self.c.generators.static.query("active")
         if carrier is not None:
-            gens = gens[gens["carrier"] == carrier]
-        cap = gens.groupby("bus")["p_nom"].sum().reindex(buses).fillna(0.0)
+            gens = gens[gens["carrier"].isin(np.atleast_1d(carrier))]
+        cap = gens.groupby("bus")[attr].sum().reindex(uniform.index, fill_value=0.0)
         weighted = uniform.mul(cap, axis=0)
         return (weighted / weighted.sum()).fillna(uniform)
 
@@ -1208,12 +1238,18 @@ class SubNetworkPowerFlowMixin:
         self,
         node_to_zone: pd.Series,
         gsk: str | pd.DataFrame = "uniform",
-        branches: pd.Index | None = None,
+        branches: Sequence[str] | None = None,
     ) -> pd.DataFrame:
-        """Calculate the zonal PTDF (branch x zone) as ``nodal PTDF . GSK``.
+        """Calculate the zonal PTDF (CNEC x zone) as ``nodal PTDF . GSK``.
 
-        A labelled counterpart of [calculate_PTDF][pypsa.SubNetwork.calculate_PTDF] for
-        zonal market models, e.g. the domain of a flow-based market coupling.
+        Each monitored branch gives two critical network elements (CNECs), one per
+        flow direction: ``"<branch> (+)"`` with the PTDF and ``"<branch> (-)"``
+        with its negative. The result plugs into
+        [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based] of a
+        zonal network whose buses are the zones.
+
+        The nodal PTDF depends on the slack bus, but the zonal PTDF only up to a
+        constant per CNEC, which cancels because the net positions sum to zero.
 
         Parameters
         ----------
@@ -1221,20 +1257,20 @@ class SubNetworkPowerFlowMixin:
             Mapping every bus of the sub-network to its market zone.
         gsk : str or pandas.DataFrame, default "uniform"
             A GSK scheme name (``"uniform"`` or ``"capacity"``) resolved by the matching
-            ``gsk_*`` builder, or a ready bus x zone GSK frame.
-        branches : pandas.Index, optional
-            Restrict the result to these branches (the monitored CNECs); default all.
+            ``gsk_*`` builder, or a bus x zone GSK whose columns sum to one over the
+            buses of the sub-network.
+        branches : sequence of str, optional
+            Names of the monitored branches; default all active branches.
 
         Returns
         -------
         pandas.DataFrame
-            Zonal PTDF, one row per branch (a ``(type, name)`` MultiIndex), one column per
-            zone. Empty for a branch-free sub-network.
+            Zonal PTDF, one row per CNEC and one column per zone. Empty for a
+            branch-free sub-network.
 
         """
-        n = self.n
-        buses = self.components.buses.static.index
-        self._check_zone_cover(node_to_zone, buses)
+        self._bus_zones(node_to_zone)
+        self._check_period_invariant(sorted(self.n.passive_branch_components))
         if isinstance(gsk, str):
             builders = {"uniform": self.gsk_uniform, "capacity": self.gsk_by_capacity}
             if gsk not in builders:
@@ -1245,23 +1281,23 @@ class SubNetworkPowerFlowMixin:
                 raise ValueError(msg)
             gsk = builders[gsk](node_to_zone)
 
-        branch_i = pd.MultiIndex.from_tuples(
-            [
-                (c.name, i)
-                for c in self.components
-                if c.name in n.passive_branch_components
-                for i in c.static.query("active").index
-            ],
-            names=["type", "name"],
-        )
-        zones = pd.Index(gsk.columns, name="zone")
-        if branch_i.empty:
-            return pd.DataFrame(index=branch_i, columns=zones, dtype=float)
+        names = self.branches_i(active_only=True).get_level_values("name")
+        if names.empty:
+            return pd.DataFrame(columns=gsk.columns, dtype=float)
 
         self.calculate_PTDF()
-        nodal = pd.DataFrame(self.PTDF, index=branch_i, columns=self.buses_o)
-        zonal = nodal @ gsk.reindex(self.buses_o).fillna(0.0)
-        return zonal if branches is None else zonal.loc[branches]
+        gsk = gsk.reindex(self.buses_o, fill_value=0.0)
+        totals = gsk.sum()
+        off = totals[~np.isclose(totals, 1.0)]
+        if not off.empty:
+            msg = f"GSK columns must sum to one over the sub-network buses; got {off.to_dict()}."
+            raise ValueError(msg)
+        zonal = pd.DataFrame(self.PTDF, index=names, columns=self.buses_o) @ gsk
+        if branches is not None:
+            zonal = zonal.loc[list(branches)]
+        return pd.concat(
+            [zonal.add_suffix(" (+)", axis=0), -zonal.add_suffix(" (-)", axis=0)]
+        )
 
     def calculate_B_H(self, skip_pre: bool = False) -> None:
         """Calculate B and H matrices for AC or DC sub-networks."""
