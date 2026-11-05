@@ -18,7 +18,7 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa._options import options
-from pypsa.constants import RE_PORTS_FILTER, RE_PORTS_GE_2
+from pypsa.constants import RE_INVARIANT_ATTRS, RE_PORTS_FILTER, RE_PORTS_GE_2
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
@@ -32,6 +32,8 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+OPTIMIZE_STRICT_CHECKS = ["unknown_buses", "maintenance", "phase_shift_bounds"]
 
 
 class ConsistencyError(ValueError):
@@ -71,8 +73,10 @@ def check_for_unknown_buses(
     [pypsa.Network.consistency_check][], [pypsa.Network.sanitize][]
 
     """
+    names = n.c.buses.names
     for attr in _bus_columns(component.static):
-        missing = ~component.static[attr].astype(str).isin(n.c.buses.names)
+        ports = component.static[attr].astype(str)
+        missing = pd.Series(names.get_indexer(ports) < 0, index=ports.index)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and RE_PORTS_GE_2.match(attr):
             missing &= component.static[attr] != ""
@@ -478,15 +482,15 @@ def check_time_series_power_attributes(
 
             tol = options.params.consistency.numerical_tolerance
             diff = max_pu - min_pu
-            diff = diff[diff < -tol].dropna(axis=1, how="all")
-            for col in diff.columns:
+            violated = diff.to_numpy() < -tol
+            for j in np.flatnonzero(violated.any(axis=0)):
                 _log_or_raise(
                     strict,
                     "The element %s of %s has a smaller maximum than minimum operational"
                     " limit which can lead to infeasibility for the following snapshots:\n%s",
-                    col,
+                    diff.columns[j],
                     component.list_name,
-                    diff[col].dropna().index,
+                    diff.index[violated[:, j]],
                 )
 
 
@@ -630,13 +634,9 @@ def check_cost_consistency(component: Components, strict: bool = False) -> None:
 def check_generators(component: Components, strict: bool = False) -> None:
     """Check the consistency of generator attributes before the simulation.
 
-    This function performs the following checks on generator components:
-    1. Ensures that committable generators are not both up and down before the simulation.
-    2. Verifies that the minimum total energy to be produced (e_sum_min) is not greater
-       than the maximum total energy to be produced (e_sum_max).
-
-    A numerical tolerance from `params.consistency.numerical_tolerance` is applied
-    when comparing `e_sum_min` and `e_sum_max`.
+    Ensures that committable generators are not both up and down before the
+    simulation, that generators down before the simulation have no `p_init`, and
+    that their start-up and shut-down ramp limits are not below `p_min_pu`.
 
     Activate strict mode in general consistency check by passing `['generators']` to the
     the `strict` argument.
@@ -679,17 +679,63 @@ def check_generators(component: Components, strict: bool = False) -> None:
                 bad_uc_gens,
             )
 
-        tol = options.params.consistency.numerical_tolerance
-        bad_e_sum_gens = component.static.index[
-            component.static.e_sum_min > component.static.e_sum_max + tol
-        ]
-        if not bad_e_sum_gens.empty:
-            _log_or_raise(
-                strict,
-                "The following generators have e_sum_min > e_sum_max,"
-                " which can lead to infeasibility:\n%s.",
-                bad_e_sum_gens,
-            )
+        p_min_pu = (
+            component.dynamic.p_min_pu.max()
+            .reindex(component.static.index)
+            .fillna(component.static.p_min_pu)
+        )
+        for ramp_limit, action in (
+            ("ramp_limit_start_up", "starting up"),
+            ("ramp_limit_shut_down", "shutting down"),
+        ):
+            bad_uc_gens = component.static.index[
+                component.static.committable & (component.static[ramp_limit] < p_min_pu)
+            ]
+            if not bad_uc_gens.empty:
+                _log_or_raise(
+                    strict,
+                    "The following committable generators have %s below their"
+                    " minimum part load p_min_pu, which prevents them from %s: %s.",
+                    ramp_limit,
+                    action,
+                    bad_uc_gens,
+                )
+
+
+def check_volume_limits(component: Components, strict: bool = False) -> None:
+    """Check that `e_sum_min` is not greater than `e_sum_max`.
+
+    Applies to all components with volume limits. A numerical tolerance from
+    `params.consistency.numerical_tolerance` is applied.
+
+    Activate strict mode in general consistency check by passing
+    `['volume_limits']` to the `strict` argument.
+
+    Parameters
+    ----------
+    component : Component
+        The component to be checked.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if "e_sum_min" not in component.static:
+        return
+    tol = options.params.consistency.numerical_tolerance
+    static = component.static
+    bad = static.index[static.e_sum_min > static.e_sum_max + tol]
+    if not bad.empty:
+        _log_or_raise(
+            strict,
+            "The following %s components have e_sum_min > e_sum_max,"
+            " which can lead to infeasibility:\n%s.",
+            component.name,
+            bad,
+        )
 
 
 def check_dtypes_(component: Components, strict: bool = False) -> None:
@@ -970,6 +1016,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "zero_s_nom",
             "phase_shift_bounds",
             "generators",
+            "volume_limits",
             "cost_consistency",
             "dispatch_delays",
             "maintenance",
@@ -1019,6 +1066,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_phase_shift_bounds(c, "phase_shift_bounds" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
+            check_volume_limits(c, "volume_limits" in strict)
             check_maintenance_attributes(self, c, "maintenance" in strict)
             # Checks cost attributes consistency
             check_cost_consistency(c)
@@ -1170,39 +1218,16 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
     if not n.has_scenarios:
         return
 
-    # Attributes that must be identical across all scenarios
-    INVARIANT_ATTRS = {
-        "name",
-        "bus",
-        # "control" is excluded - different buses can have different control types across scenarios
-        # but we ensure consistent slack bus selection separately
-        "type",
-        "p_nom_extendable",  # changes mathematical problem
-        "s_nom_extendable",
-        "e_nom_extendable",
-        "p_nom_mod",  # modular investment is first-stage decision
-        "s_nom_mod",
-        "e_nom_mod",
-        "committable",  # changes mathematical problem
-        "sign",
-        "carrier",
-        "weight",
-        "p_nom_opt",  # optimization result
-        "s_nom_opt",
-        "e_nom_opt",
-        "build_year",
-        "lifetime",
-        "active",  # theoretically can be different, but problematic with "Line"
-    }
-
     for component in n.components:
         if component.static.index.nlevels < 2:
             continue  # No scenario dimension
 
         # Get attributes that exist for this component and are in invariant list
-        component_invariant_attrs = INVARIANT_ATTRS.intersection(
-            component.static.columns
-        )
+        component_invariant_attrs = {
+            attr
+            for attr in component.static.columns
+            if RE_INVARIANT_ATTRS.fullmatch(attr)
+        }
 
         if not component_invariant_attrs:
             continue

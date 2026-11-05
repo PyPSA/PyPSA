@@ -22,10 +22,17 @@ from scipy.sparse import hstack as shstack
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
-from pypsa.common import as_index, deprecated_common_kwargs
+from pypsa.common import (
+    _scenarios_not_implemented,
+    as_index,
+    deprecated_common_kwargs,
+)
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
+from pypsa.network.graph import (
+    bfs_refined_cycle_basis,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -104,7 +111,7 @@ def _calculate_controllable_nodal_power_balance(
                 c.name,
                 power + "_set",
                 snapshots,
-                c.static.query("active").index,
+                c.static.query("active").index.unique("name"),
             )
             network.c[c.name].dynamic[power].loc[
                 snapshots, c.static.query("active").index
@@ -697,15 +704,35 @@ def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
             sub_network.T[branch_i, j] = sign
 
 
-def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
+def find_cycles(
+    sub_network: SubNetwork,
+    weight: str = "x_pu",
+    cycle_basis_method: str = "bfs-refined",
+) -> None:
     """Find all cycles in the sub_network and record them in sub_network.C.
 
-    networkx collects the cycles with more than 2 edges; then the 2-edge
-    cycles from the MultiGraph must be collected separately (for cases
-    where there are multiple lines between the same pairs of buses).
+    The cycle basis is constructed with ``cycle_basis_method``, which collects
+    the cycles with more than 2 edges; then the 2-edge cycles from the
+    MultiGraph must be collected separately (for cases where there are multiple
+    lines between the same pairs of buses).
 
-    Cycles with infinite impedance are skipped.
+    Cycles with inactive branches and infinite impedance are skipped.
+
+    Parameters
+    ----------
+    sub_network : SubNetwork
+        Sub-network for which to construct the cycle basis.
+    weight : str, default "x_pu"
+        Branch attribute used to exclude infinite-impedance branches.
+    cycle_basis_method : str, default "bfs-refined"
+        Method used to construct the cycle basis, either ``"bfs-refined"`` or
+        ``"paton"``.
+
     """
+    if cycle_basis_method not in ("bfs-refined", "paton"):
+        msg = 'cycle_basis_method must be one of "bfs-refined" or "paton"'
+        raise ValueError(msg)
+
     branches_bus0 = sub_network.branches()["bus0"]
 
     if sub_network.n.has_scenarios and not branches_bus0.empty:
@@ -715,10 +742,13 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     branches_i = branches_bus0.index
 
     # reduce to a non-multi-graph for cycles with > 2 edges
-    mgraph = sub_network.graph(weight=weight, inf_weight=False)
+    mgraph = sub_network.graph(weight=weight, inf_weight=False, include_inactive=False)
     graph = nx.Graph(mgraph)
 
-    cycles = nx.cycle_basis(graph)
+    if cycle_basis_method == "paton":
+        cycles = nx.cycle_basis(graph)
+    else:
+        cycles = bfs_refined_cycle_basis(graph)
 
     # number of 2-edge cycles
     num_multi = len(mgraph.edges()) - len(graph.edges())
@@ -838,6 +868,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         _update_ports_component_attrs(self)
 
+    @_scenarios_not_implemented
     def lpf(
         n: Network, snapshots: Sequence | None = None, skip_pre: bool = False
     ) -> None:
@@ -858,6 +889,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
         sns = as_index(n, snapshots, "snapshots")
         _network_prepare_and_run_pf(n, sns, skip_pre, linear=True)
 
+    @_scenarios_not_implemented
     def pf(
         n: Network,
         snapshots: Sequence | None = None,
@@ -917,6 +949,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
             slack_weights=slack_weights,
         )  # type: ignore
 
+    @_scenarios_not_implemented
     def lpf_contingency(
         self,
         snapshots: Sequence | str | int | pd.Timestamp | None = None,
@@ -986,7 +1019,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
             p0_new = p0_base + pd.Series(
                 sub_network.BODF[:, branch_i] * p0_base[branch],
                 sub_network._branches.index,
-            )
+            ).reindex(p0_base.index, fill_value=0)
             p0_new.name = branch
 
             p0 = pd.concat([p0, p0_new], axis=1)
@@ -1574,20 +1607,20 @@ class SubNetworkPowerFlowMixin:
 
         _calculate_controllable_nodal_power_balance(self, n, sns, buses_o)
 
+        def voltage(guess: np.ndarray, distribute_slack: bool) -> np.ndarray:
+            last_pq = -1 if distribute_slack else None
+            v_ang = v_ang_now.copy()
+            v_mag_pu = v_mag_pu_now.copy()
+            v_ang[1:] = guess[: len(self.pvpqs)]
+            v_mag_pu[1 + len(self.pvs) :] = guess[len(self.pvpqs) : last_pq]
+            return v_mag_pu * np.exp(1j * v_ang)
+
         def f(
             guess: np.ndarray,
             distribute_slack: bool = False,
             slack_weights: np.ndarray | None = None,
         ) -> np.ndarray:
-            last_pq = -1 if distribute_slack else None
-            n.c.buses.dynamic.v_ang.loc[now, self.pvpqs] = guess[: len(self.pvpqs)]
-            n.c.buses.dynamic.v_mag_pu.loc[now, self.pqs] = guess[
-                len(self.pvpqs) : last_pq
-            ]
-
-            v_mag_pu = n.c.buses.dynamic.v_mag_pu.loc[now, buses_o]
-            v_ang = n.c.buses.dynamic.v_ang.loc[now, buses_o]
-            V = v_mag_pu * np.exp(1j * v_ang)
+            V = voltage(guess, distribute_slack)
 
             if distribute_slack:
                 slack_power = slack_weights * guess[-1]
@@ -1596,9 +1629,9 @@ class SubNetworkPowerFlowMixin:
                 mismatch = V * np.conj(self.Y * V) - s
 
             if distribute_slack:
-                F = r_[real(mismatch)[:], imag(mismatch)[1 + len(self.pvs) :]]
+                F = r_[mismatch.real[:], mismatch.imag[1 + len(self.pvs) :]]
             else:
-                F = r_[real(mismatch)[1:], imag(mismatch)[1 + len(self.pvs) :]]
+                F = r_[mismatch.real[1:], mismatch.imag[1 + len(self.pvs) :]]
 
             return F
 
@@ -1607,16 +1640,7 @@ class SubNetworkPowerFlowMixin:
             distribute_slack: bool = False,
             slack_weights: np.ndarray | None = None,
         ) -> csr_matrix:
-            last_pq = -1 if distribute_slack else None
-            n.c.buses.dynamic.v_ang.loc[now, self.pvpqs] = guess[: len(self.pvpqs)]
-            n.c.buses.dynamic.v_mag_pu.loc[now, self.pqs] = guess[
-                len(self.pvpqs) : last_pq
-            ]
-
-            v_mag_pu = n.c.buses.dynamic.v_mag_pu.loc[now, buses_o]
-            v_ang = n.c.buses.dynamic.v_ang.loc[now, buses_o]
-
-            V = v_mag_pu * np.exp(1j * v_ang)
+            V = voltage(guess, distribute_slack)
 
             index = r_[: len(buses_o)]
 
@@ -1732,7 +1756,9 @@ class SubNetworkPowerFlowMixin:
         for i, now in enumerate(sns):
             p = n.c.buses.dynamic.p.loc[now, buses_o]
             q = n.c.buses.dynamic.q.loc[now, buses_o]
-            ss[i] = s = p + 1j * q
+            ss[i] = s = (p + 1j * q).to_numpy()
+            v_mag_pu_now = n.c.buses.dynamic.v_mag_pu.loc[now, buses_o].to_numpy()
+            v_ang_now = n.c.buses.dynamic.v_ang.loc[now, buses_o].to_numpy()
 
             # Make a guess for what we don't know: V_ang for PV and PQs and v_mag_pu for PQ buses
             guess = r_[
@@ -1744,9 +1770,9 @@ class SubNetworkPowerFlowMixin:
                 guess = np.append(guess, [0])  # for total slack power
                 if isinstance(slack_weights, str) and slack_weights == "p_set":
                     # snapshot-dependent slack weights
-                    slack_args["slack_weights"] = slack_weights_calc.loc[now]
+                    slack_args["slack_weights"] = slack_weights_calc.loc[now].to_numpy()
                 else:
-                    slack_args["slack_weights"] = slack_weights_calc
+                    slack_args["slack_weights"] = slack_weights_calc.to_numpy()
 
             # Now try and solve
             roots[i], n_iter, diff, converged = newton_raphson_sparse(
@@ -1847,9 +1873,6 @@ class SubNetworkPowerFlowMixin:
             )
             for bus, group in self.c.generators.static.groupby("bus"):
                 if isinstance(slack_weights, str) and slack_weights == "p_set":
-                    generators_t_p_choice = n.get_switchable_as_dense(
-                        "Generator", slack_weights, sns
-                    )
                     bus_generator_shares = (
                         generators_t_p_choice.loc[sns, group.index]
                         .apply(normed, axis=1)
@@ -1945,7 +1968,7 @@ class SubNetworkPowerFlowMixin:
             if c.name not in n.controllable_one_port_components:
                 continue
             c_p_set = n.get_switchable_as_dense(
-                c.name, "p_set", sns, c.static.query("active").index
+                c.name, "p_set", sns, c.static.query("active").index.unique("name")
             )
             # power flow calculations require a starting point for the algorithm, while p_set default is n/a
             c_p_set = c_p_set.fillna(0)

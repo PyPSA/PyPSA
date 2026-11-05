@@ -27,10 +27,12 @@ def restore_options_module():
     """
     import sys
 
+    new_components_api = pypsa.options.api.new_components_api
     yield
     from pypsa import _options
 
     importlib.reload(_options)
+    _options.options.api.new_components_api = new_components_api
 
     # Update pypsa's references to the fresh options
     pypsa.options = _options.options

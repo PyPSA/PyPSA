@@ -350,6 +350,27 @@ def test_simple_network_storage_cyclic_per_period(n_sus):
     )
 
 
+@pytest.mark.parametrize(
+    ("cyclic", "per_period"),
+    [(False, False), (False, True), (True, False), (True, True)],
+)
+def test_storage_units_to_stores_equivalence(n_sus, cyclic, per_period):
+    static = n_sus.c.storage_units.static
+    static["state_of_charge_initial"] = 0 if cyclic else 200
+    static["cyclic_state_of_charge"] = cyclic
+    static["cyclic_state_of_charge_per_period"] = per_period
+    static["state_of_charge_initial_per_period"] = per_period
+    n_sus.optimize(**kwargs)
+    objective = n_sus.objective
+    e_nom_opt = static.p_nom_opt * static.max_hours
+
+    n_sus.c.storage_units.convert_to_stores()
+    n_sus.optimize(**kwargs)
+
+    assert n_sus.objective == pytest.approx(objective, rel=1e-6)
+    equal(n_sus.c.stores.static.e_nom_opt[e_nom_opt.index], e_nom_opt, decimal=4)
+
+
 def test_simple_network_store_noncyclic(n_sts):
     n_sts.c.stores.static["e_cyclic"] = False
     n_sts.c.stores.static["e_initial_per_period"] = False
@@ -577,7 +598,7 @@ def test_nominal_constraint_bus_carrier_expansion_limit(n):
         status, cond = n.optimize(**kwargs)
     gen1s = [f"gen1-{period}" for period in n.investment_periods]
     assert round(n.c.generators.static.p_nom_opt[gen1s], 0).sum() == 100
-    n.c.buses.static.drop(["nom_max_gencarrier"], inplace=True, axis=1)
+    n.c.buses.static = n.c.buses.static.drop(columns=["nom_max_gencarrier"])
 
     n.c.buses.static.at["1", "nom_max_gencarrier_2020"] = 100
     with pytest.warns(
@@ -587,7 +608,7 @@ def test_nominal_constraint_bus_carrier_expansion_limit(n):
     ):
         status, cond = n.optimize(**kwargs)
     assert n.c.generators.static.at["gen1-2020", "p_nom_opt"] == 100
-    n.c.buses.static.drop(["nom_max_gencarrier_2020"], inplace=True, axis=1)
+    n.c.buses.static = n.c.buses.static.drop(columns=["nom_max_gencarrier_2020"])
 
     # make the constraint non-binding and check that the shadow price is zero
     n.c.buses.static.at["1", "nom_min_gencarrier_2020"] = 100
@@ -621,6 +642,36 @@ def test_max_relative_growth_constraint(n):
         n.c.generators.static.build_year
     ).sum()
     assert all(built_per_period - built_per_period.shift(fill_value=0) * 1.5 <= 218)
+
+
+def test_max_growth_constraint_excludes_retired_asset():
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], [0]])
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "bus")
+    n.add("Carrier", "solar", max_growth=10)
+    n.add("Load", "load", bus="bus", p_set=5)
+    for name, year in [("old", 2020), ("new", 2030)]:
+        n.add(
+            "Generator",
+            name,
+            bus="bus",
+            carrier="solar",
+            p_nom_extendable=True,
+            build_year=year,
+            lifetime=10,
+            capital_cost=1,
+        )
+    n.optimize.create_model(multi_investment_periods=True)
+    con = n.model.constraints["Carrier-growth_limit"]
+    labels = n.model.variables["Generator-p_nom"].labels.to_series()
+
+    def vars_in(period):
+        return set(con.vars.sel(Carrier="solar", periods=period).values.ravel())
+
+    assert int(labels["old"]) in vars_in(2020)
+    assert int(labels["old"]) not in vars_in(2030)
+    assert int(labels["new"]) in vars_in(2030)
 
 
 def test_store_primary_energy_and_operational_limit_constraint_without_per_period():
@@ -1340,3 +1391,68 @@ def test_extra_functionality_receives_the_build_snapshots(n, representation):
         n.optimize.create_model(snapshots=n.snapshots[:12], **kwargs)
         n.optimize.solve_model(extra_functionality=lambda _, sns: seen.append(sns))
     pd.testing.assert_index_equal(seen[0], n.model.parameters.snapshots.to_index())
+
+
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize(
+    ("period", "level"),
+    [(2030, 9.5), (2040, 9)],
+)
+def test_primary_energy_investment_period_storage_initial_per_period(
+    component, period, level
+):
+    """
+    A primary energy limit on one period counts only that period's storage change.
+
+    See https://github.com/PyPSA/PyPSA/issues/2093.
+    """
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [0, 1]])
+    n.investment_periods = [2030, 2040]
+    n.investment_period_weightings["years"] = [10, 5]
+
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add("Generator", "gen", bus="bus", p_nom=2, marginal_cost=10)
+    if component == "StorageUnit":
+        n.add(
+            "StorageUnit",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            p_nom=10,
+            max_hours=1,
+            state_of_charge_initial=10,
+            state_of_charge_initial_per_period=True,
+        )
+    else:
+        n.add(
+            "Store",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            e_nom=10,
+            e_initial=10,
+            e_initial_per_period=True,
+        )
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=1,
+        investment_period=period,
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+    levels = n.c[component].dynamic[
+        "state_of_charge" if component == "StorageUnit" else "e"
+    ]["storage"]
+    final = levels.groupby(level=0).last()
+    expected = pd.Series({2030: 8.0, 2040: 8.0})
+    expected[period] = level
+    equal(final.to_numpy(), expected.to_numpy())

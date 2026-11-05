@@ -281,6 +281,15 @@ def test_storage_capacity(ac_dc_network_r):
     assert df.sum() == 5
 
 
+def test_expanded_capacity_storage(ac_dc_network_r):
+    n = ac_dc_network_r
+    n.add("Store", "example", carrier="any", bus="Manchester", e_nom=5, e_nom_opt=10)
+    df = n.statistics.expanded_capacity(storage=True)
+    assert not df.empty
+    assert list(df.index.unique("component")) == ["Store"]
+    assert df.sum() == 5
+
+
 def test_single_component(ac_dc_network_r):
     n = ac_dc_network_r
     df = n.statistics.installed_capacity(components="Generator")
@@ -422,6 +431,46 @@ def test_prices(ac_dc_network_r):
         n.statistics.prices(groupby="not_an_attribute")
 
 
+def test_prices_load_weighting_stochastic(ac_dc_network_r, ac_dc_stochastic_r):
+    """Load weights align on (scenario, name), not on the bare bus name."""
+    deterministic = ac_dc_network_r.statistics.prices(weighting="load")
+    n = ac_dc_stochastic_r
+
+    load_weighted = n.statistics.prices(weighting="load")
+    time_weighted = n.statistics.prices(weighting="time")
+    assert not load_weighted.equals(time_weighted)
+
+    for scenario in ["low", "high"]:
+        pd.testing.assert_series_equal(
+            load_weighted.xs(scenario, level="scenario"),
+            deterministic,
+            check_names=False,
+        )
+
+    n.c.loads.dynamic.p.loc[:, ("high", "London")] *= 2
+    load_weighted = n.statistics.prices(weighting="load")
+    assert load_weighted.loc[("high", "London")] != deterministic.loc["London"]
+    pd.testing.assert_series_equal(
+        load_weighted.xs("low", level="scenario"),
+        deterministic,
+        check_names=False,
+    )
+
+
+def test_prices_load_weighting_misaligned_raises(ac_dc_stochastic_r, monkeypatch):
+    """Weights that match no price column raise instead of falling back to 1."""
+    n = ac_dc_stochastic_r
+    withdrawal = n.statistics.withdrawal(
+        groupby="bus", nice_names=False, groupby_time=False
+    )
+    misaligned = withdrawal.rename(lambda s: f"other-{s}", level="scenario")
+    monkeypatch.setattr(
+        type(n.statistics), "withdrawal", lambda self, **kwargs: misaligned
+    )
+    with pytest.raises(ValueError, match="do not align"):
+        n.statistics.prices(weighting="load")
+
+
 @pytest.fixture
 def network_with_nice_name():
     n = pypsa.Network()
@@ -487,8 +536,7 @@ def test_energy_balance_carrier_nice_name_filter(network_with_nice_name):
     assert result.empty
 
 
-@pytest.fixture(scope="module")
-def multi_invest_network():
+def build_multi_invest_network(fom_cost=0.0):
     n = pypsa.Network(snapshots=range(10))
     n.investment_periods = [2020, 2030, 2040]
     n.investment_period_weightings.loc[2020, "years"] = 10
@@ -536,8 +584,14 @@ def multi_invest_network():
     )
     load = pd.DataFrame({"load": range(100, 100 + len(n.snapshots))}, index=n.snapshots)
     n.add("Load", "load", bus="elec", p_set=load["load"])
+    n.c.generators.static["fom_cost"] = fom_cost
     n.optimize(solver_name="highs", multi_investment_periods=True)
     return n
+
+
+@pytest.fixture(scope="module")
+def multi_invest_network():
+    return build_multi_invest_network()
 
 
 class TestMultiInvest:
@@ -617,6 +671,12 @@ class TestMultiInvest:
     ):
         assert np.nansum(system_cost.values) == pytest.approx(
             multi_invest_network.objective, rel=1e-3
+        )
+
+    def test_system_cost_with_fom_consistent_with_objective(self):
+        n = build_multi_invest_network(fom_cost=5.0)
+        assert np.nansum(n.statistics.system_cost().values) == pytest.approx(
+            n.objective, rel=1e-3
         )
 
 

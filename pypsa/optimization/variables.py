@@ -384,9 +384,8 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     n.model.add_variables(lower=0, coords=[mod_i], name=f"{c.name}-n_mod", integer=True)
 
 
-def define_spillage_variables(n: Network, sns: Sequence) -> None:
-    """Define the spillage variables for storage units."""
-    c_name = "StorageUnit"
+def define_spillage_variables(n: Network, sns: Sequence, c_name: str) -> None:
+    """Define the spillage variables for storage units and stores with inflow."""
     c = n.components[c_name]
 
     if c.empty:
@@ -430,15 +429,16 @@ def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
     if c.empty:
         return
 
-    trafos = c.static
-    varying = trafos["phase_shift_min"] < trafos["phase_shift_max"]
-    names = trafos.index[varying].intersection(c.active_assets)
+    varying = c.static["phase_shift_min"] < c.static["phase_shift_max"]
+    names = varying[varying].index.unique("name").intersection(c.active_assets)
     if names.empty:
         return
 
     grid = xr.ones_like(c.da.active.sel(name=names, snapshot=sns))
-    lower = c.da["phase_shift_min"].sel(name=names) * grid
-    upper = c.da["phase_shift_max"].sel(name=names) * grid
+    is_varying = (c.da.phase_shift_min < c.da.phase_shift_max).sel(name=names)
+    fixed = c.da.phase_shift.sel(name=names, snapshot=sns)
+    lower = c.da.phase_shift_min.sel(name=names).where(is_varying, fixed) * grid
+    upper = c.da.phase_shift_max.sel(name=names).where(is_varying, fixed) * grid
     n.model.add_variables(lower, upper, name="Transformer-phase_shift")
 
 
