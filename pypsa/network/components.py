@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from deprecation import deprecated
 
@@ -36,6 +36,8 @@ from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
     import pandas as pd
+
+    from pypsa import Network
 logger = logging.getLogger(__name__)
 
 # TODO Change to UserWarning when they are all resolved and raised
@@ -130,7 +132,9 @@ class NetworkComponentsMixin(_NetworkABC):
             for c_name in components:
                 ctype = get_component_type(c_name)
 
-                self._components[ctype.list_name] = Component(ctype=ctype, n=self)
+                self._components[ctype.list_name] = Component(
+                    ctype=ctype, n=cast("Network", self)
+                )
         return self._components
 
     @property

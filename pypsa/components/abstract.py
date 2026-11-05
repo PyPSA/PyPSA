@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 class _ComponentsABC(ABC):
     ctype: ComponentType
-    n: Network | None
+    n: Network
     static: pd.DataFrame
     dynamic: Dict
     piecewise: Dict
@@ -36,11 +36,6 @@ class _ComponentsABC(ABC):
     @property
     @abstractmethod
     def category(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def n_save(self) -> pd.DataFrame:
         pass
 
     @property
