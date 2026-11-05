@@ -14,12 +14,6 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
-### Changes from bug fixes
-
-- **Optimization model structure changes**, relevant for custom constraints in `extra_functionality`:
-    - The `{Component}-{attr}_set` constraints (e.g. `Generator-p_nom_set`) use the dimension `name` instead of `{Component}-{attr}_set_i`.
-- PyPSA now requires `linopy>=0.10.0`.
-
 ### Features
 
 - Add [numerical scaling](./user-guide/optimization/numerical-scaling.md) of optimization problems via linopy. The new attribute `scaling` of [Bus](./user-guide/components/buses.md) and [GlobalConstraint](./user-guide/components/global-constraints.md) sets the solver unit of a bus and a global constraint row, and the new argument `objective_scaling` of [`n.optimize`][pypsa.optimization.OptimizationAccessor.__call__] and related methods scales the objective. Results are reported in original units. Requires `linopy>=0.10.0`. (<!-- md:pr 2052 -->)
@@ -37,6 +31,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- **Behavior change**: The `{Component}-{attr}_set` constraints (e.g. `Generator-p_nom_set`) use the dimension `name` instead of `{Component}-{attr}_set_i`, like all other constraints. Custom constraints in `extra_functionality` that select on the old dimension need updating. (<!-- md:pr 2052 -->)
 - Fix [`n.statistics.prices()`][pypsa.statistics.StatisticsAccessor.prices] with `groupby` dropping the `scenario` level of stochastic networks and the `network` level of network collections, averaging their prices together. Grouped prices now keep these levels like the ungrouped prices. (<!-- md:pr 2103 -->)
 - Fix stochastic networks silently using the first scenario's branch impedances in all scenarios. The consistency check now raises if `v_nom`, `x_pu_eff` or `r_pu_eff` vary across scenarios. (<!-- md:pr 2104 -->)
 - Fix `KeyError` in `primary_energy` global constraints with `investment_period` and per-period initial storage levels on networks without scenarios. Only the stated period's storage change is counted. (<!-- md:pr 2099 -->)

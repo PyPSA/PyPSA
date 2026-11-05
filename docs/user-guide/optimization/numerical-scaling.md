@@ -14,8 +14,8 @@ PyPSA lets you declare the **solver unit** of each bus, each global constraint a
 
 | Factor | Set via | Acts on |
 |---|---|---|
-| Bus column factor $s_b$ | `n.buses.scaling` | Dispatch, capacity and storage columns of all one-ports at bus $b$ and of all branches with `bus0` $= b$ (solver column holds $s_b \cdot x$), plus all rows of these components and the energy balance row of bus $b$ (`Bus-nodal_balance`) |
-| Global constraint row factor | `n.global_constraints.scaling` | Coefficients and right-hand side of the `GlobalConstraint-{name}` row |
+| Bus column factor $s_b$ | `n.buses.static.scaling` | Dispatch, capacity and storage columns of all one-ports at bus $b$ and of all branches with `bus0` $= b$ (solver column holds $s_b \cdot x$), plus all rows of these components and the energy balance row of bus $b$ (`Bus-nodal_balance`) |
+| Global constraint row factor | `n.global_constraints.static.scaling` | Coefficients and right-hand side of the `GlobalConstraint-{name}` row |
 | Objective factor | `n.optimize(objective_scaling=...)` | All objective coefficients, plus the cost-valued `objective_constant` column, the columns and rows of [CVaR](stochastic.md) (`CVaR`, `CVaR-a`, `CVaR-theta`, `CVaR-excess-*`, `CVaR-def`) and the cost column and output rows of [piecewise cost curves](piecewise.md) |
 
 A bus factor `s = 1e-3` means the solver works in GW instead of MW at that bus. Since the factor applies to the columns of a component and to all of its internal rows, these rows are unchanged in the solver. A [Link](../components/links.md) coefficient in the energy balance of `bus1` reads $\eta \cdot s_{\text{bus1}} / s_{\text{bus0}}$ in the solver. With the same factor at both buses, the coefficients of the energy balance stay at their unscaled values.
@@ -28,8 +28,8 @@ The following factors are a starting point that worked on [PyPSA-Eur](https://gi
 
 ``` py
 >>> n = pypsa.examples.ac_dc_meshed()
->>> n.buses["scaling"] = 1e-4
->>> n.global_constraints["scaling"] = 1e-6
+>>> n.buses.static["scaling"] = 1e-4  # doctest: +SKIP
+>>> n.global_constraints.static["scaling"] = 1e-6  # doctest: +SKIP
 >>> n.optimize(objective_scaling=2e-3, log_to_console=False)
 ('ok', 'optimal')
 >>> round(n.objective / 1e6, 2)
@@ -39,8 +39,8 @@ The following factors are a starting point that worked on [PyPSA-Eur](https://gi
 The objective and all other results are reported in original units. For buses in different units, map factors by carrier:
 
 ``` py
->>> n.buses["scaling"] = n.buses.carrier.map({"AC": 1e-4, "DC": 1e-4, "co2": 1e-7})
->>> n.buses.scaling.unique()
+>>> n.buses.static["scaling"] = n.buses.static.carrier.map({"AC": 1e-4, "DC": 1e-4, "co2": 1e-7})  # doctest: +SKIP
+>>> n.buses.static.scaling.unique()  # doctest: +SKIP
 array([0.0001])
 ```
 
