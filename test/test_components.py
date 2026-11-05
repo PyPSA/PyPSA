@@ -26,13 +26,13 @@ def test_components_init():
 
 def test_n_save_deprecated():
     n = Network()
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning, match="Use `c.n` instead"):
         assert n.c.generators.n_save is n
 
 
 def test_attached_deprecated():
     n = Network()
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning, match="always attached to a network"):
         assert n.c.generators.attached is True
 
 
