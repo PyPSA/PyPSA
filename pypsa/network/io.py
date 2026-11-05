@@ -2061,6 +2061,11 @@ class NetworkIOMixin(_NetworkABC):
         # Concatenate to new dataframe
         if not old_static.empty:
             new_static = pd.concat((old_static, new_static), sort=False)
+            # The concat leaves NaN on the old rows for columns only the new rows carry
+            added_cols = new_static.columns.difference(old_static.columns)
+            fill = attrs["default"].reindex(added_cols).dropna()
+            if not fill.empty:
+                new_static = new_static.fillna(fill.to_dict())
 
         if cls_name == "Shape":
             new_static = gpd.GeoDataFrame(new_static, crs=self.crs)
