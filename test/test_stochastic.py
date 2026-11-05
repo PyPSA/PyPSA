@@ -234,6 +234,37 @@ def test_statistics(ac_dc_stochastic_r):
     assert not df.empty
 
 
+def test_statistics_prices_grouped_keeps_scenario(ac_dc_stochastic_r):
+    """
+    Grouped prices keep the scenario level like the ungrouped prices.
+    """
+    n = ac_dc_stochastic_r
+    mp = n.c.buses.dynamic.marginal_price
+    mp.loc[:, "high"] = mp["high"].to_numpy() * 2
+
+    assert n.statistics.prices(groupby="bus_carrier").index.names == [
+        "scenario",
+        "bus_carrier",
+    ]
+
+    ungrouped = n.statistics.prices(weighting="time")
+    assert ungrouped.index.names == ["scenario", "name"]
+
+    grouped = n.statistics.prices(groupby="bus_carrier", weighting="time")
+    assert grouped.index.names == ["scenario", "bus_carrier"]
+    assert (grouped.loc["high"] > grouped.loc["low"]).all()
+
+    for scenario in ["low", "high"]:
+        carrier = n.c.buses.static.loc[scenario, "carrier"]
+        expected = ungrouped.loc[scenario].groupby(carrier).mean()
+        pd.testing.assert_series_equal(
+            grouped.loc[scenario],
+            expected,
+            check_names=False,
+            rtol=1e-3,
+        )
+
+
 def test_statistics_plot(ac_dc_stochastic_r):
     """
     Test the statistics plot of a stochastic network.

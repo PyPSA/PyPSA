@@ -242,6 +242,31 @@ def test_scenario_invariant_attributes(consistent_n, caplog, strict):
         consistent_n.consistency_check(strict=strict)
 
 
+@pytest.mark.parametrize(
+    ("component", "name", "attr", "value", "match"),
+    [
+        ("Line", "line_one", "x", 10.0, "x_pu_eff"),
+        ("Line", "line_one", "r", 10.0, "r_pu_eff"),
+        ("Transformer", "trafo", "s_nom", 50.0, "_pu_eff"),
+        ("Transformer", "trafo", "tap_ratio", 1.1, "_pu_eff"),
+        ("Bus", "one", "v_nom", 110.0, "v_nom"),
+    ],
+)
+def test_scenario_invariant_impedances(
+    consistent_n, component, name, attr, value, match
+):
+    consistent_n.add("Bus", "three")
+    consistent_n.add(
+        "Transformer", "trafo", bus0="two", bus1="three", x=0.1, r=0.01, s_nom=100
+    )
+    consistent_n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    consistent_n.consistency_check()
+
+    consistent_n.c[component].static.loc[("s2", name), attr] = value
+    with pytest.raises(pypsa.consistency.ConsistencyError, match=match):
+        consistent_n.consistency_check()
+
+
 def test_scenario_invariant_attributes_comprehensive():
     """
     Comprehensive test covering all invariant attributes and edge cases.

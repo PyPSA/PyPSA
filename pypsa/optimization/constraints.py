@@ -35,6 +35,7 @@ from pypsa.optimization.common import (
     get_constant_operation_assets,
     get_operational_assets,
 )
+from pypsa.optimization.flow_based import flow_based_balance_terms
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 from pypsa.optimization.window import apply_period_weighting, snapshot_array
 
@@ -559,10 +560,13 @@ def define_operational_constraints_for_committables(
 
         maint_com_mod_i = com_mod_i.intersection(maint_i)
         if not maint_com_mod_i.empty:
-            nom_max = c.da[f"{c._operational_attrs['nom']}_max"].sel(
+            nom_attr = c._operational_attrs["nom"]
+            nom_bound = c.da[f"{nom_attr}_max"].where(
+                c.da[f"{nom_attr}_extendable"], c.da[nom_attr]
+            )
+            modules_max = nom_bound.sel(name=maint_com_mod_i) / nominal_mod.sel(
                 name=maint_com_mod_i
             )
-            modules_max = nom_max / nominal_mod.sel(name=maint_com_mod_i)
             alpha = c.da.maintenance_pu.sel(name=maint_com_mod_i)
             u = status.sel(name=maint_com_mod_i)
             m = n.model[f"{c.name}-maintenance"].sel(name=maint_com_mod_i)
@@ -1516,6 +1520,7 @@ def define_nodal_balance_constraints(
                         expr = expr * coeff.sel(name=group_names)
                     exprs.append(_groupby_bus(expr, group_cbuses))
 
+    exprs.extend(flow_based_balance_terms(n, buses))
     lhs = merge(exprs, join="outer").reindex(name=buses)
 
     # Prepare the RHS: loads with a fully given `p_set` enter as constants

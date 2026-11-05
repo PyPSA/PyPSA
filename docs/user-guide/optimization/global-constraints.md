@@ -9,11 +9,11 @@ SPDX-License-Identifier: CC-BY-4.0
 Global constraints apply to more than one component at once and are stored under a unique `name` in `n.global_constraints`. Several pre-defined types of global constraints are available (`type`).
 For instance, for defining emission limits, transmission expansion limits, or technology capacity expansion limits using the `sense` and `constant` attributes.
 
-By default, global constraints span across all investment periods. For models with multiple investment periods, global constraints can be limited to affect only single investment period (e.g. an emission limit for a specific year) by specifying the in the attribute `investment_period`. The shadow price of each global constraint is stored in the attribute `mu`.
+By default, global constraints span across all investment periods. For models with multiple investment periods, global constraints can be limited to affect only single investment period (e.g. an emission limit for a specific year) by specifying the in the attribute `investment_period`. The shadow price of each global constraint is stored in the attribute `mu`. Flow-based rows store theirs per snapshot in `mu_ram` instead.
 
 !!! note "Naming Convention"
 
-    Global constraints carry the name scheme `GlobalConstraint-{name}` in the Linopy model.
+    Global constraints carry the name scheme `GlobalConstraint-{name}` in the Linopy model. All `flow_based` rows share the one constraint `GlobalConstraint-ram`, indexed by `name`. Their net positions and the balance of the net positions are `FlowBased-net_position` and `FlowBased-balance`.
 
 ## Primary Energy
 
@@ -177,3 +177,95 @@ This global constraint is added in the function `define_growth_limit()` and carr
     | $P_l$  | `n.{lines,transformers}.s_nom_opt` | Decision Variable |#
     | $\gamma_s$ | `n.carriers.max_relative_growth` | Parameter |
     | $\Gamma_s$ | `n.carriers.max_growth` | Parameter |
+
+## Flow-Based Market Coupling
+
+Flow-based market coupling (FBMC) replaces the transmission grid constraints between market zones by a compact set of linear constraints on the zones' net positions. Instead of resolving every node and line, the market treats each zone as a copper plate and trades against a few linear limits that capture how zonal exchanges load the critical grid elements. This is the capacity-allocation method used in parts of the European day-ahead market, notably the Core region.[^core-ccm] For an introduction to the method and its parameters, see Van den Bergh et al. (2016)[^vandenbergh] and Schönheit et al. (2021)[^schonheit]. The domain of feasible net positions is stored as global constraints of `type="flow_based"`, see the [component page](../components/global-constraints.md#flow-based-domain).
+
+The net-position variable is `FlowBased-net_position`, the domain half-spaces are `GlobalConstraint-ram`, and the zero-sum balance is `FlowBased-balance`; see also the [example notebook](../../examples/fbmc-simple-example.ipynb).
+
+### Net position
+
+The net position $NP_{z,t}$ of a market zone $z$ at snapshot $t$ is the power it feeds into the flow-based region. It is added as a decision variable and injected directly into the [nodal balance](energy-balance.md) of its zone bus,
+
+$$g_{z,t} - d_{z,t} - NP_{z,t} = 0 ,$$
+
+so it equals the bus's net injection and is read from `n.buses_t.p` after solving. The output `n.buses_t.net_position` holds the generation minus load of each zone bus (0 for other buses), which is the net position itself unless corridor links are present (see below).
+
+### Domain constraints
+
+Each critical network element (CNEC) $c$ is one global constraint row, a monitored grid constraint such as a line under a given outage. It contributes one half-space that bounds a weighted sum of net positions by its remaining available margin $\text{RAM}_{c,t}$, the headroom left on that element for cross-zonal trade:
+
+$$\sum_{z} \text{PTDF}_{c,z,t}\, NP_{z,t} \;\le\; \text{RAM}_{c,t} \quad \leftrightarrow \quad \mu_{c,t}$$
+
+The sensitivities $\text{PTDF}_{c,z,t}$ are the zonal power transfer distribution factors (attributes `ptdf_<zone>`, see the [component page](../components/global-constraints.md#zonal-ptdf)); both they and the RAM (`ram`) may be static or vary by snapshot, and the constraint broadcasts over $t$ either way. A row with an `investment_period` only applies in that period's snapshots, and a row with a NaN `ram` is dropped in that snapshot. The shadow price $\mu_{c,t}$ is written to `n.global_constraints_t.mu_ram`. A zero-sum balance closes the copper plate across the zones of each domain $D$,
+
+$$\sum_{z \in D} NP_{z,t} = 0.$$
+
+By default all zones form one domain. Rows that name their `domain`, e.g. Core and Nordic, give one balance per named domain. A link between two domains then acts as an AHC corridor in each. The rows of one domain see neither the zones nor the hubs of the other ($\text{PTDF}$ and $h$ are 0 there), so the EvFB and AHC formulas below give the same column.
+
+The net-position variable is added in `define_flow_based_variables()` and these constraints in `define_flow_based_constraints()`; the net-position injection is added in `define_nodal_balance_constraints()` via `flow_based_balance_terms()`.
+
+### Controllable link flows (AHC and EvFB)
+
+A domain column may name a [`Link`](../components/links.md) instead of a zone [`Bus`](../components/buses.md). This extends the domain to controllable corridors, such as HVDC links;[^estermann] PyPSA tells the two cases apart by the link's ends:
+
+- **Advanced hybrid coupling (AHC):** one end is a zone, the other a bus outside the flow-based region.
+- **Evolved flow-based (EvFB):** both ends are flow-based zones.
+
+The link stays in the nodal balances of its buses like any other link, so a zone's net position now includes the corridor inflow,
+
+$$NP_{z,t} = g_{z,t} - d_{z,t} + \sum_{\ell} a_{z,\ell}\, f_{\ell,t},$$
+
+with $f_{\ell,t}$ the link flow (`Link-p`, in the `bus0 -> bus1` direction) and $a_{z,\ell}$ the link's incidence at $z$ ($-1$ at `bus0`, $+\eta_\ell$ at `bus1`, else $0$). Each link adds a term to every CNEC:
+
+$$\sum_{z} \text{PTDF}_{c,z,t}\, NP_{z,t} + \sum_{\ell} \text{PTDF}_{c,\ell,t}\, f_{\ell,t} \;\le\; \text{RAM}_{c,t} \quad \leftrightarrow \quad \mu_{c,t}$$
+
+The link column $\text{PTDF}_{c,\ell}$ is the sensitivity of CNEC $c$ to the link flow **with all zone net positions held fixed**: the loading the corridor causes beyond what its zones' PTDFs already explain. Let $h_{c,\ell,z}$ be the sensitivity of CNEC $c$ to an injection at the node where link $\ell$ lands in zone $z$ (its hub sensitivity). Then
+
+$$\text{PTDF}_{c,\ell} = h_{c,\ell} - \sum_{z} a_{z,\ell}\, \text{PTDF}_{c,z},$$
+
+which is $h - \text{PTDF}_z$ for an AHC link into zone $z$, and $(h_B - h_A) - (\text{PTDF}_B - \text{PTDF}_A)$ for an EvFB link from $A$ to $B$. If the corridor lands where the zone's GSK puts its power anyway, the column is zero. The zero-sum balance is unchanged, $\sum_z NP_{z,t} = 0$, because the corridor imports are already inside the net positions.
+
+!!! note "Two equivalent net-position conventions"
+
+    Published domains use one of two conventions for corridors. Both describe the same feasible set and give the same CNEC flows; they only split each flow differently between the zone terms and the link terms.
+
+    - **PyPSA:** the net position includes the corridor flow. The zone PTDF already spreads that flow as if the GSK placed it, so the link column keeps only the correction from the GSK to the landing node. ERAA publishes its AHC columns in this form (`PTDF*_AHC = PTDF_AHC - PTDF_SZ`).
+    - **Virtual hub:** the net position is generation minus load, $NP_z = g_z - d_z$. Each corridor end acts as a hub with its raw hub sensitivity $h$, and the hub flows join the zero-sum balance. The Core methodology,[^core-ccm] JAO and TSO files use this form, and so do ERAA's EvFB columns.
+
+    The conversion is one rule: what PyPSA adds to the net positions, it takes out of the link column,
+
+    $$NP_z = (g_z - d_z) + \sum_\ell a_{z,\ell}\, f_\ell \qquad \Longleftrightarrow \qquad \text{PTDF}_{c,\ell} = h_{c,\ell} - \sum_z a_{z,\ell}\, \text{PTDF}_{c,z} .$$
+
+    | | PyPSA | Virtual hub |
+    |---|---|---|
+    | zone net position | $g_z - d_z + \sum_\ell a_{z,\ell} f_\ell$ (`n.buses_t.p`) | $g_z - d_z$ (`n.buses_t.net_position`) |
+    | AHC column, $X \to A$ | $h_A - \text{PTDF}_A$ | $h_A$ |
+    | EvFB column, $A \to B$ | $(h_B - h_A) - (\text{PTDF}_B - \text{PTDF}_A)$ | $h_B - h_A$ |
+    | zero-sum balance | $\sum_z NP_z = 0$ | $\sum_z NP_z + \sum_{\text{hubs}} f = 0$ |
+
+    PyPSA uses the first form because the link then needs no special treatment in the nodal balance. After solving, `n.buses_t.net_position` reports the virtual-hub net position $g_z - d_z$ of each zone bus, i.e. `n.buses_t.p` without the flows of its corridor links.
+
+These terms are built in `define_flow_based_constraints()`.
+
+??? note "Mapping symbols to component attributes"
+
+    | Symbol | Attribute | Type |
+    |--------|-----------|------|
+    | $NP_{z,t}$ | `n.buses_t.p` (variable `FlowBased-net_position`) | Decision Variable |
+    | $g_{z,t} - d_{z,t}$ | `n.buses_t.net_position` | Output |
+    | $f_{\ell,t}$ | `n.links_t.p0` | Decision Variable |
+    | $\mu_{c,t}$ | `n.global_constraints_t.mu_ram` | Dual Variable |
+    | $\text{PTDF}_{c,z,t}$ | `n.c.global_constraints.zonal_ptdf` | Parameter |
+    | $\text{RAM}_{c,t}$ | `n.global_constraints.ram`, `n.global_constraints_t.ram` | Parameter |
+    | $h_{c,\ell}$ | hub sensitivity of a published corridor column | Data |
+    | $\eta_\ell$ | `n.links.efficiency` | Parameter |
+
+[^vandenbergh]: K. Van den Bergh, J. Boury and E. Delarue (2016), [The Flow-Based Market Coupling in Central Western Europe: Concepts and definitions](https://doi.org/10.1016/j.tej.2015.12.004), The Electricity Journal, 29(1), 24-29, doi:10.1016/j.tej.2015.12.004.
+
+[^schonheit]: D. Schönheit, M. Kenis, L. Lorenz, D. Möst, E. Delarue and K. Bruninx (2021), [Toward a fundamental understanding of flow-based market coupling for cross-border electricity trading](https://doi.org/10.1016/j.adapen.2021.100027), Advances in Applied Energy, 2, 100027, doi:10.1016/j.adapen.2021.100027.
+
+[^estermann]: A. Estermann, M. Schrade and L. Anderson (eds.) (2025), [European Electricity Market Coupling: A Practitioner's Guide](https://doi.org/10.1007/978-3-031-86315-8), Springer, doi:10.1007/978-3-031-86315-8.
+
+[^core-ccm]: ACER (2019), Day-ahead capacity calculation methodology of the Core capacity calculation region, in accordance with [Commission Regulation (EU) 2015/1222 (CACM)](https://eur-lex.europa.eu/eli/reg/2015/1222/oj).
