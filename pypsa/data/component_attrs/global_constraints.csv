@@ -6,6 +6,7 @@ bus,string,n/a,n/a,"Bus to which the global constraint applies. Only relevant fo
 carrier_attribute,string,n/a,co2_emissions,"If the global constraint is connected with a carrier, name the associated carrier attribute. This must appear as a column in `n.carriers`.",Input (optional)
 sense,string,n/a,==,"Constraint sense; must be one of <=, == or >=. Must be <= for `type=""flow_based""`.",Input (optional)
 constant,float,n/a,0,"Constant for right-hand-side of constraint for optimisation period. For a CO~2~ constraint, this would be tonnes of CO~2~. Ignored for `type=""flow_based""`.",Input (optional)
+scaling,float,n/a,1,"Row scaling factor of the global constraint in the optimisation. Coefficients and right-hand side are multiplied by it in the solver. The shadow price `mu` is reported in original units.",Input (optional)
 ram,static or series,MW,NaN,"Remaining available margin of a `flow_based` CNEC, the right-hand side of its domain constraint. NaN drops the CNEC in that snapshot. Only read for `type=""flow_based""`.",Input (optional)
 domain,string,n/a,n/a,"Name of the flow-based domain of a `flow_based` CNEC, e.g. ""Core"". Each named domain gets its own zero-sum balance of net positions. Empty: all zones share one balance.",Input (optional)
 mu,float,currency/constant,0,Shadow price of global constraint,Output
