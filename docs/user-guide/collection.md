@@ -124,7 +124,7 @@ network2   London      380.0       -0.13  ...                            0      
            Norway      380.0       10.75  ...                            3      NO
            Norway DC   200.0       10.75  ...                            1      NO
 <BLANKLINE>
-[18 rows x 14 columns]
+[18 rows x 15 columns]
 ```
 
 Accessing time series data:
