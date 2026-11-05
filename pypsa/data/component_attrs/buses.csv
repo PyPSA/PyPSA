@@ -6,6 +6,7 @@ x,float,n/a,0,Longitude; the Spatial Reference System Identifier (SRID) is set i
 y,float,n/a,0,Latitude; the Spatial Reference System Identifier (SRID) is set in `n.srid`.,Input (optional)
 carrier,string,n/a,AC,"Carrier, such as ""AC"", ""DC"", ""heat"" or ""gas"".",Input (optional)
 unit,string,n/a,None,"Unit of the bus' carrier if the implicitly assumed unit (""MW"") is inappropriate (e.g. ""t/h""). Only descriptive. Does not influence any PyPSA functions.",Input (optional)
+scaling,float,n/a,1,"Column scaling factor of the bus in the optimisation, i.e. the solver unit of the bus relative to its model unit (e.g. `1e-3` turns MW into GW). Applies to the dispatch and capacity variables of attached one-ports and of branches starting at the bus (`bus0`) and to its nodal balance row. Solutions and duals are reported in original units.",Input (optional)
 location,string,n/a,n/a,Location of the bus. Does not influence the optimisation model but can be used for aggregation with `n.statistics`.,Input (optional)
 v_mag_pu_set,static or series,per unit,1,"Voltage magnitude set point, per unit of `v_nom`.",Input (optional)
 v_mag_pu_min,float,per unit,0,"Minimum desired voltage, per unit of `v_nom`. Placeholder attribute not currently used by any functions.",Input (optional)
