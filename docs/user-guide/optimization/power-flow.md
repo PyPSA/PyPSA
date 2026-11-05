@@ -71,10 +71,10 @@ The GSK choice (uniform, weighted by installed capacity, ...) shapes the result;
 ```python
 n.determine_network_topology()
 sub = n.c.sub_networks.static.obj.iloc[0]
-node_to_zone = n.buses["country"]  # any bus -> zone mapping (a pandas Series)
+node_to_zone = n.c.buses.static["country"]  # any bus -> zone mapping (a pandas Series)
 
 zonal_ptdf = sub.calculate_zonal_PTDF(node_to_zone, gsk="capacity")  # or "uniform"
-s_nom = n.lines.s_nom
+s_nom = n.c.lines.static.s_nom
 ram = pd.concat([s_nom.add_suffix(" (+)"), s_nom.add_suffix(" (-)")])
 n_zonal.c.global_constraints.add_flow_based(zonal_ptdf, ram)
 ```

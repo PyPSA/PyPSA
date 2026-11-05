@@ -1217,7 +1217,7 @@ class SubNetworkPowerFlowMixin:
         carrier : str or sequence of str, optional
             Restrict the capacity to generators of these carriers.
         attr : str, default "p_nom"
-            Generator capacity attribute, e.g. ``"p_nom_opt"`` after an optimisation.
+            Generator capacity attribute, e.g. `"p_nom_opt"` after an optimization.
 
         Returns
         -------
@@ -1240,10 +1240,10 @@ class SubNetworkPowerFlowMixin:
         gsk: str | pd.DataFrame = "uniform",
         branches: Sequence[str] | None = None,
     ) -> pd.DataFrame:
-        """Calculate the zonal PTDF (CNEC x zone) as ``nodal PTDF . GSK``.
+        """Calculate the zonal PTDF (CNEC x zone) as `nodal PTDF . GSK`.
 
         Each monitored branch gives two critical network elements (CNECs), one per
-        flow direction: ``"<branch> (+)"`` with the PTDF and ``"<branch> (-)"``
+        flow direction: `"<branch> (+)"` with the PTDF and `"<branch> (-)"`
         with its negative. The result plugs into
         [add_flow_based][pypsa.components.GlobalConstraints.add_flow_based] of a
         zonal network whose buses are the zones.
@@ -1256,8 +1256,8 @@ class SubNetworkPowerFlowMixin:
         node_to_zone : pandas.Series
             Mapping every bus of the sub-network to its market zone.
         gsk : str or pandas.DataFrame, default "uniform"
-            A GSK scheme name (``"uniform"`` or ``"capacity"``) resolved by the matching
-            ``gsk_*`` builder, or a bus x zone GSK whose columns sum to one over the
+            A GSK scheme name (`"uniform"` or `"capacity"`) resolved by the matching
+            `gsk_*` builder, or a bus x zone GSK whose columns sum to one over the
             buses of the sub-network.
         branches : sequence of str, optional
             Names of the monitored branches; default all active branches.

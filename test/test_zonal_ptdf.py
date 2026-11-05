@@ -111,7 +111,8 @@ def test_flows_match_linear_power_flow(gsk):
     net_position = pd.Series({"A": 120.0, "B": -120.0})
     builders = {"uniform": sub.gsk_uniform, "capacity": sub.gsk_by_capacity}
     injection = builders[gsk](zones) @ net_position
-    n.add("Load", n.buses.index, bus=n.buses.index, p_set=-injection)
+    buses = n.c.buses.static.index
+    n.add("Load", buses, bus=buses, p_set=-injection)
     zp = sub.calculate_zonal_PTDF(zones, gsk=gsk)
     n.lpf()
     expected = pd.concat(
@@ -129,8 +130,8 @@ def test_flow_based_reproduces_nodal_optimum():
     nodal, zonal = (triangle_network(p_nom=(1000.0, 1000.0, 1000.0)) for _ in range(2))
     for n in (nodal, zonal):
         n.add("Load", ["d2", "d3"], bus=["n2", "n3"], p_set=[300, 300])
-    zonal.remove("Line", zonal.lines.index)
-    s_nom = nodal.lines.s_nom
+    zonal.remove("Line", zonal.c.lines.static.index)
+    s_nom = nodal.c.lines.static.s_nom
     zonal.c.global_constraints.add_flow_based(
         sub_network(nodal).calculate_zonal_PTDF(IDENTITY),
         ram=pd.concat([s_nom.add_suffix(" (+)"), s_nom.add_suffix(" (-)")]),
@@ -177,7 +178,7 @@ def test_zone_across_sub_networks_raises():
     n = triangle_network()
     n.add("Bus", "island")
     n.determine_network_topology()
-    sub = n.c.sub_networks.static.obj[n.buses.at["n1", "sub_network"]]
+    sub = n.c.sub_networks.static.obj[n.c.buses.static.at["n1", "sub_network"]]
     with pytest.raises(ValueError, match="several sub-networks"):
         sub.calculate_zonal_PTDF(pd.concat([ZONES, pd.Series({"island": "B"})]))
 
