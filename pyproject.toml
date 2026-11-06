@@ -150,6 +150,9 @@ filterwarnings = [
     # numpy>=2.5 deprecations not yet handled by netCDF4 and matplotlib
     "ignore:Setting the shape on a NumPy array has been deprecated:DeprecationWarning",
     "ignore:The 'generic' unit for NumPy timedelta is deprecated:DeprecationWarning",
+
+    # pandas>=3.1 deprecations not yet handled by tsam
+    "ignore::pandas.errors.Pandas4Warning:tsam",
 ]
 markers = [
     "mpl_image_compare",
