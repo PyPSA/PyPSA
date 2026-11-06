@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
     from linopy import Model, Variable
-    from xarray import DataArray  # noqa: TC004
 
     from pypsa import Components, Network
 

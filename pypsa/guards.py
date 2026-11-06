@@ -17,9 +17,6 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
 from pypsa.common import UnexpectedError
 
 if TYPE_CHECKING:
