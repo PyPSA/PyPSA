@@ -31,8 +31,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- Fix `from pypsa import *` failing with an `AttributeError`, since `pypsa.__all__` still listed the removed modules `contingency`, `io` and `pf`.
-- Fix truncated or unformatted error messages in map plotting (`n.plot()`, `n.iplot()`).
+- Fix `from pypsa import *` failing with an `AttributeError`, since `pypsa.__all__` still listed the removed modules `contingency`, `io` and `pf`. (<!-- md:pr 2109 -->)
+- Fix truncated or unformatted error messages in map plotting (`n.plot()`, `n.iplot()`). (<!-- md:pr 2109 -->)
 - **Behavior change**: The `{Component}-{attr}_set` constraints (e.g. `Generator-p_nom_set`) use the dimension `name` instead of `{Component}-{attr}_set_i`, like all other constraints. Custom constraints in `extra_functionality` that select on the old dimension need updating. (<!-- md:pr 2052 -->)
 - Fix maintenance of modular committable components that are not extendable returning status `('ok', 'unknown')` without a solution. (<!-- md:pr 2100 -->)
 - Fix [`n.statistics.prices()`][pypsa.statistics.StatisticsAccessor.prices] with `groupby` dropping the `scenario` level of stochastic networks and the `network` level of network collections, averaging their prices together. Grouped prices now keep these levels like the ungrouped prices. (<!-- md:pr 2103 -->)
