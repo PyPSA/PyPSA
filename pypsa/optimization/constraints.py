@@ -57,6 +57,7 @@ lookup = pd.read_csv(
 )
 
 
+COMMITMENT_VARIABLES = ("status", "start_up", "shut_down")
 ENERGY_WEIGHTING = "generators"
 ENERGY_LIMITS = (("e_sum_min", ">=", -inf), ("e_sum_max", "<=", inf))
 
@@ -2063,28 +2064,11 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
     rhs = n_mod.reindex(name=names, fill_value=1)
     active = c.da.active.sel(snapshot=sns, name=names) if n._multi_invest else None
 
-    status = m.variables[f"{component}-status"].sel(snapshot=sns, name=names)
-    m.add_constraints(
-        status, "<=", rhs, name=f"{component}-status-{attr}-fixed-upper", mask=active
-    )
-
-    start_up = m.variables[f"{component}-start_up"].sel(snapshot=sns, name=names)
-    m.add_constraints(
-        start_up,
-        "<=",
-        rhs,
-        name=f"{component}-start_up-{attr}-fixed-upper",
-        mask=active,
-    )
-
-    shut_down = m.variables[f"{component}-shut_down"].sel(snapshot=sns, name=names)
-    m.add_constraints(
-        shut_down,
-        "<=",
-        rhs,
-        name=f"{component}-shut_down-{attr}-fixed-upper",
-        mask=active,
-    )
+    for var in COMMITMENT_VARIABLES:
+        lhs = m.variables[f"{component}-{var}"].sel(snapshot=sns, name=names)
+        m.add_constraints(
+            lhs, "<=", rhs, name=f"{component}-{var}-{attr}-fixed-upper", mask=active
+        )
 
 
 def define_committability_variables_constraints_with_variable_upper_limit(
@@ -2133,23 +2117,14 @@ def define_committability_variables_constraints_with_variable_upper_limit(
 
     n_mod = m[f"{component}-n_mod"].loc[inter_i]
 
-    status = m.variables[f"{component}-status"].sel(snapshot=sns, name=inter_i)
-    lhs = ((1, status), (-1, n_mod))
-    m.add_constraints(
-        lhs, "<=", 0, name=f"{component}-status-{attr}-variable-upper", mask=active
-    )
-
-    start_up = m.variables[f"{component}-start_up"].sel(snapshot=sns, name=inter_i)
-    lhs = ((1, start_up), (-1, n_mod))
-    m.add_constraints(
-        lhs, "<=", 0, name=f"{component}-start_up-{attr}-variable-upper", mask=active
-    )
-
-    shut_down = m.variables[f"{component}-shut_down"].sel(snapshot=sns, name=inter_i)
-    lhs = ((1, shut_down), (-1, n_mod))
-    m.add_constraints(
-        lhs, "<=", 0, name=f"{component}-shut_down-{attr}-variable-upper", mask=active
-    )
+    for var in COMMITMENT_VARIABLES:
+        lhs = (
+            (1, m.variables[f"{component}-{var}"].sel(snapshot=sns, name=inter_i)),
+            (-1, n_mod),
+        )
+        m.add_constraints(
+            lhs, "<=", 0, name=f"{component}-{var}-{attr}-variable-upper", mask=active
+        )
 
 
 def define_fixed_operation_constraints(
