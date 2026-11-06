@@ -1277,11 +1277,6 @@ class Network(
 
         # remove all old sub_networks
         if not self.c.sub_networks.static.empty:
-            # Delete sub-network objects first
-            for sub_network in self.c.sub_networks.static.index:
-                obj = self.c.sub_networks.static.at[sub_network, "obj"]
-                del obj
-
             # Clear the sub_networks DataFrame completely
             # This handles both regular and stochastic cases
             self.c.sub_networks.static = self.c.sub_networks.static.drop(
