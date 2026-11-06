@@ -69,14 +69,11 @@ def _get_potential_typos(
             return False
 
         # Don't catch different base_attrs (p_nom vs e_nom etc.)
-        if dist == 1 and custom_attr[0] != default_attr[0] and custom_attr[1] == "_":
+        if custom_attr[0] != default_attr[0] and custom_attr[1] == "_":
             return False
 
         # Don't catch different suffix (efficiency vs efficiency2, bus0 vs bus1 etc.)
-        if dist == 1 and (custom_attr[-1].isdigit() or default_attr[-1].isdigit()):  # noqa: SIM103
-            return False
-
-        return True
+        return not (custom_attr[-1].isdigit() or default_attr[-1].isdigit())
 
     return {
         (custom_attr, default_attr)
