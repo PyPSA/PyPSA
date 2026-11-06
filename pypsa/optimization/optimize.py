@@ -1442,12 +1442,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 n.determine_network_topology()
 
             # Calculate voltage angles (only needed for power flow)
-            v_ang = [v_ang_for_(sub) for sub in n.c.sub_networks.static.get("obj", [])]
-            n.c.buses.dynamic.v_ang = (
-                pd.concat(v_ang, axis=1)
-                if v_ang
-                else pd.DataFrame(index=n.c.buses.dynamic.p.index)
-            ).reindex(columns=n.c.buses.static.index, fill_value=0.0)
+            v_ang = pd.DataFrame(
+                0.0, index=n.c.buses.dynamic.p.index, columns=n.c.buses.static.index
+            )
+            for sub in n.c.sub_networks.static.get("obj", []):
+                angles = v_ang_for_(sub)
+                v_ang[angles.columns] = angles
+            n.c.buses.dynamic.v_ang = v_ang
 
     def fix_optimal_capacities(self) -> None:
         """Fix capacities of extendable assets to optimized capacities.
