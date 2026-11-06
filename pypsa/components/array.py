@@ -11,7 +11,6 @@ DataArray for each variable.
 from __future__ import annotations
 
 import copy
-import warnings
 from typing import TYPE_CHECKING, NoReturn
 
 import numpy as np
@@ -265,11 +264,10 @@ class ComponentsArrayMixin(_ComponentsABC):
         snapshots : pandas.Index
             Restrict to these snapshots rather than n.snapshots.
         inds : pandas.Index
-            Restrict to these component names rather than all components. For
-            stochastic networks, the names are selected in all scenarios. The
-            columns follow component order, duplicates are collapsed and unknown
-            names dropped. In PyPSA 2.0, columns follow `inds` order, duplicates
-            are kept and unknown names raise a `KeyError`.
+            Restrict to these component names rather than all components. The
+            columns follow the order of `inds`, duplicates are kept and unknown
+            names raise a `KeyError`. For stochastic networks, the names are
+            selected across all scenarios.
 
         Returns
         -------
@@ -298,17 +296,50 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         # Filter names
         if inds is not None:
-            index = index[index.get_level_values("name").isin(inds)]
-            if not index.unique("name").equals(pd.Index(inds)):
-                warnings.warn(
-                    "In PyPSA 2.0, `get_switchable_as_dense` will return columns in "
-                    "`inds` order, keep duplicates and raise a `KeyError` for "
-                    "unknown names. To keep the current result, pass unique, known "
-                    "names in component order, e.g. "
-                    "`n.c.<component>.static.index.unique('name').intersection(inds)`.",
-                    FutureWarning,
-                    stacklevel=3,
+            names = pd.Index(inds)
+            known = index.unique("name") if isinstance(index, pd.MultiIndex) else index
+            unknown = names.difference(pd.Index(known))
+            if len(unknown) > 0:
+                msg = (
+                    f"Unknown component names for '{self.name}': {list(unknown)}. "
+                    "They are neither in the static nor dynamic index."
                 )
+                raise KeyError(msg)
+            if isinstance(index, pd.MultiIndex):
+                scenarios = index.unique("scenario")
+                sel_index = pd.MultiIndex.from_product(
+                    [scenarios, names], names=index.names
+                )
+                uniq_index = pd.MultiIndex.from_product(
+                    [scenarios, names.unique()], names=index.names
+                )
+            else:
+                sel_index = names
+                uniq_index = names.unique()
+
+            # Build one column per unique name: dynamic data where available,
+            # static value broadcast over snapshots otherwise
+            diff = uniq_index.difference(dynamic.columns)
+            if len(diff) == 0:
+                base = dynamic.reindex(columns=uniq_index, fill_value=np.nan)
+            else:
+                static_subset = static.reindex(diff, fill_value=np.nan)
+                static_to_dynamic = pd.DataFrame(
+                    data=static_subset.values.reshape(1, -1).repeat(len(sns), axis=0),
+                    index=sns,
+                    columns=diff,
+                )
+                dyn_part = dynamic.reindex(
+                    columns=uniq_index.intersection(dynamic.columns),
+                    fill_value=np.nan,
+                )
+                if len(dyn_part.columns) > 0:
+                    base = pd.concat([dyn_part, static_to_dynamic], axis=1)[uniq_index]
+                else:
+                    base = static_to_dynamic
+
+            # Reorder and duplicate columns according to `inds`
+            index = base[sel_index].columns
 
         # Find columns that need to be filled from static data
         diff = index.difference(dynamic.columns)
