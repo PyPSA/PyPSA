@@ -121,8 +121,7 @@ def cost_variables(component: str, cost_type: str) -> pd.Index:
 
 
 def _downgrade_unknown_ok_status(status: str, condition: str) -> str:
-    """
-    Downgrade a solver status of "ok" with an "unknown" termination
+    """Downgrade a solver status of "ok" with an "unknown" termination
     condition to "error".
 
     A solver can refuse a model without solving it, e.g. HiGHS on infinite
