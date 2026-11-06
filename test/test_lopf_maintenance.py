@@ -791,3 +791,39 @@ def test_maintenance_respects_active_periods():
     maint = n.c.generators.dynamic.maintenance["gen"]
     assert maint.loc[2020].sum() == 0
     assert maint.loc[2030].sum() == 2
+
+
+def test_refused_model_does_not_return_ok(basic_network):
+    # Regression test for #2094: a solver that refuses the model, e.g.
+    # HiGHS on infinite constraint coefficients, must not come back with
+    # status "ok" and a bogus solution.
+    n = basic_network
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        p_nom_mod=25,
+        committable=True,
+        marginal_cost=10,
+        maintainable=True,
+        maintenance_duration=2,
+        maintenance_events=1,
+        maintenance_pu=1,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=50)
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    n.optimize.create_model()
+
+    # Corrupt one coefficient of the maintenance rows to mimic a model
+    # the solver refuses.
+    con = n.model.constraints["Generator-maint-modstatus-le-maint"]
+    coeffs = con.coeffs.copy()
+    coeffs.values.flat[0] = float("inf")
+    con.update(coeffs=coeffs)
+
+    status, condition = n.optimize.solve_model()
+    assert status == "error"
+    assert condition == "unknown"
+    assert n.generators_t.p.empty
