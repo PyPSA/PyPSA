@@ -170,7 +170,6 @@ def _handle_leap_day(weightings: pd.DataFrame) -> pd.DataFrame:
 def _build_resample_map(
     original_snapshots: pd.Index,
     resampled_snapshots: pd.Index,
-    offset: str,
 ) -> pd.Series:
     """Build mapping from original to resampled snapshots.
 
@@ -180,8 +179,6 @@ def _build_resample_map(
         Original snapshot index.
     resampled_snapshots : pd.Index
         Resampled snapshot index.
-    offset : str
-        Pandas offset string used for resampling.
 
     Returns
     -------
@@ -269,9 +266,7 @@ def _resample_with_periods(
         orig_timesteps = original_snapshots[orig_mask].get_level_values("timestep")
         new_timesteps = m.snapshots[new_mask].get_level_values("timestep")
         period_map = _build_resample_map(
-            pd.DatetimeIndex(orig_timesteps),
-            pd.DatetimeIndex(new_timesteps),
-            offset,
+            pd.DatetimeIndex(orig_timesteps), pd.DatetimeIndex(new_timesteps)
         )
         for orig, new in zip(
             original_snapshots[orig_mask],
@@ -476,7 +471,7 @@ class TemporalClusteringMixin:
                 resampled = resampled[resampled.index.isin(m.snapshots)]
                 m._import_series_from_df(resampled, c.name, attr, overwrite=True)
 
-        snapshot_map = _build_resample_map(original_snapshots, m.snapshots, offset)
+        snapshot_map = _build_resample_map(original_snapshots, m.snapshots)
 
         return TemporalClustering(m, snapshot_map)
 
