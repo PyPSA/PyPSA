@@ -47,7 +47,13 @@ A call to this function will formulate the optimisation problem with the [Linopy
     n.optimize.optimize_with_rolling_horizon(horizon=48, overlap=8, method="restrict")
     ```
 
-    The method requires linopy >= 1.0.0 (`Model.restrict` with cold window solves) and solvers with linopy's direct API. It supports linear problems without multi-period investment, also with scenarios and extendable components. It raises a `NotImplementedError` for `multi_investment_periods=True`, global constraints, volume limits (`e_sum_min`, `e_sum_max`), cyclic stores or storage units, committable components, integer variables, risk preferences and custom constraints that couple a window to later snapshots, and a `RuntimeError` as soon as a window is not solved to optimality. Compared to `method="rebuild"`:
+    The method requires linopy >= 1.0.0 and solvers with linopy's direct API. Until linopy 1.0.0 is released, install linopy from its master branch. It supports problems without multi-period investment, also with scenarios, extendable components and committable components, both linearized and with integer variables. Since all unit commitment constraints look backward in time, the commitment status, start-ups and ramps of earlier windows are carried over through the fixed variables. It raises a `NotImplementedError` for `multi_investment_periods=True`, global constraints, volume limits (`e_sum_min`, `e_sum_max`), cyclic stores or storage units, risk preferences and custom constraints that couple a window to later snapshots, and a `RuntimeError` as soon as the solver returns no solution for a window.
+
+    A window is accepted when the solver returns a solution, e.g. a MIP incumbent at a time limit, with a warning if it is not optimal. In mixed-integer windows, integer values are rounded before they are fixed for later windows, and the duals are taken from a re-solve of the window as an LP with its integer variables fixed.
+
+    `log_fn` writes the solver log of all windows to one file. `window_callback(n, w, sns, i)` is called with the linopy window `w` of the `i`-th window over snapshots `sns`, once before its solve (`w.status == "initialized"`) and once after, before its status is checked. Use it e.g. to log the status, write the window with `w.to_file()`, compute an IIS with `w.compute_infeasibilities()` or leave rows out of a window with `w.advance(drop=...)`.
+
+    Compared to `method="rebuild"`:
 
     - `n.objective` is the objective of the whole horizon, including the capital costs of the last window's capacities, instead of the objective of the last window.
     - The standing loss of stores and storage units is applied to the storage level carried over into a window, as in a full-horizon optimization. `method="rebuild"` carries the level over without loss.

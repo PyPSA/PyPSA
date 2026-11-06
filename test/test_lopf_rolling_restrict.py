@@ -13,8 +13,8 @@ pytest.importorskip("linopy.restrict")
 KWARGS = {"include_objective_constant": False, "log_to_console": False}
 
 
-def get_network(scenarios: bool = False) -> pypsa.Network:
-    n = get_base_network(committable=False)
+def get_network(scenarios: bool = False, committable: bool = False) -> pypsa.Network:
+    n = get_base_network(committable=committable)
     n.add(
         "StorageUnit",
         "battery",
@@ -118,6 +118,50 @@ def test_restrict_matches_rebuild_single_period_of_investment_periods():
     )
 
 
+@pytest.mark.parametrize("linearized", [True, False], ids=["linearized", "integer"])
+def test_restrict_matches_rebuild_committable(linearized):
+    rebuild, restrict = get_network(committable=True), get_network(committable=True)
+    kwargs = {**KWARGS, "linearized_unit_commitment": linearized}
+
+    rebuild.optimize.optimize_with_rolling_horizon(horizon=4, overlap=1, **kwargs)
+    restrict.optimize.optimize_with_rolling_horizon(
+        horizon=4, overlap=1, method="restrict", **kwargs
+    )
+
+    for attr in ["status", "start_up", "shut_down"]:
+        pd.testing.assert_frame_equal(
+            restrict.c.generators.dynamic[attr],
+            rebuild.c.generators.dynamic[attr],
+            atol=1e-6,
+        )
+    opex = restrict.statistics.opex().sum()
+    assert opex == pytest.approx(rebuild.statistics.opex().sum())
+    assert restrict.c.buses.dynamic.marginal_price.notna().all().all()
+
+
+def test_restrict_window_callback_and_log_fn(tmp_path):
+    n = get_network()
+    log_fn = tmp_path / "solver.log"
+    calls = []
+
+    n.optimize.optimize_with_rolling_horizon(
+        horizon=6,
+        method="restrict",
+        log_fn=log_fn,
+        window_callback=lambda n, w, sns, i: calls.append((i, list(sns), w.status)),
+        **KWARGS,
+    )
+
+    first, second = list(range(6)), list(range(6, 12))
+    assert calls == [
+        (0, first, "initialized"),
+        (0, first, "ok"),
+        (1, second, "initialized"),
+        (1, second, "ok"),
+    ]
+    assert log_fn.read_text()
+
+
 def coupling_constraint(n: pypsa.Network, sns: pd.Index) -> None:
     p = n.model["Generator-p"]
     n.model.add_constraints(p.sum() <= 1e5, name="total_generation")
@@ -154,19 +198,7 @@ OUT_OF_SCOPE = {
         {"multi_investment_periods": True},
         "multi-period investment",
     ),
-    "committable": (
-        lambda n: n.add("Generator", "x", bus="bus", p_nom=10, committable=True),
-        {},
-        "committable Generator",
-    ),
     "risk-preference": (add_risk_preference, {}, "risk preference"),
-    "modular": (
-        lambda n: n.add(
-            "Generator", "x", bus="bus", p_nom_extendable=True, p_nom_mod=10
-        ),
-        {},
-        "linear problems only",
-    ),
     "coupling-constraint": (
         lambda n: None,
         {"extra_functionality": coupling_constraint},

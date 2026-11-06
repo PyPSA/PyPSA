@@ -702,14 +702,16 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             `"rebuild"` builds and solves a new model for every window.
             `"restrict"` builds the model once for all `snapshots` and solves
             windows cut from it with `linopy.Model.restrict`, fixing all
-            variables of earlier windows. It supports linear, single-period
-            models without global constraints, volume limits, cyclic storage
-            or committable components and raises if a window is not optimal.
-            Extendable components are supported: `*_nom_opt` is taken from
-            the last window and `n.objective` covers the whole horizon,
-            including the capital costs of the final capacities. Windows are
-            solved without warm start. Requires `linopy>=1.0.0`. Defaults to
-            `"rebuild"`.
+            variables of earlier windows. It supports single-period models
+            without global constraints, volume limits or cyclic storage, also
+            with committable components and integer variables, and raises if
+            the solver returns no solution for a window. Extendable components
+            are supported: `*_nom_opt` is taken from the last window and
+            `n.objective` covers the whole horizon, including the capital costs
+            of the final capacities. Windows are solved without warm start.
+            Takes the additional arguments `log_fn` and `window_callback`, see
+            `pypsa.optimization.rolling_restrict.optimize_with_restricted_windows`.
+            Requires `linopy>=1.0.0`. Defaults to `"rebuild"`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`.
             Unless `io_api` or `problem_fn` is given, `io_api="direct"` is used

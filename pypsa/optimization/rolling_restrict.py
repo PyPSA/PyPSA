@@ -19,6 +19,7 @@ from pypsa.common import as_index
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from pathlib import Path
 
     import pandas as pd
     from linopy.restrict import WindowModel
@@ -28,11 +29,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 LINOPY_REQUIREMENT = (
-    "`method='restrict'` requires linopy with `Model.restrict` and cold window "
-    "solves (`WindowModel.solve(warm_start=False)`, linopy >= 1.0.0)."
+    "`method='restrict'` requires linopy >= 1.0.0, which provides `Model.restrict` "
+    "and `WindowModel.solve_fixed_lp`. Until it is released, install linopy from "
+    "its master branch."
 )
 UNSUPPORTED_KWARGS = {"compute_infeasibilities"} | (
-    set(inspect.signature(Model.solve).parameters) - {"self", "solver_name", "io_api"}
+    set(inspect.signature(Model.solve).parameters)
+    - {"self", "solver_name", "io_api", "log_fn"}
 )
 
 
@@ -49,14 +52,12 @@ def _check_scope(n: Network, multi_investment_periods: bool) -> None:
         found.append("cyclic stores (`e_cyclic`)")
     if n.c.storage_units.static.cyclic_state_of_charge.any():
         found.append("cyclic storage units (`cyclic_state_of_charge`)")
-    for c in n.components:
-        if (
-            "e_sum_min" in c.static
-            and np.isfinite(c.static[["e_sum_min", "e_sum_max"]]).any().any()
-        ):
-            found.append(f"volume limits of {c.name} (`e_sum_min`, `e_sum_max`)")
-        if "committable" in c.static and c.static.committable.any():
-            found.append(f"committable {c.name}")
+    found.extend(
+        f"volume limits of {c.name} (`e_sum_min`, `e_sum_max`)"
+        for c in n.components
+        if "e_sum_min" in c.static
+        and np.isfinite(c.static[["e_sum_min", "e_sum_max"]]).any().any()
+    )
     if found:
         msg = (
             "`method='restrict'` does not support " + ", ".join(found) + ". Use "
@@ -76,17 +77,22 @@ def _write(
             target[name] = values
 
 
-def _solve_window(
-    w: WindowModel, sns: pd.Index, solver_name: str, **solver_options: Any
-) -> None:
-    """Solve a window without warm start and raise unless optimal."""
-    w.solve(solver_name, warm_start=False, **solver_options)
-    if w.status != "ok":
+def _check_window(w: WindowModel, sns: pd.Index) -> None:
+    """Raise unless the window has a solution, warn if it is not optimal."""
+    if w.status != "ok" or w.objective.value is None:
         msg = (
             f"Optimization of window [{sns[0]}:{sns[-1]}] failed with status "
             f"{w.status} and condition {w.termination_condition}."
         )
         raise RuntimeError(msg)
+    if w.termination_condition != "optimal":
+        logger.warning(
+            "Optimization of window [%s:%s] stopped with condition %s, using "
+            "its best solution.",
+            sns[0],
+            sns[-1],
+            w.termination_condition,
+        )
 
 
 def optimize_with_restricted_windows(
@@ -101,7 +107,9 @@ def optimize_with_restricted_windows(
     solver_name: str | None = None,
     solver_options: dict | None = None,
     log_to_console: bool | None = None,
+    log_fn: str | Path | None = None,
     io_api: str | None = None,
+    window_callback: Callable[[Network, WindowModel, pd.Index, int], Any] | None = None,
     **kwargs: Any,
 ) -> None:
     """Optimize the network in windows of a single full-horizon model.
@@ -111,6 +119,12 @@ def optimize_with_restricted_windows(
     with all variables of earlier windows fixed to their optimized values. The
     windows are written back to one full-horizon solution, which is assigned to
     the network once at the end.
+
+    A window is accepted when the solver returns a solution, e.g. also a MIP
+    incumbent at a time limit, with a warning if it is not optimal. In
+    mixed-integer windows, integer values are rounded before they are fixed
+    for later windows, and duals are taken from a re-solve of the window as an
+    LP with its integer variables fixed.
 
     Parameters
     ----------
@@ -135,8 +149,17 @@ def optimize_with_restricted_windows(
         Solver options. Defaults to the module wide option.
     log_to_console : bool, optional
         Whether the solver prints its progress, passed as a solver option.
+    log_fn : str or Path, optional
+        Solver log file, passed to the solve of every window.
     io_api : str, optional
         Only `"direct"` is supported.
+    window_callback : callable, optional
+        Called as `window_callback(n, w, sns, i)` with the
+        `linopy.restrict.WindowModel` `w` of the `i`-th window over snapshots
+        `sns`, once before its solve (`w.status == "initialized"`) and once
+        after, before its status is checked. Use it e.g. to log the status,
+        write the window with `w.to_file`, compute an IIS with
+        `w.compute_infeasibilities` or drop rows with `w.advance(drop=...)`.
     **kwargs : Any
         Arguments of `n.optimize.create_model`, such as `transmission_losses`.
         Any other argument is passed to the solver as an option.
@@ -144,18 +167,18 @@ def optimize_with_restricted_windows(
     Raises
     ------
     ImportError
-        If the installed linopy lacks `linopy.Model.restrict` with cold window solves.
+        If the installed linopy is older than 1.0.0.
     NotImplementedError
         If the network or the arguments are out of scope.
     RuntimeError
-        If a window is not solved to optimality.
+        If the solver returns no solution for a window.
 
     """
     try:
         from linopy.restrict import RestrictionError, WindowModel  # noqa: PLC0415
     except ImportError as e:
         raise ImportError(LINOPY_REQUIREMENT) from e
-    if "warm_start" not in inspect.signature(WindowModel.solve).parameters:
+    if not hasattr(WindowModel, "solve_fixed_lp"):
         raise ImportError(LINOPY_REQUIREMENT)
 
     unsupported = sorted(UNSUPPORTED_KWARGS.intersection(kwargs))
@@ -191,9 +214,7 @@ def optimize_with_restricted_windows(
     )
     if extra_functionality:
         extra_functionality(n, snapshots)
-    if m.variables.integers or m.variables.binaries:
-        msg = "`method='restrict'` supports linear problems only, the model has integer variables."
-        raise NotImplementedError(msg)
+    discrete = [*m.variables.integers, *m.variables.binaries]
 
     primal = {
         k: xr.full_like(v.labels, np.nan, dtype=float) for k, v in m.variables.items()
@@ -225,8 +246,19 @@ def optimize_with_restricted_windows(
                 f"`method='rebuild'` instead. linopy: {e}"
             )
             raise NotImplementedError(msg) from e
-        _solve_window(w, sns, solver_name, **solver_options)
-        _write(primal, w.solution, sns)
+        if window_callback:
+            window_callback(n, w, sns, i)
+        w.solve(solver_name, log_fn=log_fn, **solver_options)
+        if window_callback:
+            window_callback(n, w, sns, i)
+        _check_window(w, sns)
+        if discrete:
+            w.solve_fixed_lp(log_fn=log_fn)
+            _check_window(w, sns)
+        solution = w.solution
+        for k in discrete:
+            solution[k] = solution[k].round()
+        _write(primal, solution, sns)
         _write(dual, w.dual, sns)
 
     for k, v in primal.items():
