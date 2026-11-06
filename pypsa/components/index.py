@@ -14,7 +14,6 @@ the attached parent network.
 
 from __future__ import annotations
 
-import logging
 import warnings
 from typing import TYPE_CHECKING
 
@@ -22,9 +21,6 @@ from pypsa.components.abstract import _ComponentsABC
 
 if TYPE_CHECKING:
     import pandas as pd
-
-
-logger = logging.getLogger(__name__)
 
 
 class ComponentsIndexMixin(_ComponentsABC):

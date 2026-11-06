@@ -19,7 +19,6 @@ Generic functionality is implemented in the abstract module.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -44,8 +43,6 @@ from pypsa.constants import (
 )
 from pypsa.costs import annuity, periodized_cost
 from pypsa.definitions.structures import Dict
-
-logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence

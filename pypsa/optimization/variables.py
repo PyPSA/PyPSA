@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -16,8 +15,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pypsa import Network
-
-logger = logging.getLogger(__name__)
 
 
 def define_operational_variables(
