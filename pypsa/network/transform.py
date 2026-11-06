@@ -69,14 +69,11 @@ def _get_potential_typos(
             return False
 
         # Don't catch different base_attrs (p_nom vs e_nom etc.)
-        if dist == 1 and custom_attr[0] != default_attr[0] and custom_attr[1] == "_":
+        if custom_attr[0] != default_attr[0] and custom_attr[1] == "_":
             return False
 
         # Don't catch different suffix (efficiency vs efficiency2, bus0 vs bus1 etc.)
-        if dist == 1 and (custom_attr[-1].isdigit() or default_attr[-1].isdigit()):  # noqa: SIM103
-            return False
-
-        return True
+        return not (custom_attr[-1].isdigit() or default_attr[-1].isdigit())
 
     return {
         (custom_attr, default_attr)
@@ -572,38 +569,22 @@ class NetworkTransformMixin(_NetworkABC):
         to_skip = {"Network", "SubNetwork", "LineType", "TransformerType"}
         if components_to_skip:
             to_skip.update(components_to_skip)
-        to_iterate = other.all_components - to_skip
-        # ensure buses are merged first
-        to_iterate_list = ["Bus"] + sorted(to_iterate - {"Bus"})
+        to_iterate = (other.all_components - to_skip) | {"Bus"}
         for c in other.components:
-            if c.name not in to_iterate_list:
+            if c.name not in to_iterate:
                 continue
-            # for c in other.iterate_components(to_iterate_list):
             if not c.static.index.intersection(self.c[c.name].static.index).empty:
                 msg = f"Component {c.name} has overlapping indices, cannot merge networks."
                 raise ValueError(msg)
         if with_time:
-            snapshots_aligned = self.snapshots.equals(other.snapshots)
-            if not snapshots_aligned:
+            if not self.snapshots.equals(other.snapshots):
                 msg = "Snapshots do not agree, cannot merge networks."
                 raise ValueError(msg)
-            weightings_aligned = self.snapshot_weightings.equals(
-                other.snapshot_weightings
-            )
-            if not weightings_aligned:
-                # Check if only index order is different
-                # TODO fix with #1128
-                if self.snapshot_weightings.reindex(
-                    sorted(self.snapshot_weightings.columns), axis=1
-                ).equals(
-                    other.snapshot_weightings.reindex(
-                        sorted(other.snapshot_weightings.columns), axis=1
-                    )
-                ):
-                    weightings_aligned = True
-                else:
-                    msg = "Snapshot weightings do not agree, cannot merge networks."
-                    raise ValueError(msg)
+            # TODO fix with #1128
+            weightings = self.snapshot_weightings.sort_index(axis=1)
+            if not weightings.equals(other.snapshot_weightings.sort_index(axis=1)):
+                msg = "Snapshot weightings do not agree, cannot merge networks."
+                raise ValueError(msg)
         new = self if inplace else self.copy()
         if other.srid != new.srid:
             logger.warning(
@@ -614,7 +595,7 @@ class NetworkTransformMixin(_NetworkABC):
                 new.srid,
             )
         for c in other.components:
-            if c.name not in to_iterate_list:
+            if c.name not in to_iterate:
                 continue
             new.add(c.name, c.static.index, **c.static)
             if with_time:

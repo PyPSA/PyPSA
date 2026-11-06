@@ -17,9 +17,6 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
 from pypsa.common import UnexpectedError
 
 if TYPE_CHECKING:
@@ -67,7 +64,7 @@ def _network_components_data_verification(n: Network) -> None:
 
     """
     for c in n.components:
-        if c.static.index.name != "name" if not c.has_scenarios else None:
+        if not c.has_scenarios and c.static.index.name != "name":
             msg = f"Unexpected static index name for component '{c.name}': {c.static.index.name}"
             raise UnexpectedError(msg)
         # if not c.static.index.names == (

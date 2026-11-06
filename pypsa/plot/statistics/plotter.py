@@ -44,6 +44,20 @@ class _StatisticPlotterBase:
     _bound_method: Callable
     _n: Network
 
+    def __init__(self, bound_method: Callable, n: Network) -> None:
+        """Initialize the statistic plotter.
+
+        Parameters
+        ----------
+        bound_method : Callable
+            The bound method/ underlying statistic function to call.
+        n : Network
+            The network object to use for the statistic calculation.
+
+        """
+        self._bound_method = bound_method
+        self._n = n
+
     def _prepare_chart_data(
         self,
         chart_type: str,
@@ -171,20 +185,6 @@ class StatisticPlotter(_StatisticPlotterBase):
     later when the plot is created, depending on the plot type. Also some checks
     are performed to validated the arguments.
     """
-
-    def __init__(self, bound_method: Callable, n: Network) -> None:
-        """Initialize the statistic handler.
-
-        Parameters
-        ----------
-        bound_method : Callable
-            The bound method/ underlying statistic function to call.
-        n : Network
-            The network object to use for the statistic calculation.
-
-        """
-        self._bound_method = bound_method
-        self._n = n
 
     def __call__(
         self, kind: str | None = UNSET
@@ -581,20 +581,6 @@ class StatisticInteractivePlotter(_StatisticPlotterBase):
     later when the plot is created, depending on the plot type. Also some checks
     are performed to validate the arguments.
     """
-
-    def __init__(self, bound_method: Callable, n: Network) -> None:
-        """Initialize the interactive statistic handler.
-
-        Parameters
-        ----------
-        bound_method : Callable
-            The bound method/ underlying statistic function to call.
-        n : Network
-            The network object to use for the statistic calculation.
-
-        """
-        self._bound_method = bound_method
-        self._n = n
 
     def __call__(
         self, kind: str | None = UNSET

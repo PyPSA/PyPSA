@@ -13,7 +13,6 @@ Transform methods are methods which modify and restructure data.
 
 from __future__ import annotations
 
-import logging
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -23,8 +22,6 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from pypsa.definitions.structures import Dict
-
-logger = logging.getLogger(__name__)
 
 
 class ComponentsTransformMixin:

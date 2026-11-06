@@ -1405,7 +1405,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             efficiency = port_efficiency(n, c, port=port)
             if n.c[c]._as_ports(resolved_at_port) == [0]:
                 efficiency = abs(efficiency)
-            col = n.c[c].static[f"{nominal_attrs[c]}"] * efficiency
+            col = n.c[c].static[nominal_attrs[c]] * efficiency
             if storage and (c == "StorageUnit"):
                 col = col * n.c[c].static.max_hours
             return col

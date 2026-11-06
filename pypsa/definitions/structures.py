@@ -6,12 +6,9 @@
 
 from __future__ import annotations
 
-import logging
 import re
 from copy import deepcopy
 from typing import Any
-
-logger = logging.getLogger(__name__)
 
 
 class Dict(dict):

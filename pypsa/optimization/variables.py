@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -16,8 +15,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pypsa import Network
-
-logger = logging.getLogger(__name__)
 
 
 def define_operational_variables(
@@ -51,6 +48,39 @@ def define_operational_variables(
     )
 
 
+def _define_commitment_variables(
+    n: Network, sns: Sequence, c_name: str, attr: str, is_linearized: bool
+) -> None:
+    """Add the unit commitment variable `attr` of the committable assets of `c_name`.
+
+    Integer if there are modular committables, binary otherwise. Upper bounds
+    of integer variables are set by constraint functions.
+    """
+    c = n.components[c_name]
+    com_i = c.committables.intersection(c.active_assets)
+
+    if com_i.empty:
+        return
+
+    active = c.da.active.sel(name=com_i, snapshot=sns)
+    has_modular = not com_i.intersection(c.modulars).empty
+
+    if has_modular:
+        kwargs = {"lower": 0}
+    elif is_linearized:
+        kwargs = {"upper": 1, "lower": 0}
+    else:
+        kwargs = {}
+    n.model.add_variables(
+        coords=active.coords,
+        name=f"{c.name}-{attr}",
+        mask=active,
+        integer=has_modular and not is_linearized,
+        binary=not has_modular and not is_linearized,
+        **kwargs,
+    )
+
+
 def define_status_variables(
     n: Network, sns: Sequence, c_name: str, is_linearized: bool = False
 ) -> None:
@@ -72,34 +102,7 @@ def define_status_variables(
         Whether the unit commitment should be linearized
 
     """
-    c = n.components[c_name]
-    com_i = c.committables.intersection(c.active_assets)
-
-    if com_i.empty:
-        return
-
-    active = c.da.active.sel(name=com_i, snapshot=sns)
-    coords = active.coords
-
-    # Use integer variables if there are modular committables, binary otherwise
-    has_modular = not com_i.intersection(c.modulars).empty
-    is_integer = has_modular and not is_linearized
-    is_binary = not has_modular and not is_linearized
-
-    if has_modular:
-        kwargs = {"lower": 0}  # Upper bound set by constraint
-    elif is_linearized:
-        kwargs = {"upper": 1, "lower": 0}  # Explicit bounds for LP relaxation
-    else:
-        kwargs = {}  # Binary variables handle bounds internally
-    n.model.add_variables(
-        coords=coords,
-        name=f"{c.name}-status",
-        mask=active,
-        integer=is_integer,
-        binary=is_binary,
-        **kwargs,
-    )
+    _define_commitment_variables(n, sns, c_name, "status", is_linearized)
 
 
 def define_start_up_variables(
@@ -123,34 +126,7 @@ def define_start_up_variables(
         Whether the unit commitment should be linearized
 
     """
-    c = n.components[c_name]
-    com_i = c.committables.intersection(c.active_assets)
-
-    if com_i.empty:
-        return
-
-    active = c.da.active.sel(name=com_i, snapshot=sns)
-    coords = active.coords
-
-    # Use integer variables if there are modular committables, binary otherwise
-    has_modular = not com_i.intersection(c.modulars).empty
-    is_integer = has_modular and not is_linearized
-    is_binary = not has_modular and not is_linearized
-
-    if has_modular:
-        kwargs = {"lower": 0}
-    elif is_linearized:
-        kwargs = {"upper": 1, "lower": 0}
-    else:
-        kwargs = {}
-    n.model.add_variables(
-        coords=coords,
-        name=f"{c.name}-start_up",
-        mask=active,
-        integer=is_integer,
-        binary=is_binary,
-        **kwargs,
-    )
+    _define_commitment_variables(n, sns, c_name, "start_up", is_linearized)
 
 
 def define_shut_down_variables(
@@ -174,34 +150,7 @@ def define_shut_down_variables(
         Whether the unit commitment should be linearized
 
     """
-    c = n.components[c_name]
-    com_i = c.committables.intersection(c.active_assets)
-
-    if com_i.empty:
-        return
-
-    active = c.da.active.sel(name=com_i, snapshot=sns)
-    coords = active.coords
-
-    # Use integer variables if there are modular committables, binary otherwise
-    has_modular = not com_i.intersection(c.modulars).empty
-    is_integer = has_modular and not is_linearized
-    is_binary = not has_modular and not is_linearized
-
-    if has_modular:
-        kwargs = {"lower": 0}
-    elif is_linearized:
-        kwargs = {"upper": 1, "lower": 0}
-    else:
-        kwargs = {}
-    n.model.add_variables(
-        coords=coords,
-        name=f"{c.name}-shut_down",
-        mask=active,
-        integer=is_integer,
-        binary=is_binary,
-        **kwargs,
-    )
+    _define_commitment_variables(n, sns, c_name, "shut_down", is_linearized)
 
 
 def define_maintenance_variables(n: Network, sns: Sequence, c_name: str) -> None:

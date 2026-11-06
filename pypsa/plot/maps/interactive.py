@@ -340,7 +340,7 @@ def iplot(
             msg = (
                 "Using Mapbox layout styles requires a valid access token from "
                 "[https://www.mapbox.com/](https://www.mapbox.com/), style which do not require a token "
-                "are:\n{', '.join(_open__mb_styles)}."
+                f"are:\n{', '.join(_open__mb_styles)}."
             )
             raise ValueError(msg)
 
@@ -975,57 +975,26 @@ class PydeckPlotter:
             pos_mask = values > 0
             neg_mask = values < 0
 
-            if bus_split_circle and np.any(values < 0):
-                if np.any(pos_mask) and bus_radius_pos[bus] > 0:
-                    colors = [carrier_rgba[bus][c] for c in carrier_order[pos_mask]]
-                    labels = list(carrier_order[pos_mask])
-                    vals = values[pos_mask].round(3)
+            split = bool(bus_split_circle and np.any(neg_mask))
+            slices = [(pos_mask, bus_radius_pos, 1, False)]
+            if split:
+                slices.append((neg_mask, bus_radius_neg, -1, True))
 
-                    poly_pos = PydeckPlotter._make_pie(
-                        bus=bus,
-                        p_center=(x, y),
-                        radius_m=bus_radius_pos[bus],
-                        values=vals,
-                        colors=colors,
-                        labels=labels,
-                        points_per_radian=points_per_radian,
-                        flip_y=False,
-                        bus_split_circle=True,
+            for mask, radius, sign, flip_y in slices:
+                if np.any(mask) and radius[bus] > 0:
+                    polygons.extend(
+                        PydeckPlotter._make_pie(
+                            bus=bus,
+                            p_center=(x, y),
+                            radius_m=radius[bus],
+                            values=(sign * values[mask]).round(3),
+                            colors=[carrier_rgba[bus][c] for c in carrier_order[mask]],
+                            labels=list(carrier_order[mask]),
+                            points_per_radian=points_per_radian,
+                            flip_y=flip_y,
+                            bus_split_circle=split,
+                        )
                     )
-                    polygons.extend(poly_pos)
-
-                if np.any(neg_mask) and bus_radius_neg[bus] > 0:
-                    colors = [carrier_rgba[bus][c] for c in carrier_order[neg_mask]]
-                    labels = list(carrier_order[neg_mask])
-                    vals = (-values[neg_mask]).round(3)
-                    poly_neg = PydeckPlotter._make_pie(
-                        bus=bus,
-                        p_center=(x, y),
-                        radius_m=bus_radius_neg[bus],
-                        values=vals,
-                        colors=colors,
-                        labels=labels,
-                        points_per_radian=points_per_radian,
-                        flip_y=True,
-                        bus_split_circle=True,
-                    )
-                    polygons.extend(poly_neg)
-            elif np.any(pos_mask) and bus_radius_pos[bus] > 0:
-                colors = [carrier_rgba[bus][c] for c in carrier_order[pos_mask]]
-                labels = list(carrier_order[pos_mask])
-                vals = values[pos_mask].round(3)
-                poly_pos = PydeckPlotter._make_pie(
-                    bus=bus,
-                    p_center=(x, y),
-                    radius_m=bus_radius_pos[bus],
-                    values=vals,
-                    colors=colors,
-                    labels=labels,
-                    points_per_radian=points_per_radian,
-                    flip_y=False,
-                    bus_split_circle=False,
-                )
-                polygons.extend(poly_pos)
 
         p_data = pd.DataFrame(polygons)
         p_data = p_data.set_index("bus")
