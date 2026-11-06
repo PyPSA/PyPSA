@@ -340,7 +340,7 @@ def iplot(
             msg = (
                 "Using Mapbox layout styles requires a valid access token from "
                 "[https://www.mapbox.com/](https://www.mapbox.com/), style which do not require a token "
-                "are:\n{', '.join(_open__mb_styles)}."
+                f"are:\n{', '.join(_open__mb_styles)}."
             )
             raise ValueError(msg)
 

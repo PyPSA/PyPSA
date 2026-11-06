@@ -334,10 +334,12 @@ class MapPlotter:
             if ax is None:
                 self.ax = plt.axes(projection=projection)
             elif not isinstance(ax, GeoAxesSubplot):
-                msg = "The passed axis is not a GeoAxesSubplot. You can "
-                "create one with: \nimport cartopy.crs as ccrs \n"
-                "fig, ax = plt.subplots("
-                'subplot_kw={"projection":ccrs.PlateCarree()})'
+                msg = (
+                    "The passed axis is not a GeoAxesSubplot. You can "
+                    "create one with: \nimport cartopy.crs as ccrs \n"
+                    "fig, ax = plt.subplots("
+                    'subplot_kw={"projection":ccrs.PlateCarree()})'
+                )
                 raise ValueError(msg)
             else:
                 self.ax = ax
@@ -650,8 +652,10 @@ class MapPlotter:
         else:
             linestrings = geometry[lambda ds: ds != ""].map(loads)
             if not all(isinstance(ls, LineString) for ls in linestrings):
-                msg = "The WKT-encoded geometry in the 'geometry' column must be "
-                "composed of LineStrings"
+                msg = (
+                    "The WKT-encoded geometry in the 'geometry' column must be "
+                    "composed of LineStrings"
+                )
                 raise ValueError(msg)
             segments = np.asarray(list(linestrings.map(np.asarray)))
 
@@ -1137,9 +1141,11 @@ class MapPlotter:
                 msg = "The first MultiIndex level of sizes must contain buses"
                 raise ValueError(msg)
             if not bus_size.index.unique(level=1).isin(bus_color.index).all():
-                msg = "Colors not defined for all elements in the second MultiIndex "
-                "level of sizes, please make sure that all the elements are "
-                "included in colors or in n.c.carriers.static.color"
+                msg = (
+                    "Colors not defined for all elements in the second MultiIndex "
+                    "level of sizes, please make sure that all the elements are "
+                    "included in colors or in n.c.carriers.static.color"
+                )
                 raise ValueError(msg)
 
         # Apply all cmaps
