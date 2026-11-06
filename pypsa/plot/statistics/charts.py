@@ -711,6 +711,8 @@ class ChartGenerator(PlotsGenerator, ABC):
             facet_row, facet_col, color, row_order, col_order, color_order
         )
 
+        facet_col_wrap = kwargs.pop("facet_col_wrap", 0)
+
         # Create appropriate plot based on kind
         if kind == "bar":
             # Handle regular vs stacked bar charts
@@ -728,7 +730,7 @@ class ChartGenerator(PlotsGenerator, ABC):
                 facet_row=facet_row,
                 height=height,
                 width=width,
-                facet_col_wrap=kwargs.get("facet_col_wrap", 0),
+                facet_col_wrap=facet_col_wrap,
                 category_orders=category_orders,
                 color_discrete_map=color_discrete_map,
                 barmode=barmode,
@@ -736,7 +738,7 @@ class ChartGenerator(PlotsGenerator, ABC):
                 range_y=range_y,
                 labels=labels,
                 title=title,
-                **{k: v for k, v in kwargs.items() if k not in ["facet_col_wrap"]},
+                **kwargs,
             )
 
             # Apply error bars if we have scenarios
@@ -778,14 +780,14 @@ class ChartGenerator(PlotsGenerator, ABC):
                 facet_row=facet_row,
                 height=height,
                 width=width,
-                facet_col_wrap=kwargs.get("facet_col_wrap", 0),
+                facet_col_wrap=facet_col_wrap,
                 category_orders=category_orders,
                 color_discrete_map=color_discrete_map,
                 range_x=range_x,
                 range_y=range_y,
                 labels=labels,
                 title=title,
-                **{k: v for k, v in kwargs.items() if k not in ["facet_col_wrap"]},
+                **kwargs,
             )
 
         elif kind == "area":
@@ -797,14 +799,14 @@ class ChartGenerator(PlotsGenerator, ABC):
                 facet_row=facet_row,
                 height=height,
                 width=width,
-                facet_col_wrap=kwargs.get("facet_col_wrap", 0),
+                facet_col_wrap=facet_col_wrap,
                 category_orders=category_orders,
                 color_discrete_map=color_discrete_map,
                 range_x=range_x,
                 range_y=range_y,
                 labels=labels,
                 title=title,
-                **{k: v for k, v in kwargs.items() if k not in ["facet_col_wrap"]},
+                **kwargs,
             )
 
             if stacked:
