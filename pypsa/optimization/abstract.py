@@ -836,8 +836,6 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         if snapshots is None:
             snapshots = n.snapshots
 
-        n = self._n
-
         # Step 1: Optimize the network
         status, condition = n.optimize(snapshots, **kwargs)
 
