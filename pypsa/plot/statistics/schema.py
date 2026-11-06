@@ -172,21 +172,21 @@ STAT_OVERRIDES: dict = {
 }
 
 
-def _combine_schemas() -> dict:
+@cache
+def _schema() -> dict:
     """Build the complete schema by combining all configuration dictionaries.
 
     Returns
     -------
     dict
         Combined schema with defaults and allowed values for all combinations
-        of statistics and plot types.
+        of statistics and plot types, built lazily on first use.
 
     """
     schema: dict = {}
     plot_types = ["map", "plot"] + CHART_TYPES
-    all_stats = list(STAT_OVERRIDES.keys())
 
-    for stat in all_stats:
+    for stat, overrides in STAT_OVERRIDES.items():
         schema[stat] = {}
         # Optional params are only allowed for stats whose signature accepts them
         allowed_optional = OPTIONAL_STAT_PARAMS & _stat_signature_params(stat)
@@ -215,9 +215,8 @@ def _combine_schemas() -> dict:
                     schema[stat][plot_type][param]["allowed"] = True
 
             # Apply stat-specific overrides
-            if stat in STAT_OVERRIDES and plot_type in STAT_OVERRIDES[stat]:
-                for param, value in STAT_OVERRIDES[stat][plot_type].items():
-                    schema[stat][plot_type][param] = {"default": value, "allowed": True}
+            for param, value in overrides.get(plot_type, {}).items():
+                schema[stat][plot_type][param] = {"default": value, "allowed": True}
 
             # Apply exclusions
             for param in EXCLUDED_PARAMS.get(stat, {}):
@@ -225,12 +224,6 @@ def _combine_schemas() -> dict:
                     schema[stat][plot_type][param]["allowed"] = False
 
     return schema
-
-
-@cache
-def _schema() -> dict:
-    """Return the combined schema, built lazily on first use."""
-    return _combine_schemas()
 
 
 def _apply_auto_faceting(plot_name: str, kwargs: dict, context: dict) -> dict:
