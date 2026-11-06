@@ -145,13 +145,8 @@ def prepare_bar_data(
         return data
 
     if isinstance(data, pd.Series):
-        period_name = periods.name or "period"
-        index_names = list(data.index.names) if data.index.names else []
-        if period_name in index_names:
-            return data
         return data
 
-    # DataFrame case
     columns = data.columns
     period_name = periods.name or "period"
 
