@@ -120,6 +120,26 @@ def cost_variables(component: str, cost_type: str) -> pd.Index:
     return rows.index.get_level_values("variable")
 
 
+def _downgrade_unknown_ok_status(status: str, condition: str) -> str:
+    """
+    Downgrade a solver status of "ok" with an "unknown" termination
+    condition to "error".
+
+    A solver can refuse a model without solving it, e.g. HiGHS on infinite
+    constraint coefficients, and still be reported as "ok" with condition
+    "unknown" (see #2094). Treating that as a success would assign a bogus
+    solution, so it is reported as an error instead.
+    """
+    if status == "ok" and condition == "unknown":
+        logger.error(
+            "Optimization failed: solver returned status 'ok' with "
+            "termination condition 'unknown', i.e. no valid solution was "
+            "produced."
+        )
+        return "error"
+    return status
+
+
 def _apply_delay_shift(
     port_df: pd.DataFrame,
     c: Links | Processes,
@@ -736,6 +756,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             **solver_options,
             **kwargs,
         )
+        status = _downgrade_unknown_ok_status(status, condition)
 
         if status == "ok":
             n.optimize.assign_solution()
@@ -1080,6 +1101,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             **solver_options,
             **kwargs,
         )
+        status = _downgrade_unknown_ok_status(status, condition)
 
         if status == "ok":
             self._n.optimize.assign_solution()
