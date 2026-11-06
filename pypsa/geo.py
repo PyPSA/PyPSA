@@ -10,7 +10,6 @@ import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import ArrayLike
 
 from pypsa.constants import DEFAULT_EPSG
 
