@@ -291,9 +291,7 @@ def _downsample_with_periods(n: Network, stride: int) -> TemporalClustering:
         period_snapshots = n.snapshots[period_mask]
         period_weightings = n.snapshot_weightings[period_mask]
 
-        # Select every Nth snapshot within this period
-        selected_idx = range(0, len(period_snapshots), stride)
-        selected = period_snapshots[list(selected_idx)]
+        selected = period_snapshots[::stride]
         selected_snapshots_list.append(selected)
 
         # Scale weightings, handle remainder for last snapshot
