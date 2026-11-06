@@ -77,22 +77,29 @@ def _write(
             target[name] = values
 
 
-def _check_window(w: WindowModel, sns: pd.Index) -> None:
-    """Raise unless the window has a solution, warn if it is not optimal."""
-    if w.status != "ok" or w.objective.value is None:
-        msg = (
-            f"Optimization of window [{sns[0]}:{sns[-1]}] failed with status "
-            f"{w.status} and condition {w.termination_condition}."
-        )
-        raise RuntimeError(msg)
-    if w.termination_condition != "optimal":
+def _check_window(w: WindowModel, sns: pd.Index, incumbent: bool) -> str:
+    """Return the termination condition, raise unless the window is usable.
+
+    An optimal solution is always usable, an `incumbent` of a solve stopped by
+    a limit only if allowed, with a warning.
+    """
+    condition = w.termination_condition
+    if condition == "optimal":
+        return condition
+    if incumbent and w.status == "ok" and w.objective.value is not None:
         logger.warning(
             "Optimization of window [%s:%s] stopped with condition %s, using "
             "its best solution.",
             sns[0],
             sns[-1],
-            w.termination_condition,
+            condition,
         )
+        return condition
+    msg = (
+        f"Optimization of window [{sns[0]}:{sns[-1]}] failed with status "
+        f"{w.status} and condition {condition}."
+    )
+    raise RuntimeError(msg)
 
 
 def optimize_with_restricted_windows(
@@ -120,11 +127,12 @@ def optimize_with_restricted_windows(
     windows are written back to one full-horizon solution, which is assigned to
     the network once at the end.
 
-    A window is accepted when the solver returns a solution, e.g. also a MIP
-    incumbent at a time limit, with a warning if it is not optimal. In
-    mixed-integer windows, integer values are rounded before they are fixed
-    for later windows, and duals are taken from a re-solve of the window as an
-    LP with its integer variables fixed.
+    Linear windows must be solved to optimality. Mixed-integer windows also
+    accept an incumbent of a solve stopped by a limit, with a warning, and
+    `n.model.termination_condition` then reports the condition of the last
+    such window. Their integer values are rounded before they are fixed for
+    later windows, and duals are taken from a re-solve of the window as an LP
+    with its integer variables fixed.
 
     Parameters
     ----------
@@ -159,7 +167,8 @@ def optimize_with_restricted_windows(
         `sns`, once before its solve (`w.status == "initialized"`) and once
         after, before its status is checked. Use it e.g. to log the status,
         write the window with `w.to_file`, compute an IIS with
-        `w.compute_infeasibilities` or drop rows with `w.advance(drop=...)`.
+        `w.compute_infeasibilities` or, before the solve only, leave rows out
+        of this window with `w.advance(drop=...)`.
     **kwargs : Any
         Arguments of `n.optimize.create_model`, such as `transmission_losses`.
         Any other argument is passed to the solver as an option.
@@ -171,7 +180,8 @@ def optimize_with_restricted_windows(
     NotImplementedError
         If the network or the arguments are out of scope.
     RuntimeError
-        If the solver returns no solution for a window.
+        If a window is not solved to optimality, or for mixed-integer windows,
+        if the solver returns no solution.
 
     """
     try:
@@ -224,6 +234,7 @@ def optimize_with_restricted_windows(
     }
     starts = range(0, len(snapshots), horizon - overlap)
     w = None
+    condition = "optimal"
     for i, start in enumerate(starts):
         sns = snapshots[start : start + horizon]
         logger.info(
@@ -237,7 +248,7 @@ def optimize_with_restricted_windows(
             w = (
                 m.restrict(snapshot=sns, fix=primal)
                 if w is None
-                else w.advance(snapshot=sns, fix=primal)
+                else w.advance(snapshot=sns, fix=primal, drop={})
             )
         except RestrictionError as e:
             msg = (
@@ -251,10 +262,11 @@ def optimize_with_restricted_windows(
         w.solve(solver_name, log_fn=log_fn, **solver_options)
         if window_callback:
             window_callback(n, w, sns, i)
-        _check_window(w, sns)
+        if (window_condition := _check_window(w, sns, bool(discrete))) != "optimal":
+            condition = window_condition
         if discrete:
             w.solve_fixed_lp(log_fn=log_fn)
-            _check_window(w, sns)
+            _check_window(w, sns, incumbent=False)
         solution = w.solution
         for k in discrete:
             solution[k] = solution[k].round()
@@ -265,7 +277,7 @@ def optimize_with_restricted_windows(
         m.variables[k].solution = v
     for k, v in dual.items():
         m.constraints[k].dual = v
-    m.status, m.termination_condition = "ok", "optimal"
+    m.status, m.termination_condition = "ok", condition
     m.objective.set_value(float(m.objective.expression.solution))
     n.optimize.assign_solution()
     n.optimize.assign_duals(assign_all_duals)

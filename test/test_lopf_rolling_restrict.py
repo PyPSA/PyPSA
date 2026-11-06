@@ -231,6 +231,44 @@ def test_restrict_infeasible_window():
         n.optimize.optimize_with_rolling_horizon(horizon=3, method="restrict", **KWARGS)
 
 
+def test_restrict_lp_stopped_by_limit_raises():
+    n = get_network()
+
+    with pytest.raises(RuntimeError, match="iteration_limit"):
+        n.optimize.optimize_with_rolling_horizon(
+            horizon=4,
+            method="restrict",
+            simplex_iteration_limit=3,
+            presolve="off",
+            **KWARGS,
+        )
+
+
+def test_restrict_drop_applies_to_one_window():
+    def drop_balance_in_first_window(n, w, sns, i):
+        if i == 0 and w.status == "initialized":
+            w.advance(drop={"StorageUnit-energy_balance": True})
+
+    n = get_network()
+    n.optimize.optimize_with_rolling_horizon(
+        horizon=6,
+        method="restrict",
+        window_callback=drop_balance_in_first_window,
+        **KWARGS,
+    )
+
+    dual = n.model.constraints["StorageUnit-energy_balance"].dual.to_series()
+    assert dual.loc[:5].isna().all()
+    assert dual.loc[6:].notna().all()
+
+
+def test_rebuild_rejects_window_callback():
+    with pytest.raises(ValueError, match="window_callback"):
+        get_network().optimize.optimize_with_rolling_horizon(
+            window_callback=lambda *args: None
+        )
+
+
 def test_rolling_horizon_unknown_method():
     with pytest.raises(ValueError, match="method must be"):
         get_network().optimize.optimize_with_rolling_horizon(method="persistent")

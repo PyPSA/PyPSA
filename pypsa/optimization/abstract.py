@@ -731,6 +731,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = f"method must be 'rebuild' or 'restrict', got {method!r}"
             raise ValueError(msg)
 
+        if method == "rebuild" and "window_callback" in kwargs:
+            msg = "window_callback is only supported with method='restrict'"
+            raise ValueError(msg)
+
         if consistency_check:
             n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
 
