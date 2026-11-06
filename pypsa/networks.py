@@ -1135,7 +1135,7 @@ class Network(
         [pypsa.Network.controllable_branches][]
 
         """
-        comps = list(set(self.branch_components) - set(self._empty_components()))
+        comps = sorted(set(self.branch_components) - set(self._empty_components()))
         names = (
             ["component", "scenario", "name"]
             if self.has_scenarios
