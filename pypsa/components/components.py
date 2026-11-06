@@ -48,7 +48,7 @@ from pypsa.definitions.structures import Dict
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Sequence
+    from collections.abc import Callable, Collection
     from typing import Literal
 
     from pypsa import Network
@@ -81,8 +81,8 @@ class ComponentsData:
     ----------
     ctype : ComponentType
         Component type information containing all default values and attributes. #TODO
-    n : Network | None
-        Network to which the component might be attached.
+    n : Network
+        Network the components belong to.
     static : pd.DataFrame
         Static data of components as a pandas DataFrame. Columns are the attributes
         and the index is the component name.
@@ -94,7 +94,7 @@ class ComponentsData:
     """
 
     ctype: ComponentType
-    n: Network | None
+    n: Network
     static: pd.DataFrame
     """
     Dataframe with static data for all components of this type.
@@ -173,9 +173,7 @@ class Components(
     def __init__(
         self,
         ctype: ComponentType,
-        n: Network | None = None,
-        names: str | int | Sequence[int | str] | None = None,
-        suffix: str = "",
+        n: Network,
     ) -> None:
         """Initialize Components object.
 
@@ -183,26 +181,13 @@ class Components(
         ----------
         ctype : ComponentType
             Component type information.
-        n : Network, optional
-            Network object to attach to, by default None.
-        names : str, int, Sequence[int | str], optional
-            Names of components to attach to, by default None.
-        suffix : str, optional
-            Suffix to add to component names, by default "".
+        n : Network
+            Network the components belong to.
 
         """
-        if names is not None:
-            msg = "Adding components during initialisation is not yet supported."
-            raise NotImplementedError(msg)
-        if n is not None:
-            msg = (
-                "Attaching components to Network during initialisation is not yet "
-                "supported."
-            )
-            raise NotImplementedError(msg)
         static, dynamic, piecewise = self._get_data_containers(ctype)
         ComponentsData.__init__(
-            self, ctype, n=None, static=static, dynamic=dynamic, piecewise=piecewise
+            self, ctype, n=n, static=static, dynamic=dynamic, piecewise=piecewise
         )
         ComponentsArrayMixin.__init__(self)
 
@@ -240,8 +225,7 @@ class Components(
         text = f"{self}\n" + "-" * len(str(self)) + "\n"
 
         # Add attachment status
-        if self.attached:
-            text += f"Attached to {str(self.n)}\n"
+        text += f"Attached to {str(self.n)}\n"
 
         text += f"Components: {len(self.static)}"
 
@@ -650,47 +634,45 @@ class Components(
         return self.static.empty
 
     @property
+    @deprecated(
+        deprecated_in="1.5.0",
+        removed_in="2.0.0",
+        details="Components are always attached to a network.",
+    )
     def attached(self) -> bool:
         """Check if component is attached to a Network.
 
-        <!-- md:badge-version v0.33.0 -->
+        !!! warning "Deprecated in <!-- md:badge-version v1.5.0 -->"
 
-        Some functionality of the component is only available when attached to a
-        Network.
+            Components are always attached to a network. This is always `True`.
 
         Returns
         -------
         bool
-            True if component is attached to a Network, otherwise False.
-
-        Examples
-        --------
-        >>> n.components.generators.attached
-        True
+            Always True.
 
         """
-        return self.n is not None
+        return True
 
     @property
-    def n_save(self) -> Any:
-        """A save property to access the network (component must be attached).
+    @deprecated(
+        deprecated_in="1.5.0",
+        removed_in="2.0.0",
+        details="Use `c.n` instead.",
+    )
+    def n_save(self) -> Network:
+        """Network the components belong to.
 
-        <!-- md:badge-version v0.33.0 -->
+        !!! warning "Deprecated in <!-- md:badge-version v1.5.0 -->"
+
+            Use [`c.n`][pypsa.Components.n] instead.
 
         Returns
         -------
         Network
             Network to which the component is attached.
 
-        Raises
-        ------
-        AttributeError
-            If component is not attached to a Network.
-
         """
-        if not self.attached:
-            msg = "Component must be attached to a Network."
-            raise AttributeError(msg)
         return self.n
 
     @property
@@ -1076,7 +1058,7 @@ class Components(
         """
         from pypsa.components.common import invariant  # noqa: PLC0415
 
-        n = self.n_save
+        n = self.n
         buses = invariant(n.c.buses.static.scaling)
         if self.name == "Bus":
             factors = buses.reindex(names)
@@ -1105,11 +1087,10 @@ class Components(
             msg = f"Component {self.name} has no nominal operational attribute."
             raise AttributeError(msg)
 
-        if self.n is not None:
-            # Peak total load over time provides a natural system-scale bound.
-            load = self.n.get_switchable_as_dense("Load", "p_set")
-            peak_load = load.sum(axis=1).abs().max()
-            candidates.append(float(peak_load))
+        # Peak total load over time provides a natural system-scale bound.
+        load = self.n.get_switchable_as_dense("Load", "p_set")
+        peak_load = load.sum(axis=1).abs().max()
+        candidates.append(float(peak_load))
 
         nom_attr = self._operational_attrs["nom"]
         nom_series = self.static[nom_attr]
@@ -1153,7 +1134,7 @@ class Components(
             max_pu_values = max_pu_values.max("snapshot")
 
         big_m_default = committable_big_m
-        if big_m_default is None and self.n is not None:
+        if big_m_default is None:
             big_m_default = self.n._committable_big_m
         if big_m_default is None:
             big_m_default = self._infer_committable_big_m_scale()
@@ -1229,7 +1210,7 @@ class Components(
         `pypsa.Network.nyears`
 
         """
-        return self.n_save.nyears
+        return self.n.nyears
 
     @property
     def annuity(self) -> pd.Series:
@@ -1435,8 +1416,7 @@ class SubNetworkComponents:
         text = f"{self}\n" + "-" * len(str(self)) + "\n"
 
         # Add attachment status
-        if self.attached:
-            text += f"Attached to Sub-Network of {str(self.n)}\n"
+        text += f"Attached to Sub-Network of {str(self.n)}\n"
 
         text += f"Components: {len(self._wrapped_data.static)}"
 
