@@ -1120,7 +1120,7 @@ def busmap_by_stubs(
     while True:
         stubs = []
         for u in G.nodes:
-            neighbours = list(G.adj[u].keys())
+            neighbours = list(G.adj[u])
             if len(neighbours) == 1:
                 (v,) = neighbours
                 if attrs_match(u, v):

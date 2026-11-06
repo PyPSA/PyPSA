@@ -1217,7 +1217,7 @@ class MapPlotter:
             if flow is not None:
                 if auto_scale_branches:
                     rough_scale = (
-                        sum([len(n.c[c].static) for c in branch_components]) + 100
+                        sum(len(n.c[c].static) for c in branch_components) + 100
                     )
                     data["flow"] = (
                         data.flow.mul(abs(data.widths), fill_value=0) / rough_scale
