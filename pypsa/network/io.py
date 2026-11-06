@@ -140,6 +140,29 @@ def _get_safe_excel_sheet_name(sheet_name: str) -> str:
     return sheet_name
 
 
+def _convert_snapshot_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert the `snapshot` and `timestep` columns to datetime where possible."""
+    for col in ("snapshot", "timestep"):
+        if col in df and df[col].iloc[0] != "now" and df[col].dtype.kind != "i":
+            try:
+                df[col] = pd.to_datetime(df[col])
+            except (ValueError, ParserError):
+                pass
+    return df
+
+
+def _fill_string_nans(df: pd.DataFrame) -> pd.DataFrame:
+    """Replace NaN in string columns by empty strings, also for custom attributes."""
+    str_cols = [
+        col
+        for col in df.columns
+        if df[col].dtype == "object" or isinstance(df[col].dtype, pd.StringDtype)
+    ]
+    if str_cols:
+        df[str_cols] = df[str_cols].fillna("")
+    return df
+
+
 @overload
 def _retrieve_from_url(
     url: str, io_function: Callable[[Path], pd.read_excel]
@@ -318,27 +341,7 @@ class _ImporterCSV(_Importer):
             encoding=self.encoding,
             quotechar=self.quotechar,
         )
-
-        # Convert snapshot and timestep to datetime (if possible)
-        if (
-            "snapshot" in df
-            and df.snapshot.iloc[0] != "now"
-            and df.snapshot.dtype.kind != "i"
-        ):
-            try:
-                df["snapshot"] = pd.to_datetime(df.snapshot)
-            except (ValueError, ParserError):
-                pass
-        if (
-            "timestep" in df
-            and df.timestep.iloc[0] != "now"
-            and df.timestep.dtype.kind != "i"
-        ):
-            try:
-                df["timestep"] = pd.to_datetime(df.timestep)
-            except (ValueError, ParserError):
-                pass
-        return df
+        return _convert_snapshot_columns(df)
 
     def get_investment_periods(self) -> pd.Series:
         """Get investment periods data."""
@@ -358,17 +361,7 @@ class _ImporterCSV(_Importer):
         df = pd.read_csv(
             fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
         )
-
-        # Convert NaN to empty strings for string columns to handle custom attributes
-        str_cols = [
-            col
-            for col in df.columns
-            if df[col].dtype == "object" or isinstance(df[col].dtype, pd.StringDtype)
-        ]
-        if str_cols:
-            df[str_cols] = df[str_cols].fillna("")
-
-        return df
+        return _fill_string_nans(df)
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         """Get dynamic components data."""
@@ -611,27 +604,7 @@ class _ImporterExcel(_Importer):
             df = self.sheets["snapshots"]
         except KeyError:
             return None
-        df = df.set_index(df.columns[0])
-        # Convert snapshot and timestep to datetime (if possible)
-        if (
-            "snapshot" in df
-            and df.snapshot.iloc[0] != "now"
-            and df.snapshot.dtype.kind != "i"
-        ):
-            try:
-                df["snapshot"] = pd.to_datetime(df.snapshot)
-            except (ValueError, ParserError):
-                pass
-        if (
-            "timestep" in df
-            and df.timestep.iloc[0] != "now"
-            and df.timestep.dtype.kind != "i"
-        ):
-            try:
-                df["timestep"] = pd.to_datetime(df.timestep)
-            except (ValueError, ParserError):
-                pass
-        return df
+        return _convert_snapshot_columns(df.set_index(df.columns[0]))
 
     def get_investment_periods(self) -> pd.Series:
         """Get investment periods data."""
@@ -655,16 +628,7 @@ class _ImporterExcel(_Importer):
             if len(df.columns) == 0 and len(df.index) > 0 and df.index[0] == "name":
                 df = df.iloc[1:]  # Remove the first row which contains the index name
 
-            # Convert NaN to empty strings for string columns to handle custom attributes
-            str_cols = [
-                col
-                for col in df.columns
-                if df[col].dtype == "object"
-                or isinstance(df[col].dtype, pd.StringDtype)
-            ]
-            if str_cols:
-                df[str_cols] = df[str_cols].fillna("")
-
+            df = _fill_string_nans(df)
         except (ValueError, KeyError):
             return None
         else:
