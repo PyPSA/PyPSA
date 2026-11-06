@@ -185,7 +185,7 @@ class NetworkCollection:
 
         if not isinstance(self.networks, pd.Series):
             # Format and validate index
-            if index is None and not isinstance(self.networks, pd.Series):
+            if index is None:
                 names = ["network" if not n.name else n.name for n in self.networks]
 
                 # Check for duplicate names
@@ -593,13 +593,8 @@ class MemberProxy:
 
     def _is_intermediate_path(self) -> bool:
         """Check if this accessor path is an intermediate path that should continue as MemberProxy."""
-        # Check if this path could be part of a longer supported path
-        for processor_name, pattern in _get_method_patterns().items():
-            if processor_name == "continue_proxy" and re.match(
-                pattern, self.accessor_path
-            ):
-                return True
-        return False
+        pattern = _get_method_patterns()["continue_proxy"]
+        return re.match(pattern, self.accessor_path) is not None
 
     def __init__(
         self,
