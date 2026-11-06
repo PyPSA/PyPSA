@@ -1058,7 +1058,7 @@ class Components(
         """
         from pypsa.components.common import invariant  # noqa: PLC0415
 
-        n = self.n_save
+        n = self.n
         buses = invariant(n.c.buses.static.scaling)
         if self.name == "Bus":
             factors = buses.reindex(names)
