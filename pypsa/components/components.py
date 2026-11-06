@@ -928,6 +928,13 @@ class Components(
         c_carriers = c_carriers[c_carriers != ""]
         return set(c_carriers.unique())
 
+    def _names_where(self, mask: pd.Series) -> pd.Index:
+        """Single-level names of the assets for which `mask` holds."""
+        idx = self.static.loc[mask].index
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+        return idx
+
     @property
     def extendables(self) -> pd.Index:
         """Get the index of extendable elements of this component.
@@ -944,13 +951,7 @@ class Components(
         if extendable_col not in self.static.columns:
             return self.static.iloc[:0].index
 
-        idx = self.static.loc[self.static[extendable_col]].index
-
-        # Remove scenario dimension, since they cannot vary across scenarios
-        if self.has_scenarios:
-            idx = idx.get_level_values("name").drop_duplicates()
-
-        return idx
+        return self._names_where(self.static[extendable_col])
 
     @property
     def fixed(self) -> pd.Index:
@@ -968,13 +969,7 @@ class Components(
         if extendable_col not in self.static.columns:
             return self.static.iloc[:0].index
 
-        idx = self.static.loc[~self.static[extendable_col]].index
-
-        # Remove scenario dimension, since they cannot vary across scenarios
-        if self.has_scenarios:
-            idx = idx.get_level_values("name").drop_duplicates()
-
-        return idx
+        return self._names_where(~self.static[extendable_col])
 
     @property
     def committables(self) -> pd.Index:
@@ -991,13 +986,7 @@ class Components(
         if "committable" not in self.static:
             return self.static.iloc[:0].index
 
-        idx = self.static.loc[self.static["committable"]].index
-
-        # Remove scenario dimension, since they cannot vary across scenarios
-        if self.has_scenarios:
-            idx = idx.get_level_values("name").drop_duplicates()
-
-        return idx
+        return self._names_where(self.static["committable"])
 
     @property
     def maintainables(self) -> pd.Index:
@@ -1012,12 +1001,7 @@ class Components(
         if "maintainable" not in self.static:
             return self.static.iloc[:0].index
 
-        idx = self.static.loc[self.static["maintainable"]].index
-
-        if self.has_scenarios:
-            idx = idx.get_level_values("name").drop_duplicates()
-
-        return idx
+        return self._names_where(self.static["maintainable"])
 
     @property
     def modulars(self) -> pd.Index:
@@ -1038,13 +1022,7 @@ class Components(
         if mod_col not in self.static.columns:
             return self.static.iloc[:0].index
 
-        idx = self.static.loc[self.static[mod_col] > 0].index
-
-        # Remove scenario dimension, since they cannot vary across scenarios
-        if self.has_scenarios:
-            idx = idx.get_level_values("name").drop_duplicates()
-
-        return idx
+        return self._names_where(self.static[mod_col] > 0)
 
     def _scaling(self, names: pd.Index) -> xarray.DataArray | float:
         """Return the numerical scaling factors of the assets `names`.
