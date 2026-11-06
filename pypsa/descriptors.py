@@ -73,6 +73,7 @@ def get_switchable_as_iter(
 # Perhaps this should rather go into components.py
 nominal_attrs = {
     "Generator": "p_nom",
+    "Load": "p_nom",
     "Line": "s_nom",
     "Transformer": "s_nom",
     "Link": "p_nom",

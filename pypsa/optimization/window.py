@@ -114,6 +114,9 @@ class SnapshotWindow:
         self._n = n
         self.network_index = network_index
         self.model_index = model_index
+        # Assets per component entering the model build as constants instead of
+        # operational variables (e.g. passive loads), set in `create_model`.
+        self.constant_assets: dict[str, pd.Index] = {}
 
     @classmethod
     def build(cls, n: Network, sns: pd.Index, representation: str) -> SnapshotWindow:
@@ -133,11 +136,13 @@ class SnapshotWindow:
             outside = sns[positions < 0].tolist()
             msg = f"Snapshots outside the model's build window: {outside}"
             raise KeyError(msg)
-        return SnapshotWindow(
+        window = SnapshotWindow(
             self._n,
             self.network_index.take(positions),
             self.model_index.take(positions),
         )
+        window.constant_assets = self.constant_assets
+        return window
 
     @property
     def is_flat(self) -> bool:
