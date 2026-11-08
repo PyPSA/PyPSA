@@ -43,7 +43,12 @@ def define_operational_variables(
 
     active = c.da.active.sel(name=c.active_assets, snapshot=sns)
     coords = active.coords
-    n.model.add_variables(coords=coords, name=f"{c.name}-{attr}", mask=active)
+    n.model.add_variables(
+        coords=coords,
+        name=f"{c.name}-{attr}",
+        mask=active,
+        scaling=c._scaling(c.active_assets),
+    )
 
 
 def define_status_variables(
@@ -295,6 +300,7 @@ def define_maintenance_capacity_variables(
         coords=active.coords,
         name=f"{c.name}-maintenance_capacity",
         mask=active,
+        scaling=c._scaling(maint_ext_i),
     )
 
 
@@ -357,7 +363,9 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
     if isinstance(ext_i, pd.MultiIndex):
         ext_i = ext_i.unique(level="name")
 
-    n.model.add_variables(coords=[ext_i], name=f"{c.name}-{attr}")
+    n.model.add_variables(
+        coords=[ext_i], name=f"{c.name}-{attr}", scaling=c._scaling(ext_i)
+    )
 
 
 def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
@@ -400,7 +408,13 @@ def define_spillage_variables(n: Network, sns: Sequence, c_name: str) -> None:
     active_aligned, upper_aligned = xr.align(active, upper, join="inner")
     active = active_aligned.where(upper_aligned > 0, False)
 
-    n.model.add_variables(0, upper_aligned, name=f"{c.name}-spill", mask=active)
+    n.model.add_variables(
+        0,
+        upper_aligned,
+        name=f"{c.name}-spill",
+        mask=active,
+        scaling=c._scaling(active.indexes["name"]),
+    )
 
 
 def define_phase_shift_variables(n: Network, sns: Sequence) -> None:
@@ -461,7 +475,13 @@ def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
 
     active = c.da.active.sel(name=c.active_assets, snapshot=sns)
     coords = active.coords
-    n.model.add_variables(0, coords=coords, name=f"{c.name}-loss", mask=active)
+    n.model.add_variables(
+        0,
+        coords=coords,
+        name=f"{c.name}-loss",
+        mask=active,
+        scaling=c._scaling(c.active_assets),
+    )
 
 
 def define_cvar_variables(n: Network) -> None:
@@ -476,7 +496,8 @@ def define_cvar_variables(n: Network) -> None:
     * `CVaR` (scalar): the Conditional Value-at-Risk (Expected Shortfall) objective term.
 
     These variables are linked by constraints (added in the objective construction)
-    to implement the linear CVaR formulation.
+    to implement the linear CVaR formulation. All three carry the objective
+    scaling of the model, since they are expressed in objective units.
 
     Parameters
     ----------
@@ -492,8 +513,7 @@ def define_cvar_variables(n: Network) -> None:
     if scenarios is None or len(scenarios) == 0:
         return
 
-    # Non-negative excess loss variables per scenario
-    n.model.add_variables(lower=0, coords=[scenarios], name="CVaR-a")
-    # Scalar theta (VaR) and CVaR
-    n.model.add_variables(name="CVaR-theta")
-    n.model.add_variables(name="CVaR")
+    scaling = n.model.objective.scaling
+    n.model.add_variables(lower=0, coords=[scenarios], name="CVaR-a", scaling=scaling)
+    n.model.add_variables(name="CVaR-theta", scaling=scaling)
+    n.model.add_variables(name="CVaR", scaling=scaling)

@@ -1049,6 +1049,54 @@ class Components(
 
         return idx
 
+    def _scaling(self, names: pd.Index) -> xarray.DataArray | float:
+        """Return the numerical scaling factors of the assets `names`.
+
+        Buses take their own `Bus.scaling`, one-port components the factor of
+        `bus` and branch components the factor of `bus0`. See
+        [Numerical Scaling](../../user-guide/optimization/numerical-scaling.md).
+
+        Parameters
+        ----------
+        names : pd.Index
+            Names of the assets.
+
+        Returns
+        -------
+        xarray.DataArray | float
+            Factors over `name`, or `1.0` if all factors are `1` so that
+            unscaled models stay unchanged.
+
+        Raises
+        ------
+        ValueError
+            If the component has no bus, if a factor is not finite and
+            positive, or if `Bus.scaling` differs across scenarios.
+
+        """
+        from pypsa.components.common import invariant  # noqa: PLC0415
+
+        n = self.n_save
+        buses = invariant(n.c.buses.static.scaling)
+        if self.name == "Bus":
+            factors = buses.reindex(names)
+        elif self.name in n.one_port_components | n.branch_components:
+            col = "bus" if self.name in n.one_port_components else "bus0"
+            bus = invariant(self.static[col]).reindex(names)
+            factors = pd.Series(buses.reindex(bus.values).values, names)
+        else:
+            msg = (
+                f"Component '{self.name}' is not attached to a bus and has no scaling."
+            )
+            raise ValueError(msg)
+        invalid = ~np.isfinite(factors) | (factors <= 0)
+        if invalid.any():
+            msg = f"Bus.scaling must be finite and positive, got for {self.name}:\n{factors[invalid]}"
+            raise ValueError(msg)
+        if (factors == 1).all():
+            return 1.0
+        return xarray.DataArray(factors.rename("scaling").rename_axis("name"))
+
     def _infer_committable_big_m_scale(self) -> float:
         """Infer a reasonable big-M scale from network and component data."""
         candidates: list[float] = []

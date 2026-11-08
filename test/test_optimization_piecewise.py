@@ -267,14 +267,14 @@ class TestCreateYVar:
     @pytest.fixture(scope="class")
     def y_var_static(linopy_model, pw_names) -> linopy.Variable:
         return _create_y_var(
-            linopy_model, linopy_model["x_static"], pw_names, "foo-static"
+            linopy_model, linopy_model["x_static"], pw_names, "foo-static", 1.0
         )
 
     @staticmethod
     @pytest.fixture(scope="class")
     def y_var_dynamic(linopy_model, pw_names) -> linopy.Variable:
         return _create_y_var(
-            linopy_model, linopy_model["x_dynamic"], pw_names, "foo-dynamic"
+            linopy_model, linopy_model["x_dynamic"], pw_names, "foo-dynamic", 1.0
         )
 
     @pytest.mark.parametrize("y_var_name", ["y_var_static", "y_var_dynamic"])
@@ -343,6 +343,7 @@ class TestDefinePiecewise:
             name="Generator",
             extendables=pd.Index(["gen_extendable"], name="name"),
             _piecewise_schema=_piecewise_schema(attrs),
+            _scaling=lambda names: 1.0,
         )
         component.piecewise["efficiency"] = pd.DataFrame()
         return component

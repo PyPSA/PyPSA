@@ -257,7 +257,7 @@ Frankfurt   380.0        8.70  50.12  ...      PQ                             DE
 Norway      380.0       10.75  60.00  ...      PQ                             NO
 Norway DC   200.0       10.75  60.00  ...      PQ                             NO
 <BLANKLINE>
-[9 rows x 14 columns]
+[9 rows x 15 columns]
 ```
 
 In this `pandas.DataFrame`, the index corresponds to the unique
