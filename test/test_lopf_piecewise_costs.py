@@ -304,6 +304,52 @@ class TestPiecewiseCostsResults:
             n_lin.c.generators.static.p_nom_opt.item()
         )
 
+    @pytest.mark.parametrize(
+        ("attr", "value", "committable"),
+        [
+            ("marginal_cost", 10.0, False),
+            ("marginal_cost", 10.0, True),
+            ("efficiency", 0.5, False),
+        ],
+    )
+    def test_multi_invest_piecewise_per_snapshot(
+        self, attr: str, value: float, committable: bool
+    ) -> None:
+        """A constant-slope per-snapshot curve matches its linear equivalent (#2116)."""
+
+        def build(piecewise: bool) -> pypsa.Network:
+            n = pypsa.Network()
+            n.set_snapshots(pd.MultiIndex.from_product([[2030, 2040], [0, 1]]))
+            n.investment_periods = [2030, 2040]
+            n.add("Bus", "bus0")
+            n.add("Carrier", "gas", co2_emissions=1.0)
+            n.add("Generator", "backup", bus="bus0", p_nom=200, marginal_cost=100)
+            curve: Any = {0.0: 0.0, 1.0: value} if piecewise else value
+            n.add(
+                "Generator",
+                "gen0",
+                bus="bus0",
+                carrier="gas",
+                p_nom=100,
+                p_min_pu=0.2 if committable else 0.0,
+                committable=committable,
+                **{"marginal_cost": 1.0, attr: curve},
+            )
+            n.add(
+                "GlobalConstraint",
+                "co2_limit",
+                sense="<=",
+                carrier_attribute="co2_emissions",
+                constant=200,
+            )
+            n.add("Load", "load", bus="bus0", p_set=[50, 60, 70, 80])
+            n.optimize(multi_investment_periods=True)
+            return n
+
+        n_pw = build(piecewise=True)
+        n_lin = build(piecewise=False)
+        assert n_pw.objective == pytest.approx(n_lin.objective)
+
 
 # TODO: update to a non-zero starting x point on the piecewise curve once we handle non-zero intercepts on cumulative curves
 class TestPiecewiseCostsStatus:
