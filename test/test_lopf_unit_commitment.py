@@ -1239,7 +1239,8 @@ def test_ramp_limit_shut_down_binary_uc():
 
     n.add("Load", "load", bus="electricity", p_set=[4000, 5000, 2000, 0])
 
-    status, condition = n.optimize()
+    with pytest.warns(FutureWarning, match="sign < 0"):
+        status, condition = n.optimize()
 
     assert status == "ok", f"Optimization failed with status {status}"
 
@@ -1319,7 +1320,8 @@ def test_ramp_limit_shut_down_first_snapshot_with_slack():
     )
     n.add("Load", "load", bus="electricity", p_set=[0, 5000, 2000, 0])
 
-    status, condition = n.optimize()
+    with pytest.warns(FutureWarning, match="sign < 0"):
+        status, condition = n.optimize()
 
     assert status == "ok", f"Optimization failed with status {status}"
 

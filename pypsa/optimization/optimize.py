@@ -36,7 +36,12 @@ from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
-from pypsa.optimization.common import _set_dynamic_data, get_bus_counts
+from pypsa.optimization.common import (
+    _set_dynamic_data,
+    compute_constant_operation_assets,
+    get_bus_counts,
+    get_operational_assets,
+)
 from pypsa.optimization.constraints import (
     define_committability_variables_constraints_with_fixed_upper_limit,
     define_committability_variables_constraints_with_variable_upper_limit,
@@ -75,7 +80,11 @@ from pypsa.optimization.global_constraints import (
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
-from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
+from pypsa.optimization.piecewise import (
+    PiecewiseOptions,
+    define_piecewise,
+    get_piecewise_names,
+)
 from pypsa.optimization.variables import (
     define_cvar_variables,
     define_loss_variables,
@@ -174,6 +183,46 @@ def _resolve_include_objective_constant(
         )
         value = True
     return value
+
+
+def _warn_marginal_cost_sign(n: Network) -> None:
+    """Warn about marginal costs on components with negative sign.
+
+    For components whose linear marginal costs do not yet follow the power
+    injected at the bus (see `Components._cost_follows_sign`), the cost is
+    applied to the dispatch variable regardless of `sign`. This changes in
+    PyPSA 2.0, where `sign * marginal_cost * p` enters the objective.
+    """
+    for c in n.components:
+        if (
+            c.static.empty
+            or c._cost_follows_sign
+            or "sign" not in c.static
+            or "marginal_cost" not in c.static
+        ):
+            continue
+        negative = c.static.index[c.static["sign"] < 0].unique("name")
+        if negative.empty:
+            continue
+        cost = c.da.marginal_cost.sel(name=negative)
+        has_cost = (cost != 0).any([d for d in cost.dims if d != "name"])
+        names = list(negative[has_cost.to_series().reindex(negative).to_numpy()])
+        if c.has_piecewise("marginal_cost"):
+            pw_names = get_piecewise_names(c, "marginal_cost", negative)
+            names += [nm for nm in pw_names if nm not in names]
+        if not names:
+            continue
+        warnings.warn(
+            f"{c.name} components {names} have `sign < 0` and a non-zero "
+            "`marginal_cost`. Currently, the marginal cost is applied to the "
+            "dispatch variable `p` regardless of `sign`. From PyPSA 2.0 on, it "
+            "will apply to the power injected at the bus (`sign * p`), as it "
+            "already does for `Load`. To model price-responsive demand, use a "
+            "`Load` with a positive `marginal_cost` (the price the consumer "
+            "pays) instead.",
+            FutureWarning,
+            stacklevel=4,
+        )
 
 
 def define_objective(
@@ -296,6 +345,8 @@ def define_objective(
         event_weight = apply_period_weighting(xr.ones_like(weight), period_weighting)
         weight = apply_period_weighting(weight, period_weighting)
 
+    _warn_marginal_cost_sign(n)
+
     # marginal costs, marginal storage cost, and spill cost
 
     for cost_type in linear_cost_types:
@@ -304,7 +355,7 @@ def define_objective(
 
             if c.static.empty:
                 continue
-            active_names = c.active_assets
+            active_names = get_operational_assets(n, c)
             if c.has_piecewise(cost_type):
                 x_var = m[c._piecewise_x_var(cost_type)].sel(snapshot=sns)
                 extra_options = filter(
@@ -342,6 +393,9 @@ def define_objective(
 
             cost = c.da[cost_type].sel(snapshot=sns, name=active_names)
             if cost.size > 0 and not (cost == 0).all():
+                if cost_type == "marginal_cost":
+                    # applied to the power injected at the bus if enabled
+                    cost = cost * c._cost_sign(active_names)
                 operation = m[var_name].sel(snapshot=sns, name=active_names)
                 opex_terms.append(
                     (operation * cost * weight).sum(dim=["name", "snapshot"])
@@ -354,11 +408,13 @@ def define_objective(
         if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
             continue
 
-        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns, name=c.active_assets)
+        names = get_operational_assets(n, c)
+        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns, name=names)
         if cost.size == 0 or (cost == 0).all():
             continue
 
-        cost = cost * weight
+        # quadratic in the power injected at the bus if enabled
+        cost = cost * c._cost_sign(names) ** 2 * weight
 
         operation = m[f"{c.name}-{attr}"].sel(
             snapshot=sns, name=cost.coords["name"].values
@@ -367,7 +423,7 @@ def define_objective(
         is_quadratic = True
 
     # stand-by cost
-    for c_name in ["Generator", "Link", "Process"]:
+    for c_name in ["Generator", "Load", "Link", "Process"]:
         c = as_components(n, c_name)
         com_i = c.committables.intersection(c.active_assets)
 
@@ -868,6 +924,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
+        # Split assets entering the model as constants (e.g. passive loads)
+        # from those with operational variables, once per model build.
+        window.constant_assets = {
+            c.name: compute_constant_operation_assets(n, c, sns)
+            for c in n.components
+            if c._constant_fixed_operation
+        }
+
         # Define variables
         for c, attr in lookup.query("nominal").index:
             define_nominal_variables(n, c, attr)
@@ -1366,11 +1430,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             n.c.buses.dynamic.marginal_price.loc[sns].divide(weightings, axis=0)
         )
 
-        # load
+        # loads without operational variable (constants and inactive loads)
         if len(n.loads):
-            _set_dynamic_data(
-                n, "Load", "p", n.get_switchable_as_dense("Load", "p_set", sns)
-            )
+            loads = n.c.loads
+            fixed_loads = loads.names.difference(get_operational_assets(n, loads))
+            if not fixed_loads.empty:
+                p_set = n.get_switchable_as_dense("Load", "p_set", sns)
+                p_set = p_set.loc[:, p_set.columns.isin(fixed_loads, level="name")]
+                _set_dynamic_data(n, "Load", "p", p_set)
 
         # line losses
         if "Line-loss" in n.model.variables:

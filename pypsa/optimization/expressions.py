@@ -330,9 +330,20 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         m = self._n.model
 
         if c == "Load":
+            from pypsa.optimization.common import (  # noqa: PLC0415
+                get_constant_operation_assets,
+            )
+
+            loads = self._n.c[c]
             window = self._n.optimize._window
-            p_set = self._n.c[c].da.p_set.sel(snapshot=window.model_index)
-            return LinearExpression.from_constant(m, p_set)
+            constants = get_constant_operation_assets(self._n, loads)
+            p_set = loads.da.p_set.sel(snapshot=window.model_index, name=constants)
+            const = LinearExpression.from_constant(m, p_set.fillna(0))
+            if "Load-p" not in m.variables:
+                return const
+            if constants.empty:
+                return m.variables["Load-p"]
+            return m.variables["Load-p"].to_linexpr().add(const, join="outer")
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
             return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
@@ -510,7 +521,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             for cost_type in linear_cost_types:
                 for attr in cost_variables(c, cost_type):
                     missing = f"{c}-{attr}" not in n.model.variables
-                    if missing and cost_type == "spill_cost":
+                    if missing and (
+                        cost_type == "spill_cost"
+                        # constants carry no marginal cost
+                        or n.c[c]._constant_fixed_operation
+                    ):
                         continue
                     var = n.model.variables[f"{c}-{attr}"]
                     sns = var.indexes["snapshot"]
@@ -520,6 +535,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                     unused = add_opex is None and (cost == 0).all()
                     if unused and cost_type != "marginal_cost":
                         continue
+                    if cost_type == "marginal_cost":
+                        cost = cost * n.c[c]._cost_sign(names)
                     terms.append(_add_optional(var * cost, add_opex))
             if not terms:
                 return None
@@ -860,6 +877,16 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 return None
 
             idx = capacity.indexes["name"]
+            if c._constant_fixed_operation:
+                # constants (e.g. passive loads) have no capacity to curtail
+                from pypsa.optimization.common import (  # noqa: PLC0415
+                    get_operational_assets,
+                )
+
+                idx = idx.intersection(get_operational_assets(n, c))
+                if idx.empty:
+                    return None
+                capacity = capacity.sel(name=idx)
             operation = self._get_operational_variable(component).sel(name=idx)
             sns = operation.indexes["snapshot"]
             p_max_pu = c.da.p_max_pu.sel(snapshot=sns, name=idx)

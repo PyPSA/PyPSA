@@ -98,20 +98,23 @@ n.generators.loc["wind", "fom_cost"] = 0.02 * n.generators.loc["wind", "overnigh
 
 The marginal costs of dispatch are given by
 
-$$+ \sum_{t} w_t^o \left( \sum_{n,s} o_{n,s,t} g_{n,s,t} + \sum_{n,s} o_{n,s,t} h_{n,s,t}^- + \sum_{n,s} o_{n,s,t} h_{n,s,t} + \sum_{l} o_{l,t} f_{l,t} + \sum_{m} o_{m,t} r_{m,t} \right)$$
+$$+ \sum_{t} w_t^o \left( \sum_{n,s} o_{n,s,t} g_{n,s,t} - \sum_{n,s} o_{n,s,t} d_{n,s,t} + \sum_{n,s} o_{n,s,t} h_{n,s,t}^- + \sum_{n,s} o_{n,s,t} h_{n,s,t} + \sum_{l} o_{l,t} f_{l,t} + \sum_{m} o_{m,t} r_{m,t} \right)$$
 
 where $o_{*}$ are the marginal costs per unit of power for generator ($g_{n,s,t} \in \mathbb{R}$), storage unit ($h_{n,s,t}^- \in \mathbb{R}$), store ($h_{n,s,t} \in \mathbb{R}$), link ($f_{l,t} \in \mathbb{R}$) and process ($r_{m,t} \in \mathbb{R}$) dispatch. Note here the difference between storage unit dispatch $h_{n,s,t}^-$ (where costs are only incurred for discharging) and store dispatch $h_{n,s,t}$ (where marginal costs incur a cost for discharging and a revenue for charging; the store attributes `marginal_cost_dispatch` and `marginal_cost_store` apply to one direction only, see [storage](storage.md#stores)). The subscript $t$ indicates the snapshot.
+
+For active [`Load`][pypsa.components.Loads] components with consumption $d_{n,s,t}$, the marginal cost applies to the power injected at the bus, `sign * p` (i.e. $-d_{n,s,t}$ for the default `sign=-1`). A positive marginal cost of a load is therefore the price the consumer is willing to pay and reduces the objective. For the other components, marginal costs currently apply to the dispatch variable regardless of `sign`; this changes in PyPSA 2.0.
 
 ??? note "Mapping of symbols to attributes"
 
     | Symbol | Attribute | Type |
     |-------------------|-----------|-------------|
     | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
+    | $d_{n,s,t}$       | `n.loads_t.p` | Decision variable (active loads) |
     | $h_{n,s,t}^-$     | `n.storage_units_t.p_dispatch` | Decision variable |
     | $h_{n,s,t}$       | `n.stores_t.p` | Decision variable |
     | $f_{l,t}$         | `n.links_t.p` | Decision variable |
     | $r_{m,t}$         | `n.processes_t.p` | Decision variable |
-    | $o_{n,s,t}$       | `n.{generators,storage_units,stores}_t.marginal_cost` | Parameter |
+    | $o_{n,s,t}$       | `n.{generators,loads,storage_units,stores}_t.marginal_cost` | Parameter |
     | $o_{l,t}$         | `n.links_t.marginal_cost` | Parameter |
     | $o_{m,t}$         | `n.processes_t.marginal_cost` | Parameter |
     | $w_t^o$           | `n.snapshots.weightings.objective` | Parameter |
@@ -121,20 +124,21 @@ where $o_{*}$ are the marginal costs per unit of power for generator ($g_{n,s,t}
 
 Quadratic marginal costs can be included, which turn the problem into a quadratic program (QP):
 
-$$+ \sum_{t} w_t^o \left( \sum_{n,s} qmc_{n,s,t} g_{n,s,t}^2 + \sum_{n,s} qmc_{n,s,t} {h_{n,s,t}^-}^2 + \sum_{n,s} qmc_{n,s,t} h_{n,s,t}^2  + \sum_{l} qmc_{l,t} f_{l,t}^2 + \sum_{m} qmc_{m,t} r_{m,t}^2 \right)$$
+$$+ \sum_{t} w_t^o \left( \sum_{n,s} qmc_{n,s,t} g_{n,s,t}^2 + \sum_{n,s} qmc_{n,s,t} d_{n,s,t}^2 + \sum_{n,s} qmc_{n,s,t} {h_{n,s,t}^-}^2 + \sum_{n,s} qmc_{n,s,t} h_{n,s,t}^2  + \sum_{l} qmc_{l,t} f_{l,t}^2 + \sum_{m} qmc_{m,t} r_{m,t}^2 \right)$$
 
-where $qmc_{*}$ are the quadratic marginal costs per unit of dispatch for generators ($g_{n,s,t}$), storage units ($h_{n,s,t}^-$), stores ($h_{n,s,t}$), links ($f_{l,t}$) and processes ($r_{m,t}$), weighted by the objective snapshot weightings $w_t^o$.
+where $qmc_{*}$ are the quadratic marginal costs per unit of dispatch for generators ($g_{n,s,t}$), active loads ($d_{n,s,t}$), storage units ($h_{n,s,t}^-$), stores ($h_{n,s,t}$), links ($f_{l,t}$) and processes ($r_{m,t}$), weighted by the objective snapshot weightings $w_t^o$.
 
 ??? note "Mapping of symbols to attributes"
 
     | Symbol | Attribute | Type |
     |-------------------|-----------|-------------|
     | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
+    | $d_{n,s,t}$       | `n.loads_t.p` | Decision variable (active loads) |
     | $h_{n,s,t}^-$     | `n.storage_units_t.p_dispatch` | Decision variable |
     | $h_{n,s,t}$       | `n.stores_t.p` | Decision variable |
     | $f_{l,t}$         | `n.links_t.p` | Decision variable |
     | $r_{m,t}$         | `n.processes_t.p` | Decision variable |
-    | $qmc_{n,s,t}$     | `n.{generators,storage_units,stores}_t.marginal_cost_quadratic` | Parameter |
+    | $qmc_{n,s,t}$     | `n.{generators,loads,storage_units,stores}_t.marginal_cost_quadratic` | Parameter |
     | $qmc_{l,t}$       | `n.links_t.marginal_cost_quadratic` | Parameter |
     | $qmc_{m,t}$       | `n.processes_t.marginal_cost_quadratic` | Parameter |
     | $w_t^o$           | `n.snapshots.weightings.objective` | Parameter |

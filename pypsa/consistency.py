@@ -702,6 +702,60 @@ def check_generators(component: Components, strict: bool = False) -> None:
                 )
 
 
+def check_loads(component: Components, strict: bool = False) -> None:
+    """Check the cost attributes of loads.
+
+    The linear `marginal_cost` of a load is applied to the power injected at
+    the bus (`sign * p`), so with the default `sign=-1` a positive value is the
+    price the consumer is willing to pay. Warns about negative willingness to
+    pay (the consumer is paid to consume) and negative quadratic costs, which
+    render the objective non-convex.
+
+    Activate strict mode in general consistency check by passing `['loads']` to
+    the `strict` argument.
+
+    Parameters
+    ----------
+    component : Component
+        The load component to be checked.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if component.name != "Load" or component.static.empty:
+        return
+    static = component.static
+    for attr, msg in (
+        (
+            "marginal_cost",
+            "The following loads have a negative `marginal_cost` while consuming "
+            "(`sign < 0`), i.e. they are paid to consume. For loads, `marginal_cost` "
+            "is the price the consumer is willing to pay: %s.",
+        ),
+        (
+            "marginal_cost_quadratic",
+            "The following loads have a negative `marginal_cost_quadratic`, which "
+            "makes the objective non-convex: %s.",
+        ),
+    ):
+        if attr not in static:
+            continue
+        values = component.dynamic.get(attr)
+        negative = static[attr] < 0
+        if values is not None and not values.empty:
+            negative_t = (values < 0).any().reindex(static.index, fill_value=False)
+            negative = negative | negative_t
+        if attr == "marginal_cost":
+            negative = negative & (static["sign"] < 0)
+        bad = static.index[negative]
+        if not bad.empty:
+            _log_or_raise(strict, msg, bad)
+
+
 def check_volume_limits(component: Components, strict: bool = False) -> None:
     """Check that `e_sum_min` is not greater than `e_sum_max`.
 
@@ -1016,6 +1070,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "zero_s_nom",
             "phase_shift_bounds",
             "generators",
+            "loads",
             "volume_limits",
             "cost_consistency",
             "dispatch_delays",
@@ -1066,6 +1121,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_phase_shift_bounds(c, "phase_shift_bounds" in strict)
             # Checks generators
             check_generators(c, "generators" in strict)
+            check_loads(c, "loads" in strict)
             check_volume_limits(c, "volume_limits" in strict)
             check_maintenance_attributes(self, c, "maintenance" in strict)
             # Checks cost attributes consistency

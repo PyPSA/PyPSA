@@ -112,7 +112,7 @@ def _calculate_controllable_nodal_power_balance(
                 power + "_set",
                 snapshots,
                 c.static.query("active").index.unique("name"),
-            )
+            ).fillna(0)  # set points default to NaN (e.g. dispatchable loads)
             network.c[c.name].dynamic[power].loc[
                 snapshots, c.static.query("active").index
             ] = c_n_set

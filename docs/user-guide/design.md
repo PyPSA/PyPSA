@@ -76,7 +76,8 @@ even non-energy carriers (e.g. CO~2~ or steel) in different locations.
   levels in the first than in the last time step, and any components with
   efficiency values greater than 1 (e.g. heat pumps).
 
-- Energy **leaves** the model via [`Load`][pypsa.components.Loads] components, [`Generator`][pypsa.components.Generators] components with
+- Energy **leaves** the model via [`Load`][pypsa.components.Loads] components (with a given `p_set` or
+  price-responsive), [`Generator`][pypsa.components.Generators] components with
   negative sign, [`StorageUnit`][pypsa.components.StorageUnits] or [`Store`][pypsa.components.Stores] components with higher energy in the
   last then in the first time step, and in [`Link`][pypsa.components.Links], [`Line`][pypsa.components.Lines] and [`StorageUnit`][pypsa.components.StorageUnits]
   components with efficiency less than 1.
