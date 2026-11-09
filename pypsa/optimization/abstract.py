@@ -25,7 +25,6 @@ from pypsa.consistency import OPTIMIZE_STRICT_CHECKS
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.constraints import ENERGY_LIMITS, ENERGY_WEIGHTING
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
-from pypsa.optimization.rolling_restrict import optimize_with_restricted_windows
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -235,9 +234,9 @@ def _tracked_limits(
     """Get the volume limits of a component to track across rolling horizon windows.
 
     Returns, for each limit not at its default, the component name, the limit
-    attribute, the original limit and the weighted energy per snapshot that
-    later windows can at most (`e_sum_min`) or must at least (`e_sum_max`)
-    contribute. Raises a `ValueError` if this energy is unbounded.
+    attribute, the original limit and the power per snapshot that later
+    windows can at most (`e_sum_min`) or must at least (`e_sum_max`) produce.
+    Raises a `ValueError` if the resulting energy is unbounded.
     """
     limits = [(a, s, d) for a, s, d in ENERGY_LIMITS if (c.static[a] != d).any()]
     if not limits:
@@ -253,8 +252,8 @@ def _tracked_limits(
         hint = "a single window"
     active = c.get_activity_mask(snapshots)
     w = weights.loc[snapshots]
-    lower = lower.where(active, 0.0).mul(w, axis=0)
-    upper = upper.where(active, 0.0).mul(w, axis=0)
+    lower = lower.where(active, 0.0)
+    upper = upper.where(active, 0.0)
     flags = [a for a in ("committable", "maintainable") if a in c.static]
     flexible = active & c.static[flags].any(axis=1)
     later = {
@@ -263,8 +262,8 @@ def _tracked_limits(
     }
     tracked = []
     for attr, sign, default in limits:
-        energy = later[sign]
-        unbounded = (c.static[attr] != default) & np.isinf(energy).any()
+        power = later[sign]
+        unbounded = (c.static[attr] != default) & np.isinf(power.mul(w, axis=0)).any()
         if unbounded.any():
             msg = (
                 f"{c.name} {list(unbounded.index[unbounded])} have a finite "
@@ -272,7 +271,7 @@ def _tracked_limits(
                 f"rolling horizon requires {hint}."
             )
             raise ValueError(msg)
-        tracked.append((c.name, attr, c.static[attr].copy(), energy))
+        tracked.append((c.name, attr, c.static[attr].copy(), power))
     return tracked
 
 
@@ -703,9 +702,11 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             `"restrict"` builds the model once for all `snapshots` and solves
             windows cut from it with `linopy.Model.restrict`, fixing all
             variables of earlier windows. It supports single-period models
-            without global constraints, volume limits or cyclic storage, also
-            with committable components and integer variables, and raises if
-            the solver returns no solution for a window. Extendable components
+            without global constraints, cyclic storage or `cycles_max`, also
+            with committable components, integer variables and volume limits,
+            which are tracked as described above, except for assets with both
+            `e_sum_min` and `e_sum_max`. It raises if a linear window is not
+            optimal or a mixed-integer window has no solution. Extendable components
             are supported: `*_nom_opt` is taken from the last window and
             `n.objective` covers the whole horizon, including the capital costs
             of the final capacities. Windows are solved without warm start.
@@ -739,6 +740,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
 
         if method == "restrict":
+            from pypsa.optimization.rolling_restrict import (  # noqa: PLC0415
+                optimize_with_restricted_windows,
+            )
+
             optimize_with_restricted_windows(n, snapshots, horizon, overlap, **kwargs)
             return n
 
@@ -785,7 +790,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 for name, attr, original, later in tracked:
                     c = n.c[name]
                     used = _energy(c, weights, done)
-                    c.static[attr] = original - used - later.loc[rest].sum()
+                    reserved = later.loc[rest].mul(weights.loc[rest], axis=0).sum()
+                    c.static[attr] = original - used - reserved
 
                 # count the cycles of previous windows against `cycles_max`
                 eh = n.snapshot_weightings.stores.loc[done]

@@ -4,6 +4,11 @@
 
 import pandas as pd
 import pytest
+from test_lopf_rolling_horizon import (
+    E_SUM_CASES,
+    E_SUM_PARAMS,
+    get_e_sum_network,
+)
 from test_lopf_rolling_horizon import get_network as get_base_network
 
 import pypsa
@@ -162,6 +167,41 @@ def test_restrict_window_callback_and_log_fn(tmp_path):
     assert log_fn.read_text()
 
 
+@pytest.mark.parametrize(("component", "case", "overlap", "periods"), E_SUM_PARAMS)
+def test_restrict_matches_rebuild_e_sum(component, case, overlap, periods):
+    kwargs, attr, limit, _ = E_SUM_CASES[case]
+    rebuild = get_e_sum_network(component, attr, limit, kwargs, periods)
+    restrict = get_e_sum_network(component, attr, limit, kwargs, periods)
+
+    rebuild.optimize.optimize_with_rolling_horizon(horizon=3, overlap=overlap, **KWARGS)
+    restrict.optimize.optimize_with_rolling_horizon(
+        horizon=3, overlap=overlap, method="restrict", **KWARGS
+    )
+
+    assert restrict.c[component].dynamic.p["gen"].sum() == pytest.approx(limit)
+    opex = restrict.statistics.opex().to_numpy().sum()
+    assert opex == pytest.approx(rebuild.statistics.opex().to_numpy().sum())
+
+
+def test_restrict_matches_rebuild_e_sum_stochastic():
+    kwargs, attr, limit, _ = E_SUM_CASES["max"]
+    rebuild, restrict = (
+        get_e_sum_network("Generator", attr, limit, kwargs) for _ in range(2)
+    )
+    for n in (rebuild, restrict):
+        n.set_scenarios({"low": 0.5, "high": 0.5})
+        n.c.loads.dynamic.p_set.loc[:, ("high", "load")] *= 1.2
+
+    rebuild.optimize.optimize_with_rolling_horizon(horizon=3, **KWARGS)
+    restrict.optimize.optimize_with_rolling_horizon(
+        horizon=3, method="restrict", **KWARGS
+    )
+
+    pd.testing.assert_frame_equal(
+        restrict.c.generators.dynamic.p, rebuild.c.generators.dynamic.p, atol=1e-6
+    )
+
+
 def coupling_constraint(n: pypsa.Network, sns: pd.Index) -> None:
     p = n.model["Generator-p"]
     n.model.add_constraints(p.sum() <= 1e5, name="total_generation")
@@ -188,10 +228,17 @@ OUT_OF_SCOPE = {
         {},
         "global constraints",
     ),
-    "e-sum-max": (
-        lambda n: n.add("Generator", "x", bus="bus", p_nom=10, e_sum_max=1e6),
+    "e-sum-min-and-max": (
+        lambda n: n.add(
+            "Generator", "x", bus="bus", p_nom=10, e_sum_min=10, e_sum_max=1e6
+        ),
         {},
-        "volume limits of Generator",
+        "Generator with both `e_sum_min` and `e_sum_max`",
+    ),
+    "cycles-max": (
+        lambda n: n.add("Store", "x", bus="bus", e_nom=10, cycles_max=1),
+        {},
+        "cycle limits of stores",
     ),
     "multi-investment-periods": (
         lambda n: n.set_investment_periods([2030, 2040]),

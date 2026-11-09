@@ -8,20 +8,22 @@ from __future__ import annotations
 
 import inspect
 import logging
+from functools import reduce
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 from linopy import Model
 
 from pypsa._options import options
 from pypsa.common import as_index
+from pypsa.optimization.abstract import _all_tracked_limits, _energy_weightings
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from pathlib import Path
 
-    import pandas as pd
     from linopy.restrict import WindowModel
 
     from pypsa import Network
@@ -52,11 +54,13 @@ def _check_scope(n: Network, multi_investment_periods: bool) -> None:
         found.append("cyclic stores (`e_cyclic`)")
     if n.c.storage_units.static.cyclic_state_of_charge.any():
         found.append("cyclic storage units (`cyclic_state_of_charge`)")
+    if (n.c.stores.static.cycles_max < np.inf).any():
+        found.append("cycle limits of stores (`cycles_max`)")
     found.extend(
-        f"volume limits of {c.name} (`e_sum_min`, `e_sum_max`)"
+        f"{c.name} with both `e_sum_min` and `e_sum_max`"
         for c in n.components
         if "e_sum_min" in c.static
-        and np.isfinite(c.static[["e_sum_min", "e_sum_max"]]).any().any()
+        and np.isfinite(c.static[["e_sum_min", "e_sum_max"]]).all(axis=1).any()
     )
     if found:
         msg = (
@@ -64,6 +68,26 @@ def _check_scope(n: Network, multi_investment_periods: bool) -> None:
             "`method='rebuild'` instead."
         )
         raise NotImplementedError(msg)
+
+
+def _reserved_power(n: Network, snapshots: pd.Index) -> dict[str, xr.DataArray]:
+    """Get the power of assets with a volume limit that later windows reserve.
+
+    A volume limit sums the power over all snapshots. With the power of later
+    snapshots fixed at what later windows can at most (`e_sum_min`) or must at
+    least (`e_sum_max`) produce, each window gets the part of the limit that is
+    still open, as with `method="rebuild"`.
+    """
+    frames: dict[str, list[pd.DataFrame]] = {}
+    weights = _energy_weightings(n, False)
+    for name, _, original, power in _all_tracked_limits(n, weights, snapshots):
+        limited = power.loc[:, np.isfinite(original)].reindex(columns=power.columns)
+        frames.setdefault(name, []).append(limited)
+    reserved = {
+        name: reduce(pd.DataFrame.fillna, parts).set_axis(snapshots)
+        for name, parts in frames.items()
+    }
+    return {f"{name}-p": n.c[name]._to_xarray(df, "p") for name, df in reserved.items()}
 
 
 def _write(
@@ -126,6 +150,12 @@ def optimize_with_restricted_windows(
     with all variables of earlier windows fixed to their optimized values. The
     windows are written back to one full-horizon solution, which is assigned to
     the network once at the end.
+
+    Volume limits (`e_sum_min`, `e_sum_max`) are tracked as with
+    `method="rebuild"`: the power of later snapshots is fixed at what later
+    windows can at most or must at least produce, so each window gets the part
+    of the limit that is still open. Constraints that couple a window to later
+    snapshots of these powers therefore no longer raise.
 
     Linear windows must be solved to optimality. Mixed-integer windows also
     accept an incumbent of a solve stopped by a limit, with a warning, and
@@ -229,10 +259,13 @@ def optimize_with_restricted_windows(
     primal = {
         k: xr.full_like(v.labels, np.nan, dtype=float) for k, v in m.variables.items()
     }
+    starts = range(0, len(snapshots), horizon - overlap)
+    if len(starts) > 1:
+        for k, reserved in _reserved_power(n, snapshots).items():
+            primal[k] = primal[k].fillna(reserved)
     dual = {
         k: xr.full_like(c.labels, np.nan, dtype=float) for k, c in m.constraints.items()
     }
-    starts = range(0, len(snapshots), horizon - overlap)
     w = None
     condition = "optimal"
     for i, start in enumerate(starts):
