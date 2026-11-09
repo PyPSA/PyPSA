@@ -29,6 +29,8 @@ from linopy.constraints import CSRConstraint
 
 from pypsa._linopy_compat import (
     SUPPORTS_BREAKPOINT_MASK,
+    expand_breakpoints,
+    flatten_snapshot,
     suppress_semantics_warnings,
 )
 from pypsa.descriptors import nominal_attrs
@@ -168,11 +170,11 @@ def define_piecewise(
         )
         y_var = _create_y_var(m, x_var, pw_names, aux_var_name, y_scaling)
     y_var_sel = y_var.sel(name=pw_names)
-    x_flat, y_flat = _flatten_snapshot(x_var), _flatten_snapshot(y_var)
+    x_flat, y_flat = flatten_snapshot(x_var), flatten_snapshot(y_var)
     if status is not None:
-        status = _flatten_snapshot(status)
-    x_breakpoints = _expand_like(x_breakpoints, x_flat)
-    y_breakpoints = _expand_like(y_breakpoints, x_flat)
+        status = flatten_snapshot(status)
+    x_breakpoints = expand_breakpoints(x_breakpoints, x_flat)
+    y_breakpoints = expand_breakpoints(y_breakpoints, x_flat)
     sorted_options = sorted(extra_options, key=lambda x: x.name, reverse=True)
     for option in [*sorted_options, None]:
         if option is None:
@@ -313,31 +315,6 @@ def _get_breakpoints(
                 (y_da * x_da).fillna(0).where(valid_breakpoints)
             )
     return x_breakpoints, y_breakpoints, valid_breakpoints
-
-
-def _flatten_snapshot(var: Variable) -> Variable:
-    """Relabel a `snapshot` MultiIndex with its flat `(period, timestep)` tuples.
-
-    linopy strips the level coords from breakpoints, so breakpoints cannot carry
-    a `snapshot` MultiIndex to match the variables.
-    """
-    index = var.indexes.get("snapshot")
-    if not isinstance(index, pd.MultiIndex):
-        return var
-    data = var.data.reset_index("snapshot", drop=True)
-    return Variable(
-        data.assign_coords(snapshot=index.to_flat_index()), var.model, var.name
-    )
-
-
-def _expand_like(bp: xr.DataArray, var: Variable) -> xr.DataArray:
-    """Expand breakpoints over the dims of `var` they lack.
-
-    linopy cannot expand breakpoints over a dim labelled by tuples, such as the
-    flat `snapshot` of multi-period models.
-    """
-    missing = [d for d in var.dims if d not in bp.dims]
-    return bp.expand_dims({d: var.indexes[d] for d in missing})
 
 
 def _create_y_var(
