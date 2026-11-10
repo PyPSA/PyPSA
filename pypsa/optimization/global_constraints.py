@@ -49,6 +49,18 @@ def _period_last_storage_weightings(
     return period_last_sns, storage_weightings
 
 
+def _select_assets(static: pd.DataFrame, scenario: Any, query: str) -> pd.DataFrame:
+    """Select the assets of one scenario that match a `query_string`.
+
+    `scenario` is a slice for networks without scenarios. An empty `query`
+    selects all assets. Columns in `query` are only required if assets remain.
+    """
+    if not isinstance(scenario, slice):
+        in_scenario = static.index.get_level_values("scenario") == scenario
+        static = static[in_scenario].droplevel("scenario")
+    return static.query(query) if query and not static.empty else static
+
+
 def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
     """Define per-carrier and potentially per-bus capacity expansion limits.
 
@@ -409,9 +421,9 @@ def define_primary_energy_limit(
                 n.c.generators.static.carrier.isin(emissions.index)
             ]
             gens = n.c.generators.filter_by_active_assets(gens, period)
+            gens = _select_assets(gens, scenario, glc.query_string)
 
             if not gens.empty:
-                gens = gens.loc[scenario]
                 p = m[var_name].sel(name=gens.index, snapshot=period_sns)
 
                 if n.has_scenarios:
@@ -452,8 +464,8 @@ def define_primary_energy_limit(
             cond = "carrier in @emissions.index and not cyclic_state_of_charge"
             sus = n.c.storage_units.static.query(cond)
             sus = n.c.storage_units.filter_by_active_assets(sus, period)
+            sus = _select_assets(sus, scenario, glc.query_string)
             if not sus.empty:
-                sus = sus.loc[scenario]
                 em_pu = sus.carrier.map(emissions)
                 soc = m["StorageUnit-state_of_charge"].sel(
                     name=sus.index, snapshot=period_sns
@@ -508,8 +520,8 @@ def define_primary_energy_limit(
                 "carrier in @emissions.index and not e_cyclic"
             )
             stores = n.c.stores.filter_by_active_assets(stores, period)
+            stores = _select_assets(stores, scenario, glc.query_string)
             if not stores.empty:
-                stores = stores.loc[scenario]
                 em_pu = stores.carrier.map(emissions)
                 e = m["Store-e"].sel(name=stores.index, snapshot=period_sns)
 
@@ -650,8 +662,8 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             gens = n.c.generators.static.query(
                 "carrier == @glc.carrier_attribute and active"
             )
+            gens = _select_assets(gens, scenario, glc.query_string)
             if not gens.empty:
-                gens = gens.loc[scenario]
                 p = m["Generator-p"].sel(name=gens.index, snapshot=period_sns)
                 if n.has_scenarios:
                     p = p.sel(scenario=scenario, drop=True)
@@ -662,9 +674,8 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             # storage units (non-cyclic): subtract end SoC and add initial SoC as constant
             cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge and active"
             sus = n.c.storage_units.static.query(cond)
-
+            sus = _select_assets(sus, scenario, glc.query_string)
             if not sus.empty:
-                sus = sus.loc[scenario]
                 soc = m["StorageUnit-state_of_charge"].sel(
                     name=sus.index, snapshot=period_sns
                 )
@@ -715,8 +726,8 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             stores = n.c.stores.static.query(
                 "carrier == @glc.carrier_attribute and not e_cyclic and active"
             )
+            stores = _select_assets(stores, scenario, glc.query_string)
             if not stores.empty:
-                stores = stores.loc[scenario]
                 e = m["Store-e"].sel(name=stores.index, snapshot=period_sns)
 
                 if n._multi_invest:
