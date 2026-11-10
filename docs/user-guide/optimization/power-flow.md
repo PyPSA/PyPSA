@@ -64,20 +64,22 @@ Zonal market models, such as a flow-based market coupling, need the sensitivity 
 
 $$\text{PTDF}^{\text{zonal}} = \text{PTDF}^{\text{nodal}} \cdot \text{GSK}.$$
 
-The GSK choice (uniform, weighted by installed capacity, ...) shapes the result; see Schönheit et al. (2020)[^gsk] for a comparison of strategies. The nodal PTDF depends on the slack bus, but the zonal PTDF only by a constant per branch, which cancels because the net positions of all zones sum to zero.
+The GSK choice (uniform, weighted by installed capacity, ...) shapes the result; see Schönheit et al. (2020)[^gsk] for a comparison of strategies. The nodal PTDF depends on the slack bus. The zonal PTDF depends on it only through a constant per branch, which cancels because the net positions of all zones sum to zero.
 
-[`calculate_zonal_PTDF`][pypsa.SubNetwork.calculate_zonal_PTDF] computes the zonal PTDF per sub-network. It returns one critical network element (CNEC) per branch and flow direction, `"<branch> (+)"` and `"<branch> (-)"`, so the result plugs directly into a [flow-based domain](global-constraints.md#flow-based-market-coupling) of a zonal network whose buses are the zones:
+[`calculate_zonal_PTDF`][pypsa.SubNetwork.calculate_zonal_PTDF] computes the zonal PTDF per sub-network. It returns one critical network element (CNEC) per branch and flow direction, `"<branch> (+)"` and `"<branch> (-)"`, so the result plugs directly into a [flow-based domain](./global-constraints.md#flow-based-market-coupling) of a zonal network whose buses are the zones:
 
 ```python
 n.determine_network_topology()
 sub = n.c.sub_networks.static.obj.iloc[0]
 node_to_zone = n.c.buses.static["country"]  # any bus -> zone mapping (a pandas Series)
 
-zonal_ptdf = sub.calculate_zonal_PTDF(node_to_zone, gsk="capacity")  # or "uniform"
 s_nom = n.c.lines.static.s_nom
+zonal_ptdf = sub.calculate_zonal_PTDF(node_to_zone, gsk="capacity", branches=s_nom.index)
 ram = pd.concat([s_nom.add_suffix(" (+)"), s_nom.add_suffix(" (-)")])
 n_zonal.c.global_constraints.add_flow_based(zonal_ptdf, ram)
 ```
+
+The zonal PTDF predicts the nodal flows exactly only if every bus changes its injection as the GSK assumes. Operational flow-based domains also set the RAM below the thermal limit: they subtract a reliability margin and the flow expected at zero net positions, e.g. from trades within a zone. The `s_nom` above ignores both.
 
 The `gsk` argument is a scheme name or a ready bus x zone frame. Two builders are provided: [`gsk_uniform`][pypsa.SubNetwork.gsk_uniform] (equal weight per bus) and [`gsk_by_capacity`][pypsa.SubNetwork.gsk_by_capacity] (weight proportional to generator `p_nom`, or another capacity attribute such as `p_nom_opt` via `attr`, optionally filtered by `carrier`). A zone without capacity falls back to uniform weights. Each zone must lie in one sub-network. Networks with investment periods are supported if all branches (and, for `"capacity"`, all generators) are active in every period; stochastic networks are not yet supported.
 

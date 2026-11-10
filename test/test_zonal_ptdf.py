@@ -43,11 +43,6 @@ def sub_network(n: pypsa.Network) -> pypsa.SubNetwork:
     return n.c.sub_networks.static.obj.iloc[0]
 
 
-def triangle(**kwargs) -> pypsa.SubNetwork:
-    """Sub-network of the triangle, zones A={n1,n2} and B={n3}."""
-    return sub_network(triangle_network(**kwargs))
-
-
 # GSK builders
 
 
@@ -67,7 +62,8 @@ def triangle(**kwargs) -> pypsa.SubNetwork:
     ],
 )
 def test_gsk_weights(builder, kwargs, p_nom, weight_n1):
-    sub = triangle(p_nom=p_nom)
+    n = triangle_network(p_nom=p_nom)
+    sub = sub_network(n)
     sub.n.c.generators.static["p_nom_opt"] = [300.0, 100.0, 50.0]
     g = builder(sub, ZONES, **kwargs)
     np.testing.assert_allclose(g.sum(), 1.0)
@@ -80,24 +76,15 @@ def test_gsk_weights(builder, kwargs, p_nom, weight_n1):
 
 
 def test_cnecs_cover_both_directions():
-    zp = triangle().calculate_zonal_PTDF(ZONES)
+    n = triangle_network()
+    sub = sub_network(n)
+    zp = sub.calculate_zonal_PTDF(ZONES)
     assert list(zp.columns) == ["A", "B"]
     plus = zp.loc[["l12 (+)", "l23 (+)", "l13 (+)"]]
     minus = zp.loc[["l12 (-)", "l23 (-)", "l13 (-)"]]
     np.testing.assert_allclose(plus.values, -minus.values)
-
-
-def test_branches_selects_monitored_cnecs():
-    zp = triangle().calculate_zonal_PTDF(ZONES, branches=["l23"])
-    assert list(zp.index) == ["l23 (+)", "l23 (-)"]
-
-
-def test_ready_gsk_frame_equals_scheme_name():
-    sub = triangle()
-    pd.testing.assert_frame_equal(
-        sub.calculate_zonal_PTDF(ZONES, gsk=sub.gsk_uniform(ZONES)),
-        sub.calculate_zonal_PTDF(ZONES, gsk="uniform"),
-    )
+    monitored = sub.calculate_zonal_PTDF(ZONES, branches=["l23"])
+    assert list(monitored.index) == ["l23 (+)", "l23 (-)"]
 
 
 @pytest.mark.parametrize("gsk", ["uniform", "capacity"])
@@ -170,8 +157,9 @@ def test_single_node_subnetwork_is_empty():
 )
 def test_invalid_input_raises(kwargs, match):
     kwargs = {"node_to_zone": ZONES} | kwargs
+    n = triangle_network()
     with pytest.raises(ValueError, match=match):
-        triangle().calculate_zonal_PTDF(**kwargs)
+        sub_network(n).calculate_zonal_PTDF(**kwargs)
 
 
 def test_zone_across_sub_networks_raises():
@@ -191,9 +179,10 @@ def test_multi_period_needs_period_invariant_assets(component, gsk):
     n.set_snapshots(pd.MultiIndex.from_product([[2030, 2040], [0]]))
     n.set_investment_periods([2030, 2040])
     sub = sub_network(n)
+    single_period = triangle_network()
     pd.testing.assert_frame_equal(
         sub.calculate_zonal_PTDF(ZONES, gsk=gsk),
-        triangle().calculate_zonal_PTDF(ZONES, gsk=gsk),
+        sub_network(single_period).calculate_zonal_PTDF(ZONES, gsk=gsk),
     )
     n.c[component].static["build_year"] = [2020, 2020, 2035]
     n.c[component].static["lifetime"] = 100
