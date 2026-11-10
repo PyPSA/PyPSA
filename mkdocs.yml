@@ -106,6 +106,7 @@ nav:
     - examples/minimal-example-pf.ipynb
     - examples/negative-prices-kvl-baker.ipynb
     - examples/rolling-horizon.ipynb
+    - examples/forecast-errors.ipynb
     - examples/water-value.ipynb
     - examples/demand-supply-bids.ipynb
   - Planning Problems:
@@ -132,6 +133,7 @@ nav:
     - examples/fbmc-simple-example.ipynb
     - examples/fbmc-building-domain.ipynb
     - examples/demand-elasticity.ipynb
+    - examples/data-centre-investment.ipynb
     - examples/imperfect-competition.ipynb
     - examples/cfd-ppa-settlement.ipynb
     - examples/generation-investment-screening-curve.ipynb

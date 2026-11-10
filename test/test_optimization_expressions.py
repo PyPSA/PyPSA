@@ -345,8 +345,8 @@ def test_concrete_at_port(prepared_network):
 
 
 class TestExpressionsWithPiecewise:
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def piecewise_network_built(piecewise_network):
         piecewise_network.optimize.create_model(include_objective_constant=False)
         return piecewise_network
