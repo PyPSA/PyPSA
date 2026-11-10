@@ -15,11 +15,13 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import xarray as xr
+from linopy.solvers import Solver, SolverFeature, available_solvers
 
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import _scenarios_not_implemented, as_index
 from pypsa.components.array import _from_xarray
+from pypsa.consistency import OPTIMIZE_STRICT_CHECKS
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.constraints import ENERGY_LIMITS, ENERGY_WEIGHTING
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
@@ -31,6 +33,11 @@ if TYPE_CHECKING:
 
     from pypsa import Components, Network, SubNetwork
 logger = logging.getLogger(__name__)
+
+_STORAGE_LEVELS = (
+    ("stores", "e_initial", "e"),
+    ("storage_units", "state_of_charge_initial", "state_of_charge"),
+)
 
 
 def discretized_capacity(
@@ -187,6 +194,7 @@ def _add_security_constraints(
                 con.sign.sel(con_selection),
                 con.rhs.sel(con_selection),
                 name=name,
+                scaling=con.scaling.sel(con_selection),
             )
 
 
@@ -237,6 +245,8 @@ def _tracked_limits(
     if "p" in c._operational_variables:
         lower, upper = _power_bounds(c, snapshots)
         hint = f"a finite {c._operational_attrs['nom_max']}"
+        if c.name == "Store":
+            hint += " and a finite max_hours"
     else:
         upper = pd.DataFrame(np.inf, index=snapshots, columns=c.static.index)
         lower = -upper
@@ -553,6 +563,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         branch_outages: Sequence | pd.Index | pd.MultiIndex | None = None,
         multi_investment_periods: bool = False,
         model_kwargs: dict | None = None,
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Compute Security-Constrained Linear Optimal Power Flow (SCLOPF).
@@ -581,6 +592,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver, see
+            `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -613,6 +627,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 snapshots,
                 multi_investment_periods=multi_investment_periods,
                 model_kwargs=model_kwargs,
+                objective_scaling=objective_scaling,
                 **kwargs,
             )
 
@@ -630,6 +645,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         m = n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
+            objective_scaling=objective_scaling,
             **model_kwargs,
         )
 
@@ -654,6 +670,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         snapshots: Sequence | None = None,
         horizon: int = 100,
         overlap: int = 0,
+        consistency_check: bool = True,
         **kwargs: Any,
     ) -> Network:
         """Optimizes the network in a rolling horizon fashion.
@@ -670,7 +687,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         produced in later windows. Without foresight the resulting dispatch
         pattern depends on the order of the windows. A `ValueError` is raised if
         this energy is unbounded, e.g. for an extendable component with
-        `p_nom_max=inf` or for a store. If limits are tracked, a
+        `p_nom_max=inf` or for a store with `max_hours=inf`. If limits are tracked, a
         `RuntimeError` is raised as soon as a window fails to solve. Otherwise,
         a failed window only logs a warning.
 
@@ -682,8 +699,15 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             Number of snapshots to consider in each iteration. Defaults to 100.
         overlap : int
             Number of snapshots to overlap between two iterations. Defaults to 0.
+        consistency_check : bool
+            Whether to run the consistency check once for the whole network
+            before the first window. The windows themselves skip it. Defaults
+            to True.
         **kwargs:
-            Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+            Keyword argument used by `linopy.Model.solve`, such as `solver_name`.
+            Unless `io_api` or `problem_fn` is given, `io_api="direct"` is used
+            for solvers that support linopy's direct API, which avoids writing
+            and reading a problem file for every window.
 
         """
         n = self._n
@@ -693,6 +717,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         if horizon <= overlap:
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
+
+        if consistency_check:
+            n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
 
         stores = n.c.stores
         cycles_max = stores.static.cycles_max.copy()
@@ -705,6 +732,14 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             if len(starting_points) == 1
             else _all_tracked_limits(n, weights, snapshots)
         )
+
+        solver_name = kwargs.get("solver_name") or options.params.optimize.solver_name
+        if (
+            kwargs.keys().isdisjoint({"io_api", "problem_fn"})
+            and solver_name in available_solvers
+            and Solver.from_name(solver_name).supports(SolverFeature.DIRECT_API)
+        ):
+            kwargs["io_api"] = "direct"
 
         try:
             for i, start in enumerate(starting_points):
@@ -719,16 +754,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 )
 
                 if i:
-                    if not n.c.stores.static.empty:
-                        n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
-                            snapshots[start - 1]
-                        ].values
-                    if not n.c.storage_units.static.empty:
-                        n.c.storage_units.static.state_of_charge_initial = (
-                            n.c.storage_units.dynamic.state_of_charge.loc[
-                                snapshots[start - 1]
-                            ].values
-                        )
+                    prev, first = snapshots[start - 1], sns[:1]
+                    eh = n.snapshot_weightings.stores.loc[first].iloc[0]
+                    for c, attr, level in _STORAGE_LEVELS:
+                        loss = n.c[c]._as_dynamic("standing_loss", first).iloc[0]
+                        level_prev = n.c[c].dynamic[level].loc[prev]
+                        n.c[c].static[attr] = level_prev * (1 - loss) ** eh
                 done, rest = snapshots[:start], snapshots[end:]
                 for name, attr, original, later in tracked:
                     c = n.c[name]
@@ -737,12 +768,12 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
                 # count the cycles of previous windows against `cycles_max`
                 eh = n.snapshot_weightings.stores.loc[done]
-                discharge = stores.dynamic.p.loc[done].clip(lower=0)
+                discharge = stores.dynamic.p_dispatch.loc[done]
                 used = discharge.mul(eh, axis=0).sum() / stores.static.e_nom_opt
                 remaining = cycles_max.sub(used.fillna(0), fill_value=0)
                 stores.static.cycles_max = remaining.clip(lower=0)
 
-                status, condition = n.optimize(sns, **kwargs)
+                status, condition = n.optimize(sns, consistency_check=False, **kwargs)
                 if status != "ok":
                     if tracked or track_cycles:
                         msg = (

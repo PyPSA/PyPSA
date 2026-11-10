@@ -495,7 +495,7 @@ def test_rolling_horizon_e_sum_stochastic():
         ("Generator", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
         ("Link", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
         ("Process", {"marginal_cost": 40}, "e_sum_min", 1500, "finite p_nom_max"),
-        ("Store", {"marginal_cost": 1}, "e_sum_max", 3000, "a single window"),
+        ("Store", {"marginal_cost": 1}, "e_sum_max", 3000, "finite max_hours"),
     ],
 )
 def test_rolling_horizon_e_sum_unbounded_capacity(
@@ -531,6 +531,30 @@ def test_rolling_horizon_failed_window(caplog):
     assert n.c.generators.static.loc["gen", "e_sum_max"] == 1000
 
 
+@pytest.mark.parametrize("consistency_check", [True, False])
+@pytest.mark.parametrize(
+    "optimize",
+    [
+        lambda n, **kw: n.optimize(**kw),
+        lambda n, **kw: n.optimize.optimize_with_rolling_horizon(horizon=2, **kw),
+    ],
+    ids=["optimize", "rolling_horizon"],
+)
+def test_strict_consistency_check_before_solving(optimize, consistency_check):
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=1)
+    n.add("Load", "load", bus="unknown", p_set=50)
+
+    if consistency_check:
+        with pytest.raises(pypsa.consistency.ConsistencyError):
+            optimize(n, consistency_check=consistency_check)
+    else:
+        optimize(n, consistency_check=consistency_check)
+
+    assert n.c.generators.dynamic.p.empty == consistency_check
+
+
 def test_rolling_horizon_v_ang_covers_all_snapshots():
     n = pypsa.Network(snapshots=pd.date_range("2030-01-01", periods=6, freq="h"))
     n.add("Bus", "bus")
@@ -540,3 +564,83 @@ def test_rolling_horizon_v_ang_covers_all_snapshots():
     n.optimize.optimize_with_rolling_horizon(horizon=2, overlap=0)
 
     assert n.c.buses.dynamic.v_ang.index.equals(n.snapshots)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "writes_file"),
+    [
+        ({}, False),
+        ({"io_api": "lp"}, True),
+        ({"problem_fn": "problem.lp"}, True),
+    ],
+)
+def test_rolling_horizon_writes_problem_file(tmp_path, kwargs, writes_file):
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=1)
+    n.add("Load", "load", bus="bus", p_set=50)
+    if "problem_fn" in kwargs:
+        kwargs = {"problem_fn": tmp_path / kwargs["problem_fn"]}
+
+    n.optimize.optimize_with_rolling_horizon(
+        horizon=2,
+        keep_files=True,
+        model_kwargs={"solver_dir": tmp_path},
+        **kwargs,
+    )
+
+    assert any(fn.stat().st_size for fn in tmp_path.glob("*.lp")) == writes_file
+
+
+@pytest.mark.parametrize(
+    ("component", "initial", "level", "kwargs"),
+    [
+        ("Store", "e_initial", "e", {"e_nom": 1000}),
+        (
+            "StorageUnit",
+            "state_of_charge_initial",
+            "state_of_charge",
+            {"p_nom": 1, "max_hours": 1000},
+        ),
+    ],
+)
+def test_rolling_horizon_storage_carry_over_stochastic(
+    component, initial, level, kwargs
+):
+    n = get_network(committable=False)
+    n.set_scenarios({"a": 0.5, "b": 0.5})
+    for name, value in [("s1", 10.0), ("s2", 100.0)]:
+        n.add("Bus", name)
+        n.add(component, name, bus=name, **kwargs, **{initial: value})
+
+    n.optimize.optimize_with_rolling_horizon(horizon=4)
+
+    result = n.c[component].dynamic[level]
+    assert (result.xs("s1", axis=1, level="name") == 10.0).all().all()
+    assert (result.xs("s2", axis=1, level="name") == 100.0).all().all()
+
+
+@pytest.mark.parametrize(
+    ("component", "level", "kwargs"),
+    [
+        ("Store", "e", {"e_nom": 1000}),
+        ("StorageUnit", "state_of_charge", {"p_nom": 100, "max_hours": 10}),
+    ],
+)
+def test_rolling_horizon_storage_standing_loss(component, level, kwargs):
+    def build():
+        n = pypsa.Network(snapshots=range(4))
+        n.add("Bus", "bus")
+        n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=[1, 9, 9, 9])
+        n.add("Load", "load", bus="bus", p_set=[0, 0, 0, 10])
+        loss = pd.Series([0.1, 0.2, 0.3, 0.05], n.snapshots)
+        n.add(component, "storage", bus="bus", standing_loss=loss, **kwargs)
+        return n
+
+    full, rolling = build(), build()
+    full.optimize()
+    rolling.optimize.optimize_with_rolling_horizon(horizon=4, overlap=2)
+
+    pd.testing.assert_frame_equal(
+        rolling.c[component].dynamic[level], full.c[component].dynamic[level]
+    )

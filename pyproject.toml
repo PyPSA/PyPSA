@@ -36,7 +36,7 @@ dependencies = [
     "pyarrow",
     "xarray",
     "netcdf4",
-    "linopy>=0.9.0",
+    "linopy>=0.10.0",
     "matplotlib",
     "plotly",
     "pydeck>=0.6",
@@ -133,6 +133,7 @@ filterwarnings = [
     "default:With PyPSA 1.0, the API for how to access components data has changed:DeprecationWarning",
     "default:When combining.*with other plots on a geographical axis.*:UserWarning", # TODO: needs to be checked
     "default:The default value of `include_objective_constant` will change:FutureWarning",
+    "default:The StorageUnit component is deprecated:FutureWarning",
     "default:pandas infers the `str` dtype for string data:FutureWarning",
 
     # Ignore linopy warnings
@@ -149,6 +150,9 @@ filterwarnings = [
     # numpy>=2.5 deprecations not yet handled by netCDF4 and matplotlib
     "ignore:Setting the shape on a NumPy array has been deprecated:DeprecationWarning",
     "ignore:The 'generic' unit for NumPy timedelta is deprecated:DeprecationWarning",
+
+    # pandas>=3.1 deprecations not yet handled by tsam
+    "ignore::pandas.errors.Pandas4Warning:tsam",
 ]
 markers = [
     "mpl_image_compare",

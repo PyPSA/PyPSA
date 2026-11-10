@@ -234,6 +234,37 @@ def test_statistics(ac_dc_stochastic_r):
     assert not df.empty
 
 
+def test_statistics_prices_grouped_keeps_scenario(ac_dc_stochastic_r):
+    """
+    Grouped prices keep the scenario level like the ungrouped prices.
+    """
+    n = ac_dc_stochastic_r
+    mp = n.c.buses.dynamic.marginal_price
+    mp.loc[:, "high"] = mp["high"].to_numpy() * 2
+
+    assert n.statistics.prices(groupby="bus_carrier").index.names == [
+        "scenario",
+        "bus_carrier",
+    ]
+
+    ungrouped = n.statistics.prices(weighting="time")
+    assert ungrouped.index.names == ["scenario", "name"]
+
+    grouped = n.statistics.prices(groupby="bus_carrier", weighting="time")
+    assert grouped.index.names == ["scenario", "bus_carrier"]
+    assert (grouped.loc["high"] > grouped.loc["low"]).all()
+
+    for scenario in ["low", "high"]:
+        carrier = n.c.buses.static.loc[scenario, "carrier"]
+        expected = ungrouped.loc[scenario].groupby(carrier).mean()
+        pd.testing.assert_series_equal(
+            grouped.loc[scenario],
+            expected,
+            check_names=False,
+            rtol=1e-3,
+        )
+
+
 def test_statistics_plot(ac_dc_stochastic_r):
     """
     Test the statistics plot of a stochastic network.
@@ -758,6 +789,46 @@ def test_store_stochastic_dimensions():
     status, condition = n.optimize()
     assert status == "ok"
     assert condition == "optimal"
+
+
+def test_store_split_dispatch_per_scenario():
+    """Scenarios with and without split dispatch match deterministic runs."""
+    split = {
+        "efficiency_store": 0.9,
+        "efficiency_dispatch": 0.9,
+        "marginal_cost_dispatch": 0.5,
+        "inflow": [5, 0],
+        "spill_cost": 1,
+    }
+
+    def network(**kwargs):
+        n = pypsa.Network(snapshots=range(2))
+        n.add("Bus", "bus")
+        n.add("Generator", "gen", bus="bus", p_nom=200, marginal_cost=[1, 100])
+        n.add("Load", "load", bus="bus", p_set=50)
+        n.add("Store", "store", bus="bus", e_nom=100, max_hours=2, **kwargs)
+        return n
+
+    n = network()
+    n.set_scenarios({"plain": 0.5, "split": 0.5})
+    for attr, value in split.items():
+        if isinstance(value, list):
+            n.c.stores.dynamic[attr][("split", "store")] = value
+        else:
+            n.c.stores.static.loc[("split", "store"), attr] = value
+    n.optimize()
+
+    plain, det = network(), network(**split)
+    plain.optimize()
+    det.optimize()
+
+    assert n.objective == pytest.approx(0.5 * (plain.objective + det.objective))
+    for attr in ["p", "p_store", "e"]:
+        df = n.c.stores.dynamic[attr]
+        equal(df[("plain", "store")], plain.c.stores.dynamic[attr]["store"])
+        equal(df[("split", "store")], det.c.stores.dynamic[attr]["store"])
+    spill = n.c.stores.dynamic.spill[("split", "store")]
+    equal(spill, det.c.stores.dynamic.spill["store"])
 
 
 def test_scenario_ordering_bug():
