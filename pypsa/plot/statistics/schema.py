@@ -156,7 +156,6 @@ STAT_OVERRIDES: dict = {
     },
     # Statistics with no special overrides
     "lcoe": {},
-    "profit": {},
     "capex": {},
     "installed_capex": {},
     "expanded_capex": {},
