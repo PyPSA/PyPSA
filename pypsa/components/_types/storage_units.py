@@ -123,7 +123,7 @@ class StorageUnits(Components):
         su     40.0        4.0           2.0
 
         """
-        n = self.n_save
+        n = self.n
         if n.has_scenarios:
             msg = "Converting storage units is not supported for stochastic networks."
             raise NotImplementedError(msg)

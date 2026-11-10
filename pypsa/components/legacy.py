@@ -32,6 +32,7 @@ from pypsa.components.types import get as get_component_type
 if TYPE_CHECKING:
     import pandas as pd
 
+    from pypsa import Network
     from pypsa.components.components import Components
     from pypsa.definitions.components import ComponentType
     from pypsa.definitions.structures import Dict
@@ -74,7 +75,8 @@ class Component:
         cls,
         name: str | None = None,
         ctype: ComponentType | None = None,
-        n: Any | None = None,
+        *,
+        n: Network,
         static: pd.DataFrame | None = None,
         dynamic: Dict | None = None,
         piecewise: Dict | None = None,
@@ -92,13 +94,11 @@ class Component:
         component_class = _CLASS_MAPPING.get(ctype_.name)
         instance: Components
         if component_class is not None:
-            instance = component_class(ctype=ctype_)
+            instance = component_class(ctype=ctype_, n=n)
         else:
             msg = f"Component type '{ctype_.name}' not found."
             raise UnexpectedError(msg)
 
-        if n is not None:
-            instance.n = n
         if static is not None:
             instance.static = static
         if dynamic is not None:

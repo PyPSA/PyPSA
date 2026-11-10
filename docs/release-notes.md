@@ -14,9 +14,6 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
-### Documentation
-
-- Added an [example notebook](./examples/data-centre-investment.ipynb) on data centre investment with a willingness to pay, modelled as an extendable generator with negative sign and quadratic marginal costs.
 ### Features
 
 - Add [numerical scaling](./user-guide/optimization/numerical-scaling.md) of optimization problems via linopy. The new attribute `scaling` of [Bus](./user-guide/components/buses.md) and [GlobalConstraint](./user-guide/components/global-constraints.md) sets the solver unit of a bus and a global constraint row, and the new argument `objective_scaling` of [`n.optimize`][pypsa.optimization.OptimizationAccessor.__call__] and related methods scales the objective. Results are reported in original units. Requires `linopy>=0.10.0`. (<!-- md:pr 2052 -->)
@@ -32,9 +29,14 @@ SPDX-License-Identifier: CC-BY-4.0
     - **Behavior change**: The voltage angles `v_ang` after the optimization are now zero at the slack bus of each sub-network, as in [`n.lpf()`][pypsa.Network.lpf]. Before, they were shifted to zero mean per sub-network. Angle differences across lines are unchanged.
 - Add the argument `consistency_check` to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] to skip the consistency check before building the model.
 
+### Enhancements
+
+- Deprecation: `c.n_save` and `c.attached` of [`Components`][pypsa.Components] are deprecated and will be removed in PyPSA 2.0. Components are attached to a network, use `c.n`. (<!-- md:pr 2106 -->)
+
 ### Documentation
 
 - Add a new example on [forecast errors and the value of foresight](./examples/forecast-errors.ipynb), which operates a price-taker battery against price forecasts that are reissued every day and settles the committed schedule at realised prices. (<!-- md:pr 1928 -->)
+- Added an [example notebook](./examples/data-centre-investment.ipynb) on data centre investment with a willingness to pay, modelled as an extendable generator with negative sign and quadratic marginal costs.
 
 ### Bug Fixes
 
