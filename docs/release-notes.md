@@ -32,6 +32,10 @@ SPDX-License-Identifier: CC-BY-4.0
     - **Behavior change**: The voltage angles `v_ang` after the optimization are now zero at the slack bus of each sub-network, as in [`n.lpf()`][pypsa.Network.lpf]. Before, they were shifted to zero mean per sub-network. Angle differences across lines are unchanged.
 - Add the argument `consistency_check` to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] to skip the consistency check before building the model.
 
+### Documentation
+
+- Add a new example on [forecast errors and the value of foresight](./examples/forecast-errors.ipynb), which operates a price-taker battery against price forecasts that are reissued every day and settles the committed schedule at realised prices. (<!-- md:pr 1928 -->)
+
 ### Bug Fixes
 
 - Fix compatibility with pandas 3.1: default snapshot weightings are floats again, clustering networks without lines no longer fails, and statistics, HDF5 and netCDF export no longer emit deprecation warnings. (<!-- md:pr 2111 -->)
