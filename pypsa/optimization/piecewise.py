@@ -29,6 +29,8 @@ from linopy.constraints import CSRConstraint
 
 from pypsa._linopy_compat import (
     SUPPORTS_BREAKPOINT_MASK,
+    expand_breakpoints,
+    flatten_snapshot,
     suppress_semantics_warnings,
 )
 from pypsa.descriptors import nominal_attrs
@@ -168,6 +170,11 @@ def define_piecewise(
         )
         y_var = _create_y_var(m, x_var, pw_names, aux_var_name, y_scaling)
     y_var_sel = y_var.sel(name=pw_names)
+    x_flat, y_flat = flatten_snapshot(x_var), flatten_snapshot(y_var)
+    if status is not None:
+        status = flatten_snapshot(status)
+    x_breakpoints = expand_breakpoints(x_breakpoints, x_flat)
+    y_breakpoints = expand_breakpoints(y_breakpoints, x_flat)
     sorted_options = sorted(extra_options, key=lambda x: x.name, reverse=True)
     for option in [*sorted_options, None]:
         if option is None:
@@ -208,8 +215,8 @@ def define_piecewise(
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=EvolvingAPIWarning)
             formulation = m.add_piecewise_formulation(
-                (y_var.sel(name=names), y_breakpoints.sel(name=names), opt_sign),
-                (x_var.sel(name=names), x_breakpoints.sel(name=names)),
+                (y_flat.sel(name=names), y_breakpoints.sel(name=names), opt_sign),
+                (x_flat.sel(name=names), x_breakpoints.sel(name=names)),
                 **mask_kwargs,
                 method=opt_method,
                 name=aux,

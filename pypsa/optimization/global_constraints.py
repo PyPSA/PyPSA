@@ -487,7 +487,9 @@ def define_primary_energy_limit(
 
                     sus_per_period = sus.query("state_of_charge_initial_per_period")
                     if not sus_per_period.empty:
-                        soc_final = soc.loc[period_last_sns, sus_per_period.index]
+                        soc_final = soc.sel(
+                            snapshot=period_last_sns, name=sus_per_period.index
+                        )
                         if n.has_scenarios:
                             soc_final = soc_final.sel(scenario=scenario, drop=True)
                         soc_delta = -soc_final + sus_per_period.state_of_charge_initial
@@ -539,7 +541,9 @@ def define_primary_energy_limit(
 
                     stores_per_period = stores.query("e_initial_per_period")
                     if not stores_per_period.empty:
-                        e_final = e.loc[period_last_sns, stores_per_period.index]
+                        e_final = e.sel(
+                            snapshot=period_last_sns, name=stores_per_period.index
+                        )
                         if n.has_scenarios:
                             e_final = e_final.sel(scenario=scenario, drop=True)
                         e_delta = -e_final + stores_per_period.e_initial
@@ -693,7 +697,9 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
                     sus_per_period = sus.query("state_of_charge_initial_per_period")
                     if not sus_per_period.empty:
-                        soc_final = soc.loc[period_last_sns, sus_per_period.index]
+                        soc_final = soc.sel(
+                            snapshot=period_last_sns, name=sus_per_period.index
+                        )
                         if n.has_scenarios:
                             soc_final = soc_final.sel(scenario=scenario, drop=True)
                         soc_delta = -soc_final + sus_per_period.state_of_charge_initial
@@ -738,7 +744,9 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
                     stores_per_period = stores.query("e_initial_per_period")
                     if not stores_per_period.empty:
-                        e_final = e.loc[period_last_sns, stores_per_period.index]
+                        e_final = e.sel(
+                            snapshot=period_last_sns, name=stores_per_period.index
+                        )
                         if n.has_scenarios:
                             e_final = e_final.sel(scenario=scenario, drop=True)
                         e_delta = -e_final + stores_per_period.e_initial
