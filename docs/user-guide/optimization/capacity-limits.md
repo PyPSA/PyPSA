@@ -233,7 +233,9 @@ The start-up and shut-down cost terms in the objective function are multiplied b
 
 !!! warning "Initial status affects start-up costs"
 
-    The `status` attribute defaults to 1, which is used as $u_{t-1}$ for the first snapshot. For modular committable components, this means **one module is assumed to be already committed** at the start of the optimization. For example, if the optimizer invests in 5 modules and commits all 5 in the first timestep, only 4 start-up events are counted ($su_0 \geq 5 - 1 = 4$), and start-up costs are only charged for those 4 transitions. To charge start-up costs for all modules, set the initial status to 0 via `n.generators.loc[name, "status"] = 0`. This also applies to the non-modular (big-M) committable formulation.
+    Before `n.snapshots`, commitment is reconstructed from `up_time_before` (default 1) and `down_time_before` (default 0; a positive value takes precedence). For an **extendable** modular unit, `n_mod` is a variable, so this history stays a 0/1 flag and **one module is assumed to be already committed** when `up_time_before > 0`. If the optimizer invests in 5 modules and commits all 5 in the first timestep, only 4 start-up events are counted ($su_0 \geq 5 - 1 = 4$), and start-up costs are only charged for those 4 transitions. Set `up_time_before=0` to charge start-up costs for every module. The same 0/1 flag applies to the non-modular (big-M) formulation.
+
+    For a **fixed** modular unit (`p_nom_extendable=False`), `up_time_before > 0` means all installed modules were on, and a positive `down_time_before` means all were off.
 
 These constraints are defined in the function `define_operational_constraints_for_committables()`.
 

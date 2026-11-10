@@ -1685,3 +1685,133 @@ def test_noncommittable_first_snapshot_ramp(flex_kwargs, with_committable):
 
     assert status == "ok"
     assert n.c.generators.dynamic.p.loc[0, "flex"] == pytest.approx(5)
+
+
+def test_fixed_modular_prehorizon_on_does_not_start_modules():
+    """A fixed modular unit that was on does not start its other modules.
+
+    Regression test for https://github.com/PyPSA/PyPSA/issues/2114.
+    """
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=40)
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=100)
+    n.add(
+        "Generator",
+        "unit",
+        bus="bus",
+        p_nom=40,
+        p_nom_mod=10,
+        committable=True,
+        marginal_cost=1,
+        start_up_cost=100,
+        up_time_before=1,
+    )
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+    assert n.generators_t.start_up["unit"].tolist() == [0, 0, 0]
+    assert n.objective == pytest.approx(120)
+
+
+def test_fixed_modular_prehorizon_shut_down_blocks_all_modules():
+    """A pre-horizon shut-down holds every installed module for ``min_down_time``.
+
+    Regression test for https://github.com/PyPSA/PyPSA/issues/2114.
+    """
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=40)
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=100)
+    n.add(
+        "Generator",
+        "unit",
+        bus="bus",
+        p_nom=40,
+        p_nom_mod=10,
+        committable=True,
+        marginal_cost=1,
+        min_down_time=3,
+        up_time_before=0,
+        down_time_before=1,
+    )
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+    assert n.generators_t.status["unit"].tolist() == [0, 0, 4]
+    assert n.objective == pytest.approx(8040)
+    rhs = n.model.constraints["Generator-com-down-time"].rhs.sel(name="unit")
+    equal(rhs.sel(snapshot=[0, 1]).values, [0, 0])
+
+
+def test_fixed_modular_prehorizon_on_shuts_down_all_modules():
+    """Shutting down a unit that was on counts every installed module."""
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "unit",
+        bus="bus",
+        p_nom=40,
+        p_nom_mod=10,
+        # No load and full part-load force every module off.
+        p_min_pu=1,
+        committable=True,
+        shut_down_cost=100,
+        up_time_before=1,
+    )
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+    assert n.generators_t.shut_down["unit"].tolist() == [4, 0]
+    assert n.objective == pytest.approx(400)
+
+
+def test_extendable_modular_prehorizon_status_stays_one_module():
+    """Extendable modular units keep the 0/1 pre-horizon flag."""
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.add(
+        "Generator",
+        "unit",
+        bus="bus",
+        p_nom_extendable=True,
+        p_nom_mod=10,
+        p_nom_max=40,
+        committable=True,
+        marginal_cost=1,
+        up_time_before=1,
+    )
+
+    n.optimize.create_model()
+    rhs = n.model.constraints["Generator-com-transition-start-up"].rhs
+    assert rhs.sel(snapshot=0, name="unit").item() == pytest.approx(-1)
+
+
+def test_solved_modular_status_is_not_rescaled():
+    """A stored status of 2 modules stays 2 in the next window."""
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[20, 40])
+    n.add("Generator", "backup", bus="bus", p_nom=100, marginal_cost=1000)
+    n.add(
+        "Generator",
+        "unit",
+        bus="bus",
+        p_nom=40,
+        p_nom_mod=10,
+        p_min_pu=1,
+        committable=True,
+        marginal_cost=1,
+        start_up_cost=100,
+        up_time_before=0,
+    )
+
+    status, _ = n.optimize(solver_name="highs", snapshots=[0])
+    assert status == "ok"
+    assert n.generators_t.status.loc[0, "unit"] == 2
+
+    status, _ = n.optimize(solver_name="highs", snapshots=[1])
+    assert status == "ok"
+    assert n.generators_t.start_up.loc[1, "unit"] == 2
