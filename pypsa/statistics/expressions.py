@@ -2889,9 +2889,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         sales with `bus_carrier="heat"`.
 
         The gap to the price the component captures at the same ports is its profit
-        per unit supplied. An extendable component built at an interior optimum makes
-        no profit, so its LCOE equals its capture price, wherever it sits in the merit
-        order.
+        per unit supplied. In equilibrium, an extendable component at an interior
+        optimum makes no profit, so its LCOE equals the price it captures, i.e. the
+        market value of a generator
+        ([Brown and Reichenberg, 2021](https://doi.org/10.1016/j.eneco.2021.105354)).
 
         !!! note
 

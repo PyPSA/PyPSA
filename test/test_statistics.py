@@ -181,8 +181,8 @@ def test_lcoe_below_market_value_with_scarcity_rent():
     assert market_value == 100
 
 
-@pytest.fixture
-def chp_network():
+@pytest.fixture(params=["Link", "Process"])
+def chp_network(request):
     """Gas-fired CHP with electricity and heat outputs, both priced by a backup."""
     n = pypsa.Network(snapshots=range(3))
     n.add("Carrier", ["gas", "electricity", "heat", "chp", "backup", "boiler"])
@@ -190,18 +190,12 @@ def chp_network():
     n.add(
         "Generator", "gas supply", bus="gas", carrier="gas", p_nom=200, marginal_cost=20
     )
-    n.add(
-        "Link",
-        "chp",
-        bus0="gas",
-        bus1="electricity",
-        bus2="heat",
-        carrier="chp",
-        p_nom=100,
-        efficiency=0.4,
-        efficiency2=0.4,
-        capital_cost=150,
-    )
+    ports = {"bus0": "gas", "bus1": "electricity", "bus2": "heat"}
+    if request.param == "Link":
+        ports |= {"efficiency": 0.4, "efficiency2": 0.4}
+    else:
+        ports |= {"rate0": -1, "rate1": 0.4, "rate2": 0.4}
+    n.add(request.param, "chp", carrier="chp", p_nom=100, capital_cost=150, **ports)
     n.add(
         "Generator",
         "backup",
@@ -232,15 +226,83 @@ def test_lcoe_credits_by_products(chp_network, bus_carrier, by_product_price, ex
     capex, fuel, output = 150 * 100, 100 * 20 * 3, 40 * 3
     credit = 40 * by_product_price * 3
     lcoe = chp_network.statistics.lcoe(bus_carrier=bus_carrier, groupby=False)
-    assert lcoe["Link", "chp"] == pytest.approx((capex + fuel - credit) / output)
-    assert lcoe["Link", "chp"] == pytest.approx(expected)
+    assert lcoe.xs("chp", level="name").item() == pytest.approx(
+        (capex + fuel - credit) / output
+    )
+    assert lcoe.xs("chp", level="name").item() == pytest.approx(expected)
 
 
 def test_lcoe_charges_inputs(chp_network):
     """Without a by-product filter, the gas bought is part of the cost."""
     lcoe = chp_network.statistics.lcoe(groupby=False)
     capex, fuel, output = 150 * 100, 100 * 20 * 3, 80 * 3
-    assert lcoe["Link", "chp"] == pytest.approx((capex + fuel) / output)
+    assert lcoe.xs("chp", level="name").item() == pytest.approx((capex + fuel) / output)
+
+
+@pytest.mark.parametrize(
+    ("bus_carrier", "expected"),
+    [("methanol", 170), (None, 170), ("hydrogen", np.nan)],
+)
+def test_lcoe_charges_several_inputs(bus_carrier, expected):
+    """Methanolisation buys hydrogen, electricity and CO2 to supply 50 MW for 3 h.
+
+    Per MWh of hydrogen, it buys 0.1 MWh of electricity and 0.2 t of CO2, at 60, 50
+    and 50 EUR/MWh or EUR/t, and yields 0.5 MWh of methanol: inputs cost 75 / 0.5 =
+    150 EUR/MWh of methanol. Its capital cost of 30 EUR/MW of hydrogen input adds
+    30 * 100 / 150 = 20 EUR/MWh. Methanol is its only output, so levelising over all
+    ports is the same, while the hydrogen port supplies nothing. At its interior
+    optimum, its LCOE is the price it captures.
+    """
+    n = pypsa.Network(snapshots=range(3))
+    carriers = ["hydrogen", "electricity", "co2", "methanol"]
+    n.add("Bus", carriers, carrier=carriers)
+    n.add(
+        "Generator",
+        carriers[:3],
+        bus=carriers[:3],
+        p_nom=1e3,
+        marginal_cost=[60, 50, 50],
+    )
+    n.add(
+        "Link",
+        "methanolisation",
+        bus0="hydrogen",
+        bus1="methanol",
+        bus2="electricity",
+        bus3="co2",
+        efficiency=0.5,
+        efficiency2=-0.1,
+        efficiency3=-0.2,
+        p_nom_extendable=True,
+        capital_cost=30,
+    )
+    n.add("Load", "demand", bus="methanol", p_set=50)
+    n.optimize()
+
+    kwargs = {"components": ["Link"], "groupby": False, "drop_zero": False}
+    lcoe = n.statistics.lcoe(bus_carrier=bus_carrier, **kwargs)
+    lcoe = lcoe["Link", "methanolisation"]
+    assert lcoe == pytest.approx(expected, nan_ok=True)
+    if bus_carrier == "methanol":
+        captured = n.statistics.revenue(
+            direction="output", bus_carrier="methanol", **kwargs
+        )
+        supplied = n.statistics.supply(bus_carrier="methanol", **kwargs)
+        assert lcoe == pytest.approx((captured / supplied)["Link", "methanolisation"])
+
+
+def test_lcoe_is_market_value_minus_co2_cost(ac_dc_network_r):
+    """LCOE = MV - e * mu (Brown and Reichenberg, 2021): wind breaks even, gas pays CO2."""
+    n = ac_dc_network_r
+    kwargs = {"components": ["Generator"], "round": None}
+    lcoe = n.statistics.lcoe(**kwargs)
+    market_value = n.statistics.market_value(**kwargs)
+    co2_limit = n.c.global_constraints.static.loc["co2_limit"]
+    co2_cost = abs(co2_limit.mu) * co2_limit.constant / n.statistics.supply(**kwargs)
+    assert lcoe["Generator", "wind"] == pytest.approx(market_value["Generator", "wind"])
+    assert lcoe["Generator", "gas"] == pytest.approx(
+        market_value["Generator", "gas"] - co2_cost["Generator", "gas"]
+    )
 
 
 @pytest.mark.parametrize(
