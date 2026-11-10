@@ -806,7 +806,9 @@ class NetworkPowerFlowMixin(_NetworkABC):
         if self.has_scenarios:
             buses = buses.xs(self.scenarios[0], level="scenario")
 
-        self.c.lines.static["v_nom"] = self.c.lines.static.bus0.map(buses.v_nom)
+        self.c.lines.static["v_nom"] = self.c.lines.static.bus0.map(buses.v_nom).astype(
+            float
+        )
         self.c.lines.static.loc[self.c.lines.static.carrier == "", "carrier"] = (
             self.c.lines.static.bus0.map(buses.carrier)
         )
@@ -848,9 +850,9 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         apply_transformer_t_model(self)
 
-        self.c.shunt_impedances.static["v_nom"] = self.c.shunt_impedances.static[
-            "bus"
-        ].map(buses.v_nom)
+        self.c.shunt_impedances.static["v_nom"] = (
+            self.c.shunt_impedances.static["bus"].map(buses.v_nom).astype(float)
+        )
         self.c.shunt_impedances.static["b_pu"] = (
             self.c.shunt_impedances.static.b * self.c.shunt_impedances.static.v_nom**2
         )
@@ -1019,7 +1021,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
             p0_new = p0_base + pd.Series(
                 sub_network.BODF[:, branch_i] * p0_base[branch],
                 sub_network._branches.index,
-            )
+            ).reindex(p0_base.index, fill_value=0)
             p0_new.name = branch
 
             p0 = pd.concat([p0, p0_new], axis=1)

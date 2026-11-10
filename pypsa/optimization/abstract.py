@@ -8,17 +8,22 @@ from __future__ import annotations
 
 import gc
 import logging
+from functools import reduce
 from itertools import product
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 import xarray as xr
+from linopy.solvers import Solver, SolverFeature, available_solvers
 
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
-from pypsa.common import as_index
+from pypsa.common import _scenarios_not_implemented, as_index
+from pypsa.components.array import _from_xarray
+from pypsa.consistency import OPTIMIZE_STRICT_CHECKS
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.constraints import ENERGY_LIMITS, ENERGY_WEIGHTING
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
 
 if TYPE_CHECKING:
@@ -26,8 +31,13 @@ if TYPE_CHECKING:
 
     from linopy import Model
 
-    from pypsa import Network, SubNetwork
+    from pypsa import Components, Network, SubNetwork
 logger = logging.getLogger(__name__)
+
+_STORAGE_LEVELS = (
+    ("stores", "e_initial", "e"),
+    ("storage_units", "state_of_charge_initial", "state_of_charge"),
+)
 
 
 def discretized_capacity(
@@ -184,7 +194,106 @@ def _add_security_constraints(
                 con.sign.sel(con_selection),
                 con.rhs.sel(con_selection),
                 name=name,
+                scaling=con.scaling.sel(con_selection),
             )
+
+
+def _energy_weightings(n: Network, multi_invest: bool) -> pd.Series:
+    """Get the snapshot weightings of volume limits, weighted by period years."""
+    weights = n.snapshot_weightings[ENERGY_WEIGHTING]
+    if not multi_invest:
+        return weights
+    period_of = weights.index.get_level_values("period")
+    return weights * n.investment_period_weightings.years.reindex(period_of).to_numpy()
+
+
+def _energy(c: Components, weights: pd.Series, snapshots: Sequence) -> pd.Series:
+    """Get the weighted sum of the power `p` per asset."""
+    power = c.dynamic.p.reindex(index=snapshots, columns=c.static.index)
+    return power.mul(weights.loc[snapshots], axis=0).sum()
+
+
+def _power_bounds(
+    c: Components, snapshots: Sequence
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Get the lower and upper bound of the power `p` per snapshot.
+
+    Extendable assets are bounded by their minimum and maximum capacity.
+    """
+    attrs = c._operational_attrs
+    ext = c.static[attrs["nom_extendable"]]
+    nom = c.static[attrs["nom"]]
+    noms = [nom.where(~ext, c.static[attrs[b]]) for b in ("nom_min", "nom_max")]
+    pus = [_from_xarray(pu, c).loc[snapshots] for pu in c.get_bounds_pu("p")]
+    powers = [pu * nom for pu in pus for nom in noms]
+    return reduce(np.fmin, powers), reduce(np.fmax, powers)
+
+
+def _tracked_limits(
+    c: Components, weights: pd.Series, snapshots: Sequence
+) -> list[tuple[str, str, pd.Series, pd.DataFrame]]:
+    """Get the volume limits of a component to track across rolling horizon windows.
+
+    Returns, for each limit not at its default, the component name, the limit
+    attribute, the original limit and the weighted energy per snapshot that
+    later windows can at most (`e_sum_min`) or must at least (`e_sum_max`)
+    contribute. Raises a `ValueError` if this energy is unbounded.
+    """
+    limits = [(a, s, d) for a, s, d in ENERGY_LIMITS if (c.static[a] != d).any()]
+    if not limits:
+        return []
+    if "p" in c._operational_variables:
+        lower, upper = _power_bounds(c, snapshots)
+        hint = f"a finite {c._operational_attrs['nom_max']}"
+        if c.name == "Store":
+            hint += " and a finite max_hours"
+    else:
+        upper = pd.DataFrame(np.inf, index=snapshots, columns=c.static.index)
+        lower = -upper
+        hint = "a single window"
+    active = c.get_activity_mask(snapshots)
+    w = weights.loc[snapshots]
+    lower = lower.where(active, 0.0).mul(w, axis=0)
+    upper = upper.where(active, 0.0).mul(w, axis=0)
+    flags = [a for a in ("committable", "maintainable") if a in c.static]
+    flexible = active & c.static[flags].any(axis=1)
+    later = {
+        ">=": upper.mask(flexible, upper.clip(lower=0.0)),
+        "<=": lower.mask(flexible, lower.clip(upper=0.0)),
+    }
+    tracked = []
+    for attr, sign, default in limits:
+        energy = later[sign]
+        unbounded = (c.static[attr] != default) & np.isinf(energy).any()
+        if unbounded.any():
+            msg = (
+                f"{c.name} {list(unbounded.index[unbounded])} have a finite "
+                f"{attr} and an unbounded power. Tracking {attr} across the "
+                f"rolling horizon requires {hint}."
+            )
+            raise ValueError(msg)
+        tracked.append((c.name, attr, c.static[attr].copy(), energy))
+    return tracked
+
+
+def _all_tracked_limits(
+    n: Network, weights: pd.Series, snapshots: Sequence
+) -> list[tuple[str, str, pd.Series, pd.DataFrame]]:
+    """Get the volume limits of all components, see `_tracked_limits`."""
+    tracked = [
+        limit
+        for c in n.components
+        if "e_sum_min" in c.static
+        for limit in _tracked_limits(c, weights, snapshots)
+    ]
+    if tracked:
+        logger.warning(
+            "Volume limits %s are tracked across the rolling horizon without "
+            "foresight: each window only sees what previous windows left open. "
+            "The dispatch pattern depends on the window order.",
+            ", ".join(f"{name}-{attr}" for name, attr, *_ in tracked),
+        )
+    return tracked
 
 
 class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
@@ -197,6 +306,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
     _n: Network
 
+    @_scenarios_not_implemented
     def optimize_transmission_expansion_iteratively(
         self,
         snapshots: Sequence | None = None,
@@ -453,6 +563,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         branch_outages: Sequence | pd.Index | pd.MultiIndex | None = None,
         multi_investment_periods: bool = False,
         model_kwargs: dict | None = None,
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Compute Security-Constrained Linear Optimal Power Flow (SCLOPF).
@@ -481,6 +592,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver, see
+            `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -513,6 +627,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 snapshots,
                 multi_investment_periods=multi_investment_periods,
                 model_kwargs=model_kwargs,
+                objective_scaling=objective_scaling,
                 **kwargs,
             )
 
@@ -530,6 +645,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         m = n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
+            objective_scaling=objective_scaling,
             **model_kwargs,
         )
 
@@ -554,6 +670,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         snapshots: Sequence | None = None,
         horizon: int = 100,
         overlap: int = 0,
+        consistency_check: bool = True,
         **kwargs: Any,
     ) -> Network:
         """Optimizes the network in a rolling horizon fashion.
@@ -561,6 +678,18 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         Each window starts from the state left by the previous one: the storage
         levels of stores and storage units, and the dispatch and commitment
         status of all components for the ramp and unit commitment constraints.
+
+        Finite `e_sum_min` and `e_sum_max` limits of generators, links,
+        processes and stores refer to the whole set of
+        `snapshots`. Each window is given the part of them that is still open:
+        the energy produced in previous windows is subtracted, and so is the
+        energy that can at most (`e_sum_min`) or must at least (`e_sum_max`) be
+        produced in later windows. Without foresight the resulting dispatch
+        pattern depends on the order of the windows. A `ValueError` is raised if
+        this energy is unbounded, e.g. for an extendable component with
+        `p_nom_max=inf` or for a store with `max_hours=inf`. If limits are tracked, a
+        `RuntimeError` is raised as soon as a window fails to solve. Otherwise,
+        a failed window only logs a warning.
 
         Parameters
         ----------
@@ -570,8 +699,15 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             Number of snapshots to consider in each iteration. Defaults to 100.
         overlap : int
             Number of snapshots to overlap between two iterations. Defaults to 0.
+        consistency_check : bool
+            Whether to run the consistency check once for the whole network
+            before the first window. The windows themselves skip it. Defaults
+            to True.
         **kwargs:
-            Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+            Keyword argument used by `linopy.Model.solve`, such as `solver_name`.
+            Unless `io_api` or `problem_fn` is given, `io_api="direct"` is used
+            for solvers that support linopy's direct API, which avoids writing
+            and reading a problem file for every window.
 
         """
         n = self._n
@@ -582,37 +718,79 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
+        if consistency_check:
+            n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
+
+        stores = n.c.stores
+        cycles_max = stores.static.cycles_max.copy()
+        track_cycles = (cycles_max < np.inf).any()
+
         starting_points = range(0, len(snapshots), horizon - overlap)
-        for i, start in enumerate(starting_points):
-            end = min(len(snapshots), start + horizon)
-            sns = snapshots[start:end]
-            logger.info(
-                "Optimizing network for snapshot horizon [%s:%s] (%s/%s).",
-                sns[0],
-                sns[-1],
-                i + 1,
-                len(starting_points),
-            )
+        weights = _energy_weightings(n, kwargs.get("multi_investment_periods", False))
+        tracked = (
+            []
+            if len(starting_points) == 1
+            else _all_tracked_limits(n, weights, snapshots)
+        )
 
-            if i:
-                if not n.c.stores.static.empty:
-                    n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
-                        snapshots[start - 1]
-                    ].values
-                if not n.c.storage_units.static.empty:
-                    n.c.storage_units.static.state_of_charge_initial = (
-                        n.c.storage_units.dynamic.state_of_charge.loc[
-                            snapshots[start - 1]
-                        ].values
-                    )
+        solver_name = kwargs.get("solver_name") or options.params.optimize.solver_name
+        if (
+            kwargs.keys().isdisjoint({"io_api", "problem_fn"})
+            and solver_name in available_solvers
+            and Solver.from_name(solver_name).supports(SolverFeature.DIRECT_API)
+        ):
+            kwargs["io_api"] = "direct"
 
-            status, condition = n.optimize(sns, **kwargs)
-            if status != "ok":
-                logger.warning(
-                    "Optimization failed with status %s and condition %s",
-                    status,
-                    condition,
+        try:
+            for i, start in enumerate(starting_points):
+                end = min(len(snapshots), start + horizon)
+                sns = snapshots[start:end]
+                logger.info(
+                    "Optimizing network for snapshot horizon [%s:%s] (%s/%s).",
+                    sns[0],
+                    sns[-1],
+                    i + 1,
+                    len(starting_points),
                 )
+
+                if i:
+                    prev, first = snapshots[start - 1], sns[:1]
+                    eh = n.snapshot_weightings.stores.loc[first].iloc[0]
+                    for c, attr, level in _STORAGE_LEVELS:
+                        loss = n.c[c]._as_dynamic("standing_loss", first).iloc[0]
+                        level_prev = n.c[c].dynamic[level].loc[prev]
+                        n.c[c].static[attr] = level_prev * (1 - loss) ** eh
+                done, rest = snapshots[:start], snapshots[end:]
+                for name, attr, original, later in tracked:
+                    c = n.c[name]
+                    used = _energy(c, weights, done)
+                    c.static[attr] = original - used - later.loc[rest].sum()
+
+                # count the cycles of previous windows against `cycles_max`
+                eh = n.snapshot_weightings.stores.loc[done]
+                discharge = stores.dynamic.p_dispatch.loc[done]
+                used = discharge.mul(eh, axis=0).sum() / stores.static.e_nom_opt
+                remaining = cycles_max.sub(used.fillna(0), fill_value=0)
+                stores.static.cycles_max = remaining.clip(lower=0)
+
+                status, condition = n.optimize(sns, consistency_check=False, **kwargs)
+                if status != "ok":
+                    if tracked or track_cycles:
+                        msg = (
+                            f"Optimization of window [{sns[0]}:{sns[-1]}] failed "
+                            f"with status {status} and condition {condition}. The "
+                            "volume limits of later windows cannot be tracked."
+                        )
+                        raise RuntimeError(msg)
+                    logger.warning(
+                        "Optimization failed with status %s and condition %s",
+                        status,
+                        condition,
+                    )
+        finally:
+            for name, attr, original, _ in tracked:
+                n.c[name].static[attr] = original
+            stores.static.cycles_max = cycles_max
         return n
 
     def optimize_and_run_non_linear_powerflow(

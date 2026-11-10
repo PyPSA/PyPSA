@@ -1435,7 +1435,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_groups="groupby_method",
         aggregate_time="groupby_time",
     )
-    def expanded_capacity(
+    def expanded_capacity(  # noqa: D417
         self,
         components: str | Sequence[str] | None = None,
         groupby_method: Callable | str = "sum",
@@ -1447,6 +1447,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
+        storage: bool = False,
     ) -> pd.DataFrame:
         """Calculate the **expanded capacity** of the network components in MW.
 
@@ -1494,6 +1495,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Number of decimal places to round the result to. Defaults to module wide
             option (default: 2). See `https://go.pypsa.org/options-params` for more information.
 
+        Other Parameters
+        ----------------
+        storage : bool, default=False
+            Whether to consider only storage capacities of the components
+            `Store` and `StorageUnit`.
+
         Returns
         -------
         pd.DataFrame
@@ -1517,6 +1524,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
+            storage=storage,
         )
         installed = self.installed_capacity(
             components=components,
@@ -1529,6 +1537,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
+            storage=storage,
         )
         installed = installed.reindex(optimal.index, fill_value=0)
         df = optimal.sub(installed).where(optimal.abs() > installed.abs(), 0)
@@ -1614,6 +1623,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         cost_types : str | Sequence[str] | None, default=None
             List of cost types to include in the calculation. Available options
             are: 'marginal_cost', 'marginal_cost_quadratic',
+            'marginal_cost_dispatch', 'marginal_cost_store',
             'marginal_cost_storage', 'spill_cost', 'start_up_cost',
             'shut_down_cost', 'stand_by_cost'. Defaults to all (when None).
 
@@ -1630,12 +1640,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        from pypsa.optimization.optimize import lookup  # noqa: PLC0415
+        from pypsa.optimization.optimize import cost_variables  # noqa: PLC0415
 
         if cost_types is None:
             cost_types_ = [
                 "marginal_cost",
                 "marginal_cost_quadratic",
+                "marginal_cost_dispatch",
+                "marginal_cost_store",
                 "marginal_cost_storage",
                 "spill_cost",
                 "start_up_cost",
@@ -1656,19 +1668,23 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
             for cost_type in [
                 "marginal_cost",
+                "marginal_cost_dispatch",
+                "marginal_cost_store",
                 "marginal_cost_storage",
                 "marginal_cost_quadratic",
                 "spill_cost",
             ]:
                 if cost_type in cost_types_ and cost_type in n.c[c].static:
-                    attr = lookup.query(cost_type).loc[c].index.item() + port
+                    attrs = cost_variables(c, cost_type)
                     cost = n.get_switchable_as_dense(c, cost_type)
                     cost_piecewise_opt = n.c[c].dynamic.get(
                         f"{cost_type}_piecewise_opt"
                     )
                     if cost_piecewise_opt is None or cost_piecewise_opt.empty:
                         cost_piecewise_opt = 0
-                    p = n.c[c].dynamic[attr]
+                    p = sum(n.c[c].dynamic[attr + port] for attr in attrs)
+                    if p.empty:
+                        continue
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
                     opex = var * (cost + cost_piecewise_opt)
                     term = self._aggregate_timeseries(opex, weights, agg=groupby_time)
@@ -2946,21 +2962,19 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             mask = n.c.buses.static.carrier.isin(bus_carrier)
             prices = prices.loc[:, mask]
 
+        extra_levels = [level for level in prices.columns.names if level != "name"]
+
         if not groupby_time:
             df = prices.T
             if groupers:
-                # Keep collection index levels (e.g. network) and replace the
-                # bus name level with the requested groupers.
-                kept = [
-                    df.index.get_level_values(level)
-                    for level in df.index.names
-                    if level != "name"
-                ]
+                kept = [df.index.get_level_values(level) for level in extra_levels]
                 aligned = [g.reindex(df.index) for g in groupers]
                 df = df.set_index(kept + aligned)
             return df
 
         if weighting == "load":
+            # Group by scenario/network too, a bare bus index matches no column.
+            levels = ["bus" if lvl == "name" else lvl for lvl in prices.columns.names]
             weights = (
                 n.statistics.withdrawal(
                     groupby="bus",
@@ -2968,10 +2982,15 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     nice_names=False,
                     groupby_time=False,
                 )
-                .groupby("bus")
+                .groupby(levels)
                 .sum()
                 .T
             )
+            weights.columns = weights.columns.set_names(prices.columns.names)
+            if not weights.columns.isin(prices.columns).all():
+                msg = "Load weights do not align with the price columns."
+                raise ValueError(msg)
+            # Buses without any withdrawal keep a weight of 1.
             weights = weights.reindex(prices.columns, axis=1, fill_value=1)
         elif weighting == "time":
             weights = pd.DataFrame(1, index=prices.index, columns=prices.columns)
@@ -2985,8 +3004,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df = a / b
 
         if groupers:
+            kept = [df.index.get_level_values(level) for level in extra_levels]
             aligned = [g.reindex(df.index) for g in groupers]
-            df = df.groupby(aligned).apply(
+            df = df.groupby(kept + aligned).apply(
                 lambda g: (g * b.loc[g.index]).sum() / b.loc[g.index].sum()
             )
 

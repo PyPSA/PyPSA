@@ -110,7 +110,7 @@ jobs:
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
       run: >
-        uv run pytest
+        uv run pytest -n logical
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
 
@@ -120,14 +120,14 @@ jobs:
       env:
         PYPSA_API__LEGACY_STRING_DTYPE: "false"
       run: >
-        uv run pytest
+        uv run pytest -n logical
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
 
     - name: Run unit tests (new API)
       if: matrix.api == 'new_api'
       run: >
-        uv run pytest
+        uv run pytest -n logical
         --new-components-api
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         && uv run coverage xml
@@ -154,22 +154,14 @@ jobs:
           python${{ matrix.python-version }},
           api-${{ matrix.api }}
 
-  test-linopy-semantics:
-    # Temporary guard: test against linopy master
-    # under both arithmetic semantics. Drop once v1 ships in a linopy release (0.10).
-    name: Test linopy semantics (${{ matrix.semantics }})
+  test-linopy-master:
+    name: Test linopy master
     needs: [build]
     # Only on the full suite (daily schedule, manual dispatch, releases), not every PR/push
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Any LinopySemanticsWarning escaping PyPSA's suppression fails the job.
-        semantics: [v1, legacy]
     env:
       MPLBACKEND: Agg # https://github.com/orgs/community/discussions/26434
-      LINOPY_SEMANTICS: ${{ matrix.semantics }}
     steps:
     - uses: actions/checkout@v7
       with:
@@ -198,10 +190,9 @@ jobs:
     - name: Report linopy provenance
       run: |
         uv run --no-sync python -c "import linopy; print('linopy', linopy.__version__, 'from', linopy.__file__)"
-        echo "LINOPY_SEMANTICS=$LINOPY_SEMANTICS"
 
     - name: Run unit tests
-      run: uv run --no-sync pytest
+      run: uv run --no-sync pytest -n logical
 
   test-plots:
     # Run the matplotlib image-comparison tests once, on a single instance.

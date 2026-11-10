@@ -31,8 +31,10 @@ from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components, invariant
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.flow_based import flow_based_balance_terms
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
-from pypsa.optimization.window import snapshot_array
+from pypsa.optimization.scaling import KVL, check_sub_networks
+from pypsa.optimization.window import apply_period_weighting, snapshot_array
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -56,6 +58,10 @@ lookup = pd.read_csv(
 )
 
 
+ENERGY_WEIGHTING = "generators"
+ENERGY_LIMITS = (("e_sum_min", ">=", -inf), ("e_sum_max", "<=", inf))
+
+
 def define_operational_constraints_for_non_extendables(
     n: Network,
     sns: pd.Index,
@@ -75,7 +81,7 @@ def define_operational_constraints_for_non_extendables(
     capacity and min/max per unit values.
 
     Applies to Generator (p), Line (s), Transformer (s), Link (p), Process(p),
-    Store (e), StorageUnit (p_dispatch, p_store, state_of_charge).
+    Store (e, p, p_store), StorageUnit (p_dispatch, p_store, state_of_charge).
 
     Parameters
     ----------
@@ -93,6 +99,8 @@ def define_operational_constraints_for_non_extendables(
 
     Notes
     -----
+    For stores, the bounds of `p` apply to the discharge `p + p_store`.
+
     For passive branches with transmission losses, the constraint accounts for
     the losses in both directions, see justification in [1]_.
 
@@ -124,10 +132,16 @@ def define_operational_constraints_for_non_extendables(
 
     lower = (min_pu * nominal_fix).where(~(is_inf & is_zero_min), 0)
     upper = (max_pu * nominal_fix).where(~(is_inf & is_zero_max), 0)
+    lower = lower.where(~isinf(min_pu), min_pu)
+    upper = upper.where(~isinf(max_pu), max_pu)
 
     active = c.da.active.sel(name=fix_i, snapshot=sns)
+    bounded_below = active & ~isinf(lower)
+    bounded_above = active & ~isinf(upper)
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=fix_i)
+    if c.name == "Store" and attr == "p":
+        dispatch = dispatch + n.model["Store-p_store"].sel(name=fix_i)
 
     if c.name in n.passive_branch_components and transmission_losses:
         loss = n.model[f"{c.name}-loss"].sel(name=fix_i)
@@ -148,11 +162,22 @@ def define_operational_constraints_for_non_extendables(
         lhs_upper = lhs_upper + maint_upper
         lhs_lower = lhs_lower + maint_lower
 
+    scaling = c._scaling(fix_i)
     n.model.add_constraints(
-        lhs_lower, ">=", lower, name=f"{c.name}-fix-{attr}-lower", mask=active
+        lhs_lower,
+        ">=",
+        lower,
+        name=f"{c.name}-fix-{attr}-lower",
+        mask=bounded_below,
+        scaling=scaling,
     )
     n.model.add_constraints(
-        lhs_upper, "<=", upper, name=f"{c.name}-fix-{attr}-upper", mask=active
+        lhs_upper,
+        "<=",
+        upper,
+        name=f"{c.name}-fix-{attr}-upper",
+        mask=bounded_above,
+        scaling=scaling,
     )
 
 
@@ -174,7 +199,8 @@ def define_operational_constraints_for_extendables(
     capacity and min/max per unit values.
 
     Applies to Generator (p), Line (s), Transformer (s),Process (p), Link (p),
-    Store (e), StorageUnit (p_dispatch, p_store, state_of_charge).
+    Store (e, p, p_store), StorageUnit (p_dispatch, p_store, state_of_charge).
+    For stores, the bounds of `p` apply to the discharge `p + p_store`.
 
     Parameters
     ----------
@@ -211,8 +237,12 @@ def define_operational_constraints_for_extendables(
         max_pu = max_pu.sel(snapshot=sns)
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=ext_i)
+    if c.name == "Store" and attr == "p":
+        dispatch = dispatch + n.model["Store-p_store"].sel(name=ext_i)
     capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"].sel(name=ext_i)
     active = c.da.active.sel(name=ext_i, snapshot=sns)
+    bounded_below = active & ~isinf(min_pu)
+    bounded_above = active & ~isinf(max_pu)
 
     lhs_lower = dispatch - min_pu * capacity
     lhs_upper = dispatch - max_pu * capacity
@@ -237,11 +267,22 @@ def define_operational_constraints_for_extendables(
         lhs_upper = lhs_upper + maint_upper
         lhs_lower = lhs_lower + maint_lower
 
+    scaling = c._scaling(ext_i)
     n.model.add_constraints(
-        lhs_lower, ">=", 0, name=f"{c.name}-ext-{attr}-lower", mask=active
+        lhs_lower,
+        ">=",
+        0,
+        name=f"{c.name}-ext-{attr}-lower",
+        mask=bounded_below,
+        scaling=scaling,
     )
     n.model.add_constraints(
-        lhs_upper, "<=", 0, name=f"{c.name}-ext-{attr}-upper", mask=active
+        lhs_upper,
+        "<=",
+        0,
+        name=f"{c.name}-ext-{attr}-upper",
+        mask=bounded_above,
+        scaling=scaling,
     )
 
 
@@ -411,12 +452,14 @@ def define_operational_constraints_for_committables(
             lhs_lower_ext = lhs_lower_ext + maint_lower
             lhs_upper_cap = lhs_upper_cap + maint_upper
 
+        scaling = c._scaling(com_ext_i)
         n.model.add_constraints(
             lhs_lower_ext,
             ">=",
             -M_values,
             name=f"{c.name}-com-ext-p-lower",
             mask=active_ext,
+            scaling=scaling,
         )
         n.model.add_constraints(
             lhs_upper_bigM,
@@ -424,6 +467,7 @@ def define_operational_constraints_for_committables(
             0,
             name=f"{c.name}-com-ext-p-upper-bigM",
             mask=active_ext,
+            scaling=scaling,
         )
         n.model.add_constraints(
             lhs_upper_cap,
@@ -431,6 +475,7 @@ def define_operational_constraints_for_committables(
             0,
             name=f"{c.name}-com-ext-p-upper-cap",
             mask=active_ext,
+            scaling=scaling,
         )
 
         dims_excl_name = [dim for dim in min_pu_ext.dims if dim != "name"]
@@ -452,6 +497,7 @@ def define_operational_constraints_for_committables(
                     0,
                     name=f"{c.name}-com-ext-p-lower-nonneg",
                     mask=active_nonneg,
+                    scaling=c._scaling(nonneg_idx),
                 )
 
     if not com_fix_i.empty:
@@ -496,12 +542,14 @@ def define_operational_constraints_for_committables(
             lhs_lower_fix = lhs_lower_fix + maint_lower
             lhs_upper_fix = lhs_upper_fix + maint_upper
 
+        scaling = c._scaling(com_fix_i)
         n.model.add_constraints(
             lhs_lower_fix,
             ">=",
             0,
             name=f"{c.name}-com-p-lower",
             mask=active_fix,
+            scaling=scaling,
         )
         n.model.add_constraints(
             lhs_upper_fix,
@@ -509,6 +557,7 @@ def define_operational_constraints_for_committables(
             0,
             name=f"{c.name}-com-p-upper",
             mask=active_fix,
+            scaling=scaling,
         )
 
     # Operational constraints for modular committable components
@@ -536,10 +585,13 @@ def define_operational_constraints_for_committables(
 
         maint_com_mod_i = com_mod_i.intersection(maint_i)
         if not maint_com_mod_i.empty:
-            nom_max = c.da[f"{c._operational_attrs['nom']}_max"].sel(
+            nom_attr = c._operational_attrs["nom"]
+            nom_bound = c.da[f"{nom_attr}_max"].where(
+                c.da[f"{nom_attr}_extendable"], c.da[nom_attr]
+            )
+            modules_max = nom_bound.sel(name=maint_com_mod_i) / nominal_mod.sel(
                 name=maint_com_mod_i
             )
-            modules_max = nom_max / nominal_mod.sel(name=maint_com_mod_i)
             alpha = c.da.maintenance_pu.sel(name=maint_com_mod_i)
             u = status.sel(name=maint_com_mod_i)
             m = n.model[f"{c.name}-maintenance"].sel(name=maint_com_mod_i)
@@ -571,12 +623,14 @@ def define_operational_constraints_for_committables(
             lhs_lower_mod = lhs_lower_mod + maint_lower
             lhs_upper_mod = lhs_upper_mod + maint_upper
 
+        scaling = c._scaling(com_mod_i)
         n.model.add_constraints(
             lhs_lower_mod,
             ">=",
             0,
             name=f"{c.name}-com-mod-p-lower",
             mask=active_mod,
+            scaling=scaling,
         )
         n.model.add_constraints(
             lhs_upper_mod,
@@ -584,6 +638,7 @@ def define_operational_constraints_for_committables(
             0,
             name=f"{c.name}-com-mod-p-upper",
             mask=active_mod,
+            scaling=scaling,
         )
 
     prior_status = first * status_before
@@ -598,9 +653,16 @@ def define_operational_constraints_for_committables(
         lhs, ">=", prior_status, name=f"{c.name}-com-transition-shut-down", mask=active
     )
 
+    com_mod_fix_i = com_mod_i.difference(ext_i)
+    com_mod_ext_i = com_mod_i.intersection(ext_i)
+    mod_attr = c._operational_attrs["nom_mod"]
+    modules = nominal.sel(name=com_mod_fix_i) / c.da[mod_attr].sel(name=com_mod_fix_i)
+    modules = modules.reindex(name=com_i, fill_value=1.0)
+    modules = modules.where(~modules["name"].isin(com_mod_ext_i), 0.0)
+
     for kind, min_time, transition, sign, bound in (
         ("up", min_up_time_set, start_up, -1, 0),
-        ("down", min_down_time_set, shut_down, 1, 1),
+        ("down", min_down_time_set, shut_down, 1, modules),
     ):
         if not (min_time > 0).any():
             continue
@@ -609,6 +671,9 @@ def define_operational_constraints_for_committables(
             for k in range(int(min_time.max()))
         ]
         lhs = sign * status + merge(shifted)
+        if kind == "down" and not com_mod_ext_i.empty:
+            n_mod = n.model[f"{c.name}-n_mod"].sel(name=com_mod_ext_i)
+            lhs = lhs.add(-n_mod, join="left")
         past = (-sign * switches).clip(min=0)
         rhs = bound - (past * (past.lag + pos < min_time)).sum("lag")
         mask = active & (min_time > 0)
@@ -666,12 +731,14 @@ def define_operational_constraints_for_committables(
             - ramp_shut_down_ce * status_prev
             - (upper_p_ce - ramp_shut_down_ce) * (status_ce - start_up_ce)
         )
+        scaling = c._scaling(ce_i)
         n.model.add_constraints(
             lhs,
             "<=",
             0,
             name=f"{c.name}-com-p-before",
             mask=active_prev_ce,
+            scaling=scaling,
         )
 
         # dispatch limit for partly start up/shut down for t
@@ -686,6 +753,7 @@ def define_operational_constraints_for_committables(
             0,
             name=f"{c.name}-com-p-current",
             mask=active_ce,
+            scaling=scaling,
         )
 
         # ramp up if committable is only partly active and some capacity is starting up
@@ -702,6 +770,7 @@ def define_operational_constraints_for_committables(
             0,
             name=f"{c.name}-com-partly-start-up",
             mask=active_prev_ce,
+            scaling=scaling,
         )
 
         # ramp down if committable is only partly active and some capacity is shutting up
@@ -718,6 +787,7 @@ def define_operational_constraints_for_committables(
             0,
             name=f"{c.name}-com-partly-shut-down",
             mask=active_prev_ce,
+            scaling=scaling,
         )
 
 
@@ -814,20 +884,24 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
         z = n.model[f"{c.name}-maintenance_capacity"].sel(name=maint_ext_i)
         active_me = active.sel(name=maint_ext_i)
 
+        scaling = c._scaling(maint_ext_i)
         n.model.add_constraints(
             z + p_nom_min <= p_nom + p_nom_min * m,
             name=f"{c.name}-maintcap_upper",
             mask=active_me,
+            scaling=scaling,
         )
         n.model.add_constraints(
             z <= p_nom_max * m,
             name=f"{c.name}-maintcap_upper_nommax",
             mask=active_me,
+            scaling=scaling,
         )
         n.model.add_constraints(
             z + p_nom_max >= p_nom + p_nom_max * m,
             name=f"{c.name}-maintcap_lower_nommax",
             mask=active_me,
+            scaling=scaling,
         )
         lower_min = active_me & (p_nom_min > 0)
         if lower_min.any():
@@ -835,6 +909,7 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
                 z >= p_nom_min * m,
                 name=f"{c.name}-maintcap_lower_nommin",
                 mask=lower_min,
+                scaling=scaling,
             )
 
 
@@ -880,12 +955,20 @@ def define_nominal_constraints_for_extendables(
     lower = c.da[attr + "_min"].sel(name=ext_i)
     upper = c.da[attr + "_max"].sel(name=ext_i)
 
-    n.model.add_constraints(capacity, ">=", lower, name=f"{c.name}-ext-{attr}-lower")
+    scaling = c._scaling(ext_i)
+    n.model.add_constraints(
+        capacity, ">=", lower, name=f"{c.name}-ext-{attr}-lower", scaling=scaling
+    )
 
     is_finite = upper != inf
     if is_finite.any():
         n.model.add_constraints(
-            capacity, "<=", upper, name=f"{c.name}-ext-{attr}-upper", mask=is_finite
+            capacity,
+            "<=",
+            upper,
+            name=f"{c.name}-ext-{attr}-upper",
+            mask=is_finite,
+            scaling=scaling,
         )
 
 
@@ -939,28 +1022,33 @@ def _define_ramp_limit_big_m(
     ls = limit_start.sel(name=idx)
     lsh = limit_shut.sel(name=idx)
 
+    scaling = c._scaling(idx)
     m.add_constraints(
         lhs_delta <= lu * p_nom + M * (1 - status_prev_ce),
         name=f"{c.name}-{attr}-ramp_limit_up-run-bigM",
         mask=mask_up,
+        scaling=scaling,
     )
 
     m.add_constraints(
         lhs_delta <= ls * p_nom + M * (1 - start_up),
         name=f"{c.name}-{attr}-ramp_limit_up-start-bigM",
         mask=mask_up,
+        scaling=scaling,
     )
 
     m.add_constraints(
         lhs_delta >= -ld * p_nom - M * (1 - status),
         name=f"{c.name}-{attr}-ramp_limit_down-run-bigM",
         mask=mask_down,
+        scaling=scaling,
     )
 
     m.add_constraints(
         lhs_delta >= -lsh * p_nom - M * (1 - shut_down),
         name=f"{c.name}-{attr}-ramp_limit_down-shut-bigM",
         mask=mask_down,
+        scaling=scaling,
     )
 
 
@@ -1016,7 +1104,7 @@ def define_ramp_limit_constraints(
     is_com = DataArray(idx.isin(c.committables), coords=[idx])
     is_modular = DataArray(idx.isin(c.modulars), coords=[idx])
     is_com_ext = is_com & is_ext & ~is_modular
-    is_com_ext_mod = is_com & is_ext & is_modular
+    is_com_mod = is_com & is_modular
     is_com_fix = is_com & ~is_com_ext
 
     limit_up = c.da.ramp_limit_up.sel(snapshot=sns, name=idx)
@@ -1039,19 +1127,20 @@ def define_ramp_limit_constraints(
     window = n.optimize._window.subset(sns)
     filter_first_sn = snapshot_array([1] + [0] * (len(sns) - 1), sns)
 
+    # Status counts modules for modular committables, so they ramp per module
     nom_mod_attr = c._operational_attrs["nom_mod"]
     p_nom = c.da[nom_attr].sel(name=idx).where(~is_ext, 0)
-    if is_com_ext_mod.any():
-        p_nom = p_nom.where(~is_com_ext_mod, c.da[nom_mod_attr].sel(name=idx))
-    is_ext_main = is_ext & ~is_com_ext & ~is_com_ext_mod
+    if is_com_mod.any():
+        p_nom = p_nom.where(~is_com_mod, c.da[nom_mod_attr].sel(name=idx))
+    is_ext_main = is_ext & ~is_com
     p_nom_ext_var = None
     if is_ext_main.any():
-        ext_main_names = idx[is_ext_main]
+        ext_main_names = idx[is_ext_main.values]
         p_nom_ext_var = m[f"{c.name}-{nom_attr}"].sel(name=ext_main_names)
 
     status = DataArray(1, coords=[sns, idx], dims=["snapshot", "name"])
     if is_com_fix.any():
-        com_main_names = idx[is_com_fix]
+        com_main_names = idx[is_com_fix.values]
         status = status.where(~is_com_fix, 0)
         status = LinearExpression.from_constant(m, status)
         status_var = m[f"{c.name}-status"].sel(name=com_main_names)
@@ -1060,6 +1149,12 @@ def define_ramp_limit_constraints(
     s_init = _status_history(n, c, idx, sns, 1).squeeze("lag", drop=True)
     p_init = _dispatch_before(n, c, idx, sns, s_init)
     mask.loc[{"snapshot": sns[0]}] = p_init.notnull()
+    is_com_fix_mod = is_com_mod & ~is_ext
+    if is_com_fix_mod.any() and (not _window_start(n, sns) or c.dynamic.status.empty):
+        # Before n.snapshots the status is a 0/1 flag, so a unit that was on
+        # counts all its installed modules as on
+        modules = c.da[nom_attr].sel(name=idx) / c.da[nom_mod_attr].sel(name=idx)
+        s_init = s_init.where(~is_com_fix_mod, s_init * modules)
 
     # skip starts of periods except the first where p_init is used
     boundary = window.period_start_mask()
@@ -1084,7 +1179,13 @@ def define_ramp_limit_constraints(
         rhs = rhs.add(limit_up.sel(name=ext_main_names) * p_nom_ext_var, join="left")
         rhs = rhs.sel(name=idx)
     mask_up = mask & ~no_up_limit & non_com_ext
-    m.add_constraints(lhs <= rhs, name=f"{c.name}-{attr}-ramp_limit_up", mask=mask_up)
+    scaling = c._scaling(idx)
+    m.add_constraints(
+        lhs <= rhs,
+        name=f"{c.name}-{attr}-ramp_limit_up",
+        mask=mask_up,
+        scaling=scaling,
+    )
 
     lhs = p - p_prev
     rhs = -limit_down * p_nom * status
@@ -1097,7 +1198,10 @@ def define_ramp_limit_constraints(
         rhs = rhs.sel(name=idx)
     mask_down = mask & ~no_down_limit & non_com_ext
     m.add_constraints(
-        lhs >= rhs, name=f"{c.name}-{attr}-ramp_limit_down", mask=mask_down
+        lhs >= rhs,
+        name=f"{c.name}-{attr}-ramp_limit_down",
+        mask=mask_down,
+        scaling=scaling,
     )
 
     if is_com_ext.any():
@@ -1106,7 +1210,7 @@ def define_ramp_limit_constraints(
             sns,
             c,
             attr,
-            idx[is_com_ext],
+            idx[is_com_ext.values],
             limit_up,
             limit_down,
             limit_start,
@@ -1445,6 +1549,7 @@ def define_nodal_balance_constraints(
                     sign="=",
                     cumulative_attr=False,
                     extra_options=extra_options,
+                    scaling=c,
                     status=status,
                 )
 
@@ -1470,6 +1575,7 @@ def define_nodal_balance_constraints(
                         expr = expr * coeff.sel(name=group_names)
                     exprs.append(_groupby_bus(expr, group_cbuses))
 
+    exprs.extend(flow_based_balance_terms(n, buses))
     lhs = merge(exprs, join="outer").reindex(name=buses)
 
     # Prepare the RHS
@@ -1508,7 +1614,14 @@ def define_nodal_balance_constraints(
     else:
         mask = None
 
-    n.model.add_constraints(lhs, "=", rhs, name=f"Bus{suffix}-nodal_balance", mask=mask)
+    n.model.add_constraints(
+        lhs,
+        "=",
+        rhs,
+        name=f"Bus{suffix}-nodal_balance",
+        mask=mask,
+        scaling=n.c.buses._scaling(buses),
+    )
 
 
 def _groupby_bus(
@@ -1576,7 +1689,9 @@ def define_kirchhoff_voltage_constraints(
     For multi-investment period models, the function creates separate constraints
     for each investment period, reflecting the changing network topology over time.
 
-    The impedances are scaled by 1e5 to improve numerical conditioning.
+    The impedances are scaled by 1e5 to improve numerical conditioning. In the
+    solver, the rows are additionally scaled by the `Bus.scaling` of the
+    sub-network.
 
     References
     ----------
@@ -1591,6 +1706,7 @@ def define_kirchhoff_voltage_constraints(
     window = n.optimize._window.subset(sns)
     deg_to_rad = np.pi / 180.0
     lhs_parts = []
+    scaling_parts = []
     for period, snapshots in window.iter_periods():
         C_weighted = n.cycle_matrix(
             investment_period=period,
@@ -1601,13 +1717,17 @@ def define_kirchhoff_voltage_constraints(
             continue
 
         exprs = []
+        factors = []
         for c in C_weighted.index.unique("type"):
             C_branch = DataArray(C_weighted.loc[c])
             active_names = C_branch.indexes["name"].intersection(n.c[c].active_assets)
             C_branch = C_branch.sel(name=active_names)
             flow = m[f"{c}-s"].sel(snapshot=snapshots, name=active_names)
             exprs.append(flow @ C_branch * 1e5)
+            branch_factor = DataArray(n.c[c]._scaling(active_names))
+            factors.append(branch_factor.where(C_branch != 0).max("name"))
         lhs_period = sum(exprs)
+        cycle_factor = xr.concat(factors, "type", join="outer").max("type")
 
         if "Transformer" in C_weighted.index.unique("type"):
             C_plain = n.cycle_matrix(
@@ -1630,12 +1750,15 @@ def define_kirchhoff_voltage_constraints(
                 lhs_period = lhs_period + (sel @ C) * deg_to_rad * 1e5
 
         lhs_parts.append(lhs_period)
+        scaling_parts.append(cycle_factor.broadcast_like(lhs_period.const))
 
     if lhs_parts:
+        check_sub_networks(n)
         lhs = window.merge(lhs_parts)
         con = lhs == 0
         mask = con.rhs.notnull()
-        m.add_constraints(con, name="Kirchhoff-Voltage-Law", mask=mask)
+        scaling = window.concat(scaling_parts, 1.0).fillna(1.0)
+        m.add_constraints(con, name=KVL, mask=mask, scaling=scaling)
 
 
 def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
@@ -1693,8 +1816,13 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
         active = c.da.active.sel(name=assets_i, snapshot=model_sns) & isfinite(cap)
 
         if c_name == "Line":
-            n.model.add_constraints(s, ">=", -cap, name="Line-v_ang-lower", mask=active)
-            n.model.add_constraints(s, "<=", cap, name="Line-v_ang-upper", mask=active)
+            scaling = c._scaling(assets_i)
+            n.model.add_constraints(
+                s, ">=", -cap, name="Line-v_ang-lower", mask=active, scaling=scaling
+            )
+            n.model.add_constraints(
+                s, "<=", cap, name="Line-v_ang-upper", mask=active, scaling=scaling
+            )
             continue
 
         varying = assets_i.isin(_optimised_phase_shifts(n.model))
@@ -1709,12 +1837,14 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
             )
             lhs = s.sel(name=fixed_i)
             mask = active.sel(name=fixed_i)
+            scaling = c._scaling(fixed_i)
             n.model.add_constraints(
                 lhs,
                 ">=",
                 -cap.sel(name=fixed_i) - offset,
                 name="Transformer-v_ang-lower",
                 mask=mask,
+                scaling=scaling,
             )
             n.model.add_constraints(
                 lhs,
@@ -1722,6 +1852,7 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
                 cap.sel(name=fixed_i) - offset,
                 name="Transformer-v_ang-upper",
                 mask=mask,
+                scaling=scaling,
             )
 
         if not var_i.empty:
@@ -1729,11 +1860,22 @@ def define_voltage_angle_constraints(n: Network, sns: pd.Index) -> None:
             lhs = s.sel(name=var_i) + ps * (DEG2RAD / x_pu_eff.sel(name=var_i))
             mask = active.sel(name=var_i)
             cap_var = cap.sel(name=var_i)
+            scaling = c._scaling(var_i)
             n.model.add_constraints(
-                lhs, ">=", -cap_var, name="Transformer-v_ang-var-lower", mask=mask
+                lhs,
+                ">=",
+                -cap_var,
+                name="Transformer-v_ang-var-lower",
+                mask=mask,
+                scaling=scaling,
             )
             n.model.add_constraints(
-                lhs, "<=", cap_var, name="Transformer-v_ang-var-upper", mask=mask
+                lhs,
+                "<=",
+                cap_var,
+                name="Transformer-v_ang-var-upper",
+                mask=mask,
+                scaling=scaling,
             )
 
 
@@ -1770,11 +1912,15 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     if names.empty:
         return
 
-    dim = f"{component}-{attr}_set_i"
-    fix = c.da[attr + "_set"].sel(name=names).rename(name=dim)
-    var = n.model[f"{component}-{attr}"].sel(name=names).rename(name=dim)
+    fix = c.da[attr + "_set"].sel(name=names)
+    var = n.model[f"{component}-{attr}"].sel(name=names)
     n.model.add_constraints(
-        var, "=", fix, name=f"{component}-{attr}_set", mask=fix.notnull()
+        var,
+        "=",
+        fix,
+        name=f"{component}-{attr}_set",
+        mask=fix.notnull(),
+        scaling=c._scaling(names),
     )
 
 
@@ -1836,7 +1982,9 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     capacity = m.variables[f"{c.name}-{attr}"].loc[mod_i]
 
     con = capacity - modularity * modular_capacity == 0
-    n.model.add_constraints(con, name=f"{c.name}-{attr}_modularity", mask=None)
+    n.model.add_constraints(
+        con, name=f"{c.name}-{attr}_modularity", scaling=c._scaling(mod_i)
+    )
 
 
 def define_committability_variables_constraints_with_fixed_upper_limit(
@@ -2056,14 +2204,19 @@ def define_fixed_operation_constraints(
     mask = active & (~fix.isnull())
     fix = fix.fillna(0)
 
+    scaling = c._scaling(c.active_assets)
     if component == "StorageUnit" and attr == "p":
         p_dispatch = n.model["StorageUnit-p_dispatch"]
         p_store = n.model["StorageUnit-p_store"]
         lhs = p_dispatch - p_store
-        n.model.add_constraints(lhs, "=", fix, name="StorageUnit-p_set", mask=mask)
+        n.model.add_constraints(
+            lhs, "=", fix, name="StorageUnit-p_set", mask=mask, scaling=scaling
+        )
     else:
         var = n.model[f"{c.name}-{attr}"]
-        n.model.add_constraints(var, "=", fix, name=f"{c.name}-" + attr_set, mask=mask)
+        n.model.add_constraints(
+            var, "=", fix, name=f"{c.name}-" + attr_set, mask=mask, scaling=scaling
+        )
 
 
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
@@ -2236,7 +2389,14 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
 
-    m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
+    m.add_constraints(
+        lhs,
+        "=",
+        rhs,
+        name=f"{component}-energy_balance",
+        mask=active,
+        scaling=c._scaling(c.active_assets),
+    )
 
 
 def define_store_constraints(n: Network, sns: pd.Index) -> None:
@@ -2245,16 +2405,19 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     Creates constraints ensuring energy conservation for store components over time.
     For each store and snapshot, the constraint enforces:
 
-    e(t) = eff_stand * e(t-1) + p(t) * elapsed_hours
+    e(t) = eff_stand * e(t-1) - (1/eff_dispatch) * p(t) * elapsed_hours
+                + (eff_store - 1/eff_dispatch) * p_store(t) * elapsed_hours
+                + (inflow(t) - spill(t)) * elapsed_hours
 
     where
         e(t)        : energy level at time t
         eff_stand   : standing efficiency (1 - standing_loss)^elapsed_hours
         e(t-1)      : energy level at previous time step
-        p(t)        : energy charging (positive), or discharging (negative)
+        p(t)        : net dispatch (positive when discharging)
+        p_store(t)  : charging power, so that p(t) + p_store(t) is the discharge
         elapsed_hours: duration of the time step
 
-    Applies to Store (e, p).
+    Applies to Store (e, p, p_store, spill).
 
     Parameters
     ----------
@@ -2265,10 +2428,6 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     Notes
     -----
-    Stores differ from storage units in that they have a single power variable
-    that can be positive (charging) or negative (discharging) rather than
-    separate variables for charge and discharge.
-
     The function handles different store operating modes:
     - Cyclic storage (returning to initial energy level at the end of the period)
     - Non-cyclic storage (with specified initial energy level)
@@ -2304,12 +2463,17 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     # standing efficiency
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
+    eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns, name=c.active_assets)
+    eff_store = c.da.efficiency_store.sel(snapshot=sns, name=c.active_assets)
 
     e = m[f"{component}-e"]
-    p = m[f"{component}-p"]
 
     # Define LHS expression
-    lhs = [(-1, e), (-eh, p)]
+    lhs = [
+        (-1, e),
+        (-1 / eff_dispatch * eh, m[f"{component}-p"]),
+        ((eff_store - 1 / eff_dispatch) * eh, m[f"{component}-p_store"]),
+    ]
 
     # We create a mask `include_previous_e` which excludes the first snapshot
     # for non-cyclic assets
@@ -2392,10 +2556,81 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     # Add the previous energy term with standing efficiency factor
     lhs += [(eff_stand * include_previous_e, previous_e)]
 
-    # For snapshots where we don't include previous_e, we need to account for initial values
-    rhs = -e_init.where(~include_previous_e, 0)
+    lhs = m.linexpr(*lhs)
+    if f"{component}-spill" in m.variables:
+        # Spill is masked for stores without inflow; fill the resulting
+        # absent slots with 0 so those energy-balance rows are not dropped.
+        lhs = lhs - (eh * m[f"{component}-spill"]).fillna(0)
 
-    m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
+    # For snapshots where we don't include previous_e, we need to account for initial values
+    rhs = -c.da.inflow.sel(snapshot=sns, name=c.active_assets) * eh
+    rhs = rhs.where(include_previous_e, rhs - e_init)
+
+    m.add_constraints(
+        lhs,
+        "=",
+        rhs,
+        name=f"{component}-energy_balance",
+        mask=active,
+        scaling=c._scaling(c.active_assets),
+    )
+
+
+def define_store_cycle_constraints(n: Network, sns: pd.Index) -> None:
+    """Define cycle limits for stores.
+
+    For stores with a finite `cycles_max`, the constraint enforces:
+
+    sum((p(t) + p_store(t)) * weighting(t)) ≤ cycles_max * e_nom
+
+    where `p + p_store` is the discharge at the bus and the sum is taken over
+    all snapshots of the optimisation. The formulation follows eq. (22) in
+    Cardoso et al. [1]_.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+
+    References
+    ----------
+    [1] G. Cardoso et al., "Battery aging in multi-energy microgrid design
+        using mixed integer linear programming", Applied Energy, 2018,
+        https://doi.org/10.1016/j.apenergy.2018.09.185
+
+    """
+    m = n.model
+    c = as_components(n, "Store")
+
+    names = c.static.index[c.static.cycles_max < inf].unique("name")
+    names = names.intersection(c.active_assets)
+    if names.empty:
+        return
+
+    cycles_max = c.da.cycles_max.sel(name=names)
+    limited = cycles_max < inf
+    cycles_max = cycles_max.where(limited, 0)
+    discharge = m["Store-p"].sel(name=names) + m["Store-p_store"].sel(name=names)
+
+    ext_i = c.extendables.unique("name").intersection(names)
+    eh = n.optimize._window.subset(sns).snapshot_weightings("stores")
+    lhs = (discharge * eh).sum("snapshot")
+    rhs = cycles_max * c.da.e_nom.sel(name=names)
+    if not ext_i.empty:
+        capacity = m["Store-e_nom"].sel(name=ext_i)
+        lhs = lhs - cycles_max.sel(name=ext_i) * capacity
+        rhs = rhs.where(~rhs.coords["name"].isin(ext_i), 0)
+
+    m.add_constraints(
+        lhs,
+        "<=",
+        rhs,
+        name="Store-cycles_max",
+        mask=limited,
+        scaling=c._scaling(names),
+    )
 
 
 def define_tangent_loss_constraints(
@@ -2469,8 +2704,12 @@ def define_tangent_loss_constraints(
     flow = n.model[f"{c.name}-s"]
 
     # Add upper limit constraint
+    scaling = c._scaling(c.active_assets)
     n.model.add_constraints(
-        loss <= upper_limit, name=f"{c.name}-loss_upper", mask=active
+        loss <= upper_limit,
+        name=f"{c.name}-loss_upper",
+        mask=active,
+        scaling=scaling,
     )
 
     # Add linearization constraints for each tangent segment
@@ -2488,6 +2727,7 @@ def define_tangent_loss_constraints(
                 lhs >= offset_k,
                 name=f"{c.name}-loss_tangents-{k}-{sign}",
                 mask=active,
+                scaling=scaling,
             )
 
 
@@ -2576,8 +2816,12 @@ def define_secant_loss_constraints(
     flow = n.model[f"{c.name}-s"]
 
     # Add upper limit constraint
+    scaling = c._scaling(c.active_assets)
     n.model.add_constraints(
-        loss <= upper_limit, name=f"{c.name}-loss_upper", mask=active
+        loss <= upper_limit,
+        name=f"{c.name}-loss_upper",
+        mask=active,
+        scaling=scaling,
     )
 
     lossy = r_pu_eff > 0  # only for lines with losses
@@ -2639,30 +2883,29 @@ def define_secant_loss_constraints(
             lhs >= offset,
             name=f"{c.name}-loss_secants-{s}",
             mask=active,
+            scaling=scaling,
         )
 
 
 def define_total_supply_constraints(
     n: Network, sns: pd.Index, component: str = "Generator"
 ) -> None:
-    """Define energy sum constraints for generators.
+    """Define volume limit constraints of a component.
 
-    Creates constraints limiting the total energy generated by each generator
-    over the specified snapshots. The constraints can enforce both minimum
-    and maximum energy production requirements.
-
-    For generators with e_sum_min, the constraint enforces:
+    Creates constraints limiting the energy of each asset over the specified
+    snapshots. The energy is the weighted sum of the power variable `p` of the
+    component. Limits at their default are not constrained. For `e_sum_min`
+    and `e_sum_max` the constraints enforce:
 
     sum(p(t) * weighting(t)) ≥ e_sum_min
 
-    For generators with e_sum_max, the constraint enforces:
-
     sum(p(t) * weighting(t)) ≤ e_sum_max
 
-    where the sum is taken over all snapshots and weighting accounts for the
-    duration of each snapshot.
-
-    Applies to Generator (by default, but component parameter can be changed).
+    where the sum is taken over all snapshots, and the generator weighting
+    accounts for the duration of each snapshot. With multiple investment
+    periods, the limits apply to the total over all periods and the weighting
+    is multiplied by the period weighting `years`, as for `operational_limit`
+    global constraints. For Link, p is the withdrawal at `bus0`.
 
     Parameters
     ----------
@@ -2680,9 +2923,6 @@ def define_total_supply_constraints(
     - Maximum energy production limits (e.g., fuel availability, water reservoir limits)
     - Must-run generators with flexibility in when to produce
 
-    The constraints only apply to generators that have finite e_sum_min or
-    e_sum_max values specified.
-
     """
     m = n.model
     window = n.optimize._window.subset(sns)
@@ -2692,9 +2932,10 @@ def define_total_supply_constraints(
     if c.static.empty:
         return
 
-    eh = window.snapshot_weightings("generators")
-
-    for attr, sign, default in (("e_sum_min", ">=", -inf), ("e_sum_max", "<=", inf)):
+    eh = window.snapshot_weightings(ENERGY_WEIGHTING)
+    if n._multi_invest:
+        eh = apply_period_weighting(eh, n.investment_period_weightings.years)
+    for attr, sign, default in ENERGY_LIMITS:
         bounded = c.static[attr] != default
         names = bounded[bounded].index.unique("name")
         if names.empty:
@@ -2703,4 +2944,11 @@ def define_total_supply_constraints(
         p = m[f"{c.name}-p"].sel(name=names, snapshot=sns_)
         energy = (p * eh).sum(dim="snapshot")
         mask = rhs != default
-        m.add_constraints(energy, sign, rhs, name=f"{c.name}-{attr}", mask=mask)
+        m.add_constraints(
+            energy,
+            sign,
+            rhs,
+            name=f"{c.name}-{attr}",
+            mask=mask,
+            scaling=c._scaling(names),
+        )
