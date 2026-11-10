@@ -2879,10 +2879,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """Calculate the **emissions** of components in the network.
 
         Emissions are accounted as in the `primary_energy`
-        [global constraint](../../user-guide/optimization/global-constraints.md),
-        so that summing this statistic reproduces the emissions the constraint
-        limits. Each component emits its carrier's `carrier_attribute`, by default
-        `co2_emissions` in t/MWh, per unit of primary energy:
+        [global constraint](../../user-guide/optimization/global-constraints.md).
+        Without investment periods, their sum is what the constraint limits. Each
+        component emits its carrier's `carrier_attribute` per unit of primary energy:
 
         - **Generator**: the fuel burnt, `p / efficiency` or the fuel use of a
           piecewise efficiency curve, weighted by the snapshot weightings of
@@ -2952,16 +2951,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         dtype: float64
 
         """
-        storage_attrs = {
-            "StorageUnit": (
-                "state_of_charge",
-                "state_of_charge_initial",
-                "cyclic_state_of_charge",
-            ),
-            "Store": ("e", "e_initial", "e_cyclic"),
-        }
+        levels = {"StorageUnit": "state_of_charge", "Store": "e"}
+        cyclic = {"StorageUnit": "cyclic_state_of_charge", "Store": "e_cyclic"}
         if components is None:
-            components = ["Generator", *storage_attrs]
+            components = ["Generator", *levels]
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
@@ -2978,11 +2971,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     primary.update(p * comp.dynamic["p_primary_piecewise_opt"])
                 weights = n.snapshot_weightings.generators
             else:
-                level_attr, initial_attr, cyclic_attr = storage_attrs[c]
-                level = comp.dynamic[level_attr]
+                level = comp.dynamic[levels[c]]
                 previous = level.shift(1)
-                previous.iloc[0] = static[initial_attr]
-                primary = (previous - level).mul(~static[cyclic_attr], axis=1)
+                previous.iloc[0] = static[f"{levels[c]}_initial"]
+                primary = (previous - level).mul(~static[cyclic[c]], axis=1)
                 weights = pd.Series(1.0, index=level.index)
             emissions = primary.mul(factor, axis=1)
             return self._aggregate_timeseries(emissions, weights, agg=groupby_time)
