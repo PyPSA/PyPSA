@@ -188,6 +188,32 @@ def test_profit_with_quadratic_cost_is_inframarginal_rent():
     assert profit["Generator", "quadratic"] == pytest.approx(rent, rel=1e-4)
 
 
+def test_input_cost_is_fuel_valued_at_bus_price():
+    """The OCGT burns 5 MW and the CHP 10 MW of gas priced at 100 EUR/MWh."""
+    n = pypsa.Network()
+    n.add("Bus", ["electricity", "heat", "gas"])
+    n.add("Load", ["power", "warmth"], bus=["electricity", "heat"], p_set=[5, 3])
+    n.add("Generator", "gas", bus="gas", p_nom=100, marginal_cost=100)
+    kwargs = {"bus0": "gas", "bus1": "electricity", "p_nom_extendable": True}
+    n.add("Link", "OCGT", efficiency=0.4, capital_cost=600, marginal_cost=5, **kwargs)
+    n.add(
+        "Link",
+        "CHP",
+        bus2="heat",
+        efficiency=0.3,
+        efficiency2=0.3,
+        capital_cost=1400,
+        **kwargs,
+    )
+    n.optimize()
+
+    input_cost = -n.statistics.revenue(
+        components="Link", direction="input", groupby=False
+    )
+    assert input_cost.to_dict() == pytest.approx({"OCGT": 500, "CHP": 1000})
+    assert n.statistics.opex(components="Link", groupby=False)["OCGT"] == 25
+
+
 @pytest.mark.parametrize("network", ["ac_dc_network", "storage_hvdc_network"])
 def test_revenues_cancel_in_every_snapshot(request, network):
     """Payments at every bus balance, which makes surpluses add up to welfare."""

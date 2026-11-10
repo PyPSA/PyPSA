@@ -35,7 +35,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Documentation
 
-- Add a section on [derived metrics](./user-guide/statistics.md#derived-metrics) to the statistics user guide. It shows how congestion rent, capture rate, profit, and producer and consumer surplus follow from existing statistics. The `revenue` docstring now states the sign of the net revenue correctly. (<!-- md:pr 2122 -->)
+- Add a section on [derived metrics](./user-guide/statistics.md#derived-metrics) to the statistics user guide. It shows how congestion rent, capture rate, profit, input costs, and producer and consumer surplus follow from existing statistics. Resolves [#1935](https://github.com/PyPSA/PyPSA/issues/1935). The `revenue` docstring now states the sign of the net revenue correctly. (<!-- md:pr 2122 -->)
 - Add a new example on [forecast errors and the value of foresight](./examples/forecast-errors.ipynb), which operates a price-taker battery against price forecasts that are reissued every day and settles the committed schedule at realised prices. (<!-- md:pr 1928 -->)
 - Added an [example notebook](./examples/data-centre-investment.ipynb) on data centre investment with a willingness to pay, modelled as an extendable generator with negative sign and quadratic marginal costs.
 

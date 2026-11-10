@@ -37,7 +37,7 @@ Currently supported metrics are:
 - [Marginal prices][pypsa.statistics.StatisticsAccessor.prices]: The marginal prices at the buses for all snapshots.
 - [Transmission][pypsa.statistics.StatisticsAccessor.transmission]: The energy transmitted through transmission components (links, lines, transformers connecting to buses of the same carrier).
 
-Congestion rent, capture rate, profit, and producer and consumer surplus follow from these metrics, see [Derived Metrics](#derived-metrics).
+Congestion rent, capture rate, profit, input costs, and producer and consumer surplus follow from these metrics, see [Derived Metrics](#derived-metrics).
 
 These metrics can be calculated using the `n.statistics` accessor, for instance:
 
@@ -235,6 +235,24 @@ In a long-run equilibrium, the zero-profit rule holds: an extendable asset at an
     - Fixed capacities and binding capacity limits, such as `p_nom_min` and `p_nom_max`, earn a positive or negative rent.
     - With a `marginal_cost_quadratic` $c_q$, the price exceeds the average operational cost, and an extendable asset earns the rent $\sum_t w_t c_q p_t^2$ on top of its costs.
     - With unit commitment or modular capacities, the problem is not convex, and prices need not recover costs.
+
+### Input costs
+
+The input cost of a converter is the value of the energy it withdraws, such as the fuel a gas turbine burns or the electricity an electrolyser uses, at the marginal prices of the buses it withdraws from. In PyPSA, it is the negative [revenue][pypsa.statistics.StatisticsAccessor.revenue] with `direction="input"`. For the DC link, these are the withdrawals at either end:
+
+``` py
+>>> input_cost = -n.statistics.revenue(components="Link", direction="input")
+>>> input_cost.round()
+carrier
+DC    6143792.0
+dtype: float64
+```
+
+Pass `at_port` to value only some ports, e.g. `at_port=[0]` for the fuel at `bus0` of a gas turbine modelled as a link.
+
+!!! warning
+
+    The input cost is a valuation after the optimisation, not part of the [system cost][pypsa.statistics.StatisticsAccessor.system_cost]. The [operational expenditure][pypsa.statistics.StatisticsAccessor.opex] of a converter contains only its own `marginal_cost`, while the cost of producing its inputs appears with the components that supply them. Adding the input cost to the system cost counts it twice.
 
 ### Producer and consumer surplus
 
