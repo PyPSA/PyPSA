@@ -163,6 +163,31 @@ def test_profit_equals_capacity_rents_with_investment_periods():
     assert np.allclose(profit[["Line", "Link"]], 0, atol=1)
 
 
+def test_profit_with_quadratic_cost_is_inframarginal_rent():
+    """A rising marginal cost earns sum(w * c_q * p^2) on top of all costs."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "quadratic",
+        bus="bus",
+        p_nom_extendable=True,
+        capital_cost=50,
+        marginal_cost=10,
+        marginal_cost_quadratic=0.05,
+    )
+    n.add("Generator", "peaker", bus="bus", p_nom=500, marginal_cost=60)
+    n.add("Load", "load", bus="bus", p_set=[100, 300, 200])
+    n.optimize()
+
+    kwargs = {"groupby": False, "round": None}
+    profit = n.statistics.revenue(**kwargs) - n.statistics.system_cost(**kwargs)
+    p = n.c.generators.dynamic.p["quadratic"]
+    rent = 0.05 * (n.snapshot_weightings.objective * p**2).sum()
+    assert rent > 0
+    assert profit["Generator", "quadratic"] == pytest.approx(rent, rel=1e-4)
+
+
 @pytest.mark.parametrize("network", ["ac_dc_network", "storage_hvdc_network"])
 def test_revenues_cancel_in_every_snapshot(request, network):
     """Payments at every bus balance, which makes surpluses add up to welfare."""

@@ -171,7 +171,7 @@ Some common market metrics have no method of their own, because one or two exist
 
 ### Congestion rent
 
-The congestion rent of a branch is the value of the energy it delivers minus the value of the energy it withdraws, both at the marginal prices of the buses it connects. This is the [revenue][pypsa.statistics.StatisticsAccessor.revenue] of branch components, which sums over all ports by default:
+The congestion rent, or merchandising surplus, arises when transmission limits separate prices. It has two standard definitions: for one branch, its flow times the price difference between its ends; for the whole system, what consumers pay minus what producers receive. The rent of a branch is zero when the prices of its start and end buses are equal or when no power flows. In PyPSA, the [revenue][pypsa.statistics.StatisticsAccessor.revenue] of a branch is the value of the energy it delivers minus the value of the energy it withdraws, which is the first definition:
 
 ``` py
 >>> n.statistics.revenue(components=["Line", "Link"])
@@ -181,11 +181,18 @@ Link       DC         798.60693
 dtype: float64
 ```
 
-A single branch can earn a negative rent, for instance when loop flows push power towards a cheaper bus. The sum over all branches is non-negative. For links between buses of different carriers, such as electrolysers, the same quantity is the margin on the price spread between the carriers. Exclude them with the `carrier` filter.
+As the revenues of all components cancel at every bus, the sum over all branches also gives the second definition.
+
+!!! note "Edge cases"
+
+    - A single branch can earn a negative rent, for instance when loop flows push power from an expensive to a cheaper bus. The sum over all branches is non-negative.
+    - A branch need not be congested itself to earn a rent. Congestion elsewhere in the network suffices to separate the prices at its ends.
+    - For links with losses, the rent is the price difference times the withdrawn flow minus the losses valued at the price of the receiving bus.
+    - For links between buses of different carriers, such as electrolysers, the rent is the margin on the price spread between the carriers. Exclude them with the `carrier` filter.
 
 ### Capture rate
 
-The capture rate, or value factor, is the [market value][pypsa.statistics.StatisticsAccessor.market_value] of a technology divided by the time-weighted average [price][pypsa.statistics.StatisticsAccessor.prices] of its buses[^1]. Pass the same `bus_carrier` to both statistics and set `weighting="time"`. The default `weighting="load"` gives the load-weighted price instead.
+The capture rate, or value factor, of a technology is the average price it earns relative to the average price over time[^1]. In PyPSA, divide its [market value][pypsa.statistics.StatisticsAccessor.market_value] by the time-weighted average [price][pypsa.statistics.StatisticsAccessor.prices] of the buses with the same `bus_carrier`:
 
 ``` py
 >>> market_value = n.statistics.market_value(components="Generator", bus_carrier="AC")
@@ -199,7 +206,7 @@ dtype: float64
 
 ### Profit
 
-The profit of a component is its revenue at all ports minus its [system cost][pypsa.statistics.StatisticsAccessor.system_cost]. The `fill_value=0` keeps components without costs, such as loads:
+The profit of an asset is its revenue minus all its costs, including the annualised capital cost. In PyPSA, subtract the [system cost][pypsa.statistics.StatisticsAccessor.system_cost] from the revenue at all ports. The `fill_value=0` keeps components without costs, such as loads:
 
 ``` py
 >>> profit = n.statistics.revenue().sub(n.statistics.system_cost(), fill_value=0)
@@ -213,7 +220,9 @@ Load       load      -20619313.0
 dtype: float64
 ```
 
-In a linear capacity expansion model, an extendable component built at an interior optimum makes no profit: its revenue exactly covers its costs. The lines above earn a congestion rent of 610, which pays for their capital cost. Positive profits are rents on binding constraints, such as a fixed capacity or an emission cap. Here, the gas generators earn the CO2 price times the cap of 1000 t:
+Profit is in the units of the objective function. As `capital_cost` is annualised, it is a yearly value only if the snapshot weightings add up to one year.
+
+In a long-run equilibrium, the zero-profit rule holds: an extendable asset at an interior optimum of a linear model earns exactly its costs[^2]. Profits and losses are rents on binding constraints. An emission cap, for instance, acts like freely allocated allowances: the emitters earn the CO2 price, the shadow price of the cap, times their emissions. In this network, the gas generators are the only emitters and their emissions fill the cap:
 
 ``` py
 >>> co2_limit = n.c.global_constraints.static.loc["co2_limit"]
@@ -221,14 +230,15 @@ In a linear capacity expansion model, an extendable component built at an interi
 2178292
 ```
 
-!!! warning
+!!! warning "Exceptions to the zero-profit rule"
 
-    - Profit is in the units of the objective function. As `capital_cost` is annualised, it is a yearly value only if the snapshot weightings add up to one year.
-    - With unit commitment, modular capacities or quadratic costs, prices do not recover all costs, and extendable components can make a profit or a loss.
+    - Fixed capacities and binding capacity limits, such as `p_nom_min` and `p_nom_max`, earn a positive or negative rent.
+    - With a `marginal_cost_quadratic` $c_q$, the price exceeds the average operational cost, and an extendable asset earns the rent $\sum_t w_t c_q p_t^2$ on top of its costs.
+    - With unit commitment or modular capacities, the problem is not convex, and prices need not recover costs.
 
 ### Producer and consumer surplus
 
-The producer surplus, or producer rent, of a component is its revenue minus its operational expenditure. It is what is left to pay for its capital cost, so it equals the profit plus the capital expenditure. For branches without operational costs, it is the congestion rent:
+The producer surplus, or producer rent, is what producers receive minus their variable costs. In PyPSA, it is the revenue minus the [operational expenditure][pypsa.statistics.StatisticsAccessor.opex]. It equals the profit plus the capital expenditure, and for branches without operational costs it is the congestion rent:
 
 ``` py
 >>> revenue = n.statistics.revenue()
@@ -242,7 +252,7 @@ Link       DC              799.0
 dtype: float64
 ```
 
-The consumer surplus, or consumer rent, is the value of the energy to consumers minus what they pay for it. Loads with a fixed demand have no willingness to pay in the model, so their surplus is undefined. As a proxy, assume a willingness to pay above the highest price, here 1594 €/MWh. If the model uses [load shedding][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding], take its cost, the value of lost load. The revenue of loads is negative; it is what they pay:
+The consumer surplus, or consumer rent, is what consumers would be willing to pay for their energy minus what they pay. Loads with a fixed demand have no willingness to pay in the model. As a proxy, assume one above the highest price. If the model uses [load shedding][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding], take its cost, the value of lost load. The revenue of loads is negative; it is their payment:
 
 ``` py
 >>> willingness_to_pay = 3000  # €/MWh, an assumption
@@ -254,9 +264,15 @@ load    77023571.0
 dtype: float64
 ```
 
-The level of this proxy scales with the assumed willingness to pay. Compare it only between scenarios with the same demand, where the assumption cancels. Elastic demand needs no proxy. Model it as a generator with `sign=-1` and a negative `marginal_cost`, the willingness to pay, as in the [data centre example](../examples/data-centre-investment.ipynb). A positive `marginal_cost_quadratic` makes the willingness to pay fall with consumption. Its revenue minus its operational expenditure, the formula of the producer surplus, is then its consumer surplus.
+!!! warning
 
-As the revenues of all components sum to zero at every bus, consumer surplus, producer surplus and congestion rent add up to the welfare: the value of the demand minus the operational expenditure.
+    The level of this proxy scales with the assumed willingness to pay. Compare it only between scenarios with the same demand, where the assumption cancels.
+
+!!! info "Elastic demand"
+
+    Elastic demand needs no proxy. Model it as a generator with `sign=-1` and a negative `marginal_cost`, the willingness to pay, as in the [data centre example](../examples/data-centre-investment.ipynb). A positive `marginal_cost_quadratic` makes the willingness to pay fall with consumption. Its revenue minus its operational expenditure, the formula of the producer surplus, is then its consumer surplus.
+
+The welfare is the sum of consumer surplus, producer surplus and congestion rent. As the revenues of all components cancel at every bus, it equals the value of the demand minus the operational expenditure:
 
 ``` py
 >>> welfare = willingness_to_pay * demand.sum() - n.statistics.opex().sum()
@@ -274,7 +290,9 @@ With investment periods, statistics have one column per period. The system cost,
 >>> profit = revenue.sub(n.statistics.system_cost(), fill_value=0).sum(axis=1)  # doctest: +SKIP
 ```
 
-The [prices][pypsa.statistics.StatisticsAccessor.prices] statistic averages over all periods, so the capture rate recipe gives no value per period.
+!!! warning
+
+    The [prices][pypsa.statistics.StatisticsAccessor.prices] statistic averages over all periods, so the capture rate recipe gives no value per period.
 
 With scenarios, statistics have one row per scenario, and the capital expenditure repeats in each of them. Weight scenarios by `n.scenario_weightings.weight` for expected values. For the capture rate, divide by the base price of each scenario:
 
@@ -284,6 +302,7 @@ With scenarios, statistics have one row per scenario, and the capital expenditur
 ```
 
 [^1]: L. Hirth (2013), [The market value of variable renewables](https://doi.org/10.1016/j.eneco.2013.02.004), Energy Economics 38, 218–236.
+[^2]: T. Brown, L. Reichenberg (2021), [Decreasing market value of variable renewables can be avoided by policy action](https://doi.org/10.1016/j.eneco.2021.105354), Energy Economics 100, 105354.
 
 ## Expressions
 
