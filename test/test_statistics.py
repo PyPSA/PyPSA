@@ -253,19 +253,25 @@ def test_emissions_from_store_depletion(e_cyclic, expected):
     assert np.allclose(emissions.loc["Store", "gas tank"], expected / 3)
 
 
-def test_emissions_match_co2_constraint_with_investment_periods():
+@pytest.mark.parametrize("period", [None, 2030], ids=["all-periods", "one-period"])
+def test_emissions_match_co2_constraint_with_investment_periods(period):
     """The constraint weights each period's emissions by its years."""
     n = pypsa.examples.ac_dc_meshed()
     n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots])
     n.investment_periods = [2020, 2030]
     n.investment_period_weightings["years"] = [10, 5]
+    n.c.global_constraints.static.loc["co2_limit", "investment_period"] = period
     n.optimize(multi_investment_periods=True)
 
     limit = n.c.global_constraints.static.loc["co2_limit"]
     years = n.investment_period_weightings.years
-    emissions = n.statistics.emissions().mul(years, level="period")
+    emissions = n.statistics.emissions().mul(years, level="period").sum()
     assert limit.mu != 0
-    assert emissions.sum().sum() == pytest.approx(limit.constant)
+    if period is None:
+        assert emissions.sum() == pytest.approx(limit.constant)
+    else:
+        assert emissions[period] == pytest.approx(limit.constant)
+        assert emissions.drop(period).sum() > 0
 
 
 @pytest.mark.parametrize(("per_period", "expected"), [(True, [4, 4]), (False, [4, 2])])
