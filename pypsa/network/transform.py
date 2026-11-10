@@ -14,6 +14,7 @@ Transform methods are methods which modify, restructure data and add or remove d
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -217,6 +218,15 @@ class NetworkTransformMixin(_NetworkABC):
             return_names = options.params.add.return_names
 
         c = as_components(self, class_name)
+        if c.name == "StorageUnit":
+            warnings.warn(
+                "The StorageUnit component is deprecated and will be removed in PyPSA 2.0. "
+                "Use the Store component, which supports `max_hours`, `efficiency_store`, "
+                "`efficiency_dispatch` and `inflow`, or convert existing storage units "
+                "with `n.c.storage_units.convert_to_stores()`.",
+                FutureWarning,
+                stacklevel=2,
+            )
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name) and isinstance(suffix, str)
 
@@ -476,7 +486,7 @@ class NetworkTransformMixin(_NetworkABC):
         bus1         1.0       0.0  0.0  ...          inf      PQ
         bus2         1.0       0.0  0.0  ...          inf      PQ
         <BLANKLINE>
-        [3 rows x 13 columns]
+        [3 rows x 14 columns]
 
         Remove a single component:
         >>> n.remove("Bus", "bus2")
@@ -489,7 +499,7 @@ class NetworkTransformMixin(_NetworkABC):
         bus0         1.0       0.0  0.0  ...          inf      PQ
         bus1         1.0       0.0  0.0  ...          inf      PQ
         <BLANKLINE>
-        [2 rows x 13 columns]
+        [2 rows x 14 columns]
         >>> n.components.buses.dynamic.p_min_pu
         Empty DataFrame
         Columns: []
@@ -500,7 +510,7 @@ class NetworkTransformMixin(_NetworkABC):
 
         >>> n.components.buses.static
         Empty DataFrame
-        Columns: [v_nom, type, x, y, carrier, unit, location, v_mag_pu_set, v_mag_pu_min, v_mag_pu_max, control, generator, sub_network]
+        Columns: [v_nom, type, x, y, carrier, unit, scaling, location, v_mag_pu_set, v_mag_pu_min, v_mag_pu_max, control, generator, sub_network]
         Index: []
 
         """
@@ -510,17 +520,19 @@ class NetworkTransformMixin(_NetworkABC):
         names = _build_suffixed_names(name, suffix)
 
         # Drop from static components
-        cls_static = c.static
-        cls_static.drop(names, inplace=True)
+        labels = names
+        if c.static.index.nlevels > 1:
+            labels = pd.MultiIndex.from_product([self.scenarios, names])
+        c.static = c.static.drop(labels)
 
         # Drop from time-varying components
-        for df in c.dynamic.values():
-            df.drop(df.columns.intersection(names), axis=1, inplace=True)
+        for attr, df in c.dynamic.items():
+            c.dynamic[attr] = df.drop(df.columns.intersection(labels), axis=1)
 
         # Drop piecewise breakpoint data
-        for df in c.piecewise.values():
+        for attr, df in c.piecewise.items():
             stale = df.columns[df.columns.get_level_values("name").isin(names)]
-            df.drop(columns=stale, inplace=True)
+            c.piecewise[attr] = df.drop(columns=stale)
 
     def merge(
         self,

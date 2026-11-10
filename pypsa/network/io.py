@@ -952,10 +952,15 @@ class _ExporterHDF5(_Exporter):
         """Exit the context manager."""
         super().__exit__(exc_type, exc_val, exc_tb)
 
+    def _put(
+        self, key: str, value: pd.DataFrame | pd.Series | pd.Index, **kwargs: Any
+    ) -> None:
+        self.ds.put(key, value, track_times=False, **kwargs)
+
     def save_attributes(self, attrs: dict) -> None:
         """Save generic network attributes."""
         name = attrs.pop("name")
-        self.ds.put(
+        self._put(
             "/network",
             pd.DataFrame(attrs, index=pd.Index([name], name="name")),
             format="table",
@@ -964,19 +969,19 @@ class _ExporterHDF5(_Exporter):
 
     def save_meta(self, meta: dict) -> None:
         """Save meta data (`n.meta`)."""
-        self.ds.put("/meta", pd.Series(json.dumps(meta)))
+        self._put("/meta", pd.Series(json.dumps(meta)))
 
     def save_crs(self, crs: dict) -> None:
         """Save CRS of shapes of network."""
-        self.ds.put("/crs", pd.Series(json.dumps(crs)))
+        self._put("/crs", pd.Series(json.dumps(crs)))
 
     def save_snapshots(self, snapshots: Sequence) -> None:
         """Save snapshots data."""
-        self.ds.put("/snapshots", snapshots, format="table", index=False)
+        self._put("/snapshots", snapshots, format="table", index=False)
 
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
         """Save investment periods data."""
-        self.ds.put(
+        self._put(
             "/investment_periods",
             investment_periods,
             format="table",
@@ -993,19 +998,17 @@ class _ExporterHDF5(_Exporter):
         df = df.rename_axis(index="name")
         self.index[list_name] = df.index
         df = df.reset_index()
-        self.ds.put("/" + list_name, df, format="table", index=False)
+        self._put("/" + list_name, df, format="table", index=False)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save dynamic components data."""
         df = df.set_axis(self.index[list_name].get_indexer(df.columns), axis="columns")
-        self.ds.put("/" + list_name + "_t/" + attr, df, format="table", index=False)
+        self._put("/" + list_name + "_t/" + attr, df, format="table", index=False)
 
     def save_piecewise(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save piecewise component data."""
         df_stack = df.stack(df.columns.names, future_stack=True)
-        self.ds.put(
-            "/" + list_name + "_p/" + attr, df_stack, format="table", index=False
-        )
+        self._put("/" + list_name + "_p/" + attr, df_stack, format="table", index=False)
 
     def finish(self) -> None:
         """Postprocessing of exporting process."""
@@ -1131,13 +1134,10 @@ class _ImporterNetCDF(_Importer):
         for attr in self.ds.data_vars.keys():
             attr = str(attr)
             if attr.startswith(t):
-                df = (
-                    self.ds[attr]
-                    .rename({attr + "_i": "name"})
-                    .to_series()
-                    .unstack("snapshots")
-                    .T
-                )
+                da = self.ds[attr].rename({attr + "_i": "name"})
+                if da.ndim > 2:
+                    da = da.stack(columns=[d for d in da.dims if d != "snapshots"])
+                df = da.transpose("snapshots", ...).to_pandas()
                 yield attr[len(t) :], _coerce_string_dtypes(df)
 
     def get_piecewise(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
@@ -1287,8 +1287,8 @@ class _ExporterNetCDF(_Exporter):
 
         Runs post-processing, compression and saving to disk.
         """
-        # pandas>=3 infer_string strings aren't netCDF-writable. Cast to object and
-        # write with the option off to keep NaNs. https://github.com/pydata/xarray/issues/10301
+        # pandas>=3 infer_string strings aren't netCDF-writable, so cast to object.
+        # https://github.com/pydata/xarray/issues/10301
         for name in list(self.ds.variables):
             if isinstance(self.ds[name].dtype, pd.StringDtype):
                 self.ds[name] = self.ds[name].astype(object)
@@ -1298,7 +1298,7 @@ class _ExporterNetCDF(_Exporter):
             self.set_compression_encoding()
         if self.path is not None:
             _path = Path(self.path)
-            with _path.open("w"), pd.option_context("future.infer_string", False):
+            with _path.open("w"):
                 self.ds.to_netcdf(_path)
 
 
@@ -1641,7 +1641,7 @@ class NetworkIOMixin(_NetworkABC):
 
             if not skip_time:
                 for attr, df in importer.get_series(list_name):
-                    df.set_index(self.snapshots, inplace=True)
+                    df = df.set_index(self.snapshots)
                     self._import_series_from_df(df, component, attr)
 
             for attr, df in importer.get_piecewise(list_name):
@@ -2015,11 +2015,14 @@ class NetworkIOMixin(_NetworkABC):
         )
 
         # Fill nan values with default values
+        str_cols = df.columns.intersection(attrs.index[attrs.type == "string"])
+        df = df.astype(dict.fromkeys(str_cols, object))
         df = df.fillna(attrs["default"].to_dict())
 
+        defaults = {}
         for k in static_attrs.index:
             if k not in df.columns:
-                df[k] = static_attrs.at[k, "default"]
+                defaults[k] = static_attrs.at[k, "default"]
             else:
                 if static_attrs.at[k, "type"] == "string":
                     df[k] = df[k].replace({np.nan: ""})
@@ -2036,13 +2039,15 @@ class NetworkIOMixin(_NetworkABC):
                             df[k] = gpd.GeoSeries.from_wkt(geometry)
                     else:
                         df[k] = df[k].astype(static_attrs.at[k, "typ"])
+        df = pd.concat([df, pd.DataFrame(defaults, index=df.index)], axis=1)
 
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
-        old_static = self.c[cls_name].static
         new_static = df.drop(non_static_attrs_in_df, axis=1)
 
         # Handle duplicates
-        duplicated_components = old_static.index.intersection(new_static.index)
+        duplicated_components = self.c[cls_name].static.index.intersection(
+            new_static.index
+        )
         if len(duplicated_components) > 0:
             if not overwrite:
                 logger.warning(
@@ -2055,9 +2060,17 @@ class NetworkIOMixin(_NetworkABC):
             else:
                 self.remove(cls_name, duplicated_components)
 
+        # Read after remove, which replaces the frame rather than mutating it
+        old_static = self.c[cls_name].static
+
         # Concatenate to new dataframe
         if not old_static.empty:
             new_static = pd.concat((old_static, new_static), sort=False)
+            # The concat leaves NaN on the old rows for columns only the new rows carry
+            added_cols = new_static.columns.difference(old_static.columns)
+            fill = attrs["default"].reindex(added_cols).dropna()
+            if not fill.empty:
+                new_static = new_static.fillna(fill.to_dict())
 
         if cls_name == "Shape":
             new_static = gpd.GeoDataFrame(new_static, crs=self.crs)
@@ -2157,8 +2170,14 @@ class NetworkIOMixin(_NetworkABC):
         # Add all unknown attributes to the dataframe without any checks
         expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
         if attr not in expected_attrs:
-            if overwrite or attr not in dynamic:
+            if attr not in dynamic:
                 dynamic[attr] = df
+            else:
+                existing = dynamic[attr]
+                existing = existing.drop(
+                    existing.columns.intersection(df.columns), axis=1
+                )
+                dynamic[attr] = pd.concat([existing, df], axis=1)
             return
 
         # Check if any snapshots are missing
@@ -2450,7 +2469,7 @@ class NetworkIOMixin(_NetworkABC):
             pdf["buses"][["Pd", "Qd"]].any(axis=1), ["Pd", "Qd"]
         ]
         pdf["loads"]["bus"] = pdf["loads"].index
-        pdf["loads"].rename(columns={"Qd": "q_set", "Pd": "p_set"}, inplace=True)
+        pdf["loads"] = pdf["loads"].rename(columns={"Qd": "q_set", "Pd": "p_set"})
         pdf["loads"].index = [f"L{str(i)}" for i in range(len(pdf["loads"]))]
 
         # add shunt impedances for any buses with Gs or Bs

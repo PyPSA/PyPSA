@@ -41,7 +41,7 @@ The returned [pandas.DataFrame][] will be of the same form as when [defining an 
 
 ## Piecewise formulations
 
-When applying the piecewise constraints to the optimisation problem, each will be formulated by [linopy][] in the [format deemed to be "cheapest" for solving the problem](https://linopy.readthedocs.io/en/latest/piecewise-linear-constraints.html#formulation-methods).
+When applying the piecewise constraints to the optimisation problem, each will be formulated by [linopy](https://linopy.readthedocs.io) in the [format deemed to be "cheapest" for solving the problem](https://linopy.readthedocs.io/en/latest/piecewise-linear-constraints.html#formulation-methods).
 As of writing, this could be in the form of:
 
 - [An LP (chord-line) formulation](https://linopy.readthedocs.io/en/latest/piecewise-linear-constraints.html#lp-chord-line-formulation)
@@ -52,7 +52,7 @@ As of writing, this could be in the form of:
 Each formulation will create a piecewise auxiliary decision variable of the form `<component>-<aux_variable>` in the optimisation problem (see the table [above](#defining-piecewise-data) for all possible `component` and `aux_variable` combinations).
 For instance, a piecewise capital cost constraint applied to a generator will yield the variable `Generator-capital_cost_piecewise`, accessible at `n.model.variables["Generator-capital_cost_piecewise"]`.
 
-Depending on the formulation used, [linopy][] will also create additional auxiliary variables and constraints.
+Depending on the formulation used, [linopy](https://linopy.readthedocs.io) will also create additional auxiliary variables and constraints.
 For instance, the incremental (delta) formulation will lead to the auxiliary variables `<component>-<aux_variable>_delta` and `<component>-<aux_variable>_binary` and the constraints:
 
 ```py
@@ -66,7 +66,7 @@ These additional constraints and auxiliary variables will not find their way int
 You will, however, have access to the results `capital_cost_piecewise_opt` (static) and `marginal_cost_piecewise_opt` (dynamic) if applying piecewise costs.
 Piecewise efficiencies will be applied directly to the appropriate dynamic result attribute (e.g. `p2` for a `Link` if the piecewise curve is applied to `efficiency2`).
 
-You can override the default [linopy][] formulation by [configuring your own piecewise options](#configuring-piecewise-formulations).
+You can override the default [linopy](https://linopy.readthedocs.io) formulation by [configuring your own piecewise options](#configuring-piecewise-formulations).
 
 ### Configuring piecewise formulations
 

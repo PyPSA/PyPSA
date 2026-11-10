@@ -1028,7 +1028,7 @@ class PydeckPlotter:
                 polygons.extend(poly_pos)
 
         p_data = pd.DataFrame(polygons)
-        p_data.set_index("bus", inplace=True)
+        p_data = p_data.set_index("bus")
 
         # Tooltip
         if tooltip:

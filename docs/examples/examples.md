@@ -85,6 +85,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](rolling-horizon.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Forecast Errors and the Value of Foresight**
+
+    Explores how much of a battery's arbitrage value survives when its schedule is decided against imperfect price forecasts that are refreshed every day.
+
+    [:octicons-arrow-right-24: Go to example](forecast-errors.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Water Values**
 
     Explores how water values, the marginal values of stored energy, can improve seasonal storage operation in rolling-horizon optimization.
@@ -182,12 +188,32 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](scigrid-redispatch.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Flow-Based Market Coupling**
+
+    Sketches how flow-based market coupling can be modelled with
+    a given flow-based domain.
+
+    [:octicons-arrow-right-24: Go to example](fbmc-simple-example.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Calculating Flow-Based Domains**
+
+    Demonstrates how a flow-based domain can be calculated from a nodal network.
+
+    [:octicons-arrow-right-24: Go to example](fbmc-building-domain.ipynb)
+
 -   :material-notebook:{ .lg .middle } **Demand Elasticity**
 
     Demonstrates modelling of price-responsive electricity demands and how they
     affect price formation.
 
     [:octicons-arrow-right-24: Go to example](demand-elasticity.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Data Centre Investment**
+
+    Models a data centre as an extendable dispatchable demand with a willingness
+    to pay, using a generator with negative sign and quadratic marginal costs.
+
+    [:octicons-arrow-right-24: Go to example](data-centre-investment.ipynb)
 
 -   :material-notebook:{ .lg .middle } **Imperfect Competition**
 

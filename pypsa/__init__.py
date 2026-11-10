@@ -8,10 +8,10 @@ Energy system modelling library.
 """
 
 __author__ = (
-    "PyPSA Developers, see https://docs.pypsa.org/latest/contributing/contributors.html"
+    "PyPSA Developers, see https://docs.pypsa.org/latest/contributing/contributors/"
 )
 __copyright__ = (
-    "Copyright 2015-2025 PyPSA Developers, see https://docs.pypsa.org/latest/contributing/contributors.html, "
+    "Copyright 2015-2025 PyPSA Developers, see https://docs.pypsa.org/latest/contributing/contributors/, "
     "MIT License"
 )
 
