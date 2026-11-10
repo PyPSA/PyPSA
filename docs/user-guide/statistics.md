@@ -206,7 +206,7 @@ dtype: float64
 
 ### Profit
 
-The profit of an asset is its revenue minus all its costs, including the annualised capital cost. In PyPSA, subtract the [system cost][pypsa.statistics.StatisticsAccessor.system_cost] from the revenue at all ports. The `fill_value=0` keeps components without costs, such as loads:
+The profit of an asset is its revenue minus all its costs, including the annualised capital cost. In PyPSA, subtract the [system cost][pypsa.statistics.StatisticsAccessor.system_cost] from the [revenue][pypsa.statistics.StatisticsAccessor.revenue] at all ports. The `fill_value=0` keeps components without costs, such as loads:
 
 ``` py
 >>> profit = n.statistics.revenue().sub(n.statistics.system_cost(), fill_value=0)
@@ -238,7 +238,7 @@ In a long-run equilibrium, the zero-profit rule holds: an extendable asset at an
 
 ### Producer and consumer surplus
 
-The producer surplus, or producer rent, is what producers receive minus their variable costs. In PyPSA, it is the revenue minus the [operational expenditure][pypsa.statistics.StatisticsAccessor.opex]. It equals the profit plus the capital expenditure, and for branches without operational costs it is the congestion rent:
+The producer surplus, or producer rent, is what producers receive minus their variable costs. In PyPSA, it is the [revenue][pypsa.statistics.StatisticsAccessor.revenue] minus the [operational expenditure][pypsa.statistics.StatisticsAccessor.opex]. It equals the [profit](#profit) plus the [capital expenditure][pypsa.statistics.StatisticsAccessor.capex], and for branches without operational costs it is the [congestion rent](#congestion-rent):
 
 ``` py
 >>> revenue = n.statistics.revenue()
@@ -252,7 +252,7 @@ Link       DC              799.0
 dtype: float64
 ```
 
-The consumer surplus, or consumer rent, is what consumers would be willing to pay for their energy minus what they pay. Loads with a fixed demand have no willingness to pay in the model. As a proxy, assume one above the highest price. If the model uses [load shedding][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding], take its cost, the value of lost load. The revenue of loads is negative; it is their payment:
+The consumer surplus, or consumer rent, is what consumers would be willing to pay for their energy minus what they pay. Loads with a fixed demand have no willingness to pay in the model. As a proxy, assume one above the highest price. If the model uses [load shedding][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding], take its cost, the value of lost load. The demand of loads is their [withdrawal][pypsa.statistics.StatisticsAccessor.withdrawal], and their revenue is negative; it is their payment:
 
 ``` py
 >>> willingness_to_pay = 3000  # €/MWh, an assumption
@@ -282,7 +282,7 @@ The welfare is the sum of consumer surplus, producer surplus and congestion rent
 
 ### Investment periods and scenarios
 
-With investment periods, statistics have one column per period. The system cost, capital and operational expenditure of each period are weighted by `n.investment_period_weightings.objective`, which discounts them, but the revenue is not. Weight the revenue, and the value of the demand, in the same way before you subtract costs. An asset that lives over several periods then breaks even over its lifetime, not in each period:
+With investment periods, statistics have one column per period. The [system cost][pypsa.statistics.StatisticsAccessor.system_cost], [capital][pypsa.statistics.StatisticsAccessor.capex] and [operational expenditure][pypsa.statistics.StatisticsAccessor.opex] of each period are weighted by `n.investment_period_weightings.objective`, which discounts them, but the [revenue][pypsa.statistics.StatisticsAccessor.revenue] is not. Weight the revenue, and the value of the demand, in the same way before you subtract costs. An asset that lives over several periods then breaks even over its lifetime, not in each period:
 
 ``` py
 >>> weights = n.investment_period_weightings.objective
@@ -292,7 +292,7 @@ With investment periods, statistics have one column per period. The system cost,
 
 !!! warning
 
-    The [prices][pypsa.statistics.StatisticsAccessor.prices] statistic averages over all periods, so the capture rate recipe gives no value per period.
+    The [prices][pypsa.statistics.StatisticsAccessor.prices] statistic averages over all periods, so the [capture rate](#capture-rate) recipe gives no value per period.
 
 With scenarios, statistics have one row per scenario, and the capital expenditure repeats in each of them. Weight scenarios by `n.scenario_weightings.weight` for expected values. For the capture rate, divide by the base price of each scenario:
 
