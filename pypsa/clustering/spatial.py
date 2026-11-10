@@ -418,7 +418,7 @@ def aggregatelines(
     static = static.loc[idx]
 
     orig_length = static.length
-    orig_v_nom = static.bus0.map(n.c.buses.static.v_nom)
+    orig_v_nom = static.bus0.map(n.c.buses.static.v_nom).astype(float)
 
     bus_strategies = {**DEFAULT_BUS_STRATEGIES, **bus_strategies}
     cols = ["x", "y", "v_nom"]
@@ -449,9 +449,11 @@ def aggregatelines(
     static = static.assign(length=length)
 
     length_factor = (static.length / orig_length).where(orig_length > 0, static.length)
-    v_nom = pd.concat(
-        [static.bus0.map(buses.v_nom), static.bus1.map(buses.v_nom)], axis=1
-    ).max(axis=1)
+    v_nom = (
+        pd.concat([static.bus0.map(buses.v_nom), static.bus1.map(buses.v_nom)], axis=1)
+        .max(axis=1)
+        .astype(float)
+    )
     voltage_factor = (orig_v_nom / v_nom) ** 2
     capacity_weights = static.groupby(grouper).s_nom.transform(normed_or_uniform)
 

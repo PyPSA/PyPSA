@@ -31,6 +31,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix compatibility with pandas 3.1: default snapshot weightings are floats again, clustering networks without lines no longer fails, and statistics, HDF5 and netCDF export no longer emit deprecation warnings. (<!-- md:pr 2111 -->)
 - Fix [`n.add()`][pypsa.Network.add] leaving `NaN` in attributes that a later call introduces, such as `efficiency2` on links added before the first link with a third bus. Existing components now get the attribute default, so the consistency check no longer warns about missing values for ports they do not have. (<!-- md:pr 2105 -->)
 - **Behavior change**: The `{Component}-{attr}_set` constraints (e.g. `Generator-p_nom_set`) use the dimension `name` instead of `{Component}-{attr}_set_i`, like all other constraints. Custom constraints in `extra_functionality` that select on the old dimension need updating. (<!-- md:pr 2052 -->)
 - Fix maintenance of modular committable components that are not extendable returning status `('ok', 'unknown')` without a solution. (<!-- md:pr 2100 -->)
