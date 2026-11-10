@@ -125,7 +125,7 @@ def test_zero_profit_rule_branches(ac_dc_network_r):
 
 
 def test_profit_equals_co2_rent(ac_dc_network_r):
-    """Extendable gas generators earn the CO2 price on the cap, wind breaks even."""
+    """Gas profit is the CO2 payment the system cost omits, wind breaks even."""
     n = ac_dc_network_r
     profit = n.statistics.revenue().sub(n.statistics.system_cost(), fill_value=0)
     co2_limit = n.c.global_constraints.static.loc["co2_limit"]
