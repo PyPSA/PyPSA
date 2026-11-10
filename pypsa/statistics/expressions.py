@@ -2603,8 +2603,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """Calculate the **revenue** of components in the network in given currency.
 
         The revenue is defined as the net revenue of an asset, i.e. the revenue
-        of its output minus the cost of its input. Congestion rent and profit
-        follow from it, see
+        of its output minus the cost of its input. Congestion rent, profit, and
+        producer and consumer surplus follow from it, see
         [Derived Metrics](../../user-guide/statistics.md#derived-metrics).
 
         Parameters

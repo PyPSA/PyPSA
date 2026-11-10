@@ -37,7 +37,7 @@ Currently supported metrics are:
 - [Marginal prices][pypsa.statistics.StatisticsAccessor.prices]: The marginal prices at the buses for all snapshots.
 - [Transmission][pypsa.statistics.StatisticsAccessor.transmission]: The energy transmitted through transmission components (links, lines, transformers connecting to buses of the same carrier).
 
-Congestion rent, capture rate and profit follow from these metrics, see [Derived Metrics](#derived-metrics).
+Congestion rent, capture rate, profit, and producer and consumer surplus follow from these metrics, see [Derived Metrics](#derived-metrics).
 
 These metrics can be calculated using the `n.statistics` accessor, for instance:
 
@@ -233,6 +233,44 @@ With investment periods, the system cost of each period is weighted by `n.invest
 
     - Profit is in the units of the objective function. As `capital_cost` is annualised, it is a yearly value only if the snapshot weightings add up to one year.
     - With unit commitment, modular capacities or quadratic costs, prices do not recover all costs, and extendable components can make a profit or a loss.
+
+### Producer and consumer surplus
+
+The producer surplus, or producer rent, of a component is its revenue minus its operational expenditure. It is what is left to pay for its capital cost, so it equals the profit plus the capital expenditure. For branches without operational costs, it is the congestion rent:
+
+``` py
+>>> revenue = n.statistics.revenue()
+>>> producer_surplus = revenue.sub(n.statistics.opex(), fill_value=0).drop("Load")
+>>> producer_surplus.round()
+component  carrier
+Generator  gas         2279124.0
+           wind       18329600.0
+Line       AC              610.0
+Link       DC              799.0
+dtype: float64
+```
+
+The consumer surplus, or consumer rent, is the value of the energy to consumers minus what they pay for it. Loads with a fixed demand have no willingness to pay in the model, so their surplus is undefined. As a proxy, assume a willingness to pay above the highest price, here 1594 €/MWh. If the model uses [load shedding][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding], take its cost, the value of lost load. The revenue of loads is negative; it is what they pay:
+
+``` py
+>>> willingness_to_pay = 3000  # €/MWh, an assumption
+>>> demand = n.statistics.withdrawal(components="Load")
+>>> consumer_surplus = willingness_to_pay * demand + revenue["Load"]
+>>> consumer_surplus.round()
+carrier
+load    77023571.0
+dtype: float64
+```
+
+The level of this proxy scales with the assumed willingness to pay. Compare it only between scenarios with the same demand, where the assumption cancels. Elastic demand needs no proxy. Model it as a generator with `sign=-1` and a negative `marginal_cost`, the willingness to pay, as in the [data centre example](../examples/data-centre-investment.ipynb). Its revenue minus its operational expenditure, the formula of the producer surplus, is then its consumer surplus.
+
+As the revenues of all components sum to zero at every bus, consumer surplus, producer surplus and congestion rent add up to the welfare: the value of the demand minus the operational expenditure.
+
+``` py
+>>> welfare = willingness_to_pay * demand.sum() - n.statistics.opex().sum()
+>>> round(consumer_surplus.sum() + producer_surplus.sum() - welfare)
+0
+```
 
 [^1]: L. Hirth (2013), [The market value of variable renewables](https://doi.org/10.1016/j.eneco.2013.02.004), Energy Economics 38, 218–236.
 
