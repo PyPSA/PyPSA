@@ -124,6 +124,45 @@ def test_zero_profit_rule_branches(ac_dc_network_r):
     assert np.allclose(revenue[comps], capex[comps])
 
 
+def test_profit_equals_co2_rent(ac_dc_network_r):
+    """Extendable gas generators earn the CO2 price on the cap, wind breaks even."""
+    n = ac_dc_network_r
+    profit = n.statistics.revenue().sub(n.statistics.system_cost(), fill_value=0)
+    co2_limit = n.c.global_constraints.static.loc["co2_limit"]
+    assert profit["Generator", "gas"] == pytest.approx(
+        abs(co2_limit.mu) * co2_limit.constant
+    )
+    assert profit["Generator", "wind"] == pytest.approx(0, abs=1e-2)
+
+
+def test_profit_equals_capacity_rents_with_investment_periods():
+    """Over their lifetime, assets earn the rent on binding capacity bounds.
+
+    Meshed lines share their rents through Kirchhoff's voltage law, so the identity
+    holds per carrier rather than per line.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.remove("GlobalConstraint", "co2_limit")
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots])
+    n.investment_periods = [2020, 2030]
+    n.investment_period_weightings["objective"] = [10, 6]
+    n.optimize(multi_investment_periods=True)
+
+    weights = n.investment_period_weightings.objective
+    revenue = n.statistics.revenue().mul(weights, level="period")
+    cost = n.statistics.system_cost()
+    profit = revenue.sub(cost, fill_value=0).sum(axis=1)
+    dual = n.model.constraints["Generator-ext-p_nom-lower"].dual.to_pandas()
+    rent = (
+        -dual.mul(n.c.generators.static.p_nom_min)
+        .groupby(n.c.generators.static.carrier)
+        .sum()
+    )
+    assert rent.abs().sum() > 0
+    assert np.allclose(profit["Generator"], rent[profit["Generator"].index], atol=1)
+    assert np.allclose(profit[["Line", "Link"]], 0, atol=1)
+
+
 def test_net_and_gross_revenue(ac_dc_network_r):
     n = ac_dc_network_r
     target = n.statistics.revenue(groupby_time="sum")

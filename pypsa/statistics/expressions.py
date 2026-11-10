@@ -2602,8 +2602,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         """Calculate the **revenue** of components in the network in given currency.
 
-        The revenue is defined as the net revenue of an asset, i.e cost
-        of input - revenue of output.
+        The revenue is defined as the net revenue of an asset, i.e. the revenue
+        of its output minus the cost of its input. Congestion rent and profit
+        follow from it, see
+        [Derived Metrics](../../user-guide/statistics.md#derived-metrics).
 
         Parameters
         ----------
@@ -2755,6 +2757,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
           divided by the reference operational variable.
         - **With `bus_carrier`**: Returns revenue at the specified bus carriers'
           ports divided by the same reference operational variable.
+
+        Divided by the average price, the market value gives the capture rate, see
+        [Derived Metrics](../../user-guide/statistics.md#derived-metrics).
 
         Parameters
         ----------

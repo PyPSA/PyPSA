@@ -37,6 +37,8 @@ Currently supported metrics are:
 - [Marginal prices][pypsa.statistics.StatisticsAccessor.prices]: The marginal prices at the buses for all snapshots.
 - [Transmission][pypsa.statistics.StatisticsAccessor.transmission]: The energy transmitted through transmission components (links, lines, transformers connecting to buses of the same carrier).
 
+Congestion rent, capture rate and profit follow from these metrics, see [Derived Metrics](#derived-metrics).
+
 These metrics can be calculated using the `n.statistics` accessor, for instance:
 
 ``` py
@@ -158,6 +160,81 @@ Load      load                     NaN  ...                  NaN
 - **`nice_names`**: Use nice names for carriers
 - **`drop_zero`**: Remove zero-value rows
 - **`round`**: Round to decimal places
+
+## Derived Metrics
+
+Some common market metrics have no method of their own, because one or two existing statistics give them. The examples use the solved network:
+
+``` py
+>>> _ = n.optimize(log_to_console=False)
+```
+
+### Congestion rent
+
+The congestion rent of a branch is the value of the energy it delivers minus the value of the energy it withdraws, both at the marginal prices of the buses it connects. This is the [revenue][pypsa.statistics.StatisticsAccessor.revenue] of branch components, which sums over all ports by default:
+
+``` py
+>>> n.statistics.revenue(components=["Line", "Link"])
+component  carrier
+Line       AC         609.62732
+Link       DC         798.60693
+dtype: float64
+```
+
+A single branch can earn a negative rent, for instance when loop flows push power towards a cheaper bus. The sum over all branches is non-negative. For links between buses of different carriers, such as electrolysers, the same quantity is the margin on the price spread between the carriers. Exclude them with the `carrier` filter.
+
+### Capture rate
+
+The capture rate, or value factor, is the [market value][pypsa.statistics.StatisticsAccessor.market_value] of a technology divided by the time-weighted average [price][pypsa.statistics.StatisticsAccessor.prices] of its buses[^1]. Pass the same `bus_carrier` to both statistics and set `weighting="time"`. The default `weighting="load"` gives the load-weighted price instead.
+
+``` py
+>>> market_value = n.statistics.market_value(components="Generator", bus_carrier="AC")
+>>> base_price = n.statistics.prices(bus_carrier="AC", groupby="bus_carrier", weighting="time")
+>>> (market_value / base_price["AC"]).round(2)
+carrier
+gas     2.83
+wind    1.07
+dtype: float64
+```
+
+### Profit
+
+The profit of a component is its revenue at all ports minus its [system cost][pypsa.statistics.StatisticsAccessor.system_cost]. The `fill_value=0` keeps components without costs, such as loads:
+
+``` py
+>>> profit = n.statistics.revenue().sub(n.statistics.system_cost(), fill_value=0)
+>>> profit.round()
+component  carrier
+Generator  gas         2178292.0
+           wind              0.0
+Line       AC                0.0
+Link       DC                0.0
+Load       load      -20619313.0
+dtype: float64
+```
+
+In a linear capacity expansion model, an extendable component built at an interior optimum makes no profit: its revenue exactly covers its costs. The lines above earn a congestion rent of 610, which pays for their capital cost. Positive profits are rents on binding constraints, such as a fixed capacity or an emission cap. Here, the gas generators earn the CO2 price times the cap of 1000 t:
+
+``` py
+>>> co2_limit = n.c.global_constraints.static.loc["co2_limit"]
+>>> round(-co2_limit.mu * co2_limit.constant)
+2178292
+```
+
+With investment periods, the system cost of each period is weighted by `n.investment_period_weightings.objective`, which discounts it, but the revenue is not. Weight the revenue in the same way. An asset that lives over several periods then breaks even over its lifetime, not in each period:
+
+``` py
+>>> weights = n.investment_period_weightings.objective
+>>> revenue = n.statistics.revenue().mul(weights, level="period")  # doctest: +SKIP
+>>> profit = revenue.sub(n.statistics.system_cost(), fill_value=0).sum(axis=1)  # doctest: +SKIP
+```
+
+!!! warning
+
+    - Profit is in the units of the objective function. As `capital_cost` is annualised, it is a yearly value only if the snapshot weightings add up to one year.
+    - With unit commitment, modular capacities or quadratic costs, prices do not recover all costs, and extendable components can make a profit or a loss.
+
+[^1]: L. Hirth (2013), [The market value of variable renewables](https://doi.org/10.1016/j.eneco.2013.02.004), Energy Economics 38, 218–236.
 
 ## Expressions
 
