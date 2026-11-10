@@ -163,32 +163,53 @@ def test_profit_equals_capacity_rents_with_investment_periods():
     assert np.allclose(profit[["Line", "Link"]], 0, atol=1)
 
 
-def test_surpluses_add_up_to_welfare(ac_dc_network_r):
-    """Revenues cancel at every bus, so surpluses sum to welfare."""
-    n = ac_dc_network_r
-    wtp = 3000
-    revenue = n.statistics.revenue(round=None)
-    surplus = revenue.sub(n.statistics.opex(round=None), fill_value=0)
-    demand = n.statistics.withdrawal(components="Load", round=None).sum()
-    consumer_surplus = wtp * demand + revenue["Load"].sum()
-    producer_surplus = surplus.drop("Load").sum()
-    welfare = wtp * demand - n.statistics.opex(round=None).sum()
-    assert revenue.sum() == pytest.approx(0, abs=1e-3)
-    assert consumer_surplus + producer_surplus == pytest.approx(welfare)
+@pytest.mark.parametrize("network", ["ac_dc_network", "storage_hvdc_network"])
+def test_revenues_cancel_in_every_snapshot(request, network):
+    """Payments at every bus balance, which makes surpluses add up to welfare."""
+    n = request.getfixturevalue(network)
+    n.optimize()
+    revenue = n.statistics.revenue(groupby_time=False, round=None)
+    assert np.allclose(revenue.sum(), 0, atol=1e-3)
 
 
-def test_consumer_surplus_of_elastic_demand():
-    """A consumer with a willingness to pay of 100 buys 80 MW at a price of 10."""
+@pytest.mark.parametrize(
+    ("marginal_cost", "marginal_cost_quadratic", "p_nom", "consumer_surplus"),
+    [
+        (-100, 0, 80, (100 - 10) * 80),
+        (-500, 0.125, 1e4, (500 - 10) * 1960 / 2),
+    ],
+    ids=["constant", "linear-decreasing"],
+)
+def test_consumer_surplus_of_elastic_demand(
+    marginal_cost, marginal_cost_quadratic, p_nom, consumer_surplus
+):
+    """Revenue minus opex is the area between willingness to pay and price.
+
+    Supply at 10 EUR/MWh sets the price. The decreasing willingness to pay
+    500 - 0.25 q meets it at q = 1960 MW.
+    """
     n = pypsa.Network(snapshots=range(2))
     n.add("Bus", "bus")
-    n.add("Generator", "supply", bus="bus", p_nom=100, marginal_cost=10)
-    n.add("Generator", "consumer", bus="bus", p_nom=80, sign=-1, marginal_cost=-100)
+    n.add("Generator", "supply", bus="bus", p_nom=1e4, marginal_cost=10)
+    n.add(
+        "Generator",
+        "consumer",
+        bus="bus",
+        p_nom=p_nom,
+        sign=-1,
+        marginal_cost=marginal_cost,
+        marginal_cost_quadratic=marginal_cost_quadratic,
+    )
     n.optimize()
 
-    revenue = n.statistics.revenue(groupby=False)
-    surplus = revenue.sub(n.statistics.opex(groupby=False), fill_value=0)
-    assert surplus["Generator", "consumer"] == pytest.approx((100 - 10) * 80 * 2)
-    assert surplus["Generator", "supply"] == pytest.approx(0)
+    revenue = n.statistics.revenue(groupby=False, round=None, drop_zero=False)
+    opex = n.statistics.opex(groupby=False, round=None, drop_zero=False)
+    surplus = revenue - opex
+    assert np.allclose(n.c.buses.dynamic.marginal_price, 10, rtol=1e-4)
+    assert surplus["Generator", "consumer"] == pytest.approx(
+        2 * consumer_surplus, rel=1e-4
+    )
+    assert surplus["Generator", "supply"] == pytest.approx(0, abs=1)
 
 
 def test_net_and_gross_revenue(ac_dc_network_r):

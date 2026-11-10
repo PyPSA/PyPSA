@@ -163,7 +163,7 @@ Load      load                     NaN  ...                  NaN
 
 ## Derived Metrics
 
-Some common market metrics have no method of their own, because one or two existing statistics give them. The examples use the solved network:
+Some common market metrics have no method of their own, because one or two existing statistics give them. The examples use the solved network, with one investment period and no scenarios. The [last section](#investment-periods-and-scenarios) adapts them to other cases.
 
 ``` py
 >>> _ = n.optimize(log_to_console=False)
@@ -221,14 +221,6 @@ In a linear capacity expansion model, an extendable component built at an interi
 2178292
 ```
 
-With investment periods, the system cost of each period is weighted by `n.investment_period_weightings.objective`, which discounts it, but the revenue is not. Weight the revenue in the same way. An asset that lives over several periods then breaks even over its lifetime, not in each period:
-
-``` py
->>> weights = n.investment_period_weightings.objective
->>> revenue = n.statistics.revenue().mul(weights, level="period")  # doctest: +SKIP
->>> profit = revenue.sub(n.statistics.system_cost(), fill_value=0).sum(axis=1)  # doctest: +SKIP
-```
-
 !!! warning
 
     - Profit is in the units of the objective function. As `capital_cost` is annualised, it is a yearly value only if the snapshot weightings add up to one year.
@@ -262,7 +254,7 @@ load    77023571.0
 dtype: float64
 ```
 
-The level of this proxy scales with the assumed willingness to pay. Compare it only between scenarios with the same demand, where the assumption cancels. Elastic demand needs no proxy. Model it as a generator with `sign=-1` and a negative `marginal_cost`, the willingness to pay, as in the [data centre example](../examples/data-centre-investment.ipynb). Its revenue minus its operational expenditure, the formula of the producer surplus, is then its consumer surplus.
+The level of this proxy scales with the assumed willingness to pay. Compare it only between scenarios with the same demand, where the assumption cancels. Elastic demand needs no proxy. Model it as a generator with `sign=-1` and a negative `marginal_cost`, the willingness to pay, as in the [data centre example](../examples/data-centre-investment.ipynb). A positive `marginal_cost_quadratic` makes the willingness to pay fall with consumption. Its revenue minus its operational expenditure, the formula of the producer surplus, is then its consumer surplus.
 
 As the revenues of all components sum to zero at every bus, consumer surplus, producer surplus and congestion rent add up to the welfare: the value of the demand minus the operational expenditure.
 
@@ -271,6 +263,29 @@ As the revenues of all components sum to zero at every bus, consumer surplus, pr
 >>> round(consumer_surplus.sum() + producer_surplus.sum() - welfare)
 0
 ```
+
+### Investment periods and scenarios
+
+With investment periods, statistics have one column per period. The system cost, capital and operational expenditure of each period are weighted by `n.investment_period_weightings.objective`, which discounts them, but the revenue is not. Weight the revenue, and the value of the demand, in the same way before you subtract costs. An asset that lives over several periods then breaks even over its lifetime, not in each period:
+
+``` py
+>>> weights = n.investment_period_weightings.objective
+>>> revenue = n.statistics.revenue().mul(weights, level="period")  # doctest: +SKIP
+>>> profit = revenue.sub(n.statistics.system_cost(), fill_value=0).sum(axis=1)  # doctest: +SKIP
+```
+
+The [prices][pypsa.statistics.StatisticsAccessor.prices] statistic averages over all periods, so the capture rate recipe gives no value per period.
+
+With scenarios, statistics have one row per scenario, and the capital expenditure repeats in each of them. Weight scenarios by `n.scenario_weightings.weight` for expected values. For the capture rate, divide by the base price of each scenario:
+
+``` py
+>>> base_price = base_price.xs("AC", level="bus_carrier")  # doctest: +SKIP
+>>> market_value.div(base_price, level="scenario")  # doctest: +SKIP
+```
+
+!!! warning
+
+    Marginal prices of stochastic networks currently include the scenario probability, which scales the revenue of each scenario by it. The capture rate is not affected, as the probability cancels.
 
 [^1]: L. Hirth (2013), [The market value of variable renewables](https://doi.org/10.1016/j.eneco.2013.02.004), Energy Economics 38, 218–236.
 
