@@ -2884,8 +2884,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         limits. Each component emits its carrier's `carrier_attribute`, by default
         `co2_emissions` in t/MWh, per unit of primary energy:
 
-        - **Generator**: the fuel burnt, `p / efficiency`, weighted by the snapshot
-          weightings of generators.
+        - **Generator**: the fuel burnt, `p / efficiency` or the fuel use of a
+          piecewise efficiency curve, weighted by the snapshot weightings of
+          generators.
         - **StorageUnit** and **Store**: the depletion of the stored energy between
           consecutive snapshots, starting from `state_of_charge_initial` or
           `e_initial`. Cyclic storage returns to its initial level and is excluded.
@@ -2951,8 +2952,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         dtype: float64
 
         """
-        emitting = {
-            "Generator": None,
+        storage_attrs = {
             "StorageUnit": (
                 "state_of_charge",
                 "state_of_charge_initial",
@@ -2961,27 +2961,28 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             "Store": ("e", "e_initial", "e_cyclic"),
         }
         if components is None:
-            components = list(emitting)
+            components = ["Generator", *storage_attrs]
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            stored = emitting[c]
             comp = n.c[c]
-            rates = n.c.carriers.static[carrier_attribute]
-            if isinstance(rates.index, pd.MultiIndex):
-                rates = rates.droplevel(list(range(rates.index.nlevels - 1)))
-                rates = rates[~rates.index.duplicated()]
-            factor = comp.static.carrier.map(rates).fillna(0.0)
+            static = comp.static
+            keys = static.set_index("carrier", append=True).index.droplevel("name")
+            rates = n.c.carriers.static[carrier_attribute].reindex(keys)
+            factor = pd.Series(rates.to_numpy(), index=static.index).fillna(0)
 
-            if stored is None:
-                primary = comp.dynamic.p / n.get_switchable_as_dense(c, "efficiency")
+            if c == "Generator":
+                p = comp.dynamic.p
+                primary = p / n.get_switchable_as_dense(c, "efficiency")
+                if "p_primary_piecewise_opt" in comp.dynamic:
+                    primary.update(p * comp.dynamic["p_primary_piecewise_opt"])
                 weights = n.snapshot_weightings.generators
             else:
-                level_attr, initial_attr, cyclic_attr = stored
+                level_attr, initial_attr, cyclic_attr = storage_attrs[c]
                 level = comp.dynamic[level_attr]
                 previous = level.shift(1)
-                previous.iloc[0] = comp.static[initial_attr]
-                primary = (previous - level).mul(~comp.static[cyclic_attr], axis=1)
+                previous.iloc[0] = static[initial_attr]
+                primary = (previous - level).mul(~static[cyclic_attr], axis=1)
                 weights = pd.Series(1.0, index=level.index)
             emissions = primary.mul(factor, axis=1)
             return self._aggregate_timeseries(emissions, weights, agg=groupby_time)

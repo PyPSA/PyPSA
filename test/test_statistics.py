@@ -141,6 +141,41 @@ def test_emissions_match_co2_constraint(ac_dc_network_r):
     assert n.statistics.emissions().sum() == pytest.approx(limit.constant)
 
 
+def test_emissions_match_co2_constraint_piecewise_efficiency():
+    n = pypsa.Network()
+    n.add("Carrier", ["gas", "wind"], co2_emissions=[1.0, 0.0])
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        carrier="gas",
+        p_nom=70,
+        marginal_cost=20,
+        efficiency={0.0: 0.0, 0.1: 0.2, 0.5: 0.4, 1.0: 0.6},
+    )
+    n.add("Generator", "wind", bus="bus", carrier="wind", p_nom=50, marginal_cost=50)
+    n.add("Load", "load", bus="bus", p_set=50)
+    n.add(
+        "GlobalConstraint", "co2_limit", carrier_attribute="co2_emissions", constant=60
+    )
+    n.optimize()
+
+    assert n.statistics.emissions().sum() == pytest.approx(60)
+
+
+def test_emissions_per_scenario_carrier_attribute(ac_dc_stochastic):
+    """Doubling the emission factor in one scenario makes its cap of 1000 t bind."""
+    n = ac_dc_stochastic
+    n.c.carriers.static.loc[("high", "gas"), "co2_emissions"] *= 2
+    n.optimize()
+
+    emissions = n.statistics.emissions().xs("gas", level="carrier")
+    assert emissions.droplevel("component").to_dict() == pytest.approx(
+        {"high": 1000, "low": 500}
+    )
+
+
 def test_emissions_from_store_depletion():
     n = pypsa.Network(snapshots=range(3))
     n.add("Carrier", "gas", co2_emissions=0.2)
