@@ -222,7 +222,7 @@ dtype: float64
 
 Profit is in the units of the objective function. As `capital_cost` is annualised, it is a yearly value only if the snapshot weightings add up to one year.
 
-In a long-run equilibrium, the zero-profit rule holds: an extendable asset at an interior optimum of a linear model earns exactly its costs[^2]. Profits and losses are rents on binding constraints. An emission cap, for instance, acts like freely allocated allowances: the emitters earn the CO2 price, the shadow price of the cap, times their emissions. In this network, the gas generators are the only emitters and their emissions fill the cap:
+In a long-run equilibrium, the zero-profit rule holds: an extendable asset at an interior optimum of a linear model earns exactly its costs[^2]. Profits and losses are rents on binding constraints. An emission cap, for instance, raises prices through the CO2 price, the shadow price of the cap. In reality, emitters pay this price for their allowances. The model books no such payment, so their profit includes the CO2 price times their emissions, as if allowances were allocated for free. Subtract it to obtain the profit with auctioned allowances, which moves this rent from the producers to the government but leaves welfare unchanged. In this network, the gas generators are the only emitters and their emissions fill the cap:
 
 ``` py
 >>> co2_limit = n.c.global_constraints.static.loc["co2_limit"]
