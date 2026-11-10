@@ -1150,12 +1150,12 @@ def define_ramp_limit_constraints(
     is_ext_main = is_ext & ~is_com
     p_nom_ext_var = None
     if is_ext_main.any():
-        ext_main_names = idx[is_ext_main]
+        ext_main_names = idx[is_ext_main.values]
         p_nom_ext_var = m[f"{c.name}-{nom_attr}"].sel(name=ext_main_names)
 
     status = DataArray(1, coords=[sns, idx], dims=["snapshot", "name"])
     if is_com_fix.any():
-        com_main_names = idx[is_com_fix]
+        com_main_names = idx[is_com_fix.values]
         status = status.where(~is_com_fix, 0)
         status = LinearExpression.from_constant(m, status)
         status_var = m[f"{c.name}-status"].sel(name=com_main_names)
@@ -1219,7 +1219,7 @@ def define_ramp_limit_constraints(
             sns,
             c,
             attr,
-            idx[is_com_ext],
+            idx[is_com_ext.values],
             limit_up,
             limit_down,
             limit_start,

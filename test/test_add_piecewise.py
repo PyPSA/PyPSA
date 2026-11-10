@@ -461,8 +461,8 @@ def test_remove_drops_piecewise_data(base_network):
 class TestPiecewiseHelpers:
     """Schema-vs-data primitives on the component class."""
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def base_network() -> pypsa.Network:
         """Minimal network with buses required by all component tests."""
         n = pypsa.Network()

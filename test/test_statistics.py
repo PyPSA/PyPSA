@@ -595,28 +595,28 @@ def multi_invest_network():
 
 
 class TestMultiInvest:
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def capex(multi_invest_network):
         return multi_invest_network.statistics.capex()
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def capex_ungrouped(multi_invest_network):
         return multi_invest_network.statistics.capex(groupby=False)
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def opex(multi_invest_network):
         return multi_invest_network.statistics.opex()
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def opex_ungrouped(multi_invest_network):
         return multi_invest_network.statistics.opex(groupby=False)
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def system_cost(multi_invest_network):
         return multi_invest_network.statistics.system_cost()
 
@@ -795,8 +795,8 @@ class TestMarketValue:
 class TestStatisticsWithPiecewise:
     """Tests for piecewise variables affecting statistics."""
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def piecewise_network_solved(piecewise_network):
         piecewise_network.optimize(include_objective_constant=False)
         return piecewise_network
@@ -855,8 +855,8 @@ class TestStatisticsWithPiecewise:
 class TestPortEfficiency:
     """Tests for port_efficiency (static and dynamic numeric efficiencies)."""
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def base_network():
         idx = pd.Index([0, 1, 2])
         n = pypsa.Network()
@@ -865,13 +865,13 @@ class TestPortEfficiency:
         n.add("Generator", "gen", bus="bus0", p_nom=100)
         return n
 
-    @staticmethod
     @pytest.fixture(scope="class", params=["Link", "Process"])
+    @staticmethod
     def component(request):
         return request.param
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def eff_param(component):
         if component == "Link":
             return "efficiency"
@@ -879,13 +879,13 @@ class TestPortEfficiency:
             return "rate"
         raise ValueError(f"Unexpected component type: {component}")
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def eff1(eff_param, component):
         return f"{eff_param}1" if component == "Process" else eff_param
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def static_link_eff(base_network, eff_param, eff1, component):
         """Minimal network with a multi-port Link and piecewise efficiency."""
         n = base_network.copy()
@@ -899,8 +899,8 @@ class TestPortEfficiency:
         )
         return n
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def dynamic_link_eff(base_network, eff_param, eff1, component):
         """Minimal network with a multi-port Link and piecewise efficiency."""
         n = base_network.copy()
@@ -917,8 +917,8 @@ class TestPortEfficiency:
         )
         return n
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def piecewise_link_eff(base_network, eff1, component):
         """Network with a Link whose efficiency is defined piecewise per breakpoint."""
         n = base_network.copy()
@@ -932,8 +932,8 @@ class TestPortEfficiency:
         )
         return n
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def mixed_link_eff(base_network, eff_param, eff1, component):
         """Network with a Link whose efficiency is defined piecewise per breakpoint."""
         n = base_network.copy()
@@ -953,8 +953,8 @@ class TestPortEfficiency:
         )
         return n
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def default_dynamic_eff(mixed_link_eff, component):
         """Return default dynamic efficiency that is generated when a Link port has no dynamic efficiency defined."""
         dyn_eff = pd.DataFrame(

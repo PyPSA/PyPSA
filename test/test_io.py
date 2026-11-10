@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from geopandas.testing import assert_geodataframe_equal
 from numpy.testing import assert_array_almost_equal as equal
+from packaging.version import Version
 
 import pypsa
 
@@ -749,6 +750,10 @@ def test_examples_consistency(tmp_path, example_network):
 
 @pytest.mark.skipif(
     sys.version_info < (3, 12), reason="Test requires Python 3.12 or higher"
+)
+@pytest.mark.skipif(
+    Version(pd.__version__) >= Version("3.1"),
+    reason="pandapower does not yet support pandas>=3.1",
 )
 @pytest.mark.parametrize("use_pandapower_index", [True, False])
 @pytest.mark.parametrize("extra_line_data", [True, False])
