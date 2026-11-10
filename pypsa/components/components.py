@@ -665,7 +665,7 @@ class Components(
 
         !!! warning "Deprecated in <!-- md:badge-version v1.5.0 -->"
 
-            Use [`c.n`][pypsa.Components.n] instead.
+            Use `c.n` instead.
 
         Returns
         -------
