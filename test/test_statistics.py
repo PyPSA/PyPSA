@@ -268,9 +268,7 @@ def test_emissions_match_co2_constraint_with_investment_periods():
     assert emissions.sum().sum() == pytest.approx(limit.constant)
 
 
-@pytest.mark.parametrize(
-    ("per_period", "expected"), [(True, [4, 4]), (False, [4, 2])]
-)
+@pytest.mark.parametrize(("per_period", "expected"), [(True, [4, 4]), (False, [4, 2])])
 def test_emissions_from_store_with_investment_periods(per_period, expected):
     """A store of 30 MWh serves 10 MW for two snapshots in each of two periods.
 
