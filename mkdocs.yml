@@ -69,6 +69,7 @@ nav:
       - Global Constraints: user-guide/optimization/global-constraints.md
       - Piecewise Constraints: user-guide/optimization/piecewise.md
       - Custom Constraints: user-guide/optimization/custom-constraints.md
+      - Numerical Scaling: user-guide/optimization/numerical-scaling.md
       - Pathway Planning: user-guide/optimization/pathway-planning.md
       - Stochastic Optimization: user-guide/optimization/stochastic.md
       - Modelling-to-Generate-Alternatives (MGA): user-guide/optimization/modelling-to-generate-alternatives.md

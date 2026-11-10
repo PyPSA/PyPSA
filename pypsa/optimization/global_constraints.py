@@ -19,6 +19,7 @@ from xarray import DataArray
 from pypsa.components.common import invariant
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import define_piecewise
+from pypsa.optimization.scaling import global_constraint_factor
 from pypsa.optimization.window import apply_period_weighting
 
 if TYPE_CHECKING:
@@ -109,7 +110,11 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
                 lhs = lhs_per_bus.sel(**{busdim: str(bus_glc)}, drop=True)
 
             n.model.add_constraints(
-                lhs, sign, glc.constant, name=f"GlobalConstraint-{name}"
+                lhs,
+                sign,
+                glc.constant,
+                name=f"GlobalConstraint-{name}",
+                scaling=global_constraint_factor(n, name),
             )
 
 
@@ -203,7 +208,14 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
         lhs = merge(lhs)
         rhs = n.c.buses.static.loc[buses, col]
         mask = rhs.notnull()
-        n.model.add_constraints(lhs, sign, rhs, name=f"Bus-{col}", mask=mask)
+        n.model.add_constraints(
+            lhs,
+            sign,
+            rhs,
+            name=f"Bus-{col}",
+            mask=mask,
+            scaling=n.c.buses._scaling(buses),
+        )
 
 
 def define_growth_limit(n: Network, sns: pd.Index) -> None:
@@ -241,6 +253,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         return
 
     lhs_list = []
+    factors = []
     for c, attr in nominal_attrs.items():
         var = f"{c}-{attr}"
         static = n.c[c].static
@@ -272,14 +285,19 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
             expr = expr - expr.shift(periods=1) * max_relative_growth
 
         lhs_list.append(expr)
+        asset_factors = n.c[c]._scaling(limited_names)
+        factors.append(pd.Series(asset_factors, index=carriers.values))
 
     if not lhs_list:
         return
 
     lhs = merge(lhs_list)
     rhs = max_absolute_growth.reindex(lhs.indexes)
+    grouped = pd.concat(factors).groupby(level=0)
+    row_factor = np.sqrt(grouped.min() * grouped.max()).rename_axis("Carrier")
+    scaling = 1.0 if (row_factor == 1).all() else DataArray(row_factor)
 
-    m.add_constraints(lhs, "<=", rhs, name="Carrier-growth_limit")
+    m.add_constraints(lhs, "<=", rhs, name="Carrier-growth_limit", scaling=scaling)
 
 
 def define_primary_energy_limit(
@@ -341,6 +359,7 @@ def define_primary_energy_limit(
             cumulative_attr=False,
             extra_options=extra_options,
             invert_attr=True,
+            scaling=gen_c,
             status=status,
         )
 
@@ -468,7 +487,9 @@ def define_primary_energy_limit(
 
                     sus_per_period = sus.query("state_of_charge_initial_per_period")
                     if not sus_per_period.empty:
-                        soc_final = soc.loc[period_last_sns, sus_per_period.index]
+                        soc_final = soc.sel(
+                            snapshot=period_last_sns, name=sus_per_period.index
+                        )
                         if n.has_scenarios:
                             soc_final = soc_final.sel(scenario=scenario, drop=True)
                         soc_delta = -soc_final + sus_per_period.state_of_charge_initial
@@ -520,7 +541,9 @@ def define_primary_energy_limit(
 
                     stores_per_period = stores.query("e_initial_per_period")
                     if not stores_per_period.empty:
-                        e_final = e.loc[period_last_sns, stores_per_period.index]
+                        e_final = e.sel(
+                            snapshot=period_last_sns, name=stores_per_period.index
+                        )
                         if n.has_scenarios:
                             e_final = e_final.sel(scenario=scenario, drop=True)
                         e_delta = -e_final + stores_per_period.e_initial
@@ -553,6 +576,7 @@ def define_primary_energy_limit(
             glc_group.sense,
             glc_group.constant,
             name=f"GlobalConstraint-{name}",
+            scaling=global_constraint_factor(n, name),
         )
 
 
@@ -673,7 +697,9 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
                     sus_per_period = sus.query("state_of_charge_initial_per_period")
                     if not sus_per_period.empty:
-                        soc_final = soc.loc[period_last_sns, sus_per_period.index]
+                        soc_final = soc.sel(
+                            snapshot=period_last_sns, name=sus_per_period.index
+                        )
                         if n.has_scenarios:
                             soc_final = soc_final.sel(scenario=scenario, drop=True)
                         soc_delta = -soc_final + sus_per_period.state_of_charge_initial
@@ -718,7 +744,9 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
                     stores_per_period = stores.query("e_initial_per_period")
                     if not stores_per_period.empty:
-                        e_final = e.loc[period_last_sns, stores_per_period.index]
+                        e_final = e.sel(
+                            snapshot=period_last_sns, name=stores_per_period.index
+                        )
                         if n.has_scenarios:
                             e_final = e_final.sel(scenario=scenario, drop=True)
                         e_delta = -e_final + stores_per_period.e_initial
@@ -751,6 +779,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             glc_group.sense,
             glc_group.constant,
             name=f"GlobalConstraint-{name}",
+            scaling=global_constraint_factor(n, name),
         )
 
 
@@ -828,7 +857,11 @@ def _define_transmission_expansion_limit(
             glc = rows[0][1]
 
         m.add_constraints(
-            expression, glc.sense, glc.constant, name=f"GlobalConstraint-{name}"
+            expression,
+            glc.sense,
+            glc.constant,
+            name=f"GlobalConstraint-{name}",
+            scaling=global_constraint_factor(n, name),
         )
 
 
