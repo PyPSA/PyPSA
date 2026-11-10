@@ -14,6 +14,9 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+### Documentation
+
+- Added an [example notebook](./examples/data-centre-investment.ipynb) on data centre investment with a willingness to pay, modelled as an extendable generator with negative sign and quadratic marginal costs.
 ### Features
 
 - Add [numerical scaling](./user-guide/optimization/numerical-scaling.md) of optimization problems via linopy. The new attribute `scaling` of [Bus](./user-guide/components/buses.md) and [GlobalConstraint](./user-guide/components/global-constraints.md) sets the solver unit of a bus and a global constraint row, and the new argument `objective_scaling` of [`n.optimize`][pypsa.optimization.OptimizationAccessor.__call__] and related methods scales the objective. Results are reported in original units. Requires `linopy>=0.10.0`. (<!-- md:pr 2052 -->)
