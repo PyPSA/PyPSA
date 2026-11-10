@@ -28,6 +28,12 @@ SPDX-License-Identifier: CC-BY-4.0
     - **Behavior change**: With `keep_files=True`, the rolling horizon no longer keeps a problem file unless `io_api` or `problem_fn` is passed, and the solver log follows the direct API.
     - **Behavior change**: The voltage angles `v_ang` after the optimization are now zero at the slack bus of each sub-network, as in [`n.lpf()`][pypsa.Network.lpf]. Before, they were shifted to zero mean per sub-network. Angle differences across lines are unchanged.
 - Add the argument `consistency_check` to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] to skip the consistency check before building the model.
+- Add [`get_segment_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.get_segment_map], [`get_resample_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.get_resample_map] and [`get_downsample_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.get_downsample_map] to `n.cluster.temporal`. Each returns the snapshot map without building the clustered network. [`segment()`][pypsa.clustering.temporal.TemporalClusteringMixin.segment], [`resample()`][pypsa.clustering.temporal.TemporalClusteringMixin.resample] and [`downsample()`][pypsa.clustering.temporal.TemporalClusteringMixin.downsample] now apply their map with [`from_snapshot_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.from_snapshot_map]. `segment()` also supports investment periods and takes `drop_duplicates=True`, which counts identical time series once. On 3030 series with 330 distinct ones, this cut the tsam run time from 94 s to 10 s.
+
+### Deprecations
+
+- Deprecate `get_segment_result()`, `get_resample_result()`, `get_downsample_result()` and `get_from_snapshot_map_result()` of `n.cluster.temporal`, and the argument `solver` of `segment()`. They will be removed in PyPSA 2.0. Call a `get_*_map()` method and `from_snapshot_map()` instead.
+    - **Behavior change**: `segment()` requires tsam 3 or later, and the optional dependency is pinned to `tsam>=3`.
 
 ### Enhancements
 
@@ -44,6 +50,9 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix [`n.add()`][pypsa.Network.add] leaving `NaN` in attributes that a later call introduces, such as `efficiency2` on links added before the first link with a third bus. Existing components now get the attribute default, so the consistency check no longer warns about missing values for ports they do not have. (<!-- md:pr 2105 -->)
 - **Behavior change**: The `{Component}-{attr}_set` constraints (e.g. `Generator-p_nom_set`) use the dimension `name` instead of `{Component}-{attr}_set_i`, like all other constraints. Custom constraints in `extra_functionality` that select on the old dimension need updating. (<!-- md:pr 2052 -->)
 - Fix maintenance of modular committable components that are not extendable returning status `('ok', 'unknown')` without a solution. (<!-- md:pr 2100 -->)
+- Fix the snapshot weightings and labels of temporal clustering. `segment()` and `downsample()` now sum the weightings of each block, so the total modelled hours stay the same. `segment()` now treats each snapshot as one time step, keeps the labels of non-datetime snapshots and applies `aggregation_rules`.
+    - **Behavior change**: The clustered network changes for uneven weightings, non-hourly or non-datetime snapshots, `e_max_pu` and `e_min_pu`, and missing values, which `segment()` no longer counts as zero.
+    - **Behavior change**: The snapshot map of `resample()` changes with `drop_leap_day=True` and for offsets labelled at the bin end, such as `"W"`. With `drop_leap_day=True` and no snapshot on March 1, `resample()` raises a `ValueError`. Bins whose objective weighting is zero are kept.
 - Fix [`n.statistics.prices()`][pypsa.statistics.StatisticsAccessor.prices] with `groupby` dropping the `scenario` level of stochastic networks and the `network` level of network collections, averaging their prices together. Grouped prices now keep these levels like the ungrouped prices. (<!-- md:pr 2103 -->)
 - Fix stochastic networks silently using the first scenario's branch impedances in all scenarios. The consistency check now raises if `v_nom`, `x_pu_eff` or `r_pu_eff` vary across scenarios. (<!-- md:pr 2104 -->)
 - Fix `KeyError` in `primary_energy` global constraints with `investment_period` and per-period initial storage levels on networks without scenarios. Only the stated period's storage change is counted. (<!-- md:pr 2099 -->)

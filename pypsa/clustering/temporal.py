@@ -15,13 +15,17 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
+from importlib.metadata import version
 from importlib.util import find_spec
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+
     from pypsa import Network
 
 
@@ -55,6 +59,18 @@ TEMPORAL_AGGREGATION_DEFAULTS: dict[str, str] = {
     "e_max_pu": "min",
     "e_min_pu": "max",
 }
+
+
+def _warn_solver_deprecated(solver: str | None) -> None:
+    """Warn that `solver` has no effect, if the caller passed it."""
+    if solver is not None:
+        warnings.warn(
+            "`solver` is deprecated as an argument to `segment` and "
+            "`get_segment_map`; it has no effect with tsam >= 3. "
+            "Deprecated in version 1.5.0. Will be removed in version 2.0.0.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
 
 
 def _enforce_pu_bounds(n: Network) -> None:
@@ -125,198 +141,132 @@ def _get_aggregation_rule(
     return TEMPORAL_AGGREGATION_DEFAULTS.get(attr, "mean")
 
 
-def _handle_leap_day(weightings: pd.DataFrame) -> pd.DataFrame:
-    """Transfer leap day weights to March 1 rather than dropping hours.
+def _row_groups(n: Network, by_year: bool) -> list[np.ndarray]:
+    """Return the row positions of each investment period of `n`.
 
-    Parameters
-    ----------
-    weightings : pd.DataFrame
-        Snapshot weightings with DatetimeIndex.
-
-    Returns
-    -------
-    pd.DataFrame
-        Weightings with leap days removed and weights transferred.
-
+    Without investment periods, return the rows of each year if `by_year`, and
+    all rows as one group otherwise.
     """
-    if not isinstance(weightings.index, pd.DatetimeIndex):
-        return weightings
-
-    leap_days = weightings.index[
-        (weightings.index.month == 2) & (weightings.index.day == 29)
-    ]
-    if leap_days.empty:
-        return weightings
-
-    weightings = weightings.copy()
-    for year in leap_days.year.unique():
-        march_first_candidates = weightings.index[
-            (weightings.index.year == year)
-            & (weightings.index.month == 3)
-            & (weightings.index.day == 1)
-        ]
-        if len(march_first_candidates) > 0:
-            march_first = march_first_candidates[0]
-            leap_mask = (
-                (weightings.index.year == year)
-                & (weightings.index.month == 2)
-                & (weightings.index.day == 29)
-            )
-            weightings.loc[march_first] += weightings.loc[leap_mask].sum()
-
-    return weightings.drop(leap_days).sort_index()
+    if n.has_periods:
+        keys = n.snapshots.get_level_values("period")
+    elif by_year:
+        keys = pd.DatetimeIndex(n.snapshots).year
+    else:
+        keys = pd.Index(np.zeros(len(n.snapshots), dtype=int))
+    return list(pd.Series(keys).groupby(keys).indices.values())
 
 
-def _build_resample_map(
-    original_snapshots: pd.Index,
-    resampled_snapshots: pd.Index,
-    offset: str,
-) -> pd.Series:
-    """Build mapping from original to resampled snapshots.
-
-    Parameters
-    ----------
-    original_snapshots : pd.Index
-        Original snapshot index.
-    resampled_snapshots : pd.Index
-        Resampled snapshot index.
-    offset : str
-        Pandas offset string used for resampling.
-
-    Returns
-    -------
-    pd.Series
-        Mapping from original to resampled snapshots.
-
-    """
-    if isinstance(original_snapshots, pd.DatetimeIndex):
-        resampled_dt = pd.DatetimeIndex(resampled_snapshots)
-        idx = np.searchsorted(resampled_dt, original_snapshots, side="right") - 1
-        idx = np.clip(idx, 0, len(resampled_dt) - 1)
-        mapped_index = pd.DatetimeIndex(resampled_dt[idx])
-        return pd.Series(mapped_index, index=original_snapshots)
-    return pd.Series(resampled_snapshots[0], index=original_snapshots)
+def _periods(snapshots: pd.Index) -> np.ndarray:
+    """Return the investment period of each snapshot, or 0 without investment periods."""
+    if isinstance(snapshots, pd.MultiIndex):
+        return snapshots.get_level_values("period").to_numpy()
+    return np.zeros(len(snapshots), dtype=int)
 
 
-def _resample_with_periods(
-    n: Network,
-    offset: str,
-    *,
-    drop_leap_day: bool = False,
-    aggregation_rules: dict[str, str] | None = None,
-) -> TemporalClustering:
-    """Resample network with investment periods, clustering within each period."""
-    m = n.copy()
-    original_snapshots = n.snapshots
+def _timesteps(snapshots: pd.Index) -> pd.DatetimeIndex:
+    """Return the timestep of each snapshot, without its investment period."""
+    if isinstance(snapshots, pd.MultiIndex):
+        return pd.DatetimeIndex(snapshots.get_level_values("timestep"))
+    return pd.DatetimeIndex(snapshots)
 
-    resampled_weightings_list = []
-    for period in n.periods:
-        period_mask = n.snapshots.get_level_values("period") == period
-        sws_period = n.snapshot_weightings[period_mask]
-        timesteps = sws_period.index.get_level_values("timestep")
-        sws_flat = pd.DataFrame(
-            sws_period.values,
-            index=pd.DatetimeIndex(timesteps),
-            columns=sws_period.columns,
+
+def _snapshot_labels(
+    periods: np.ndarray, timesteps: pd.DatetimeIndex, has_periods: bool
+) -> pd.Index:
+    """Return snapshot labels from investment periods and timesteps."""
+    if has_periods:
+        return pd.MultiIndex.from_arrays(
+            [periods, timesteps], names=["period", "timestep"]
         )
-        sws_resampled = sws_flat.resample(offset).sum()
-        sws_resampled = sws_resampled.query("objective != 0")
-        if drop_leap_day:
-            sws_resampled = _handle_leap_day(sws_resampled)
-        sws_resampled.index = pd.MultiIndex.from_product(
-            [[period], sws_resampled.index], names=["period", "timestep"]
-        )
-        sws_resampled.index.name = "snapshot"
-        resampled_weightings_list.append(sws_resampled)
-
-    snapshot_weightings = pd.concat(resampled_weightings_list)
-    m.set_snapshots(snapshot_weightings.index)
-    m.snapshot_weightings = snapshot_weightings
-
-    for c in n.components:
-        if c.static.empty:
-            continue
-        for attr, df in c.dynamic.items():
-            if df.empty:
-                continue
-            agg = _get_aggregation_rule(attr, aggregation_rules)
-            resampled_list = []
-            for period in n.periods:
-                period_mask = df.index.get_level_values("period") == period
-                df_period = df[period_mask]
-                timesteps = df_period.index.get_level_values("timestep")
-                df_flat = pd.DataFrame(
-                    df_period.values,
-                    index=pd.DatetimeIndex(timesteps),
-                    columns=df_period.columns,
-                )
-                resampled = df_flat.resample(offset).agg(agg)
-                resampled = resampled.query(
-                    "index in @snapshot_weightings.index.get_level_values('timestep').unique()"
-                )
-                resampled.index = pd.MultiIndex.from_product(
-                    [[period], resampled.index], names=["period", "timestep"]
-                )
-                resampled.index.name = "snapshot"
-                resampled_list.append(resampled)
-            resampled_all = pd.concat(resampled_list)
-            m._import_series_from_df(resampled_all, c.name, attr, overwrite=True)
-
-    snapshot_map = pd.Series(index=original_snapshots, dtype=object)
-    for period in n.periods:
-        orig_mask = original_snapshots.get_level_values("period") == period
-        new_mask = m.snapshots.get_level_values("period") == period
-        orig_timesteps = original_snapshots[orig_mask].get_level_values("timestep")
-        new_timesteps = m.snapshots[new_mask].get_level_values("timestep")
-        period_map = _build_resample_map(
-            pd.DatetimeIndex(orig_timesteps),
-            pd.DatetimeIndex(new_timesteps),
-            offset,
-        )
-        for orig, new in zip(
-            original_snapshots[orig_mask],
-            [(period, ts) for ts in period_map.values],
-            strict=False,
-        ):
-            snapshot_map[orig] = new
-
-    return TemporalClustering(m, snapshot_map)
+    return timesteps
 
 
-def _downsample_with_periods(n: Network, stride: int) -> TemporalClustering:
-    """Downsample network with investment periods, selecting within each period."""
-    m = n.copy()
-    original_snapshots = n.snapshots
+def _resample_labels(timesteps: pd.DatetimeIndex, offset: str) -> np.ndarray:
+    """Return the label that `resample(offset)` gives the bin of each timestep."""
+    labels = timesteps.to_numpy().copy()
+    bins = pd.Series(0, index=timesteps).resample(offset).indices
+    for label, positions in bins.items():
+        labels[positions] = label
+    return labels
 
-    downsampled_weightings_list = []
-    selected_snapshots_list = []
 
-    for period in n.periods:
-        period_mask = n.snapshots.get_level_values("period") == period
-        period_snapshots = n.snapshots[period_mask]
-        period_weightings = n.snapshot_weightings[period_mask]
-
-        # Select every Nth snapshot within this period
-        selected_idx = range(0, len(period_snapshots), stride)
-        selected = period_snapshots[list(selected_idx)]
-        selected_snapshots_list.append(selected)
-
-        # Scale weightings, handle remainder for last snapshot
-        remainder = len(period_snapshots) % stride
-        new_weights = period_weightings.loc[selected].copy()
-        new_weights *= stride
-        if remainder != 0:
-            new_weights.iloc[-1] = new_weights.iloc[-1] / stride * remainder
-        downsampled_weightings_list.append(new_weights)
-
-    all_selected = pd.MultiIndex.from_tuples(
-        [s for idx in selected_snapshots_list for s in idx],
-        names=["period", "timestep"],
+def _skip_leap_days(periods: np.ndarray, labels: pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """Replace each Feb 29 label by the first Mar 1 label of its period and year."""
+    groups = pd.MultiIndex.from_arrays([periods, labels.year])
+    on_march_first = (labels.month == 3) & (labels.day == 1)
+    leap = (labels.month == 2) & (labels.day == 29)
+    first_march = (
+        pd.Series(labels[on_march_first], index=groups[on_march_first])
+        .groupby(level=[0, 1])
+        .min()
     )
-    snapshot_weightings = pd.concat(downsampled_weightings_list)
+    targets = first_march.reindex(groups[leap])
+    if targets.isna().any():
+        msg = "drop_leap_day=True requires a snapshot on March 1 after each February 29"
+        raise ValueError(msg)
+    moved = labels.to_numpy().copy()
+    moved[leap] = targets.to_numpy()
+    return pd.DatetimeIndex(moved)
 
-    m.set_snapshots(all_selected)
-    m.snapshot_weightings = snapshot_weightings
+
+def _drop_leap_days(m: Network, snapshot_map: pd.Series) -> pd.Series:
+    """Drop the Feb 29 snapshots of `m` and add their weightings to Mar 1.
+
+    Return `snapshot_map` with the snapshots of the dropped ones mapped to Mar 1.
+    """
+    labels = m.snapshots
+    periods = _periods(labels)
+    timesteps = _timesteps(labels)
+    moved = _skip_leap_days(periods, timesteps)
+    leap = np.flatnonzero(moved != timesteps)
+    targets = labels.get_indexer(
+        _snapshot_labels(periods[leap], moved[leap], m.has_periods)
+    )
+    weightings = m.snapshot_weightings.copy()
+    for target in np.unique(targets):
+        weightings.iloc[target] += weightings.iloc[leap[targets == target]].sum()
+    kept = labels.delete(leap)
+    m.set_snapshots(kept)
+    m.snapshot_weightings = weightings.loc[kept]
+    lookup = np.arange(len(labels))
+    lookup[leap] = targets
+    positions = lookup[labels.get_indexer(pd.Index(snapshot_map.to_numpy()))]
+    values = labels.to_flat_index()[positions].to_numpy()
+    return pd.Series(values, index=snapshot_map.index)
+
+
+def _apply_snapshot_map(
+    n: Network,
+    snapshot_map: pd.Series | pd.DataFrame,
+    aggregation_rules: dict[str, str] | None,
+    *,
+    select: bool = False,
+) -> Network:
+    """Return a copy of `n` aggregated by `snapshot_map`.
+
+    With `select`, each aggregated snapshot takes the values of its first
+    snapshot, missing ones included, instead of applying the aggregation rules.
+    """
+    _check_no_scenarios(n)
+
+    if isinstance(snapshot_map, pd.DataFrame):
+        snapshot_map_series = snapshot_map.iloc[:, 0]
+    else:
+        snapshot_map_series = snapshot_map
+
+    if not snapshot_map_series.index.equals(n.snapshots):
+        msg = "snapshot_map index must match network snapshots"
+        raise ValueError(msg)
+
+    aggregated_snapshots = snapshot_map_series.unique()
+    aggregated_snapshots = pd.Index(sorted(aggregated_snapshots))
+
+    weightings = n.snapshot_weightings.groupby(snapshot_map_series).sum()
+    weightings = weightings.reindex(aggregated_snapshots)
+
+    m = n.copy()
+    m.set_snapshots(aggregated_snapshots)
+    m.snapshot_weightings = weightings
 
     for c in n.components:
         if c.static.empty:
@@ -324,23 +274,66 @@ def _downsample_with_periods(n: Network, stride: int) -> TemporalClustering:
         for attr, df in c.dynamic.items():
             if df.empty:
                 continue
-            m._import_series_from_df(df.loc[all_selected], c.name, attr, overwrite=True)
+            grouped = df.groupby(snapshot_map_series)
+            aggregated = (
+                grouped.first(skipna=False)
+                if select
+                else grouped.agg(_get_aggregation_rule(attr, aggregation_rules))
+            )
+            aggregated = aggregated.reindex(aggregated_snapshots)
+            m._import_series_from_df(aggregated, c.name, attr, overwrite=True)
 
-    # Build snapshot map using vectorized assignment per period
-    snapshot_map = pd.Series(index=original_snapshots, dtype=object)
-    for period in n.periods:
-        period_mask = original_snapshots.get_level_values("period") == period
-        period_snapshots = original_snapshots[period_mask]
-        new_mask = all_selected.get_level_values("period") == period
-        period_selected = all_selected[new_mask]
+    _enforce_pu_bounds(m)
+    return m
 
-        # Vectorized: assign each original snapshot to its representative
-        num_period = len(period_snapshots)
-        indices = np.arange(num_period) // stride
-        indices = np.clip(indices, 0, len(period_selected) - 1)
-        snapshot_map.loc[period_snapshots] = [period_selected[i] for i in indices]
 
-    return TemporalClustering(m, snapshot_map)
+def _segmentation_matrix(n: Network, exclude_attrs: Collection[str]) -> np.ndarray:
+    """Stack the time series of `n` into one matrix with a row per snapshot.
+
+    NaN values are set to 0.
+    """
+    frames = [
+        df.to_numpy(dtype=float)
+        for c in n.components
+        if not c.static.empty
+        for attr, df in c.dynamic.items()
+        if not df.empty and attr not in exclude_attrs
+    ]
+    if not frames:
+        msg = "No time-varying data found for segmentation"
+        raise ValueError(msg)
+    matrix = np.hstack(frames)
+    matrix[np.isnan(matrix)] = 0.0
+    return matrix
+
+
+def _distinct_varying_columns(matrix: np.ndarray, drop_duplicates: bool) -> np.ndarray:
+    """Keep the columns of `matrix` that vary, and optionally only the first of identical ones.
+
+    Constant columns do not move tsam's segments, so they are dropped unless no
+    column varies.
+    """
+    varies = np.ptp(matrix, axis=0) > 0
+    varying = matrix[:, varies] if varies.any() else matrix
+    if not drop_duplicates:
+        return varying
+    duplicated = pd.Index([column.tobytes() for column in varying.T]).duplicated()
+    return varying[:, ~duplicated]
+
+
+def _segment_starts(matrix: np.ndarray, num_segments: int) -> np.ndarray:
+    """Return, for each row of `matrix`, the row that starts its tsam segment."""
+    import tsam  # noqa: PLC0415
+
+    segmented = tsam.aggregate(
+        pd.DataFrame(matrix),
+        n_clusters=1,
+        period_duration=len(matrix),
+        temporal_resolution=1.0,
+        segments=tsam.SegmentConfig(n_segments=num_segments),
+    ).cluster_representatives
+    durations = segmented.index.get_level_values("Segment Duration").to_numpy(int)
+    return np.repeat(np.cumsum(durations) - durations, durations)
 
 
 class TemporalClusteringMixin:
@@ -360,6 +353,9 @@ class TemporalClusteringMixin:
         aggregation_rules: dict[str, str] | None = None,
     ) -> Network:
         """Resample network to coarser temporal resolution.
+
+        Builds the map with `get_resample_map` and applies it as `from_snapshot_map`
+        does.
 
         Parameters
         ----------
@@ -384,12 +380,19 @@ class TemporalClusteringMixin:
         >>> m = n.cluster.temporal.resample("3h")  # doctest: +SKIP
 
         """
-        return self.get_resample_result(
-            offset,
-            drop_leap_day=drop_leap_day,
-            aggregation_rules=aggregation_rules,
-        ).n
+        n = self._n
+        _warn_if_solved(n)
+        snapshot_map = self.get_resample_map(offset)
+        m = _apply_snapshot_map(n, snapshot_map, aggregation_rules)
+        if drop_leap_day:
+            _drop_leap_days(m, snapshot_map)
+        return m
 
+    @deprecated(
+        deprecated_in="1.5.0",
+        removed_in="2.0.0",
+        details="Use `get_resample_map()` and `from_snapshot_map()` instead.",
+    )
     def get_resample_result(
         self,
         offset: str,
@@ -397,88 +400,61 @@ class TemporalClusteringMixin:
         drop_leap_day: bool = False,
         aggregation_rules: dict[str, str] | None = None,
     ) -> TemporalClustering:
-        """Get full TemporalClustering result from resample.
+        """Get the resampled network and its snapshot map.
 
-        Returns the full result including both the clustered network and the
-        snapshot mapping. Use this when you need the snapshot_map for
-        disaggregation or debugging.
+        !!! warning "Deprecated in <!-- md:badge-version v1.5.0 -->"
+
+            Use `get_resample_map()` and `from_snapshot_map()` instead.
+
+        """
+        return resample(
+            self._n,
+            offset,
+            drop_leap_day=drop_leap_day,
+            aggregation_rules=aggregation_rules,
+        )
+
+    def get_resample_map(
+        self,
+        offset: str,
+        *,
+        drop_leap_day: bool = False,
+    ) -> pd.Series:
+        """Map each snapshot to the label of its resampling bin.
+
+        Bins are formed within each year, or within each investment period, and
+        carry the labels that `pandas.DataFrame.resample` gives them.
 
         Parameters
         ----------
         offset : str
             Pandas offset string (e.g., "3h", "6h", "24h").
         drop_leap_day : bool, default False
-            Transfer Feb 29 weights to March 1.
-        aggregation_rules : dict, optional
-            Override default aggregation per attribute.
+            Map the snapshots of Feb 29 bins to the first Mar 1 bin.
 
         Returns
         -------
-        TemporalClustering
-            Result with clustered network and snapshot mapping.
+        pd.Series
+            Index: original snapshots, Values: label of each snapshot's bin.
 
         """
         n = self._n
-        _warn_if_solved(n)
         _check_no_scenarios(n)
 
         if not isinstance(n.snapshots, pd.DatetimeIndex) and not n.has_periods:
             msg = "resample() requires snapshots to be a DatetimeIndex"
             raise TypeError(msg)
 
-        if n.has_periods:
-            return _resample_with_periods(
-                n,
-                offset,
-                drop_leap_day=drop_leap_day,
-                aggregation_rules=aggregation_rules,
-            )
-
-        m = n.copy()
-
-        original_snapshots = n.snapshots
-
-        # Year-wise resampling handles non-contiguous years gracefully
-        years = pd.DatetimeIndex(n.snapshots).year.unique()
-        snapshot_weightings_list = []
-        for year in years:
-            year_mask = n.snapshots.year == year
-            sws_year = n.snapshot_weightings[year_mask]
-            sws_year = sws_year.resample(offset).sum()
-            snapshot_weightings_list.append(sws_year)
-        snapshot_weightings = pd.concat(snapshot_weightings_list)
-
-        # The resampling produces a contiguous date range. In case the original
-        # index was not contiguous, all rows with zero weight must be dropped
-        # (corresponding to time steps not included in the original snapshots).
-        snapshot_weightings = snapshot_weightings.query("objective != 0")
-
+        periods = _periods(n.snapshots)
+        timesteps = _timesteps(n.snapshots)
+        labels = timesteps.to_numpy().copy()
+        for rows in _row_groups(n, by_year=True):
+            labels[rows] = _resample_labels(timesteps[rows], offset)
+        labels = pd.DatetimeIndex(labels)
         if drop_leap_day:
-            snapshot_weightings = _handle_leap_day(snapshot_weightings)
-
-        m.set_snapshots(snapshot_weightings.index)
-        m.snapshot_weightings = snapshot_weightings
-
-        for c in n.components:
-            if c.static.empty:
-                continue
-            for attr, df in c.dynamic.items():
-                if df.empty:
-                    continue
-                agg = _get_aggregation_rule(attr, aggregation_rules)
-                resampled_list = []
-                for year in years:
-                    year_mask = n.snapshots.year == year
-                    df_year = df[year_mask]
-                    resampled_year = df_year.resample(offset).agg(agg)
-                    resampled_list.append(resampled_year)
-                resampled = pd.concat(resampled_list)
-                resampled = resampled[resampled.index.isin(m.snapshots)]
-                m._import_series_from_df(resampled, c.name, attr, overwrite=True)
-
-        snapshot_map = _build_resample_map(original_snapshots, m.snapshots, offset)
-
-        return TemporalClustering(m, snapshot_map)
+            labels = _skip_leap_days(periods, labels)
+        values = _snapshot_labels(periods, labels, n.has_periods)
+        return pd.Series(values.to_flat_index(), index=n.snapshots)
 
     def downsample(
         self,
@@ -486,7 +462,8 @@ class TemporalClusteringMixin:
     ) -> Network:
         """Select every Nth snapshot as representative.
 
-        Weightings are scaled by stride to preserve total modeled hours.
+        Each selected snapshot keeps its values and takes the summed weightings
+        of its block, which preserves the total modeled hours.
 
         Parameters
         ----------
@@ -503,16 +480,34 @@ class TemporalClusteringMixin:
         >>> m = n.cluster.temporal.downsample(4)  # doctest: +SKIP
 
         """
-        return self.get_downsample_result(stride).n
+        n = self._n
+        _warn_if_solved(n)
+        return _apply_snapshot_map(
+            n, self.get_downsample_map(stride), None, select=True
+        )
 
+    @deprecated(
+        deprecated_in="1.5.0",
+        removed_in="2.0.0",
+        details="Use `get_downsample_map()` and `from_snapshot_map()` instead.",
+    )
     def get_downsample_result(
         self,
         stride: int,
     ) -> TemporalClustering:
-        """Get full TemporalClustering result from downsample.
+        """Get the downsampled network and its snapshot map.
 
-        Returns the full result including both the clustered network and the
-        snapshot mapping.
+        !!! warning "Deprecated in <!-- md:badge-version v1.5.0 -->"
+
+            Use `get_downsample_map()` and `from_snapshot_map()` instead.
+
+        """
+        return downsample(self._n, stride)
+
+    def get_downsample_map(self, stride: int) -> pd.Series:
+        """Map each snapshot to every stride-th snapshot before it.
+
+        The blocks of `stride` snapshots start again in each investment period.
 
         Parameters
         ----------
@@ -521,72 +516,50 @@ class TemporalClusteringMixin:
 
         Returns
         -------
-        TemporalClustering
-            Result with downsampled network and snapshot mapping.
+        pd.Series
+            Index: original snapshots, Values: first snapshot of each block.
 
         """
         n = self._n
-        _warn_if_solved(n)
         _check_no_scenarios(n)
 
         if stride < 1:
             msg = f"stride must be >= 1, got {stride}"
             raise ValueError(msg)
 
-        if n.has_periods:
-            return _downsample_with_periods(n, stride)
-
-        m = n.copy()
-        original_snapshots = n.snapshots
-
-        selected = n.snapshots[::stride]
-        m.set_snapshots(selected)
-
-        num_orig = len(original_snapshots)
-        remainder = num_orig % stride
-
-        new_weightings = n.snapshot_weightings.loc[selected].copy()
-        new_weightings *= stride
-        if remainder != 0:
-            new_weightings.iloc[-1] = new_weightings.iloc[-1] / stride * remainder
-        m.snapshot_weightings = new_weightings
-
-        for c in n.components:
-            if c.static.empty:
-                continue
-            for attr, df in c.dynamic.items():
-                if df.empty:
-                    continue
-                m._import_series_from_df(df.loc[selected], c.name, attr, overwrite=True)
-
-        snapshot_map = pd.Series(index=original_snapshots, dtype=object)
-        for i, sel in enumerate(selected):
-            start = i * stride
-            end = min((i + 1) * stride, num_orig)
-            snapshot_map.iloc[start:end] = sel
-
-        return TemporalClustering(m, snapshot_map)
+        representatives = np.arange(len(n.snapshots))
+        for rows in _row_groups(n, by_year=False):
+            representatives[rows] = rows[np.arange(len(rows)) // stride * stride]
+        return pd.Series(
+            n.snapshots[representatives].to_flat_index(), index=n.snapshots
+        )
 
     def segment(
         self,
         num_segments: int,
         *,
-        solver: str = "highs",
+        solver: str | None = None,
         exclude_attrs: list[str] | None = None,
         aggregation_rules: dict[str, str] | None = None,
+        drop_duplicates: bool = False,
     ) -> Network:
         """Cluster time series into variable-duration segments using TSAM.
+
+        Builds the map with `get_segment_map` and applies it as `from_snapshot_map`
+        does.
 
         Parameters
         ----------
         num_segments : int
-            Target number of segments.
-        solver : str, default "highs"
-            MIP solver for time clustering.
+            Target number of segments, in each investment period.
+        solver : str, optional
+            Deprecated. Has no effect.
         exclude_attrs : list, optional
             Attributes to exclude from clustering (default: ["e_min_pu"]).
         aggregation_rules : dict, optional
             Override default aggregation per attribute.
+        drop_duplicates : bool, default False
+            Count identical time series once when placing the segments.
 
         Returns
         -------
@@ -595,56 +568,90 @@ class TemporalClusteringMixin:
 
         Note
         ----
-        Requires `tsam` package: pip install tsam
-
-        """
-        return self.get_segment_result(
-            num_segments,
-            solver=solver,
-            exclude_attrs=exclude_attrs,
-            aggregation_rules=aggregation_rules,
-        ).n
-
-    def get_segment_result(
-        self,
-        num_segments: int,
-        *,
-        solver: str = "highs",
-        exclude_attrs: list[str] | None = None,
-        aggregation_rules: dict[str, str] | None = None,
-    ) -> TemporalClustering:
-        """Get full TemporalClustering result from segment.
-
-        Returns the full result including both the clustered network and the
-        snapshot mapping.
-
-        Parameters
-        ----------
-        num_segments : int
-            Target number of segments.
-        solver : str, default "highs"
-            MIP solver for time clustering.
-        exclude_attrs : list, optional
-            Attributes to exclude from clustering (default: ["e_min_pu"]).
-        aggregation_rules : dict, optional
-            Override default aggregation per attribute.
-
-        Returns
-        -------
-        TemporalClustering
-            Result with segmented network and snapshot mapping.
+        Requires `tsam>=3`: pip install tsam
 
         """
         n = self._n
         _warn_if_solved(n)
+        _warn_solver_deprecated(solver)
+        snapshot_map = self.get_segment_map(
+            num_segments, exclude_attrs=exclude_attrs, drop_duplicates=drop_duplicates
+        )
+        return _apply_snapshot_map(n, snapshot_map, aggregation_rules)
+
+    @deprecated(
+        deprecated_in="1.5.0",
+        removed_in="2.0.0",
+        details="Use `get_segment_map()` and `from_snapshot_map()` instead.",
+    )
+    def get_segment_result(
+        self,
+        num_segments: int,
+        *,
+        solver: str | None = None,
+        exclude_attrs: list[str] | None = None,
+        aggregation_rules: dict[str, str] | None = None,
+        drop_duplicates: bool = False,
+    ) -> TemporalClustering:
+        """Get the segmented network and its snapshot map.
+
+        !!! warning "Deprecated in <!-- md:badge-version v1.5.0 -->"
+
+            Use `get_segment_map()` and `from_snapshot_map()` instead.
+
+        """
+        return segment(
+            self._n,
+            num_segments,
+            solver=solver,
+            exclude_attrs=exclude_attrs,
+            aggregation_rules=aggregation_rules,
+            drop_duplicates=drop_duplicates,
+        )
+
+    def get_segment_map(
+        self,
+        num_segments: int,
+        *,
+        solver: str | None = None,
+        exclude_attrs: list[str] | None = None,
+        drop_duplicates: bool = False,
+    ) -> pd.Series:
+        """Map each snapshot to the first snapshot of its TSAM segment.
+
+        Segments are placed by the time series of the network, separately in each
+        investment period, so no segment crosses a period.
+
+        Parameters
+        ----------
+        num_segments : int
+            Number of segments, in each investment period.
+        solver : str, optional
+            Deprecated. Has no effect.
+        exclude_attrs : list, optional
+            Attributes to exclude from clustering (default: ["e_min_pu"]).
+        drop_duplicates : bool, default False
+            Count identical time series once, within each investment period.
+
+        Returns
+        -------
+        pd.Series
+            Index: original snapshots, Values: first snapshot of each segment.
+
+        """
+        n = self._n
         _check_no_scenarios(n)
+        _warn_solver_deprecated(solver)
 
         if num_segments < 1:
             msg = f"num_segments must be >= 1, got {num_segments}"
             raise ValueError(msg)
 
-        if num_segments > len(n.snapshots):
-            msg = f"num_segments ({num_segments}) cannot exceed number of snapshots ({len(n.snapshots)})"
+        rows_per_period = _row_groups(n, by_year=False)
+        shortest = min(len(rows) for rows in rows_per_period)
+        if num_segments > shortest:
+            scope = " per investment period" if n.has_periods else ""
+            msg = f"num_segments ({num_segments}) cannot exceed number of snapshots{scope} ({shortest})"
             raise ValueError(msg)
 
         if find_spec("tsam") is None:
@@ -653,101 +660,21 @@ class TemporalClusteringMixin:
                 "Install via 'pip install tsam' or 'conda install -c conda-forge tsam'"
             )
             raise ModuleNotFoundError(msg)
-
-        import tsam  # noqa: PLC0415
-
-        if exclude_attrs is None:
-            exclude_attrs = ["e_min_pu"]
-
-        if n.has_periods:
-            msg = "segment() does not yet support networks with investment periods"
-            raise NotImplementedError(msg)
-
-        dfs = []
-        col_attrs = []
-        for c in n.components:
-            if c.static.empty:
-                continue
-            for attr, df in c.dynamic.items():
-                if not df.empty and attr not in exclude_attrs:
-                    for col in df.columns:
-                        dfs.append(df[[col]])
-                        col_attrs.append((c.name, attr, col))
-
-        if not dfs:
-            msg = "No time-varying data found for segmentation"
-            raise ValueError(msg)
-
-        combined = pd.concat(dfs, axis=1)
-        combined.columns = range(len(combined.columns))
-
-        normalization_factors = combined.max().replace(0, 1)
-        df_normalized = combined.div(normalization_factors)
-        df_normalized = df_normalized.fillna(0)
-
-        if hasattr(tsam, "aggregate"):  # tsam >= 3.0
-            result = tsam.aggregate(
-                df_normalized,
-                n_clusters=1,
-                period_duration=len(df_normalized),
-                segments=tsam.SegmentConfig(n_segments=num_segments),
+        if int(version("tsam").split(".")[0]) < 3:
+            msg = (
+                f"tsam >= 3 is required for segmentation, found {version('tsam')}. "
+                "Upgrade via 'pip install -U tsam' or 'conda install -c conda-forge \"tsam>=3\"'"
             )
-            segmented = result.cluster_representatives
-        else:  # tsam < 3.0
-            import tsam.timeseriesaggregation  # noqa: PLC0415
+            raise ImportError(msg)
 
-            agg = tsam.timeseriesaggregation.TimeSeriesAggregation(
-                df_normalized,
-                hoursPerPeriod=len(df_normalized),
-                noTypicalPeriods=1,
-                noSegments=num_segments,
-                segmentation=True,
-                solver=solver,
-            )
-            segmented = agg.createTypicalPeriods()
-
-        weightings_raw = segmented.index.get_level_values("Segment Duration")
-        offsets = np.insert(np.cumsum(weightings_raw.values[:-1]), 0, 0).astype(int)
-        original_snapshots = n.snapshots
-
-        if isinstance(original_snapshots, pd.DatetimeIndex):
-            new_snapshots = original_snapshots[offsets]
-        else:
-            new_snapshots = pd.Index(offsets)
-
-        m = n.copy()
-        m.set_snapshots(new_snapshots)
-
-        new_weightings = pd.DataFrame(
-            dict.fromkeys(n.snapshot_weightings.columns, weightings_raw.values),
-            index=new_snapshots,
+        matrix = _segmentation_matrix(
+            n, ["e_min_pu"] if exclude_attrs is None else exclude_attrs
         )
-        m.snapshot_weightings = new_weightings
-
-        segmented_values = segmented.values * normalization_factors.values
-        segmented_df = pd.DataFrame(
-            segmented_values,
-            index=new_snapshots,
-            columns=range(len(col_attrs)),
-        )
-
-        for i, (comp, attr, col_name) in enumerate(col_attrs):
-            data_col = segmented_df[[i]]
-            data_col.columns = [col_name]
-            if attr in m.c[comp].dynamic and not m.c[comp].dynamic[attr].empty:
-                m.c[comp].dynamic[attr][col_name] = data_col[col_name]
-            else:
-                m._import_series_from_df(data_col, comp, attr, overwrite=True)
-
-        segment_indices = (
-            np.searchsorted(offsets, np.arange(len(original_snapshots)), side="right")
-            - 1
-        )
-        snapshot_map = pd.Series(
-            np.asarray(new_snapshots)[segment_indices], index=original_snapshots
-        )
-
-        return TemporalClustering(m, snapshot_map)
+        starts = np.arange(len(n.snapshots))
+        for rows in rows_per_period:
+            distinct = _distinct_varying_columns(matrix[rows], drop_duplicates)
+            starts[rows] = rows[_segment_starts(distinct, num_segments)]
+        return pd.Series(n.snapshots[starts].to_flat_index(), index=n.snapshots)
 
     def from_snapshot_map(
         self,
@@ -761,7 +688,7 @@ class TemporalClusteringMixin:
         ----------
         snapshot_map : pd.Series or pd.DataFrame
             Mapping from original snapshots to aggregated snapshots.
-            If DataFrame, must have 'snapshot' index and columns for weightings.
+            If DataFrame, its first column is used.
         aggregation_rules : dict, optional
             Override default aggregation per attribute.
 
@@ -771,70 +698,31 @@ class TemporalClusteringMixin:
             The aggregated network.
 
         """
-        return self.get_from_snapshot_map_result(
-            snapshot_map, aggregation_rules=aggregation_rules
-        ).n
+        n = self._n
+        _warn_if_solved(n)
+        return _apply_snapshot_map(n, snapshot_map, aggregation_rules)
 
+    @deprecated(
+        deprecated_in="1.5.0",
+        removed_in="2.0.0",
+        details="Use `from_snapshot_map()` instead.",
+    )
     def get_from_snapshot_map_result(
         self,
         snapshot_map: pd.Series | pd.DataFrame,
         *,
         aggregation_rules: dict[str, str] | None = None,
     ) -> TemporalClustering:
-        """Get full TemporalClustering result from from_snapshot_map.
+        """Get the aggregated network and its snapshot map.
 
-        Returns the full result including both the clustered network and the
-        snapshot mapping.
+        !!! warning "Deprecated in <!-- md:badge-version v1.5.0 -->"
 
-        Parameters
-        ----------
-        snapshot_map : pd.Series or pd.DataFrame
-            Mapping from original snapshots to aggregated snapshots.
-            If DataFrame, must have 'snapshot' index and columns for weightings.
-        aggregation_rules : dict, optional
-            Override default aggregation per attribute.
-
-        Returns
-        -------
-        TemporalClustering
-            Result with aggregated network and snapshot mapping.
+            Use `from_snapshot_map()` instead.
 
         """
-        n = self._n
-        _warn_if_solved(n)
-        _check_no_scenarios(n)
-
-        if isinstance(snapshot_map, pd.DataFrame):
-            snapshot_map_series = snapshot_map.iloc[:, 0]
-        else:
-            snapshot_map_series = snapshot_map
-
-        if not snapshot_map_series.index.equals(n.snapshots):
-            msg = "snapshot_map index must match network snapshots"
-            raise ValueError(msg)
-
-        aggregated_snapshots = snapshot_map_series.unique()
-        aggregated_snapshots = pd.Index(sorted(aggregated_snapshots))
-
-        weightings = n.snapshot_weightings.groupby(snapshot_map_series).sum()
-        weightings = weightings.reindex(aggregated_snapshots)
-
-        m = n.copy()
-        m.set_snapshots(aggregated_snapshots)
-        m.snapshot_weightings = weightings
-
-        for c in n.components:
-            if c.static.empty:
-                continue
-            for attr, df in c.dynamic.items():
-                if df.empty:
-                    continue
-                agg = _get_aggregation_rule(attr, aggregation_rules)
-                aggregated = df.groupby(snapshot_map_series).agg(agg)
-                aggregated = aggregated.reindex(aggregated_snapshots)
-                m._import_series_from_df(aggregated, c.name, attr, overwrite=True)
-
-        return TemporalClustering(m, snapshot_map_series)
+        return from_snapshot_map(
+            self._n, snapshot_map, aggregation_rules=aggregation_rules
+        )
 
 
 # Backward-compatible module-level functions
@@ -866,11 +754,14 @@ def resample(
         Result with clustered network and snapshot mapping.
 
     """
+    _warn_if_solved(n)
     obj = TemporalClusteringMixin()
     obj._n = n
-    return obj.get_resample_result(
-        offset, drop_leap_day=drop_leap_day, aggregation_rules=aggregation_rules
-    )
+    snapshot_map = obj.get_resample_map(offset)
+    m = _apply_snapshot_map(n, snapshot_map, aggregation_rules)
+    if drop_leap_day:
+        snapshot_map = _drop_leap_days(m, snapshot_map)
+    return TemporalClustering(m, snapshot_map)
 
 
 def downsample(
@@ -892,18 +783,22 @@ def downsample(
         Result with downsampled network.
 
     """
+    _warn_if_solved(n)
     obj = TemporalClusteringMixin()
     obj._n = n
-    return obj.get_downsample_result(stride)
+    snapshot_map = obj.get_downsample_map(stride)
+    m = _apply_snapshot_map(n, snapshot_map, None, select=True)
+    return TemporalClustering(m, snapshot_map)
 
 
 def segment(
     n: Network,
     num_segments: int,
     *,
-    solver: str = "highs",
+    solver: str | None = None,
     exclude_attrs: list[str] | None = None,
     aggregation_rules: dict[str, str] | None = None,
+    drop_duplicates: bool = False,
 ) -> TemporalClustering:
     """Cluster time series into variable-duration segments using TSAM.
 
@@ -912,13 +807,15 @@ def segment(
     n : Network
         Network with original resolution.
     num_segments : int
-        Target number of segments.
-    solver : str, default "highs"
-        MIP solver for time clustering.
+        Target number of segments, in each investment period.
+    solver : str, optional
+        Deprecated. Has no effect.
     exclude_attrs : list, optional
         Attributes to exclude from clustering (default: ["e_min_pu"]).
     aggregation_rules : dict, optional
         Override default aggregation per attribute.
+    drop_duplicates : bool, default False
+        Count identical time series once when placing the segments.
 
     Returns
     -------
@@ -926,14 +823,15 @@ def segment(
         Result with segmented network.
 
     """
+    _warn_if_solved(n)
+    _warn_solver_deprecated(solver)
     obj = TemporalClusteringMixin()
     obj._n = n
-    return obj.get_segment_result(
-        num_segments,
-        solver=solver,
-        exclude_attrs=exclude_attrs,
-        aggregation_rules=aggregation_rules,
+    snapshot_map = obj.get_segment_map(
+        num_segments, exclude_attrs=exclude_attrs, drop_duplicates=drop_duplicates
     )
+    m = _apply_snapshot_map(n, snapshot_map, aggregation_rules)
+    return TemporalClustering(m, snapshot_map)
 
 
 def from_snapshot_map(
@@ -959,8 +857,11 @@ def from_snapshot_map(
         Result with aggregated network.
 
     """
-    obj = TemporalClusteringMixin()
-    obj._n = n
-    return obj.get_from_snapshot_map_result(
-        snapshot_map, aggregation_rules=aggregation_rules
+    _warn_if_solved(n)
+    m = _apply_snapshot_map(n, snapshot_map, aggregation_rules)
+    snapshot_series = (
+        snapshot_map.iloc[:, 0]
+        if isinstance(snapshot_map, pd.DataFrame)
+        else snapshot_map
     )
+    return TemporalClustering(m, snapshot_series)
