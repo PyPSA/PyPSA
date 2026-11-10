@@ -1362,9 +1362,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             objective = objective.mul(period_weighting, level=0, axis=0)
         weightings = objective.loc[sns]
 
-        n.c.buses.dynamic.marginal_price.loc[sns] = (
-            n.c.buses.dynamic.marginal_price.loc[sns].divide(weightings, axis=0)
-        )
+        prices = n.c.buses.dynamic.marginal_price.loc[sns].divide(weightings, axis=0)
+        if n.has_scenarios:
+            probabilities = n.scenario_weightings.weight
+            prices = prices.divide(probabilities, axis=1, level="scenario")
+        n.c.buses.dynamic.marginal_price.loc[sns] = prices
 
         # load
         if len(n.loads):

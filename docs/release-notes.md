@@ -81,6 +81,7 @@ SPDX-License-Identifier: CC-BY-4.0
     - Unit commitment with a rolling horizon, with `linearized_unit_commitment=True`, or with both `up_time_before` and `down_time_before` set. (<!-- md:pr 1973 -->)
     - Ramp limits at the first snapshot of non-committable units with `up_time_before=0` or next to committable units. (<!-- md:pr 1973 -->)
     - [`optimize_security_constrained(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained]. (<!-- md:pr 1951 -->)
+    - Marginal prices of stochastic networks no longer include the scenario probability, e.g. a marginal cost of 10 in a scenario with probability 0.3 gave a price of 3. This also changes revenues and market values. (<!-- md:pr PRNUMBER -->)
 - **Optimization model structure changes**, relevant for custom constraints in `extra_functionality`:
     - The `{c}-com-status-min_up_time_must_stay_up` and `{c}-com-status-min_down_time_must_stay_up` constraints are removed. The `{c}-com-up-time` and `{c}-com-down-time` constraints cover their role and now have a row for the first snapshot. (<!-- md:pr 1973 -->)
     - Security constraint names of multi-period runs carry a period suffix, e.g. `...-period-2030`. (<!-- md:pr 1951 -->)
