@@ -134,6 +134,186 @@ def test_net_and_gross_revenue(ac_dc_network_r):
     assert np.allclose(revenue[comps], target[comps])
 
 
+def test_emissions_match_co2_constraint(ac_dc_network_r):
+    n = ac_dc_network_r
+    limit = n.c.global_constraints.static.loc["co2_limit"]
+    assert limit.mu != 0
+    assert n.statistics.emissions().sum() == pytest.approx(limit.constant)
+
+
+@pytest.mark.parametrize(
+    ("cap", "binding", "expected"),
+    [(None, False, 339), (1000, False, 339), (300, True, 300)],
+    ids=["no-cap", "non-binding-cap", "binding-cap"],
+)
+def test_emissions_by_hand(cap, binding, expected):
+    """Coal 50 MW and gas 20, 35, 50 MW over three snapshots of 2 h each.
+
+    Coal emits 50 / 0.4 * 0.34 * 3 * 2 = 255 t, gas 105 / 0.5 * 0.2 * 2 = 84 t.
+    """
+    n = pypsa.Network(snapshots=range(3))
+    n.snapshot_weightings.loc[:, :] = 2.0
+    n.add("Carrier", ["wind", "coal", "gas"], co2_emissions=[0, 0.34, 0.2])
+    n.add("Bus", "bus")
+    n.add(
+        "Generator", "wind", bus="bus", carrier="wind", p_nom=30, p_max_pu=[1, 0.5, 0]
+    )
+    n.add(
+        "Generator",
+        "coal",
+        bus="bus",
+        carrier="coal",
+        p_nom=50,
+        marginal_cost=20,
+        efficiency=0.4,
+    )
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        carrier="gas",
+        p_nom=100,
+        marginal_cost=40,
+        efficiency=0.5,
+    )
+    n.add("Load", "load", bus="bus", p_set=100)
+    if cap is not None:
+        n.add(
+            "GlobalConstraint",
+            "co2_limit",
+            sense="<=",
+            carrier_attribute="co2_emissions",
+            constant=cap,
+        )
+    n.optimize()
+
+    if cap is not None:
+        assert (n.c.global_constraints.static.mu["co2_limit"] != 0) == binding
+    assert n.statistics.emissions().sum() == pytest.approx(expected)
+
+
+def test_emissions_match_co2_constraint_piecewise_efficiency():
+    n = pypsa.Network()
+    n.add("Carrier", ["gas", "wind"], co2_emissions=[1.0, 0.0])
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        carrier="gas",
+        p_nom=70,
+        marginal_cost=20,
+        efficiency={0.0: 0.0, 0.1: 0.2, 0.5: 0.4, 1.0: 0.6},
+    )
+    n.add("Generator", "wind", bus="bus", carrier="wind", p_nom=50, marginal_cost=50)
+    n.add("Load", "load", bus="bus", p_set=50)
+    n.add(
+        "GlobalConstraint", "co2_limit", carrier_attribute="co2_emissions", constant=60
+    )
+    n.optimize()
+
+    assert n.statistics.emissions().sum() == pytest.approx(60)
+
+
+def test_emissions_per_scenario_carrier_attribute(ac_dc_stochastic):
+    """Doubling the emission factor in one scenario makes its cap of 1000 t bind."""
+    n = ac_dc_stochastic
+    n.c.carriers.static.loc[("high", "gas"), "co2_emissions"] *= 2
+    n.optimize()
+
+    emissions = n.statistics.emissions().xs("gas", level="carrier")
+    assert emissions.droplevel("component").to_dict() == pytest.approx(
+        {"high": 1000, "low": 500}
+    )
+
+
+@pytest.mark.parametrize(("e_cyclic", "expected"), [(False, 0.2 * 30), (True, 0)])
+def test_emissions_from_store_depletion(e_cyclic, expected):
+    """A cyclic store refills what it depletes, so its fuel is not burnt."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add(
+        "Store",
+        "gas tank",
+        bus="bus",
+        carrier="gas",
+        e_nom=100,
+        e_initial=100,
+        e_cyclic=e_cyclic,
+        marginal_cost=1,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=10, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.optimize()
+
+    emissions = n.statistics.emissions(
+        groupby_time=False, groupby=False, drop_zero=False
+    )
+    assert np.allclose(emissions.loc["Store", "gas tank"], expected / 3)
+
+
+@pytest.mark.parametrize("period", [None, 2030], ids=["all-periods", "one-period"])
+def test_emissions_match_co2_constraint_with_investment_periods(period):
+    """The constraint weights each period's emissions by its years."""
+    n = pypsa.examples.ac_dc_meshed()
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots])
+    n.investment_periods = [2020, 2030]
+    n.investment_period_weightings["years"] = [10, 5]
+    n.c.global_constraints.static.loc["co2_limit", "investment_period"] = period
+    n.optimize(multi_investment_periods=True)
+
+    limit = n.c.global_constraints.static.loc["co2_limit"]
+    years = n.investment_period_weightings.years
+    emissions = n.statistics.emissions().mul(years, level="period").sum()
+    assert limit.mu != 0
+    if period is None:
+        assert emissions.sum() == pytest.approx(limit.constant)
+    else:
+        assert emissions[period] == pytest.approx(limit.constant)
+        assert emissions.drop(period).sum() > 0
+
+
+@pytest.mark.parametrize(("per_period", "expected"), [(True, [4, 4]), (False, [4, 2])])
+def test_emissions_from_store_with_investment_periods(per_period, expected):
+    """A store of 30 MWh serves 10 MW for two snapshots in each of two periods.
+
+    Restarting from 30 MWh, it depletes 20 MWh per period. Continuing, it serves the
+    first period, where backup costs weigh more, and has only 10 MWh left for the
+    second. Each MWh emits 0.2 t.
+    """
+    n = pypsa.Network(snapshots=pd.MultiIndex.from_product([[2020, 2030], [0, 1]]))
+    n.investment_periods = [2020, 2030]
+    n.investment_period_weightings["objective"] = [1, 0.5]
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add(
+        "Store",
+        "gas tank",
+        bus="bus",
+        carrier="gas",
+        e_nom=100,
+        e_initial=30,
+        e_initial_per_period=per_period,
+        marginal_cost=1,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=10, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.optimize(multi_investment_periods=True)
+
+    emissions = n.statistics.emissions(groupby=False, drop_zero=False)
+    assert emissions.loc[("Store", "gas tank")].tolist() == pytest.approx(expected)
+
+
+def test_emissions_collection(network_collection, ac_dc_network_r):
+    collection = network_collection.statistics.emissions()
+    assert collection.sum() == ac_dc_network_r.statistics.emissions().sum()
+
+
+def test_emissions_empty_for_other_components(ac_dc_network_r):
+    assert ac_dc_network_r.statistics.emissions(components="Link").empty
+
+
 def test_supply_withdrawal(ac_dc_network_r):
     n = ac_dc_network_r
     target = n.statistics.energy_balance()
