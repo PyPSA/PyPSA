@@ -150,19 +150,19 @@ def test_lcoe_definition(ac_dc_network_r):
     assert np.allclose(lcoe.reindex(expected.index), expected)
 
 
-def test_lcoe_gap_to_capture_price_is_profit(ac_dc_network_r):
+def test_lcoe_gap_to_capture_price_is_rent(ac_dc_network_r):
+    """Gas earns the CO2 rent above its LCOE, assets at interior optima break even."""
     n = ac_dc_network_r
-    kwargs = {"drop_zero": False, "round": 10}
+    kwargs = {"drop_zero": False, "round": None}
     supplied = n.statistics.supply(**kwargs)
     captured = n.statistics.revenue(direction="output", **kwargs)
-    lcoe = n.statistics.lcoe(**kwargs)
-    profit = n.statistics.revenue(**kwargs).sub(
-        n.statistics.system_cost(**kwargs), fill_value=0
+    gap = captured - n.statistics.lcoe(**kwargs) * supplied
+    co2_limit = n.c.global_constraints.static.loc["co2_limit"]
+    assert gap["Generator", "gas"] == pytest.approx(
+        abs(co2_limit.mu) * co2_limit.constant
     )
-
-    gap = (captured / supplied - lcoe) * supplied
-    assert np.allclose(gap.dropna(), profit[gap.dropna().index], atol=1e-2)
-
+    interior = [("Generator", "wind"), ("Line", "AC"), ("Link", "DC")]
+    assert np.allclose(gap[interior], 0, atol=1)
 
 def test_lcoe_below_market_value_with_scarcity_rent():
     n = pypsa.Network(snapshots=range(2))
@@ -242,9 +242,23 @@ def test_lcoe_charges_inputs(chp_network):
     assert lcoe["Link", "chp"] == pytest.approx((capex + fuel) / output)
 
 
-def test_lcoe_rejects_investment_periods(ac_dc_periods):
-    with pytest.raises(NotImplementedError, match="investment periods"):
-        ac_dc_periods.statistics.lcoe()
+def test_lcoe_breaks_even_over_investment_periods():
+    """Weighted over its lifetime, an asset at an interior optimum earns its LCOE."""
+    n = pypsa.examples.ac_dc_meshed()
+    n.remove("GlobalConstraint", "co2_limit")
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots])
+    n.investment_periods = [2020, 2030]
+    n.investment_period_weightings["objective"] = [10, 6]
+    n.optimize(multi_investment_periods=True)
+
+    kwargs = {"drop_zero": False, "round": None}
+    lcoe = n.statistics.lcoe(**kwargs)
+    supplied = n.statistics.supply(**kwargs)
+    captured = n.statistics.revenue(direction="output", **kwargs)
+    weights = n.investment_period_weightings.objective
+    gap = (captured - lcoe * supplied).mul(weights, level="period").sum(axis=1)
+    interior = [("Generator", "gas"), ("Line", "AC"), ("Link", "DC")]
+    assert np.allclose(gap[interior], 0, atol=1)
 
 
 def test_supply_withdrawal(ac_dc_network_r):

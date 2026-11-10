@@ -2897,6 +2897,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
             - `capital_cost` is annualised, so the result is a levelised cost only
               if the snapshot weightings add up to one year.
+            - With investment periods, the result is the levelised cost in each
+              period, without the discounting of
+              `n.investment_period_weightings.objective`.
             - Where one component sets the prices of two of its outputs, these prices
               are not unique and neither is the split of its cost between them.
 
@@ -2968,17 +2971,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             "drop_zero": False,
             "round": None,
         }
-        if self._n.has_investment_periods:
-            msg = (
-                "LCOE is not supported for networks with investment periods, "
-                "where costs are weighted across periods but revenues are not."
-            )
-            raise NotImplementedError(msg)
-
         supplied = self.supply(bus_carrier=bus_carrier, **shared)
         captured = self.revenue(direction="output", bus_carrier=bus_carrier, **shared)
         other_revenue = self.revenue(**shared).sub(captured, fill_value=0)
-        cost = self.system_cost(**shared).sub(other_revenue, fill_value=0)
+        cost = self.system_cost(**shared)
+        if self._n.has_investment_periods:
+            weights = self._n.investment_period_weightings.objective
+            cost = cost.div(weights, level="period")
+        cost = cost.sub(other_revenue, fill_value=0)
         df = cost.reindex(supplied.index, fill_value=0) / supplied.where(supplied != 0)
 
         df = self._apply_option_kwargs(
