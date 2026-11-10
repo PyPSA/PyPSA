@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from geopandas.testing import assert_geodataframe_equal
 from numpy.testing import assert_array_almost_equal as equal
+from packaging.version import Version
 
 import pypsa
 
@@ -750,6 +751,10 @@ def test_examples_consistency(tmp_path, example_network):
 @pytest.mark.skipif(
     sys.version_info < (3, 12), reason="Test requires Python 3.12 or higher"
 )
+@pytest.mark.skipif(
+    Version(pd.__version__) >= Version("3.1"),
+    reason="pandapower does not yet support pandas>=3.1",
+)
 @pytest.mark.parametrize("use_pandapower_index", [True, False])
 @pytest.mark.parametrize("extra_line_data", [True, False])
 def test_import_from_pandapower_network(
@@ -851,12 +856,13 @@ def test_sort_attrs():
     ]
 
 
-def test_version_warning(caplog):
+def test_version_warning(caplog, tmp_path):
     # Assert no info logged with "version"
     n = pypsa.examples.ac_dc_meshed()
     assert "Importing network from PyPSA version" not in caplog.text
 
     n._pypsa_version = "0.10.0"
-    n.export_to_netcdf("test.nc")
-    pypsa.Network("test.nc")
+    fn = tmp_path / "test.nc"
+    n.export_to_netcdf(fn)
+    pypsa.Network(fn)
     assert "Importing network from PyPSA version v0.10.0" in caplog.text

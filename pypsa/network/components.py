@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from deprecation import deprecated
 
@@ -36,6 +36,8 @@ from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
     import pandas as pd
+
+    from pypsa import Network
 logger = logging.getLogger(__name__)
 
 # TODO Change to UserWarning when they are all resolved and raised
@@ -105,14 +107,14 @@ class NetworkComponentsMixin(_NetworkABC):
 
         Which is the same reference when accessing the component directly:
         >>> n.generators # doctest: +ELLIPSIS
-                                bus control  ...    p_nom_opt  capital_cost_piecewise_opt
-        name                                 ...
-        Manchester Wind  Manchester   Slack  ...  4090.809778                         0.0
-        Manchester Gas   Manchester      PQ  ...     0.000000                         0.0
-        Norway Wind          Norway      PQ  ...  1533.599858                         0.0
-        Norway Gas           Norway      PQ  ...     0.000000                         0.0
-        Frankfurt Wind    Frankfurt   Slack  ...  1667.724420                         0.0
-        Frankfurt Gas     Frankfurt      PQ  ...   982.034483                         0.0
+                                bus  ...  capital_cost_piecewise_opt
+        name                         ...
+        Manchester Wind  Manchester  ...                         0.0
+        Manchester Gas   Manchester  ...                         0.0
+        Norway Wind          Norway  ...                         0.0
+        Norway Gas           Norway  ...                         0.0
+        Frankfurt Wind    Frankfurt  ...                         0.0
+        Frankfurt Gas     Frankfurt  ...                         0.0
         <BLANKLINE>
         [6 rows x 47 columns]
         >>> n.generators is n.components.generators.static
@@ -130,7 +132,9 @@ class NetworkComponentsMixin(_NetworkABC):
             for c_name in components:
                 ctype = get_component_type(c_name)
 
-                self._components[ctype.list_name] = Component(ctype=ctype, n=self)
+                self._components[ctype.list_name] = Component(
+                    ctype=ctype, n=cast("Network", self)
+                )
         return self._components
 
     @property

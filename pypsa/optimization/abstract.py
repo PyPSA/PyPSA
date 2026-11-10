@@ -8,23 +8,36 @@ from __future__ import annotations
 
 import gc
 import logging
+from functools import reduce
 from itertools import product
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-from pandas.api.types import is_list_like
+from linopy.solvers import Solver, SolverFeature, available_solvers
 
+from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
+from pypsa.common import _scenarios_not_implemented, as_index
+from pypsa.components.array import _from_xarray
+from pypsa.consistency import OPTIMIZE_STRICT_CHECKS
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.constraints import ENERGY_LIMITS, ENERGY_WEIGHTING
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from pypsa import Network
+    from linopy import Model
+
+    from pypsa import Components, Network, SubNetwork
 logger = logging.getLogger(__name__)
+
+_STORAGE_LEVELS = (
+    ("stores", "e_initial", "e"),
+    ("storage_units", "state_of_charge_initial", "state_of_charge"),
+)
 
 
 def discretized_capacity(
@@ -113,6 +126,176 @@ def discretized_capacity(
     return block_capacity
 
 
+@suppress_semantics_warnings()
+def _add_security_constraints(
+    m: Model,
+    sub_network: SubNetwork,
+    branch_outages: pd.MultiIndex,
+    selection: dict[str, pd.Index],
+    suffix: str,
+) -> None:
+    """Add branch outage constraints of a sub-network to the model.
+
+    Parameters
+    ----------
+    m : linopy.Model
+        Model to add the constraints to.
+    sub_network : pypsa.SubNetwork
+        Sub-network whose branch outage distribution factors are used.
+    branch_outages : pandas.MultiIndex
+        Passive branches to consider as possible outages.
+    selection : dict
+        Selection applied to flows and branch flow constraints, e.g. the
+        snapshots of an investment period.
+    suffix : str
+        Suffix appended to the constraint names.
+
+    """
+    branches_i = sub_network.branches_i()
+    outages = branches_i.intersection(branch_outages)
+    if outages.empty:
+        return
+
+    sub_network.calculate_BODF()
+    BODF = pd.DataFrame(sub_network.BODF, index=branches_i, columns=branches_i)[outages]
+
+    for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
+        c_outage_ = c_outage + "-outage"
+        c_outages = outages.get_loc_level(c_outage)[1]
+        flow_outage = m.variables[c_outage + "-s"].sel(name=c_outages, **selection)
+        flow_outage = flow_outage.rename({"name": c_outage_})
+
+        bodf = BODF.loc[c_affected, c_outage]
+        bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
+        added_flow = flow_outage * bodf
+
+        for bound, kind in product(("lower", "upper"), ("fix", "ext")):
+            constraint = c_affected + "-" + kind + "-s-" + bound
+            if constraint not in m.constraints:
+                continue
+
+            con = m.constraints[constraint]
+
+            idx = con.lhs.indexes["name"].intersection(added_flow.indexes[c_affected])
+            con_selection = {"name": idx, **selection}
+
+            added_flow_aligned = added_flow.sel({c_affected: idx}).rename(
+                {c_affected: "name"}
+            )
+            lhs = con.lhs.sel(con_selection) + added_flow_aligned
+
+            name = (
+                constraint
+                + f"-security-for-{c_outage_}-in-sub-network-{sub_network.name}"
+                + suffix
+            )
+            m.add_constraints(
+                lhs,
+                con.sign.sel(con_selection),
+                con.rhs.sel(con_selection),
+                name=name,
+                scaling=con.scaling.sel(con_selection),
+            )
+
+
+def _energy_weightings(n: Network, multi_invest: bool) -> pd.Series:
+    """Get the snapshot weightings of volume limits, weighted by period years."""
+    weights = n.snapshot_weightings[ENERGY_WEIGHTING]
+    if not multi_invest:
+        return weights
+    period_of = weights.index.get_level_values("period")
+    return weights * n.investment_period_weightings.years.reindex(period_of).to_numpy()
+
+
+def _energy(c: Components, weights: pd.Series, snapshots: Sequence) -> pd.Series:
+    """Get the weighted sum of the power `p` per asset."""
+    power = c.dynamic.p.reindex(index=snapshots, columns=c.static.index)
+    return power.mul(weights.loc[snapshots], axis=0).sum()
+
+
+def _power_bounds(
+    c: Components, snapshots: Sequence
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Get the lower and upper bound of the power `p` per snapshot.
+
+    Extendable assets are bounded by their minimum and maximum capacity.
+    """
+    attrs = c._operational_attrs
+    ext = c.static[attrs["nom_extendable"]]
+    nom = c.static[attrs["nom"]]
+    noms = [nom.where(~ext, c.static[attrs[b]]) for b in ("nom_min", "nom_max")]
+    pus = [_from_xarray(pu, c).loc[snapshots] for pu in c.get_bounds_pu("p")]
+    powers = [pu * nom for pu in pus for nom in noms]
+    return reduce(np.fmin, powers), reduce(np.fmax, powers)
+
+
+def _tracked_limits(
+    c: Components, weights: pd.Series, snapshots: Sequence
+) -> list[tuple[str, str, pd.Series, pd.DataFrame]]:
+    """Get the volume limits of a component to track across rolling horizon windows.
+
+    Returns, for each limit not at its default, the component name, the limit
+    attribute, the original limit and the weighted energy per snapshot that
+    later windows can at most (`e_sum_min`) or must at least (`e_sum_max`)
+    contribute. Raises a `ValueError` if this energy is unbounded.
+    """
+    limits = [(a, s, d) for a, s, d in ENERGY_LIMITS if (c.static[a] != d).any()]
+    if not limits:
+        return []
+    if "p" in c._operational_variables:
+        lower, upper = _power_bounds(c, snapshots)
+        hint = f"a finite {c._operational_attrs['nom_max']}"
+        if c.name == "Store":
+            hint += " and a finite max_hours"
+    else:
+        upper = pd.DataFrame(np.inf, index=snapshots, columns=c.static.index)
+        lower = -upper
+        hint = "a single window"
+    active = c.get_activity_mask(snapshots)
+    w = weights.loc[snapshots]
+    lower = lower.where(active, 0.0).mul(w, axis=0)
+    upper = upper.where(active, 0.0).mul(w, axis=0)
+    flags = [a for a in ("committable", "maintainable") if a in c.static]
+    flexible = active & c.static[flags].any(axis=1)
+    later = {
+        ">=": upper.mask(flexible, upper.clip(lower=0.0)),
+        "<=": lower.mask(flexible, lower.clip(upper=0.0)),
+    }
+    tracked = []
+    for attr, sign, default in limits:
+        energy = later[sign]
+        unbounded = (c.static[attr] != default) & np.isinf(energy).any()
+        if unbounded.any():
+            msg = (
+                f"{c.name} {list(unbounded.index[unbounded])} have a finite "
+                f"{attr} and an unbounded power. Tracking {attr} across the "
+                f"rolling horizon requires {hint}."
+            )
+            raise ValueError(msg)
+        tracked.append((c.name, attr, c.static[attr].copy(), energy))
+    return tracked
+
+
+def _all_tracked_limits(
+    n: Network, weights: pd.Series, snapshots: Sequence
+) -> list[tuple[str, str, pd.Series, pd.DataFrame]]:
+    """Get the volume limits of all components, see `_tracked_limits`."""
+    tracked = [
+        limit
+        for c in n.components
+        if "e_sum_min" in c.static
+        for limit in _tracked_limits(c, weights, snapshots)
+    ]
+    if tracked:
+        logger.warning(
+            "Volume limits %s are tracked across the rolling horizon without "
+            "foresight: each window only sees what previous windows left open. "
+            "The dispatch pattern depends on the window order.",
+            ", ".join(f"{name}-{attr}" for name, attr, *_ in tracked),
+        )
+    return tracked
+
+
 class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
     """Mixin class for additional optimization methods.
 
@@ -123,6 +306,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
     _n: Network
 
+    @_scenarios_not_implemented
     def optimize_transmission_expansion_iteratively(
         self,
         snapshots: Sequence | None = None,
@@ -379,6 +563,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         branch_outages: Sequence | pd.Index | pd.MultiIndex | None = None,
         multi_investment_periods: bool = False,
         model_kwargs: dict | None = None,
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Compute Security-Constrained Linear Optimal Power Flow (SCLOPF).
@@ -394,14 +579,22 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             or a pandas.Index is passed, it is assumed to identify lines. If a
             multiindex is passed, its first level has to contain the component names,
             the second the assets. The default None results in all passive branches
-            to be considered.
+            to be considered. For stochastic networks, outages are identified by
+            asset name and applied in all scenarios, using the branch outage
+            distribution factors of the first scenario. Explicitly passed outages
+            that are not active in any optimized period raise a `ValueError`.
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
-            investment periods. Then, snapshots should be a `pd.MultiIndex`.
+            investment periods. Then, snapshots should be a `pd.MultiIndex`. The
+            security constraints are added per investment period and sub-network,
+            using the topology and active branches of that period.
         model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver, see
+            `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -414,79 +607,61 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         n = self._n
 
         all_passive_branches = n.passive_branches().index
+        if n.has_scenarios:
+            all_passive_branches = all_passive_branches.droplevel("scenario").unique()
 
+        outages: pd.Index
         if branch_outages is None:
-            branch_outages = all_passive_branches
-        elif is_list_like(branch_outages) and not isinstance(
-            branch_outages, pd.MultiIndex
-        ):
-            branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])
+            outages = all_passive_branches
+        elif isinstance(branch_outages, pd.MultiIndex):
+            outages = branch_outages
+        else:
+            outages = pd.MultiIndex.from_product([("Line",), branch_outages])
 
-            if diff := set(branch_outages) - set(all_passive_branches):
-                msg = f"The following passive branches are not in the network: {diff}"
-                raise ValueError(msg)
+        if diff := set(outages) - set(all_passive_branches):
+            msg = f"The following passive branches are not in the network: {diff}"
+            raise ValueError(msg)
 
         if not len(all_passive_branches):
             return n.optimize(
                 snapshots,
                 multi_investment_periods=multi_investment_periods,
                 model_kwargs=model_kwargs,
+                objective_scaling=objective_scaling,
                 **kwargs,
             )
+
+        sns = as_index(n, snapshots, "snapshots")
+        periods = sns.unique("period") if multi_investment_periods else None
+        active = {c: n.c[c]._active_names(periods) for c in outages.unique(0)}
+        inactive = {(c, name) for c, name in outages if name not in active[c]}
+        if branch_outages is not None and inactive:
+            msg = (
+                "The following branch outages are not active in any optimized "
+                f"investment period: {inactive}"
+            )
+            raise ValueError(msg)
 
         m = n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
+            objective_scaling=objective_scaling,
             **model_kwargs,
         )
 
-        for sub_network in n.c.sub_networks.static.obj:
-            branches_i = sub_network.branches_i()
-            outages = branches_i.intersection(branch_outages)
-
-            if outages.empty:
-                continue
-
-            sub_network.calculate_BODF()
-            BODF = pd.DataFrame(sub_network.BODF, index=branches_i, columns=branches_i)[
-                outages
-            ]
-
-            for c_outage, c_affected in product(
-                outages.unique(0), branches_i.unique(0)
-            ):
-                c_outage_ = c_outage + "-outage"
-                c_outages = outages.get_loc_level(c_outage)[1]
-                flow_outage = m.variables[c_outage + "-s"].loc[:, c_outages]
-                flow_outage = flow_outage.rename({"name": c_outage_})
-
-                bodf = BODF.loc[c_affected, c_outage]
-                bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
-                added_flow = flow_outage * bodf
-
-                for bound, kind in product(("lower", "upper"), ("fix", "ext")):
-                    constraint = c_affected + "-" + kind + "-s-" + bound
-                    if constraint not in m.constraints:
-                        continue
-
-                    con = m.constraints[constraint]
-
-                    idx = con.lhs.indexes["name"].intersection(
-                        added_flow.indexes[c_affected]
-                    )
-
-                    added_flow_aligned = added_flow.sel({c_affected: idx}).rename(
-                        {c_affected: "name"}
-                    )
-                    lhs = con.lhs.sel(name=idx) + added_flow_aligned
-
-                    name = (
-                        constraint
-                        + f"-security-for-{c_outage_}-in-sub-network-{sub_network.name}"
-                    )
-                    m.add_constraints(
-                        lhs, con.sign.sel(name=idx), con.rhs.sel(name=idx), name=name
-                    )
+        n_topology = n.get_scenario(n.scenarios[0]) if n.has_scenarios else n
+        for period, period_sns in n.optimize._window.iter_periods():
+            if period is None:
+                if n.has_scenarios:
+                    n_topology.determine_network_topology()
+                selection, suffix = {}, ""
+            else:
+                n_topology.determine_network_topology(
+                    investment_period=period, skip_isolated_buses=True
+                )
+                selection, suffix = {"snapshot": period_sns}, f"-period-{period}"
+            for sub_network in n_topology.c.sub_networks.static.obj:
+                _add_security_constraints(m, sub_network, outages, selection, suffix)
 
         return n.optimize.solve_model(**kwargs)
 
@@ -495,9 +670,26 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         snapshots: Sequence | None = None,
         horizon: int = 100,
         overlap: int = 0,
+        consistency_check: bool = True,
         **kwargs: Any,
     ) -> Network:
         """Optimizes the network in a rolling horizon fashion.
+
+        Each window starts from the state left by the previous one: the storage
+        levels of stores and storage units, and the dispatch and commitment
+        status of all components for the ramp and unit commitment constraints.
+
+        Finite `e_sum_min` and `e_sum_max` limits of generators, links,
+        processes and stores refer to the whole set of
+        `snapshots`. Each window is given the part of them that is still open:
+        the energy produced in previous windows is subtracted, and so is the
+        energy that can at most (`e_sum_min`) or must at least (`e_sum_max`) be
+        produced in later windows. Without foresight the resulting dispatch
+        pattern depends on the order of the windows. A `ValueError` is raised if
+        this energy is unbounded, e.g. for an extendable component with
+        `p_nom_max=inf` or for a store with `max_hours=inf`. If limits are tracked, a
+        `RuntimeError` is raised as soon as a window fails to solve. Otherwise,
+        a failed window only logs a warning.
 
         Parameters
         ----------
@@ -507,8 +699,15 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             Number of snapshots to consider in each iteration. Defaults to 100.
         overlap : int
             Number of snapshots to overlap between two iterations. Defaults to 0.
+        consistency_check : bool
+            Whether to run the consistency check once for the whole network
+            before the first window. The windows themselves skip it. Defaults
+            to True.
         **kwargs:
-            Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+            Keyword argument used by `linopy.Model.solve`, such as `solver_name`.
+            Unless `io_api` or `problem_fn` is given, `io_api="direct"` is used
+            for solvers that support linopy's direct API, which avoids writing
+            and reading a problem file for every window.
 
         """
         n = self._n
@@ -519,37 +718,79 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
+        if consistency_check:
+            n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
+
+        stores = n.c.stores
+        cycles_max = stores.static.cycles_max.copy()
+        track_cycles = (cycles_max < np.inf).any()
+
         starting_points = range(0, len(snapshots), horizon - overlap)
-        for i, start in enumerate(starting_points):
-            end = min(len(snapshots), start + horizon)
-            sns = snapshots[start:end]
-            logger.info(
-                "Optimizing network for snapshot horizon [%s:%s] (%s/%s).",
-                sns[0],
-                sns[-1],
-                i + 1,
-                len(starting_points),
-            )
+        weights = _energy_weightings(n, kwargs.get("multi_investment_periods", False))
+        tracked = (
+            []
+            if len(starting_points) == 1
+            else _all_tracked_limits(n, weights, snapshots)
+        )
 
-            if i:
-                if not n.c.stores.static.empty:
-                    n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
-                        snapshots[start - 1]
-                    ].values
-                if not n.c.storage_units.static.empty:
-                    n.c.storage_units.static.state_of_charge_initial = (
-                        n.c.storage_units.dynamic.state_of_charge.loc[
-                            snapshots[start - 1]
-                        ].values
-                    )
+        solver_name = kwargs.get("solver_name") or options.params.optimize.solver_name
+        if (
+            kwargs.keys().isdisjoint({"io_api", "problem_fn"})
+            and solver_name in available_solvers
+            and Solver.from_name(solver_name).supports(SolverFeature.DIRECT_API)
+        ):
+            kwargs["io_api"] = "direct"
 
-            status, condition = n.optimize(sns, **kwargs)
-            if status != "ok":
-                logger.warning(
-                    "Optimization failed with status %s and condition %s",
-                    status,
-                    condition,
+        try:
+            for i, start in enumerate(starting_points):
+                end = min(len(snapshots), start + horizon)
+                sns = snapshots[start:end]
+                logger.info(
+                    "Optimizing network for snapshot horizon [%s:%s] (%s/%s).",
+                    sns[0],
+                    sns[-1],
+                    i + 1,
+                    len(starting_points),
                 )
+
+                if i:
+                    prev, first = snapshots[start - 1], sns[:1]
+                    eh = n.snapshot_weightings.stores.loc[first].iloc[0]
+                    for c, attr, level in _STORAGE_LEVELS:
+                        loss = n.c[c]._as_dynamic("standing_loss", first).iloc[0]
+                        level_prev = n.c[c].dynamic[level].loc[prev]
+                        n.c[c].static[attr] = level_prev * (1 - loss) ** eh
+                done, rest = snapshots[:start], snapshots[end:]
+                for name, attr, original, later in tracked:
+                    c = n.c[name]
+                    used = _energy(c, weights, done)
+                    c.static[attr] = original - used - later.loc[rest].sum()
+
+                # count the cycles of previous windows against `cycles_max`
+                eh = n.snapshot_weightings.stores.loc[done]
+                discharge = stores.dynamic.p_dispatch.loc[done]
+                used = discharge.mul(eh, axis=0).sum() / stores.static.e_nom_opt
+                remaining = cycles_max.sub(used.fillna(0), fill_value=0)
+                stores.static.cycles_max = remaining.clip(lower=0)
+
+                status, condition = n.optimize(sns, consistency_check=False, **kwargs)
+                if status != "ok":
+                    if tracked or track_cycles:
+                        msg = (
+                            f"Optimization of window [{sns[0]}:{sns[-1]}] failed "
+                            f"with status {status} and condition {condition}. The "
+                            "volume limits of later windows cannot be tracked."
+                        )
+                        raise RuntimeError(msg)
+                    logger.warning(
+                        "Optimization failed with status %s and condition %s",
+                        status,
+                        condition,
+                    )
+        finally:
+            for name, attr, original, _ in tracked:
+                n.c[name].static[attr] = original
+            stores.static.cycles_max = cycles_max
         return n
 
     def optimize_and_run_non_linear_powerflow(

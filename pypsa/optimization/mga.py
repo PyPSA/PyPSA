@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 import linopy
 import numpy as np
 import pandas as pd
-from linopy import LinearExpression, QuadraticExpression, merge
+from linopy import LinearExpression, merge
 from scipy.stats.qmc import Halton
 
 from pypsa._options import options
@@ -227,7 +227,6 @@ class OptimizationAbstractMGAMixin:
 
     def _add_near_opt_constraint(
         self,
-        multi_investment_periods: bool = False,
         slack: float = 0.05,
     ) -> None:
         """Add a near-optimal cost constraint to the linopy model.
@@ -237,13 +236,41 @@ class OptimizationAbstractMGAMixin:
 
         Parameters
         ----------
-        multi_investment_periods : bool, default False
-            Whether the optimization considers multiple investment periods.
-            If True, investment period weightings are applied to cost calculations.
         slack : float, default 0.05
             The percentage by which the total cost is allowed to exceed the
             optimal cost. For example, a slack of 0.05 means the total cost
             must be <= 1.05 * optimal_cost.
+
+        Notes
+        -----
+        MGA limits total system costs, including investment costs,
+        fixed O&M, and operational costs of both extendable and
+        non-extendable assets. The model's cost objective is not
+        necessarily equal to total system cost: it contains
+        operational costs for all assets, but investment costs and
+        fixed O&M only for extendable assets, whose capacities are
+        optimization variables. Costs associated with fixed,
+        non-extendable capacities are omitted because they cannot
+        affect the cost-optimal solution. They do, however, affect the
+        total cost against which the relative MGA slack is measured.
+
+        The optimization objective may also optionally subtract the
+        costs of existing capacity on extendable assets as an
+        objective constant. This shifts the objective value without
+        changing the cost-optimal solution. Adding back
+        `n.objective_constant` undoes this subtraction; when
+        `include_objective_constant=False`, the constant is zero.
+        Adding the investment costs and fixed O&M of active
+        non-extendable assets then makes the left-hand side represent
+        total system costs:
+
+        ```text
+        cost_objective + objective_constant + non_extendable_costs
+            <= (1 + slack) * optimal_total_cost
+        ```
+
+        Cost statistics handle asset activity and investment-period weighting,
+        and are evaluated without rounding.
 
         """
         # Check that the network has a model and that it has been solved
@@ -251,24 +278,36 @@ class OptimizationAbstractMGAMixin:
         if not n.is_solved:
             msg = "Network needs to be solved with `n.optimize()` before adding near-optimal constraint."
             raise ValueError(msg)
-        # Find optimal costs and fixed costs
-        if not multi_investment_periods:
-            optimal_cost = n.statistics.capex().sum() + n.statistics.opex().sum()
-            fixed_cost = n.statistics.installed_capex().sum()
-        else:
-            w = n.investment_period_weightings.objective
-            optimal_cost = (
-                n.statistics.capex().sum() * w + n.statistics.opex().sum() * w
-            ).sum()
-            fixed_cost = (n.statistics.installed_capex().sum() * w).sum()
 
-        # Add constraint
-        objective = n.model.objective
-        if not isinstance(objective, (LinearExpression | QuadraticExpression)):
-            objective = objective.expression
+        # System cost includes capex, fom & opex for all units,
+        # extendable and non-extendable.
+        opt_system_cost = n.statistics.system_cost(round=0).sum().sum()
 
+        # The optimization model objective doesn't include costs of
+        # non-extendable components, nor n.objective_constant (if
+        # non-zero): the cost of existing capacity in extendable
+        # components. We calculate these fixed costs here in order to
+        # compare correctly with total system costs.
+        def non_extendable(n: Network, c: str, **_: Any) -> pd.Series:
+            # Assets missing from the grouper are excluded from aggregation.
+            return pd.Series("fixed", index=n.c[c].fixed)
+
+        fixed_cost = n.objective_constant + sum(
+            n.statistics.installed_capex(
+                cost_attribute=attr, groupby=non_extendable, round=0
+            )
+            .sum()
+            .sum()
+            for attr in ["capital_cost", "fom_cost"]
+        )
+
+        # The model cost objective plus above fixed costs now
+        # represent total system cost: the quantity we want to
+        # constrain in the context of MGA.
         n.model.add_constraints(
-            objective + fixed_cost <= (1 + slack) * optimal_cost, name="budget"
+            n.model.objective.expression + fixed_cost <= (1 + slack) * opt_system_cost,
+            name="budget",
+            scaling=n.model.objective.scaling,
         )
 
     def optimize_mga(
@@ -279,6 +318,7 @@ class OptimizationAbstractMGAMixin:
         sense: str | int = "min",
         slack: float = 0.05,
         model_kwargs: dict | None = None,
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Run modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
@@ -306,6 +346,9 @@ class OptimizationAbstractMGAMixin:
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver, see
+            `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -343,11 +386,12 @@ class OptimizationAbstractMGAMixin:
         m = n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
+            objective_scaling=objective_scaling,
             **model_kwargs,
         )
 
         # add budget constraint
-        self._n.optimize._add_near_opt_constraint(multi_investment_periods, slack)
+        self._n.optimize._add_near_opt_constraint(slack=slack)
 
         # parse optimization sense
         if (
@@ -369,7 +413,11 @@ class OptimizationAbstractMGAMixin:
             raise ValueError(msg)
 
         # build alternate objective
-        m.objective = self.build_linexpr_from_weights(weights, model=m) * sense
+        m.add_objective(
+            self.build_linexpr_from_weights(weights, model=m) * sense,
+            overwrite=True,
+            scaling=m.objective.scaling,
+        )
 
         status, condition = self._n.optimize.solve_model(**kwargs)
 
@@ -428,6 +476,7 @@ class OptimizationAbstractMGAMixin:
         multi_investment_periods: bool = False,
         slack: float = 0.05,
         model_kwargs: dict | None = None,
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> tuple[str, str, pd.Series | None]:
         """Run MGA in a given direction in a low-dimension projection.
@@ -456,6 +505,9 @@ class OptimizationAbstractMGAMixin:
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver, see
+            `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -501,18 +553,24 @@ class OptimizationAbstractMGAMixin:
         m = self._n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
+            objective_scaling=objective_scaling,
             **model_kwargs,
         )
 
         # build budget constraint
-        self._n.optimize._add_near_opt_constraint(multi_investment_periods, slack)
+        self._n.optimize._add_near_opt_constraint(slack=slack)
 
         # Build objective as linear combination of direction and
         # dimensions. Flip the sign in order to maximize in the given
         # direction.
-        m.objective = -sum(
-            direction[key] * self.build_linexpr_from_weights(dimensions[key], model=m)
-            for key in direction.keys()
+        m.add_objective(
+            -sum(
+                direction[key]
+                * self.build_linexpr_from_weights(dimensions[key], model=m)
+                for key in direction.keys()
+            ),
+            overwrite=True,
+            scaling=m.objective.scaling,
         )
 
         status, condition = self._n.optimize.solve_model(**kwargs)
@@ -534,6 +592,7 @@ class OptimizationAbstractMGAMixin:
         multi_investment_periods: bool,
         slack: float,
         model_kwargs: dict,
+        objective_scaling: float,
         kwargs: dict,
     ) -> tuple[dict, pd.Series | None]:
         """Solve a single direction for parallel execution (helper method).
@@ -553,6 +612,7 @@ class OptimizationAbstractMGAMixin:
                 multi_investment_periods=multi_investment_periods,
                 slack=slack,
                 model_kwargs=model_kwargs,
+                objective_scaling=objective_scaling,
                 **kwargs,
             )
         except KeyboardInterrupt:
@@ -578,6 +638,7 @@ class OptimizationAbstractMGAMixin:
         slack: float = 0.05,
         model_kwargs: dict | None = None,
         max_parallel: int = 4,
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Run MGA optimization in multiple directions in parallel.
@@ -620,6 +681,9 @@ class OptimizationAbstractMGAMixin:
         max_parallel : int
             Maximum number of parallel processes to use for solving multiple directions.
             Defaults to 4.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver, see
+            `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -695,6 +759,7 @@ class OptimizationAbstractMGAMixin:
                                 multi_investment_periods,
                                 slack,
                                 model_kwargs,
+                                objective_scaling,
                                 kwargs,
                             )
                             for direction in directions
