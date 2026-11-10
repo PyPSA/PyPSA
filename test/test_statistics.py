@@ -164,6 +164,7 @@ def test_lcoe_gap_to_capture_price_is_rent(ac_dc_network_r):
     interior = [("Generator", "wind"), ("Line", "AC"), ("Link", "DC")]
     assert np.allclose(gap[interior], 0, atol=1)
 
+
 def test_lcoe_below_market_value_with_scarcity_rent():
     n = pypsa.Network(snapshots=range(2))
     n.add("Bus", "bus")
