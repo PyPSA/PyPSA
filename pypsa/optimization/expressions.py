@@ -15,7 +15,6 @@ import linopy as ln
 import numpy as np
 import pandas as pd
 from linopy import LinearExpression, Variable
-from packaging import version
 
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa.common import deprecated_kwargs
@@ -36,20 +35,6 @@ if TYPE_CHECKING:
     from pypsa import Network, NetworkCollection
     from pypsa.components.components import PortsLike
 logger = logging.getLogger(__name__)
-
-
-USE_EMPTY_PROPERTY = version.parse(ln.__version__) >= version.parse("0.5.1")
-
-
-def check_if_empty(expr: LinearExpression) -> bool:
-    """Check if the expression is empty.
-
-    This is a workaround for the issue that linopy does not support
-    the empty property for older versions (`.empty` in >=0.5.1 vs `.empty()` in <0.5.1).
-    """
-    if USE_EMPTY_PROPERTY:
-        return expr.empty
-    return expr.empty()
 
 
 def _port_coefficients(n: Network, c: str, port: str, sns: pd.Index) -> DataArray:
@@ -318,7 +303,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         self, expr: LinearExpression, agg: Callable | str
     ) -> LinearExpression:
         _require_sum_agg(agg)
-        if check_if_empty(expr):
+        if expr.empty:
             return expr
         keys = [k for k in _group_key_coords(expr) if k != "component"]
         return _regroup(expr, keys) if keys else expr

@@ -77,7 +77,6 @@ class AbstractStatisticsAccessor(ABC):
         nice_names: bool = False,
     ) -> dict:
         by = None
-        level = None
         if callable(groupby):
             try:
                 by = groupby(n, c, port=port, nice_names=nice_names)
@@ -89,7 +88,7 @@ class AbstractStatisticsAccessor(ABC):
         elif groupby is not False:
             msg = f"Argument `groupby` must be a string, list-like, callable, or False, got {repr(groupby)}."
             raise ValueError(msg)
-        return {"by": by, "level": level}
+        return {"by": by}
 
     @property
     def is_multi_indexed(self) -> bool:

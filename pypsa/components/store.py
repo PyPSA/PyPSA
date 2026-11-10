@@ -9,7 +9,6 @@ Contains store class which is used to store all different components in the netw
 
 from __future__ import annotations
 
-import logging
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -32,8 +31,6 @@ if TYPE_CHECKING:
     from pypsa.components._types.sub_networks import SubNetworks
     from pypsa.components._types.transformer_types import TransformerTypes
     from pypsa.components._types.transformers import Transformers
-
-logger = logging.getLogger(__name__)
 
 
 class ComponentsStore(dict):

@@ -234,36 +234,23 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
             )
 
             if legend_representatives:
-                if bus_split_circle:
-                    add_legend_semicircles(
-                        self.ax,  # type: ignore
-                        [
-                            s * bus_size_scaling_factor
-                            for s, label in legend_representatives
-                        ],
-                        [label for s, label in legend_representatives],
-                        legend_kw={
-                            "bbox_to_anchor": (0, 0.9),
-                            "loc": "lower left",
-                            "frameon": True,
-                            **(legend_circles_kw or {}),
-                        },
-                    )
-                else:
-                    add_legend_circles(
-                        self.ax,  # type: ignore
-                        [
-                            s * bus_size_scaling_factor
-                            for s, label in legend_representatives
-                        ],
-                        [label for s, label in legend_representatives],
-                        legend_kw={
-                            "bbox_to_anchor": (0, 0.9),
-                            "loc": "lower left",
-                            "frameon": True,
-                            **(legend_circles_kw or {}),
-                        },
-                    )
+                add_legend = (
+                    add_legend_semicircles if bus_split_circle else add_legend_circles
+                )
+                add_legend(
+                    self.ax,  # type: ignore
+                    [
+                        s * bus_size_scaling_factor
+                        for s, label in legend_representatives
+                    ],
+                    [label for s, label in legend_representatives],
+                    legend_kw={
+                        "bbox_to_anchor": (0, 0.9),
+                        "loc": "lower left",
+                        "frameon": True,
+                        **(legend_circles_kw or {}),
+                    },
+                )
 
         if draw_legend_arrows and hasattr(self.ax, "figure"):
             if not transmission_flow:

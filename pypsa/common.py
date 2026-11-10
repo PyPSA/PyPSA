@@ -12,7 +12,7 @@ import logging
 import warnings
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
-from urllib import parse, request
+from urllib import request
 
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
@@ -128,7 +128,6 @@ class MethodHandlerWrapper:
         """Call the decorator with the function to wrap."""
         if func is not None:
             self.func = func
-            return self
         return self
 
     def __get__(self, obj: Any, objtype: Any = None) -> Any:
@@ -191,12 +190,6 @@ def _check_for_update(current_version: str, repo_owner: str, repo_name: str) -> 
 
     try:
         url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
-
-        # Validate URL scheme
-        parsed_url = parse.urlparse(url)
-        if parsed_url.scheme not in ("https", "http"):
-            return ""
-
         headers = {"User-Agent": "Python"}  # GitHub API requires a user-agent
         req = request.Request(url, headers=headers)  # noqa: S310
         response = request.urlopen(req)  # noqa: S310
@@ -338,8 +331,6 @@ def equals(
     True
 
     """
-    if not isinstance(log_mode, str):
-        msg = "'log_mode' must be a string, not {type(log_mode)}."
     if log_mode not in ["silent", "verbose", "strict"]:
         msg = (
             f"'log_mode' must be one of 'silent', 'verbose', 'strict'], not {log_mode}."

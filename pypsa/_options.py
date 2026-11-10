@@ -126,7 +126,7 @@ class OptionsNode:
         node = self
 
         # Navigate/create the path
-        for _i, part in enumerate(parts[:-1]):
+        for part in parts[:-1]:
             if part not in node._children:
                 node._children[part] = OptionsNode(part)
             elif not isinstance(node._children[part], OptionsNode):
@@ -143,6 +143,26 @@ class OptionsNode:
             raise ValueError(msg)
 
         node._children[leaf_name] = Option(default, default, docs)
+
+    def _resolve_option(self, path: str) -> Option:
+        """Return the option at the specified path."""
+        parts = path.split(".")
+        node = self
+
+        for part in parts[:-1]:
+            if part not in node._children or not isinstance(
+                node._children[part], OptionsNode
+            ):
+                raise InvalidOptionError(option_path=part)
+            node = node._children[part]
+
+        leaf_name = parts[-1]
+        if leaf_name not in node._children or isinstance(
+            node._children[leaf_name], OptionsNode
+        ):
+            raise InvalidOptionError(option_path=leaf_name)
+
+        return node._children[leaf_name]
 
     def get_option(self, path: str) -> Any:
         """Get the value of an option at the specified path.
@@ -165,25 +185,7 @@ class OptionsNode:
         5
 
         """
-        parts = path.split(".")
-        node = self
-
-        # Navigate to the parent
-        for part in parts[:-1]:
-            if part not in node._children or not isinstance(
-                node._children[part], OptionsNode
-            ):
-                raise InvalidOptionError(option_path=part)
-            node = node._children[part]
-
-        # Get the option value
-        leaf_name = parts[-1]
-        if leaf_name not in node._children or isinstance(
-            node._children[leaf_name], OptionsNode
-        ):
-            raise InvalidOptionError(option_path=leaf_name)
-
-        return node._children[leaf_name].value
+        return self._resolve_option(path).value
 
     def set_option(self, path: str, value: Any) -> None:
         """Set the value of an option at the specified path.
@@ -208,25 +210,7 @@ class OptionsNode:
         True
 
         """
-        parts = path.split(".")
-        node = self
-
-        # Navigate to the parent
-        for part in parts[:-1]:
-            if part not in node._children or not isinstance(
-                node._children[part], OptionsNode
-            ):
-                raise InvalidOptionError(option_path=part)
-            node = node._children[part]
-
-        # Set the option value
-        leaf_name = parts[-1]
-        if leaf_name not in node._children or isinstance(
-            node._children[leaf_name], OptionsNode
-        ):
-            raise InvalidOptionError(option_path=leaf_name)
-
-        node._children[leaf_name].value = value
+        self._resolve_option(path).value = value
 
     def reset_option(self, path: str) -> None:
         """Reset a single option to its default value.
@@ -249,25 +233,7 @@ class OptionsNode:
         True
 
         """
-        parts = path.split(".")
-        node = self
-
-        # Navigate to the parent
-        for part in parts[:-1]:
-            if part not in node._children or not isinstance(
-                node._children[part], OptionsNode
-            ):
-                raise InvalidOptionError(option_path=part)
-            node = node._children[part]
-
-        # Reset the option value
-        leaf_name = parts[-1]
-        if leaf_name not in node._children or isinstance(
-            node._children[leaf_name], OptionsNode
-        ):
-            raise InvalidOptionError(option_path=leaf_name)
-
-        node._children[leaf_name].reset()
+        self._resolve_option(path).reset()
 
     def reset_all(self) -> None:
         """Reset all options to their default values.

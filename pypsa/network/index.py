@@ -1188,11 +1188,8 @@ class NetworkIndexMixin(_NetworkABC):
         # Setup new network
         n = self.__class__()
 
-        n.add(
-            "Bus",
-            pd.DataFrame(self.c.buses.static.loc[buses]).assign(sub_network="").index,
-            **pd.DataFrame(self.c.buses.static.loc[buses]).assign(sub_network=""),
-        )
+        static = pd.DataFrame(self.c.buses.static.loc[buses]).assign(sub_network="")
+        n.add("Bus", static.index, **static)
 
         buses_i = n.c.buses.static.index
 

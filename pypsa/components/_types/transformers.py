@@ -4,10 +4,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
-
-import pandas as pd
 
 from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring

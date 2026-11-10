@@ -13,7 +13,6 @@ Descriptor functions only describe data and do not modify it.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -22,12 +21,8 @@ import pandas as pd
 from pypsa.common import as_index
 from pypsa.components.abstract import _ComponentsABC
 
-logger = logging.getLogger(__name__)
-
 if TYPE_CHECKING:
     from collections.abc import Sequence
-
-logger = logging.getLogger(__name__)
 
 
 class ComponentsDescriptorsMixin(_ComponentsABC):

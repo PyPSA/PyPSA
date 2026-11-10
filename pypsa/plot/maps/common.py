@@ -92,8 +92,10 @@ def as_branch_series(  # noqa
 ) -> pd.Series:
     ser = pd.Series(ser, index=n.components[c_name].static.index)
     if ser.isnull().any():
-        msg = f"{c_name}_{arg}s does not specify all "
-        f"entries. Missing values for {c_name}: {list(ser[ser.isnull()].index)}"
+        msg = (
+            f"{c_name}_{arg}s does not specify all entries. "
+            f"Missing values for {c_name}: {list(ser[ser.isnull()].index)}"
+        )
         raise ValueError(msg)
     return ser
 

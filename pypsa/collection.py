@@ -185,7 +185,7 @@ class NetworkCollection:
 
         if not isinstance(self.networks, pd.Series):
             # Format and validate index
-            if index is None and not isinstance(self.networks, pd.Series):
+            if index is None:
                 names = ["network" if not n.name else n.name for n in self.networks]
 
                 # Check for duplicate names
@@ -593,13 +593,8 @@ class MemberProxy:
 
     def _is_intermediate_path(self) -> bool:
         """Check if this accessor path is an intermediate path that should continue as MemberProxy."""
-        # Check if this path could be part of a longer supported path
-        for processor_name, pattern in _get_method_patterns().items():
-            if processor_name == "continue_proxy" and re.match(
-                pattern, self.accessor_path
-            ):
-                return True
-        return False
+        pattern = _get_method_patterns()["continue_proxy"]
+        return re.match(pattern, self.accessor_path) is not None
 
     def __init__(
         self,
@@ -692,6 +687,18 @@ class MemberProxy:
     # Helper functions for processing
     # -------------------------------
 
+    def _evaluate(
+        self, network: Network, is_call: bool, args: tuple, kwargs: dict
+    ) -> Any:
+        accessor = self.accessor_func(network)
+        return accessor(*args, **kwargs) if is_call else accessor
+
+    def _evaluate_all(self, is_call: bool, args: tuple, kwargs: dict) -> dict:
+        return {
+            idx: self._evaluate(network, is_call, args, kwargs)
+            for idx, network in self.collection.networks.items()
+        }
+
     def _concat_indexes(self, results: dict) -> Any:
         # Build names list based on the network collection index and result index names
         network_names = self.collection._index_names
@@ -757,57 +764,26 @@ class MemberProxy:
 
     def run_per_network(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
         """Run the accessor function for each network in the collection."""
-        results = []
-        for _, network in self.collection.networks.items():  # noqa: PERF102
-            accessor = self.accessor_func(network)
-            if is_call:
-                result = accessor(*args, **kwargs)
-            else:
-                result = accessor
-            results.append(result)
-        return results
+        return [
+            self._evaluate(network, is_call, args, kwargs)
+            for network in self.collection.networks
+        ]
 
     def vertical_concat(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
         """Concatenate results vertically (axis=0) from all networks in the collection."""
-        results = {}
-
-        for idx, network in self.collection.networks.items():
-            accessor = self.accessor_func(network)
-            if is_call:
-                result = accessor(*args, **kwargs)
-            else:
-                result = accessor
-            results[idx] = result
-
-        return self._do_concat(results, axis=0)
+        return self._do_concat(self._evaluate_all(is_call, args, kwargs), axis=0)
 
     def horizontal_concat(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
         """Concatenate results horizontally across networks."""
-        results = {}
-        for idx, network in self.collection.networks.items():
-            accessor = self.accessor_func(network)
-            if is_call:
-                result = accessor(*args, **kwargs)
-            else:
-                result = accessor
-            results[idx] = result
-
-        return self._do_concat(results, axis=1)
+        return self._do_concat(self._evaluate_all(is_call, args, kwargs), axis=1)
 
     def return_from_first(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
         """Return the result from the first network in the collection.
 
         This is used for properties that are expected to be the same across all networks.
         """
-        # Get the first network
         first_network = self.collection.networks.iloc[0]
-        accessor = self.accessor_func(first_network)
-        if is_call:
-            result = accessor(*args, **kwargs)
-        else:
-            result = accessor
-
-        return result
+        return self._evaluate(first_network, is_call, args, kwargs)
 
     def index_concat(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
         """Concatenate indexes from all networks in the collection into a MultiIndex.
@@ -816,15 +792,4 @@ class MemberProxy:
         MultiIndex where the network identifier(s) form the first level(s) and the
         original index values form the subsequent levels.
         """
-        results = {}
-
-        for idx, network in self.collection.networks.items():
-            accessor = self.accessor_func(network)
-            if is_call:
-                result = accessor(*args, **kwargs)
-            else:
-                result = accessor
-            results[idx] = result
-
-        # Use the _concat_indexes helper which already handles MultiIndex creation
-        return self._concat_indexes(results)
+        return self._concat_indexes(self._evaluate_all(is_call, args, kwargs))

@@ -60,19 +60,14 @@ class StorageUnits(Components):
             msg = f"Bounds can only be retrieved for operational attributes. For storage_units those are: {list_as_string(self._operational_variables)}."
             raise ValueError(msg)
 
-        max_pu = self.da.p_max_pu
-
         if attr == "p_store":
             max_pu = -self.da.p_min_pu
-            min_pu = xr.zeros_like(max_pu)
         elif attr == "state_of_charge":
             max_pu = self.da.max_hours
-            min_pu = xr.zeros_like(max_pu)
         else:
             max_pu = self.da.p_max_pu
-            min_pu = xr.zeros_like(max_pu)
 
-        return min_pu, max_pu
+        return xr.zeros_like(max_pu), max_pu
 
     def add(
         self,

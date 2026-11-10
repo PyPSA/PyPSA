@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
     from linopy import Model, Variable
-    from xarray import DataArray  # noqa: TC004
 
     from pypsa import Components, Network
 
@@ -58,6 +57,7 @@ lookup = pd.read_csv(
 )
 
 
+COMMITMENT_VARIABLES = ("status", "start_up", "shut_down")
 ENERGY_WEIGHTING = "generators"
 ENERGY_LIMITS = (("e_sum_min", ">=", -inf), ("e_sum_max", "<=", inf))
 
@@ -2064,28 +2064,11 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
     rhs = n_mod.reindex(name=names, fill_value=1)
     active = c.da.active.sel(snapshot=sns, name=names) if n._multi_invest else None
 
-    status = m.variables[f"{component}-status"].sel(snapshot=sns, name=names)
-    m.add_constraints(
-        status, "<=", rhs, name=f"{component}-status-{attr}-fixed-upper", mask=active
-    )
-
-    start_up = m.variables[f"{component}-start_up"].sel(snapshot=sns, name=names)
-    m.add_constraints(
-        start_up,
-        "<=",
-        rhs,
-        name=f"{component}-start_up-{attr}-fixed-upper",
-        mask=active,
-    )
-
-    shut_down = m.variables[f"{component}-shut_down"].sel(snapshot=sns, name=names)
-    m.add_constraints(
-        shut_down,
-        "<=",
-        rhs,
-        name=f"{component}-shut_down-{attr}-fixed-upper",
-        mask=active,
-    )
+    for var in COMMITMENT_VARIABLES:
+        lhs = m.variables[f"{component}-{var}"].sel(snapshot=sns, name=names)
+        m.add_constraints(
+            lhs, "<=", rhs, name=f"{component}-{var}-{attr}-fixed-upper", mask=active
+        )
 
 
 def define_committability_variables_constraints_with_variable_upper_limit(
@@ -2134,23 +2117,14 @@ def define_committability_variables_constraints_with_variable_upper_limit(
 
     n_mod = m[f"{component}-n_mod"].loc[inter_i]
 
-    status = m.variables[f"{component}-status"].sel(snapshot=sns, name=inter_i)
-    lhs = ((1, status), (-1, n_mod))
-    m.add_constraints(
-        lhs, "<=", 0, name=f"{component}-status-{attr}-variable-upper", mask=active
-    )
-
-    start_up = m.variables[f"{component}-start_up"].sel(snapshot=sns, name=inter_i)
-    lhs = ((1, start_up), (-1, n_mod))
-    m.add_constraints(
-        lhs, "<=", 0, name=f"{component}-start_up-{attr}-variable-upper", mask=active
-    )
-
-    shut_down = m.variables[f"{component}-shut_down"].sel(snapshot=sns, name=inter_i)
-    lhs = ((1, shut_down), (-1, n_mod))
-    m.add_constraints(
-        lhs, "<=", 0, name=f"{component}-shut_down-{attr}-variable-upper", mask=active
-    )
+    for var in COMMITMENT_VARIABLES:
+        lhs = (
+            (1, m.variables[f"{component}-{var}"].sel(snapshot=sns, name=inter_i)),
+            (-1, n_mod),
+        )
+        m.add_constraints(
+            lhs, "<=", 0, name=f"{component}-{var}-{attr}-variable-upper", mask=active
+        )
 
 
 def define_fixed_operation_constraints(
@@ -2633,6 +2607,57 @@ def define_store_cycle_constraints(n: Network, sns: pd.Index) -> None:
     )
 
 
+class _LossUpperLimit(NamedTuple):
+    c: Components
+    active: DataArray
+    s_max_pu: DataArray
+    s_nom_max: DataArray
+    r_pu_eff: DataArray
+    loss: Variable
+    flow: Variable
+    scaling: DataArray | float
+
+
+def _define_loss_upper_limit(
+    n: Network, sns: pd.Index, component: str
+) -> _LossUpperLimit | None:
+    """Bound the losses of a passive branch component by its maximal flow.
+
+    Returns the pieces shared by the tangent and secant approximations, or
+    `None` if `component` has no passive branches.
+    """
+    c = n.components[component]
+
+    if c.static.empty or component not in n.passive_branch_components:
+        return None
+
+    active = c.da.active.sel(snapshot=sns, name=c.active_assets)
+    s_max_pu = c.da.s_max_pu.sel(snapshot=sns)
+    s_nom_max = c.da.s_nom_max.where(c.da.s_nom_extendable, c.da.s_nom)
+
+    if not isfinite(s_nom_max).all():
+        msg = (
+            f"Loss approximation requires finite 's_nom_max' for extendable "
+            f"branches:\n {s_nom_max.sel(name=~isfinite(s_nom_max))}"
+        )
+        raise ValueError(msg)
+
+    r_pu_eff = c.da.r_pu_eff
+    upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2
+    loss = n.model[f"{c.name}-loss"]
+    flow = n.model[f"{c.name}-s"]
+    scaling = c._scaling(c.active_assets)
+    n.model.add_constraints(
+        loss <= upper_limit,
+        name=f"{c.name}-loss_upper",
+        mask=active,
+        scaling=scaling,
+    )
+    return _LossUpperLimit(
+        c, active, s_max_pu, s_nom_max, r_pu_eff, loss, flow, scaling
+    )
+
+
 def define_tangent_loss_constraints(
     n: Network,
     sns: pd.Index,
@@ -2674,43 +2699,10 @@ def define_tangent_loss_constraints(
         msg = f"'segments' must be a positive integer, got {segments!r}"
         raise ValueError(msg)
 
-    c = n.components[component]
-
-    if c.static.empty or component not in n.passive_branch_components:
+    bounded = _define_loss_upper_limit(n, sns, component)
+    if bounded is None:
         return
-
-    active = c.da.active.sel(snapshot=sns, name=c.active_assets)
-
-    s_max_pu = c.da.s_max_pu.sel(snapshot=sns)
-
-    # Define nominal capacity (depends on extendability of lines)
-    is_extendable = c.da.s_nom_extendable
-    s_nom_max = c.da.s_nom_max.where(is_extendable, c.da.s_nom)
-
-    if not isfinite(s_nom_max).all():
-        msg = (
-            f"Loss approximation requires finite 's_nom_max' for extendable "
-            f"branches:\n {s_nom_max.sel(name=~isfinite(s_nom_max))}"
-        )
-        raise ValueError(msg)
-
-    r_pu_eff = c.da.r_pu_eff
-
-    # Calculate upper bound on losses
-    upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2
-
-    # Get variables
-    loss = n.model[f"{c.name}-loss"]
-    flow = n.model[f"{c.name}-s"]
-
-    # Add upper limit constraint
-    scaling = c._scaling(c.active_assets)
-    n.model.add_constraints(
-        loss <= upper_limit,
-        name=f"{c.name}-loss_upper",
-        mask=active,
-        scaling=scaling,
-    )
+    c, active, s_max_pu, s_nom_max, r_pu_eff, loss, flow, scaling = bounded
 
     # Add linearization constraints for each tangent segment
     for k in range(1, segments + 1):
@@ -2786,43 +2778,10 @@ def define_secant_loss_constraints(
         msg = f"'max_segments' must be >= 1, got {max_segments}"
         raise ValueError(msg)
 
-    c = n.components[component]
-
-    if c.static.empty or component not in n.passive_branch_components:
+    bounded = _define_loss_upper_limit(n, sns, component)
+    if bounded is None:
         return
-
-    active = c.da.active.sel(snapshot=sns, name=c.active_assets)
-
-    s_max_pu = c.da.s_max_pu.sel(snapshot=sns)
-
-    # Define nominal capacity (depends on extendability of lines)
-    is_extendable = c.da.s_nom_extendable
-    s_nom_max = c.da.s_nom_max.where(is_extendable, c.da.s_nom)
-
-    if not isfinite(s_nom_max).all():
-        msg = (
-            f"Loss approximation requires finite 's_nom_max' for extendable "
-            f"branches:\n {s_nom_max.sel(name=~isfinite(s_nom_max))}"
-        )
-        raise ValueError(msg)
-
-    r_pu_eff = c.da.r_pu_eff
-
-    # Calculate upper bound on losses
-    upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2
-
-    # Get variables
-    loss = n.model[f"{c.name}-loss"]
-    flow = n.model[f"{c.name}-s"]
-
-    # Add upper limit constraint
-    scaling = c._scaling(c.active_assets)
-    n.model.add_constraints(
-        loss <= upper_limit,
-        name=f"{c.name}-loss_upper",
-        mask=active,
-        scaling=scaling,
-    )
+    c, active, s_max_pu, s_nom_max, r_pu_eff, loss, flow, scaling = bounded
 
     lossy = r_pu_eff > 0  # only for lines with losses
     target = (s_nom_max * s_max_pu).where(lossy, 0)
