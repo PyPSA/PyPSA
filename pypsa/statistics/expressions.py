@@ -2880,15 +2880,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Emissions are accounted as in the `primary_energy`
         [global constraint](../../user-guide/optimization/global-constraints.md).
-        Without investment periods, their sum is what the constraint limits. Each
-        component emits its carrier's `carrier_attribute` per unit of primary energy:
+        Their sum, with periods weighted by `n.investment_period_weightings.years`,
+        is what the constraint limits. Each component emits its carrier's
+        `carrier_attribute` per unit of primary energy:
 
         - **Generator**: the fuel burnt, `p / efficiency` or the fuel use of a
           piecewise efficiency curve, weighted by the snapshot weightings of
           generators.
         - **StorageUnit** and **Store**: the depletion of the stored energy between
           consecutive snapshots, starting from `state_of_charge_initial` or
-          `e_initial`. Cyclic storage returns to its initial level and is excluded.
+          `e_initial`, also at the start of each period if `*_initial_per_period`.
+          Cyclic storage returns to its initial level and is excluded.
 
         Emissions routed through a bus of their own, for instance with a `Link`
         whose `bus2` is a CO2 bus, are not covered. Use
@@ -2972,8 +2974,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 weights = n.snapshot_weightings.generators
             else:
                 level = comp.dynamic[levels[c]]
+                initial = static[f"{levels[c]}_initial"]
                 previous = level.shift(1)
-                previous.iloc[0] = static[f"{levels[c]}_initial"]
+                previous.iloc[0] = initial
+                if n.has_investment_periods:
+                    per_period = static[f"{levels[c]}_initial_per_period"]
+                    restart = per_period.index[per_period]
+                    starts = ~level.index.get_level_values("period").duplicated()
+                    previous.loc[starts, restart] = initial[restart].to_numpy()
                 primary = (previous - level).mul(~static[cyclic[c]], axis=1)
                 weights = pd.Series(1.0, index=level.index)
             emissions = primary.mul(factor, axis=1)

@@ -253,6 +253,54 @@ def test_emissions_from_store_depletion(e_cyclic, expected):
     assert np.allclose(emissions.loc["Store", "gas tank"], expected / 3)
 
 
+def test_emissions_match_co2_constraint_with_investment_periods():
+    """The constraint weights each period's emissions by its years."""
+    n = pypsa.examples.ac_dc_meshed()
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots])
+    n.investment_periods = [2020, 2030]
+    n.investment_period_weightings["years"] = [10, 5]
+    n.optimize(multi_investment_periods=True)
+
+    limit = n.c.global_constraints.static.loc["co2_limit"]
+    years = n.investment_period_weightings.years
+    emissions = n.statistics.emissions().mul(years, level="period")
+    assert limit.mu != 0
+    assert emissions.sum().sum() == pytest.approx(limit.constant)
+
+
+@pytest.mark.parametrize(
+    ("per_period", "expected"), [(True, [4, 4]), (False, [4, 2])]
+)
+def test_emissions_from_store_with_investment_periods(per_period, expected):
+    """A store of 30 MWh serves 10 MW for two snapshots in each of two periods.
+
+    Restarting from 30 MWh, it depletes 20 MWh per period. Continuing, it serves the
+    first period, where backup costs weigh more, and has only 10 MWh left for the
+    second. Each MWh emits 0.2 t.
+    """
+    n = pypsa.Network(snapshots=pd.MultiIndex.from_product([[2020, 2030], [0, 1]]))
+    n.investment_periods = [2020, 2030]
+    n.investment_period_weightings["objective"] = [1, 0.5]
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add(
+        "Store",
+        "gas tank",
+        bus="bus",
+        carrier="gas",
+        e_nom=100,
+        e_initial=30,
+        e_initial_per_period=per_period,
+        marginal_cost=1,
+    )
+    n.add("Generator", "backup", bus="bus", p_nom=10, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.optimize(multi_investment_periods=True)
+
+    emissions = n.statistics.emissions(groupby=False, drop_zero=False)
+    assert emissions.loc[("Store", "gas tank")].tolist() == pytest.approx(expected)
+
+
 def test_emissions_collection(network_collection, ac_dc_network_r):
     collection = network_collection.statistics.emissions()
     assert collection.sum() == ac_dc_network_r.statistics.emissions().sum()
