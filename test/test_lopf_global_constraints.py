@@ -282,3 +282,88 @@ def test_transmission_cost_limit_overnight_cost():
     m = n.optimize.create_model()
     con = m.constraints["GlobalConstraint-cost_limit"]
     assert (con.coeffs == 100.0).all()
+
+
+GLC_TYPES = pytest.mark.parametrize(
+    ("glc_type", "carrier_attribute"),
+    [("primary_energy", "co2_emissions"), ("operational_limit", "gas")],
+)
+
+
+def _gas_by_country(glc_type, carrier_attribute, query_string, snapshots=range(3)):
+    """Cheap German and dearer French gas, limited to 60, plus clean oil backup."""
+    n = pypsa.Network(snapshots=snapshots)
+    n.add("Bus", "b")
+    n.add("Carrier", ["gas", "oil"], co2_emissions=[1, 0])
+    n.add("Load", "l", bus="b", p_set=100)
+    n.add(
+        "Generator",
+        ["gas DE", "gas FR", "oil"],
+        bus="b",
+        carrier=["gas", "gas", "oil"],
+        p_nom=100,
+        marginal_cost=[10, 20, 100],
+        country=["DE", "FR", "DE"],
+    )
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=glc_type,
+        carrier_attribute=carrier_attribute,
+        sense="<=",
+        constant=60,
+        query_string=query_string,
+    )
+    return n
+
+
+@GLC_TYPES
+@pytest.mark.parametrize(
+    ("query_string", "expected"),
+    [
+        ("country == 'DE'", {"gas DE": 60, "gas FR": 240, "oil": 0}),
+        ("", {"gas DE": 60, "gas FR": 0, "oil": 240}),
+        ("country == 'XX'", {"gas DE": 300, "gas FR": 0, "oil": 0}),
+    ],
+)
+def test_query_string(glc_type, carrier_attribute, query_string, expected):
+    n = _gas_by_country(glc_type, carrier_attribute, query_string)
+    n.optimize()
+    energy = n.c.generators.dynamic.p.sum()
+    assert energy.to_dict() == pytest.approx(expected)
+
+
+@GLC_TYPES
+@pytest.mark.parametrize(
+    ("query_s2", "expected_s2"),
+    [
+        ("", {"gas DE": 60, "gas FR": 0, "oil": 240}),
+        ("country == 'FR'", {"gas DE": 300, "gas FR": 0, "oil": 0}),
+    ],
+)
+def test_query_string_stochastic(glc_type, carrier_attribute, query_s2, expected_s2):
+    n = _gas_by_country(glc_type, carrier_attribute, "country == 'DE'")
+    n.set_scenarios(["s1", "s2"])
+    n.c.global_constraints.static.loc[("s2", "limit"), "query_string"] = query_s2
+    n.optimize()
+    energy = n.c.generators.dynamic.p.sum().unstack()
+    expected_s1 = {"gas DE": 60, "gas FR": 240, "oil": 0}
+    assert energy.loc["s1"].to_dict() == pytest.approx(expected_s1)
+    assert energy.loc["s2"].to_dict() == pytest.approx(expected_s2)
+
+
+@GLC_TYPES
+def test_query_string_multi_invest(glc_type, carrier_attribute):
+    snapshots = pd.MultiIndex.from_product([[2030, 2040], range(3)])
+    n = _gas_by_country(glc_type, carrier_attribute, "country == 'DE'", snapshots)
+    n.investment_periods = [2030, 2040]
+    n.investment_period_weightings["years"] = 10
+    n.c.global_constraints.static.loc["limit", "investment_period"] = 2040
+    n.optimize(multi_investment_periods=True)
+    energy = n.c.generators.dynamic.p.groupby(level="period").sum()
+    assert energy.loc[2030].to_dict() == pytest.approx(
+        {"gas DE": 300, "gas FR": 0, "oil": 0}
+    )
+    assert energy.loc[2040].to_dict() == pytest.approx(
+        {"gas DE": 6, "gas FR": 294, "oil": 0}
+    )

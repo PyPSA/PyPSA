@@ -74,6 +74,25 @@ This global constraint is added in the function `define_operational_limit()`.
     | $w_t^g$ | `n.snapshot_weightings.generators` | Parameter |
     | $\Gamma$ | `n.global_constraints.constant` | Parameter |
 
+### Subsets of Components
+
+The attribute `query_string` limits primary energy and operational limit constraints to a subset of generators, storage units and stores. It takes a [pandas query string](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html), which can also refer to custom columns. For example, a CO~2~ limit for German generators only:
+
+```python
+n.add("Generator", "gas DE", bus="DE0", carrier="gas", country="DE")
+n.add(
+    "GlobalConstraint",
+    "co2_limit_DE",
+    type="primary_energy",
+    carrier_attribute="co2_emissions",
+    sense="<=",
+    constant=1e6,
+    query_string="country == 'DE'",
+)
+```
+
+Only components that match the carrier condition must have the columns used in the query.
+
 ## Volume Limit on Transmission Expansion
 
 This global constraint can be used to limit the expansion volume in MWkm of transmission lines and links (`type="transmission_volume_expansion_limit"`). The `carrier_attribute` specifies the subset of carriers to consider. These can be individual carriers or concatenated by commas, e.g. "AC", "DC", "AC,DC", or a [`Link`][pypsa.components.Links] carrier such as "H2 pipeline". With `sense="<="`, the constraint is defined as
