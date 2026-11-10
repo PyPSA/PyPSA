@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 from pathlib import Path
 
 import pandas as pd
@@ -22,7 +26,7 @@ def target_gen_p():
 def test_optimize(storage_hvdc_network, target_gen_p):
     n = storage_hvdc_network
     n.optimize()
-    equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
+    equal(n.c.generators.dynamic.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
 
 
 def test_storage_energy_marginal_cost():
@@ -91,17 +95,315 @@ def test_spill_cost():
         overlap = 2
         for i in range(sets_of_snapshots):
             if i == 1:
-                n.storage_units.state_of_charge_initial = (
-                    n.storage_units_t.state_of_charge.loc[n.snapshots[4]]
+                n.c.storage_units.static.state_of_charge_initial = (
+                    n.c.storage_units.dynamic.state_of_charge.loc[n.snapshots[4]]
                 )
             n.optimize(
                 n.snapshots[i * len(p_set) : (i + 1) * len(p_set) + overlap],
             )
 
-        spill = n.storage_units_t["spill"].loc[:, "hydro"]
+        spill = n.c.storage_units.dynamic["spill"].loc[:, "hydro"]
         total_spill = spill.sum()
 
         if has_spill_cost:
             assert total_spill == 0
         else:
             assert total_spill == 400
+
+
+def test_storage_unit_p_set():
+    """Test that p_set constrains net power (p_dispatch - p_store) for StorageUnit."""
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=10)
+    n.add("Load", "load", bus="bus", p_set=[20, 30, 25, 35])
+
+    n.add(
+        "StorageUnit",
+        "storage",
+        bus="bus",
+        p_nom=50,
+        max_hours=2,
+        p_set=[-10, 0, 5, 0],  # negative=charge, positive=discharge
+        state_of_charge_initial=10,
+    )
+
+    n.optimize()
+
+    # Check that p = p_dispatch - p_store equals p_set
+    equal(n.c.storage_units.dynamic.p["storage"].values, [-10, 0, 5, 0], decimal=5)
+
+
+def test_store_p_set():
+    """Test p_set for Store components."""
+    n = pypsa.Network()
+    n.set_snapshots(range(4))
+
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=10)
+    n.add("Load", "load", bus="bus", p_set=[20, 30, 25, 35])
+
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=100,
+        p_set=[-10, 0, 5, 0],  # negative=charge, positive=discharge
+        e_initial=10,
+    )
+
+    n.optimize()
+
+    equal(n.c.stores.dynamic.p["store"].values, [-10, 0, 5, 0], decimal=5)
+
+
+@pytest.mark.parametrize(
+    ("cost_attr", "objective"),
+    [
+        ("marginal_cost", 90),
+        ("marginal_cost_dispatch", 105),
+        ("marginal_cost_store", 95),
+    ],
+)
+def test_store_marginal_cost_attributes(cost_attr, objective):
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=200, marginal_cost=[1, 100])
+    n.add("Load", "load", bus="bus", p_set=50)
+    n.add("Store", "store", bus="bus", e_nom=100, e_initial=20, **{cost_attr: 0.5})
+    n.optimize()
+    equal(n.stores_t.p["store"], [-30, 50])
+    assert n.objective == pytest.approx(objective)
+    assert n.statistics.opex().sum() == pytest.approx(objective)
+
+
+@pytest.mark.parametrize("pu_kwargs", [{"p_min_pu": 0}, {"p_max_pu": 0}])
+@pytest.mark.parametrize(
+    "nom_kwargs",
+    [{"e_nom_extendable": True, "capital_cost": 1}, {"e_nom": 100}, {"e_nom": 0}],
+)
+def test_store_power_limits_ignored_without_max_hours(pu_kwargs, nom_kwargs):
+    def solve(**kwargs):
+        n = pypsa.Network(snapshots=range(2))
+        n.add("Bus", "bus")
+        n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=[10, 100])
+        n.add("Load", "load", bus="bus", p_set=50)
+        n.add("Store", "store", bus="bus", **nom_kwargs, **kwargs)
+        n.optimize()
+        return n
+
+    n, default = solve(**pu_kwargs), solve()
+    assert n.objective == pytest.approx(default.objective)
+    equal(n.stores_t.p, default.stores_t.p)
+
+
+@pytest.mark.parametrize("efficiency_dispatch", [1, 0.9])
+def test_store_max_hours_limits_power(efficiency_dispatch):
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=50)
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=100,
+        e_initial=100,
+        max_hours=4,
+        efficiency_dispatch=efficiency_dispatch,
+    )
+    n.optimize(assign_all_duals=True)
+    equal(n.stores_t.p["store"], [25, 25])
+    equal(n.generators_t.p["gen"], [25, 25])
+    # energy capacity duals stay in mu_upper, power bound duals get their own name
+    equal(n.stores_t.mu_upper["store"], [0, 0])
+    equal(n.stores_t.mu_p_upper["store"].abs(), [100, 100])
+
+
+def test_store_inflow_and_spill():
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=5)
+    n.add("Store", "store", bus="bus", e_nom=0, inflow=10, spill_cost=1)
+    n.optimize()
+    equal(n.stores_t.p["store"], [5, 5, 5])
+    equal(n.stores_t.spill["store"], [5, 5, 5])
+
+
+@pytest.mark.parametrize("extendable", [False, True])
+def test_store_energy_bound_dual_with_max_hours(extendable):
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=[10, 100])
+    n.add("Load", "load", bus="bus", p_set=50)
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=20,
+        e_nom_max=20,
+        e_nom_extendable=extendable,
+        max_hours=0.5,
+    )
+    n.optimize(assign_all_duals=True)
+    equal(n.stores_t.p["store"], [-20, 20])
+    equal(n.stores_t.mu_upper["store"], [-90, 0])
+    equal(n.stores_t.mu_p_upper["store"], [0, 0])
+    equal(n.stores_t.mu_p_lower["store"], [0, 0])
+
+
+@pytest.mark.parametrize(
+    ("store_kwargs", "objective", "p"),
+    [
+        (
+            {
+                "e_nom": 50,
+                "e_initial": 10,
+                "standing_loss": 0.01,
+                "marginal_cost": 1,
+                "marginal_cost_storage": 0.1,
+            },
+            4374,
+            [-40, 49.5, -50, 49.5],
+        ),
+        (
+            {
+                "e_nom_extendable": True,
+                "capital_cost": 2,
+                "e_cyclic": True,
+                "standing_loss": 0.01,
+            },
+            2990.227136,
+            [-80, 80, -61.430549, 60],
+        ),
+        (
+            {
+                "e_nom": 50,
+                "e_initial": 10,
+                "p_set": [-10, 10, float("nan"), float("nan")],
+                "marginal_cost_storage": 0.1,
+            },
+            5808,
+            [-10, 10, -40, 50],
+        ),
+        (
+            {
+                "e_nom": 50,
+                "e_max_pu": [1, 0.5, 1, 1],
+                "e_min_pu": [0, 0, 0.2, 0],
+                "e_cyclic": True,
+                "marginal_cost_quadratic": 0.1,
+            },
+            5400,
+            [-50, 50, -50, 50],
+        ),
+    ],
+)
+def test_store_results_unchanged(store_kwargs, objective, p):
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=[10, 50, 20, 60])
+    n.add("Load", "load", bus="bus", p_set=[20, 80, 30, 60])
+    n.add("Store", "store", bus="bus", **store_kwargs)
+    n.optimize()
+    assert n.objective == pytest.approx(objective)
+    equal(n.stores_t.p["store"], p, decimal=5)
+
+
+@pytest.mark.parametrize(
+    "store_kwargs",
+    [
+        {},
+        {"efficiency_store": 0.9, "efficiency_dispatch": 0.95},
+        {"efficiency_store": 0.9, "standing_loss": 0.01},
+        {"efficiency_dispatch": 0.9, "inflow": [0, 30, 0, 30], "spill_cost": 1},
+    ],
+)
+def test_store_energy_balance(store_kwargs):
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=[10, 50, 20, 60])
+    n.add("Load", "load", bus="bus", p_set=[20, 80, 30, 60])
+    n.add(
+        "Store", "store", bus="bus", e_nom=40, max_hours=4, e_initial=20, **store_kwargs
+    )
+    n.add("Store", "plain", bus="bus", e_nom=10)
+    n.optimize()
+
+    st = n.stores_t
+    p_dispatch, p_store = st.p_dispatch["store"], st.p_store["store"]
+    assert (p_dispatch >= -1e-6).all()
+    assert (p_store >= -1e-6).all()
+    equal(p_dispatch - p_store, st.p["store"])
+
+    attrs = ["standing_loss", "efficiency_store", "efficiency_dispatch", "inflow"]
+    loss, eff_store, eff_dispatch, inflow = (
+        n.get_switchable_as_dense("Store", attr)["store"] for attr in attrs
+    )
+    e = st.e["store"]
+    delta_e = e - (e.shift() * (1 - loss)).fillna(20)
+    flows = eff_store * p_store - p_dispatch / eff_dispatch
+    equal(delta_e, flows + inflow - st.spill.get("store", 0), decimal=5)
+
+
+def cycles_network(cycles_max, extendable=False):
+    n = pypsa.Network(snapshots=range(96))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=50)
+    price = ([10] * 12 + [100] * 12) * 4
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=price)
+    n.add(
+        "Store",
+        "s",
+        bus="bus",
+        e_nom=40,
+        e_nom_extendable=extendable,
+        capital_cost=1,
+        cycles_max=cycles_max,
+    )
+    return n
+
+
+def get_cycles(n):
+    c = n.c.stores
+    return c.dynamic.p_dispatch.s.sum() / c.static.e_nom_opt.s
+
+
+@pytest.mark.parametrize("extendable", [False, True])
+@pytest.mark.parametrize("cycles_max", [1, 3])
+def test_cycles_max(extendable, cycles_max):
+    n = cycles_network(cycles_max, extendable)
+    n.optimize()
+    assert get_cycles(n) == pytest.approx(cycles_max)
+
+
+@pytest.mark.parametrize("extendable", [False, True])
+@pytest.mark.parametrize("cycles_max", [1, 3, 20, float("inf")])
+def test_cycles_max_dispatch_is_net(extendable, cycles_max):
+    n = cycles_network(cycles_max, extendable)
+    n.optimize()
+    p = n.c.stores.dynamic.p.s
+    equal(n.c.stores.dynamic.p_dispatch.s, p.clip(lower=0))
+    equal(n.c.stores.dynamic.p_store.s, -p.clip(upper=0))
+
+
+@pytest.mark.parametrize(
+    ("cycles_max", "daily"), [(3, [1, 1, 1, 0]), (20, [1, 1, 1, 1])]
+)
+def test_cycles_max_rolling_horizon(cycles_max, daily):
+    n = cycles_network(cycles_max)
+    n.optimize.optimize_with_rolling_horizon(horizon=24)
+    discharge = n.c.stores.dynamic.p_dispatch.s.groupby(lambda t: t // 24).sum()
+    equal(discharge / n.c.stores.static.e_nom_opt.s, daily)
+    assert n.c.stores.static.cycles_max.s == cycles_max
+
+
+def test_cycles_max_finite_in_one_scenario():
+    n = cycles_network(cycles_max=float("inf"), extendable=True)
+    n.set_scenarios(a=0.5, b=0.5)
+    n.c.stores.static.loc[("a", "s"), "cycles_max"] = 1
+    status, _ = n.optimize()
+    assert status == "ok"
+    assert n.c.stores.static.e_nom_opt.gt(0).all()

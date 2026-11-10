@@ -1,9 +1,14 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+import numpy as np
 import pandas as pd
 import pytest
 
 import pypsa
-from pypsa.descriptors import expand_series, nominal_attrs
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.common import expand_series
+from pypsa.descriptors import nominal_attrs
 
 TOLERANCE = 1e-2
 
@@ -19,19 +24,19 @@ def describe_storage_unit_contraints(n):
     Therefor p_store is necessarily equal to negative entries of p, vice
     versa for p_dispatch.
     """
-    sus = n.storage_units
+    sus = n.c.storage_units.static
     sus_i = sus.index
     if sus_i.empty:
         return None
     sns = n.snapshots
     c = "StorageUnit"
-    dynamic = n.dynamic(c)
+    dynamic = n.c[c].dynamic
 
     eh = expand_series(n.snapshot_weightings.stores[sns], sus_i)
-    stand_eff = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
-    dispatch_eff = get_as_dense(n, c, "efficiency_dispatch", sns)
-    store_eff = get_as_dense(n, c, "efficiency_store", sns)
-    inflow = get_as_dense(n, c, "inflow") * eh
+    stand_eff = (1 - n.get_switchable_as_dense(c, "standing_loss", sns)).pow(eh)
+    dispatch_eff = n.get_switchable_as_dense(c, "efficiency_dispatch", sns)
+    store_eff = n.get_switchable_as_dense(c, "efficiency_store", sns)
+    inflow = n.get_switchable_as_dense(c, "inflow") * eh
     spill = eh[dynamic.spill.columns] * dynamic.spill
 
     description = {
@@ -68,7 +73,7 @@ def describe_nodal_balance_constraint(n):
     network_injection = (
         pd.concat(
             [
-                n.dynamic(c)[f"p{inout}"].rename(columns=n.static(c)[f"bus{inout}"])
+                n.c[c].dynamic[f"p{inout}"].rename(columns=n.c[c].static[f"bus{inout}"])
                 for inout in (0, 1)
                 for c in ("Line", "Transformer")
             ],
@@ -79,7 +84,7 @@ def describe_nodal_balance_constraint(n):
         .T
     )
     return (
-        (n.buses_t.p - network_injection)
+        (n.c.buses.dynamic.p - network_injection)
         .unstack()
         .describe()
         .to_frame("Nodal Balance Constr.")
@@ -98,8 +103,9 @@ def describe_upper_dispatch_constraints(n):
         description[c + key] = pd.Series(
             {
                 "min": (
-                    n.static(c)[attr + "_opt"] * get_as_dense(n, c, attr[0] + "_max_pu")
-                    - n.dynamic(c)[dispatch_attr]
+                    n.c[c].static[attr + "_opt"]
+                    * n.get_switchable_as_dense(c, attr[0] + "_max_pu")
+                    - n.c[c].dynamic[dispatch_attr]
                 )
                 .min()
                 .min()
@@ -117,9 +123,9 @@ def describe_lower_dispatch_constraints(n):
             description[c] = pd.Series(
                 {
                     "min": (
-                        n.static(c)[attr + "_opt"]
-                        * get_as_dense(n, c, attr[0] + "_max_pu")
-                        + n.dynamic(c)[dispatch_attr]
+                        n.c[c].static[attr + "_opt"]
+                        * n.get_switchable_as_dense(c, attr[0] + "_max_pu")
+                        + n.c[c].dynamic[dispatch_attr]
                     )
                     .min()
                     .min()
@@ -130,9 +136,9 @@ def describe_lower_dispatch_constraints(n):
             description[c + key] = pd.Series(
                 {
                     "min": (
-                        -n.static(c)[attr + "_opt"]
-                        * get_as_dense(n, c, attr[0] + "_min_pu")
-                        + n.dynamic(c)[dispatch_attr]
+                        -n.c[c].static[attr + "_opt"]
+                        * n.get_switchable_as_dense(c, attr[0] + "_min_pu")
+                        + n.c[c].dynamic[dispatch_attr]
                     )
                     .min()
                     .min()
@@ -145,16 +151,16 @@ def describe_store_contraints(n):
     """
     Checks whether all stores are balanced over time.
     """
-    stores = n.stores
+    stores = n.c.stores.static
     stores_i = stores.index
     if stores_i.empty:
         return None
     sns = n.snapshots
     c = "Store"
-    dynamic = n.dynamic(c)
+    dynamic = n.c[c].dynamic
 
     eh = expand_series(n.snapshot_weightings.stores[sns], stores_i)
-    stand_eff = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
+    stand_eff = (1 - n.get_switchable_as_dense(c, "standing_loss", sns)).pow(eh)
 
     start = dynamic.e.iloc[-1].where(stores.e_cyclic, stores.e_initial)
     previous_e = stand_eff * dynamic.e.shift().fillna(start)
@@ -168,17 +174,19 @@ def describe_store_contraints(n):
 
 
 def describe_cycle_constraints(n):
-    weightings = n.lines.x_pu_eff.where(n.lines.carrier == "AC", n.lines.r_pu_eff)
+    weightings = n.c.lines.static.x_pu_eff.where(
+        n.c.lines.static.carrier == "AC", n.c.lines.static.r_pu_eff
+    )
 
     def cycle_flow(sub):
-        C = pd.DataFrame(sub.C.todense(), index=sub.lines_i())
+        C = pd.DataFrame(sub.C.todense(), index=sub.components.lines.static.index)
         if C.empty:
             return None
-        C_weighted = 1e5 * C.mul(weightings[sub.lines_i()], axis=0)
-        return C_weighted.apply(lambda ds: ds @ n.lines_t.p0[ds.index].T)
+        C_weighted = 1e5 * C.mul(weightings[sub.components.lines.static.index], axis=0)
+        return C_weighted.apply(lambda ds: ds @ n.c.lines.dynamic.p0[ds.index].T)
 
     return (
-        pd.concat([cycle_flow(sub) for sub in n.sub_networks.obj], axis=0)
+        pd.concat([cycle_flow(sub) for sub in n.c.sub_networks.static.obj], axis=0)
         .stack()
         .describe()
         .to_frame("Cycle Constr.")
@@ -201,7 +209,7 @@ funcs = (
 def solved_n(ac_dc_network):
     n = ac_dc_network
     n.optimize()
-    n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
+    n.c.lines.static["carrier"] = n.c.lines.static.bus0.map(n.c.buses.static.carrier)
     return n
 
 
@@ -237,8 +245,8 @@ def test_optimization_with_strongly_meshed_bus():
 
     n.optimize()
 
-    assert n.buses_t.marginal_price.shape == (2, 2)
-    assert n.buses_t.marginal_price.eq(10).all().all()
+    assert n.c.buses.dynamic.marginal_price.shape == (2, 2)
+    assert n.c.buses.dynamic.marginal_price.eq(10).all().all()
 
 
 def test_define_generator_constraints_static():
@@ -254,9 +262,9 @@ def test_define_generator_constraints_static():
 
     n.optimize()
 
-    assert n.generators_t.p["gen0"].eq(0).all()
-    assert n.generators_t.p["gen1"].eq(0).all()
-    assert n.generators_t.p["gen2"].eq(10).all()
+    assert n.c.generators.dynamic.p["gen0"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen1"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen2"].eq(10).all()
 
 
 def test_define_generator_constraints():
@@ -307,7 +315,379 @@ def test_define_generator_constraints():
 
     n.optimize()
 
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen0"] == 10 * eh
-    assert n.generators_t.p["gen1"].eq(0).all()
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen2"] == e_sum_min
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen3"] == e_sum_max
+    assert (
+        n.snapshot_weightings.generators @ n.c.generators.dynamic.p["gen0"] == 10 * eh
+    )
+    assert n.c.generators.dynamic.p["gen1"].eq(0).all()
+    assert (
+        n.snapshot_weightings.generators @ n.c.generators.dynamic.p["gen2"] == e_sum_min
+    )
+    assert (
+        n.snapshot_weightings.generators @ n.c.generators.dynamic.p["gen3"] == e_sum_max
+    )
+
+
+@pytest.mark.parametrize("mode", ["dynamic", "static", "mixed"])
+def test_define_fixed_operational_constraints_positive(mode):
+    """
+    Test fixed operational constraints: fix to a positive value, set statically,
+    dynamically, or both on the same snapshot
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add("Generator", "gen0", bus="bus0", p_nom=4, marginal_cost=0)
+    n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
+    n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9)
+
+    if mode == "dynamic":
+        n.c.generators.dynamic.p_set["gen2"] = 8
+    elif mode == "static":
+        n.c.generators.static.loc["gen2", "p_set"] = 8
+    elif mode == "mixed":
+        n.c.generators.static.loc["gen2", "p_set"] = 8
+        n.c.generators.dynamic.p_set["gen1"] = 1
+
+    n.optimize()
+
+    assert n.c.generators.dynamic.p["gen2"].eq(8).all()
+    if mode == "mixed":
+        assert n.c.generators.dynamic.p["gen1"].eq(1).all()
+        assert n.c.generators.dynamic.p["gen0"].eq(1).all()
+    else:
+        assert n.c.generators.dynamic.p["gen0"].eq(2).all()
+
+
+@pytest.mark.parametrize("static", [False, True])
+def test_define_fixed_operational_constraints_zero(static):
+    """
+    Test fixed operational constraints: fix to a zero value
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add("Generator", "gen0", bus="bus0", p_nom=4, marginal_cost=0)
+    n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
+    n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9)
+
+    if static:
+        n.c.generators.static.loc["gen0", "p_set"] = 0
+    else:
+        n.c.generators.dynamic.p_set["gen0"] = 0
+
+    n.optimize()
+
+    assert n.c.generators.dynamic.p["gen0"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen1"].eq(5).all()
+    assert n.c.generators.dynamic.p["gen2"].eq(5).all()
+
+
+@pytest.mark.parametrize("static", [False, True])
+def test_define_fixed_operational_constraints_storage_unit(static):
+    """
+    Test fixed operational constraints: StorageUnit p_set fixes the net power
+    p_dispatch - p_store
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add("Generator", "gen0", bus="bus0", p_nom=20, marginal_cost=5)
+    n.add(
+        "StorageUnit",
+        "su0",
+        bus="bus0",
+        p_nom=10,
+        state_of_charge_initial=10,
+        marginal_cost=9,
+    )
+
+    if static:
+        n.c.storage_units.static.loc["su0", "p_set"] = 4
+    else:
+        n.c.storage_units.dynamic.p_set["su0"] = 4
+
+    n.optimize()
+
+    assert n.c.storage_units.dynamic.p["su0"].eq(4).all()
+    assert n.c.generators.dynamic.p["gen0"].eq(6).all()
+
+
+def test_define_fixed_operational_constraints_extendable():
+    """
+    Test fixed operational constraints: extendable component"
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add(
+        "Generator",
+        "gen0",
+        bus="bus0",
+        p_nom_extendable=True,
+        capital_cost=10,
+        marginal_cost=0,
+    )
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus0",
+        p_nom_extendable=True,
+        capital_cost=10,
+        marginal_cost=5,
+    )
+    n.add(
+        "Generator",
+        "gen2",
+        bus="bus0",
+        p_nom_extendable=True,
+        capital_cost=10,
+        marginal_cost=9,
+    )
+
+    n.c.generators.dynamic.p_set["gen1"] = 5
+
+    n.optimize()
+
+    assert n.c.generators.dynamic.p["gen0"].eq(5).all()
+    assert n.c.generators.dynamic.p["gen1"].eq(5).all()
+    assert n.c.generators.dynamic.p["gen2"].eq(0).all()
+
+
+def test_nodal_balance_respects_load_sign():
+    """
+    The sign attribute of Load components must be considered in the
+    nodal balance constraint. With sign=-1 (default), a load consumes
+    power; with sign=+1, it represents a fixed supply injection.
+
+    Verifies both:
+      1. The nodal balance constraint RHS equals -p_set * sign.
+      2. The solved generator dispatch matches the resulting net demand.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "B1")
+    n.add("Generator", "gen", bus="B1", p_nom=200, marginal_cost=10)
+    n.add("Load", "L_consume", bus="B1", p_set=100, sign=-1)
+    n.add("Load", "L_supply", bus="B1", p_set=100, sign=1)
+
+    n.optimize(solver_name="highs")
+
+    # Constraint RHS check: -p_set * sign per load, summed per bus
+    # Expected for bus B1: -(100 * -1) + -(100 * 1) = 100 - 100 = 0
+    rhs = n.model.constraints["Bus-nodal_balance"].rhs.sel(name="B1")
+    assert (rhs == 0).all().item()
+
+    # Generator stays idle
+    assert n.c.generators.dynamic.p["gen"].abs().max() < TOLERANCE
+    assert n.objective < TOLERANCE
+
+
+def test_nodal_balance_load_sign_rhs_values():
+    """
+    Verify the per-load contribution to the nodal balance RHS for both
+    sign conventions, independently of solver behavior.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "B1")
+    n.add("Bus", "B2")
+    n.add("Generator", "gen1", bus="B1", p_nom=500, marginal_cost=1)
+    n.add("Generator", "gen2", bus="B2", p_nom=500, marginal_cost=1)
+    n.add("Load", "L_default", bus="B1", p_set=80)  # default sign = -1
+    n.add("Load", "L_supply", bus="B2", p_set=30, sign=1)
+
+    n.optimize.create_model()
+
+    rhs = n.model.constraints["Bus-nodal_balance"].rhs
+    # Default sign=-1: RHS contribution = -p_set * (-1) = +p_set
+    assert rhs.sel(name="B1").item() == 80.0
+    # sign=+1: RHS contribution = -p_set * (+1) = -p_set
+    assert rhs.sel(name="B2").item() == -30.0
+
+
+def test_define_fixed_operational_constraints_infinite_p_nom():
+    """Non-extendable generator with p_nom=inf and p_min_pu=0 must not produce NaN bounds.
+
+    Without the inf*0 fallback, the lower bound would be NaN and the solve would fail.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add(
+        "Generator",
+        "gen_inf",
+        bus="bus0",
+        p_nom=float("inf"),
+        p_min_pu=0,
+        p_max_pu=1,
+        marginal_cost=1,
+    )
+
+    n.optimize.create_model()
+    lower = n.model.constraints["Generator-fix-p-lower"].rhs
+    assert (lower == 0).all()
+
+    n.optimize.solve_model()
+    assert n.c.generators.dynamic.p["gen_inf"].eq(10).all()
+
+
+def test_515():
+    """
+    Time-varying marginal costs removed.
+    See https://github.com/PyPSA/PyPSA/issues/515.
+    """
+    marginal_costs = [0, 10]
+
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=1, marginal_cost=marginal_costs)
+    n.add("Load", "load", bus="bus", p_set=1)
+
+    n.optimize()
+
+    assert n.objective == 10
+
+
+def meshed_triangle_network(mc0=10, mc2=20, load_bus="b1"):
+    n = pypsa.Network()
+    n.set_snapshots(["now"])
+    for b in ["b0", "b1", "b2"]:
+        n.add("Bus", b, v_nom=380.0)
+    n.add("Line", "l01", bus0="b0", bus1="b1", x=0.5, r=0.01, s_nom=2000)
+    n.add("Line", "l12", bus0="b1", bus1="b2", x=1.0, r=0.02, s_nom=2000)
+    n.add("Line", "l02", bus0="b0", bus1="b2", x=2.0, r=0.05, s_nom=2000)
+    n.add("Generator", "g0", bus="b0", p_nom=1000, marginal_cost=mc0)
+    n.add("Generator", "g2", bus="b2", p_nom=1000, marginal_cost=mc2)
+    n.add("Load", "load", bus=load_bus, p_set=800)
+    return n
+
+
+def angle_difference_from_lpf(n, line):
+    n.generators_t.p_set = n.generators_t.p.copy()
+    n.c.generators.static["control"] = "PV"
+    n.c.generators.static.loc["g0", "control"] = "Slack"
+    n.lpf()
+    b0, b1 = n.c.lines.static.loc[line, ["bus0", "bus1"]]
+    v_ang = n.buses_t.v_ang.loc["now"]
+    return v_ang[b0] - v_ang[b1]
+
+
+@pytest.mark.parametrize(
+    ("cap_deg", "sign", "kwargs"),
+    [
+        (0.1, 1, {}),
+        (0.05, -1, {"mc0": 20, "mc2": 10, "load_bus": "b0"}),
+    ],
+)
+def test_line_voltage_angle_limit(cap_deg, sign, kwargs):
+    n = meshed_triangle_network(**kwargs)
+    n.optimize()
+    n.calculate_dependent_values()
+    unconstrained = n.c.lines.static.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+
+    cap_rad = sign * np.deg2rad(cap_deg)
+    assert sign * unconstrained > sign * cap_rad
+
+    n = meshed_triangle_network(**kwargs)
+    n.c.lines.static.loc["l01", "v_ang_max"] = cap_deg
+    n.optimize()
+    n.calculate_dependent_values()
+
+    angle = n.c.lines.static.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+    assert sign * angle <= sign * cap_rad + 1e-9
+
+    lpf_diff = angle_difference_from_lpf(n, "l01")
+    assert np.isclose(lpf_diff, cap_rad, atol=1e-6)
+
+
+def test_line_voltage_angle_constraint_names():
+    n = meshed_triangle_network()
+    n.c.lines.static.loc["l01", "v_ang_max"] = 0.1
+    n.c.lines.static.loc["l12", "v_ang_min"] = -0.1
+    with pytest.warns(DeprecationWarning, match="v_ang_min"):
+        n.optimize()
+    upper = n.model.constraints["Line-v_ang-upper"]
+    lower = n.model.constraints["Line-v_ang-lower"]
+    assert list(upper.coords["name"].values) == ["l01"]
+    assert list(lower.coords["name"].values) == ["l01"]
+    assert np.isclose(lower.rhs, -upper.rhs).all()
+
+
+def meshed_transformer_network(phase_shift=0.0, ps_min=0.0, ps_max=0.0):
+    n = pypsa.Network()
+    n.set_snapshots(["now"])
+    for b in ["b0", "b1", "b2"]:
+        n.add("Bus", b, v_nom=380.0)
+    n.add("Line", "l01", bus0="b0", bus1="b1", x=0.5, r=0.01, s_nom=2000)
+    n.add("Line", "l12", bus0="b1", bus1="b2", x=1.0, r=0.02, s_nom=2000)
+    n.add(
+        "Transformer",
+        "t02",
+        bus0="b0",
+        bus1="b2",
+        x=2.0,
+        r=0.05,
+        s_nom=2000,
+        phase_shift=phase_shift,
+        phase_shift_min=ps_min,
+        phase_shift_max=ps_max,
+    )
+    n.add("Generator", "g0", bus="b0", p_nom=1000, marginal_cost=5)
+    n.add("Generator", "g2", bus="b2", p_nom=1000, marginal_cost=10)
+    n.add("Load", "load", bus="b2", p_set=800)
+    return n
+
+
+@pytest.mark.parametrize("phase_shift", [0.0, 0.15, -0.15])
+def test_transformer_voltage_angle_limit(phase_shift):
+    cap_deg = 0.3
+    n = meshed_transformer_network(phase_shift=phase_shift)
+    n.optimize()
+    n.calculate_dependent_values()
+    unconstrained = n.c.transformers.static.x_pu_eff["t02"] * n.transformers_t.p0.loc[
+        "now", "t02"
+    ] + np.deg2rad(phase_shift)
+    assert abs(unconstrained) > np.deg2rad(cap_deg)
+
+    n = meshed_transformer_network(phase_shift=phase_shift)
+    n.c.transformers.static.loc["t02", "v_ang_max"] = cap_deg
+    n.optimize()
+    n.calculate_dependent_values()
+    angle = n.c.transformers.static.x_pu_eff["t02"] * n.transformers_t.p0.loc[
+        "now", "t02"
+    ] + np.deg2rad(phase_shift)
+    assert abs(angle) <= np.deg2rad(cap_deg) + 1e-9
+
+    n.generators_t.p_set = n.generators_t.p.copy()
+    n.c.generators.static["control"] = "PV"
+    n.c.generators.static.loc["g0", "control"] = "Slack"
+    n.lpf()
+    lpf_diff = n.buses_t.v_ang.loc["now", "b0"] - n.buses_t.v_ang.loc["now", "b2"]
+    assert np.isclose(abs(lpf_diff), np.deg2rad(cap_deg), atol=1e-6)
+
+
+def test_transformer_voltage_angle_variable_phase_shift():
+    n = meshed_transformer_network(ps_min=-5.0, ps_max=5.0)
+    n.c.transformers.static.loc["t02", "v_ang_max"] = 0.3
+    n.optimize()
+    upper = n.model.constraints["Transformer-v_ang-var-upper"]
+    lower = n.model.constraints["Transformer-v_ang-var-lower"]
+    assert list(upper.coords["name"].values) == ["t02"]
+    assert np.isclose(lower.rhs, -upper.rhs).all()
+
+
+def test_line_voltage_angle_no_bound():
+    n = meshed_triangle_network()
+    n.optimize()
+    assert "Line-v_ang-upper" not in n.model.constraints
+    assert "Line-v_ang-lower" not in n.model.constraints
+
+    n.calculate_dependent_values()
+    unconstrained = n.c.lines.static.x_pu_eff["l01"] * n.lines_t.p0.loc["now", "l01"]
+
+    n2 = meshed_triangle_network()
+    n2.c.lines.static.loc["l01", "v_ang_max"] = 10.0
+    n2.optimize()
+    n2.calculate_dependent_values()
+    slack = n2.c.lines.static.x_pu_eff["l01"] * n2.lines_t.p0.loc["now", "l01"]
+    assert np.isclose(unconstrained, slack)

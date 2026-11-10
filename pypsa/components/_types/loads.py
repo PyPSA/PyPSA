@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Loads components module."""
 
 from collections.abc import Sequence
@@ -17,13 +21,9 @@ class Loads(Components):
     loads is implemented here. Functionality for all components is implemented in
     the abstract base class.
 
-    .. warning::
-        This class is under ongoing development and will be subject to changes.
-        It is not recommended to use this class outside of PyPSA.
-
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     Examples
     --------
@@ -38,14 +38,16 @@ class Loads(Components):
     def add(
         self,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
         overwrite: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
-    ) -> pd.Index:
+    ) -> pd.Index | None:
         """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,
             overwrite=overwrite,
+            return_names=return_names,
             **kwargs,
         )

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components descriptor module.
 
 Contains single mixin class which is used to inherit to [pypsa.Components][] class.
@@ -10,8 +14,7 @@ Descriptor functions only describe data and do not modify it.
 from __future__ import annotations
 
 import logging
-import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -24,45 +27,14 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from pypsa import Components
 logger = logging.getLogger(__name__)
-
-
-def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
-    """Get active assets. Use `c.get_active_assets` instead.
-
-    Examples
-    --------
-    >>> import pytest
-    >>> with pytest.warns(DeprecationWarning):
-    ...     get_active_assets(c)
-    Generator
-    Manchester Wind    True
-    Manchester Gas     True
-    Norway Wind        True
-    Norway Gas         True
-    Frankfurt Wind     True
-    Frankfurt Gas      True
-    Name: active, dtype: bool
-
-    """
-    warnings.warn(
-        (
-            "pypsa.components.descriptors.get_active_assets is deprecated. "
-            "Use c.get_active_assets instead."
-            "Deprecated in version 0.35 and will be removed in version 1.0."
-        ),
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return c.get_active_assets(*args, **kwargs)
 
 
 class ComponentsDescriptorsMixin(_ComponentsABC):
     """Mixin class for components descriptors methods.
 
-    Class only inherits to [pypsa.Components][] and should not be used directly.
-    All attributes and methods can be used within any Components instance.
+    Class inherits to [pypsa.Components][]. All attributes and methods can be used
+    within any Components instance.
 
     """
 
@@ -80,13 +52,15 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             Dictionary of operational attribute names
 
         """
-        # TODO: refactor component attrs store
+        # TODO if we expose this, this needs further refinment and checks, specially
+        # because of edge case StorageUnit with multiple operational variables
 
         base = {
             "Generator": "p",
             "Line": "s",
             "Link": "p",
             "Load": "p",
+            "Process": "p",
             "StorageUnit": "p",
             "Store": "e",
             "Transformer": "s",
@@ -99,6 +73,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             "nom_min": f"{base}_nom_min",
             "nom_max": f"{base}_nom_max",
             "nom_set": f"{base}_nom_set",
+            "nom_mod": f"{base}_nom_mod",
             "min_pu": f"{base}_min_pu",
             "max_pu": f"{base}_max_pu",
             "set": f"{base}_set",
@@ -108,7 +83,9 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         self,
         investment_period: int | str | Sequence | None = None,
     ) -> pd.Series:
-        """Get active components mask of componen type in investment period(s).
+        """Get active components mask of component type in investment period(s).
+
+        <!-- md:badge-version v0.33.0 -->
 
         A component is considered active when:
 
@@ -134,11 +111,9 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         >>> n = pypsa.Network()
         >>> n.add("Generator", "g1", active=False)
-        Index(['g1'], dtype='object')
         >>> n.add("Generator", "g2", active=True)
-        Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
-        Generator
+        name
         g1    False
         g2     True
         Name: active, dtype: bool
@@ -147,11 +122,9 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n = pypsa.Network()
         >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
         >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
-        Index(['g1'], dtype='object')
         >>> n.add("Generator", "g2", active=False)
-        Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
-        Generator
+        name
         g1     True
         g2    False
         Name: active, dtype: bool
@@ -166,13 +139,147 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         # logical AND with active attribute
         active = {}
         for period in np.atleast_1d(investment_period):
-            if period not in self.n_save.investment_periods:
+            if period not in self.n.investment_periods:
                 msg = "Investment period not in `n.investment_periods`"
                 raise ValueError(msg)
             active[period] = self.static.eval(
                 "build_year <= @period < build_year + lifetime"
             )
         return pd.DataFrame(active).any(axis=1) & self.static.active
+
+    @property
+    def active_assets(self) -> pd.Index:
+        """Get list of active assets.
+
+        <!-- md:badge-version v1.0.0 -->
+
+        See corresponding [pypsa.Components.inactive_assets][] for details.
+
+        Returns
+        -------
+        pd.Index
+            List of active assets
+
+        See Also
+        --------
+        [pypsa.Components.inactive_assets][]
+
+        """
+        return self._active_names()
+
+    def _active_names(
+        self, investment_period: int | str | Sequence | None = None
+    ) -> pd.Index:
+        """Get names of assets active in any scenario and given investment period(s).
+
+        Parameters
+        ----------
+        investment_period : int, str, Sequence, optional
+            Investment period(s) passed to [pypsa.Components.get_active_assets][].
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of active asset names.
+
+        """
+        active = self.get_active_assets(investment_period)
+        return active[active].index.unique("name")
+
+    @property
+    def inactive_assets(self) -> pd.Index:
+        """Get list of inactive assets.
+
+        <!-- md:badge-version v1.0.0 -->
+
+        An asset is considered inactive when one of the following conditions is met:
+        - `active` is set to False across all dimensions (investment periods, scenarios)
+        - `build_year` + `lifetime` never satisfies the condition for any investment period
+
+        Inactive assets are not considered in the optimization and are excluded from
+        the model entirely.
+
+        Returns
+        -------
+        pd.Index
+            List of inactive assets
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
+        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
+        >>> n.add("Generator", "g2", active=False)
+
+        List all components
+        >>> n.generators.index
+        Index(['g1', 'g2'], dtype='object', name='name')
+
+        List of inactive components
+        'g1' will be considered as active because it is active in at least one investment period
+        >>> n.components.generators.inactive_assets
+        Index(['g2'], dtype='object', name='name')
+
+        List of active components
+        >>> n.components.generators.active_assets
+        Index(['g1'], dtype='object', name='name')
+
+        `c.active_assets` and `c.inactive_assets` are mutually exclusive
+
+        See Also
+        --------
+        [pypsa.Components.get_active_assets][]
+
+        """
+        return self.names.difference(self.active_assets)
+
+    def filter_by_active_assets(
+        self,
+        data: pd.DataFrame | pd.Index,
+        investment_period: int | float | Sequence | None = None,  # noqa: PYI041
+    ) -> pd.DataFrame | pd.Index:
+        """Filter DataFrame or Index to only include active assets.
+
+        Parameters
+        ----------
+        data : pd.DataFrame | pd.Index
+            DataFrame or Index to filter. Must have a "name" level in its index.
+        investment_period : int | float | Sequence, optional
+            If provided, additionally filter by assets active in this
+            specific investment period(s). If a sequence is given, assets
+            active in any of the periods are included. NaN values are
+            treated as None (no period filtering).
+
+        Returns
+        -------
+        pd.DataFrame | pd.Index
+            Filtered DataFrame or Index with only active assets.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus")
+        >>> n.add("Generator", "g1", bus="bus")
+        >>> n.add("Generator", "g2", bus="bus", active=False)
+        >>> df = n.generators[['p_nom', 'bus']]
+        >>> n.components.generators.filter_by_active_assets(df)
+           p_nom  bus
+        name
+        g1     0.0  bus
+
+        """
+        # Normalize investment_period: NaN -> None, float -> int
+        if investment_period is not None and isinstance(investment_period, float):
+            if np.isnan(investment_period):
+                investment_period = None
+            else:
+                investment_period = int(investment_period)
+
+        active = self._active_names(investment_period)
+        index = data if isinstance(data, pd.Index) else data.index
+        if isinstance(index, pd.MultiIndex):
+            index = index.get_level_values("name")
+        return data[index.isin(active)]
 
     def get_activity_mask(
         self,
@@ -181,17 +288,13 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
     ) -> pd.DataFrame:
         """Get active components mask indexed by snapshots.
 
-        Wrapper around the
-        `:py:meth:`pypsa.descriptors.components.Componenet.get_active_assets` method.
-        Get's the boolean mask for active components, but indexed by snapshots and
+        <!-- md:badge-version v0.33.0 -->
+
+        Gets the boolean mask for active components, indexed by snapshots and
         components instead of just components.
 
         Parameters
         ----------
-        n : pypsa.Network
-            Network instance
-        c : string
-            Component name
         sns : pandas.Index, default None
             Set of snapshots for the mask. If None (default) all snapshots are returned.
         index : pd.Index, default None
@@ -201,29 +304,27 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         --------
         >>> n = pypsa.Network()
         >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
-        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)  # doctest: +ELLIPSIS
-        Index(['g1'], dtype='object')
-        >>> n.add("Generator", "g2", active=False)  # doctest: +ELLIPSIS
-        Index(['g2'], dtype='object')
+        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
+        >>> n.add("Generator", "g2", active=False)
         >>> n.components.generators.get_activity_mask()  # doctest: +ELLIPSIS
-        Generator          g1     g2
+        name                g1     g2
         period timestep
-        2020   1         True  False
-               2         True  False
-               3         True  False
-        2021   1         True  False
-               2         True  False
-               3         True  False
-        2022   1         True  False
-               2         True  False
-               3         True  False
+        2020   1          True  False
+               2          True  False
+               3          True  False
+        2021   1         False  False
+               2         False  False
+               3         False  False
+        2022   1         False  False
+               2         False  False
+               3         False  False
 
         """
-        sns_ = as_index(self.n_save, sns, "snapshots")
+        sns_ = as_index(self.n, sns, "snapshots")
 
-        if getattr(self.n_save, "_multi_invest", False):
+        if self.has_investment_periods:
             active_assets_per_period = {
-                period: self.get_active_assets(period)
+                period: self.get_active_assets(investment_period=period)
                 for period in self.investment_periods
             }
             mask = (
@@ -242,55 +343,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         if index is not None:
             mask = mask.reindex(columns=index)
 
+        mask.index.name = "snapshot"
+        if isinstance(mask.index, pd.MultiIndex):
+            mask.index.names = ["period", "timestep"]
+
         return mask
-
-    @property
-    def extendables(self) -> pd.Index:
-        """Get the index of extendable components of this component type.
-
-        Returns
-        -------
-        pd.Index
-            Index of extendable components.
-
-        """
-        extendable_col = self._operational_attrs["nom_extendable"]
-        if extendable_col not in self.static.columns:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[self.static[extendable_col]].index
-
-        return idx.rename(f"{self.name}-ext")
-
-    @property
-    def fixed(self) -> pd.Index:
-        """Get the index of non-extendable components of this component type.
-
-        Returns
-        -------
-        pd.Index
-            Index of non-extendable components.
-
-        """
-        extendable_col = self._operational_attrs["nom_extendable"]
-        if extendable_col not in self.static.columns:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[~self.static[extendable_col]].index
-        return idx.rename(f"{self.name}-fix")
-
-    @property
-    def committables(self) -> pd.Index:
-        """Get the index of committable components of this component type.
-
-        Returns
-        -------
-        pd.Index
-            Index of committable components.
-
-        """
-        if "committable" not in self.static:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[self.static["committable"]].index
-        return idx.rename(f"{self.name}-com")

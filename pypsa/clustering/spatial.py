@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Functions for computing network clusters."""
 
 from __future__ import annotations
@@ -10,10 +14,11 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
+import scipy.sparse as sp
 from packaging.version import Version, parse
 from pandas import Series
 
+from pypsa.common import _scenarios_not_implemented
 from pypsa.geo import haversine_pts
 
 if TYPE_CHECKING:
@@ -24,11 +29,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _sum_keep_na(s: Series) -> float:
+    """Sum keeping all nan groups as nan instead of collapsing them to 0."""
+    return s.sum(min_count=1)
+
+
 DEFAULT_ONE_PORT_STRATEGIES = {
     "p": "sum",
     "q": "sum",
-    "p_set": "sum",
-    "q_set": "sum",
+    "p_set": _sum_keep_na,
+    "q_set": _sum_keep_na,
     "p_nom": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
     "p_nom_max": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
     "p_nom_min": "sum",
@@ -192,7 +202,7 @@ def flatten_multiindex(m: pd.MultiIndex, join: str = " ") -> pd.Index:
     --------
     >>> m = pd.MultiIndex.from_tuples([("a", "b"), ("c", "d")])
     >>> flatten_multiindex(m)
-    Index(['a b', 'c d'], dtype='object')
+    Index(['a b', 'c d'], dtype='str')
 
     """
     return m if m.nlevels <= 1 else m.to_flat_index().str.join(join).str.strip()
@@ -237,8 +247,8 @@ def aggregateoneport(
     if custom_strategies is None:
         custom_strategies = {}
     c = component
-    static = n.static(c)
-    attrs = n.components[c]["attrs"]
+    static = n.c[c].static
+    attrs = n.components[c]["defaults"]
     if "carrier" in static.columns:
         if carriers is None:
             carriers = static.carrier.unique()
@@ -264,10 +274,10 @@ def aggregateoneport(
     capacity = static.columns.intersection({"p_nom", "e_nom"})
     if len(capacity):
         capacity_weights = (
-            static[capacity[0]].groupby(grouper, axis=0).transform(normed_or_uniform)
+            static[capacity[0]].groupby(grouper).transform(normed_or_uniform)
         )
     if "weight" in static.columns:
-        weights = static.weight.groupby(grouper, axis=0).transform(normed_or_uniform)
+        weights = static.weight.groupby(grouper).transform(normed_or_uniform)
 
     for k, v in static_strategies.items():
         if v == "weighted_average":
@@ -283,7 +293,7 @@ def aggregateoneport(
     aggregated = static.groupby(grouper).agg(static_strategies)
     aggregated.index = flatten_multiindex(aggregated.index).rename(c)
 
-    non_aggregated = n.static(c)[~to_aggregate]
+    non_aggregated = n.c[c].static[~to_aggregate]
     non_aggregated = non_aggregated.assign(bus=non_aggregated.bus.map(busmap))
 
     static = pd.concat([aggregated, non_aggregated], sort=False)
@@ -291,8 +301,8 @@ def aggregateoneport(
 
     dynamic = {}
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.dynamic(c), c)
-        for attr, data in n.dynamic(c).items():
+        dynamic_strategies = align_strategies(strategies, n.c[c].dynamic, c)
+        for attr, data in n.c[c].dynamic.items():
             if data.empty:
                 dynamic[attr] = data
                 continue
@@ -348,15 +358,15 @@ def aggregatebuses(
     if custom_strategies is None:
         custom_strategies = {}
     c = "Bus"
-    attrs = n.components[c]["attrs"]
+    attrs = n.components[c]["defaults"]
 
     output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
-    columns = [c for c in n.buses.columns if c not in output_columns]
+    columns = [c for c in n.c.buses.static.columns if c not in output_columns]
 
     strategies = {**DEFAULT_BUS_STRATEGIES, **custom_strategies}
     strategies = align_strategies(strategies, columns, c)
 
-    aggregated = n.buses.groupby(busmap).agg(strategies)
+    aggregated = n.c.buses.static.groupby(busmap).agg(strategies)
     aggregated.index = flatten_multiindex(aggregated.index).rename(c)
 
     return aggregated
@@ -402,17 +412,19 @@ def aggregatelines(
         custom_strategies = {}
     if bus_strategies is None:
         bus_strategies = {}
-    attrs = n.components["Line"]["attrs"]
-    static = n.static("Line")
+    attrs = n.components["Line"]["defaults"]
+    static = n.c["Line"].static
     idx = static.index[static.bus0.map(busmap) != static.bus1.map(busmap)]
     static = static.loc[idx]
 
     orig_length = static.length
-    orig_v_nom = static.bus0.map(n.buses.v_nom)
+    orig_v_nom = static.bus0.map(n.c.buses.static.v_nom).astype(float)
 
     bus_strategies = {**DEFAULT_BUS_STRATEGIES, **bus_strategies}
     cols = ["x", "y", "v_nom"]
-    buses = n.buses[cols].groupby(busmap).agg({c: bus_strategies[c] for c in cols})
+    buses = (
+        n.c.buses.static[cols].groupby(busmap).agg({c: bus_strategies[c] for c in cols})
+    )
 
     static = static.assign(bus0=static.bus0.map(busmap), bus1=static.bus1.map(busmap))
     reverse_order = static.bus0 > static.bus1
@@ -437,9 +449,11 @@ def aggregatelines(
     static = static.assign(length=length)
 
     length_factor = (static.length / orig_length).where(orig_length > 0, static.length)
-    v_nom = pd.concat(
-        [static.bus0.map(buses.v_nom), static.bus1.map(buses.v_nom)], axis=1
-    ).max(1)
+    v_nom = (
+        pd.concat([static.bus0.map(buses.v_nom), static.bus1.map(buses.v_nom)], axis=1)
+        .max(axis=1)
+        .astype(float)
+    )
     voltage_factor = (orig_v_nom / v_nom) ** 2
     capacity_weights = static.groupby(grouper).s_nom.transform(normed_or_uniform)
 
@@ -461,15 +475,15 @@ def aggregatelines(
 
     dynamic = {}
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.dynamic("Line"), "Line")
+        dynamic_strategies = align_strategies(strategies, n.c["Line"].dynamic, "Line")
 
-        for attr, data in n.lines_t.items():
+        for attr, data in n.c.lines.dynamic.items():
             if data.empty:
                 dynamic[attr] = data
                 continue
 
             strategy = dynamic_strategies[attr]
-            data = n.get_switchable_as_dense("Line", attr, inds=idx)
+            data = n.get_switchable_as_dense("Line", attr, inds=idx.unique("name"))
 
             if strategy == "capacity_weighted_average":
                 data = data * capacity_weights
@@ -495,163 +509,632 @@ class Clustering:
     busmap: pd.Series
     linemap: pd.Series
 
-    @property
-    @deprecated(
-        deprecated_in="0.32",
-        removed_in="1.0",
-        details="Use `clustering.n` instead.",
-    )
-    def network(self) -> Network:
-        """Get the network.
 
-        !!! warning "Deprecated in 0.32"
-            Use `clustering.n` instead.
+class SpatialClusteringMixin:
+    """Mixin for spatial clustering methods.
+
+    Class inherits to [`pypsa.clustering.SpatialClusteringAccessor`][]. All methods
+    available via `n.cluster.spatial`.
+    """
+
+    _n: Network
+
+    @_scenarios_not_implemented
+    def busmap_by_kmeans(
+        self,
+        bus_weightings: pd.Series,
+        n_clusters: int,
+        buses_i: pd.Index | None = None,
+        **kwargs: Any,
+    ) -> pd.Series:
+        """Create a bus map from the clustering of buses in space with a weighting.
+
+        Parameters
+        ----------
+        bus_weightings : pandas.Series
+            Series of integer weights for buses, indexed by bus names.
+        n_clusters : int
+            Final number of clusters desired.
+        buses_i : None|pandas.Index
+            If not None (default), subset of buses to cluster.
+        kwargs
+            Any remaining arguments to be passed to KMeans (e.g. n_init, n_jobs).
+
+        Returns
+        -------
+        busmap : pandas.Series
+            Mapping of n.buses to k-means clusters (indexed by
+            non-negative integers).
+
         """
-        return self.n
+        n = self._n
 
-
-def get_clustering_from_busmap(
-    n: Network,
-    busmap: dict,
-    with_time: bool = True,
-    line_length_factor: float = 1.0,
-    aggregate_generators_weighted: bool = False,
-    aggregate_one_ports: dict | None = None,
-    aggregate_generators_carriers: Iterable | None = None,
-    scale_link_capital_costs: bool = True,
-    bus_strategies: dict | None = None,
-    one_port_strategies: dict | None = None,
-    generator_strategies: dict | None = None,
-    line_strategies: dict | None = None,
-    aggregate_generators_buses: Iterable | None = None,
-    custom_line_groupers: list | None = None,
-) -> Clustering:
-    """Get a clustering result from a busmap."""
-    if bus_strategies is None:
-        bus_strategies = {}
-    if one_port_strategies is None:
-        one_port_strategies = {}
-    if generator_strategies is None:
-        generator_strategies = {}
-    if line_strategies is None:
-        line_strategies = {}
-    if aggregate_one_ports is None:
-        aggregate_one_ports = {}
-    if custom_line_groupers is None:
-        custom_line_groupers = []
-
-    buses = aggregatebuses(n, busmap, custom_strategies=bus_strategies)
-    lines, lines_t, linemap = aggregatelines(
-        n,
-        busmap,
-        line_length_factor,
-        with_time=with_time,
-        custom_strategies=line_strategies,
-        bus_strategies=bus_strategies,
-        custom_line_groupers=custom_line_groupers,
-    )
-
-    clustered = n.__class__()
-
-    clustered.add("Bus", buses.index, **buses)
-    clustered.add("Line", lines.index, **lines)
-
-    # Carry forward global constraints to clustered n.
-    clustered.global_constraints = n.global_constraints
-
-    if with_time:
-        clustered.set_snapshots(n.snapshots)
-        clustered.snapshot_weightings = n.snapshot_weightings.copy()
-        if not n.investment_periods.empty:
-            clustered.set_investment_periods(n.investment_periods)
-            clustered.investment_period_weightings = (
-                n.investment_period_weightings.copy()
+        if find_spec("sklearn") is None:
+            msg = (
+                "Optional dependency 'sklearn' not found."
+                "Install via 'conda install -c conda-forge scikit-learn' "
+                "or 'pip install scikit-learn'"
             )
-        for attr, df in lines_t.items():
-            if not df.empty:
-                clustered._import_series_from_df(df, "Line", attr)
+            raise ModuleNotFoundError(msg)
 
-    one_port_components = n.one_port_components.copy()
+        from sklearn.cluster import KMeans  # noqa: PLC0415
 
-    if aggregate_generators_weighted:
-        # TODO: Remove this in favour of the more general approach below.
-        one_port_components.remove("Generator")
-        generators, generators_dynamic = aggregateoneport(
+        if buses_i is None:
+            buses_i = n.c.buses.static.index
+
+        # since one cannot weight points directly in the scikit-learn
+        # implementation of k-means, just add additional points at
+        # same position
+        points = n.c.buses.static.loc[buses_i, ["x", "y"]].values.repeat(
+            bus_weightings.reindex(buses_i).astype(int), axis=0
+        )
+
+        kwargs.setdefault("n_init", "auto")
+        kmeans = KMeans(init="k-means++", n_clusters=n_clusters, **kwargs)
+
+        kmeans.fit(points)
+
+        return pd.Series(
+            data=kmeans.predict(n.c.buses.static.loc[buses_i, ["x", "y"]].values),
+            index=buses_i,
+        ).astype(str)
+
+    @_scenarios_not_implemented
+    def busmap_by_hac(
+        self,
+        n_clusters: int,
+        buses_i: pd.Index | None = None,
+        branch_components: Collection[str] | None = None,
+        feature: pd.DataFrame | None = None,
+        affinity: str | Callable = "euclidean",
+        linkage: str = "ward",
+        **kwargs: Any,
+    ) -> pd.Series:
+        """Create a busmap according to Hierarchical Agglomerative Clustering.
+
+        Parameters
+        ----------
+        n_clusters : int
+            Final number of clusters desired.
+        buses_i: None | pandas.Index, default=None
+            Subset of buses to cluster. If None, all buses are considered.
+        branch_components: List, default=None
+            Subset of all branch_components in the network. If None, all branch_components are considered.
+        feature: None | pandas.DataFrame, default=None
+            Feature to be considered for the clustering.
+            The DataFrame must be indexed with buses_i.
+            If None, all buses have the same similarity.
+        affinity: str or Callable, default='euclidean'
+            Metric used to compute the linkage.
+            Can be "euclidean", "l1", "l2", "manhattan", "cosine", or "precomputed".
+            If linkage is "ward", only "euclidean" is accepted.
+            If "precomputed", a distance matrix (instead of a similarity matrix) is needed as input for the fit method.
+        linkage: 'ward', 'complete', 'average' or 'single', default='ward'
+            Which linkage criterion to use.
+            The linkage criterion determines which distance to use between sets of observation.
+            The algorithm will merge the pairs of cluster that minimize this criterion.
+            - 'ward' minimizes the variance of the clusters being merged.
+            - 'average' uses the average of the distances of each observation of the two sets.
+            - 'complete' or 'maximum' linkage uses the maximum distances between all observations of the two sets.
+            - 'single' uses the minimum of the distances between all observations of the two sets.
+        kwargs:
+            Any remaining arguments to be passed to Hierarchical Clustering (e.g. memory, connectivity).
+
+        Returns
+        -------
+        busmap : pandas.Series
+            Mapping of n.buses to clusters (indexed by
+            non-negative integers).
+
+        """
+        n = self._n
+
+        if find_spec("sklearn") is None:
+            msg = (
+                "Optional dependency 'sklearn' not found."
+                "Install via 'conda install -c conda-forge scikit-learn' "
+                "or 'pip install scikit-learn'"
+            )
+            raise ModuleNotFoundError(msg)
+
+        from sklearn.cluster import AgglomerativeClustering as HAC  # noqa: PLC0415
+
+        if buses_i is None:
+            buses_i = n.c.buses.static.index
+
+        if branch_components is None:
+            branch_components = n.branch_components
+
+        if feature is None:
+            logger.warning(
+                "No feature is specified for Hierarchical Clustering. "
+                "Falling back to default, where all buses have equal similarity. "
+                "You can specify a feature as pandas.DataFrame indexed with buses_i."
+            )
+
+            feature = pd.DataFrame(index=buses_i, columns=[""], data=0)
+
+        buses_x = n.c.buses.static.index.get_indexer(buses_i)
+
+        adjacency_df = n.adjacency_matrix(
+            branch_components=branch_components, return_dataframe=True
+        )
+        A = sp.csr_matrix(adjacency_df.values).tocsc()[buses_x][:, buses_x]
+
+        labels = HAC(
+            n_clusters=n_clusters,
+            connectivity=A,
+            metric=affinity,
+            linkage=linkage,
+            **kwargs,
+        ).fit_predict(feature)
+
+        return pd.Series(labels, index=buses_i, dtype=str)
+
+    @_scenarios_not_implemented
+    def busmap_by_greedy_modularity(  # noqa: D417
+        self,
+        n_clusters: int,
+        buses_i: pd.Index | None = None,
+    ) -> pd.Series:
+        """Create a busmap according to Clauset-Newman-Moore greedy modularity maximization.
+
+        See [CNM2004_1]_ for more details.
+
+        Parameters
+        ----------
+        n_clusters : int
+            Final number of clusters desired.
+        buses_i: None | pandas.Index, default=None
+            Subset of buses to cluster. If None, all buses are considered.
+
+        Returns
+        -------
+        busmap : pandas.Series
+            Mapping of n.buses to clusters (indexed by
+            non-negative integers).
+
+        References
+        ----------
+        [CNM2004_1] Clauset, A., Newman, M. E., & Moore, C.
+            "Finding community structure in very large networks."
+            Physical Review E 70(6), 2004.
+
+        """
+        n = self._n
+
+        if parse(nx.__version__) < Version("2.8"):
+            msg = (
+                "The fuction `busmap_by_greedy_modularity` requires `networkx>=2.8`, "
+                f"but version `networkx={nx.__version__}` is installed."
+            )
+            raise NotImplementedError(msg)
+
+        if buses_i is None:
+            buses_i = n.c.buses.static.index
+
+        n.calculate_dependent_values()
+
+        lines = n.c.lines.static.query("bus0 in @buses_i and bus1 in @buses_i")
+        lines = (
+            lines[["bus0", "bus1"]]
+            .assign(weight=lines.s_nom / abs(lines.r + 1j * lines.x))
+            .set_index(["bus0", "bus1"])
+        )
+
+        G = nx.Graph()
+        G.add_nodes_from(buses_i)
+        G.add_edges_from((u, v, {"weight": w}) for (u, v), w in lines.itertuples())
+
+        communities = nx.community.greedy_modularity_communities(
+            G, best_n=n_clusters, cutoff=n_clusters, weight="weight"
+        )
+        busmap = pd.Series(buses_i, buses_i)
+        for c in np.arange(len(communities)):
+            busmap.loc[list(communities[c])] = str(c)
+        busmap.index = busmap.index.astype(str)
+
+        return busmap
+
+    @_scenarios_not_implemented
+    def cluster_by_kmeans(
+        self,
+        bus_weightings: pd.Series,
+        n_clusters: int,
+        line_length_factor: float = 1.0,
+        **kwargs: Any,
+    ) -> Network:
+        """Cluster the network according to k-means clustering of the buses.
+
+        Buses can be weighted by an integer in the series `bus_weightings`.
+
+        Note that this clustering method completely ignores the branches of the network.
+
+        Parameters
+        ----------
+        bus_weightings : pandas.Series
+            Series of integer weights for buses, indexed by bus names.
+        n_clusters : int
+            Final number of clusters desired.
+        line_length_factor : float
+            Factor to multiply the spherical distance between new buses in order to get new
+            line lengths.
+        kwargs
+            Any remaining arguments to be passed to KMeans (e.g. n_init, n_jobs)
+
+        Returns
+        -------
+        Network
+            The clustered network.
+
+        """
+        busmap = self.busmap_by_kmeans(
+            bus_weightings=bus_weightings, n_clusters=n_clusters, **kwargs
+        )
+        return self.get_clustering_from_busmap(
+            busmap, line_length_factor=line_length_factor
+        ).n
+
+    @_scenarios_not_implemented
+    def cluster_by_hac(  # noqa: D417
+        self,
+        n_clusters: int,
+        buses_i: pd.Index | None = None,
+        branch_components: Collection[str] | None = None,
+        feature: pd.DataFrame | None = None,
+        affinity: str | Callable = "euclidean",
+        linkage: str = "ward",
+        line_length_factor: float = 1.0,
+        **kwargs: Any,
+    ) -> Network:
+        """Cluster the network using Hierarchical Agglomerative Clustering.
+
+        Parameters
+        ----------
+        n_clusters : int
+            Final number of clusters desired.
+        buses_i: None | pandas.Index, default=None
+            Subset of buses to cluster. If None, all buses are considered.
+        branch_components: List, default=["Line", "Link"]
+            Subset of all branch_components in the network.
+        feature: None | pandas.DataFrame, default=None
+            Feature to be considered for the clustering.
+            The DataFrame must be indexed with buses_i.
+            If None, all buses have the same similarity.
+        affinity: str or Callable, default='euclidean'
+            Metric used to compute the linkage.
+            Can be "euclidean", "l1", "l2", "manhattan", "cosine", or "precomputed".
+            If linkage is "ward", only "euclidean" is accepted.
+            If "precomputed", a distance matrix (instead of a similarity matrix) is needed as input for the fit method.
+        linkage: 'ward', 'complete', 'average' or 'single', default='ward'
+            Which linkage criterion to use.
+            The linkage criterion determines which distance to use between sets of observation.
+            The algorithm will merge the pairs of cluster that minimize this criterion.
+            - 'ward' minimizes the variance of the clusters being merged.
+            - 'average' uses the average of the distances of each observation of the two sets.
+            - 'complete' or 'maximum' linkage uses the maximum distances between all observations of the two sets.
+            - 'single' uses the minimum of the distances between all observations of the two sets.
+        line_length_factor: float, default=1.0
+            Factor to multiply the spherical distance between two new buses in order to get new line lengths.
+        kwargs:
+            Any remaining arguments to be passed to Hierarchical Clustering (e.g. memory, connectivity).
+
+        Returns
+        -------
+        Network
+            The clustered network.
+
+        """
+        busmap = self.busmap_by_hac(
+            n_clusters,
+            buses_i,
+            branch_components,
+            feature,
+            affinity,
+            linkage,
+            **kwargs,
+        )
+        return self.get_clustering_from_busmap(
+            busmap, line_length_factor=line_length_factor
+        ).n
+
+    @_scenarios_not_implemented
+    def cluster_by_greedy_modularity(  # noqa: D417
+        self,
+        n_clusters: int,
+        buses_i: pd.Index | None = None,
+        line_length_factor: float = 1.0,
+    ) -> Network:
+        """Cluster the network using Clauset-Newman-Moore greedy modularity maximization.
+
+        See [CNM2004_2]_ for more details.
+
+        Parameters
+        ----------
+        n_clusters : int
+            Final number of clusters desired.
+        buses_i: None | pandas.Index, default=None
+            Subset of buses to cluster. If None, all buses are considered.
+        line_length_factor: float, default=1.0
+            Factor to multiply the spherical distance between two new buses to get new line lengths.
+
+        Returns
+        -------
+        Network
+            The clustered network.
+
+        References
+        ----------
+        [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
+            "Finding community structure in very large networks."
+            Physical Review E 70(6), 2004.
+
+        """
+        busmap = self.busmap_by_greedy_modularity(n_clusters, buses_i)
+        return self.get_clustering_from_busmap(
+            busmap, line_length_factor=line_length_factor
+        ).n
+
+    @_scenarios_not_implemented
+    def cluster_by_busmap(
+        self,
+        busmap: dict,
+        with_time: bool = True,
+        line_length_factor: float = 1.0,
+        aggregate_generators_weighted: bool = False,
+        aggregate_one_ports: dict | None = None,
+        aggregate_generators_carriers: Iterable | None = None,
+        scale_link_capital_costs: bool = True,
+        bus_strategies: dict | None = None,
+        one_port_strategies: dict | None = None,
+        generator_strategies: dict | None = None,
+        line_strategies: dict | None = None,
+        aggregate_generators_buses: Iterable | None = None,
+        custom_line_groupers: list | None = None,
+    ) -> Network:
+        """Cluster the network spatially by busmap.
+
+        This function calls [`get_clustering_from_busmap`][pypsa.clustering.SpatialClusteringAccessor.get_clustering_from_busmap] internally.
+        For more information, see the documentation of that function.
+
+        Returns
+        -------
+        n : pypsa.Network
+
+        """
+        return self.get_clustering_from_busmap(
+            busmap,
+            with_time=with_time,
+            line_length_factor=line_length_factor,
+            aggregate_generators_weighted=aggregate_generators_weighted,
+            aggregate_one_ports=aggregate_one_ports,
+            aggregate_generators_carriers=aggregate_generators_carriers,
+            scale_link_capital_costs=scale_link_capital_costs,
+            bus_strategies=bus_strategies,
+            one_port_strategies=one_port_strategies,
+            generator_strategies=generator_strategies,
+            line_strategies=line_strategies,
+            aggregate_generators_buses=aggregate_generators_buses,
+            custom_line_groupers=custom_line_groupers,
+        ).n
+
+    @_scenarios_not_implemented
+    def get_clustering_from_busmap(
+        self,
+        busmap: dict,
+        with_time: bool = True,
+        line_length_factor: float = 1.0,
+        aggregate_generators_weighted: bool = False,
+        aggregate_one_ports: dict | None = None,
+        aggregate_generators_carriers: Iterable | None = None,
+        scale_link_capital_costs: bool = True,
+        bus_strategies: dict | None = None,
+        one_port_strategies: dict | None = None,
+        generator_strategies: dict | None = None,
+        line_strategies: dict | None = None,
+        aggregate_generators_buses: Iterable | None = None,
+        custom_line_groupers: list | None = None,
+    ) -> Clustering:
+        """Get a clustering result from a busmap."""
+        n = self._n
+
+        if bus_strategies is None:
+            bus_strategies = {}
+        if one_port_strategies is None:
+            one_port_strategies = {}
+        if generator_strategies is None:
+            generator_strategies = {}
+        if line_strategies is None:
+            line_strategies = {}
+        if aggregate_one_ports is None:
+            aggregate_one_ports = {}
+        if custom_line_groupers is None:
+            custom_line_groupers = []
+
+        buses = aggregatebuses(n, busmap, custom_strategies=bus_strategies)
+        lines, lines_t, linemap = aggregatelines(
             n,
             busmap,
-            "Generator",
-            carriers=aggregate_generators_carriers,
-            buses=aggregate_generators_buses,
+            line_length_factor,
             with_time=with_time,
-            custom_strategies=generator_strategies,
+            custom_strategies=line_strategies,
+            bus_strategies=bus_strategies,
+            custom_line_groupers=custom_line_groupers,
         )
-        clustered.add("Generator", generators.index, **generators)
+
+        clustered = n.__class__()
+
+        clustered.add("Bus", buses.index, **buses)
+        clustered.add("Line", lines.index, **lines)
+
+        # Carry forward global constraints to clustered n.
+        clustered.c.global_constraints.static = n.c.global_constraints.static
+
         if with_time:
-            for attr, df in generators_dynamic.items():
+            clustered.set_snapshots(n.snapshots)
+            clustered.snapshot_weightings = n.snapshot_weightings.copy()
+            if not n.investment_periods.empty:
+                clustered.set_investment_periods(n.investment_periods)
+                clustered.investment_period_weightings = (
+                    n.investment_period_weightings.copy()
+                )
+            for attr, df in lines_t.items():
                 if not df.empty:
-                    clustered._import_series_from_df(df, "Generator", attr)
+                    clustered._import_series_from_df(df, "Line", attr)
 
-    for one_port in aggregate_one_ports:
-        one_port_components.remove(one_port)
-        new_static, new_dynamic = aggregateoneport(
-            n,
-            busmap,
-            component=one_port,
-            with_time=with_time,
-            custom_strategies=one_port_strategies.get(one_port, {}),
-        )
-        clustered.add(one_port, new_static.index, **new_static)
-        for attr, df in new_dynamic.items():
-            clustered._import_series_from_df(df, one_port, attr)
+        one_port_components = n.one_port_components.copy()
 
-    # Collect remaining one ports
+        if aggregate_generators_weighted:
+            # TODO: Remove this in favour of the more general approach below.
+            one_port_components.remove("Generator")
+            generators, generators_dynamic = aggregateoneport(
+                n,
+                busmap,
+                "Generator",
+                carriers=aggregate_generators_carriers,
+                buses=aggregate_generators_buses,
+                with_time=with_time,
+                custom_strategies=generator_strategies,
+            )
+            clustered.add("Generator", generators.index, **generators)
+            if with_time:
+                for attr, df in generators_dynamic.items():
+                    if not df.empty:
+                        clustered._import_series_from_df(df, "Generator", attr)
 
-    for c in n.iterate_components(one_port_components):
-        remaining_one_port_data = c.static.assign(bus=c.static.bus.map(busmap)).dropna(
-            subset=["bus"]
-        )
-        clustered.add(c.name, remaining_one_port_data.index, **remaining_one_port_data)
-
-    if with_time:
-        for c in n.iterate_components(one_port_components):
-            for attr, df in c.dynamic.items():
+        for one_port in aggregate_one_ports:
+            one_port_components.remove(one_port)
+            new_static, new_dynamic = aggregateoneport(
+                n,
+                busmap,
+                component=one_port,
+                with_time=with_time,
+                custom_strategies=one_port_strategies.get(one_port, {}),
+            )
+            clustered.add(one_port, new_static.index, **new_static)
+            for attr, df in new_dynamic.items():
                 if not df.empty:
-                    clustered._import_series_from_df(df, c.name, attr)
+                    clustered._import_series_from_df(df, one_port, attr)
 
-    new_links = (
-        n.links.assign(bus0=n.links.bus0.map(busmap), bus1=n.links.bus1.map(busmap))
-        .dropna(subset=["bus0", "bus1"])
-        .loc[lambda df: df.bus0 != df.bus1]
-    )
+        # Collect remaining one ports
 
-    new_links["length"] = np.where(
-        new_links.length.notnull() & (new_links.length > 0),
-        line_length_factor
-        * haversine_pts(
-            buses.loc[new_links["bus0"], ["x", "y"]],
-            buses.loc[new_links["bus1"], ["x", "y"]],
-        ),
-        0,
-    )
-    if scale_link_capital_costs:
-        new_links["capital_cost"] *= (new_links.length / n.links.length).fillna(1)
+        for c in n.components:
+            if c.name not in one_port_components:
+                continue
+            remaining_one_port_data = c.static.assign(
+                bus=c.static.bus.map(busmap)
+            ).dropna(subset=["bus"])
+            clustered.add(
+                c.name, remaining_one_port_data.index, **remaining_one_port_data
+            )
 
-    clustered.add("Link", new_links.index, **new_links)
+        if with_time:
+            for c in n.components:
+                if c.name not in one_port_components:
+                    continue
+                for attr, df in c.dynamic.items():
+                    if not df.empty:
+                        clustered._import_series_from_df(df, c.name, attr)
 
-    if with_time:
-        for attr, df in n.links_t.items():
-            if not df.empty:
-                clustered._import_series_from_df(df, "Link", attr)
+        bus_mappings = {
+            "bus0": n.c.links.static.bus0.map(busmap),
+            "bus1": n.c.links.static.bus1.map(busmap),
+        }
 
-    clustered.add("Carrier", n.carriers.index, **n.carriers)
+        # Also add additional ports if they exist
+        for port in n.c.links.additional_ports:
+            col = f"bus{port}"
+            if col in n.c.links.static.columns:
+                bus_mappings[col] = n.c.links.static[col].map(busmap)
 
-    clustered.determine_network_topology()
+        new_links = (
+            n.c.links.static.assign(**bus_mappings)
+            .dropna(subset=["bus0", "bus1"])  # Only require bus0 and bus1 to be non-NaN
+            .loc[lambda df: df.bus0 != df.bus1]
+        )
 
-    return Clustering(clustered, busmap, linemap)
+        new_links["length"] = np.where(
+            new_links.length.notnull() & (new_links.length > 0),
+            line_length_factor
+            * haversine_pts(
+                buses.loc[new_links["bus0"], ["x", "y"]],
+                buses.loc[new_links["bus1"], ["x", "y"]],
+            ),
+            0,
+        )
+        if scale_link_capital_costs:
+            new_links["capital_cost"] *= (
+                new_links.length / n.c.links.static.length
+            ).fillna(1)
+
+        clustered.add("Link", new_links.index, **new_links)
+
+        if with_time:
+            for attr, df in n.c.links.dynamic.items():
+                if not df.empty:
+                    clustered._import_series_from_df(df, "Link", attr)
+
+        clustered.add("Carrier", n.c.carriers.static.index, **n.c.carriers.static)
+
+        clustered.determine_network_topology()
+
+        return Clustering(clustered, busmap, linemap)
 
 
 ################
-# k-Means clustering based on bus properties
+# Reduce stubs/dead-ends, i.e. nodes with valency 1, iteratively to remove tree-like structures
+
+
+def busmap_by_stubs(
+    n: Network, matching_attrs: Iterable[str] | None = None
+) -> pd.Series:
+    """Create a busmap by reducing stubs and stubby trees.
+
+    In other words sequentially reducing dead-ends.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    matching_attrs : None|[str]
+        bus attributes clusters have to agree on
+
+    Returns
+    -------
+    busmap : pandas.Series
+        Mapping of n.c.buses.static to k-means clusters (indexed by
+        non-negative integers).
+
+    """
+    busmap = pd.Series(n.c.buses.static.index, n.c.buses.static.index)
+
+    G = n.graph()
+
+    def attrs_match(u: str, v: str) -> bool:
+        return (
+            matching_attrs is None
+            or (
+                n.c.buses.static.loc[u, matching_attrs]
+                == n.c.buses.static.loc[v, matching_attrs]
+            ).all()
+        )
+
+    while True:
+        stubs = []
+        for u in G.nodes:
+            neighbours = list(G.adj[u].keys())
+            if len(neighbours) == 1:
+                (v,) = neighbours
+                if attrs_match(u, v):
+                    busmap[busmap == u] = v
+                    stubs.append(u)
+        G.remove_nodes_from(stubs)
+        if not stubs:
+            break
+    return busmap
+
+
+# Backward-compatible module-level functions
 
 
 def busmap_by_kmeans(
@@ -683,35 +1166,89 @@ def busmap_by_kmeans(
         non-negative integers).
 
     """
-    if find_spec("sklearn") is None:
-        msg = (
-            "Optional dependency 'sklearn' not found."
-            "Install via 'conda install -c conda-forge scikit-learn' "
-            "or 'pip install scikit-learn'"
-        )
-        raise ModuleNotFoundError(msg)
-
-    from sklearn.cluster import KMeans
-
-    if buses_i is None:
-        buses_i = n.buses.index
-
-    # since one cannot weight points directly in the scikit-learn
-    # implementation of k-means, just add additional points at
-    # same position
-    points = n.buses.loc[buses_i, ["x", "y"]].values.repeat(
-        bus_weightings.reindex(buses_i).astype(int), axis=0
+    obj = SpatialClusteringMixin()
+    obj._n = n
+    return obj.busmap_by_kmeans(
+        bus_weightings=bus_weightings,
+        n_clusters=n_clusters,
+        buses_i=buses_i,
+        **kwargs,
     )
 
-    kwargs.setdefault("n_init", "auto")
-    kmeans = KMeans(init="k-means++", n_clusters=n_clusters, **kwargs)
 
-    kmeans.fit(points)
+def busmap_by_hac(
+    n: Network,
+    n_clusters: int,
+    buses_i: pd.Index | None = None,
+    branch_components: Collection[str] | None = None,
+    feature: pd.DataFrame | None = None,
+    affinity: str | Callable = "euclidean",
+    linkage: str = "ward",
+    **kwargs: Any,
+) -> pd.Series:
+    """Create a busmap according to Hierarchical Agglomerative Clustering.
 
-    return pd.Series(
-        data=kmeans.predict(n.buses.loc[buses_i, ["x", "y"]].values),
-        index=buses_i,
-    ).astype(str)
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    n_clusters : int
+        Final number of clusters desired.
+    buses_i: None | pandas.Index, default=None
+        Subset of buses to cluster. If None, all buses are considered.
+    branch_components: List, default=None
+        Subset of all branch_components in the network.
+    feature: None | pandas.DataFrame, default=None
+        Feature to be considered for the clustering.
+    affinity: str or Callable, default='euclidean'
+        Metric used to compute the linkage.
+    linkage: 'ward', 'complete', 'average' or 'single', default='ward'
+        Which linkage criterion to use.
+    kwargs:
+        Any remaining arguments to be passed to Hierarchical Clustering.
+
+    Returns
+    -------
+    busmap : pandas.Series
+        Mapping of n.buses to clusters.
+
+    """
+    obj = SpatialClusteringMixin()
+    obj._n = n
+    return obj.busmap_by_hac(
+        n_clusters,
+        buses_i,
+        branch_components,
+        feature,
+        affinity,
+        linkage,
+        **kwargs,
+    )
+
+
+def busmap_by_greedy_modularity(
+    n: Network, n_clusters: int, buses_i: pd.Index | None = None
+) -> pd.Series:
+    """Create a busmap according to Clauset-Newman-Moore greedy modularity maximization.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    n_clusters : int
+        Final number of clusters desired.
+    buses_i: None | pandas.Index, default=None
+        Subset of buses to cluster.
+
+    Returns
+    -------
+    busmap : pandas.Series
+        Mapping of n.buses to clusters.
+
+    """
+    obj = SpatialClusteringMixin()
+    obj._n = n
+    return obj.busmap_by_greedy_modularity(n_clusters, buses_i)
 
 
 def kmeans_clustering(
@@ -747,105 +1284,15 @@ def kmeans_clustering(
         A named tuple containing network, busmap and linemap
 
     """
-    busmap = busmap_by_kmeans(n, bus_weightings, n_clusters, **kwargs)
-
-    return get_clustering_from_busmap(n, busmap, line_length_factor=line_length_factor)
-
-
-################
-# Hierarchical Clustering
-def busmap_by_hac(
-    n: Network,
-    n_clusters: int,
-    buses_i: pd.Index | None = None,
-    branch_components: Collection[str] | None = None,
-    feature: pd.DataFrame | None = None,
-    affinity: str | Callable = "euclidean",
-    linkage: str = "ward",
-    **kwargs: Any,
-) -> pd.Series:
-    """Create a busmap according to Hierarchical Agglomerative Clustering.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network instance.
-    n_clusters : int
-        Final number of clusters desired.
-    buses_i: None | pandas.Index, default=None
-        Subset of buses to cluster. If None, all buses are considered.
-    branch_components: List, default=None
-        Subset of all branch_components in the network. If None, all branch_components are considered.
-    feature: None | pandas.DataFrame, default=None
-        Feature to be considered for the clustering.
-        The DataFrame must be indexed with buses_i.
-        If None, all buses have the same similarity.
-    affinity: str or Callable, default=’euclidean’
-        Metric used to compute the linkage.
-        Can be “euclidean”, “l1”, “l2”, “manhattan”, “cosine”, or “precomputed”.
-        If linkage is “ward”, only “euclidean” is accepted.
-        If “precomputed”, a distance matrix (instead of a similarity matrix) is needed as input for the fit method.
-    linkage: ‘ward’, ‘complete’, ‘average’ or ‘single’, default=’ward’
-        Which linkage criterion to use.
-        The linkage criterion determines which distance to use between sets of observation.
-        The algorithm will merge the pairs of cluster that minimize this criterion.
-        - ‘ward’ minimizes the variance of the clusters being merged.
-        - ‘average’ uses the average of the distances of each observation of the two sets.
-        - ‘complete’ or ‘maximum’ linkage uses the maximum distances between all observations of the two sets.
-        - ‘single’ uses the minimum of the distances between all observations of the two sets.
-    kwargs:
-        Any remaining arguments to be passed to Hierarchical Clustering (e.g. memory, connectivity).
-
-    Returns
-    -------
-    busmap : pandas.Series
-        Mapping of n.buses to clusters (indexed by
-        non-negative integers).
-
-    """
-    if find_spec("sklearn") is None:
-        msg = (
-            "Optional dependency 'sklearn' not found."
-            "Install via 'conda install -c conda-forge scikit-learn' "
-            "or 'pip install scikit-learn'"
-        )
-        raise ModuleNotFoundError(msg)
-
-    from sklearn.cluster import AgglomerativeClustering as HAC
-
-    if buses_i is None:
-        buses_i = n.buses.index
-
-    if branch_components is None:
-        branch_components = n.branch_components
-
-    if feature is None:
-        logger.warning(
-            "No feature is specified for Hierarchical Clustering. "
-            "Falling back to default, where all buses have equal similarity. "
-            "You can specify a feature as pandas.DataFrame indexed with buses_i."
-        )
-
-        feature = pd.DataFrame(index=buses_i, columns=[""], data=0)
-
-    buses_x = n.buses.index.get_indexer(buses_i)
-
-    A = n.adjacency_matrix(branch_components=branch_components).tocsc()[buses_x][
-        :, buses_x
-    ]
-
-    labels = HAC(
-        n_clusters=n_clusters,
-        connectivity=A,
-        metric=affinity,
-        linkage=linkage,
-        **kwargs,
-    ).fit_predict(feature)
-
-    return pd.Series(labels, index=buses_i, dtype=str)
+    obj = SpatialClusteringMixin()
+    obj._n = n
+    busmap = obj.busmap_by_kmeans(
+        bus_weightings=bus_weightings, n_clusters=n_clusters, **kwargs
+    )
+    return obj.get_clustering_from_busmap(busmap, line_length_factor=line_length_factor)
 
 
-def hac_clustering(
+def hac_clustering(  # noqa: D417
     n: Network,
     n_clusters: int,
     buses_i: pd.Index | None = None,
@@ -860,8 +1307,6 @@ def hac_clustering(
 
     Parameters
     ----------
-    n : pypsa.Network
-        The buses must have coordinates x, y.
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -897,8 +1342,9 @@ def hac_clustering(
         A named tuple containing network, busmap and linemap
 
     """
-    busmap = busmap_by_hac(
-        n,
+    obj = SpatialClusteringMixin()
+    obj._n = n
+    busmap = obj.busmap_by_hac(
         n_clusters,
         buses_i,
         branch_components,
@@ -907,71 +1353,7 @@ def hac_clustering(
         linkage,
         **kwargs,
     )
-
-    return get_clustering_from_busmap(n, busmap, line_length_factor=line_length_factor)
-
-
-def busmap_by_greedy_modularity(
-    n: Network, n_clusters: int, buses_i: pd.Index | None = None
-) -> pd.Series:
-    """Create a busmap according to Clauset-Newman-Moore greedy modularity maximization.
-
-    See [CNM2004_1]_ for more details.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network instance.
-    n_clusters : int
-        Final number of clusters desired.
-    buses_i: None | pandas.Index, default=None
-        Subset of buses to cluster. If None, all buses are considered.
-
-    Returns
-    -------
-    busmap : pandas.Series
-        Mapping of n.buses to clusters (indexed by
-        non-negative integers).
-
-    References
-    ----------
-    .. [CNM2004_1] Clauset, A., Newman, M. E., & Moore, C.
-       "Finding community structure in very large networks."
-       Physical Review E 70(6), 2004.
-
-    """
-    if parse(nx.__version__) < Version("2.8"):
-        msg = (
-            "The fuction `busmap_by_greedy_modularity` requires `networkx>=2.8`, "
-            f"but version `networkx={nx.__version__}` is installed."
-        )
-        raise NotImplementedError(msg)
-
-    if buses_i is None:
-        buses_i = n.buses.index
-
-    n.calculate_dependent_values()
-
-    lines = n.lines.query("bus0 in @buses_i and bus1 in @buses_i")
-    lines = (
-        lines[["bus0", "bus1"]]
-        .assign(weight=lines.s_nom / abs(lines.r + 1j * lines.x))
-        .set_index(["bus0", "bus1"])
-    )
-
-    G = nx.Graph()
-    G.add_nodes_from(buses_i)
-    G.add_edges_from((u, v, {"weight": w}) for (u, v), w in lines.itertuples())
-
-    communities = nx.community.greedy_modularity_communities(
-        G, best_n=n_clusters, cutoff=n_clusters, weight="weight"
-    )
-    busmap = pd.Series(buses_i, buses_i)
-    for c in np.arange(len(communities)):
-        busmap.loc[list(communities[c])] = str(c)
-    busmap.index = busmap.index.astype(str)
-
-    return busmap
+    return obj.get_clustering_from_busmap(busmap, line_length_factor=line_length_factor)
 
 
 def greedy_modularity_clustering(
@@ -1002,61 +1384,86 @@ def greedy_modularity_clustering(
 
     References
     ----------
-    .. [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
-       "Finding community structure in very large networks."
-       Physical Review E 70(6), 2004.
+    [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
+        "Finding community structure in very large networks."
+        Physical Review E 70(6), 2004.
 
     """
-    busmap = busmap_by_greedy_modularity(n, n_clusters, buses_i)
-
-    return get_clustering_from_busmap(n, busmap, line_length_factor=line_length_factor)
-
-
-################
-# Reduce stubs/dead-ends, i.e. nodes with valency 1, iteratively to remove tree-like structures
+    obj = SpatialClusteringMixin()
+    obj._n = n
+    busmap = obj.busmap_by_greedy_modularity(n_clusters, buses_i)
+    return obj.get_clustering_from_busmap(busmap, line_length_factor=line_length_factor)
 
 
-def busmap_by_stubs(
-    n: Network, matching_attrs: Iterable[str] | None = None
-) -> pd.Series:
-    """Create a busmap by reducing stubs and stubby trees.
-
-    In other words sequentially reducing dead-ends.
+def get_clustering_from_busmap(
+    n: Network,
+    busmap: dict,
+    with_time: bool = True,
+    line_length_factor: float = 1.0,
+    aggregate_generators_weighted: bool = False,
+    aggregate_one_ports: dict | None = None,
+    aggregate_generators_carriers: Iterable | None = None,
+    scale_link_capital_costs: bool = True,
+    bus_strategies: dict | None = None,
+    one_port_strategies: dict | None = None,
+    generator_strategies: dict | None = None,
+    line_strategies: dict | None = None,
+    aggregate_generators_buses: Iterable | None = None,
+    custom_line_groupers: list | None = None,
+) -> Clustering:
+    """Get a clustering result from a busmap.
 
     Parameters
     ----------
     n : pypsa.Network
         Network instance.
-    matching_attrs : None|[str]
-        bus attributes clusters have to agree on
+    busmap : dict
+        A dictionary mapping old bus IDs to new bus IDs.
+    with_time : bool, optional
+        Whether to include time-dependent attributes (default is True).
+    line_length_factor : float, optional
+        Factor to multiply line lengths (default is 1.0).
+    aggregate_generators_weighted : bool, optional
+        Whether to aggregate generators weighted (default is False).
+    aggregate_one_ports : dict, optional
+        One-port components to aggregate.
+    aggregate_generators_carriers : list, optional
+        Carriers to aggregate generators by.
+    scale_link_capital_costs : bool, optional
+        Whether to scale link capital costs (default is True).
+    bus_strategies : dict, optional
+        Custom aggregation strategies for buses.
+    one_port_strategies : dict, optional
+        Custom aggregation strategies for one-port components.
+    generator_strategies : dict, optional
+        Custom aggregation strategies for generators.
+    line_strategies : dict, optional
+        Custom aggregation strategies for lines.
+    aggregate_generators_buses : list, optional
+        Buses to aggregate generators by.
+    custom_line_groupers : list, optional
+        Additional custom groupers for lines.
 
     Returns
     -------
-    busmap : pandas.Series
-        Mapping of n.buses to k-means clusters (indexed by
-        non-negative integers).
+    Clustering
+        A named tuple containing network, busmap and linemap.
 
     """
-    busmap = pd.Series(n.buses.index, n.buses.index)
-
-    G = n.graph()
-
-    def attrs_match(u: str, v: str) -> bool:
-        return (
-            matching_attrs is None
-            or (n.buses.loc[u, matching_attrs] == n.buses.loc[v, matching_attrs]).all()
-        )
-
-    while True:
-        stubs = []
-        for u in G.nodes:
-            neighbours = list(G.adj[u].keys())
-            if len(neighbours) == 1:
-                (v,) = neighbours
-                if attrs_match(u, v):
-                    busmap[busmap == u] = v
-                    stubs.append(u)
-        G.remove_nodes_from(stubs)
-        if not stubs:
-            break
-    return busmap
+    obj = SpatialClusteringMixin()
+    obj._n = n
+    return obj.get_clustering_from_busmap(
+        busmap,
+        with_time=with_time,
+        line_length_factor=line_length_factor,
+        aggregate_generators_weighted=aggregate_generators_weighted,
+        aggregate_one_ports=aggregate_one_ports,
+        aggregate_generators_carriers=aggregate_generators_carriers,
+        scale_link_capital_costs=scale_link_capital_costs,
+        bus_strategies=bus_strategies,
+        one_port_strategies=one_port_strategies,
+        generator_strategies=generator_strategies,
+        line_strategies=line_strategies,
+        aggregate_generators_buses=aggregate_generators_buses,
+        custom_line_groupers=custom_line_groupers,
+    )

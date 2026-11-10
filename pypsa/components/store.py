@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components store module.
 
 Contains store class which is used to store all different components in the network.
@@ -7,10 +11,8 @@ from __future__ import annotations
 
 import logging
 import re
-import warnings
 from typing import TYPE_CHECKING, Any
 
-from pypsa._options import options
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
 if TYPE_CHECKING:
@@ -22,6 +24,7 @@ if TYPE_CHECKING:
     from pypsa.components._types.lines import Lines
     from pypsa.components._types.links import Links
     from pypsa.components._types.loads import Loads
+    from pypsa.components._types.processes import Processes
     from pypsa.components._types.shapes import Shapes
     from pypsa.components._types.shunt_impedances import ShuntImpedances
     from pypsa.components._types.storage_units import StorageUnits
@@ -44,6 +47,7 @@ class ComponentsStore(dict):
     lines: Lines
     links: Links
     loads: Loads
+    processes: Processes
     shapes: Shapes
     shunt_impedances: ShuntImpedances
     storage_units: StorageUnits
@@ -55,31 +59,27 @@ class ComponentsStore(dict):
     def __repr__(self) -> str:
         """Get representation of component store.
 
-        Returns
-        -------
-        str
-            Representation of component store
-
         Examples
         --------
         >>> n.components
         PyPSA Components Store
         ======================
-        - 3 'SubNetwork' Components
         - 9 'Bus' Components
         - 6 'Carrier' Components
-        - 1 'GlobalConstraint' Components
+        - 6 'Generator' Components
+        - 6 'Load' Components
+        - 4 'Link' Components
+        - 0 'Store' Components
+        - 0 'StorageUnit' Components
         - 7 'Line' Components
-        - 36 'LineType' Components
+        - 59 'LineType' Components
+        - 0 'Process' Components
         - 0 'Transformer' Components
         - 14 'TransformerType' Components
-        - 4 'Link' Components
-        - 6 'Load' Components
-        - 6 'Generator' Components
-        - 0 'StorageUnit' Components
-        - 0 'Store' Components
         - 0 'ShuntImpedance' Components
+        - 1 'GlobalConstraint' Components
         - 0 'Shape' Components
+        - 3 'SubNetwork' Components
 
         """
         return "PyPSA Components Store\n======================\n- " + "\n- ".join(
@@ -103,21 +103,22 @@ class ComponentsStore(dict):
         >>> n.components
         PyPSA Components Store
         ======================
-        - 3 'SubNetwork' Components
         - 9 'Bus' Components
         - 6 'Carrier' Components
-        - 1 'GlobalConstraint' Components
+        - 6 'Generator' Components
+        - 6 'Load' Components
+        - 4 'Link' Components
+        - 0 'Store' Components
+        - 0 'StorageUnit' Components
         - 7 'Line' Components
-        - 36 'LineType' Components
+        - 59 'LineType' Components
+        - 0 'Process' Components
         - 0 'Transformer' Components
         - 14 'TransformerType' Components
-        - 4 'Link' Components
-        - 6 'Load' Components
-        - 6 'Generator' Components
-        - 0 'StorageUnit' Components
-        - 0 'Store' Components
         - 0 'ShuntImpedance' Components
+        - 1 'GlobalConstraint' Components
         - 0 'Shape' Components
+        - 3 'SubNetwork' Components
         >>> n.components["generators"]
         'Generator' Components
         ----------------------
@@ -168,17 +169,15 @@ class ComponentsStore(dict):
         return dict_keys + obj_attrs
 
     def __iter__(self) -> Any:
-        """Value iterator over components in store."""
-        if options.get_option("warnings.components_store_iter"):
-            warnings.warn(
-                "Iterating over `n.components` yields the values instead of keys from "
-                "v0.33.0. This behavior might be breaking. Use `n.components.keys()` "
-                "to iterate over the keys. To suppress this warning set "
-                "`pypsa.options.warnings.components_store_iter = False`.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        return iter(self.values())
+        """Value iterator over components in store.
+
+        Filters out empty components to maintain backward compatibility with
+        n.iterate_components() behavior. For accessing all components including
+        empty ones, use n.components.values() directly instead of iterating over the
+        store.
+        """
+        # Filter to only return non-empty components (same behavior as iterate_components)
+        return iter(c for c in self.values() if not c.empty)
 
     def __contains__(self, item: Any) -> bool:
         """Check if component is in store."""

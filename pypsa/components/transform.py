@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components transform module.
 
 Contains single mixin class which is used to inherit to [pypsa.Components][] class.
@@ -10,6 +14,7 @@ Transform methods are methods which modify and restructure data.
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -17,6 +22,7 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
+    from pypsa import Network
     from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
@@ -25,24 +31,27 @@ logger = logging.getLogger(__name__)
 class ComponentsTransformMixin:
     """Mixin class for components descriptors methods.
 
-    Class only inherits to [pypsa.Components][] and should not be used directly.
-    All attributes and methods can be used within any Components instance.
+    Class inherits to [pypsa.Components][]. All attributes and methods can be used
+    within any Components instance.
     """
 
     static: pd.DataFrame
     dynamic: Dict
-    attached: Any
-    n_save: Any
+    piecewise: Dict
+    n: Network
     name: Any
 
     def add(
         self,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
         overwrite: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
-    ) -> pd.Index:
+    ) -> pd.Index | None:
         """Add new components.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Handles addition of single and multiple components along with their attributes.
         Pass a list of names to add multiple components at once or pass a single name
@@ -59,26 +68,32 @@ class ComponentsTransformMixin:
         dimension is names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`/user-guide/components`.
+        value from <!-- md:guide components.md -->.
 
         Parameters
         ----------
         name : str or int or list of str or list of int
             Component name(s)
-        suffix : str, default ""
-            All components are named after name with this added suffix.
+        suffix : str or list of str, default ""
+            Suffix added to each name. Pass a list together with a single `name`
+            to add one component per suffix.
         overwrite : bool, default False
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
             ignored.
+        return_names : bool | None, default=None
+            Whether to return the names of the new components. Defaults to module wide
+            option (default: False). See `https://go.pypsa.org/options-params` for more
+            information.
         kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             of pandas.DataFrame for time-varying
 
         Returns
         -------
-        new_names : pandas.index
-            Names of new components (including suffix)
+        new_names : pandas.index or None
+            Names of new components (including suffix) if return_names is `True`,
+            otherwise `None`.
 
         Examples
         --------
@@ -103,8 +118,8 @@ class ComponentsTransformMixin:
 
         With static data (and default values for all attributes):
         >>> c.static[["carrier", "p_nom"]]
-                        carrier  p_nom
-        Generator
+                       carrier  p_nom
+        name
         my-generator-1      AC    0.0
 
         Add multiple components with static attributes:
@@ -122,8 +137,8 @@ class ComponentsTransformMixin:
 
         With static data:
         >>> c.static[["carrier", "p_nom"]]
-                    carrier  p_nom
-        Generator
+                   carrier  p_nom
+        name
         my-generator-1      AC    0.0
         my-generator-2      AC   10.0
         my-generator-3      DC   10.0
@@ -133,21 +148,15 @@ class ComponentsTransformMixin:
 
         See Also
         --------
-        [pypsa.Network.add][] : Add components to the network instance.
+        [pypsa.Network.add][]
 
         """
-        if not self.attached:
-            msg = (
-                "Currently new components can only be added when the components "
-                "are already attached to a network."
-            )
-            raise NotImplementedError(msg)
-
-        self.n_save.add(
+        return self.n.add(
             self.name,
             name,
             suffix=suffix,
             overwrite=overwrite,
+            return_names=return_names,
             **kwargs,
         )
 
@@ -165,12 +174,9 @@ class ComponentsTransformMixin:
         Examples
         --------
         Define some network
-        >>> import pypsa
         >>> n = pypsa.Network()
         >>> n.add("Bus", ["bus1"])
-        Index(['bus1'], dtype='object')
         >>> n.add("Generator", ["gen1"], bus="bus1")
-        Index(['gen1'], dtype='object')
         >>> c = n.c.buses
 
         Now rename the bus
@@ -180,12 +186,12 @@ class ComponentsTransformMixin:
         Which updates the bus components
 
         >>> c.static.index
-        Index(['bus2'], dtype='object', name='Bus')
+        Index(['bus2'], dtype='str', name='name')
 
         and all references in the network
 
         >>> n.generators.bus
-        Generator
+        name
         gen1    bus2
         Name: bus, dtype: object
 
@@ -199,10 +205,10 @@ class ComponentsTransformMixin:
         for k, v in self.dynamic.items():  # Modify in place
             self.dynamic[k] = v.rename(columns=kwargs)
 
-        # Rename cross references in network (if attached to one)
-        if self.attached:
-            for component in self.n_save.components.values():
-                col_name = self.name.lower()  # TODO: Generalize
-                cols = [f"{col_name}{port}" for port in component.ports]
-                if cols and not component.static.empty:
-                    component.static[cols] = component.static[cols].replace(kwargs)
+        # Rename cross references in network
+        col_name = self.name.lower()  # TODO: Generalize
+        re_cols = re.compile(rf"{col_name}\d*")
+        for component in self.n.components:
+            cols = [c for c in component.static.columns if re_cols.fullmatch(c)]
+            if cols and not component.static.empty:
+                component.static[cols] = component.static[cols].replace(kwargs)

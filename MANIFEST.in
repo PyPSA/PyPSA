@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 include pypsa/data/component_attrs/*.csv
 include pypsa/data/standard_types/*.csv
 include pypsa/data/components.csv

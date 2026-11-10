@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import warnings
 from unittest.mock import patch
 
@@ -5,7 +9,6 @@ import pytest
 
 from pypsa.common import (
     deprecated_common_kwargs,
-    deprecated_in_next_major,
     deprecated_kwargs,
     deprecated_namespace,
     rename_deprecated_kwargs,
@@ -14,7 +17,7 @@ from pypsa.common import (
 
 @pytest.fixture
 def mock_version_semver():
-    with patch("pypsa.common.__version_semver__", "1.0.0"):
+    with patch("pypsa.common.__version_base__", "1.0.0"):
         yield
 
 
@@ -147,27 +150,6 @@ def test_deprecated_common_kwargs(mock_version_semver):
     assert result == "value"
 
 
-def test_deprecated_in_next_major(mock_version_semver):
-    """Test the deprecated_in_next_major decorator."""
-
-    @deprecated_in_next_major("This function will be removed in version 2.0")
-    def test_func():
-        return "value"
-
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        result = test_func()
-
-        # Check that a warning was raised
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "is deprecated as of 1.0" in str(w[0].message).lower()
-        assert "will be removed in 2.0" in str(w[0].message).lower()
-
-    # Check that the function worked correctly
-    assert result == "value"
-
-
 def test_deprecated_namespace(mock_version_semver):
     """Test the deprecated_namespace decorator."""
 
@@ -194,3 +176,12 @@ def test_deprecated_namespace(mock_version_semver):
 
     # Check that the function worked correctly
     assert result == "value"
+
+
+def test_component_names_deprecation(ac_dc_network):
+    """Test component_names deprecation."""
+    with pytest.warns(DeprecationWarning, match="component_names is deprecated"):
+        assert (
+            ac_dc_network.c.generators.component_names
+            == ac_dc_network.c.generators.names
+        ).all()

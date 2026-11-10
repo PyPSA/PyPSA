@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Network descriptors module.
 
 Contains single mixin class which is used to inherit to [pypsa.Networks] class.
@@ -14,12 +18,14 @@ from itertools import repeat
 from typing import TYPE_CHECKING
 
 import pandas as pd
+from deprecation import deprecated
 
-from pypsa.common import as_index, deprecated_in_next_major
+from pypsa.common import normalize_carrier_nice_names
+from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
 
 logger = logging.getLogger(__name__)
@@ -28,11 +34,13 @@ logger = logging.getLogger(__name__)
 class NetworkDescriptorsMixin(_NetworkABC):
     """Mixin class for network descriptor methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
-    @deprecated_in_next_major(
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
         details="Use `n.components[c].extendables` instead.",
     )
     def get_extendable_i(self, c: str) -> pd.Index:
@@ -44,7 +52,11 @@ class NetworkDescriptorsMixin(_NetworkABC):
         """
         return self.components[c].extendables
 
-    @deprecated_in_next_major(details="Use `n.components[c].fixed` instead.")
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `n.components[c].fixed` instead.",
+    )
     def get_non_extendable_i(self, c: str) -> pd.Index:
         """Getter function.
 
@@ -54,7 +66,11 @@ class NetworkDescriptorsMixin(_NetworkABC):
         """
         return self.components[c].fixed
 
-    @deprecated_in_next_major(details="Use `n.components[c].committables` instead.")
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `n.components[c].committables` instead.",
+    )
     def get_committable_i(self, c: str) -> pd.Index:
         """Getter function.
 
@@ -64,8 +80,10 @@ class NetworkDescriptorsMixin(_NetworkABC):
         """
         return self.components[c].committables
 
-    @deprecated_in_next_major(
-        details="Use `n.components[c].get_active_assets` instead."
+    @deprecated(
+        deprecated_in="1.0.0",
+        removed_in="2.0.0",
+        details="Use `n.components[c].get_active_assets` instead.",
     )
     def get_active_assets(
         self,
@@ -74,7 +92,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
     ) -> pd.Series:
         """Get active components mask of component type in investment period(s).
 
-        See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
+        See the [`pypsa.components.descriptors.ComponentsDescriptorsMixin.get_active_assets`][].
 
         Parameters
         ----------
@@ -112,7 +130,11 @@ class NetworkDescriptorsMixin(_NetworkABC):
         snapshots : pandas.Index
             Restrict to these snapshots rather than n.snapshots.
         inds : pandas.Index
-            Restrict to these components rather than n.components.index
+            Restrict to these component names rather than all components. For
+            stochastic networks, the names are selected in all scenarios. The
+            columns follow component order, duplicates are collapsed and unknown
+            names dropped. In PyPSA 2.0, columns follow `inds` order, duplicates
+            are kept and unknown names raise a `KeyError`.
 
         Returns
         -------
@@ -127,22 +149,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
         2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
 
         """
-        sns = as_index(self, snapshots, "snapshots")
-
-        static = self.static(component)[attr]
-        empty = pd.DataFrame(index=sns)
-        dynamic = self.dynamic(component).get(attr, empty).loc[sns]
-
-        index = static.index
-        if inds is not None:
-            index = index.intersection(inds)
-
-        diff = index.difference(dynamic.columns)
-        static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
-        res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
-        res.index.name = sns.name
-        res.columns.name = component
-        return res
+        return as_components(self, component)._as_dynamic(attr, snapshots, inds)
 
     def get_switchable_as_iter(
         self,
@@ -150,7 +157,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
         attr: str,
         snapshots: Sequence,
         inds: pd.Index | None = None,
-    ) -> pd.DataFrame:
+    ) -> Iterator[pd.Series]:
         """Return an iterator over snapshots for a time-varying component attribute.
 
         Values for all non-time-varying components are filled in with the default
@@ -165,17 +172,21 @@ class NetworkDescriptorsMixin(_NetworkABC):
         snapshots : pandas.Index
             Restrict to these snapshots rather than n.snapshots.
         inds : pandas.Index
-            Restrict to these items rather than all of n.{generators, ..}.index
+            Restrict to these component names rather than all components. For
+            stochastic networks, the names are selected in all scenarios. The
+            result follows the order of `inds`. Duplicates and unknown names are
+            dropped.
 
         Returns
         -------
-        pandas.DataFrame
+        Iterator[pandas.Series]
+            One Series per snapshot, indexed by component.
 
         Examples
         --------
         >>> gen = n.get_switchable_as_iter('Generator', 'p_max_pu', n.snapshots[:2])
         >>> next(gen)  # doctest: +ELLIPSIS
-        Generator
+        name
         Manchester Wind    0.930020
         Manchester Gas     1.000000
         Norway Wind        0.974583
@@ -185,18 +196,17 @@ class NetworkDescriptorsMixin(_NetworkABC):
         dtype: float64
 
         """
-        static = self.static(component)
-        dynamic = self.dynamic(component)
+        static = self.c[component].static
+        dynamic = self.c[component].dynamic
 
         index = static.index
-        varying_i = dynamic[attr].columns
-        fixed_i = static.index.difference(varying_i)
-
         if inds is not None:
-            inds = pd.Index(inds)
-            index = inds.intersection(index)
-            varying_i = inds.intersection(varying_i)
-            fixed_i = inds.intersection(fixed_i)
+            names = pd.Index(inds, name="name").unique()
+            if isinstance(index, pd.MultiIndex):
+                names = pd.MultiIndex.from_product([index.unique("scenario"), names])
+            index = names[names.isin(index)]
+        varying_i = index[index.isin(dynamic[attr].columns)]
+        fixed_i = index[~index.isin(varying_i)]
 
         # Short-circuit only fixed
         if len(varying_i) == 0:
@@ -205,7 +215,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
         def is_same_indices(i1: pd.Index, i2: pd.Index) -> bool:
             return len(i1) == len(i2) and (i1 == i2).all()
 
-        if is_same_indices(fixed_i.append(varying_i), index):
+        if is_same_indices(fixed_i.union(varying_i, sort=False), index):
 
             def reindex_maybe(s: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
                 return s
@@ -241,11 +251,15 @@ class NetworkDescriptorsMixin(_NetworkABC):
 
         Raises
         ------
-        ValueError:
+        ValueError
             If the specified bus carrier is not found in the network or if multiple
             units are found for the specified bus carrier.
 
         """
+        bus_carrier = normalize_carrier_nice_names(
+            self.c.carriers.static.nice_name, bus_carrier
+        )
+
         if bus_carrier is None:
             return "carrier dependent"
 

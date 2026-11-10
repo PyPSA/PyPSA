@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """General utility functions for PyPSA."""
 
 from __future__ import annotations
@@ -10,6 +14,8 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 from urllib import parse, request
 
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pandas.testing as pd_testing
@@ -19,7 +25,7 @@ from pandas.api.types import is_list_like
 
 from pypsa._options import options
 from pypsa.definitions.structures import Dict
-from pypsa.version import __version_semver__
+from pypsa.version import __version_base__
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -30,11 +36,12 @@ logger = logging.getLogger(__name__)
 
 
 class UnexpectedError(AssertionError):
-    """Custom error for unexpected conditions with issue tracker reference."""
+    """Custom error for unexpected conditions with issue tracker reference.
 
-    URL_CREATE_ISSUE = (
-        "https://github.com/PyPSA/PyPSA/issues/new?template=bug_report.yaml"
-    )
+    <!-- md:badge-version v0.35.0 -->
+    """
+
+    URL_CREATE_ISSUE = "https://go.pypsa.org/report-bug"
 
     def __init__(self, message: str = "") -> None:
         """Initialize the UnexpectedError.
@@ -51,7 +58,7 @@ class UnexpectedError(AssertionError):
         ... except UnexpectedError as e:
         ...     print(str(e))  # doctest: +ELLIPSIS
         This is an unexpected error.
-        Please track this issue in our issue tracker: https://github.com/PyPSA/PyPSA/issues/new?template=bug_report.yaml
+        Please track this issue in our issue tracker: https://go.pypsa.org/report-bug
 
         """
         track_message = (
@@ -155,11 +162,8 @@ class MethodHandlerWrapper:
         return wrapper
 
 
-logger = logging.getLogger(__name__)
-
-
 @lru_cache(maxsize=1)
-def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -> str:
+def _check_for_update(current_version: str, repo_owner: str, repo_name: str) -> str:
     """Log a message if a newer version is available.
 
     Checks the latest release on GitHub and compares it to the current version. Does
@@ -168,8 +172,8 @@ def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -
 
     Parameters
     ----------
-    current_version : tuple
-        The current version of the package as a tuple (major, minor, patch).
+    current_version : str
+        The current version of the package as a semantic version string.
     repo_owner : str
         The owner of the repository.
     repo_name : str
@@ -198,12 +202,14 @@ def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -
         response = request.urlopen(req)  # noqa: S310
         latest_version = json.loads(response.read())["tag_name"].replace("v", "")
 
-        # Simple version comparison
-        latest = tuple(map(int, latest_version.split(".")))
+        # Version comparison using packaging.version
+        latest_parsed = version.parse(latest_version)
+        current_parsed = version.parse(current_version)
 
-        if latest > current_version:
-            current_version_str = ".".join(map(str, current_version))
-            return f"New version {latest_version} available! (Current: {current_version_str})"
+        if latest_parsed > current_parsed:
+            return (
+                f"New version {latest_version} available! (Current: {current_version})"
+            )
 
     except Exception:  # noqa: S110
         pass
@@ -215,6 +221,8 @@ def as_index(
     n: NetworkType, values: Any, network_attribute: str, force_subset: bool = True
 ) -> pd.Index:
     """Return a pd.Index object from a list-like or scalar object.
+
+    <!-- md:badge-version v0.30.0 -->
 
     Also checks if the values are a subset of the corresponding attribute of the
     network object. If values is None, it is also used as the default.
@@ -252,6 +260,8 @@ def as_index(
 
     if values is None:
         values_ = n_attr
+        # Skip the subset check, because we know the values are equal
+        force_subset = False
     elif isinstance(values, pd.MultiIndex):
         values_ = values
         values_.names = n_attr.names
@@ -355,7 +365,8 @@ def equals(
 
     if ignored_classes is not None and isinstance(a, tuple(ignored_classes)):
         return True
-    from pypsa.components.store import ComponentsStore
+    from pypsa.components.components import Components  # noqa: PLC0415
+    from pypsa.components.store import ComponentsStore  # noqa: PLC0415
 
     # Classes with equality methods
     if isinstance(a, np.ndarray):
@@ -363,17 +374,35 @@ def equals(
             msg = f"numpy arrays differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
             return handle_diff(msg)
 
-    elif isinstance(a, (pd.DataFrame | pd.Series | pd.Index)):
+    elif isinstance(a, pd.DataFrame | pd.Series | pd.Index):
         if a.empty and b.empty:
             return True
         if not a.equals(b):
             # TODO: Resolve with data validation PR
-            # Check if dtypes are equal
+            # Tolerate what CSV/Excel round-trips lose, float precision and the
+            # dtype of undeclared columns
             try:
-                pd_testing.assert_frame_equal(a, b, check_dtype=False)
+                if isinstance(a, pd.DataFrame):
+                    pd_testing.assert_frame_equal(
+                        a,
+                        b,
+                        check_dtype=False,
+                        check_index_type=False,
+                        check_column_type=False,
+                    )
+                elif isinstance(a, pd.Series):
+                    pd_testing.assert_series_equal(
+                        a, b, check_dtype=False, check_index_type=False
+                    )
+                else:
+                    pd_testing.assert_index_equal(a, b, exact=False)
             except AssertionError:
                 msg = f"pandas objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
                 return handle_diff(msg)
+
+    elif isinstance(a, Components):
+        if not a.equals(b, log_mode=log_mode):
+            return False
 
     elif isinstance(a, ComponentsStore):
         for k, v in a.items():
@@ -393,7 +422,7 @@ def equals(
                 return handle_diff(msg)
 
     # Iterators
-    elif isinstance(a, (dict | Dict)):
+    elif isinstance(a, dict | Dict):
         for k, v in a.items():
             if k not in b:
                 msg = f"Key '{k}' missing from second dict at '{current_path}'"
@@ -406,7 +435,7 @@ def equals(
                 msg = f"Key '{k}' missing from first dict at '{current_path}'"
                 return handle_diff(msg)
 
-    elif isinstance(a, (list | tuple)):
+    elif isinstance(a, list | tuple):
         if len(a) != len(b):
             msg = f"Collections have different lengths at '{current_path}': {len(a)} != {len(b)}"
             return handle_diff(msg)
@@ -418,6 +447,12 @@ def equals(
     # Nans
     elif pd.isna(a) and pd.isna(b):
         pass
+
+    # Floating point numbers with tolerance
+    elif isinstance(a, float | int) and isinstance(b, float | int):
+        if not np.isclose(a, b, rtol=1e-9, atol=1e-12):
+            msg = f"Objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+            return handle_diff(msg)
 
     # Other objects
     elif a != b:
@@ -539,36 +574,6 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
     return deprecated_kwargs(network="n", deprecated_in="0.31", removed_in="1.0")(f)
 
 
-def deprecated_in_next_major(details: str) -> Callable:
-    """Wrap the @deprecated decorator to only require specifying the details.
-
-    Deprecates the function in the next major version and removes it in the
-    following major version. Currently set to deprecate in version 1.0 and remove
-    in version 2.0.
-
-    Parameters
-    ----------
-    details : str
-        Details about the deprecation.
-
-    Returns
-    -------
-    Callable
-        A decorator that marks the function as deprecated.
-
-    """
-
-    def decorator(func: Callable) -> Callable:
-        return deprecated(
-            deprecated_in="1.0",
-            removed_in="2.0",
-            current_version=__version_semver__,
-            details=details,
-        )(func)
-
-    return decorator
-
-
 def deprecated_namespace(
     func: Callable,
     previous_module: str,
@@ -594,11 +599,11 @@ def deprecated_namespace(
         A wrapper function that warns about the deprecated namespace.
 
     """
-    current_version = version.parse(__version_semver__)
-    if version.parse(deprecated_in) > current_version and __version_semver__ != "0.0":
+    current_version = version.parse(__version_base__)
+    if version.parse(deprecated_in) > current_version and __version_base__ != "0.0":
         msg = (
             "'deprecated_namespace' can only be used in a version >= deprecated_in "
-            f"(current version: {__version_semver__}, deprecated_in: {deprecated_in})."
+            f"(current version: {__version_base__}, deprecated_in: {deprecated_in})."
         )
         raise ValueError(msg)
 
@@ -626,7 +631,7 @@ def deprecated_namespace(
 
 
 def list_as_string(
-    list_: Sequence | dict, prefix: str = "", style: str = "comma-separated"
+    list_: Sequence | dict | set, prefix: str = "", style: str = "comma-separated"
 ) -> str:
     """Convert a list to a formatted string.
 
@@ -669,31 +674,6 @@ def list_as_string(
         return prefix + "- " + f"\n{prefix}- ".join(list_)
     msg = f"Style '{style}' not recognized. Use 'comma-separated' or 'bullet-list'."
     raise ValueError(msg)
-
-
-def pass_none_if_keyerror(func: Callable) -> Callable:
-    """Decorate functions to pass None if a KeyError or AttributeError is raised.
-
-    Parameters
-    ----------
-    func : Callable
-        The function to decorate.
-
-    Returns
-    -------
-    Callable
-        The decorated function.
-
-    """
-
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return func(*args, **kwargs)
-        except (KeyError, AttributeError):
-            return None
-
-    return wrapper
 
 
 def pass_empty_series_if_keyerror(func: Callable) -> Callable:
@@ -852,4 +832,134 @@ def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
     c   3.0   3.0
 
     """
-    return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+    result = ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+    result.index.name = ser.index.name
+    return result
+
+
+def _scenarios_not_implemented(func: Callable) -> Callable:
+    """Raise ValueError when used with stochastic networks."""
+
+    @functools.wraps(func)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        network = getattr(self, "_n", self)
+        if network.has_scenarios:
+            msg = f"Method '{func.__name__}' is not yet implemented for stochastic networks."
+            raise ValueError(msg)
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
+    """Generate a list of colors from a matplotlib palette.
+
+    <!-- md:badge-version v1.1.0 -->
+
+    Parameters
+    ----------
+    n_colors : int
+        Number of colors to generate.
+    palette : str, default "tab10"
+        Matplotlib color palette name.
+
+    Returns
+    -------
+    list of str
+        List of hex color strings.
+
+    Examples
+    --------
+    >>> pypsa.common.generate_colors(3, "tab10")
+    ['#1f77b4', '#ff7f0e', '#2ca02c']
+
+    """
+    cmap = plt.get_cmap(palette)
+    n_palette_colors = cmap.N if hasattr(cmap, "N") else 256
+
+    colors = []
+    for i in range(n_colors):
+        idx = i % n_palette_colors
+        if n_palette_colors <= 20:
+            # For discrete palettes, use integer indices
+            rgba = cmap(idx)
+        else:
+            # For continuous palettes, normalize to [0, 1]
+            rgba = cmap(idx / n_palette_colors)
+        colors.append(mcolors.to_hex(rgba))
+
+    return colors
+
+
+@deprecated(
+    deprecated_in="1.1.0",
+    removed_in="2.0.0",
+    details="Use pypsa.costs.annuity() instead.",
+)
+def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
+    """Calculate the annuity factor for a given discount rate and lifetime.
+
+    **Deprecated since 1.1.0:** Use `pypsa.costs.annuity()` instead.
+
+    According to formula $r / (1 - (1 + r)^{-n})$ or $1 / n$ for $r = 0$.
+
+    Parameters
+    ----------
+    r : float | pd.Series
+        Discount rate (as a decimal, e.g. 0.05 for 5%).
+    n : int | pd.Series
+        Lifetime of loan or asset (in years).
+
+    Returns
+    -------
+    float | pd.Series
+        The annuity factor.
+
+    """
+    from pypsa.costs import annuity as costs_annuity  # noqa: PLC0415
+
+    return costs_annuity(r, n)
+
+
+def normalize_carrier_nice_names(
+    nice_name_series: pd.Series,
+    carrier: str | Sequence[str] | None,
+) -> str | Sequence[str] | None:
+    """Normalize carrier nice names to carrier names.
+
+    Parameters
+    ----------
+    nice_name_series : pd.Series
+        Series with carrier names as index and nice names as values
+        (i.e. ``n.c.carriers.static.nice_name``).
+    carrier : str | Sequence[str] | None
+        Carrier name(s) to normalize.
+
+    Returns
+    -------
+    str | Sequence[str] | None
+        Normalized carrier name(s).
+
+    """
+    if carrier is None:
+        return None
+
+    if isinstance(carrier, str):
+        carriers = [carrier]
+        scalar = True
+    elif is_list_like(carrier):
+        carriers = list(carrier)
+        scalar = False
+    else:
+        return carrier
+
+    nice_names = nice_name_series[nice_name_series != ""]
+    if nice_names.empty:
+        return carrier
+
+    unique_nice_names = nice_names[~nice_names.duplicated(keep=False)]
+    nice_name_to_carrier = pd.Series(
+        unique_nice_names.index, index=unique_nice_names.values
+    )
+    normalized = [nice_name_to_carrier.get(name, name) for name in carriers]
+    return normalized[0] if scalar else normalized

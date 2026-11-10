@@ -1,16 +1,17 @@
-"""
-Created on Fri Jul  2 10:21:16 2021.
-
-@author: fabian
-"""
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
 import pandas as pd
 import pytest
+from numpy.testing import assert_almost_equal as almost_equal
 from numpy.testing import assert_array_almost_equal as equal
 from pandas import IndexSlice as idx
 
 import pypsa
-from pypsa.descriptors import get_activity_mask
+from pypsa import option_context
+from pypsa._linopy_compat import linopy_uses_v1
+from pypsa.optimization.window import tuple_snapshot_index
 
 kwargs = {"multi_investment_periods": True}
 
@@ -66,8 +67,8 @@ def n():
 def n_sus(n):
     # only keep generators which are getting more expensiv and push generator
     # capital cost, so that sus are activated
-    n.remove("Generator", n.generators.query('bus == "1"').index)
-    n.generators.capital_cost *= 5
+    n.remove("Generator", n.c.generators.static.query('bus == "1"').index)
+    n.c.generators.static.capital_cost *= 5
 
     for i, period in enumerate(n.investment_periods):
         factor = (10 + i) / 10
@@ -88,8 +89,8 @@ def n_sus(n):
 def n_sts(n):
     # only keep generators which are getting more expensiv and push generator
     # capital cost, so that sus are activated
-    n.remove("Generator", n.generators.query('bus == "1"').index)
-    n.generators.capital_cost *= 5
+    n.remove("Generator", n.c.generators.static.query('bus == "1"').index)
+    n.c.generators.static.capital_cost *= 5
 
     n.add("Bus", "1 battery")
 
@@ -146,10 +147,10 @@ def test_investment_period_values():
 
 
 def test_active_assets(n):
-    active_gens = n.get_active_assets("Generator", 2030)[lambda ds: ds].index
+    active_gens = n.c.generators.get_active_assets(2030)[lambda ds: ds].index
     assert (active_gens == ["gen1-2020", "gen2-2020", "gen1-2030", "gen2-2030"]).all()
 
-    active_gens = n.get_active_assets("Generator", 2050)[lambda ds: ds].index
+    active_gens = n.c.generators.get_active_assets(2050)[lambda ds: ds].index
     assert (
         active_gens
         == [
@@ -171,7 +172,7 @@ def test_tiny_with_default():
     n.add("Load", 1, bus=1, p_set=100)
     status, _ = n.optimize(**kwargs)
     assert status == "ok"
-    assert n.generators.p_nom_opt.item() == 100
+    assert n.c.generators.static.p_nom_opt.item() == 100
 
 
 def test_tiny_with_build_year():
@@ -184,7 +185,7 @@ def test_tiny_with_build_year():
     n.add("Load", 1, bus=1, p_set=100)
     status, _ = n.optimize(**kwargs)
     assert status == "ok"
-    assert n.generators.p_nom_opt.item() == 100
+    assert n.c.generators.static.p_nom_opt.item() == 100
 
 
 def test_tiny_infeasible():
@@ -204,10 +205,10 @@ def test_simple_network(n):
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n.generators_t.p.loc[[2020, 2030, 2040], "gen1-2050"] == 0).all()
-    assert (n.generators_t.p.loc[[2050], "gen1-2020"] == 0).all()
+    assert (n.c.generators.dynamic.p.loc[[2020, 2030, 2040], "gen1-2050"] == 0).all()
+    assert (n.c.generators.dynamic.p.loc[[2050], "gen1-2020"] == 0).all()
 
-    assert (n.lines_t.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
+    assert (n.c.lines.dynamic.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
 
 def test_simple_network_snapshot_subset(n):
@@ -215,42 +216,100 @@ def test_simple_network_snapshot_subset(n):
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n.generators_t.p.loc[[2020, 2030, 2040], "gen1-2050"] == 0).all()
-    assert (n.generators_t.p.loc[[2050], "gen1-2020"] == 0).all()
+    assert (n.c.generators.dynamic.p.loc[[2020, 2030, 2040], "gen1-2050"] == 0).all()
+    assert (n.c.generators.dynamic.p.loc[[2050], "gen1-2020"] == 0).all()
 
-    assert (n.lines_t.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
+    assert (n.c.lines.dynamic.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
+
+
+def test_optimize_later_period_uses_its_own_data():
+    # Myopic per-period optimization over a non-first investment period must build
+    # the model on that period's data. The flat positional snapshot dim numbers
+    # 0..N-1 from the build window, not from the network's full snapshot range, so
+    # a later window must not pick up the first period's time series.
+    n = pypsa.Network(snapshots=range(3))
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "b")
+    n.add("Generator", "gen", bus="b", p_nom=1000, marginal_cost=10)
+    load = pd.Series(100.0, index=n.snapshots)
+    load.loc[2030] = 777.0
+    n.add("Load", "load", bus="b", p_set=load)
+
+    for period, expected in [(2030, 777.0), (2020, 100.0)]:
+        sns = n.snapshots[n.snapshots.get_level_values("period") == period]
+        status, cond = n.optimize(sns, **kwargs)
+        assert (status, cond) == ("ok", "optimal")
+        equal(n.c.generators.dynamic.p["gen"].loc[period], [expected] * 3)
+
+
+def test_ramp_limit_resets_per_period():
+    # https://github.com/PyPSA/PyPSA/issues/1669: ramp limits must reset at each
+    # investment period boundary, not only at the global first snapshot. Nuclear is
+    # cheap but limited to 10 MW/step; the load forces it down to 50 MW at the end of
+    # 2020 and demands 100 MW at the start of 2030. Serving this needs a 20 MW jump
+    # across the boundary, only feasible if the boundary ramp link is dropped.
+    n = pypsa.Network(snapshots=range(3))
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "b")
+    n.add(
+        "Generator",
+        "nuclear",
+        bus="b",
+        p_nom=100,
+        p_min_pu=0.5,
+        ramp_limit_up=0.1,
+        ramp_limit_down=0.1,
+        marginal_cost=1,
+        build_year=2020,
+        lifetime=40,
+    )
+    n.add("Generator", "peaker", bus="b", p_nom=200, marginal_cost=100)
+    load = pd.Series([60, 60, 50, 100, 60, 60], index=n.snapshots)
+    n.add("Load", "load", bus="b", p_set=load)
+
+    status, cond = n.optimize(**kwargs)
+    assert (status, cond) == ("ok", "optimal")
+
+    nuclear = n.c.generators.dynamic.p["nuclear"]
+    boundary_jump = nuclear.loc[idx[2030, 0]] - nuclear.loc[idx[2020, 2]]
+    assert boundary_jump == pytest.approx(20)
+
+    within_period_steps = nuclear.groupby(level="period").diff().dropna().abs()
+    assert (within_period_steps <= 10 + 1e-6).all()
 
 
 def test_simple_network_storage_noncyclic(n_sus):
-    n_sus.storage_units["state_of_charge_initial"] = 200
-    n_sus.storage_units["cyclic_state_of_charge"] = False
-    n_sus.storage_units["state_of_charge_initial_per_period"] = False
+    n_sus.c.storage_units.static["state_of_charge_initial"] = 200
+    n_sus.c.storage_units.static["cyclic_state_of_charge"] = False
+    n_sus.c.storage_units.static["state_of_charge_initial_per_period"] = False
 
     status, cond = n_sus.optimize(**kwargs)
     assert status == "ok"
     assert cond == "optimal"
 
-    soc = n_sus.storage_units_t.state_of_charge
-    p = n_sus.storage_units_t.p
+    soc = n_sus.c.storage_units.dynamic.state_of_charge
+    p = n_sus.c.storage_units.dynamic.p
     assert round((soc + p).loc[idx[2020, 0], "sto1-2020"], 4) == 200
     assert soc.loc[idx[2040, 9], "sto1-2020"] == 0
 
 
 def test_simple_network_storage_noncyclic_per_period(n_sus):
-    n_sus.storage_units["state_of_charge_initial"] = 200
-    n_sus.storage_units["cyclic_state_of_charge"] = False
-    n_sus.storage_units["state_of_charge_initial_per_period"] = True
+    n_sus.c.storage_units.static["state_of_charge_initial"] = 200
+    n_sus.c.storage_units.static["cyclic_state_of_charge"] = False
+    n_sus.c.storage_units.static["state_of_charge_initial_per_period"] = True
 
     status, cond = n_sus.optimize(**kwargs)
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sus.storage_units_t.p.loc[[2020, 2030, 2040], "sto1-2050"] == 0).all()
-    assert (n_sus.storage_units_t.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert (
+        n_sus.c.storage_units.dynamic.p.loc[[2020, 2030, 2040], "sto1-2050"] == 0
+    ).all()
+    assert (n_sus.c.storage_units.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
 
-    soc_initial = (n_sus.storage_units_t.state_of_charge + n_sus.storage_units_t.p).loc[
-        idx[:, 0], :
-    ]
+    soc_initial = (
+        n_sus.c.storage_units.dynamic.state_of_charge + n_sus.c.storage_units.dynamic.p
+    ).loc[idx[:, 0], :]
     soc_initial = soc_initial.droplevel("timestep")
     assert soc_initial.loc[2020, "sto1-2020"] == 200
     assert soc_initial.loc[2030, "sto1-2020"] == 200
@@ -258,15 +317,15 @@ def test_simple_network_storage_noncyclic_per_period(n_sus):
 
 
 def test_simple_network_storage_cyclic(n_sus):
-    n_sus.storage_units["cyclic_state_of_charge"] = True
-    n_sus.storage_units["cyclic_state_of_charge_per_period"] = False
+    n_sus.c.storage_units.static["cyclic_state_of_charge"] = True
+    n_sus.c.storage_units.static["cyclic_state_of_charge_per_period"] = False
 
     status, cond = n_sus.optimize(**kwargs)
     assert status == "ok"
     assert cond == "optimal"
 
-    soc = n_sus.storage_units_t.state_of_charge
-    p = n_sus.storage_units_t.p
+    soc = n_sus.c.storage_units.dynamic.state_of_charge
+    p = n_sus.c.storage_units.dynamic.p
     assert (
         soc.loc[idx[2040, 9], "sto1-2020"] == (soc + p).loc[idx[2020, 0], "sto1-2020"]
     )
@@ -277,46 +336,67 @@ def test_simple_network_storage_cyclic(n_sus):
 
 def test_simple_network_storage_cyclic_per_period(n_sus):
     # Watch out breaks with xarray version 2022.06.00 !
-    n_sus.storage_units["cyclic_state_of_charge"] = True
-    n_sus.storage_units["cyclic_state_of_charge_per_period"] = True
+    n_sus.c.storage_units.static["cyclic_state_of_charge"] = True
+    n_sus.c.storage_units.static["cyclic_state_of_charge_per_period"] = True
 
     status, cond = n_sus.optimize(**kwargs)
     assert status == "ok"
     assert cond == "optimal"
 
-    soc = n_sus.storage_units_t.state_of_charge
-    p = n_sus.storage_units_t.p
+    soc = n_sus.c.storage_units.dynamic.state_of_charge
+    p = n_sus.c.storage_units.dynamic.p
     assert (
         soc.loc[idx[2020, 9], "sto1-2020"] == (soc + p).loc[idx[2020, 0], "sto1-2020"]
     )
 
 
+@pytest.mark.parametrize(
+    ("cyclic", "per_period"),
+    [(False, False), (False, True), (True, False), (True, True)],
+)
+def test_storage_units_to_stores_equivalence(n_sus, cyclic, per_period):
+    static = n_sus.c.storage_units.static
+    static["state_of_charge_initial"] = 0 if cyclic else 200
+    static["cyclic_state_of_charge"] = cyclic
+    static["cyclic_state_of_charge_per_period"] = per_period
+    static["state_of_charge_initial_per_period"] = per_period
+    n_sus.optimize(**kwargs)
+    objective = n_sus.objective
+    e_nom_opt = static.p_nom_opt * static.max_hours
+
+    n_sus.c.storage_units.convert_to_stores()
+    n_sus.optimize(**kwargs)
+
+    assert n_sus.objective == pytest.approx(objective, rel=1e-6)
+    equal(n_sus.c.stores.static.e_nom_opt[e_nom_opt.index], e_nom_opt, decimal=4)
+
+
 def test_simple_network_store_noncyclic(n_sts):
-    n_sts.stores["e_cyclic"] = False
-    n_sts.stores["e_initial_per_period"] = False
+    n_sts.c.stores.static["e_cyclic"] = False
+    n_sts.c.stores.static["e_initial_per_period"] = False
 
     status, cond = n_sts.optimize(**kwargs)
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sts.stores_t.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert (n_sts.c.stores.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
 
-    e_initial = (n_sts.stores_t.e + n_sts.stores_t.p).loc[idx[:, 0], :]
+    e_initial = (n_sts.c.stores.dynamic.e + n_sts.c.stores.dynamic.p).loc[idx[:, 0], :]
     e_initial = e_initial.droplevel("timestep")
     assert e_initial.loc[2020, "sto1-2020"] == 20
 
 
 def test_simple_network_store_noncyclic_per_period(n_sts):
-    n_sts.stores["e_cyclic"] = False
-    n_sts.stores["e_initial_per_period"] = True
+    n_sts.c.stores.static["e_cyclic"] = False
+    n_sts.c.stores.static["e_initial_per_period"] = True
 
     status, cond = n_sts.optimize(**kwargs)
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sts.stores_t.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert (n_sts.c.stores.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
 
-    e_initial = (n_sts.stores_t.e + n_sts.stores_t.p).loc[idx[:, 0], :]
+    e_initial = (n_sts.c.stores.dynamic.e + n_sts.c.stores.dynamic.p).loc[idx[:, 0], :]
     e_initial = e_initial.droplevel("timestep")
     assert e_initial.loc[2020, "sto1-2020"] == 20
     assert e_initial.loc[2030, "sto1-2020"] == 20
@@ -326,73 +406,97 @@ def test_simple_network_store_noncyclic_per_period(n_sts):
 
 
 def test_simple_network_store_cyclic(n_sts):
-    n_sts.stores["e_cyclic"] = True
-    n_sts.stores["e_cyclic_per_period"] = False
+    n_sts.c.stores.static["e_cyclic"] = True
+    n_sts.c.stores.static["e_cyclic_per_period"] = False
 
     status, cond = n_sts.optimize(**kwargs)
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sts.stores_t.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert (n_sts.c.stores.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
 
-    e = n_sts.stores_t.e
-    p = n_sts.stores_t.p
+    e = n_sts.c.stores.dynamic.e
+    p = n_sts.c.stores.dynamic.p
     assert e.loc[idx[2040, 9], "sto1-2020"] == (e + p).loc[idx[2020, 0], "sto1-2020"]
 
 
 def test_simple_network_store_cyclic_per_period(n_sts):
     # Watch out breaks with xarray version 2022.06.00 !
-    n_sts.stores["e_cyclic"] = True
-    n_sts.stores["e_cyclic_per_period"] = True
+    n_sts.c.stores.static["e_cyclic"] = True
+    n_sts.c.stores.static["e_cyclic_per_period"] = True
 
     status, cond = n_sts.optimize(**kwargs)
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sts.stores_t.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert (n_sts.c.stores.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
 
-    e = n_sts.stores_t.e
-    p = n_sts.stores_t.p
+    e = n_sts.c.stores.dynamic.e
+    p = n_sts.c.stores.dynamic.p
     assert e.loc[idx[2020, 9], "sto1-2020"] == (e + p).loc[idx[2020, 0], "sto1-2020"]
 
 
 def test_global_constraint_primary_energy_storage(n_sus):
-    c = "StorageUnit"
+    c = n_sus.components["StorageUnit"]
     n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
-    n_sus.static(c)["state_of_charge_initial"] = 200
-    n_sus.static(c)["cyclic_state_of_charge"] = False
-    n_sus.static(c)["state_of_charge_initial_per_period"] = False
-    n_sus.static(c)["carrier"] = "emitting_carrier"
+    c.static["state_of_charge_initial"] = 200
+    c.static["cyclic_state_of_charge"] = False
+    c.static["state_of_charge_initial_per_period"] = False
+    c.static["carrier"] = "emitting_carrier"
 
     n_sus.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
 
     status, cond = n_sus.optimize(**kwargs)
 
-    active = get_activity_mask(n_sus, c)
-    soc_end = n_sus.dynamic(c).state_of_charge.where(active).ffill().iloc[-1]
-    soc_diff = n_sus.static(c).state_of_charge_initial - soc_end
-    emissions = n_sus.static(c).carrier.map(n_sus.carriers.co2_emissions)
+    active = c.get_activity_mask()
+    soc_end = c.dynamic.state_of_charge.where(active).ffill().iloc[-1]
+    soc_diff = c.static.state_of_charge_initial - soc_end
+    emissions = c.static.carrier.map(n_sus.c.carriers.static.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000
 
 
 def test_global_constraint_primary_energy_store(n_sts):
-    c = "Store"
+    c = n_sts.components["Store"]
     n_sts.add("Carrier", "emitting_carrier", co2_emissions=100)
-    n_sts.static(c)["e_initial"] = 200
-    n_sts.static(c)["e_cyclic"] = False
-    n_sts.static(c)["e_initial_per_period"] = False
+    c.static["e_initial"] = 200
+    c.static["e_cyclic"] = False
+    c.static["e_initial_per_period"] = False
 
-    n_sts.buses.loc["1 battery", "carrier"] = "emitting_carrier"
+    n_sts.c.buses.static.loc["1 battery", "carrier"] = "emitting_carrier"
 
     n_sts.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
 
     status, cond = n_sts.optimize(**kwargs)
 
-    active = get_activity_mask(n_sts, c)
-    soc_end = n_sts.dynamic(c).e.where(active).ffill().iloc[-1]
-    soc_diff = n_sts.static(c).e_initial - soc_end
-    emissions = n_sts.static(c).carrier.map(n_sts.carriers.co2_emissions)
+    active = c.get_activity_mask()
+    soc_end = c.dynamic.e.where(active).ffill().iloc[-1]
+    soc_diff = c.static.e_initial - soc_end
+    emissions = c.static.carrier.map(n_sts.c.carriers.static.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000
+
+
+def test_global_constraint_primary_energy_storage_stochastic(n_sus):
+    """
+    Test global constraints with primary energy for storage in stochastic networks.
+
+    This test ensures that multi-period optimization with storage units and
+    global constraints work correctly when scenarios are present.
+    """
+
+    c = "StorageUnit"
+
+    n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
+    n_sus.c[c].static["state_of_charge_initial"] = 200
+    n_sus.c[c].static["cyclic_state_of_charge"] = False
+    n_sus.c[c].static["state_of_charge_initial_per_period"] = False
+    n_sus.c[c].static["carrier"] = "emitting_carrier"
+
+    n_sus.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
+    n_sus.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    status, cond = n_sus.optimize(multi_investment_periods=True)
+    assert status == "ok"
+    assert n_sus.model.constraints["GlobalConstraint-co2limit"].rhs[0] == -77000.0
 
 
 def test_global_constraint_transmission_expansion_limit(n):
@@ -406,16 +510,16 @@ def test_global_constraint_transmission_expansion_limit(n):
     )
 
     status, cond = n.optimize(**kwargs)
-    assert n.lines.s_nom_opt.sum() == 100
+    assert n.c.lines.static.s_nom_opt.sum() == 100
 
     # when only optimizing the first 10 snapshots the contraint must hold for
     # the 2020 period
     status, cond = n.optimize(n.snapshots[:10], **kwargs)
-    assert n.lines.loc["line-2020", "s_nom_opt"] == 100
+    assert n.c.lines.static.loc["line-2020", "s_nom_opt"] == 100
 
-    n.global_constraints["investment_period"] = 2030
+    n.c.global_constraints.static["investment_period"] = 2030
     status, cond = n.optimize(**kwargs)
-    assert n.lines.s_nom_opt[["line-2020", "line-2030"]].sum() == 100
+    assert n.c.lines.static.s_nom_opt[["line-2020", "line-2030"]].sum() == 100
 
 
 def test_global_constraint_transmission_cost_limit(n):
@@ -430,7 +534,7 @@ def test_global_constraint_transmission_cost_limit(n):
 
     active = pd.concat(
         {
-            period: n.get_active_assets("Line", period)
+            period: n.c.lines.get_active_assets(period)
             for period in n.investment_periods
         },
         axis=1,
@@ -438,16 +542,22 @@ def test_global_constraint_transmission_cost_limit(n):
     weight = active @ n.investment_period_weightings.objective
 
     status, cond = n.optimize(**kwargs)
-    assert round((weight * n.lines.eval("s_nom_opt * capital_cost")).sum(), 2) == 1000
+    assert (
+        round((weight * n.c.lines.static.eval("s_nom_opt * capital_cost")).sum(), 2)
+        == 1000
+    )
 
     # when only optimizing the first 10 snapshots the contraint must hold for
     # the 2020 period
     status, cond = n.optimize(n.snapshots[:10], **kwargs)
-    assert round(n.lines.eval("s_nom_opt * capital_cost")["line-2020"].sum(), 2) == 1000
+    assert (
+        round(n.c.lines.static.eval("s_nom_opt * capital_cost")["line-2020"].sum(), 2)
+        == 1000
+    )
 
-    n.global_constraints["investment_period"] = 2030
+    n.c.global_constraints.static["investment_period"] = 2030
     status, cond = n.optimize(**kwargs)
-    lines = n.lines.loc[["line-2020", "line-2030"]]
+    lines = n.c.lines.static.loc[["line-2020", "line-2030"]]
     assert round(lines.eval("s_nom_opt * capital_cost").sum(), 2) == 1000
 
 
@@ -463,49 +573,952 @@ def test_global_constraint_bus_tech_limit(n):
     )
 
     status, cond = n.optimize(**kwargs)
-    assert round(n.generators.p_nom_opt[["gen1-2020", "gen2-2020"]], 1).sum() == 300
+    assert (
+        round(n.c.generators.static.p_nom_opt[["gen1-2020", "gen2-2020"]], 1).sum()
+        == 300
+    )
 
-    n.global_constraints["bus"] = 1
+    n.c.global_constraints.static["bus"] = 1
     status, cond = n.optimize(**kwargs)
-    assert n.generators.at["gen1-2020", "p_nom_opt"] == 300
+    assert n.c.generators.static.at["gen1-2020", "p_nom_opt"] == 300
 
     # make the constraint non-binding and check that the shadow price is zero
-    n.global_constraints.sense = "<="
+    n.c.global_constraints.static.sense = "<="
     status, cond = n.optimize(**kwargs)
-    assert n.global_constraints.at["expansion_limit", "mu"] == 0
+    assert n.c.global_constraints.static.at["expansion_limit", "mu"] == 0
 
 
 def test_nominal_constraint_bus_carrier_expansion_limit(n):
-    n.buses.at["1", "nom_max_gencarrier"] = 100
-    status, cond = n.optimize(**kwargs)
+    n.c.buses.static.loc["1", "nom_max_gencarrier"] = 100
+    with pytest.warns(
+        # DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+        DeprecationWarning,
+        match=".+",
+    ):
+        status, cond = n.optimize(**kwargs)
     gen1s = [f"gen1-{period}" for period in n.investment_periods]
-    assert round(n.generators.p_nom_opt[gen1s], 0).sum() == 100
-    n.buses.drop(["nom_max_gencarrier"], inplace=True, axis=1)
+    assert round(n.c.generators.static.p_nom_opt[gen1s], 0).sum() == 100
+    n.c.buses.static = n.c.buses.static.drop(columns=["nom_max_gencarrier"])
 
-    n.buses.at["1", "nom_max_gencarrier_2020"] = 100
-    status, cond = n.optimize(**kwargs)
-    assert n.generators.at["gen1-2020", "p_nom_opt"] == 100
-    n.buses.drop(["nom_max_gencarrier_2020"], inplace=True, axis=1)
+    n.c.buses.static.loc["1", "nom_max_gencarrier_2020"] = 100
+    with pytest.warns(
+        # DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+        DeprecationWarning,
+        match=".+",
+    ):
+        status, cond = n.optimize(**kwargs)
+    assert n.c.generators.static.at["gen1-2020", "p_nom_opt"] == 100
+    n.c.buses.static = n.c.buses.static.drop(columns=["nom_max_gencarrier_2020"])
 
     # make the constraint non-binding and check that the shadow price is zero
-    n.buses.at["1", "nom_min_gencarrier_2020"] = 100
-    status, cond = n.optimize(**kwargs)
+    n.c.buses.static.loc["1", "nom_min_gencarrier_2020"] = 100
+    with pytest.warns(
+        # DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+        DeprecationWarning,
+        match=".+",
+    ):
+        status, cond = n.optimize(**kwargs)
     assert (n.model.constraints["Bus-nom_min_gencarrier_2020"].dual).item() == 0
 
 
 def test_max_growth_constraint(n):
     # test generator grow limit
-    gen_carrier = n.generators.carrier.unique()[0]
-    n.carriers.at[gen_carrier, "max_growth"] = 218
+    gen_carrier = n.c.generators.static.carrier.unique()[0]
+    n.c.carriers.static.at[gen_carrier, "max_growth"] = 218
     status, cond = n.optimize(**kwargs)
-    assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum() <= 218)
+    assert all(
+        n.c.generators.static.p_nom_opt.groupby(n.c.generators.static.build_year).sum()
+        <= 218
+    )
 
 
 def test_max_relative_growth_constraint(n):
     # test generator relative grow limit
-    gen_carrier = n.generators.carrier.unique()[0]
-    n.carriers.at[gen_carrier, "max_growth"] = 218
-    n.carriers.at[gen_carrier, "max_relative_growth"] = 1.5
+    gen_carrier = n.c.generators.static.carrier.unique()[0]
+    n.c.carriers.static.at[gen_carrier, "max_growth"] = 218
+    n.c.carriers.static.at[gen_carrier, "max_relative_growth"] = 1.5
     status, cond = n.optimize(**kwargs)
-    built_per_period = n.generators.p_nom_opt.groupby(n.generators.build_year).sum()
+    built_per_period = n.c.generators.static.p_nom_opt.groupby(
+        n.c.generators.static.build_year
+    ).sum()
     assert all(built_per_period - built_per_period.shift(fill_value=0) * 1.5 <= 218)
+
+
+def test_max_growth_constraint_excludes_retired_asset():
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], [0]])
+    n.investment_periods = [2020, 2030]
+    n.add("Bus", "bus")
+    n.add("Carrier", "solar", max_growth=10)
+    n.add("Load", "load", bus="bus", p_set=5)
+    for name, year in [("old", 2020), ("new", 2030)]:
+        n.add(
+            "Generator",
+            name,
+            bus="bus",
+            carrier="solar",
+            p_nom_extendable=True,
+            build_year=year,
+            lifetime=10,
+            capital_cost=1,
+        )
+    n.optimize.create_model(multi_investment_periods=True)
+    con = n.model.constraints["Carrier-growth_limit"]
+    labels = n.model.variables["Generator-p_nom"].labels.to_series()
+
+    def vars_in(period):
+        return set(con.vars.sel(Carrier="solar", periods=period).values.ravel())
+
+    assert int(labels["old"]) in vars_in(2020)
+    assert int(labels["old"]) not in vars_in(2030)
+    assert int(labels["new"]) in vars_in(2030)
+
+
+def test_store_primary_energy_and_operational_limit_constraint_without_per_period():
+    """Test that Store with primary energy constraint raises NotImplementedError without e_initial_per_period."""
+
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+    n.investment_period_weightings.loc[:, :] = 2
+
+    n.add("Bus", "bus")
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        carrier="gas",
+        marginal_cost=1,
+        e_nom=10,
+        e_initial=10,
+    )
+    n.add("Generator", "gen", bus="bus", marginal_cost=10, p_nom=2)
+    n.add("Load", "load", bus="bus", p_set=pd.Series(1, index=n.snapshots))
+
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=0.8,
+    )
+
+    with pytest.raises(NotImplementedError):
+        n.optimize(multi_investment_periods=True)
+
+    n.remove("GlobalConstraint", n.c.global_constraints.static.index)
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="operational_limit",
+        carrier_attribute="gas",
+        sense="<=",
+        constant=6,
+    )
+
+    with pytest.raises(NotImplementedError):
+        n.optimize(multi_investment_periods=True)
+
+
+def test_store_primary_energy_and_operational_limit_constraint_with_per_period():
+    """Test that Store with primary energy constraint works with e_initial_per_period=True."""
+
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+    n.investment_period_weightings.loc[:, :] = 2
+
+    n.add("Bus", "bus")
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        carrier="gas",
+        marginal_cost=1,
+        e_nom=10,
+        e_initial=10,
+    )
+    n.add("Generator", "gen", bus="bus", marginal_cost=10, p_nom=2)
+    n.add("Load", "load", bus="bus", p_set=pd.Series(1, index=n.snapshots))
+
+    n.c.stores.static.e_initial_per_period = True
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=0.8,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    almost_equal(n.objective, 10 * 4 + 1 * 4)
+
+    # Test operational limit constraint as well
+    n.remove("GlobalConstraint", n.c.global_constraints.names)
+    n.add(
+        "GlobalConstraint",
+        "dispatch",
+        carrier_attribute="gas",
+        type="operational_limit",
+        sense="<=",
+        constant=6,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    almost_equal(n.objective, 10 * 2 + 1 * 6)
+
+
+def test_storage_unit_primary_energy_and_operational_limit_constraint_without_per_period():
+    """Test that StorageUnit with primary energy constraint raises NotImplementedError without state_of_charge_initial_per_period."""
+
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+    n.investment_period_weightings.loc[:, :] = 2
+
+    n.add("Bus", "bus")
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add(
+        "StorageUnit",
+        "su",
+        bus="bus",
+        carrier="gas",
+        marginal_cost=1,
+        p_nom=10,
+        max_hours=1,
+        state_of_charge_initial=10,
+    )
+    n.add("Generator", "gen", bus="bus", marginal_cost=10, p_nom=2)
+    n.add("Load", "load", bus="bus", p_set=pd.Series(1, index=n.snapshots))
+
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=0.8,
+    )
+
+    with pytest.raises(NotImplementedError):
+        n.optimize(multi_investment_periods=True)
+
+    n.remove("GlobalConstraint", n.c.global_constraints.names)
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="operational_limit",
+        carrier_attribute="gas",
+        sense="<=",
+        constant=6,
+    )
+
+    with pytest.raises(NotImplementedError):
+        n.optimize(multi_investment_periods=True)
+
+
+def test_storage_unit_primary_energy_and_operational_limit_constraint_with_per_period():
+    """Test that StorageUnit with primary energy constraint works with state_of_charge_initial_per_period=True."""
+
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+    n.investment_period_weightings.loc[:, :] = 2
+
+    n.add("Bus", "bus")
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add(
+        "StorageUnit",
+        "su",
+        bus="bus",
+        carrier="gas",
+        marginal_cost=1,
+        p_nom=10,
+        max_hours=1,
+        state_of_charge_initial=10,
+    )
+    n.add("Generator", "gen", bus="bus", marginal_cost=10, p_nom=2)
+    n.add("Load", "load", bus="bus", p_set=pd.Series(1, index=n.snapshots))
+
+    n.c.storage_units.static.state_of_charge_initial_per_period = True
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=0.8,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    almost_equal(n.objective, 10 * 4 + 1 * 4)
+
+    # Test operational limit constraint as well
+    n.remove("GlobalConstraint", n.c.global_constraints.names)
+    n.add(
+        "GlobalConstraint",
+        "dispatch",
+        carrier_attribute="gas",
+        type="operational_limit",
+        sense="<=",
+        constant=6,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    almost_equal(n.objective, 10 * 2 + 1 * 6)
+
+
+def test_bug_1360_stores():
+    """
+    Storage state of charge should behave correctly with various snapshot configurations.
+    See https://github.com/PyPSA/PyPSA/issues/1360.
+    """
+    # Case 1: Simple snapshots without multi_investment_periods
+    # Expected: stores_t.e [9, 8, 7, 6] - continuous discharge
+    n = pypsa.Network()
+    n.snapshots = [1, 2, 3, 4]
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add("Store", "store", bus="bus", e_nom=10, e_initial=10, marginal_cost=1)
+
+    n.optimize(multi_investment_periods=False)
+    equal(n.stores_t.e["store"].values, [9, 8, 7, 6], decimal=5)
+
+    # Case 2: Multi-indexed snapshots without multi_investment_periods
+    # Expected: stores_t.e [9, 8, 7, 6] - continuous discharge
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=10,
+        e_initial=10,
+        marginal_cost=1,
+        e_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=False)
+    equal(n.stores_t.e["store"].values, [9, 8, 7, 6], decimal=5)
+
+    # Case 3: Multi_investment_periods with e_initial_per_period=True
+    # Expected: stores_t.e [9, 8, 9, 8] - reset at each period
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=10,
+        e_initial=10,
+        marginal_cost=1,
+        e_initial_per_period=True,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(n.stores_t.e["store"].values, [9, 8, 9, 8], decimal=5)
+
+    # Case 4: Multi_investment_periods with e_initial_per_period=False
+    # Expected: stores_t.e [9, 8, 7, 6] - continuous discharge across periods
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=10,
+        e_initial=10,
+        marginal_cost=1,
+        e_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(n.stores_t.e["store"].values, [9, 8, 7, 6], decimal=5)
+
+
+def test_bug_1360_storage_units():
+    """
+    Storage units state of charge should behave correctly with various snapshot configurations.
+    See https://github.com/PyPSA/PyPSA/issues/1360.
+    """
+    # Case 1: Simple snapshots without multi_investment_periods
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.7, 0.6] - continuous discharge
+    n = pypsa.Network()
+    n.snapshots = [1, 2, 3, 4]
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+    )
+
+    n.optimize(multi_investment_periods=False)
+    equal(
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.7, 0.6],
+        decimal=5,
+    )
+
+    # Case 2: Multi-indexed snapshots without multi_investment_periods
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.7, 0.6] - continuous discharge
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+        state_of_charge_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=False)
+    equal(
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.7, 0.6],
+        decimal=5,
+    )
+
+    # Case 3: Multi_investment_periods with state_of_charge_initial_per_period=True
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.9, 0.8] - reset at each period
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+        state_of_charge_initial_per_period=True,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.9, 0.8],
+        decimal=5,
+    )
+
+    # Case 4: Multi_investment_periods with state_of_charge_initial_per_period=False
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.7, 0.6] - continuous discharge across periods
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+        state_of_charge_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.7, 0.6],
+        decimal=5,
+    )
+
+
+def test_storageunit_cp_only_wraps_per_period():
+    """cp=True, ip=False, c=False: per-period wrap is enforced.
+
+    Verifies that with cyclic per period enabled (and no per-period initial reset),
+    the model links the first snapshot of each period to the last snapshot of the
+    same period (wrap) and thus avoids a purely continuous discharge pattern.
+    """
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    # Add a generator that is more expensive than discharging the storage so the
+    # optimizer prefers to discharge if cyclic-per-period isn't enforced. This
+    # keeps the test sensitive: with correct semantics it would need to
+    # recharge within each period, producing level pattern like [0.9,1.0,0.9,1.0].
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=1.0,
+        marginal_cost=1.0,
+    )
+    n.add(
+        "StorageUnit",
+        "su",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        cyclic_state_of_charge=False,
+        cyclic_state_of_charge_per_period=True,
+        state_of_charge_initial_per_period=False,
+        marginal_cost=0.0,  # cheaper than generator
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+    soc = n.c.storage_units.dynamic.state_of_charge["su"].values
+    # Detect monotonic discharge signature.
+    expected_continuous = [0.9, 0.8, 0.7, 0.6]
+    if all(abs(soc[i] - expected_continuous[i]) < 1e-6 for i in range(4)):
+        raise AssertionError(
+            "Observed continuous discharge pattern [0.9,0.8,0.7,0.6]"
+            "cyclic_state_of_charge_per_period=True was ignored"
+        )
+
+
+def test_storageunit_ip_only_resets_per_period():
+    """ip=True, cp=False, c=False: per-period resets to initial are enforced.
+
+    Verifies that with per-period initial enabled (and no cyclic-per-period wrap),
+    the model resets state of charge to the user-provided initial at each period
+    start, avoiding a continuous discharge pattern across period boundaries.
+    """
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "su_ip_only",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        cyclic_state_of_charge=False,
+        cyclic_state_of_charge_per_period=False,
+        state_of_charge_initial_per_period=True,  # target behavior
+        marginal_cost=1.0,  # non-zero cost for objective contribution
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+    soc = n.c.storage_units.dynamic.state_of_charge["su_ip_only"].values
+    continuous = [0.9, 0.8, 0.7, 0.6]
+    # If we observe the continuous pattern, storage level reset did not occur.
+    if all(abs(soc[i] - continuous[i]) < 1e-6 for i in range(4)):
+        raise AssertionError(
+            "Observed continuous discharge [0.9,0.8,0.7,0.6]"
+            "state_of_charge_initial_per_period=True was ignored"
+        )
+
+
+def test_operational_limit_with_investment_period_storage():
+    """
+    Test operational limit constraint with specific investment_period for storage.
+
+    Regression test for bug #1437: snapshot selection for operational limit in
+    multi-period optimization. The bug was that period_last_sns was calculated
+    from all snapshots instead of filtered snapshots when investment_period was
+    specified in the global constraint.
+    """
+    n = pypsa.Network(snapshots=range(4))
+    n.investment_periods = [2020, 2030, 2040]
+    n.investment_period_weightings.loc[:, "years"] = 1
+
+    # Add bus
+    n.add("Bus", "bus1")
+    n.add("Carrier", ["battery", "electricity"])
+
+    # Add generator with costs
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus1",
+        p_nom=100,
+        carrier="electricity",
+        marginal_cost=1,
+    )
+
+    # Add storage unit with per-period initial state of charge
+    n.add(
+        "StorageUnit",
+        "storage1",
+        bus="bus1",
+        carrier="battery",
+        p_nom=50,
+        state_of_charge_initial=100,
+        state_of_charge_initial_per_period=True,
+        cyclic_state_of_charge=False,
+        max_hours=10,
+    )
+
+    # Add load
+    n.add("Load", "load1", bus="bus1", p_set=[10, 20, 15, 25] * 3)
+
+    # Add operational limit for ONLY the 2030 period
+    # This is where the bug manifests
+    n.add(
+        "GlobalConstraint",
+        "battery_limit_2030",
+        type="operational_limit",
+        carrier_attribute="battery",
+        sense="<=",
+        constant=25,
+        investment_period=2030,  # Only apply to 2030 period
+    )
+
+    # This should succeed without KeyError
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+    # Verify the constraint is applied correctly to 2030 period
+    period_2030_sns = n.snapshots[n.snapshots.get_loc(2030)]
+
+    # Calculate storage SOC delta in 2030
+    soc_initial = n.c.storage_units.static.loc["storage1", "state_of_charge_initial"]
+    soc_final = n.c.storage_units.dynamic.state_of_charge.loc[
+        period_2030_sns[-1], "storage1"
+    ]
+    soc_delta = soc_initial - soc_final
+
+    # Total operational value for 2030 should respect the limit
+    total_2030 = soc_delta
+    assert total_2030 <= 25 + 1e-6  # Allow small numerical tolerance
+
+
+def test_model_snapshot_index_default_follows_semantics(n):
+    n.optimize(**kwargs)
+    snapshots = n.model.parameters.snapshots.to_index()
+    assert isinstance(snapshots, pd.MultiIndex) is not linopy_uses_v1()
+
+
+def test_model_snapshot_index_flat(n):
+    with option_context("optimization.model_snapshot_index", "flat"):
+        status, cond = n.optimize(**kwargs)
+    assert status == "ok"
+    assert cond == "optimal"
+    assert not isinstance(n.model.parameters.snapshots.to_index(), pd.MultiIndex)
+    pd.testing.assert_index_equal(
+        n.model.parameters.snapshots.to_index(), tuple_snapshot_index(n.snapshots)
+    )
+
+
+def _make_multi_period_network():
+    n = pypsa.Network(snapshots=range(10))
+    n.investment_periods = [2020, 2030, 2040, 2050]
+    n.add("Bus", [1, 2])
+    n.add(
+        "Generator",
+        ["g1", "g2"],
+        bus=[1, 2],
+        p_nom_extendable=True,
+        capital_cost=[10, 20],
+    )
+    n.add("Load", ["l1", "l2"], bus=[1, 2], p_set=1.0)
+    return n
+
+
+def test_model_snapshot_index_flat_same_results():
+    ref_n = _make_multi_period_network()
+    flat_n = _make_multi_period_network()
+    ref_n.optimize(**kwargs)
+    with option_context("optimization.model_snapshot_index", "flat"):
+        flat_n.optimize(**kwargs)
+    assert flat_n.objective == ref_n.objective
+
+
+def test_model_snapshot_index_flat_da_accessor_stable(n):
+    with option_context("optimization.model_snapshot_index", "flat"):
+        n.optimize.create_model(**kwargs)
+    da = n.c.generators.da.p_max_pu
+    assert not isinstance(da.indexes["snapshot"], pd.MultiIndex)
+    pd.testing.assert_index_equal(
+        da.indexes["snapshot"], tuple_snapshot_index(n.snapshots)
+    )
+
+
+def test_model_snapshot_index_invalid_option(n):
+    with pytest.raises(ValueError):
+        with option_context("optimization.model_snapshot_index", "bogus"):
+            n.optimize.create_model(**kwargs)
+
+
+@pytest.fixture(params=["auto", "flat"])
+def windowed_n(request, n):
+    """Multi-period network with a live model, built in each representation."""
+    with option_context("optimization.model_snapshot_index", request.param):
+        n.optimize.create_model(**kwargs)
+    return n
+
+
+def test_window_unavailable_without_model(n):
+    with pytest.raises(AttributeError, match="create_model"):
+        n.optimize._window
+
+
+def test_window_spans_the_build(windowed_n):
+    window = windowed_n.optimize._window
+    model_sns = windowed_n.model.parameters.snapshots.to_index()
+    pd.testing.assert_index_equal(window.model_index, model_sns)
+    pd.testing.assert_index_equal(window.network_index, windowed_n.snapshots)
+    equal(window.periods, windowed_n.investment_periods)
+
+
+def test_network_arrays_use_model_labels(windowed_n):
+    window = windowed_n.optimize._window
+    weightings = windowed_n.optimize._window.snapshot_weightings("objective")
+    pd.testing.assert_index_equal(weightings.indexes["snapshot"], window.model_index)
+    equal(weightings.to_numpy(), windowed_n.snapshot_weightings.objective.to_numpy())
+
+
+def test_window_flatten_keeps_pre_window_history(n):
+    from pypsa.optimization.window import SnapshotWindow, snapshot_array
+
+    window = SnapshotWindow.build(n, n.snapshots[3:], "flat")
+    weightings = n.snapshot_weightings.objective
+    da = window.flatten(snapshot_array(weightings.to_numpy(), weightings.index))
+
+    assert len(da.indexes["snapshot"]) == len(n.snapshots)
+    start_i = n.snapshots.get_loc(window.start)
+    prev = da.isel(snapshot=start_i - 1)
+    assert prev.item() == n.snapshot_weightings.objective.iloc[start_i - 1]
+
+
+def test_window_subset_realigns_a_strict_subset(windowed_n):
+    window = windowed_n.optimize._window
+    subset = window.subset(window.model_index[:7])
+
+    pd.testing.assert_index_equal(subset.model_index, window.model_index[:7])
+    pd.testing.assert_index_equal(subset.network_index, windowed_n.snapshots[:7])
+    equal(subset.periods, windowed_n.investment_periods[:1])
+
+
+def test_window_subset_roll_within_periods(windowed_n):
+    """Rolling on a subset window aligns the full-build variable to the subset."""
+    window = windowed_n.optimize._window
+    subset = window.subset(window.model_index[:7])
+    p = windowed_n.model["Generator-p"]
+
+    rolled = subset.roll_within_periods(p)
+    pd.testing.assert_index_equal(rolled.indexes["snapshot"], subset.model_index)
+
+
+def test_window_subset_rejects_unknown_snapshots(windowed_n):
+    window = windowed_n.optimize._window
+    with pytest.raises(KeyError):
+        window.subset(pd.Index(["not-a-snapshot"], name="snapshot"))
+
+
+def test_window_iter_periods_partitions_the_build(windowed_n):
+    window = windowed_n.optimize._window
+    periods, chunks = zip(*window.iter_periods())
+
+    equal(list(periods), list(windowed_n.investment_periods))
+    pd.testing.assert_index_equal(chunks[0].append(chunks[1:]), window.model_index)
+
+
+def test_flat_labels_are_the_snapshot_tuples(n):
+    with option_context("optimization.model_snapshot_index", "flat"):
+        n.optimize.create_model(**kwargs)
+    model_sns = n.model.parameters.snapshots.to_index()
+    assert not isinstance(model_sns, pd.MultiIndex)
+    recovered = pd.MultiIndex.from_tuples(model_sns, names=n.snapshots.names)
+    assert recovered.equals(n.snapshots)
+
+
+@pytest.mark.parametrize("representation", ["auto", "flat"])
+def test_extra_functionality_receives_the_build_snapshots(n, representation):
+    seen = []
+    with option_context("optimization.model_snapshot_index", representation):
+        n.optimize.create_model(snapshots=n.snapshots[:12], **kwargs)
+        n.optimize.solve_model(extra_functionality=lambda _, sns: seen.append(sns))
+    pd.testing.assert_index_equal(seen[0], n.model.parameters.snapshots.to_index())
+
+
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize(
+    ("period", "level"),
+    [(2030, 9.5), (2040, 9)],
+)
+def test_primary_energy_investment_period_storage_initial_per_period(
+    component, period, level
+):
+    """
+    A primary energy limit on one period counts only that period's storage change.
+
+    See https://github.com/PyPSA/PyPSA/issues/2093.
+    """
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [0, 1]])
+    n.investment_periods = [2030, 2040]
+    n.investment_period_weightings["years"] = [10, 5]
+
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add("Generator", "gen", bus="bus", p_nom=2, marginal_cost=10)
+    if component == "StorageUnit":
+        n.add(
+            "StorageUnit",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            p_nom=10,
+            max_hours=1,
+            state_of_charge_initial=10,
+            state_of_charge_initial_per_period=True,
+        )
+    else:
+        n.add(
+            "Store",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            e_nom=10,
+            e_initial=10,
+            e_initial_per_period=True,
+        )
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=1,
+        investment_period=period,
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+    levels = n.c[component].dynamic[
+        "state_of_charge" if component == "StorageUnit" else "e"
+    ]["storage"]
+    final = levels.groupby(level=0).last()
+    expected = pd.Series({2030: 8.0, 2040: 8.0})
+    expected[period] = level
+    equal(final.to_numpy(), expected.to_numpy())
+
+
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize(
+    ("kind", "attribute", "factor"),
+    [("primary_energy", "co2_emissions", 0.2), ("operational_limit", "gas", 1)],
+)
+def test_storage_limit_initial_per_period_stochastic(
+    component, kind, attribute, factor
+):
+    """
+    Each scenario's limit counts that scenario's per-period storage change.
+
+    See https://github.com/PyPSA/PyPSA/issues/2113.
+    """
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [0, 1]])
+    n.investment_periods = [2030, 2040]
+
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add("Generator", "gen", bus="bus", p_nom=2, marginal_cost=10)
+    if component == "StorageUnit":
+        n.add(
+            "StorageUnit",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            p_nom=10,
+            max_hours=1,
+            state_of_charge_initial=10,
+            state_of_charge_initial_per_period=True,
+        )
+    else:
+        n.add(
+            "Store",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            e_nom=10,
+            e_initial=10,
+            e_initial_per_period=True,
+        )
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=kind,
+        carrier_attribute=attribute,
+        sense="<=",
+        constant=0,
+    )
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    drawdown = pd.Series({"low": 1.0, "high": 3.0})
+    n.c.global_constraints.static["constant"] = drawdown.mul(factor).reindex(
+        n.c.global_constraints.static.index, level=0
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+    levels = n.c[component].dynamic[
+        "state_of_charge" if component == "StorageUnit" else "e"
+    ]
+    result = (10 - levels.groupby(level=0).last()).sum().droplevel("name")
+    equal(result[drawdown.index].to_numpy(), drawdown.to_numpy())

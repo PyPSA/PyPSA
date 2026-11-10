@@ -1,34 +1,36 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Links components module."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
-from pypsa.components.components import Components
-from pypsa.constants import RE_PORTS_GE_2
+from pypsa.components._types.mixin.multiports import _Multiport
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     import pandas as pd
+    import xarray as xr
 
 
 @patch_add_docstring
-class Links(Components):
+class Links(_Multiport):
     """Links components class.
 
     This class is used for link components. All functionality specific to
     links is implemented here. Functionality for all components is implemented in
     the abstract base class.
 
-    .. warning::
-        This class is under ongoing development and will be subject to changes.
-        It is not recommended to use this class outside of PyPSA.
-
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
+    [pypsa.components.Processes][]
 
     Examples
     --------
@@ -40,52 +42,58 @@ class Links(Components):
 
     """
 
+    _operational_variables = ["p"]
+    _unsuffixed_attrs = {"efficiency", "delay", "cyclic_delay"}
+
+    @property
+    def _output_ports(self) -> list[str]:
+        return ["1"] + self.additional_ports
+
+    def _port_suffix(self, port: str | int) -> str:
+        return "" if str(port) == "1" else str(port)
+
+    @property
+    def _coefficient_attr(self) -> str:
+        return "efficiency"
+
+    def get_bounds_pu(
+        self,
+        attr: str = "p",
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """Get per unit bounds for links.
+
+        <!-- md:badge-version v1.0.0 -->
+
+        Parameters
+        ----------
+        attr : string, optional
+            Attribute name for the bounds, e.g. "p"
+
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray]
+            Tuple of (min_pu, max_pu) DataArrays.
+
+        """
+        if attr not in self._operational_variables:
+            msg = f"Bounds can only be retrieved for operational attributes. For links those are: {list_as_string(self._operational_variables)}."
+            raise ValueError(msg)
+
+        return self.da.p_min_pu, self.da.p_max_pu
+
     def add(
         self,
         name: str | int | Sequence[int | str],
-        suffix: str = "",
+        suffix: str | Sequence[str] = "",
         overwrite: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
-    ) -> pd.Index:
+    ) -> pd.Index | None:
         """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,
             overwrite=overwrite,
+            return_names=return_names,
             **kwargs,
         )
-
-    @property
-    def additional_ports(self) -> list[str]:
-        """Identify additional link ports (bus connections) beyond predefined ones.
-
-        Parameters
-        ----------
-        n : pypsa.Network
-            Network instance.
-        where : iterable of strings, default None
-            Subset of columns to consider. Takes link columns by default.
-
-        Returns
-        -------
-        list of strings
-            List of additional link ports. E.g. ["2", "3"] for bus2, bus3.
-
-        Also see
-        ---------
-        pypsa.Components.ports
-
-        Examples
-        --------
-        >>> n = pypsa.Network()
-        >>> n.add("Link", "link1", bus0="bus1", bus1="bus2", bus2="bus3")  # doctest: +ELLIPSIS
-        Index...
-        >>> n.components.links.additional_ports
-        ['2']
-
-        """
-        return [
-            match.group(1)
-            for col in self.static.columns
-            if (match := RE_PORTS_GE_2.search(col))
-        ]

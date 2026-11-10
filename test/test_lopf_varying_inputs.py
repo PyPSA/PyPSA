@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
@@ -42,7 +46,7 @@ def test_time_dependent_standing_losses_storage_units():
     )
     status, _ = n.optimize()
     assert status == "ok"
-    equal(n.storage_units_t.state_of_charge.su.values, [1.0, 0.9, 0.72])
+    equal(n.c.storage_units.dynamic.state_of_charge.su.values, [1.0, 0.9, 0.72])
 
 
 def test_time_dependent_standing_losses_stores():
@@ -61,4 +65,4 @@ def test_time_dependent_standing_losses_stores():
     )
     status, _ = n.optimize()
     assert status == "ok"
-    equal(n.stores_t.e.sto.values, [1.0, 0.9, 0.72])
+    equal(n.c.stores.dynamic.e.sto.values, [1.0, 0.9, 0.72])

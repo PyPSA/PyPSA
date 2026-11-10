@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Statistics Accessor."""
 
 from __future__ import annotations
@@ -5,105 +9,46 @@ from __future__ import annotations
 import logging
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Collection, Sequence
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pandas as pd
-from deprecation import deprecated
+from pandas.api.types import is_list_like
 
 from pypsa._options import options
-from pypsa.constants import RE_PORTS
-from pypsa.statistics.grouping import deprecated_groupers, groupers
+from pypsa.common import normalize_carrier_nice_names
+from pypsa.statistics.grouping import groupers
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Sequence
+
     from pypsa import Network, NetworkCollection
+    from pypsa.components.components import PortsLike
 
 logger = logging.getLogger(__name__)
 
 
-class Parameters:
-    """Container for all the parameters.
-
-    Attributes
-    ----------
-        drop_zero (bool): Flag indicating whether to drop zero values in statistic metrics.
-        nice_names (bool): Flag indicating whether to use nice names in statistic metrics.
-        round (int): Number of decimal places to round the values to in statistic metrics.
-
-    Methods
-    -------
-        set_parameters(**kwargs): Sets the values of the parameters based on the provided keyword arguments.
-
-    """
-
-    @property
-    def drop_zero(self) -> bool:  # noqa: D102
+def resolve_at_port(
+    at_port: PortsLike | None,
+    bus_carrier: str | Sequence[str] | None = None,
+) -> PortsLike:
+    """Resolve `at_port` default: "all" when `bus_carrier` is set, otherwise 0."""
+    if at_port is False:
         warnings.warn(
-            "Use 'pypsa.options.params.statistics.drop_zero' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
+            f"Passing `at_port={at_port}` is deprecated. Use `at_port=0` instead. Deprecated in version 1.1. Will be removed in version 2.0.",
             DeprecationWarning,
             stacklevel=2,
         )
-        return options.get_option("params.statistics.drop_zero")
-
-    @drop_zero.setter
-    def drop_zero(self, value: bool) -> None:  # noqa: D102
+        return 0
+    if at_port is True:
         warnings.warn(
-            "Use 'pypsa.options.params.statistics.drop_zero = ..' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
+            'Passing `at_port=True` is deprecated. Use `at_port="all"` instead. Deprecated in version 1.1. Will be removed in version 2.0.',
             DeprecationWarning,
             stacklevel=2,
         )
-        options.set_option("params.statistics.drop_zero", value)
-
-    @property
-    def nice_names(self) -> bool:  # noqa: D102
-        warnings.warn(
-            "Use 'pypsa.options.params.statistics.nice_names' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return options.get_option("params.statistics.nice_names")
-
-    @nice_names.setter
-    def nice_names(self, value: bool) -> None:  # noqa: D102
-        warnings.warn(
-            "Use 'pypsa.options.params.statistics.nice_names = ..' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        options.set_option("params.statistics.nice_names", value)
-
-    @property
-    def round(self) -> int:  # noqa: D102
-        warnings.warn(
-            "Use 'pypsa.options.params.statistics.round' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return options.get_option("params.statistics.round")
-
-    @round.setter
-    def round(self, value: int) -> None:  # noqa: D102
-        warnings.warn(
-            "Use 'pypsa.options.params.statistics.round = ..' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        options.set_option("params.statistics.round", value)
-
-    @deprecated(
-        deprecated_in="0.34",
-        removed_in="1.0",
-        details="Use the 'pypsa.options' module instead. E.g. 'pypsa.options.params.statistics.drop_zero = True'.",
-    )
-    def set_parameters(self, **kwargs: Any) -> None:  # noqa: D102
-        for key, value in kwargs.items():
-            options.set_option(f"params.statistics.{key}", value)
+        return "all"
+    if at_port is None:
+        return "all" if bus_carrier else [0]
+    return at_port
 
 
 class AbstractStatisticsAccessor(ABC):
@@ -112,8 +57,6 @@ class AbstractStatisticsAccessor(ABC):
     def __init__(self, n: Network | NetworkCollection) -> None:
         """Initialize the statistics accessor."""
         self._n = n
-        self.groupers = deprecated_groupers
-        self.parameters = Parameters()
 
     @property
     def n(self) -> Network | NetworkCollection:
@@ -125,19 +68,12 @@ class AbstractStatisticsAccessor(ABC):
         )
         return self._n
 
-    def set_parameters(self, **kwargs: Any) -> None:
-        """Set the parameters for the statistics accessor.
-
-        To see the list of parameters, one can simply call `n.statistics.parameters`.
-        """
-        self.parameters.set_parameters(**kwargs)
-
     def _get_grouping(
         self,
         n: Network | NetworkCollection,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
-        port: str | None = None,
+        port: str,
         nice_names: bool = False,
     ) -> dict:
         by = None
@@ -147,10 +83,11 @@ class AbstractStatisticsAccessor(ABC):
                 by = groupby(n, c, port=port, nice_names=nice_names)
             except TypeError:
                 by = groupby(n, c, nice_names=nice_names)
-        elif isinstance(groupby, (str | list)):
-            by = groupers[groupby](n, c, port=port, nice_names=nice_names)
+        elif isinstance(groupby, str) or is_list_like(groupby):
+            key = cast("str | Sequence[str]", groupby)
+            by = groupers[key](n, c, port=port, nice_names=nice_names)
         elif groupby is not False:
-            msg = f"Argument `groupby` must be a function, list, string, False or dict, got {repr(groupby)}."
+            msg = f"Argument `groupby` must be a string, list-like, callable, or False, got {repr(groupby)}."
             raise ValueError(msg)
         return {"by": by, "level": level}
 
@@ -167,13 +104,15 @@ class AbstractStatisticsAccessor(ABC):
         # TODO could be moved to Network
         return isinstance(self._n.snapshots, pd.MultiIndex)
 
-    @classmethod
     def _aggregate_timeseries(
-        cls, obj: Any, weights: pd.Series, agg: str | Callable | bool = "sum"
+        self, obj: Any, weights: pd.Series, agg: str | Callable | bool = "sum"
     ) -> Any:
         """Calculate the weighted sum or average of a DataFrame or Series."""
         if not agg:
             return obj.T if isinstance(obj, pd.DataFrame) else obj
+
+        if agg is True:
+            agg = "sum"
 
         if agg == "mean":
             if isinstance(weights.index, pd.MultiIndex):
@@ -182,7 +121,7 @@ class AbstractStatisticsAccessor(ABC):
                 weights = weights / weights.sum()
             agg = "sum"
 
-        return cls._aggregate_with_weights(obj, weights, agg)
+        return self._aggregate_with_weights(obj, weights, agg)
 
     # The following methods are implemented in the concrete classes
     @abstractmethod
@@ -217,14 +156,22 @@ class AbstractStatisticsAccessor(ABC):
     def _concat_periods(self, *args: Any, **kwargs: Any) -> Any:
         pass
 
+    def _align_static(self, data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
+        """Align static component data with the index of the aggregated objects."""
+        return data
+
+    def _select(self, obj: Any, idx: pd.Index) -> Any:
+        """Select the assets `idx` of the aggregated object `obj`."""
+        return obj.loc[idx]
+
     def _aggregate_components(
         self,
         func: Callable,
         agg: Callable | str = "sum",
-        comps: Collection[str] | str | None = None,
+        components: Collection[str] | str | None = None,
         groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         aggregate_across_components: bool = False,
-        at_port: str | Sequence[str] | bool | None = None,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = True,
@@ -235,53 +182,52 @@ class AbstractStatisticsAccessor(ABC):
         d = {}
         n = self._n
 
-        if is_one_component := isinstance(comps, str):
-            comps = [comps]
-        if comps is None:
-            comps = sorted(n.branch_components | n.one_port_components)
+        if is_one_component := isinstance(components, str):
+            components = [components]
+        if components is None:
+            components = sorted(n.branch_components | n.one_port_components)
         if nice_names is None:
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
-        for c in comps:
-            if n.static(c).empty:
+        if nice_names:
+            nice_name_series = n.c.carriers.static.nice_name
+            if isinstance(nice_name_series.index, pd.MultiIndex):
+                nice_name_series = nice_name_series.groupby(level="name").first()
+            bus_carrier = normalize_carrier_nice_names(nice_name_series, bus_carrier)
+            carrier = normalize_carrier_nice_names(nice_name_series, carrier)
+
+        at_port = resolve_at_port(at_port, bus_carrier)
+
+        for cn in components:
+            c = n.c[cn]
+            if c.static.empty:
                 continue
 
-            ports = [
-                match.group(1)
-                for col in n.static(c)
-                if (match := RE_PORTS.search(str(col)))
-            ]
-            if not at_port:
-                ports = [ports[0]]
-
             values = []
-            for port in ports:
-                vals = func(n, c, port)
+            for port in c._as_ports(at_port):
+                try:
+                    port_suffix = c.ports[port]
+                except IndexError:
+                    continue
+                vals = func(n, cn, port_suffix)
                 if self._aggregate_components_skip_iteration(vals):
                     continue
 
-                vals = self._filter_active_assets(n, c, vals)  # for multiinvest
-                vals = self._filter_bus_carrier(n, c, port, bus_carrier, vals)
-                vals = self._filter_carrier(n, c, carrier, vals)
+                vals = self._filter_active_assets(n, cn, vals)  # for multiinvest
+                vals = self._filter_bus_carrier(n, cn, port_suffix, bus_carrier, vals)
+                vals = self._filter_carrier(n, cn, carrier, vals)
 
                 if self._aggregate_components_skip_iteration(vals):
                     continue
 
                 if groupby is not False:
-                    if groupby is None:
-                        warnings.warn(
-                            "Passing `groupby=None` is deprecated. Drop the "
-                            "argument to get the default grouping (by carrier), which "
-                            "was also the previous default behavior. Deprecated in "
-                            "version 0.34 and will be removed in version 1.0.",
-                            DeprecationWarning,
-                            stacklevel=2,
-                        )
-                        groupby = "carrier"
                     grouping = self._get_grouping(
-                        n, c, groupby, port=port, nice_names=nice_names
+                        n, cn, groupby, port=port_suffix, nice_names=nice_names
                     )
-                    vals = self._aggregate_components_groupby(vals, grouping, agg, c)
+                    vals = self._aggregate_components_groupby(vals, grouping, agg, cn)
+                # Avoid having 'component' as index name in multiindex
+                elif isinstance(vals, pd.DataFrame | pd.Series):
+                    vals = vals.rename_axis([*vals.index.names[:-1], "name"])
                 values.append(vals)
 
             if not values:
@@ -289,7 +235,7 @@ class AbstractStatisticsAccessor(ABC):
 
             df = self._aggregate_components_concat_values(values, agg)
 
-            d[c] = df
+            d[cn] = df
         df = self._aggregate_components_concat_data(d, is_one_component)
         if not df.empty:
             df = self._apply_option_kwargs(
@@ -302,6 +248,9 @@ class AbstractStatisticsAccessor(ABC):
         if aggregate_across_components:
             df = self._aggregate_across_components(df, agg)
 
+        if isinstance(df, pd.Series):
+            df.name = None
+
         return df
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
@@ -311,18 +260,20 @@ class AbstractStatisticsAccessor(ABC):
         self, n: Network | NetworkCollection, c: str, obj: Any
     ) -> Any:
         """For static values iterate over periods and concat values."""
-        if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
+        if isinstance(obj, pd.DataFrame):
+            return obj
+        if {"snapshot", "period"} & set(getattr(obj, "dims", ())):
             return obj
         idx = self._get_component_index(obj, c)
+
         if not self.is_multi_indexed:
-            mask = n.get_active_assets(c)
-            return obj.loc[mask.index[mask].intersection(idx)]
+            mask = self._align_static(n.c[c].get_active_assets())
+            return self._select(obj, mask.index[mask].intersection(idx))
 
         per_period = {}
         for p in n.investment_periods:
-            mask = n.get_active_assets(c, p)
-            per_period[p] = obj.loc[mask.index[mask].intersection(idx)]
-
+            mask = self._align_static(n.c[c].get_active_assets(p))
+            per_period[p] = self._select(obj, mask.index[mask].intersection(idx))
         return self._concat_periods(per_period, c)
 
     def _filter_bus_carrier(
@@ -338,21 +289,27 @@ class AbstractStatisticsAccessor(ABC):
             return obj
 
         idx = self._get_component_index(obj, c)
-        ports = n.static(c).loc[idx, f"bus{port}"]
-        port_carriers = ports.map(n.buses.carrier)
+        buses = self._align_static(n.c[c].static[f"bus{port}"]).loc[idx]
+
+        # Handle MultiIndex (Collection and Stochastic Networks)
+        bus_carriers = n.c.buses.static.carrier
+        if isinstance(bus_carriers.index, pd.MultiIndex):
+            bus_carriers = bus_carriers.groupby(level="name").first()
+
+        port_carriers = buses.map(bus_carriers)
         if isinstance(bus_carrier, str):
-            if bus_carrier in n.buses.carrier.unique():
+            if bus_carrier in bus_carriers.unique():
                 mask = port_carriers == bus_carrier
             else:
                 mask = port_carriers.str.contains(bus_carrier, regex=True)
-        elif isinstance(bus_carrier, list):
+        elif is_list_like(bus_carrier):
             mask = port_carriers.isin(bus_carrier)
         else:
-            msg = f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
+            msg = f"Argument `bus_carrier` must be a string or list-like, got {type(bus_carrier)}"
             raise TypeError(msg)
         # links may have empty ports which results in NaNs
         mask = mask.where(mask.notnull(), False)
-        return obj.loc[ports.index[mask]]
+        return self._select(obj, buses.index[mask])
 
     def _filter_carrier(
         self,
@@ -362,21 +319,23 @@ class AbstractStatisticsAccessor(ABC):
         obj: Any,
     ) -> Any:
         """Filter the DataFrame for components which have the specified carrier."""
-        if carrier is None or "carrier" not in n.static(c):
+        if carrier is None or "carrier" not in n.c[c].static:
             return obj
 
         idx = self._get_component_index(obj, c)
-        carriers = n.static(c).loc[idx, "carrier"]
+        carriers = self._align_static(n.c[c].static["carrier"]).loc[idx]
 
         if isinstance(carrier, str):
             if carrier in carriers.unique():
                 mask = carriers == carrier
             else:
                 mask = carriers.str.contains(carrier)
-        elif isinstance(carrier, Sequence):
+        elif is_list_like(carrier):
             mask = carriers.isin(carrier)
         else:
-            msg = f"Argument `carrier` must be a string or list, got {type(carrier)}"
+            msg = (
+                f"Argument `carrier` must be a string or list-like, got {type(carrier)}"
+            )
             raise TypeError(msg)
 
-        return obj.loc[carriers.index[mask]]
+        return self._select(obj, carriers.index[mask])

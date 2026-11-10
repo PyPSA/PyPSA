@@ -1,6 +1,13 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+import logging
+import warnings
 from pathlib import Path
 
 import geopandas as gpd
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
@@ -10,17 +17,98 @@ import pypsa
 from pypsa.constants import DEFAULT_EPSG
 
 
+@pytest.fixture
+def no_warnings():
+    """Fail if any Python warning or logging warning is emitted."""
+    allowed = {"does not exist, creating it"}
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        warnings.filterwarnings("default", category=ResourceWarning)
+        # numpy>=2.5 deprecations not yet handled by netCDF4 and matplotlib
+        warnings.filterwarnings(
+            "ignore",
+            "Setting the shape on a NumPy array has been deprecated",
+            DeprecationWarning,
+        )
+        warnings.filterwarnings(
+            "ignore",
+            "The 'generic' unit for NumPy timedelta is deprecated",
+            DeprecationWarning,
+        )
+        handler = logging.Handler()
+        handler.setLevel(logging.WARNING)
+        handler.emit = lambda record: (
+            None
+            if any(s in record.getMessage() for s in allowed)
+            else (_ for _ in ()).throw(
+                AssertionError(f"Unexpected log warning: {record.getMessage()}")
+            )
+        )
+        logging.root.addHandler(handler)
+        yield
+        logging.root.removeHandler(handler)
+
+
+@pytest.fixture(autouse=True)
+def _set_test_options():
+    """Ensure test-specific options are set before each test."""
+    pypsa.options.debug.runtime_verification = True
+    pypsa.options.params.optimize.include_objective_constant = True
+    return
+
+
+@pytest.fixture(autouse=True)
+def close_matplotlib_figures():
+    """Close all matplotlib figures before and after each test."""
+    plt.close("all")
+    yield
+    plt.close("all")
+
+
 def pytest_addoption(parser):
+    """Add custom pytest command line options."""
     parser.addoption(
-        "--test-docs-build",
+        "--new-components-api",
         action="store_true",
         default=False,
-        help="run sphinx build test",
+        help="Activate the new components API (options.api.new_components_api)",
+    )
+    parser.addoption(
+        "--test-docs",
+        action="store_true",
+        default=False,
+        help="Run documentation tests (doctest tests)",
+    )
+    parser.addoption(
+        "--fix-notebooks",
+        action="store_true",
+        default=False,
+        help="Auto-fix notebook issues found during validation (self-healing mode)",
+    )
+    parser.addoption(
+        "--run-plot-tests",
+        action="store_true",
+        default=False,
+        help="Run the matplotlib image comparison tests (mpl_image_compare)",
     )
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "test_sphinx_build: mark test as sphinx build")
+    """Configure pytest session with custom options."""
+    if config.getoption("--new-components-api"):
+        pypsa.options.api.new_components_api = True
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip image comparison tests unless --run-plot-tests is given."""
+    if config.getoption("--run-plot-tests"):
+        return
+    skip = pytest.mark.skip(
+        reason="Need --run-plot-tests option to run plot image tests"
+    )
+    for item in items:
+        if "mpl_image_compare" in item.keywords:
+            item.add_marker(skip)
 
 
 COMPONENT_NAMES = [
@@ -47,6 +135,9 @@ def component_name(request):
     return request.param
 
 
+# Example Networks
+
+
 @pytest.fixture
 def ac_dc_network():
     return pypsa.examples.ac_dc_meshed()
@@ -58,34 +149,80 @@ def storage_hvdc_network():
 
 
 @pytest.fixture
+def scigrid_de_network():
+    return pypsa.examples.scigrid_de()
+
+
+@pytest.fixture
 def model_energy_network():
     return pypsa.examples.model_energy()
 
 
 @pytest.fixture
-def scigrid_de_network():
-    return pypsa.examples.scigrid_de()
+def stochastic_network():
+    return pypsa.examples.stochastic_network()
 
 
-@pytest.fixture  # scope="session")
+# AC-DC-Meshed types
+
+
+@pytest.fixture
+def ac_dc_solved():
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+    n.model.solver_model = None
+    return n
+
+
+@pytest.fixture
+def ac_dc_periods(ac_dc_network):
+    n = ac_dc_network
+    n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
+    n.investment_periods = [2013]
+    gens_i = n.c.generators.static.index
+    rng = np.random.default_rng()  # Create a random number generator
+    n.c.generators.dynamic.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
+    return n
+
+
+@pytest.fixture
+def ac_dc_stochastic():
+    n = pypsa.examples.ac_dc_meshed()
+    n.set_scenarios({"low": 0.3, "high": 0.7})
+    return n
+
+
+AC_DC_MESHED_TYPES = [
+    "ac_dc_network",
+    "ac_dc_solved",
+    "ac_dc_periods",
+    "ac_dc_stochastic",
+]
+
+
+@pytest.fixture(params=AC_DC_MESHED_TYPES)
+def ac_dc_types(request):
+    return request.getfixturevalue(request.param)
+
+
+# AC-DC-Meshed results
+
+
+@pytest.fixture
 def ac_dc_network_r():
     csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lopf"
     return pypsa.Network(csv_folder)
 
 
 @pytest.fixture
-def ac_dc_network_mi(ac_dc_network):
-    n = ac_dc_network
-    n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
-    n.investment_periods = [2013]
-    gens_i = n.generators.index
-    rng = np.random.default_rng()  # Create a random number generator
-    n.generators_t.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
+def ac_dc_stochastic_r(ac_dc_network_r):
+    n = ac_dc_network_r.copy()
+    n.set_scenarios({"low": 0.3, "high": 0.7})
     return n
 
 
 @pytest.fixture
-def ac_dc_network_shapes(ac_dc_network):
+def ac_dc_shapes(ac_dc_network):
     n = ac_dc_network
 
     # Create bounding boxes around points
@@ -99,7 +236,7 @@ def ac_dc_network_shapes(ac_dc_network):
             ]
         )
 
-    bboxes = n.buses.apply(lambda row: create_bbox(row["x"], row["y"]), axis=1)
+    bboxes = n.c.buses.static.apply(lambda row: create_bbox(row["x"], row["y"]), axis=1)
 
     # Convert to GeoSeries
     geo_series = gpd.GeoSeries(bboxes, crs=DEFAULT_EPSG)
@@ -115,12 +252,15 @@ def ac_dc_network_shapes(ac_dc_network):
     return n
 
 
+# Other network fixtures
+
+
 @pytest.fixture
 def scipy_network():
     n = pypsa.examples.scigrid_de()
-    n.generators.control = "PV"
-    g = n.generators[n.generators.bus == "492"]
-    n.generators.loc[g.index, "control"] = "PQ"
+    n.c.generators.static.control = "PV"
+    g = n.c.generators.static[n.c.generators.static.bus == "492"]
+    n.c.generators.static.loc[g.index, "control"] = "PQ"
     n.calculate_dependent_values()
     n.determine_network_topology()
     return n
@@ -138,20 +278,78 @@ def network_only_component_names():
     return n
 
 
-@pytest.fixture(
-    params=[
-        "ac_dc_network",
-        "scigrid_de_network",
-        "storage_hvdc_network",
-        "model_energy_network",
-        # "ac_dc_network_r",
-        # "ac_dc_network_mi",
-        # "ac_dc_network_shapes",
-        "network_only_component_names",
-    ]
-)
-def network_all(request):
+# Other fixture collections
+UNSOLVED_NETWORKS = [
+    "ac_dc_network",
+    "scigrid_de_network",
+    "storage_hvdc_network",
+    "model_energy_network",
+    "stochastic_network",
+    "network_only_component_names",
+]
+
+SOLVED_NETWORKS = [
+    "ac_dc_solved",
+]
+
+
+@pytest.fixture(params=UNSOLVED_NETWORKS)
+def networks(request):
     return request.getfixturevalue(request.param)
+
+
+@pytest.fixture(params=UNSOLVED_NETWORKS + SOLVED_NETWORKS)
+def networks_including_solved(request):
+    return request.getfixturevalue(request.param)
+
+
+# Network collections
+
+
+@pytest.fixture(scope="module")
+def multiport_process_network():
+    n = pypsa.Network()
+    n.set_snapshots([0, 1, 2])
+    for c in ["AC", "H2", "heat", "electrolyser"]:
+        n.add("Carrier", c)
+    n.add("Bus", "elec", carrier="AC")
+    n.add("Bus", "h2", carrier="H2")
+    n.add("Bus", "heat", carrier="heat")
+    n.add("Generator", "gen", bus="elec", carrier="AC", p_nom=200, marginal_cost=10)
+    n.add(
+        "Process",
+        "electrolyser",
+        bus0="elec",
+        bus1="h2",
+        bus2="heat",
+        carrier="electrolyser",
+        rate0=-1,
+        rate1=0.7,
+        rate2=0.2,
+        p_nom=100,
+    )
+    n.add("Load", "h2_load", bus="h2", carrier="H2", p_set=50)
+
+    def _df(data):
+        df = pd.DataFrame(data, index=n.snapshots)
+        df.columns.name = "name"
+        return df
+
+    p = _df({"electrolyser": [80.0, 60.0, 70.0]})
+    n.c.processes.dynamic["p"] = p
+    n.c.processes.dynamic["p0"] = p.copy()
+    n.c.processes.dynamic["p1"] = -p * 0.7
+    n.c.processes.dynamic["p2"] = -p * 0.2
+    n.c.generators.dynamic["p"] = _df({"gen": [130.0, 110.0, 120.0]})
+    n.c.loads.dynamic["p"] = _df({"h2_load": [50.0, 50.0, 50.0]})
+    n.c.buses.dynamic["marginal_price"] = _df(
+        {
+            "elec": [50.0, 40.0, 45.0],
+            "h2": [100.0, 90.0, 95.0],
+            "heat": [30.0, 25.0, 28.0],
+        }
+    )
+    return n
 
 
 @pytest.fixture
@@ -162,12 +360,10 @@ def network_collection(ac_dc_network_r):
     )
 
 
+# Pandapower networks
 @pytest.fixture(scope="module")
 def pandapower_custom_network():
-    try:
-        import pandapower as pp
-    except ImportError:
-        pytest.skip("pandapower not installed")
+    pp = pytest.importorskip("pandapower", reason="pandapower not installed")
     net = pp.create_empty_network()
     bus1 = pp.create_bus(net, vn_kv=20.0, name="Bus 1")
     bus2 = pp.create_bus(net, vn_kv=0.4, name="Bus 2")
@@ -175,7 +371,7 @@ def pandapower_custom_network():
     # create bus elements
     pp.create_ext_grid(net, bus=bus1, vm_pu=1.02, name="Grid Connection")
     pp.create_load(net, bus=bus3, p_mw=0.100, q_mvar=0.05, name="Load")
-    pp.create_shunt(net, bus=bus3, p_mw=0.0, q_mvar=0.0, name="Shunt")
+    pp.create_shunt(net, bus=bus3, p_mw=0.02, q_mvar=0.05, name="Shunt")
     # create branch elements
     pp.create_transformer(
         net, hv_bus=bus1, lv_bus=bus2, std_type="0.4 MVA 20/0.4 kV", name="Trafo"
@@ -198,3 +394,124 @@ def pandapower_cigre_network():
     except ImportError:
         pytest.skip("pandapower not installed")
     return pn.create_cigre_network_mv(with_der="all")
+
+
+# Complex stochastic network
+
+
+@pytest.fixture
+def stochastic_benchmark_network():
+    """
+    Create a network for benchmarking stochastic problems.
+    This optimization problem is also uploaded to the pypsa examples repository
+    with stochastic problem solved in two ways: out-of-the-box using PyPSA
+    functionality and hardcoded using linopy.
+    """
+    # Configuration
+    GAS_PRICE = 40  # Default scenario
+    FREQ = "3h"
+    LOAD_MW = 1
+    TS_URL = "https://data.pypsa.org/tests/pypsa/time-series-lecture-2.csv"
+
+    # Technology specs
+    TECH = {
+        "solar": {"profile": "solar", "inv": 1e6, "m_cost": 0.01},
+        "wind": {"profile": "onwind", "inv": 2e6, "m_cost": 0.02},
+        "gas": {"inv": 7e5, "eff": 0.6},
+        "lignite": {"inv": 1.3e6, "eff": 0.4, "m_cost": 130},
+    }
+    FOM, DR, LIFE = 3.0, 0.03, 25
+
+    for cfg in TECH.values():
+        cfg["fixed_cost"] = (pypsa.costs.annuity(DR, LIFE) + FOM / 100) * cfg["inv"]
+
+    # Load time series data from URL - same as in the original script
+    ts = pd.read_csv(TS_URL, index_col=0, parse_dates=True).resample(FREQ).asfreq()
+
+    n = pypsa.Network()
+    n.set_snapshots(ts.index)
+    n.snapshot_weightings = pd.Series(int(FREQ[:-1]), index=ts.index)
+
+    n.add("Bus", "DE")
+    n.add("Load", "DE_load", bus="DE", p_set=LOAD_MW)
+
+    for tech in ["solar", "wind"]:
+        cfg = TECH[tech]
+        n.add(
+            "Generator",
+            tech,
+            bus="DE",
+            p_nom_extendable=True,
+            p_max_pu=ts[cfg["profile"]],
+            capital_cost=cfg["fixed_cost"],
+            marginal_cost=cfg["m_cost"],
+        )
+
+    for tech in ["gas", "lignite"]:
+        cfg = TECH[tech]
+        mc = (GAS_PRICE / cfg["eff"]) if tech == "gas" else cfg["m_cost"]
+        n.add(
+            "Generator",
+            tech,
+            bus="DE",
+            p_nom_extendable=True,
+            efficiency=cfg["eff"],
+            capital_cost=cfg["fixed_cost"],
+            marginal_cost=mc,
+        )
+    # Set up scenarios
+    n.set_scenarios({"low": 0.4, "medium": 0.3, "high": 0.3})
+
+    return n
+
+
+@pytest.fixture(scope="class")
+def piecewise_network() -> pypsa.Network:
+    n = pypsa.Network()
+    n.snapshots = [0, 1]
+    n.add("Bus", ["bus0", "bus1"])
+    n.add(
+        "Generator",
+        "gen0",
+        bus="bus0",
+        p_nom=25,
+        marginal_cost={0.0: 0.0, 0.5: 0.6, 1.0: 0.5},
+    )
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus1",
+        p_nom_extendable=True,
+        p_nom_max=1,
+        marginal_cost=0.6,
+        capital_cost=100,
+    )
+    n.add(
+        "Link",
+        "link",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom=30,
+        efficiency={0.0: 0.0, 0.5: 0.6, 1.0: 0.7},
+        capital_cost=100,
+    )
+    n.add(
+        "StorageUnit",
+        "storage0",
+        bus="bus0",
+        p_nom_extendable=True,
+        p_nom_max=2,
+        max_hours=4,
+        capital_cost=10,
+    )
+    n.add(
+        "StorageUnit",
+        "storage1",
+        bus="bus1",
+        p_nom_extendable=True,
+        p_nom_max=20,
+        max_hours=4,
+        capital_cost={0.0: 0.0, 10: 10, 20: 15},
+    )
+    n.add("Load", "load", bus="bus1", p_set=[10, 20])
+    return n

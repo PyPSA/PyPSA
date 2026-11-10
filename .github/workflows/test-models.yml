@@ -1,16 +1,19 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 name: Test models
 
 on:
-  push:
-    branches:
-    - master
-    - release-branch-v*
-  pull_request:
-    branches: ['*']
   schedule:
   - cron: "0 5 * * *"
+  workflow_dispatch:
 
-# Cancel any in-progress runs when a new run is triggered
+env:
+  PACKAGE_NAME: 'pypsa'
+  SNAKEMAKE_STORAGE_CACHED_HTTP_CACHE: ""
+  SNAKEMAKE_STORAGE_CACHED_HTTP_SKIP_REMOTE_CHECKS: "1"
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -31,7 +34,20 @@ jobs:
         shell: bash -l {0}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: Free up disk space
+      run: |
+        echo "Initial disk space"
+        df -h
+        echo "Free up disk space"
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        sudo docker builder prune -a --force
+        echo "Final disk space"
+        df -h
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         repository: PyPSA/pypsa-eur
         ref: master
@@ -43,6 +59,16 @@ jobs:
         latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
         git checkout $latest_tag
 
+    - name: Setup Pixi
+      uses: prefix-dev/setup-pixi@ad1da6449d9e506fd127fd67ab2d054a769f6a94 # v0.11.2
+      with:
+        cache: true
+        cache-write: ${{ github.event_name == 'schedule' }}
+
+    - name: Setup cache keys
+      run: |
+        echo "WEEK=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
+
     # Only run check if package is not pinned
     - name: Check if inhouse package is pinned
       run: |
@@ -53,50 +79,40 @@ jobs:
             echo "pinned=false" >> $GITHUB_ENV
         fi
 
-    - name: Setup secrets & cache dates
-      if: env.pinned == 'false'
-      run: |
-        echo -ne "url: ${CDSAPI_URL}\nkey: ${CDSAPI_TOKEN}\n" > ~/.cdsapirc
-        echo "week=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
-
-    - uses: actions/cache@v4
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       if: env.pinned == 'false'
       with:
         path: |
           data
           cutouts
-        key: data-cutouts-pypsa-eur-${{ env.week }}
+        key: data-cutouts-pypsa-eur-${{ env.WEEK }}
 
-    - uses: conda-incubator/setup-miniconda@v3
+    - name: Restore git-tracked files in data/
       if: env.pinned == 'false'
-      with:
-        activate-environment: pypsa-eur
-
-    - name: Cache Conda env
-      if: env.pinned == 'false'
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.CONDA }}/envs
-        key: conda-pypsa-eur-${{ env.week }}-${{ hashFiles('envs/linux-pinned.yaml') }}
-      id: cache-env
-
-    - name: Update environment
-      if: env.pinned == 'false' && steps.cache-env.outputs.cache-hit != 'true'
-      run: conda env update -n pypsa-eur -f envs/linux-pinned.yaml
+      run: git checkout HEAD -- data/
 
     - name: Install package from ref
       if: env.pinned == 'false'
       run: |
-        python -m pip install git+https://github.com/${{ github.repository }}@${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        # Allow upgrading internal packages without exclude-newer cap
+        sed -i '/^exclude-newer\s*=/d' pixi.toml
+        pixi remove ${{ env.PACKAGE_NAME }}
+        pixi upgrade linopy
+        pixi add --pypi --git https://github.com/${{ github.repository }}.git ${{ github.event.repository.name }} --rev ${{ github.sha }}
 
     - name: Run snakemake test workflows
       if: env.pinned == 'false'
       run: |
-        make test
+        pixi run integration-tests
+
+    - name: Run unit tests
+      if: env.pinned == 'false'
+      run: |
+        pixi run unit-tests
 
     - name: Upload artifacts
       if: env.pinned == 'false'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: results-pypsa-eur-${{ matrix.version }}
         path: |
@@ -105,99 +121,104 @@ jobs:
           results
         retention-days: 3
 
-  test-pypsa-de:
-    name: PyPSA-DE
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        version:
-        - master
-        # - latest
+    - name: Show remaining disk space
+      if: always()
+      run: df -h
 
-    defaults:
-      run:
-        shell: bash -l {0}
+# Temporarily disabled until PyPSA-DE issues are resolved. This is not a problem of PyPSA.
+  # test-pypsa-de:
+  #   name: PyPSA-DE
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       version:
+  #       - master
+  #       # - latest
 
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: PyPSA/pypsa-de
-        ref: master
+  #   defaults:
+  #     run:
+  #       shell: bash -l {0}
 
-    - name: Check out latest release
-      if: matrix.version == 'latest'
-      run: |
-        git fetch --tags
-        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
-        git checkout $latest_tag
+  #   steps:
+  #   - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  #     with:
+  #       repository: PyPSA/pypsa-de
+  #       ref: main
 
-    # Only run check if package is not pinned
-    - name: Check if inhouse package is pinned
-      run: |
-        grep_line=$(grep -- '- pypsa' envs/environment.yaml)
-        if [[ $grep_line == *"<"* || $grep_line == *"=="* ]]; then
-            echo "pinned=true" >> $GITHUB_ENV
-        else
-            echo "pinned=false" >> $GITHUB_ENV
-        fi
+  #   - name: Check out latest release
+  #     if: matrix.version == 'latest'
+  #     run: |
+  #       git fetch --tags
+  #       latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+  #       git checkout $latest_tag
 
-    - name: Setup secrets & cache dates
-      if: env.pinned == 'false'
-      run: |
-        echo -ne "url: ${CDSAPI_URL}\nkey: ${CDSAPI_TOKEN}\n" > ~/.cdsapirc
-        echo "week=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
+  #   - name: Setup cache keys
+  #     run: |
+  #       echo "WEEK=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
 
-    - name: Setup ixmp4 access
-      run: |
-        mkdir -p ~/.local/share/ixmp4/
-        cat > ~/.local/share/ixmp4/credentials.toml << 'EOL'
-        ${{ secrets.IXMP4_ACCESS }}
-        EOL
-      shell: bash
+  #   # Only run check if package is not pinned
+  #   - name: Check if inhouse package is pinned
+  #     run: |
+  #       grep_line=$(grep -- '- pypsa' envs/environment.yaml)
+  #       if [[ $grep_line == *"<"* || $grep_line == *"=="* ]]; then
+  #           echo "pinned=true" >> $GITHUB_ENV
+  #       else
+  #           echo "pinned=false" >> $GITHUB_ENV
+  #       fi
 
-    - uses: actions/cache@v4
-      if: env.pinned == 'false'
-      with:
-        path: |
-          data
-          cutouts
-        key: data-cutouts-pypsa-de-${{ env.week }}
+  #   - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+  #     if: env.pinned == 'false'
+  #     with:
+  #       path: |
+  #         data
+  #         cutouts
+  #         resources/ariadne_database.csv
+  #       key: data-cutouts-pypsa-de-${{ env.WEEK }}
 
-    - uses: conda-incubator/setup-miniconda@v3
-      if: env.pinned == 'false'
-      with:
-        activate-environment: pypsa-de
+  #   - uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
+  #     if: env.pinned == 'false'
+  #     with:
+  #       miniforge-version: latest
+  #       activate-environment: pypsa-de
+  #       channel-priority: strict
 
-    - name: Cache Conda env
-      if: env.pinned == 'false'
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.CONDA }}/envs
-        key: conda-pypsa-de-${{ env.week }}-${{ hashFiles('envs/linux-pinned.yaml') }}
-      id: cache-env
+  #   - name: Cache Conda env
+  #     if: env.pinned == 'false'
+  #     uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+  #     with:
+  #       path: ${{ env.CONDA }}/envs
+  #       key: conda-pypsa-de-${{ env.WEEK }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
+  #     id: cache-env
 
-    - name: Update environment
-      if: env.pinned == 'false' && steps.cache-env.outputs.cache-hit != 'true'
-      run: conda env update -n pypsa-de -f envs/linux-pinned.yaml
+  #   - name: Update environment
+  #     if: env.pinned == 'false' && steps.cache-env.outputs.cache-hit != 'true'
+  #     run: |
+  #       conda env update -n pypsa-de -f envs/linux-64.lock.yaml
+  #       echo "Run conda list" && conda list
 
-    - name: Install package from ref
-      if: env.pinned == 'false'
-      run: |
-        python -m pip install git+https://github.com/${{ github.repository }}@${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+  #   - name: Install package from ref
+  #     if: env.pinned == 'false'
+  #     run: |
+  #       python -m pip install git+https://github.com/${{ github.repository }}@${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
-    - name: Run snakemake test workflows
-      if: env.pinned == 'false'
-      run: |
-        make test
+  #   - name: Run snakemake test workflows
+  #     if: env.pinned == 'false'
+  #     run: |
+  #       make test
 
-    - name: Upload artifacts
-      if: env.pinned == 'false'
-      uses: actions/upload-artifact@v4
-      with:
-        name: results-pypsa-de-${{ matrix.version }}
-        path: |
-          logs
-          .snakemake/log
-          results
-        retention-days: 3
+  #   - name: Run unit tests
+  #     if: env.pinned == 'false'
+  #     run: |
+  #       make unit-test
+
+  #   - name: Upload artifacts
+  #     if: env.pinned == 'false'
+  #     uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+  #     with:
+  #       name: results-pypsa-de-${{ matrix.version }}
+  #       path: |
+  #         logs
+  #         .snakemake/log
+  #         results
+  #       retention-days: 3

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pytest
 
 import pypsa
@@ -156,8 +160,8 @@ def n():
 
 
 def test_attribution_assignment(n):
-    assert "bus2" in n.components["Link"]["attrs"].index
-    assert n.components["Link"]["attrs"].loc["bus2", "default"] == ""
+    assert "bus2" in n.components["Link"]["defaults"].index
+    assert n.components["Link"]["defaults"].loc["bus2", "default"] == ""
 
 
 def test_optimize(n):

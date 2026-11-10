@@ -1,8 +1,14 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Statistics Expression Accessor."""
 
 from __future__ import annotations
 
 import logging
+import warnings
+from functools import reduce
 from typing import TYPE_CHECKING, Any
 
 import linopy as ln
@@ -10,21 +16,25 @@ import numpy as np
 import pandas as pd
 from linopy import LinearExpression, Variable
 from packaging import version
-from xarray import DataArray
 
-from pypsa.common import pass_none_if_keyerror
-from pypsa.descriptors import nominal_attrs
+from pypsa._linopy_compat import suppress_semantics_warnings
+from pypsa.common import deprecated_kwargs
+from pypsa.components._types.mixin.multiports import _Multiport
+from pypsa.components.common import invariant
+from pypsa.optimization.window import apply_period_weighting
 from pypsa.statistics import (
     get_transmission_branches,
-    get_weightings,
     port_efficiency,
 )
-from pypsa.statistics.abstract import AbstractStatisticsAccessor
+from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_port
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
+    from xarray import DataArray
+
     from pypsa import Network, NetworkCollection
+    from pypsa.components.components import PortsLike
 logger = logging.getLogger(__name__)
 
 
@@ -33,12 +43,132 @@ USE_EMPTY_PROPERTY = version.parse(ln.__version__) >= version.parse("0.5.1")
 
 def check_if_empty(expr: LinearExpression) -> bool:
     """Check if the expression is empty.
+
     This is a workaround for the issue that linopy does not support
     the empty property for older versions (`.empty` in >=0.5.1 vs `.empty()` in <0.5.1).
     """
     if USE_EMPTY_PROPERTY:
         return expr.empty
     return expr.empty()
+
+
+def _port_coefficients(n: Network, c: str, port: str, sns: pd.Index) -> DataArray:
+    """Port efficiencies of `c` as an array, restricted to `sns` if time-varying."""
+    efficiency = port_efficiency(n, c, port=port, dynamic=True, as_xarray=True)
+    if "snapshot" in efficiency.dims:
+        return efficiency.sel(snapshot=sns)
+    return efficiency
+
+
+def _normalized_weights(weights: DataArray) -> DataArray:
+    """Scale `weights` to sum to one, per investment period if the snapshots carry one."""
+    if "period" not in weights.coords:
+        return weights / weights.sum()
+    totals = weights.groupby("period").sum().to_series()
+    return apply_period_weighting(weights, 1 / totals)
+
+
+def _require_sum_agg(agg: Callable | str) -> None:
+    """Reject any aggregation method other than plain summation."""
+    if agg != "sum":
+        msg = f"Aggregation method {agg} not supported."
+        raise ValueError(msg)
+
+
+def _group_key_coords(expr: LinearExpression) -> list[str]:
+    """Grouping-key coordinates carried along a flat `group` dimension."""
+    return [
+        k for k in expr.coords if k != "group" and expr.coords[k].dims == ("group",)
+    ]
+
+
+def _flatten_group(expr: LinearExpression) -> LinearExpression:
+    """Flatten a stacked `group` index onto a flat one keyed by auxiliary coordinates."""
+    if isinstance(expr.indexes.get("group"), pd.MultiIndex):
+        return expr.reset_index("group")
+    return expr
+
+
+def _regroup(expr: LinearExpression, keys: list[str]) -> LinearExpression:
+    """Sum a grouped expression over the subset `keys` of its grouping keys."""
+    return _flatten_group(expr.groupby(keys).sum(observed=True))
+
+
+def _restack_flat_groups(expr: Any) -> Any:
+    """Give a flat-`group` expression the public stacked group index.
+
+    The grouping keys ride as auxiliary coordinates on a flat `group` dim
+    throughout the pipeline; restack them on exit so the public return shape
+    carries the keys themselves.
+    """
+    if not isinstance(expr, LinearExpression) or "group" not in expr.dims:
+        return expr
+    keys = _group_key_coords(expr)
+    if not keys:
+        return expr
+    indexed = expr.set_index(group=keys)
+    return indexed.rename(group=keys[0]) if len(keys) == 1 else indexed
+
+
+def _capacity_expression(
+    n: Network, component: str, include_non_extendable: bool = True
+) -> LinearExpression | None:
+    """Nominal capacity of `component` as an expression, or `None` if it has none.
+
+    Combines the extendable capacity variables with the fixed capacities of the
+    non-extendable assets.
+    """
+    m = n.model
+    c = n.c[component]
+    nom_attr = c._operational_attrs["nom"]
+    if nom_attr not in c.static:
+        return None
+    var_name = f"{component}-{nom_attr}"
+    fixed = c.fixed
+    fixed_capacity = None
+    if include_non_extendable and not fixed.empty:
+        fixed_capacity = c.da[nom_attr].sel(name=fixed)
+    if var_name in m.variables:
+        return _add_optional(m.variables[var_name].to_linexpr(), fixed_capacity)
+    if fixed_capacity is None:
+        return None
+    return LinearExpression.from_constant(m, fixed_capacity)
+
+
+def _split_piecewise(
+    expr: Variable | LinearExpression, m: ln.Model, c: Any, attr: str
+) -> tuple[Any, Variable | None]:
+    """Split the names handled by the `attr` piecewise curve out of `expr`."""
+    if not c.has_piecewise(attr):
+        return expr, None
+    aux = m.variables[c._piecewise_aux_var(attr)]
+    return expr.drop_sel(name=aux.coords["name"]), aux
+
+
+def _add_optional(
+    expr: LinearExpression, other: Variable | LinearExpression | DataArray | None
+) -> LinearExpression:
+    """Outer-add `other` to `expr`, passing `expr` through if there is nothing to add."""
+    return expr if other is None else expr.add(other, join="outer")
+
+
+def _direct_piecewise(
+    c: Any, y_attr: str, sign: Any, pw: Variable, names: Any, direction: str
+) -> Variable | LinearExpression:
+    """Restrict a piecewise contribution to the requested supply/withdrawal direction.
+
+    A port's direction follows the sign of its breakpoints (``sign * y_attr``),
+    mirroring the clipping applied to linear coefficients. Mixed-sign curves are
+    rejected at ``add`` time, so each port is unambiguously supply or withdrawal.
+    """
+    if direction == "both":
+        return pw
+    y = c.piecewise[y_attr].xs(y_attr, level="attribute", axis=1)[names]
+    withdraws = (sign * y < 0).any()
+    if direction == "withdrawal":
+        return -1 * pw.sel(name=names[withdraws])
+    else:
+        return pw.sel(name=names[~withdraws])
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
@@ -49,12 +179,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     The results are aggregated by the given groupby function.
     """
 
+    _n: Network
+
     def _get_grouping(
         self,
         n: Network | NetworkCollection,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
-        port: str | None = None,
+        port: str,
         nice_names: bool = False,
     ) -> pd.DataFrame:
         result = super()._get_grouping(n, c, groupby, port, nice_names)
@@ -65,32 +197,71 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         elif isinstance(by, pd.Series):
             grouper = by.to_frame()
         elif groupby is False:
-            grouper = pd.DataFrame(index=n.df(c).index)
+            grouper = pd.DataFrame(index=n.c[c].static.index)
         else:
             grouper = by
 
+        grouper = self._align_static(grouper)
         grouper.insert(0, "component", c)  # for tracking the component
-        return grouper.rename_axis(c)
+        return grouper
 
     def _get_component_index(self, obj: LinearExpression, c: str) -> pd.Index:
-        return obj.indexes[c]
+        return obj.indexes["name"]
+
+    def _align_static(self, data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
+        return invariant(data)
+
+    def _select(self, obj: LinearExpression, idx: pd.Index) -> LinearExpression:
+        return obj.sel(name=idx)
 
     def _concat_periods(self, exprs: dict[str, LinearExpression], c: str) -> Any:
-        return ln.merge(list(exprs.values()), dim=c)
+        periods = self._n.investment_periods
+        res = ln.merge(list(exprs.values()), dim=periods.name)
+        return res.assign_coords({periods.name: periods})
 
-    @staticmethod
-    def _aggregate_with_weights(
+    def _aggregate_timeseries(
+        self,
         expr: LinearExpression,
-        weights: pd.Series,
+        weights: DataArray,
+        agg: str | Callable | bool = "sum",
+    ) -> LinearExpression:
+        """Weight `expr` over the snapshots it spans and aggregate them.
+
+        Overrides the pandas-side implementation: the weights arrive as an array on
+        the model's snapshot labels, so both the restriction to `expr`'s snapshots
+        and the per-period mean normalization run on the `period` coordinate,
+        which the snapshots carry under either representation.
+        """
+        if not agg:
+            return expr
+        if agg is True:
+            agg = "sum"
+        weights = weights.sel(snapshot=expr.indexes["snapshot"])
+        if agg == "mean":
+            weights = _normalized_weights(weights)
+            agg = "sum"
+        return self._aggregate_with_weights(expr, weights, agg)
+
+    def _aggregate_with_weights(
+        self,
+        expr: LinearExpression,
+        weights: DataArray,
         agg: str | Callable,
     ) -> LinearExpression:
         """Apply weights to a time series."""
-        if agg == "sum":
-            if isinstance(weights.index, pd.MultiIndex):
-                return expr.multiply(weights, axis=0).groupby(level=0).sum().T
+        _require_sum_agg(agg)
+        if "period" not in expr.coords:
             return expr @ weights
-        msg = f"Aggregation method {agg} not supported."
-        raise ValueError(msg)
+        return expr.mul(weights, join="left").groupby("period").sum()
+
+    def _aggregate_components(self, *args: Any, **kwargs: Any) -> Any:
+        # Expressions built from masked model variables leave absent slots, the
+        # legacy groupby yields a stacked `group` MultiIndex (flattened right
+        # after), and cross-component merges drop a conflicting aux coord; all are
+        # handled identically here under legacy and v1, so silence the notices.
+        with suppress_semantics_warnings():
+            res = super()._aggregate_components(*args, **kwargs)
+        return _restack_flat_groups(res)
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
         return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())
@@ -101,30 +272,36 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         grouping: pd.DataFrame,
         agg: Callable | str,
         c: str,
-    ) -> pd.DataFrame:
-        return vals.groupby(grouping).sum()
+    ) -> LinearExpression:
+        return _flatten_group(
+            vals.groupby(grouping.reindex(vals.indexes["name"])).sum()
+        )
 
     def _aggregate_components_concat_values(
         self, exprs: list[LinearExpression], agg: Callable | str
     ) -> LinearExpression:
-        res = ln.merge(exprs)
-        if not (index := res.indexes[res.dims[0]]).is_unique:
-            if agg != "sum":
-                msg = f"Aggregation method {agg} not supported."
-                raise ValueError(msg)
-            non_unique_groups = pd.DataFrame(list(index), columns=index.names)
-            res = res.groupby(non_unique_groups).sum()
-        return res
+        if "group" in exprs[0].dims and len(exprs) > 1:
+            # concatenate the ports and sum entries sharing a key tuple
+            _require_sum_agg(agg)
+            merged = ln.merge(exprs, dim="group")
+            return _regroup(merged, _group_key_coords(merged))
+        return ln.merge(exprs, join="outer")
 
     def _aggregate_components_concat_data(
         self, res: dict[str, LinearExpression], is_one_component: bool
     ) -> LinearExpression:
         if res == {}:
-            return LinearExpression(None, self._n.model)
+            return LinearExpression.from_constant(self._n.model, 0)
+        first = next(iter(res.values()))
+        if "group" in first.dims:
+            if is_one_component:
+                keys = [k for k in _group_key_coords(first) if k != "component"]
+                return _regroup(first, keys) if keys else first
+            return ln.merge(list(res.values()), dim="group")
+        # groupby=False: no `group` dim, concatenate disjoint asset names
         if is_one_component:
-            first_key = next(iter(res))
-            return res[first_key].loc[first_key]
-        return ln.merge(list(res.values()), dim="group")
+            return first
+        return ln.merge(list(res.values()), dim="name")
 
     def _apply_option_kwargs(
         self,
@@ -140,35 +317,44 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     def _aggregate_across_components(
         self, expr: LinearExpression, agg: Callable | str
     ) -> LinearExpression:
-        if agg != "sum":
-            msg = f"Aggregation method {agg} not supported."
-            raise ValueError(msg)
+        _require_sum_agg(agg)
         if check_if_empty(expr):
             return expr
-        group = expr.indexes["group"].to_frame().drop(columns="component").squeeze()
-        return expr.groupby(group).sum()
+        keys = [k for k in _group_key_coords(expr) if k != "component"]
+        return _regroup(expr, keys) if keys else expr
 
     def _get_operational_variable(self, c: str) -> Variable | LinearExpression:
         # TODO: move function to better place to avoid circular imports
-        from pypsa.optimization.optimize import lookup
+        from pypsa.optimization.optimize import lookup  # noqa: PLC0415
 
         m = self._n.model
 
         if c == "Load":
-            return LinearExpression(self._n.get_switchable_as_dense(c, "p_set"), m)
+            window = self._n.optimize._window
+            p_set = self._n.c[c].da.p_set.sel(snapshot=window.model_index)
+            return LinearExpression.from_constant(m, p_set)
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
             return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
+        if c == "Store":
+            return m.variables[f"{c}-p"]
         attr = attr.item()
         return m.variables[f"{c}-{attr}"]
 
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def capex(
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_groups: str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -183,22 +369,29 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
+        at_port = resolve_at_port(at_port, bus_carrier)
 
-        @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series | None:
-            m = n.model
-            capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            capacity = capacity.rename({f"{c}-ext": c})
-            if include_non_extendable:
-                query = f"~{nominal_attrs[c]}_extendable"
-                capacity = capacity + n.df(c).query(query)["p_nom"]
-            costs = n.df(c)[cost_attribute][capacity.indexes[c]]
-            return capacity * costs
+        def func(n: Network, component: str, port: str) -> pd.Series | None:
+            c = n.c[component]
+            capacity = _capacity_expression(n, component, include_non_extendable)
+            if capacity is None:
+                return None
+
+            capacity, add_capex = _split_piecewise(capacity, n.model, c, cost_attribute)
+
+            costs = (
+                c.capital_cost
+                if cost_attribute == "capital_cost"
+                else c.static[cost_attribute]
+            )
+            costs = c._to_xarray(costs, cost_attribute)
+            costs = costs.sel(name=capacity.indexes["name"])
+            return _add_optional(capacity * costs, add_capex)
 
         return self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -207,13 +400,20 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def capacity(
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_groups: str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: str | Sequence[str] | bool | None = None,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         storage: bool = False,
@@ -232,31 +432,28 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         if storage:
-            comps = ("Store", "StorageUnit")
-        if bus_carrier and at_port is None:
-            at_port = True
+            components = ("Store", "StorageUnit")
+        at_port = resolve_at_port(at_port, bus_carrier)
 
-        @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series | None:
-            m = n.model
-            attr = nominal_attrs[c]
-            capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            capacity = capacity.rename({f"{c}-ext": c})
-            if include_non_extendable:
-                query = f"~{attr}_extendable"
-                capacity = capacity + n.df(c).query(query)[attr]
-            efficiency = port_efficiency(n, c, port=port)[capacity.indexes[c]]
-            if not at_port:
+        def func(n: Network, component: str, port: str) -> pd.Series | None:
+            c = n.c[component]
+            capacity = _capacity_expression(n, component, include_non_extendable)
+            if capacity is None:
+                return None
+
+            efficiency = port_efficiency(n, component, port=port, as_xarray=True)
+            efficiency = efficiency.sel(name=capacity.indexes["name"])
+            if c._as_ports(at_port) == [0]:
                 efficiency = abs(efficiency)
             res = capacity * efficiency
-            if storage and (c == "StorageUnit"):
-                res = res * n.df(c).max_hours
+            if storage and (component == "StorageUnit"):
+                res = res * c.da.max_hours.sel(name=capacity.indexes["name"])
             return res
 
         return self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -265,14 +462,21 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
-    def opex(
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
+    def opex(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -287,29 +491,45 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        aggregate_time : str, bool, optional
+        groupby_time : str, bool, optional
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated
             using snapshot weightings. With False the time series is given in currency/hour. Defaults to 'sum'.
 
         """
-        from pypsa.optimization.optimize import lookup
+        from pypsa.optimization.optimize import (  # noqa: PLC0415
+            cost_variables,
+            linear_cost_types,
+        )
 
-        @pass_none_if_keyerror
+        at_port = resolve_at_port(at_port, bus_carrier)
+        weights = self._n.optimize._window.snapshot_weightings("objective")
+
         def func(n: Network, c: str, port: str) -> pd.Series | None:
-            attr = lookup.query("not nominal and marginal_cost").loc[c].index.item()
-            if attr is None:
+            terms = []
+            for cost_type in linear_cost_types:
+                for attr in cost_variables(c, cost_type):
+                    missing = f"{c}-{attr}" not in n.model.variables
+                    if missing and cost_type == "spill_cost":
+                        continue
+                    var = n.model.variables[f"{c}-{attr}"]
+                    sns = var.indexes["snapshot"]
+                    var, add_opex = _split_piecewise(var, n.model, n.c[c], cost_type)
+                    names = var.indexes["name"]
+                    cost = n.c[c].da[cost_type].sel(snapshot=sns, name=names)
+                    unused = add_opex is None and (cost == 0).all()
+                    if unused and cost_type != "marginal_cost":
+                        continue
+                    terms.append(_add_optional(var * cost, add_opex))
+            if not terms:
                 return None
-            var = n.model.variables[f"{c}-{attr}"]
-            sns = var.indexes["snapshot"]
-            opex = var * n.get_switchable_as_dense(c, "marginal_cost").loc[sns]
-            weights = get_weightings(n, c).loc[sns]
-            return self._aggregate_timeseries(opex, weights, agg=aggregate_time)
+            opex = reduce(_add_optional, terms)
+            return self._aggregate_timeseries(opex, weights, agg=groupby_time)
 
         return self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -318,20 +538,28 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
-    def transmission(
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
+    def transmission(  # noqa: D417
         self,
-        comps: Collection[str] | str | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: str = "sum",
+        components: Collection[str] | str | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """Calculate the transmission of branch components in the network. Units
-        depend on the regarded bus carrier.
+        """Calculate the transmission of branch components in the network.
+
+        Units depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the flow between buses with
         carrier `bus_carrier` is calculated.
@@ -341,33 +569,33 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        aggregate_time : str, bool, optional
+        groupby_time : str, bool, optional
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
 
         """
-        if comps is None:
-            comps = self._n.branch_components
+        at_port = resolve_at_port(at_port, bus_carrier)
+
+        if components is None:
+            components = self._n.branch_components
 
         transmission_branches = get_transmission_branches(self._n, bus_carrier)
+        weights = self._n.optimize._window.snapshot_weightings("generators")
 
-        @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
             sns = var.indexes["snapshot"]
-            idx = transmission_branches.get_loc_level(c)[1].rename(c)
-            efficiency = port_efficiency(n, c, port=port, dynamic=True)
-            if isinstance(efficiency, pd.DataFrame):
-                efficiency = efficiency.loc[sns]
-            p = var.loc[:, idx] * efficiency[idx]
-            weights = get_weightings(n, c).loc[sns]
-            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
+            is_c = transmission_branches.get_level_values("component") == c
+            idx = transmission_branches[is_c].unique("name")
+            efficiency = _port_coefficients(n, c, port, sns)
+            p = var.sel(name=idx) * efficiency.sel(name=idx)
+            return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         return self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -376,39 +604,63 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
-    def energy_balance(
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
+    @deprecated_kwargs(
+        deprecated_in="1.1",
+        removed_in="2.0",
+        kind="direction",
+    )
+    def energy_balance(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | None = None,
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
-        kind: str | None = None,
+        direction: str | None = "both",
     ) -> LinearExpression:
-        """Calculate the energy balance of components in the network. Positive
-        values represent a supply and negative a withdrawal. Units depend on
+        """Calculate the energy balance of components in the network.
+
+        Positive values represent a supply and negative a withdrawal. Units depend on
         the regarded bus carrier.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
-        Additional parameter
-        --------------------
-        aggregate_bus: bool, optional
-            Whether to obtain the nodal or carrier-wise energy balance. Default is True, corresponding to the carrier-wise balance.
-        aggregate_time : str, bool, optional
+        Parameters
+        ----------
+        groupby_time : str, bool, optional
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
+        direction : str, default="both"
+            Type of energy balance to calculate:
+            - 'supply': Only consider positive values (energy production)
+            - 'withdrawal': Only consider negative values (energy consumption)
+            - 'both': Consider both supply and withdrawal
+
         """
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
+        if direction is None:
+            warnings.warn(
+                "Passing `direction=None` is deprecated. Use `direction='both'` instead. Deprecated in version 1.1. Will be removed in version 2.0.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            direction = "both"
         if (
-            self._n.buses.carrier.unique().size > 1
+            self._n.c.buses.static.carrier.unique().size > 1
             and groupby is None
             and bus_carrier is None
         ):
@@ -417,34 +669,51 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 "To separate bus carriers set `bus_carrier` or use `bus_carrier` in the groupby argument."
             )
 
-        @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            var = self._get_operational_variable(c)
+        weights = self._n.optimize._window.snapshot_weightings("generators")
+
+        def func(n: Network, component: str, port: str) -> pd.Series:
+            c = n.c[component]
+            var = self._get_operational_variable(component)
             sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
-            efficiency = port_efficiency(n, c, port=port, dynamic=True)
-            if isinstance(efficiency, pd.DataFrame):
-                efficiency = efficiency.loc[sns]
-            sign = n.df(c).get("sign", 1.0)
-            weights = get_weightings(n, c).loc[sns]
-            coeffs = DataArray(efficiency * sign)
-            if kind == "supply":
-                coeffs = coeffs.clip(min=0)
-            elif kind == "withdrawal":
-                logger.warning(
-                    "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
+            sign = c.da.sign if "sign" in c.static else 1.0
+            coeffs = _port_coefficients(n, component, port, sns) * sign
+
+            pw_var = None
+            if isinstance(c, _Multiport) and c.has_piecewise(
+                y_attr := c._port_coefficient_attr(port)
+            ):
+                pw = sign * n.model.variables[c._piecewise_aux_var(y_attr)]
+                names = pw.coords["name"].values
+                coeffs.loc[{"name": names}] = 0
+                pw_var = _direct_piecewise(c, y_attr, sign, pw, names, direction)
+
+            expr = coeffs * var.where(coeffs != 0)
+
+            if direction in ("supply", "withdrawal"):
+                if direction == "withdrawal":
+                    logger.warning(
+                        "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
+                    )
+                s = 1 if direction == "supply" else -1
+                expr = expr.assign(
+                    coeffs=(s * expr.coeffs).clip(min=0),
+                    const=(s * expr.const).clip(min=0),
                 )
-                coeffs = -coeffs.clip(max=0)
-            elif kind is not None:
-                msg = f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."
+            elif direction != "both":
+                msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
-            p = var.where(coeffs != 0) * coeffs
-            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
+
+            if pw_var is not None:
+                expr = expr.fillna(0)
+            return self._aggregate_timeseries(
+                _add_optional(expr, pw_var), weights, agg=groupby_time
+            )
 
         return self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -453,86 +722,109 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def supply(
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | None = None,
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """Calculate the supply of components in the network. Units depend on the
-        regarded bus carrier.
+        """Calculate the supply of components in the network.
+
+        Units depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the supply to buses with carrier
         `bus_carrier` is calculated.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
         return self.energy_balance(
-            comps=comps,
-            aggregate_time=aggregate_time,
-            aggregate_groups=aggregate_groups,
+            components=components,
+            groupby_time=groupby_time,
+            groupby_method=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
             carrier=carrier,
             nice_names=nice_names,
-            kind="supply",
+            direction="supply",
         )
 
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def withdrawal(
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | None = None,
-        at_port: bool | str | Sequence[str] = True,
+        at_port: PortsLike = "all",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """Calculate the withdrawal of components in the network. Units depend on
-        the regarded bus carrier.
+        """Calculate the withdrawal of components in the network.
+
+        Units depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the withdrawal from buses with
         carrier `bus_carrier` is calculated.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
         return self.energy_balance(
-            comps=comps,
-            aggregate_time=aggregate_time,
-            aggregate_groups=aggregate_groups,
+            components=components,
+            groupby_time=groupby_time,
+            groupby_method=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
             carrier=carrier,
             nice_names=nice_names,
-            kind="withdrawal",
+            direction="withdrawal",
         )
 
-    def curtailment(
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
+    def curtailment(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
@@ -550,34 +842,36 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        aggregate_time : str, bool, optional
+        groupby_time : str, bool, optional
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
 
         """
+        at_port = resolve_at_port(at_port, bus_carrier)
+        weights = self._n.optimize._window.snapshot_weightings("generators")
 
-        @pass_none_if_keyerror
-        def func(n: Network, c: str, port: str) -> pd.Series:
-            attr = nominal_attrs[c]
-            capacity = (
-                n.model.variables[f"{c}-{attr}"].rename({f"{c}-ext": c})
-                + n.df(c).query(f"~{attr}_extendable")[attr]
-            )
-            idx = capacity.indexes[c]
-            operation = self._get_operational_variable(c).loc[:, idx]
+        def func(n: Network, component: str, port: str) -> pd.Series:
+            c = n.c[component]
+            if "p_max_pu" not in c.static.columns:
+                return None
+            capacity = _capacity_expression(n, component)
+            if capacity is None:
+                return None
+
+            idx = capacity.indexes["name"]
+            operation = self._get_operational_variable(component).sel(name=idx)
             sns = operation.indexes["snapshot"]
-            p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx]).loc[sns]
+            p_max_pu = c.da.p_max_pu.sel(snapshot=sns, name=idx)
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
             # TODO curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
-            weights = get_weightings(n, c).loc[sns]
-            return self._aggregate_timeseries(curtailment, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(curtailment, weights, agg=groupby_time)
 
         return self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -586,13 +880,20 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
-    def operation(
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
+    def operation(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "mean",
-        aggregate_groups: str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "mean",
+        groupby_method: str = "sum",
         aggregate_across_components: bool = False,
-        at_port: bool | str | Sequence[str] = False,
+        at_port: PortsLike | None = None,
         groupby: str | Sequence[str] | Callable = "carrier",
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
@@ -608,24 +909,24 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        aggregate_time : str, bool, optional
+        groupby_time : str, bool, optional
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to
             using snapshot weightings. With False the time series is given. Defaults to 'mean'.
 
         """
+        at_port = resolve_at_port(at_port, bus_carrier)
 
-        @pass_none_if_keyerror
+        weights = self._n.optimize._window.snapshot_weightings("generators")
+
         def func(n: Network, c: str, port: str) -> pd.Series:
             operation = self._get_operational_variable(c)
-            sns = operation.indexes["snapshot"]
-            weights = get_weightings(n, c).loc[sns]
-            return self._aggregate_timeseries(operation, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(operation, weights, agg=groupby_time)
 
         return self._aggregate_components(
             func,
-            agg=aggregate_groups,
-            comps=comps,
+            agg=groupby_method,
+            components=components,
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
             at_port=at_port,

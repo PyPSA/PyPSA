@@ -1,3 +1,9 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+import warnings
+
 import pandas as pd
 import pytest
 
@@ -6,14 +12,28 @@ from pypsa.components.legacy import Component
 from pypsa.components.types import get as get_component_type
 
 
-def test_components_non_implemented():
-    """Test that the components module raises an ImportError if imported directly."""
+def test_components_init():
+    """Test that components require a network."""
     ct = get_component_type("Generator")
-    with pytest.raises(NotImplementedError):
-        Components(ctype=ct, names=["Generator"])
     n = Network()
-    with pytest.raises(NotImplementedError):
-        Components(ctype=ct, n=n)
+    c = Components(ctype=ct, n=n)
+    assert c.n is n
+    with pytest.raises(TypeError):
+        Components(ctype=ct)
+    with pytest.raises(TypeError):
+        Component(name="Generator")
+
+
+def test_n_save_deprecated():
+    n = Network()
+    with pytest.warns(DeprecationWarning, match="Use `c.n` instead"):
+        assert n.c.generators.n_save is n
+
+
+def test_attached_deprecated():
+    n = Network()
+    with pytest.warns(DeprecationWarning, match="always attached to a network"):
+        assert n.c.generators.attached is True
 
 
 @pytest.fixture
@@ -33,11 +53,6 @@ def legacy_component():
     return component
 
 
-def test_deprecated_arguments():
-    with pytest.warns(DeprecationWarning):
-        Component(name="Generator", list_name="x", attrs=pd.DataFrame())
-
-
 def test_component_initialization(legacy_component):
     component = legacy_component
     assert component.name == "Generator"
@@ -51,7 +66,25 @@ def test_active_assets(legacy_component):
     active_assets = component.static.query("active").index
     assert len(active_assets) == 2
     assert "asset1" in active_assets
+    assert "asset2" not in active_assets
     assert "asset3" in active_assets
+
+
+def test_components_iteration_equivalence():
+    """Test that self.components and self.iterate_components yield the same results."""
+    n = Network()
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.add("Line", "line", bus0="bus", bus1="bus", x=0.1, r=0.01)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        old_components = sorted([c.name for c in n.iterate_components()])
+
+    new_components = sorted([c.name for c in n.components])
+
+    assert old_components == new_components
+    assert all(not c.empty for c in n.components)
 
 
 def test_active_in_investment_period(legacy_component):
@@ -68,3 +101,145 @@ def test_imports():
         from pypsa.components import Network  # noqa: F401
     with pytest.raises(ImportError):
         from pypsa.components import SubNetwork  # noqa: F401
+
+
+def test_modulars_property():
+    """Test the modulars property returns correct indices."""
+    n = Network()
+    n.add("Bus", "bus")
+
+    # Add modular generator
+    n.add("Generator", "gen_mod", bus="bus", p_nom=100, p_nom_mod=10)
+
+    # Add non-modular generator (explicit zero)
+    n.add("Generator", "gen_nonmod", bus="bus", p_nom=100, p_nom_mod=0)
+
+    # Add generator without mod attribute (defaults to 0)
+    n.add("Generator", "gen_default", bus="bus", p_nom=100)
+
+    modulars = n.c.generators.modulars
+
+    # Check modular generator is in modulars
+    assert "gen_mod" in modulars
+
+    assert "gen_nonmod" not in modulars
+    assert "gen_default" not in modulars
+
+
+def test_modulars_with_extendables_and_committables():
+    """Test modulars property works correctly with extendables and committables."""
+    n = Network()
+    n.add("Bus", "bus")
+
+    # Modular + extendable
+    n.add(
+        "Generator",
+        "gen_mod_ext",
+        bus="bus",
+        p_nom=100,
+        p_nom_mod=10,
+        p_nom_extendable=True,
+        capital_cost=10,
+    )
+
+    # Modular + committable
+    n.add(
+        "Generator", "gen_mod_com", bus="bus", p_nom=100, p_nom_mod=10, committable=True
+    )
+
+    # Modular + extendable + committable
+    n.add(
+        "Generator",
+        "gen_mod_ext_com",
+        bus="bus",
+        p_nom=100,
+        p_nom_mod=10,
+        p_nom_extendable=True,
+        committable=True,
+        capital_cost=10,
+    )
+
+    # Non-modular + extendable
+    n.add(
+        "Generator",
+        "gen_ext",
+        bus="bus",
+        p_nom=100,
+        p_nom_extendable=True,
+        capital_cost=10,
+    )
+
+    # Non-modular + committable
+    n.add("Generator", "gen_com", bus="bus", p_nom=100, committable=True)
+
+    modulars = n.c.generators.modulars
+    extendables = n.c.generators.extendables
+    committables = n.c.generators.committables
+
+    # Test modulars
+    assert set(modulars) == {"gen_mod_ext", "gen_mod_com", "gen_mod_ext_com"}
+
+    # Test intersections
+    mod_ext = modulars.intersection(extendables)
+    assert set(mod_ext) == {"gen_mod_ext", "gen_mod_ext_com"}
+
+    mod_com = modulars.intersection(committables)
+    assert set(mod_com) == {"gen_mod_com", "gen_mod_ext_com"}
+
+    mod_ext_com = modulars.intersection(extendables).intersection(committables)
+    assert set(mod_ext_com) == {"gen_mod_ext_com"}
+
+
+def test_modulars_different_components():
+    """Test modulars property works for different component types."""
+    n = Network()
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+
+    # Test with Lines (s_nom_mod)
+    n.add("Line", "line_mod", bus0="bus1", bus1="bus2", x=0.1, s_nom_mod=100)
+    n.add("Line", "line_nonmod", bus0="bus1", bus1="bus2", x=0.1, s_nom_mod=0)
+
+    line_modulars = n.c.lines.modulars
+
+    assert "line_mod" in line_modulars
+    assert "line_nonmod" not in line_modulars
+
+    # Test with Links (p_nom_mod)
+    n.add("Link", "link_mod", bus0="bus1", bus1="bus2", p_nom_mod=50)
+    n.add("Link", "link_nonmod", bus0="bus1", bus1="bus2", p_nom_mod=0)
+
+    link_modulars = n.c.links.modulars
+
+    assert "link_mod" in link_modulars
+    assert "link_nonmod" not in link_modulars
+
+    # Test with Stores (e_nom_mod)
+    n.add("Store", "store_mod", bus="bus1", e_nom_mod=1000)
+    n.add("Store", "store_nonmod", bus="bus1", e_nom_mod=0)
+
+    store_modulars = n.c.stores.modulars
+
+    assert "store_mod" in store_modulars
+
+
+@pytest.mark.parametrize(
+    ("component", "kwargs"),
+    [
+        ("Bus", {}),
+        ("Line", {"bus0": "a", "bus1": "b", "x": 1}),
+        ("Transformer", {"bus0": "a", "bus1": "b", "x": 0.1, "s_nom": 1}),
+        ("Link", {"bus0": "a", "bus1": "b"}),
+        ("Generator", {"bus": "a"}),
+        ("StorageUnit", {"bus": "a"}),
+    ],
+)
+def test_add_fills_omitted_static_attributes_with_defaults(component, kwargs):
+    n = Network()
+    n.add("Bus", ["a", "b"])
+    n.add(component, "x", **kwargs)
+    static = n.c[component].static.drop(columns=list(kwargs))
+    defaults = n.components[component]["defaults"].default[static.columns]
+    empty = Network().c[component].static[static.columns]
+    assert static.dtypes.equals(empty.dtypes)
+    assert static.loc["x"].astype(object).equals(defaults.astype(object))

@@ -1,6 +1,11 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import os
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
@@ -43,33 +48,104 @@ def test_missing_bus(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
-@pytest.mark.parametrize("strict", [[], ["assets"]])
-def test_infeasible_capacity_limits(consistent_n, caplog, strict):
-    consistent_n.generators.loc["gen_one", ["p_nom_extendable", "committable"]] = (
+def test_committable_extendable_allowed(consistent_n, caplog):
+    consistent_n.c.generators.static.loc[
+        "gen_one", ["p_nom_extendable", "committable"]
+    ] = (
         True,
         True,
     )
-    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+    consistent_n.consistency_check()
+    assert not any(
+        "only be committable or extendable" in record.message
+        for record in caplog.records
+    )
 
 
 @pytest.mark.parametrize("strict", [[], ["static_power_attrs"]])
 def test_nans_in_capacity_limits(consistent_n, caplog, strict):
-    consistent_n.generators.loc["gen_one", "p_nom_extendable"] = True
-    consistent_n.generators.loc["gen_one", "p_nom_max"] = np.nan
+    consistent_n.c.generators.static.loc["gen_one", "p_nom_extendable"] = True
+    consistent_n.c.generators.static.loc["gen_one", "p_nom_max"] = np.nan
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
-@pytest.mark.parametrize("strict", [[], ["shapes"]])
-def test_shapes_with_missing_idx(ac_dc_network_shapes, caplog, strict):
-    n = ac_dc_network_shapes
-    n.add(
-        "Shape",
-        "missing_idx",
-        geometry=n.shapes.geometry.iloc[0],
-        component="Bus",
-        idx="missing_idx",
+@pytest.mark.parametrize("strict", [[], ["nans_for_component_default_attrs"]])
+def test_no_nan_warning_for_links_without_additional_ports(
+    consistent_n, caplog, strict
+):
+    """Links without a second output must not trigger the NaN warning for `efficiency2`."""
+    consistent_n.add("Link", "single", bus0="one", bus1="two", efficiency=0.4)
+    consistent_n.add(
+        "Link", "multi", bus0="one", bus1="two", bus2="one", efficiency2=0.3
     )
-    assert_log_or_error_in_consistency(ac_dc_network_shapes, caplog, strict=strict)
+    consistent_n.consistency_check(strict=strict)
+    assert not any("Encountered nan" in record.message for record in caplog.records)
+
+
+@pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
+def test_phase_shift_unbounded(consistent_n, caplog, strict):
+    # phase_shift_min < phase_shift_max makes the shift a variable; a non-finite
+    # bound leaves it unbounded.
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift_min=-np.inf,
+        phase_shift_max=np.inf,
+    )
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+@pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
+def test_phase_shift_inverted_bounds(consistent_n, caplog, strict):
+    # min > max is held fixed but is almost certainly a user mistake.
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift_min=10.0,
+        phase_shift_max=-10.0,
+    )
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+def test_phase_shift_fixed_bounds_ok(consistent_n, caplog):
+    # min >= max means a fixed shift; non-finite bounds here are irrelevant.
+    consistent_n.add(
+        "Transformer",
+        "t",
+        bus0="one",
+        bus1="two",
+        x=0.1,
+        s_nom=100,
+        phase_shift=10.0,
+    )
+    consistent_n.consistency_check()
+    assert not any("phase shift" in record.message for record in caplog.records)
+
+
+@pytest.mark.parametrize("strict", [[], ["shapes"]])
+def test_shapes_with_missing_idx(ac_dc_shapes, caplog, strict):
+    n = ac_dc_shapes
+    with pytest.warns(UserWarning, match="CRS not set"):  # Userwarning from pyproj
+        n.add(
+            "Shape",
+            "missing_idx",
+            geometry=n.c.shapes.static.geometry.iloc[0],
+            component="Bus",
+            idx="missing_idx",
+        )
+    assert_log_or_error_in_consistency(ac_dc_shapes, caplog, strict=strict)
+    if not strict:
+        assert any(
+            "have idx values that are not included" in r.message for r in caplog.records
+        )
 
 
 @pytest.mark.parametrize("strict", [[], ["unknown_buses"]])
@@ -78,13 +154,78 @@ def test_unknown_carriers(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
-@pytest.mark.parametrize("strict", [[], ["generators"]])
-def test_inconsistent_e_sum_values(consistent_n, caplog, strict):
+@pytest.mark.parametrize("strict", [[], ["volume_limits"]])
+@pytest.mark.parametrize(
+    ("component", "kwargs"),
+    [
+        ("Generator", {"bus": "one"}),
+        ("Link", {"bus0": "one", "bus1": "two"}),
+        ("Process", {"bus0": "one", "bus1": "two"}),
+        ("Store", {"bus": "one"}),
+    ],
+)
+def test_inconsistent_e_sum_values(consistent_n, caplog, strict, component, kwargs):
     """
     Test that the consistency check raises a warning if the e_sum_min is greater than e_sum_max.
     """
+    consistent_n.add(component, "two", **kwargs, e_sum_min=10, e_sum_max=5)
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+@pytest.mark.parametrize("ramp_limit", ["ramp_limit_start_up", "ramp_limit_shut_down"])
+@pytest.mark.parametrize("p_min_pu", [0.5, [0.2, 0.5, 0.2]])
+def test_ramp_limit_below_p_min_pu(consistent_n, caplog, ramp_limit, p_min_pu):
+    consistent_n.set_snapshots(range(3))
     consistent_n.add(
-        "Generator", "gen_two", bus="one", p_nom_max=10, e_sum_min=10, e_sum_max=5
+        "Generator",
+        "gen_two",
+        bus="one",
+        p_nom=10,
+        committable=True,
+        p_min_pu=p_min_pu,
+        **{ramp_limit: 0.3},
+    )
+    consistent_n.add(
+        "Generator",
+        "gen_three",
+        bus="one",
+        p_nom=10,
+        committable=True,
+        p_min_pu=0.5,
+        ramp_limit_start_up=0.5,
+        ramp_limit_shut_down=0.7,
+    )
+    consistent_n.consistency_check()
+    messages = [r.message for r in caplog.records if "ramp_limit" in r.message]
+    assert len(messages) == 1
+    assert ramp_limit in messages[0]
+    assert "gen_two" in messages[0]
+    assert "gen_three" not in messages[0]
+
+
+@pytest.mark.parametrize("strict", [[], ["scenarios_sum"]])
+def test_scenarios_sum_to_one(consistent_n, caplog, strict):
+    """
+    Test that the consistency check raises a warning if scenarios don't sum to 1.
+    """
+    # Set up scenarios that sum to 1 (should pass)
+    consistent_n.set_scenarios({"low": 0.4, "high": 0.6})
+
+    # Manually modify scenarios to break sum=1 constraint
+    consistent_n._scenarios_data.iloc[0, 0] = 0.2  # Sum becomes 0.8
+
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+@pytest.mark.parametrize("strict", [[], ["generators"]])
+def test_committable_down_with_p_init(consistent_n, caplog, strict):
+    consistent_n.add(
+        "Generator",
+        "gen_uc",
+        bus="one",
+        committable=True,
+        up_time_before=0,
+        p_init=50,
     )
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
@@ -93,3 +234,562 @@ def test_unknown_check():
     n = pypsa.Network()
     with pytest.raises(ValueError):
         n.consistency_check(strict=["some_check"])
+
+
+@pytest.mark.parametrize("strict", [[], ["scenario_invariant_attrs"]])
+def test_scenario_invariant_attributes(consistent_n, caplog, strict):
+    """
+    Test that the consistency check raises an error if invariant attributes vary across scenarios.
+    """
+    # Set up scenarios
+    consistent_n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Modify an invariant attribute (carrier) across scenarios - this should always fail
+    # regardless of strict mode
+    consistent_n.c.generators.static.loc[("s1", "gen_one"), "carrier"] = (
+        "different_carrier"
+    )
+
+    # This check always raises an error
+    with pytest.raises(pypsa.consistency.ConsistencyError):
+        consistent_n.consistency_check(strict=strict)
+
+
+@pytest.mark.parametrize(
+    ("component", "name", "attr", "value", "match"),
+    [
+        ("Line", "line_one", "x", 10.0, "x_pu_eff"),
+        ("Line", "line_one", "r", 10.0, "r_pu_eff"),
+        ("Transformer", "trafo", "s_nom", 50.0, "_pu_eff"),
+        ("Transformer", "trafo", "tap_ratio", 1.1, "_pu_eff"),
+        ("Bus", "one", "v_nom", 110.0, "v_nom"),
+    ],
+)
+def test_scenario_invariant_impedances(
+    consistent_n, component, name, attr, value, match
+):
+    consistent_n.add("Bus", "three")
+    consistent_n.add(
+        "Transformer", "trafo", bus0="two", bus1="three", x=0.1, r=0.01, s_nom=100
+    )
+    consistent_n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    consistent_n.consistency_check()
+
+    consistent_n.c[component].static.loc[("s2", name), attr] = value
+    with pytest.raises(pypsa.consistency.ConsistencyError, match=match):
+        consistent_n.consistency_check()
+
+
+def test_scenario_invariant_attributes_comprehensive():
+    """
+    Comprehensive test covering all invariant attributes and edge cases.
+
+    This test verifies that the following attributes are not changed across scenarios
+    of a stochastic network by user modifications. Applies *exclusively* to stochastic
+    networks.
+
+    Invariant attributes (must be identical across all scenarios):
+    - name
+    - bus
+    - type
+    - p_nom_extendable
+    - committable
+    - sign
+    - carrier
+    - weight
+    - p_nom_opt
+    - build_year
+    - lifetime
+    - active
+
+    Note: "control" is not included as an invariant attribute because different
+    scenarios can have different control types (PQ, PV, Slack). However, slack bus
+    consistency is enforced separately via check_stochastic_slack_bus_consistency.
+    """
+    n = pypsa.Network()
+
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add("Carrier", "gas")
+    n.add("Carrier", "wind")
+    n.add("Carrier", "AC")
+
+    # Let's add multiple components to test different cases with invariant attributes
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus1",
+        carrier="gas",
+        p_nom_extendable=True,
+        committable=True,
+    )
+    n.add("Line", "line1", bus0="bus1", bus1="bus2", x=0.1, r=0.01, carrier="AC")
+    n.add("Load", "load1", bus="bus1", p_set=50, carrier="AC")
+    n.add("Link", "link1", bus0="bus1", bus1="bus2", p_nom=75, carrier="AC")
+
+    # Set up scenarios
+    n.set_scenarios({"scenario1": 0.4, "scenario2": 0.6})
+
+    # Test 1: Network with consistent invariant attributes should pass
+    n.consistency_check()
+
+    # Test 2: Test invariant attributes for generators (only test attributes that exist)
+    # Note: "control" is no longer tested as invariant because different scenarios
+    # can have different control types (PQ, PV, Slack) but slack bus consistency
+    # is enforced separately
+    generator_invariant_tests = [
+        ("generators", "gen1", "carrier", "wind"),
+        ("generators", "gen1", "bus", "bus2"),
+        ("generators", "gen1", "p_nom_extendable", False),
+        ("generators", "gen1", "committable", False),
+        ("generators", "gen1", "sign", -1.0),
+        ("generators", "gen1", "weight", 5.0),
+        ("generators", "gen1", "type", "solar"),
+        ("generators", "gen1", "active", False),
+    ]
+
+    for component_name, element_name, attr, new_value in generator_invariant_tests:
+        n_test = n.copy()
+
+        # Modify the invariant attribute in one scenario
+        component = getattr(n_test.c, component_name)
+        component.static.loc[("scenario1", element_name), attr] = new_value
+
+        # Should always raise an error regardless of strict mode
+        with pytest.raises(
+            pypsa.consistency.ConsistencyError,
+            match=f"Component '{element_name}' .* has attribute '{attr}' that varies across scenarios",
+        ):
+            n_test.consistency_check()
+
+    # Test 3: Test invariant attributes for lines
+    line_invariant_tests = [
+        ("lines", "line1", "carrier", "gas"),
+        ("lines", "line1", "active", False),
+    ]
+
+    for component_name, element_name, attr, new_value in line_invariant_tests:
+        n_test = n.copy()
+
+        # Modify the invariant attribute in one scenario
+        component = getattr(n_test.c, component_name)
+        component.static.loc[("scenario1", element_name), attr] = new_value
+
+        # Should always raise an error
+        with pytest.raises(
+            pypsa.consistency.ConsistencyError,
+            match=f"Component '{element_name}' .* has attribute '{attr}' that varies across scenarios",
+        ):
+            n_test.consistency_check()
+
+    # Test 4: Test invariant attributes for links
+    link_invariant_tests = [
+        ("links", "link1", "carrier", "gas"),
+        ("links", "link1", "active", False),
+        ("links", "link1", "committable", True),
+        ("links", "link1", "p_nom_extendable", True),
+        ("links", "link1", "type", "HVDC"),
+    ]
+
+    for component_name, element_name, attr, new_value in link_invariant_tests:
+        n_test = n.copy()
+
+        # Modify the invariant attribute in one scenario
+        component = getattr(n_test.c, component_name)
+        component.static.loc[("scenario1", element_name), attr] = new_value
+
+        # Should always raise an error
+        with pytest.raises(
+            pypsa.consistency.ConsistencyError,
+            match=f"Component '{element_name}' .* has attribute '{attr}' that varies across scenarios",
+        ):
+            n_test.consistency_check()
+
+    # Test 5: Test with NaN values - should not raise error if all scenarios have NaN
+    n_nan = n.copy()
+    n_nan.c.generators.static["build_year"] = n_nan.c.generators.static[
+        "build_year"
+    ].astype(float)
+    n_nan.c.generators.static.loc[:, "build_year"] = np.nan
+    n_nan.consistency_check()  # Should pass
+
+    # Test 6: Test with mixed NaN and non-NaN values - should raise error (strict behavior)
+    n_mixed_nan = n.copy()
+    n_mixed_nan.c.generators.static["lifetime"] = n_mixed_nan.c.generators.static[
+        "lifetime"
+    ].astype(float)
+    n_mixed_nan.c.generators.static.loc[("scenario1", "gen1"), "lifetime"] = 25.0
+    n_mixed_nan.c.generators.static.loc[("scenario2", "gen1"), "lifetime"] = np.nan
+
+    with pytest.raises(
+        pypsa.consistency.ConsistencyError,
+        match="Component 'gen1' .* has attribute 'lifetime' that varies across scenarios",
+    ):
+        n_mixed_nan.consistency_check()  # Should raise error (any difference is not allowed)
+
+    # Test 7: Test that non-invariant attributes can vary (should not raise error)
+    n_varying = n.copy()
+    n_varying.c.generators.static.loc[("scenario1", "gen1"), "p_nom"] = (
+        150  # p_nom is not invariant
+    )
+    n_varying.c.generators.static.loc[("scenario1", "gen1"), "p_set"] = (
+        80  # p_set is not invariant
+    )
+    n_varying.c.lines.static.loc[("scenario1", "line1"), "s_nom"] = (
+        200  # s_nom is not invariant
+    )
+    n_varying.c.links.static.loc[("scenario1", "link1"), "p_nom"] = (
+        100  # p_nom is not invariant
+    )
+    n_varying.consistency_check()  # Should pass
+
+    # Test 8: Test with non-stochastic network (should skip check)
+    n_non_stoch = pypsa.Network()
+    n_non_stoch.add("Bus", "bus")
+    n_non_stoch.add("Generator", "gen", bus="bus", carrier="test")
+    n_non_stoch.consistency_check()  # Should pass
+
+
+def test_p_nom_mod_invariant():
+    """Test that p_nom_mod is enforced as invariant across scenarios."""
+    n = pypsa.Network()
+    n.add("Bus", "bus1")
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus1",
+        p_nom_extendable=True,
+        p_nom_mod=0.7,
+    )
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Should pass with same p_nom_mod across scenarios
+    n.consistency_check()
+
+    n.c.generators.static.loc[("s1", "gen1"), "p_nom_mod"] = 0.7
+    n.c.generators.static.loc[("s2", "gen1"), "p_nom_mod"] = 1.0
+
+    # Should raise error
+    with pytest.raises(
+        pypsa.consistency.ConsistencyError,
+        match="Component 'gen1' .* has attribute 'p_nom_mod' that varies across scenarios",
+    ):
+        n.consistency_check()
+
+
+@pytest.mark.parametrize("strict", [[], ["line_types"]])
+def test_line_types_consistency(caplog, strict):
+    """
+    Test that the consistency check raises an error if line_types vary across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=20)
+    n.add("Bus", "bus2", v_nom=20)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Create line_types with MultiIndex (different across scenarios)
+    import pandas as pd
+
+    line_types_data = {
+        ("s1", "type1"): {"r": 0.1, "x": 0.2, "c": 0.0, "i_nom": 100},
+        ("s1", "type2"): {"r": 0.15, "x": 0.25, "c": 0.0, "i_nom": 150},
+        ("s2", "type1"): {"r": 0.1, "x": 0.2, "c": 0.0, "i_nom": 100},  # Same as s1
+        ("s2", "type2"): {
+            "r": 0.2,
+            "x": 0.3,
+            "c": 0.0,
+            "i_nom": 200,
+        },  # Different from s1
+    }
+
+    line_types_df = pd.DataFrame.from_dict(line_types_data, orient="index")
+    line_types_df.index = pd.MultiIndex.from_tuples(
+        line_types_df.index, names=["scenario", "type"]
+    )
+
+    # Manually set line_types to simulate stochastic network
+    n.c.line_types.static = line_types_df
+
+    # Test only the line_types consistency check directly to avoid calculate_dependent_values
+    if strict and "line_types" in strict:
+        with pytest.raises(pypsa.consistency.ConsistencyError):
+            pypsa.consistency.check_line_types_consistency(n, strict=True)
+    else:
+        # For non-strict mode, check that it logs a warning
+        pypsa.consistency.check_line_types_consistency(n, strict=False)
+        assert caplog.records[-1].levelname == "WARNING"
+
+
+def test_line_types_consistency_pass():
+    """
+    Test that the consistency check passes when line_types are identical across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=20)
+    n.add("Bus", "bus2", v_nom=20)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Create identical line_types across scenarios
+    import pandas as pd
+
+    line_types_data = {
+        ("s1", "type1"): {"r": 0.1, "x": 0.2, "c": 0.0, "i_nom": 100},
+        ("s1", "type2"): {"r": 0.15, "x": 0.25, "c": 0.0, "i_nom": 150},
+        ("s2", "type1"): {"r": 0.1, "x": 0.2, "c": 0.0, "i_nom": 100},  # Same as s1
+        ("s2", "type2"): {"r": 0.15, "x": 0.25, "c": 0.0, "i_nom": 150},  # Same as s1
+    }
+
+    line_types_df = pd.DataFrame.from_dict(line_types_data, orient="index")
+    line_types_df.index = pd.MultiIndex.from_tuples(
+        line_types_df.index, names=["scenario", "type"]
+    )
+
+    # Manually set line_types to simulate stochastic network
+    n.c.line_types.static = line_types_df
+
+    # This should pass because line_types are identical across scenarios
+    pypsa.consistency.check_line_types_consistency(n, strict=True)
+
+
+def test_line_types_consistency_non_stochastic():
+    """
+    Test that the consistency check is skipped for non-stochastic networks.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=20)
+    n.add("Bus", "bus2", v_nom=20)
+
+    # Add line_types without scenarios (normal operation)
+    n.add("LineType", "type1", r=0.1, x=0.2, c=0.0, i_nom=100)
+    n.add("LineType", "type2", r=0.15, x=0.25, c=0.0, i_nom=150)
+
+    # This should pass because it's not a stochastic network
+    pypsa.consistency.check_line_types_consistency(n, strict=True)
+
+
+@pytest.mark.parametrize("strict", [[], ["transformer_types"]])
+def test_transformer_types_consistency_fail(caplog, strict):
+    """
+    Test that the consistency check fails when transformer_types differ across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    transformer_types_data = {
+        ("s1", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+        ("s2", "type1"): {"s_nom": 150, "vsc": 15.0, "vscr": 0.30, "pfe": 65},
+    }
+
+    transformer_types_df = pd.DataFrame.from_dict(
+        transformer_types_data, orient="index"
+    )
+    transformer_types_df.index = pd.MultiIndex.from_tuples(
+        transformer_types_df.index, names=["scenario", "type"]
+    )
+
+    n.c.transformer_types.static = transformer_types_df
+
+    if strict and "transformer_types" in strict:
+        with pytest.raises(pypsa.consistency.ConsistencyError):
+            pypsa.consistency.check_transformer_types_consistency(n, strict=True)
+    else:
+        pypsa.consistency.check_transformer_types_consistency(n, strict=False)
+        assert caplog.records[-1].levelname == "WARNING"
+
+
+def test_transformer_types_consistency_pass():
+    """
+    Test that the consistency check passes when transformer_types are identical across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    transformer_types_data = {
+        ("s1", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+        ("s2", "type1"): {"s_nom": 100, "vsc": 12.0, "vscr": 0.26, "pfe": 55},
+    }
+
+    transformer_types_df = pd.DataFrame.from_dict(
+        transformer_types_data, orient="index"
+    )
+    transformer_types_df.index = pd.MultiIndex.from_tuples(
+        transformer_types_df.index, names=["scenario", "type"]
+    )
+
+    n.c.transformer_types.static = transformer_types_df
+
+    pypsa.consistency.check_transformer_types_consistency(n, strict=True)
+
+
+def test_transformer_types_consistency_non_stochastic():
+    """
+    Test that the consistency check is skipped for non-stochastic networks.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=220)
+    n.add("Bus", "bus2", v_nom=110)
+
+    n.add("TransformerType", "type1", s_nom=100, vsc=12.0, vscr=0.26, pfe=55)
+    n.add("TransformerType", "type2", s_nom=160, vsc=12.2, vscr=0.25, pfe=60)
+
+    pypsa.consistency.check_transformer_types_consistency(n, strict=True)
+
+
+@pytest.mark.parametrize("strict", [[], ["unknown_buses"]])
+def test_check_for_unknown_buses(caplog, strict):
+    """Test check_for_unknown_buses via consistency_check(): GlobalConstraint/Link empty buses OK, invalid warns."""
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    # Add components with empty buses (should be OK)
+    n.add("GlobalConstraint", "gc1")
+    n.add("Link", "link1", bus0="bus0", bus1="bus1")
+    caplog.clear()
+    n.consistency_check(strict=strict)
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Add component with invalid bus (should warn/error)
+    n.add("Generator", "gen1", bus="invalid_bus")
+    assert_log_or_error_in_consistency(n, caplog, strict=strict)
+
+
+def test_check_for_unknown_buses_empty_double_digit(caplog):
+    """Test check_for_unknown_buses: empty buses on double-digit ports OK, invalid buses warn."""
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    # Link with empty bus10 and bus11 - no warning
+    busmap = {f"bus{i}": "" for i in range(12)}
+    busmap["bus0"] = "bus0"
+    busmap["bus1"] = "bus1"
+    caplog.clear()
+    n.add("Link", "link1", **busmap)
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Link with unknown buses in bus10 - should warn
+    busmap["bus10"] = "invalid"
+    caplog.clear()
+    n.add("Link", "link2", **busmap)
+    assert any("buses which are not defined" in r.message for r in caplog.records)
+
+
+def test_check_for_unknown_buses_when_adding(caplog):
+    """Test check_for_unknown_buses: empty buses in GlobalConstraint/Links OK, invalid buses warn."""
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    # GlobalConstraint with empty bus - no warning
+    caplog.clear()
+    n.add("GlobalConstraint", "gc1")
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Link with empty bus2/bus3 - no warning
+    caplog.clear()
+    n.add("Link", "link1", bus0="bus0", bus1="bus1")
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Invalid bus - should warn
+    caplog.clear()
+    n.add("Generator", "gen1", bus="invalid")
+    assert any("buses which are not defined" in r.message for r in caplog.records)
+
+
+# --- Tests for numerical tolerance in consistency checks ---
+
+
+class TestNumericalTolerance:
+    """Tests for params.consistency.numerical_tolerance option."""
+
+    EXPANSION_MSG = "smaller maximum than minimum expansion"
+    OPERATIONAL_MSG = "smaller maximum than minimum operational"
+    E_SUM_MSG = "e_sum_min"
+
+    @pytest.fixture
+    def n(self):
+        """Return a network with a bus and generator."""
+        n = pypsa.Network()
+        n.add("Bus", "bus")
+        n.add("Generator", "gen", bus="bus")
+        return n
+
+    def test_e_sum_within_tolerance_no_warning(self, n, caplog):
+        """e_sum_min exceeding e_sum_max by a tiny amount within tolerance."""
+        n.c.generators.static.loc["gen", ["e_sum_min", "e_sum_max"]] = [1e-12, 0.0]
+        caplog.clear()
+        n.consistency_check()
+        assert not any(self.E_SUM_MSG in r.message for r in caplog.records)
+
+    def test_static_power_within_tolerance_no_warning(self, n, caplog):
+        """p_nom_max < p_nom_min by a tiny amount within tolerance."""
+        n.c.generators.static.loc["gen", "p_nom_extendable"] = True
+        n.c.generators.static.loc["gen", ["p_nom_min", "p_nom_max"]] = [
+            10.0 + 1e-12,
+            10.0,
+        ]
+        caplog.clear()
+        n.consistency_check()
+        assert not any(self.EXPANSION_MSG in r.message for r in caplog.records)
+
+    def test_time_series_within_tolerance_no_warning(self, caplog):
+        """p_max_pu < p_min_pu by a tiny amount within tolerance."""
+        n = pypsa.Network()
+        n.set_snapshots([0, 1, 2])
+        n.add("Bus", "bus")
+        n.add("Generator", "gen", bus="bus")
+        n.c.generators.dynamic.p_max_pu = pd.DataFrame(
+            {"gen": [0.9, 0.9, 0.9]}, index=n.snapshots
+        )
+        n.c.generators.dynamic.p_min_pu = pd.DataFrame(
+            {"gen": [0.9 + 1e-12, 0.9 + 1e-12, 0.9 + 1e-12]}, index=n.snapshots
+        )
+        caplog.clear()
+        n.consistency_check()
+        assert not any(self.OPERATIONAL_MSG in r.message for r in caplog.records)
+
+    def test_large_tolerance_suppresses_warning(self, n, caplog):
+        """Custom large tolerance via option_context suppresses warnings."""
+        n.c.generators.static.loc["gen", ["e_sum_min", "e_sum_max"]] = [5.5, 5.0]
+        # diff = 0.5, within custom tolerance of 1.0
+        with pypsa.option_context("params.consistency.numerical_tolerance", 1.0):
+            caplog.clear()
+            n.consistency_check()
+            assert not any(self.E_SUM_MSG in r.message for r in caplog.records)
+
+        # Without custom tolerance, should warn
+        caplog.clear()
+        n.consistency_check()
+        assert any(self.E_SUM_MSG in r.message for r in caplog.records)
+
+
+def test_nomansland_bus(caplog):
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.add("Generator", "generator1", bus="bus", p_nom=15, marginal_cost=10)
+
+    n.consistency_check()
+    assert "The following buses have no attached components" not in caplog.text, (
+        "warning should not trigger..."
+    )
+
+    n.add("Bus", "extrabus")
+
+    n.consistency_check()
+    assert "The following buses have no attached components" in caplog.text, (
+        "warning is not working..."
+    )
+
+    n.optimize()

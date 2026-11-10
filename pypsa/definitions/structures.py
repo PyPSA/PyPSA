@@ -1,9 +1,14 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Descriptors for component attributes."""
 
 from __future__ import annotations
 
 import logging
 import re
+from copy import deepcopy
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -12,8 +17,20 @@ logger = logging.getLogger(__name__)
 class Dict(dict):
     """Subclass of dict, which allows to use attribute syntax to get and set items.
 
-    Stripped down from addict https://github.com/mewwts/addict/ .
+    Stripped down from addict `https://github.com/mewwts/addict/`.
     """
+
+    def __copy__(self) -> Dict:  # e.g. copy.copy()
+        """Return a shallow copy of the Dict."""
+        return Dict(self)
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Dict:  # e.g. copy.deepcopy()
+        """Return a deep copy of the Dict."""
+        return Dict({k: deepcopy(v, memo) for k, v in self.items()})
+
+    def copy(self) -> Dict:  # e.g. d.copy()
+        """Return a shallow copy of the Dict, preserving the Dict type."""
+        return Dict(self)
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Setattr is called when the syntax a.b = 2 is used to set a value."""

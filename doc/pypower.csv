@@ -1,8 +1,0 @@
-PyPSA,PYPOWER
-"Object-oriented, data stored in pandas DataFrames",Numpy integer-indexed arrays
-Non-linear power flow,Non-linear power flow
-Only linear OPF,Non-linear and linear OPF
-Optimisation over multiple time points,Single time-point optimisation
-"Generators, storage models, hydro, sector coupling",Just generators
-Mixed AC-DC modelling,"Just AC, single synchronous area"
-Conceived in Python,Port of Matlab-based MATPOWER

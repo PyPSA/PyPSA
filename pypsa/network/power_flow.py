@@ -1,8 +1,13 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Power flow functionality."""
 
 from __future__ import annotations
 
 import logging
+from abc import abstractmethod
 from collections.abc import Sequence
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any
@@ -17,17 +22,25 @@ from scipy.sparse import hstack as shstack
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
-from pypsa.common import as_index, deprecated_common_kwargs
+from pypsa.common import (
+    _scenarios_not_implemented,
+    as_index,
+    deprecated_common_kwargs,
+)
 from pypsa.definitions.structures import Dict
-from pypsa.descriptors import _update_linkports_component_attrs
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
+from pypsa.network.graph import (
+    bfs_refined_cycle_basis,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from components import Network, SubNetwork
     from scipy.sparse import spmatrix
+
+    from pypsa.components.store import ComponentsStore
 
 
 def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
@@ -43,6 +56,7 @@ def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
 
 
 pd.Series.zsum = zsum
+
 logger = logging.getLogger(__name__)
 
 
@@ -61,7 +75,6 @@ def imag(X: pd.Series) -> pd.Series:
     return np.imag(X.to_numpy())
 
 
-@deprecated_common_kwargs
 def _allocate_pf_outputs(n: Network, linear: bool = False) -> None:
     to_allocate = {
         "Generator": ["p"],
@@ -70,16 +83,14 @@ def _allocate_pf_outputs(n: Network, linear: bool = False) -> None:
         "Store": ["p"],
         "ShuntImpedance": ["p"],
         "Bus": ["p", "v_ang", "v_mag_pu"],
-        "Line": ["p0", "p1"],
-        "Transformer": ["p0", "p1"],
-        "Link": ["p" + col[3:] for col in n.links.columns if col[:3] == "bus"],
+        **{c: ["p" + port for port in n.c[c].ports] for c in n.branch_components},
     }
 
     if not linear:
         for component, attrs in to_allocate.items():
             if "p" in attrs:
                 attrs.append("q")
-            if "p0" in attrs and component != "Link":
+            if "p0" in attrs and component in n.passive_branch_components:
                 attrs.extend(["q0", "q1"])
 
     allocate_series_dataframes(n, to_allocate)
@@ -93,22 +104,21 @@ def _calculate_controllable_nodal_power_balance(
 ) -> None:
     for power in ("q", "p"):
         # allow all one ports to dispatch as set
-        for c in sub_network.iterate_components(
-            network.controllable_one_port_components
-        ):
-            c_n_set = get_as_dense(
-                network,
+        for c in sub_network.components:
+            if c.name not in network.controllable_one_port_components:
+                continue
+            c_n_set = network.get_switchable_as_dense(
                 c.name,
                 power + "_set",
                 snapshots,
-                c.static.query("active").index,
+                c.static.query("active").index.unique("name"),
             )
-            network.dynamic(c.name)[power].loc[
+            network.c[c.name].dynamic[power].loc[
                 snapshots, c.static.query("active").index
             ] = c_n_set
 
         # set the power injection at each node from controllable components
-        network.buses_t[power].loc[snapshots, buses_o] = sum(
+        network.c.buses.dynamic[power].loc[snapshots, buses_o] = sum(
             (
                 (
                     c.dynamic[power].loc[snapshots, c.static.query("active").index]
@@ -118,26 +128,23 @@ def _calculate_controllable_nodal_power_balance(
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0.0)
             )
-            for c in sub_network.iterate_components(
-                network.controllable_one_port_components
-            )
+            for c in sub_network.components[network.controllable_one_port_components]
+            if not c.empty
         )
 
         if power == "p":
-            network.buses_t[power].loc[snapshots, buses_o] += sum(
+            network.c.buses.dynamic[power].loc[snapshots, buses_o] += sum(
                 -c.dynamic[power + str(i)]
                 .loc[snapshots]
                 .T.groupby(c.static[f"bus{str(i)}"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0)
-                for c in network.iterate_components(
-                    network.controllable_branch_components
-                )
+                for c in network.components[network.controllable_branch_components]
                 for i in [int(col[3:]) for col in c.static.columns if col[:3] == "bus"]
+                if not c.empty
             )
 
 
-@deprecated_common_kwargs
 def _network_prepare_and_run_pf(
     n: Network,
     snapshots: Sequence | None,
@@ -163,21 +170,33 @@ def _network_prepare_and_run_pf(
     sns = as_index(n, snapshots, "snapshots")
 
     # deal with links
-    if not n.links.empty:
-        p_set = get_as_dense(n, "Link", "p_set", sns)
-        n.links_t.p0.loc[sns] = p_set.loc[sns]
+    if not n.c.links.static.empty:
+        p_set = n.get_switchable_as_dense("Link", "p_set", sns)
+        n.c.links.dynamic.p0.loc[sns] = p_set.loc[sns]
         for i in ["1"] + n.c.links.additional_ports:
             eff_name = "efficiency" if i == "1" else f"efficiency{i}"
-            efficiency = get_as_dense(n, "Link", eff_name, sns)
-            links = n.links.index[n.links[f"bus{i}"] != ""]
-            n.links_t[f"p{i}"].loc[sns, links] = (
-                -n.links_t.p0.loc[sns, links] * efficiency.loc[sns, links]
+            efficiency = n.get_switchable_as_dense("Link", eff_name, sns)
+            links = n.c.links.static.index[n.c.links.static[f"bus{i}"] != ""]
+            n.c.links.dynamic[f"p{i}"].loc[sns, links] = (
+                -n.c.links.dynamic.p0.loc[sns, links] * efficiency.loc[sns, links]
             )
 
-    itdf = pd.DataFrame(index=sns, columns=n.sub_networks.index, dtype=int)
-    difdf = pd.DataFrame(index=sns, columns=n.sub_networks.index)
-    cnvdf = pd.DataFrame(index=sns, columns=n.sub_networks.index, dtype=bool)
-    for sub_network in n.sub_networks.obj:
+    # deal with processes
+    if not n.c.processes.static.empty:
+        p_set = n.get_switchable_as_dense("Process", "p_set", sns)
+        for i in n.c.processes.ports:
+            rate = n.get_switchable_as_dense("Process", f"rate{i}", sns)
+            processes = n.c.processes.static.index[
+                n.c.processes.static[f"bus{i}"] != ""
+            ]
+            n.c.processes.dynamic[f"p{i}"].loc[sns, processes] = (
+                -p_set.loc[sns, processes] * rate.loc[sns, processes]
+            )
+
+    itdf = pd.DataFrame(index=sns, columns=n.c.sub_networks.static.index, dtype=int)
+    difdf = pd.DataFrame(index=sns, columns=n.c.sub_networks.static.index)
+    cnvdf = pd.DataFrame(index=sns, columns=n.c.sub_networks.static.index, dtype=bool)
+    for sub_network in n.c.sub_networks.static.obj:
         if not skip_pre:
             sub_network.find_bus_controls()
 
@@ -196,7 +215,7 @@ def _network_prepare_and_run_pf(
         if linear:
             sub_network_pf_fun(sub_network, snapshots=sns, skip_pre=True, **kwargs)
 
-        elif len(sub_network.buses()) <= 1:
+        elif len(sub_network.c.buses.static) <= 1:
             (
                 itdf[sub_network.name],
                 difdf[sub_network.name],
@@ -226,7 +245,6 @@ def _network_prepare_and_run_pf(
     return None
 
 
-@deprecated_common_kwargs
 def allocate_series_dataframes(n: Network, series: dict) -> None:
     """Populate time-varying outputs with default values.
 
@@ -243,13 +261,13 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
 
     """
     for component, attributes in series.items():
-        static = n.static(component)
-        dynamic = n.dynamic(component)
+        static = n.c[component].static
+        dynamic = n.c[component].dynamic
 
         for attr in attributes:
             dynamic[attr] = dynamic[attr].reindex(
                 columns=static.index,
-                fill_value=n.components[component]["attrs"].at[attr, "default"],
+                fill_value=n.components[component]["defaults"].at[attr, "default"],
             )
 
 
@@ -317,9 +335,9 @@ def sub_network_pf_singlebus(
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     distribute_slack : bool, default False
-        If ``True``, distribute the slack power across generators proportional to generator dispatch by default
-        or according to the distribution scheme provided in ``slack_weights``.
-        If ``False`` only the slack generator takes up the slack.
+        If `True`, distribute the slack power across generators proportional to generator dispatch by default
+        or according to the distribution scheme provided in `slack_weights`.
+        If `False` only the slack generator takes up the slack.
     slack_weights : pandas.Series|str, default 'p_set'
         Distribution scheme describing how to determine the fraction of the total slack power
         a bus of the sub-network takes up. Default is to distribute proportional to generator dispatch
@@ -327,7 +345,7 @@ def sub_network_pf_singlebus(
         Custom weights can be provided via a pandas.Series/dict
         that has the generators of the single bus as index/keys.
     linear : bool, default False
-        If ``True``, use linear power flow instead of non-linear power flow.
+        If `True`, use linear power flow instead of non-linear power flow.
 
     """
     sns = as_index(sub_network.n, snapshots, "snapshots")
@@ -349,23 +367,28 @@ def sub_network_pf_singlebus(
 
     _calculate_controllable_nodal_power_balance(sub_network, n, sns, buses_o)
 
-    v_mag_pu_set = get_as_dense(n, "Bus", "v_mag_pu_set", sns)
-    n.buses_t.v_mag_pu.loc[sns, sub_network.slack_bus] = v_mag_pu_set.loc[
+    v_mag_pu_set = n.get_switchable_as_dense("Bus", "v_mag_pu_set", sns)
+    n.c.buses.dynamic.v_mag_pu.loc[sns, sub_network.slack_bus] = v_mag_pu_set.loc[
         :, sub_network.slack_bus
     ]
-    n.buses_t.v_ang.loc[sns, sub_network.slack_bus] = 0.0
+    n.c.buses.dynamic.v_ang.loc[sns, sub_network.slack_bus] = 0.0
 
     if distribute_slack:
-        for bus, group in sub_network.generators().groupby("bus"):
+        for bus, group in sub_network.c.generators.static.groupby("bus"):
             if slack_weights in ["p_nom", "p_nom_opt"]:
-                if all(n.generators[slack_weights] == 0):
+                if all(n.c.generators.static[slack_weights] == 0):
                     msg = f"Invalid slack weights! Generator attribute {slack_weights} is always zero."
                     raise ValueError(msg)
                 bus_generator_shares = (
-                    n.generators[slack_weights].loc[group.index].pipe(normed).fillna(0)
+                    n.c.generators.static[slack_weights]
+                    .loc[group.index]
+                    .pipe(normed)
+                    .fillna(0)
                 )
             elif slack_weights == "p_set":
-                generators_t_p_choice = get_as_dense(n, "Generator", slack_weights, sns)
+                generators_t_p_choice = n.get_switchable_as_dense(
+                    "Generator", slack_weights, sns
+                )
                 if generators_t_p_choice.isna().all().all():
                     msg = (
                         f"Invalid slack weights! Generator attribute {slack_weights}"
@@ -386,44 +409,70 @@ def sub_network_pf_singlebus(
                 )
             else:
                 bus_generator_shares = slack_weights.pipe(normed).fillna(0)  # type: ignore
-            n.generators_t.p.loc[sns, group.index] += (
+            n.c.generators.dynamic.p.loc[sns, group.index] += (
                 bus_generator_shares.multiply(
-                    -n.buses_t.p.loc[sns, bus], axis=0
+                    -n.c.buses.dynamic.p.loc[sns, bus], axis=0
                 )
             )  # fmt: skip
     else:
-        n.generators_t.p.loc[sns, sub_network.slack_generator] -= (
-            n.buses_t.p.loc[sns, sub_network.slack_bus]
+        n.c.generators.dynamic.p.loc[sns, sub_network.slack_generator] -= (
+            n.c.buses.dynamic.p.loc[sns, sub_network.slack_bus]
         )  # fmt: skip
 
-    n.generators_t.q.loc[sns, sub_network.slack_generator] -= (
-        n.buses_t.q.loc[sns, sub_network.slack_bus]
+    n.c.generators.dynamic.q.loc[sns, sub_network.slack_generator] -= (
+        n.c.buses.dynamic.q.loc[sns, sub_network.slack_bus]
     )  # fmt: skip
 
-    n.buses_t.p.loc[sns, sub_network.slack_bus] = 0.0
-    n.buses_t.q.loc[sns, sub_network.slack_bus] = 0.0
+    n.c.buses.dynamic.p.loc[sns, sub_network.slack_bus] = 0.0
+    n.c.buses.dynamic.q.loc[sns, sub_network.slack_bus] = 0.0
 
     return 0, 0.0, True  # dummy substitute for newton raphson output
 
 
-@deprecated_common_kwargs
+def _warn_type_param_override(
+    component: str, current: pd.DataFrame, new: pd.DataFrame, attrs: list[str]
+) -> None:
+    """Warn if non-default manual impedance values are overridden by a standard type."""
+    differs = (current[attrs].to_numpy() != 0) & ~np.isclose(current[attrs], new[attrs])
+    overridden = current.index[differs.any(axis=1)]
+    if not overridden.empty:
+        logger.warning(
+            "%s %s have a 'type' set; the manually provided values for %s are "
+            "overridden by the standard type. Set 'type' to \"\" to keep manual values.",
+            component,
+            overridden.tolist(),
+            ", ".join(attrs),
+        )
+
+
 def apply_line_types(n: Network) -> None:
     """Calculate line electrical parameters x, r, b, g from standard types."""
-    lines_with_types_b = n.lines.type != ""
+    lines_with_types_b = n.c.lines.static.type != ""
     if lines_with_types_b.zsum() == 0:
         return
 
-    missing_types = pd.Index(
-        n.lines.loc[lines_with_types_b, "type"].unique()
-    ).difference(n.line_types.index)
+    # Get unique line types from lines
+    line_types_used = n.c.lines.static.loc[lines_with_types_b, "type"].unique()
+
+    missing_types = pd.Index(line_types_used).difference(n.c.line_types.names)
+
     if not missing_types.empty:
-        msg = f"The type(s) {', '.join(missing_types)} do(es) not exist in n.line_types"
+        msg = f"The type(s) {', '.join(missing_types)} do(es) not exist in n.c.line_types.static"
         raise ValueError(msg)
 
-    # Get a copy of the lines data
-    lines = n.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].join(
-        n.line_types, on="type"
-    )
+    lines = n.c.lines.static.loc[
+        lines_with_types_b, ["type", "length", "num_parallel"]
+    ].copy()
+
+    if n.has_scenarios:
+        # For stochastic network, use the first scenario's line types
+        # User changes across line type data are caught by the consistency check
+        line_types_to_use = n.c.line_types.static.xs(
+            n.c.line_types.static.index.get_level_values(0)[0], level=0
+        )
+        lines = lines.join(line_types_to_use, on="type")
+    else:
+        lines = lines.join(n.c.line_types.static, on="type")
 
     for attr in ["r", "x"]:
         lines[attr] = (
@@ -440,20 +489,27 @@ def apply_line_types(n: Network) -> None:
     )
 
     # now set calculated values on live lines
-    for attr in ["r", "x", "b"]:
-        n.lines.loc[lines_with_types_b, attr] = lines[attr]
+    line_attrs = ["r", "x", "b"]
+    _warn_type_param_override(
+        "Line(s)", n.c.lines.static.loc[lines_with_types_b], lines, line_attrs
+    )
+    for attr in line_attrs:
+        n.c.lines.static.loc[lines_with_types_b, attr] = lines[attr]
 
 
-@deprecated_common_kwargs
 def apply_transformer_types(n: Network) -> None:
     """Calculate transformer electrical parameters x, r, b, g from standard types."""
-    trafos_with_types_b = n.transformers.type != ""
+    trafos_with_types_b = n.c.transformers.static.type != ""
     if trafos_with_types_b.zsum() == 0:
         return
 
-    missing_types = pd.Index(
-        n.transformers.loc[trafos_with_types_b, "type"].unique()
-    ).difference(n.transformer_types.index)
+    transformer_types_used = n.c.transformers.static.loc[
+        trafos_with_types_b, "type"
+    ].unique()
+    missing_types = pd.Index(transformer_types_used).difference(
+        n.c.transformer_types.names
+    )
+
     if not missing_types.empty:
         msg = (
             f"The type(s) {', '.join(missing_types)} do(es) not exist in "
@@ -462,10 +518,24 @@ def apply_transformer_types(n: Network) -> None:
         raise ValueError(msg)
 
     # Get a copy of the transformers data
-    # (joining pulls in "phase_shift", "s_nom", "tap_side" from TransformerType)
-    t = n.transformers.loc[
-        trafos_with_types_b, ["type", "tap_position", "num_parallel"]
-    ].join(n.transformer_types, on="type")
+    # Select columns that are NOT in transformer_types
+    t = n.c.transformers.static.loc[
+        trafos_with_types_b,
+        [
+            "type",
+            "tap_position",
+            "num_parallel",
+        ],
+    ].copy()
+
+    if n.has_scenarios:
+        # For stochastic network, use the first scenario's transformer types
+        # User changes across type data are caught by the consistency check
+        # TODO we should not broadcast types. This will be handled with properties in the coming releases.
+        types_to_use = n.c.transformer_types.static.xs(n.scenarios[0], level="scenario")
+        t = t.join(types_to_use, on="type")
+    else:
+        t = t.join(n.c.transformer_types.static, on="type")
 
     t["r"] = t["vscr"] / 100.0
     t["x"] = np.sqrt((t["vsc"] / 100.0) ** 2 - t["r"] ** 2)
@@ -490,8 +560,14 @@ def apply_transformer_types(n: Network) -> None:
 
     # now set calculated values on live transformers
     attrs = ["r", "x", "g", "b", "phase_shift", "s_nom", "tap_side", "tap_ratio"]
-    n.transformers.loc[trafos_with_types_b, attrs] = t[attrs].astype(
-        n.transformers[attrs].dtypes
+    _warn_type_param_override(
+        "Transformer(s)",
+        n.c.transformers.static.loc[trafos_with_types_b],
+        t,
+        ["r", "x", "g", "b", "s_nom"],
+    )
+    n.c.transformers.static.loc[trafos_with_types_b, attrs] = t[attrs].astype(
+        n.c.transformers.static[attrs].dtypes
     )
 
     # TODO: status, rate_A
@@ -523,7 +599,6 @@ def wye_to_delta(
     return (summand / z2, summand / z1, summand / z3)
 
 
-@deprecated_common_kwargs
 def apply_transformer_t_model(n: Network) -> None:
     """Convert given T-model parameters to PI-model parameters.
 
@@ -532,10 +607,10 @@ def apply_transformer_t_model(n: Network) -> None:
     Uses wye-delta transformation.
 
     """
-    z_series = n.transformers.r_pu + 1j * n.transformers.x_pu
-    y_shunt = n.transformers.g_pu + 1j * n.transformers.b_pu
+    z_series = n.c.transformers.static.r_pu + 1j * n.c.transformers.static.x_pu
+    y_shunt = n.c.transformers.static.g_pu + 1j * n.c.transformers.static.b_pu
 
-    ts_b = (n.transformers.model == "t") & (y_shunt != 0.0)
+    ts_b = (n.c.transformers.static.model == "t") & (y_shunt != 0.0)
 
     if ts_b.zsum() == 0:
         return
@@ -544,10 +619,10 @@ def apply_transformer_t_model(n: Network) -> None:
         z_series.loc[ts_b] / 2, z_series.loc[ts_b] / 2, 1 / y_shunt.loc[ts_b]
     )
 
-    n.transformers.loc[ts_b, "r_pu"] = real(zc)
-    n.transformers.loc[ts_b, "x_pu"] = imag(zc)
-    n.transformers.loc[ts_b, "g_pu"] = real(2 / za)
-    n.transformers.loc[ts_b, "b_pu"] = imag(2 / za)
+    n.c.transformers.static.loc[ts_b, "r_pu"] = real(zc)
+    n.c.transformers.static.loc[ts_b, "x_pu"] = imag(zc)
+    n.c.transformers.static.loc[ts_b, "g_pu"] = real(2 / za)
+    n.c.transformers.static.loc[ts_b, "b_pu"] = imag(2 / za)
 
 
 def aggregate_multi_graph(sub_network: SubNetwork) -> None:
@@ -566,7 +641,7 @@ def aggregate_multi_graph(sub_network: SubNetwork) -> None:
             continue
         line_objs = list(graph.adj[u][v].keys())
         if len(line_objs) > 1:
-            lines = n.lines.loc[[line[1] for line in line_objs]]
+            lines = n.c.lines.static.loc[[line[1] for line in line_objs]]
             attr_inv = ["x", "r"]
             attr_sum = ["s_nom", "b", "g", "s_nom_max", "s_nom_min"]
             attr_mean = ["capital_cost", "length", "terrain_factor"]
@@ -606,7 +681,7 @@ def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     """
     branches_bus0 = sub_network.branches()["bus0"]
     branches_i = branches_bus0.index
-    buses_i = sub_network.buses_i()
+    buses_i = sub_network.c.buses.static.index
 
     graph = sub_network.graph(weight=weight, inf_weight=1.0)
     sub_network.tree = nx.minimum_spanning_tree(graph)
@@ -629,23 +704,51 @@ def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
             sub_network.T[branch_i, j] = sign
 
 
-def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
+def find_cycles(
+    sub_network: SubNetwork,
+    weight: str = "x_pu",
+    cycle_basis_method: str = "bfs-refined",
+) -> None:
     """Find all cycles in the sub_network and record them in sub_network.C.
 
-    networkx collects the cycles with more than 2 edges; then the 2-edge
-    cycles from the MultiGraph must be collected separately (for cases
-    where there are multiple lines between the same pairs of buses).
+    The cycle basis is constructed with ``cycle_basis_method``, which collects
+    the cycles with more than 2 edges; then the 2-edge cycles from the
+    MultiGraph must be collected separately (for cases where there are multiple
+    lines between the same pairs of buses).
 
-    Cycles with infinite impedance are skipped.
+    Cycles with inactive branches and infinite impedance are skipped.
+
+    Parameters
+    ----------
+    sub_network : SubNetwork
+        Sub-network for which to construct the cycle basis.
+    weight : str, default "x_pu"
+        Branch attribute used to exclude infinite-impedance branches.
+    cycle_basis_method : str, default "bfs-refined"
+        Method used to construct the cycle basis, either ``"bfs-refined"`` or
+        ``"paton"``.
+
     """
+    if cycle_basis_method not in ("bfs-refined", "paton"):
+        msg = 'cycle_basis_method must be one of "bfs-refined" or "paton"'
+        raise ValueError(msg)
+
     branches_bus0 = sub_network.branches()["bus0"]
+
+    if sub_network.n.has_scenarios and not branches_bus0.empty:
+        first_scenario = sub_network.n.scenarios[0]
+        branches_bus0 = branches_bus0.xs(first_scenario, level="scenario")
+
     branches_i = branches_bus0.index
 
     # reduce to a non-multi-graph for cycles with > 2 edges
-    mgraph = sub_network.graph(weight=weight, inf_weight=False)
+    mgraph = sub_network.graph(weight=weight, inf_weight=False, include_inactive=False)
     graph = nx.Graph(mgraph)
 
-    cycles = nx.cycle_basis(graph)
+    if cycle_basis_method == "paton":
+        cycles = nx.cycle_basis(graph)
+    else:
+        cycles = bfs_refined_cycle_basis(graph)
 
     # number of 2-edge cycles
     num_multi = len(mgraph.edges()) - len(graph.edges())
@@ -688,8 +791,8 @@ def network_batch_lpf(n: Network, snapshots: Sequence | None = None) -> None:
 class NetworkPowerFlowMixin(_NetworkABC):
     """Mixin class for network power flow methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     def calculate_dependent_values(self) -> None:
@@ -698,52 +801,76 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         apply_transformer_types(self)
 
-        self.lines["v_nom"] = self.lines.bus0.map(self.buses.v_nom)
-        self.lines.loc[self.lines.carrier == "", "carrier"] = self.lines.bus0.map(
-            self.buses.carrier
+        buses = self.c.buses.static
+
+        if self.has_scenarios:
+            buses = buses.xs(self.scenarios[0], level="scenario")
+
+        self.c.lines.static["v_nom"] = self.c.lines.static.bus0.map(buses.v_nom).astype(
+            float
+        )
+        self.c.lines.static.loc[self.c.lines.static.carrier == "", "carrier"] = (
+            self.c.lines.static.bus0.map(buses.carrier)
         )
 
-        self.lines["x_pu"] = self.lines.x / (self.lines.v_nom**2)
-        self.lines["r_pu"] = self.lines.r / (self.lines.v_nom**2)
-        self.lines["b_pu"] = self.lines.b * self.lines.v_nom**2
-        self.lines["g_pu"] = self.lines.g * self.lines.v_nom**2
-        self.lines["x_pu_eff"] = self.lines["x_pu"]
-        self.lines["r_pu_eff"] = self.lines["r_pu"]
+        self.c.lines.static["x_pu"] = self.c.lines.static.x / (
+            self.c.lines.static.v_nom**2
+        )
+        self.c.lines.static["r_pu"] = self.c.lines.static.r / (
+            self.c.lines.static.v_nom**2
+        )
+        self.c.lines.static["b_pu"] = (
+            self.c.lines.static.b * self.c.lines.static.v_nom**2
+        )
+        self.c.lines.static["g_pu"] = (
+            self.c.lines.static.g * self.c.lines.static.v_nom**2
+        )
+        self.c.lines.static["x_pu_eff"] = self.c.lines.static["x_pu"]
+        self.c.lines.static["r_pu_eff"] = self.c.lines.static["r_pu"]
 
         # convert transformer impedances from base power s_nom to base = 1 MVA
-        self.transformers["x_pu"] = self.transformers.x / self.transformers.s_nom
-        self.transformers["r_pu"] = self.transformers.r / self.transformers.s_nom
-        self.transformers["b_pu"] = self.transformers.b * self.transformers.s_nom
-        self.transformers["g_pu"] = self.transformers.g * self.transformers.s_nom
-        self.transformers["x_pu_eff"] = (
-            self.transformers["x_pu"] * self.transformers["tap_ratio"]
+        self.c.transformers.static["x_pu"] = (
+            self.c.transformers.static.x / self.c.transformers.static.s_nom
         )
-        self.transformers["r_pu_eff"] = (
-            self.transformers["r_pu"] * self.transformers["tap_ratio"]
+        self.c.transformers.static["r_pu"] = (
+            self.c.transformers.static.r / self.c.transformers.static.s_nom
+        )
+        self.c.transformers.static["b_pu"] = (
+            self.c.transformers.static.b * self.c.transformers.static.s_nom
+        )
+        self.c.transformers.static["g_pu"] = (
+            self.c.transformers.static.g * self.c.transformers.static.s_nom
+        )
+        self.c.transformers.static["x_pu_eff"] = (
+            self.c.transformers.static["x_pu"] * self.c.transformers.static["tap_ratio"]
+        )
+        self.c.transformers.static["r_pu_eff"] = (
+            self.c.transformers.static["r_pu"] * self.c.transformers.static["tap_ratio"]
         )
 
         apply_transformer_t_model(self)
 
-        self.shunt_impedances["v_nom"] = self.shunt_impedances["bus"].map(
-            self.buses.v_nom
+        self.c.shunt_impedances.static["v_nom"] = (
+            self.c.shunt_impedances.static["bus"].map(buses.v_nom).astype(float)
         )
-        self.shunt_impedances["b_pu"] = (
-            self.shunt_impedances.b * self.shunt_impedances.v_nom**2
+        self.c.shunt_impedances.static["b_pu"] = (
+            self.c.shunt_impedances.static.b * self.c.shunt_impedances.static.v_nom**2
         )
-        self.shunt_impedances["g_pu"] = (
-            self.shunt_impedances.g * self.shunt_impedances.v_nom**2
-        )
-
-        self.links.loc[self.links.carrier == "", "carrier"] = self.links.bus0.map(
-            self.buses.carrier
+        self.c.shunt_impedances.static["g_pu"] = (
+            self.c.shunt_impedances.static.g * self.c.shunt_impedances.static.v_nom**2
         )
 
-        self.stores.loc[self.stores.carrier == "", "carrier"] = self.stores.bus.map(
-            self.buses.carrier
+        self.c.links.static.loc[self.c.links.static.carrier == "", "carrier"] = (
+            self.c.links.static.bus0.map(buses.carrier)
         )
 
-        _update_linkports_component_attrs(self)
+        self.c.stores.static.loc[self.c.stores.static.carrier == "", "carrier"] = (
+            self.c.stores.static.bus.map(buses.carrier)
+        )
 
+        _update_ports_component_attrs(self)
+
+    @_scenarios_not_implemented
     def lpf(
         n: Network, snapshots: Sequence | None = None, skip_pre: bool = False
     ) -> None:
@@ -764,6 +891,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
         sns = as_index(n, snapshots, "snapshots")
         _network_prepare_and_run_pf(n, sns, skip_pre, linear=True)
 
+    @_scenarios_not_implemented
     def pf(
         n: Network,
         snapshots: Sequence | None = None,
@@ -789,20 +917,20 @@ class NetworkPowerFlowMixin(_NetworkABC):
         use_seed : bool, default False
             Use a seed for the initial guess for the Newton-Raphson algorithm.
         distribute_slack : bool, default False
-            If ``True``, distribute the slack power across generators proportional to generator dispatch by default
-            or according to the distribution scheme provided in ``slack_weights``.
-            If ``False`` only the slack generator takes up the slack.
+            If `True`, distribute the slack power across generators proportional to generator dispatch by default
+            or according to the distribution scheme provided in `slack_weights`.
+            If `alse` only the slack generator takes up the slack.
         slack_weights : dict|str, default 'p_set'
             Distribution scheme describing how to determine the fraction of the total slack power
             (of each sub network individually) a bus of the sub-network takes up.
             Default is to distribute proportional to generator dispatch ('p_set').
             Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt').
             Custom weights can be specified via a dictionary that has a key for each
-            sub-network index (``n.sub_networks.index``) and a
+            sub-network index (`n.sub_networks.index`) and a
             pandas.Series/dict with buses or generators of the
             corresponding sub-network as index/keys.
             When specifying custom weights with buses as index/keys the slack power of a bus is distributed
-            among its generators in proportion to their nominal capacity (``p_nom``) if given, otherwise evenly.
+            among its generators in proportion to their nominal capacity (`p_nom`) if given, otherwise evenly.
 
         Returns
         -------
@@ -821,8 +949,9 @@ class NetworkPowerFlowMixin(_NetworkABC):
             use_seed=use_seed,
             distribute_slack=distribute_slack,
             slack_weights=slack_weights,
-        )
+        )  # type: ignore
 
+    @_scenarios_not_implemented
     def lpf_contingency(
         self,
         snapshots: Sequence | str | int | pd.Timestamp | None = None,
@@ -832,8 +961,6 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         Parameters
         ----------
-        n : Network
-            Network instance.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots
@@ -870,13 +997,14 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         p0_base = pd.concat(
             {
-                c: self.dynamic(c).p0.loc[snapshot]
+                c: self.c[c].dynamic.p0.loc[snapshot]
                 for c in self.passive_branch_components
-            }
+            },
+            names=["component", "name"],
         )
         p0 = p0_base.to_frame("base")
 
-        for sub_network in self.sub_networks.obj:
+        for sub_network in self.c.sub_networks.static.obj:
             sub_network._branches = sub_network.branches()
             sub_network.calculate_BODF()
 
@@ -885,13 +1013,15 @@ class NetworkPowerFlowMixin(_NetworkABC):
                 logger.warning("No type given for %s, assuming it is a line", branch)
                 branch = ("Line", branch)
 
-            sub_network = self.sub_networks.obj[passive_branches.sub_network[branch]]
+            sub_network = self.c.sub_networks.static.obj[
+                passive_branches.sub_network[branch]
+            ]
 
             branch_i = sub_network._branches.index.get_loc(branch)
             p0_new = p0_base + pd.Series(
                 sub_network.BODF[:, branch_i] * p0_base[branch],
                 sub_network._branches.index,
-            )
+            ).reindex(p0_base.index, fill_value=0)
             p0_new.name = branch
 
             p0 = pd.concat([p0, p0_new], axis=1)
@@ -902,8 +1032,8 @@ class NetworkPowerFlowMixin(_NetworkABC):
 class SubNetworkPowerFlowMixin:
     """Mixin class for sub-network power flow methods.
 
-    Class only inherits to [pypsa.SubNetwork][] and should not be used directly.
-    All attributes and methods can be used within any SubNetwork instance.
+    Class inherits to [pypsa.SubNetwork][]. All attributes and methods can be used
+    within any SubNetwork instance.
     """
 
     # Type Hints
@@ -932,6 +1062,16 @@ class SubNetworkPowerFlowMixin:
     buses_i: pd.Index
     shunt_impedances_i: pd.Index
 
+    @property
+    @abstractmethod
+    def components(self) -> ComponentsStore:
+        """Read only placeholder."""
+
+    @property
+    @abstractmethod
+    def c(self) -> ComponentsStore:
+        """Read only placeholder."""
+
     def calculate_BODF(self, skip_pre: bool = False) -> None:
         """Calculate the Branch Outage Distribution Factor (BODF) for sub_network.
 
@@ -948,8 +1088,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            Sub-network instance.
         skip_pre : bool, default False
             Skip the preliminary step of computing the PTDF.
 
@@ -980,8 +1118,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to calculate the PTDF for.
         skip_pre : bool, default False
             Skip the preliminary steps of computing topology, calculating dependent values,
             finding bus controls and computing B and H.
@@ -1019,7 +1155,7 @@ class SubNetworkPowerFlowMixin:
             n.calculate_dependent_values()
             self.find_bus_controls()
 
-        if self.n.sub_networks.at[self.name, "carrier"] == "DC":
+        if self.n.c.sub_networks.static.at[self.name, "carrier"] == "DC":
             attribute = "r_pu_eff"
         else:
             attribute = "x_pu_eff"
@@ -1029,7 +1165,8 @@ class SubNetworkPowerFlowMixin:
         z = np.concatenate(
             [
                 (c.static.loc[c.static.query("active").index, attribute]).values
-                for c in self.iterate_components(n.passive_branch_components)
+                for c in self.components
+                if c.name in n.passive_branch_components
             ]
         )
         # susceptances
@@ -1058,10 +1195,13 @@ class SubNetworkPowerFlowMixin:
                     if c.name == "Transformer"
                     else np.zeros((len(c.static.query("active").index),))
                 )
-                for c in self.iterate_components(n.passive_branch_components)
+                for c in self.components
+                if c.name in n.passive_branch_components
             ]
         )
-        self.p_branch_shift = np.multiply(-b, phase_shift, where=b != np.inf)
+        self.p_branch_shift = np.multiply(
+            -b, phase_shift, where=b != np.inf, out=np.zeros_like(b)
+        )
 
         self.p_bus_shift = self.K * self.p_branch_shift
 
@@ -1074,7 +1214,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             self.n.calculate_dependent_values()
 
-        if self.n.sub_networks.at[self.name, "carrier"] != "AC":
+        if self.n.c.sub_networks.static.at[self.name, "carrier"] != "AC":
             logger.warning("Non-AC networks not supported for Y!")
             return
 
@@ -1119,12 +1259,12 @@ class SubNetworkPowerFlowMixin:
 
         # bus shunt impedances
         b_sh = (
-            n.shunt_impedances.b_pu.groupby(n.shunt_impedances.bus)
+            n.c.shunt_impedances.static.b_pu.groupby(n.c.shunt_impedances.static.bus)
             .sum()
             .reindex(buses_o, fill_value=0.0)
         )
         g_sh = (
-            n.shunt_impedances.g_pu.groupby(n.shunt_impedances.bus)
+            n.c.shunt_impedances.static.g_pu.groupby(n.c.shunt_impedances.static.bus)
             .sum()
             .reindex(buses_o, fill_value=0.0)
         )
@@ -1163,18 +1303,24 @@ class SubNetworkPowerFlowMixin:
 
     def find_slack_bus(self) -> None:
         """Find the slack bus in a connected sub-network."""
-        gens = self.generators()
+        gens = self.c.generators.static
+        gen_names = gens.index.get_level_values("name")
 
         if len(gens) == 0:
             self.slack_generator = None
-            self.slack_bus = self.buses_i()[0]
+            self.slack_bus = self.c.buses.static.index.get_level_values("name")[0]
 
         else:
-            slacks = gens[gens.control == "Slack"].index
+            slacks = gens[gens.control == "Slack"].index.unique("name")
+            network_gen_names = self.n.c.generators.static.index.get_level_values(
+                "name"
+            )
 
             if len(slacks) == 0:
-                self.slack_generator = gens.index[0]
-                self.n.generators.loc[self.slack_generator, "control"] = "Slack"
+                self.slack_generator = gen_names[0]
+
+                is_slack_generators = network_gen_names == self.slack_generator
+                self.n.c.generators.static.loc[is_slack_generators, "control"] = "Slack"
                 logger.debug(
                     "No slack generator found in sub-network %s, using %s as the slack generator",
                     self.name,
@@ -1185,17 +1331,22 @@ class SubNetworkPowerFlowMixin:
                 self.slack_generator = slacks[0]
             else:
                 self.slack_generator = slacks[0]
-                self.n.generators.loc[slacks[1:], "control"] = "PV"
+                non_slack_generators = network_gen_names.isin(slacks[1:])
+                self.n.c.generators.static.loc[non_slack_generators, "control"] = "PV"
                 logger.debug(
                     "More than one slack generator found in sub-network %s, using %s as the slack generator",
                     self.name,
                     self.slack_generator,
                 )
 
-            self.slack_bus = gens.bus[self.slack_generator]
-
+            if isinstance(gens.index, pd.MultiIndex):
+                self.slack_bus = gens.bus.xs(self.slack_generator, level="name").values[
+                    0
+                ]
+            else:
+                self.slack_bus = gens.bus.loc[self.slack_generator]
         # also put it into the dataframe
-        self.n.sub_networks.at[self.name, "slack_bus"] = self.slack_bus
+        self.n.c.sub_networks.static.at[self.name, "slack_bus"] = self.slack_bus
 
         logger.debug(
             "Slack bus for sub-network %s is %s",
@@ -1213,27 +1364,30 @@ class SubNetworkPowerFlowMixin:
 
         self.find_slack_bus()
 
-        gens = self.generators()
-        buses_i = self.buses_i()
+        gens = self.c.generators.static
+        buses_i = self.c.buses.static.index
 
         # default bus control is PQ
-        n.buses.loc[buses_i, "control"] = "PQ"
+        n.c.buses.static.loc[buses_i, "control"] = "PQ"
 
         # find all buses with one or more gens with PV
         pvs = gens[gens.control == "PV"].index.to_series()
         if len(pvs) > 0:
             pvs = pvs.groupby(gens.bus).first()
-            n.buses.loc[pvs.index, "control"] = "PV"
-            n.buses.loc[pvs.index, "generator"] = pvs
+            n.c.buses.static.loc[pvs.index, "control"] = "PV"
+            n.c.buses.static.loc[pvs.index, "generator"] = pvs
 
-        n.buses.loc[self.slack_bus, "control"] = "Slack"
-        n.buses.loc[self.slack_bus, "generator"] = self.slack_generator
+        is_slack_bus = n.c.buses.static.index.get_level_values("name") == self.slack_bus
+        n.c.buses.static.loc[is_slack_bus, "control"] = "Slack"
+        n.c.buses.static.loc[is_slack_bus, "generator"] = (
+            self.slack_generator if self.slack_generator is not None else ""
+        )
 
-        buses_control = n.buses.loc[buses_i, "control"]
+        buses_control = n.c.buses.static.loc[buses_i, "control"]
         self.pvs = buses_control.index[buses_control == "PV"]
         self.pqs = buses_control.index[buses_control == "PQ"]
 
-        self.pvpqs = self.pvs.append(self.pqs)
+        self.pvpqs = self.pvs.union(self.pqs, sort=False)
 
         # order buses
         self.buses_o = self.pvpqs.insert(0, self.slack_bus)
@@ -1251,8 +1405,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to run the power flow on.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots
@@ -1263,9 +1415,9 @@ class SubNetworkPowerFlowMixin:
         use_seed : bool, default False
             Use a seed for the initial guess for the Newton-Raphson algorithm.
         distribute_slack : bool, default False
-            If ``True``, distribute the slack power across generators proportional to generator dispatch by default
-            or according to the distribution scheme provided in ``slack_weights``.
-            If ``False`` only the slack generator takes up the slack.
+            If `True`, distribute the slack power across generators proportional to generator dispatch by default
+            or according to the distribution scheme provided in `slack_weights`.
+            If `False` only the slack generator takes up the slack.
         slack_weights : pandas.Series|str, default 'p_set'
             Distribution scheme describing how to determine the fraction of the total slack power
             a bus of the sub-network takes up. Default is to distribute proportional to generator dispatch
@@ -1273,7 +1425,7 @@ class SubNetworkPowerFlowMixin:
             Custom weights can be provided via a pandas.Series/dict
             that has the buses or the generators of the sub-network as index/keys.
             When using custom weights with buses as index/keys the slack power of a bus is distributed
-            among its generators in proportion to their nominal capacity (``p_nom``) if given, otherwise evenly.
+            among its generators in proportion to their nominal capacity (`p_nom`) if given, otherwise evenly.
 
         Returns
         -------
@@ -1302,7 +1454,7 @@ class SubNetworkPowerFlowMixin:
         sns = as_index(self.n, snapshots, "snapshots")
         logger.info(
             "Performing non-linear load-flow on %s sub-network %s for snapshots %s",
-            self.n.sub_networks.at[self.name, "carrier"],
+            self.n.c.sub_networks.static.at[self.name, "carrier"],
             self,
             sns,
         )
@@ -1317,8 +1469,8 @@ class SubNetworkPowerFlowMixin:
         # get indices for the components on this sub-network
         branches_i = self.branches_i(active_only=True)
         buses_o = self.buses_o
-        sn_buses = self.buses().index
-        sn_generators = self.generators().index
+        sn_buses = self.c.buses.static.index
+        sn_generators = self.c.generators.static.index
 
         generator_slack_weights_b = False
         bus_slack_weights_b = False
@@ -1339,18 +1491,20 @@ class SubNetworkPowerFlowMixin:
 
         _calculate_controllable_nodal_power_balance(self, n, sns, buses_o)
 
+        def voltage(guess: np.ndarray, distribute_slack: bool) -> np.ndarray:
+            last_pq = -1 if distribute_slack else None
+            v_ang = v_ang_now.copy()
+            v_mag_pu = v_mag_pu_now.copy()
+            v_ang[1:] = guess[: len(self.pvpqs)]
+            v_mag_pu[1 + len(self.pvs) :] = guess[len(self.pvpqs) : last_pq]
+            return v_mag_pu * np.exp(1j * v_ang)
+
         def f(
             guess: np.ndarray,
             distribute_slack: bool = False,
             slack_weights: np.ndarray | None = None,
         ) -> np.ndarray:
-            last_pq = -1 if distribute_slack else None
-            n.buses_t.v_ang.loc[now, self.pvpqs] = guess[: len(self.pvpqs)]
-            n.buses_t.v_mag_pu.loc[now, self.pqs] = guess[len(self.pvpqs) : last_pq]
-
-            v_mag_pu = n.buses_t.v_mag_pu.loc[now, buses_o]
-            v_ang = n.buses_t.v_ang.loc[now, buses_o]
-            V = v_mag_pu * np.exp(1j * v_ang)
+            V = voltage(guess, distribute_slack)
 
             if distribute_slack:
                 slack_power = slack_weights * guess[-1]
@@ -1359,9 +1513,9 @@ class SubNetworkPowerFlowMixin:
                 mismatch = V * np.conj(self.Y * V) - s
 
             if distribute_slack:
-                F = r_[real(mismatch)[:], imag(mismatch)[1 + len(self.pvs) :]]
+                F = r_[mismatch.real[:], mismatch.imag[1 + len(self.pvs) :]]
             else:
-                F = r_[real(mismatch)[1:], imag(mismatch)[1 + len(self.pvs) :]]
+                F = r_[mismatch.real[1:], mismatch.imag[1 + len(self.pvs) :]]
 
             return F
 
@@ -1370,14 +1524,7 @@ class SubNetworkPowerFlowMixin:
             distribute_slack: bool = False,
             slack_weights: np.ndarray | None = None,
         ) -> csr_matrix:
-            last_pq = -1 if distribute_slack else None
-            n.buses_t.v_ang.loc[now, self.pvpqs] = guess[: len(self.pvpqs)]
-            n.buses_t.v_mag_pu.loc[now, self.pqs] = guess[len(self.pvpqs) : last_pq]
-
-            v_mag_pu = n.buses_t.v_mag_pu.loc[now, buses_o]
-            v_ang = n.buses_t.v_ang.loc[now, buses_o]
-
-            V = v_mag_pu * np.exp(1j * v_ang)
+            V = voltage(guess, distribute_slack)
 
             index = r_[: len(buses_o)]
 
@@ -1413,24 +1560,28 @@ class SubNetworkPowerFlowMixin:
             return J
 
         # Set what we know: slack V and v_mag_pu for PV buses
-        v_mag_pu_set = get_as_dense(n, "Bus", "v_mag_pu_set", sns)
-        n.buses_t.v_mag_pu.loc[sns, self.pvs] = v_mag_pu_set.loc[:, self.pvs]
-        n.buses_t.v_mag_pu.loc[sns, self.slack_bus] = v_mag_pu_set.loc[
+        v_mag_pu_set = n.get_switchable_as_dense("Bus", "v_mag_pu_set", sns)
+        n.c.buses.dynamic.v_mag_pu.loc[sns, self.pvs] = v_mag_pu_set.loc[:, self.pvs]
+        n.c.buses.dynamic.v_mag_pu.loc[sns, self.slack_bus] = v_mag_pu_set.loc[
             :, self.slack_bus
         ]
-        n.buses_t.v_ang.loc[sns, self.slack_bus] = 0.0
+        n.c.buses.dynamic.v_ang.loc[sns, self.slack_bus] = 0.0
 
         if not use_seed:
-            n.buses_t.v_mag_pu.loc[sns, self.pqs] = 1.0
-            n.buses_t.v_ang.loc[sns, self.pvpqs] = 0.0
+            n.c.buses.dynamic.v_mag_pu.loc[sns, self.pqs] = 1.0
+            n.c.buses.dynamic.v_ang.loc[sns, self.pvpqs] = 0.0
 
         slack_args = {"distribute_slack": distribute_slack}
         slack_variable_b = 1 if distribute_slack else 0
 
         if distribute_slack:
             if isinstance(slack_weights, str) and slack_weights == "p_set":
-                generators_t_p_choice = get_as_dense(n, "Generator", slack_weights, sns)
-                bus_generation = generators_t_p_choice.rename(columns=n.generators.bus)
+                generators_t_p_choice = n.get_switchable_as_dense(
+                    "Generator", slack_weights, sns
+                )
+                bus_generation = generators_t_p_choice.rename(
+                    columns=n.c.generators.static.bus
+                )
                 slack_weights_calc = (
                     pd.DataFrame(
                         bus_generation.T.groupby(bus_generation.columns).sum().T,
@@ -1444,7 +1595,7 @@ class SubNetworkPowerFlowMixin:
                 "p_nom",
                 "p_nom_opt",
             ]:
-                if all(n.generators[slack_weights] == 0):
+                if all(n.c.generators.static[slack_weights] == 0):
                     msg = (
                         f"Invalid slack weights! Generator attribute {slack_weights} is "
                         f"always zero."
@@ -1452,7 +1603,7 @@ class SubNetworkPowerFlowMixin:
                     raise ValueError(msg)
 
                 slack_weights_calc = (
-                    n.generators.groupby("bus")[slack_weights]
+                    n.c.generators.static.groupby("bus")[slack_weights]
                     .sum()
                     .reindex(buses_o)
                     .pipe(normed)
@@ -1462,7 +1613,7 @@ class SubNetworkPowerFlowMixin:
             elif generator_slack_weights_b:
                 # convert generator-based slack weights to bus-based slack weights
                 slack_weights_calc = (
-                    slack_weights.rename(n.generators.bus)  # type: ignore
+                    slack_weights.rename(n.c.generators.static.bus)  # type: ignore
                     .groupby(slack_weights.index.name)  # type: ignore
                     .sum()
                     .reindex(buses_o)
@@ -1487,23 +1638,25 @@ class SubNetworkPowerFlowMixin:
         diffs = pd.Series(index=sns, dtype=float)
         convs = pd.Series(False, index=sns)
         for i, now in enumerate(sns):
-            p = n.buses_t.p.loc[now, buses_o]
-            q = n.buses_t.q.loc[now, buses_o]
-            ss[i] = s = p + 1j * q
+            p = n.c.buses.dynamic.p.loc[now, buses_o]
+            q = n.c.buses.dynamic.q.loc[now, buses_o]
+            ss[i] = s = (p + 1j * q).to_numpy()
+            v_mag_pu_now = n.c.buses.dynamic.v_mag_pu.loc[now, buses_o].to_numpy()
+            v_ang_now = n.c.buses.dynamic.v_ang.loc[now, buses_o].to_numpy()
 
             # Make a guess for what we don't know: V_ang for PV and PQs and v_mag_pu for PQ buses
             guess = r_[
-                n.buses_t.v_ang.loc[now, self.pvpqs],
-                n.buses_t.v_mag_pu.loc[now, self.pqs],
+                n.c.buses.dynamic.v_ang.loc[now, self.pvpqs],
+                n.c.buses.dynamic.v_mag_pu.loc[now, self.pqs],
             ]
 
             if distribute_slack:
                 guess = np.append(guess, [0])  # for total slack power
                 if isinstance(slack_weights, str) and slack_weights == "p_set":
                     # snapshot-dependent slack weights
-                    slack_args["slack_weights"] = slack_weights_calc.loc[now]
+                    slack_args["slack_weights"] = slack_weights_calc.loc[now].to_numpy()
                 else:
-                    slack_args["slack_weights"] = slack_weights_calc
+                    slack_args["slack_weights"] = slack_weights_calc.to_numpy()
 
             # Now try and solve
             roots[i], n_iter, diff, converged = newton_raphson_sparse(
@@ -1525,11 +1678,13 @@ class SubNetworkPowerFlowMixin:
             last_pq = -1
         else:
             last_pq = None
-        n.buses_t.v_ang.loc[sns, self.pvpqs] = roots[:, : len(self.pvpqs)]
-        n.buses_t.v_mag_pu.loc[sns, self.pqs] = roots[:, len(self.pvpqs) : last_pq]
+        n.c.buses.dynamic.v_ang.loc[sns, self.pvpqs] = roots[:, : len(self.pvpqs)]
+        n.c.buses.dynamic.v_mag_pu.loc[sns, self.pqs] = roots[
+            :, len(self.pvpqs) : last_pq
+        ]
 
-        v_mag_pu = n.buses_t.v_mag_pu.loc[sns, buses_o].values
-        v_ang = n.buses_t.v_ang.loc[sns, buses_o].values
+        v_mag_pu = n.c.buses.dynamic.v_mag_pu.loc[sns, buses_o].values
+        v_ang = n.c.buses.dynamic.v_ang.loc[sns, buses_o].values
 
         V = v_mag_pu * np.exp(1j * v_ang)
 
@@ -1537,7 +1692,9 @@ class SubNetworkPowerFlowMixin:
         buses_indexer = buses_o.get_indexer
         branch_bus0 = []
         branch_bus1 = []
-        for c in self.iterate_components(n.passive_branch_components):
+        for c in self.components:
+            if c.name not in n.passive_branch_components:
+                continue
             branch_bus0 += list(c.static.query("active").bus0)
             branch_bus1 += list(c.static.query("active").bus1)
         v0 = V[:, buses_indexer(branch_bus0)]
@@ -1551,55 +1708,61 @@ class SubNetworkPowerFlowMixin:
 
         s0 = pd.DataFrame(v0 * np.conj(i0), columns=branches_i, index=sns)
         s1 = pd.DataFrame(v1 * np.conj(i1), columns=branches_i, index=sns)
-        for c in self.iterate_components(n.passive_branch_components):
+        branch_types = branches_i.unique("type")
+        for c in self.components:
+            if c.name not in branch_types:
+                continue
             s0t = s0.loc[:, c.name]
             s1t = s1.loc[:, c.name]
-            n.dynamic(c.name).p0.loc[sns, s0t.columns] = s0t.values.real
-            n.dynamic(c.name).q0.loc[sns, s0t.columns] = s0t.values.imag
-            n.dynamic(c.name).p1.loc[sns, s1t.columns] = s1t.values.real
-            n.dynamic(c.name).q1.loc[sns, s1t.columns] = s1t.values.imag
+            n.c[c.name].dynamic.p0.loc[sns, s0t.columns] = s0t.values.real
+            n.c[c.name].dynamic.q0.loc[sns, s0t.columns] = s0t.values.imag
+            n.c[c.name].dynamic.p1.loc[sns, s1t.columns] = s1t.values.real
+            n.c[c.name].dynamic.q1.loc[sns, s1t.columns] = s1t.values.imag
 
         s_calc = np.empty((len(sns), len(buses_o)), dtype=complex)
         for i in range(len(sns)):
             s_calc[i] = V[i] * np.conj(self.Y * V[i])
         slack_index = int(buses_o.get_loc(self.slack_bus))
         if distribute_slack:
-            n.buses_t.p.loc[sns, sn_buses] = s_calc.real[:, buses_indexer(sn_buses)]
+            n.c.buses.dynamic.p.loc[sns, sn_buses] = s_calc.real[
+                :, buses_indexer(sn_buses)
+            ]
         else:
-            n.buses_t.p.loc[sns, self.slack_bus] = s_calc[:, slack_index].real
-        n.buses_t.q.loc[sns, self.slack_bus] = s_calc[:, slack_index].imag
-        n.buses_t.q.loc[sns, self.pvs] = s_calc[:, buses_indexer(self.pvs)].imag
+            n.c.buses.dynamic.p.loc[sns, self.slack_bus] = s_calc[:, slack_index].real
+        n.c.buses.dynamic.q.loc[sns, self.slack_bus] = s_calc[:, slack_index].imag
+        n.c.buses.dynamic.q.loc[sns, self.pvs] = s_calc[:, buses_indexer(self.pvs)].imag
 
         # set shunt impedance powers
-        shunt_impedances_i = self.shunt_impedances_i()
+        shunt_impedances_i = self.c.shunt_impedances.static.index
         if len(shunt_impedances_i):
             # add voltages
             shunt_impedances_v_mag_pu = v_mag_pu[
-                :, buses_indexer(n.shunt_impedances.loc[shunt_impedances_i, "bus"])
+                :,
+                buses_indexer(
+                    n.c.shunt_impedances.static.loc[shunt_impedances_i, "bus"]
+                ),
             ]
-            n.shunt_impedances_t.p.loc[sns, shunt_impedances_i] = (
+            n.c.shunt_impedances.dynamic.p.loc[sns, shunt_impedances_i] = (
                 shunt_impedances_v_mag_pu**2
-            ) * n.shunt_impedances.loc[shunt_impedances_i, "g_pu"].values
-            n.shunt_impedances_t.q.loc[sns, shunt_impedances_i] = (
+            ) * n.c.shunt_impedances.static.loc[shunt_impedances_i, "g_pu"].values
+            n.c.shunt_impedances.dynamic.q.loc[sns, shunt_impedances_i] = (
                 shunt_impedances_v_mag_pu**2
-            ) * n.shunt_impedances.loc[shunt_impedances_i, "b_pu"].values
+            ) * n.c.shunt_impedances.static.loc[shunt_impedances_i, "b_pu"].values
 
         # let slack generator take up the slack
         if distribute_slack:
             distributed_slack_power = (
-                n.buses_t.p.loc[sns, sn_buses] - ss[:, buses_indexer(sn_buses)].real
+                n.c.buses.dynamic.p.loc[sns, sn_buses]
+                - ss[:, buses_indexer(sn_buses)].real
             )
-            for bus, group in self.generators().groupby("bus"):
+            for bus, group in self.c.generators.static.groupby("bus"):
                 if isinstance(slack_weights, str) and slack_weights == "p_set":
-                    generators_t_p_choice = get_as_dense(
-                        n, "Generator", slack_weights, sns
-                    )
                     bus_generator_shares = (
                         generators_t_p_choice.loc[sns, group.index]
                         .apply(normed, axis=1)
                         .fillna(0)
                     )
-                    n.generators_t.p.loc[sns, group.index] += (
+                    n.c.generators.dynamic.p.loc[sns, group.index] += (
                         bus_generator_shares.multiply(
                             distributed_slack_power.loc[sns, bus], axis=0
                         )
@@ -1610,30 +1773,34 @@ class SubNetworkPowerFlowMixin:
                             slack_weights.loc[group.index].pipe(normed).fillna(0)  # type: ignore
                         )
                     else:
-                        bus_generators_p_nom = n.generators.p_nom.loc[group.index]
+                        bus_generators_p_nom = n.c.generators.static.p_nom.loc[
+                            group.index
+                        ]
                         # distribute evenly if no p_nom given
                         if all(bus_generators_p_nom) == 0:
                             bus_generators_p_nom = 1
                         bus_generator_shares = bus_generators_p_nom.pipe(normed).fillna(
                             0
                         )
-                    n.generators_t.p.loc[sns, group.index] += (
+                    n.c.generators.dynamic.p.loc[sns, group.index] += (
                         distributed_slack_power.loc[sns, bus].apply(
                             lambda row, shares=bus_generator_shares: row * shares
                         )
                     )
         else:
-            n.generators_t.p.loc[sns, self.slack_generator] += (
-                n.buses_t.p.loc[sns, self.slack_bus] - ss[:, slack_index].real
+            n.c.generators.dynamic.p.loc[sns, self.slack_generator] += (
+                n.c.buses.dynamic.p.loc[sns, self.slack_bus] - ss[:, slack_index].real
             )
 
         # set the Q of the slack and PV generators
-        n.generators_t.q.loc[sns, self.slack_generator] += (
-            n.buses_t.q.loc[sns, self.slack_bus] - ss[:, slack_index].imag
+        n.c.generators.dynamic.q.loc[sns, self.slack_generator] += (
+            n.c.buses.dynamic.q.loc[sns, self.slack_bus] - ss[:, slack_index].imag
         )
 
-        n.generators_t.q.loc[sns, n.buses.loc[self.pvs, "generator"]] += np.asarray(
-            n.buses_t.q.loc[sns, self.pvs] - ss[:, buses_indexer(self.pvs)].imag
+        n.c.generators.dynamic.q.loc[
+            sns, n.c.buses.static.loc[self.pvs, "generator"]
+        ] += np.asarray(
+            n.c.buses.dynamic.q.loc[sns, self.pvs] - ss[:, buses_indexer(self.pvs)].imag
         )
 
         return iters, diffs, convs
@@ -1647,8 +1814,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to perform the power flow on.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots
@@ -1660,7 +1825,7 @@ class SubNetworkPowerFlowMixin:
         sns = as_index(self.n, snapshots, "snapshots")
         logger.info(
             "Performing linear load-flow on %s sub-network %s for snapshot(s) %s",
-            self.n.sub_networks.at[self.name, "carrier"],
+            self.n.c.sub_networks.static.at[self.name, "carrier"],
             self,
             snapshots,
         )
@@ -1670,27 +1835,31 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             n.calculate_dependent_values()
             self.find_bus_controls()
-            n._allocate_pf_outputs(linear=True)
+            _allocate_pf_outputs(n, linear=True)
 
         # get indices for the components on this sub-network
         buses_o = self.buses_o
         branches_i = self.branches_i(active_only=True)
 
         # allow all shunt impedances to dispatch as set
-        shunt_impedances_i = self.shunt_impedances_i()
-        n.shunt_impedances_t.p.loc[sns, shunt_impedances_i] = (
-            n.shunt_impedances.g_pu.loc[shunt_impedances_i].values
+        shunt_impedances_i = self.c.shunt_impedances.static.index
+        n.c.shunt_impedances.dynamic.p.loc[sns, shunt_impedances_i] = (
+            n.c.shunt_impedances.static.g_pu.loc[shunt_impedances_i].values
         )
 
         # allow all one ports to dispatch as set
-        for c in self.iterate_components(n.controllable_one_port_components):
-            c_p_set = get_as_dense(
-                n, c.name, "p_set", sns, c.static.query("active").index
+        for c in self.components:
+            if c.name not in n.controllable_one_port_components:
+                continue
+            c_p_set = n.get_switchable_as_dense(
+                c.name, "p_set", sns, c.static.query("active").index.unique("name")
             )
-            n.dynamic(c.name).p.loc[sns, c.static.query("active").index] = c_p_set
+            # power flow calculations require a starting point for the algorithm, while p_set default is n/a
+            c_p_set = c_p_set.fillna(0)
+            n.c[c.name].dynamic.p.loc[sns, c.static.query("active").index] = c_p_set
 
         # set the power injection at each node
-        n.buses_t.p.loc[sns, buses_o] = sum(
+        n.c.buses.dynamic.p.loc[sns, buses_o] = sum(
             [
                 (
                     (
@@ -1701,7 +1870,7 @@ class SubNetworkPowerFlowMixin:
                     .sum()
                     .T.reindex(columns=buses_o, fill_value=0.0)
                 )
-                for c in self.iterate_components(n.one_port_components)
+                for c in [x for x in self.components if x.name in n.one_port_components]
             ]
             + [
                 -c.dynamic[f"p{str(i)}"]
@@ -1709,8 +1878,9 @@ class SubNetworkPowerFlowMixin:
                 .T.groupby(c.static[f"bus{str(i)}"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0)
-                for c in n.iterate_components(n.controllable_branch_components)
+                for c in n.components[n.controllable_branch_components]
                 for i in [int(col[3:]) for col in c.static.columns if col[:3] == "bus"]
+                if not c.empty
             ]
         )
 
@@ -1719,34 +1889,37 @@ class SubNetworkPowerFlowMixin:
 
         v_diff = np.zeros((len(sns), len(buses_o)))
         if len(branches_i) > 0:
-            p = n.buses_t["p"].loc[sns, buses_o].values - self.p_bus_shift
+            p = n.c.buses.dynamic["p"].loc[sns, buses_o].values - self.p_bus_shift
             v_diff[:, 1:] = spsolve(self.B[1:, 1:], p[:, 1:].T).T
             flows = (
                 pd.DataFrame(v_diff * self.H.T, columns=branches_i, index=sns)
                 + self.p_branch_shift
             )
 
-            for c in self.iterate_components(n.passive_branch_components):
+            branch_types = branches_i.unique("type")
+            for c in self.components:
+                if c.name not in branch_types:
+                    continue
                 f = flows.loc[:, c.name]
-                n.dynamic(c.name).p0.loc[sns, f.columns] = f
-                n.dynamic(c.name).p1.loc[sns, f.columns] = -f
+                n.c[c.name].dynamic.p0.loc[sns, f.columns] = f
+                n.c[c.name].dynamic.p1.loc[sns, f.columns] = -f
 
-        if n.sub_networks.at[self.name, "carrier"] == "DC":
-            n.buses_t.v_mag_pu.loc[sns, buses_o] = 1 + v_diff
-            n.buses_t.v_ang.loc[sns, buses_o] = 0.0
+        if n.c.sub_networks.static.at[self.name, "carrier"] == "DC":
+            n.c.buses.dynamic.v_mag_pu.loc[sns, buses_o] = 1 + v_diff
+            n.c.buses.dynamic.v_ang.loc[sns, buses_o] = 0.0
         else:
-            n.buses_t.v_ang.loc[sns, buses_o] = v_diff
-            n.buses_t.v_mag_pu.loc[sns, buses_o] = 1.0
+            n.c.buses.dynamic.v_ang.loc[sns, buses_o] = v_diff
+            n.c.buses.dynamic.v_mag_pu.loc[sns, buses_o] = 1.0
 
         # set slack bus power to pick up remained
         slack_adjustment = (
-            -n.buses_t.p.loc[sns, buses_o[1:]].sum(axis=1).fillna(0.0)
-            - n.buses_t.p.loc[sns, buses_o[0]]
+            -n.c.buses.dynamic.p.loc[sns, buses_o[1:]].sum(axis=1).fillna(0.0)
+            - n.c.buses.dynamic.p.loc[sns, buses_o[0]]
         )
-        n.buses_t.p.loc[sns, buses_o[0]] += slack_adjustment
+        n.c.buses.dynamic.p.loc[sns, buses_o[0]] += slack_adjustment
 
         # let slack generator take up the slack
         if self.slack_generator is not None:
-            n.generators_t.p.loc[sns, self.slack_generator] += (
+            n.c.generators.dynamic.p.loc[sns, self.slack_generator] += (
                 slack_adjustment
             )  # fmt: skip
