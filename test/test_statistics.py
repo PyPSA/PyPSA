@@ -151,7 +151,7 @@ def test_lcoe_definition(ac_dc_network_r):
 
 
 def test_lcoe_gap_to_capture_price_is_rent(ac_dc_network_r):
-    """Gas earns the CO2 rent above its LCOE, assets at interior optima break even."""
+    """Gas captures its unpaid CO2 cost above its LCOE, interior assets break even."""
     n = ac_dc_network_r
     kwargs = {"drop_zero": False, "round": None}
     supplied = n.statistics.supply(**kwargs)
@@ -241,6 +241,48 @@ def test_lcoe_charges_inputs(chp_network):
     lcoe = chp_network.statistics.lcoe(groupby=False)
     capex, fuel, output = 150 * 100, 100 * 20 * 3, 80 * 3
     assert lcoe["Link", "chp"] == pytest.approx((capex + fuel) / output)
+
+
+@pytest.mark.parametrize(
+    "variant",
+    [
+        "single",
+        "investment-periods",
+        pytest.param(
+            "scenarios",
+            marks=pytest.mark.xfail(strict=True, reason="stochastic prices, #2123"),
+        ),
+    ],
+)
+def test_lcoe_by_hand(variant):
+    """A plant buys 100 MW of fuel at 20 EUR/MWh and sells 50 MW for two snapshots.
+
+    With a capital cost of 100 EUR/MW, due in every period and scenario, its LCOE is
+    (100 * 100 + 20 * 100 * 2) / (50 * 2) = 140 EUR/MWh.
+    """
+    n = pypsa.Network(snapshots=range(2))
+    if variant == "investment-periods":
+        n.snapshots = pd.MultiIndex.from_product([[2020, 2030], range(2)])
+        n.investment_periods = [2020, 2030]
+        n.investment_period_weightings["objective"] = [10, 6]
+    n.add("Bus", ["fuel", "electricity"], carrier=["gas", "AC"])
+    n.add("Generator", "fuel", bus="fuel", p_nom=1000, marginal_cost=20)
+    n.add(
+        "Link",
+        "plant",
+        bus0="fuel",
+        bus1="electricity",
+        efficiency=0.5,
+        p_nom_extendable=True,
+        capital_cost=100,
+    )
+    n.add("Load", "load", bus="electricity", p_set=50)
+    if variant == "scenarios":
+        n.set_scenarios({"low": 0.3, "high": 0.7})
+    n.optimize(multi_investment_periods=variant == "investment-periods")
+
+    lcoe = n.statistics.lcoe(components=["Link"], bus_carrier="AC", groupby=False)
+    assert np.allclose(lcoe.xs("plant", level="name"), 140)
 
 
 def test_lcoe_breaks_even_over_investment_periods():
