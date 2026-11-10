@@ -69,6 +69,19 @@ def test_nans_in_capacity_limits(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("strict", [[], ["nans_for_component_default_attrs"]])
+def test_no_nan_warning_for_links_without_additional_ports(
+    consistent_n, caplog, strict
+):
+    """Links without a second output must not trigger the NaN warning for `efficiency2`."""
+    consistent_n.add("Link", "single", bus0="one", bus1="two", efficiency=0.4)
+    consistent_n.add(
+        "Link", "multi", bus0="one", bus1="two", bus2="one", efficiency2=0.3
+    )
+    consistent_n.consistency_check(strict=strict)
+    assert not any("Encountered nan" in record.message for record in caplog.records)
+
+
 @pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
 def test_phase_shift_unbounded(consistent_n, caplog, strict):
     # phase_shift_min < phase_shift_max makes the shift a variable; a non-finite

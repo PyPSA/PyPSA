@@ -19,11 +19,13 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from linopy import Model
+from linopy import Model, Variable
 from linopy import options as linopy_options
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+    import xarray as xr
 
 try:
     from linopy.config import LinopySemanticsWarning
@@ -85,3 +87,29 @@ def suppress_semantics_warnings() -> Iterator[None]:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=LinopySemanticsWarning)
         yield
+
+
+def flatten_snapshot(var: Variable) -> Variable:
+    """Relabel a `snapshot` MultiIndex with its flat `(period, timestep)` tuples.
+
+    Legacy linopy strips the level coords from piecewise breakpoints, so they
+    cannot carry a `snapshot` MultiIndex to match the variables. A no-op on a
+    flat `snapshot`.
+    """
+    index = var.indexes.get("snapshot")
+    if not isinstance(index, pd.MultiIndex):
+        return var
+    data = var.data.reset_index("snapshot", drop=True)
+    return Variable(
+        data.assign_coords(snapshot=index.to_flat_index()), var.model, var.name
+    )
+
+
+def expand_breakpoints(bp: xr.DataArray, var: Variable) -> xr.DataArray:
+    """Expand piecewise breakpoints over the dims of `var` they lack.
+
+    linopy before 1.0 cannot expand breakpoints over a dim labelled by tuples,
+    such as the flat `snapshot` of multi-period models (PyPSA/linopy#1140).
+    """
+    missing = [d for d in var.dims if d not in bp.dims]
+    return bp.expand_dims({d: var.indexes[d] for d in missing})

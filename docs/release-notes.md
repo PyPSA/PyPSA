@@ -35,11 +35,14 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix [`n.add()`][pypsa.Network.add] leaving `NaN` in attributes that a later call introduces, such as `efficiency2` on links added before the first link with a third bus. Existing components now get the attribute default, so the consistency check no longer warns about missing values for ports they do not have. (<!-- md:pr 2105 -->)
 - **Behavior change**: The `{Component}-{attr}_set` constraints (e.g. `Generator-p_nom_set`) use the dimension `name` instead of `{Component}-{attr}_set_i`, like all other constraints. Custom constraints in `extra_functionality` that select on the old dimension need updating. (<!-- md:pr 2052 -->)
 - Fix maintenance of modular committable components that are not extendable returning status `('ok', 'unknown')` without a solution. (<!-- md:pr 2100 -->)
 - Fix [`n.statistics.prices()`][pypsa.statistics.StatisticsAccessor.prices] with `groupby` dropping the `scenario` level of stochastic networks and the `network` level of network collections, averaging their prices together. Grouped prices now keep these levels like the ungrouped prices. (<!-- md:pr 2103 -->)
 - Fix stochastic networks silently using the first scenario's branch impedances in all scenarios. The consistency check now raises if `v_nom`, `x_pu_eff` or `r_pu_eff` vary across scenarios. (<!-- md:pr 2104 -->)
 - Fix `KeyError` in `primary_energy` global constraints with `investment_period` and per-period initial storage levels on networks without scenarios. Only the stated period's storage change is counted. (<!-- md:pr 2099 -->)
+- Fix `KeyError` in `primary_energy` and `operational_limit` global constraints with per-period initial storage levels on stochastic networks with investment periods. (<!-- md:pr 2115 -->)
+- Fix piecewise `marginal_cost` and `efficiency` curves failing with `multi_investment_periods=True`. (<!-- md:pr 2117 -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] carrying storage levels to the wrong component on stochastic networks when components were added after `n.set_scenarios()`. (<!-- md:pr 2077 -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] skipping one step of `standing_loss` when carrying storage levels into the next window. (<!-- md:pr 2080 -->)
 - Fix the `"bfs-refined"` cycle basis depending on `PYTHONHASHSEED`. Start, direction and refinement order of each cycle now follow the bus order, so two runs write the same KVL constraints and LP files. The basis can differ from v1.4.0, the optimum does not. (<!-- md:pr 2023 -->)
