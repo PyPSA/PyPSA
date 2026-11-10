@@ -283,10 +283,6 @@ With scenarios, statistics have one row per scenario, and the capital expenditur
 >>> market_value.div(base_price, level="scenario")  # doctest: +SKIP
 ```
 
-!!! warning
-
-    Marginal prices of stochastic networks currently include the scenario probability, which scales the revenue of each scenario by it. The capture rate is not affected, as the probability cancels.
-
 [^1]: L. Hirth (2013), [The market value of variable renewables](https://doi.org/10.1016/j.eneco.2013.02.004), Energy Economics 38, 218–236.
 
 ## Expressions
