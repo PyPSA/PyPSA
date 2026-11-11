@@ -20,17 +20,17 @@ variables:
       `Generator-status` — how much of a committable unit is on, a share in [0, 1]
       rather than an integer: the relaxation the keyword solves
       (`variables.py:91-92`)
-    domain: null
+    domain:
     bounds:
       upper: 1
   Generator_start_up:
     description: "`Generator-start_up` — how much of a committable unit turns on this snapshot, a share in [0, 1] (`variables.py:142-143`)"
-    domain: null
+    domain:
     bounds:
       upper: 1
   Generator_shut_down:
     description: "`Generator-shut_down` — how much of a committable unit turns off this snapshot, a share in [0, 1] (`variables.py:193-194`)"
-    domain: null
+    domain:
     bounds:
       upper: 1
   Link_status:
@@ -38,17 +38,17 @@ variables:
       `Link-status` — how much of a committable link is on, a share in [0, 1]
       rather than an integer: the relaxation the keyword solves
       (`variables.py:91-92`)
-    domain: null
+    domain:
     bounds:
       upper: 1
   Link_start_up:
     description: "`Link-start_up` — how much of a committable link turns on this snapshot, a share in [0, 1] (`variables.py:142-143`)"
-    domain: null
+    domain:
     bounds:
       upper: 1
   Link_shut_down:
     description: "`Link-shut_down` — how much of a committable link turns off this snapshot, a share in [0, 1] (`variables.py:193-194`)"
-    domain: null
+    domain:
     bounds:
       upper: 1
   Process_status:
@@ -56,17 +56,17 @@ variables:
       `Process-status` — how much of a committable process is on, a share in [0, 1]
       rather than an integer: the relaxation the keyword solves
       (`variables.py:91-92`)
-    domain: null
+    domain:
     bounds:
       upper: 1
   Process_start_up:
     description: "`Process-start_up` — how much of a committable process turns on this snapshot, a share in [0, 1] (`variables.py:142-143`)"
-    domain: null
+    domain:
     bounds:
       upper: 1
   Process_shut_down:
     description: "`Process-shut_down` — how much of a committable process turns off this snapshot, a share in [0, 1] (`variables.py:193-194`)"
-    domain: null
+    domain:
     bounds:
       upper: 1
 
@@ -78,7 +78,7 @@ piecewise:
       filled in order, where linopy chooses the incremental rows. No status
       gates it, because no generator with a curve is committable under the
       keyword
-    activity: null
+    activity:
   Link_marginal_cost_incremental:
     description: >-
       `Link-marginal_cost_piecewise` — the running cost of a link with a
@@ -86,7 +86,7 @@ piecewise:
       in order, where linopy chooses the incremental rows. No status
       gates it, because no link with a curve is committable under the
       keyword
-    activity: null
+    activity:
   Process_marginal_cost_incremental:
     description: >-
       `Process-marginal_cost_piecewise` — the running cost of a process
@@ -94,28 +94,28 @@ piecewise:
       segments filled in order, where linopy chooses the incremental
       rows. No status gates it, because no process with a curve is
       committable under the keyword
-    activity: null
+    activity:
   Generator_efficiency_incremental:
     description: >-
       `Generator-p_primary_piecewise` — the primary energy of a generator
       with a curve is the curve at its output, stated by segments filled in
       order. No status gates it, because no generator with a curve is
       committable under the keyword
-    activity: null
+    activity:
   Link_efficiency_incremental:
     description: >-
       `Link-p{port}_piecewise` — what a link delivers to an output port with
       a curve is the curve at its flow, stated by segments filled in order.
       No status gates it, because no link with a curve is committable under
       the keyword
-    activity: null
+    activity:
   Process_rate_incremental:
     description: >-
       `Process-p{port}_piecewise` — what a process transfers at a port with a
       curve is the curve at its internal power, stated by segments filled in
       order. No status gates it, because no process with a curve is
       committable under the keyword
-    activity: null
+    activity:
 
 constraints:
   Generator_com_p_before:
