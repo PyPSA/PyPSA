@@ -162,9 +162,32 @@ def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
 
 
 def _order(dims: tuple[str, ...], has_scenarios: bool) -> list[str]:
-    """PyPSA's dim order: `scenario` first in a stochastic run, else `snapshot` first."""
-    lead = "scenario" if has_scenarios else "snapshot"
-    return [d for d in dims if d == lead] + [d for d in dims if d != lead]
+    """PyPSA's dim order, the other dims after it in their own order.
+
+    An entry over snapshots leads with `snapshot` and `name`, or with
+    `scenario`, `name` and `snapshot` in a stochastic run; one without
+    snapshots leads with `name` and `scenario`.
+    """
+    if "snapshot" not in dims:
+        lead = ["name", "scenario"]
+    elif has_scenarios:
+        lead = ["scenario", "name", "snapshot"]
+    else:
+        lead = ["snapshot", "name"]
+    front = [d for d in lead if d in dims]
+    return front + [d for d in dims if d not in front]
+
+
+def _coords_in_order(ds: xr.Dataset) -> xr.Dataset:
+    """`ds` with its coords listed in the order of its dims, which linopy prints and derives from."""
+    dims = list(ds.labels.dims)
+    names = [d for d in dims if d in ds.coords]
+    names += [k for k in ds.coords if k not in names]
+    coords = xr.Coordinates(
+        {k: ds.coords[k].variable for k in names},
+        indexes={k: ds.xindexes[k] for k in names if k in ds.xindexes},
+    )
+    return ds.drop_vars(names).assign_coords(coords)
 
 
 def _renumbered(ds: xr.Dataset, order: list[str], mapping: np.ndarray) -> xr.Dataset:
@@ -179,7 +202,7 @@ def _renumbered(ds: xr.Dataset, order: list[str], mapping: np.ndarray) -> xr.Dat
     if "name" in ds.labels.dims and ds.sizes["name"]:
         others = [d for d in ds.labels.dims if d != "name"]
         ds = ds.isel(name=(ds.labels != -1).any(others).values)
-    ds = ds.transpose(*order, ...)
+    ds = _coords_in_order(ds.transpose(*order, ...))
     start = ds.attrs["label_range"][0]
     fresh = start + np.arange(ds.labels.size).reshape(ds.labels.shape)
     moved = ds.labels.values
@@ -344,6 +367,8 @@ def _relabel(
 
     Entries without a single row are dropped, as PyPSA does not build them,
     and the placeholder scenario of a network without scenarios is squeezed.
+    The spec's named expressions are dropped too: they keep the spec's dims
+    and the labels before renumbering.
     """
     squeeze = not n.has_scenarios
     levels = (
@@ -396,6 +421,7 @@ def _relabel(
     m.constraints.data.update(constraints)
     m.variables._label_position_index = None
     m.constraints._label_position_index = None
+    m.expressions.data.clear()
     objective = m.objective
     expression = objective.expression
     m.add_objective(

@@ -213,18 +213,18 @@ Linopy LP model
 <BLANKLINE>
 Variables:
 ----------
- * Generator-p_nom (name)
- * Link-p_nom (name)
- * Store-e_nom (name)
- * StorageUnit-p_nom (name)
  * Generator-p (scenario, name, snapshot)
+ * Generator-p_nom (name)
  * Link-p (scenario, name, snapshot)
- * Store-e (scenario, name, snapshot)
- * Store-p (scenario, name, snapshot)
- * Store-p_store (scenario, name, snapshot)
+ * Link-p_nom (name)
  * StorageUnit-p_dispatch (scenario, name, snapshot)
+ * StorageUnit-p_nom (name)
  * StorageUnit-p_store (scenario, name, snapshot)
  * StorageUnit-state_of_charge (scenario, name, snapshot)
+ * Store-e (scenario, name, snapshot)
+ * Store-e_nom (name)
+ * Store-p (scenario, name, snapshot)
+ * Store-p_store (scenario, name, snapshot)
 <BLANKLINE>
 Expressions:
 ------------
@@ -232,31 +232,29 @@ Expressions:
 <BLANKLINE>
 Constraints:
 ------------
+ * Bus-nodal_balance (scenario, name, snapshot)
+ * Generator-ext-p-lower (scenario, name, snapshot)
  * Generator-ext-p_nom-lower (name, scenario)
- * Link-ext-p_nom-lower (name, scenario)
- * Store-ext-e_nom-lower (name, scenario)
- * StorageUnit-ext-p_nom-lower (name, scenario)
+ * Generator-ext-p-upper (scenario, name, snapshot)
  * Generator-fix-p-lower (scenario, name, snapshot)
  * Generator-fix-p-upper (scenario, name, snapshot)
- * Generator-ext-p-lower (scenario, name, snapshot)
- * Generator-ext-p-upper (scenario, name, snapshot)
  * Link-ext-p-lower (scenario, name, snapshot)
+ * Link-ext-p_nom-lower (name, scenario)
  * Link-ext-p-upper (scenario, name, snapshot)
- * Store-ext-e-lower (scenario, name, snapshot)
- * Store-ext-e-upper (scenario, name, snapshot)
- * Store-ext-p-lower (scenario, name, snapshot)
- * Store-ext-p-upper (scenario, name, snapshot)
- * Store-ext-p_store-lower (scenario, name, snapshot)
- * Store-ext-p_store-upper (scenario, name, snapshot)
+ * StorageUnit-energy_balance (scenario, name, snapshot)
  * StorageUnit-ext-p_dispatch-lower (scenario, name, snapshot)
  * StorageUnit-ext-p_dispatch-upper (scenario, name, snapshot)
+ * StorageUnit-ext-p_nom-lower (name, scenario)
  * StorageUnit-ext-p_store-lower (scenario, name, snapshot)
  * StorageUnit-ext-p_store-upper (scenario, name, snapshot)
  * StorageUnit-ext-state_of_charge-lower (scenario, name, snapshot)
  * StorageUnit-ext-state_of_charge-upper (scenario, name, snapshot)
- * Bus-nodal_balance (scenario, name, snapshot)
- * StorageUnit-energy_balance (scenario, name, snapshot)
  * Store-energy_balance (scenario, name, snapshot)
+ * Store-ext-e-lower (scenario, name, snapshot)
+ * Store-ext-e_nom-lower (name, scenario)
+ * Store-ext-e-upper (scenario, name, snapshot)
+ * Store-ext-p_store-lower (scenario, name, snapshot)
+ * Store-ext-p_store-upper (scenario, name, snapshot)
 <BLANKLINE>
 Status:
 -------
@@ -321,8 +319,8 @@ scenario                      no_volcano  volcano
 component   carrier
 Generator   fossil backup          12.15    22.91
             load shedding           0.01     0.04
-            solar                  17.01     1.66
-            wind                   37.35    41.75
+            solar                  16.88     1.66
+            wind                   37.49    41.76
 Load        -                     -66.27   -66.27
 StorageUnit battery storage        -0.26    -0.10
 ```
