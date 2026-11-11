@@ -1910,7 +1910,7 @@ relations:
       data prep. In a scenario, they are the start and the snapshots after it,
       until their generator weightings reach that scenario's
       `maintenance_duration`. A generator that is not maintainable has no rows
-    key: {scenario: scenario, generator: generator, start: snapshot, covered: snapshot}
+    key: { scenario: scenario, generator: generator, start: snapshot, covered: snapshot }
     missing: absent
   Link_maintenance_cover:
     description: >-
@@ -1918,7 +1918,7 @@ relations:
       data prep. In a scenario, they are the start and the snapshots after it,
       until their generator weightings reach that scenario's
       `maintenance_duration`. A link that is not maintainable has no rows
-    key: {scenario: scenario, link: link, start: snapshot, covered: snapshot}
+    key: { scenario: scenario, link: link, start: snapshot, covered: snapshot }
     missing: absent
   Process_maintenance_cover:
     description: >-
@@ -1926,7 +1926,7 @@ relations:
       data prep. In a scenario, they are the start and the snapshots after it,
       until their generator weightings reach that scenario's
       `maintenance_duration`. A process that is not maintainable has no rows
-    key: {scenario: scenario, process: process, start: snapshot, covered: snapshot}
+    key: { scenario: scenario, process: process, start: snapshot, covered: snapshot }
     missing: absent
 
 variables:
@@ -2448,7 +2448,7 @@ expressions:
       is the state carried over otherwise
     dims: [scenario, snapshot, generator]
     cases:
-      opening_late: {when: "position(snapshot) > 0 AND NOT shift(Generator_active, along=snapshot, offset=1)", expression: 0}
+      opening_late: { when: "position(snapshot) > 0 AND NOT shift(Generator_active, along=snapshot, offset=1)", expression: 0 }
     otherwise: Generator_status_carried_over
   Generator_status_carried_over:
     description: >-
@@ -2456,7 +2456,7 @@ expressions:
       into the horizon at the first, the previous snapshot's after that
     dims: [scenario, snapshot, generator]
     cases:
-      opening: {when: "position(snapshot) == 0", expression: Generator_status_initial}
+      opening: { when: "position(snapshot) == 0", expression: Generator_status_initial }
     otherwise: shift(Generator_status, along=snapshot, offset=1)
   Generator_previous_p:
     description: >-
@@ -2466,7 +2466,7 @@ expressions:
       It is the output carried over otherwise
     dims: [scenario, snapshot, generator]
     cases:
-      opening_late: {when: "position(snapshot) > 0 AND NOT shift(Generator_active, along=snapshot, offset=1)", expression: 0}
+      opening_late: { when: "position(snapshot) > 0 AND NOT shift(Generator_active, along=snapshot, offset=1)", expression: 0 }
     otherwise: Generator_p_carried_over
   Generator_p_carried_over:
     description: >-
@@ -2475,13 +2475,13 @@ expressions:
       it came in off. After that, it is the previous snapshot's
     dims: [scenario, snapshot, generator]
     cases:
-      opening: {when: "position(snapshot) == 0", expression: Generator_p_init}
+      opening: { when: "position(snapshot) == 0", expression: Generator_p_init }
     otherwise: shift(Generator_p, along=snapshot, offset=1)
   Generator_p_nom_effective:
     description: "the build a generator's limits are taken against: the chosen one where it is extendable, the given one otherwise"
     dims: [scenario, generator]
     cases:
-      extendable: {when: Generator_p_nom_extendable, expression: Generator_p_nom_ext}
+      extendable: { when: Generator_p_nom_extendable, expression: Generator_p_nom_ext }
     otherwise: Generator_p_nom
   Generator_ramp_up_rate:
     description: >-
@@ -2490,7 +2490,7 @@ expressions:
       row
     dims: [scenario, snapshot, generator]
     cases:
-      given: {when: Generator_ramp_limit_up, expression: Generator_ramp_limit_up}
+      given: { when: Generator_ramp_limit_up, expression: Generator_ramp_limit_up }
     otherwise: 1
   Generator_ramp_down_rate:
     description: >-
@@ -2499,7 +2499,7 @@ expressions:
       the row
     dims: [scenario, snapshot, generator]
     cases:
-      given: {when: Generator_ramp_limit_down, expression: Generator_ramp_limit_down}
+      given: { when: Generator_ramp_limit_down, expression: Generator_ramp_limit_down }
     otherwise: 1
   Generator_start_up_rate:
     description: >-
@@ -2507,7 +2507,7 @@ expressions:
       the full build where it has none
     dims: [scenario, generator]
     cases:
-      given: {when: Generator_ramp_limit_start_up, expression: Generator_ramp_limit_start_up}
+      given: { when: Generator_ramp_limit_start_up, expression: Generator_ramp_limit_start_up }
     otherwise: 1
   Generator_shut_down_rate:
     description: >-
@@ -2515,7 +2515,7 @@ expressions:
       `ramp_limit_shut_down`), or the full build where it has none
     dims: [scenario, generator]
     cases:
-      given: {when: Generator_ramp_limit_shut_down, expression: Generator_ramp_limit_shut_down}
+      given: { when: Generator_ramp_limit_shut_down, expression: Generator_ramp_limit_shut_down }
     otherwise: 1
   Generator_maintenance_modules:
     description: >-
@@ -2524,7 +2524,7 @@ expressions:
       and the modules installed where it is fixed (`constraints.py:588-594`)
     dims: [scenario, generator]
     cases:
-      extendable: {when: Generator_p_nom_extendable, expression: Generator_p_nom_max / Generator_p_nom_mod}
+      extendable: { when: Generator_p_nom_extendable, expression: Generator_p_nom_max / Generator_p_nom_mod }
     otherwise: Generator_modules_installed
   Generator_modules:
     description: >-
@@ -2533,7 +2533,7 @@ expressions:
       otherwise (`constraints.py:656-661`)
     dims: [scenario, generator]
     cases:
-      chosen: {when: Generator_p_nom_extendable AND Generator_p_nom_mod > 0, expression: Generator_n_mod}
+      chosen: { when: Generator_p_nom_extendable AND Generator_p_nom_mod > 0, expression: Generator_n_mod }
     otherwise: Generator_modules_installed
   Generator_p_nom_committed:
     description: >-
@@ -2542,7 +2542,7 @@ expressions:
       given build otherwise (`constraints.py:1131-1134`)
     dims: [scenario, generator]
     cases:
-      modular_build: {when: "Generator_p_nom_mod > 0", expression: Generator_p_nom_mod}
+      modular_build: { when: "Generator_p_nom_mod > 0", expression: Generator_p_nom_mod }
     otherwise: Generator_p_nom
   Generator_ramp_previous_status:
     description: >-
@@ -2589,7 +2589,7 @@ expressions:
     description: "the build a link's limits are taken against: the chosen one where it is extendable, the given one otherwise"
     dims: [scenario, link]
     cases:
-      extendable: {when: Link_p_nom_extendable, expression: Link_p_nom_ext}
+      extendable: { when: Link_p_nom_extendable, expression: Link_p_nom_ext }
     otherwise: Link_p_nom
   Link_previous_status:
     description: >-
@@ -2599,7 +2599,7 @@ expressions:
       state carried over otherwise
     dims: [scenario, snapshot, link]
     cases:
-      opening_late: {when: "position(snapshot) > 0 AND NOT shift(Link_active, along=snapshot, offset=1)", expression: 0}
+      opening_late: { when: "position(snapshot) > 0 AND NOT shift(Link_active, along=snapshot, offset=1)", expression: 0 }
     otherwise: Link_status_carried_over
   Link_status_carried_over:
     description: >-
@@ -2607,7 +2607,7 @@ expressions:
       the horizon at the first, the previous snapshot's after that
     dims: [scenario, snapshot, link]
     cases:
-      opening: {when: "position(snapshot) == 0", expression: Link_status_initial}
+      opening: { when: "position(snapshot) == 0", expression: Link_status_initial }
     otherwise: shift(Link_status, along=snapshot, offset=1)
   Link_previous_p:
     description: >-
@@ -2617,7 +2617,7 @@ expressions:
       output carried over otherwise
     dims: [scenario, snapshot, link]
     cases:
-      opening_late: {when: "position(snapshot) > 0 AND NOT shift(Link_active, along=snapshot, offset=1)", expression: 0}
+      opening_late: { when: "position(snapshot) > 0 AND NOT shift(Link_active, along=snapshot, offset=1)", expression: 0 }
     otherwise: Link_p_carried_over
   Link_p_carried_over:
     description: >-
@@ -2626,7 +2626,7 @@ expressions:
       came in off. After that, it is the previous snapshot's
     dims: [scenario, snapshot, link]
     cases:
-      opening: {when: "position(snapshot) == 0", expression: Link_p_init}
+      opening: { when: "position(snapshot) == 0", expression: Link_p_init }
     otherwise: shift(Link_p, along=snapshot, offset=1)
   Link_ramp_up_rate:
     description: >-
@@ -2635,7 +2635,7 @@ expressions:
       row
     dims: [scenario, snapshot, link]
     cases:
-      given: {when: Link_ramp_limit_up, expression: Link_ramp_limit_up}
+      given: { when: Link_ramp_limit_up, expression: Link_ramp_limit_up }
     otherwise: 1
   Link_ramp_down_rate:
     description: >-
@@ -2644,7 +2644,7 @@ expressions:
       the row
     dims: [scenario, snapshot, link]
     cases:
-      given: {when: Link_ramp_limit_down, expression: Link_ramp_limit_down}
+      given: { when: Link_ramp_limit_down, expression: Link_ramp_limit_down }
     otherwise: 1
   Link_start_up_rate:
     description: >-
@@ -2652,7 +2652,7 @@ expressions:
       the full build where it has none
     dims: [scenario, link]
     cases:
-      given: {when: Link_ramp_limit_start_up, expression: Link_ramp_limit_start_up}
+      given: { when: Link_ramp_limit_start_up, expression: Link_ramp_limit_start_up }
     otherwise: 1
   Link_shut_down_rate:
     description: >-
@@ -2660,7 +2660,7 @@ expressions:
       `ramp_limit_shut_down`), or the full build where it has none
     dims: [scenario, link]
     cases:
-      given: {when: Link_ramp_limit_shut_down, expression: Link_ramp_limit_shut_down}
+      given: { when: Link_ramp_limit_shut_down, expression: Link_ramp_limit_shut_down }
     otherwise: 1
   Link_maintenance_modules:
     description: >-
@@ -2669,7 +2669,7 @@ expressions:
       and the modules installed where it is fixed (`constraints.py:588-594`)
     dims: [scenario, link]
     cases:
-      extendable: {when: Link_p_nom_extendable, expression: Link_p_nom_max / Link_p_nom_mod}
+      extendable: { when: Link_p_nom_extendable, expression: Link_p_nom_max / Link_p_nom_mod }
     otherwise: Link_modules_installed
   Link_modules:
     description: >-
@@ -2678,7 +2678,7 @@ expressions:
       otherwise (`constraints.py:656-661`)
     dims: [scenario, link]
     cases:
-      chosen: {when: Link_p_nom_extendable AND Link_p_nom_mod > 0, expression: Link_n_mod}
+      chosen: { when: Link_p_nom_extendable AND Link_p_nom_mod > 0, expression: Link_n_mod }
     otherwise: Link_modules_installed
   Link_p_nom_committed:
     description: >-
@@ -2687,7 +2687,7 @@ expressions:
       given build otherwise (`constraints.py:1131-1134`)
     dims: [scenario, link]
     cases:
-      modular_build: {when: "Link_p_nom_mod > 0", expression: Link_p_nom_mod}
+      modular_build: { when: "Link_p_nom_mod > 0", expression: Link_p_nom_mod }
     otherwise: Link_p_nom
   Link_ramp_previous_status:
     description: >-
@@ -2734,7 +2734,7 @@ expressions:
     description: "the build a process's limits are taken against: the chosen one where it is extendable, the given one otherwise"
     dims: [scenario, process]
     cases:
-      extendable: {when: Process_p_nom_extendable, expression: Process_p_nom_ext}
+      extendable: { when: Process_p_nom_extendable, expression: Process_p_nom_ext }
     otherwise: Process_p_nom
   Process_previous_status:
     description: >-
@@ -2744,7 +2744,7 @@ expressions:
       state carried over otherwise
     dims: [scenario, snapshot, process]
     cases:
-      opening_late: {when: "position(snapshot) > 0 AND NOT shift(Process_active, along=snapshot, offset=1)", expression: 0}
+      opening_late: { when: "position(snapshot) > 0 AND NOT shift(Process_active, along=snapshot, offset=1)", expression: 0 }
     otherwise: Process_status_carried_over
   Process_status_carried_over:
     description: >-
@@ -2752,7 +2752,7 @@ expressions:
       into the horizon at the first, the previous snapshot's after that
     dims: [scenario, snapshot, process]
     cases:
-      opening: {when: "position(snapshot) == 0", expression: Process_status_initial}
+      opening: { when: "position(snapshot) == 0", expression: Process_status_initial }
     otherwise: shift(Process_status, along=snapshot, offset=1)
   Process_previous_p:
     description: >-
@@ -2762,7 +2762,7 @@ expressions:
       output carried over otherwise
     dims: [scenario, snapshot, process]
     cases:
-      opening_late: {when: "position(snapshot) > 0 AND NOT shift(Process_active, along=snapshot, offset=1)", expression: 0}
+      opening_late: { when: "position(snapshot) > 0 AND NOT shift(Process_active, along=snapshot, offset=1)", expression: 0 }
     otherwise: Process_p_carried_over
   Process_p_carried_over:
     description: >-
@@ -2771,7 +2771,7 @@ expressions:
       it came in off. After that, it is the previous snapshot's
     dims: [scenario, snapshot, process]
     cases:
-      opening: {when: "position(snapshot) == 0", expression: Process_p_init}
+      opening: { when: "position(snapshot) == 0", expression: Process_p_init }
     otherwise: shift(Process_p, along=snapshot, offset=1)
   Process_ramp_up_rate:
     description: >-
@@ -2780,7 +2780,7 @@ expressions:
       row
     dims: [scenario, snapshot, process]
     cases:
-      given: {when: Process_ramp_limit_up, expression: Process_ramp_limit_up}
+      given: { when: Process_ramp_limit_up, expression: Process_ramp_limit_up }
     otherwise: 1
   Process_ramp_down_rate:
     description: >-
@@ -2789,7 +2789,7 @@ expressions:
       the row
     dims: [scenario, snapshot, process]
     cases:
-      given: {when: Process_ramp_limit_down, expression: Process_ramp_limit_down}
+      given: { when: Process_ramp_limit_down, expression: Process_ramp_limit_down }
     otherwise: 1
   Process_start_up_rate:
     description: >-
@@ -2797,7 +2797,7 @@ expressions:
       or the full build where it has none
     dims: [scenario, process]
     cases:
-      given: {when: Process_ramp_limit_start_up, expression: Process_ramp_limit_start_up}
+      given: { when: Process_ramp_limit_start_up, expression: Process_ramp_limit_start_up }
     otherwise: 1
   Process_shut_down_rate:
     description: >-
@@ -2805,7 +2805,7 @@ expressions:
       `ramp_limit_shut_down`), or the full build where it has none
     dims: [scenario, process]
     cases:
-      given: {when: Process_ramp_limit_shut_down, expression: Process_ramp_limit_shut_down}
+      given: { when: Process_ramp_limit_shut_down, expression: Process_ramp_limit_shut_down }
     otherwise: 1
   Process_maintenance_modules:
     description: >-
@@ -2814,7 +2814,7 @@ expressions:
       and the modules installed where it is fixed (`constraints.py:588-594`)
     dims: [scenario, process]
     cases:
-      extendable: {when: Process_p_nom_extendable, expression: Process_p_nom_max / Process_p_nom_mod}
+      extendable: { when: Process_p_nom_extendable, expression: Process_p_nom_max / Process_p_nom_mod }
     otherwise: Process_modules_installed
   Process_modules:
     description: >-
@@ -2823,7 +2823,7 @@ expressions:
       otherwise (`constraints.py:656-661`)
     dims: [scenario, process]
     cases:
-      chosen: {when: Process_p_nom_extendable AND Process_p_nom_mod > 0, expression: Process_n_mod}
+      chosen: { when: Process_p_nom_extendable AND Process_p_nom_mod > 0, expression: Process_n_mod }
     otherwise: Process_modules_installed
   Process_p_nom_committed:
     description: >-
@@ -2832,7 +2832,7 @@ expressions:
       given build otherwise (`constraints.py:1131-1134`)
     dims: [scenario, process]
     cases:
-      modular_build: {when: "Process_p_nom_mod > 0", expression: Process_p_nom_mod}
+      modular_build: { when: "Process_p_nom_mod > 0", expression: Process_p_nom_mod }
     otherwise: Process_p_nom
   Process_ramp_previous_status:
     description: >-
@@ -2975,7 +2975,7 @@ expressions:
       flow times the port's `efficiency` otherwise
     dims: [scenario, snapshot, link_output]
     cases:
-      curve: {when: Link_efficiency_curve, expression: Link_output_curve_arrival}
+      curve: { when: Link_efficiency_curve, expression: Link_output_curve_arrival }
     otherwise: Link_output_linear_arrival
   Process_output_linear_arrival:
     description: >-
@@ -3011,7 +3011,7 @@ expressions:
       power times the port's `rate` otherwise
     dims: [scenario, snapshot, process_output]
     cases:
-      curve: {when: Process_rate_curve, expression: Process_output_curve_arrival}
+      curve: { when: Process_rate_curve, expression: Process_output_curve_arrival }
     otherwise: Process_output_linear_arrival
   energy_limit_weight:
     description: >-
@@ -3065,7 +3065,7 @@ expressions:
     description: "the build a store's limits are taken against: the chosen one where it is extendable, the given one otherwise"
     dims: [scenario, store]
     cases:
-      extendable: {when: Store_e_nom_extendable, expression: Store_e_nom_ext}
+      extendable: { when: Store_e_nom_extendable, expression: Store_e_nom_ext }
     otherwise: Store_e_nom
   Store_discharge_floor_pu:
     description: >-
@@ -3075,7 +3075,7 @@ expressions:
       (`stores.py:79-86`)
     dims: [scenario, snapshot, store]
     cases:
-      split: {when: Store_split_dispatch, expression: 0}
+      split: { when: Store_split_dispatch, expression: 0 }
     otherwise: Store_p_min_pu / Store_max_hours
   Store_charge_cap_pu:
     description: >-
@@ -3084,7 +3084,7 @@ expressions:
       otherwise (`stores.py:79-86`)
     dims: [scenario, snapshot, store]
     cases:
-      split: {when: Store_split_dispatch, expression: -Store_p_min_pu / Store_max_hours}
+      split: { when: Store_split_dispatch, expression: -Store_p_min_pu / Store_max_hours }
     otherwise: 0
   Store_last_counted_active:
     description: >-
@@ -3124,7 +3124,7 @@ expressions:
       efficiency (`global_constraints.py:419-437`)
     dims: [scenario, snapshot, generator]
     cases:
-      curve: {when: Generator_efficiency_curve, expression: Generator_p_primary_piecewise}
+      curve: { when: Generator_efficiency_curve, expression: Generator_p_primary_piecewise }
     otherwise: Generator_p
   Generator_primary_energy:
     expression: >-
@@ -3215,7 +3215,7 @@ expressions:
       from that term (`optimize.py:333-348`)
     dims: [scenario, snapshot, generator]
     cases:
-      curve: {when: Generator_marginal_cost_curve, expression: Generator_marginal_cost_piecewise}
+      curve: { when: Generator_marginal_cost_curve, expression: Generator_marginal_cost_piecewise }
     otherwise: Generator_p * Generator_marginal_cost
   Generator_opex:
     expression: >-
@@ -3234,7 +3234,7 @@ expressions:
       (`optimize.py:333-348`)
     dims: [scenario, snapshot, link]
     cases:
-      curve: {when: Link_marginal_cost_curve, expression: Link_marginal_cost_piecewise}
+      curve: { when: Link_marginal_cost_curve, expression: Link_marginal_cost_piecewise }
     otherwise: Link_p * Link_marginal_cost
   Link_opex:
     expression: >-
@@ -3253,7 +3253,7 @@ expressions:
       from that term (`optimize.py:333-348`)
     dims: [scenario, snapshot, process]
     cases:
-      curve: {when: Process_marginal_cost_curve, expression: Process_marginal_cost_piecewise}
+      curve: { when: Process_marginal_cost_curve, expression: Process_marginal_cost_piecewise }
     otherwise: Process_p * Process_marginal_cost
   Process_opex:
     expression: >-
@@ -3272,7 +3272,7 @@ expressions:
       from that term (`optimize.py:333-348`)
     dims: [scenario, snapshot, storage_unit]
     cases:
-      curve: {when: StorageUnit_marginal_cost_curve, expression: StorageUnit_marginal_cost_piecewise}
+      curve: { when: StorageUnit_marginal_cost_curve, expression: StorageUnit_marginal_cost_piecewise }
     otherwise: StorageUnit_p_dispatch * StorageUnit_marginal_cost
   StorageUnit_opex:
     expression: >-
@@ -3288,7 +3288,7 @@ expressions:
       from that term (`optimize.py:333-348`)
     dims: [scenario, snapshot, store]
     cases:
-      curve: {when: Store_marginal_cost_curve, expression: Store_marginal_cost_piecewise}
+      curve: { when: Store_marginal_cost_curve, expression: Store_marginal_cost_piecewise }
     otherwise: Store_p * Store_marginal_cost
   Store_opex:
     expression: >-
@@ -3322,7 +3322,7 @@ expressions:
       from that term (`optimize.py:404-446`)
     dims: [scenario, generator]
     cases:
-      curve: {when: Generator_capital_cost_curve, expression: Generator_capital_cost_piecewise}
+      curve: { when: Generator_capital_cost_curve, expression: Generator_capital_cost_piecewise }
     otherwise: Generator_p_nom_ext * Generator_capital_cost
   Generator_capex:
     expression: sum(scenario_weight * Generator_build_cost * Generator_capital_weight)
@@ -3334,7 +3334,7 @@ expressions:
       from that term (`optimize.py:404-446`)
     dims: [scenario, link]
     cases:
-      curve: {when: Link_capital_cost_curve, expression: Link_capital_cost_piecewise}
+      curve: { when: Link_capital_cost_curve, expression: Link_capital_cost_piecewise }
     otherwise: Link_p_nom_ext * Link_capital_cost
   Link_capex:
     expression: sum(scenario_weight * Link_build_cost * Link_capital_weight)
@@ -3346,7 +3346,7 @@ expressions:
       from that term (`optimize.py:404-446`)
     dims: [scenario, storage_unit]
     cases:
-      curve: {when: StorageUnit_capital_cost_curve, expression: StorageUnit_capital_cost_piecewise}
+      curve: { when: StorageUnit_capital_cost_curve, expression: StorageUnit_capital_cost_piecewise }
     otherwise: StorageUnit_p_nom_ext * StorageUnit_capital_cost
   StorageUnit_capex:
     expression: sum(scenario_weight * StorageUnit_build_cost * StorageUnit_capital_weight)
@@ -3358,7 +3358,7 @@ expressions:
       from that term (`optimize.py:404-446`)
     dims: [scenario, store]
     cases:
-      curve: {when: Store_capital_cost_curve, expression: Store_capital_cost_piecewise}
+      curve: { when: Store_capital_cost_curve, expression: Store_capital_cost_piecewise }
     otherwise: Store_e_nom_ext * Store_capital_cost
   Store_capex:
     expression: sum(scenario_weight * Store_build_cost * Store_capital_weight)
@@ -3370,7 +3370,7 @@ expressions:
       from that term (`optimize.py:404-446`)
     dims: [scenario, line]
     cases:
-      curve: {when: Line_capital_cost_curve, expression: Line_capital_cost_piecewise}
+      curve: { when: Line_capital_cost_curve, expression: Line_capital_cost_piecewise }
     otherwise: Line_s_nom_ext * Line_capital_cost
   Line_capex:
     expression: sum(scenario_weight * Line_build_cost * Line_capital_weight)
@@ -3382,7 +3382,7 @@ expressions:
       from that term (`optimize.py:404-446`)
     dims: [scenario, process]
     cases:
-      curve: {when: Process_capital_cost_curve, expression: Process_capital_cost_piecewise}
+      curve: { when: Process_capital_cost_curve, expression: Process_capital_cost_piecewise }
     otherwise: Process_p_nom_ext * Process_capital_cost
   Process_capex:
     expression: sum(scenario_weight * Process_build_cost * Process_capital_weight)
@@ -3394,7 +3394,7 @@ expressions:
       from that term (`optimize.py:404-446`)
     dims: [scenario, transformer]
     cases:
-      curve: {when: Transformer_capital_cost_curve, expression: Transformer_capital_cost_piecewise}
+      curve: { when: Transformer_capital_cost_curve, expression: Transformer_capital_cost_piecewise }
     otherwise: Transformer_s_nom_ext * Transformer_capital_cost
   Transformer_capex:
     expression: sum(scenario_weight * Transformer_build_cost * Transformer_capital_weight)
@@ -3454,7 +3454,7 @@ expressions:
       thus adds nothing and never tightens the limit
     dims: [carrier]
     cases:
-      positive: {when: Carrier_max_relative_growth > 0, expression: Carrier_max_relative_growth}
+      positive: { when: Carrier_max_relative_growth > 0, expression: Carrier_max_relative_growth }
     otherwise: 0
   Load_demand:
     description: >-
@@ -3463,7 +3463,7 @@ expressions:
       inactive load from the balance (`constraints.py:1591-1592`)
     dims: [scenario, snapshot, load]
     cases:
-      active: {when: Load_active, expression: Load_sign * Load_p_set}
+      active: { when: Load_active, expression: Load_sign * Load_p_set }
     otherwise: 0
   Line_s_monitored:
     description: >-
@@ -3472,13 +3472,13 @@ expressions:
       branch of the sub-network in every snapshot
     dims: [scenario, snapshot, line]
     cases:
-      standing: {when: Line_active, expression: Line_s}
+      standing: { when: Line_active, expression: Line_s }
     otherwise: 0
   Transformer_s_monitored:
     description: the flow a transformer's post-contingency rows read, as a line's
     dims: [scenario, snapshot, transformer]
     cases:
-      standing: {when: Transformer_active, expression: Transformer_s}
+      standing: { when: Transformer_active, expression: Transformer_s }
     otherwise: 0
   Outage_s:
     description: >-
@@ -3486,7 +3486,7 @@ expressions:
       transformer's flow before it goes out
     dims: [scenario, snapshot, outage]
     cases:
-      line: {when: Outage_line, expression: "at(Line_s_monitored, by=Outage_line[line])"}
+      line: { when: Outage_line, expression: "at(Line_s_monitored, by=Outage_line[line])" }
     otherwise: at(Transformer_s_monitored, by=Outage_transformer[transformer])
 
   Generator_injection:
