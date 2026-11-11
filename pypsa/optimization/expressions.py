@@ -689,6 +689,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 pw_var = _direct_piecewise(c, y_attr, sign, pw, names, direction)
 
             expr = coeffs * var.where(coeffs != 0)
+            if pw_var is not None:
+                expr = expr.fillna(0)
 
             if direction in ("supply", "withdrawal"):
                 if direction == "withdrawal":
@@ -704,8 +706,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
 
-            if pw_var is not None:
-                expr = expr.fillna(0)
             return self._aggregate_timeseries(
                 _add_optional(expr, pw_var), weights, agg=groupby_time
             )

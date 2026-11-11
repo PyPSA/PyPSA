@@ -187,7 +187,9 @@ class NetworkSources(Mapping[str, Any]):
     @functools.cached_property
     def snapshots(self) -> pd.Index:
         """The model's snapshot labels, as objects so any PyPSA label passes."""
-        return pd.Index(self.model_index.to_numpy(dtype=object), dtype=object, name=None)
+        return pd.Index(
+            self.model_index.to_numpy(dtype=object), dtype=object, name=None
+        )
 
     @functools.cached_property
     def positions(self) -> np.ndarray:
@@ -209,9 +211,17 @@ class NetworkSources(Mapping[str, Any]):
         return np.full(len(self.network_index), NO_PERIOD, dtype=int)
 
     def names(self, component: str) -> pd.Index:
-        """The labels of a component's units: its active assets, as PyPSA builds them."""
+        """The labels of a component's units: its active assets, as PyPSA builds them.
+
+        A one-port unit at a bus the network lacks is left out, as PyPSA's
+        nodal balance never reaches it.
+        """
         c = self.n.components[component]
-        return pd.Index(c.active_assets, dtype=object, name=None)
+        names = pd.Index(c.active_assets, dtype=object, name=None)
+        if "bus" not in c.static or component == "Bus":
+            return names
+        bus = _first_scenario(c.static, self.n)["bus"].reindex(names)
+        return names[bus.isin(self.n.c.buses.names).to_numpy()]
 
     def dimension(self, dim: str) -> Any:
         """The labels of one declared dimension."""
@@ -386,23 +396,29 @@ class NetworkSources(Mapping[str, Any]):
         active = self.active(component)
         by = xr.DataArray(self.period_of, dims="snapshot", name="period")
         return (
-            active.assign_coords(period=("snapshot", self.period_of))
-            .groupby("period")
-            .any("snapshot")
-            .reindex(period=self.periods, fill_value=False)
-        ) if len(by) else active.isel(snapshot=0, drop=True).expand_dims(
-            period=self.periods
+            (
+                active.assign_coords(period=("snapshot", self.period_of))
+                .groupby("period")
+                .any("snapshot")
+                .reindex(period=self.periods, fill_value=False)
+            )
+            if len(by)
+            else active.isel(snapshot=0, drop=True).expand_dims(period=self.periods)
         )
 
     def period_weight(self, column: str) -> xr.DataArray:
         """A column of `investment_period_weightings`, one under a single period."""
         if not self.multi_invest:
             return xr.DataArray(
-                np.ones(len(self.periods)), coords={"period": self.periods}, dims="period"
+                np.ones(len(self.periods)),
+                coords={"period": self.periods},
+                dims="period",
             )
         weights = self.n.investment_period_weightings[column].reindex(self.periods)
         return xr.DataArray(
-            weights.to_numpy(dtype=float), coords={"period": self.periods}, dims="period"
+            weights.to_numpy(dtype=float),
+            coords={"period": self.periods},
+            dims="period",
         )
 
     # -- ports ------------------------------------------------------------
@@ -410,46 +426,12 @@ class NetworkSources(Mapping[str, Any]):
     @functools.cached_property
     def link_ports(self) -> pd.DataFrame:
         """Link output ports read long: one row per link and `bus<k>`, k >= 1."""
-        c = self.n.components.links
-        static = _static(self, "Link")
-        rows = []
-        for k in _port_numbers(static, start=1):
-            col = f"bus{k}"
-            present = static[col].astype(str).str.strip() != ""
-            present &= static[col].notna()
-            for link in static.index[present]:
-                rows.append(
-                    {
-                        "port": f"{link}{_PORT_SEP}{k}",
-                        "link": link,
-                        "k": k,
-                        "bus": static.at[link, col],
-                    }
-                )
-        return pd.DataFrame(rows, columns=["port", "link", "k", "bus"])
+        return _ports_long(self, "Link", start=1)
 
     @functools.cached_property
     def process_ports(self) -> pd.DataFrame:
         """Process ports read long: one row per process and `bus<k>`, k >= 0."""
-        c = self.n.components.processes
-        static = _static(self, "Process")
-        rows = []
-        for k in _port_numbers(static, start=0):
-            col = f"bus{k}"
-            if col not in static:
-                continue
-            present = static[col].astype(str).str.strip() != ""
-            present &= static[col].notna()
-            for process in static.index[present]:
-                rows.append(
-                    {
-                        "port": f"{process}{_PORT_SEP}{k}",
-                        "process": process,
-                        "k": k,
-                        "bus": static.at[process, col],
-                    }
-                )
-        return pd.DataFrame(rows, columns=["port", "process", "k", "bus"])
+        return _ports_long(self, "Process", start=0)
 
 
 _PORT_SEP = "::"
@@ -462,6 +444,33 @@ def _port_numbers(static: pd.DataFrame, start: int) -> list[int]:
         if col.startswith("bus") and (col[3:].isdigit() or col == "bus")
     )
     return [k for k in numbers if k >= start]
+
+
+def _ports_long(s: NetworkSources, component: str, start: int) -> pd.DataFrame:
+    """The ports of a multiport read long: one row per unit and set `bus<k>`, k >= start."""
+    dim = UNITS[component]
+    static = _static(s, component)
+    frames = []
+    for k in _port_numbers(static, start):
+        col = f"bus{k}"
+        present = static[col].notna() & (static[col].astype(str).str.strip() != "")
+        units = static.index[present]
+        frames.append(
+            pd.DataFrame(
+                {
+                    "port": [f"{u}{_PORT_SEP}{k}" for u in units],
+                    dim: units.to_numpy(dtype=object),
+                    "k": k,
+                    "bus": static.loc[present, col].to_numpy(),
+                }
+            )
+        )
+    columns = ["port", dim, "k", "bus"]
+    return (
+        pd.concat(frames, ignore_index=True)[columns]
+        if frames
+        else pd.DataFrame(columns=columns)
+    )
 
 
 def _aux(da: xr.DataArray) -> list[str]:
@@ -702,7 +711,10 @@ def _filled(s: NetworkSources, name: str, value: Any) -> xr.DataArray:
     dims = s.declared(name)
     coords = {d: s.coords(d) for d in dims}
     shape = [len(c) for c in coords.values()]
-    dtype = {"bool": bool, "int": float if value is np.nan else int}.get(
+    dtype = {
+        "bool": bool,
+        "int": float if isinstance(value, float) and np.isnan(value) else int,
+    }.get(
         s.spec.parameters[name].dtype, float if not isinstance(value, str) else object
     )
     return xr.DataArray(
@@ -745,9 +757,9 @@ def _suffix(k: int) -> str:
 
 @single("Link_efficiency")
 def _link_efficiency(s: NetworkSources, name: str) -> xr.DataArray:
-    return _port_attribute(
-        s, "Link", name, lambda k: f"efficiency{_suffix(k)}"
-    ).astype(float)
+    return _port_attribute(s, "Link", name, lambda k: f"efficiency{_suffix(k)}").astype(
+        float
+    )
 
 
 @single("Process_rate")
@@ -799,77 +811,80 @@ def _solved_before(s: NetworkSources, component: str, attr: str) -> xr.DataArray
     raw = raw.assign_coords(snapshot=np.arange(start))
     dim = UNITS[component]
     raw = raw.sel(name=raw.indexes["name"].isin(s.names(component)))
-    raw = raw.rename(name=dim).assign_coords({dim: raw.indexes["name"].to_numpy(dtype=object)})
+    raw = raw.rename(name=dim).assign_coords(
+        {dim: raw.indexes["name"].to_numpy(dtype=object)}
+    )
     if "scenario" not in raw.dims:
         raw = raw.expand_dims(scenario=s.scenarios)
     return raw
 
 
-def _trailing_run(history: xr.DataArray, on: bool) -> xr.DataArray:
-    """How many snapshots at the end of `history` are all on, or all off."""
-    match = (history > 0.5) == on
-    reverse = match.isel(snapshot=slice(None, None, -1))
-    return (reverse.cumprod("snapshot")).sum("snapshot")
+def _history(s: NetworkSources, component: str) -> xr.DataArray:
+    """The status of each unit at the `lag` snapshots before the build, newest first.
 
-
-def _times_before(s: NetworkSources, component: str) -> tuple[xr.DataArray, xr.DataArray]:
-    """Up and down time a unit brings into the build.
-
-    In the first window they are `up_time_before` and `down_time_before`, the
-    latter winning, as PyPSA reads them. Later windows of a rolling horizon
-    count the solved status before the window, carried on into the times
-    before the horizon where every solved snapshot agrees.
+    Solved snapshots of earlier windows are read as solved, fractions included;
+    the time before the network's first snapshot is rebuilt from
+    `up_time_before` and `down_time_before`, the latter winning. A unit that is
+    not committable is on.
     """
+    minimum = [s.da(component, f"min_{k}_time") for k in ("up", "down")]
+    length = int(max([1, *(m.max().item() for m in minimum if m.size)])) + 1
+    solved = _solved_before(s, component, "status")
+    count = 0 if solved is None else min(solved.sizes["snapshot"], length)
+    lag = xr.DataArray(np.arange(1, length - count + 1), dims="lag")
+    up = s.da(component, "up_time_before")
     down = s.da(component, "down_time_before")
-    up = s.da(component, "up_time_before").where(down == 0, 0)
-    status = _solved_before(s, component, "status")
-    if status is None:
-        return up, down
-    solved = status.sizes["snapshot"]
-    run_up = _trailing_run(status, True)
-    run_down = _trailing_run(status, False)
-    return (
-        xr.where(run_up == solved, run_up + up, run_up),
-        xr.where(run_down == solved, run_down + down, run_down),
+    before = xr.where(down > 0, lag > down, lag <= up).astype(float)
+    parts = [before.assign_coords(lag=lag + count)]
+    if count:
+        recent = solved.isel(snapshot=slice(-count, None))
+        recent = recent.isel(snapshot=slice(None, None, -1)).rename(snapshot="lag")
+        parts.insert(0, recent.assign_coords(lag=np.arange(1, count + 1)))
+    history = xr.concat(parts, dim="lag")
+    committable = s.da(component, "committable").astype(bool)
+    return history.where(committable, 1.0)
+
+
+def _brought_in(s: NetworkSources, component: str, kind: str) -> xr.DataArray:
+    """How much of the start-ups (`up`) or shut-downs (`down`) before the build still bind.
+
+    A switch at lag `l` binds a snapshot at position `p` while `l + p` is
+    below the minimum up or down time (`constraints.py:677-678`).
+    """
+    history = _history(s, component)
+    switches = history - history.shift(lag=-1)
+    switches = switches.isel(lag=slice(None, -1))
+    past = (switches if kind == "up" else -switches).clip(min=0)
+    minimum = s.da(component, f"min_{kind}_time")
+    position = xr.DataArray(
+        np.arange(len(s.snapshots)), coords={"snapshot": s.snapshots}, dims="snapshot"
     )
-
-
-def _up_time_before(s: NetworkSources, component: str) -> xr.DataArray:
-    """The up time a unit brings into the build, zero where it comes in off."""
-    return _times_before(s, component)[0]
+    return (past * (past.lag + position < minimum)).sum("lag")
 
 
 @family("p_init")
 def _p_init(s: NetworkSources, component: str, suffix: str) -> xr.DataArray:
-    """`p_init`, or in a later window of a rolling horizon the solved output before it."""
+    """The output carried into the build.
+
+    It is the solved output of an earlier window, else `p_init` where the
+    unit came in running and zero where it came in off.
+    """
     name = f"{component}_{suffix}"
     attr = "p0" if component in ("Link",) else "p"
     solved = _solved_before(s, component, attr)
     if solved is None:
-        return s.attribute(component, suffix, name)
+        status = _history(s, component).sel(lag=1, drop=True)
+        return s.frame(name, s.da(component, suffix).where(status > 0, 0.0))
     last = solved.isel(snapshot=-1, drop=True)
-    return s.frame(name, last.reindex({UNITS[component]: s.coords(UNITS[component]).to_numpy()}))
+    return s.frame(
+        name, last.reindex({UNITS[component]: s.coords(UNITS[component]).to_numpy()})
+    )
 
 
 @family("status_initial")
 def _status_initial(s: NetworkSources, component: str, suffix: str) -> xr.DataArray:
-    up = _up_time_before(s, component)
-    committable = s.da(component, "committable").astype(bool)
-    initial = xr.where(committable, up > 0, True).astype(int)
-    return s.frame(f"{component}_{suffix}", initial)
-
-
-def _brought_in(s: NetworkSources, component: str, kind: str) -> xr.DataArray:
-    """One while the up or down time a unit brought into the horizon still runs."""
-    up, down = _times_before(s, component)
-    before = up if kind == "up" else down
-    minimum = s.da(component, f"min_{kind}_time")
-    committable = s.da(component, "committable").astype(bool)
-    position = xr.DataArray(
-        np.arange(len(s.snapshots)), coords={"snapshot": s.snapshots}, dims="snapshot"
-    )
-    running = (before > 0) & (position + before < minimum) & committable
-    return running.astype(int)
+    status = _history(s, component).sel(lag=1, drop=True)
+    return s.frame(f"{component}_{suffix}", status)
 
 
 @family("up_time_brought_in")
@@ -1036,7 +1051,9 @@ def _bus_attached(s: NetworkSources, name: str) -> xr.DataArray:
         static = _static(s, component)
         active = s.active(component)
         for column in columns:
-            at = xr.DataArray(static[column].to_numpy(dtype=object), dims=UNITS[component])
+            at = xr.DataArray(
+                static[column].to_numpy(dtype=object), dims=UNITS[component]
+            )
             attached = attached | _any_by_bus(active, at, buses)
     for component, owner in (("Link", "link"), ("Process", "process")):
         ports = _ports(s, component)
@@ -1048,7 +1065,9 @@ def _bus_attached(s: NetworkSources, name: str) -> xr.DataArray:
     return s.frame(name, attached)
 
 
-def _any_by_bus(active: xr.DataArray, bus: xr.DataArray, buses: pd.Index) -> xr.DataArray:
+def _any_by_bus(
+    active: xr.DataArray, bus: xr.DataArray, buses: pd.Index
+) -> xr.DataArray:
     """Whether any active unit sits at each bus, (bus, snapshot)."""
     unit = bus.dims[0]
     if not active.sizes[unit]:

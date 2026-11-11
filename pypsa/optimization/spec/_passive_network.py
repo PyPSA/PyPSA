@@ -11,7 +11,7 @@ factors of a security-constrained run and the flow-based domain.
 from __future__ import annotations
 
 from math import sqrt
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -311,11 +311,29 @@ def _outage_branch(s: NetworkSources, name: str) -> pd.DataFrame:
     return pd.DataFrame({"outage": labels, column: labels}, dtype=object)
 
 
+class SecurityGroup(NamedTuple):
+    """The outages of one sub-network in one period, which PyPSA names apart."""
+
+    suffix: str
+    snapshots: np.ndarray
+    branches: pd.MultiIndex
+    outages: pd.MultiIndex
+
+
+def security_groups(s: NetworkSources) -> list[SecurityGroup]:
+    """The sub-network and period groups of the security rows, in PyPSA's order."""
+    _memo(s, "bodf", _bodf)
+    return s.__dict__["_passive_network"].get("groups", [])
+
+
 def _bodf(s: NetworkSources) -> dict[int, pd.DataFrame]:
     """Each period's outage factors, branches by outages, of its sub-networks."""
     n = s.n
-    topology = n.get_scenario(n.scenarios[0]) if n.has_scenarios else n
     outages = _outages(s)
+    if outages.empty:
+        return {period: pd.DataFrame() for period in s.periods}
+    topology = n.get_scenario(n.scenarios[0]) if n.has_scenarios else n
+    groups = s.__dict__["_passive_network"].setdefault("groups", [])
     factors = {}
     for period in s.periods:
         topology.determine_network_topology(
@@ -327,6 +345,13 @@ def _bodf(s: NetworkSources) -> dict[int, pd.DataFrame]:
             outaged = branches.intersection(outages)
             if outaged.empty:
                 continue
+            suffix = (
+                f"{sub_network.name}-period-{period}"
+                if s.multi_invest
+                else sub_network.name
+            )
+            snapshots = np.flatnonzero(s.period_of == period)
+            groups.append(SecurityGroup(suffix, snapshots, branches, outaged))
             sub_network.calculate_BODF()
             frame = pd.DataFrame(sub_network.BODF, index=branches, columns=branches)
             frames.append(frame[outaged].droplevel(0, axis=1))
@@ -355,6 +380,12 @@ def _zone_domain(s: NetworkSources) -> pd.Series:
     if domain.zone_domain is None:
         return pd.Series(NO_DOMAIN, index=pd.Index(domain.zones, dtype=object))
     return domain.zone_domain.astype(object)
+
+
+def flow_based_zones(s: NetworkSources) -> pd.Index | None:
+    """The zone buses of the flow-based domain in PyPSA's column order, None without one."""
+    domain = _memo(s, "flow_based", _domain)
+    return None if domain is None else pd.Index(domain.zones, dtype=object)
 
 
 @dimension("flow_based_domain")
@@ -389,12 +420,14 @@ def _flow_based_array(s: NetworkSources, attr: str) -> xr.DataArray:
     """Read a GlobalConstraint array in the spec's dims, NaN off flow-based rows."""
     c = s.n.components.global_constraints
     da = c.da[attr]
-    da = da.drop_vars([v for v in da.coords if v not in da.dims])
+    if "snapshot" in da.dims:
+        da = da.isel(snapshot=s.positions)
+    da = da.drop_vars([v for v in da.coords if v not in da.dims or v == "snapshot"])
+    if "snapshot" in da.dims:
+        da = da.assign_coords(snapshot=s.snapshots)
     rows = c._flow_based_names()
     da = da.where(da["name"].isin(rows))
     da = da.rename(name="global_constraint")
-    if "snapshot" in da.dims:
-        da = da.isel(snapshot=s.positions).assign_coords(snapshot=s.snapshots)
     if "scenario" in da.dims and not s.n.has_scenarios:
         da = da.squeeze("scenario", drop=True)
     if "scenario" not in da.dims:

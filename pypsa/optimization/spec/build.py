@@ -15,13 +15,23 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import Model
+from linopy.constants import BREAKPOINT_DIM
 from linopy.constraints import Constraint
 from linopy.expressions import LinearExpression
 from linopy.variables import Variable
 
+from pypsa.optimization.common import get_bus_counts
+from pypsa.optimization.spec._passive_network import (
+    SecurityGroup,
+    flow_based_zones,
+    security_groups,
+)
+from pypsa.optimization.spec.checks import check
 from pypsa.optimization.spec.sources import UNITS, NetworkSources
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from mathspec.spec import Spec
 
     from pypsa import Network
@@ -63,10 +73,12 @@ def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
     """The renaming of spec dims to PyPSA's: the one unit dim becomes `name`.
 
     A constraint over buses or GlobalConstraint labels names them `name` too.
+    The breakpoints of a curve take linopy's name, which marks an auxiliary entry.
     """
     named = UNIT_DIMS | ({"bus", "global_constraint"} if constraint else set())
     found = [d for d in dims if d in named]
-    return {found[0]: "name"} if len(found) == 1 else {}
+    renamed = {found[0]: "name"} if len(found) == 1 else {}
+    return renamed | ({"breakpoint": BREAKPOINT_DIM} if "breakpoint" in dims else {})
 
 
 def _order(dims: tuple[str, ...], has_scenarios: bool) -> list[str]:
@@ -75,15 +87,18 @@ def _order(dims: tuple[str, ...], has_scenarios: bool) -> list[str]:
     return [d for d in dims if d == lead] + [d for d in dims if d != lead]
 
 
-def _renumbered(ds: xr.Dataset, order: list[str], mapping: np.ndarray) -> xr.Dataset:
-    """`ds` trimmed to its built units and laid out in `order`, with fresh labels.
+def _renumbered(
+    ds: xr.Dataset, order: list[str], mapping: np.ndarray, trim: bool
+) -> xr.Dataset:
+    """`ds` laid out in `order`, with fresh labels, trimmed to its built units on request.
 
-    PyPSA builds a unit's entry only where it has one, so a unit whose every
-    label is masked is dropped. linopy reads a solution or a dual by reshaping
-    one C-ordered label block, so the kept labels are renumbered from the
-    block's start; `mapping` records old to new.
+    PyPSA builds a variable only for the units that have one, so with `trim`
+    a unit whose every label is masked is dropped; a constraint keeps it
+    masked. linopy reads a solution or a dual by reshaping one C-ordered
+    label block, so the kept labels are renumbered from the block's start;
+    `mapping` records old to new.
     """
-    if "name" in ds.labels.dims and ds.sizes["name"]:
+    if trim and "name" in ds.labels.dims and ds.sizes["name"]:
         others = [d for d in ds.labels.dims if d != "name"]
         ds = ds.isel(name=(ds.labels != -1).any(others).values)
     ds = ds.transpose(*order, ...)
@@ -103,16 +118,126 @@ PIECEWISE_SUFFIX = {"order": "order_binary", "cost": "output_link"}
 SPLITS = {"{s}": "scenario", "{k}": "segment"}
 #: The placeholder suffix of the security rows, which PyPSA names per component and sub-network.
 SECURITY = "-for-{c}-outage-in-sub-network-{n}"
+#: The port dims a `{port}` placeholder in a PyPSA name splits along, with the unit dim of each part.
+PORTS = {"link_output": "link", "process_output": "process"}
 
 
-def _split(m: Model, constraints: dict[str, Constraint]) -> dict[str, Constraint]:
-    """Split each constraint whose PyPSA name has a `{s}` or `{k}` placeholder along its dim.
+def _split_ports(m: Model, names: dict, sources: NetworkSources) -> None:
+    """Split each entry PyPSA names per port number into one entry per number, over the units.
 
-    Each part gets a fresh, contiguous label block at the end of the model's.
+    The parts tile the label block of the entry, so `_relabel` renumbers
+    each within its own share.
+    """
+    for section, container in (
+        ("variables", m.variables),
+        ("constraints", m.constraints),
+    ):
+        for key in [k for k in container if "{port}" in names[section].get(k, "")]:
+            ds = container.data.pop(key).data
+            dim = next(d for d in PORTS if d in ds.dims)
+            ports = (
+                sources.link_ports if dim == "link_output" else sources.process_ports
+            )
+            start = ds.attrs["label_range"][0]
+            for number, group in ports.groupby("k"):
+                part = ds.sel({dim: group["port"].to_numpy(dtype=object)})
+                units = group[PORTS[dim]].to_numpy(dtype=object)
+                part = part.rename({dim: PORTS[dim]}).assign_coords({PORTS[dim]: units})
+                part.attrs["label_range"] = (start, start + part.labels.size)
+                start += part.labels.size
+                new = f"{key}{number}"
+                names[section][new] = names[section][key].replace("{port}", str(number))
+                container.data[new] = (
+                    Variable(part, m, new)
+                    if section == "variables"
+                    else Constraint.from_dataset(part, m, new)
+                )
+
+
+def _fresh(m: Model, part: xr.Dataset, name: str) -> Constraint:
+    """`part` as a constraint with a fresh, contiguous label block at the end of the model's."""
+    live = part.labels.values != -1
+    start = m._cCounter
+    fresh = start + np.arange(part.labels.size).reshape(part.labels.shape)
+    part["labels"] = part.labels.copy(data=np.where(live, fresh, -1))
+    part.attrs["label_range"] = (start, start + part.labels.size)
+    m._cCounter += part.labels.size
+    return Constraint.from_dataset(part, m, name)
+
+
+def _security_parts(
+    n: Network, name: str, ds: xr.Dataset, groups: list[SecurityGroup]
+) -> dict[str, xr.Dataset]:
+    """The security rows of `ds` split by sub-network, period and outaged component.
+
+    Each part holds the outages of one component in one sub-network as
+    `<component>-outage`, and the fixed or the extendable branches of that
+    sub-network, as PyPSA selects them.
+    """
+    component = name.split("-", 1)[0]
+    extendable = n.components[component].extendables
+    kind = name.split("-")[1] == "ext"
+    parts = {}
+    for group in groups:
+        affected = group.branches[group.branches.get_level_values(0) == component]
+        affected = affected.get_level_values(1)
+        affected = affected[affected.isin(extendable) == kind]
+        for outaged in group.outages.unique(0):
+            labels = group.outages[group.outages.get_level_values(0) == outaged]
+            part = ds.isel(snapshot=group.snapshots)
+            part = part.sel(outage=list(labels.get_level_values(1)))
+            part = part.sel(
+                name=part.indexes["name"].intersection(affected, sort=False)
+            )
+            if not (part.labels != -1).any():
+                continue
+            new = name.replace("{c}", outaged).replace("{n}", group.suffix)
+            parts[new] = part.rename(outage=f"{outaged}-outage")
+    return parts
+
+
+def _meshed(n: Network, thresholds: Sequence[int] | None) -> dict[str, pd.Index]:
+    """PyPSA's split of the nodal balance by how many components a bus has attached."""
+    counts = get_bus_counts(n).reindex(n.c.buses.names, fill_value=0)
+    bounds = [0, *sorted(set(thresholds if thresholds is not None else [30, 100, 400]))]
+    bounds.append(np.inf)
+    return {
+        f"Bus-meshed-{low}-nodal_balance" if low else "Bus-nodal_balance": counts.index[
+            (counts > low) & (counts <= high)
+        ]
+        for low, high in zip(bounds, bounds[1:], strict=False)
+    }
+
+
+def _split(
+    m: Model,
+    n: Network,
+    constraints: dict[str, Constraint],
+    groups: list[SecurityGroup],
+    meshed: dict[str, pd.Index],
+) -> dict[str, Constraint]:
+    """Split each constraint whose PyPSA name has a placeholder.
+
+    A `{s}` or `{k}` splits along its dim; the security rows split by
+    sub-network, period and outaged component; the nodal balance splits by
+    how meshed a bus is. Each part gets a fresh label block.
     """
     out = {}
     for name, con in constraints.items():
-        name = name.replace(SECURITY, "")
+        if SECURITY in name:
+            for new, part in _security_parts(n, name, con.data, groups).items():
+                out[new] = _fresh(m, part, new)
+            continue
+        if (
+            name == "Bus-nodal_balance"
+            and sum(not b.empty for b in meshed.values()) > 1
+        ):
+            names = con.data.indexes["name"]
+            for new, buses in meshed.items():
+                part = con.data.sel(name=names.intersection(buses, sort=False))
+                if (part.labels.values != -1).any():
+                    out[new] = _fresh(m, part, new)
+            continue
         placeholder = next((p for p in SPLITS if p in name), None)
         if placeholder is None or SPLITS[placeholder] not in con.labels.dims:
             out[name] = con
@@ -121,21 +246,21 @@ def _split(m: Model, constraints: dict[str, Constraint]) -> dict[str, Constraint
         ds = con.data
         for label in ds.indexes[dim]:
             part = ds.sel({dim: label}, drop=True)
-            live = part.labels.values != -1
-            if not live.any():
+            if not (part.labels.values != -1).any():
                 continue
-            start = m._cCounter
-            fresh = start + np.arange(part.labels.size).reshape(part.labels.shape)
-            part["labels"] = part.labels.copy(data=np.where(live, fresh, -1))
-            part.attrs["label_range"] = (start, start + part.labels.size)
-            m._cCounter += part.labels.size
             new = name.replace(placeholder, str(label))
-            out[new] = Constraint.from_dataset(part, m, new)
+            out[new] = _fresh(m, part, new)
     return out
 
 
 def _relabel(
-    m: Model, n: Network, names: dict, snapshots: pd.Index, network_index: pd.Index
+    m: Model,
+    n: Network,
+    names: dict,
+    snapshots: pd.Index,
+    network_index: pd.Index,
+    sources: NetworkSources,
+    meshed: dict[str, pd.Index],
 ) -> None:
     """Rename every variable, constraint and dim of `m` as PyPSA names and lays them out.
 
@@ -161,14 +286,19 @@ def _relabel(
             ds = ds.squeeze("scenario", drop=True)
         if "snapshot" in ds.dims:
             ds = ds.assign_coords(snapshot=snapshots, **levels)
-        return _renumbered(ds, _order(ds.labels.dims, n.has_scenarios), mapping)
+        return _renumbered(
+            ds, _order(ds.labels.dims, n.has_scenarios), mapping, not constraint
+        )
 
     variables = {}
     for name, var in m.variables.items():
         if not (var.labels != -1).any():
             continue
         new = RENAMED.get(name, names["variables"].get(name, name))
-        variables[new] = Variable(frame(var.data, False, variable_map), m, new)
+        ds = var.data
+        if new == "FlowBased-net_position":
+            ds = ds.sel(bus=flow_based_zones(sources))
+        variables[new] = Variable(frame(ds, False, variable_map), m, new)
 
     def remap(ds: xr.Dataset) -> xr.Dataset:
         vars_ = ds.vars.values
@@ -183,7 +313,7 @@ def _relabel(
         ds = remap(frame(con.data, True, constraint_map)).rename(DIMS.get(new, {}))
         constraints[new] = Constraint.from_dataset(ds, m, new)
 
-    constraints = _split(m, constraints)
+    constraints = _split(m, n, constraints, security_groups(sources), meshed)
     m.variables.data.clear()
     m.variables.data.update(variables)
     m.constraints.data.clear()
@@ -232,8 +362,14 @@ def _merge_global_constraints(m: Model, squeeze: bool) -> None:
     parts = [m.constraints[k].data for k in names]
     labels: list = []
     for part in parts:
-        built = (part.labels != -1).any([d for d in part.labels.dims if d != "global_constraint"])
-        labels += [g for g in built.indexes["global_constraint"][built.values] if g not in labels]
+        built = (part.labels != -1).any(
+            [d for d in part.labels.dims if d != "global_constraint"]
+        )
+        labels += [
+            g
+            for g in built.indexes["global_constraint"][built.values]
+            if g not in labels
+        ]
     for g in labels:
         live = [
             p.sel(global_constraint=g, drop=True)
@@ -258,9 +394,18 @@ def build_model(
     *,
     linearized_unit_commitment: bool = False,
     model_kwargs: dict | None = None,
+    meshed_thresholds: Sequence[int] | None = None,
+    piecewise_options: Sequence[Any] = (),
     **options: Any,
 ) -> Model:
     """Build the model of `n` over the build's snapshots from the spec."""
+    check(
+        n,
+        network_index,
+        linearized_unit_commitment=linearized_unit_commitment,
+        piecewise_options=piecewise_options,
+        **options,
+    )
     model_kwargs = model_kwargs or {}
     s = spec(linearized_unit_commitment)
     sources = NetworkSources(n, s, network_index, model_index, **options)
@@ -280,5 +425,8 @@ def build_model(
                     suffix = k.removeprefix(f"{entry}_")
                     section[k] = f"{aux}_{PIECEWISE_SUFFIX.get(suffix, suffix)}"
     _merge_global_constraints(m, squeeze=not n.has_scenarios)
-    _relabel(m, n, names, model_index, network_index)
+    _split_ports(m, names, sources)
+    _relabel(
+        m, n, names, model_index, network_index, sources, _meshed(n, meshed_thresholds)
+    )
     return m

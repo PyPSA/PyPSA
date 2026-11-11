@@ -282,7 +282,8 @@ def _weight(s: NetworkSources, name: str) -> xr.DataArray:
     kind, cell, _ = _WEIGHTS[suffix]
     da = _unit_grid(s, name, component, kind, cell)
     if name == "Generator_primary_energy_weight":
-        da = da / s.da("Generator", "efficiency")
+        curved = s["Generator_efficiency_curve_p"].notnull().any("breakpoint")
+        da = da / s.da("Generator", "efficiency").where(~curved, 1)
     return s.frame(name, da)
 
 

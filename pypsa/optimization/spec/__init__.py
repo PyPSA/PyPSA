@@ -7,6 +7,7 @@
 from pypsa.optimization.spec import (  # noqa: F401  registers their sources
     _global_constraints,
     _passive_network,
+    _piecewise,
     _unit_features,
 )
 from pypsa.optimization.spec.build import build_model, spec

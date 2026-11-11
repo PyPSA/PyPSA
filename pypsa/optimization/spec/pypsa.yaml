@@ -131,6 +131,21 @@ parameters:
       prep. It is linopy's `Slopes(...).to_breakpoints` (`piecewise.py:310-312`)
     dims: [generator, breakpoint]
     missing: absent
+  Generator_efficiency_curve_p:
+    description: >-
+      the output at each breakpoint of a generator's piecewise `efficiency`
+      curve: PyPSA's `p_pu` breakpoints times `p_nom`, data prep. A generator
+      with no curve has no rows
+    dims: [generator, breakpoint]
+    missing: absent
+  Generator_efficiency_curve_primary:
+    description: >-
+      the primary energy a generator draws at each breakpoint of its piecewise
+      `efficiency` curve: the output over the `efficiency` there, and zero
+      where that quotient is undefined, as at no output with no efficiency,
+      data prep (`piecewise.py:279-280`, `piecewise.py:314-316`)
+    dims: [generator, breakpoint]
+    missing: absent
   Generator_marginal_cost_quadratic:
     description: cost of the square of one unit of output
     dims: [scenario, snapshot, generator]
@@ -175,7 +190,6 @@ parameters:
       a unit that is not, whose ramp rows PyPSA starts from on
       (`constraints.py:323`), data prep
     dims: [scenario, generator]
-    dtype: int
   Generator_p_init:
     description: >-
       the output a unit brought into the horizon (PyPSA's `p_init`), read only
@@ -190,7 +204,6 @@ parameters:
       before the first, counted while `min_up_time` has not passed since
       (`constraints.py:302-323`, `:677-678`), data prep
     dims: [scenario, snapshot, generator]
-    dtype: int
   Generator_down_time_brought_in:
     description: >-
       one while the down time a unit brought into the horizon is still
@@ -198,7 +211,6 @@ parameters:
       before the first, counted while `min_down_time` has not passed since
       (`constraints.py:302-323`, `:677-678`), data prep
     dims: [scenario, snapshot, generator]
-    dtype: int
   Generator_start_up_cost:
     description: cost of one start in this snapshot
     dims: [scenario, snapshot, generator]
@@ -297,6 +309,22 @@ parameters:
       than delivers. Read at the snapshot the flow arrives, so a delayed port
       delivers at its arrival snapshot's efficiency (`constraints.py:1575`)
     dims: [scenario, snapshot, link_output]
+  Link_efficiency_curve_p:
+    description: >-
+      the flow at each breakpoint of the piecewise `efficiency` curve of an
+      output port: PyPSA's `p_pu` breakpoints of `efficiency`, `efficiency2`,
+      … read long, times the link's `p_nom`, data prep. A port with no curve
+      has no rows
+    dims: [link_output, breakpoint]
+    missing: absent
+  Link_efficiency_curve_delivery:
+    description: >-
+      what an output port delivers at each breakpoint of its piecewise
+      `efficiency` curve: the flow times the `efficiency` there, and zero where
+      that product is undefined, data prep (`piecewise.py:314-316`). PyPSA
+      refuses a curve of both signs (`io.py:2319-2324`)
+    dims: [link_output, breakpoint]
+    missing: absent
   Link_output_delay:
     description: >-
       snapshots a port's delivery lags its link's flow (PyPSA's `delay`,
@@ -321,6 +349,23 @@ parameters:
   Link_marginal_cost_quadratic:
     description: cost of the square of one unit of flow
     dims: [scenario, snapshot, link]
+  Link_marginal_cost_curve_p:
+    description: >-
+      the flow at each breakpoint of a link's piecewise `marginal_cost` curve:
+      PyPSA's `p_pu` breakpoints times `p_nom`, data prep. A link with no
+      curve has no rows
+    dims: [link, breakpoint]
+    missing: absent
+  Link_marginal_cost_curve_cost:
+    description: >-
+      the running cost at each breakpoint of a link's piecewise
+      `marginal_cost` curve: zero at the first, then each segment's width in
+      flow times the `marginal_cost` at its upper breakpoint, summed, data
+      prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). A curve that starts below zero flow, where
+      `p_min_pu` is negative, costs more than nothing at zero flow
+    dims: [link, breakpoint]
+    missing: absent
   Link_committable:
     description: whether flow is gated by an on/off status decision
     dims: [link]
@@ -348,7 +393,6 @@ parameters:
       a link that is not, whose ramp rows PyPSA starts from on
       (`constraints.py:323`), data prep
     dims: [scenario, link]
-    dtype: int
   Link_p_init:
     description: >-
       the flow a link brought into the horizon (PyPSA's `p_init`), read only
@@ -363,7 +407,6 @@ parameters:
       before the first, counted while `min_up_time` has not passed since
       (`constraints.py:302-323`, `:677-678`), data prep
     dims: [scenario, snapshot, link]
-    dtype: int
   Link_down_time_brought_in:
     description: >-
       one while the down time a link brought into the horizon is still
@@ -371,7 +414,6 @@ parameters:
       before the first, counted while `min_down_time` has not passed since
       (`constraints.py:302-323`, `:677-678`), data prep
     dims: [scenario, snapshot, link]
-    dtype: int
   Link_start_up_cost:
     description: cost of one start in this snapshot
     dims: [scenario, snapshot, link]
@@ -464,6 +506,21 @@ parameters:
       snapshot the transfer arrives applies, so a delayed port transfers at
       its arrival snapshot's rate (`constraints.py:1575`)
     dims: [scenario, snapshot, process_output]
+  Process_rate_curve_p:
+    description: >-
+      the internal power at each breakpoint of the piecewise `rate` curve of a
+      port: PyPSA's `p_pu` breakpoints of `rate0`, `rate1`, … read long, times
+      the process's `p_nom`, data prep. A port with no curve has no rows
+    dims: [process_output, breakpoint]
+    missing: absent
+  Process_rate_curve_transfer:
+    description: >-
+      what a port transfers at each breakpoint of its piecewise
+      `rate` curve: the internal power times the `rate` there, and zero where
+      that product is undefined, data prep (`piecewise.py:314-316`). PyPSA
+      refuses a curve of both signs (`io.py:2319-2324`)
+    dims: [process_output, breakpoint]
+    missing: absent
   Process_output_delay:
     description: >-
       snapshots a port's transfer lags its process's internal power (PyPSA's
@@ -487,6 +544,22 @@ parameters:
   Process_marginal_cost_quadratic:
     description: cost of the square of one unit of internal power
     dims: [scenario, snapshot, process]
+  Process_marginal_cost_curve_p:
+    description: >-
+      the internal power at each breakpoint of a process's piecewise
+      `marginal_cost` curve: PyPSA's `p_pu` breakpoints times `p_nom`, data
+      prep. A process with no curve has no rows
+    dims: [process, breakpoint]
+    missing: absent
+  Process_marginal_cost_curve_cost:
+    description: >-
+      the running cost at each breakpoint of a process's piecewise
+      `marginal_cost` curve: zero at the first, then each segment's width in
+      internal power times the `marginal_cost` at its upper breakpoint,
+      summed, data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`)
+    dims: [process, breakpoint]
+    missing: absent
   Process_ramp_limit_up:
     description: most a process may raise its internal power between snapshots, per unit of nominal power. No value means no limit. The value at the later of the two snapshots applies, so the limit may change over time
     dims: [scenario, snapshot, process]
@@ -519,6 +592,24 @@ parameters:
       given, and `capital_cost` where it is not. Both add `fom_cost`
       (`components.py:1157-1178`, `costs.py:102-203`)
     dims: [scenario, process]
+  Process_capital_cost_curve_nom:
+    description: >-
+      the nominal internal power at each breakpoint of a process's piecewise
+      `capital_cost` curve: PyPSA's `p_nom` breakpoints, data prep. A process
+      with no curve has no rows
+    dims: [process, breakpoint]
+    missing: absent
+  Process_capital_cost_curve_cost:
+    description: >-
+      the cost of the build at each breakpoint of a process's piecewise
+      `capital_cost` curve: zero at the first, then each segment's width in
+      nominal internal power times the `capital_cost` at its upper breakpoint,
+      summed, data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). The curve is already periodized, so data prep
+      refuses `overnight_cost` beside it, as PyPSA does
+      (`optimize.py:427-434`)
+    dims: [process, breakpoint]
+    missing: absent
   Process_p_nom_set:
     description: a given nominal power for an extendable process. One without a value has no row here
     dims: [process]
@@ -550,7 +641,6 @@ parameters:
       a process that is not, whose ramp rows PyPSA starts from on
       (`constraints.py:323`), data prep
     dims: [scenario, process]
-    dtype: int
   Process_p_init:
     description: >-
       the internal power a process brought into the horizon (PyPSA's
@@ -566,7 +656,6 @@ parameters:
       before the first, counted while `min_up_time` has not passed since
       (`constraints.py:302-323`, `:677-678`), data prep
     dims: [scenario, snapshot, process]
-    dtype: int
   Process_down_time_brought_in:
     description: >-
       one while the down time a process brought into the horizon is still
@@ -574,7 +663,6 @@ parameters:
       before the first, counted while `min_down_time` has not passed since
       (`constraints.py:302-323`, `:677-678`), data prep
     dims: [scenario, snapshot, process]
-    dtype: int
   Process_start_up_cost:
     description: cost of one start in this snapshot
     dims: [scenario, snapshot, process]
@@ -869,6 +957,24 @@ parameters:
       given, and `capital_cost` where it is not. Both add `fom_cost`
       (`components.py:1157-1178`, `costs.py:102-203`)
     dims: [scenario, generator]
+  Generator_capital_cost_curve_nom:
+    description: >-
+      the nominal power at each breakpoint of a generator's piecewise
+      `capital_cost` curve: PyPSA's `p_nom` breakpoints, data prep. A
+      generator with no curve has no rows
+    dims: [generator, breakpoint]
+    missing: absent
+  Generator_capital_cost_curve_cost:
+    description: >-
+      the cost of the build at each breakpoint of a generator's piecewise
+      `capital_cost` curve: zero at the first, then each segment's width in
+      nominal power times the `capital_cost` at its upper breakpoint, summed,
+      data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). The curve is already periodized, so data prep
+      refuses `overnight_cost` beside it, as PyPSA does
+      (`optimize.py:427-434`)
+    dims: [generator, breakpoint]
+    missing: absent
   Generator_p_nom_set:
     description: a given nominal power for an extendable generator. One without a value has no row here
     dims: [generator]
@@ -893,6 +999,24 @@ parameters:
       given, and `capital_cost` where it is not. Both add `fom_cost`
       (`components.py:1157-1178`, `costs.py:102-203`)
     dims: [scenario, link]
+  Link_capital_cost_curve_nom:
+    description: >-
+      the nominal power at each breakpoint of a link's piecewise
+      `capital_cost` curve: PyPSA's `p_nom` breakpoints, data prep. A link
+      with no curve has no rows
+    dims: [link, breakpoint]
+    missing: absent
+  Link_capital_cost_curve_cost:
+    description: >-
+      the cost of the build at each breakpoint of a link's piecewise
+      `capital_cost` curve: zero at the first, then each segment's width in
+      nominal power times the `capital_cost` at its upper breakpoint, summed,
+      data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). The curve is already periodized, so data prep
+      refuses `overnight_cost` beside it, as PyPSA does
+      (`optimize.py:427-434`)
+    dims: [link, breakpoint]
+    missing: absent
   Link_p_nom_set:
     description: a given nominal power for an extendable link. One without a value has no row here
     dims: [link]
@@ -911,6 +1035,24 @@ parameters:
       given, and `capital_cost` where it is not. Both add `fom_cost`
       (`components.py:1157-1178`, `costs.py:102-203`)
     dims: [scenario, storage_unit]
+  StorageUnit_capital_cost_curve_nom:
+    description: >-
+      the nominal power at each breakpoint of a storage unit's piecewise
+      `capital_cost` curve: PyPSA's `p_nom` breakpoints, data prep. A storage
+      unit with no curve has no rows
+    dims: [storage_unit, breakpoint]
+    missing: absent
+  StorageUnit_capital_cost_curve_cost:
+    description: >-
+      the cost of the build at each breakpoint of a storage unit's piecewise
+      `capital_cost` curve: zero at the first, then each segment's width in
+      nominal power times the `capital_cost` at its upper breakpoint, summed,
+      data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). The curve is already periodized, so data prep
+      refuses `overnight_cost` beside it, as PyPSA does
+      (`optimize.py:427-434`)
+    dims: [storage_unit, breakpoint]
+    missing: absent
   StorageUnit_p_nom_set:
     description: a given nominal power for an extendable storage unit. One without a value has no row here
     dims: [storage_unit]
@@ -929,6 +1071,24 @@ parameters:
       given, and `capital_cost` where it is not. Both add `fom_cost`
       (`components.py:1157-1178`, `costs.py:102-203`)
     dims: [scenario, store]
+  Store_capital_cost_curve_nom:
+    description: >-
+      the nominal capacity at each breakpoint of a store's piecewise
+      `capital_cost` curve: PyPSA's `e_nom` breakpoints, data prep. A store
+      with no curve has no rows
+    dims: [store, breakpoint]
+    missing: absent
+  Store_capital_cost_curve_cost:
+    description: >-
+      the cost of the build at each breakpoint of a store's piecewise
+      `capital_cost` curve: zero at the first, then each segment's width in
+      nominal capacity times the `capital_cost` at its upper breakpoint,
+      summed, data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). The curve is already periodized, so data prep
+      refuses `overnight_cost` beside it, as PyPSA does
+      (`optimize.py:427-434`)
+    dims: [store, breakpoint]
+    missing: absent
   Store_e_nom_set:
     description: a given nominal capacity for an extendable store. One without a value has no row here
     dims: [store]
@@ -1014,6 +1174,22 @@ parameters:
   StorageUnit_marginal_cost_quadratic:
     description: cost of the square of one unit of dispatch. Storing is not charged
     dims: [scenario, snapshot, storage_unit]
+  StorageUnit_marginal_cost_curve_p:
+    description: >-
+      the dispatch at each breakpoint of a storage unit's piecewise
+      `marginal_cost` curve: PyPSA's `p_dispatch_pu` breakpoints times
+      `p_nom`, data prep. A storage unit with no curve has no rows
+    dims: [storage_unit, breakpoint]
+    missing: absent
+  StorageUnit_marginal_cost_curve_cost:
+    description: >-
+      the running cost at each breakpoint of a storage unit's piecewise
+      `marginal_cost` curve: zero at the first, then each segment's width in
+      dispatch times the `marginal_cost` at its upper breakpoint, summed, data
+      prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`)
+    dims: [storage_unit, breakpoint]
+    missing: absent
   StorageUnit_marginal_cost_storage:
     description: cost of one unit of charge held over one snapshot
     dims: [scenario, snapshot, storage_unit]
@@ -1105,6 +1281,24 @@ parameters:
   Store_marginal_cost_quadratic:
     description: cost of the square of the net power delivered, so charging costs as much as delivering
     dims: [scenario, snapshot, store]
+  Store_marginal_cost_curve_p:
+    description: >-
+      the power at each breakpoint of a store's piecewise `marginal_cost`
+      curve: PyPSA's `p_pu` breakpoints times `e_nom`, not the power rating
+      `e_nom / max_hours` that bounds `p`, data prep. A store with no curve
+      has no rows
+    dims: [store, breakpoint]
+    missing: absent
+  Store_marginal_cost_curve_cost:
+    description: >-
+      the running cost at each breakpoint of a store's piecewise
+      `marginal_cost` curve: zero at the first, then each segment's width in
+      power times the `marginal_cost` at its upper breakpoint, summed, data
+      prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). A curve that starts below zero, in charging,
+      costs more than nothing at zero power
+    dims: [store, breakpoint]
+    missing: absent
   Store_marginal_cost_storage:
     description: cost of one unit of energy held over one snapshot
     dims: [scenario, snapshot, store]
@@ -1200,6 +1394,24 @@ parameters:
       `overnight_cost` is given, and `capital_cost` where it is not. Both add
       `fom_cost` (`components.py:1157-1178`, `costs.py:102-203`)
     dims: [scenario, line]
+  Line_capital_cost_curve_nom:
+    description: >-
+      the nominal apparent power at each breakpoint of a line's piecewise
+      `capital_cost` curve: PyPSA's `s_nom` breakpoints, data prep. A line
+      with no curve has no rows
+    dims: [line, breakpoint]
+    missing: absent
+  Line_capital_cost_curve_cost:
+    description: >-
+      the cost of the build at each breakpoint of a line's piecewise
+      `capital_cost` curve: zero at the first, then each segment's width in
+      nominal apparent power times the `capital_cost` at its upper breakpoint,
+      summed, data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). The curve is already periodized, so data prep
+      refuses `overnight_cost` beside it, as PyPSA does
+      (`optimize.py:427-434`)
+    dims: [line, breakpoint]
+    missing: absent
   Line_s_nom_set:
     description: a given nominal apparent power for an extendable line. One without a value has no row here
     dims: [line]
@@ -1297,6 +1509,24 @@ parameters:
       `overnight_cost` is given, and `capital_cost` where it is not. Both add
       `fom_cost` (`components.py:1157-1178`, `costs.py:102-203`)
     dims: [scenario, transformer]
+  Transformer_capital_cost_curve_nom:
+    description: >-
+      the nominal apparent power at each breakpoint of a transformer's
+      piecewise `capital_cost` curve: PyPSA's `s_nom` breakpoints, data prep.
+      A transformer with no curve has no rows
+    dims: [transformer, breakpoint]
+    missing: absent
+  Transformer_capital_cost_curve_cost:
+    description: >-
+      the cost of the build at each breakpoint of a transformer's piecewise
+      `capital_cost` curve: zero at the first, then each segment's width in
+      nominal apparent power times the `capital_cost` at its upper breakpoint,
+      summed, data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). The curve is already periodized, so data prep
+      refuses `overnight_cost` beside it, as PyPSA does
+      (`optimize.py:427-434`)
+    dims: [transformer, breakpoint]
+    missing: absent
   Transformer_s_nom_set:
     description: a given nominal apparent power for an extendable transformer. One without a value has no row here
     dims: [transformer]
@@ -1460,7 +1690,9 @@ parameters:
     description: >-
       the constrained attribute per unit of energy at the bus: the carrier's
       `co2_emissions` over the generator's efficiency at the snapshot, data
-      prep. A generator of an unweighted carrier has no row
+      prep. A generator with a piecewise `efficiency` curve has the bare
+      attribute, as the curve gives its primary energy. A generator of an
+      unweighted carrier has no row
     dims: [scenario, global_constraint, snapshot, generator]
     missing: absent
   StorageUnit_primary_energy_weight:
@@ -1703,6 +1935,13 @@ variables:
       that pays along a curve, held above the curve
     dims: [scenario, snapshot, generator]
     where: Generator_marginal_cost_curve AND Generator_active
+  Generator_p_primary_piecewise:
+    description: >-
+      `Generator-p_primary_piecewise` — the primary energy a generator with a
+      part-load `efficiency` curve draws for its output. PyPSA states it where
+      the network has a `primary_energy` row
+    dims: [scenario, snapshot, generator]
+    where: Generator_efficiency_curve AND Generator_active
   Link_p:
     description: >-
       `Link-p` — PyPSA's `p0`, the flow measured at the `Link_bus0` end. A
@@ -1710,6 +1949,19 @@ variables:
       output ports deliver to
     dims: [scenario, snapshot, link]
     where: Link_active
+  Link_marginal_cost_piecewise:
+    description: >-
+      `Link-marginal_cost_piecewise` — the running cost of a link that pays
+      along a curve, held above the curve
+    dims: [scenario, snapshot, link]
+    where: Link_marginal_cost_curve AND Link_active
+  Link_p_piecewise:
+    description: >-
+      `Link-p{port}_piecewise` — what a link delivers to an output port that
+      follows a part-load `efficiency` curve, before the port's delay. PyPSA
+      names one variable per port number
+    dims: [scenario, snapshot, link_output]
+    where: Link_efficiency_curve AND at(Link_active, by=Link_output_link[link])
   Process_p:
     description: >-
       `Process-p` — PyPSA's internal power `p`. A positive value drives every
@@ -1717,10 +1969,29 @@ variables:
       injecting where it is positive
     dims: [scenario, snapshot, process]
     where: Process_active
+  Process_marginal_cost_piecewise:
+    description: >-
+      `Process-marginal_cost_piecewise` — the running cost of a process that
+      pays along a curve, held above the curve
+    dims: [scenario, snapshot, process]
+    where: Process_marginal_cost_curve AND Process_active
+  Process_p_piecewise:
+    description: >-
+      `Process-p{port}_piecewise` — what a process transfers at a port that
+      follows a part-load `rate` curve, before the port's delay. PyPSA names
+      one variable per port number
+    dims: [scenario, snapshot, process_output]
+    where: Process_rate_curve AND at(Process_active, by=Process_output_process[process])
   StorageUnit_p_dispatch:
     description: "`StorageUnit-p_dispatch` — power delivered to the bus"
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_active
+  StorageUnit_marginal_cost_piecewise:
+    description: >-
+      `StorageUnit-marginal_cost_piecewise` — the running cost of a storage
+      unit that pays along a curve, held above the curve
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_marginal_cost_curve AND StorageUnit_active
   StorageUnit_p_store:
     description: "`StorageUnit-p_store` — power drawn from the bus into charge"
     dims: [scenario, snapshot, storage_unit]
@@ -1748,6 +2019,12 @@ variables:
     description: "`Store-p` — net power delivered to the bus. Charging is negative"
     dims: [scenario, snapshot, store]
     where: Store_active
+  Store_marginal_cost_piecewise:
+    description: >-
+      `Store-marginal_cost_piecewise` — the running cost of a store that pays
+      along a curve, held above the curve
+    dims: [scenario, snapshot, store]
+    where: Store_marginal_cost_curve AND Store_active
   Store_p_store:
     description: >-
       `Store-p_store` — power drawn from the bus to charge, so that `p +
@@ -2029,6 +2306,12 @@ variables:
       that is active. A fixed build is the parameter of the same PyPSA name
     dims: [line]
     where: Line_s_nom_extendable AND Line_active_asset
+  Line_capital_cost_piecewise:
+    description: >-
+      `Line-capital_cost_piecewise` — the cost of the build of an extendable
+      line that pays along a curve, held above the curve
+    dims: [line]
+    where: Line_capital_cost_curve
   Line_n_mod:
     description: "`Line-n_mod` — how many modules of an extendable modular build. A unit that is not active has none"
     dims: [line]
@@ -2043,12 +2326,24 @@ variables:
       PyPSA name
     dims: [generator]
     where: Generator_p_nom_extendable AND Generator_active_asset
+  Generator_capital_cost_piecewise:
+    description: >-
+      `Generator-capital_cost_piecewise` — the cost of the build of an
+      extendable generator that pays along a curve, held above the curve
+    dims: [generator]
+    where: Generator_capital_cost_curve
   Link_p_nom_ext:
     description: >-
       `Link-p_nom` — nominal power where it is a decision, for a link that is
       active. A fixed build is the parameter of the same PyPSA name
     dims: [link]
     where: Link_p_nom_extendable AND Link_active_asset
+  Link_capital_cost_piecewise:
+    description: >-
+      `Link-capital_cost_piecewise` — the cost of the build of an extendable
+      link that pays along a curve, held above the curve
+    dims: [link]
+    where: Link_capital_cost_curve
   Process_p_nom_ext:
     description: >-
       `Process-p_nom` — nominal internal power where it is a decision, for a
@@ -2056,6 +2351,12 @@ variables:
       name
     dims: [process]
     where: Process_p_nom_extendable AND Process_active_asset
+  Process_capital_cost_piecewise:
+    description: >-
+      `Process-capital_cost_piecewise` — the cost of the build of an extendable
+      process that pays along a curve, held above the curve
+    dims: [process]
+    where: Process_capital_cost_curve
   Transformer_s_nom_ext:
     description: >-
       `Transformer-s_nom` — nominal apparent power where it is a decision, for
@@ -2063,6 +2364,12 @@ variables:
       PyPSA name
     dims: [transformer]
     where: Transformer_s_nom_extendable AND Transformer_active_asset
+  Transformer_capital_cost_piecewise:
+    description: >-
+      `Transformer-capital_cost_piecewise` — the cost of the build of an
+      extendable transformer that pays along a curve, held above the curve
+    dims: [transformer]
+    where: Transformer_capital_cost_curve
   Transformer_n_mod:
     description: "`Transformer-n_mod` — how many modules of an extendable modular build. A unit that is not active has none"
     dims: [transformer]
@@ -2077,6 +2384,12 @@ variables:
       PyPSA name
     dims: [storage_unit]
     where: StorageUnit_p_nom_extendable AND StorageUnit_active_asset
+  StorageUnit_capital_cost_piecewise:
+    description: >-
+      `StorageUnit-capital_cost_piecewise` — the cost of the build of an
+      extendable storage unit that pays along a curve, held above the curve
+    dims: [storage_unit]
+    where: StorageUnit_capital_cost_curve
   StorageUnit_n_mod:
     description: "`StorageUnit-n_mod` — how many modules of an extendable modular build. A unit that is not active has none"
     dims: [storage_unit]
@@ -2090,6 +2403,12 @@ variables:
       that is active. A fixed build is the parameter of the same PyPSA name
     dims: [store]
     where: Store_e_nom_extendable AND Store_active_asset
+  Store_capital_cost_piecewise:
+    description: >-
+      `Store-capital_cost_piecewise` — the cost of the build of an extendable
+      store that pays along a curve, held above the curve
+    dims: [store]
+    where: Store_capital_cost_curve
   Store_n_mod:
     description: "`Store-n_mod` — how many modules of an extendable modular build. A unit that is not active has none"
     dims: [store]
@@ -2151,7 +2470,7 @@ expressions:
       it came in off. After that, it is the previous snapshot's
     dims: [scenario, snapshot, generator]
     cases:
-      opening: { when: "position(snapshot) == 0", expression: Generator_status_initial * Generator_p_init }
+      opening: { when: "position(snapshot) == 0", expression: Generator_p_init }
     otherwise: shift(Generator_p, along=snapshot, offset=1)
   Generator_p_nom_effective:
     description: "the build a generator's limits are taken against: the chosen one where it is extendable, the given one otherwise"
@@ -2302,7 +2621,7 @@ expressions:
       came in off. After that, it is the previous snapshot's
     dims: [scenario, snapshot, link]
     cases:
-      opening: { when: "position(snapshot) == 0", expression: Link_status_initial * Link_p_init }
+      opening: { when: "position(snapshot) == 0", expression: Link_p_init }
     otherwise: shift(Link_p, along=snapshot, offset=1)
   Link_ramp_up_rate:
     description: >-
@@ -2447,7 +2766,7 @@ expressions:
       it came in off. After that, it is the previous snapshot's
     dims: [scenario, snapshot, process]
     cases:
-      opening: { when: "position(snapshot) == 0", expression: Process_status_initial * Process_p_init }
+      opening: { when: "position(snapshot) == 0", expression: Process_p_init }
     otherwise: shift(Process_p, along=snapshot, offset=1)
   Process_ramp_up_rate:
     description: >-
@@ -2617,7 +2936,7 @@ expressions:
         when: Store_e_initial_per_period AND NOT Store_e_cyclic_per_period AND position(snapshot, within=snapshot_period[period]) == 0
         expression: Store_e_initial
     otherwise: Store_retention * shift(Store_e, along=snapshot, offset=1)
-  Link_output_arrival:
+  Link_output_linear_arrival:
     description: >-
       what a link delivers to an output port at a snapshot. It is its flow
       delayed by the port's `delay` within its investment period. It is
@@ -2632,7 +2951,28 @@ expressions:
         when: Link_output_cyclic_delay
         expression: shift(at(Link_p, by=Link_output_link[link]), along=snapshot, offset=Link_output_delay, edge='wrap', within=snapshot_period[period]) * Link_efficiency
     otherwise: shift(at(Link_p, by=Link_output_link[link]), along=snapshot, offset=Link_output_delay, edge=0, within=snapshot_period[period]) * Link_efficiency
-  Process_output_arrival:
+  Link_output_curve_arrival:
+    description: >-
+      what a link delivers to an output port with a piecewise `efficiency`
+      curve at a snapshot: the value read off the curve, delayed as the flow
+      of any other port is and not multiplied again
+      (`constraints.py:1556-1576`)
+    dims: [scenario, snapshot, link_output]
+    cases:
+      wrapping:
+        when: Link_output_cyclic_delay
+        expression: shift(Link_p_piecewise, along=snapshot, offset=Link_output_delay, edge='wrap', within=snapshot_period[period])
+    otherwise: shift(Link_p_piecewise, along=snapshot, offset=Link_output_delay, edge=0, within=snapshot_period[period])
+  Link_output_arrival:
+    description: >-
+      what a link delivers to an output port at a snapshot: the value read
+      off the port's piecewise `efficiency` curve where it has one, and its
+      flow times the port's `efficiency` otherwise
+    dims: [scenario, snapshot, link_output]
+    cases:
+      curve: { when: Link_efficiency_curve, expression: Link_output_curve_arrival }
+    otherwise: Link_output_linear_arrival
+  Process_output_linear_arrival:
     description: >-
       what a process transfers at a port at a snapshot. It is its internal
       power delayed by the port's `delay` within its investment period. It is
@@ -2647,6 +2987,27 @@ expressions:
         when: Process_output_cyclic_delay
         expression: shift(at(Process_p, by=Process_output_process[process]), along=snapshot, offset=Process_output_delay, edge='wrap', within=snapshot_period[period]) * Process_rate
     otherwise: shift(at(Process_p, by=Process_output_process[process]), along=snapshot, offset=Process_output_delay, edge=0, within=snapshot_period[period]) * Process_rate
+  Process_output_curve_arrival:
+    description: >-
+      what a process transfers at a port with a piecewise `rate` curve at a
+      snapshot: the value read off the curve, delayed as the internal power
+      of any other port is and not multiplied again
+      (`constraints.py:1556-1576`)
+    dims: [scenario, snapshot, process_output]
+    cases:
+      wrapping:
+        when: Process_output_cyclic_delay
+        expression: shift(Process_p_piecewise, along=snapshot, offset=Process_output_delay, edge='wrap', within=snapshot_period[period])
+    otherwise: shift(Process_p_piecewise, along=snapshot, offset=Process_output_delay, edge=0, within=snapshot_period[period])
+  Process_output_arrival:
+    description: >-
+      what a process transfers at a port at a snapshot: the value read off
+      the port's piecewise `rate` curve where it has one, and its internal
+      power times the port's `rate` otherwise
+    dims: [scenario, snapshot, process_output]
+    cases:
+      curve: { when: Process_rate_curve, expression: Process_output_curve_arrival }
+    otherwise: Process_output_linear_arrival
   energy_limit_weight:
     description: >-
       what one unit of power at a snapshot counts for in an `e_sum` row: the
@@ -2750,9 +3111,19 @@ expressions:
         when: NOT Store_e_initial_per_period
         expression: Store_last_counted_active
     otherwise: 0
+  Generator_primary_input:
+    description: >-
+      what a generator's output counts for before the row's weight: the
+      primary energy read off its piecewise `efficiency` curve where it has
+      one, and its output otherwise, which the weight divides by the
+      efficiency (`global_constraints.py:419-437`)
+    dims: [scenario, snapshot, generator]
+    cases:
+      curve: { when: Generator_efficiency_curve, expression: Generator_p_primary_piecewise }
+    otherwise: Generator_p
   Generator_primary_energy:
     expression: >-
-      sum(sum((Generator_p * GlobalConstraint_energy_weight) * Generator_primary_energy_weight, over=snapshot), over=generator)
+      sum(sum((Generator_primary_input * GlobalConstraint_energy_weight) * Generator_primary_energy_weight, over=snapshot), over=generator)
   StorageUnit_primary_energy:
     expression: >-
       -sum(sum((StorageUnit_state_of_charge * StorageUnit_closing_weight) * StorageUnit_primary_energy_weight, over=snapshot), over=storage_unit)
@@ -2850,33 +3221,73 @@ expressions:
       sum(sum(((Generator_status * Generator_stand_by_cost) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=generator), over=snapshot)
       + sum(sum((Generator_start_up * Generator_start_up_cost) * at(period_weight_objective, by=snapshot_period[period]), over=generator), over=snapshot)
       + sum(sum((Generator_shut_down * Generator_shut_down_cost) * at(period_weight_objective, by=snapshot_period[period]), over=generator), over=snapshot)
+  Link_running_cost:
+    description: >-
+      what a link's flow costs in a snapshot: the value read off its piecewise
+      curve where it has one, and its linear `marginal_cost` otherwise. A
+      curve replaces the linear cost, as PyPSA drops the unit from that term
+      (`optimize.py:333-348`)
+    dims: [scenario, snapshot, link]
+    cases:
+      curve: { when: Link_marginal_cost_curve, expression: Link_marginal_cost_piecewise }
+    otherwise: Link_p * Link_marginal_cost
   Link_opex:
     expression: >-
-      sum(sum(((Link_p * Link_marginal_cost) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=link), over=snapshot)
+      sum(sum((Link_running_cost * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=link), over=snapshot)
       + sum(sum((((Link_p * Link_p) * Link_marginal_cost_quadratic) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=link), over=snapshot)
   Link_commitment_opex:
     expression: >-
       sum(sum(((Link_status * Link_stand_by_cost) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=link), over=snapshot)
       + sum(sum((Link_start_up * Link_start_up_cost) * at(period_weight_objective, by=snapshot_period[period]), over=link), over=snapshot)
       + sum(sum((Link_shut_down * Link_shut_down_cost) * at(period_weight_objective, by=snapshot_period[period]), over=link), over=snapshot)
+  Process_running_cost:
+    description: >-
+      what a process's internal power costs in a snapshot: the value read off
+      its piecewise curve where it has one, and its linear `marginal_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:333-348`)
+    dims: [scenario, snapshot, process]
+    cases:
+      curve: { when: Process_marginal_cost_curve, expression: Process_marginal_cost_piecewise }
+    otherwise: Process_p * Process_marginal_cost
   Process_opex:
     expression: >-
-      sum(sum(((Process_p * Process_marginal_cost) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=process), over=snapshot)
+      sum(sum((Process_running_cost * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=process), over=snapshot)
       + sum(sum((((Process_p * Process_p) * Process_marginal_cost_quadratic) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=process), over=snapshot)
   Process_commitment_opex:
     expression: >-
       sum(sum(((Process_status * Process_stand_by_cost) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=process), over=snapshot)
       + sum(sum((Process_start_up * Process_start_up_cost) * at(period_weight_objective, by=snapshot_period[period]), over=process), over=snapshot)
       + sum(sum((Process_shut_down * Process_shut_down_cost) * at(period_weight_objective, by=snapshot_period[period]), over=process), over=snapshot)
+  StorageUnit_running_cost:
+    description: >-
+      what a storage unit's dispatch costs in a snapshot: the value read off
+      its piecewise curve where it has one, and its linear `marginal_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:333-348`)
+    dims: [scenario, snapshot, storage_unit]
+    cases:
+      curve: { when: StorageUnit_marginal_cost_curve, expression: StorageUnit_marginal_cost_piecewise }
+    otherwise: StorageUnit_p_dispatch * StorageUnit_marginal_cost
   StorageUnit_opex:
     expression: >-
-      sum(sum(((StorageUnit_p_dispatch * StorageUnit_marginal_cost) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=storage_unit), over=snapshot)
+      sum(sum((StorageUnit_running_cost * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=storage_unit), over=snapshot)
       + sum(sum((((StorageUnit_p_dispatch * StorageUnit_p_dispatch) * StorageUnit_marginal_cost_quadratic) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=storage_unit), over=snapshot)
       + sum(sum(((StorageUnit_state_of_charge * StorageUnit_marginal_cost_storage) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=storage_unit), over=snapshot)
       + sum(sum(((StorageUnit_spill * StorageUnit_spill_cost) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=storage_unit), over=snapshot)
+  Store_running_cost:
+    description: >-
+      what a store's power costs in a snapshot: the value read off its
+      piecewise curve where it has one, and its linear `marginal_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:333-348`)
+    dims: [scenario, snapshot, store]
+    cases:
+      curve: { when: Store_marginal_cost_curve, expression: Store_marginal_cost_piecewise }
+    otherwise: Store_p * Store_marginal_cost
   Store_opex:
     expression: >-
-      sum(sum(((Store_p * Store_marginal_cost) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=store), over=snapshot)
+      sum(sum((Store_running_cost * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=store), over=snapshot)
       + sum(sum((((Store_p * Store_p) * Store_marginal_cost_quadratic) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=store), over=snapshot)
       + sum(sum(((Store_e * Store_marginal_cost_storage) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=store), over=snapshot)
       + sum(sum((((Store_p + Store_p_store) * Store_marginal_cost_dispatch) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=store), over=snapshot)
@@ -2898,20 +3309,90 @@ expressions:
       snapshot's hours and its period, before the scenario's own weight. A
       start and a stop cost what they cost, unweighted, as PyPSA adds them
       (`optimize.py:448-468`)
+  Generator_build_cost:
+    description: >-
+      what the build of an extendable generator costs: the value read off its
+      piecewise curve where it has one, and its linear `capital_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:404-446`)
+    dims: [scenario, generator]
+    cases:
+      curve: { when: Generator_capital_cost_curve, expression: Generator_capital_cost_piecewise }
+    otherwise: Generator_p_nom_ext * Generator_capital_cost
   Generator_capex:
-    expression: sum(scenario_weight * Generator_p_nom_ext * Generator_capital_cost * Generator_capital_weight)
+    expression: sum(scenario_weight * Generator_build_cost * Generator_capital_weight)
+  Link_build_cost:
+    description: >-
+      what the build of an extendable link costs: the value read off its
+      piecewise curve where it has one, and its linear `capital_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:404-446`)
+    dims: [scenario, link]
+    cases:
+      curve: { when: Link_capital_cost_curve, expression: Link_capital_cost_piecewise }
+    otherwise: Link_p_nom_ext * Link_capital_cost
   Link_capex:
-    expression: sum(scenario_weight * Link_p_nom_ext * Link_capital_cost * Link_capital_weight)
+    expression: sum(scenario_weight * Link_build_cost * Link_capital_weight)
+  StorageUnit_build_cost:
+    description: >-
+      what the build of an extendable storage unit costs: the value read off
+      its piecewise curve where it has one, and its linear `capital_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:404-446`)
+    dims: [scenario, storage_unit]
+    cases:
+      curve: { when: StorageUnit_capital_cost_curve, expression: StorageUnit_capital_cost_piecewise }
+    otherwise: StorageUnit_p_nom_ext * StorageUnit_capital_cost
   StorageUnit_capex:
-    expression: sum(scenario_weight * StorageUnit_p_nom_ext * StorageUnit_capital_cost * StorageUnit_capital_weight)
+    expression: sum(scenario_weight * StorageUnit_build_cost * StorageUnit_capital_weight)
+  Store_build_cost:
+    description: >-
+      what the build of an extendable store costs: the value read off its
+      piecewise curve where it has one, and its linear `capital_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:404-446`)
+    dims: [scenario, store]
+    cases:
+      curve: { when: Store_capital_cost_curve, expression: Store_capital_cost_piecewise }
+    otherwise: Store_e_nom_ext * Store_capital_cost
   Store_capex:
-    expression: sum(scenario_weight * Store_e_nom_ext * Store_capital_cost * Store_capital_weight)
+    expression: sum(scenario_weight * Store_build_cost * Store_capital_weight)
+  Line_build_cost:
+    description: >-
+      what the build of an extendable line costs: the value read off its
+      piecewise curve where it has one, and its linear `capital_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:404-446`)
+    dims: [scenario, line]
+    cases:
+      curve: { when: Line_capital_cost_curve, expression: Line_capital_cost_piecewise }
+    otherwise: Line_s_nom_ext * Line_capital_cost
   Line_capex:
-    expression: sum(scenario_weight * Line_s_nom_ext * Line_capital_cost * Line_capital_weight)
+    expression: sum(scenario_weight * Line_build_cost * Line_capital_weight)
+  Process_build_cost:
+    description: >-
+      what the build of an extendable process costs: the value read off its
+      piecewise curve where it has one, and its linear `capital_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:404-446`)
+    dims: [scenario, process]
+    cases:
+      curve: { when: Process_capital_cost_curve, expression: Process_capital_cost_piecewise }
+    otherwise: Process_p_nom_ext * Process_capital_cost
   Process_capex:
-    expression: sum(scenario_weight * Process_p_nom_ext * Process_capital_cost * Process_capital_weight)
+    expression: sum(scenario_weight * Process_build_cost * Process_capital_weight)
+  Transformer_build_cost:
+    description: >-
+      what the build of an extendable transformer costs: the value read off its
+      piecewise curve where it has one, and its linear `capital_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:404-446`)
+    dims: [scenario, transformer]
+    cases:
+      curve: { when: Transformer_capital_cost_curve, expression: Transformer_capital_cost_piecewise }
+    otherwise: Transformer_s_nom_ext * Transformer_capital_cost
   Transformer_capex:
-    expression: sum(scenario_weight * Transformer_s_nom_ext * Transformer_capital_cost * Transformer_capital_weight)
+    expression: sum(scenario_weight * Transformer_build_cost * Transformer_capital_weight)
   risk_weighted_opex:
     expression: (1 - CVaR_omega) * sum(scenario_weight * scenario_opex, over=scenario) + CVaR_omega * CVaR
   total_cost:
@@ -3092,6 +3573,331 @@ conditions:
     condition: >-
       count(Generator_marginal_cost_curve AND count(Generator_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=generator) == 0
       AND count(Generator_marginal_cost_curve AND Generator_committable, over=generator) == 0
+  Link_marginal_cost_curve:
+    description: >-
+      a link that pays along a piecewise `marginal_cost` curve: one of PyPSA's
+      `active_assets` with curve data (`optimize.py:307`,
+      `piecewise.py:230-257`)
+    condition: count(Link_marginal_cost_curve_p, over=breakpoint) > 0 AND Link_active_asset
+  Link_marginal_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a link's cost curve gets less steep: the segment
+      after it rises less per unit of flow than the one before
+    condition: >-
+      Link_marginal_cost_curve_p
+      AND shift(Link_marginal_cost_curve_p, along=breakpoint, offset=1)
+      AND shift(Link_marginal_cost_curve_p, along=breakpoint, offset=-1)
+      AND (Link_marginal_cost_curve_cost - shift(Link_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Link_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - Link_marginal_cost_curve_p)
+      > (shift(Link_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Link_marginal_cost_curve_cost)
+      * (Link_marginal_cost_curve_p - shift(Link_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+  Link_marginal_cost_as_lp:
+    description: >-
+      linopy's choice of method for all link cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex and no
+      link with a curve is committable, the incremental rows otherwise. PyPSA
+      gates the curves by `Link-status` where one is committable, and linopy
+      states no segment lines under a gate (`optimize.py:314-318`,
+      `piecewise.py:200-224`)
+    condition: >-
+      count(Link_marginal_cost_curve AND count(Link_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=link) == 0
+      AND count(Link_marginal_cost_curve AND Link_committable, over=link) == 0
+  Process_marginal_cost_curve:
+    description: >-
+      a process that pays along a piecewise `marginal_cost` curve: one of
+      PyPSA's `active_assets` with curve data (`optimize.py:307`,
+      `piecewise.py:230-257`)
+    condition: count(Process_marginal_cost_curve_p, over=breakpoint) > 0 AND Process_active_asset
+  Process_marginal_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a process's cost curve gets less steep: the segment
+      after it rises less per unit of internal power than the one before
+    condition: >-
+      Process_marginal_cost_curve_p
+      AND shift(Process_marginal_cost_curve_p, along=breakpoint, offset=1)
+      AND shift(Process_marginal_cost_curve_p, along=breakpoint, offset=-1)
+      AND (Process_marginal_cost_curve_cost - shift(Process_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Process_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - Process_marginal_cost_curve_p)
+      > (shift(Process_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Process_marginal_cost_curve_cost)
+      * (Process_marginal_cost_curve_p - shift(Process_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+  Process_marginal_cost_as_lp:
+    description: >-
+      linopy's choice of method for all process cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex and no
+      process with a curve is committable, the incremental rows otherwise.
+      PyPSA gates the curves by `Process-status` where one is committable, and
+      linopy states no segment lines under a gate (`optimize.py:314-318`,
+      `piecewise.py:200-224`)
+    condition: >-
+      count(Process_marginal_cost_curve AND count(Process_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=process) == 0
+      AND count(Process_marginal_cost_curve AND Process_committable, over=process) == 0
+  StorageUnit_marginal_cost_curve:
+    description: >-
+      a storage unit that pays along a piecewise `marginal_cost` curve: one of
+      PyPSA's `active_assets` with curve data (`optimize.py:307`,
+      `piecewise.py:230-257`)
+    condition: count(StorageUnit_marginal_cost_curve_p, over=breakpoint) > 0 AND StorageUnit_active_asset
+  StorageUnit_marginal_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a storage unit's cost curve gets less steep: the
+      segment after it rises less per unit of dispatch than the one before
+    condition: >-
+      StorageUnit_marginal_cost_curve_p
+      AND shift(StorageUnit_marginal_cost_curve_p, along=breakpoint, offset=1)
+      AND shift(StorageUnit_marginal_cost_curve_p, along=breakpoint, offset=-1)
+      AND (StorageUnit_marginal_cost_curve_cost - shift(StorageUnit_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(StorageUnit_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - StorageUnit_marginal_cost_curve_p)
+      > (shift(StorageUnit_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - StorageUnit_marginal_cost_curve_cost)
+      * (StorageUnit_marginal_cost_curve_p - shift(StorageUnit_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+  StorageUnit_marginal_cost_as_lp:
+    description: >-
+      linopy's choice of method for all storage unit cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex, the
+      incremental rows otherwise. PyPSA calls linopy once per component, so
+      this choice is apart from every other component's. A storage unit has no
+      status, so no gate (`optimize.py:314-318`, `piecewise.py:200-224`)
+    condition: >-
+      count(StorageUnit_marginal_cost_curve AND count(StorageUnit_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=storage_unit) == 0
+  Store_marginal_cost_curve:
+    description: >-
+      a store that pays along a piecewise `marginal_cost` curve: one of
+      PyPSA's `active_assets` with curve data (`optimize.py:307`,
+      `piecewise.py:230-257`)
+    condition: count(Store_marginal_cost_curve_p, over=breakpoint) > 0 AND Store_active_asset
+  Store_marginal_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a store's cost curve gets less steep: the segment
+      after it rises less per unit of power than the one before
+    condition: >-
+      Store_marginal_cost_curve_p
+      AND shift(Store_marginal_cost_curve_p, along=breakpoint, offset=1)
+      AND shift(Store_marginal_cost_curve_p, along=breakpoint, offset=-1)
+      AND (Store_marginal_cost_curve_cost - shift(Store_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Store_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - Store_marginal_cost_curve_p)
+      > (shift(Store_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Store_marginal_cost_curve_cost)
+      * (Store_marginal_cost_curve_p - shift(Store_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+  Store_marginal_cost_as_lp:
+    description: >-
+      linopy's choice of method for all store cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex, the
+      incremental rows otherwise. PyPSA calls linopy once per component, so
+      this choice is apart from every other component's. A store has no
+      status, so no gate (`optimize.py:314-318`, `piecewise.py:200-224`)
+    condition: >-
+      count(Store_marginal_cost_curve AND count(Store_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=store) == 0
+  Generator_capital_cost_curve:
+    description: >-
+      a generator whose build pays along a piecewise `capital_cost` curve: an
+      extendable one of PyPSA's `active_assets` with curve data
+      (`optimize.py:404-421`, `piecewise.py:230-257`)
+    condition: count(Generator_capital_cost_curve_nom, over=breakpoint) > 0 AND Generator_p_nom_extendable AND Generator_active_asset
+  Generator_capital_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a generator's build cost curve gets less steep: the
+      segment after it rises less per unit of nominal power than the one
+      before
+    condition: >-
+      Generator_capital_cost_curve_nom
+      AND shift(Generator_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(Generator_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (Generator_capital_cost_curve_cost - shift(Generator_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Generator_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Generator_capital_cost_curve_nom)
+      > (shift(Generator_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Generator_capital_cost_curve_cost)
+      * (Generator_capital_cost_curve_nom - shift(Generator_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+  Generator_capital_cost_as_lp:
+    description: >-
+      linopy's choice of method for all generator build cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex, the
+      incremental rows otherwise. PyPSA calls linopy once per component, so
+      this choice is apart from every other component's. A build has no
+      status, so no gate (`optimize.py:412-421`)
+    condition: >-
+      count(Generator_capital_cost_curve AND count(Generator_capital_cost_curve_bends_down, over=breakpoint) > 0, over=generator) == 0
+  Link_capital_cost_curve:
+    description: >-
+      a link whose build pays along a piecewise `capital_cost` curve: an
+      extendable one of PyPSA's `active_assets` with curve data
+      (`optimize.py:404-421`, `piecewise.py:230-257`)
+    condition: count(Link_capital_cost_curve_nom, over=breakpoint) > 0 AND Link_p_nom_extendable AND Link_active_asset
+  Link_capital_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a link's build cost curve gets less steep: the segment
+      after it rises less per unit of nominal power than the one before
+    condition: >-
+      Link_capital_cost_curve_nom
+      AND shift(Link_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(Link_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (Link_capital_cost_curve_cost - shift(Link_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Link_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Link_capital_cost_curve_nom)
+      > (shift(Link_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Link_capital_cost_curve_cost)
+      * (Link_capital_cost_curve_nom - shift(Link_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+  Link_capital_cost_as_lp:
+    description: >-
+      linopy's choice of method for all link build cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex, the
+      incremental rows otherwise. PyPSA calls linopy once per component, so
+      this choice is apart from every other component's. A build has no
+      status, so no gate (`optimize.py:412-421`)
+    condition: >-
+      count(Link_capital_cost_curve AND count(Link_capital_cost_curve_bends_down, over=breakpoint) > 0, over=link) == 0
+  StorageUnit_capital_cost_curve:
+    description: >-
+      a storage unit whose build pays along a piecewise `capital_cost` curve:
+      an extendable one of PyPSA's `active_assets` with curve data
+      (`optimize.py:404-421`, `piecewise.py:230-257`)
+    condition: count(StorageUnit_capital_cost_curve_nom, over=breakpoint) > 0 AND StorageUnit_p_nom_extendable AND StorageUnit_active_asset
+  StorageUnit_capital_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a storage unit's build cost curve gets less steep:
+      the segment after it rises less per unit of nominal power than the one
+      before
+    condition: >-
+      StorageUnit_capital_cost_curve_nom
+      AND shift(StorageUnit_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(StorageUnit_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (StorageUnit_capital_cost_curve_cost - shift(StorageUnit_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(StorageUnit_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - StorageUnit_capital_cost_curve_nom)
+      > (shift(StorageUnit_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - StorageUnit_capital_cost_curve_cost)
+      * (StorageUnit_capital_cost_curve_nom - shift(StorageUnit_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+  StorageUnit_capital_cost_as_lp:
+    description: >-
+      linopy's choice of method for all storage unit build cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex, the
+      incremental rows otherwise. PyPSA calls linopy once per component, so
+      this choice is apart from every other component's. A build has no
+      status, so no gate (`optimize.py:412-421`)
+    condition: >-
+      count(StorageUnit_capital_cost_curve AND count(StorageUnit_capital_cost_curve_bends_down, over=breakpoint) > 0, over=storage_unit) == 0
+  Store_capital_cost_curve:
+    description: >-
+      a store whose build pays along a piecewise `capital_cost` curve: an
+      extendable one of PyPSA's `active_assets` with curve data
+      (`optimize.py:404-421`, `piecewise.py:230-257`)
+    condition: count(Store_capital_cost_curve_nom, over=breakpoint) > 0 AND Store_e_nom_extendable AND Store_active_asset
+  Store_capital_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a store's build cost curve gets less steep: the
+      segment after it rises less per unit of nominal capacity than the one
+      before
+    condition: >-
+      Store_capital_cost_curve_nom
+      AND shift(Store_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(Store_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (Store_capital_cost_curve_cost - shift(Store_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Store_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Store_capital_cost_curve_nom)
+      > (shift(Store_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Store_capital_cost_curve_cost)
+      * (Store_capital_cost_curve_nom - shift(Store_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+  Store_capital_cost_as_lp:
+    description: >-
+      linopy's choice of method for all store build cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex, the
+      incremental rows otherwise. PyPSA calls linopy once per component, so
+      this choice is apart from every other component's. A build has no
+      status, so no gate (`optimize.py:412-421`)
+    condition: >-
+      count(Store_capital_cost_curve AND count(Store_capital_cost_curve_bends_down, over=breakpoint) > 0, over=store) == 0
+  Line_capital_cost_curve:
+    description: >-
+      a line whose build pays along a piecewise `capital_cost` curve: an
+      extendable one of PyPSA's `active_assets` with curve data
+      (`optimize.py:404-421`, `piecewise.py:230-257`)
+    condition: count(Line_capital_cost_curve_nom, over=breakpoint) > 0 AND Line_s_nom_extendable AND Line_active_asset
+  Line_capital_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a line's build cost curve gets less steep: the
+      segment after it rises less per unit of nominal apparent power than the
+      one before
+    condition: >-
+      Line_capital_cost_curve_nom
+      AND shift(Line_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(Line_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (Line_capital_cost_curve_cost - shift(Line_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Line_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Line_capital_cost_curve_nom)
+      > (shift(Line_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Line_capital_cost_curve_cost)
+      * (Line_capital_cost_curve_nom - shift(Line_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+  Line_capital_cost_as_lp:
+    description: >-
+      linopy's choice of method for all line build cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex, the
+      incremental rows otherwise. PyPSA calls linopy once per component, so
+      this choice is apart from every other component's. A build has no
+      status, so no gate (`optimize.py:412-421`)
+    condition: >-
+      count(Line_capital_cost_curve AND count(Line_capital_cost_curve_bends_down, over=breakpoint) > 0, over=line) == 0
+  Process_capital_cost_curve:
+    description: >-
+      a process whose build pays along a piecewise `capital_cost` curve: an
+      extendable one of PyPSA's `active_assets` with curve data
+      (`optimize.py:404-421`, `piecewise.py:230-257`)
+    condition: count(Process_capital_cost_curve_nom, over=breakpoint) > 0 AND Process_p_nom_extendable AND Process_active_asset
+  Process_capital_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a process's build cost curve gets less steep: the
+      segment after it rises less per unit of nominal internal power than the
+      one before
+    condition: >-
+      Process_capital_cost_curve_nom
+      AND shift(Process_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(Process_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (Process_capital_cost_curve_cost - shift(Process_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Process_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Process_capital_cost_curve_nom)
+      > (shift(Process_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Process_capital_cost_curve_cost)
+      * (Process_capital_cost_curve_nom - shift(Process_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+  Process_capital_cost_as_lp:
+    description: >-
+      linopy's choice of method for all process build cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex, the
+      incremental rows otherwise. PyPSA calls linopy once per component, so
+      this choice is apart from every other component's. A build has no
+      status, so no gate (`optimize.py:412-421`)
+    condition: >-
+      count(Process_capital_cost_curve AND count(Process_capital_cost_curve_bends_down, over=breakpoint) > 0, over=process) == 0
+  Transformer_capital_cost_curve:
+    description: >-
+      a transformer whose build pays along a piecewise `capital_cost` curve: an
+      extendable one of PyPSA's `active_assets` with curve data
+      (`optimize.py:404-421`, `piecewise.py:230-257`)
+    condition: count(Transformer_capital_cost_curve_nom, over=breakpoint) > 0 AND Transformer_s_nom_extendable AND Transformer_active_asset
+  Transformer_capital_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a transformer's build cost curve gets less steep: the
+      segment after it rises less per unit of nominal apparent power than the
+      one before
+    condition: >-
+      Transformer_capital_cost_curve_nom
+      AND shift(Transformer_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(Transformer_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (Transformer_capital_cost_curve_cost - shift(Transformer_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Transformer_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Transformer_capital_cost_curve_nom)
+      > (shift(Transformer_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Transformer_capital_cost_curve_cost)
+      * (Transformer_capital_cost_curve_nom - shift(Transformer_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+  Transformer_capital_cost_as_lp:
+    description: >-
+      linopy's choice of method for all transformer build cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex, the
+      incremental rows otherwise. PyPSA calls linopy once per component, so
+      this choice is apart from every other component's. A build has no
+      status, so no gate (`optimize.py:412-421`)
+    condition: >-
+      count(Transformer_capital_cost_curve AND count(Transformer_capital_cost_curve_bends_down, over=breakpoint) > 0, over=transformer) == 0
+  Link_efficiency_curve:
+    description: >-
+      an output port whose `efficiency` follows a piecewise curve over the
+      link's flow, in place of one value (`constraints.py:1530-1576`)
+    condition: count(Link_efficiency_curve_p, over=breakpoint) > 0
+  Process_rate_curve:
+    description: >-
+      a port whose `rate` follows a piecewise curve over the process's
+      internal power, in place of one value (`constraints.py:1530-1576`)
+    condition: count(Process_rate_curve_p, over=breakpoint) > 0
+  Generator_efficiency_curve:
+    description: >-
+      a generator whose primary energy follows a piecewise `efficiency` curve
+      over its output: one of PyPSA's `active_assets` with curve data, in a
+      network with a `primary_energy` row (`global_constraints.py:336-365`)
+    condition: >-
+      count(Generator_efficiency_curve_p, over=breakpoint) > 0 AND Generator_active_asset
+      AND count(GlobalConstraint_type == 'primary_energy', over=global_constraint) > 0
   Generator_com_ext:
     description: >-
       a committable generator with an extendable, non-modular build that
@@ -3239,6 +4045,325 @@ piecewise:
     links:
       p: [Generator_p, Generator_marginal_cost_curve_p]
       cost: [Generator_marginal_cost_piecewise, Generator_marginal_cost_curve_cost, ">="]
+  Link_marginal_cost_lp:
+    description: >-
+      `Link-marginal_cost_piecewise` — the running cost of a link with a curve
+      is at least the curve at its flow, stated as the line of each segment,
+      where linopy chooses the segment lines
+    along: breakpoint
+    dims: [scenario, snapshot, link]
+    where: Link_marginal_cost_as_lp AND Link_marginal_cost_curve AND Link_active AND Link_marginal_cost_curve_p
+    method: lp
+    links:
+      p: [Link_p, Link_marginal_cost_curve_p]
+      cost: [Link_marginal_cost_piecewise, Link_marginal_cost_curve_cost, ">="]
+  Link_marginal_cost_incremental:
+    description: >-
+      `Link-marginal_cost_piecewise` — the running cost of a link with a curve
+      is at least the curve at its flow, stated by segments filled in order
+      and switched by the status of a committable link, where linopy chooses
+      the incremental rows
+    along: breakpoint
+    dims: [scenario, snapshot, link]
+    where: NOT Link_marginal_cost_as_lp AND Link_marginal_cost_curve AND Link_active AND Link_marginal_cost_curve_p
+    method: incremental
+    activity: Link_status
+    links:
+      p: [Link_p, Link_marginal_cost_curve_p]
+      cost: [Link_marginal_cost_piecewise, Link_marginal_cost_curve_cost, ">="]
+  Process_marginal_cost_lp:
+    description: >-
+      `Process-marginal_cost_piecewise` — the running cost of a process with a
+      curve is at least the curve at its internal power, stated as the line of
+      each segment, where linopy chooses the segment lines
+    along: breakpoint
+    dims: [scenario, snapshot, process]
+    where: Process_marginal_cost_as_lp AND Process_marginal_cost_curve AND Process_active AND Process_marginal_cost_curve_p
+    method: lp
+    links:
+      p: [Process_p, Process_marginal_cost_curve_p]
+      cost: [Process_marginal_cost_piecewise, Process_marginal_cost_curve_cost, ">="]
+  Process_marginal_cost_incremental:
+    description: >-
+      `Process-marginal_cost_piecewise` — the running cost of a process with a
+      curve is at least the curve at its internal power, stated by segments
+      filled in order and switched by the status of a committable process,
+      where linopy chooses the incremental rows
+    along: breakpoint
+    dims: [scenario, snapshot, process]
+    where: NOT Process_marginal_cost_as_lp AND Process_marginal_cost_curve AND Process_active AND Process_marginal_cost_curve_p
+    method: incremental
+    activity: Process_status
+    links:
+      p: [Process_p, Process_marginal_cost_curve_p]
+      cost: [Process_marginal_cost_piecewise, Process_marginal_cost_curve_cost, ">="]
+  StorageUnit_marginal_cost_lp:
+    description: >-
+      `StorageUnit-marginal_cost_piecewise` — the running cost of a storage
+      unit with a curve is at least the curve at its dispatch, stated as the
+      line of each segment, where linopy chooses the segment lines
+    along: breakpoint
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_marginal_cost_as_lp AND StorageUnit_marginal_cost_curve AND StorageUnit_active AND StorageUnit_marginal_cost_curve_p
+    method: lp
+    links:
+      p: [StorageUnit_p_dispatch, StorageUnit_marginal_cost_curve_p]
+      cost: [StorageUnit_marginal_cost_piecewise, StorageUnit_marginal_cost_curve_cost, ">="]
+  StorageUnit_marginal_cost_incremental:
+    description: >-
+      `StorageUnit-marginal_cost_piecewise` — the running cost of a storage
+      unit with a curve is at least the curve at its dispatch, stated by
+      segments filled in order, where linopy chooses the incremental rows
+    along: breakpoint
+    dims: [scenario, snapshot, storage_unit]
+    where: NOT StorageUnit_marginal_cost_as_lp AND StorageUnit_marginal_cost_curve AND StorageUnit_active AND StorageUnit_marginal_cost_curve_p
+    method: incremental
+    links:
+      p: [StorageUnit_p_dispatch, StorageUnit_marginal_cost_curve_p]
+      cost: [StorageUnit_marginal_cost_piecewise, StorageUnit_marginal_cost_curve_cost, ">="]
+  Store_marginal_cost_lp:
+    description: >-
+      `Store-marginal_cost_piecewise` — the running cost of a store with a
+      curve is at least the curve at its power, stated as the line of each
+      segment, where linopy chooses the segment lines
+    along: breakpoint
+    dims: [scenario, snapshot, store]
+    where: Store_marginal_cost_as_lp AND Store_marginal_cost_curve AND Store_active AND Store_marginal_cost_curve_p
+    method: lp
+    links:
+      p: [Store_p, Store_marginal_cost_curve_p]
+      cost: [Store_marginal_cost_piecewise, Store_marginal_cost_curve_cost, ">="]
+  Store_marginal_cost_incremental:
+    description: >-
+      `Store-marginal_cost_piecewise` — the running cost of a store with a
+      curve is at least the curve at its power, stated by segments filled in
+      order, where linopy chooses the incremental rows
+    along: breakpoint
+    dims: [scenario, snapshot, store]
+    where: NOT Store_marginal_cost_as_lp AND Store_marginal_cost_curve AND Store_active AND Store_marginal_cost_curve_p
+    method: incremental
+    links:
+      p: [Store_p, Store_marginal_cost_curve_p]
+      cost: [Store_marginal_cost_piecewise, Store_marginal_cost_curve_cost, ">="]
+  Generator_capital_cost_lp:
+    description: >-
+      `Generator-capital_cost_piecewise` — the cost of the build of a
+      generator with a curve is at least the curve at its nominal power,
+      stated as the line of each segment, where linopy chooses the segment
+      lines
+    along: breakpoint
+    dims: [generator]
+    where: Generator_capital_cost_as_lp AND Generator_capital_cost_curve AND Generator_capital_cost_curve_nom
+    method: lp
+    links:
+      p_nom: [Generator_p_nom_ext, Generator_capital_cost_curve_nom]
+      cost: [Generator_capital_cost_piecewise, Generator_capital_cost_curve_cost, ">="]
+  Generator_capital_cost_incremental:
+    description: >-
+      `Generator-capital_cost_piecewise` — the cost of the build of a
+      generator with a curve is at least the curve at its nominal power,
+      stated by segments filled in order, where linopy chooses the incremental
+      rows
+    along: breakpoint
+    dims: [generator]
+    where: NOT Generator_capital_cost_as_lp AND Generator_capital_cost_curve AND Generator_capital_cost_curve_nom
+    method: incremental
+    links:
+      p_nom: [Generator_p_nom_ext, Generator_capital_cost_curve_nom]
+      cost: [Generator_capital_cost_piecewise, Generator_capital_cost_curve_cost, ">="]
+  Link_capital_cost_lp:
+    description: >-
+      `Link-capital_cost_piecewise` — the cost of the build of a link with a
+      curve is at least the curve at its nominal power, stated as the line of
+      each segment, where linopy chooses the segment lines
+    along: breakpoint
+    dims: [link]
+    where: Link_capital_cost_as_lp AND Link_capital_cost_curve AND Link_capital_cost_curve_nom
+    method: lp
+    links:
+      p_nom: [Link_p_nom_ext, Link_capital_cost_curve_nom]
+      cost: [Link_capital_cost_piecewise, Link_capital_cost_curve_cost, ">="]
+  Link_capital_cost_incremental:
+    description: >-
+      `Link-capital_cost_piecewise` — the cost of the build of a link with a
+      curve is at least the curve at its nominal power, stated by segments
+      filled in order, where linopy chooses the incremental rows
+    along: breakpoint
+    dims: [link]
+    where: NOT Link_capital_cost_as_lp AND Link_capital_cost_curve AND Link_capital_cost_curve_nom
+    method: incremental
+    links:
+      p_nom: [Link_p_nom_ext, Link_capital_cost_curve_nom]
+      cost: [Link_capital_cost_piecewise, Link_capital_cost_curve_cost, ">="]
+  StorageUnit_capital_cost_lp:
+    description: >-
+      `StorageUnit-capital_cost_piecewise` — the cost of the build of a
+      storage unit with a curve is at least the curve at its nominal power,
+      stated as the line of each segment, where linopy chooses the segment
+      lines
+    along: breakpoint
+    dims: [storage_unit]
+    where: StorageUnit_capital_cost_as_lp AND StorageUnit_capital_cost_curve AND StorageUnit_capital_cost_curve_nom
+    method: lp
+    links:
+      p_nom: [StorageUnit_p_nom_ext, StorageUnit_capital_cost_curve_nom]
+      cost: [StorageUnit_capital_cost_piecewise, StorageUnit_capital_cost_curve_cost, ">="]
+  StorageUnit_capital_cost_incremental:
+    description: >-
+      `StorageUnit-capital_cost_piecewise` — the cost of the build of a
+      storage unit with a curve is at least the curve at its nominal power,
+      stated by segments filled in order, where linopy chooses the incremental
+      rows
+    along: breakpoint
+    dims: [storage_unit]
+    where: NOT StorageUnit_capital_cost_as_lp AND StorageUnit_capital_cost_curve AND StorageUnit_capital_cost_curve_nom
+    method: incremental
+    links:
+      p_nom: [StorageUnit_p_nom_ext, StorageUnit_capital_cost_curve_nom]
+      cost: [StorageUnit_capital_cost_piecewise, StorageUnit_capital_cost_curve_cost, ">="]
+  Store_capital_cost_lp:
+    description: >-
+      `Store-capital_cost_piecewise` — the cost of the build of a store with a
+      curve is at least the curve at its nominal capacity, stated as the line
+      of each segment, where linopy chooses the segment lines
+    along: breakpoint
+    dims: [store]
+    where: Store_capital_cost_as_lp AND Store_capital_cost_curve AND Store_capital_cost_curve_nom
+    method: lp
+    links:
+      e_nom: [Store_e_nom_ext, Store_capital_cost_curve_nom]
+      cost: [Store_capital_cost_piecewise, Store_capital_cost_curve_cost, ">="]
+  Store_capital_cost_incremental:
+    description: >-
+      `Store-capital_cost_piecewise` — the cost of the build of a store with a
+      curve is at least the curve at its nominal capacity, stated by segments
+      filled in order, where linopy chooses the incremental rows
+    along: breakpoint
+    dims: [store]
+    where: NOT Store_capital_cost_as_lp AND Store_capital_cost_curve AND Store_capital_cost_curve_nom
+    method: incremental
+    links:
+      e_nom: [Store_e_nom_ext, Store_capital_cost_curve_nom]
+      cost: [Store_capital_cost_piecewise, Store_capital_cost_curve_cost, ">="]
+  Line_capital_cost_lp:
+    description: >-
+      `Line-capital_cost_piecewise` — the cost of the build of a line with a
+      curve is at least the curve at its nominal apparent power, stated as the
+      line of each segment, where linopy chooses the segment lines
+    along: breakpoint
+    dims: [line]
+    where: Line_capital_cost_as_lp AND Line_capital_cost_curve AND Line_capital_cost_curve_nom
+    method: lp
+    links:
+      s_nom: [Line_s_nom_ext, Line_capital_cost_curve_nom]
+      cost: [Line_capital_cost_piecewise, Line_capital_cost_curve_cost, ">="]
+  Line_capital_cost_incremental:
+    description: >-
+      `Line-capital_cost_piecewise` — the cost of the build of a line with a
+      curve is at least the curve at its nominal apparent power, stated by
+      segments filled in order, where linopy chooses the incremental rows
+    along: breakpoint
+    dims: [line]
+    where: NOT Line_capital_cost_as_lp AND Line_capital_cost_curve AND Line_capital_cost_curve_nom
+    method: incremental
+    links:
+      s_nom: [Line_s_nom_ext, Line_capital_cost_curve_nom]
+      cost: [Line_capital_cost_piecewise, Line_capital_cost_curve_cost, ">="]
+  Process_capital_cost_lp:
+    description: >-
+      `Process-capital_cost_piecewise` — the cost of the build of a process
+      with a curve is at least the curve at its nominal internal power, stated
+      as the line of each segment, where linopy chooses the segment lines
+    along: breakpoint
+    dims: [process]
+    where: Process_capital_cost_as_lp AND Process_capital_cost_curve AND Process_capital_cost_curve_nom
+    method: lp
+    links:
+      p_nom: [Process_p_nom_ext, Process_capital_cost_curve_nom]
+      cost: [Process_capital_cost_piecewise, Process_capital_cost_curve_cost, ">="]
+  Process_capital_cost_incremental:
+    description: >-
+      `Process-capital_cost_piecewise` — the cost of the build of a process
+      with a curve is at least the curve at its nominal internal power, stated
+      by segments filled in order, where linopy chooses the incremental rows
+    along: breakpoint
+    dims: [process]
+    where: NOT Process_capital_cost_as_lp AND Process_capital_cost_curve AND Process_capital_cost_curve_nom
+    method: incremental
+    links:
+      p_nom: [Process_p_nom_ext, Process_capital_cost_curve_nom]
+      cost: [Process_capital_cost_piecewise, Process_capital_cost_curve_cost, ">="]
+  Transformer_capital_cost_lp:
+    description: >-
+      `Transformer-capital_cost_piecewise` — the cost of the build of a
+      transformer with a curve is at least the curve at its nominal apparent
+      power, stated as the line of each segment, where linopy chooses the
+      segment lines
+    along: breakpoint
+    dims: [transformer]
+    where: Transformer_capital_cost_as_lp AND Transformer_capital_cost_curve AND Transformer_capital_cost_curve_nom
+    method: lp
+    links:
+      s_nom: [Transformer_s_nom_ext, Transformer_capital_cost_curve_nom]
+      cost: [Transformer_capital_cost_piecewise, Transformer_capital_cost_curve_cost, ">="]
+  Transformer_capital_cost_incremental:
+    description: >-
+      `Transformer-capital_cost_piecewise` — the cost of the build of a
+      transformer with a curve is at least the curve at its nominal apparent
+      power, stated by segments filled in order, where linopy chooses the
+      incremental rows
+    along: breakpoint
+    dims: [transformer]
+    where: NOT Transformer_capital_cost_as_lp AND Transformer_capital_cost_curve AND Transformer_capital_cost_curve_nom
+    method: incremental
+    links:
+      s_nom: [Transformer_s_nom_ext, Transformer_capital_cost_curve_nom]
+      cost: [Transformer_capital_cost_piecewise, Transformer_capital_cost_curve_cost, ">="]
+  Link_efficiency_incremental:
+    description: >-
+      `Link-p{port}_piecewise` — what a link delivers to an output port with a
+      curve is the curve at its flow, stated by segments filled in order and
+      switched by the status of a committable link. PyPSA leaves the method to
+      linopy, which states an equality by the incremental rows
+      (`constraints.py:1541-1553`)
+    along: breakpoint
+    dims: [scenario, snapshot, link_output]
+    where: Link_efficiency_curve AND at(Link_active, by=Link_output_link[link]) AND Link_efficiency_curve_p
+    method: incremental
+    activity: at(Link_status, by=Link_output_link[link])
+    links:
+      p: ["at(Link_p, by=Link_output_link[link])", Link_efficiency_curve_p]
+      delivery: [Link_p_piecewise, Link_efficiency_curve_delivery]
+  Process_rate_incremental:
+    description: >-
+      `Process-p{port}_piecewise` — what a process transfers at a port with a
+      curve is the curve at its internal power, stated by segments filled in
+      order and switched by the status of a committable process. PyPSA leaves
+      the method to linopy, which states an equality by the incremental rows
+      (`constraints.py:1541-1553`)
+    along: breakpoint
+    dims: [scenario, snapshot, process_output]
+    where: Process_rate_curve AND at(Process_active, by=Process_output_process[process]) AND Process_rate_curve_p
+    method: incremental
+    activity: at(Process_status, by=Process_output_process[process])
+    links:
+      p: ["at(Process_p, by=Process_output_process[process])", Process_rate_curve_p]
+      transfer: [Process_p_piecewise, Process_rate_curve_transfer]
+  Generator_efficiency_incremental:
+    description: >-
+      `Generator-p_primary_piecewise` — the primary energy of a generator with
+      a curve is the curve at its output, stated by segments filled in order
+      and switched by the status of a committable generator. PyPSA leaves the
+      method to linopy, which states an equality by the incremental rows
+      (`global_constraints.py:346-364`)
+    along: breakpoint
+    dims: [scenario, snapshot, generator]
+    where: Generator_efficiency_curve AND Generator_active AND Generator_efficiency_curve_p
+    method: incremental
+    activity: Generator_status
+    links:
+      p: [Generator_p, Generator_efficiency_curve_p]
+      primary: [Generator_p_primary_piecewise, Generator_efficiency_curve_primary]
 
 constraints:
   Generator_fix_p_lower:
@@ -3289,42 +4414,42 @@ constraints:
   Generator_e_sum_min:
     description: "`Generator-e_sum_min` — energy over the horizon, each period weighted by its years, is at least its floor. A floor of minus infinity is no row"
     dims: [scenario, generator]
-    where: Generator_e_sum_min
+    where: Generator_e_sum_min AND count(Generator_active, over=snapshot) > 0
     expression: sum(Generator_p * energy_limit_weight, over=snapshot) >= Generator_e_sum_min
   Generator_e_sum_max:
     description: "`Generator-e_sum_max` — energy over the horizon, each period weighted by its years, is at most its budget. A budget of infinity is no row"
     dims: [scenario, generator]
-    where: Generator_e_sum_max
+    where: Generator_e_sum_max AND count(Generator_active, over=snapshot) > 0
     expression: sum(Generator_p * energy_limit_weight, over=snapshot) <= Generator_e_sum_max
   Link_e_sum_min:
     description: "`Link-e_sum_min` — energy withdrawn at `bus0` over the horizon, each period weighted by its years, is at least its floor. A floor of minus infinity is no row"
     dims: [scenario, link]
-    where: Link_e_sum_min
+    where: Link_e_sum_min AND count(Link_active, over=snapshot) > 0
     expression: sum(Link_p * energy_limit_weight, over=snapshot) >= Link_e_sum_min
   Link_e_sum_max:
     description: "`Link-e_sum_max` — energy withdrawn at `bus0` over the horizon, each period weighted by its years, is at most its budget. A budget of infinity is no row"
     dims: [scenario, link]
-    where: Link_e_sum_max
+    where: Link_e_sum_max AND count(Link_active, over=snapshot) > 0
     expression: sum(Link_p * energy_limit_weight, over=snapshot) <= Link_e_sum_max
   Process_e_sum_min:
     description: "`Process-e_sum_min` — energy of the internal power over the horizon, each period weighted by its years, is at least its floor. A floor of minus infinity is no row"
     dims: [scenario, process]
-    where: Process_e_sum_min
+    where: Process_e_sum_min AND count(Process_active, over=snapshot) > 0
     expression: sum(Process_p * energy_limit_weight, over=snapshot) >= Process_e_sum_min
   Process_e_sum_max:
     description: "`Process-e_sum_max` — energy of the internal power over the horizon, each period weighted by its years, is at most its budget. A budget of infinity is no row"
     dims: [scenario, process]
-    where: Process_e_sum_max
+    where: Process_e_sum_max AND count(Process_active, over=snapshot) > 0
     expression: sum(Process_p * energy_limit_weight, over=snapshot) <= Process_e_sum_max
   Store_e_sum_min:
     description: "`Store-e_sum_min` — net energy delivered over the horizon, each period weighted by its years, is at least its floor. A floor of minus infinity is no row"
     dims: [scenario, store]
-    where: Store_e_sum_min
+    where: Store_e_sum_min AND count(Store_active, over=snapshot) > 0
     expression: sum(Store_p * energy_limit_weight, over=snapshot) >= Store_e_sum_min
   Store_e_sum_max:
     description: "`Store-e_sum_max` — net energy delivered over the horizon, each period weighted by its years, is at most its budget. A budget of infinity is no row"
     dims: [scenario, store]
-    where: Store_e_sum_max
+    where: Store_e_sum_max AND count(Store_active, over=snapshot) > 0
     expression: sum(Store_p * energy_limit_weight, over=snapshot) <= Store_e_sum_max
   Link_ext_p_lower:
     description: "`Link-ext-p-lower` — an extendable link carries at least its minimum of the chosen build, negative for the other way"
@@ -4367,7 +5492,7 @@ constraints:
       `multi_investment_periods` it appends `-period-{p}` for each period `p`.
       This entry states them all over the outage dimension
     dims: [scenario, snapshot, line, outage]
-    where: not Line_s_nom_extendable AND at(Line_BODF, by=snapshot_period[period])
+    where: not Line_s_nom_extendable AND at(Line_BODF, by=snapshot_period[period]) AND Line_active
     expression: Line_s_monitored + at(Line_BODF, by=snapshot_period[period]) * Outage_s >= -Line_s_max_pu * Line_s_nom
   Line_fix_s_upper_security:
     description: >-
@@ -4378,7 +5503,7 @@ constraints:
       `multi_investment_periods` it appends `-period-{p}` for each period `p`.
       This entry states them all over the outage dimension
     dims: [scenario, snapshot, line, outage]
-    where: not Line_s_nom_extendable AND at(Line_BODF, by=snapshot_period[period])
+    where: not Line_s_nom_extendable AND at(Line_BODF, by=snapshot_period[period]) AND Line_active
     expression: Line_s_monitored + at(Line_BODF, by=snapshot_period[period]) * Outage_s <= Line_s_max_pu * Line_s_nom
   Line_ext_s_lower_security:
     description: >-
@@ -4390,7 +5515,7 @@ constraints:
       `-period-{p}` for each period `p`. This entry states them all over the
       outage dimension
     dims: [scenario, snapshot, line, outage]
-    where: Line_s_nom_extendable AND at(Line_BODF, by=snapshot_period[period])
+    where: Line_s_nom_extendable AND at(Line_BODF, by=snapshot_period[period]) AND Line_active
     expression: Line_s_monitored + at(Line_BODF, by=snapshot_period[period]) * Outage_s >= -Line_s_max_pu * Line_s_nom_ext
   Line_ext_s_upper_security:
     description: >-
@@ -4401,7 +5526,7 @@ constraints:
       `multi_investment_periods` it appends `-period-{p}` for each period `p`.
       This entry states them all over the outage dimension
     dims: [scenario, snapshot, line, outage]
-    where: Line_s_nom_extendable AND at(Line_BODF, by=snapshot_period[period])
+    where: Line_s_nom_extendable AND at(Line_BODF, by=snapshot_period[period]) AND Line_active
     expression: Line_s_monitored + at(Line_BODF, by=snapshot_period[period]) * Outage_s <= Line_s_max_pu * Line_s_nom_ext
   Transformer_fix_s_lower_security:
     description: >-
@@ -4412,7 +5537,7 @@ constraints:
       `multi_investment_periods` it appends `-period-{p}` for each period `p`.
       This entry states them all over the outage dimension
     dims: [scenario, snapshot, transformer, outage]
-    where: not Transformer_s_nom_extendable AND at(Transformer_BODF, by=snapshot_period[period])
+    where: not Transformer_s_nom_extendable AND at(Transformer_BODF, by=snapshot_period[period]) AND Transformer_active
     expression: Transformer_s_monitored + at(Transformer_BODF, by=snapshot_period[period]) * Outage_s >= -Transformer_s_max_pu * Transformer_s_nom
   Transformer_fix_s_upper_security:
     description: >-
@@ -4423,7 +5548,7 @@ constraints:
       `multi_investment_periods` it appends `-period-{p}` for each period `p`.
       This entry states them all over the outage dimension
     dims: [scenario, snapshot, transformer, outage]
-    where: not Transformer_s_nom_extendable AND at(Transformer_BODF, by=snapshot_period[period])
+    where: not Transformer_s_nom_extendable AND at(Transformer_BODF, by=snapshot_period[period]) AND Transformer_active
     expression: Transformer_s_monitored + at(Transformer_BODF, by=snapshot_period[period]) * Outage_s <= Transformer_s_max_pu * Transformer_s_nom
   Transformer_ext_s_lower_security:
     description: >-
@@ -4435,7 +5560,7 @@ constraints:
       `-period-{p}` for each period `p`. This entry states them all over the
       outage dimension
     dims: [scenario, snapshot, transformer, outage]
-    where: Transformer_s_nom_extendable AND at(Transformer_BODF, by=snapshot_period[period])
+    where: Transformer_s_nom_extendable AND at(Transformer_BODF, by=snapshot_period[period]) AND Transformer_active
     expression: Transformer_s_monitored + at(Transformer_BODF, by=snapshot_period[period]) * Outage_s >= -Transformer_s_max_pu * Transformer_s_nom_ext
   Transformer_ext_s_upper_security:
     description: >-
@@ -4447,7 +5572,7 @@ constraints:
       `-period-{p}` for each period `p`. This entry states them all over the
       outage dimension
     dims: [scenario, snapshot, transformer, outage]
-    where: Transformer_s_nom_extendable AND at(Transformer_BODF, by=snapshot_period[period])
+    where: Transformer_s_nom_extendable AND at(Transformer_BODF, by=snapshot_period[period]) AND Transformer_active
     expression: Transformer_s_monitored + at(Transformer_BODF, by=snapshot_period[period]) * Outage_s <= Transformer_s_max_pu * Transformer_s_nom_ext
   Kirchhoff_Voltage_Law:
     description: >-
@@ -4923,6 +6048,38 @@ assumptions:
       a generator's cost curve is given per unit of a fixed, positive, finite
       `p_nom`, which scales it to output. PyPSA refuses an extendable unit and
       a zero, missing or infinite `p_nom` (`piecewise.py:284-304`), and takes
+      a negative one, which the file does not state
+  Link_marginal_cost_curve_on_a_fixed_build:
+    holds: "NOT Link_p_nom_extendable AND Link_p_nom > 0 AND Link_p_nom < inf"
+    where: "Link_marginal_cost_curve"
+    description: >-
+      a link's cost curve is given per unit of a fixed, positive, finite
+      `p_nom`, which scales it to flow. PyPSA refuses an extendable unit and a
+      zero, missing or infinite `p_nom` (`piecewise.py:284-304`), and takes a
+      negative one, which the file does not state
+  Process_marginal_cost_curve_on_a_fixed_build:
+    holds: "NOT Process_p_nom_extendable AND Process_p_nom > 0 AND Process_p_nom < inf"
+    where: "Process_marginal_cost_curve"
+    description: >-
+      a process's cost curve is given per unit of a fixed, positive, finite
+      `p_nom`, which scales it to internal power. PyPSA refuses an extendable
+      unit and a zero, missing or infinite `p_nom` (`piecewise.py:284-304`),
+      and takes a negative one, which the file does not state
+  StorageUnit_marginal_cost_curve_on_a_fixed_build:
+    holds: "NOT StorageUnit_p_nom_extendable AND StorageUnit_p_nom > 0 AND StorageUnit_p_nom < inf"
+    where: "StorageUnit_marginal_cost_curve"
+    description: >-
+      a storage unit's cost curve is given per unit of a fixed, positive,
+      finite `p_nom`, which scales it to dispatch. PyPSA refuses an extendable
+      unit and a zero, missing or infinite `p_nom` (`piecewise.py:284-304`),
+      and takes a negative one, which the file does not state
+  Store_marginal_cost_curve_on_a_fixed_build:
+    holds: "NOT Store_e_nom_extendable AND Store_e_nom > 0 AND Store_e_nom < inf"
+    where: "Store_marginal_cost_curve"
+    description: >-
+      a store's cost curve is given per unit of a fixed, positive, finite
+      `e_nom`, which scales it to power. PyPSA refuses an extendable unit and
+      a zero, missing or infinite `e_nom` (`piecewise.py:284-304`), and takes
       a negative one, which the file does not state
   Generator_big_m_where_committed_and_extendable:
     holds: "Generator_big_m"

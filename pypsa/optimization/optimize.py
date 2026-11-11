@@ -989,6 +989,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             committable_big_m=committable_big_m,
             cycle_basis_method=cycle_basis_method,
             branch_outages=branch_outages,
+            meshed_thresholds=meshed_thresholds,
+            piecewise_options=piecewise_opts,
         )
         n.model.objective.scaling = objective_scaling
         n.model.parameters = n.model.parameters.assign(snapshots=sns)

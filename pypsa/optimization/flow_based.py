@@ -187,7 +187,7 @@ def _build_domain(n: Network, sns: pd.Index) -> _FlowBasedDomain | None:
             )
             raise ValueError(msg)
         period_da = xr.DataArray(period.to_numpy(), coords={"name": rows}, dims="name")
-        period_of = n.optimize._window.subset(sns).period_of.to_numpy()
+        period_of = sns.get_level_values("period").to_numpy()
         mask = period_da.isnull() | (snapshot_array(period_of, sns) == period_da)
     mask = (mask & snapshot_array(np.ones(len(sns), dtype=bool), sns)).transpose(
         "snapshot", "name"

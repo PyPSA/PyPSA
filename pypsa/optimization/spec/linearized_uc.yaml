@@ -79,6 +79,43 @@ piecewise:
       gates it, because no generator with a curve is committable under the
       keyword
     activity: null
+  Link_marginal_cost_incremental:
+    description: >-
+      `Link-marginal_cost_piecewise` — the running cost of a link with a
+      curve is at least the curve at its flow, stated by segments filled
+      in order, where linopy chooses the incremental rows. No status
+      gates it, because no link with a curve is committable under the
+      keyword
+    activity: null
+  Process_marginal_cost_incremental:
+    description: >-
+      `Process-marginal_cost_piecewise` — the running cost of a process
+      with a curve is at least the curve at its internal power, stated by
+      segments filled in order, where linopy chooses the incremental
+      rows. No status gates it, because no process with a curve is
+      committable under the keyword
+    activity: null
+  Generator_efficiency_incremental:
+    description: >-
+      `Generator-p_primary_piecewise` — the primary energy of a generator
+      with a curve is the curve at its output, stated by segments filled in
+      order. No status gates it, because no generator with a curve is
+      committable under the keyword
+    activity: null
+  Link_efficiency_incremental:
+    description: >-
+      `Link-p{port}_piecewise` — what a link delivers to an output port with
+      a curve is the curve at its flow, stated by segments filled in order.
+      No status gates it, because no link with a curve is committable under
+      the keyword
+    activity: null
+  Process_rate_incremental:
+    description: >-
+      `Process-p{port}_piecewise` — what a process transfers at a port with a
+      curve is the curve at its internal power, stated by segments filled in
+      order. No status gates it, because no process with a curve is
+      committable under the keyword
+    activity: null
 
 constraints:
   Generator_com_p_before:
@@ -237,6 +274,44 @@ assumptions:
       a generator with a piecewise `marginal_cost` curve is not committable.
       PyPSA gates such a curve by the status share (`optimize.py:314-318`,
       `piecewise.py:200-210`), and a curve gate is binary or integer
+  Link_marginal_cost_curve_is_not_committable:
+    holds: "NOT Link_committable"
+    where: "Link_marginal_cost_curve"
+    description: >-
+      a link with a piecewise `marginal_cost` curve is not committable.
+      PyPSA gates such a curve by the status share (`optimize.py:314-318`,
+      `piecewise.py:200-210`), and a curve gate is binary or integer
+  Process_marginal_cost_curve_is_not_committable:
+    holds: "NOT Process_committable"
+    where: "Process_marginal_cost_curve"
+    description: >-
+      a process with a piecewise `marginal_cost` curve is not committable.
+      PyPSA gates such a curve by the status share (`optimize.py:314-318`,
+      `piecewise.py:200-210`), and a curve gate is binary or integer
+  Generator_efficiency_curve_is_not_committable:
+    holds: "NOT Generator_committable"
+    where: "Generator_efficiency_curve"
+    description: >-
+      a generator with a piecewise `efficiency` curve is not committable.
+      PyPSA gates such a curve by the status share
+      (`global_constraints.py:341-345`, `piecewise.py:200-210`), and a curve
+      gate is binary or integer
+  Link_efficiency_curve_is_not_committable:
+    holds: "NOT at(Link_committable, by=Link_output_link[link])"
+    where: "Link_efficiency_curve"
+    description: >-
+      a link with a piecewise `efficiency` curve on a port is not
+      committable. PyPSA gates such a curve by the status share
+      (`constraints.py:1536-1540`, `piecewise.py:200-210`), and a curve gate
+      is binary or integer
+  Process_rate_curve_is_not_committable:
+    holds: "NOT at(Process_committable, by=Process_output_process[process])"
+    where: "Process_rate_curve"
+    description: >-
+      a process with a piecewise `rate` curve on a port is not committable.
+      PyPSA gates such a curve by the status share
+      (`constraints.py:1536-1540`, `piecewise.py:200-210`), and a curve gate
+      is binary or integer
   Generator_committable_is_not_modular:
     holds: "NOT (Generator_p_nom_mod > 0)"
     where: "Generator_committable AND count(Generator_active, over=snapshot) > 0"

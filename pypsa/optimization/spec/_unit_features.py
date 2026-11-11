@@ -14,8 +14,6 @@ from pypsa.optimization.spec.sources import (
     UNITS,
     NetworkSources,
     _snapshot_weighting,
-    _static,
-    dimension,
     single,
 )
 
@@ -97,54 +95,6 @@ def _nom_max(s: NetworkSources, name: str) -> xr.DataArray:
     cap = s.attribute(component, "p_nom_max", name)
     extendable = s.da(component, "p_nom_extendable").astype(bool).any("scenario")
     return cap.where(extendable)
-
-
-def _cost_curve(s: NetworkSources) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Read the output and running cost at each breakpoint, (breakpoint, generator)."""
-    c = s.n.components.generators
-    curves = c.piecewise.get("marginal_cost")
-    if curves is None or curves.empty:
-        empty = pd.DataFrame(index=pd.RangeIndex(0, name="breakpoint"))
-        return empty, empty
-    curves = curves.dropna(how="all", axis=1)
-    names = curves.columns.unique("name").intersection(s.coords("generator"))
-    curves = curves.loc[:, names]
-    p_pu = curves.xs("p_pu", level="attribute", axis=1)
-    slope = curves.xs("marginal_cost", level="attribute", axis=1)
-    static = _static(s, "Generator").reindex(p_pu.columns)
-    nominal = static["p_nom"]
-    bad = static["p_nom_extendable"] | ~np.isfinite(nominal) | (nominal <= 0)
-    if bad.any():
-        msg = (
-            "Piecewise 'marginal_cost' curves need a fixed, finite and positive "
-            f"p_nom; violated by {bad.index[bad].tolist()}."
-        )
-        raise ValueError(msg)
-    p = (p_pu * nominal).where(p_pu.notna() & slope.notna())
-    cost = (p.diff() * slope).fillna(0).cumsum().where(p.notna())
-    return p, cost
-
-
-@dimension("breakpoint")
-def _breakpoint(s: NetworkSources) -> pd.Index:
-    return pd.Index(_cost_curve(s)[0].index, dtype=int)
-
-
-@single("Generator_marginal_cost_curve_p", "Generator_marginal_cost_curve_cost")
-def _marginal_cost_curve(s: NetworkSources, name: str) -> xr.DataArray:
-    p, cost = _cost_curve(s)
-    frame = (p if name.endswith("_p") else cost).reindex(
-        index=s.coords("breakpoint"), columns=s.coords("generator")
-    )
-    da = xr.DataArray(
-        frame.to_numpy(dtype=float),
-        coords={
-            "breakpoint": frame.index.to_numpy(),
-            "generator": frame.columns.to_numpy(dtype=object),
-        },
-        dims=("breakpoint", "generator"),
-    )
-    return s.frame(name, da)
 
 
 for _component in MAINTAINABLE:
