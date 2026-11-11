@@ -14,6 +14,7 @@ import numpy as np
 
 from pypsa.components.common import invariant
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.piecewise import get_piecewise_names
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -180,15 +181,20 @@ def _check_energy_limits(n: Network) -> None:
 
 
 def _check_piecewise(n: Network, options: Sequence[PiecewiseOptions]) -> None:
-    """Raise if an `lp` piecewise option asks for an equality."""
+    """Raise if an `lp` piecewise option asks for an equality or meets a committable curve."""
     for option in options:
         c = n.components[option.component]
-        if (
-            option.method == "lp"
-            and option.sign == "=="
-            and c.has_piecewise(option.attribute)
-        ):
+        if option.method != "lp" or not c.has_piecewise(option.attribute):
+            continue
+        if option.sign == "==":
             msg = "method='lp' requires exactly one tuple with sign='<=' or '>='."
+            raise ValueError(msg)
+        gated = get_piecewise_names(c, option.attribute, c.committables)
+        if option.attribute != "capital_cost" and not gated.empty:
+            msg = (
+                f"method='lp' is not applicable to the committable {list(gated)}: "
+                "a status gate is not supported by LP. Use method='incremental'."
+            )
             raise ValueError(msg)
 
 

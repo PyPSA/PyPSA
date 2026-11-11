@@ -741,7 +741,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             bus connectivity count. Defaults to ``[30, 100, 400]``.
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
-            Each operator is interpreted as ``y operator f(x)``.
+            Each operator is interpreted as ``y operator f(x)``. One option
+            per component and attribute applies to all its units; the
+            ``name`` filter and ``method='sos2'`` are not supported.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
@@ -885,7 +887,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             bus connectivity count. Defaults to ``[30, 100, 400]``.
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
-            Each operator is interpreted as ``y operator f(x)``.
+            Each operator is interpreted as ``y operator f(x)``. One option
+            per component and attribute applies to all its units; the
+            ``name`` filter and ``method='sos2'`` are not supported.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The

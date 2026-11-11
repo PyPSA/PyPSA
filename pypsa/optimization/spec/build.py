@@ -36,20 +36,97 @@ if TYPE_CHECKING:
     from mathspec.spec import Spec
 
     from pypsa import Network
+    from pypsa.optimization.piecewise import PiecewiseOptions
 
 UNIT_DIMS = set(UNITS.values())
 SPEC = files("pypsa.optimization.spec")
 
 
 @functools.cache
-def spec(linearized_unit_commitment: bool = False) -> Spec:
-    """Return the spec of `n.optimize()`, with the linearised unit commitment patch on request."""
+def spec(
+    linearized_unit_commitment: bool = False,
+    piecewise_options: tuple[PiecewiseOptions, ...] = (),
+) -> Spec:
+    """Return the spec of `n.optimize()`, patched for linearised unit commitment and piecewise options on request."""
     import mathspec  # noqa: PLC0415
 
     base = mathspec.to_spec((SPEC / "pypsa.yaml").read_text())
-    if not linearized_unit_commitment:
-        return base
-    return mathspec.override(base, [(SPEC / "linearized_uc.yaml").read_text()])
+    patches: list[Any] = []
+    if linearized_unit_commitment:
+        patches.append((SPEC / "linearized_uc.yaml").read_text())
+    if piecewise_options:
+        patches.append(_piecewise_patch(base, piecewise_options))
+    return mathspec.override(base, patches) if patches else base
+
+
+def _link(link: Any, sign: str) -> list[str]:
+    """Return a piecewise link as the spec writes it, which leaves out the default `==`."""
+    return [link.expression, link.values, *([sign] if sign != "==" else [])]
+
+
+def _piecewise_patch(base: Spec, options: Sequence[PiecewiseOptions]) -> dict:
+    """Return the spec patch that states each curve by the method and sign its option names.
+
+    The spec states linopy's `method='auto'` for PyPSA's default signs as
+    two entries per curve, one picked by data. An option keeps the entry of
+    its method, ungated from that pick, and removes the other; its sign
+    goes on the curve's last link, the y-axis. `auto` with an equality
+    takes the incremental entry, as linopy does.
+
+    Raises:
+        NotImplementedError: An option names units, two options name one
+            curve, the curve has no entry of the method, or `auto` asks
+            for another inequality than the spec's.
+        ValueError: An option names a curve the spec does not hold.
+
+    """
+    patch: dict[str, Any] = {}
+    seen: set[tuple[str, str]] = set()
+    for option in options:
+        curve = (option.component, option.attribute)
+        if option.name:
+            msg = f"A piecewise option for named units ({option.name}) is not supported; give one for all units of {option.component}."
+            raise NotImplementedError(msg)
+        if curve in seen:
+            msg = f"Several piecewise options for {option.component}-{option.attribute} are not supported; give one."
+            raise NotImplementedError(msg)
+        seen.add(curve)
+        prefix = f"{option.component}_{option.attribute}"
+        entries = {
+            k: v
+            for k, v in base.piecewise.items()
+            if re.fullmatch(rf"{prefix}_(lp|incremental)", k)
+        }
+        if not entries:
+            msg = f"No piecewise curve {option.component}-{option.attribute} to apply the option to."
+            raise ValueError(msg)
+        method = option.method
+        if method == "auto" and option.sign == "==":
+            method = "incremental"
+        elif method == "auto":
+            if any(
+                list(e.links.values())[-1].sign != option.sign for e in entries.values()
+            ):
+                msg = f"method='auto' with sign '{option.sign}' is not supported for {option.component}-{option.attribute}; name the method."
+                raise NotImplementedError(msg)
+            continue
+        kept = f"{prefix}_{method}"
+        if kept not in entries:
+            msg = f"method='{option.method}' is not supported for {option.component}-{option.attribute}."
+            raise NotImplementedError(msg)
+        entry = entries[kept]
+        *head, (y, last) = entry.links.items()
+        patch |= dict.fromkeys(set(entries) - {kept})
+        patch[kept] = {
+            "method": method,
+            "links": {k: _link(v, v.sign) for k, v in head}
+            | {y: _link(last, option.sign)},
+        }
+        if entry.where:
+            patch[kept]["where"] = re.sub(
+                rf"(NOT )?{prefix}_as_lp AND ", "", entry.where
+            )
+    return {"piecewise": patch}
 
 
 def pypsa_name(name: str, description: str | None, mode: str | None = None) -> str:
@@ -509,7 +586,7 @@ def build_model(
     )
     model_kwargs = model_kwargs or {}
     n.calculate_dependent_values()
-    s = spec(linearized_unit_commitment)
+    s = spec(linearized_unit_commitment, tuple(piecewise_options))
     sources = NetworkSources(n, s, network_index, model_index, **options)
     m = Model.from_spec(s, sources, **model_kwargs)
     mode = (options.get("transmission_losses") or {}).get("mode")
