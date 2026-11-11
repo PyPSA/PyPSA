@@ -25,7 +25,7 @@ from linopy.constants import (
     PWL_OUTPUT_LINK_SUFFIX,
     EvolvingAPIWarning,
 )
-from linopy.constraints import CSRConstraint
+
 
 from pypsa._linopy_compat import (
     SUPPORTS_BREAKPOINT_MASK,
@@ -364,12 +364,7 @@ def _scale_rows(
             row = xr.concat([y if v == y_name else x for v in pwl_var], pwl_var)
         else:
             continue
-        if isinstance(con, CSRConstraint):
-            mutable = con.mutable()
-            mutable.scaling = row
-            constraints.add(mutable.freeze())
-        else:
-            con.scaling = row
+        con.scaling = row
 
 
 def _to_da(piecewise_df: pd.DataFrame, attr: str) -> xr.DataArray:

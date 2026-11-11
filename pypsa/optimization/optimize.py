@@ -20,6 +20,7 @@ from scipy.sparse.csgraph import connected_components
 from scipy.sparse.linalg import splu
 
 from pypsa._linopy_compat import suppress_semantics_warnings
+from pypsa.optimization.spec import build_model
 from pypsa._options import options
 from pypsa.common import (
     UnexpectedError,
@@ -174,6 +175,116 @@ def _resolve_include_objective_constant(
         )
         value = True
     return value
+
+
+def normalize_transmission_losses(transmission_losses: bool | int | dict) -> dict | None:
+    """The loss configuration as a dict with its `mode`, or None for a lossless run."""
+    if not transmission_losses:
+        return None
+    if isinstance(transmission_losses, bool):
+        return {"mode": "secants"}
+    if isinstance(transmission_losses, int):
+        equivalent = {"mode": "tangents", "segments": transmission_losses}
+        warnings.warn(
+            "Passing an int for `transmission_losses` is deprecated "
+            "and will be removed in PyPSA 2.0. Explicitly pass "
+            f"{equivalent} (current behavior) or use the new "
+            "secant-based losses via `transmission_losses=True`.",
+            FutureWarning,
+            stacklevel=3,
+        )
+        return equivalent
+    config = dict(transmission_losses)
+    mode = config.setdefault("mode", "secants")
+    if mode == "tangents" and "segments" not in config:
+        msg = (
+            "The 'tangents' mode requires a 'segments' key, e.g. "
+            "transmission_losses={'mode': 'tangents', 'segments': 3}"
+        )
+        raise ValueError(msg)
+    if mode not in ("secants", "tangents"):
+        msg = f"Unknown transmission_losses mode: {mode!r}"
+        raise ValueError(msg)
+    return config
+
+
+def set_objective_constant(n: Network, include_objective_constant: bool) -> None:
+    """Store the capex of built capacity and, on request, take it off the objective.
+
+    The constant is the capex of the nominal capacity extendable components
+    already have. With `include_objective_constant`, a fixed variable
+    `objective_constant` carries it and the objective subtracts it.
+    """
+    m = n.model
+    capex_terms: list = []
+    window = n.optimize._window
+    if n._multi_invest:
+        period_weighting = n.investment_period_weightings.objective[window.periods]
+        period_weight = xr.DataArray(period_weighting)
+
+    # constant for already done investment
+    if include_objective_constant:
+        nom_attr = nominal_attrs.items()
+        constant: xr.DataArray | float = 0
+        terms = []
+
+        for c_name, attr in nom_attr:
+            c = as_components(n, c_name)
+            ext_i = c.extendables.intersection(c.active_assets)
+
+            if ext_i.empty:
+                continue
+
+            periodic_cost = c.periodized_cost.sel(name=ext_i)
+            if periodic_cost.size == 0:
+                continue
+
+            nominal = c.da[attr].sel(name=ext_i)
+
+            if n._multi_invest:
+                active_by_period = (
+                    c.da.active.sel(name=ext_i).groupby("period").any("snapshot")
+                )
+                active_weight = (active_by_period * period_weight).sum("period")
+                weighted_cost = active_weight * periodic_cost
+            else:
+                active = c.da.active.sel(name=ext_i).any(dim="snapshot")
+                weighted_cost = active * periodic_cost
+
+            terms.append((weighted_cost * nominal).sum(dim=["name"]))
+
+        constant += sum(terms)
+
+        # Handle constant for stochastic vs deterministic networks
+        if n.has_scenarios and isinstance(constant, xr.DataArray):
+            # For stochastic networks, weight constant by scenario probabilities
+            weighted_constant = sum(
+                constant.sel(scenario=s, drop=True)
+                * n.scenario_weightings.loc[s, "weight"]
+                for s in n.scenarios
+            )
+            n._objective_constant = float(weighted_constant)
+            has_const = (constant != 0).any().item()
+        else:
+            n._objective_constant = float(constant)
+            has_const = constant != 0
+        if has_const:
+            object_const = m.add_variables(
+                constant,
+                constant,
+                name="objective_constant",
+                scaling=m.objective.scaling,
+            )
+            capex_terms.append(-1 * object_const)
+    else:
+        n._objective_constant = 0.0
+
+    if capex_terms:
+        m.add_objective(
+            m.objective.expression + capex_terms[0],
+            overwrite=True,
+            scaling=m.objective.scaling,
+        )
 
 
 def define_objective(
@@ -863,146 +974,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         window = SnapshotWindow.build(n, sns, options.optimization.model_snapshot_index)
         n._optimize_window = window
         sns = window.model_index
-        n._model = Model(**kwargs)
-        n.model.objective.scaling = objective_scaling
-
-        n.model.parameters = n.model.parameters.assign(snapshots=sns)
-
-        # Define variables
-        for c, attr in lookup.query("nominal").index:
-            define_nominal_variables(n, c, attr)
-            define_modular_variables(n, c, attr)
-
-        for c, attr in lookup.query("not nominal and not handle_separately").index:
-            define_operational_variables(n, sns, c, attr)
-            define_status_variables(n, sns, c, linearized_unit_commitment)
-            define_start_up_variables(n, sns, c, linearized_unit_commitment)
-            define_shut_down_variables(n, sns, c, linearized_unit_commitment)
-            define_maintenance_variables(n, sns, c)
-            define_maintenance_start_variables(n, sns, c)
-            define_maintenance_capacity_variables(n, sns, c)
-            define_maintenance_status_variables(n, sns, c)
-            define_committability_variables_constraints_with_fixed_upper_limit(
-                n, sns, c, attr
-            )
-
-        for c in ("StorageUnit", "Store"):
-            define_spillage_variables(n, sns, c)
-        define_phase_shift_variables(n, sns)
-        flow_based_domain = define_flow_based_variables(n, sns)
-
-        # CVaR auxiliary variables (only when stochastic + risk preference is set)
-        define_cvar_variables(n)
-
-        if transmission_losses:
-            for c in n.passive_branch_components:
-                define_loss_variables(n, sns, c)
-
-        # Define constraints
-        for c, attr in lookup.query("nominal").index:
-            define_nominal_constraints_for_extendables(n, c, attr)
-            define_fixed_nominal_constraints(n, c, attr)
-            define_modular_constraints(n, c, attr)
-            define_committability_variables_constraints_with_variable_upper_limit(
-                n, sns, c, attr
-            )
-
-        for c, attr in lookup.query("not nominal and not handle_separately").index:
-            define_maintenance_constraints(n, sns, c)
-            define_operational_constraints_for_non_extendables(
-                n, sns, c, attr, transmission_losses
-            )
-            define_operational_constraints_for_extendables(
-                n, sns, c, attr, transmission_losses
-            )
-            define_operational_constraints_for_committables(n, sns, c)
-            define_ramp_limit_constraints(n, sns, c, attr)
-            define_fixed_operation_constraints(n, sns, c, attr)
-
-        # Handle StorageUnit p_set separately (fixes p_dispatch - p_store = p_set)
-        define_fixed_operation_constraints(n, sns, "StorageUnit", "p")
-
-        thresholds = (
-            sorted(set(meshed_thresholds))
-            if meshed_thresholds is not None
-            else [30, 100, 400]
+        n._model = build_model(
+            n,
+            window.network_index,
+            sns,
+            linearized_unit_commitment=bool(linearized_unit_commitment),
+            model_kwargs=kwargs,
+            multi_invest=bool(multi_investment_periods),
+            transmission_losses=normalize_transmission_losses(transmission_losses),
+            committable_big_m=committable_big_m,
+            cycle_basis_method=cycle_basis_method,
         )
-        bus_counts = get_bus_counts(n).reindex(n.c.buses.names, fill_value=0)
-        prev: float = 0
-        for t in thresholds + [float("inf")]:
-            if t == float("inf"):
-                mask = bus_counts > prev
-            else:
-                mask = (bus_counts > prev) & (bus_counts <= t)
-            buses = bus_counts.index[mask]
-            suffix = f"-meshed-{prev}" if prev > 0 else ""
-            if not buses.empty:
-                define_nodal_balance_constraints(
-                    n,
-                    sns,
-                    transmission_losses=transmission_losses,
-                    buses=buses,
-                    suffix=suffix,
-                    piecewise_options=piecewise_opts,
-                )
-            prev = t
-
-        define_kirchhoff_voltage_constraints(n, sns, cycle_basis_method)
-        define_voltage_angle_constraints(n, sns)
-        define_storage_unit_constraints(n, sns)
-        define_store_constraints(n, sns)
-        define_store_cycle_constraints(n, sns)
-        for c in n.components:
-            if "e_sum_min" in c.static:
-                define_total_supply_constraints(n, sns, c.name)
-
-        if transmission_losses:
-            if isinstance(transmission_losses, bool):
-                transmission_losses = {"mode": "secants"}
-            elif isinstance(transmission_losses, int):
-                equivalent = {"mode": "tangents", "segments": transmission_losses}
-                warnings.warn(
-                    "Passing an int for `transmission_losses` is deprecated "
-                    "and will be removed in PyPSA 2.0. Explicitly pass "
-                    f"{equivalent} (current behavior) or use the new "
-                    "secant-based losses via `transmission_losses=True`.",
-                    FutureWarning,
-                    stacklevel=2,
-                )
-                transmission_losses = {
-                    "mode": "tangents",
-                    "segments": transmission_losses,
-                }
-            # Don't mutate passed dict
-            transmission_losses = dict(transmission_losses)
-            mode = transmission_losses.pop("mode", "secants")
-            if mode == "tangents" and "segments" not in transmission_losses:
-                msg = (
-                    "The 'tangents' mode requires a 'segments' key, e.g. "
-                    "transmission_losses={'mode': 'tangents', 'segments': 3}"
-                )
-                raise ValueError(msg)
-
-            for c in n.passive_branch_components:
-                if mode == "secants":
-                    define_secant_loss_constraints(n, sns, c, **transmission_losses)
-                elif mode == "tangents":
-                    define_tangent_loss_constraints(n, sns, c, **transmission_losses)
-                else:
-                    msg = f"Unknown transmission_losses mode: {mode!r}"
-                    raise ValueError(msg)
-
-        # Define global constraints
-        define_primary_energy_limit(n, sns, piecewise_opts)
-        define_transmission_expansion_cost_limit(n, sns)
-        define_transmission_volume_expansion_limit(n, sns)
-        define_tech_capacity_expansion_limit(n, sns)
-        define_operational_limit(n, sns)
-        define_nominal_constraints_per_bus_carrier(n, sns)
-        define_growth_limit(n, sns)
-        define_flow_based_constraints(n, flow_based_domain)
-
-        define_objective(n, sns, include_objective_constant, piecewise_opts)
+        n.model.objective.scaling = objective_scaling
+        n.model.parameters = n.model.parameters.assign(snapshots=sns)
+        set_objective_constant(n, include_objective_constant)
 
         return n.model
 

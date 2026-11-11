@@ -32,6 +32,13 @@ try:
 except ImportError:  # linopy without the v1 semantics option
     LinopySemanticsWarning = None
 
+try:
+    from linopy.config import SEMANTICS_DEPRECATION  # noqa: F401
+except ImportError:
+    V1_ONLY = False
+else:
+    V1_ONLY = True
+
 # Ragged piecewise curves are stored densely. Only linopy with v1 semantics lets
 # the absent slots be declared. Older releases infer them from NaN padding.
 SUPPORTS_BREAKPOINT_MASK = (
@@ -41,6 +48,8 @@ SUPPORTS_BREAKPOINT_MASK = (
 
 def linopy_uses_v1() -> bool:
     """Whether linopy's v1 arithmetic semantics are active."""
+    if V1_ONLY:
+        return True
     try:
         return linopy_options["semantics"] == "v1"
     except KeyError:
