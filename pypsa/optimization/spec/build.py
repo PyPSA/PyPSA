@@ -55,6 +55,8 @@ def pypsa_name(name: str, description: str | None, mode: str | None = None) -> s
 
 #: Spec entries whose PyPSA name is not the opening of their description.
 RENAMED = {"GlobalConstraint_flow_based_ub": "GlobalConstraint-ram"}
+#: Dims PyPSA names otherwise on one entry.
+DIMS = {"Carrier-growth_limit": {"carrier": "Carrier", "period": "periods"}}
 
 
 def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
@@ -74,14 +76,16 @@ def _order(dims: tuple[str, ...], has_scenarios: bool) -> list[str]:
 
 
 def _renumbered(ds: xr.Dataset, order: list[str], mapping: np.ndarray) -> xr.Dataset:
-    """`ds` transposed to `order`, its labels renumbered to stay one C-ordered block.
+    """`ds` trimmed to its built units and laid out in `order`, with fresh labels.
 
-    linopy reads a solution or a dual by reshaping its label block, so a
-    transposed array needs fresh labels; `mapping` records old to new.
+    PyPSA builds a unit's entry only where it has one, so a unit whose every
+    label is masked is dropped. linopy reads a solution or a dual by reshaping
+    one C-ordered label block, so the kept labels are renumbered from the
+    block's start; `mapping` records old to new.
     """
-    if list(ds.labels.dims) == order:
-        return ds
-    old = ds.labels.values
+    if "name" in ds.labels.dims and ds.sizes["name"]:
+        others = [d for d in ds.labels.dims if d != "name"]
+        ds = ds.isel(name=(ds.labels != -1).any(others).values)
     ds = ds.transpose(*order, ...)
     start = ds.attrs["label_range"][0]
     fresh = start + np.arange(ds.labels.size).reshape(ds.labels.shape)
@@ -89,7 +93,7 @@ def _renumbered(ds: xr.Dataset, order: list[str], mapping: np.ndarray) -> xr.Dat
     live = moved != -1
     mapping[moved[live]] = fresh[live]
     ds["labels"] = ds.labels.copy(data=np.where(live, fresh, -1))
-    assert old.size == moved.size
+    ds.attrs["label_range"] = (start, start + ds.labels.size)
     return ds
 
 
@@ -130,13 +134,24 @@ def _split(m: Model, constraints: dict[str, Constraint]) -> dict[str, Constraint
     return out
 
 
-def _relabel(m: Model, n: Network, names: dict, snapshots: pd.Index) -> None:
+def _relabel(
+    m: Model, n: Network, names: dict, snapshots: pd.Index, network_index: pd.Index
+) -> None:
     """Rename every variable, constraint and dim of `m` as PyPSA names and lays them out.
 
     Entries without a single row are dropped, as PyPSA does not build them,
     and the placeholder scenario of a network without scenarios is squeezed.
     """
     squeeze = not n.has_scenarios
+    levels = (
+        {
+            name: ("snapshot", network_index.get_level_values(name).to_numpy())
+            for name in network_index.names
+        }
+        if isinstance(network_index, pd.MultiIndex)
+        and not isinstance(snapshots, pd.MultiIndex)
+        else {}
+    )
     variable_map = np.arange(m._xCounter)
     constraint_map = np.arange(m._cCounter)
 
@@ -145,7 +160,7 @@ def _relabel(m: Model, n: Network, names: dict, snapshots: pd.Index) -> None:
         if squeeze and "scenario" in ds.dims:
             ds = ds.squeeze("scenario", drop=True)
         if "snapshot" in ds.dims:
-            ds = ds.assign_coords(snapshot=snapshots)
+            ds = ds.assign_coords(snapshot=snapshots, **levels)
         return _renumbered(ds, _order(ds.labels.dims, n.has_scenarios), mapping)
 
     variables = {}
@@ -165,7 +180,7 @@ def _relabel(m: Model, n: Network, names: dict, snapshots: pd.Index) -> None:
         if not (con.labels != -1).any():
             continue
         new = RENAMED.get(name, names["constraints"].get(name, name))
-        ds = remap(frame(con.data, True, constraint_map))
+        ds = remap(frame(con.data, True, constraint_map)).rename(DIMS.get(new, {}))
         constraints[new] = Constraint.from_dataset(ds, m, new)
 
     constraints = _split(m, constraints)
@@ -265,5 +280,5 @@ def build_model(
                     suffix = k.removeprefix(f"{entry}_")
                     section[k] = f"{aux}_{PIECEWISE_SUFFIX.get(suffix, suffix)}"
     _merge_global_constraints(m, squeeze=not n.has_scenarios)
-    _relabel(m, n, names, model_index)
+    _relabel(m, n, names, model_index, network_index)
     return m
