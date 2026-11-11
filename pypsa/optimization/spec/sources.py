@@ -959,3 +959,52 @@ _SINGLES["Transformer_phase_shift_fixed"] = _unused(0.0, empty_dims=("transforme
 _SINGLES["Transformer_phase_shift_varying"] = _unused(
     False, empty_dims=("transformer",)
 )
+
+
+@single("Bus_attached")
+def _bus_attached(s: NetworkSources, name: str) -> xr.DataArray:
+    buses = s.coords("bus")
+    attached = xr.DataArray(
+        np.zeros((len(buses), len(s.snapshots)), dtype=bool),
+        coords={"bus": buses.to_numpy(), "snapshot": s.snapshots},
+        dims=["bus", "snapshot"],
+    )
+    ends = {
+        "Generator": ["bus"],
+        "Load": ["bus"],
+        "StorageUnit": ["bus"],
+        "Store": ["bus"],
+        "Line": ["bus0", "bus1"],
+        "Transformer": ["bus0", "bus1"],
+        "Link": ["bus0"],
+    }
+    for component, columns in ends.items():
+        static = _static(s, component)
+        active = s.active(component)
+        for column in columns:
+            at = xr.DataArray(static[column].to_numpy(dtype=object), dims=UNITS[component])
+            attached = attached | _any_by_bus(active, at, buses)
+    for component, owner in (("Link", "link"), ("Process", "process")):
+        ports = _ports(s, component)
+        if ports.empty:
+            continue
+        active = s.active(component).sel({owner: ports[owner].to_numpy()})
+        at = xr.DataArray(ports["bus"].to_numpy(dtype=object), dims=owner)
+        attached = attached | _any_by_bus(active, at, buses)
+    return s.frame(name, attached)
+
+
+def _any_by_bus(active: xr.DataArray, bus: xr.DataArray, buses: pd.Index) -> xr.DataArray:
+    """Whether any active unit sits at each bus, (bus, snapshot)."""
+    unit = bus.dims[0]
+    if not active.sizes[unit]:
+        return xr.DataArray(False)
+    frame = pd.DataFrame(
+        active.transpose(unit, "snapshot").to_numpy(), index=bus.to_numpy()
+    )
+    grouped = frame.groupby(level=0).any().reindex(buses, fill_value=False)
+    return xr.DataArray(
+        grouped.to_numpy(dtype=bool),
+        coords={"bus": buses.to_numpy(), "snapshot": active.snapshot.values},
+        dims=["bus", "snapshot"],
+    )

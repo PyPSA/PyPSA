@@ -90,6 +90,13 @@ dimensions:
     ordered: true
 
 parameters:
+  Bus_attached:
+    description: >-
+      whether a load, a unit, a port or a branch that is active in the
+      snapshot's period is attached to the bus, data prep. A bus nothing is
+      attached to has no balance row
+    dims: [bus, snapshot]
+    dtype: bool
   snapshot_weightings_objective:
     description: PyPSA's `snapshot_weightings.objective` — hours a snapshot weighs in the cost
     dims: [snapshot]
@@ -4454,6 +4461,9 @@ constraints:
       that are active in it (`constraints.py:1710-1729`). A cycle label that
       period's basis does not reach has no row
     dims: [scenario, snapshot, cycle]
+    where: >-
+      count(at(Line_cycle_weight, by=snapshot_period[period]), over=line) > 0
+      OR count(at(Transformer_cycle_weight, by=snapshot_period[period]), over=transformer) > 0
     expression: Cycle_angle_sum == 0
   Generator_p_ramp_limit_up:
     description: >-
@@ -4861,6 +4871,7 @@ constraints:
       A bus nothing is attached to has no row. PyPSA refuses one that carries
       load. The file states no assumption for it.
     dims: [scenario, snapshot, bus]
+    where: Bus_attached
     expression: Bus_injection == 0
   GlobalConstraint_flow_based_ub:
     description: >-

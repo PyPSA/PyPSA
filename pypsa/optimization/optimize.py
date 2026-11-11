@@ -876,6 +876,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
         objective_scaling: float = 1.0,
+        branch_outages: pd.MultiIndex | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -930,6 +931,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             objective value and duals are reported in original units. Column
             and row factors are set via `Bus.scaling` and
             `GlobalConstraint.scaling`.
+        branch_outages : pandas.MultiIndex, optional
+            Passive branches, as (component, name), whose outage the flows must
+            survive. Set by `optimize_security_constrained`.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -984,6 +988,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             transmission_losses=normalize_transmission_losses(transmission_losses),
             committable_big_m=committable_big_m,
             cycle_basis_method=cycle_basis_method,
+            branch_outages=branch_outages,
         )
         n.model.objective.scaling = objective_scaling
         n.model.parameters = n.model.parameters.assign(snapshots=sns)

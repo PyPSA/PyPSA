@@ -642,26 +642,13 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             )
             raise ValueError(msg)
 
-        m = n.optimize.create_model(
+        n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
             objective_scaling=objective_scaling,
+            branch_outages=outages,
             **model_kwargs,
         )
-
-        n_topology = n.get_scenario(n.scenarios[0]) if n.has_scenarios else n
-        for period, period_sns in n.optimize._window.iter_periods():
-            if period is None:
-                if n.has_scenarios:
-                    n_topology.determine_network_topology()
-                selection, suffix = {}, ""
-            else:
-                n_topology.determine_network_topology(
-                    investment_period=period, skip_isolated_buses=True
-                )
-                selection, suffix = {"snapshot": period_sns}, f"-period-{period}"
-            for sub_network in n_topology.c.sub_networks.static.obj:
-                _add_security_constraints(m, sub_network, outages, selection, suffix)
 
         return n.optimize.solve_model(**kwargs)
 

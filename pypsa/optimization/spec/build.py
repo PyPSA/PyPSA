@@ -11,6 +11,7 @@ import re
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import Model
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 
     from pypsa import Network
 
-UNIT_DIMS = {*UNITS.values(), "bus"}
+UNIT_DIMS = set(UNITS.values())
 SPEC = files("pypsa.optimization.spec")
 
 
@@ -40,56 +41,147 @@ def spec(linearized_unit_commitment: bool = False) -> Spec:
     return mathspec.override(base, [(SPEC / "linearized_uc.yaml").read_text()])
 
 
-def pypsa_name(name: str, description: str | None) -> str:
-    """The PyPSA name of a spec entry: the first backticked name of its description."""
+def pypsa_name(name: str, description: str | None, mode: str | None = None) -> str:
+    """The PyPSA name of a spec entry: the backticked name its description opens with.
+
+    An entry PyPSA names by loss mode lists one name per mode; `mode` picks it.
+    """
     head = (description or "").split(" — ", 1)[0]
     found = re.findall(r"`([^`]+)`", head)
-    return found[0] if found else name
+    if not found:
+        return name
+    return next((f for f in found if mode and f"_{mode}" in f), found[0])
 
 
-def _pypsa_dims(dims: tuple[str, ...], has_scenarios: bool) -> dict[str, str]:
-    """The renaming of spec dims to PyPSA's: the one unit or bus dim becomes `name`."""
-    named = [d for d in dims if d in UNIT_DIMS]
-    return {named[0]: "name"} if len(named) == 1 else {}
+#: Spec entries whose PyPSA name is not the opening of their description.
+RENAMED = {"GlobalConstraint_flow_based_ub": "GlobalConstraint-ram"}
+
+
+def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
+    """The renaming of spec dims to PyPSA's: the one unit dim becomes `name`.
+
+    A constraint over buses or GlobalConstraint labels names them `name` too.
+    """
+    named = UNIT_DIMS | ({"bus", "global_constraint"} if constraint else set())
+    found = [d for d in dims if d in named]
+    return {found[0]: "name"} if len(found) == 1 else {}
+
+
+def _order(dims: tuple[str, ...], has_scenarios: bool) -> list[str]:
+    """PyPSA's dim order: `scenario` first in a stochastic run, else `snapshot` first."""
+    lead = "scenario" if has_scenarios else "snapshot"
+    return [d for d in dims if d == lead] + [d for d in dims if d != lead]
+
+
+def _renumbered(ds: xr.Dataset, order: list[str], mapping: np.ndarray) -> xr.Dataset:
+    """`ds` transposed to `order`, its labels renumbered to stay one C-ordered block.
+
+    linopy reads a solution or a dual by reshaping its label block, so a
+    transposed array needs fresh labels; `mapping` records old to new.
+    """
+    if list(ds.labels.dims) == order:
+        return ds
+    old = ds.labels.values
+    ds = ds.transpose(*order, ...)
+    start = ds.attrs["label_range"][0]
+    fresh = start + np.arange(ds.labels.size).reshape(ds.labels.shape)
+    moved = ds.labels.values
+    live = moved != -1
+    mapping[moved[live]] = fresh[live]
+    ds["labels"] = ds.labels.copy(data=np.where(live, fresh, -1))
+    assert old.size == moved.size
+    return ds
+
+
+#: linopy's suffix of a piecewise row or column, where the spec's expansion names it otherwise.
+PIECEWISE_SUFFIX = {"order": "order_binary", "cost": "output_link"}
+#: The dim a `{x}` placeholder in a PyPSA name splits a constraint along.
+SPLITS = {"{s}": "scenario", "{k}": "segment"}
+#: The placeholder suffix of the security rows, which PyPSA names per component and sub-network.
+SECURITY = "-for-{c}-outage-in-sub-network-{n}"
+
+
+def _split(m: Model, constraints: dict[str, Constraint]) -> dict[str, Constraint]:
+    """Split each constraint whose PyPSA name has a `{s}` or `{k}` placeholder along its dim.
+
+    Each part gets a fresh, contiguous label block at the end of the model's.
+    """
+    out = {}
+    for name, con in constraints.items():
+        name = name.replace(SECURITY, "")
+        placeholder = next((p for p in SPLITS if p in name), None)
+        if placeholder is None or SPLITS[placeholder] not in con.labels.dims:
+            out[name] = con
+            continue
+        dim = SPLITS[placeholder]
+        ds = con.data
+        for label in ds.indexes[dim]:
+            part = ds.sel({dim: label}, drop=True)
+            live = part.labels.values != -1
+            if not live.any():
+                continue
+            start = m._cCounter
+            fresh = start + np.arange(part.labels.size).reshape(part.labels.shape)
+            part["labels"] = part.labels.copy(data=np.where(live, fresh, -1))
+            part.attrs["label_range"] = (start, start + part.labels.size)
+            m._cCounter += part.labels.size
+            new = name.replace(placeholder, str(label))
+            out[new] = Constraint.from_dataset(part, m, new)
+    return out
 
 
 def _relabel(m: Model, n: Network, names: dict, snapshots: pd.Index) -> None:
-    """Rename every variable, constraint and dim of `m` as PyPSA names them.
+    """Rename every variable, constraint and dim of `m` as PyPSA names and lays them out.
 
     Entries without a single row are dropped, as PyPSA does not build them,
     and the placeholder scenario of a network without scenarios is squeezed.
     """
-    s_variables = names["variables"]
-    s_constraints = names["constraints"]
     squeeze = not n.has_scenarios
+    variable_map = np.arange(m._xCounter)
+    constraint_map = np.arange(m._cCounter)
 
-    def frame(ds: xr.Dataset) -> xr.Dataset:
-        ds = ds.rename(_pypsa_dims(tuple(ds.dims), n.has_scenarios))
+    def frame(ds: xr.Dataset, constraint: bool, mapping: np.ndarray) -> xr.Dataset:
+        ds = ds.rename(_pypsa_dims(tuple(ds.labels.dims), constraint))
         if squeeze and "scenario" in ds.dims:
             ds = ds.squeeze("scenario", drop=True)
         if "snapshot" in ds.dims:
             ds = ds.assign_coords(snapshot=snapshots)
-        return ds
+        return _renumbered(ds, _order(ds.labels.dims, n.has_scenarios), mapping)
 
     variables = {}
     for name, var in m.variables.items():
         if not (var.labels != -1).any():
             continue
-        new = s_variables.get(name, name)
-        variables[new] = Variable(frame(var.data), m, new)
-    m.variables.data.clear()
-    m.variables.data.update(variables)
+        new = RENAMED.get(name, names["variables"].get(name, name))
+        variables[new] = Variable(frame(var.data, False, variable_map), m, new)
+
+    def remap(ds: xr.Dataset) -> xr.Dataset:
+        vars_ = ds.vars.values
+        ds["vars"] = ds.vars.copy(data=np.where(vars_ != -1, variable_map[vars_], -1))
+        return ds
 
     constraints = {}
     for name, con in m.constraints.items():
         if not (con.labels != -1).any():
             continue
-        new = s_constraints.get(name, name)
-        constraints[new] = Constraint.from_dataset(frame(con.data), m, new)
+        new = RENAMED.get(name, names["constraints"].get(name, name))
+        ds = remap(frame(con.data, True, constraint_map))
+        constraints[new] = Constraint.from_dataset(ds, m, new)
+
+    constraints = _split(m, constraints)
+    m.variables.data.clear()
+    m.variables.data.update(variables)
     m.constraints.data.clear()
     m.constraints.data.update(constraints)
     m.variables._label_position_index = None
     m.constraints._label_position_index = None
+    objective = m.objective
+    expression = objective.expression
+    m.add_objective(
+        type(expression)(remap(expression.data.copy()), m),
+        overwrite=True,
+        sense=objective.sense,
+    )
 
 
 GC_SENSES = re.compile(r"GlobalConstraint_(?!flow_based).+_(ub|lb|eq)")
@@ -158,12 +250,20 @@ def build_model(
     s = spec(linearized_unit_commitment)
     sources = NetworkSources(n, s, network_index, model_index, **options)
     m = Model.from_spec(s, sources, **model_kwargs)
+    mode = (options.get("transmission_losses") or {}).get("mode")
     names = {
         "variables": {k: pypsa_name(k, v.description) for k, v in s.variables.items()},
         "constraints": {
-            k: pypsa_name(k, v.description) for k, v in s.constraints.items()
+            k: pypsa_name(k, v.description, mode) for k, v in s.constraints.items()
         },
     }
+    for entry, curve in s.piecewise.items():
+        aux = pypsa_name(entry, curve.description)
+        for section in names.values():
+            for k in [*m.variables, *m.constraints]:
+                if k.startswith(f"{entry}_"):
+                    suffix = k.removeprefix(f"{entry}_")
+                    section[k] = f"{aux}_{PIECEWISE_SUFFIX.get(suffix, suffix)}"
     _merge_global_constraints(m, squeeze=not n.has_scenarios)
     _relabel(m, n, names, model_index)
     return m
