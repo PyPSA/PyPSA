@@ -327,22 +327,13 @@ parameters:
     missing: absent
   Link_output_delay:
     description: >-
-      snapshots a port's delivery lags its link's flow (PyPSA's `delay`,
-      `delay2`, … read long). In data prep you divide it by the
-      `snapshot_weightings.generators` value and round it up. It is zero for a
-      port that delivers at once. A port has the same delay in every scenario,
-      because PyPSA refuses a delay that differs by scenario
-      (`constants.py:55`)
+      time a port's delivery lags its link's flow, in units of
+      `snapshot_weightings.generators` (PyPSA's `delay`, `delay2`, … read
+      long). It is zero for a port that delivers at once. A port has the same
+      delay in every scenario, because PyPSA refuses a delay that differs by
+      scenario (`constants.py:55`)
     dims: [link_output]
     dtype: int
-  Link_output_cyclic_delay:
-    description: >-
-      whether a delayed port's flow wraps from the end of its investment
-      period (PyPSA's `cyclic_delay`, `cyclic_delay2`, …). Where it does not,
-      the flow still in transit at each period's first snapshots is lost. The
-      flag is the same in every scenario, as the delay is
-    dims: [link_output]
-    dtype: bool
   Link_marginal_cost:
     description: cost of one unit of flow
     dims: [scenario, snapshot, link]
@@ -523,21 +514,12 @@ parameters:
     missing: absent
   Process_output_delay:
     description: >-
-      snapshots a port's transfer lags its process's internal power (PyPSA's
-      `delay0`, `delay1`, … read long). In data prep you divide it by the
-      `snapshot_weightings.generators` value and round it up. It is zero for a
-      port that transfers at once. A port has the same delay in every
-      scenario, as a link's port has
+      time a port's transfer lags its process's internal power, in units of
+      `snapshot_weightings.generators` (PyPSA's `delay0`, `delay1`, … read
+      long). It is zero for a port that transfers at once. A port has the
+      same delay in every scenario, as a link's port has
     dims: [process_output]
     dtype: int
-  Process_output_cyclic_delay:
-    description: >-
-      whether a delayed port's transfer wraps from the end of its investment
-      period (PyPSA's `cyclic_delay0`, `cyclic_delay1`, …). Where it does not,
-      the energy still in transit at each period's first snapshots is lost.
-      The flag is the same in every scenario, as the delay is
-    dims: [process_output]
-    dtype: bool
   Process_marginal_cost:
     description: cost of one unit of internal power
     dims: [scenario, snapshot, process]
@@ -1839,6 +1821,19 @@ relations:
       third relation, so the file states any number of them
     key: link_output
     values: bus
+  Link_output_delay_source:
+    description: >-
+      the snapshot whose flow a delayed port delivers at a snapshot, data
+      prep: the latest snapshot that starts `delay` or more earlier, in
+      `snapshot_weightings.generators` time, within the snapshot's
+      investment period (`multiports.py:100-219`). Where the port is
+      `cyclic_delay` (PyPSA's `cyclic_delay`, `cyclic_delay2`, …), the time
+      wraps from the period's end. Where it is not, a snapshot less than
+      `delay` after the period's start has no row, as the flow in transit
+      there is lost. A port that does not delay has no rows
+    key: [link_output, snapshot]
+    values: { source: snapshot }
+    missing: absent
   Process_carrier:
     description: the carrier a process converts from
     key: process
@@ -1854,6 +1849,14 @@ relations:
       third relation, so the file states any number of them
     key: process_output
     values: bus
+  Process_output_delay_source:
+    description: >-
+      the snapshot whose internal power a delayed port transfers at a
+      snapshot, as for a link's port (PyPSA's `cyclic_delay0`,
+      `cyclic_delay1`, … set the wrap)
+    key: [process_output, snapshot]
+    values: { source: snapshot }
+    missing: absent
   Load_bus:
     description: the bus a load sits on
     key: load
@@ -2943,19 +2946,17 @@ expressions:
     otherwise: Store_retention * shift(Store_e, along=snapshot, offset=1)
   Link_output_linear_arrival:
     description: >-
-      what a link delivers to an output port at a snapshot. It is its flow
-      delayed by the port's `delay` within its investment period. It is
-      multiplied by the port's efficiency at the snapshot the flow arrives.
-      Where the port is `cyclic_delay`, the delayed flow wraps from the
-      period's end. Where it is not, the flow still in transit at the period's
-      first snapshots is lost. A port that does not delay (`delay` zero)
-      delivers its flow unshifted, cyclic or not
+      what a link delivers to an output port at a snapshot. It is its flow at
+      the port's delay source, multiplied by the port's efficiency at the
+      snapshot the flow arrives. A delayed port delivers nothing where it has
+      no source. A port that does not delay (`delay` zero) delivers its flow
+      unshifted
     dims: [scenario, snapshot, link_output]
     cases:
-      wrapping:
-        when: Link_output_cyclic_delay
-        expression: shift(at(Link_p, by=Link_output_link[link]), along=snapshot, offset=Link_output_delay, edge='wrap', within=snapshot_period[period]) * Link_efficiency
-    otherwise: shift(at(Link_p, by=Link_output_link[link]), along=snapshot, offset=Link_output_delay, edge=0, within=snapshot_period[period]) * Link_efficiency
+      delayed:
+        when: Link_output_delay > 0
+        expression: at(at(Link_p, by=Link_output_link[link]), by=Link_output_delay_source[source]) * Link_efficiency
+    otherwise: at(Link_p, by=Link_output_link[link]) * Link_efficiency
   Link_output_curve_arrival:
     description: >-
       what a link delivers to an output port with a piecewise `efficiency`
@@ -2964,10 +2965,10 @@ expressions:
       (`constraints.py:1556-1576`)
     dims: [scenario, snapshot, link_output]
     cases:
-      wrapping:
-        when: Link_output_cyclic_delay
-        expression: shift(Link_p_piecewise, along=snapshot, offset=Link_output_delay, edge='wrap', within=snapshot_period[period])
-    otherwise: shift(Link_p_piecewise, along=snapshot, offset=Link_output_delay, edge=0, within=snapshot_period[period])
+      delayed:
+        when: Link_output_delay > 0
+        expression: at(Link_p_piecewise, by=Link_output_delay_source[source])
+    otherwise: Link_p_piecewise
   Link_output_arrival:
     description: >-
       what a link delivers to an output port at a snapshot: the value read
@@ -2980,18 +2981,16 @@ expressions:
   Process_output_linear_arrival:
     description: >-
       what a process transfers at a port at a snapshot. It is its internal
-      power delayed by the port's `delay` within its investment period. It is
-      multiplied by the port's rate at the snapshot the transfer arrives.
-      Where the port is `cyclic_delay`, the delayed transfer wraps from the
-      period's end. Where it is not, the energy still in transit at the
-      period's first snapshots is lost. A port that does not delay (`delay`
-      zero) transfers at once, cyclic or not
+      power at the port's delay source, multiplied by the port's rate at the
+      snapshot the transfer arrives. A delayed port transfers nothing where it
+      has no source. A port that does not delay (`delay` zero) transfers at
+      once
     dims: [scenario, snapshot, process_output]
     cases:
-      wrapping:
-        when: Process_output_cyclic_delay
-        expression: shift(at(Process_p, by=Process_output_process[process]), along=snapshot, offset=Process_output_delay, edge='wrap', within=snapshot_period[period]) * Process_rate
-    otherwise: shift(at(Process_p, by=Process_output_process[process]), along=snapshot, offset=Process_output_delay, edge=0, within=snapshot_period[period]) * Process_rate
+      delayed:
+        when: Process_output_delay > 0
+        expression: at(at(Process_p, by=Process_output_process[process]), by=Process_output_delay_source[source]) * Process_rate
+    otherwise: at(Process_p, by=Process_output_process[process]) * Process_rate
   Process_output_curve_arrival:
     description: >-
       what a process transfers at a port with a piecewise `rate` curve at a
@@ -3000,10 +2999,10 @@ expressions:
       (`constraints.py:1556-1576`)
     dims: [scenario, snapshot, process_output]
     cases:
-      wrapping:
-        when: Process_output_cyclic_delay
-        expression: shift(Process_p_piecewise, along=snapshot, offset=Process_output_delay, edge='wrap', within=snapshot_period[period])
-    otherwise: shift(Process_p_piecewise, along=snapshot, offset=Process_output_delay, edge=0, within=snapshot_period[period])
+      delayed:
+        when: Process_output_delay > 0
+        expression: at(Process_p_piecewise, by=Process_output_delay_source[source])
+    otherwise: Process_p_piecewise
   Process_output_arrival:
     description: >-
       what a process transfers at a port at a snapshot: the value read off
@@ -6201,21 +6200,6 @@ assumptions:
       the `maintcap` rows bound the chosen build in maintenance by
       `p_nom_max`, so an infinite cap is an infinite coefficient. PyPSA
       refuses it (`consistency.py:1576`)
-  Link_output_delay_under_uniform_weighting:
-    holds: "snapshot_weightings_generators == shift(snapshot_weightings_generators, along=snapshot, offset=1, edge='wrap')"
-    where: "Link_output_delay > 0"
-    description: >-
-      a delayed port lags by the same whole number of snapshots in every
-      period. PyPSA lags by elapsed time in `generators` weighting and rounds
-      the source down to a snapshot start (`multiports.py:100-133`). The two
-      agree only where that weighting is one value over the horizon. PyPSA
-      does not refuse an uneven weighting, so a tool refuses it through this
-      assumption when data is attached (#299)
-  Process_output_delay_under_uniform_weighting:
-    holds: "snapshot_weightings_generators == shift(snapshot_weightings_generators, along=snapshot, offset=1, edge='wrap')"
-    where: "Process_output_delay > 0"
-    description: >-
-      the same for a delayed process port (#299)
   StorageUnit_stands_in_one_run:
     holds: "count(StorageUnit_active AND NOT shift(StorageUnit_active, along=snapshot, offset=1), over=snapshot) <= 1"
     description: >-

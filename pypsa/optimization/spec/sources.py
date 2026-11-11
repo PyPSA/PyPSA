@@ -767,37 +767,54 @@ def _process_rate(s: NetworkSources, name: str) -> xr.DataArray:
     return _port_attribute(s, "Process", name, lambda k: f"rate{k}").astype(float)
 
 
-@single("Link_output_cyclic_delay", "Process_output_cyclic_delay")
-def _output_cyclic_delay(s: NetworkSources, name: str) -> xr.DataArray:
-    component = name.partition("_")[0]
-    attr = (
-        (lambda k: f"cyclic_delay{_suffix(k)}")
-        if component == "Link"
-        else (lambda k: f"cyclic_delay{k}")
-    )
-    try:
-        return _port_attribute(s, component, name, attr).astype(bool)
-    except KeyError:
-        return _filled(s, name, True)
+def _port_column(component: str, attr: str, k: int) -> str:
+    return f"{attr}{_suffix(k)}" if component == "Link" else f"{attr}{k}"
 
 
 @single("Link_output_delay", "Process_output_delay")
 def _output_delay(s: NetworkSources, name: str) -> xr.DataArray:
     component = name.partition("_")[0]
-    attr = (
-        (lambda k: f"delay{_suffix(k)}")
-        if component == "Link"
-        else (lambda k: f"delay{k}")
-    )
     try:
-        delay = _port_attribute(s, component, name, attr).astype(float)
+        delay = _port_attribute(
+            s, component, name, lambda k: _port_column(component, "delay", k)
+        )
     except KeyError:
         return _filled(s, name, 0)
-    if (delay > 0).any():
-        weighting = s.n.snapshot_weightings["generators"].iloc[s.positions]
-        step = float(weighting.iloc[0])
-        delay = xr.apply_ufunc(np.ceil, delay / step)
-    return delay.fillna(0).astype(int)
+    return delay.astype(float).fillna(0).astype(int)
+
+
+@single("Link_output_delay_source", "Process_output_delay_source")
+def _output_delay_source(s: NetworkSources, name: str) -> pd.DataFrame:
+    """Each delayed port's source snapshot, as PyPSA's own indexer picks it."""
+    component = name.partition("_")[0]
+    owner = UNITS[component]
+    static = _static(s, component)
+    ports = _ports(s, component).set_index("port")
+    cyclic = pd.Series(True, index=ports.index)
+    for k, group in ports.groupby("k"):
+        attr = _port_column(component, "cyclic_delay", int(k))
+        if attr in static:
+            cyclic[group.index] = static[attr].reindex(group[owner]).to_numpy()
+    delay = s[f"{component}_output_delay"].to_series().reindex(ports.index)
+    delayed = pd.DataFrame({"delay": delay, "cyclic": cyclic})[delay > 0]
+    weightings = s.n.snapshot_weightings["generators"].iloc[s.positions].to_numpy()
+    indexer = s.n.components[component].get_delay_source_indexer
+    frames = [pd.DataFrame(columns=[f"{owner}_output", "snapshot", "source"])]
+    for (d, cyc), group in delayed.groupby(["delay", "cyclic"]):
+        src, valid = indexer(s.network_index, weightings, int(d), bool(cyc))
+        targets = np.flatnonzero(valid)
+        frames.append(
+            pd.DataFrame(
+                {
+                    f"{owner}_output": np.repeat(
+                        group.index.to_numpy(dtype=object), len(targets)
+                    ),
+                    "snapshot": np.tile(s.snapshots[targets], len(group)),
+                    "source": np.tile(s.snapshots[src[targets]], len(group)),
+                }
+            )
+        )
+    return pd.concat(frames, ignore_index=True).astype(object)
 
 
 def _solved_before(s: NetworkSources, component: str, attr: str) -> xr.DataArray | None:
