@@ -230,6 +230,28 @@ def test_committable_down_with_p_init(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize("committable", [True, False])
+def test_committable_unsupported(consistent_n, component, committable):
+    n = consistent_n
+    n.set_snapshots(range(3))
+    n.add("Load", "load_one", bus="one", p_set=5)
+    gen_attrs = ["p_nom", "marginal_cost", "committable"]
+    n.c.generators.static.loc["gen_one", gen_attrs] = (10, 1, True)
+    n.add(component, "storage_one", bus="one", p_nom=1, e_nom=1, max_hours=1)
+    c = n.components[component]
+    c.static["committable"] = committable
+
+    assert c.committables.empty
+    assert list(n.c.generators.committables) == ["gen_one"]
+    if committable:
+        match = f"Unit commitment is not supported for {component}"
+        with pytest.raises(pypsa.consistency.ConsistencyError, match=match):
+            n.optimize()
+    else:
+        assert n.optimize() == ("ok", "optimal")
+
+
 def test_unknown_check():
     n = pypsa.Network()
     with pytest.raises(ValueError):
