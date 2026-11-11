@@ -1269,8 +1269,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             # MultiIndex, so `suffix in c.static.index` never matches a
             # constraint name on its own.
             suffix_known = suffix in c.static.index or (
-                c.has_scenarios
-                and suffix in c.static.index.get_level_values("name")
+                c.has_scenarios and suffix in c.static.index.get_level_values("name")
             )
 
             # Add placeholder for custom constraints, marked as GlobalConstraint.
