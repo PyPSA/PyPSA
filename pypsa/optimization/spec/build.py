@@ -202,7 +202,10 @@ def _security_parts(
 def _meshed(n: Network, thresholds: Sequence[int] | None) -> dict[str, pd.Index]:
     """PyPSA's split of the nodal balance by how many components a bus has attached."""
     counts = get_bus_counts(n).reindex(n.c.buses.names, fill_value=0)
-    bounds = [0, *sorted(set(thresholds if thresholds is not None else [30, 100, 400]))]
+    bounds: list[float] = [
+        0,
+        *sorted(set(thresholds if thresholds is not None else [30, 100, 400])),
+    ]
     bounds.append(np.inf)
     return {
         f"Bus-meshed-{low}-nodal_balance" if low else "Bus-nodal_balance": counts.index[
@@ -285,7 +288,7 @@ def _relabel(
         if squeeze and "scenario" in ds.dims:
             ds = ds.squeeze("scenario", drop=True)
         if "snapshot" in ds.dims:
-            ds = ds.assign_coords(snapshot=snapshots, **levels)
+            ds = ds.assign_coords({"snapshot": snapshots, **levels})
         return _renumbered(
             ds, _order(ds.labels.dims, n.has_scenarios), mapping, not constraint
         )

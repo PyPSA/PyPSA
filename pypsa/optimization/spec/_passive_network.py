@@ -191,7 +191,7 @@ def _loss_inputs(s: NetworkSources, component: str) -> tuple[xr.DataArray, ...]:
 
 
 def _secant_options(s: NetworkSources) -> tuple[float, float, int]:
-    config = s.transmission_losses
+    config = s.transmission_losses or {}
     atol = config.get("atol", 1)
     rtol = config.get("rtol", 0.1)
     max_segments = config.get("max_segments", 20)
@@ -230,7 +230,7 @@ def _secant_factors(s: NetworkSources, component: str) -> np.ndarray:
 
 
 def _tangent_count(s: NetworkSources) -> int:
-    segments = s.transmission_losses.get("segments")
+    segments = (s.transmission_losses or {}).get("segments")
     if not isinstance(segments, int) or segments < 1:
         msg = f"'segments' must be a positive integer, got {segments!r}"
         raise ValueError(msg)
@@ -241,7 +241,7 @@ def _tangent_count(s: NetworkSources) -> int:
 def _segment_labels(s: NetworkSources) -> pd.Index:
     if s.transmission_losses is None:
         return pd.Index([], dtype=int)
-    if s.transmission_losses["mode"] == "tangents":
+    if (s.transmission_losses or {}).get("mode") == "tangents":
         return pd.Index(range(1, _tangent_count(s) + 1), dtype=int)
     counts = [len(_secant_factors(s, c)) - 1 for c in PASSIVE if len(s.names(c))]
     return pd.Index(range(max(counts, default=0)), dtype=int)
@@ -260,7 +260,7 @@ def _cuts(s: NetworkSources, component: str) -> tuple[xr.DataArray, xr.DataArray
     segment = xr.DataArray(s.coords("segment"), dims="segment")
     segment = segment.assign_coords(segment=s.coords("segment"))
     r, rating = _loss_inputs(s, component)
-    if s.transmission_losses["mode"] == "tangents":
+    if (s.transmission_losses or {}).get("mode") == "tangents":
         flow = segment / len(segment) * rating
         slope = 2 * r * flow
         return slope, r * flow**2 - slope * flow
@@ -270,7 +270,7 @@ def _cuts(s: NetworkSources, component: str) -> tuple[xr.DataArray, xr.DataArray
     a = segment.copy(data=np.pad(factors[:-1], pad))
     b = segment.copy(data=np.pad(factors[1:], pad))
     lossy = r > 0
-    slope = 2 * np.sqrt(atol * r.where(lossy, 0)) * (a + b)
+    slope = 2 * (atol * r.where(lossy, 0)) ** 0.5 * (a + b)
     offset = (-4 * atol * a * b).where(lossy, 0.0)
     return slope, offset
 

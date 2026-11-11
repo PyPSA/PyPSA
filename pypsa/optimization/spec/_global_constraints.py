@@ -203,7 +203,7 @@ def _transmission_set(
         c.strip()
         for c in re.sub(r"[\[\]\(\)]", "", glc["carrier_attribute"]).split(",")
     ]
-    period = _stated(glc)
+    period: int | list[int] | None = _stated(glc)
     if period is None and s.multi_invest:
         period = list(s.periods)
     nominal = nominal_attrs[component]
@@ -287,8 +287,8 @@ def _weight(s: NetworkSources, name: str) -> xr.DataArray:
     return s.frame(name, da)
 
 
-for _suffix, (_, _, _components) in _WEIGHTS.items():
-    single(*(f"{c}_{_suffix}" for c in _components))(_weight)
+for _suffix, _entry in _WEIGHTS.items():
+    single(*(f"{c}_{_suffix}" for c in _entry[2]))(_weight)
 
 
 @single("GlobalConstraint_type")

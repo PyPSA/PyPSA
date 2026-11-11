@@ -18,6 +18,7 @@ import warnings
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
+import linopy.config
 import pandas as pd
 from linopy import Model, Variable
 from linopy import options as linopy_options
@@ -32,12 +33,7 @@ try:
 except ImportError:  # linopy without the v1 semantics option
     LinopySemanticsWarning = None
 
-try:
-    from linopy.config import SEMANTICS_DEPRECATION  # noqa: F401
-except ImportError:
-    V1_ONLY = False
-else:
-    V1_ONLY = True
+V1_ONLY = hasattr(linopy.config, "SEMANTICS_DEPRECATION")
 
 # Ragged piecewise curves are stored densely. Only linopy with v1 semantics lets
 # the absent slots be declared. Older releases infer them from NaN padding.

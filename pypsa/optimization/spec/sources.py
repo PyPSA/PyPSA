@@ -474,7 +474,7 @@ def _ports_long(s: NetworkSources, component: str, start: int) -> pd.DataFrame:
 
 
 def _aux(da: xr.DataArray) -> list[str]:
-    return [c for c in da.coords if c not in da.dims]
+    return [str(c) for c in da.coords if c not in da.dims]
 
 
 def _first_scenario(static: pd.DataFrame, n: Network) -> pd.DataFrame:
@@ -535,7 +535,7 @@ def _transmission_losses(s: NetworkSources, name: str) -> bool:
 
 
 @single("CVaR_alpha", "CVaR_omega")
-def _cvar(s: NetworkSources, name: str) -> float:
+def _cvar(s: NetworkSources, name: str) -> float | xr.DataArray:
     preference = getattr(s.n, "risk_preference", None) if s.n.has_scenarios else None
     if not preference:
         return xr.DataArray(np.nan)
@@ -796,7 +796,7 @@ def _output_delay(s: NetworkSources, name: str) -> xr.DataArray:
     if (delay > 0).any():
         weighting = s.n.snapshot_weightings["generators"].iloc[s.positions]
         step = float(weighting.iloc[0])
-        delay = np.ceil(delay / step)
+        delay = xr.apply_ufunc(np.ceil, delay / step)
     return delay.fillna(0).astype(int)
 
 
@@ -836,7 +836,7 @@ def _history(s: NetworkSources, component: str) -> xr.DataArray:
     down = s.da(component, "down_time_before")
     before = xr.where(down > 0, lag > down, lag <= up).astype(float)
     parts = [before.assign_coords(lag=lag + count)]
-    if count:
+    if solved is not None and count:
         recent = solved.isel(snapshot=slice(-count, None))
         recent = recent.isel(snapshot=slice(None, None, -1)).rename(snapshot="lag")
         parts.insert(0, recent.assign_coords(lag=np.arange(1, count + 1)))
