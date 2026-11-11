@@ -21,6 +21,7 @@ from linopy.expressions import LinearExpression
 from linopy.variables import Variable
 
 from pypsa.optimization.common import get_bus_counts
+from pypsa.optimization.scaling import KVL
 from pypsa.optimization.spec._passive_network import (
     SecurityGroup,
     flow_based_zones,
@@ -42,8 +43,8 @@ SPEC = files("pypsa.optimization.spec")
 
 @functools.cache
 def spec(linearized_unit_commitment: bool = False) -> Spec:
-    """The spec of `n.optimize()`, with the linearised unit commitment patch on request."""
-    import mathspec
+    """Return the spec of `n.optimize()`, with the linearised unit commitment patch on request."""
+    import mathspec  # noqa: PLC0415
 
     base = mathspec.to_spec((SPEC / "pypsa.yaml").read_text())
     if not linearized_unit_commitment:
@@ -52,7 +53,7 @@ def spec(linearized_unit_commitment: bool = False) -> Spec:
 
 
 def pypsa_name(name: str, description: str | None, mode: str | None = None) -> str:
-    """The PyPSA name of a spec entry: the backticked name its description opens with.
+    """Return the PyPSA name of a spec entry: the backticked name its description opens with.
 
     An entry PyPSA names by loss mode lists one name per mode; `mode` picks it.
     """
@@ -63,6 +64,8 @@ def pypsa_name(name: str, description: str | None, mode: str | None = None) -> s
     return next((f for f in found if mode and f"_{mode}" in f), found[0])
 
 
+#: PyPSA's row factor of Kirchhoff's voltage law, whose `x_pu_eff` weights are tiny.
+KVL_SCALING = 1e5
 #: Spec entries whose PyPSA name is not the opening of their description.
 RENAMED = {"GlobalConstraint_flow_based_ub": "GlobalConstraint-ram"}
 #: Dims PyPSA names otherwise on one entry.
@@ -70,7 +73,7 @@ DIMS = {"Carrier-growth_limit": {"carrier": "Carrier", "period": "periods"}}
 
 
 def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
-    """The renaming of spec dims to PyPSA's: the one unit dim becomes `name`.
+    """Return the renaming of spec dims to PyPSA's: the one unit dim becomes `name`.
 
     A constraint over buses or GlobalConstraint labels names them `name` too.
     The breakpoints of a curve take linopy's name, which marks an auxiliary entry.
@@ -168,7 +171,7 @@ def _fresh(m: Model, part: xr.Dataset, name: str) -> Constraint:
 def _security_parts(
     n: Network, name: str, ds: xr.Dataset, groups: list[SecurityGroup]
 ) -> dict[str, xr.Dataset]:
-    """The security rows of `ds` split by sub-network, period and outaged component.
+    """Return the security rows of `ds` split by sub-network, period and outaged component.
 
     Each part holds the outages of one component in one sub-network as
     `<component>-outage`, and the fixed or the extendable branches of that
@@ -228,11 +231,8 @@ def _split(
             for new, part in _security_parts(n, name, con.data, groups).items():
                 out[new] = _fresh(m, part, new)
             continue
-        if (
-            name == "Bus-nodal_balance"
-            and sum(not b.empty for b in meshed.values()) > 1
-        ):
-            names = con.data.indexes["name"]
+        names = con.data.indexes.get("name")
+        if name == "Bus-nodal_balance" and not names.equals(meshed[name]):
             for new, buses in meshed.items():
                 part = con.data.sel(name=names.intersection(buses, sort=False))
                 if (part.labels.values != -1).any():
@@ -407,6 +407,7 @@ def build_model(
         **options,
     )
     model_kwargs = model_kwargs or {}
+    n.calculate_dependent_values()
     s = spec(linearized_unit_commitment)
     sources = NetworkSources(n, s, network_index, model_index, **options)
     m = Model.from_spec(s, sources, **model_kwargs)
@@ -429,4 +430,7 @@ def build_model(
     _relabel(
         m, n, names, model_index, network_index, sources, _meshed(n, meshed_thresholds)
     )
+    m.constraints.sanitize_zeros()
+    if KVL in m.constraints:
+        m.constraints[KVL].scaling = KVL_SCALING
     return m

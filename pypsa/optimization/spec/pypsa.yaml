@@ -1572,16 +1572,15 @@ parameters:
       decision instead. The constant and the variable term thus never both
       count a shift. A transformer with no shift or in no cycle of its
       snapshot's period has no row
-    dims: [snapshot, transformer, cycle]
+    dims: [scenario, snapshot, transformer, cycle]
     missing: absent
   Transformer_phase_shift_varying:
     description: >-
       whether a transformer's phase shift is a decision (PyPSA's
       `phase_shift_min < phase_shift_max`, read as a flag in data prep). False
-      is a fixed shift, set by `phase_shift`. The shift parameters have no
-      scenario, but PyPSA reads them per scenario (`variables.py:446-456`,
-      `constraints.py:1744`, `:1835`). The spec and PyPSA differ here (#783)
-    dims: [transformer]
+      is a fixed shift, set by `phase_shift`. It may differ by scenario, as
+      PyPSA reads it per scenario (`variables.py:446-456`)
+    dims: [scenario, transformer]
     dtype: bool
   Transformer_phase_shift_min:
     description: >-
@@ -1589,25 +1588,25 @@ parameters:
       is PyPSA's `phase_shift_min`. Where it is below `phase_shift_max` the
       shift is a decision, otherwise the transformer keeps its fixed
       `phase_shift`
-    dims: [transformer]
+    dims: [scenario, transformer]
   Transformer_phase_shift_max:
     description: >-
       the most a varying transformer's phase shift may take, in degrees. It is
       PyPSA's `phase_shift_max`. Equal to `phase_shift_min` for a fixed
       transformer
-    dims: [transformer]
+    dims: [scenario, transformer]
   Transformer_phase_shift_fixed:
     description: >-
       a fixed transformer's phase shift at each snapshot, in degrees. It is
       PyPSA's `phase_shift`, zero by default. A varying transformer's shift is
       a decision instead
-    dims: [snapshot, transformer]
+    dims: [scenario, snapshot, transformer]
   Transformer_phase_shift_cycle_weight:
     description: >-
       the cycle sign for a varying transformer's phase shift, times π/180 so a
       shift in degrees enters the cycle sum in radians, data prep. It is zero
       for a fixed transformer or one in no cycle
-    dims: [period, transformer, cycle]
+    dims: [scenario, period, transformer, cycle]
   Transformer_loss_max:
     description: >-
       the loss at a transformer's rating (PyPSA's `r_pu_eff * (s_max_pu *
@@ -4624,9 +4623,9 @@ constraints:
       AND (Generator_ramp_limit_down OR Generator_ramp_limit_shut_down)
       AND Generator_ramps_from_previous
     expression: >-
-      Generator_previous_p - Generator_p <=
-      Generator_ramp_down_rate * Generator_p_nom_ext
-      + Generator_big_m - Generator_big_m * Generator_status
+      Generator_p - Generator_previous_p >=
+      -Generator_ramp_down_rate * Generator_p_nom_ext
+      - Generator_big_m + Generator_big_m * Generator_status
   Generator_p_ramp_limit_down_shut_big_m:
     description: >-
       `Generator-p-ramp_limit_down-shut-bigM` — in the snapshot it turns off,
@@ -4876,9 +4875,9 @@ constraints:
     dims: [scenario, snapshot, link]
     where: Link_com_ext AND (Link_ramp_limit_down OR Link_ramp_limit_shut_down) AND Link_ramps_from_previous
     expression: >-
-      Link_previous_p - Link_p <=
-      Link_ramp_down_rate * Link_p_nom_ext
-      + Link_big_m - Link_big_m * Link_status
+      Link_p - Link_previous_p >=
+      -Link_ramp_down_rate * Link_p_nom_ext
+      - Link_big_m + Link_big_m * Link_status
   Link_p_ramp_limit_down_shut_big_m:
     description: >-
       `Link-p-ramp_limit_down-shut-bigM` — in the snapshot it turns off, a
@@ -5125,9 +5124,9 @@ constraints:
       AND (Process_ramp_limit_down OR Process_ramp_limit_shut_down)
       AND Process_ramps_from_previous
     expression: >-
-      Process_previous_p - Process_p <=
-      Process_ramp_down_rate * Process_p_nom_ext
-      + Process_big_m - Process_big_m * Process_status
+      Process_p - Process_previous_p >=
+      -Process_ramp_down_rate * Process_p_nom_ext
+      - Process_big_m + Process_big_m * Process_status
   Process_p_ramp_limit_down_shut_big_m:
     description: >-
       `Process-p-ramp_limit_down-shut-bigM` — in the snapshot it turns off, a
@@ -5742,11 +5741,11 @@ constraints:
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_active
     expression: >-
-      StorageUnit_state_of_charge ==
       StorageUnit_charge_carried_in
       + StorageUnit_efficiency_store * StorageUnit_p_store * snapshot_weightings_stores
       - StorageUnit_p_dispatch * snapshot_weightings_stores / StorageUnit_efficiency_dispatch
       + (StorageUnit_inflow - StorageUnit_spill) * snapshot_weightings_stores
+      == StorageUnit_state_of_charge
   Store_fix_e_lower:
     description: "`Store-fix-e-lower` — a fixed store holds at least its floor"
     dims: [scenario, snapshot, store]
@@ -5848,11 +5847,11 @@ constraints:
     dims: [scenario, snapshot, store]
     where: Store_active
     expression: >-
-      Store_e ==
       Store_energy_carried_in
       - Store_p * snapshot_weightings_stores / Store_efficiency_dispatch
       + (Store_efficiency_store - 1 / Store_efficiency_dispatch) * Store_p_store * snapshot_weightings_stores
       + (Store_inflow - Store_spill) * snapshot_weightings_stores
+      == Store_e
   Store_cycles_max:
     description: >-
       `Store-cycles_max` — the discharge over the horizon, `p + p_store`

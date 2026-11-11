@@ -211,7 +211,7 @@ class NetworkSources(Mapping[str, Any]):
         return np.full(len(self.network_index), NO_PERIOD, dtype=int)
 
     def names(self, component: str) -> pd.Index:
-        """The labels of a component's units: its active assets, as PyPSA builds them.
+        """Return the labels of a component's units: its active assets, as PyPSA builds them.
 
         A one-port unit at a bus the network lacks is left out, as PyPSA's
         nodal balance never reaches it.
@@ -224,7 +224,7 @@ class NetworkSources(Mapping[str, Any]):
         return names[bus.isin(self.n.c.buses.names).to_numpy()]
 
     def dimension(self, dim: str) -> Any:
-        """The labels of one declared dimension."""
+        """Return the labels of one declared dimension."""
         if dim in _DIMENSIONS:
             return _DIMENSIONS[dim](self)
         units = {v: k for k, v in UNITS.items()}
@@ -299,11 +299,11 @@ class NetworkSources(Mapping[str, Any]):
     # -- arrays -----------------------------------------------------------
 
     def declared(self, name: str) -> tuple[str, ...]:
-        """The declared dims of a parameter."""
+        """Return the declared dims of a parameter."""
         return tuple(self.spec.parameters[name].dims)
 
     def coords(self, dim: str) -> pd.Index:
-        """The labels of a dimension, as passed."""
+        """Return the labels of a dimension, as passed."""
         return pd.Index(self[dim], name=None)
 
     def frame(self, name: str, da: xr.DataArray) -> xr.DataArray:
@@ -319,7 +319,7 @@ class NetworkSources(Mapping[str, Any]):
         return da.transpose(*dims).rename(name)
 
     def unit_array(self, component: str, da: xr.DataArray) -> xr.DataArray:
-        """A `c.da` array relabelled into the spec's dims."""
+        """Return a `c.da` array relabelled into the spec's dims."""
         dim = UNITS[component]
         if "name" in da.dims:
             da = da.sel(name=da.indexes["name"].isin(self.names(component)))
@@ -343,13 +343,13 @@ class NetworkSources(Mapping[str, Any]):
         return da
 
     def da(self, component: str, attr: str) -> xr.DataArray:
-        """A PyPSA attribute of a component in the spec's dims."""
+        """Return a PyPSA attribute of a component in the spec's dims."""
         c = self.n.components[component]
         raw = self.unit_array(component, c.da[attr])
         return raw.drop_vars(_aux(raw))
 
     def attribute(self, component: str, attr: str, name: str) -> xr.DataArray:
-        """A parameter named after a PyPSA attribute, read off `c.da`."""
+        """Return a parameter named after a PyPSA attribute, read off `c.da`."""
         c = self.n.components[component]
         if attr not in c.static and attr not in c.dynamic:
             msg = f"no data prep for {name}: {component} has no attribute {attr}"
@@ -371,7 +371,7 @@ class NetworkSources(Mapping[str, Any]):
         return self.frame(name, da)
 
     def component(self, name: str) -> Components:
-        """The component of a component-prefixed source name."""
+        """Return the component of a component-prefixed source name."""
         return self.n.components[name.partition("_")[0]]
 
     def active(self, component: str) -> xr.DataArray:
@@ -407,7 +407,7 @@ class NetworkSources(Mapping[str, Any]):
         )
 
     def period_weight(self, column: str) -> xr.DataArray:
-        """A column of `investment_period_weightings`, one under a single period."""
+        """Return a column of `investment_period_weightings`, one under a single period."""
         if not self.multi_invest:
             return xr.DataArray(
                 np.ones(len(self.periods)),
@@ -447,7 +447,7 @@ def _port_numbers(static: pd.DataFrame, start: int) -> list[int]:
 
 
 def _ports_long(s: NetworkSources, component: str, start: int) -> pd.DataFrame:
-    """The ports of a multiport read long: one row per unit and set `bus<k>`, k >= start."""
+    """Return the ports of a multiport read long: one row per unit and set `bus<k>`, k >= start."""
     dim = UNITS[component]
     static = _static(s, component)
     frames = []
@@ -478,7 +478,7 @@ def _aux(da: xr.DataArray) -> list[str]:
 
 
 def _first_scenario(static: pd.DataFrame, n: Network) -> pd.DataFrame:
-    """The static data of the first scenario, the one every scenario shares."""
+    """Return the static data of the first scenario, the one every scenario shares."""
     if not n.has_scenarios:
         return static
     if static.empty:
@@ -707,7 +707,7 @@ def _maintenance_cover(s: NetworkSources, component: str, suffix: str) -> pd.Dat
 
 
 def _filled(s: NetworkSources, name: str, value: Any) -> xr.DataArray:
-    """A grid over the declared dims of `name`, every cell `value`."""
+    """Return a grid over the declared dims of `name`, every cell `value`."""
     dims = s.declared(name)
     coords = {d: s.coords(d) for d in dims}
     shape = [len(c) for c in coords.values()]
@@ -732,7 +732,7 @@ def _ports(s: NetworkSources, component: str) -> pd.DataFrame:
 def _port_attribute(
     s: NetworkSources, component: str, name: str, attr: Callable[[int], str]
 ) -> xr.DataArray:
-    """A per-port attribute read long over the component's port dimension."""
+    """Return a per-port attribute read long over the component's port dimension."""
     ports = _ports(s, component)
     owner = "link" if component == "Link" else "process"
     dim = f"{owner}_output"
@@ -820,7 +820,7 @@ def _solved_before(s: NetworkSources, component: str, attr: str) -> xr.DataArray
 
 
 def _history(s: NetworkSources, component: str) -> xr.DataArray:
-    """The status of each unit at the `lag` snapshots before the build, newest first.
+    """Return the status of each unit at the `lag` snapshots before the build, newest first.
 
     Solved snapshots of earlier windows are read as solved, fractions included;
     the time before the network's first snapshot is rebuilt from
@@ -864,7 +864,7 @@ def _brought_in(s: NetworkSources, component: str, kind: str) -> xr.DataArray:
 
 @family("p_init")
 def _p_init(s: NetworkSources, component: str, suffix: str) -> xr.DataArray:
-    """The output carried into the build.
+    """Return the output carried into the build.
 
     It is the solved output of an earlier window, else `p_init` where the
     unit came in running and zero where it came in off.
@@ -960,7 +960,7 @@ def _store_split_dispatch(s: NetworkSources, name: str) -> xr.DataArray:
 
 
 def _unused(value: Any, *, empty_dims: tuple[str, ...] = ()) -> Callable:
-    """A source a network without the feature fills with `value`.
+    """Return a source a network without the feature fills with `value`.
 
     Raises NotImplementedError where the network uses the feature, which is
     where the dimension in `empty_dims` has labels.
@@ -1085,7 +1085,7 @@ def _any_by_bus(
 
 @family("min_up_time", "min_down_time")
 def _min_time(s: NetworkSources, component: str, suffix: str) -> xr.DataArray:
-    """The minimum time, at most the horizon: a longer window reads nothing more."""
+    """Return the minimum time, at most the horizon: a longer window reads nothing more."""
     name = f"{component}_{suffix}"
     return s.attribute(component, suffix, name).clip(max=len(s.snapshots))
 

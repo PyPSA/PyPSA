@@ -22,7 +22,6 @@ from pypsa.optimization.spec.sources import (
     UNITS,
     NetworkSources,
     _filled,
-    _static,
     dimension,
     single,
 )
@@ -106,18 +105,15 @@ def _cycle_weight(s: NetworkSources, name: str) -> xr.DataArray:
 
 
 def _varying(s: NetworkSources) -> xr.DataArray:
-    static = _static(s, "Transformer")
-    varying = static["phase_shift_min"] < static["phase_shift_max"]
-    return xr.DataArray(
-        varying.to_numpy(dtype=bool),
-        coords={"transformer": static.index.to_numpy(dtype=object)},
-        dims="transformer",
+    """Whether a transformer's phase shift is a decision, per scenario."""
+    return s.da("Transformer", "phase_shift_min") < s.da(
+        "Transformer", "phase_shift_max"
     )
 
 
 def _phase_shift(s: NetworkSources) -> xr.DataArray:
-    """Read the fixed phase shift in degrees of the first scenario."""
-    return s.da("Transformer", "phase_shift").isel(scenario=0, drop=True)
+    """Read the fixed phase shift in degrees."""
+    return s.da("Transformer", "phase_shift")
 
 
 @single("Transformer_phase_shift_varying")
@@ -149,7 +145,6 @@ def _phase_shift_weight(s: NetworkSources, name: str) -> xr.DataArray:
 
 @single("Line_x_pu_eff", "Transformer_x_pu_eff")
 def _x_pu_eff(s: NetworkSources, name: str) -> xr.DataArray:
-    s.n.calculate_dependent_values()
     component, _, attr = name.partition("_")
     return s.attribute(component, attr, name)
 
@@ -166,7 +161,6 @@ def _v_ang_max(s: NetworkSources, name: str) -> xr.DataArray:
 
 def _loss_inputs(s: NetworkSources, component: str) -> tuple[xr.DataArray, ...]:
     """`r_pu_eff` and the rating the loss curve spans, `s_max_pu * s_nom_max`."""
-    s.n.calculate_dependent_values()
     extendable = s.da(component, "s_nom_extendable").astype(bool)
     s_nom_max = s.da(component, "s_nom_max").where(extendable, s.da(component, "s_nom"))
     if not np.isfinite(s_nom_max).all():
@@ -321,7 +315,7 @@ class SecurityGroup(NamedTuple):
 
 
 def security_groups(s: NetworkSources) -> list[SecurityGroup]:
-    """The sub-network and period groups of the security rows, in PyPSA's order."""
+    """Return the sub-network and period groups of the security rows, in PyPSA's order."""
     _memo(s, "bodf", _bodf)
     return s.__dict__["_passive_network"].get("groups", [])
 
@@ -383,7 +377,7 @@ def _zone_domain(s: NetworkSources) -> pd.Series:
 
 
 def flow_based_zones(s: NetworkSources) -> pd.Index | None:
-    """The zone buses of the flow-based domain in PyPSA's column order, None without one."""
+    """Return the zone buses of the flow-based domain in PyPSA's column order, None without one."""
     domain = _memo(s, "flow_based", _domain)
     return None if domain is None else pd.Index(domain.zones, dtype=object)
 

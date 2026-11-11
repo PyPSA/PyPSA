@@ -35,7 +35,7 @@ _PER_PERIOD = {
 
 
 def _rows(s: NetworkSources, attr: str, labels: pd.Index | None = None) -> pd.DataFrame:
-    """A GlobalConstraint attribute, one row per constraint and one column per scenario."""
+    """Return a GlobalConstraint attribute, one row per constraint and one column per scenario."""
     column = s.n.components.global_constraints.static[attr]
     if s.n.has_scenarios:
         table = column.unstack("scenario")
@@ -47,7 +47,7 @@ def _rows(s: NetworkSources, attr: str, labels: pd.Index | None = None) -> pd.Da
 
 
 def _periods(s: NetworkSources, labels: pd.Index | None = None) -> pd.DataFrame:
-    """The investment period each row states, NaN where it states none."""
+    """Return the investment period each row states, NaN where it states none."""
     period = _rows(s, "investment_period", labels).astype(float)
     stated = period.notna().any(axis=1)
     if not s.multi_invest and stated.any():
@@ -92,7 +92,7 @@ def _stated(glc: pd.Series) -> int | None:
 
 
 def _counted_periods(s: NetworkSources, glc: pd.Series) -> pd.Index:
-    """The periods of the run a row counts."""
+    """Return the periods of the run a row counts."""
     period = _stated(glc)
     return s.periods if period is None else s.periods.intersection([period])
 
@@ -109,7 +109,7 @@ def _unit_static(s: NetworkSources, component: str, scenario: Any) -> pd.DataFra
 def _unit_grid(
     s: NetworkSources, name: str, component: str, kind: str, cell: Cell
 ) -> xr.DataArray:
-    """A (unit, row, scenario) grid, each cell a series over the units in its set."""
+    """Return a (unit, row, scenario) grid, each cell a series over the units in its set."""
     dim = UNITS[component]
     units = s.coords(dim)
     rows = s.coords("global_constraint")
@@ -163,7 +163,7 @@ def _primary(
     glc: pd.Series,
     static: pd.DataFrame,
 ) -> pd.Series:
-    """The carrier's attribute for each unit active in the row's period; storage only where non-cyclic."""
+    """Return the carrier's attribute for each unit active in the row's period; storage only where non-cyclic."""
     if _counted_periods(s, glc).empty:
         return pd.Series(dtype=float)
     emissions = _emissions(s, scenario, glc)
@@ -189,16 +189,16 @@ def _tech_capacity(
     ].astype(bool)
     mask &= static.index.isin(active)
     bus = glc.get("bus")
-    if isinstance(bus, str) and bus:
+    if pd.notna(bus) and bus != "":
         column = "bus0" if component in s.n.branch_components else "bus"
-        mask &= static[column] == bus
+        mask &= static[column] == str(bus)
     return _ones(static, mask)
 
 
 def _transmission_set(
     s: NetworkSources, component: str, glc: pd.Series, static: pd.DataFrame
 ) -> tuple[pd.Index, Any]:
-    """The extendable branches of the row's carriers and the periods they must be active in."""
+    """Return the extendable branches of the row's carriers and the periods they must be active in."""
     carriers = [
         c.strip()
         for c in re.sub(r"[\[\]\(\)]", "", glc["carrier_attribute"]).split(",")
@@ -222,7 +222,7 @@ def _volume(
     glc: pd.Series,
     static: pd.DataFrame,
 ) -> pd.Series:
-    """The length of each branch in the row's set."""
+    """Return the length of each branch in the row's set."""
     names, _ = _transmission_set(s, component, glc, static)
     return static["length"].loc[names].astype(float)
 
@@ -234,7 +234,7 @@ def _expansion_cost(
     glc: pd.Series,
     static: pd.DataFrame,
 ) -> pd.Series:
-    """The capital cost of each branch in the row's set, period-weighted where the row spans all periods."""
+    """Return the capital cost of each branch in the row's set, period-weighted where the row spans all periods."""
     names, period = _transmission_set(s, component, glc, static)
     if names.empty:
         return pd.Series(dtype=float)
@@ -324,7 +324,7 @@ def _counts_snapshot(s: NetworkSources, name: str) -> xr.DataArray:
 def _storage_fold(
     s: NetworkSources, cell: Cell, scenario: Any, glc: pd.Series
 ) -> float:
-    """The initial charge a row's storage draws from, weighted as the row counts it."""
+    """Return the initial charge a row's storage draws from, weighted as the row counts it."""
     periods = _counted_periods(s, glc)
     if periods.empty:
         return 0.0
@@ -353,7 +353,7 @@ def _constant(s: NetworkSources, name: str) -> xr.DataArray:
 
 
 def _carrier_limit(s: NetworkSources, attr: str) -> pd.Series:
-    """A carrier attribute, the least over the scenarios."""
+    """Return a carrier attribute, the least over the scenarios."""
     column = s.n.components.carriers.static[attr]
     if s.n.has_scenarios:
         column = column.groupby(level="name").min()
@@ -386,7 +386,7 @@ def _max_relative_growth(s: NetworkSources, name: str) -> xr.DataArray:
 
 @dimension("global_constraint")
 def _global_constraint(s: NetworkSources) -> pd.Index:
-    """The rows PyPSA builds: every `flow_based` row and every other row whose set holds a unit."""
+    """Return the rows PyPSA builds: every `flow_based` row and every other row whose set holds a unit."""
     labels = pd.Index(s.n.components.global_constraints.names, dtype=object)
     types = _rows(s, "type", labels)
     built = set(labels[(types == "flow_based").any(axis=1)])

@@ -20,7 +20,6 @@ from scipy.sparse.csgraph import connected_components
 from scipy.sparse.linalg import splu
 
 from pypsa._linopy_compat import suppress_semantics_warnings
-from pypsa.optimization.spec import build_model
 from pypsa._options import options
 from pypsa.common import (
     UnexpectedError,
@@ -37,62 +36,14 @@ from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
-from pypsa.optimization.common import _set_dynamic_data, get_bus_counts
-from pypsa.optimization.constraints import (
-    define_committability_variables_constraints_with_fixed_upper_limit,
-    define_committability_variables_constraints_with_variable_upper_limit,
-    define_fixed_nominal_constraints,
-    define_fixed_operation_constraints,
-    define_kirchhoff_voltage_constraints,
-    define_maintenance_constraints,
-    define_modular_constraints,
-    define_nodal_balance_constraints,
-    define_nominal_constraints_for_extendables,
-    define_operational_constraints_for_committables,
-    define_operational_constraints_for_extendables,
-    define_operational_constraints_for_non_extendables,
-    define_ramp_limit_constraints,
-    define_secant_loss_constraints,
-    define_storage_unit_constraints,
-    define_store_constraints,
-    define_store_cycle_constraints,
-    define_tangent_loss_constraints,
-    define_total_supply_constraints,
-    define_voltage_angle_constraints,
-)
+from pypsa.optimization.common import _set_dynamic_data
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
 from pypsa.optimization.flow_based import (
     NET_POSITION,
-    define_flow_based_constraints,
-    define_flow_based_variables,
     flow_based_net_position,
 )
-from pypsa.optimization.global_constraints import (
-    define_growth_limit,
-    define_nominal_constraints_per_bus_carrier,
-    define_operational_limit,
-    define_primary_energy_limit,
-    define_tech_capacity_expansion_limit,
-    define_transmission_expansion_cost_limit,
-    define_transmission_volume_expansion_limit,
-)
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
-from pypsa.optimization.variables import (
-    define_cvar_variables,
-    define_loss_variables,
-    define_maintenance_capacity_variables,
-    define_maintenance_start_variables,
-    define_maintenance_status_variables,
-    define_maintenance_variables,
-    define_modular_variables,
-    define_nominal_variables,
-    define_operational_variables,
-    define_phase_shift_variables,
-    define_shut_down_variables,
-    define_spillage_variables,
-    define_start_up_variables,
-    define_status_variables,
-)
+from pypsa.optimization.spec import build_model
 from pypsa.optimization.window import SnapshotWindow, apply_period_weighting
 
 if TYPE_CHECKING:
@@ -180,7 +131,7 @@ def _resolve_include_objective_constant(
 def normalize_transmission_losses(
     transmission_losses: bool | int | dict,
 ) -> dict | None:
-    """The loss configuration as a dict with its `mode`, or None for a lossless run."""
+    """Return the loss configuration as a dict with its `mode`, or None for a lossless run."""
     if not transmission_losses:
         return None
     if isinstance(transmission_losses, bool):

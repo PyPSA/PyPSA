@@ -26,7 +26,6 @@ from linopy.constants import (
     EvolvingAPIWarning,
 )
 
-
 from pypsa._linopy_compat import (
     SUPPORTS_BREAKPOINT_MASK,
     expand_breakpoints,
