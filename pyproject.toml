@@ -35,7 +35,7 @@ dependencies = [
     "pyarrow",
     "xarray",
     "netcdf4",
-    "linopy[spec] @ git+https://github.com/PyPSA/linopy.git@a09aa45eae6db22586724166edc937887d03ff01",
+    "linopy[spec] @ git+https://github.com/PyPSA/linopy.git@5be3727565e3f0ae1b127940df17238152f52d14",
     "matplotlib",
     "plotly",
     "pydeck>=0.6",

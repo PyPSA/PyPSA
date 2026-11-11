@@ -2109,8 +2109,8 @@ wheels = [
 
 [[package]]
 name = "linopy"
-version = "0.10.0.post1.dev88+ga09aa45ea"
-source = { git = "https://github.com/PyPSA/linopy.git?rev=a09aa45eae6db22586724166edc937887d03ff01#a09aa45eae6db22586724166edc937887d03ff01" }
+version = "0.10.0.post1.dev98+g5be372756"
+source = { git = "https://github.com/PyPSA/linopy.git?rev=5be3727565e3f0ae1b127940df17238152f52d14#5be3727565e3f0ae1b127940df17238152f52d14" }
 dependencies = [
     { name = "bottleneck" },
     { name = "numpy" },
@@ -4065,7 +4065,7 @@ requires-dist = [
     { name = "gurobipy", marker = "extra == 'gurobipy'" },
     { name = "highspy" },
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.1.1" },
-    { name = "linopy", extras = ["spec"], git = "https://github.com/PyPSA/linopy.git?rev=a09aa45eae6db22586724166edc937887d03ff01" },
+    { name = "linopy", extras = ["spec"], git = "https://github.com/PyPSA/linopy.git?rev=5be3727565e3f0ae1b127940df17238152f52d14" },
     { name = "matplotlib" },
     { name = "mkdocs-autolinks-plugin", marker = "extra == 'docs'" },
     { name = "mkdocs-ezlinks-plugin", marker = "extra == 'docs'" },
