@@ -293,9 +293,7 @@ class TestPiecewiseCostsResults:
             n.optimize()
             # p_pu=1 must sit at the power rating e_nom / max_hours,
             # not at e_nom; with infinite max_hours e_nom stays the scale.
-            rhs = n.model.constraints[
-                "Store-marginal_cost_piecewise_domain_hi"
-            ].rhs
+            rhs = n.model.constraints["Store-marginal_cost_piecewise_domain_hi"].rhs
             assert float(rhs.values.flat[0]) == pytest.approx(domain_hi)
             if max_hours == 4:
                 # A curve starting at x=0 cannot charge (Store-p >= 0),

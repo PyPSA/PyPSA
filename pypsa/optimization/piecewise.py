@@ -296,11 +296,7 @@ def _get_breakpoints(
             # that rating where max_hours is finite; with infinite
             # max_hours e_nom stays the only scale (#2118).
             max_hours = c.static.loc[pw_names, "max_hours"]
-            finite = (
-                max_hours.notna()
-                & (max_hours > 0)
-                & (max_hours != float("inf"))
-            )
+            finite = max_hours.notna() & (max_hours > 0) & (max_hours != float("inf"))
             nominal = nominal.where(~finite, nominal / max_hours.where(finite))
         nom_attr_da = xr.DataArray(nominal, dims="name")
         if (
