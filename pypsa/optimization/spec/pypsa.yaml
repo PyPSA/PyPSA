@@ -594,7 +594,7 @@ parameters:
     missing: absent
   Process_p_nom_set:
     description: a given nominal power for an extendable process. One without a value has no row here
-    dims: [process]
+    dims: [scenario, process]
     missing: absent
   Process_committable:
     description: whether internal power is gated by an on/off status decision
@@ -959,7 +959,7 @@ parameters:
     missing: absent
   Generator_p_nom_set:
     description: a given nominal power for an extendable generator. One without a value has no row here
-    dims: [generator]
+    dims: [scenario, generator]
     missing: absent
   Generator_e_sum_min:
     description: least energy over the horizon. It is minus infinity where no floor is meant
@@ -1001,7 +1001,7 @@ parameters:
     missing: absent
   Link_p_nom_set:
     description: a given nominal power for an extendable link. One without a value has no row here
-    dims: [link]
+    dims: [scenario, link]
     missing: absent
   StorageUnit_p_nom_min:
     description: least nominal power an extendable storage unit may be built at
@@ -1037,7 +1037,7 @@ parameters:
     missing: absent
   StorageUnit_p_nom_set:
     description: a given nominal power for an extendable storage unit. One without a value has no row here
-    dims: [storage_unit]
+    dims: [scenario, storage_unit]
     missing: absent
   Store_e_nom_min:
     description: least nominal capacity an extendable store may be built at
@@ -1073,7 +1073,7 @@ parameters:
     missing: absent
   Store_e_nom_set:
     description: a given nominal capacity for an extendable store. One without a value has no row here
-    dims: [store]
+    dims: [scenario, store]
     missing: absent
   StorageUnit_p_nom:
     description: nominal power
@@ -1396,7 +1396,7 @@ parameters:
     missing: absent
   Line_s_nom_set:
     description: a given nominal apparent power for an extendable line. One without a value has no row here
-    dims: [line]
+    dims: [scenario, line]
     missing: absent
   Line_s_set:
     description: a given flow schedule. A line without one has no row here
@@ -1517,7 +1517,7 @@ parameters:
     missing: absent
   Transformer_s_nom_set:
     description: a given nominal apparent power for an extendable transformer. One without a value has no row here
-    dims: [transformer]
+    dims: [scenario, transformer]
     missing: absent
   Transformer_s_set:
     description: a given flow schedule. A transformer without one has no row here
@@ -4481,8 +4481,8 @@ constraints:
     where: Generator_p_nom_extendable AND Generator_active_asset AND Generator_p_nom_max
     expression: Generator_p_nom_ext <= Generator_p_nom_max
   Generator_p_nom_set:
-    description: "`Generator-p_nom_set` — the chosen build pinned, wherever a value is given"
-    dims: [generator]
+    description: "`Generator-p_nom_set` — the chosen build pinned in every scenario, wherever a value is given"
+    dims: [scenario, generator]
     where: Generator_p_nom_extendable AND Generator_active_asset AND Generator_p_nom_set
     expression: Generator_p_nom_ext == Generator_p_nom_set
   Generator_e_sum_min:
@@ -4546,8 +4546,8 @@ constraints:
     where: Link_p_nom_extendable AND Link_active_asset AND Link_p_nom_max
     expression: Link_p_nom_ext <= Link_p_nom_max
   Link_p_nom_set:
-    description: "`Link-p_nom_set` — the chosen build pinned, wherever a value is given"
-    dims: [link]
+    description: "`Link-p_nom_set` — the chosen build pinned in every scenario, wherever a value is given"
+    dims: [scenario, link]
     where: Link_p_nom_extendable AND Link_active_asset AND Link_p_nom_set
     expression: Link_p_nom_ext == Link_p_nom_set
   Process_fix_p_lower:
@@ -4581,8 +4581,8 @@ constraints:
     where: Process_p_nom_extendable AND Process_active_asset AND Process_p_nom_max
     expression: Process_p_nom_ext <= Process_p_nom_max
   Process_p_nom_set:
-    description: "`Process-p_nom_set` — the chosen build pinned, wherever a value is given"
-    dims: [process]
+    description: "`Process-p_nom_set` — the chosen build pinned in every scenario, wherever a value is given"
+    dims: [scenario, process]
     where: Process_p_nom_extendable AND Process_active_asset AND Process_p_nom_set
     expression: Process_p_nom_ext == Process_p_nom_set
   StorageUnit_fix_p_dispatch_lower:
@@ -5410,8 +5410,8 @@ constraints:
     where: Line_s_nom_extendable AND Line_active_asset AND Line_s_nom_max
     expression: Line_s_nom_ext <= Line_s_nom_max
   Line_s_nom_set:
-    description: "`Line-s_nom_set` — the chosen build pinned, wherever a value is given"
-    dims: [line]
+    description: "`Line-s_nom_set` — the chosen build pinned in every scenario, wherever a value is given"
+    dims: [scenario, line]
     where: Line_s_nom_extendable AND Line_active_asset AND Line_s_nom_set
     expression: Line_s_nom_ext == Line_s_nom_set
   Line_s_nom_modularity:
@@ -5491,8 +5491,8 @@ constraints:
     where: Transformer_s_nom_extendable AND Transformer_active_asset AND Transformer_s_nom_max
     expression: Transformer_s_nom_ext <= Transformer_s_nom_max
   Transformer_s_nom_set:
-    description: "`Transformer-s_nom_set` — the chosen build pinned, wherever a value is given"
-    dims: [transformer]
+    description: "`Transformer-s_nom_set` — the chosen build pinned in every scenario, wherever a value is given"
+    dims: [scenario, transformer]
     where: Transformer_s_nom_extendable AND Transformer_active_asset AND Transformer_s_nom_set
     expression: Transformer_s_nom_ext == Transformer_s_nom_set
   Transformer_s_nom_modularity:
@@ -5797,8 +5797,8 @@ constraints:
     where: StorageUnit_p_nom_extendable AND StorageUnit_active_asset AND StorageUnit_p_nom_max
     expression: StorageUnit_p_nom_ext <= StorageUnit_p_nom_max
   StorageUnit_p_nom_set:
-    description: "`StorageUnit-p_nom_set` — the chosen build pinned, wherever a value is given"
-    dims: [storage_unit]
+    description: "`StorageUnit-p_nom_set` — the chosen build pinned in every scenario, wherever a value is given"
+    dims: [scenario, storage_unit]
     where: StorageUnit_p_nom_extendable AND StorageUnit_active_asset AND StorageUnit_p_nom_set
     expression: StorageUnit_p_nom_ext == StorageUnit_p_nom_set
   StorageUnit_p_nom_modularity:
@@ -5850,8 +5850,8 @@ constraints:
     where: Store_e_nom_extendable AND Store_active_asset AND Store_e_nom_max
     expression: Store_e_nom_ext <= Store_e_nom_max
   Store_e_nom_set:
-    description: "`Store-e_nom_set` — the chosen build pinned, wherever a value is given"
-    dims: [store]
+    description: "`Store-e_nom_set` — the chosen build pinned in every scenario, wherever a value is given"
+    dims: [scenario, store]
     where: Store_e_nom_extendable AND Store_active_asset AND Store_e_nom_set
     expression: Store_e_nom_ext == Store_e_nom_set
   Store_e_nom_modularity:

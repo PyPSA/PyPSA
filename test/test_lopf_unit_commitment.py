@@ -806,11 +806,11 @@ def test_generator_ramp_constraints_mask_nan(direction):
         f"ramp_{direction} constraint should be active for 'gen_limited'."
     )
 
-    labels_gen_unlimited = (
-        constraints.data["labels"].sel(name="gen_unlimited").to_pandas()
+    labels_gen_unlimited = constraints.labels.reindex(
+        name=["gen_unlimited"], fill_value=-1
     )
     assert (labels_gen_unlimited == -1).all(), (
-        f"ramp_{direction} constraint should be masked for 'gen_unlimited'."
+        f"ramp_{direction} constraint should have no row for 'gen_unlimited'."
     )
 
 
@@ -882,11 +882,11 @@ def test_link_ramp_constraints_mask_nan(direction):
         f"ramp_{direction} constraint should be active for 'link_limited'."
     )
 
-    labels_link_unlimited = (
-        constraints.data["labels"].sel(name="link_unlimited").to_pandas()
+    labels_link_unlimited = constraints.labels.reindex(
+        name=["link_unlimited"], fill_value=-1
     )
     assert (labels_link_unlimited == -1).all(), (
-        f"ramp_{direction} constraint should be masked for 'link_unlimited'."
+        f"ramp_{direction} constraint should have no row for 'link_unlimited'."
     )
 
 

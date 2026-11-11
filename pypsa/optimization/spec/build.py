@@ -36,20 +36,97 @@ if TYPE_CHECKING:
     from mathspec.spec import Spec
 
     from pypsa import Network
+    from pypsa.optimization.piecewise import PiecewiseOptions
 
 UNIT_DIMS = set(UNITS.values())
 SPEC = files("pypsa.optimization.spec")
 
 
 @functools.cache
-def spec(linearized_unit_commitment: bool = False) -> Spec:
-    """Return the spec of `n.optimize()`, with the linearised unit commitment patch on request."""
+def spec(
+    linearized_unit_commitment: bool = False,
+    piecewise_options: tuple[PiecewiseOptions, ...] = (),
+) -> Spec:
+    """Return the spec of `n.optimize()`, patched for linearised unit commitment and piecewise options on request."""
     import mathspec  # noqa: PLC0415
 
     base = mathspec.to_spec((SPEC / "pypsa.yaml").read_text())
-    if not linearized_unit_commitment:
-        return base
-    return mathspec.override(base, [(SPEC / "linearized_uc.yaml").read_text()])
+    patches: list[Any] = []
+    if linearized_unit_commitment:
+        patches.append((SPEC / "linearized_uc.yaml").read_text())
+    if piecewise_options:
+        patches.append(_piecewise_patch(base, piecewise_options))
+    return mathspec.override(base, patches) if patches else base
+
+
+def _link(link: Any, sign: str) -> list[str]:
+    """Return a piecewise link as the spec writes it, which leaves out the default `==`."""
+    return [link.expression, link.values, *([sign] if sign != "==" else [])]
+
+
+def _piecewise_patch(base: Spec, options: Sequence[PiecewiseOptions]) -> dict:
+    """Return the spec patch that states each curve by the method and sign its option names.
+
+    The spec states linopy's `method='auto'` for PyPSA's default signs as
+    two entries per curve, one picked by data. An option keeps the entry of
+    its method, ungated from that pick, and removes the other; its sign
+    goes on the curve's last link, the y-axis. `auto` with an equality
+    takes the incremental entry, as linopy does.
+
+    Raises:
+        NotImplementedError: An option names units, two options name one
+            curve, the curve has no entry of the method, or `auto` asks
+            for another inequality than the spec's.
+        ValueError: An option names a curve the spec does not hold.
+
+    """
+    patch: dict[str, Any] = {}
+    seen: set[tuple[str, str]] = set()
+    for option in options:
+        curve = (option.component, option.attribute)
+        if option.name:
+            msg = f"A piecewise option for named units ({option.name}) is not supported; give one for all units of {option.component}."
+            raise NotImplementedError(msg)
+        if curve in seen:
+            msg = f"Several piecewise options for {option.component}-{option.attribute} are not supported; give one."
+            raise NotImplementedError(msg)
+        seen.add(curve)
+        prefix = f"{option.component}_{option.attribute}"
+        entries = {
+            k: v
+            for k, v in base.piecewise.items()
+            if re.fullmatch(rf"{prefix}_(lp|incremental)", k)
+        }
+        if not entries:
+            msg = f"No piecewise curve {option.component}-{option.attribute} to apply the option to."
+            raise ValueError(msg)
+        method = option.method
+        if method == "auto" and option.sign == "==":
+            method = "incremental"
+        elif method == "auto":
+            if any(
+                list(e.links.values())[-1].sign != option.sign for e in entries.values()
+            ):
+                msg = f"method='auto' with sign '{option.sign}' is not supported for {option.component}-{option.attribute}; name the method."
+                raise NotImplementedError(msg)
+            continue
+        kept = f"{prefix}_{method}"
+        if kept not in entries:
+            msg = f"method='{option.method}' is not supported for {option.component}-{option.attribute}."
+            raise NotImplementedError(msg)
+        entry = entries[kept]
+        *head, (y, last) = entry.links.items()
+        patch |= dict.fromkeys(set(entries) - {kept})
+        patch[kept] = {
+            "method": method,
+            "links": {k: _link(v, v.sign) for k, v in head}
+            | {y: _link(last, option.sign)},
+        }
+        if entry.where:
+            patch[kept]["where"] = re.sub(
+                rf"(NOT )?{prefix}_as_lp AND ", "", entry.where
+            )
+    return {"piecewise": patch}
 
 
 def pypsa_name(name: str, description: str | None, mode: str | None = None) -> str:
@@ -85,26 +162,47 @@ def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
 
 
 def _order(dims: tuple[str, ...], has_scenarios: bool) -> list[str]:
-    """PyPSA's dim order: `scenario` first in a stochastic run, else `snapshot` first."""
-    lead = "scenario" if has_scenarios else "snapshot"
-    return [d for d in dims if d == lead] + [d for d in dims if d != lead]
+    """PyPSA's dim order, the other dims after it in their own order.
 
-
-def _renumbered(
-    ds: xr.Dataset, order: list[str], mapping: np.ndarray, trim: bool
-) -> xr.Dataset:
-    """`ds` laid out in `order`, with fresh labels, trimmed to its built units on request.
-
-    PyPSA builds a variable only for the units that have one, so with `trim`
-    a unit whose every label is masked is dropped; a constraint keeps it
-    masked. linopy reads a solution or a dual by reshaping one C-ordered
-    label block, so the kept labels are renumbered from the block's start;
-    `mapping` records old to new.
+    An entry over snapshots leads with `snapshot` and `name`, or with
+    `scenario`, `name` and `snapshot` in a stochastic run; one without
+    snapshots leads with `name` and `scenario`.
     """
-    if trim and "name" in ds.labels.dims and ds.sizes["name"]:
+    if "snapshot" not in dims:
+        lead = ["name", "scenario"]
+    elif has_scenarios:
+        lead = ["scenario", "name", "snapshot"]
+    else:
+        lead = ["snapshot", "name"]
+    front = [d for d in lead if d in dims]
+    return front + [d for d in dims if d not in front]
+
+
+def _coords_in_order(ds: xr.Dataset) -> xr.Dataset:
+    """`ds` with its coords listed in the order of its dims, which linopy prints and derives from."""
+    dims = list(ds.labels.dims)
+    names = [d for d in dims if d in ds.coords]
+    names += [k for k in ds.coords if k not in names]
+    coords = xr.Coordinates(
+        {k: ds.coords[k].variable for k in names},
+        indexes={k: ds.xindexes[k] for k in names if k in ds.xindexes},
+    )
+    return ds.drop_vars(names).assign_coords(coords)
+
+
+def _renumbered(ds: xr.Dataset, order: list[str], mapping: np.ndarray) -> xr.Dataset:
+    """`ds` laid out in `order`, with fresh labels, trimmed to its built units.
+
+    PyPSA builds a variable or a constraint only for the units that have
+    one, so a unit whose every label is masked is dropped. linopy reads a
+    solution or a dual by reshaping one C-ordered label block, so the kept
+    labels are renumbered from the block's start; `mapping` records old to
+    new.
+    """
+    if "name" in ds.labels.dims and ds.sizes["name"]:
         others = [d for d in ds.labels.dims if d != "name"]
         ds = ds.isel(name=(ds.labels != -1).any(others).values)
-    ds = ds.transpose(*order, ...)
+    ds = _coords_in_order(ds.transpose(*order, ...))
     start = ds.attrs["label_range"][0]
     fresh = start + np.arange(ds.labels.size).reshape(ds.labels.shape)
     moved = ds.labels.values
@@ -269,6 +367,8 @@ def _relabel(
 
     Entries without a single row are dropped, as PyPSA does not build them,
     and the placeholder scenario of a network without scenarios is squeezed.
+    The spec's named expressions are dropped too: they keep the spec's dims
+    and the labels before renumbering.
     """
     squeeze = not n.has_scenarios
     levels = (
@@ -289,9 +389,7 @@ def _relabel(
             ds = ds.squeeze("scenario", drop=True)
         if "snapshot" in ds.dims:
             ds = ds.assign_coords({"snapshot": snapshots, **levels})
-        return _renumbered(
-            ds, _order(ds.labels.dims, n.has_scenarios), mapping, not constraint
-        )
+        return _renumbered(ds, _order(ds.labels.dims, n.has_scenarios), mapping)
 
     variables = {}
     for name, var in m.variables.items():
@@ -323,6 +421,7 @@ def _relabel(
     m.constraints.data.update(constraints)
     m.variables._label_position_index = None
     m.constraints._label_position_index = None
+    m.expressions.data.clear()
     objective = m.objective
     expression = objective.expression
     m.add_objective(
@@ -513,7 +612,7 @@ def build_model(
     )
     model_kwargs = model_kwargs or {}
     n.calculate_dependent_values()
-    s = spec(linearized_unit_commitment)
+    s = spec(linearized_unit_commitment, tuple(piecewise_options))
     sources = NetworkSources(n, s, network_index, model_index, **options)
     m = Model.from_spec(s, sources, **model_kwargs)
     mode = (options.get("transmission_losses") or {}).get("mode")

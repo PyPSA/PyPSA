@@ -42,6 +42,9 @@ from pypsa.optimization.flow_based import (
     NET_POSITION,
     flow_based_net_position,
 )
+from pypsa.optimization.global_constraints import (
+    define_nominal_constraints_per_bus_carrier,
+)
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 from pypsa.optimization.spec import build_model
 from pypsa.optimization.window import SnapshotWindow, apply_period_weighting
@@ -738,7 +741,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             bus connectivity count. Defaults to ``[30, 100, 400]``.
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
-            Each operator is interpreted as ``y operator f(x)``.
+            Each operator is interpreted as ``y operator f(x)``. One option
+            per component and attribute applies to all its units; the
+            ``name`` filter and ``method='sos2'`` are not supported.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
@@ -882,7 +887,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             bus connectivity count. Defaults to ``[30, 100, 400]``.
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
-            Each operator is interpreted as ``y operator f(x)``.
+            Each operator is interpreted as ``y operator f(x)``. One option
+            per component and attribute applies to all its units; the
+            ``name`` filter and ``method='sos2'`` are not supported.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
@@ -954,6 +961,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             piecewise_options=piecewise_opts,
             objective_scaling=objective_scaling,
         )
+        define_nominal_constraints_per_bus_carrier(n, sns)
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
         set_objective_constant(n, include_objective_constant)
 

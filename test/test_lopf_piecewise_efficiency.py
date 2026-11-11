@@ -44,8 +44,8 @@ class TestPiecewiseGeneratorEfficiency:
         model = piecewise_efficiency_network.optimize.create_model(
             include_objective_constant=False
         )
-        formulation = model._piecewise_formulations["Generator-p_primary_piecewise"]
-        assert formulation.method == "incremental"
+        assert "Generator-p_primary_piecewise_order_binary" in model.binaries
+        assert "Generator-p_primary_piecewise_chord" not in model.constraints
 
     def test_piecewise_efficiency_rejects_lp_equality(
         self,
