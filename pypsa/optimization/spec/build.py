@@ -15,6 +15,7 @@ import pandas as pd
 import xarray as xr
 from linopy import Model
 from linopy.constraints import Constraint
+from linopy.expressions import LinearExpression
 from linopy.variables import Variable
 
 from pypsa.optimization.spec.sources import UNITS, NetworkSources
@@ -91,6 +92,58 @@ def _relabel(m: Model, n: Network, names: dict, snapshots: pd.Index) -> None:
     m.constraints._label_position_index = None
 
 
+GC_SENSES = re.compile(r"GlobalConstraint_(?!flow_based).+_(ub|lb|eq)")
+
+
+def _merged(parts: list[xr.Dataset]) -> xr.Dataset:
+    """One dataset of the cells the parts hold, each cell live in exactly one part."""
+    terms = max(p.sizes["_term"] for p in parts)
+    padded = []
+    for p in parts:
+        p = p.pad(_term=(0, terms - p.sizes["_term"]))
+        live = p.labels != -1
+        p["coeffs"] = p.coeffs.where(live & p.vars.notnull(), 0).fillna(0)
+        p["vars"] = p.vars.where(live, -1).fillna(-1).astype(int)
+        padded.append(p)
+    merged = padded[0].copy()
+    for p in padded[1:]:
+        live = p.labels != -1
+        for field in ("sign", "rhs", "labels"):
+            merged[field] = xr.where(live, p[field], merged[field])
+        merged["coeffs"] = merged.coeffs + p.coeffs
+        merged["vars"] = xr.where(p.vars != -1, p.vars, merged.vars)
+    return merged
+
+
+def _merge_global_constraints(m: Model, squeeze: bool) -> None:
+    """Re-add the sense rows of each GlobalConstraint label as one `GlobalConstraint-<label>`.
+
+    The spec states each type once per sense, while PyPSA names one
+    constraint per label, whose sense may differ by scenario.
+    """
+    names = [k for k in m.constraints if GC_SENSES.fullmatch(k)]
+    parts = [m.constraints[k].data for k in names]
+    labels: list = []
+    for part in parts:
+        built = (part.labels != -1).any([d for d in part.labels.dims if d != "global_constraint"])
+        labels += [g for g in built.indexes["global_constraint"][built.values] if g not in labels]
+    for g in labels:
+        live = [
+            p.sel(global_constraint=g, drop=True)
+            for p in parts
+            if (p.labels.sel(global_constraint=g) != -1).any()
+        ]
+        ds = _merged(live)
+        if squeeze and "scenario" in ds.dims:
+            ds = ds.squeeze("scenario", drop=True)
+        lhs = LinearExpression(ds[["coeffs", "vars"]], m)
+        m.add_constraints(
+            lhs, ds.sign, ds.rhs, name=f"GlobalConstraint-{g}", mask=ds.labels != -1
+        )
+    for k in names:
+        m.remove_constraints(k)
+
+
 def build_model(
     n: Network,
     network_index: pd.Index,
@@ -111,5 +164,6 @@ def build_model(
             k: pypsa_name(k, v.description) for k, v in s.constraints.items()
         },
     }
+    _merge_global_constraints(m, squeeze=not n.has_scenarios)
     _relabel(m, n, names, model_index)
     return m

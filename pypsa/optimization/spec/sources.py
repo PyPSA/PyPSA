@@ -209,8 +209,9 @@ class NetworkSources(Mapping[str, Any]):
         return np.full(len(self.network_index), NO_PERIOD, dtype=int)
 
     def names(self, component: str) -> pd.Index:
-        """The labels of a component's units."""
-        return pd.Index(self.n.components[component].names, dtype=object)
+        """The labels of a component's units: its active assets, as PyPSA builds them."""
+        c = self.n.components[component]
+        return pd.Index(c.active_assets, dtype=object, name=None)
 
     def dimension(self, dim: str) -> Any:
         """The labels of one declared dimension."""
@@ -293,7 +294,7 @@ class NetworkSources(Mapping[str, Any]):
 
     def coords(self, dim: str) -> pd.Index:
         """The labels of a dimension, as passed."""
-        return pd.Index(self[dim])
+        return pd.Index(self[dim], name=None)
 
     def frame(self, name: str, da: xr.DataArray) -> xr.DataArray:
         """`da` broadcast over and laid out in the declared dims of `name`."""
@@ -311,12 +312,18 @@ class NetworkSources(Mapping[str, Any]):
         """A `c.da` array relabelled into the spec's dims."""
         dim = UNITS[component]
         if "name" in da.dims:
+            da = da.sel(name=da.indexes["name"].isin(self.names(component)))
             labels = da.indexes["name"].to_numpy(dtype=object)
             da = da.rename(name=dim).assign_coords({dim: labels})
         if "snapshot" in da.dims:
-            da = da.isel(snapshot=self.positions).assign_coords(
-                snapshot=self.snapshots
-            )
+            if da.sizes["snapshot"] == len(self.n.snapshots):
+                da = da.isel(snapshot=self.positions)
+            tied = [
+                k
+                for k in da.coords
+                if k == "snapshot" or (k not in da.dims and "snapshot" in da[k].dims)
+            ]
+            da = da.drop_vars(tied).assign_coords(snapshot=self.snapshots)
         if "scenario" not in da.dims and self.n.has_scenarios:
             da = da.expand_dims(scenario=self.scenarios)
         elif "scenario" in da.dims and not self.n.has_scenarios:
@@ -328,10 +335,8 @@ class NetworkSources(Mapping[str, Any]):
     def da(self, component: str, attr: str) -> xr.DataArray:
         """A PyPSA attribute of a component in the spec's dims."""
         c = self.n.components[component]
-        raw = c.da[attr]
-        if "snapshot" in raw.dims:
-            raw = raw.isel(snapshot=slice(None))
-        return self.unit_array(component, raw.drop_vars(_aux(raw), errors="ignore"))
+        raw = self.unit_array(component, c.da[attr])
+        return raw.drop_vars(_aux(raw))
 
     def attribute(self, component: str, attr: str, name: str) -> xr.DataArray:
         """A parameter named after a PyPSA attribute, read off `c.da`."""
@@ -365,12 +370,13 @@ class NetworkSources(Mapping[str, Any]):
         mask = c.get_activity_mask(self.network_index)
         if isinstance(mask.columns, pd.MultiIndex):
             mask = mask.T.groupby(level="name").any().T
-        mask = mask.reindex(columns=c.names)
+        names = self.names(component)
+        mask = mask.reindex(columns=names)
         return xr.DataArray(
             mask.to_numpy(dtype=bool),
             coords={
                 "snapshot": self.snapshots,
-                UNITS[component]: c.names.to_numpy(dtype=object),
+                UNITS[component]: names.to_numpy(dtype=object),
             },
             dims=["snapshot", UNITS[component]],
         )
@@ -405,7 +411,7 @@ class NetworkSources(Mapping[str, Any]):
     def link_ports(self) -> pd.DataFrame:
         """Link output ports read long: one row per link and `bus<k>`, k >= 1."""
         c = self.n.components.links
-        static = _first_scenario(c.static, self.n)
+        static = _static(self, "Link")
         rows = []
         for k in _port_numbers(static, start=1):
             col = f"bus{k}"
@@ -426,7 +432,7 @@ class NetworkSources(Mapping[str, Any]):
     def process_ports(self) -> pd.DataFrame:
         """Process ports read long: one row per process and `bus<k>`, k >= 0."""
         c = self.n.components.processes
-        static = _first_scenario(c.static, self.n)
+        static = _static(self, "Process")
         rows = []
         for k in _port_numbers(static, start=0):
             col = f"bus{k}"
@@ -472,7 +478,8 @@ def _first_scenario(static: pd.DataFrame, n: Network) -> pd.DataFrame:
 
 
 def _static(sources: NetworkSources, component: str) -> pd.DataFrame:
-    return _first_scenario(sources.n.components[component].static, sources.n)
+    static = _first_scenario(sources.n.components[component].static, sources.n)
+    return static[static.index.isin(sources.names(component))]
 
 
 def _relation(key: str, value: str, frame: pd.DataFrame) -> pd.DataFrame:
@@ -643,16 +650,8 @@ def _nom_mod(s: NetworkSources, component: str, suffix: str) -> xr.DataArray:
 @family("p_nom_set", "e_nom_set", "s_nom_set")
 def _nom_set(s: NetworkSources, component: str, suffix: str) -> xr.DataArray:
     name = f"{component}_{suffix}"
-    c = s.n.components[component]
-    if suffix not in c.static:
-        return s.frame(
-            name,
-            xr.DataArray(
-                np.full(len(c.names), np.nan),
-                coords={UNITS[component]: c.names.to_numpy(dtype=object)},
-                dims=UNITS[component],
-            ),
-        )
+    if suffix not in s.n.components[component].static:
+        return _filled(s, name, np.nan)
     return s.attribute(component, suffix, name)
 
 
@@ -789,9 +788,15 @@ def _output_delay(s: NetworkSources, name: str) -> xr.DataArray:
     return delay.fillna(0).astype(int)
 
 
+def _up_time_before(s: NetworkSources, component: str) -> xr.DataArray:
+    """`up_time_before`, zero where `down_time_before` says the unit came in off."""
+    up = s.da(component, "up_time_before")
+    return up.where(s.da(component, "down_time_before") == 0, 0)
+
+
 @family("status_initial")
 def _status_initial(s: NetworkSources, component: str, suffix: str) -> xr.DataArray:
-    up = s.da(component, "up_time_before")
+    up = _up_time_before(s, component)
     committable = s.da(component, "committable").astype(bool)
     initial = xr.where(committable, up > 0, True).astype(int)
     return s.frame(f"{component}_{suffix}", initial)
@@ -799,7 +804,11 @@ def _status_initial(s: NetworkSources, component: str, suffix: str) -> xr.DataAr
 
 def _brought_in(s: NetworkSources, component: str, kind: str) -> xr.DataArray:
     """One while the up or down time a unit brought into the horizon still runs."""
-    before = s.da(component, f"{kind}_time_before")
+    before = (
+        _up_time_before(s, component)
+        if kind == "up"
+        else s.da(component, "down_time_before")
+    )
     minimum = s.da(component, f"min_{kind}_time")
     committable = s.da(component, "committable").astype(bool)
     position = xr.DataArray(
