@@ -788,10 +788,67 @@ def _output_delay(s: NetworkSources, name: str) -> xr.DataArray:
     return delay.fillna(0).astype(int)
 
 
+def _solved_before(s: NetworkSources, component: str, attr: str) -> xr.DataArray | None:
+    """`attr` as solved over the snapshots before the build, or None in the first window."""
+    start = int(s.positions[0])
+    c = s.n.components[component]
+    if not start or c.dynamic[attr].empty:
+        return None
+    raw = c.da[attr].isel(snapshot=slice(0, start))
+    raw = raw.drop_vars([k for k in raw.coords if k not in raw.dims or k == "snapshot"])
+    raw = raw.assign_coords(snapshot=np.arange(start))
+    dim = UNITS[component]
+    raw = raw.sel(name=raw.indexes["name"].isin(s.names(component)))
+    raw = raw.rename(name=dim).assign_coords({dim: raw.indexes["name"].to_numpy(dtype=object)})
+    if "scenario" not in raw.dims:
+        raw = raw.expand_dims(scenario=s.scenarios)
+    return raw
+
+
+def _trailing_run(history: xr.DataArray, on: bool) -> xr.DataArray:
+    """How many snapshots at the end of `history` are all on, or all off."""
+    match = (history > 0.5) == on
+    reverse = match.isel(snapshot=slice(None, None, -1))
+    return (reverse.cumprod("snapshot")).sum("snapshot")
+
+
+def _times_before(s: NetworkSources, component: str) -> tuple[xr.DataArray, xr.DataArray]:
+    """Up and down time a unit brings into the build.
+
+    In the first window they are `up_time_before` and `down_time_before`, the
+    latter winning, as PyPSA reads them. Later windows of a rolling horizon
+    count the solved status before the window, carried on into the times
+    before the horizon where every solved snapshot agrees.
+    """
+    down = s.da(component, "down_time_before")
+    up = s.da(component, "up_time_before").where(down == 0, 0)
+    status = _solved_before(s, component, "status")
+    if status is None:
+        return up, down
+    solved = status.sizes["snapshot"]
+    run_up = _trailing_run(status, True)
+    run_down = _trailing_run(status, False)
+    return (
+        xr.where(run_up == solved, run_up + up, run_up),
+        xr.where(run_down == solved, run_down + down, run_down),
+    )
+
+
 def _up_time_before(s: NetworkSources, component: str) -> xr.DataArray:
-    """`up_time_before`, zero where `down_time_before` says the unit came in off."""
-    up = s.da(component, "up_time_before")
-    return up.where(s.da(component, "down_time_before") == 0, 0)
+    """The up time a unit brings into the build, zero where it comes in off."""
+    return _times_before(s, component)[0]
+
+
+@family("p_init")
+def _p_init(s: NetworkSources, component: str, suffix: str) -> xr.DataArray:
+    """`p_init`, or in a later window of a rolling horizon the solved output before it."""
+    name = f"{component}_{suffix}"
+    attr = "p0" if component in ("Link",) else "p"
+    solved = _solved_before(s, component, attr)
+    if solved is None:
+        return s.attribute(component, suffix, name)
+    last = solved.isel(snapshot=-1, drop=True)
+    return s.frame(name, last.reindex({UNITS[component]: s.coords(UNITS[component]).to_numpy()}))
 
 
 @family("status_initial")
@@ -804,11 +861,8 @@ def _status_initial(s: NetworkSources, component: str, suffix: str) -> xr.DataAr
 
 def _brought_in(s: NetworkSources, component: str, kind: str) -> xr.DataArray:
     """One while the up or down time a unit brought into the horizon still runs."""
-    before = (
-        _up_time_before(s, component)
-        if kind == "up"
-        else s.da(component, "down_time_before")
-    )
+    up, down = _times_before(s, component)
+    before = up if kind == "up" else down
     minimum = s.da(component, f"min_{kind}_time")
     committable = s.da(component, "committable").astype(bool)
     position = xr.DataArray(
@@ -1008,3 +1062,10 @@ def _any_by_bus(active: xr.DataArray, bus: xr.DataArray, buses: pd.Index) -> xr.
         coords={"bus": buses.to_numpy(), "snapshot": active.snapshot.values},
         dims=["bus", "snapshot"],
     )
+
+
+@family("min_up_time", "min_down_time")
+def _min_time(s: NetworkSources, component: str, suffix: str) -> xr.DataArray:
+    """The minimum time, at most the horizon: a longer window reads nothing more."""
+    name = f"{component}_{suffix}"
+    return s.attribute(component, suffix, name).clip(max=len(s.snapshots))
