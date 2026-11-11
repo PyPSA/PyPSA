@@ -10,7 +10,7 @@ import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
-from pypsa._linopy_compat import V1_ONLY, v1_semantics
+from pypsa._linopy_compat import linopy_uses_v1, v1_semantics
 
 
 def test_unit_commitment():
@@ -1603,8 +1603,8 @@ def test_minimum_time_rows_at_window_boundary(
             up_time_before=0,
         )
     n.add("Load", "load", bus="bus", p_set=1)
-    if semantics == "legacy" and V1_ONLY:
-        pytest.skip("Installed linopy only supports v1 arithmetic semantics")
+    if semantics == "legacy" and linopy_uses_v1():
+        pytest.skip("linopy's legacy arithmetic semantics are not available")
     v1 = semantics == "v1"
     with v1_semantics() if v1 else nullcontext():
         model = n.optimize.create_model(sparse=v1)
