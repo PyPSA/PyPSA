@@ -177,7 +177,9 @@ def _resolve_include_objective_constant(
     return value
 
 
-def normalize_transmission_losses(transmission_losses: bool | int | dict) -> dict | None:
+def normalize_transmission_losses(
+    transmission_losses: bool | int | dict,
+) -> dict | None:
     """The loss configuration as a dict with its `mode`, or None for a lossless run."""
     if not transmission_losses:
         return None
@@ -275,7 +277,15 @@ def set_objective_constant(n: Network, include_objective_constant: bool) -> None
                 name="objective_constant",
                 scaling=m.objective.scaling,
             )
-            capex_terms.append(-1 * object_const)
+            if "scenario" in object_const.dims:
+                weight = xr.DataArray(
+                    n.scenario_weightings["weight"].to_numpy(),
+                    coords={"scenario": n.scenarios},
+                    dims="scenario",
+                )
+                capex_terms.append(-1 * (object_const * weight).sum("scenario"))
+            else:
+                capex_terms.append(-1 * object_const)
     else:
         n._objective_constant = 0.0
 
@@ -1210,6 +1220,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         # Recalculate storageunit net dispatch
         storage_units = n.c.storage_units
         if not storage_units.empty:
+            for attr in ("p_dispatch", "p_store"):
+                if storage_units.dynamic[attr].empty:
+                    _set_dynamic_data(n, "StorageUnit", attr, pd.DataFrame(index=sns))
             storage_units.dynamic["p"] = (
                 storage_units.dynamic["p_dispatch"] - storage_units.dynamic["p_store"]
             )

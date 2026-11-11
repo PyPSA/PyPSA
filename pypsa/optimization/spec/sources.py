@@ -1088,3 +1088,10 @@ def _min_time(s: NetworkSources, component: str, suffix: str) -> xr.DataArray:
     """The minimum time, at most the horizon: a longer window reads nothing more."""
     name = f"{component}_{suffix}"
     return s.attribute(component, suffix, name).clip(max=len(s.snapshots))
+
+
+@single("Store_cycles_max")
+def _cycles_max(s: NetworkSources, name: str) -> xr.DataArray:
+    """`cycles_max`, absent where infinite, so a scenario without a limit has no row."""
+    cycles = s.attribute("Store", "cycles_max", name)
+    return cycles.where(np.isfinite(cycles))
