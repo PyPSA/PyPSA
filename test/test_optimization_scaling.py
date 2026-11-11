@@ -8,7 +8,6 @@ import linopy
 import numpy as np
 import pandas as pd
 import pytest
-from linopy.constraints import CSRConstraint
 
 import pypsa
 from pypsa.optimization.scaling import KVL
@@ -79,7 +78,7 @@ def test_scaled_matches_unscaled(network, sparse):
         n.optimize(model_kwargs={"sparse": sparse}, objective_scaling=1e-6)
 
     cons = n.model.constraints
-    assert all(isinstance(cons[name], CSRConstraint) == sparse for name in cons)
+    assert all(cons[name].lhs.is_sparse == sparse for name in cons)
     for name in cons:
         if name.startswith("GlobalConstraint-"):
             assert (cons[name].scaling == 1e-3).all()

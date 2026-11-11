@@ -15,13 +15,13 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import Model
-from linopy.constants import BREAKPOINT_DIM
+from linopy.constants import BREAKPOINT_DIM, TERM_DIM
 from linopy.constraints import Constraint
 from linopy.expressions import LinearExpression
 from linopy.variables import Variable
 
 from pypsa.optimization.common import get_bus_counts
-from pypsa.optimization.scaling import KVL
+from pypsa.optimization.scaling import KVL, check_sub_networks, global_constraint_factor
 from pypsa.optimization.spec._passive_network import (
     SecurityGroup,
     flow_based_zones,
@@ -390,6 +390,107 @@ def _merge_global_constraints(m: Model, squeeze: bool) -> None:
         m.remove_constraints(k)
 
 
+#: Columns PyPSA never scales: unit commitment, modules, maintenance and angles.
+UNSCALED = {
+    "status",
+    "start_up",
+    "shut_down",
+    "n_mod",
+    "maintenance",
+    "maintenance_start",
+    "maintenance_status",
+    "phase_shift",
+}
+#: The rows that take the geometric mean of the smallest and largest factor of the assets they sum.
+GROWTH_LIMIT = "Carrier-growth_limit"
+
+
+def _scale_columns(
+    m: Model, n: Network, objective: float
+) -> tuple[np.ndarray, np.ndarray]:
+    """Give every column PyPSA's factor; return per label its bus factor and whether it is a cost.
+
+    A cost column takes the objective factor. A continuous column of a
+    component on a bus takes `Bus.scaling` of its bus; the weights and
+    binaries of a piecewise curve, and the columns in `UNSCALED`, keep `1`.
+    A column without a bus factor reads NaN.
+    """
+    bus = np.full(m._xCounter, np.nan)
+    cost = np.zeros(m._xCounter, dtype=bool)
+    attached = n.one_port_components | n.branch_components
+    for name, var in m.variables.items():
+        component, _, attr = name.partition("-")
+        labels = var.labels.values
+        live = labels != -1
+        if component == "CVaR" or attr.endswith("cost_piecewise"):
+            var.scaling = objective
+            cost[labels[live]] = True
+        elif (
+            component in attached
+            and "name" in var.labels.dims
+            and attr not in UNSCALED
+            and "_piecewise_" not in attr
+            and not (var.attrs.get("binary") or var.attrs.get("integer"))
+        ):
+            var.scaling = n.c[component]._scaling(var.labels.indexes["name"])
+            factor = var.scaling.broadcast_like(var.labels)
+            bus[labels[live]] = factor.transpose(*var.labels.dims).values[live]
+    return bus, cost
+
+
+def _scale_rows(
+    m: Model, n: Network, bus: np.ndarray, cost: np.ndarray, objective: float
+) -> None:
+    """Give every constraint PyPSA's factor, read from the columns it holds.
+
+    A global constraint takes `GlobalConstraint.scaling`. The Kirchhoff
+    voltage law takes per row the largest factor of its branches, a growth
+    limit per carrier the geometric mean of the smallest and largest factor
+    of its assets. Otherwise a constraint holding a cost column takes the
+    objective factor, one holding a column with a bus factor the factor of
+    its own component, and every other keeps `1`. PyPSA decides per
+    constraint, so a row masked out of a constraint takes its factor too.
+    """
+    attached = n.one_port_components | n.branch_components | {"Bus"}
+    stated = n.c.global_constraints.names
+    for name, con in m.constraints.items():
+        component, _, rest = name.partition("-")
+        if component == "GlobalConstraint" and rest in stated:
+            con.scaling = global_constraint_factor(n, rest)
+            continue
+        labels = con.vars.values
+        live = (labels != -1) & (con.coeffs.values != 0)
+        factors = con.vars.copy(data=np.where(live, bus[labels], np.nan))
+        if name == KVL:
+            con.scaling = factors.max(TERM_DIM).fillna(1.0)
+        elif name == GROWTH_LIMIT:
+            dims = [d for d in factors.dims if d != "Carrier"]
+            con.scaling = np.sqrt(factors.min(dims) * factors.max(dims)).fillna(1.0)
+        elif (live & cost[labels]).any():
+            con.scaling = objective
+        elif (
+            component in attached
+            and "name" in con.labels.dims
+            and factors.notnull().any()
+        ):
+            con.scaling = n.c[component]._scaling(con.labels.indexes["name"])
+
+
+def _scale(m: Model, n: Network, objective: float) -> None:
+    """Apply PyPSA's numerical scaling to the built model.
+
+    The Kirchhoff voltage law rows carry PyPSA's 1e5 on their coefficients,
+    so their duals keep PyPSA's units.
+    """
+    m.objective.scaling = objective
+    if KVL in m.constraints:
+        check_sub_networks(n)
+        con = m.constraints[KVL]
+        con.update(lhs=con.lhs * KVL_SCALING, rhs=con.rhs * KVL_SCALING)
+    bus, cost = _scale_columns(m, n, objective)
+    _scale_rows(m, n, bus, cost, objective)
+
+
 def build_model(
     n: Network,
     network_index: pd.Index,
@@ -399,6 +500,7 @@ def build_model(
     model_kwargs: dict | None = None,
     meshed_thresholds: Sequence[int] | None = None,
     piecewise_options: Sequence[Any] = (),
+    objective_scaling: float = 1.0,
     **options: Any,
 ) -> Model:
     """Build the model of `n` over the build's snapshots from the spec."""
@@ -434,6 +536,5 @@ def build_model(
         m, n, names, model_index, network_index, sources, _meshed(n, meshed_thresholds)
     )
     m.constraints.sanitize_zeros()
-    if KVL in m.constraints:
-        m.constraints[KVL].scaling = KVL_SCALING
+    _scale(m, n, objective_scaling)
     return m

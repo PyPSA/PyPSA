@@ -952,8 +952,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             branch_outages=branch_outages,
             meshed_thresholds=meshed_thresholds,
             piecewise_options=piecewise_opts,
+            objective_scaling=objective_scaling,
         )
-        n.model.objective.scaling = objective_scaling
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
         set_objective_constant(n, include_objective_constant)
 
