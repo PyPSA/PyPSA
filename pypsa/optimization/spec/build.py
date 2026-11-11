@@ -90,18 +90,16 @@ def _order(dims: tuple[str, ...], has_scenarios: bool) -> list[str]:
     return [d for d in dims if d == lead] + [d for d in dims if d != lead]
 
 
-def _renumbered(
-    ds: xr.Dataset, order: list[str], mapping: np.ndarray, trim: bool
-) -> xr.Dataset:
-    """`ds` laid out in `order`, with fresh labels, trimmed to its built units on request.
+def _renumbered(ds: xr.Dataset, order: list[str], mapping: np.ndarray) -> xr.Dataset:
+    """`ds` laid out in `order`, with fresh labels, trimmed to its built units.
 
-    PyPSA builds a variable only for the units that have one, so with `trim`
-    a unit whose every label is masked is dropped; a constraint keeps it
-    masked. linopy reads a solution or a dual by reshaping one C-ordered
-    label block, so the kept labels are renumbered from the block's start;
-    `mapping` records old to new.
+    PyPSA builds a variable or a constraint only for the units that have
+    one, so a unit whose every label is masked is dropped. linopy reads a
+    solution or a dual by reshaping one C-ordered label block, so the kept
+    labels are renumbered from the block's start; `mapping` records old to
+    new.
     """
-    if trim and "name" in ds.labels.dims and ds.sizes["name"]:
+    if "name" in ds.labels.dims and ds.sizes["name"]:
         others = [d for d in ds.labels.dims if d != "name"]
         ds = ds.isel(name=(ds.labels != -1).any(others).values)
     ds = ds.transpose(*order, ...)
@@ -289,9 +287,7 @@ def _relabel(
             ds = ds.squeeze("scenario", drop=True)
         if "snapshot" in ds.dims:
             ds = ds.assign_coords({"snapshot": snapshots, **levels})
-        return _renumbered(
-            ds, _order(ds.labels.dims, n.has_scenarios), mapping, not constraint
-        )
+        return _renumbered(ds, _order(ds.labels.dims, n.has_scenarios), mapping)
 
     variables = {}
     for name, var in m.variables.items():
