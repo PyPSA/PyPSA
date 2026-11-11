@@ -979,7 +979,7 @@ def test_nan_ram_with_investment_periods():
     n.optimize.create_model(multi_investment_periods=True)
     active = _active_cnecs(n)
     assert active.to_numpy().sum() == 12 * 2 - 1
-    assert not active.loc[(2020, 1), "AB (+) 2020"]
+    assert not active.at[(2020, 1), "AB (+) 2020"]
 
 
 def test_nan_ram_rolling_horizon_window_without_cnec():
