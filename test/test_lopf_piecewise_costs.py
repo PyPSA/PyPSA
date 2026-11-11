@@ -274,6 +274,37 @@ class TestPiecewiseCostsResults:
         p = n.c.stores.dynamic.p["store0"]
         assert n.objective == pytest.approx((mc * p).sum() + (25 * 50), rel=1e-6)
 
+    def test_store_piecewise_marginal_cost_max_hours_scale(self) -> None:
+        """Store piecewise marginal cost breakpoints scale by e_nom / max_hours (#2118)."""
+        for max_hours, domain_hi in [(4, 25.0), (float("inf"), 100.0)]:
+            n = pypsa.Network(snapshots=range(2))
+            n.add("Bus", "bus0")
+            n.add("Generator", "gen0", bus="bus0", p_nom=200, marginal_cost=[1, 50])
+            n.add("Load", "load", bus="bus0", p_set=[0, 80])
+            n.add(
+                "Store",
+                "store0",
+                bus="bus0",
+                e_nom=100,
+                e_initial=75,
+                max_hours=max_hours,
+                marginal_cost={0.0: 0.0, 0.5: 1.0, 1.0: 2.0},
+            )
+            n.optimize()
+            # p_pu=1 must sit at the power rating e_nom / max_hours,
+            # not at e_nom; with infinite max_hours e_nom stays the scale.
+            rhs = n.model.constraints[
+                "Store-marginal_cost_piecewise_domain_hi"
+            ].rhs
+            assert float(rhs.values.flat[0]) == pytest.approx(domain_hi)
+            if max_hours == 4:
+                # A curve starting at x=0 cannot charge (Store-p >= 0),
+                # but with energy in store it discharges at its full
+                # 25 MW rating when the generator costs 50/MWh.
+                assert n.c.stores.dynamic.p["store0"].tolist() == pytest.approx(
+                    [0.0, 25.0]
+                )
+
     def test_multi_invest_piecewise_capital_cost(self) -> None:
         """A constant-slope piecewise capital cost matches its linear equivalent."""
 
