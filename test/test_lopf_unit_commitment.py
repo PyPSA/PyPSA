@@ -3,15 +3,14 @@
 # SPDX-License-Identifier: MIT
 
 from contextlib import nullcontext
-from typing import Any
 
-import linopy
 import numpy as np
 import pandas as pd
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
+from pypsa._linopy_compat import V1_ONLY, v1_semantics
 
 
 def test_unit_commitment():
@@ -1571,6 +1570,7 @@ def test_linearized_uc_tightening_with_time_varying_costs(caplog):
     assert "cannot be tightened" in caplog.text
 
 
+@pytest.mark.filterwarnings("ignore::linopy.constants.PerformanceWarning")
 @pytest.mark.parametrize("semantics", ["legacy", "v1"])
 @pytest.mark.parametrize("short_time", [None, 0, 1])
 def test_minimum_time_rows_at_window_boundary(
@@ -1603,20 +1603,11 @@ def test_minimum_time_rows_at_window_boundary(
             up_time_before=0,
         )
     n.add("Load", "load", bus="bus", p_set=1)
-    try:
-        linopy.options["semantics"]
-        supports_semantics = True
-    except KeyError:
-        supports_semantics = False
-    if semantics == "v1" and not supports_semantics:
-        pytest.skip("Installed linopy predates v1 arithmetic semantics")
-    with linopy.options if supports_semantics else nullcontext():
-        if supports_semantics:
-            linopy.options.set_value(semantics=semantics)
-        kwargs: dict[str, Any] = (
-            {"sparse": semantics == "v1"} if supports_semantics else {}
-        )
-        model = n.optimize.create_model(**kwargs)
+    if semantics == "legacy" and V1_ONLY:
+        pytest.skip("Installed linopy only supports v1 arithmetic semantics")
+    v1 = semantics == "v1"
+    with v1_semantics() if v1 else nullcontext():
+        model = n.optimize.create_model(sparse=v1)
         status = model.variables["Generator-status"].labels.values
         for kind, sign, transition in [
             ("up", -1, "start_up"),

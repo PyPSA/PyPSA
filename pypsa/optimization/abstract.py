@@ -169,7 +169,9 @@ def _add_security_constraints(
         bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
         added_flow = flow_outage * bodf
 
-        for bound, kind in product(("lower", "upper"), ("fix", "ext")):
+        for (bound, sign), kind in product(
+            (("lower", ">="), ("upper", "<=")), ("fix", "ext")
+        ):
             constraint = c_affected + "-" + kind + "-s-" + bound
             if constraint not in m.constraints:
                 continue
@@ -191,7 +193,7 @@ def _add_security_constraints(
             )
             m.add_constraints(
                 lhs,
-                con.sign.sel(con_selection),
+                sign,
                 con.rhs.sel(con_selection),
                 name=name,
                 scaling=con.scaling.sel(con_selection),

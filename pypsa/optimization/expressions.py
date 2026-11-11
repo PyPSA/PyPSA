@@ -696,10 +696,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                         "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
                     )
                 s = 1 if direction == "supply" else -1
+                present = expr.const.notnull()
+                expr = expr.fillna(0)
                 expr = expr.assign(
                     coeffs=(s * expr.coeffs).clip(min=0),
                     const=(s * expr.const).clip(min=0),
-                )
+                ).where(present)
             elif direction != "both":
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)

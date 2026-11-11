@@ -9,6 +9,10 @@ v1, PyPSA therefore builds multi-period models over a flat `snapshot` dim (see
 `pypsa.optimization.window`). This module detects what the installed linopy
 supports and resolves the snapshot representation against it; delete it once v1
 is linopy's default and PyPSA requires that release.
+
+linopy 1.0 removed the legacy semantics, the option to choose them and the
+frozen `CSRConstraint`. The probes below keep PyPSA working on both 0.10 and
+1.0.
 """
 
 from __future__ import annotations
@@ -21,16 +25,23 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from linopy import Model, Variable
 from linopy import options as linopy_options
+from linopy import semantics as linopy_semantics
+from linopy.config import LinopySemanticsWarning
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
     import xarray as xr
+    from linopy import Constraint
 
 try:
-    from linopy.config import LinopySemanticsWarning
-except ImportError:  # linopy without the v1 semantics option
-    LinopySemanticsWarning = None
+    from linopy.constraints import CSRConstraint
+except ImportError:  # linopy>=1.0: a sparse constraint is a mutable `Constraint`
+    CSRConstraint = None
+
+# linopy>=1.0 has v1 as its only semantics. Reading the deprecated
+# `semantics` option there emits a FutureWarning, so probe without it.
+V1_ONLY = not hasattr(linopy_semantics, "is_v1")
 
 # Ragged piecewise curves are stored densely. Only linopy with v1 semantics lets
 # the absent slots be declared. Older releases infer them from NaN padding.
@@ -41,10 +52,41 @@ SUPPORTS_BREAKPOINT_MASK = (
 
 def linopy_uses_v1() -> bool:
     """Whether linopy's v1 arithmetic semantics are active."""
-    try:
-        return linopy_options["semantics"] == "v1"
-    except KeyError:
-        return False
+    return V1_ONLY or linopy_semantics.is_v1()
+
+
+@contextmanager
+def v1_semantics() -> Iterator[None]:
+    """Activate linopy's v1 semantics for the wrapped block.
+
+    A no-op on linopy>=1.0, where v1 is the only semantics.
+    """
+    if V1_ONLY:
+        yield
+        return
+    with linopy_options:
+        linopy_options.set_value(semantics="v1")
+        yield
+
+
+def is_sparse_constraint(con: Constraint) -> bool:
+    """Whether `con` stores its left-hand side in sparse (CSR) form."""
+    if CSRConstraint is not None:
+        return isinstance(con, CSRConstraint)
+    return con.lhs.is_sparse
+
+
+def set_constraint_scaling(con: Constraint, scaling: xr.DataArray) -> None:
+    """Set the row scaling of `con`.
+
+    linopy<1.0 freezes sparse constraints, so they are replaced by a scaled copy.
+    """
+    if CSRConstraint is None or not isinstance(con, CSRConstraint):
+        con.scaling = scaling
+        return
+    mutable = con.mutable()
+    mutable.scaling = scaling
+    con.model.constraints.add(mutable.freeze())
 
 
 def use_flat_snapshot_index(sns: pd.Index, option: str) -> bool:
@@ -78,10 +120,9 @@ def suppress_semantics_warnings() -> Iterator[None]:
     """Silence linopy's legacy-to-v1 divergence notices for the wrapped block.
 
     PyPSA builds identical models under both semantics, but on legacy linopy the
-    build trips a deprecation notice per operation. A no-op under v1 and on
-    linopy without the semantics option.
+    build trips a deprecation notice per operation. A no-op under v1.
     """
-    if LinopySemanticsWarning is None or linopy_uses_v1():
+    if linopy_uses_v1():
         yield
         return
     with warnings.catch_warnings():

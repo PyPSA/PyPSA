@@ -199,6 +199,7 @@ def _build_domain(n: Network, sns: pd.Index) -> _FlowBasedDomain | None:
         msg = f"Flow-based rows {rows[no_ram.to_numpy()].tolist()} have no `ram`."
         raise ValueError(msg)
     mask = mask & ram.notnull()
+    ram = ram.fillna(0)
 
     zone_domain = _zone_domains(n, rows, zones)
     return _FlowBasedDomain(rows, zones, links, ptdf, ram, mask, zone_domain)

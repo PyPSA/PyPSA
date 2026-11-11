@@ -2,15 +2,16 @@
 #
 # SPDX-License-Identifier: MIT
 
+from contextlib import nullcontext
 from typing import Any
 
 import linopy
 import numpy as np
 import pandas as pd
 import pytest
-from linopy.constraints import CSRConstraint
 
 import pypsa
+from pypsa._linopy_compat import is_sparse_constraint, v1_semantics
 from pypsa.optimization.scaling import KVL
 
 RTOL = 1e-5
@@ -73,13 +74,11 @@ def test_scaled_matches_unscaled(network, sparse):
     ref.optimize()
     n = scale(build(), factors)
     n.c.global_constraints.static.scaling = 1e-3
-    with linopy.options:
-        if sparse:
-            linopy.options.set_value(semantics="v1")
+    with v1_semantics() if sparse else nullcontext():
         n.optimize(model_kwargs={"sparse": sparse}, objective_scaling=1e-6)
 
     cons = n.model.constraints
-    assert all(isinstance(cons[name], CSRConstraint) == sparse for name in cons)
+    assert all(is_sparse_constraint(cons[name]) == sparse for name in cons)
     for name in cons:
         if name.startswith("GlobalConstraint-"):
             assert (cons[name].scaling == 1e-3).all()
@@ -566,8 +565,7 @@ def build_model(n: pypsa.Network, mode: str, kwargs: dict) -> linopy.Model:
     if mode == "rolling":
         n.optimize.optimize_with_rolling_horizon(horizon=3, objective_scaling=OBJ)
     elif mode == "sclopf":
-        with linopy.options:
-            linopy.options.set_value(semantics="v1")
+        with v1_semantics():
             n.optimize.optimize_security_constrained(
                 objective_scaling=OBJ, model_kwargs={"sparse": True}
             )
