@@ -2483,6 +2483,16 @@ expressions:
     cases:
       extendable: { when: Generator_p_nom_extendable, expression: Generator_p_nom_ext }
     otherwise: Generator_p_nom
+  Generator_p_nom_rated:
+    description: >-
+      the given build a fixed generator's limits are taken against. It is
+      zero for an unrated generator, one whose `p_nom` is infinite: its
+      limit is a row only where the per-unit value is zero, and the row
+      bounds at zero (`constraints.py:129-140`)
+    dims: [scenario, generator]
+    cases:
+      unrated: { when: "Generator_p_nom == inf", expression: 0 }
+    otherwise: Generator_p_nom
   Generator_ramp_up_rate:
     description: >-
       the ramp limit in a unit's up row, PyPSA's `ramp_limit_up`. It is the
@@ -2590,6 +2600,16 @@ expressions:
     dims: [scenario, link]
     cases:
       extendable: { when: Link_p_nom_extendable, expression: Link_p_nom_ext }
+    otherwise: Link_p_nom
+  Link_p_nom_rated:
+    description: >-
+      the given build a fixed link's limits are taken against. It is
+      zero for an unrated link, one whose `p_nom` is infinite: its
+      limit is a row only where the per-unit value is zero, and the row
+      bounds at zero (`constraints.py:129-140`)
+    dims: [scenario, link]
+    cases:
+      unrated: { when: "Link_p_nom == inf", expression: 0 }
     otherwise: Link_p_nom
   Link_previous_status:
     description: >-
@@ -2736,6 +2756,16 @@ expressions:
     cases:
       extendable: { when: Process_p_nom_extendable, expression: Process_p_nom_ext }
     otherwise: Process_p_nom
+  Process_p_nom_rated:
+    description: >-
+      the given build a fixed process's limits are taken against. It is
+      zero for an unrated process, one whose `p_nom` is infinite: its
+      limit is a row only where the per-unit value is zero, and the row
+      bounds at zero (`constraints.py:129-140`)
+    dims: [scenario, process]
+    cases:
+      unrated: { when: "Process_p_nom == inf", expression: 0 }
+    otherwise: Process_p_nom
   Process_previous_status:
     description: >-
       the commitment state a process carries into a snapshot. It is off at the
@@ -2875,6 +2905,16 @@ expressions:
           + Process_shut_down_rate * Process_p_nom_committed
           * (Process_ramp_previous_status - Process_status)
     otherwise: Process_ramp_down_rate * Process_p_nom_effective
+  StorageUnit_p_nom_rated:
+    description: >-
+      the given build a fixed storage unit's limits are taken against. It is
+      zero for an unrated storage unit, one whose `p_nom` is infinite: its
+      limit is a row only where the per-unit value is zero, and the row
+      bounds at zero (`constraints.py:129-140`)
+    dims: [scenario, storage_unit]
+    cases:
+      unrated: { when: "StorageUnit_p_nom == inf", expression: 0 }
+    otherwise: StorageUnit_p_nom
   StorageUnit_charge_carried_in:
     description: >-
       the charge a unit opens a snapshot with. At the first snapshot it is active
@@ -3066,6 +3106,16 @@ expressions:
     dims: [scenario, store]
     cases:
       extendable: { when: Store_e_nom_extendable, expression: Store_e_nom_ext }
+    otherwise: Store_e_nom
+  Store_e_nom_rated:
+    description: >-
+      the given build a fixed store's limits are taken against. It is
+      zero for an unrated store, one whose `e_nom` is infinite: its
+      limit is a row only where the per-unit value is zero, and the row
+      bounds at zero (`constraints.py:129-140`)
+    dims: [scenario, store]
+    cases:
+      unrated: { when: "Store_e_nom == inf", expression: 0 }
     otherwise: Store_e_nom
   Store_discharge_floor_pu:
     description: >-
@@ -3465,6 +3515,26 @@ expressions:
     cases:
       active: { when: Load_active, expression: Load_sign * Load_p_set }
     otherwise: 0
+  Line_s_nom_rated:
+    description: >-
+      the given build a fixed line's limits are taken against. It is
+      zero for an unrated line, one whose `s_nom` is infinite: its
+      limit is a row only where the per-unit value is zero, and the row
+      bounds at zero (`constraints.py:129-140`)
+    dims: [scenario, line]
+    cases:
+      unrated: { when: "Line_s_nom == inf", expression: 0 }
+    otherwise: Line_s_nom
+  Transformer_s_nom_rated:
+    description: >-
+      the given build a fixed transformer's limits are taken against. It is
+      zero for an unrated transformer, one whose `s_nom` is infinite: its
+      limit is a row only where the per-unit value is zero, and the row
+      bounds at zero (`constraints.py:129-140`)
+    dims: [scenario, transformer]
+    cases:
+      unrated: { when: "Transformer_s_nom == inf", expression: 0 }
+    otherwise: Transformer_s_nom
   Line_s_monitored:
     description: >-
       the flow in a line's post-contingency rows. It is its flow where it
@@ -4374,23 +4444,23 @@ constraints:
   Generator_fix_p_lower:
     description: "`Generator-fix-p-lower` — a fixed generator outputs at least its minimum"
     dims: [scenario, snapshot, generator]
-    where: not Generator_p_nom_extendable AND not Generator_committable AND Generator_active
-    expression: Generator_p >= Generator_p_min_pu * Generator_p_nom * (1 - Generator_maintenance_pu * Generator_maintenance)
+    where: not Generator_p_nom_extendable AND not Generator_committable AND Generator_active AND (Generator_p_nom < inf OR Generator_p_min_pu == 0)
+    expression: Generator_p >= Generator_p_min_pu * Generator_p_nom_rated * (1 - Generator_maintenance_pu * Generator_maintenance)
   Generator_fix_p_upper:
     description: "`Generator-fix-p-upper` — a fixed generator outputs at most what is available"
     dims: [scenario, snapshot, generator]
-    where: not Generator_p_nom_extendable AND not Generator_committable AND Generator_active
-    expression: Generator_p <= Generator_p_max_pu * Generator_p_nom * (1 - Generator_maintenance_pu * Generator_maintenance)
+    where: not Generator_p_nom_extendable AND not Generator_committable AND Generator_active AND (Generator_p_nom < inf OR Generator_p_max_pu == 0)
+    expression: Generator_p <= Generator_p_max_pu * Generator_p_nom_rated * (1 - Generator_maintenance_pu * Generator_maintenance)
   Link_fix_p_lower:
     description: "`Link-fix-p-lower` — a fixed link carries at least its minimum, negative for the other way"
     dims: [scenario, snapshot, link]
-    where: not Link_p_nom_extendable AND not Link_committable AND Link_active
-    expression: Link_p >= Link_p_min_pu * Link_p_nom * (1 - Link_maintenance_pu * Link_maintenance)
+    where: not Link_p_nom_extendable AND not Link_committable AND Link_active AND (Link_p_nom < inf OR Link_p_min_pu == 0)
+    expression: Link_p >= Link_p_min_pu * Link_p_nom_rated * (1 - Link_maintenance_pu * Link_maintenance)
   Link_fix_p_upper:
     description: "`Link-fix-p-upper` — a fixed link carries at most its nominal power"
     dims: [scenario, snapshot, link]
-    where: not Link_p_nom_extendable AND not Link_committable AND Link_active
-    expression: Link_p <= Link_p_max_pu * Link_p_nom * (1 - Link_maintenance_pu * Link_maintenance)
+    where: not Link_p_nom_extendable AND not Link_committable AND Link_active AND (Link_p_nom < inf OR Link_p_max_pu == 0)
+    expression: Link_p <= Link_p_max_pu * Link_p_nom_rated * (1 - Link_maintenance_pu * Link_maintenance)
   Generator_ext_p_lower:
     description: "`Generator-ext-p-lower` — an extendable generator outputs at least its minimum of the chosen build"
     dims: [scenario, snapshot, generator]
@@ -4484,13 +4554,13 @@ constraints:
   Process_fix_p_lower:
     description: "`Process-fix-p-lower` — a fixed process runs at least its minimum, negative for the other way"
     dims: [scenario, snapshot, process]
-    where: not Process_p_nom_extendable AND not Process_committable AND Process_active
-    expression: Process_p >= Process_p_min_pu * Process_p_nom * (1 - Process_maintenance_pu * Process_maintenance)
+    where: not Process_p_nom_extendable AND not Process_committable AND Process_active AND (Process_p_nom < inf OR Process_p_min_pu == 0)
+    expression: Process_p >= Process_p_min_pu * Process_p_nom_rated * (1 - Process_maintenance_pu * Process_maintenance)
   Process_fix_p_upper:
     description: "`Process-fix-p-upper` — a fixed process runs at most its nominal power"
     dims: [scenario, snapshot, process]
-    where: not Process_p_nom_extendable AND not Process_committable AND Process_active
-    expression: Process_p <= Process_p_max_pu * Process_p_nom * (1 - Process_maintenance_pu * Process_maintenance)
+    where: not Process_p_nom_extendable AND not Process_committable AND Process_active AND (Process_p_nom < inf OR Process_p_max_pu == 0)
+    expression: Process_p <= Process_p_max_pu * Process_p_nom_rated * (1 - Process_maintenance_pu * Process_maintenance)
   Process_ext_p_lower:
     description: "`Process-ext-p-lower` — an extendable process runs at least its minimum of the chosen build, negative for the other way"
     dims: [scenario, snapshot, process]
@@ -4524,8 +4594,8 @@ constraints:
   StorageUnit_fix_p_dispatch_upper:
     description: "`StorageUnit-fix-p_dispatch-upper` — a fixed unit dispatches at most its nominal power"
     dims: [scenario, snapshot, storage_unit]
-    where: StorageUnit_fix
-    expression: StorageUnit_p_dispatch <= StorageUnit_p_max_pu * StorageUnit_p_nom
+    where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_p_max_pu == 0)
+    expression: StorageUnit_p_dispatch <= StorageUnit_p_max_pu * StorageUnit_p_nom_rated
   StorageUnit_fix_p_store_lower:
     description: "`StorageUnit-fix-p_store-lower` — storing is non-negative"
     dims: [scenario, snapshot, storage_unit]
@@ -4536,8 +4606,8 @@ constraints:
       `StorageUnit-fix-p_store-upper` — a fixed unit stores at most its
       nominal power, the minimum-per-unit column carrying that cap negated
     dims: [scenario, snapshot, storage_unit]
-    where: StorageUnit_fix
-    expression: StorageUnit_p_store <= -StorageUnit_p_min_pu * StorageUnit_p_nom
+    where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_p_min_pu == 0)
+    expression: StorageUnit_p_store <= -StorageUnit_p_min_pu * StorageUnit_p_nom_rated
   StorageUnit_fix_state_of_charge_lower:
     description: "`StorageUnit-fix-state_of_charge-lower` — charge is non-negative"
     dims: [scenario, snapshot, storage_unit]
@@ -4546,8 +4616,8 @@ constraints:
   StorageUnit_fix_state_of_charge_upper:
     description: "`StorageUnit-fix-state_of_charge-upper` — a fixed unit holds at most its hours at nominal power"
     dims: [scenario, snapshot, storage_unit]
-    where: StorageUnit_fix
-    expression: StorageUnit_state_of_charge <= StorageUnit_max_hours * StorageUnit_p_nom
+    where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_max_hours == 0)
+    expression: StorageUnit_state_of_charge <= StorageUnit_max_hours * StorageUnit_p_nom_rated
   Generator_com_p_lower:
     description: "`Generator-com-p-lower` — a committed unit outputs at least its minimum. Off, it outputs at least nothing"
     dims: [scenario, snapshot, generator]
@@ -5313,13 +5383,13 @@ constraints:
   Line_fix_s_lower:
     description: "`Line-fix-s-lower` — a fixed line carries at least the negative of its rating, the loss counted against it"
     dims: [scenario, snapshot, line]
-    where: not Line_s_nom_extendable AND Line_active
-    expression: Line_s - Line_loss >= -Line_s_max_pu * Line_s_nom
+    where: not Line_s_nom_extendable AND Line_active AND (Line_s_nom < inf OR Line_s_max_pu == 0)
+    expression: Line_s - Line_loss >= -Line_s_max_pu * Line_s_nom_rated
   Line_fix_s_upper:
     description: "`Line-fix-s-upper` — a fixed line carries at most its rating, the loss included"
     dims: [scenario, snapshot, line]
-    where: not Line_s_nom_extendable AND Line_active
-    expression: Line_s + Line_loss <= Line_s_max_pu * Line_s_nom
+    where: not Line_s_nom_extendable AND Line_active AND (Line_s_nom < inf OR Line_s_max_pu == 0)
+    expression: Line_s + Line_loss <= Line_s_max_pu * Line_s_nom_rated
   Line_ext_s_lower:
     description: "`Line-ext-s-lower` — an extendable line carries at least the negative of its rating of the chosen build, the loss counted against it"
     dims: [scenario, snapshot, line]
@@ -5394,13 +5464,13 @@ constraints:
   Transformer_fix_s_lower:
     description: "`Transformer-fix-s-lower` — a fixed transformer carries at least the negative of its rating, the loss counted against it"
     dims: [scenario, snapshot, transformer]
-    where: not Transformer_s_nom_extendable AND Transformer_active
-    expression: Transformer_s - Transformer_loss >= -Transformer_s_max_pu * Transformer_s_nom
+    where: not Transformer_s_nom_extendable AND Transformer_active AND (Transformer_s_nom < inf OR Transformer_s_max_pu == 0)
+    expression: Transformer_s - Transformer_loss >= -Transformer_s_max_pu * Transformer_s_nom_rated
   Transformer_fix_s_upper:
     description: "`Transformer-fix-s-upper` — a fixed transformer carries at most its rating, the loss included"
     dims: [scenario, snapshot, transformer]
-    where: not Transformer_s_nom_extendable AND Transformer_active
-    expression: Transformer_s + Transformer_loss <= Transformer_s_max_pu * Transformer_s_nom
+    where: not Transformer_s_nom_extendable AND Transformer_active AND (Transformer_s_nom < inf OR Transformer_s_max_pu == 0)
+    expression: Transformer_s + Transformer_loss <= Transformer_s_max_pu * Transformer_s_nom_rated
   Transformer_ext_s_lower:
     description: "`Transformer-ext-s-lower` — an extendable transformer carries at least the negative of its rating of the chosen build, the loss counted against it"
     dims: [scenario, snapshot, transformer]
@@ -5753,13 +5823,13 @@ constraints:
   Store_fix_e_lower:
     description: "`Store-fix-e-lower` — a fixed store holds at least its floor"
     dims: [scenario, snapshot, store]
-    where: not Store_e_nom_extendable AND Store_active
-    expression: Store_e >= Store_e_min_pu * Store_e_nom
+    where: not Store_e_nom_extendable AND Store_active AND (Store_e_nom < inf OR Store_e_min_pu == 0)
+    expression: Store_e >= Store_e_min_pu * Store_e_nom_rated
   Store_fix_e_upper:
     description: "`Store-fix-e-upper` — a fixed store holds at most its nominal capacity"
     dims: [scenario, snapshot, store]
-    where: not Store_e_nom_extendable AND Store_active
-    expression: Store_e <= Store_e_max_pu * Store_e_nom
+    where: not Store_e_nom_extendable AND Store_active AND (Store_e_nom < inf OR Store_e_max_pu == 0)
+    expression: Store_e <= Store_e_max_pu * Store_e_nom_rated
   Store_ext_e_lower:
     description: "`Store-ext-e-lower` — an extendable store holds at least its floor of the chosen build"
     dims: [scenario, snapshot, store]
@@ -5796,13 +5866,15 @@ constraints:
       zero where it splits its dispatch and its most charging otherwise. A
       store that does not split and has no `max_hours` has no row
     dims: [scenario, snapshot, store]
-    where: NOT Store_e_nom_extendable AND Store_active AND (Store_split_dispatch OR Store_max_hours)
-    expression: Store_p + Store_p_store >= Store_discharge_floor_pu * Store_e_nom
+    where: >-
+      NOT Store_e_nom_extendable AND Store_active AND (Store_split_dispatch OR Store_max_hours)
+      AND (Store_e_nom < inf OR Store_split_dispatch OR Store_p_min_pu == 0)
+    expression: Store_p + Store_p_store >= Store_discharge_floor_pu * Store_e_nom_rated
   Store_fix_p_upper:
     description: "`Store-fix-p-upper` — a fixed store discharges at most its power rating. A store without `max_hours` has no row"
     dims: [scenario, snapshot, store]
-    where: NOT Store_e_nom_extendable AND Store_active AND Store_max_hours
-    expression: Store_p + Store_p_store <= Store_p_max_pu / Store_max_hours * Store_e_nom
+    where: NOT Store_e_nom_extendable AND Store_active AND Store_max_hours AND (Store_e_nom < inf OR Store_p_max_pu == 0)
+    expression: Store_p + Store_p_store <= Store_p_max_pu / Store_max_hours * Store_e_nom_rated
   Store_fix_p_store_lower:
     description: "`Store-fix-p_store-lower` — charging is non-negative"
     dims: [scenario, snapshot, store]
@@ -5814,8 +5886,10 @@ constraints:
       splits its dispatch, and not at all where it does not. A store that splits
       and has no `max_hours` has no row
     dims: [scenario, snapshot, store]
-    where: NOT Store_e_nom_extendable AND Store_active AND (NOT Store_split_dispatch OR Store_max_hours)
-    expression: Store_p_store <= Store_charge_cap_pu * Store_e_nom
+    where: >-
+      NOT Store_e_nom_extendable AND Store_active AND (NOT Store_split_dispatch OR Store_max_hours)
+      AND (Store_e_nom < inf OR NOT Store_split_dispatch OR Store_p_min_pu == 0)
+    expression: Store_p_store <= Store_charge_cap_pu * Store_e_nom_rated
   Store_ext_p_lower:
     description: >-
       `Store-ext-p-lower` — an extendable store discharges at least its floor, which is
