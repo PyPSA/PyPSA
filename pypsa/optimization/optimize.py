@@ -42,6 +42,9 @@ from pypsa.optimization.flow_based import (
     NET_POSITION,
     flow_based_net_position,
 )
+from pypsa.optimization.global_constraints import (
+    define_nominal_constraints_per_bus_carrier,
+)
 from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
 from pypsa.optimization.spec import build_model
 from pypsa.optimization.window import SnapshotWindow, apply_period_weighting
@@ -954,6 +957,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             piecewise_options=piecewise_opts,
             objective_scaling=objective_scaling,
         )
+        define_nominal_constraints_per_bus_carrier(n, sns)
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
         set_objective_constant(n, include_objective_constant)
 

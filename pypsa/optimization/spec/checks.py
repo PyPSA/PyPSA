@@ -78,7 +78,7 @@ def _check_invariants(n: Network) -> None:
 
 
 def _check_deprecations(n: Network) -> None:
-    """Warn on `v_ang_min` and on nominal limits per bus carrier."""
+    """Warn on `v_ang_min`."""
     for c in n.components[["Line", "Transformer"]]:
         if np.isfinite(c.static["v_ang_min"]).any():
             warnings.warn(
@@ -88,14 +88,6 @@ def _check_deprecations(n: Network) -> None:
                 DeprecationWarning,
                 stacklevel=4,
             )
-    if n.components.buses.static.columns.str.startswith("nom_").any():
-        warnings.warn(
-            "Nominal constraints per bus carrier are deprecated and will be removed in the future. "
-            "Use global constraint of type 'define_tech_capacity_expansion_limit' instead."
-            "Deprecated in PyPSA 1.0 and will be removed in PyPSA 2.0.",
-            DeprecationWarning,
-            stacklevel=4,
-        )
 
 
 def _check_modules(n: Network) -> None:
