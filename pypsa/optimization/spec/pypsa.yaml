@@ -1434,6 +1434,12 @@ parameters:
       the line's effective series reactance. It is PyPSA's `x_pu_eff`, `x`
       over the square of its bus's nominal voltage, data prep
     dims: [scenario, line]
+  Cycle_in_basis:
+    description: >-
+      whether a period's cycle basis reaches the cycle label, data prep. A
+      label beyond the basis of the period has no Kirchhoff voltage law row
+    dims: [period, cycle]
+    dtype: bool
   Line_cycle_weight:
     description: >-
       the line's series impedance, signed by its orientation in the cycle: the
@@ -5585,9 +5591,7 @@ constraints:
       that are active in it (`constraints.py:1710-1729`). A cycle label that
       period's basis does not reach has no row
     dims: [scenario, snapshot, cycle]
-    where: >-
-      count(at(Line_cycle_weight, by=snapshot_period[period]), over=line) > 0
-      OR count(at(Transformer_cycle_weight, by=snapshot_period[period]), over=transformer) > 0
+    where: at(Cycle_in_basis, by=snapshot_period[period])
     expression: Cycle_angle_sum == 0
   Generator_p_ramp_limit_up:
     description: >-

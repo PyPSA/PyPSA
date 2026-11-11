@@ -99,6 +99,24 @@ def _cycle_labels(s: NetworkSources) -> pd.Index:
     return pd.Index([str(k) for k in range(width)], dtype=object)
 
 
+@single("Cycle_in_basis")
+def _cycle_in_basis(s: NetworkSources, name: str) -> xr.DataArray:
+    labels = s.coords("cycle")
+    reached = [
+        labels.isin(plain.columns[plain.notna().any()])
+        for plain, _ in _memo(s, "cycles", _cycle_matrices).values()
+    ]
+    grid = np.array(reached, dtype=bool).reshape(len(s.periods), len(labels))
+    return s.frame(
+        name,
+        xr.DataArray(
+            grid,
+            coords={"period": s.periods, "cycle": labels.to_numpy(dtype=object)},
+            dims=("period", "cycle"),
+        ),
+    )
+
+
 @single("Line_cycle_weight", "Transformer_cycle_weight")
 def _cycle_weight(s: NetworkSources, name: str) -> xr.DataArray:
     return s.frame(name, _cycles(s, True, name.partition("_")[0]))
