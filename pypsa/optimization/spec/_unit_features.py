@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from pypsa.components import Components
 
 
-@source("${C}_maintainable")
+@source("Unit_maintainable")
 def _maintainable(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Whether a unit is maintainable in any scenario."""
     return s.da(c, "maintainable").astype(bool).any("scenario")
@@ -50,7 +50,7 @@ def _maintenance_windows(
     return stop, valid
 
 
-@source("${C}_maintenance_cover")
+@source("Unit_maintenance_cover")
 def _maintenance_cover(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     dim = c._unit_dim
     maintainable = s[f"{c.name}_maintainable"]
@@ -71,7 +71,7 @@ def _maintenance_cover(s: NetworkSources, name: str, c: Components) -> pd.DataFr
     )
 
 
-@source("${C}_maintenance_start_blocked")
+@source("Unit_maintenance_start_blocked")
 def _maintenance_start_blocked(
     s: NetworkSources, name: str, c: Components
 ) -> xr.DataArray:
@@ -79,13 +79,13 @@ def _maintenance_start_blocked(
     return s.active(c) & ~valid & s[f"{c.name}_maintainable"]
 
 
-@source("${C}_maintenance_duration")
+@source("Unit_maintenance_duration")
 def _maintenance_duration(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     duration = s.da(c, "maintenance_duration").astype(float)
     return duration.where(s[f"{c.name}_maintainable"])
 
 
-@source("${C}_${nom}_max")
+@source("Unit_NOM_max")
 def _nom_max(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the build cap, absent where no scenario extends the unit."""
     extendable = s.da(c, c._operational_attrs["nom_extendable"]).astype(bool)

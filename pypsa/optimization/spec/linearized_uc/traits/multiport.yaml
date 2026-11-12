@@ -3,12 +3,12 @@
 # SPDX-License-Identifier: MIT
 
 piecewise:
-  ${C}_${coef}_incremental:
+  Unit_COEF_incremental:
     description: no status gates the curve, as no unit with a curve is committable
     activity: null
 
 assumptions:
-  ${C}_${coef}_curve_is_not_committable:
-    holds: "NOT at(${C}_committable, by=${C}_output_${c}[${c}])"
-    where: "${C}_${coef}_curve"
-    description: a unit with a `${coef}` curve on a port is not committable, as a status gate needs integers
+  Unit_COEF_curve_is_not_committable:
+    holds: "NOT at(Unit_committable, by=Unit_output_UNIT[UNIT])"
+    where: "Unit_COEF_curve"
+    description: a unit with a curve on a port is not committable, as a status gate needs integers

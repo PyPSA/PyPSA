@@ -2,47 +2,63 @@
 #
 # SPDX-License-Identifier: MIT
 
+given:
+  parameters:
+    Unit_NOM: {dims: [scenario, UNIT]}
+    Unit_NOM_extendable: {dims: [UNIT], dtype: bool}
+    Unit_active: {dims: [snapshot, UNIT], dtype: bool}
+    Unit_p_set: {dims: [scenario, snapshot, UNIT]}
+  variables:
+    Unit_NOM_ext: {dims: [UNIT]}
+  expressions:
+    energy_limit_weight: {dims: [snapshot]}
+
+dimensions:
+  scenario: {}
+  snapshot: {dtype: str, ordered: true}
+  UNIT: {}
+
 parameters:
-  ${C}_e_sum_min:
+  Unit_e_sum_min:
     description: least energy over the horizon; minus infinity means no row
-    dims: [scenario, "${c}"]
-  ${C}_e_sum_max:
+    dims: [scenario, UNIT]
+  Unit_e_sum_max:
     description: most energy over the horizon; infinity means no row
-    dims: [scenario, "${c}"]
+    dims: [scenario, UNIT]
 
 variables:
-  ${C}_p:
-    name: ${C}-p
+  Unit_p:
+    name: Unit-p
     description: power in a snapshot; the injection states its sign at each bus
-    dims: [scenario, snapshot, "${c}"]
-    where: ${C}_active
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_active
 
 expressions:
-  ${C}_${nom}_effective:
+  Unit_NOM_effective:
     description: the chosen build where it is extendable, the given one otherwise
-    dims: [scenario, "${c}"]
+    dims: [scenario, UNIT]
     cases:
       extendable:
-        when: ${C}_${nom}_extendable
-        expression: ${C}_${nom}_ext
-    otherwise: ${C}_${nom}
+        when: Unit_NOM_extendable
+        expression: Unit_NOM_ext
+    otherwise: Unit_NOM
 
 constraints:
-  ${C}_p_set:
-    name: ${C}-p_set
+  Unit_p_set:
+    name: Unit-p_set
     description: the power follows the given schedule
-    dims: [scenario, snapshot, "${c}"]
-    where: ${C}_p_set AND ${C}_active
-    expression: ${C}_p == ${C}_p_set
-  ${C}_e_sum_min:
-    name: ${C}-e_sum_min
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_p_set AND Unit_active
+    expression: Unit_p == Unit_p_set
+  Unit_e_sum_min:
+    name: Unit-e_sum_min
     description: the energy over the horizon, each period weighted by its years, is at least the floor
-    dims: [scenario, "${c}"]
-    where: ${C}_e_sum_min AND count(${C}_active, over=snapshot) > 0
-    expression: sum(${C}_p * energy_limit_weight, over=snapshot) >= ${C}_e_sum_min
-  ${C}_e_sum_max:
-    name: ${C}-e_sum_max
+    dims: [scenario, UNIT]
+    where: Unit_e_sum_min AND count(Unit_active, over=snapshot) > 0
+    expression: sum(Unit_p * energy_limit_weight, over=snapshot) >= Unit_e_sum_min
+  Unit_e_sum_max:
+    name: Unit-e_sum_max
     description: the energy over the horizon, each period weighted by its years, is at most the cap
-    dims: [scenario, "${c}"]
-    where: ${C}_e_sum_max AND count(${C}_active, over=snapshot) > 0
-    expression: sum(${C}_p * energy_limit_weight, over=snapshot) <= ${C}_e_sum_max
+    dims: [scenario, UNIT]
+    where: Unit_e_sum_max AND count(Unit_active, over=snapshot) > 0
+    expression: sum(Unit_p * energy_limit_weight, over=snapshot) <= Unit_e_sum_max

@@ -93,7 +93,7 @@ def _cycle_in_basis(s: NetworkSources, name: str) -> xr.DataArray:
     return xr.DataArray(grid, coords=coords, dims=("period", "cycle"))
 
 
-@source("${C}_cycle_weight")
+@source("Unit_cycle_weight")
 def _cycle_weight(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return _cycles(s, True, c)
 
@@ -203,7 +203,7 @@ def _segment_labels(s: NetworkSources, name: str) -> pd.Index:
     return pd.Index(range(max(counts, default=0)), dtype=int)
 
 
-@source("${C}_loss_max")
+@source("Unit_loss_max")
 def _loss_max(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     if s.transmission_losses is None:
         return s.filled(name, 0.0)
@@ -231,7 +231,7 @@ def _cuts(s: NetworkSources, c: Components) -> tuple[xr.DataArray, xr.DataArray]
     return slope, offset
 
 
-@source("${C}_loss_slope", "${C}_loss_offset")
+@source("Unit_loss_slope", "Unit_loss_offset")
 def _loss_cut(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     if not len(s.coords("segment")):
         return s.filled(name, 0.0)
@@ -263,7 +263,7 @@ def _outage_labels(s: NetworkSources, name: str) -> pd.Index:
     return pd.Index(_outages(s).get_level_values(1), dtype=object)
 
 
-@source("Outage_${c}")
+@source("Outage_UNIT")
 def _outage_branch(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     outages = _outages(s)
     names = outages.get_level_values(1)[outages.get_level_values(0) == c.name]
@@ -318,7 +318,7 @@ def _bodf(s: NetworkSources) -> tuple[dict[int, pd.DataFrame], list[SecurityGrou
     return factors, groups
 
 
-@source("${C}_BODF")
+@source("Unit_BODF")
 def _branch_bodf(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return _over(s, c, s.memo("bodf", lambda: _bodf(s))[0], "outage")
 

@@ -15,14 +15,13 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable, Iterator, Mapping
-from string import Template
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypsa.optimization.spec._render import formulated, symbols
+from pypsa.optimization.spec._render import PLACEHOLDERS, WORD, formulated, renamer
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -45,7 +44,7 @@ _SOURCES: dict[str, Callable[..., Any]] = {}
 def source[F: Callable[..., Any]](*keys: str) -> Callable[[F], F]:
     """Register `f` as the one derivation of each key, called as `f(s, name)`.
 
-    A key with the placeholders of a trait, as `${C}_active`, stands for that
+    A key with the placeholders of a trait, as `Unit_active`, stands for that
     source of every component with a formulation; `f` takes the component as
     `c` then.
 
@@ -67,14 +66,19 @@ def source[F: Callable[..., Any]](*keys: str) -> Callable[[F], F]:
 
 def _providers(components: Collection[Components]) -> dict[str, Callable[..., Any]]:
     """Return the derivation of each source name, a placeholder key stated per component."""
-    providers = {k: f for k, f in _SOURCES.items() if "$" not in k}
-    stated = [(k, f, c) for k, f in _SOURCES.items() if "$" in k for c in components]
-    for key, f, c in stated:
-        name = Template(key).substitute(symbols(c))
-        if name in providers:
-            msg = f"{name} has two derivations."
-            raise ValueError(msg)
-        providers[name] = functools.partial(f, c=c)
+    general = {
+        k: f for k, f in _SOURCES.items() if PLACEHOLDERS.isdisjoint(WORD.findall(k))
+    }
+    stated = {k: f for k, f in _SOURCES.items() if k not in general}
+    providers = dict(general)
+    for c in components:
+        rename = renamer(c)
+        for key, f in stated.items():
+            name = rename(key)
+            if name in providers:
+                msg = f"{name} has two derivations."
+                raise ValueError(msg)
+            providers[name] = functools.partial(f, c=c)
     return providers
 
 
@@ -400,7 +404,7 @@ def _carriers(s: NetworkSources, name: str) -> pd.Index:
     return pd.Index(labels.unique(), dtype=object)
 
 
-@source("${c}")
+@source("UNIT")
 def _units(s: NetworkSources, name: str, c: Components) -> pd.Index:
     """Return a component's active assets, as PyPSA builds them.
 
@@ -414,7 +418,7 @@ def _units(s: NetworkSources, name: str, c: Components) -> pd.Index:
     return names[bus.isin(s.n.c.buses.names).to_numpy()]
 
 
-@source("${c}_output")
+@source("UNIT_output")
 def _output_ports(s: NetworkSources, name: str, c: Components) -> pd.Index:
     return pd.Index(s.ports(c)["port"], dtype=object)
 
@@ -471,7 +475,7 @@ def _cvar(s: NetworkSources, name: str) -> float | xr.DataArray:
 # -- relations ------------------------------------------------------------
 
 
-@source("${C}_bus", "${C}_bus0", "${C}_bus1", "${C}_carrier")
+@source("Unit_bus", "Unit_bus0", "Unit_bus1", "Unit_carrier")
 def _relation(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     """Map each unit to the label of its column: a bus, or a carrier."""
     column = name.removeprefix(f"{c.name}_")
@@ -484,7 +488,7 @@ def _relation(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     )
 
 
-@source("${C}_output_bus", "${C}_output_${c}")
+@source("Unit_output_bus", "Unit_output_UNIT")
 def _output(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     ports = s.ports(c)
     column = name.removeprefix(f"{c.name}_output_")
@@ -495,19 +499,19 @@ def _output(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
 # -- activity -------------------------------------------------------------
 
 
-@source("${C}_active")
+@source("Unit_active")
 def _active(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     if "snapshot" in s.declared(name):
         return s.active(c)
     return s.column(c, "active", bool)
 
 
-@source("${C}_active_asset")
+@source("Unit_active_asset")
 def _active_asset(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return s.column(c, "active", bool)
 
 
-@source("${C}_capital_weight")
+@source("Unit_capital_weight")
 def _capital_weight(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     by_period = s.active_by_period(c)
     if not s.multi_invest:
@@ -515,25 +519,25 @@ def _capital_weight(s: NetworkSources, name: str, c: Components) -> xr.DataArray
     return (by_period * s["period_weight_objective"]).sum("period")
 
 
-@source("${C}_first_active")
+@source("Unit_first_active")
 def _first_active(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     by_period = s.active_by_period(c).astype(int)
     first = (by_period == 1) & (by_period.cumsum("period") == 1)
     return first.astype(float)
 
 
-@source("${C}_capital_cost")
+@source("Unit_capital_cost")
 def _capital_cost(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return s.unit_array(c, c.periodized_cost)
 
 
-@source("${C}_${nom}_mod")
+@source("Unit_NOM_mod")
 def _nom_mod(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     da = s.attribute(c, name)
     return da.where(da > 0)
 
 
-@source("${C}_${nom}_set", "${C}_s_set")
+@source("Unit_NOM_set", "Unit_s_set")
 def _optional(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the attribute, NaN where the component has none."""
     attr = name.removeprefix(f"{c.name}_")
@@ -542,13 +546,13 @@ def _optional(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return s.filled(name, np.nan)
 
 
-@source("${C}_p_min_pu_nonneg")
+@source("Unit_p_min_pu_nonneg")
 def _p_min_pu_nonneg(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     pu = s.da(c, "p_min_pu")
     return (pu >= 0).all([d for d in pu.dims if d != c._unit_dim])
 
 
-@source("${C}_modules_installed")
+@source("Unit_modules_installed")
 def _modules_installed(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     nom = c._operational_attrs["nom"]
     mod = s.da(c, f"{nom}_mod")
@@ -556,13 +560,13 @@ def _modules_installed(s: NetworkSources, name: str, c: Components) -> xr.DataAr
     return xr.where(modular, s.da(c, nom) / mod.where(mod > 0, 1), 1.0)
 
 
-@source("${C}_min_up_time", "${C}_min_down_time")
+@source("Unit_min_up_time", "Unit_min_down_time")
 def _min_time(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the minimum time, at most the horizon: a longer window reads nothing more."""
     return s.attribute(c, name).clip(max=len(s.snapshots))
 
 
-@source("${C}_v_ang_max", "${C}_cycles_max")
+@source("Unit_v_ang_max", "Unit_cycles_max")
 def _finite(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the attribute, absent where infinite, so a unit without a limit has no row."""
     limit = s.attribute(c, name)
@@ -600,7 +604,7 @@ def _coefficient(s: NetworkSources, name: str) -> xr.DataArray:
     return _port_attribute(s, c, name, c._coefficient_attr).astype(float)
 
 
-@source("${C}_output_delay")
+@source("Unit_output_delay")
 def _output_delay(s: NetworkSources, name: str, c: _Multiport) -> xr.DataArray:
     try:
         delay = _port_attribute(s, c, name, "delay")
@@ -609,7 +613,7 @@ def _output_delay(s: NetworkSources, name: str, c: _Multiport) -> xr.DataArray:
     return delay.astype(float).fillna(0).astype(int)
 
 
-@source("${C}_output_delay_source")
+@source("Unit_output_delay_source")
 def _output_delay_source(s: NetworkSources, name: str, c: _Multiport) -> pd.DataFrame:
     """Each delayed port's source snapshot, as PyPSA's own indexer picks it."""
     owner = c._unit_dim
@@ -689,7 +693,7 @@ def _history(s: NetworkSources, c: Components) -> xr.DataArray:
     return history.where(s.da(c, "committable").astype(bool), 1.0)
 
 
-@source("${C}_up_time_brought_in", "${C}_down_time_brought_in")
+@source("Unit_up_time_brought_in", "Unit_down_time_brought_in")
 def _brought_in(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """How much of the start-ups (`up`) or shut-downs (`down`) before the build still bind.
 
@@ -706,7 +710,7 @@ def _brought_in(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return (past * (past.lag + position < minimum)).sum("lag")
 
 
-@source("${C}_p_init")
+@source("Unit_p_init")
 def _p_init(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the output carried into the build.
 
@@ -721,12 +725,12 @@ def _p_init(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return last.reindex({c._unit_dim: s.names(c).to_numpy()})
 
 
-@source("${C}_status_initial")
+@source("Unit_status_initial")
 def _status_initial(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return _history(s, c).sel(lag=1, drop=True)
 
 
-@source("${C}_big_m")
+@source("Unit_big_m")
 def _big_m(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     names = c.committables.intersection(c.extendables)
     if names.empty:
@@ -740,19 +744,19 @@ def _big_m(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
 # -- storage --------------------------------------------------------------
 
 
-@source("${C}_inactive_snapshots")
+@source("Unit_inactive_snapshots")
 def _inactive_snapshots(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return (~s.active(c)).sum("snapshot").astype(int)
 
 
-@source("${C}_opens_late")
+@source("Unit_opens_late")
 def _opens_late(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     active = s.active(c)
     first = (active.cumsum("snapshot") == 1) & active
     return first & (s.over_snapshots(np.arange(len(s.snapshots))) > 0)
 
 
-@source("${C}_retention")
+@source("Unit_retention")
 def _retention(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return (1 - s.da(c, "standing_loss")) ** s["snapshot_weightings_stores"]
 

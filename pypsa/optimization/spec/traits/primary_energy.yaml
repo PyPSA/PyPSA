@@ -2,8 +2,13 @@
 #
 # SPDX-License-Identifier: MIT
 
+dimensions:
+  scenario: {}
+  UNIT: {}
+  global_constraint: {}
+
 parameters:
-  ${C}_operational_limit_weight:
+  Unit_operational_limit_weight:
     description: one where the unit is in the row's set. No row outside it
-    dims: [scenario, global_constraint, "${c}"]
+    dims: [scenario, global_constraint, UNIT]
     missing: absent

@@ -2,81 +2,97 @@
 #
 # SPDX-License-Identifier: MIT
 
+given:
+  parameters:
+    Unit_NOM: {dims: [scenario, UNIT]}
+    Unit_NOM_extendable: {dims: [UNIT], dtype: bool}
+    Unit_active: {dims: [snapshot, UNIT], dtype: bool}
+  variables:
+    Unit_p: {dims: [scenario, snapshot, UNIT]}
+
+dimensions:
+  scenario: {}
+  snapshot: {dtype: str, ordered: true}
+  bus: {}
+  UNIT_output: {}
+  UNIT: {}
+  breakpoint: {dtype: int, ordered: true}
+
 parameters:
-  ${C}_${coef}:
+  Unit_COEF:
     description: >-
       energy a port delivers per unit of `p`, negative where it draws; the
       value at the snapshot the energy arrives applies
-    dims: [scenario, snapshot, "${c}_output"]
-  ${C}_${coef}_curve_p:
+    dims: [scenario, snapshot, "UNIT_output"]
+  Unit_COEF_curve_p:
     description: >-
-      `p` at each breakpoint of a port's piecewise `${coef}` curve: the `p_pu`
+      `p` at each breakpoint of a port's piecewise curve: the `p_pu`
       breakpoints times `p_nom`. No curve means no rows
-    dims: ["${c}_output", breakpoint]
+    dims: ["UNIT_output", breakpoint]
     missing: absent
-  ${C}_output_delay:
+  Unit_output_delay:
     description: how long a port's energy takes to arrive, in hours of `snapshot_weightings.generators`
-    dims: ["${c}_output"]
+    dims: ["UNIT_output"]
     dtype: int
 
 relations:
-  ${C}_output_${c}:
+  Unit_output_UNIT:
     description: the unit a port belongs to
-    key: ${c}_output
-    values: ${c}
-  ${C}_output_bus:
+    key: UNIT_output
+    values: UNIT
+  Unit_output_bus:
     description: the bus a port connects to
-    key: ${c}_output
+    key: UNIT_output
     values: bus
-  ${C}_output_delay_source:
+  Unit_output_delay_source:
     description: >-
       the snapshot whose `p` a delayed port delivers at a snapshot, wrapping
       within the period where the port is cyclic. No row where the energy has
       not arrived yet, or where the port has no delay
-    key: ["${c}_output", snapshot]
+    key: ["UNIT_output", snapshot]
     values: { source: snapshot }
     missing: absent
 
 variables:
-  ${C}_p_piecewise:
-    name: ${C}-p{port}_piecewise
-    description: what a port with a `${coef}` curve delivers, before its delay
-    dims: [scenario, snapshot, "${c}_output"]
-    where: ${C}_${coef}_curve AND at(${C}_active, by=${C}_output_${c}[${c}])
+  Unit_p_piecewise:
+    name: Unit-p{port}_piecewise
+    description: what a port with a curve delivers, before its delay
+    dims: [scenario, snapshot, "UNIT_output"]
+    where: Unit_COEF_curve AND at(Unit_active, by=Unit_output_UNIT[UNIT])
 
 expressions:
-  ${C}_output_linear_arrival:
-    description: "`p` at the port's delay source times `${coef}`"
-    dims: [scenario, snapshot, "${c}_output"]
+  Unit_output_linear_arrival:
+    description: "`p` at the port's delay source times its coefficient"
+    dims: [scenario, snapshot, "UNIT_output"]
     cases:
       delayed:
-        when: ${C}_output_delay > 0
-        expression: at(at(${C}_p, by=${C}_output_${c}[${c}]), by=${C}_output_delay_source[source]) * ${C}_${coef}
-    otherwise: at(${C}_p, by=${C}_output_${c}[${c}]) * ${C}_${coef}
-  ${C}_output_curve_arrival:
-    description: the value read off the port's `${coef}` curve, at the port's delay source
-    dims: [scenario, snapshot, "${c}_output"]
+        when: Unit_output_delay > 0
+        expression: at(at(Unit_p, by=Unit_output_UNIT[UNIT]), by=Unit_output_delay_source[source]) * Unit_COEF
+    otherwise: at(Unit_p, by=Unit_output_UNIT[UNIT]) * Unit_COEF
+  Unit_output_curve_arrival:
+    description: the value read off the port's curve, at the port's delay source
+    dims: [scenario, snapshot, "UNIT_output"]
     cases:
       delayed:
-        when: ${C}_output_delay > 0
-        expression: at(${C}_p_piecewise, by=${C}_output_delay_source[source])
-    otherwise: ${C}_p_piecewise
-  ${C}_output_arrival:
-    description: what a port delivers at a snapshot, by its `${coef}` curve where it has one
-    dims: [scenario, snapshot, "${c}_output"]
+        when: Unit_output_delay > 0
+        expression: at(Unit_p_piecewise, by=Unit_output_delay_source[source])
+    otherwise: Unit_p_piecewise
+  Unit_output_arrival:
+    description: what a port delivers at a snapshot, by its curve where it has one
+    dims: [scenario, snapshot, "UNIT_output"]
     cases:
       curve:
-        when: ${C}_${coef}_curve
-        expression: ${C}_output_curve_arrival
-    otherwise: ${C}_output_linear_arrival
+        when: Unit_COEF_curve
+        expression: Unit_output_curve_arrival
+    otherwise: Unit_output_linear_arrival
 
 conditions:
-  ${C}_${coef}_curve:
-    description: a port with a piecewise `${coef}` curve
-    condition: count(${C}_${coef}_curve_p, over=breakpoint) > 0
+  Unit_COEF_curve:
+    description: a port with a piecewise curve
+    condition: count(Unit_COEF_curve_p, over=breakpoint) > 0
 
 assumptions:
-  ${C}_${coef}_curve_on_a_fixed_build:
-    holds: "at(NOT ${C}_${nom}_extendable AND ${C}_${nom} != 0 AND ${C}_${nom} < inf, by=${C}_output_${c}[${c}])"
-    where: "${C}_${coef}_curve"
-    description: a port's `${coef}` curve needs a fixed, non-zero, finite `${nom}`
+  Unit_COEF_curve_on_a_fixed_build:
+    holds: "at(NOT Unit_NOM_extendable AND Unit_NOM != 0 AND Unit_NOM < inf, by=Unit_output_UNIT[UNIT])"
+    where: "Unit_COEF_curve"
+    description: a port's curve needs a fixed, non-zero, finite nominal capacity

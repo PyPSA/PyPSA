@@ -33,6 +33,7 @@ from pypsa.optimization.spec.sources import NetworkSources
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from importlib.resources.abc import Traversable
 
     from mathspec.spec import Spec
 
@@ -58,13 +59,15 @@ def spec(
     """Return the spec of `n.optimize()`, patched for linearised unit commitment and piecewise options on request."""
     import mathspec  # noqa: PLC0415
 
-    base = mathspec.to_spec(render(SPEC)[0])
-    patches: list[Any] = []
-    if linearized_unit_commitment:
-        patches.append(render(SPEC / "linearized_uc")[0])
-    if piecewise_options:
-        patches.append(_piecewise_patch(base, piecewise_options))
-    return mathspec.override(base, patches) if patches else base
+    base = render(SPEC, _patch(linearized_unit_commitment))[0]
+    if not piecewise_options:
+        return base
+    return mathspec.override(base, [_piecewise_patch(base, piecewise_options)])
+
+
+def _patch(linearized_unit_commitment: bool) -> Traversable | None:
+    """Return the patch folder of linearised unit commitment, where asked for."""
+    return SPEC / "linearized_uc" if linearized_unit_commitment else None
 
 
 def _link(link: Any, sign: str) -> list[str]:
@@ -140,11 +143,7 @@ def _piecewise_patch(base: Spec, options: Sequence[PiecewiseOptions]) -> dict:
 @functools.cache
 def spec_names(linearized_unit_commitment: bool = False) -> Names:
     """Return the PyPSA names the spec states, patched for linearised unit commitment on request."""
-    found = render(SPEC)[1]
-    if linearized_unit_commitment:
-        for section, patched in render(SPEC / "linearized_uc")[1].items():
-            found[section] |= patched
-    return found
+    return render(SPEC, _patch(linearized_unit_commitment))[1]
 
 
 def pypsa_name(name: str, named: dict, mode: str | None = None) -> str:

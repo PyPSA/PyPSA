@@ -2,24 +2,33 @@
 #
 # SPDX-License-Identifier: MIT
 
+given:
+  variables:
+    Unit_NOM_ext: {dims: [UNIT]}
+
+dimensions:
+  scenario: {}
+  UNIT: {}
+  global_constraint: {}
+
 parameters:
-  ${C}_volume_weight:
+  Unit_volume_weight:
     description: >-
       the branch's length where its carrier is in the row's set. No row outside
       it, or where the branch is not active in the row's period
-    dims: [scenario, global_constraint, "${c}"]
+    dims: [scenario, global_constraint, UNIT]
     missing: absent
-  ${C}_expansion_cost_weight:
+  Unit_expansion_cost_weight:
     description: >-
       the branch's `capital_cost` without `fom_cost` where its carrier is in the
       row's set; in a multi-period run, times the objective weights of its
       active periods where the row names no period. No row outside the set, or
       where the branch is not active in the row's period
-    dims: [scenario, global_constraint, "${c}"]
+    dims: [scenario, global_constraint, UNIT]
     missing: absent
 
 expressions:
-  ${C}_transmission_volume_expansion:
-    expression: sum(${C}_${nom}_ext * ${C}_volume_weight, over=${c})
-  ${C}_transmission_expansion_cost:
-    expression: sum(${C}_${nom}_ext * ${C}_expansion_cost_weight, over=${c})
+  Unit_transmission_volume_expansion:
+    expression: sum(Unit_NOM_ext * Unit_volume_weight, over=UNIT)
+  Unit_transmission_expansion_cost:
+    expression: sum(Unit_NOM_ext * Unit_expansion_cost_weight, over=UNIT)

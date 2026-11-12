@@ -240,7 +240,7 @@ _WEIGHTS: dict[str, tuple[str, Cell]] = {
 }
 
 
-@source(*(f"${{C}}_{suffix}" for suffix in _WEIGHTS))
+@source(*(f"Unit_{suffix}" for suffix in _WEIGHTS))
 def _weight(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return a row's weight of each unit; a curved unit's primary energy is read off its curve."""
     suffix = name.removeprefix(f"{c.name}_")
