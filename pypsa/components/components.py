@@ -169,6 +169,7 @@ class Components(
     """
 
     _operational_variables: list[str] = []
+    _formulation: tuple[str, ...] = ()
 
     def __init__(
         self,

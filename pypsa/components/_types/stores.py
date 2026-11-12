@@ -43,6 +43,15 @@ class Stores(Components):
     """
 
     _operational_variables = ["e", "p", "p_store"]
+    _formulation = (
+        "extendable",
+        "carrier_expansion",
+        "marginal_cost",
+        "dispatch",
+        "single_bus",
+        "primary_energy",
+        "storage",
+    )
 
     def get_bounds_pu(
         self,

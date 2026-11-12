@@ -36,6 +36,14 @@ class StorageUnits(Components):
     """
 
     _operational_variables = ["p_dispatch", "p_store", "state_of_charge"]
+    _formulation = (
+        "extendable",
+        "carrier_expansion",
+        "marginal_cost",
+        "single_bus",
+        "primary_energy",
+        "storage",
+    )
 
     def get_bounds_pu(
         self,
