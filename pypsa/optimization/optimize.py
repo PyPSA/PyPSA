@@ -1265,12 +1265,19 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 unassigned_constraints.append(constraint_name)
                 continue
 
+            # In stochastic networks the static index is a (scenario, name)
+            # MultiIndex, so `suffix in c.static.index` never matches a
+            # constraint name on its own.
+            suffix_known = suffix in c.static.index or (
+                c.has_scenarios and suffix in c.static.index.get_level_values("name")
+            )
+
             # Add placeholder for custom constraints, marked as GlobalConstraint.
             # Constraints with a `name` dim are already per row, e.g. `ram`.
             # TODO This should go to an actual custom constraint
             if (
                 c.name == "GlobalConstraint"
-                and suffix not in c.static.index
+                and not suffix_known
                 and "name" not in constraint.dims
                 and assign_all_duals
             ):
@@ -1332,11 +1339,27 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
             # SCALAR DUALS (constraints without snapshot dimension)
             # else:
-            elif c.name == "GlobalConstraint" and suffix in c.static.index:
+            # Re-check membership here: the placeholder branch above may
+            # have just added the row for a custom constraint.
+            elif c.name == "GlobalConstraint" and (
+                suffix in c.static.index
+                or (
+                    c.has_scenarios
+                    and suffix in c.static.index.get_level_values("name")
+                )
+            ):
                 if c.has_scenarios:
-                    raise NotImplementedError()
+                    dual = constraint.dual
+                    if "scenario" in dual.dims:
+                        for scenario in dual.coords["scenario"].values:
+                            c.static.loc[(scenario, suffix), "mu"] = float(
+                                dual.sel(scenario=scenario)
+                            )
+                    else:
+                        c.static.loc[(slice(None), suffix), "mu"] = float(dual)
 
-                c.static.loc[suffix, "mu"] = constraint.dual
+                else:
+                    c.static.loc[suffix, "mu"] = constraint.dual
 
         if unassigned_constraints:
             logger.info(

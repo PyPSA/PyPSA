@@ -296,6 +296,43 @@ def test_optimization_with_scenarios(ac_dc_stochastic):
     )
 
 
+def test_global_constraint_mu_with_scenarios():
+    """
+    Test that shadow prices of global constraints are assigned per scenario.
+
+    Regression test for #2124: `n.global_constraints.mu` stayed 0 in
+    stochastic networks although the model holds the dual per scenario.
+    """
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "b")
+    n.add("Carrier", ["gas", "oil"])
+    n.add("Load", "l", bus="b", p_set=100)
+    n.add(
+        "Generator",
+        ["gas", "oil"],
+        bus="b",
+        carrier=["gas", "oil"],
+        p_nom=100,
+        marginal_cost=[10, 100],
+    )
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type="operational_limit",
+        carrier_attribute="gas",
+        sense="<=",
+        constant=60,
+    )
+    n.set_scenarios(["s1", "s2"])
+
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    mu = n.c.global_constraints.static["mu"]
+    assert mu.loc[("s1", "limit")] == pytest.approx(-45)
+    assert mu.loc[("s2", "limit")] == pytest.approx(-45)
+
+
 def test_solved_network_simple(stochastic_benchmark_network):
     """
     Solve the stochastic problem and compare results with benchmark data.
