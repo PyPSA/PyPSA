@@ -16,17 +16,22 @@ from __future__ import annotations
 from string import Template
 from typing import TYPE_CHECKING, Any
 
-from pypsa.optimization.spec.sources import UNITS
-
 if TYPE_CHECKING:
     from importlib.resources.abc import Traversable
 
+    from pypsa import Network
     from pypsa.components.components import Components
+
+
+def formulated(n: Network, trait: str = "") -> list[Components]:
+    """Return the components of *n* that declare a formulation, or the trait *trait*."""
+    components = [c for c in n.components.values() if c._formulation]
+    return [c for c in components if not trait or trait in c._formulation]
 
 
 def symbols(c: Components) -> dict[str, str]:
     """Return what the placeholders of a trait stand for in component *c*."""
-    dim = UNITS[c.name]
+    dim = c._unit_dim
     nom = c._operational_attrs["nom"]
     return {"C": c.name, "c": dim, "nom": nom, "unit": dim.replace("_", " ")}
 
@@ -57,9 +62,7 @@ def render(root: Traversable) -> dict[str, Any]:
 
     system = root / "system.yaml"
     spec = parse_yaml(system.read_text(), str(system))
-    for c in pypsa.Network().components.values():
-        if not c._formulation:
-            continue
+    for c in formulated(pypsa.Network()):
         mapping = symbols(c)
         traits = [root / "traits" / f"{t}.yaml" for t in c._formulation]
         for path in [*traits, root / "components" / f"{mapping['c']}.yaml"]:

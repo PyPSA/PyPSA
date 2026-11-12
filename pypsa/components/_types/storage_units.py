@@ -44,6 +44,7 @@ class StorageUnits(Components):
         "primary_energy",
         "storage",
     )
+    _level_attrs = ("state_of_charge_initial", "cyclic_state_of_charge")
 
     def get_bounds_pu(
         self,

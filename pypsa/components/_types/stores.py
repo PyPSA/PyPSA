@@ -52,6 +52,7 @@ class Stores(Components):
         "primary_energy",
         "storage",
     )
+    _level_attrs = ("e_initial", "e_cyclic")
 
     def get_bounds_pu(
         self,
