@@ -39,6 +39,10 @@ parameters:
       cost of one unit of nominal capacity over the modelled horizon: the
       annuity of `overnight_cost`, or `capital_cost`, plus `fom_cost`
     dims: [scenario, "${c}"]
+  ${C}_overnight_cost:
+    description: the overnight cost of one unit of nominal capacity. No value means no row
+    dims: ["${c}"]
+    missing: absent
   ${C}_capital_weight:
     description: the summed weights of the periods the asset is active in
     dims: ["${c}"]
@@ -167,3 +171,9 @@ constraints:
     dims: ["${c}"]
     where: ${C}_${nom}_extendable AND ${C}_${nom}_mod > 0 AND ${C}_active_asset
     expression: ${C}_${nom}_ext == ${C}_${nom}_mod * ${C}_n_mod
+
+assumptions:
+  ${C}_capital_cost_curve_without_overnight_cost:
+    holds: NOT ${C}_overnight_cost
+    where: ${C}_capital_cost_curve
+    description: an asset with a `capital_cost` curve has no `overnight_cost`, as the curve is already periodized

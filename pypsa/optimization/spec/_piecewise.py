@@ -69,20 +69,6 @@ def _breakpoint(s: NetworkSources, name: str) -> pd.Index:
     return pd.Index(index, dtype=int)
 
 
-def _refuse_overnight_cost(s: NetworkSources, c: Components, names: pd.Index) -> None:
-    """Refuse `overnight_cost` on an extendable unit with a `capital_cost` curve, which is already periodized."""
-    static = s.static(c).reindex(names)
-    extendable = static[c._operational_attrs["nom_extendable"]].to_numpy(dtype=bool)
-    bad = names[extendable & static["overnight_cost"].notna().to_numpy()]
-    if len(bad):
-        msg = (
-            f"Components {bad.tolist()} of type {c.name} define both a piecewise "
-            "'capital_cost' curve and 'overnight_cost'. The piecewise "
-            "curve must already be periodized; remove 'overnight_cost'."
-        )
-        raise ValueError(msg)
-
-
 @source(
     "${C}_marginal_cost_curve_p",
     "${C}_marginal_cost_curve_cost",
@@ -93,8 +79,6 @@ def _cost_curve(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Read a `marginal_cost` or `capital_cost` curve: its x axis, or its cost summed over segments."""
     attr, _, column = name.removeprefix(f"{c.name}_").rpartition("_curve_")
     x, y = _table(s, c, attr)
-    if attr == "capital_cost":
-        _refuse_overnight_cost(s, c, x.columns)
     return _grid(s, name, _cumulative(x, y) if column == "cost" else x)
 
 

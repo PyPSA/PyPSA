@@ -517,9 +517,12 @@ class TestPiecewiseCostsErrors:
             capital_cost={0.0: 2.0, 100.0: 2.0},
             overnight_cost=1000,
             lifetime=20,
+            discount_rate=0.05,
         )
         n.add("Load", "load", bus="bus0", p_set=50)
-        with pytest.raises(ValueError, match="overnight_cost"):
+        with pytest.raises(
+            ValueError, match="Generator_capital_cost_curve_without_overnight_cost"
+        ):
             n.optimize.create_model(include_objective_constant=False)
 
 
