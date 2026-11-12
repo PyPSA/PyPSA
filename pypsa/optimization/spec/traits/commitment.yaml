@@ -1,0 +1,143 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  ${C}_start_up_cost:
+    description: cost of one start in this snapshot
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_shut_down_cost:
+    description: cost of one stop in this snapshot
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_stand_by_cost:
+    description: cost of one snapshot spent on
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_modules_installed:
+    description: >-
+      how many whole modules a committable build has in place, data prep. It is
+      `${C}_${nom} / ${C}_${nom}_mod` where a fixed build is modular, and one
+      where it is not. PyPSA refuses a fixed modular build whose nominal power
+      is not a whole number of modules
+    dims: [scenario, "${c}"]
+  ${C}_p_min_pu_nonneg:
+    description: >-
+      true where none of the ${c}'s own minimums-per-unit is negative. It is
+      PyPSA's per-unit `(p_min_pu >= 0).all()` over every snapshot and scenario,
+      data prep
+    dims: ["${c}"]
+    dtype: bool
+
+expressions:
+  ${C}_previous_status:
+    description: >-
+      the commitment state a ${c} carries into a snapshot. It is off at the
+      first snapshot it is active in past the first of the horizon. PyPSA reads
+      a status it did not build as off there (`constraints.py:391`). It is the
+      state carried over otherwise
+    dims: [scenario, snapshot, "${c}"]
+    cases:
+      opening_late:
+        when: position(snapshot) > 0 AND NOT shift(${C}_active, along=snapshot, offset=1)
+        expression: 0
+    otherwise: ${C}_status_carried_over
+  ${C}_status_carried_over:
+    description: >-
+      the state a ${c} carries over into a snapshot: the state it brought into
+      the horizon at the first, the previous snapshot's after that
+    dims: [scenario, snapshot, "${c}"]
+    cases:
+      opening:
+        when: position(snapshot) == 0
+        expression: ${C}_status_initial
+    otherwise: shift(${C}_status, along=snapshot, offset=1)
+  ${C}_previous_p:
+    description: >-
+      the output a ${c} carries into a snapshot. It is nothing at the first
+      snapshot it is active in past the first of the horizon: PyPSA fills an
+      output it did not build with zero (`constraints.py:716`). It is the output
+      carried over otherwise
+    dims: [scenario, snapshot, "${c}"]
+    cases:
+      opening_late:
+        when: position(snapshot) > 0 AND NOT shift(${C}_active, along=snapshot, offset=1)
+        expression: 0
+    otherwise: ${C}_p_carried_over
+  ${C}_p_carried_over:
+    description: >-
+      the output a ${c} carries over into a snapshot. At the first, it is the
+      `p_init` it brought in where it came in running, and nothing where it came
+      in off. After that, it is the previous snapshot's
+    dims: [scenario, snapshot, "${c}"]
+    cases:
+      opening:
+        when: position(snapshot) == 0
+        expression: ${C}_p_init
+    otherwise: shift(${C}_p, along=snapshot, offset=1)
+  ${C}_commitment_opex:
+    expression: >-
+      sum(sum(((${C}_status * ${C}_stand_by_cost) *
+      snapshot_weightings_objective) * at(period_weight_objective,
+      by=snapshot_period[period]), over=${c}), over=snapshot) +
+      sum(sum((${C}_start_up * ${C}_start_up_cost) * at(period_weight_objective,
+      by=snapshot_period[period]), over=${c}), over=snapshot) +
+      sum(sum((${C}_shut_down * ${C}_shut_down_cost) *
+      at(period_weight_objective, by=snapshot_period[period]), over=${c}),
+      over=snapshot)
+
+conditions:
+  ${C}_com_ext:
+    description: >-
+      a committable ${c} with an extendable, non-modular build that is active in
+      the snapshot's period. These are PyPSA's `com-ext` rows, whose status is
+      relaxed against the chosen build
+    condition: >-
+      ${C}_committable AND ${C}_${nom}_extendable AND NOT (${C}_${nom}_mod > 0)
+      AND ${C}_active
+  ${C}_committed:
+    description: >-
+      a committable ${c} that is active in the snapshot's period: every
+      unit-commitment row's set
+    condition: ${C}_committable AND ${C}_active
+  ${C}_ramps_from_previous:
+    description: >-
+      a snapshot whose ramp uses a previous output. It is any snapshot but its
+      period's first, and the horizon's first where the ${c} comes in off or
+      carries an initial output
+    condition: >-
+      position(snapshot, within=snapshot_period[period]) > 0 OR
+      (position(snapshot) == 0 AND (${C}_status_initial == 0 OR ${C}_p_init))
+
+constraints:
+  ${C}_status_p_fixed_upper:
+    description: >-
+      `${C}-status-p-fixed-upper` — a status is at most the modules in place, an
+      explicit row as PyPSA writes it. The bound is one where the build is not
+      modular, and the fixed build's whole count of modules where it is
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND NOT (${C}_${nom}_extendable AND ${C}_${nom}_mod > 0)
+    expression: ${C}_status <= ${C}_modules_installed
+  ${C}_start_up_p_fixed_upper:
+    description: >-
+      `${C}-start_up-p-fixed-upper` — a start is at most the modules in place,
+      an explicit row as PyPSA writes it. The bound is one where the build is
+      not modular, and the fixed build's whole count of modules where it is
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND NOT (${C}_${nom}_extendable AND ${C}_${nom}_mod > 0)
+    expression: ${C}_start_up <= ${C}_modules_installed
+  ${C}_shut_down_p_fixed_upper:
+    description: >-
+      `${C}-shut_down-p-fixed-upper` — a stop is at most the modules in place,
+      an explicit row as PyPSA writes it. The bound is one where the build is
+      not modular, and the fixed build's whole count of modules where it is
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND NOT (${C}_${nom}_extendable AND ${C}_${nom}_mod > 0)
+    expression: ${C}_shut_down <= ${C}_modules_installed
+
+assumptions:
+  ${C}_big_m_where_committed_and_extendable:
+    holds: ${C}_big_m
+    where: ${C}_com_ext
+    description: >-
+      a committable ${c} with an extendable, non-modular build has the big-M its
+      rows release it by — PyPSA computes one for each
+      (`get_committable_big_m_values`)

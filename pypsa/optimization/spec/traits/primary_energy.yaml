@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  ${C}_operational_limit_weight:
+    description: one where the ${unit} is in the row's set, data prep. One outside it has no row
+    dims: [scenario, global_constraint, "${c}"]
+    missing: absent

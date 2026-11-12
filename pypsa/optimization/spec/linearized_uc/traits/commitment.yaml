@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+constraints:
+  ${C}_com_p_current:
+    description: >-
+      `${C}-com-p-current` — output fits the share on, and the share starting up
+      only up to the start-up ramp (`constraints.py:744-757`)
+    dims: [scenario, snapshot, "${c}"]
+    where: >-
+      ${C}_committable AND NOT ${C}_${nom}_extendable AND
+      count(count(${C}_start_up_cost != ${C}_shut_down_cost, over=snapshot) > 0,
+      over=scenario) == 0 AND ${C}_active
+    expression: >-
+      ${C}_p - ${C}_p_max_pu * ${C}_${nom} * ${C}_status + (${C}_p_max_pu *
+      ${C}_${nom} - ${C}_start_up_rate * ${C}_${nom}) * ${C}_start_up <= 0
+
+assumptions:
+  ${C}_marginal_cost_curve_is_not_committable:
+    holds: NOT ${C}_committable
+    where: ${C}_marginal_cost_curve
+    description: >-
+      a ${c} with a piecewise `marginal_cost` curve is not committable. PyPSA
+      gates such a curve by the status share (`optimize.py:314-318`,
+      `piecewise.py:200-210`), and a curve gate is binary or integer
+  ${C}_committable_is_not_modular:
+    holds: NOT (${C}_${nom}_mod > 0)
+    where: ${C}_committable AND count(${C}_active, over=snapshot) > 0
+    description: >-
+      a modular committable unit counts its status in modules, which the
+      relaxation cannot share out. PyPSA refuses it under the keyword
+      (`optimize.py:841-842`, `consistency.py:1588-1629`)

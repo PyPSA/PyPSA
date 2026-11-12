@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+expressions:
+  ${C}_${nom}_effective:
+    description: >-
+      the build a ${c}'s limits are taken against: the chosen one where it is
+      extendable, the given one otherwise
+    dims: [scenario, "${c}"]
+    cases:
+      extendable:
+        when: ${C}_${nom}_extendable
+        expression: ${C}_${nom}_ext
+    otherwise: ${C}_${nom}

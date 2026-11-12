@@ -1,0 +1,713 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  Generator_p_nom:
+    description: nominal power
+    dims: [scenario, generator]
+  Generator_p_nom_extendable:
+    description: whether the nominal power is a decision
+    dims: [generator]
+    dtype: bool
+  Generator_p_min_pu:
+    description: least output, per unit of nominal power
+    dims: [scenario, snapshot, generator]
+  Generator_p_max_pu:
+    description: "most output, per unit of nominal power: an availability profile"
+    dims: [scenario, snapshot, generator]
+  Generator_marginal_cost:
+    description: cost of one unit of output
+    dims: [scenario, snapshot, generator]
+  Generator_marginal_cost_curve_p:
+    description: >-
+      the output at each breakpoint of a generator's piecewise `marginal_cost`
+      curve: PyPSA's `p_pu` breakpoints times `p_nom`, data prep. A generator
+      with no curve has no rows
+    dims: [generator, breakpoint]
+    missing: absent
+  Generator_marginal_cost_curve_cost:
+    description: >-
+      the running cost at each breakpoint of a generator's piecewise
+      `marginal_cost` curve: zero at the first, then each segment's width in
+      output times the `marginal_cost` at its upper breakpoint, summed, data
+      prep. It is linopy's `Slopes(...).to_breakpoints` (`piecewise.py:310-312`)
+    dims: [generator, breakpoint]
+    missing: absent
+  Generator_efficiency_curve_p:
+    description: >-
+      the output at each breakpoint of a generator's piecewise `efficiency`
+      curve: PyPSA's `p_pu` breakpoints times `p_nom`, data prep. A generator
+      with no curve has no rows
+    dims: [generator, breakpoint]
+    missing: absent
+  Generator_efficiency_curve_primary:
+    description: >-
+      the primary energy a generator draws at each breakpoint of its piecewise
+      `efficiency` curve: the output over the `efficiency` there, and zero
+      where that quotient is undefined, as at no output with no efficiency,
+      data prep (`piecewise.py:279-280`, `piecewise.py:314-316`)
+    dims: [generator, breakpoint]
+    missing: absent
+  Generator_marginal_cost_quadratic:
+    description: cost of the square of one unit of output
+    dims: [scenario, snapshot, generator]
+  Generator_sign:
+    description: >-
+      the sign output enters its bus's balance with. It is PyPSA's `sign`, `1`
+      unless given, `-1` for a unit that draws power. PyPSA refuses one that
+      differs by scenario (`constants.py:46`)
+    dims: [generator]
+  Generator_committable:
+    description: whether output is gated by an on/off status decision
+    dims: [generator]
+    dtype: bool
+  Generator_ramp_limit_up:
+    description: most a generator may raise its output between snapshots, per unit of nominal power. No value means no limit. The value at the later of the two snapshots applies, so the limit may change over time
+    dims: [scenario, snapshot, generator]
+    missing: absent
+  Generator_ramp_limit_down:
+    description: most a generator may lower its output between snapshots, per unit of nominal power. No value means no limit. The value at the later of the two snapshots applies, so the limit may change over time
+    dims: [scenario, snapshot, generator]
+    missing: absent
+  Generator_ramp_limit_start_up:
+    description: most output in the snapshot a unit starts, per unit of nominal power. No value means no limit
+    dims: [scenario, generator]
+    missing: absent
+  Generator_ramp_limit_shut_down:
+    description: most output in the snapshot before a unit stops, per unit of nominal power. No value means no limit
+    dims: [scenario, generator]
+    missing: absent
+  Generator_min_up_time:
+    description: least snapshots a unit stays on once started
+    dims: [scenario, generator]
+    dtype: int
+  Generator_min_down_time:
+    description: least snapshots a unit stays off once stopped
+    dims: [scenario, generator]
+    dtype: int
+  Generator_status_initial:
+    description: >-
+      one where the unit was on before the first snapshot, zero where off.
+      It is PyPSA's `up_time_before > 0` for a committable unit, and one for
+      a unit that is not, whose ramp rows PyPSA starts from on
+      (`constraints.py:323`), data prep
+    dims: [scenario, generator]
+  Generator_p_init:
+    description: >-
+      the output a unit brought into the horizon (PyPSA's `p_init`), read only
+      where the unit came in running. No value means it is unknown, and the
+      unit then has no ramp row at the first snapshot
+    dims: [scenario, generator]
+    missing: 0
+  Generator_up_time_brought_in:
+    description: >-
+      one while the up time a unit brought into the horizon is still
+      running, zero after. It is PyPSA's start `up_time_before` snapshots
+      before the first, counted while `min_up_time` has not passed since
+      (`constraints.py:302-323`, `:677-678`), data prep
+    dims: [scenario, snapshot, generator]
+  Generator_down_time_brought_in:
+    description: >-
+      one while the down time a unit brought into the horizon is still
+      running, zero after. It is PyPSA's stop `down_time_before` snapshots
+      before the first, counted while `min_down_time` has not passed since
+      (`constraints.py:302-323`, `:677-678`), data prep
+    dims: [scenario, snapshot, generator]
+  Generator_big_m:
+    description: >-
+      the bound a committed extendable generator's big-M rows release it by,
+      data prep. It is the build cap `p_nom_max` times the highest `p_max_pu`,
+      where the cap is finite and positive. Elsewhere it is
+      `committable_big_m` times the highest `p_max_pu`
+      (`components.py:1082-1152`). Without that keyword, it is ten times the
+      largest of the peak total load and the component's largest finite
+      `p_nom` and `p_nom_max`. Where there is none of them, it is 1e6. Below
+      the output a solve wants, it caps that output
+    dims: [scenario, generator]
+    missing: absent
+  Generator_active:
+    description: whether a generator is active in a snapshot's period. It is PyPSA's `active`, from build year and lifetime, data prep
+    dims: [snapshot, generator]
+    dtype: bool
+  Generator_p_set:
+    description: a given output schedule. A generator without one has no row here
+    dims: [scenario, snapshot, generator]
+    missing: absent
+  Generator_p_nom_min:
+    description: least nominal power an extendable generator may be built at
+    dims: [scenario, generator]
+  Generator_p_nom_max:
+    description: most nominal power an extendable generator may be built at
+    dims: [scenario, generator]
+  Generator_capital_cost:
+    description: >-
+      cost of one unit of nominal power for the modelled horizon (PyPSA's
+      `periodized_cost`), data prep. It is `overnight_cost` as an annuity over
+      `lifetime` at `discount_rate`, times `nyears`, where `overnight_cost` is
+      given, and `capital_cost` where it is not. Both add `fom_cost`
+      (`components.py:1157-1178`, `costs.py:102-203`)
+    dims: [scenario, generator]
+  Generator_capital_cost_curve_nom:
+    description: >-
+      the nominal power at each breakpoint of a generator's piecewise
+      `capital_cost` curve: PyPSA's `p_nom` breakpoints, data prep. A
+      generator with no curve has no rows
+    dims: [generator, breakpoint]
+    missing: absent
+  Generator_capital_cost_curve_cost:
+    description: >-
+      the cost of the build at each breakpoint of a generator's piecewise
+      `capital_cost` curve: zero at the first, then each segment's width in
+      nominal power times the `capital_cost` at its upper breakpoint, summed,
+      data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). The curve is already periodized, so data prep
+      refuses `overnight_cost` beside it, as PyPSA does
+      (`optimize.py:427-434`)
+    dims: [generator, breakpoint]
+    missing: absent
+  Generator_p_nom_set:
+    description: a given nominal power for an extendable generator. One without a value has no row here
+    dims: [scenario, generator]
+    missing: absent
+  Generator_e_sum_min:
+    description: least energy over the horizon. It is minus infinity where no floor is meant
+    dims: [scenario, generator]
+  Generator_e_sum_max:
+    description: "most energy over the horizon: a fuel or emission budget in energy terms. It is infinity where no cap is meant"
+    dims: [scenario, generator]
+  Generator_primary_energy_weight:
+    description: >-
+      the constrained attribute per unit of energy at the bus: the carrier's
+      `co2_emissions` over the generator's efficiency at the snapshot, data
+      prep. A generator with a piecewise `efficiency` curve has the bare
+      attribute, as the curve gives its primary energy. A generator of an
+      unweighted carrier has no row
+    dims: [scenario, global_constraint, snapshot, generator]
+    missing: absent
+
+relations:
+  Generator_carrier:
+    description: the carrier a generator converts from
+    key: generator
+    values: carrier
+
+variables:
+  Generator_p:
+    description: "`Generator-p` — output of a generator in a snapshot"
+    dims: [scenario, snapshot, generator]
+    where: Generator_active
+  Generator_p_primary_piecewise:
+    description: >-
+      `Generator-p_primary_piecewise` — the primary energy a generator with a
+      part-load `efficiency` curve draws for its output. PyPSA states it where
+      the network has a `primary_energy` row
+    dims: [scenario, snapshot, generator]
+    where: Generator_efficiency_curve AND Generator_active
+  Generator_status:
+    description: >-
+      `Generator-status` — how much of a committable unit is on. It is an
+      integer the rows below cap at one, or at the module count where the
+      build is modular
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed
+    domain: integer
+    bounds:
+      lower: 0
+  Generator_start_up:
+    description: "`Generator-start_up` — how much of a committable unit turns on this snapshot, capped as the status is"
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed
+    domain: integer
+    bounds:
+      lower: 0
+  Generator_shut_down:
+    description: "`Generator-shut_down` — how much of a committable unit turns off this snapshot, capped as the status is"
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed
+    domain: integer
+    bounds:
+      lower: 0
+  Generator_p_nom_ext:
+    description: >-
+      `Generator-p_nom` — nominal power where it is a decision, for a
+      generator that is active. A fixed build is the parameter of the same
+      PyPSA name
+    dims: [generator]
+    where: Generator_p_nom_extendable AND Generator_active_asset
+
+expressions:
+  Generator_ramp_up_rate:
+    description: >-
+      the ramp limit in a unit's up row, PyPSA's `ramp_limit_up`. It is the
+      full build where PyPSA has none, since a start-up ramp alone builds the
+      row
+    dims: [scenario, snapshot, generator]
+    cases:
+      given: { when: Generator_ramp_limit_up, expression: Generator_ramp_limit_up }
+    otherwise: 1
+  Generator_ramp_down_rate:
+    description: >-
+      the ramp limit in a unit's down row, PyPSA's `ramp_limit_down`. It is
+      the full build where PyPSA has none, since a shut-down ramp alone builds
+      the row
+    dims: [scenario, snapshot, generator]
+    cases:
+      given: { when: Generator_ramp_limit_down, expression: Generator_ramp_limit_down }
+    otherwise: 1
+  Generator_start_up_rate:
+    description: >-
+      the start-up ramp in a unit's up row (PyPSA's `ramp_limit_start_up`), or
+      the full build where it has none
+    dims: [scenario, generator]
+    cases:
+      given: { when: Generator_ramp_limit_start_up, expression: Generator_ramp_limit_start_up }
+    otherwise: 1
+  Generator_shut_down_rate:
+    description: >-
+      the shut-down ramp in a unit's down row (PyPSA's
+      `ramp_limit_shut_down`), or the full build where it has none
+    dims: [scenario, generator]
+    cases:
+      given: { when: Generator_ramp_limit_shut_down, expression: Generator_ramp_limit_shut_down }
+    otherwise: 1
+  Generator_modules:
+    description: >-
+      how many modules a committed unit's status counts: the chosen number
+      where the build is extendable and modular, and the modules installed
+      otherwise (`constraints.py:656-661`)
+    dims: [scenario, generator]
+    cases:
+      chosen: { when: Generator_p_nom_extendable AND Generator_p_nom_mod > 0, expression: Generator_n_mod }
+    otherwise: Generator_modules_installed
+  Generator_p_nom_committed:
+    description: >-
+      the build a committed unit's ramp rows are taken against: one module
+      where the build is modular, since its status counts modules, and the
+      given build otherwise (`constraints.py:1131-1134`)
+    dims: [scenario, generator]
+    cases:
+      modular_build: { when: "Generator_p_nom_mod > 0", expression: Generator_p_nom_mod }
+    otherwise: Generator_p_nom
+  Generator_ramp_previous_status:
+    description: >-
+      the status a committed unit's ramp rows carry into a snapshot. At the
+      first snapshot, a fixed modular unit that came in running has every
+      module on, since the state it brought in is on or off
+      (`constraints.py:1152-1157`). The transition and down-time rows count it as one module
+      (PyPSA/PyPSA#2114). It is the state carried in otherwise
+    dims: [scenario, snapshot, generator]
+    cases:
+      opening_modules:
+        when: "position(snapshot) == 0 AND NOT Generator_p_nom_extendable AND Generator_p_nom_mod > 0"
+        expression: Generator_status_initial * Generator_modules_installed
+    otherwise: Generator_previous_status
+  Generator_ramp_up_allowance:
+    description: >-
+      how far a generator may raise output between two snapshots. It is its
+      ramp limit of the build while it stays on, plus its start-up ramp in the
+      snapshot it turns on
+    dims: [scenario, snapshot, generator]
+    cases:
+      committed:
+        when: Generator_committable
+        expression: >-
+          Generator_ramp_up_rate * Generator_p_nom_committed * Generator_ramp_previous_status
+          + Generator_start_up_rate * Generator_p_nom_committed
+          * (Generator_status - Generator_ramp_previous_status)
+    otherwise: Generator_ramp_up_rate * Generator_p_nom_effective
+  Generator_ramp_down_allowance:
+    description: >-
+      how far a generator may lower output between two snapshots. It is its
+      ramp limit of the build while it stays on, plus its shut-down ramp in
+      the snapshot it turns off
+    dims: [scenario, snapshot, generator]
+    cases:
+      committed:
+        when: Generator_committable
+        expression: >-
+          Generator_ramp_down_rate * Generator_p_nom_committed * Generator_status
+          + Generator_shut_down_rate * Generator_p_nom_committed
+          * (Generator_ramp_previous_status - Generator_status)
+    otherwise: Generator_ramp_down_rate * Generator_p_nom_effective
+  Generator_primary_input:
+    description: >-
+      what a generator's output counts for before the row's weight: the
+      primary energy read off its piecewise `efficiency` curve where it has
+      one, and its output otherwise, which the weight divides by the
+      efficiency (`global_constraints.py:419-437`)
+    dims: [scenario, snapshot, generator]
+    cases:
+      curve: { when: Generator_efficiency_curve, expression: Generator_p_primary_piecewise }
+    otherwise: Generator_p
+  Generator_primary_energy:
+    expression: >-
+      sum(sum((Generator_primary_input * GlobalConstraint_energy_weight) * Generator_primary_energy_weight, over=snapshot), over=generator)
+  Generator_operational_limit:
+    expression: >-
+      sum(sum((Generator_p * GlobalConstraint_energy_weight) * Generator_operational_limit_weight, over=snapshot), over=generator)
+  Generator_running_cost:
+    description: >-
+      what a generator's output costs in a snapshot: the value read off its
+      piecewise curve where it has one, and its linear `marginal_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:333-348`)
+    dims: [scenario, snapshot, generator]
+    cases:
+      curve: { when: Generator_marginal_cost_curve, expression: Generator_marginal_cost_piecewise }
+    otherwise: Generator_p * Generator_marginal_cost
+  Generator_opex:
+    expression: >-
+      sum(sum((Generator_running_cost * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=generator), over=snapshot)
+      + sum(sum((((Generator_p * Generator_p) * Generator_marginal_cost_quadratic) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=generator), over=snapshot)
+  Generator_injection:
+    expression: sum(Generator_sign * Generator_p, over=generator, by=Generator_bus[bus])
+
+conditions:
+  Generator_marginal_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a generator's cost curve gets less steep: the
+      segment after it rises less per unit of output than the one before
+    condition: >-
+      Generator_marginal_cost_curve_p
+      AND shift(Generator_marginal_cost_curve_p, along=breakpoint, offset=1)
+      AND shift(Generator_marginal_cost_curve_p, along=breakpoint, offset=-1)
+      AND (Generator_marginal_cost_curve_cost - shift(Generator_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Generator_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - Generator_marginal_cost_curve_p)
+      > (shift(Generator_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Generator_marginal_cost_curve_cost)
+      * (Generator_marginal_cost_curve_p - shift(Generator_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+  Generator_marginal_cost_as_lp:
+    description: >-
+      linopy's choice of method for all generator cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex and no
+      generator with a curve is committable, the incremental rows otherwise.
+      PyPSA gates the curves by `Generator-status` where one is committable,
+      and linopy states no segment lines under a gate (`optimize.py:314-318`,
+      `piecewise.py:200-224`)
+    condition: >-
+      count(Generator_marginal_cost_curve AND count(Generator_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=generator) == 0
+      AND count(Generator_marginal_cost_curve AND Generator_committable, over=generator) == 0
+  Generator_capital_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a generator's build cost curve gets less steep: the
+      segment after it rises less per unit of nominal power than the one
+      before
+    condition: >-
+      Generator_capital_cost_curve_nom
+      AND shift(Generator_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(Generator_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (Generator_capital_cost_curve_cost - shift(Generator_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Generator_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Generator_capital_cost_curve_nom)
+      > (shift(Generator_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Generator_capital_cost_curve_cost)
+      * (Generator_capital_cost_curve_nom - shift(Generator_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+  Generator_efficiency_curve:
+    description: >-
+      a generator whose primary energy follows a piecewise `efficiency` curve
+      over its output: one of PyPSA's `active_assets` with curve data, in a
+      network with a `primary_energy` row (`global_constraints.py:336-365`)
+    condition: >-
+      count(Generator_efficiency_curve_p, over=breakpoint) > 0 AND Generator_active_asset
+      AND count(GlobalConstraint_type == 'primary_energy', over=global_constraint) > 0
+
+piecewise:
+  Generator_marginal_cost_lp:
+    description: >-
+      `Generator-marginal_cost_piecewise` — the running cost of a generator
+      with a curve is at least the curve at its output, stated as the line of
+      each segment, where linopy chooses the segment lines
+    along: breakpoint
+    dims: [scenario, snapshot, generator]
+    where: Generator_marginal_cost_as_lp AND Generator_marginal_cost_curve AND Generator_active AND Generator_marginal_cost_curve_p
+    method: lp
+    links:
+      p: [Generator_p, Generator_marginal_cost_curve_p]
+      cost: [Generator_marginal_cost_piecewise, Generator_marginal_cost_curve_cost, ">="]
+  Generator_marginal_cost_incremental:
+    description: >-
+      `Generator-marginal_cost_piecewise` — the running cost of a generator
+      with a curve is at least the curve at its output, stated by segments
+      filled in order and switched by the status of a committable generator,
+      where linopy chooses the incremental rows
+    along: breakpoint
+    dims: [scenario, snapshot, generator]
+    where: NOT Generator_marginal_cost_as_lp AND Generator_marginal_cost_curve AND Generator_active AND Generator_marginal_cost_curve_p
+    method: incremental
+    activity: Generator_status
+    links:
+      p: [Generator_p, Generator_marginal_cost_curve_p]
+      cost: [Generator_marginal_cost_piecewise, Generator_marginal_cost_curve_cost, ">="]
+  Generator_capital_cost_lp:
+    description: >-
+      `Generator-capital_cost_piecewise` — the cost of the build of a
+      generator with a curve is at least the curve at its nominal power,
+      stated as the line of each segment, where linopy chooses the segment
+      lines
+    along: breakpoint
+    dims: [generator]
+    where: Generator_capital_cost_as_lp AND Generator_capital_cost_curve AND Generator_capital_cost_curve_nom
+    method: lp
+    links:
+      p_nom: [Generator_p_nom_ext, Generator_capital_cost_curve_nom]
+      cost: [Generator_capital_cost_piecewise, Generator_capital_cost_curve_cost, ">="]
+  Generator_capital_cost_incremental:
+    description: >-
+      `Generator-capital_cost_piecewise` — the cost of the build of a
+      generator with a curve is at least the curve at its nominal power,
+      stated by segments filled in order, where linopy chooses the incremental
+      rows
+    along: breakpoint
+    dims: [generator]
+    where: NOT Generator_capital_cost_as_lp AND Generator_capital_cost_curve AND Generator_capital_cost_curve_nom
+    method: incremental
+    links:
+      p_nom: [Generator_p_nom_ext, Generator_capital_cost_curve_nom]
+      cost: [Generator_capital_cost_piecewise, Generator_capital_cost_curve_cost, ">="]
+  Generator_efficiency_incremental:
+    description: >-
+      `Generator-p_primary_piecewise` — the primary energy of a generator with
+      a curve is the curve at its output, stated by segments filled in order
+      and switched by the status of a committable generator. PyPSA leaves the
+      method to linopy, which states an equality by the incremental rows
+      (`global_constraints.py:346-364`)
+    along: breakpoint
+    dims: [scenario, snapshot, generator]
+    where: Generator_efficiency_curve AND Generator_active AND Generator_efficiency_curve_p
+    method: incremental
+    activity: Generator_status
+    links:
+      p: [Generator_p, Generator_efficiency_curve_p]
+      primary: [Generator_p_primary_piecewise, Generator_efficiency_curve_primary]
+
+constraints:
+  Generator_fix_p_lower:
+    description: "`Generator-fix-p-lower` — a fixed generator outputs at least its minimum"
+    dims: [scenario, snapshot, generator]
+    where: not Generator_p_nom_extendable AND not Generator_committable AND Generator_active AND (Generator_p_nom < inf OR Generator_p_min_pu == 0)
+    expression: Generator_p >= Generator_p_min_pu * Generator_p_nom_rated * (1 - Generator_maintenance_pu * Generator_maintenance)
+  Generator_fix_p_upper:
+    description: "`Generator-fix-p-upper` — a fixed generator outputs at most what is available"
+    dims: [scenario, snapshot, generator]
+    where: not Generator_p_nom_extendable AND not Generator_committable AND Generator_active AND (Generator_p_nom < inf OR Generator_p_max_pu == 0)
+    expression: Generator_p <= Generator_p_max_pu * Generator_p_nom_rated * (1 - Generator_maintenance_pu * Generator_maintenance)
+  Generator_ext_p_lower:
+    description: "`Generator-ext-p-lower` — an extendable generator outputs at least its minimum of the chosen build"
+    dims: [scenario, snapshot, generator]
+    where: Generator_p_nom_extendable AND not Generator_committable AND Generator_active
+    expression: Generator_p >= Generator_p_min_pu * (Generator_p_nom_ext - Generator_maintenance_pu * Generator_maintenance_capacity)
+  Generator_ext_p_upper:
+    description: "`Generator-ext-p-upper` — an extendable generator outputs at most what is available of the chosen build"
+    dims: [scenario, snapshot, generator]
+    where: Generator_p_nom_extendable AND not Generator_committable AND Generator_active
+    expression: Generator_p <= Generator_p_max_pu * (Generator_p_nom_ext - Generator_maintenance_pu * Generator_maintenance_capacity)
+  Generator_e_sum_min:
+    description: "`Generator-e_sum_min` — energy over the horizon, each period weighted by its years, is at least its floor. A floor of minus infinity is no row"
+    dims: [scenario, generator]
+    where: Generator_e_sum_min AND count(Generator_active, over=snapshot) > 0
+    expression: sum(Generator_p * energy_limit_weight, over=snapshot) >= Generator_e_sum_min
+  Generator_e_sum_max:
+    description: "`Generator-e_sum_max` — energy over the horizon, each period weighted by its years, is at most its budget. A budget of infinity is no row"
+    dims: [scenario, generator]
+    where: Generator_e_sum_max AND count(Generator_active, over=snapshot) > 0
+    expression: sum(Generator_p * energy_limit_weight, over=snapshot) <= Generator_e_sum_max
+  Generator_com_p_lower:
+    description: "`Generator-com-p-lower` — a committed unit outputs at least its minimum. Off, it outputs at least nothing"
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed AND NOT Generator_p_nom_extendable AND NOT (Generator_p_nom_mod > 0)
+    expression: Generator_p >= Generator_p_min_pu * Generator_p_nom * (Generator_status - Generator_maintenance_pu * Generator_maintenance_status)
+  Generator_com_p_upper:
+    description: "`Generator-com-p-upper` — a committed unit outputs at most what is available. Off, it outputs at most nothing"
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed AND NOT Generator_p_nom_extendable AND NOT (Generator_p_nom_mod > 0)
+    expression: Generator_p <= Generator_p_max_pu * Generator_p_nom * (Generator_status - Generator_maintenance_pu * Generator_maintenance_status)
+  Generator_com_transition_start_up:
+    description: "`Generator-com-transition-start-up` — turning on is a start, counted against the state the unit carried into the snapshot"
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed
+    expression: Generator_start_up >= Generator_status - Generator_previous_status
+  Generator_com_transition_shut_down:
+    description: "`Generator-com-transition-shut-down` — turning off is a stop, counted against the state the unit carried into the snapshot"
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed
+    expression: Generator_shut_down >= Generator_previous_status - Generator_status
+  Generator_com_up_time:
+    description: >-
+      `Generator-com-up-time` — a unit started within its own minimum up time is
+      still on. The up time it brought into the horizon counts as a start
+      before the first snapshot
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed AND Generator_min_up_time > 0
+    expression: >-
+      sum_back(Generator_start_up, along=snapshot, window=Generator_min_up_time)
+      + Generator_up_time_brought_in <= Generator_status
+  Generator_com_down_time:
+    description: >-
+      `Generator-com-down-time` — a unit stopped within its own minimum down time
+      is still off, and so are the modules of a modular unit that stopped.
+      The down time it brought into the horizon counts as one stop before the
+      first snapshot, also where the unit is modular and all its modules
+      stopped (`constraints.py:656-683`, PyPSA/PyPSA#2114)
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed AND Generator_min_down_time > 0
+    expression: >-
+      sum_back(Generator_shut_down, along=snapshot, window=Generator_min_down_time)
+      + Generator_down_time_brought_in <= Generator_modules - Generator_status
+  Generator_p_ramp_limit_up_run_big_m:
+    description: >-
+      `Generator-p-ramp_limit_up-run-bigM` — a committed extendable unit
+      raises output no faster than its limit of the chosen build. The big M
+      releases the row in the snapshot it turns on
+    dims: [scenario, snapshot, generator]
+    where: >-
+      Generator_com_ext
+      AND (Generator_ramp_limit_up OR Generator_ramp_limit_start_up)
+      AND Generator_ramps_from_previous
+    expression: >-
+      Generator_p - Generator_previous_p <=
+      Generator_ramp_up_rate * Generator_p_nom_ext
+      + Generator_big_m - Generator_big_m * Generator_previous_status
+  Generator_p_ramp_limit_up_start_big_m:
+    description: >-
+      `Generator-p-ramp_limit_up-start-bigM` — in the snapshot it turns on, a
+      committed extendable unit ramps no further than its start-up ramp of the
+      chosen build. The big M releases the row everywhere else
+    dims: [scenario, snapshot, generator]
+    where: >-
+      Generator_com_ext
+      AND (Generator_ramp_limit_up OR Generator_ramp_limit_start_up)
+      AND Generator_ramps_from_previous
+    expression: >-
+      Generator_p - Generator_previous_p <=
+      Generator_start_up_rate * Generator_p_nom_ext
+      + Generator_big_m - Generator_big_m * Generator_start_up
+  Generator_p_ramp_limit_down_run_big_m:
+    description: >-
+      `Generator-p-ramp_limit_down-run-bigM` — a committed extendable unit
+      lowers output no faster than its limit of the chosen build. The big M
+      releases the row in the snapshot it turns off
+    dims: [scenario, snapshot, generator]
+    where: >-
+      Generator_com_ext
+      AND (Generator_ramp_limit_down OR Generator_ramp_limit_shut_down)
+      AND Generator_ramps_from_previous
+    expression: >-
+      Generator_p - Generator_previous_p >=
+      -Generator_ramp_down_rate * Generator_p_nom_ext
+      - Generator_big_m + Generator_big_m * Generator_status
+  Generator_p_ramp_limit_down_shut_big_m:
+    description: >-
+      `Generator-p-ramp_limit_down-shut-bigM` — in the snapshot it turns off,
+      a committed extendable unit ramps no further than its shut-down ramp of
+      the chosen build. The big M releases the row everywhere else
+    dims: [scenario, snapshot, generator]
+    where: >-
+      Generator_com_ext
+      AND (Generator_ramp_limit_down OR Generator_ramp_limit_shut_down)
+      AND Generator_ramps_from_previous
+    expression: >-
+      Generator_previous_p - Generator_p <=
+      Generator_shut_down_rate * Generator_p_nom_ext
+      + Generator_big_m - Generator_big_m * Generator_shut_down
+  Generator_com_ext_p_upper_cap:
+    description: >-
+      `Generator-com-ext-p-upper-cap` — a committed extendable unit outputs
+      at most what is available of the chosen build, whatever its status
+    dims: [scenario, snapshot, generator]
+    where: Generator_com_ext
+    expression: Generator_p <= Generator_p_max_pu * (Generator_p_nom_ext - Generator_maintenance_pu * Generator_maintenance_capacity)
+  Generator_com_ext_p_upper_big_m:
+    description: "`Generator-com-ext-p-upper-bigM` — off, a unit outputs nothing. On, the big M is no bound"
+    dims: [scenario, snapshot, generator]
+    where: Generator_com_ext
+    expression: Generator_p <= Generator_big_m * Generator_status
+  Generator_com_ext_p_lower:
+    description: >-
+      `Generator-com-ext-p-lower` — a committed extendable unit outputs at
+      least its minimum of the chosen build. Off, the big M releases the row
+    dims: [scenario, snapshot, generator]
+    where: Generator_com_ext
+    expression: >-
+      Generator_p >=
+      Generator_p_min_pu * (Generator_p_nom_ext - Generator_maintenance_pu * Generator_maintenance_capacity)
+      + Generator_big_m * Generator_status - Generator_big_m
+  Generator_com_ext_p_lower_nonneg:
+    description: >-
+      `Generator-com-ext-p-lower-nonneg` — where no minimum-per-unit is
+      negative, output is also plainly non-negative, a row the big-M lower
+      cannot assert while the unit is off
+    dims: [scenario, snapshot, generator]
+    where: Generator_com_ext AND Generator_p_min_pu_nonneg
+    expression: Generator_p >= 0
+  Generator_com_mod_p_lower:
+    description: >-
+      `Generator-com-mod-p-lower` — a committed modular unit outputs at least
+      its minimum of one module, whether the build is fixed or a decision
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed AND Generator_p_nom_mod > 0
+    expression: Generator_p >= Generator_p_min_pu * Generator_p_nom_mod * (Generator_status - Generator_maintenance_pu * Generator_maintenance_status)
+  Generator_com_mod_p_upper:
+    description: >-
+      `Generator-com-mod-p-upper` — a committed modular unit outputs at most
+      one module's share, whether the build is fixed or a decision
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed AND Generator_p_nom_mod > 0
+    expression: Generator_p <= Generator_p_max_pu * Generator_p_nom_mod * (Generator_status - Generator_maintenance_pu * Generator_maintenance_status)
+  Generator_status_p_nom_variable_upper:
+    description: "`Generator-status-p_nom-variable-upper` — a modular unit is on only where a module is built"
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed AND Generator_p_nom_extendable AND Generator_p_nom_mod > 0
+    expression: Generator_status <= Generator_n_mod
+  Generator_start_up_p_nom_variable_upper:
+    description: "`Generator-start_up-p_nom-variable-upper` — a modular unit starts only where a module is built"
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed AND Generator_p_nom_extendable AND Generator_p_nom_mod > 0
+    expression: Generator_start_up <= Generator_n_mod
+  Generator_shut_down_p_nom_variable_upper:
+    description: "`Generator-shut_down-p_nom-variable-upper` — a modular unit stops only where a module is built"
+    dims: [scenario, snapshot, generator]
+    where: Generator_committed AND Generator_p_nom_extendable AND Generator_p_nom_mod > 0
+    expression: Generator_shut_down <= Generator_n_mod
+  Generator_p_ramp_limit_up:
+    description: >-
+      `Generator-p-ramp_limit_up` — a generator raises output no faster than
+      its ramp limit of the build. A committed one raises it no further than
+      its start-up ramp in the snapshot it turns on. A unit that came into the
+      horizon running has a row at the first snapshot only where its `p_init`
+      gives the output it brought in. No unit has one at the start of a later
+      investment period, nor does any unit a big M releases instead
+    dims: [scenario, snapshot, generator]
+    where: >-
+      (Generator_ramp_limit_up OR Generator_ramp_limit_start_up)
+      AND NOT (Generator_committable AND Generator_p_nom_extendable AND NOT (Generator_p_nom_mod > 0))
+      AND Generator_ramps_from_previous
+      AND Generator_active
+    expression: Generator_p - Generator_previous_p <= Generator_ramp_up_allowance
+  Generator_p_ramp_limit_down:
+    description: >-
+      `Generator-p-ramp_limit_down` — a generator lowers output no faster than
+      its ramp limit of the build. A committed one lowers it no further than
+      its shut-down ramp in the snapshot it turns off. A unit that came into
+      the horizon running has a row at the first snapshot only where its
+      `p_init` gives the output it brought in. No unit has one at the start of
+      a later investment period, nor does any unit a big M releases instead
+    dims: [scenario, snapshot, generator]
+    where: >-
+      (Generator_ramp_limit_down OR Generator_ramp_limit_shut_down)
+      AND NOT (Generator_committable AND Generator_p_nom_extendable AND NOT (Generator_p_nom_mod > 0))
+      AND Generator_ramps_from_previous
+      AND Generator_active
+    expression: Generator_previous_p - Generator_p <= Generator_ramp_down_allowance
+  Generator_p_set:
+    description: "`Generator-p_set` — output pinned to the given schedule, wherever one is given"
+    dims: [scenario, snapshot, generator]
+    where: Generator_p_set AND Generator_active
+    expression: Generator_p == Generator_p_set
+
+assumptions:
+  Generator_marginal_cost_curve_on_a_fixed_build:
+    holds: "NOT Generator_p_nom_extendable AND Generator_p_nom > 0 AND Generator_p_nom < inf"
+    where: "Generator_marginal_cost_curve"
+    description: >-
+      a generator's cost curve is given per unit of a fixed, positive, finite
+      `p_nom`, which scales it to output. PyPSA refuses an extendable unit and
+      a zero, missing or infinite `p_nom` (`piecewise.py:284-304`), and takes
+      a negative one, which the file does not state

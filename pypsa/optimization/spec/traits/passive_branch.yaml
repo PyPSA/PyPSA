@@ -1,0 +1,135 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  ${C}_s_max_pu:
+    description: most flow either way, per unit of nominal apparent power
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_s_set:
+    description: a given flow schedule. A ${c} without one has no row here
+    dims: [scenario, snapshot, "${c}"]
+    missing: absent
+  ${C}_loss_offset:
+    description: >-
+      where that cut meets the loss axis: a tangent's `loss_k - slope_k * p_k`,
+      a secant's `-r_pu_eff * p_k * p_k+1`, negative, data prep
+    dims: [scenario, snapshot, "${c}", segment]
+
+relations:
+  ${C}_bus1:
+    description: the bus at a ${c}'s other end
+    key: ${c}
+    values: bus
+
+variables:
+  ${C}_s:
+    description: >-
+      `${C}-s` — PyPSA's `p0`, the flow measured at the `${C}_bus0` end: a
+      positive value withdraws there and injects at `${C}_bus1`, lossless
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_active
+
+conditions:
+  ${C}_lossy:
+    description: >-
+      a ${c} that is active in the snapshot's period, where the run models
+      transmission losses
+    condition: transmission_losses AND ${C}_active
+
+constraints:
+  ${C}_fix_s_lower:
+    description: >-
+      `${C}-fix-s-lower` — a fixed ${c} carries at least the negative of its
+      rating, the loss counted against it
+    dims: [scenario, snapshot, "${c}"]
+    where: not ${C}_${nom}_extendable AND ${C}_active AND (${C}_${nom} < inf OR ${C}_s_max_pu == 0)
+    expression: ${C}_s - ${C}_loss >= -${C}_s_max_pu * ${C}_${nom}_rated
+  ${C}_fix_s_upper:
+    description: "`${C}-fix-s-upper` — a fixed ${c} carries at most its rating, the loss included"
+    dims: [scenario, snapshot, "${c}"]
+    where: not ${C}_${nom}_extendable AND ${C}_active AND (${C}_${nom} < inf OR ${C}_s_max_pu == 0)
+    expression: ${C}_s + ${C}_loss <= ${C}_s_max_pu * ${C}_${nom}_rated
+  ${C}_ext_s_lower:
+    description: >-
+      `${C}-ext-s-lower` — an extendable ${c} carries at least the negative of
+      its rating of the chosen build, the loss counted against it
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_${nom}_extendable AND ${C}_active
+    expression: ${C}_s - ${C}_loss >= -${C}_s_max_pu * ${C}_${nom}_ext
+  ${C}_ext_s_upper:
+    description: >-
+      `${C}-ext-s-upper` — an extendable ${c} carries at most its rating of the
+      chosen build, the loss included
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_${nom}_extendable AND ${C}_active
+    expression: ${C}_s + ${C}_loss <= ${C}_s_max_pu * ${C}_${nom}_ext
+  ${C}_s_set:
+    description: "`${C}-s_set` — flow pinned to the given schedule, wherever one is given"
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_s_set AND ${C}_active
+    expression: ${C}_s == ${C}_s_set
+  ${C}_loss_upper:
+    description: "`${C}-loss_upper` — a ${c} dissipates at most the loss at its rating"
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_lossy
+    expression: ${C}_loss <= ${C}_loss_max
+  ${C}_loss_tangents_reverse:
+    description: >-
+      `${C}-loss_tangents-{k}--1`, `${C}-loss_secants-neg` — the same fan
+      mirrored, the loss depending on the flow's magnitude
+    dims: [scenario, snapshot, "${c}", segment]
+    where: ${C}_lossy
+    expression: ${C}_loss - ${C}_loss_slope * ${C}_s >= ${C}_loss_offset
+  ${C}_fix_s_lower_security:
+    description: >-
+      `${C}-fix-s-lower-security-for-{c}-outage-in-sub-network-{n}` — after any
+      one outage, a fixed ${c} carries at least the negative of its rating. Its
+      flow takes on its share of the outaged branch's flow. PyPSA names one row
+      per outaged component `c` and sub-network `n`. Under
+      `multi_investment_periods` it appends `-period-{p}` for each period `p`.
+      This entry states them all over the outage dimension
+    dims: [scenario, snapshot, "${c}", outage]
+    where: not ${C}_${nom}_extendable AND at(${C}_BODF, by=snapshot_period[period]) AND ${C}_active
+    expression: >-
+      ${C}_s_monitored + at(${C}_BODF, by=snapshot_period[period]) * Outage_s >=
+      -${C}_s_max_pu * ${C}_${nom}
+  ${C}_fix_s_upper_security:
+    description: >-
+      `${C}-fix-s-upper-security-for-{c}-outage-in-sub-network-{n}` — after any
+      one outage, a fixed ${c} carries at most its rating. Its flow takes on its
+      share of the outaged branch's flow. PyPSA names one row per outaged
+      component `c` and sub-network `n`. Under `multi_investment_periods` it
+      appends `-period-{p}` for each period `p`. This entry states them all over
+      the outage dimension
+    dims: [scenario, snapshot, "${c}", outage]
+    where: not ${C}_${nom}_extendable AND at(${C}_BODF, by=snapshot_period[period]) AND ${C}_active
+    expression: >-
+      ${C}_s_monitored + at(${C}_BODF, by=snapshot_period[period]) * Outage_s <=
+      ${C}_s_max_pu * ${C}_${nom}
+  ${C}_ext_s_lower_security:
+    description: >-
+      `${C}-ext-s-lower-security-for-{c}-outage-in-sub-network-{n}` — after any
+      one outage, an extendable ${c} carries at least the negative of its rating
+      of the chosen build. Its flow takes on its share of the outaged branch's
+      flow. PyPSA names one row per outaged component `c` and sub-network `n`.
+      Under `multi_investment_periods` it appends `-period-{p}` for each period
+      `p`. This entry states them all over the outage dimension
+    dims: [scenario, snapshot, "${c}", outage]
+    where: ${C}_${nom}_extendable AND at(${C}_BODF, by=snapshot_period[period]) AND ${C}_active
+    expression: >-
+      ${C}_s_monitored + at(${C}_BODF, by=snapshot_period[period]) * Outage_s >=
+      -${C}_s_max_pu * ${C}_${nom}_ext
+  ${C}_ext_s_upper_security:
+    description: >-
+      `${C}-ext-s-upper-security-for-{c}-outage-in-sub-network-{n}` — after any
+      one outage, an extendable ${c} carries at most its rating of the chosen
+      build. Its flow takes on its share of the outaged branch's flow. PyPSA
+      names one row per outaged component `c` and sub-network `n`. Under
+      `multi_investment_periods` it appends `-period-{p}` for each period `p`.
+      This entry states them all over the outage dimension
+    dims: [scenario, snapshot, "${c}", outage]
+    where: ${C}_${nom}_extendable AND at(${C}_BODF, by=snapshot_period[period]) AND ${C}_active
+    expression: >-
+      ${C}_s_monitored + at(${C}_BODF, by=snapshot_period[period]) * Outage_s <=
+      ${C}_s_max_pu * ${C}_${nom}_ext

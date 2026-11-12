@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+variables:
+  ${C}_marginal_cost_piecewise:
+    description: >-
+      `${C}-marginal_cost_piecewise` — the running cost of a ${unit} that pays
+      along a curve, held above the curve
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_marginal_cost_curve AND ${C}_active
+
+conditions:
+  ${C}_marginal_cost_curve:
+    description: >-
+      a ${unit} that pays along a piecewise `marginal_cost` curve: one of
+      PyPSA's `active_assets` with curve data (`optimize.py:307`,
+      `piecewise.py:230-257`)
+    condition: count(${C}_marginal_cost_curve_p, over=breakpoint) > 0 AND ${C}_active_asset
+
+assumptions:
+  ${C}_marginal_cost_quadratic_without_risk_preference:
+    holds: ${C}_marginal_cost_quadratic == 0
+    where: CVaR_omega
+    description: >-
+      a quadratic cost puts a square into every `CVaR-excess` row. PyPSA refuses
+      quadratic costs under any risk preference, `omega = 0` included
+      (`optimize.py:506-513`). In data prep you write a `CVaR_omega` row only
+      where a risk preference is set

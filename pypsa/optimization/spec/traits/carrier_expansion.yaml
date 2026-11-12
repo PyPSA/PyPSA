@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  ${C}_first_active:
+    description: >-
+      one in the first period a ${unit} is active in, zero elsewhere, data prep.
+      PyPSA takes `active & (active.cumsum() == 1)`
+      (`global_constraints.py:278`)
+    dims: [period, "${c}"]
+  ${C}_tech_capacity_weight:
+    description: >-
+      one where the ${unit} is in the row's carrier-and-bus set, data prep. One
+      outside it, or one that is not active in the row's `investment_period`,
+      has no row
+    dims: [global_constraint, "${c}"]
+    missing: absent
+
+expressions:
+  ${C}_tech_capacity_expansion:
+    expression: sum(${C}_${nom}_ext * ${C}_tech_capacity_weight, over=${c})
+  ${C}_additions:
+    expression: sum(${C}_${nom}_ext * ${C}_first_active, over=${c}, by=${C}_carrier[carrier])

@@ -1,0 +1,749 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  Link_ramp_limit_up:
+    description: most a link may raise its flow between snapshots, per unit of nominal power. No value means no limit. The value at the later of the two snapshots applies, so the limit may change over time
+    dims: [scenario, snapshot, link]
+    missing: absent
+  Link_ramp_limit_down:
+    description: most a link may lower its flow between snapshots, per unit of nominal power. No value means no limit. The value at the later of the two snapshots applies, so the limit may change over time
+    dims: [scenario, snapshot, link]
+    missing: absent
+  Link_p_nom:
+    description: nominal power
+    dims: [scenario, link]
+  Link_p_nom_extendable:
+    description: whether the nominal power is a decision
+    dims: [link]
+    dtype: bool
+  Link_p_min_pu:
+    description: "least flow, per unit of nominal power: negative for a link that carries both ways"
+    dims: [scenario, snapshot, link]
+  Link_p_max_pu:
+    description: most flow, per unit of nominal power
+    dims: [scenario, snapshot, link]
+  Link_efficiency:
+    description: >-
+      share of the flow that arrives at an output port, PyPSA's `efficiency`,
+      `efficiency2`, … read long: negative where that port consumes rather
+      than delivers. Read at the snapshot the flow arrives, so a delayed port
+      delivers at its arrival snapshot's efficiency (`constraints.py:1575`)
+    dims: [scenario, snapshot, link_output]
+  Link_efficiency_curve_p:
+    description: >-
+      the flow at each breakpoint of the piecewise `efficiency` curve of an
+      output port: PyPSA's `p_pu` breakpoints of `efficiency`, `efficiency2`,
+      … read long, times the link's `p_nom`, data prep. A port with no curve
+      has no rows
+    dims: [link_output, breakpoint]
+    missing: absent
+  Link_efficiency_curve_delivery:
+    description: >-
+      what an output port delivers at each breakpoint of its piecewise
+      `efficiency` curve: the flow times the `efficiency` there, and zero where
+      that product is undefined, data prep (`piecewise.py:314-316`). PyPSA
+      refuses a curve of both signs (`io.py:2319-2324`)
+    dims: [link_output, breakpoint]
+    missing: absent
+  Link_output_delay:
+    description: >-
+      time a port's delivery lags its link's flow, in units of
+      `snapshot_weightings.generators` (PyPSA's `delay`, `delay2`, … read
+      long). It is zero for a port that delivers at once. A port has the same
+      delay in every scenario, because PyPSA refuses a delay that differs by
+      scenario (`constants.py:55`)
+    dims: [link_output]
+    dtype: int
+  Link_marginal_cost:
+    description: cost of one unit of flow
+    dims: [scenario, snapshot, link]
+  Link_marginal_cost_quadratic:
+    description: cost of the square of one unit of flow
+    dims: [scenario, snapshot, link]
+  Link_marginal_cost_curve_p:
+    description: >-
+      the flow at each breakpoint of a link's piecewise `marginal_cost` curve:
+      PyPSA's `p_pu` breakpoints times `p_nom`, data prep. A link with no
+      curve has no rows
+    dims: [link, breakpoint]
+    missing: absent
+  Link_marginal_cost_curve_cost:
+    description: >-
+      the running cost at each breakpoint of a link's piecewise
+      `marginal_cost` curve: zero at the first, then each segment's width in
+      flow times the `marginal_cost` at its upper breakpoint, summed, data
+      prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). A curve that starts below zero flow, where
+      `p_min_pu` is negative, costs more than nothing at zero flow
+    dims: [link, breakpoint]
+    missing: absent
+  Link_committable:
+    description: whether flow is gated by an on/off status decision
+    dims: [link]
+    dtype: bool
+  Link_ramp_limit_start_up:
+    description: most flow in the snapshot a link starts, per unit of nominal power. No value means no limit
+    dims: [scenario, link]
+    missing: absent
+  Link_ramp_limit_shut_down:
+    description: most flow in the snapshot before a link stops, per unit of nominal power. No value means no limit
+    dims: [scenario, link]
+    missing: absent
+  Link_min_up_time:
+    description: least snapshots a link stays on once started
+    dims: [scenario, link]
+    dtype: int
+  Link_min_down_time:
+    description: least snapshots a link stays off once stopped
+    dims: [scenario, link]
+    dtype: int
+  Link_status_initial:
+    description: >-
+      one where the link was on before the first snapshot, zero where off.
+      It is PyPSA's `up_time_before > 0` for a committable link, and one for
+      a link that is not, whose ramp rows PyPSA starts from on
+      (`constraints.py:323`), data prep
+    dims: [scenario, link]
+  Link_p_init:
+    description: >-
+      the flow a link brought into the horizon (PyPSA's `p_init`), read only
+      where the link came in running. No value means it is unknown, and the
+      link then has no ramp row at the first snapshot
+    dims: [scenario, link]
+    missing: 0
+  Link_up_time_brought_in:
+    description: >-
+      one while the up time a link brought into the horizon is still
+      running, zero after. It is PyPSA's start `up_time_before` snapshots
+      before the first, counted while `min_up_time` has not passed since
+      (`constraints.py:302-323`, `:677-678`), data prep
+    dims: [scenario, snapshot, link]
+  Link_down_time_brought_in:
+    description: >-
+      one while the down time a link brought into the horizon is still
+      running, zero after. It is PyPSA's stop `down_time_before` snapshots
+      before the first, counted while `min_down_time` has not passed since
+      (`constraints.py:302-323`, `:677-678`), data prep
+    dims: [scenario, snapshot, link]
+  Link_big_m:
+    description: >-
+      the bound a committed extendable link's big-M rows release it by, data
+      prep. It is the build cap `p_nom_max` times the highest `p_max_pu`,
+      where the cap is finite and positive. Elsewhere it is
+      `committable_big_m` times the highest `p_max_pu`
+      (`components.py:1082-1152`). Without that keyword, it is ten times the
+      largest of the peak total load and the component's largest finite
+      `p_nom` and `p_nom_max`. Where there is none of them, it is 1e6. Below
+      the flow a solve wants, it caps that flow
+    dims: [scenario, link]
+    missing: absent
+  Link_active:
+    description: whether a link is active in a snapshot's period. It is PyPSA's `active`, data prep
+    dims: [snapshot, link]
+    dtype: bool
+  Link_p_set:
+    description: a given flow schedule. A link without one has no row here
+    dims: [scenario, snapshot, link]
+    missing: absent
+  Link_e_sum_min:
+    description: least energy of its flow at `bus0`, the withdrawal there, over the horizon. It is minus infinity where no floor is meant
+    dims: [scenario, link]
+  Link_e_sum_max:
+    description: most energy of its flow at `bus0`, the withdrawal there, over the horizon. It is infinity where no cap is meant
+    dims: [scenario, link]
+  Link_p_nom_min:
+    description: least nominal power an extendable link may be built at
+    dims: [scenario, link]
+  Link_p_nom_max:
+    description: most nominal power an extendable link may be built at
+    dims: [scenario, link]
+  Link_capital_cost:
+    description: >-
+      cost of one unit of nominal power for the modelled horizon (PyPSA's
+      `periodized_cost`), data prep. It is `overnight_cost` as an annuity over
+      `lifetime` at `discount_rate`, times `nyears`, where `overnight_cost` is
+      given, and `capital_cost` where it is not. Both add `fom_cost`
+      (`components.py:1157-1178`, `costs.py:102-203`)
+    dims: [scenario, link]
+  Link_capital_cost_curve_nom:
+    description: >-
+      the nominal power at each breakpoint of a link's piecewise
+      `capital_cost` curve: PyPSA's `p_nom` breakpoints, data prep. A link
+      with no curve has no rows
+    dims: [link, breakpoint]
+    missing: absent
+  Link_capital_cost_curve_cost:
+    description: >-
+      the cost of the build at each breakpoint of a link's piecewise
+      `capital_cost` curve: zero at the first, then each segment's width in
+      nominal power times the `capital_cost` at its upper breakpoint, summed,
+      data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). The curve is already periodized, so data prep
+      refuses `overnight_cost` beside it, as PyPSA does
+      (`optimize.py:427-434`)
+    dims: [link, breakpoint]
+    missing: absent
+  Link_p_nom_set:
+    description: a given nominal power for an extendable link. One without a value has no row here
+    dims: [scenario, link]
+    missing: absent
+
+relations:
+  Link_carrier:
+    description: the carrier a link converts from
+    key: link
+    values: carrier
+  Link_bus0:
+    description: the bus a link leaves
+    key: link
+    values: bus
+  Link_output_link:
+    description: the link an output port belongs to
+    key: link_output
+    values: link
+  Link_output_bus:
+    description: >-
+      the bus an output port delivers to. It is PyPSA's `bus1`, `bus2`, …
+      columns. A link of three output ports is three labels here rather than a
+      third relation, so the file states any number of them
+    key: link_output
+    values: bus
+  Link_output_delay_source:
+    description: >-
+      the snapshot whose flow a delayed port delivers at a snapshot, data
+      prep: the latest snapshot that starts `delay` or more earlier, in
+      `snapshot_weightings.generators` time, within the snapshot's
+      investment period (`multiports.py:100-219`). Where the port is
+      `cyclic_delay` (PyPSA's `cyclic_delay`, `cyclic_delay2`, …), the time
+      wraps from the period's end. Where it is not, a snapshot less than
+      `delay` after the period's start has no row, as the flow in transit
+      there is lost. A port that does not delay has no rows
+    key: [link_output, snapshot]
+    values: { source: snapshot }
+    missing: absent
+
+variables:
+  Link_p:
+    description: >-
+      `Link-p` — PyPSA's `p0`, the flow measured at the `Link_bus0` end. A
+      positive value withdraws there and injects at every bus the link's
+      output ports deliver to
+    dims: [scenario, snapshot, link]
+    where: Link_active
+  Link_p_piecewise:
+    description: >-
+      `Link-p{port}_piecewise` — what a link delivers to an output port that
+      follows a part-load `efficiency` curve, before the port's delay. PyPSA
+      names one variable per port number
+    dims: [scenario, snapshot, link_output]
+    where: Link_efficiency_curve AND at(Link_active, by=Link_output_link[link])
+  Link_status:
+    description: >-
+      `Link-status` — how much of a committable link is on. It is an integer
+      the rows below cap at one, or at the module count where the build is
+      modular
+    dims: [scenario, snapshot, link]
+    where: Link_committed
+    domain: integer
+    bounds:
+      lower: 0
+  Link_start_up:
+    description: "`Link-start_up` — how much of a committable link turns on this snapshot, capped as the status is"
+    dims: [scenario, snapshot, link]
+    where: Link_committed
+    domain: integer
+    bounds:
+      lower: 0
+  Link_shut_down:
+    description: "`Link-shut_down` — how much of a committable link turns off this snapshot, capped as the status is"
+    dims: [scenario, snapshot, link]
+    where: Link_committed
+    domain: integer
+    bounds:
+      lower: 0
+  Link_p_nom_ext:
+    description: >-
+      `Link-p_nom` — nominal power where it is a decision, for a link that is
+      active. A fixed build is the parameter of the same PyPSA name
+    dims: [link]
+    where: Link_p_nom_extendable AND Link_active_asset
+
+expressions:
+  Link_ramp_up_rate:
+    description: >-
+      the ramp limit in a link's up row, PyPSA's `ramp_limit_up`. It is the
+      full build where PyPSA has none, since a start-up ramp alone builds the
+      row
+    dims: [scenario, snapshot, link]
+    cases:
+      given: { when: Link_ramp_limit_up, expression: Link_ramp_limit_up }
+    otherwise: 1
+  Link_ramp_down_rate:
+    description: >-
+      the ramp limit in a link's down row, PyPSA's `ramp_limit_down`. It is
+      the full build where PyPSA has none, since a shut-down ramp alone builds
+      the row
+    dims: [scenario, snapshot, link]
+    cases:
+      given: { when: Link_ramp_limit_down, expression: Link_ramp_limit_down }
+    otherwise: 1
+  Link_start_up_rate:
+    description: >-
+      the start-up ramp in a link's up row (PyPSA's `ramp_limit_start_up`), or
+      the full build where it has none
+    dims: [scenario, link]
+    cases:
+      given: { when: Link_ramp_limit_start_up, expression: Link_ramp_limit_start_up }
+    otherwise: 1
+  Link_shut_down_rate:
+    description: >-
+      the shut-down ramp in a link's down row (PyPSA's
+      `ramp_limit_shut_down`), or the full build where it has none
+    dims: [scenario, link]
+    cases:
+      given: { when: Link_ramp_limit_shut_down, expression: Link_ramp_limit_shut_down }
+    otherwise: 1
+  Link_modules:
+    description: >-
+      how many modules a committed link's status counts: the chosen number
+      where the build is extendable and modular, and the modules installed
+      otherwise (`constraints.py:656-661`)
+    dims: [scenario, link]
+    cases:
+      chosen: { when: Link_p_nom_extendable AND Link_p_nom_mod > 0, expression: Link_n_mod }
+    otherwise: Link_modules_installed
+  Link_p_nom_committed:
+    description: >-
+      the build a committed link's ramp rows are taken against: one module
+      where the build is modular, since its status counts modules, and the
+      given build otherwise (`constraints.py:1131-1134`)
+    dims: [scenario, link]
+    cases:
+      modular_build: { when: "Link_p_nom_mod > 0", expression: Link_p_nom_mod }
+    otherwise: Link_p_nom
+  Link_ramp_previous_status:
+    description: >-
+      the status a committed link's ramp rows carry into a snapshot. At the
+      first snapshot, a fixed modular link that came in running has every
+      module on, since the state it brought in is on or off
+      (`constraints.py:1152-1157`). The transition and down-time rows count it as one module
+      (PyPSA/PyPSA#2114). It is the state carried in otherwise
+    dims: [scenario, snapshot, link]
+    cases:
+      opening_modules:
+        when: "position(snapshot) == 0 AND NOT Link_p_nom_extendable AND Link_p_nom_mod > 0"
+        expression: Link_status_initial * Link_modules_installed
+    otherwise: Link_previous_status
+  Link_ramp_up_allowance:
+    description: >-
+      how far a link may raise flow between two snapshots. It is its ramp
+      limit of the build while it stays on, plus its start-up ramp in the
+      snapshot it turns on
+    dims: [scenario, snapshot, link]
+    cases:
+      committed:
+        when: Link_committable
+        expression: >-
+          Link_ramp_up_rate * Link_p_nom_committed * Link_ramp_previous_status
+          + Link_start_up_rate * Link_p_nom_committed
+          * (Link_status - Link_ramp_previous_status)
+    otherwise: Link_ramp_up_rate * Link_p_nom_effective
+  Link_ramp_down_allowance:
+    description: >-
+      how far a link may lower flow between two snapshots. It is its ramp
+      limit of the build while it stays on, plus its shut-down ramp in the
+      snapshot it turns off
+    dims: [scenario, snapshot, link]
+    cases:
+      committed:
+        when: Link_committable
+        expression: >-
+          Link_ramp_down_rate * Link_p_nom_committed * Link_status
+          + Link_shut_down_rate * Link_p_nom_committed
+          * (Link_ramp_previous_status - Link_status)
+    otherwise: Link_ramp_down_rate * Link_p_nom_effective
+  Link_output_linear_arrival:
+    description: >-
+      what a link delivers to an output port at a snapshot. It is its flow at
+      the port's delay source, multiplied by the port's efficiency at the
+      snapshot the flow arrives. A delayed port delivers nothing where it has
+      no source. A port that does not delay (`delay` zero) delivers its flow
+      unshifted
+    dims: [scenario, snapshot, link_output]
+    cases:
+      delayed:
+        when: Link_output_delay > 0
+        expression: at(at(Link_p, by=Link_output_link[link]), by=Link_output_delay_source[source]) * Link_efficiency
+    otherwise: at(Link_p, by=Link_output_link[link]) * Link_efficiency
+  Link_output_curve_arrival:
+    description: >-
+      what a link delivers to an output port with a piecewise `efficiency`
+      curve at a snapshot: the value read off the curve, delayed as the flow
+      of any other port is and not multiplied again
+      (`constraints.py:1556-1576`)
+    dims: [scenario, snapshot, link_output]
+    cases:
+      delayed:
+        when: Link_output_delay > 0
+        expression: at(Link_p_piecewise, by=Link_output_delay_source[source])
+    otherwise: Link_p_piecewise
+  Link_output_arrival:
+    description: >-
+      what a link delivers to an output port at a snapshot: the value read
+      off the port's piecewise `efficiency` curve where it has one, and its
+      flow times the port's `efficiency` otherwise
+    dims: [scenario, snapshot, link_output]
+    cases:
+      curve: { when: Link_efficiency_curve, expression: Link_output_curve_arrival }
+    otherwise: Link_output_linear_arrival
+  Link_running_cost:
+    description: >-
+      what a link's flow costs in a snapshot: the value read off its piecewise
+      curve where it has one, and its linear `marginal_cost` otherwise. A
+      curve replaces the linear cost, as PyPSA drops the unit from that term
+      (`optimize.py:333-348`)
+    dims: [scenario, snapshot, link]
+    cases:
+      curve: { when: Link_marginal_cost_curve, expression: Link_marginal_cost_piecewise }
+    otherwise: Link_p * Link_marginal_cost
+  Link_opex:
+    expression: >-
+      sum(sum((Link_running_cost * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=link), over=snapshot)
+      + sum(sum((((Link_p * Link_p) * Link_marginal_cost_quadratic) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=link), over=snapshot)
+  Link_injection:
+    expression: >-
+      -sum(Link_p, over=link, by=Link_bus0[bus])
+      + sum(Link_output_arrival, over=link_output, by=Link_output_bus[bus])
+
+conditions:
+  Link_marginal_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a link's cost curve gets less steep: the segment
+      after it rises less per unit of flow than the one before
+    condition: >-
+      Link_marginal_cost_curve_p
+      AND shift(Link_marginal_cost_curve_p, along=breakpoint, offset=1)
+      AND shift(Link_marginal_cost_curve_p, along=breakpoint, offset=-1)
+      AND (Link_marginal_cost_curve_cost - shift(Link_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Link_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - Link_marginal_cost_curve_p)
+      > (shift(Link_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Link_marginal_cost_curve_cost)
+      * (Link_marginal_cost_curve_p - shift(Link_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+  Link_marginal_cost_as_lp:
+    description: >-
+      linopy's choice of method for all link cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex and no
+      link with a curve is committable, the incremental rows otherwise. PyPSA
+      gates the curves by `Link-status` where one is committable, and linopy
+      states no segment lines under a gate (`optimize.py:314-318`,
+      `piecewise.py:200-224`)
+    condition: >-
+      count(Link_marginal_cost_curve AND count(Link_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=link) == 0
+      AND count(Link_marginal_cost_curve AND Link_committable, over=link) == 0
+  Link_capital_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a link's build cost curve gets less steep: the segment
+      after it rises less per unit of nominal power than the one before
+    condition: >-
+      Link_capital_cost_curve_nom
+      AND shift(Link_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(Link_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (Link_capital_cost_curve_cost - shift(Link_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Link_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Link_capital_cost_curve_nom)
+      > (shift(Link_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Link_capital_cost_curve_cost)
+      * (Link_capital_cost_curve_nom - shift(Link_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+  Link_efficiency_curve:
+    description: >-
+      an output port whose `efficiency` follows a piecewise curve over the
+      link's flow, in place of one value (`constraints.py:1530-1576`)
+    condition: count(Link_efficiency_curve_p, over=breakpoint) > 0
+
+piecewise:
+  Link_marginal_cost_lp:
+    description: >-
+      `Link-marginal_cost_piecewise` — the running cost of a link with a curve
+      is at least the curve at its flow, stated as the line of each segment,
+      where linopy chooses the segment lines
+    along: breakpoint
+    dims: [scenario, snapshot, link]
+    where: Link_marginal_cost_as_lp AND Link_marginal_cost_curve AND Link_active AND Link_marginal_cost_curve_p
+    method: lp
+    links:
+      p: [Link_p, Link_marginal_cost_curve_p]
+      cost: [Link_marginal_cost_piecewise, Link_marginal_cost_curve_cost, ">="]
+  Link_marginal_cost_incremental:
+    description: >-
+      `Link-marginal_cost_piecewise` — the running cost of a link with a curve
+      is at least the curve at its flow, stated by segments filled in order
+      and switched by the status of a committable link, where linopy chooses
+      the incremental rows
+    along: breakpoint
+    dims: [scenario, snapshot, link]
+    where: NOT Link_marginal_cost_as_lp AND Link_marginal_cost_curve AND Link_active AND Link_marginal_cost_curve_p
+    method: incremental
+    activity: Link_status
+    links:
+      p: [Link_p, Link_marginal_cost_curve_p]
+      cost: [Link_marginal_cost_piecewise, Link_marginal_cost_curve_cost, ">="]
+  Link_capital_cost_lp:
+    description: >-
+      `Link-capital_cost_piecewise` — the cost of the build of a link with a
+      curve is at least the curve at its nominal power, stated as the line of
+      each segment, where linopy chooses the segment lines
+    along: breakpoint
+    dims: [link]
+    where: Link_capital_cost_as_lp AND Link_capital_cost_curve AND Link_capital_cost_curve_nom
+    method: lp
+    links:
+      p_nom: [Link_p_nom_ext, Link_capital_cost_curve_nom]
+      cost: [Link_capital_cost_piecewise, Link_capital_cost_curve_cost, ">="]
+  Link_capital_cost_incremental:
+    description: >-
+      `Link-capital_cost_piecewise` — the cost of the build of a link with a
+      curve is at least the curve at its nominal power, stated by segments
+      filled in order, where linopy chooses the incremental rows
+    along: breakpoint
+    dims: [link]
+    where: NOT Link_capital_cost_as_lp AND Link_capital_cost_curve AND Link_capital_cost_curve_nom
+    method: incremental
+    links:
+      p_nom: [Link_p_nom_ext, Link_capital_cost_curve_nom]
+      cost: [Link_capital_cost_piecewise, Link_capital_cost_curve_cost, ">="]
+  Link_efficiency_incremental:
+    description: >-
+      `Link-p{port}_piecewise` — what a link delivers to an output port with a
+      curve is the curve at its flow, stated by segments filled in order and
+      switched by the status of a committable link. PyPSA leaves the method to
+      linopy, which states an equality by the incremental rows
+      (`constraints.py:1541-1553`)
+    along: breakpoint
+    dims: [scenario, snapshot, link_output]
+    where: Link_efficiency_curve AND at(Link_active, by=Link_output_link[link]) AND Link_efficiency_curve_p
+    method: incremental
+    activity: at(Link_status, by=Link_output_link[link])
+    links:
+      p: ["at(Link_p, by=Link_output_link[link])", Link_efficiency_curve_p]
+      delivery: [Link_p_piecewise, Link_efficiency_curve_delivery]
+
+constraints:
+  Link_fix_p_lower:
+    description: "`Link-fix-p-lower` — a fixed link carries at least its minimum, negative for the other way"
+    dims: [scenario, snapshot, link]
+    where: not Link_p_nom_extendable AND not Link_committable AND Link_active AND (Link_p_nom < inf OR Link_p_min_pu == 0)
+    expression: Link_p >= Link_p_min_pu * Link_p_nom_rated * (1 - Link_maintenance_pu * Link_maintenance)
+  Link_fix_p_upper:
+    description: "`Link-fix-p-upper` — a fixed link carries at most its nominal power"
+    dims: [scenario, snapshot, link]
+    where: not Link_p_nom_extendable AND not Link_committable AND Link_active AND (Link_p_nom < inf OR Link_p_max_pu == 0)
+    expression: Link_p <= Link_p_max_pu * Link_p_nom_rated * (1 - Link_maintenance_pu * Link_maintenance)
+  Link_e_sum_min:
+    description: "`Link-e_sum_min` — energy withdrawn at `bus0` over the horizon, each period weighted by its years, is at least its floor. A floor of minus infinity is no row"
+    dims: [scenario, link]
+    where: Link_e_sum_min AND count(Link_active, over=snapshot) > 0
+    expression: sum(Link_p * energy_limit_weight, over=snapshot) >= Link_e_sum_min
+  Link_e_sum_max:
+    description: "`Link-e_sum_max` — energy withdrawn at `bus0` over the horizon, each period weighted by its years, is at most its budget. A budget of infinity is no row"
+    dims: [scenario, link]
+    where: Link_e_sum_max AND count(Link_active, over=snapshot) > 0
+    expression: sum(Link_p * energy_limit_weight, over=snapshot) <= Link_e_sum_max
+  Link_ext_p_lower:
+    description: "`Link-ext-p-lower` — an extendable link carries at least its minimum of the chosen build, negative for the other way"
+    dims: [scenario, snapshot, link]
+    where: Link_p_nom_extendable AND not Link_committable AND Link_active
+    expression: Link_p >= Link_p_min_pu * (Link_p_nom_ext - Link_maintenance_pu * Link_maintenance_capacity)
+  Link_ext_p_upper:
+    description: "`Link-ext-p-upper` — an extendable link carries at most the chosen build"
+    dims: [scenario, snapshot, link]
+    where: Link_p_nom_extendable AND not Link_committable AND Link_active
+    expression: Link_p <= Link_p_max_pu * (Link_p_nom_ext - Link_maintenance_pu * Link_maintenance_capacity)
+  Link_com_p_lower:
+    description: "`Link-com-p-lower` — a committed link flows at least its minimum. Off, it flows at least nothing"
+    dims: [scenario, snapshot, link]
+    where: Link_committed AND NOT Link_p_nom_extendable AND NOT (Link_p_nom_mod > 0)
+    expression: Link_p >= Link_p_min_pu * Link_p_nom * (Link_status - Link_maintenance_pu * Link_maintenance_status)
+  Link_com_p_upper:
+    description: "`Link-com-p-upper` — a committed link flows at most what is available. Off, it flows at most nothing"
+    dims: [scenario, snapshot, link]
+    where: Link_committed AND NOT Link_p_nom_extendable AND NOT (Link_p_nom_mod > 0)
+    expression: Link_p <= Link_p_max_pu * Link_p_nom * (Link_status - Link_maintenance_pu * Link_maintenance_status)
+  Link_com_transition_start_up:
+    description: "`Link-com-transition-start-up` — turning on is a start, counted against the state the link carried into the snapshot"
+    dims: [scenario, snapshot, link]
+    where: Link_committed
+    expression: Link_start_up >= Link_status - Link_previous_status
+  Link_com_transition_shut_down:
+    description: "`Link-com-transition-shut-down` — turning off is a stop, counted against the state the link carried into the snapshot"
+    dims: [scenario, snapshot, link]
+    where: Link_committed
+    expression: Link_shut_down >= Link_previous_status - Link_status
+  Link_com_up_time:
+    description: >-
+      `Link-com-up-time` — a link started within its own minimum up time is
+      still on. The up time it brought into the horizon counts as a start
+      before the first snapshot
+    dims: [scenario, snapshot, link]
+    where: Link_committed AND Link_min_up_time > 0
+    expression: >-
+      sum_back(Link_start_up, along=snapshot, window=Link_min_up_time)
+      + Link_up_time_brought_in <= Link_status
+  Link_com_down_time:
+    description: >-
+      `Link-com-down-time` — a link stopped within its own minimum down time
+      is still off, and so are the modules of a modular link that stopped.
+      The down time it brought into the horizon counts as one stop before the
+      first snapshot, also where the link is modular and all its modules
+      stopped (`constraints.py:656-683`, PyPSA/PyPSA#2114)
+    dims: [scenario, snapshot, link]
+    where: Link_committed AND Link_min_down_time > 0
+    expression: >-
+      sum_back(Link_shut_down, along=snapshot, window=Link_min_down_time)
+      + Link_down_time_brought_in <= Link_modules - Link_status
+  Link_p_ramp_limit_up_run_big_m:
+    description: >-
+      `Link-p-ramp_limit_up-run-bigM` — a committed extendable link raises
+      flow no faster than its limit of the chosen build. The big M releases
+      the row in the snapshot it turns on
+    dims: [scenario, snapshot, link]
+    where: Link_com_ext AND (Link_ramp_limit_up OR Link_ramp_limit_start_up) AND Link_ramps_from_previous
+    expression: >-
+      Link_p - Link_previous_p <=
+      Link_ramp_up_rate * Link_p_nom_ext
+      + Link_big_m - Link_big_m * Link_previous_status
+  Link_p_ramp_limit_up_start_big_m:
+    description: >-
+      `Link-p-ramp_limit_up-start-bigM` — in the snapshot it turns on, a
+      committed extendable link ramps no further than its start-up ramp of the
+      chosen build. The big M releases the row everywhere else
+    dims: [scenario, snapshot, link]
+    where: Link_com_ext AND (Link_ramp_limit_up OR Link_ramp_limit_start_up) AND Link_ramps_from_previous
+    expression: >-
+      Link_p - Link_previous_p <=
+      Link_start_up_rate * Link_p_nom_ext
+      + Link_big_m - Link_big_m * Link_start_up
+  Link_p_ramp_limit_down_run_big_m:
+    description: >-
+      `Link-p-ramp_limit_down-run-bigM` — a committed extendable link lowers
+      flow no faster than its limit of the chosen build. The big M releases
+      the row in the snapshot it turns off
+    dims: [scenario, snapshot, link]
+    where: Link_com_ext AND (Link_ramp_limit_down OR Link_ramp_limit_shut_down) AND Link_ramps_from_previous
+    expression: >-
+      Link_p - Link_previous_p >=
+      -Link_ramp_down_rate * Link_p_nom_ext
+      - Link_big_m + Link_big_m * Link_status
+  Link_p_ramp_limit_down_shut_big_m:
+    description: >-
+      `Link-p-ramp_limit_down-shut-bigM` — in the snapshot it turns off, a
+      committed extendable link ramps no further than its shut-down ramp of
+      the chosen build. The big M releases the row everywhere else
+    dims: [scenario, snapshot, link]
+    where: Link_com_ext AND (Link_ramp_limit_down OR Link_ramp_limit_shut_down) AND Link_ramps_from_previous
+    expression: >-
+      Link_previous_p - Link_p <=
+      Link_shut_down_rate * Link_p_nom_ext
+      + Link_big_m - Link_big_m * Link_shut_down
+  Link_com_ext_p_upper_cap:
+    description: >-
+      `Link-com-ext-p-upper-cap` — a committed extendable link flows
+      at most what is available of the chosen build, whatever its status
+    dims: [scenario, snapshot, link]
+    where: Link_com_ext
+    expression: Link_p <= Link_p_max_pu * (Link_p_nom_ext - Link_maintenance_pu * Link_maintenance_capacity)
+  Link_com_ext_p_upper_big_m:
+    description: "`Link-com-ext-p-upper-bigM` — off, a link flows nothing. On, the big M is no bound"
+    dims: [scenario, snapshot, link]
+    where: Link_com_ext
+    expression: Link_p <= Link_big_m * Link_status
+  Link_com_ext_p_lower:
+    description: >-
+      `Link-com-ext-p-lower` — a committed extendable link flows at least its
+      minimum of the chosen build. Off, the big M releases the row
+    dims: [scenario, snapshot, link]
+    where: Link_com_ext
+    expression: >-
+      Link_p >=
+      Link_p_min_pu * (Link_p_nom_ext - Link_maintenance_pu * Link_maintenance_capacity)
+      + Link_big_m * Link_status - Link_big_m
+  Link_com_ext_p_lower_nonneg:
+    description: >-
+      `Link-com-ext-p-lower-nonneg` — where no minimum-per-unit is
+      negative, flow is also plainly non-negative, a row the big-M lower
+      cannot assert while the link is off
+    dims: [scenario, snapshot, link]
+    where: Link_com_ext AND Link_p_min_pu_nonneg
+    expression: Link_p >= 0
+  Link_com_mod_p_lower:
+    description: >-
+      `Link-com-mod-p-lower` — a committed modular link flows at least
+      its minimum of one module, whether the build is fixed or a decision
+    dims: [scenario, snapshot, link]
+    where: Link_committed AND Link_p_nom_mod > 0
+    expression: Link_p >= Link_p_min_pu * Link_p_nom_mod * (Link_status - Link_maintenance_pu * Link_maintenance_status)
+  Link_com_mod_p_upper:
+    description: >-
+      `Link-com-mod-p-upper` — a committed modular link flows at most
+      one module's share, whether the build is fixed or a decision
+    dims: [scenario, snapshot, link]
+    where: Link_committed AND Link_p_nom_mod > 0
+    expression: Link_p <= Link_p_max_pu * Link_p_nom_mod * (Link_status - Link_maintenance_pu * Link_maintenance_status)
+  Link_status_p_nom_variable_upper:
+    description: "`Link-status-p_nom-variable-upper` — a modular link is on only where a module is built"
+    dims: [scenario, snapshot, link]
+    where: Link_committed AND Link_p_nom_extendable AND Link_p_nom_mod > 0
+    expression: Link_status <= Link_n_mod
+  Link_start_up_p_nom_variable_upper:
+    description: "`Link-start_up-p_nom-variable-upper` — a modular link starts only where a module is built"
+    dims: [scenario, snapshot, link]
+    where: Link_committed AND Link_p_nom_extendable AND Link_p_nom_mod > 0
+    expression: Link_start_up <= Link_n_mod
+  Link_shut_down_p_nom_variable_upper:
+    description: "`Link-shut_down-p_nom-variable-upper` — a modular link stops only where a module is built"
+    dims: [scenario, snapshot, link]
+    where: Link_committed AND Link_p_nom_extendable AND Link_p_nom_mod > 0
+    expression: Link_shut_down <= Link_n_mod
+  Link_p_ramp_limit_up:
+    description: >-
+      `Link-p-ramp_limit_up` — a link raises flow no faster than its ramp
+      limit of the build. A committed one raises it no further than its
+      start-up ramp in the snapshot it turns on. A link that came into the
+      horizon running has a row at the first snapshot only where its `p_init`
+      gives the flow it brought in. No link has one at the start of a later
+      investment period, nor does any link a big M releases instead
+    dims: [scenario, snapshot, link]
+    where: >-
+      (Link_ramp_limit_up OR Link_ramp_limit_start_up)
+      AND NOT (Link_committable AND Link_p_nom_extendable AND NOT (Link_p_nom_mod > 0))
+      AND Link_ramps_from_previous
+      AND Link_active
+    expression: Link_p - Link_previous_p <= Link_ramp_up_allowance
+  Link_p_ramp_limit_down:
+    description: >-
+      `Link-p-ramp_limit_down` — a link lowers flow no faster than its ramp
+      limit of the build. A committed one lowers it no further than its
+      shut-down ramp in the snapshot it turns off. A link that came into the
+      horizon running has a row at the first snapshot only where its `p_init`
+      gives the flow it brought in. No link has one at the start of a later
+      investment period, nor does any link a big M releases instead
+    dims: [scenario, snapshot, link]
+    where: >-
+      (Link_ramp_limit_down OR Link_ramp_limit_shut_down)
+      AND NOT (Link_committable AND Link_p_nom_extendable AND NOT (Link_p_nom_mod > 0))
+      AND Link_ramps_from_previous
+      AND Link_active
+    expression: Link_previous_p - Link_p <= Link_ramp_down_allowance
+  Link_p_set:
+    description: "`Link-p_set` — flow pinned to the given schedule, wherever one is given"
+    dims: [scenario, snapshot, link]
+    where: Link_p_set AND Link_active
+    expression: Link_p == Link_p_set
+
+assumptions:
+  Link_marginal_cost_curve_on_a_fixed_build:
+    holds: "NOT Link_p_nom_extendable AND Link_p_nom > 0 AND Link_p_nom < inf"
+    where: "Link_marginal_cost_curve"
+    description: >-
+      a link's cost curve is given per unit of a fixed, positive, finite
+      `p_nom`, which scales it to flow. PyPSA refuses an extendable unit and a
+      zero, missing or infinite `p_nom` (`piecewise.py:284-304`), and takes a
+      negative one, which the file does not state

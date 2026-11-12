@@ -1,0 +1,248 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  ${C}_maintainable:
+    description: >-
+      whether a ${c} must be taken off for maintenance within the horizon: in
+      any scenario, as PyPSA takes the union over them
+      (`components.py:1000-1003`)
+    dims: ["${c}"]
+    dtype: bool
+  ${C}_maintenance_pu:
+    description: the share of the build a maintenance event takes off
+    dims: [scenario, "${c}"]
+  ${C}_maintenance_events:
+    description: how many maintenance events occur within the horizon
+    dims: [scenario, "${c}"]
+    dtype: int
+  ${C}_maintenance_duration:
+    description: >-
+      the hours of generator weightings one maintenance event covers, PyPSA's
+      `maintenance_duration`. It has no value where the ${c} is not
+      maintainable. No row contains it. In data prep you turn it into
+      `${C}_maintenance_cover` and `${C}_maintenance_start_blocked`. The
+      assumptions state that it fits the horizon
+    dims: [scenario, "${c}"]
+    missing: absent
+  ${C}_maintenance_start_blocked:
+    description: >-
+      true where no maintenance event may start, data prep. The snapshots it
+      would cover there run past the end of the horizon or into one the ${c} is
+      not active in. It is PyPSA's `active & ~valid`, from
+      `maintenance_duration` and the generator weightings
+    dims: [scenario, snapshot, "${c}"]
+    dtype: bool
+
+relations:
+  ${C}_maintenance_cover:
+    description: >-
+      the snapshots a maintenance event covers, by the snapshot it starts in,
+      data prep. In a scenario, they are the start and the snapshots after it,
+      until their generator weightings reach that scenario's
+      `maintenance_duration`. A ${c} that is not maintainable has no rows
+    key:
+      scenario: scenario
+      ${c}: ${c}
+      start: snapshot
+      covered: snapshot
+    missing: absent
+
+variables:
+  ${C}_maintenance:
+    description: >-
+      `${C}-maintenance` — whether a maintainable ${c} is in maintenance:
+      continuous, and one exactly where an event covers the snapshot
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maintainable AND ${C}_active
+    missing: 0
+    bounds:
+      lower: 0
+      upper: 1
+  ${C}_maintenance_start:
+    description: "`${C}-maintenance_start` — whether a maintenance event starts in this snapshot"
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maintainable AND ${C}_active
+    missing: 0
+    domain: binary
+  ${C}_maintenance_capacity:
+    description: >-
+      `${C}-maintenance_capacity` — the chosen build while in maintenance, zero
+      otherwise: the product the `maintcap` rows linearise
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maint_ext
+    missing: 0
+    bounds:
+      lower: 0
+  ${C}_maintenance_status:
+    description: >-
+      `${C}-maintenance_status` — the status while in maintenance, zero
+      otherwise: the product the `maint-status` rows linearise, so a unit in
+      maintenance may also be off
+    dims: [scenario, snapshot, "${c}"]
+    where: >-
+      ${C}_maintainable AND ${C}_committed AND NOT (${C}_${nom}_extendable AND
+      NOT (${C}_${nom}_mod > 0))
+    missing: 0
+    bounds:
+      lower: 0
+
+expressions:
+  ${C}_maintenance_modules:
+    description: >-
+      how many modules of a modular committable ${c} can be on in maintenance:
+      its build cap in modules where the build is extendable, and the modules
+      installed where it is fixed (`constraints.py:588-594`)
+    dims: [scenario, "${c}"]
+    cases:
+      extendable:
+        when: ${C}_${nom}_extendable
+        expression: ${C}_${nom}_max / ${C}_${nom}_mod
+    otherwise: ${C}_modules_installed
+
+conditions:
+  ${C}_maint_ext:
+    description: >-
+      a maintainable ${c} with an extendable build that is active in the
+      snapshot's period, unless it is committable and modular. These are the
+      maintenance rows against the chosen build
+    condition: >-
+      ${C}_maintainable AND ${C}_${nom}_extendable AND NOT (${C}_committable AND
+      ${C}_${nom}_mod > 0) AND ${C}_active
+
+constraints:
+  ${C}_maint_event_count:
+    description: >-
+      `${C}-maint-event-count` — a maintainable ${c} holds its number of
+      maintenance events over the horizon
+    dims: [scenario, "${c}"]
+    where: ${C}_maintainable
+    expression: sum(${C}_maintenance_start, over=snapshot) == ${C}_maintenance_events
+  ${C}_maint_window:
+    description: >-
+      `${C}-maint-window` — a ${c} is in maintenance exactly where an event it
+      started covers the snapshot. Two events do not overlap, since the
+      maintenance status is at most one
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maintainable AND ${C}_active
+    expression: >-
+      ${C}_maintenance == sum(${C}_maintenance_start, over=start,
+      by=${C}_maintenance_cover[covered])
+  ${C}_maint_start_horizon:
+    description: >-
+      `${C}-maint-start-horizon` — no event starts where it could not run its
+      whole duration
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maintainable AND ${C}_active AND ${C}_maintenance_start_blocked
+    expression: ${C}_maintenance_start == 0
+  ${C}_maintcap_upper:
+    description: >-
+      `${C}-maintcap_upper` — the build taken off is at most the chosen build in
+      maintenance, and at most the build less its floor out of it
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maint_ext
+    expression: >-
+      ${C}_maintenance_capacity <= ${C}_${nom}_ext - ${C}_${nom}_min * (1 -
+      ${C}_maintenance)
+  ${C}_maintcap_upper_nommax:
+    description: "`${C}-maintcap_upper_nommax` — out of maintenance, no build is taken off"
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maint_ext
+    expression: ${C}_maintenance_capacity <= ${C}_${nom}_max * ${C}_maintenance
+  ${C}_maintcap_lower_nommax:
+    description: >-
+      `${C}-maintcap_lower_nommax` — in maintenance, the whole chosen build is
+      taken off
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maint_ext
+    expression: >-
+      ${C}_maintenance_capacity >= ${C}_${nom}_ext - ${C}_${nom}_max * (1 -
+      ${C}_maintenance)
+  ${C}_maintcap_lower_nommin:
+    description: >-
+      `${C}-maintcap_lower_nommin` — in maintenance, at least the floor of the
+      build is taken off
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maint_ext AND ${C}_${nom}_min > 0
+    expression: ${C}_maintenance_capacity >= ${C}_${nom}_min * ${C}_maintenance
+  ${C}_maint_status_le_status:
+    description: "`${C}-maint-status-le-status` — the status in maintenance is at most the status"
+    dims: [scenario, snapshot, "${c}"]
+    where: >-
+      ${C}_maintainable AND ${C}_committed AND NOT ${C}_${nom}_extendable AND
+      NOT (${C}_${nom}_mod > 0)
+    expression: ${C}_maintenance_status <= ${C}_status
+  ${C}_maint_status_le_maint:
+    description: >-
+      `${C}-maint-status-le-maint` — out of maintenance, the status in
+      maintenance is zero
+    dims: [scenario, snapshot, "${c}"]
+    where: >-
+      ${C}_maintainable AND ${C}_committed AND NOT ${C}_${nom}_extendable AND
+      NOT (${C}_${nom}_mod > 0)
+    expression: ${C}_maintenance_status <= ${C}_maintenance
+  ${C}_maint_status_lb:
+    description: "`${C}-maint-status-lb` — on and in maintenance, the status in maintenance is one"
+    dims: [scenario, snapshot, "${c}"]
+    where: >-
+      ${C}_maintainable AND ${C}_committed AND NOT ${C}_${nom}_extendable AND
+      NOT (${C}_${nom}_mod > 0)
+    expression: ${C}_maintenance_status >= ${C}_status + ${C}_maintenance - 1
+  ${C}_maint_modstatus_le_status:
+    description: >-
+      `${C}-maint-modstatus-le-status` — the modules on in maintenance are at
+      most the modules on
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maintainable AND ${C}_committed AND ${C}_${nom}_mod > 0
+    expression: ${C}_maintenance_status <= ${C}_status
+  ${C}_maint_modstatus_le_maint:
+    description: >-
+      `${C}-maint-modstatus-le-maint` — out of maintenance, no module is on in
+      maintenance. In it, at most its modules in maintenance
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maintainable AND ${C}_committed AND ${C}_${nom}_mod > 0
+    expression: ${C}_maintenance_status <= ${C}_maintenance_modules * ${C}_maintenance
+  ${C}_maint_modstatus_lb:
+    description: "`${C}-maint-modstatus-lb` — in maintenance, every module on is on in maintenance"
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_maintainable AND ${C}_committed AND ${C}_${nom}_mod > 0
+    expression: >-
+      ${C}_maintenance_status >= ${C}_status - ${C}_maintenance_modules * (1 -
+      ${C}_maintenance)
+
+assumptions:
+  ${C}_maintenance_events_positive:
+    holds: ${C}_maintenance_events > 0
+    where: ${C}_maintainable
+    description: >-
+      a maintainable ${c} with no event schedules no maintenance. PyPSA refuses
+      it (`consistency.py:1541`)
+  ${C}_maintenance_duration_positive:
+    holds: ${C}_maintenance_duration > 0
+    where: ${C}_maintainable
+    description: >-
+      an event that covers no hours is no maintenance window. PyPSA refuses it
+      (`consistency.py:1531`)
+  ${C}_maintenance_duration_fits_the_horizon:
+    holds: ${C}_maintenance_duration <= sum(snapshot_weightings_generators, over=snapshot)
+    where: ${C}_maintainable
+    description: >-
+      one event longer than the horizon, in generator weightings, blocks every
+      start and makes the event count infeasible. PyPSA refuses it
+      (`consistency.py:1552`)
+  ${C}_maintenance_events_fit_the_horizon:
+    holds: >-
+      ${C}_maintenance_duration * ${C}_maintenance_events <=
+      sum(snapshot_weightings_generators, over=snapshot)
+    where: ${C}_maintainable
+    description: >-
+      the events together longer than the horizon, in generator weightings,
+      cannot all be scheduled. PyPSA refuses it (`consistency.py:1564`)
+  ${C}_maintenance_build_cap_is_finite:
+    holds: ${C}_${nom}_max < inf
+    where: ${C}_maintainable AND ${C}_${nom}_extendable
+    description: >-
+      the `maintcap` rows bound the chosen build in maintenance by `${nom}_max`,
+      so an infinite cap is an infinite coefficient. PyPSA refuses it
+      (`consistency.py:1576`)

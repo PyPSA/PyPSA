@@ -1,0 +1,92 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+variables:
+  Generator_status:
+    description: >-
+      `Generator-status` — how much of a committable unit is on, a share in [0, 1]
+      rather than an integer: the relaxation the keyword solves
+      (`variables.py:91-92`)
+    domain: null
+    bounds:
+      upper: 1
+  Generator_start_up:
+    description: "`Generator-start_up` — how much of a committable unit turns on this snapshot, a share in [0, 1] (`variables.py:142-143`)"
+    domain: null
+    bounds:
+      upper: 1
+  Generator_shut_down:
+    description: "`Generator-shut_down` — how much of a committable unit turns off this snapshot, a share in [0, 1] (`variables.py:193-194`)"
+    domain: null
+    bounds:
+      upper: 1
+
+piecewise:
+  Generator_marginal_cost_incremental:
+    description: >-
+      `Generator-marginal_cost_piecewise` — the running cost of a generator
+      with a curve is at least the curve at its output, stated by segments
+      filled in order, where linopy chooses the incremental rows. No status
+      gates it, because no generator with a curve is committable under the
+      keyword
+    activity: null
+  Generator_efficiency_incremental:
+    description: >-
+      `Generator-p_primary_piecewise` — the primary energy of a generator
+      with a curve is the curve at its output, stated by segments filled in
+      order. No status gates it, because no generator with a curve is
+      committable under the keyword
+    activity: null
+
+constraints:
+  Generator_com_p_before:
+    description: >-
+      `Generator-com-p-before` — the output a unit had entering this snapshot
+      fits the share of it still on (`constraints.py:729-742`). The share it
+      is shutting down counts only at the shut-down ramp. At the first snapshot,
+      the unit carries in the state and output it brought into the horizon,
+      and has no row where it came in running without an initial output
+      (`constraints.py:712-719`)
+    dims: [scenario, snapshot, generator]
+    where: Generator_committable AND NOT Generator_p_nom_extendable AND count(count(Generator_start_up_cost != Generator_shut_down_cost, over=snapshot) > 0, over=scenario) == 0 AND Generator_active AND (position(snapshot) > 0 OR Generator_status_initial == 0 OR Generator_p_init)
+    expression: >-
+      Generator_previous_p
+      - Generator_shut_down_rate * Generator_p_nom * Generator_previous_status
+      - (Generator_p_max_pu * Generator_p_nom - Generator_shut_down_rate * Generator_p_nom)
+      * (Generator_status - Generator_start_up) <= 0
+  Generator_com_partly_start_up:
+    description: >-
+      `Generator-com-partly-start-up` — raising output while a share is
+      starting up is bounded by two ramps (`constraints.py:759-774`). They are
+      the ramp of the share on and the start-up ramp of the share coming on
+    dims: [scenario, snapshot, generator]
+    where: Generator_committable AND NOT Generator_p_nom_extendable AND count(count(Generator_start_up_cost != Generator_shut_down_cost, over=snapshot) > 0, over=scenario) == 0 AND Generator_active AND (position(snapshot) > 0 OR Generator_status_initial == 0 OR Generator_p_init)
+    expression: >-
+      Generator_p - Generator_previous_p
+      - (Generator_p_min_pu * Generator_p_nom + Generator_ramp_up_rate * Generator_p_nom) * Generator_status
+      + Generator_p_min_pu * Generator_p_nom * Generator_previous_status
+      + (Generator_p_min_pu * Generator_p_nom + Generator_ramp_up_rate * Generator_p_nom - Generator_start_up_rate * Generator_p_nom)
+      * Generator_start_up <= 0
+  Generator_com_partly_shut_down:
+    description: >-
+      `Generator-com-partly-shut-down` — lowering output while a share is shutting
+      down is bounded likewise, by the shut-down ramp (`constraints.py:776-791`)
+    dims: [scenario, snapshot, generator]
+    where: Generator_committable AND NOT Generator_p_nom_extendable AND count(count(Generator_start_up_cost != Generator_shut_down_cost, over=snapshot) > 0, over=scenario) == 0 AND Generator_active AND (position(snapshot) > 0 OR Generator_status_initial == 0 OR Generator_p_init)
+    expression: >-
+      Generator_previous_p - Generator_p
+      - Generator_shut_down_rate * Generator_p_nom * Generator_previous_status
+      + (Generator_shut_down_rate * Generator_p_nom - Generator_ramp_down_rate * Generator_p_nom) * Generator_status
+      - (Generator_p_min_pu * Generator_p_nom + Generator_ramp_down_rate * Generator_p_nom - Generator_shut_down_rate * Generator_p_nom)
+      * Generator_start_up <= 0
+
+assumptions:
+  Generator_efficiency_curve_is_not_committable:
+    holds: "NOT Generator_committable"
+    where: "Generator_efficiency_curve"
+    description: >-
+      a generator with a piecewise `efficiency` curve is not committable.
+      PyPSA gates such a curve by the status share
+      (`global_constraints.py:341-345`, `piecewise.py:200-210`), and a curve
+      gate is binary or integer

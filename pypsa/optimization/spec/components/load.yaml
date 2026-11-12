@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  Load_p_set:
+    description: demand
+    dims: [scenario, snapshot, load]
+  Load_sign:
+    description: >-
+      the sign a load's demand enters its bus's balance with. It is PyPSA's
+      `sign`, `-1` unless given, `1` for a load that feeds its bus. PyPSA
+      refuses one that differs by scenario (`constants.py:46`)
+    dims: [load]
+  Load_active:
+    description: >-
+      whether a load is active in the network, PyPSA's `active`. A load has no
+      build year and no lifetime, so the flag is the same in every snapshot.
+      PyPSA refuses one that differs by scenario (`constants.py:54`)
+    dims: [load]
+    dtype: bool
+
+expressions:
+  Load_demand:
+    description: >-
+      what a load draws from its bus's balance. It is its demand times its
+      sign where it is active, and nothing where it is not. PyPSA drops an
+      inactive load from the balance (`constraints.py:1591-1592`)
+    dims: [scenario, snapshot, load]
+    cases:
+      active: { when: Load_active, expression: Load_sign * Load_p_set }
+    otherwise: 0
+  Load_injection: sum(Load_demand, over=load, by=Load_bus[bus])

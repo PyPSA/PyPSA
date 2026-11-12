@@ -1,0 +1,499 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  StorageUnit_active:
+    description: whether a storage unit is active in a snapshot's period. It is PyPSA's `active`, data prep
+    dims: [snapshot, storage_unit]
+    dtype: bool
+  StorageUnit_p_nom_min:
+    description: least nominal power an extendable storage unit may be built at
+    dims: [scenario, storage_unit]
+  StorageUnit_p_nom_max:
+    description: most nominal power an extendable storage unit may be built at
+    dims: [scenario, storage_unit]
+  StorageUnit_capital_cost:
+    description: >-
+      cost of one unit of nominal power for the modelled horizon (PyPSA's
+      `periodized_cost`), data prep. It is `overnight_cost` as an annuity over
+      `lifetime` at `discount_rate`, times `nyears`, where `overnight_cost` is
+      given, and `capital_cost` where it is not. Both add `fom_cost`
+      (`components.py:1157-1178`, `costs.py:102-203`)
+    dims: [scenario, storage_unit]
+  StorageUnit_capital_cost_curve_nom:
+    description: >-
+      the nominal power at each breakpoint of a storage unit's piecewise
+      `capital_cost` curve: PyPSA's `p_nom` breakpoints, data prep. A storage
+      unit with no curve has no rows
+    dims: [storage_unit, breakpoint]
+    missing: absent
+  StorageUnit_capital_cost_curve_cost:
+    description: >-
+      the cost of the build at each breakpoint of a storage unit's piecewise
+      `capital_cost` curve: zero at the first, then each segment's width in
+      nominal power times the `capital_cost` at its upper breakpoint, summed,
+      data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). The curve is already periodized, so data prep
+      refuses `overnight_cost` beside it, as PyPSA does
+      (`optimize.py:427-434`)
+    dims: [storage_unit, breakpoint]
+    missing: absent
+  StorageUnit_p_nom_set:
+    description: a given nominal power for an extendable storage unit. One without a value has no row here
+    dims: [scenario, storage_unit]
+    missing: absent
+  StorageUnit_p_nom:
+    description: nominal power
+    dims: [scenario, storage_unit]
+  StorageUnit_p_nom_extendable:
+    description: whether the nominal power is a decision
+    dims: [storage_unit]
+    dtype: bool
+  StorageUnit_p_min_pu:
+    description: most storing, per unit of nominal power and negated
+    dims: [scenario, snapshot, storage_unit]
+  StorageUnit_p_max_pu:
+    description: most dispatch, per unit of nominal power
+    dims: [scenario, snapshot, storage_unit]
+  StorageUnit_max_hours:
+    description: energy capacity, as hours of dispatch at nominal power
+    dims: [scenario, storage_unit]
+  StorageUnit_efficiency_store:
+    description: share of the power drawn from the bus that becomes charge
+    dims: [scenario, snapshot, storage_unit]
+  StorageUnit_efficiency_dispatch:
+    description: share of the charge drawn down that reaches the bus
+    dims: [scenario, snapshot, storage_unit]
+  StorageUnit_sign:
+    description: >-
+      the sign net dispatch enters its bus's balance with. It is PyPSA's
+      `sign`, `1` unless given. PyPSA refuses one that differs by scenario
+      (`constants.py:46`)
+    dims: [storage_unit]
+  StorageUnit_retention:
+    description: share of charge kept over a snapshot. It is PyPSA's `(1 - standing_loss) ** elapsed hours`, data prep
+    dims: [scenario, snapshot, storage_unit]
+  StorageUnit_state_of_charge_initial:
+    description: charge held before the first snapshot
+    dims: [scenario, storage_unit]
+  StorageUnit_cyclic_state_of_charge:
+    description: whether the horizon closes on itself instead of opening on the initial charge
+    dims: [scenario, storage_unit]
+    dtype: bool
+  StorageUnit_cyclic_state_of_charge_per_period:
+    description: >-
+      whether each investment period closes on itself instead of carrying its
+      charge on to the next. It overrides `cyclic_state_of_charge` and
+      `state_of_charge_initial_per_period`. PyPSA reads it only under
+      `multi_investment_periods`. Otherwise you feed false in data prep
+    dims: [scenario, storage_unit]
+    dtype: bool
+  StorageUnit_state_of_charge_initial_per_period:
+    description: >-
+      whether each investment period opens on the initial charge instead of
+      carrying the previous period's. PyPSA reads it only under
+      `multi_investment_periods`. Otherwise you feed false in data prep
+    dims: [scenario, storage_unit]
+    dtype: bool
+  StorageUnit_opens_late:
+    description: >-
+      whether a snapshot is the first a storage unit is active in, where that is
+      not the first of the horizon, data prep. It is PyPSA's `active.cumsum()
+      == 1` over the snapshots it is active in, past the first snapshot. It is
+      false in a run where every unit is active throughout
+    dims: [snapshot, storage_unit]
+    dtype: bool
+  StorageUnit_inactive_snapshots:
+    description: >-
+      how many snapshots a storage unit is not active in. It is PyPSA's
+      `(~active).sum()`, data prep. A cyclic unit reaches back this many
+      snapshots further, so it closes on the last snapshot it is active in
+    dims: [storage_unit]
+    dtype: int
+  StorageUnit_marginal_cost:
+    description: cost of one unit of dispatch
+    dims: [scenario, snapshot, storage_unit]
+  StorageUnit_marginal_cost_quadratic:
+    description: cost of the square of one unit of dispatch. Storing is not charged
+    dims: [scenario, snapshot, storage_unit]
+  StorageUnit_marginal_cost_curve_p:
+    description: >-
+      the dispatch at each breakpoint of a storage unit's piecewise
+      `marginal_cost` curve: PyPSA's `p_dispatch_pu` breakpoints times
+      `p_nom`, data prep. A storage unit with no curve has no rows
+    dims: [storage_unit, breakpoint]
+    missing: absent
+  StorageUnit_marginal_cost_curve_cost:
+    description: >-
+      the running cost at each breakpoint of a storage unit's piecewise
+      `marginal_cost` curve: zero at the first, then each segment's width in
+      dispatch times the `marginal_cost` at its upper breakpoint, summed, data
+      prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`)
+    dims: [storage_unit, breakpoint]
+    missing: absent
+  StorageUnit_marginal_cost_storage:
+    description: cost of one unit of charge held over one snapshot
+    dims: [scenario, snapshot, storage_unit]
+  StorageUnit_p_set:
+    description: a given net dispatch schedule. A unit without one has no row here
+    dims: [scenario, snapshot, storage_unit]
+    missing: absent
+  StorageUnit_p_dispatch_set:
+    description: a given dispatch schedule. A unit without one has no row here
+    dims: [scenario, snapshot, storage_unit]
+    missing: absent
+  StorageUnit_p_store_set:
+    description: a given charging schedule. A unit without one has no row here
+    dims: [scenario, snapshot, storage_unit]
+    missing: absent
+  StorageUnit_state_of_charge_set:
+    description: a given charge schedule. A unit without one has no row here
+    dims: [scenario, snapshot, storage_unit]
+    missing: absent
+  StorageUnit_primary_energy_weight:
+    description: the constrained attribute per unit of charge depleted, data prep. An unweighted unit has no row
+    dims: [scenario, global_constraint, storage_unit]
+    missing: absent
+
+relations:
+  StorageUnit_carrier:
+    description: the carrier a storage unit converts from
+    key: storage_unit
+    values: carrier
+
+variables:
+  StorageUnit_p_dispatch:
+    description: "`StorageUnit-p_dispatch` — power delivered to the bus"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_active
+  StorageUnit_p_store:
+    description: "`StorageUnit-p_store` — power drawn from the bus into charge"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_active
+  StorageUnit_state_of_charge:
+    description: "`StorageUnit-state_of_charge` — energy held at the end of a snapshot"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_active
+  StorageUnit_p_nom_ext:
+    description: >-
+      `StorageUnit-p_nom` — nominal power where it is a decision, for a
+      storage unit that is active. A fixed build is the parameter of the same
+      PyPSA name
+    dims: [storage_unit]
+    where: StorageUnit_p_nom_extendable AND StorageUnit_active_asset
+
+expressions:
+  StorageUnit_charge_carried_in:
+    description: >-
+      the charge a unit opens a snapshot with. At the first snapshot it is active
+      in, it is its last such snapshot's less standing loss where it is
+      cyclic. Where it is not, it is the given initial charge, which no
+      standing loss has touched yet. Otherwise it is the previous snapshot's
+      less standing loss. A unit built in a later period opens in that period,
+      and a cyclic one that retires closes on its own last snapshot. Per
+      period, the same holds with each investment period as the horizon
+    dims: [scenario, snapshot, storage_unit]
+    cases:
+      cyclic:
+        when: >-
+          StorageUnit_cyclic_state_of_charge AND NOT StorageUnit_cyclic_state_of_charge_per_period
+          AND NOT StorageUnit_state_of_charge_initial_per_period
+          AND (position(snapshot) == 0 OR StorageUnit_opens_late)
+        expression: >-
+          StorageUnit_retention
+          * shift(shift(StorageUnit_state_of_charge, along=snapshot, offset=1, edge='wrap'), along=snapshot, offset=StorageUnit_inactive_snapshots, edge='wrap')
+      opening:
+        when: >-
+          NOT StorageUnit_cyclic_state_of_charge AND NOT StorageUnit_cyclic_state_of_charge_per_period
+          AND NOT StorageUnit_state_of_charge_initial_per_period
+          AND (position(snapshot) == 0 OR StorageUnit_opens_late)
+        expression: StorageUnit_state_of_charge_initial
+      period_cyclic:
+        when: StorageUnit_cyclic_state_of_charge_per_period
+        expression: >-
+          StorageUnit_retention
+          * shift(StorageUnit_state_of_charge, along=snapshot, offset=1, edge='wrap', within=snapshot_period[period])
+      period_opening:
+        when: >-
+          StorageUnit_state_of_charge_initial_per_period AND NOT StorageUnit_cyclic_state_of_charge_per_period
+          AND position(snapshot, within=snapshot_period[period]) == 0
+        expression: StorageUnit_state_of_charge_initial
+    otherwise: StorageUnit_retention * shift(StorageUnit_state_of_charge, along=snapshot, offset=1)
+  StorageUnit_last_counted_active:
+    description: >-
+      one at the last snapshot a row counts where a unit is active, and zero
+      elsewhere. A unit that retires before the last counted snapshot closes
+      on its last active level. PyPSA forward-fills the level over the counted
+      snapshots (`global_constraints.py:476-479`)
+    dims: [scenario, global_constraint, snapshot, storage_unit]
+    cases:
+      last:
+        when: >-
+          GlobalConstraint_counts_snapshot AND StorageUnit_active
+          AND NOT shift(GlobalConstraint_counts_snapshot AND StorageUnit_active, along=snapshot, offset=-1)
+        expression: 1
+    otherwise: 0
+  StorageUnit_closing_weight:
+    description: >-
+      what the charge a unit holds at a snapshot counts for in a row as its
+      closing level. Where the unit reopens per period, it is the years of the
+      period at the last snapshot of each counted period. Where it does not,
+      it is one at the last counted snapshot it is active in. It is nothing
+      elsewhere
+    dims: [scenario, global_constraint, snapshot, storage_unit]
+    cases:
+      per_period:
+        when: StorageUnit_state_of_charge_initial_per_period AND GlobalConstraint_counts_snapshot AND position(snapshot, within=snapshot_period[period]) == -1
+        expression: at(period_weight_years, by=snapshot_period[period])
+      carried_over:
+        when: NOT StorageUnit_state_of_charge_initial_per_period
+        expression: StorageUnit_last_counted_active
+    otherwise: 0
+  StorageUnit_primary_energy:
+    expression: >-
+      -sum(sum((StorageUnit_state_of_charge * StorageUnit_closing_weight) * StorageUnit_primary_energy_weight, over=snapshot), over=storage_unit)
+  StorageUnit_operational_limit:
+    expression: >-
+      -sum(sum((StorageUnit_state_of_charge * StorageUnit_closing_weight) * StorageUnit_operational_limit_weight, over=snapshot), over=storage_unit)
+  StorageUnit_running_cost:
+    description: >-
+      what a storage unit's dispatch costs in a snapshot: the value read off
+      its piecewise curve where it has one, and its linear `marginal_cost`
+      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
+      from that term (`optimize.py:333-348`)
+    dims: [scenario, snapshot, storage_unit]
+    cases:
+      curve: { when: StorageUnit_marginal_cost_curve, expression: StorageUnit_marginal_cost_piecewise }
+    otherwise: StorageUnit_p_dispatch * StorageUnit_marginal_cost
+  StorageUnit_opex:
+    expression: >-
+      sum(sum((StorageUnit_running_cost * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=storage_unit), over=snapshot)
+      + sum(sum((((StorageUnit_p_dispatch * StorageUnit_p_dispatch) * StorageUnit_marginal_cost_quadratic) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=storage_unit), over=snapshot)
+      + sum(sum(((StorageUnit_state_of_charge * StorageUnit_marginal_cost_storage) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=storage_unit), over=snapshot)
+      + sum(sum(((StorageUnit_spill * StorageUnit_spill_cost) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=storage_unit), over=snapshot)
+  StorageUnit_injection:
+    expression: >-
+      sum(StorageUnit_sign * (StorageUnit_p_dispatch - StorageUnit_p_store), over=storage_unit, by=StorageUnit_bus[bus])
+
+conditions:
+  StorageUnit_marginal_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a storage unit's cost curve gets less steep: the
+      segment after it rises less per unit of dispatch than the one before
+    condition: >-
+      StorageUnit_marginal_cost_curve_p
+      AND shift(StorageUnit_marginal_cost_curve_p, along=breakpoint, offset=1)
+      AND shift(StorageUnit_marginal_cost_curve_p, along=breakpoint, offset=-1)
+      AND (StorageUnit_marginal_cost_curve_cost - shift(StorageUnit_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(StorageUnit_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - StorageUnit_marginal_cost_curve_p)
+      > (shift(StorageUnit_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - StorageUnit_marginal_cost_curve_cost)
+      * (StorageUnit_marginal_cost_curve_p - shift(StorageUnit_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+  StorageUnit_marginal_cost_as_lp:
+    description: >-
+      linopy's choice of method for all storage unit cost curves at once
+      (`method="auto"`): the segment lines where every curve is convex, the
+      incremental rows otherwise. PyPSA calls linopy once per component, so
+      this choice is apart from every other component's. A storage unit has no
+      status, so no gate (`optimize.py:314-318`, `piecewise.py:200-224`)
+    condition: >-
+      count(StorageUnit_marginal_cost_curve AND count(StorageUnit_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=storage_unit) == 0
+  StorageUnit_capital_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a storage unit's build cost curve gets less steep:
+      the segment after it rises less per unit of nominal power than the one
+      before
+    condition: >-
+      StorageUnit_capital_cost_curve_nom
+      AND shift(StorageUnit_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(StorageUnit_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (StorageUnit_capital_cost_curve_cost - shift(StorageUnit_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(StorageUnit_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - StorageUnit_capital_cost_curve_nom)
+      > (shift(StorageUnit_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - StorageUnit_capital_cost_curve_cost)
+      * (StorageUnit_capital_cost_curve_nom - shift(StorageUnit_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+  StorageUnit_fix:
+    description: >-
+      a storage unit with a fixed build that is active in the snapshot's period.
+      It is PyPSA's `fix` rows
+    condition: NOT StorageUnit_p_nom_extendable AND StorageUnit_active
+  StorageUnit_ext:
+    description: >-
+      a storage unit with an extendable build that is active in the snapshot's
+      period. It is PyPSA's `ext` rows
+    condition: StorageUnit_p_nom_extendable AND StorageUnit_active
+
+piecewise:
+  StorageUnit_marginal_cost_lp:
+    description: >-
+      `StorageUnit-marginal_cost_piecewise` — the running cost of a storage
+      unit with a curve is at least the curve at its dispatch, stated as the
+      line of each segment, where linopy chooses the segment lines
+    along: breakpoint
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_marginal_cost_as_lp AND StorageUnit_marginal_cost_curve AND StorageUnit_active AND StorageUnit_marginal_cost_curve_p
+    method: lp
+    links:
+      p: [StorageUnit_p_dispatch, StorageUnit_marginal_cost_curve_p]
+      cost: [StorageUnit_marginal_cost_piecewise, StorageUnit_marginal_cost_curve_cost, ">="]
+  StorageUnit_marginal_cost_incremental:
+    description: >-
+      `StorageUnit-marginal_cost_piecewise` — the running cost of a storage
+      unit with a curve is at least the curve at its dispatch, stated by
+      segments filled in order, where linopy chooses the incremental rows
+    along: breakpoint
+    dims: [scenario, snapshot, storage_unit]
+    where: NOT StorageUnit_marginal_cost_as_lp AND StorageUnit_marginal_cost_curve AND StorageUnit_active AND StorageUnit_marginal_cost_curve_p
+    method: incremental
+    links:
+      p: [StorageUnit_p_dispatch, StorageUnit_marginal_cost_curve_p]
+      cost: [StorageUnit_marginal_cost_piecewise, StorageUnit_marginal_cost_curve_cost, ">="]
+  StorageUnit_capital_cost_lp:
+    description: >-
+      `StorageUnit-capital_cost_piecewise` — the cost of the build of a
+      storage unit with a curve is at least the curve at its nominal power,
+      stated as the line of each segment, where linopy chooses the segment
+      lines
+    along: breakpoint
+    dims: [storage_unit]
+    where: StorageUnit_capital_cost_as_lp AND StorageUnit_capital_cost_curve AND StorageUnit_capital_cost_curve_nom
+    method: lp
+    links:
+      p_nom: [StorageUnit_p_nom_ext, StorageUnit_capital_cost_curve_nom]
+      cost: [StorageUnit_capital_cost_piecewise, StorageUnit_capital_cost_curve_cost, ">="]
+  StorageUnit_capital_cost_incremental:
+    description: >-
+      `StorageUnit-capital_cost_piecewise` — the cost of the build of a
+      storage unit with a curve is at least the curve at its nominal power,
+      stated by segments filled in order, where linopy chooses the incremental
+      rows
+    along: breakpoint
+    dims: [storage_unit]
+    where: NOT StorageUnit_capital_cost_as_lp AND StorageUnit_capital_cost_curve AND StorageUnit_capital_cost_curve_nom
+    method: incremental
+    links:
+      p_nom: [StorageUnit_p_nom_ext, StorageUnit_capital_cost_curve_nom]
+      cost: [StorageUnit_capital_cost_piecewise, StorageUnit_capital_cost_curve_cost, ">="]
+
+constraints:
+  StorageUnit_fix_p_dispatch_lower:
+    description: "`StorageUnit-fix-p_dispatch-lower` — dispatch is non-negative"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_fix
+    expression: StorageUnit_p_dispatch >= 0
+  StorageUnit_fix_p_dispatch_upper:
+    description: "`StorageUnit-fix-p_dispatch-upper` — a fixed unit dispatches at most its nominal power"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_p_max_pu == 0)
+    expression: StorageUnit_p_dispatch <= StorageUnit_p_max_pu * StorageUnit_p_nom_rated
+  StorageUnit_fix_p_store_lower:
+    description: "`StorageUnit-fix-p_store-lower` — storing is non-negative"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_fix
+    expression: StorageUnit_p_store >= 0
+  StorageUnit_fix_p_store_upper:
+    description: >-
+      `StorageUnit-fix-p_store-upper` — a fixed unit stores at most its
+      nominal power, the minimum-per-unit column carrying that cap negated
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_p_min_pu == 0)
+    expression: StorageUnit_p_store <= -StorageUnit_p_min_pu * StorageUnit_p_nom_rated
+  StorageUnit_fix_state_of_charge_lower:
+    description: "`StorageUnit-fix-state_of_charge-lower` — charge is non-negative"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_fix
+    expression: StorageUnit_state_of_charge >= 0
+  StorageUnit_fix_state_of_charge_upper:
+    description: "`StorageUnit-fix-state_of_charge-upper` — a fixed unit holds at most its hours at nominal power"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_max_hours == 0)
+    expression: StorageUnit_state_of_charge <= StorageUnit_max_hours * StorageUnit_p_nom_rated
+  StorageUnit_ext_p_dispatch_lower:
+    description: "`StorageUnit-ext-p_dispatch-lower` — dispatch is non-negative"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_ext
+    expression: StorageUnit_p_dispatch >= 0
+  StorageUnit_ext_p_dispatch_upper:
+    description: "`StorageUnit-ext-p_dispatch-upper` — an extendable unit dispatches at most the chosen build"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_ext
+    expression: StorageUnit_p_dispatch <= StorageUnit_p_max_pu * StorageUnit_p_nom_ext
+  StorageUnit_ext_p_store_lower:
+    description: "`StorageUnit-ext-p_store-lower` — storing is non-negative"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_ext
+    expression: StorageUnit_p_store >= 0
+  StorageUnit_ext_p_store_upper:
+    description: >-
+      `StorageUnit-ext-p_store-upper` — an extendable unit stores at most the
+      chosen build, the minimum-per-unit column carrying that cap negated
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_ext
+    expression: StorageUnit_p_store <= -StorageUnit_p_min_pu * StorageUnit_p_nom_ext
+  StorageUnit_ext_state_of_charge_lower:
+    description: "`StorageUnit-ext-state_of_charge-lower` — charge is non-negative"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_ext
+    expression: StorageUnit_state_of_charge >= 0
+  StorageUnit_ext_state_of_charge_upper:
+    description: "`StorageUnit-ext-state_of_charge-upper` — an extendable unit holds at most its hours at the chosen build"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_ext
+    expression: StorageUnit_state_of_charge <= StorageUnit_max_hours * StorageUnit_p_nom_ext
+  StorageUnit_energy_balance:
+    description: >-
+      `StorageUnit-energy_balance` — the charge carried in, plus what is
+      stored after its efficiency, less what dispatch draws down before its
+      own, plus inflow not spilled
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_active
+    expression: >-
+      StorageUnit_charge_carried_in
+      + StorageUnit_efficiency_store * StorageUnit_p_store * snapshot_weightings_stores
+      - StorageUnit_p_dispatch * snapshot_weightings_stores / StorageUnit_efficiency_dispatch
+      + (StorageUnit_inflow - StorageUnit_spill) * snapshot_weightings_stores
+      == StorageUnit_state_of_charge
+  StorageUnit_p_set:
+    description: "`StorageUnit-p_set` — net dispatch pinned to the given schedule, wherever one is given"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_p_set AND StorageUnit_active
+    expression: StorageUnit_p_dispatch - StorageUnit_p_store == StorageUnit_p_set
+  StorageUnit_p_dispatch_set:
+    description: "`StorageUnit-p_dispatch_set` — dispatch pinned to the given schedule, wherever one is given"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_p_dispatch_set AND StorageUnit_active
+    expression: StorageUnit_p_dispatch == StorageUnit_p_dispatch_set
+  StorageUnit_p_store_set:
+    description: "`StorageUnit-p_store_set` — charging pinned to the given schedule, wherever one is given"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_p_store_set AND StorageUnit_active
+    expression: StorageUnit_p_store == StorageUnit_p_store_set
+  StorageUnit_state_of_charge_set:
+    description: "`StorageUnit-state_of_charge_set` — charge pinned to the given schedule, wherever one is given"
+    dims: [scenario, snapshot, storage_unit]
+    where: StorageUnit_state_of_charge_set AND StorageUnit_active
+    expression: StorageUnit_state_of_charge == StorageUnit_state_of_charge_set
+
+assumptions:
+  StorageUnit_marginal_cost_curve_on_a_fixed_build:
+    holds: "NOT StorageUnit_p_nom_extendable AND StorageUnit_p_nom > 0 AND StorageUnit_p_nom < inf"
+    where: "StorageUnit_marginal_cost_curve"
+    description: >-
+      a storage unit's cost curve is given per unit of a fixed, positive,
+      finite `p_nom`, which scales it to dispatch. PyPSA refuses an extendable
+      unit and a zero, missing or infinite `p_nom` (`piecewise.py:284-304`),
+      and takes a negative one, which the file does not state
+  StorageUnit_primary_energy_carried_over_has_unit_years:
+    holds: "period_weight_years == 1"
+    where: "StorageUnit_primary_energy_weight AND NOT StorageUnit_state_of_charge_initial_per_period"
+    description: >-
+      a unit that carries its charge from one period to the next closes once,
+      at the last counted snapshot. No period's years weighs that level. PyPSA
+      refuses it where any period's years is not one
+      (`global_constraints.py:464`)
+  StorageUnit_operational_limit_carried_over_has_unit_years:
+    holds: "at(period_weight_years == 1, by=snapshot_period[period])"
+    where: "StorageUnit_operational_limit_weight AND NOT StorageUnit_state_of_charge_initial_per_period AND GlobalConstraint_counts_snapshot"
+    description: >-
+      the same for an `operational_limit` row, over the periods it counts.
+      PyPSA refuses it (`global_constraints.py:674`)

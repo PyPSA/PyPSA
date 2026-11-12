@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  ${C}_inflow:
+    description: energy arriving per hour, a river into a reservoir
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_spill_cost:
+    description: cost of one unit of inflow passed on unused
+    dims: [scenario, snapshot, "${c}"]
+
+variables:
+  ${C}_spill:
+    description: >-
+      `${C}-spill` — inflow passed on unused. It is zero where there is no
+      inflow, so the balance keeps its row there. The bounds are PyPSA's, on the
+      variable rather than as rows
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_inflow > 0 AND ${C}_active
+    missing: 0
+    bounds:
+      lower: 0
+      upper: ${C}_inflow
+
+assumptions:
+  ${C}_stands_in_one_run:
+    holds: >-
+      count(${C}_active AND NOT shift(${C}_active, along=snapshot, offset=1),
+      over=snapshot) <= 1
+    description: >-
+      the snapshots a ${unit} is active in are one unbroken run, as a build year
+      and a lifetime make them. The opening row holds at the first of them only,
+      and a cyclic ${unit} reaches back `${C}_inactive_snapshots` further to the
+      last of them
+  ${C}_opens_late_only_where_it_opens:
+    holds: >-
+      ${C}_active AND NOT shift(${C}_active, along=snapshot, offset=1) AND
+      position(snapshot) > 0
+    where: ${C}_opens_late
+    description: >-
+      `${C}_opens_late` marks the first snapshot the ${unit} is active in, past
+      the first of the horizon, and no other
+  ${C}_opens_late_where_it_opens:
+    holds: ${C}_opens_late
+    where: >-
+      ${C}_active AND NOT shift(${C}_active, along=snapshot, offset=1) AND
+      position(snapshot) > 0
+    description: >-
+      a ${unit} that opens past the first snapshot of the horizon opens on its
+      initial level, or its last level where it is cyclic. This holds only where
+      `${C}_opens_late` is true at the snapshot

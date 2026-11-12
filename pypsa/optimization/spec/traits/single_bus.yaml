@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+relations:
+  ${C}_bus:
+    description: the bus a ${unit} sits on
+    key: ${c}
+    values: bus

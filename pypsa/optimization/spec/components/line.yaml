@@ -1,0 +1,209 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  Line_active:
+    description: whether a line is active in a snapshot's period. It is PyPSA's `active`, data prep
+    dims: [snapshot, line]
+    dtype: bool
+  Line_s_nom:
+    description: nominal apparent power
+    dims: [scenario, line]
+  Line_s_nom_extendable:
+    description: whether the nominal apparent power is a decision
+    dims: [line]
+    dtype: bool
+  Line_s_nom_min:
+    description: least nominal apparent power an extendable line may be built at
+    dims: [scenario, line]
+  Line_s_nom_max:
+    description: most nominal apparent power an extendable line may be built at
+    dims: [scenario, line]
+  Line_capital_cost:
+    description: >-
+      cost of one unit of nominal apparent power for the modelled horizon
+      (PyPSA's `periodized_cost`), data prep. It is `overnight_cost` as an
+      annuity over `lifetime` at `discount_rate`, times `nyears`, where
+      `overnight_cost` is given, and `capital_cost` where it is not. Both add
+      `fom_cost` (`components.py:1157-1178`, `costs.py:102-203`)
+    dims: [scenario, line]
+  Line_capital_cost_curve_nom:
+    description: >-
+      the nominal apparent power at each breakpoint of a line's piecewise
+      `capital_cost` curve: PyPSA's `s_nom` breakpoints, data prep. A line
+      with no curve has no rows
+    dims: [line, breakpoint]
+    missing: absent
+  Line_capital_cost_curve_cost:
+    description: >-
+      the cost of the build at each breakpoint of a line's piecewise
+      `capital_cost` curve: zero at the first, then each segment's width in
+      nominal apparent power times the `capital_cost` at its upper breakpoint,
+      summed, data prep. It is linopy's `Slopes(...).to_breakpoints`
+      (`piecewise.py:310-312`). The curve is already periodized, so data prep
+      refuses `overnight_cost` beside it, as PyPSA does
+      (`optimize.py:427-434`)
+    dims: [line, breakpoint]
+    missing: absent
+  Line_s_nom_set:
+    description: a given nominal apparent power for an extendable line. One without a value has no row here
+    dims: [scenario, line]
+    missing: absent
+  Line_v_ang_max:
+    description: >-
+      the most the voltage angle difference across a line may be either way,
+      in degrees. It is PyPSA's `v_ang_max`. Infinite, and so no row, by
+      default. A line whose carrier is not AC has no row either. The
+      deprecated `v_ang_min` is ignored, as PyPSA ignores it with a
+      `DeprecationWarning` (`constraints.py:1797-1804`)
+    dims: [scenario, line]
+    missing: absent
+  Line_x_pu_eff:
+    description: >-
+      the line's effective series reactance. It is PyPSA's `x_pu_eff`, `x`
+      over the square of its bus's nominal voltage, data prep
+    dims: [scenario, line]
+  Line_cycle_weight:
+    description: >-
+      the line's series impedance, signed by its orientation in the cycle: the
+      cycle basis, data prep. A line in no cycle has no row. PyPSA builds the
+      cycle basis from the first scenario (`networks.py:1430-1437`), and
+      refuses a `v_nom`, `x_pu_eff` or `r_pu_eff` that differs by scenario
+      (`constants.py:33-35`). So the weight is the same in every scenario
+    dims: [period, line, cycle]
+    missing: absent
+  Line_BODF:
+    description: >-
+      the share of an outaged branch's flow a line takes on when that branch
+      goes out (PyPSA's `BODF`), data prep. It comes from the PTDF of the
+      sub-network the period's active branches form. A row exists only where
+      the line and the outage are active in the period and share a
+      sub-network. It is -1 at the outaged line itself. PyPSA takes the factors
+      of the first scenario (`abstract.py:652`), and refuses impedances that
+      differ by scenario (`constants.py:33-35`). So the factors are the same in
+      every scenario
+    dims: [period, line, outage]
+    missing: absent
+  Line_loss_max:
+    description: the loss at a line's rating. It is PyPSA's `r_pu_eff * (s_max_pu * s_nom_max)**2`, data prep
+    dims: [scenario, snapshot, line]
+  Line_loss_slope:
+    description: >-
+      the slope of a cut to the loss curve, data prep. It is a tangent's `2 *
+      r_pu_eff * p_k` at its segment's flow, or a secant's `r_pu_eff * (p_k +
+      p_k+1)` between consecutive breakpoints
+    dims: [scenario, snapshot, line, segment]
+
+relations:
+  Line_carrier:
+    description: the carrier a line carries
+    key: line
+    values: carrier
+  Line_bus0:
+    description: the bus a line's flow is measured at
+    key: line
+    values: bus
+
+variables:
+  Line_loss:
+    description: >-
+      `Line-loss` — what a line dissipates carrying its flow, pushed down by
+      the cost and held up by the cuts. Absent, and zero in the balance, where
+      the network is lossless
+    dims: [scenario, snapshot, line]
+    where: Line_lossy
+    missing: 0
+    bounds:
+      lower: 0
+  Line_s_nom_ext:
+    description: >-
+      `Line-s_nom` — nominal apparent power where it is a decision, for a line
+      that is active. A fixed build is the parameter of the same PyPSA name
+    dims: [line]
+    where: Line_s_nom_extendable AND Line_active_asset
+
+expressions:
+  Line_s_monitored:
+    description: >-
+      the flow in a line's post-contingency rows. It is its flow where it
+      is active, and nothing where it does not. PyPSA builds those rows for every
+      branch of the sub-network in every snapshot
+    dims: [scenario, snapshot, line]
+    cases:
+      standing: { when: Line_active, expression: Line_s }
+    otherwise: 0
+  Line_injection:
+    expression: >-
+      -sum(Line_s, over=line, by=Line_bus0[bus])
+      + sum(Line_s, over=line, by=Line_bus1[bus])
+      - (0.5 * sum(Line_loss, over=line, by=Line_bus0[bus]))
+      - (0.5 * sum(Line_loss, over=line, by=Line_bus1[bus]))
+  Line_angle_sum: sum(Line_s * at(Line_cycle_weight, by=snapshot_period[period]), over=line)
+
+conditions:
+  Line_capital_cost_curve_bends_down:
+    description: >-
+      a breakpoint where a line's build cost curve gets less steep: the
+      segment after it rises less per unit of nominal apparent power than the
+      one before
+    condition: >-
+      Line_capital_cost_curve_nom
+      AND shift(Line_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(Line_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (Line_capital_cost_curve_cost - shift(Line_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Line_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Line_capital_cost_curve_nom)
+      > (shift(Line_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Line_capital_cost_curve_cost)
+      * (Line_capital_cost_curve_nom - shift(Line_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+
+piecewise:
+  Line_capital_cost_lp:
+    description: >-
+      `Line-capital_cost_piecewise` — the cost of the build of a line with a
+      curve is at least the curve at its nominal apparent power, stated as the
+      line of each segment, where linopy chooses the segment lines
+    along: breakpoint
+    dims: [line]
+    where: Line_capital_cost_as_lp AND Line_capital_cost_curve AND Line_capital_cost_curve_nom
+    method: lp
+    links:
+      s_nom: [Line_s_nom_ext, Line_capital_cost_curve_nom]
+      cost: [Line_capital_cost_piecewise, Line_capital_cost_curve_cost, ">="]
+  Line_capital_cost_incremental:
+    description: >-
+      `Line-capital_cost_piecewise` — the cost of the build of a line with a
+      curve is at least the curve at its nominal apparent power, stated by
+      segments filled in order, where linopy chooses the incremental rows
+    along: breakpoint
+    dims: [line]
+    where: NOT Line_capital_cost_as_lp AND Line_capital_cost_curve AND Line_capital_cost_curve_nom
+    method: incremental
+    links:
+      s_nom: [Line_s_nom_ext, Line_capital_cost_curve_nom]
+      cost: [Line_capital_cost_piecewise, Line_capital_cost_curve_cost, ">="]
+
+constraints:
+  Line_v_ang_lower:
+    description: >-
+      `Line-v_ang-lower` — an AC line carries at least the flow at which the
+      voltage angle difference across it is the negative of its limit. That
+      difference is `x_pu_eff` times the flow in radians
+    dims: [scenario, snapshot, line]
+    where: Line_v_ang_max AND Line_carrier == 'AC' AND Line_active
+    expression: Line_s >= -Line_v_ang_max * (3.141592653589793 / 180) / Line_x_pu_eff
+  Line_v_ang_upper:
+    description: >-
+      `Line-v_ang-upper` — an AC line carries at most the flow at which the
+      voltage angle difference across it reaches its limit
+    dims: [scenario, snapshot, line]
+    where: Line_v_ang_max AND Line_carrier == 'AC' AND Line_active
+    expression: Line_s <= Line_v_ang_max * (3.141592653589793 / 180) / Line_x_pu_eff
+  Line_loss_tangents_forward:
+    description: >-
+      `Line-loss_tangents-{k}-1`, `Line-loss_secants-pos` — the loss sits
+      above every cut to its curve for flow one way. PyPSA names one row per
+      tangent `k`, or one row stacked over its `secant` axis, and this entry
+      states them all over the segment dimension
+    dims: [scenario, snapshot, line, segment]
+    where: Line_lossy
+    expression: Line_loss + Line_loss_slope * Line_s >= Line_loss_offset

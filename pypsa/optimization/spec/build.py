@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Build PyPSA's linopy model from `pypsa.yaml` and the network's data."""
+"""Build PyPSA's linopy model from the spec and the network's data."""
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ from pypsa.optimization.spec._passive_network import (
     flow_based_zones,
     security_groups,
 )
+from pypsa.optimization.spec._render import render
 from pypsa.optimization.spec.checks import check
 from pypsa.optimization.spec.sources import UNITS, NetworkSources
 
@@ -50,10 +51,10 @@ def spec(
     """Return the spec of `n.optimize()`, patched for linearised unit commitment and piecewise options on request."""
     import mathspec  # noqa: PLC0415
 
-    base = mathspec.to_spec((SPEC / "pypsa.yaml").read_text())
+    base = mathspec.to_spec(render(SPEC))
     patches: list[Any] = []
     if linearized_unit_commitment:
-        patches.append((SPEC / "linearized_uc.yaml").read_text())
+        patches.append(render(SPEC / "linearized_uc"))
     if piecewise_options:
         patches.append(_piecewise_patch(base, piecewise_options))
     return mathspec.override(base, patches) if patches else base
