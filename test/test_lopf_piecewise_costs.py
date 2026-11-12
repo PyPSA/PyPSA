@@ -534,3 +534,52 @@ class TestPiecewiseCostsErrors:
         n.add("Load", "load", bus="bus0", p_set=50)
         with pytest.raises(ValueError, match="overnight_cost"):
             n.optimize.create_model(include_objective_constant=False)
+
+
+SUPPLIERS = {
+    "Generator": {"bus": "bus0"},
+    "Link": {"bus0": "bus1", "bus1": "bus0"},
+    "Process": {"bus0": "bus1", "bus1": "bus0", "rate0": -1, "rate1": 1},
+    "StorageUnit": {"bus": "bus0", "max_hours": 1, "state_of_charge_initial": 100},
+    "Store": {"bus": "bus0", "e_initial": 100},
+    "Line": {"bus0": "bus1", "bus1": "bus0", "x": 0.1},
+    "Transformer": {"bus0": "bus1", "bus1": "bus0", "x": 0.1},
+}
+CURVES = [
+    *((c, "marginal_cost") for c in list(SUPPLIERS)[:5]),
+    *((c, "capital_cost") for c in SUPPLIERS),
+]
+
+
+def _supplied_load(component: str, attribute: str, cost: Any) -> pypsa.Network:
+    """Return a load that `component` supplies cheaper than a backup, at `cost`."""
+    n = pypsa.Network()
+    n.add("Bus", ["bus0", "bus1"])
+    n.add("Generator", "source", bus="bus1", p_nom=1000, marginal_cost=1)
+    n.add("Generator", "backup", bus="bus0", p_nom=1000, marginal_cost=100)
+    n.add("Load", "load", bus="bus0", p_set=50)
+    nom = n.components[component]._operational_attrs["nom"]
+    build = {nom: 100}
+    if attribute == "capital_cost":
+        build = {f"{nom}_extendable": True, f"{nom}_max": 100}
+    n.add(component, "unit", **SUPPLIERS[component], **build, **{attribute: cost})
+    return n
+
+
+@pytest.mark.parametrize("method", ["lp", "incremental"])
+@pytest.mark.parametrize(("component", "attribute"), CURVES)
+def test_constant_slope_curve_costs_its_slope(
+    component: str, attribute: str, method: str
+) -> None:
+    linear = _supplied_load(component, attribute, 2.0)
+    linear.optimize()
+    end = 100.0 if attribute == "capital_cost" else 1.0
+    n = _supplied_load(component, attribute, {0.0: 0.0, end / 2: 2.0, end: 2.0})
+    option = {
+        "component": component,
+        "attribute": attribute,
+        "method": method,
+        "sign": ">=",
+    }
+    n.optimize(piecewise_options=[option])
+    assert n.objective == pytest.approx(linear.objective, rel=1e-6)
