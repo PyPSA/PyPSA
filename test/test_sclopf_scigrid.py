@@ -202,9 +202,10 @@ def test_optimize_security_constrained_multi_period_sub_network_renumbering():
 
 
 def test_optimize_security_constrained_single_period_names():
+    """Line `future` is never active, so it gets no security row."""
     n = _multi_period_network()
     n.optimize.optimize_security_constrained(branch_outages=["ab", "ca"])
-    shapes = {"snapshot": 2, "name": 5, "Line-outage": 2}
+    shapes = {"snapshot": 2, "name": 4, "Line-outage": 2}
     assert _security_shapes(n) == {
         "Line-fix-s-lower-security-for-Line-outage-in-sub-network-0": shapes,
         "Line-fix-s-upper-security-for-Line-outage-in-sub-network-0": shapes,
