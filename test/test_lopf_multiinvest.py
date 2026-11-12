@@ -675,7 +675,7 @@ def test_max_growth_constraint_excludes_retired_asset():
 
 
 def test_store_primary_energy_and_operational_limit_constraint_without_per_period():
-    """Test that Store with primary energy constraint raises NotImplementedError without e_initial_per_period."""
+    """Test that Store with primary energy constraint is refused without e_initial_per_period."""
 
     n = pypsa.Network()
     years = [2030, 2040]
@@ -708,7 +708,7 @@ def test_store_primary_energy_and_operational_limit_constraint_without_per_perio
         constant=0.8,
     )
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError, match="carried_over_has_unit_years"):
         n.optimize(multi_investment_periods=True)
 
     n.remove("GlobalConstraint", n.c.global_constraints.static.index)
@@ -721,7 +721,7 @@ def test_store_primary_energy_and_operational_limit_constraint_without_per_perio
         constant=6,
     )
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError, match="carried_over_has_unit_years"):
         n.optimize(multi_investment_periods=True)
 
 
@@ -779,7 +779,7 @@ def test_store_primary_energy_and_operational_limit_constraint_with_per_period()
 
 
 def test_storage_unit_primary_energy_and_operational_limit_constraint_without_per_period():
-    """Test that StorageUnit with primary energy constraint raises NotImplementedError without state_of_charge_initial_per_period."""
+    """Test that StorageUnit with primary energy constraint is refused without state_of_charge_initial_per_period."""
 
     n = pypsa.Network()
     years = [2030, 2040]
@@ -813,7 +813,7 @@ def test_storage_unit_primary_energy_and_operational_limit_constraint_without_pe
         constant=0.8,
     )
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError, match="carried_over_has_unit_years"):
         n.optimize(multi_investment_periods=True)
 
     n.remove("GlobalConstraint", n.c.global_constraints.names)
@@ -826,7 +826,7 @@ def test_storage_unit_primary_energy_and_operational_limit_constraint_without_pe
         constant=6,
     )
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError, match="carried_over_has_unit_years"):
         n.optimize(multi_investment_periods=True)
 
 

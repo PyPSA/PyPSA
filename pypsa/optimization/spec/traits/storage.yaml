@@ -192,8 +192,8 @@ assumptions:
   ${C}_primary_energy_carried_over_has_unit_years:
     holds: "period_weight_years == 1"
     where: "${C}_primary_energy_weight AND NOT ${C}_${level}_initial_per_period"
-    description: a level carried over between periods counts in a `primary_energy` row only where each period weighs one year
+    description: a `primary_energy` row counts a non-cyclic level carried over between periods only where every period weighs one year
   ${C}_operational_limit_carried_over_has_unit_years:
     holds: "at(period_weight_years == 1, by=snapshot_period[period])"
     where: "${C}_operational_limit_weight AND NOT ${C}_${level}_initial_per_period AND GlobalConstraint_counts_snapshot"
-    description: a level carried over between periods counts in an `operational_limit` row only where each period weighs one year
+    description: an `operational_limit` row counts a non-cyclic level carried over between periods only in periods that weigh one year

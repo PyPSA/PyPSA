@@ -229,56 +229,6 @@ def _check_objective(n: Network, sns: pd.Index) -> None:
         raise ValueError(msg)
 
 
-CARRIED_OVER = (
-    "Found non-cyclic {kind} with {what} and continuous depletion over multiple "
-    "investment periods combined with investment period year weightings != 1. "
-    "The {constraint} constraint will be inconsistent. Please consider setting "
-    "`{per_period}` to True, using equal period weightings or a cyclic {one} instead."
-)
-
-
-def _check_carried_over_storage(n: Network, sns: pd.Index) -> None:
-    """Refuse storage carried over periods of other than one year into an energy limit."""
-    years = n.investment_period_weightings.years[sns.unique("period")]
-    glcs = n.c.global_constraints.static
-    if years.eq(1).all() or glcs.empty:
-        return
-    carriers = n.c.carriers.static
-    storages = (
-        (
-            "storage units",
-            "storage unit",
-            n.c.storage_units,
-            "cyclic_state_of_charge",
-            "state_of_charge_initial_per_period",
-        ),
-        ("stores", "store", n.c.stores, "e_cyclic", "e_initial_per_period"),
-    )
-    for glc in glcs.itertuples():
-        if glc.type == "primary_energy":
-            found = carriers.index[carriers[glc.carrier_attribute] != 0]
-            what, constraint = "associated carrier emissions", "primary energy"
-        elif glc.type == "operational_limit":
-            found = [glc.carrier_attribute]
-            what, constraint = "the limited carrier", "operational"
-        else:
-            continue
-        for kind, one, c, cyclic, per_period in storages:
-            static = c.static[
-                c.static.index.get_level_values("name").isin(c.active_assets)
-            ]
-            hit = static.carrier.isin(found) & ~static[cyclic] & ~static[per_period]
-            if hit.any():
-                msg = CARRIED_OVER.format(
-                    kind=kind,
-                    what=what,
-                    constraint=constraint,
-                    per_period=per_period,
-                    one=one,
-                )
-                raise NotImplementedError(msg)
-
-
 def check(
     n: Network,
     sns: pd.Index,
@@ -298,5 +248,3 @@ def check(
     _check_energy_limits(n)
     _check_piecewise(n, piecewise_options)
     _check_objective(n, sns)
-    if multi_invest:
-        _check_carried_over_storage(n, sns)
