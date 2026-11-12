@@ -6,41 +6,39 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypsa.optimization.spec.sources import (
-    UNITS,
-    NetworkSources,
-    _snapshot_weighting,
-    single,
-)
+from pypsa.optimization.spec.sources import NetworkSources, source
 
-MAINTAINABLE = ("Generator", "Link", "Process")
+if TYPE_CHECKING:
+    from pypsa.components import Components
 
 
-def _maintainable(s: NetworkSources, component: str) -> xr.DataArray:
+@source("${C}_maintainable")
+def _maintainable(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Whether a unit is maintainable in any scenario."""
-    return s.da(component, "maintainable").astype(bool).any("scenario")
+    return s.da(c, "maintainable").astype(bool).any("scenario")
 
 
 def _maintenance_windows(
-    s: NetworkSources, component: str
+    s: NetworkSources, c: Components
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Find the last snapshot each event window covers and whether it may start.
 
     Both are (unit, scenario, snapshot). A window runs from its start until the
     generator weightings reach `maintenance_duration`.
     """
-    weighting = _snapshot_weighting(s, "snapshot_weightings_generators").to_numpy()
+    weighting = s["snapshot_weightings_generators"].to_numpy()
     cum = weighting.cumsum()
     before = xr.DataArray(cum - weighting, coords={"snapshot": s.snapshots})
-    duration = s.da(component, "maintenance_duration")
-    target = duration * (1 - 1e-6) + before
-    dims = (UNITS[component], "scenario", "snapshot")
+    target = s.da(c, "maintenance_duration") * (1 - 1e-6) + before
+    dims = (c._unit_dim, "scenario", "snapshot")
     end = xr.apply_ufunc(lambda v: np.searchsorted(cum, v), target).transpose(*dims)
-    active = s.active(component).expand_dims(scenario=s.scenarios).transpose(*dims)
+    active = s.active(c).expand_dims(scenario=s.scenarios).transpose(*dims)
     inactive = (~active).cumsum("snapshot")
     last = len(s.snapshots) - 1
     stop = end.clip(max=last)
@@ -52,11 +50,11 @@ def _maintenance_windows(
     return stop, valid
 
 
-def _maintenance_cover(s: NetworkSources, name: str) -> pd.DataFrame:
-    component = name.partition("_")[0]
-    dim = UNITS[component]
-    maintainable = _maintainable(s, component)
-    end, _ = _maintenance_windows(s, component)
+@source("${C}_maintenance_cover")
+def _maintenance_cover(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
+    dim = c._unit_dim
+    maintainable = s[f"{c.name}_maintainable"]
+    end, _ = _maintenance_windows(s, c)
     end = end.sel({dim: maintainable[dim][maintainable.to_numpy()]})
     snapshots = s.snapshots.to_numpy()
     rows = [
@@ -73,33 +71,22 @@ def _maintenance_cover(s: NetworkSources, name: str) -> pd.DataFrame:
     )
 
 
-def _maintenance_start_blocked(s: NetworkSources, name: str) -> xr.DataArray:
-    component = name.partition("_")[0]
-    _, valid = _maintenance_windows(s, component)
-    blocked = s.active(component) & ~valid & _maintainable(s, component)
-    return s.frame(name, blocked)
+@source("${C}_maintenance_start_blocked")
+def _maintenance_start_blocked(
+    s: NetworkSources, name: str, c: Components
+) -> xr.DataArray:
+    _, valid = _maintenance_windows(s, c)
+    return s.active(c) & ~valid & s[f"{c.name}_maintainable"]
 
 
-def _maintainable_source(s: NetworkSources, name: str) -> xr.DataArray:
-    return s.frame(name, _maintainable(s, name.partition("_")[0]))
+@source("${C}_maintenance_duration")
+def _maintenance_duration(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
+    duration = s.da(c, "maintenance_duration").astype(float)
+    return duration.where(s[f"{c.name}_maintainable"])
 
 
-def _maintenance_duration(s: NetworkSources, name: str) -> xr.DataArray:
-    component = name.partition("_")[0]
-    duration = s.da(component, "maintenance_duration").astype(float)
-    return s.frame(name, duration.where(_maintainable(s, component)))
-
-
-def _nom_max(s: NetworkSources, name: str) -> xr.DataArray:
-    component = name.partition("_")[0]
-    cap = s.attribute(component, "p_nom_max", name)
-    extendable = s.da(component, "p_nom_extendable").astype(bool).any("scenario")
-    return cap.where(extendable)
-
-
-for _component in MAINTAINABLE:
-    single(f"{_component}_maintenance_cover")(_maintenance_cover)
-    single(f"{_component}_maintenance_start_blocked")(_maintenance_start_blocked)
-    single(f"{_component}_maintainable")(_maintainable_source)
-    single(f"{_component}_maintenance_duration")(_maintenance_duration)
-    single(f"{_component}_p_nom_max")(_nom_max)
+@source("${C}_${nom}_max")
+def _nom_max(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
+    """Return the build cap, absent where no scenario extends the unit."""
+    extendable = s.da(c, c._operational_attrs["nom_extendable"]).astype(bool)
+    return s.attribute(c, name).where(extendable.any("scenario"))

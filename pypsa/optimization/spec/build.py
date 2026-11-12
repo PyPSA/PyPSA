@@ -27,9 +27,9 @@ from pypsa.optimization.spec._passive_network import (
     flow_based_zones,
     security_groups,
 )
-from pypsa.optimization.spec._render import render
+from pypsa.optimization.spec._render import formulated, render
 from pypsa.optimization.spec.checks import check
-from pypsa.optimization.spec.sources import UNITS, NetworkSources
+from pypsa.optimization.spec.sources import NetworkSources
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -39,8 +39,15 @@ if TYPE_CHECKING:
     from pypsa import Network
     from pypsa.optimization.piecewise import PiecewiseOptions
 
-UNIT_DIMS = set(UNITS.values())
 SPEC = files("pypsa.optimization.spec")
+
+
+@functools.cache
+def _unit_dims() -> set[str]:
+    """Return the spec's unit dims, one per component with a formulation."""
+    import pypsa  # noqa: PLC0415
+
+    return {c._unit_dim for c in formulated(pypsa.Network())}
 
 
 @functools.cache
@@ -156,7 +163,7 @@ def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
     A constraint over buses or GlobalConstraint labels names them `name` too.
     The breakpoints of a curve take linopy's name, which marks an auxiliary entry.
     """
-    named = UNIT_DIMS | ({"bus", "global_constraint"} if constraint else set())
+    named = _unit_dims() | ({"bus", "global_constraint"} if constraint else set())
     found = [d for d in dims if d in named]
     renamed = {found[0]: "name"} if len(found) == 1 else {}
     return renamed | ({"breakpoint": BREAKPOINT_DIM} if "breakpoint" in dims else {})
@@ -309,9 +316,7 @@ def _split_ports(m: Model, names: dict, sources: NetworkSources) -> None:
             entry = container.data.pop(key)
             dim = next(d for d in PORTS if d in entry.labels.dims)
             unit = PORTS[dim]
-            ports = (
-                sources.link_ports if dim == "link_output" else sources.process_ports
-            )
+            ports = sources.ports(sources.units[unit])
             start = entry.attrs["label_range"][0]
             for number, group in ports.groupby("k"):
                 selected = group["port"].to_numpy(dtype=object)

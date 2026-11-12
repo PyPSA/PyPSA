@@ -11,53 +11,37 @@ factors of a security-constrained run and the flow-based domain.
 from __future__ import annotations
 
 from math import sqrt
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 from pypsa.optimization.flow_based import _build_domain
-from pypsa.optimization.spec.sources import (
-    UNITS,
-    NetworkSources,
-    _filled,
-    dimension,
-    single,
-)
+from pypsa.optimization.spec.sources import NetworkSources, source
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
+    from pypsa.components import Components
     from pypsa.optimization.flow_based import _FlowBasedDomain
 
-PASSIVE = ("Line", "Transformer")
 DEG2RAD = np.pi / 180
 NO_DOMAIN = "flow_based"
-
-
-def _memo(s: NetworkSources, key: str, derive: Callable[[NetworkSources], Any]) -> Any:
-    """Compute `derive(s)` once per build."""
-    store = s.__dict__.setdefault("_passive_network", {})
-    if key not in store:
-        store[key] = derive(s)
-    return store[key]
 
 
 def _investment_period(s: NetworkSources, period: int) -> int | None:
     return period if s.multi_invest else None
 
 
-def _over(s: NetworkSources, component: str, frames: dict, out: str) -> xr.DataArray:
+def _over(s: NetworkSources, c: Components, frames: dict, out: str) -> xr.DataArray:
     """Per-period `(type, name) x label` frames as a `(period, unit, out)` grid, NaN off them."""
-    dim = UNITS[component]
-    units = s.coords(dim).to_numpy(dtype=object)
+    dim = c._unit_dim
+    units = s.names(c).to_numpy(dtype=object)
     labels = s.coords(out).to_numpy(dtype=object)
     grid = np.full((len(s.periods), len(units), len(labels)), np.nan)
     for i, frame in enumerate(frames.values()):
-        if frame.empty or component not in frame.index.unique(0):
+        if frame.empty or c.name not in frame.index.unique(0):
             continue
-        rows = frame.xs(component, level=0)
+        rows = frame.xs(c.name, level=0)
         grid[i] = rows.reindex(index=units, columns=labels).to_numpy(dtype=float)
     return xr.DataArray(
         grid,
@@ -85,109 +69,80 @@ def _cycle_matrices(s: NetworkSources) -> dict[int, tuple[pd.DataFrame, pd.DataF
     return matrices
 
 
-def _cycles(s: NetworkSources, weighted: bool, component: str) -> xr.DataArray:
-    frames = {
-        p: pair[weighted] for p, pair in _memo(s, "cycles", _cycle_matrices).items()
-    }
-    return _over(s, component, frames, "cycle")
+def _cycles(s: NetworkSources, weighted: bool, c: Components) -> xr.DataArray:
+    matrices = s.memo("cycles", lambda: _cycle_matrices(s))
+    return _over(s, c, {p: pair[weighted] for p, pair in matrices.items()}, "cycle")
 
 
-@dimension("cycle")
-def _cycle_labels(s: NetworkSources) -> pd.Index:
-    matrices = _memo(s, "cycles", _cycle_matrices).values()
+@source("cycle")
+def _cycle_labels(s: NetworkSources, name: str) -> pd.Index:
+    matrices = s.memo("cycles", lambda: _cycle_matrices(s)).values()
     width = max((plain.shape[1] for plain, _ in matrices), default=0)
     return pd.Index([str(k) for k in range(width)], dtype=object)
 
 
-@single("Cycle_in_basis")
+@source("Cycle_in_basis")
 def _cycle_in_basis(s: NetworkSources, name: str) -> xr.DataArray:
     labels = s.coords("cycle")
     reached = [
         labels.isin(plain.columns[plain.notna().any()])
-        for plain, _ in _memo(s, "cycles", _cycle_matrices).values()
+        for plain, _ in s.memo("cycles", lambda: _cycle_matrices(s)).values()
     ]
     grid = np.array(reached, dtype=bool).reshape(len(s.periods), len(labels))
-    return s.frame(
-        name,
-        xr.DataArray(
-            grid,
-            coords={"period": s.periods, "cycle": labels.to_numpy(dtype=object)},
-            dims=("period", "cycle"),
-        ),
-    )
+    coords = {"period": s.periods, "cycle": labels.to_numpy(dtype=object)}
+    return xr.DataArray(grid, coords=coords, dims=("period", "cycle"))
 
 
-@single("Line_cycle_weight", "Transformer_cycle_weight")
-def _cycle_weight(s: NetworkSources, name: str) -> xr.DataArray:
-    return s.frame(name, _cycles(s, True, name.partition("_")[0]))
+@source("${C}_cycle_weight")
+def _cycle_weight(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
+    return _cycles(s, True, c)
 
 
 def _varying(s: NetworkSources) -> xr.DataArray:
     """Whether a transformer's phase shift is a decision, per scenario."""
-    return s.da("Transformer", "phase_shift_min") < s.da(
-        "Transformer", "phase_shift_max"
-    )
+    c = s.n.components.transformers
+    return s.da(c, "phase_shift_min") < s.da(c, "phase_shift_max")
 
 
-def _phase_shift(s: NetworkSources) -> xr.DataArray:
-    """Read the fixed phase shift in degrees."""
-    return s.da("Transformer", "phase_shift")
-
-
-@single("Transformer_phase_shift_varying")
+@source("Transformer_phase_shift_varying")
 def _phase_shift_varying(s: NetworkSources, name: str) -> xr.DataArray:
-    return s.frame(name, _varying(s))
+    return _varying(s)
 
 
-@single("Transformer_phase_shift_fixed")
+@source("Transformer_phase_shift_fixed")
 def _phase_shift_fixed(s: NetworkSources, name: str) -> xr.DataArray:
-    return s.frame(name, _phase_shift(s).astype(float))
+    return s.da(s.n.components.transformers, "phase_shift").astype(float)
 
 
-@single("Transformer_phase_shift_cycle_weight")
+@source("Transformer_phase_shift_cycle_weight")
 def _phase_shift_cycle_weight(s: NetworkSources, name: str) -> xr.DataArray:
-    sign = _cycles(s, False, "Transformer").where(_varying(s))
-    return s.frame(name, (sign * DEG2RAD).fillna(0.0))
+    sign = _cycles(s, False, s.n.components.transformers).where(_varying(s))
+    return (sign * DEG2RAD).fillna(0.0)
 
 
-@single("Transformer_phase_shift_weight")
+@source("Transformer_phase_shift_weight")
 def _phase_shift_weight(s: NetworkSources, name: str) -> xr.DataArray:
-    sign = _cycles(s, False, "Transformer").where(~_varying(s))
-    period = xr.DataArray(
-        s.period_of, coords={"snapshot": s.snapshots}, dims="snapshot"
-    )
-    by_snapshot = sign.sel(period=period).drop_vars("period")
-    weight = by_snapshot * _phase_shift(s) * DEG2RAD
-    return s.frame(name, weight.where(weight != 0))
-
-
-@single("Line_x_pu_eff", "Transformer_x_pu_eff")
-def _x_pu_eff(s: NetworkSources, name: str) -> xr.DataArray:
-    component, _, attr = name.partition("_")
-    return s.attribute(component, attr, name)
-
-
-@single("Line_v_ang_max", "Transformer_v_ang_max")
-def _v_ang_max(s: NetworkSources, name: str) -> xr.DataArray:
-    component, _, attr = name.partition("_")
-    limit = s.attribute(component, attr, name)
-    return limit.where(np.isfinite(limit))
+    c = s.n.components.transformers
+    sign = _cycles(s, False, c).where(~_varying(s))
+    by_snapshot = sign.sel(period=s.over_snapshots(s.period_of)).drop_vars("period")
+    weight = by_snapshot * s.da(c, "phase_shift") * DEG2RAD
+    return weight.where(weight != 0)
 
 
 # -- transmission losses ----------------------------------------------------
 
 
-def _loss_inputs(s: NetworkSources, component: str) -> tuple[xr.DataArray, ...]:
+def _loss_inputs(s: NetworkSources, c: Components) -> tuple[xr.DataArray, ...]:
     """`r_pu_eff` and the rating the loss curve spans, `s_max_pu * s_nom_max`."""
-    extendable = s.da(component, "s_nom_extendable").astype(bool)
-    s_nom_max = s.da(component, "s_nom_max").where(extendable, s.da(component, "s_nom"))
+    extendable = s.da(c, "s_nom_extendable").astype(bool)
+    s_nom_max = s.da(c, "s_nom_max").where(extendable, s.da(c, "s_nom"))
     if not np.isfinite(s_nom_max).all():
         msg = (
             f"Loss approximation requires finite 's_nom_max' for extendable "
             f"branches:\n {s_nom_max.where(~np.isfinite(s_nom_max), drop=True)}"
         )
         raise ValueError(msg)
-    return s.da(component, "r_pu_eff"), s.da(component, "s_max_pu") * s_nom_max
+    return s.da(c, "r_pu_eff"), s.da(c, "s_max_pu") * s_nom_max
 
 
 def _secant_options(s: NetworkSources) -> tuple[float, float, int]:
@@ -207,10 +162,10 @@ def _secant_options(s: NetworkSources) -> tuple[float, float, int]:
     return atol, rtol, max_segments
 
 
-def _secant_factors(s: NetworkSources, component: str) -> np.ndarray:
+def _secant_factors(s: NetworkSources, c: Components) -> np.ndarray:
     """PyPSA's secant breakpoints of a component, as multiples of the first."""
     atol, rtol, max_segments = _secant_options(s)
-    r, rating = _loss_inputs(s, component)
+    r, rating = _loss_inputs(s, c)
     lossy = r > 0
     first = 2 * np.sqrt(atol / r.where(lossy))
     target = (rating.max("snapshot") / first).where(lossy, 0)
@@ -237,35 +192,36 @@ def _tangent_count(s: NetworkSources) -> int:
     return segments
 
 
-@dimension("segment")
-def _segment_labels(s: NetworkSources) -> pd.Index:
+@source("segment")
+def _segment_labels(s: NetworkSources, name: str) -> pd.Index:
     if s.transmission_losses is None:
         return pd.Index([], dtype=int)
     if (s.transmission_losses or {}).get("mode") == "tangents":
         return pd.Index(range(1, _tangent_count(s) + 1), dtype=int)
-    counts = [len(_secant_factors(s, c)) - 1 for c in PASSIVE if len(s.names(c))]
+    lossy = [c for c in s.units.values() if f"{c.name}_loss_max" in s]
+    counts = [len(_secant_factors(s, c)) - 1 for c in lossy if len(s.names(c))]
     return pd.Index(range(max(counts, default=0)), dtype=int)
 
 
-@single("Line_loss_max", "Transformer_loss_max")
-def _loss_max(s: NetworkSources, name: str) -> xr.DataArray:
+@source("${C}_loss_max")
+def _loss_max(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     if s.transmission_losses is None:
-        return _filled(s, name, 0.0)
-    r, rating = _loss_inputs(s, name.partition("_")[0])
-    return s.frame(name, r * rating**2)
+        return s.filled(name, 0.0)
+    r, rating = _loss_inputs(s, c)
+    return r * rating**2
 
 
-def _cuts(s: NetworkSources, component: str) -> tuple[xr.DataArray, xr.DataArray]:
+def _cuts(s: NetworkSources, c: Components) -> tuple[xr.DataArray, xr.DataArray]:
     """Slope and offset of each cut to a component's loss curve, over `segment`."""
     segment = xr.DataArray(s.coords("segment"), dims="segment")
     segment = segment.assign_coords(segment=s.coords("segment"))
-    r, rating = _loss_inputs(s, component)
+    r, rating = _loss_inputs(s, c)
     if (s.transmission_losses or {}).get("mode") == "tangents":
         flow = segment / len(segment) * rating
         slope = 2 * r * flow
         return slope, r * flow**2 - slope * flow
     atol = _secant_options(s)[0]
-    factors = _secant_factors(s, component)
+    factors = _secant_factors(s, c)
     pad = (0, len(segment) - len(factors) + 1)
     a = segment.copy(data=np.pad(factors[:-1], pad))
     b = segment.copy(data=np.pad(factors[1:], pad))
@@ -275,18 +231,12 @@ def _cuts(s: NetworkSources, component: str) -> tuple[xr.DataArray, xr.DataArray
     return slope, offset
 
 
-@single(
-    "Line_loss_slope",
-    "Line_loss_offset",
-    "Transformer_loss_slope",
-    "Transformer_loss_offset",
-)
-def _loss_cut(s: NetworkSources, name: str) -> xr.DataArray:
+@source("${C}_loss_slope", "${C}_loss_offset")
+def _loss_cut(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     if not len(s.coords("segment")):
-        return _filled(s, name, 0.0)
-    component = name.partition("_")[0]
-    slope, offset = _memo(s, f"cuts_{component}", lambda s: _cuts(s, component))
-    return s.frame(name, slope if name.endswith("slope") else offset)
+        return s.filled(name, 0.0)
+    slope, offset = s.memo(f"{c.name} cuts", lambda: _cuts(s, c))
+    return slope if name.endswith("slope") else offset
 
 
 # -- security-constrained runs ----------------------------------------------
@@ -299,7 +249,7 @@ def _outages(s: NetworkSources) -> pd.MultiIndex:
         return pd.MultiIndex.from_tuples([], names=["type", "name"])
     if not isinstance(outages, pd.MultiIndex):
         outages = pd.MultiIndex.from_product([("Line",), outages])
-    active = [name in s.names(c) for c, name in outages]
+    active = [name in s.names(s.n.components[c]) for c, name in outages]
     outages = outages[active]
     clash = outages.get_level_values(1)[outages.get_level_values(1).duplicated()]
     if not clash.empty:
@@ -308,19 +258,17 @@ def _outages(s: NetworkSources) -> pd.MultiIndex:
     return outages.set_names(["type", "name"])
 
 
-@dimension("outage")
-def _outage_labels(s: NetworkSources) -> pd.Index:
+@source("outage")
+def _outage_labels(s: NetworkSources, name: str) -> pd.Index:
     return pd.Index(_outages(s).get_level_values(1), dtype=object)
 
 
-@single("Outage_line", "Outage_transformer")
-def _outage_branch(s: NetworkSources, name: str) -> pd.DataFrame:
-    column = name.removeprefix("Outage_")
-    component = column.capitalize()
+@source("Outage_${c}")
+def _outage_branch(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     outages = _outages(s)
-    names = outages.get_level_values(1)[outages.get_level_values(0) == component]
+    names = outages.get_level_values(1)[outages.get_level_values(0) == c.name]
     labels = names.to_numpy(dtype=object)
-    return pd.DataFrame({"outage": labels, column: labels}, dtype=object)
+    return pd.DataFrame({"outage": labels, c._unit_dim: labels}, dtype=object)
 
 
 class SecurityGroup(NamedTuple):
@@ -334,18 +282,17 @@ class SecurityGroup(NamedTuple):
 
 def security_groups(s: NetworkSources) -> list[SecurityGroup]:
     """Return the sub-network and period groups of the security rows, in PyPSA's order."""
-    _memo(s, "bodf", _bodf)
-    return s.__dict__["_passive_network"].get("groups", [])
+    return s.memo("bodf", lambda: _bodf(s))[1]
 
 
-def _bodf(s: NetworkSources) -> dict[int, pd.DataFrame]:
-    """Each period's outage factors, branches by outages, of its sub-networks."""
+def _bodf(s: NetworkSources) -> tuple[dict[int, pd.DataFrame], list[SecurityGroup]]:
+    """Each period's outage factors, branches by outages, of its sub-networks, and the groups they form."""
     n = s.n
     outages = _outages(s)
+    groups: list[SecurityGroup] = []
     if outages.empty:
-        return {period: pd.DataFrame() for period in s.periods}
+        return {period: pd.DataFrame() for period in s.periods}, groups
     topology = n.get_scenario(n.scenarios[0]) if n.has_scenarios else n
-    groups = s.__dict__["_passive_network"].setdefault("groups", [])
     factors = {}
     for period in s.periods:
         topology.determine_network_topology(
@@ -368,25 +315,24 @@ def _bodf(s: NetworkSources) -> dict[int, pd.DataFrame]:
             frame = pd.DataFrame(sub_network.BODF, index=branches, columns=branches)
             frames.append(frame[outaged].droplevel(0, axis=1))
         factors[period] = pd.concat(frames) if frames else pd.DataFrame()
-    return factors
+    return factors, groups
 
 
-@single("Line_BODF", "Transformer_BODF")
-def _branch_bodf(s: NetworkSources, name: str) -> xr.DataArray:
-    frames = _memo(s, "bodf", _bodf)
-    return s.frame(name, _over(s, name.partition("_")[0], frames, "outage"))
+@source("${C}_BODF")
+def _branch_bodf(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
+    return _over(s, c, s.memo("bodf", lambda: _bodf(s))[0], "outage")
 
 
 # -- flow-based market coupling ---------------------------------------------
 
 
 def _domain(s: NetworkSources) -> _FlowBasedDomain | None:
-    return _build_domain(s.n, s.network_index)
+    return s.memo("flow_based", lambda: _build_domain(s.n, s.network_index))
 
 
 def _zone_domain(s: NetworkSources) -> pd.Series:
     """Map each zone bus to its flow-based domain."""
-    domain = _memo(s, "flow_based", _domain)
+    domain = _domain(s)
     if domain is None:
         return pd.Series([], dtype=object)
     if domain.zone_domain is None:
@@ -396,16 +342,16 @@ def _zone_domain(s: NetworkSources) -> pd.Series:
 
 def flow_based_zones(s: NetworkSources) -> pd.Index | None:
     """Return the zone buses of the flow-based domain in PyPSA's column order, None without one."""
-    domain = _memo(s, "flow_based", _domain)
+    domain = _domain(s)
     return None if domain is None else pd.Index(domain.zones, dtype=object)
 
 
-@dimension("flow_based_domain")
-def _flow_based_domains(s: NetworkSources) -> pd.Index:
+@source("flow_based_domain")
+def _flow_based_domains(s: NetworkSources, name: str) -> pd.Index:
     return pd.Index(_zone_domain(s).unique(), dtype=object)
 
 
-@single("Bus_flow_based_domain")
+@source("Bus_flow_based_domain")
 def _bus_flow_based_domain(s: NetworkSources, name: str) -> pd.DataFrame:
     zones = _zone_domain(s)
     return pd.DataFrame(
@@ -417,15 +363,11 @@ def _bus_flow_based_domain(s: NetworkSources, name: str) -> pd.DataFrame:
     )
 
 
-@single("Bus_flow_based_zone")
+@source("Bus_flow_based_zone")
 def _bus_flow_based_zone(s: NetworkSources, name: str) -> xr.DataArray:
     buses = s.coords("bus")
-    zone = xr.DataArray(
-        buses.isin(_zone_domain(s).index),
-        coords={"bus": buses.to_numpy(dtype=object)},
-        dims="bus",
-    )
-    return s.frame(name, zone)
+    coords = {"bus": buses.to_numpy(dtype=object)}
+    return xr.DataArray(buses.isin(_zone_domain(s).index), coords=coords, dims="bus")
 
 
 def _flow_based_array(s: NetworkSources, attr: str) -> xr.DataArray:
@@ -448,20 +390,20 @@ def _flow_based_array(s: NetworkSources, attr: str) -> xr.DataArray:
     return da.reindex(global_constraint=labels)
 
 
-@single("GlobalConstraint_ram")
+@source("GlobalConstraint_ram")
 def _ram(s: NetworkSources, name: str) -> xr.DataArray:
-    if _memo(s, "flow_based", _domain) is None:
-        return _filled(s, name, np.nan)
-    return s.frame(name, _flow_based_array(s, "ram").astype(float))
+    if _domain(s) is None:
+        return s.filled(name, np.nan)
+    return _flow_based_array(s, "ram").astype(float)
 
 
-@single("GlobalConstraint_zonal_ptdf", "GlobalConstraint_link_ptdf")
+@source("GlobalConstraint_zonal_ptdf", "GlobalConstraint_link_ptdf")
 def _ptdf(s: NetworkSources, name: str) -> xr.DataArray:
-    domain = _memo(s, "flow_based", _domain)
+    domain = _domain(s)
     if domain is None:
-        return _filled(s, name, np.nan)
+        return s.filled(name, np.nan)
     dim = "bus" if name.endswith("zonal_ptdf") else "link"
     columns = domain.zones if dim == "bus" else domain.links
     ptdf = _flow_based_array(s, "zonal_ptdf").sel(bus=list(columns))
     ptdf = ptdf.rename(bus=dim).reindex({dim: s.coords(dim).to_numpy(dtype=object)})
-    return s.frame(name, ptdf.astype(float))
+    return ptdf.astype(float)

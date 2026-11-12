@@ -8,30 +8,23 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.spec.sources import (
     NO_SCENARIO,
-    UNITS,
     NetworkSources,
-    _filled,
-    dimension,
-    single,
+    of_scenario,
+    source,
 )
 
-Cell = Callable[[NetworkSources, str, Any, pd.Series, pd.DataFrame], pd.Series]
+if TYPE_CHECKING:
+    from pypsa.components import Components
 
-_CYCLIC = {"StorageUnit": "cyclic_state_of_charge", "Store": "e_cyclic"}
-_INITIAL = {"StorageUnit": "state_of_charge_initial", "Store": "e_initial"}
-_PER_PERIOD = {
-    "StorageUnit": "state_of_charge_initial_per_period",
-    "Store": "e_initial_per_period",
-}
+Cell = Callable[[NetworkSources, "Components", Any, pd.Series, pd.DataFrame], pd.Series]
 
 
 def _rows(s: NetworkSources, attr: str, labels: pd.Index | None = None) -> pd.DataFrame:
@@ -97,26 +90,17 @@ def _counted_periods(s: NetworkSources, glc: pd.Series) -> pd.Index:
     return s.periods if period is None else s.periods.intersection([period])
 
 
-def _unit_static(s: NetworkSources, component: str, scenario: Any) -> pd.DataFrame:
-    static = s.n.components[component].static
-    if not s.n.has_scenarios:
-        return static
-    if static.empty:
-        return static.droplevel("scenario")
-    return static.xs(scenario, level="scenario")
-
-
 def _unit_grid(
-    s: NetworkSources, name: str, component: str, kind: str, cell: Cell
+    s: NetworkSources, name: str, c: Components, kind: str, cell: Cell
 ) -> xr.DataArray:
     """Return a (unit, row, scenario) grid, each cell a series over the units in its set."""
-    dim = UNITS[component]
+    dim = c._unit_dim
     units = s.coords(dim)
     rows = s.coords("global_constraint")
     values = np.full((len(units), len(rows), len(s.scenarios)), np.nan)
     for i, j, scenario, glc in _cells(s, kind):
-        static = _unit_static(s, component, scenario)
-        values[:, i, j] = cell(s, component, scenario, glc, static).reindex(units)
+        static = of_scenario(c.static, s.n, scenario)
+        values[:, i, j] = cell(s, c, scenario, glc, static).reindex(units)
     da = xr.DataArray(
         values,
         coords={
@@ -135,9 +119,14 @@ def _ones(static: pd.DataFrame, mask: pd.Series) -> pd.Series:
     return pd.Series(1.0, index=static.index[mask.to_numpy(dtype=bool)])
 
 
+def _non_cyclic(c: Components, static: pd.DataFrame) -> pd.Series | bool:
+    """Whether each unit stores no cyclic level, true for a component that stores none."""
+    return ~static[c._level_attrs[1]].astype(bool) if c._level_attrs else True
+
+
 def _operational(
     s: NetworkSources,
-    component: str,
+    c: Components,
     scenario: Any,
     glc: pd.Series,
     static: pd.DataFrame,
@@ -146,19 +135,18 @@ def _operational(
     if _counted_periods(s, glc).empty:
         return pd.Series(dtype=float)
     mask = (static["carrier"] == glc["carrier_attribute"]) & static["active"]
-    if component in _CYCLIC:
-        mask &= ~static[_CYCLIC[component]].astype(bool)
-    return _ones(static, mask)
+    return _ones(static, mask & _non_cyclic(c, static))
 
 
 def _emissions(s: NetworkSources, scenario: Any, glc: pd.Series) -> pd.Series:
-    carriers = _unit_static(s, "Carrier", scenario)[glc["carrier_attribute"]]
-    return carriers[carriers != 0]
+    carriers = of_scenario(s.n.components.carriers.static, s.n, scenario)
+    emissions = carriers[glc["carrier_attribute"]]
+    return emissions[emissions != 0]
 
 
 def _primary(
     s: NetworkSources,
-    component: str,
+    c: Components,
     scenario: Any,
     glc: pd.Series,
     static: pd.DataFrame,
@@ -167,78 +155,68 @@ def _primary(
     if _counted_periods(s, glc).empty:
         return pd.Series(dtype=float)
     emissions = _emissions(s, scenario, glc)
-    active = s.n.components[component]._active_names(_stated(glc))
+    active = c._active_names(_stated(glc))
     mask = static["carrier"].isin(emissions.index) & static.index.isin(active)
-    if component in _CYCLIC:
-        mask &= ~static[_CYCLIC[component]].astype(bool)
+    mask &= _non_cyclic(c, static)
     return static["carrier"][mask].map(emissions).astype(float)
 
 
 def _tech_capacity(
     s: NetworkSources,
-    component: str,
+    c: Components,
     scenario: Any,
     glc: pd.Series,
     static: pd.DataFrame,
 ) -> pd.Series:
     """One for each extendable unit of the row's carrier at its bus, active in its period."""
-    nominal = nominal_attrs[component]
-    active = s.n.components[component]._active_names(_stated(glc))
-    mask = (static["carrier"] == glc["carrier_attribute"]) & static[
-        f"{nominal}_extendable"
-    ].astype(bool)
-    mask &= static.index.isin(active)
+    extendable = static[c._operational_attrs["nom_extendable"]].astype(bool)
+    mask = (static["carrier"] == glc["carrier_attribute"]) & extendable
+    mask &= static.index.isin(c._active_names(_stated(glc)))
     bus = glc.get("bus")
     if pd.notna(bus) and bus != "":
-        column = "bus0" if component in s.n.branch_components else "bus"
+        column = "bus0" if c.name in s.n.branch_components else "bus"
         mask &= static[column] == str(bus)
     return _ones(static, mask)
 
 
 def _transmission_set(
-    s: NetworkSources, component: str, glc: pd.Series, static: pd.DataFrame
+    s: NetworkSources, c: Components, glc: pd.Series, static: pd.DataFrame
 ) -> tuple[pd.Index, Any]:
     """Return the extendable branches of the row's carriers and the periods they must be active in."""
-    carriers = [
-        c.strip()
-        for c in re.sub(r"[\[\]\(\)]", "", glc["carrier_attribute"]).split(",")
-    ]
+    listed = re.sub(r"[\[\]\(\)]", "", glc["carrier_attribute"]).split(",")
+    carriers = [carrier.strip() for carrier in listed]
     period: int | list[int] | None = _stated(glc)
     if period is None and s.multi_invest:
         period = list(s.periods)
-    nominal = nominal_attrs[component]
-    active = s.n.components[component]._active_names(period)
-    mask = static["carrier"].isin(carriers) & static[f"{nominal}_extendable"].astype(
-        bool
-    )
-    mask &= static.index.isin(active)
+    extendable = static[c._operational_attrs["nom_extendable"]].astype(bool)
+    mask = static["carrier"].isin(carriers) & extendable
+    mask &= static.index.isin(c._active_names(period))
     return static.index[mask.to_numpy(dtype=bool)], period
 
 
 def _volume(
     s: NetworkSources,
-    component: str,
+    c: Components,
     scenario: Any,
     glc: pd.Series,
     static: pd.DataFrame,
 ) -> pd.Series:
     """Return the length of each branch in the row's set."""
-    names, _ = _transmission_set(s, component, glc, static)
+    names, _ = _transmission_set(s, c, glc, static)
     return static["length"].loc[names].astype(float)
 
 
 def _expansion_cost(
     s: NetworkSources,
-    component: str,
+    c: Components,
     scenario: Any,
     glc: pd.Series,
     static: pd.DataFrame,
 ) -> pd.Series:
     """Return the capital cost of each branch in the row's set, period-weighted where the row spans all periods."""
-    names, period = _transmission_set(s, component, glc, static)
+    names, period = _transmission_set(s, c, glc, static)
     if names.empty:
         return pd.Series(dtype=float)
-    c = s.n.components[component]
     cost = c.capital_cost
     if s.n.has_scenarios:
         cost = cost.xs(scenario, level="scenario")
@@ -252,73 +230,47 @@ def _expansion_cost(
     return cost * (active @ weights.loc[period])
 
 
-_WEIGHTS: dict[str, tuple[str, Cell, tuple[str, ...]]] = {
-    "operational_limit_weight": (
-        "operational_limit",
-        _operational,
-        ("Generator", "StorageUnit", "Store"),
-    ),
-    "primary_energy_weight": (
-        "primary_energy",
-        _primary,
-        ("Generator", "StorageUnit", "Store"),
-    ),
-    "tech_capacity_weight": (
-        "tech_capacity_expansion_limit",
-        _tech_capacity,
-        ("Generator", "Line", "Link", "Process", "StorageUnit", "Store"),
-    ),
-    "volume_weight": ("transmission_volume_expansion_limit", _volume, ("Line", "Link")),
-    "expansion_cost_weight": (
-        "transmission_expansion_cost_limit",
-        _expansion_cost,
-        ("Line", "Link"),
-    ),
+#: The units each type of row sums, by the weight the spec names it with.
+_WEIGHTS: dict[str, tuple[str, Cell]] = {
+    "operational_limit_weight": ("operational_limit", _operational),
+    "primary_energy_weight": ("primary_energy", _primary),
+    "tech_capacity_weight": ("tech_capacity_expansion_limit", _tech_capacity),
+    "volume_weight": ("transmission_volume_expansion_limit", _volume),
+    "expansion_cost_weight": ("transmission_expansion_cost_limit", _expansion_cost),
 }
 
 
-def _weight(s: NetworkSources, name: str) -> xr.DataArray:
-    component, _, suffix = name.partition("_")
-    kind, cell, _ = _WEIGHTS[suffix]
-    da = _unit_grid(s, name, component, kind, cell)
-    if name == "Generator_primary_energy_weight":
-        curved = s["Generator_efficiency_curve_p"].notnull().any("breakpoint")
-        da = da / s.da("Generator", "efficiency").where(~curved, 1)
-    return s.frame(name, da)
+@source(*(f"${{C}}_{suffix}" for suffix in _WEIGHTS))
+def _weight(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
+    """Return a row's weight of each unit; a curved unit's primary energy is read off its curve."""
+    suffix = name.removeprefix(f"{c.name}_")
+    da = _unit_grid(s, name, c, *_WEIGHTS[suffix])
+    curve = f"{c.name}_efficiency_curve_p"
+    if suffix == "primary_energy_weight" and curve in s:
+        curved = s[curve].notnull().any("breakpoint")
+        da = da / s.da(c, "efficiency").where(~curved, 1)
+    return da
 
 
-for _suffix, _entry in _WEIGHTS.items():
-    single(*(f"{c}_{_suffix}" for c in _entry[2]))(_weight)
-
-
-@single("GlobalConstraint_type")
+@source("GlobalConstraint_type")
 def _type(s: NetworkSources, name: str) -> xr.DataArray:
     types = _rows(s, "type")
     varies = types.nunique(axis=1) > 1
     if varies.any():
         msg = f"GlobalConstraint {varies.index[varies].tolist()} change type across scenarios."
         raise ValueError(msg)
-    first = types.iloc[:, 0]
-    return s.frame(
-        name,
-        xr.DataArray(
-            first.to_numpy(dtype=object),
-            coords={"global_constraint": first.index.to_numpy(dtype=object)},
-            dims="global_constraint",
-        ),
-    )
+    return _grid(s, types).isel(scenario=0, drop=True).astype(object)
 
 
-@single("GlobalConstraint_sense")
+@source("GlobalConstraint_sense")
 def _sense(s: NetworkSources, name: str) -> xr.DataArray:
-    return s.frame(name, _grid(s, _rows(s, "sense").astype(object)))
+    return _grid(s, _rows(s, "sense").astype(object))
 
 
-@single("GlobalConstraint_counts_snapshot")
+@source("GlobalConstraint_counts_snapshot")
 def _counts_snapshot(s: NetworkSources, name: str) -> xr.DataArray:
     stated = _grid(s, _periods(s))
-    of = xr.DataArray(s.period_of, coords={"snapshot": s.snapshots}, dims="snapshot")
-    return s.frame(name, stated.isnull() | (of == stated))
+    return stated.isnull() | (s.over_snapshots(s.period_of) == stated)
 
 
 def _storage_fold(
@@ -328,19 +280,22 @@ def _storage_fold(
     periods = _counted_periods(s, glc)
     if periods.empty:
         return 0.0
-    years = float(s.period_weight("years").sel(period=list(periods)).sum())
+    years = float(s["period_weight_years"].sel(period=list(periods)).sum())
     fold = 0.0
-    for component in _CYCLIC:
-        static = _unit_static(s, component, scenario)
-        weight = cell(s, component, scenario, glc, static)
-        initial = static[_INITIAL[component]].loc[weight.index].astype(float)
-        per_period = static[_PER_PERIOD[component]].loc[weight.index].astype(bool)
+    for c in s.units.values():
+        if not c._level_attrs:
+            continue
+        static = of_scenario(c.static, s.n, scenario)
+        weight = cell(s, c, scenario, glc, static)
+        initial = c._level_attrs[0]
+        level = static[initial].loc[weight.index].astype(float)
+        per_period = static[f"{initial}_per_period"].loc[weight.index].astype(bool)
         times = np.where(per_period & s.multi_invest, years, 1.0)
-        fold += float((weight * initial * times).sum())
+        fold += float((weight * level * times).sum())
     return fold
 
 
-@single("GlobalConstraint_constant")
+@source("GlobalConstraint_constant")
 def _constant(s: NetworkSources, name: str) -> xr.DataArray:
     constant = _rows(s, "constant").astype(float)
     for kind, cell in (
@@ -349,55 +304,48 @@ def _constant(s: NetworkSources, name: str) -> xr.DataArray:
     ):
         for i, j, scenario, glc in _cells(s, kind):
             constant.iat[i, j] -= _storage_fold(s, cell, scenario, glc)
-    return s.frame(name, _grid(s, constant))
+    return _grid(s, constant)
 
 
-def _carrier_limit(s: NetworkSources, attr: str) -> pd.Series:
+def _carrier_limit(s: NetworkSources, attr: str) -> xr.DataArray:
     """Return a carrier attribute, the least over the scenarios."""
     column = s.n.components.carriers.static[attr]
     if s.n.has_scenarios:
         column = column.groupby(level="name").min()
-    return column.reindex(s.coords("carrier"))
+    labels = s.coords("carrier")
+    values = column.reindex(labels).to_numpy(dtype=float)
+    coords = {"carrier": labels.to_numpy(dtype=object)}
+    return xr.DataArray(values, coords=coords, dims="carrier")
 
 
-def _carrier_grid(s: NetworkSources, name: str, values: pd.Series) -> xr.DataArray:
-    return s.frame(
-        name,
-        xr.DataArray(
-            values.to_numpy(dtype=float),
-            coords={"carrier": s.coords("carrier").to_numpy(dtype=object)},
-            dims="carrier",
-        ),
-    )
-
-
-@single("Carrier_max_growth")
+@source("Carrier_max_growth")
 def _max_growth(s: NetworkSources, name: str) -> xr.DataArray:
     if not s.multi_invest:
-        return _filled(s, name, np.nan)
-    growth = _carrier_limit(s, "max_growth").replace(np.inf, np.nan)
-    return _carrier_grid(s, name, growth)
+        return s.filled(name, np.nan)
+    growth = _carrier_limit(s, "max_growth")
+    return growth.where(growth != np.inf)
 
 
-@single("Carrier_max_relative_growth")
+@source("Carrier_max_relative_growth")
 def _max_relative_growth(s: NetworkSources, name: str) -> xr.DataArray:
-    return _carrier_grid(s, name, _carrier_limit(s, "max_relative_growth").fillna(0.0))
+    return _carrier_limit(s, "max_relative_growth").fillna(0.0)
 
 
-@dimension("global_constraint")
-def _global_constraint(s: NetworkSources) -> pd.Index:
+@source("global_constraint")
+def _global_constraint(s: NetworkSources, name: str) -> pd.Index:
     """Return the rows PyPSA builds: every `flow_based` row and every other row whose set holds a unit."""
     labels = pd.Index(s.n.components.global_constraints.names, dtype=object)
     types = _rows(s, "type", labels)
     built = set(labels[(types == "flow_based").any(axis=1)])
-    for kind, cell, components in _WEIGHTS.values():
+    for suffix, (kind, cell) in _WEIGHTS.items():
+        summed = [c for c in s.units.values() if f"{c.name}_{suffix}" in s]
         for i, _, scenario, glc in _cells(s, kind, labels):
             if labels[i] in built:
                 continue
-            for component in components:
-                static = _unit_static(s, component, scenario)
-                units = cell(s, component, scenario, glc, static).index
-                if units.isin(s.names(component)).any():
+            for c in summed:
+                static = of_scenario(c.static, s.n, scenario)
+                units = cell(s, c, scenario, glc, static).index
+                if units.isin(s.names(c)).any():
                     built.add(labels[i])
                     break
     return labels[labels.isin(built)]
