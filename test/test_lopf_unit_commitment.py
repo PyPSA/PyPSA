@@ -1604,9 +1604,16 @@ def test_minimum_time_rows_at_window_boundary(short_time: int | None) -> None:
         ("down", 1, "shut_down"),
     ]:
         values = model.variables[f"Generator-{transition}"].labels.values
-        data = model.constraints[f"Generator-com-{kind}-time"].data
+        constraint = model.constraints[f"Generator-com-{kind}-time"]
+        generators = n.c.generators.static.index
+        labels = constraint.labels.reindex(name=generators, fill_value=-1).values
+        terms: dict[int, dict[int, float]] = {}
+        for label, variable, coefficient in (
+            constraint.to_polars().select("labels", "vars", "coeffs").iter_rows()
+        ):
+            terms.setdefault(label, {})[variable] = coefficient
         np.testing.assert_array_equal(
-            data.labels.values >= 0,
+            labels >= 0,
             np.tile(
                 [True, short_time != 0] if short_time is not None else [True],
                 (6, 1),
@@ -1619,13 +1626,7 @@ def test_minimum_time_rows_at_window_boundary(short_time: int | None) -> None:
             if duration == 0:
                 continue
             for snapshot in range(6):
-                variables = data.vars.values[snapshot, generator]
-                coefficients = data.coeffs.values[snapshot, generator]
-                actual = {
-                    int(label): float(coefficient)
-                    for label, coefficient in zip(variables, coefficients)
-                    if label >= 0 and coefficient != 0
-                }
+                actual = terms[int(labels[snapshot, generator])]
                 expected = {int(status[snapshot, generator]): float(sign)} | {
                     int(values[t, generator]): 1.0
                     for t in range(max(0, snapshot - duration + 1), snapshot + 1)
