@@ -38,7 +38,7 @@ With `cyclic_delay=True` (default), the source time wraps cyclically modulo the 
 
 The dual variable $\lambda_{n,t}$ represents the shadow price of the constraint (e.g. market clearing price, dynamic locational marginal prices) and is scaled by the snapshot weighting $w_t^o$ to yield units of currency per unit of energy regardless of the time resolution.
 
-The energy balance constraints are set in the function `define_nodal_balance_constraints()` and is called `Bus-nodal_balance`.
+The energy balance constraints are called `Bus-nodal_balance`.
 
 ??? note "Mapping of symbols to component attributes"
 

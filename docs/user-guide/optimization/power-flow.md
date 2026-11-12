@@ -38,7 +38,7 @@ By default, PyPSA constructs the cycle basis from breadth-first spanning trees b
 al. (1982)[^2] and refines it through cycle exchanges to shorten the cycles
 (`n.optimize(cycle_basis_method="bfs-refined")`).
 
-These constraints are set in the function `define_kirchhoff_voltage_constraints()` and carry the name `Kirchhoff-Voltage-Law`.
+These constraints carry the name `Kirchhoff-Voltage-Law`.
 
 !!! tip "Tip: KVL with DC networks"
 
@@ -82,9 +82,8 @@ degrees, converted to radians internally). Otherwise the phase shift is fixed
 to the static or series input `phase_shift`. The realised per-snapshot
 angle is written to the dynamic output `n.transformers_t["phase_shift_opt"]`.
 
-The variables are set in `define_phase_shift_variables()` and carry the name
-`Transformer-phase_shift`; the angle term is added within
-`define_kirchhoff_voltage_constraints()`.
+The variables carry the name `Transformer-phase_shift`; the angle term enters
+the `Kirchhoff-Voltage-Law` constraints.
 
 !!! note "Note: Sign convention"
 
@@ -130,7 +129,7 @@ splitting losses equally between both connection points.
 The dispatch limits of $p_{\ell,t}$ are now subtracted by $\psi_{l,t}$.
 
 
-Two linearization methods are available in PyPSA: the tangent-based approximation ([`define_tangent_loss_constraints()`][pypsa.optimization.constraints.define_tangent_loss_constraints]) and the secant-based approximation with error control ([`define_secant_loss_constraints()`][pypsa.optimization.constraints.define_secant_loss_constraints]).
+Two linearization methods are available in PyPSA: the tangent-based approximation and the secant-based approximation with error control.
 
 The transmission loss approximation is not activated by default, but must be enabled in [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
@@ -143,10 +142,10 @@ n.optimize(transmission_losses={"mode": "secants", "atol": 1, "rtol": 0.1})
 n.optimize(transmission_losses={"mode": "tangents", "segments": 3})
 ```
 
-When passing a dict, the `mode` key selects the method. Additional keys are forwarded to the corresponding constraint function:
+When passing a dict, the `mode` key selects the method. Additional keys set the options of that method:
 
-- **Secant mode** (`"secants"`, see [`define_secant_loss_constraints()`][pypsa.optimization.constraints.define_secant_loss_constraints]): `atol`, `rtol`, `max_segments`.
-- **Tangent mode** (`"tangents"`, see [`define_tangent_loss_constraints()`][pypsa.optimization.constraints.define_tangent_loss_constraints]): `segments`.
+- **Secant mode** (`"secants"`): `atol`, `rtol`, `max_segments`.
+- **Tangent mode** (`"tangents"`): `segments`.
 
 !!! hint "Hint: Calculating transmission losses"
 

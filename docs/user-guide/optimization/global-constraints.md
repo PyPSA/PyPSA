@@ -28,8 +28,6 @@ $$\begin{gather*}\sum_{n,s,t}  w_t^g \cdot \eta_{n,s,t}^{-1} \cdot g_{n,s,t}\cdo
 
 The first sum is over generators; the second sum is over stores; the third over storage units. The shadow price $\mu$ would represent the CO~2~ price in this case.
 
-This global constraint is added in the function `define_primary_energy_limit()`.
-
 ??? note "Mapping symbols to component attributes"
 
     | Symbol | Attribute | Type |
@@ -61,8 +59,6 @@ without the consideration of specific emissions and efficiencies. The shadow
 price $\mu$ (in currency/MWh) would represent the reduction in system costs if
 the operational limit were relaxed by one unit.
 
-This global constraint is added in the function `define_operational_limit()`.
-
 ??? note "Mapping symbols to component attributes"
 
     | Symbol | Attribute | Type |
@@ -82,8 +78,6 @@ $$\sum_{l\in L_{\textrm{carriers}}} d_{l} F_{l} \leq \Gamma \quad \leftrightarro
 
 where $L_{\textrm{carriers}}$ is the set of lines and links with the specified carriers, $\Gamma$ is the maximum allowed volume expansion in MWkm, $d_{l}$ is the distance of line or link $l$ in km and $F_{l}$ is the capacity of line or link $l$ in MW. The shadow price $\mu$ represents the marginal benefit of expanding the transmission capacity in currency/MWkm/a.
 
-This global constraint is added in the function `define_transmission_volume_expansion_limit()`.
-
 ??? note "Mapping symbols to component attributes"
 
     | Symbol | Attribute | Type |
@@ -100,8 +94,6 @@ This global constraint can be used to limit the total investment cost in currenc
 $$\sum_{l\in L_{\textrm{carriers}}} c_{l} F_{l} \leq \Gamma \quad \leftrightarrow  \quad \mu$$
 
 where $L_{\textrm{carriers}}$ is the set of lines and links with the specified carriers, $c_{l}$ is the capital cost of line or link $l$ in currency/MW/a, $F_{l}$ is the capacity of line or link $l$ in MW and $\Gamma$ is the maximum allowed cost of line expansion in currency/a. The shadow price $mu$ represents how much the total system cost could be reduced if the spending limit was increased by one currency/a.
-
-This global constraint is added in the function `define_transmission_expansion_cost_limit()`.
 
 ??? note "Mapping symbols to component attributes"
 
@@ -127,8 +119,6 @@ $$\sum_{s | b_s<=a<b_s+L_s} G_{n,s} \leq  \Gamma \quad a \in A \quad \leftrighta
 where $A$ are the investment periods, $s$ are all extendable generators of the specified carrier, $b_s$ is the build year of an asset $s$ with lifetime $L_s$. In this example, the shadow price $\mu$ would represent the marginal benefit of expanding the capacity of onshore wind in currency/MW/a.
 
 In general, the constraint would iterate over all investment variables for generators $G_{n,s}$, lines and transformers $P_{l}$, links $F_{l}$, stores $E_{n,s}$ and storage units $H_{n,s}$ for the specified carrier and bus. For components connecting two buses, the bus selection is done by `bus0`.
-
-This global constraint is added in the function `define_tech_capacity_expansion_limit()`.
 
 ??? note "Mapping symbols to component attributes"
 
@@ -164,7 +154,7 @@ This constraint only applies to networks with multiple investment periods and on
 
 In general, the constraint would iterate over all investment variables for generators $G_{n,s}$, lines and transformers $P_{l}$, links $F_{l}$, stores $E_{n,s}$ and storage units $H_{n,s}$ for the specified carrier. For components connecting two buses, the bus selection is done by `bus0`.
 
-This global constraint is added in the function `define_growth_limit()` and carries the name `Carrier-growth_limit`.
+This global constraint carries the name `Carrier-growth_limit`.
 
 ??? note "Mapping symbols to component attributes"
 
@@ -203,8 +193,6 @@ The sensitivities $\text{PTDF}_{c,z,t}$ are the zonal power transfer distributio
 $$\sum_{z \in D} NP_{z,t} = 0.$$
 
 By default all zones form one domain. Rows that name their `domain`, e.g. Core and Nordic, give one balance per named domain. A link between two domains then acts as an AHC corridor in each. The rows of one domain see neither the zones nor the hubs of the other ($\text{PTDF}$ and $h$ are 0 there), so the EvFB and AHC formulas below give the same column.
-
-The net-position variable is added in `define_flow_based_variables()` and these constraints in `define_flow_based_constraints()`; the net-position injection is added in `define_nodal_balance_constraints()` via `flow_based_balance_terms()`.
 
 ### Controllable link flows (AHC and EvFB)
 
@@ -246,8 +234,6 @@ which is $h - \text{PTDF}_z$ for an AHC link into zone $z$, and $(h_B - h_A) - (
     | zero-sum balance | $\sum_z NP_z = 0$ | $\sum_z NP_z + \sum_{\text{hubs}} f = 0$ |
 
     PyPSA uses the first form because the link then needs no special treatment in the nodal balance. After solving, `n.buses_t.net_position` reports the virtual-hub net position $g_z - d_z$ of each zone bus, i.e. `n.buses_t.p` without the flows of its corridor links.
-
-These terms are built in `define_flow_based_constraints()`.
 
 ??? note "Mapping symbols to component attributes"
 

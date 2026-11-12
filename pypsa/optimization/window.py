@@ -19,18 +19,12 @@ import functools
 import logging
 from typing import TYPE_CHECKING, Any
 
-import numpy as np
 import pandas as pd
 import xarray as xr
-from linopy import merge
 
 from pypsa._linopy_compat import use_flat_snapshot_index
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-    from linopy import LinearExpression, Variable
-
     from pypsa import Network
 
 logger = logging.getLogger(__name__)
@@ -158,67 +152,6 @@ class SnapshotWindow:
     def period_of(self) -> pd.Index:
         """Investment period of each snapshot of the window."""
         return self.network_index.get_level_values("period")
-
-    @property
-    def start(self) -> Any:
-        """First snapshot of the window, in the network's labelling."""
-        return self.network_index[0]
-
-    def iter_periods(self) -> Iterator[tuple[Any, pd.Index]]:
-        """Yield `(period, snapshots)` pairs for per-period constraint building.
-
-        Yields a single `(None, model_index)` pair unless the model was built
-        with `multi_investment_periods=True`.
-        """
-        if not self._n._multi_invest:
-            yield None, self.model_index
-            return
-        period_of = self.period_of
-        for period in self.periods:
-            yield period, self.model_index[period_of == period]
-
-    def period_start_mask(self) -> xr.DataArray:
-        """Mark the first snapshot of each investment period within the window."""
-        is_start = np.zeros(len(self.model_index), dtype=bool)
-        is_start[0] = True
-        if self.has_periods:
-            periods = self.period_of.to_numpy()
-            is_start[1:] = periods[1:] != periods[:-1]
-        return snapshot_array(is_start, self.model_index)
-
-    def take(self, v: Variable, positions: Any) -> Variable:
-        """Positionally select snapshots from `v`, keeping the window's labels.
-
-        For shifts and rolls: the result carries the window's own snapshot
-        coordinates, staying aligned with the un-shifted variable.
-        """
-        if not v.indexes["snapshot"].equals(self.model_index):
-            v = v.sel(snapshot=self.model_index)
-        keep = {c: v.coords[c] for c in ("snapshot", *SNAPSHOT_LEVELS) if c in v.coords}
-        return v.isel(snapshot=positions).assign_coords(keep)
-
-    def roll_within_periods(self, v: Variable) -> Variable:
-        """Cyclically roll `v` by one snapshot within each investment period."""
-        n_sns = len(self.model_index)
-        starts = np.flatnonzero(self.period_start_mask().to_numpy())
-        positions = np.arange(n_sns) - 1
-        positions[starts] = np.append(starts[1:], n_sns) - 1
-        return self.take(v, positions)
-
-    def merge(self, exprs: list[LinearExpression]) -> LinearExpression:
-        """Outer-merge expressions on `snapshot`, preserving the flat aux coords.
-
-        The aux coords must be dropped before the strict outer merge — differing
-        periods on collided labels read as a conflict — and re-derived afterwards.
-        """
-        merged = merge([self.drop_aux(e) for e in exprs], dim="snapshot", join="outer")
-        return self._attach_aux(merged)
-
-    def concat(self, arrays: list[xr.DataArray], fill_value: float) -> xr.DataArray:
-        """Outer-concatenate arrays on `snapshot`, preserving the flat aux coords."""
-        dropped = [self.drop_aux(a) for a in arrays]
-        merged = xr.concat(dropped, dim="snapshot", join="outer", fill_value=fill_value)
-        return self._attach_aux(merged)
 
     def _attach_aux(self, obj: Any) -> Any:
         """Re-derive the aux coords of a flat `snapshot` dim from its tuple labels.

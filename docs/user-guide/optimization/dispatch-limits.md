@@ -30,8 +30,6 @@ For non-extendable components (`{p,s}_nom_extendable=False`), the dispatch is li
 
 where $\hat{g}_{n,s}$, $\hat{f}_{l}$, $\hat{r}_{m}$, and $\hat{p}_{l}$ are the nominal capacities; $\underline{g}_{n,s,t}$, $\underline{f}_{l,t}$, $\underline{r}_{m,t}$, $\bar{g}_{n,s,t}$, $\bar{f}_{l,t}$, $\bar{r}_{m,t}$ and $\bar{p}_{l,t}$ are time-dependent restrictions on the dispatch given per unit of nominal capacity (e.g. due to wind availability for generators or dynamic line rating and security margins for lines).
 
-These constraints are set in the function `define_operational_constraints_for_non_extendables()`.
-
 ## Extendable Components
 
 For extendable components  (`{p,s}_nom_extendable=True`), the dispatch is limited by:
@@ -49,8 +47,6 @@ Constraint | Dual Variable | | Name |
 
 where $G_{n,s}$, $F_{l}$, $R_{m}$, and $P_{l}$ are the nominal capacities to be optimised.
 
-These constraints are set in the function `define_operational_constraints_for_extendables()`.
-
 ## Fixed Dispatch
 
 Additionally, the dispatch can be fixed to a certain value $\tilde{g}_{n,s,t}$ for generators, $\tilde{f}_{l,t}$ for links and $\tilde{r}_{m,t}$ for processes. In this case, the dispatch is given by:
@@ -61,8 +57,6 @@ Constraint | Dual Variable | | Name |
 | $g_{n,s,t} = \tilde{g}_{n,s,t}$ | $w_t^o  \tilde{\mu}_{n,s,t}$ | `n.generators_t.mu_p_set` | `Generator-p_set` |
 | $f_{l,t} = \tilde{f}_{l,t}$ | $w_t^o  \tilde{\mu}_{l,t}$ | `n.links_t.mu_p_set` | `Link-p_set` |
 | $r_{m,t} = \tilde{r}_{m,t}$ | $w_t^o  \tilde{\mu}_{m,t}$ | `n.processes_t.mu_p_set` | `Process-p_set` |
-
-These constraints are set in the function `define_fixed_operation_constraints()`.
 
 ## Volume Limits
 
@@ -81,8 +75,6 @@ Generators, links, processes and stores can also have volume limits, i.e. the we
 
 The limited power has the sign convention of `p`. For links it is the withdrawal at `bus0`, and for processes the internal power `p`. For stores it is the net power, i.e. discharge minus charge (see [Storage](storage.md) for the symbol $h$). All volume limits use the generator snapshot weightings $w_t^g$, as [`n.statistics.energy_balance()`][pypsa.statistics.StatisticsAccessor.energy_balance].
 
-These constraints are set in the function `define_total_supply_constraints()`.
-
 !!! note "Rolling horizon"
 
     In [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] the volume limits apply to all snapshots of the rolling horizon. Each window gets the part of the limit left open by previous windows and by what later windows can at most ($\bar{e}$) or must at least ($\underline{e}$) produce given their capacity, `p_min_pu` and `p_max_pu`. Committable and maintainable components may produce nothing in later windows, inactive components produce nothing. Without foresight, a maximum is depleted by the earliest windows and a minimum is filled by the latest windows, which may turn the last window infeasible.
@@ -100,7 +92,7 @@ For a line the angle difference is $\theta_{l,t} = x^\text{pu,eff}_l \, p_{l,t}$
 | $p_{t,t} + \phi_{t,t} / x^\text{pu,eff}_t \geq -\bar{\theta}_t / x^\text{pu,eff}_t$ | `Transformer-v_ang-lower` |
 | $p_{t,t} + \phi_{t,t} / x^\text{pu,eff}_t \leq \bar{\theta}_t / x^\text{pu,eff}_t$ | `Transformer-v_ang-upper` |
 
-These constraints are set in the function `define_voltage_angle_constraints()`. For background on voltage angle difference limits, see the [MATPOWER manual](https://matpower.org/docs/MATPOWER-manual.pdf), pages 76-77.
+For background on voltage angle difference limits, see the [MATPOWER manual](https://matpower.org/docs/MATPOWER-manual.pdf), pages 76-77.
 
 
 !!! note "Mapping of symbols to attributes"

@@ -9,30 +9,27 @@ from __future__ import annotations
 import gc
 import logging
 from functools import reduce
-from itertools import product
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 from linopy.solvers import Solver, SolverFeature, available_solvers
 
-from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import _scenarios_not_implemented, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.consistency import OPTIMIZE_STRICT_CHECKS
 from pypsa.descriptors import nominal_attrs
-from pypsa.optimization.constraints import ENERGY_LIMITS, ENERGY_WEIGHTING
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from linopy import Model
-
-    from pypsa import Components, Network, SubNetwork
+    from pypsa import Components, Network
 logger = logging.getLogger(__name__)
+
+ENERGY_WEIGHTING = "generators"
+ENERGY_LIMITS = (("e_sum_min", ">=", -np.inf), ("e_sum_max", "<=", np.inf))
 
 _STORAGE_LEVELS = (
     ("stores", "e_initial", "e"),
@@ -124,78 +121,6 @@ def discretized_capacity(
             return nom_max
         return (nom_opt // unit_size) * unit_size
     return block_capacity
-
-
-@suppress_semantics_warnings()
-def _add_security_constraints(
-    m: Model,
-    sub_network: SubNetwork,
-    branch_outages: pd.MultiIndex,
-    selection: dict[str, pd.Index],
-    suffix: str,
-) -> None:
-    """Add branch outage constraints of a sub-network to the model.
-
-    Parameters
-    ----------
-    m : linopy.Model
-        Model to add the constraints to.
-    sub_network : pypsa.SubNetwork
-        Sub-network whose branch outage distribution factors are used.
-    branch_outages : pandas.MultiIndex
-        Passive branches to consider as possible outages.
-    selection : dict
-        Selection applied to flows and branch flow constraints, e.g. the
-        snapshots of an investment period.
-    suffix : str
-        Suffix appended to the constraint names.
-
-    """
-    branches_i = sub_network.branches_i()
-    outages = branches_i.intersection(branch_outages)
-    if outages.empty:
-        return
-
-    sub_network.calculate_BODF()
-    BODF = pd.DataFrame(sub_network.BODF, index=branches_i, columns=branches_i)[outages]
-
-    for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
-        c_outage_ = c_outage + "-outage"
-        c_outages = outages.get_loc_level(c_outage)[1]
-        flow_outage = m.variables[c_outage + "-s"].sel(name=c_outages, **selection)
-        flow_outage = flow_outage.rename({"name": c_outage_})
-
-        bodf = BODF.loc[c_affected, c_outage]
-        bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
-        added_flow = flow_outage * bodf
-
-        for bound, kind in product(("lower", "upper"), ("fix", "ext")):
-            constraint = c_affected + "-" + kind + "-s-" + bound
-            if constraint not in m.constraints:
-                continue
-
-            con = m.constraints[constraint]
-
-            idx = con.lhs.indexes["name"].intersection(added_flow.indexes[c_affected])
-            con_selection = {"name": idx, **selection}
-
-            added_flow_aligned = added_flow.sel({c_affected: idx}).rename(
-                {c_affected: "name"}
-            )
-            lhs = con.lhs.sel(con_selection) + added_flow_aligned
-
-            name = (
-                constraint
-                + f"-security-for-{c_outage_}-in-sub-network-{sub_network.name}"
-                + suffix
-            )
-            m.add_constraints(
-                lhs,
-                con.sign.sel(con_selection),
-                con.rhs.sel(con_selection),
-                name=name,
-                scaling=con.scaling.sel(con_selection),
-            )
 
 
 def _energy_weightings(n: Network, multi_invest: bool) -> pd.Series:

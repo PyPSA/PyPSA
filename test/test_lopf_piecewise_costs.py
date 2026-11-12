@@ -182,6 +182,33 @@ class TestPiecewiseCostsDefine:
                 piecewise_options=[base | option for option in options],
             )
 
+    @pytest.mark.parametrize(
+        ("attrs", "match"),
+        [
+            pytest.param(
+                {"p_nom_extendable": True},
+                r"not supported for extendable components .* \['gen'\]",
+                id="extendable",
+            ),
+            pytest.param(
+                {"p_nom": 0.0},
+                r"cannot be scaled .* missing p_nom\. Problematic components: \['gen'\]",
+                id="zero-p_nom",
+            ),
+        ],
+    )
+    def test_piecewise_per_unit_curve_needs_fixed_nominal(
+        self,
+        convex_marginal_cost_network: pypsa.Network,
+        attrs: dict[str, Any],
+        match: str,
+    ) -> None:
+        n = convex_marginal_cost_network
+        for attr, value in attrs.items():
+            n.c.generators.static.loc["gen", attr] = value
+        with pytest.raises(ValueError, match=match):
+            n.optimize.create_model(include_objective_constant=False)
+
     def test_piecewise_unsorted_rows_get_sorted(self) -> None:
         """Shuffled segment rows must produce the same dispatch as sorted rows."""
         sorted_costs = pd.DataFrame(

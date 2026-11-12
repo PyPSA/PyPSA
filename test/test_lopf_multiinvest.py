@@ -1337,7 +1337,7 @@ def test_window_flatten_keeps_pre_window_history(n):
     da = window.flatten(snapshot_array(weightings.to_numpy(), weightings.index))
 
     assert len(da.indexes["snapshot"]) == len(n.snapshots)
-    start_i = n.snapshots.get_loc(window.start)
+    start_i = n.snapshots.get_loc(window.network_index[0])
     prev = da.isel(snapshot=start_i - 1)
     assert prev.item() == n.snapshot_weightings.objective.iloc[start_i - 1]
 
@@ -1351,28 +1351,10 @@ def test_window_subset_realigns_a_strict_subset(windowed_n):
     equal(subset.periods, windowed_n.investment_periods[:1])
 
 
-def test_window_subset_roll_within_periods(windowed_n):
-    """Rolling on a subset window aligns the full-build variable to the subset."""
-    window = windowed_n.optimize._window
-    subset = window.subset(window.model_index[:7])
-    p = windowed_n.model["Generator-p"]
-
-    rolled = subset.roll_within_periods(p)
-    pd.testing.assert_index_equal(rolled.indexes["snapshot"], subset.model_index)
-
-
 def test_window_subset_rejects_unknown_snapshots(windowed_n):
     window = windowed_n.optimize._window
     with pytest.raises(KeyError):
         window.subset(pd.Index(["not-a-snapshot"], name="snapshot"))
-
-
-def test_window_iter_periods_partitions_the_build(windowed_n):
-    window = windowed_n.optimize._window
-    periods, chunks = zip(*window.iter_periods())
-
-    equal(list(periods), list(windowed_n.investment_periods))
-    pd.testing.assert_index_equal(chunks[0].append(chunks[1:]), window.model_index)
 
 
 def test_flat_labels_are_the_snapshot_tuples(n):

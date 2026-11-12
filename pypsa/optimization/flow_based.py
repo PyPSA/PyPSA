@@ -28,12 +28,9 @@ from pypsa.optimization.common import get_bus_counts
 from pypsa.optimization.window import snapshot_array
 
 if TYPE_CHECKING:
-    from linopy import LinearExpression
-
     from pypsa import Network
 
 NET_POSITION = "FlowBased-net_position"
-BALANCE = "FlowBased-balance"
 RAM_CONSTRAINT = "GlobalConstraint-ram"
 
 
@@ -202,95 +199,6 @@ def _build_domain(n: Network, sns: pd.Index) -> _FlowBasedDomain | None:
 
     zone_domain = _zone_domains(n, rows, zones)
     return _FlowBasedDomain(rows, zones, links, ptdf, ram, mask, zone_domain)
-
-
-def define_flow_based_variables(n: Network, sns: pd.Index) -> _FlowBasedDomain | None:
-    """Define the zonal net positions of the flow-based domain.
-
-    Validates the domain and adds the unbounded variable `FlowBased-net_position`
-    over snapshots and zone buses. A no-op without `flow_based` rows.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network to optimise.
-    sns : pandas.Index
-        Snapshots of the model.
-
-    Returns
-    -------
-    _FlowBasedDomain or None
-        The validated domain for `define_flow_based_constraints`, None without
-        `flow_based` rows.
-
-    """
-    domain = _build_domain(n, sns)
-    if domain is None:
-        return None
-    coords = [sns, pd.Index(domain.zones, name="bus")]
-    if n.has_scenarios:
-        coords = [n.scenarios, *coords]
-    n.model.add_variables(coords=coords, name=NET_POSITION)
-    return domain
-
-
-def flow_based_balance_terms(n: Network, buses: pd.Index) -> list[LinearExpression]:
-    """Nodal balance terms `-NP` of the zone buses among `buses`.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network to optimise.
-    buses : pandas.Index
-        Buses of the nodal balance constraint being built.
-
-    Returns
-    -------
-    list[linopy.LinearExpression]
-        One expression over `name`, empty when no zone bus is in `buses`.
-
-    """
-    if n.c.global_constraints._flow_based_names().empty:
-        return []
-    net_position = n.model[NET_POSITION]
-    sel = net_position.indexes["bus"].intersection(buses)
-    if sel.empty:
-        return []
-    return [(-1 * net_position.sel(bus=sel)).rename({"bus": "name"})]
-
-
-def define_flow_based_constraints(n: Network, domain: _FlowBasedDomain | None) -> None:
-    """Define the flow-based domain constraints.
-
-    Adds `GlobalConstraint-ram`, the PTDF-weighted net positions and corridor
-    flows of every CNEC limited by its `ram`, and `FlowBased-balance`, the zone
-    net positions summing to zero, per named `domain` if rows name one. A row
-    with an `investment_period` binds only in that period's snapshots, and a
-    row with a NaN `ram` is dropped in that snapshot. `constant` is not read.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network to optimise.
-    domain : _FlowBasedDomain or None
-        Domain returned by `define_flow_based_variables`, None is a no-op.
-
-    """
-    if domain is None:
-        return
-    m = n.model
-    net_position = m[NET_POSITION]
-    lhs = (net_position * domain.ptdf.sel(bus=domain.zones)).sum("bus")
-    if not domain.links.empty:
-        flows = (1 * m["Link-p"].sel(name=domain.links)).rename({"name": "bus"})
-        lhs += (flows * domain.ptdf.sel(bus=domain.links)).sum("bus")
-    mask = xr.broadcast(domain.mask, domain.ram)[0]
-    m.add_constraints(lhs <= domain.ram, name=RAM_CONSTRAINT, mask=mask)
-    if domain.zone_domain is None:
-        balance = net_position.sum("bus")
-    else:
-        balance = net_position.groupby(domain.zone_domain.to_xarray()).sum()
-    m.add_constraints(balance == 0, name=BALANCE)
 
 
 def flow_based_net_position(n: Network) -> pd.DataFrame | None:
