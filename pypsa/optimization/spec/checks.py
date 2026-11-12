@@ -15,6 +15,7 @@ import numpy as np
 from pypsa.components.common import invariant
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.piecewise import get_piecewise_names
+from pypsa.optimization.spec._render import formulated
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -27,7 +28,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-COMMITTABLE = ["Generator", "Link", "Process"]
 OPERATIONAL_COSTS = (
     "marginal_cost",
     "marginal_cost_quadratic",
@@ -93,7 +93,7 @@ def _check_deprecations(n: Network) -> None:
 
 def _check_modules(n: Network) -> None:
     """Raise if a fixed, modular committable's capacity is no multiple of its module."""
-    for c in n.components[COMMITTABLE]:
+    for c in formulated(n, "commitment"):
         names = (
             c.committables.intersection(c.active_assets)
             .intersection(c.modulars)
@@ -116,7 +116,7 @@ def _check_modules(n: Network) -> None:
 
 def _check_tightening(n: Network) -> None:
     """Warn if the linearised unit commitment cannot be tightened for some units."""
-    for c in n.components[COMMITTABLE]:
+    for c in formulated(n, "commitment"):
         names = c.committables.intersection(c.active_assets)
         if names.empty:
             continue
@@ -207,7 +207,7 @@ def _has_costs(n: Network, sns: pd.Index) -> bool:
                 c.has_piecewise(attr) or _any_nonzero(c.da[attr], active, sns)
             ):
                 return True
-        if c.name in COMMITTABLE:
+        if "commitment" in c._formulation:
             committables = c.committables.intersection(active)
             if any(_any_nonzero(c.da[a], committables, sns) for a in COMMITMENT_COSTS):
                 return True
