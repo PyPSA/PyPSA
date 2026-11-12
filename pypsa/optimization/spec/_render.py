@@ -5,10 +5,22 @@
 """Render a spec from its system file, each component's traits and its own file.
 
 A file under `traits/` states a formulation once for every component that
-declares the trait in `_formulation`. It is plain mathspec in which `${C}`
-stands for the component's name, `${c}` for its unit dimension, `${nom}` for
-its nominal attribute and `${unit}` for its unit dimension in prose. A file
-under `components/` holds what a component shares with no other.
+declares the trait in `_formulation`. It is plain mathspec with these
+placeholders, which `string.Template` fills per component:
+
+- `${C}`: the component's name, as `StorageUnit`.
+- `${c}`: its unit dimension, as `storage_unit`.
+- `${nom}`: its nominal attribute, as `p_nom`.
+- `${unit}`: its unit dimension in prose, as `storage unit`.
+- `${p}`: its power variable, `p` or `p_dispatch`, where it has one.
+- `${level}`: its storage level variable, `e` or `state_of_charge`, and
+  `${cyclic}` its cyclic flag, where it stores energy.
+- `${coef}`: the attribute that scales `p` at each port, `efficiency` or
+  `rate`, where it has ports.
+
+A component lacks a placeholder it has no value for, so a trait that uses
+one fails to render for it. A file under `components/` holds what a
+component shares with no other.
 """
 
 from __future__ import annotations
@@ -40,7 +52,16 @@ def symbols(c: Components) -> dict[str, str]:
     """Return what the placeholders of a trait stand for in component *c*."""
     dim = c._unit_dim
     nom = c._operational_attrs["nom"]
-    return {"C": c.name, "c": dim, "nom": nom, "unit": dim.replace("_", " ")}
+    found = {"C": c.name, "c": dim, "nom": nom, "unit": dim.replace("_", " ")}
+    power = [v for v in c._operational_variables if v.startswith("p")]
+    if power:
+        found["p"] = power[0]
+    if c._level_attrs:
+        initial, found["cyclic"] = c._level_attrs
+        found["level"] = initial.removesuffix("_initial")
+    if coefficient := getattr(c, "_coefficient_attr", None):
+        found["coef"] = coefficient
+    return found
 
 
 def _merge(spec: dict[str, Any], fragment: dict[str, Any], origin: str) -> None:
