@@ -16,6 +16,13 @@ from __future__ import annotations
 from string import Template
 from typing import TYPE_CHECKING, Any
 
+#: A PyPSA name: one string, or one per transmission loss mode.
+Name = str | dict[str, str]
+#: The PyPSA names of the spec's entries, by section and entry.
+Names = dict[str, dict[str, Name]]
+#: The sections whose entries may carry a `name:`.
+NAMED = ("variables", "constraints", "piecewise")
+
 if TYPE_CHECKING:
     from importlib.resources.abc import Traversable
 
@@ -45,12 +52,23 @@ def _merge(spec: dict[str, Any], fragment: dict[str, Any], origin: str) -> None:
         held |= body
 
 
-def render(root: Traversable) -> dict[str, Any]:
-    """Return the spec *root* states, as a dict for `mathspec.to_spec`.
+def _names(spec: dict[str, Any]) -> Names:
+    """Pop the `name:` of each entry of *spec*, which the closed mathspec schema refuses."""
+    names: Names = {}
+    for section in NAMED:
+        entries = spec.get(section, {})
+        names[section] = {k: v.pop("name") for k, v in entries.items() if "name" in v}
+    return names
+
+
+def render(root: Traversable) -> tuple[dict[str, Any], Names]:
+    """Return the spec *root* states, as a dict for `mathspec.to_spec`, and its PyPSA names.
 
     It is `system.yaml`, then for each component every trait file under
     `traits/` it declares and its own file under `components/`, wherever
-    *root* has one.
+    *root* has one. An entry of a variable, constraint or piecewise curve
+    may state its PyPSA name in `name:`, one per loss mode where PyPSA
+    names it by mode; one without keeps its key as name.
 
     Raises:
         ValueError: Two files declare one entry.
@@ -69,4 +87,4 @@ def render(root: Traversable) -> dict[str, Any]:
             if path.is_file():
                 text = Template(path.read_text()).substitute(mapping)
                 _merge(spec, parse_yaml(text, str(path)), str(path))
-    return spec
+    return spec, _names(spec)

@@ -51,9 +51,10 @@ relations:
 
 variables:
   ${C}_maintenance:
+    name: ${C}-maintenance
     description: >-
-      `${C}-maintenance` — whether a maintainable ${c} is in maintenance:
-      continuous, and one exactly where an event covers the snapshot
+      whether a maintainable ${c} is in maintenance: continuous, and one exactly
+      where an event covers the snapshot
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maintainable AND ${C}_active
     missing: 0
@@ -61,25 +62,27 @@ variables:
       lower: 0
       upper: 1
   ${C}_maintenance_start:
-    description: "`${C}-maintenance_start` — whether a maintenance event starts in this snapshot"
+    name: ${C}-maintenance_start
+    description: whether a maintenance event starts in this snapshot
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maintainable AND ${C}_active
     missing: 0
     domain: binary
   ${C}_maintenance_capacity:
+    name: ${C}-maintenance_capacity
     description: >-
-      `${C}-maintenance_capacity` — the chosen build while in maintenance, zero
-      otherwise: the product the `maintcap` rows linearise
+      the chosen build while in maintenance, zero otherwise: the product the
+      `maintcap` rows linearise
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maint_ext
     missing: 0
     bounds:
       lower: 0
   ${C}_maintenance_status:
+    name: ${C}-maintenance_status
     description: >-
-      `${C}-maintenance_status` — the status while in maintenance, zero
-      otherwise: the product the `maint-status` rows linearise, so a unit in
-      maintenance may also be off
+      the status while in maintenance, zero otherwise: the product the
+      `maint-status` rows linearise, so a unit in maintenance may also be off
     dims: [scenario, snapshot, "${c}"]
     where: >-
       ${C}_maintainable AND ${C}_committed AND NOT (${C}_${nom}_extendable AND
@@ -113,98 +116,99 @@ conditions:
 
 constraints:
   ${C}_maint_event_count:
-    description: >-
-      `${C}-maint-event-count` — a maintainable ${c} holds its number of
-      maintenance events over the horizon
+    name: ${C}-maint-event-count
+    description: a maintainable ${c} holds its number of maintenance events over the horizon
     dims: [scenario, "${c}"]
     where: ${C}_maintainable
     expression: sum(${C}_maintenance_start, over=snapshot) == ${C}_maintenance_events
   ${C}_maint_window:
+    name: ${C}-maint-window
     description: >-
-      `${C}-maint-window` — a ${c} is in maintenance exactly where an event it
-      started covers the snapshot. Two events do not overlap, since the
-      maintenance status is at most one
+      a ${c} is in maintenance exactly where an event it started covers the
+      snapshot. Two events do not overlap, since the maintenance status is at
+      most one
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maintainable AND ${C}_active
     expression: >-
       ${C}_maintenance == sum(${C}_maintenance_start, over=start,
       by=${C}_maintenance_cover[covered])
   ${C}_maint_start_horizon:
-    description: >-
-      `${C}-maint-start-horizon` — no event starts where it could not run its
-      whole duration
+    name: ${C}-maint-start-horizon
+    description: no event starts where it could not run its whole duration
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maintainable AND ${C}_active AND ${C}_maintenance_start_blocked
     expression: ${C}_maintenance_start == 0
   ${C}_maintcap_upper:
+    name: ${C}-maintcap_upper
     description: >-
-      `${C}-maintcap_upper` — the build taken off is at most the chosen build in
-      maintenance, and at most the build less its floor out of it
+      the build taken off is at most the chosen build in maintenance, and at
+      most the build less its floor out of it
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maint_ext
     expression: >-
       ${C}_maintenance_capacity <= ${C}_${nom}_ext - ${C}_${nom}_min * (1 -
       ${C}_maintenance)
   ${C}_maintcap_upper_nommax:
-    description: "`${C}-maintcap_upper_nommax` — out of maintenance, no build is taken off"
+    name: ${C}-maintcap_upper_nommax
+    description: out of maintenance, no build is taken off
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maint_ext
     expression: ${C}_maintenance_capacity <= ${C}_${nom}_max * ${C}_maintenance
   ${C}_maintcap_lower_nommax:
-    description: >-
-      `${C}-maintcap_lower_nommax` — in maintenance, the whole chosen build is
-      taken off
+    name: ${C}-maintcap_lower_nommax
+    description: in maintenance, the whole chosen build is taken off
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maint_ext
     expression: >-
       ${C}_maintenance_capacity >= ${C}_${nom}_ext - ${C}_${nom}_max * (1 -
       ${C}_maintenance)
   ${C}_maintcap_lower_nommin:
-    description: >-
-      `${C}-maintcap_lower_nommin` — in maintenance, at least the floor of the
-      build is taken off
+    name: ${C}-maintcap_lower_nommin
+    description: in maintenance, at least the floor of the build is taken off
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maint_ext AND ${C}_${nom}_min > 0
     expression: ${C}_maintenance_capacity >= ${C}_${nom}_min * ${C}_maintenance
   ${C}_maint_status_le_status:
-    description: "`${C}-maint-status-le-status` — the status in maintenance is at most the status"
+    name: ${C}-maint-status-le-status
+    description: the status in maintenance is at most the status
     dims: [scenario, snapshot, "${c}"]
     where: >-
       ${C}_maintainable AND ${C}_committed AND NOT ${C}_${nom}_extendable AND
       NOT (${C}_${nom}_mod > 0)
     expression: ${C}_maintenance_status <= ${C}_status
   ${C}_maint_status_le_maint:
-    description: >-
-      `${C}-maint-status-le-maint` — out of maintenance, the status in
-      maintenance is zero
+    name: ${C}-maint-status-le-maint
+    description: out of maintenance, the status in maintenance is zero
     dims: [scenario, snapshot, "${c}"]
     where: >-
       ${C}_maintainable AND ${C}_committed AND NOT ${C}_${nom}_extendable AND
       NOT (${C}_${nom}_mod > 0)
     expression: ${C}_maintenance_status <= ${C}_maintenance
   ${C}_maint_status_lb:
-    description: "`${C}-maint-status-lb` — on and in maintenance, the status in maintenance is one"
+    name: ${C}-maint-status-lb
+    description: on and in maintenance, the status in maintenance is one
     dims: [scenario, snapshot, "${c}"]
     where: >-
       ${C}_maintainable AND ${C}_committed AND NOT ${C}_${nom}_extendable AND
       NOT (${C}_${nom}_mod > 0)
     expression: ${C}_maintenance_status >= ${C}_status + ${C}_maintenance - 1
   ${C}_maint_modstatus_le_status:
-    description: >-
-      `${C}-maint-modstatus-le-status` — the modules on in maintenance are at
-      most the modules on
+    name: ${C}-maint-modstatus-le-status
+    description: the modules on in maintenance are at most the modules on
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maintainable AND ${C}_committed AND ${C}_${nom}_mod > 0
     expression: ${C}_maintenance_status <= ${C}_status
   ${C}_maint_modstatus_le_maint:
+    name: ${C}-maint-modstatus-le-maint
     description: >-
-      `${C}-maint-modstatus-le-maint` — out of maintenance, no module is on in
-      maintenance. In it, at most its modules in maintenance
+      out of maintenance, no module is on in maintenance. In it, at most its
+      modules in maintenance
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maintainable AND ${C}_committed AND ${C}_${nom}_mod > 0
     expression: ${C}_maintenance_status <= ${C}_maintenance_modules * ${C}_maintenance
   ${C}_maint_modstatus_lb:
-    description: "`${C}-maint-modstatus-lb` — in maintenance, every module on is on in maintenance"
+    name: ${C}-maint-modstatus-lb
+    description: in maintenance, every module on is on in maintenance
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_maintainable AND ${C}_committed AND ${C}_${nom}_mod > 0
     expression: >-

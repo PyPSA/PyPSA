@@ -252,22 +252,27 @@ relations:
 
 variables:
   FlowBased_net_position:
+    name: FlowBased-net_position
     description: >-
-      `FlowBased-net_position` — what a zone bus exports to the flow-based
-      domain, unbounded. It leaves the zone's nodal balance
-      (`flow_based.py:207-234`). A bus that is no zone has none
+      what a zone bus exports to the flow-based domain, unbounded. It leaves the
+      zone's nodal balance (`flow_based.py:207-234`). A bus that is no zone has
+      none
     dims: [scenario, snapshot, bus]
     where: Bus_flow_based_zone
     missing: 0
   CVaR_a:
-    description: "`CVaR-a` — how far a scenario's operating cost exceeds the tail's start. It is nothing where it does not"
+    name: CVaR-a
+    description: >-
+      how far a scenario's operating cost exceeds the tail's start. It is
+      nothing where it does not
     dims: [scenario]
     where: CVaR_omega
     missing: 0
     bounds:
       lower: 0
   CVaR_theta:
-    description: "`CVaR-theta` — where the tail starts, the value at risk"
+    name: CVaR-theta
+    description: where the tail starts, the value at risk
     dims: []
     where: CVaR_omega
     missing: 0
@@ -432,16 +437,16 @@ expressions:
 
 constraints:
   Kirchhoff_Voltage_Law:
+    name: Kirchhoff-Voltage-Law
     description: >-
-      `Kirchhoff-Voltage-Law` — around every independent cycle the
-      impedance-weighted flows sum to nothing. This makes the linear power
-      flow physical rather than transport. A transformer's flow weighs its
-      effective reactance, and its phase shift enters the cycle sum too. The
-      shift is a constant where it is fixed. Where a phase-shifting
-      transformer chooses its shift, it is the shift decision times its cycle
-      weight. A snapshot uses the cycles of its own period, of the branches
-      that are active in it (`constraints.py:1710-1729`). A cycle label that
-      period's basis does not reach has no row
+      around every independent cycle the impedance-weighted flows sum to
+      nothing. This makes the linear power flow physical rather than transport.
+      A transformer's flow weighs its effective reactance, and its phase shift
+      enters the cycle sum too. The shift is a constant where it is fixed. Where
+      a phase-shifting transformer chooses its shift, it is the shift decision
+      times its cycle weight. A snapshot uses the cycles of its own period, of
+      the branches that are active in it (`constraints.py:1710-1729`). A cycle
+      label that period's basis does not reach has no row
     dims: [scenario, snapshot, cycle]
     where: at(Cycle_in_basis, by=snapshot_period[period])
     expression: Cycle_angle_sum == 0
@@ -521,27 +526,28 @@ constraints:
     where: GlobalConstraint_type == 'tech_capacity_expansion_limit' AND GlobalConstraint_sense == '=='
     expression: tech_capacity_expansion == GlobalConstraint_constant
   Bus_nodal_balance:
+    name: Bus-nodal_balance
     description: >-
-      `Bus-nodal_balance` — what is generated at a bus meets the load there,
-      less half of every incident line's and transformer's loss. What is
-      generated includes storage dispatch and stores. It is net of what the
-      links take away, plus what arrives over them after losses and any delay
-      at every port they deliver to. Each process port draws or delivers at
-      its own rate, and each passive branch carries its flow. PyPSA dissipates
-      a branch's loss half at either end. Each generator, storage unit, store
-      and load term enters with its component's `sign`
-      (`constraints.py:1480-1481`, `:1592`), and an inactive load not at all.
-      A bus nothing is attached to has no row. PyPSA refuses one that carries
-      load. The file states no assumption for it.
+      what is generated at a bus meets the load there, less half of every
+      incident line's and transformer's loss. What is generated includes storage
+      dispatch and stores. It is net of what the links take away, plus what
+      arrives over them after losses and any delay at every port they deliver
+      to. Each process port draws or delivers at its own rate, and each passive
+      branch carries its flow. PyPSA dissipates a branch's loss half at either
+      end. Each generator, storage unit, store and load term enters with its
+      component's `sign` (`constraints.py:1480-1481`, `:1592`), and an inactive
+      load not at all. A bus nothing is attached to has no row. PyPSA refuses
+      one that carries load. The file states no assumption for it.
     dims: [scenario, snapshot, bus]
     where: Bus_attached
     expression: Bus_injection == 0
   GlobalConstraint_flow_based_ub:
+    name: GlobalConstraint-ram
     description: >-
-      `flow_based` — a CNEC's flow, the zones' net positions and the corridor
-      links' flows each times its factor, is at most its remaining available
-      margin. PyPSA names the rows `GlobalConstraint-ram`, one per CNEC and
-      snapshot, and reads no `constant` (`flow_based.py:262-293`)
+      a CNEC's flow, the zones' net positions and the corridor links' flows each
+      times its factor, is at most its remaining available margin. PyPSA names
+      the rows `GlobalConstraint-ram`, one per CNEC and snapshot, and reads no
+      `constant` (`flow_based.py:262-293`)
     dims: [scenario, snapshot, global_constraint]
     where: >-
       GlobalConstraint_type == 'flow_based' AND GlobalConstraint_sense == '<='
@@ -551,16 +557,17 @@ constraints:
       + sum(GlobalConstraint_link_ptdf * Link_p, over=link)
       <= GlobalConstraint_ram
   FlowBased_balance:
-    description: "`FlowBased-balance` — the net positions of each domain's zones sum to zero"
+    name: FlowBased-balance
+    description: the net positions of each domain's zones sum to zero
     dims: [scenario, snapshot, flow_based_domain]
     expression: sum(FlowBased_net_position, over=bus, by=Bus_flow_based_domain[flow_based_domain]) == 0
   Carrier_growth_limit:
+    name: Carrier-growth_limit
     description: >-
-      `Carrier-growth_limit` — what a carrier adds in a period is at most its
-      allowance plus a share of what it added the period before. It counts
-      what its extendable components add, each build in the first period it
-      is active in. The first period has no predecessor, so `edge=0` leaves it
-      the bare allowance
+      what a carrier adds in a period is at most its allowance plus a share of
+      what it added the period before. It counts what its extendable components
+      add, each build in the first period it is active in. The first period has
+      no predecessor, so `edge=0` leaves it the bare allowance
     dims: [carrier, period]
     where: Carrier_max_growth
     expression: >-
@@ -568,12 +575,18 @@ constraints:
       - shift(Carrier_additions, along=period, offset=1, edge=0) * Carrier_relative_growth
       <= Carrier_max_growth
   CVaR_excess:
-    description: "`CVaR-excess-{s}` — a scenario's operating cost beyond the tail's start is its excess. PyPSA names one row per scenario"
+    name: CVaR-excess-{s}
+    description: >-
+      a scenario's operating cost beyond the tail's start is its excess. PyPSA
+      names one row per scenario
     dims: [scenario]
     where: CVaR_omega
     expression: CVaR_a - scenario_opex + CVaR_theta >= 0
   CVaR_def:
-    description: "`CVaR-def` — the tail's average is at least where it starts plus the expected excess over the tail's probability"
+    name: CVaR-def
+    description: >-
+      the tail's average is at least where it starts plus the expected excess
+      over the tail's probability
     dims: []
     where: CVaR_omega
     expression: CVaR_theta + 1 / (1 - CVaR_alpha) * sum(scenario_weight * CVaR_a, over=scenario) <= CVaR

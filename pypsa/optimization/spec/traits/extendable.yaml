@@ -25,18 +25,18 @@ parameters:
 
 variables:
   ${C}_n_mod:
-    description: >-
-      `${C}-n_mod` — how many modules of an extendable modular build. A unit
-      that is not active has none
+    name: ${C}-n_mod
+    description: how many modules of an extendable modular build. A unit that is not active has none
     dims: ["${c}"]
     where: ${C}_${nom}_extendable AND ${C}_${nom}_mod > 0 AND ${C}_active_asset
     domain: integer
     bounds:
       lower: 0
   ${C}_capital_cost_piecewise:
+    name: ${C}-capital_cost_piecewise
     description: >-
-      `${C}-capital_cost_piecewise` — the cost of the build of an extendable
-      ${unit} that pays along a curve, held above the curve
+      the cost of the build of an extendable ${unit} that pays along a curve,
+      held above the curve
     dims: ["${c}"]
     where: ${C}_capital_cost_curve
 
@@ -91,28 +91,26 @@ conditions:
 
 constraints:
   ${C}_ext_${nom}_lower:
-    description: >-
-      `${C}-ext-${nom}-lower` — the chosen build is at least its floor in every
-      scenario
+    name: ${C}-ext-${nom}-lower
+    description: the chosen build is at least its floor in every scenario
     dims: [scenario, "${c}"]
     where: ${C}_${nom}_extendable AND ${C}_active_asset
     expression: ${C}_${nom}_ext >= ${C}_${nom}_min
   ${C}_ext_${nom}_upper:
-    description: >-
-      `${C}-ext-${nom}-upper` — the chosen build is at most its cap in every
-      scenario. A cap of infinity is no row
+    name: ${C}-ext-${nom}-upper
+    description: the chosen build is at most its cap in every scenario. A cap of infinity is no row
     dims: [scenario, "${c}"]
     where: ${C}_${nom}_extendable AND ${C}_active_asset AND ${C}_${nom}_max
     expression: ${C}_${nom}_ext <= ${C}_${nom}_max
   ${C}_${nom}_set:
-    description: >-
-      `${C}-${nom}_set` — the chosen build pinned in every scenario, wherever a
-      value is given
+    name: ${C}-${nom}_set
+    description: the chosen build pinned in every scenario, wherever a value is given
     dims: [scenario, "${c}"]
     where: ${C}_${nom}_extendable AND ${C}_active_asset AND ${C}_${nom}_set
     expression: ${C}_${nom}_ext == ${C}_${nom}_set
   ${C}_${nom}_modularity:
-    description: "`${C}-${nom}_modularity` — the chosen build is a whole number of modules"
+    name: ${C}-${nom}_modularity
+    description: the chosen build is a whole number of modules
     dims: ["${c}"]
     where: ${C}_${nom}_extendable AND ${C}_${nom}_mod > 0 AND ${C}_active_asset
     expression: ${C}_${nom}_ext == ${C}_${nom}_mod * ${C}_n_mod

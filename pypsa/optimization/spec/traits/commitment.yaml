@@ -109,26 +109,29 @@ conditions:
 
 constraints:
   ${C}_status_p_fixed_upper:
+    name: ${C}-status-p-fixed-upper
     description: >-
-      `${C}-status-p-fixed-upper` — a status is at most the modules in place, an
-      explicit row as PyPSA writes it. The bound is one where the build is not
-      modular, and the fixed build's whole count of modules where it is
+      a status is at most the modules in place, an explicit row as PyPSA writes
+      it. The bound is one where the build is not modular, and the fixed build's
+      whole count of modules where it is
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_committed AND NOT (${C}_${nom}_extendable AND ${C}_${nom}_mod > 0)
     expression: ${C}_status <= ${C}_modules_installed
   ${C}_start_up_p_fixed_upper:
+    name: ${C}-start_up-p-fixed-upper
     description: >-
-      `${C}-start_up-p-fixed-upper` — a start is at most the modules in place,
-      an explicit row as PyPSA writes it. The bound is one where the build is
-      not modular, and the fixed build's whole count of modules where it is
+      a start is at most the modules in place, an explicit row as PyPSA writes
+      it. The bound is one where the build is not modular, and the fixed build's
+      whole count of modules where it is
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_committed AND NOT (${C}_${nom}_extendable AND ${C}_${nom}_mod > 0)
     expression: ${C}_start_up <= ${C}_modules_installed
   ${C}_shut_down_p_fixed_upper:
+    name: ${C}-shut_down-p-fixed-upper
     description: >-
-      `${C}-shut_down-p-fixed-upper` — a stop is at most the modules in place,
-      an explicit row as PyPSA writes it. The bound is one where the build is
-      not modular, and the fixed build's whole count of modules where it is
+      a stop is at most the modules in place, an explicit row as PyPSA writes
+      it. The bound is one where the build is not modular, and the fixed build's
+      whole count of modules where it is
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_committed AND NOT (${C}_${nom}_extendable AND ${C}_${nom}_mod > 0)
     expression: ${C}_shut_down <= ${C}_modules_installed

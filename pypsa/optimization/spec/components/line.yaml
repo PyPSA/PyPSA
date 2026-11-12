@@ -107,19 +107,21 @@ relations:
 
 variables:
   Line_loss:
+    name: Line-loss
     description: >-
-      `Line-loss` — what a line dissipates carrying its flow, pushed down by
-      the cost and held up by the cuts. Absent, and zero in the balance, where
-      the network is lossless
+      what a line dissipates carrying its flow, pushed down by the cost and held
+      up by the cuts. Absent, and zero in the balance, where the network is
+      lossless
     dims: [scenario, snapshot, line]
     where: Line_lossy
     missing: 0
     bounds:
       lower: 0
   Line_s_nom_ext:
+    name: Line-s_nom
     description: >-
-      `Line-s_nom` — nominal apparent power where it is a decision, for a line
-      that is active. A fixed build is the parameter of the same PyPSA name
+      nominal apparent power where it is a decision, for a line that is active.
+      A fixed build is the parameter of the same PyPSA name
     dims: [line]
     where: Line_s_nom_extendable AND Line_active_asset
 
@@ -158,10 +160,11 @@ conditions:
 
 piecewise:
   Line_capital_cost_lp:
+    name: Line-capital_cost_piecewise
     description: >-
-      `Line-capital_cost_piecewise` — the cost of the build of a line with a
-      curve is at least the curve at its nominal apparent power, stated as the
-      line of each segment, where linopy chooses the segment lines
+      the cost of the build of a line with a curve is at least the curve at its
+      nominal apparent power, stated as the line of each segment, where linopy
+      chooses the segment lines
     along: breakpoint
     dims: [line]
     where: Line_capital_cost_as_lp AND Line_capital_cost_curve AND Line_capital_cost_curve_nom
@@ -170,10 +173,11 @@ piecewise:
       s_nom: [Line_s_nom_ext, Line_capital_cost_curve_nom]
       cost: [Line_capital_cost_piecewise, Line_capital_cost_curve_cost, ">="]
   Line_capital_cost_incremental:
+    name: Line-capital_cost_piecewise
     description: >-
-      `Line-capital_cost_piecewise` — the cost of the build of a line with a
-      curve is at least the curve at its nominal apparent power, stated by
-      segments filled in order, where linopy chooses the incremental rows
+      the cost of the build of a line with a curve is at least the curve at its
+      nominal apparent power, stated by segments filled in order, where linopy
+      chooses the incremental rows
     along: breakpoint
     dims: [line]
     where: NOT Line_capital_cost_as_lp AND Line_capital_cost_curve AND Line_capital_cost_curve_nom
@@ -184,26 +188,30 @@ piecewise:
 
 constraints:
   Line_v_ang_lower:
+    name: Line-v_ang-lower
     description: >-
-      `Line-v_ang-lower` — an AC line carries at least the flow at which the
-      voltage angle difference across it is the negative of its limit. That
-      difference is `x_pu_eff` times the flow in radians
+      an AC line carries at least the flow at which the voltage angle difference
+      across it is the negative of its limit. That difference is `x_pu_eff`
+      times the flow in radians
     dims: [scenario, snapshot, line]
     where: Line_v_ang_max AND Line_carrier == 'AC' AND Line_active
     expression: Line_s >= -Line_v_ang_max * (3.141592653589793 / 180) / Line_x_pu_eff
   Line_v_ang_upper:
+    name: Line-v_ang-upper
     description: >-
-      `Line-v_ang-upper` — an AC line carries at most the flow at which the
-      voltage angle difference across it reaches its limit
+      an AC line carries at most the flow at which the voltage angle difference
+      across it reaches its limit
     dims: [scenario, snapshot, line]
     where: Line_v_ang_max AND Line_carrier == 'AC' AND Line_active
     expression: Line_s <= Line_v_ang_max * (3.141592653589793 / 180) / Line_x_pu_eff
   Line_loss_tangents_forward:
+    name:
+      tangents: Line-loss_tangents-{k}-1
+      secants: Line-loss_secants-pos
     description: >-
-      `Line-loss_tangents-{k}-1`, `Line-loss_secants-pos` — the loss sits
-      above every cut to its curve for flow one way. PyPSA names one row per
-      tangent `k`, or one row stacked over its `secant` axis, and this entry
-      states them all over the segment dimension
+      the loss sits above every cut to its curve for flow one way. PyPSA names
+      one row per tangent `k`, or one row stacked over its `secant` axis, and
+      this entry states them all over the segment dimension
     dims: [scenario, snapshot, line, segment]
     where: Line_lossy
     expression: Line_loss + Line_loss_slope * Line_s >= Line_loss_offset

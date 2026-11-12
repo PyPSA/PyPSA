@@ -4,9 +4,10 @@
 
 constraints:
   ${C}_com_p_current:
+    name: ${C}-com-p-current
     description: >-
-      `${C}-com-p-current` — output fits the share on, and the share starting up
-      only up to the start-up ramp (`constraints.py:744-757`)
+      output fits the share on, and the share starting up only up to the
+      start-up ramp (`constraints.py:744-757`)
     dims: [scenario, snapshot, "${c}"]
     where: >-
       ${C}_committable AND NOT ${C}_${nom}_extendable AND

@@ -27,7 +27,7 @@ from pypsa.optimization.spec._passive_network import (
     flow_based_zones,
     security_groups,
 )
-from pypsa.optimization.spec._render import formulated, render
+from pypsa.optimization.spec._render import Names, formulated, render
 from pypsa.optimization.spec.checks import check
 from pypsa.optimization.spec.sources import NetworkSources
 
@@ -58,10 +58,10 @@ def spec(
     """Return the spec of `n.optimize()`, patched for linearised unit commitment and piecewise options on request."""
     import mathspec  # noqa: PLC0415
 
-    base = mathspec.to_spec(render(SPEC))
+    base = mathspec.to_spec(render(SPEC)[0])
     patches: list[Any] = []
     if linearized_unit_commitment:
-        patches.append(render(SPEC / "linearized_uc"))
+        patches.append(render(SPEC / "linearized_uc")[0])
     if piecewise_options:
         patches.append(_piecewise_patch(base, piecewise_options))
     return mathspec.override(base, patches) if patches else base
@@ -137,22 +137,27 @@ def _piecewise_patch(base: Spec, options: Sequence[PiecewiseOptions]) -> dict:
     return {"piecewise": patch}
 
 
-def pypsa_name(name: str, description: str | None, mode: str | None = None) -> str:
-    """Return the PyPSA name of a spec entry: the backticked name its description opens with.
+@functools.cache
+def spec_names(linearized_unit_commitment: bool = False) -> Names:
+    """Return the PyPSA names the spec states, patched for linearised unit commitment on request."""
+    found = render(SPEC)[1]
+    if linearized_unit_commitment:
+        for section, patched in render(SPEC / "linearized_uc")[1].items():
+            found[section] |= patched
+    return found
 
-    An entry PyPSA names by loss mode lists one name per mode; `mode` picks it.
+
+def pypsa_name(name: str, named: dict, mode: str | None = None) -> str:
+    """Return the PyPSA name of a spec entry: its `name:`, or its key where it states none.
+
+    An entry PyPSA names by loss mode states one name per mode; `mode` picks it.
     """
-    head = (description or "").split(" — ", 1)[0]
-    found = re.findall(r"`([^`]+)`", head)
-    if not found:
-        return name
-    return next((f for f in found if mode and f"_{mode}" in f), found[0])
+    found = named.get(name, name)
+    return found if isinstance(found, str) else found.get(mode, name)
 
 
 #: PyPSA's row factor of Kirchhoff's voltage law, whose `x_pu_eff` weights are tiny.
 KVL_SCALING = 1e5
-#: Spec entries whose PyPSA name is not the opening of their description.
-RENAMED = {"GlobalConstraint_flow_based_ub": "GlobalConstraint-ram"}
 #: Dims PyPSA names otherwise on one entry.
 DIMS = {"Carrier-growth_limit": {"carrier": "Carrier", "period": "periods"}}
 
@@ -482,7 +487,7 @@ def _relabel(
     for name, var in m.variables.items():
         if not (var.labels != -1).any():
             continue
-        new = RENAMED.get(name, names["variables"].get(name, name))
+        new = names["variables"].get(name, name)
         ds = var.data
         if new == "FlowBased-net_position":
             ds = ds.sel(bus=flow_based_zones(sources))
@@ -497,7 +502,7 @@ def _relabel(
     for name, con in m.constraints.items():
         if not (con.labels != -1).any():
             continue
-        new = RENAMED.get(name, names["constraints"].get(name, name))
+        new = names["constraints"].get(name, name)
         if con.lhs.is_sparse:
             cells = _cells(con).assign(cell=_positions(con.labels))
             cells = frame(cells, True, constraint_map).rename(DIMS.get(new, {}))
@@ -738,14 +743,15 @@ def build_model(
     sources = NetworkSources(n, s, network_index, model_index, **options)
     m = Model.from_spec(s, sources, **model_kwargs)
     mode = (options.get("transmission_losses") or {}).get("mode")
+    named = spec_names(linearized_unit_commitment)
     names = {
-        "variables": {k: pypsa_name(k, v.description) for k, v in s.variables.items()},
+        "variables": {k: pypsa_name(k, named["variables"]) for k in s.variables},
         "constraints": {
-            k: pypsa_name(k, v.description, mode) for k, v in s.constraints.items()
+            k: pypsa_name(k, named["constraints"], mode) for k in s.constraints
         },
     }
-    for entry, curve in s.piecewise.items():
-        aux = pypsa_name(entry, curve.description)
+    for entry in s.piecewise:
+        aux = pypsa_name(entry, named["piecewise"])
         for section in names.values():
             for k in [*m.variables, *m.constraints]:
                 if k.startswith(f"{entry}_"):

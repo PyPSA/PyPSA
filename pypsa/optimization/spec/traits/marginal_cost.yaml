@@ -4,9 +4,8 @@
 
 variables:
   ${C}_marginal_cost_piecewise:
-    description: >-
-      `${C}-marginal_cost_piecewise` — the running cost of a ${unit} that pays
-      along a curve, held above the curve
+    name: ${C}-marginal_cost_piecewise
+    description: the running cost of a ${unit} that pays along a curve, held above the curve
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_marginal_cost_curve AND ${C}_active
 

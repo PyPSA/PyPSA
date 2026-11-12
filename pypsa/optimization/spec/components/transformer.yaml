@@ -143,21 +143,21 @@ relations:
 
 variables:
   Transformer_loss:
+    name: Transformer-loss
     description: >-
-      `Transformer-loss` — what a transformer dissipates carrying its flow, as
-      a line does. Absent, and zero in the balance, where the network is
-      lossless
+      what a transformer dissipates carrying its flow, as a line does. Absent,
+      and zero in the balance, where the network is lossless
     dims: [scenario, snapshot, transformer]
     where: Transformer_lossy
     missing: 0
     bounds:
       lower: 0
   Transformer_phase_shift:
+    name: Transformer-phase_shift
     description: >-
-      `Transformer-phase_shift` — a phase-shifting transformer's voltage angle
-      shift in degrees, chosen per snapshot to redistribute the flows around
-      its cycles without moving active power. Absent, and zero in the cycle
-      sum, where the shift is fixed
+      a phase-shifting transformer's voltage angle shift in degrees, chosen per
+      snapshot to redistribute the flows around its cycles without moving active
+      power. Absent, and zero in the cycle sum, where the shift is fixed
     dims: [scenario, snapshot, transformer]
     where: Transformer_phase_shift_varying AND Transformer_active
     missing: 0
@@ -165,10 +165,10 @@ variables:
       lower: Transformer_phase_shift_min
       upper: Transformer_phase_shift_max
   Transformer_s_nom_ext:
+    name: Transformer-s_nom
     description: >-
-      `Transformer-s_nom` — nominal apparent power where it is a decision, for
-      a transformer that is active. A fixed build is the parameter of the same
-      PyPSA name
+      nominal apparent power where it is a decision, for a transformer that is
+      active. A fixed build is the parameter of the same PyPSA name
     dims: [transformer]
     where: Transformer_s_nom_extendable AND Transformer_active_asset
 
@@ -208,11 +208,11 @@ conditions:
 
 piecewise:
   Transformer_capital_cost_lp:
+    name: Transformer-capital_cost_piecewise
     description: >-
-      `Transformer-capital_cost_piecewise` — the cost of the build of a
-      transformer with a curve is at least the curve at its nominal apparent
-      power, stated as the line of each segment, where linopy chooses the
-      segment lines
+      the cost of the build of a transformer with a curve is at least the curve
+      at its nominal apparent power, stated as the line of each segment, where
+      linopy chooses the segment lines
     along: breakpoint
     dims: [transformer]
     where: Transformer_capital_cost_as_lp AND Transformer_capital_cost_curve AND Transformer_capital_cost_curve_nom
@@ -221,11 +221,11 @@ piecewise:
       s_nom: [Transformer_s_nom_ext, Transformer_capital_cost_curve_nom]
       cost: [Transformer_capital_cost_piecewise, Transformer_capital_cost_curve_cost, ">="]
   Transformer_capital_cost_incremental:
+    name: Transformer-capital_cost_piecewise
     description: >-
-      `Transformer-capital_cost_piecewise` — the cost of the build of a
-      transformer with a curve is at least the curve at its nominal apparent
-      power, stated by segments filled in order, where linopy chooses the
-      incremental rows
+      the cost of the build of a transformer with a curve is at least the curve
+      at its nominal apparent power, stated by segments filled in order, where
+      linopy chooses the incremental rows
     along: breakpoint
     dims: [transformer]
     where: NOT Transformer_capital_cost_as_lp AND Transformer_capital_cost_curve AND Transformer_capital_cost_curve_nom
@@ -236,41 +236,45 @@ piecewise:
 
 constraints:
   Transformer_v_ang_lower:
+    name: Transformer-v_ang-lower
     description: >-
-      `Transformer-v_ang-lower` — a transformer with a fixed shift carries at
-      least the flow at which the voltage angle difference across it is minus
-      its limit. That difference is `x_pu_eff` times the flow plus the shift
+      a transformer with a fixed shift carries at least the flow at which the
+      voltage angle difference across it is minus its limit. That difference is
+      `x_pu_eff` times the flow plus the shift
     dims: [scenario, snapshot, transformer]
     where: Transformer_v_ang_max AND NOT Transformer_phase_shift_varying AND Transformer_active
     expression: Transformer_s >= -(Transformer_v_ang_max + Transformer_phase_shift_fixed) * (3.141592653589793 / 180) / Transformer_x_pu_eff
   Transformer_v_ang_upper:
+    name: Transformer-v_ang-upper
     description: >-
-      `Transformer-v_ang-upper` — a transformer with a fixed shift carries at
-      most the flow at which the voltage angle difference across it reaches
-      its limit. That difference includes the shift
+      a transformer with a fixed shift carries at most the flow at which the
+      voltage angle difference across it reaches its limit. That difference
+      includes the shift
     dims: [scenario, snapshot, transformer]
     where: Transformer_v_ang_max AND NOT Transformer_phase_shift_varying AND Transformer_active
     expression: Transformer_s <= (Transformer_v_ang_max - Transformer_phase_shift_fixed) * (3.141592653589793 / 180) / Transformer_x_pu_eff
   Transformer_v_ang_var_lower:
+    name: Transformer-v_ang-var-lower
     description: >-
-      `Transformer-v_ang-var-lower` — for a transformer whose shift is a
-      decision, the flow plus the shift over `x_pu_eff` is at least minus the
-      limit over `x_pu_eff`
+      for a transformer whose shift is a decision, the flow plus the shift over
+      `x_pu_eff` is at least minus the limit over `x_pu_eff`
     dims: [scenario, snapshot, transformer]
     where: Transformer_v_ang_max AND Transformer_phase_shift_varying AND Transformer_active
     expression: Transformer_s + Transformer_phase_shift * (3.141592653589793 / 180) / Transformer_x_pu_eff >= -Transformer_v_ang_max * (3.141592653589793 / 180) / Transformer_x_pu_eff
   Transformer_v_ang_var_upper:
+    name: Transformer-v_ang-var-upper
     description: >-
-      `Transformer-v_ang-var-upper` — for a transformer whose shift is a
-      decision, the flow plus the shift over `x_pu_eff` is at most the limit
-      over `x_pu_eff`
+      for a transformer whose shift is a decision, the flow plus the shift over
+      `x_pu_eff` is at most the limit over `x_pu_eff`
     dims: [scenario, snapshot, transformer]
     where: Transformer_v_ang_max AND Transformer_phase_shift_varying AND Transformer_active
     expression: Transformer_s + Transformer_phase_shift * (3.141592653589793 / 180) / Transformer_x_pu_eff <= Transformer_v_ang_max * (3.141592653589793 / 180) / Transformer_x_pu_eff
   Transformer_loss_tangents_forward:
+    name:
+      tangents: Transformer-loss_tangents-{k}-1
+      secants: Transformer-loss_secants-pos
     description: >-
-      `Transformer-loss_tangents-{k}-1`, `Transformer-loss_secants-pos` — the
-      loss sits above every cut to its curve for flow one way, as a line's
+      the loss sits above every cut to its curve for flow one way, as a line's
       does, over the segment dimension
     dims: [scenario, snapshot, transformer, segment]
     where: Transformer_lossy

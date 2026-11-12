@@ -200,24 +200,28 @@ relations:
 
 variables:
   Store_e:
-    description: "`Store-e` — energy held at the end of a snapshot"
+    name: Store-e
+    description: energy held at the end of a snapshot
     dims: [scenario, snapshot, store]
     where: Store_active
   Store_p:
-    description: "`Store-p` — net power delivered to the bus. Charging is negative"
+    name: Store-p
+    description: net power delivered to the bus. Charging is negative
     dims: [scenario, snapshot, store]
     where: Store_active
   Store_p_store:
+    name: Store-p_store
     description: >-
-      `Store-p_store` — power drawn from the bus to charge, so that `p +
-      p_store` is the discharge. It is held at zero by its rows where the store
-      does not split its dispatch
+      power drawn from the bus to charge, so that `p + p_store` is the
+      discharge. It is held at zero by its rows where the store does not split
+      its dispatch
     dims: [scenario, snapshot, store]
     where: Store_active
   Store_e_nom_ext:
+    name: Store-e_nom
     description: >-
-      `Store-e_nom` — nominal capacity where it is a decision, for a store
-      that is active. A fixed build is the parameter of the same PyPSA name
+      nominal capacity where it is a decision, for a store that is active. A
+      fixed build is the parameter of the same PyPSA name
     dims: [store]
     where: Store_e_nom_extendable AND Store_active_asset
 
@@ -365,10 +369,11 @@ conditions:
 
 piecewise:
   Store_marginal_cost_lp:
+    name: Store-marginal_cost_piecewise
     description: >-
-      `Store-marginal_cost_piecewise` — the running cost of a store with a
-      curve is at least the curve at its power, stated as the line of each
-      segment, where linopy chooses the segment lines
+      the running cost of a store with a curve is at least the curve at its
+      power, stated as the line of each segment, where linopy chooses the
+      segment lines
     along: breakpoint
     dims: [scenario, snapshot, store]
     where: Store_marginal_cost_as_lp AND Store_marginal_cost_curve AND Store_active AND Store_marginal_cost_curve_p
@@ -377,10 +382,11 @@ piecewise:
       p: [Store_p, Store_marginal_cost_curve_p]
       cost: [Store_marginal_cost_piecewise, Store_marginal_cost_curve_cost, ">="]
   Store_marginal_cost_incremental:
+    name: Store-marginal_cost_piecewise
     description: >-
-      `Store-marginal_cost_piecewise` — the running cost of a store with a
-      curve is at least the curve at its power, stated by segments filled in
-      order, where linopy chooses the incremental rows
+      the running cost of a store with a curve is at least the curve at its
+      power, stated by segments filled in order, where linopy chooses the
+      incremental rows
     along: breakpoint
     dims: [scenario, snapshot, store]
     where: NOT Store_marginal_cost_as_lp AND Store_marginal_cost_curve AND Store_active AND Store_marginal_cost_curve_p
@@ -389,10 +395,11 @@ piecewise:
       p: [Store_p, Store_marginal_cost_curve_p]
       cost: [Store_marginal_cost_piecewise, Store_marginal_cost_curve_cost, ">="]
   Store_capital_cost_lp:
+    name: Store-capital_cost_piecewise
     description: >-
-      `Store-capital_cost_piecewise` — the cost of the build of a store with a
-      curve is at least the curve at its nominal capacity, stated as the line
-      of each segment, where linopy chooses the segment lines
+      the cost of the build of a store with a curve is at least the curve at its
+      nominal capacity, stated as the line of each segment, where linopy chooses
+      the segment lines
     along: breakpoint
     dims: [store]
     where: Store_capital_cost_as_lp AND Store_capital_cost_curve AND Store_capital_cost_curve_nom
@@ -401,10 +408,11 @@ piecewise:
       e_nom: [Store_e_nom_ext, Store_capital_cost_curve_nom]
       cost: [Store_capital_cost_piecewise, Store_capital_cost_curve_cost, ">="]
   Store_capital_cost_incremental:
+    name: Store-capital_cost_piecewise
     description: >-
-      `Store-capital_cost_piecewise` — the cost of the build of a store with a
-      curve is at least the curve at its nominal capacity, stated by segments
-      filled in order, where linopy chooses the incremental rows
+      the cost of the build of a store with a curve is at least the curve at its
+      nominal capacity, stated by segments filled in order, where linopy chooses
+      the incremental rows
     along: breakpoint
     dims: [store]
     where: NOT Store_capital_cost_as_lp AND Store_capital_cost_curve AND Store_capital_cost_curve_nom
@@ -415,97 +423,120 @@ piecewise:
 
 constraints:
   Store_e_sum_min:
-    description: "`Store-e_sum_min` — net energy delivered over the horizon, each period weighted by its years, is at least its floor. A floor of minus infinity is no row"
+    name: Store-e_sum_min
+    description: >-
+      net energy delivered over the horizon, each period weighted by its years,
+      is at least its floor. A floor of minus infinity is no row
     dims: [scenario, store]
     where: Store_e_sum_min AND count(Store_active, over=snapshot) > 0
     expression: sum(Store_p * energy_limit_weight, over=snapshot) >= Store_e_sum_min
   Store_e_sum_max:
-    description: "`Store-e_sum_max` — net energy delivered over the horizon, each period weighted by its years, is at most its budget. A budget of infinity is no row"
+    name: Store-e_sum_max
+    description: >-
+      net energy delivered over the horizon, each period weighted by its years,
+      is at most its budget. A budget of infinity is no row
     dims: [scenario, store]
     where: Store_e_sum_max AND count(Store_active, over=snapshot) > 0
     expression: sum(Store_p * energy_limit_weight, over=snapshot) <= Store_e_sum_max
   Store_fix_e_lower:
-    description: "`Store-fix-e-lower` — a fixed store holds at least its floor"
+    name: Store-fix-e-lower
+    description: a fixed store holds at least its floor
     dims: [scenario, snapshot, store]
     where: not Store_e_nom_extendable AND Store_active AND (Store_e_nom < inf OR Store_e_min_pu == 0)
     expression: Store_e >= Store_e_min_pu * Store_e_nom_rated
   Store_fix_e_upper:
-    description: "`Store-fix-e-upper` — a fixed store holds at most its nominal capacity"
+    name: Store-fix-e-upper
+    description: a fixed store holds at most its nominal capacity
     dims: [scenario, snapshot, store]
     where: not Store_e_nom_extendable AND Store_active AND (Store_e_nom < inf OR Store_e_max_pu == 0)
     expression: Store_e <= Store_e_max_pu * Store_e_nom_rated
   Store_ext_e_lower:
-    description: "`Store-ext-e-lower` — an extendable store holds at least its floor of the chosen build"
+    name: Store-ext-e-lower
+    description: an extendable store holds at least its floor of the chosen build
     dims: [scenario, snapshot, store]
     where: Store_e_nom_extendable AND Store_active
     expression: Store_e >= Store_e_min_pu * Store_e_nom_ext
   Store_ext_e_upper:
-    description: "`Store-ext-e-upper` — an extendable store holds at most the chosen build"
+    name: Store-ext-e-upper
+    description: an extendable store holds at most the chosen build
     dims: [scenario, snapshot, store]
     where: Store_e_nom_extendable AND Store_active
     expression: Store_e <= Store_e_max_pu * Store_e_nom_ext
   Store_fix_p_lower:
+    name: Store-fix-p-lower
     description: >-
-      `Store-fix-p-lower` — a fixed store discharges at least its floor, which is
-      zero where it splits its dispatch and its most charging otherwise. A
-      store that does not split and has no `max_hours` has no row
+      a fixed store discharges at least its floor, which is zero where it splits
+      its dispatch and its most charging otherwise. A store that does not split
+      and has no `max_hours` has no row
     dims: [scenario, snapshot, store]
     where: >-
       NOT Store_e_nom_extendable AND Store_active AND (Store_split_dispatch OR Store_max_hours)
       AND (Store_e_nom < inf OR Store_split_dispatch OR Store_p_min_pu == 0)
     expression: Store_p + Store_p_store >= Store_discharge_floor_pu * Store_e_nom_rated
   Store_fix_p_upper:
-    description: "`Store-fix-p-upper` — a fixed store discharges at most its power rating. A store without `max_hours` has no row"
+    name: Store-fix-p-upper
+    description: >-
+      a fixed store discharges at most its power rating. A store without
+      `max_hours` has no row
     dims: [scenario, snapshot, store]
     where: NOT Store_e_nom_extendable AND Store_active AND Store_max_hours AND (Store_e_nom < inf OR Store_p_max_pu == 0)
     expression: Store_p + Store_p_store <= Store_p_max_pu / Store_max_hours * Store_e_nom_rated
   Store_fix_p_store_lower:
-    description: "`Store-fix-p_store-lower` — charging is non-negative"
+    name: Store-fix-p_store-lower
+    description: charging is non-negative
     dims: [scenario, snapshot, store]
     where: NOT Store_e_nom_extendable AND Store_active
     expression: Store_p_store >= 0
   Store_fix_p_store_upper:
+    name: Store-fix-p_store-upper
     description: >-
-      `Store-fix-p_store-upper` — a fixed store charges at most its power rating where it
-      splits its dispatch, and not at all where it does not. A store that splits
-      and has no `max_hours` has no row
+      a fixed store charges at most its power rating where it splits its
+      dispatch, and not at all where it does not. A store that splits and has no
+      `max_hours` has no row
     dims: [scenario, snapshot, store]
     where: >-
       NOT Store_e_nom_extendable AND Store_active AND (NOT Store_split_dispatch OR Store_max_hours)
       AND (Store_e_nom < inf OR NOT Store_split_dispatch OR Store_p_min_pu == 0)
     expression: Store_p_store <= Store_charge_cap_pu * Store_e_nom_rated
   Store_ext_p_lower:
+    name: Store-ext-p-lower
     description: >-
-      `Store-ext-p-lower` — an extendable store discharges at least its floor, which is
-      zero where it splits its dispatch and its most charging otherwise. A
-      store that does not split and has no `max_hours` has no row
+      an extendable store discharges at least its floor, which is zero where it
+      splits its dispatch and its most charging otherwise. A store that does not
+      split and has no `max_hours` has no row
     dims: [scenario, snapshot, store]
     where: Store_e_nom_extendable AND Store_active AND (Store_split_dispatch OR Store_max_hours)
     expression: Store_p + Store_p_store >= Store_discharge_floor_pu * Store_e_nom_ext
   Store_ext_p_upper:
-    description: "`Store-ext-p-upper` — an extendable store discharges at most the power rating of the chosen build. A store without `max_hours` has no row"
+    name: Store-ext-p-upper
+    description: >-
+      an extendable store discharges at most the power rating of the chosen
+      build. A store without `max_hours` has no row
     dims: [scenario, snapshot, store]
     where: Store_e_nom_extendable AND Store_active AND Store_max_hours
     expression: Store_p + Store_p_store <= Store_p_max_pu / Store_max_hours * Store_e_nom_ext
   Store_ext_p_store_lower:
-    description: "`Store-ext-p_store-lower` — charging is non-negative"
+    name: Store-ext-p_store-lower
+    description: charging is non-negative
     dims: [scenario, snapshot, store]
     where: Store_e_nom_extendable AND Store_active
     expression: Store_p_store >= 0
   Store_ext_p_store_upper:
+    name: Store-ext-p_store-upper
     description: >-
-      `Store-ext-p_store-upper` — an extendable store charges at most the power rating of the chosen build where it
-      splits its dispatch, and not at all where it does not. A store that splits
-      and has no `max_hours` has no row
+      an extendable store charges at most the power rating of the chosen build
+      where it splits its dispatch, and not at all where it does not. A store
+      that splits and has no `max_hours` has no row
     dims: [scenario, snapshot, store]
     where: Store_e_nom_extendable AND Store_active AND (NOT Store_split_dispatch OR Store_max_hours)
     expression: Store_p_store <= Store_charge_cap_pu * Store_e_nom_ext
   Store_energy_balance:
+    name: Store-energy_balance
     description: >-
-      `Store-energy_balance` — the energy carried in, less the discharge drawn
-      down before its efficiency, plus the charge after its own, plus inflow
-      not spilled. The net dispatch `p` is the discharge less `p_store`, so
-      `p_store` enters with both efficiencies (`constraints.py:2472-2476`)
+      the energy carried in, less the discharge drawn down before its
+      efficiency, plus the charge after its own, plus inflow not spilled. The
+      net dispatch `p` is the discharge less `p_store`, so `p_store` enters with
+      both efficiencies (`constraints.py:2472-2476`)
     dims: [scenario, snapshot, store]
     where: Store_active
     expression: >-
@@ -515,21 +546,23 @@ constraints:
       + (Store_inflow - Store_spill) * snapshot_weightings_stores
       == Store_e
   Store_cycles_max:
+    name: Store-cycles_max
     description: >-
-      `Store-cycles_max` — the discharge over the horizon, `p + p_store`
-      weighted by the stores weighting, is at most `cycles_max` times the
-      build. A store without `cycles_max` has no row
-      (`constraints.py:2607-2633`)
+      the discharge over the horizon, `p + p_store` weighted by the stores
+      weighting, is at most `cycles_max` times the build. A store without
+      `cycles_max` has no row (`constraints.py:2607-2633`)
     dims: [scenario, store]
     where: Store_cycles_max AND Store_active_asset
     expression: sum((Store_p + Store_p_store) * snapshot_weightings_stores, over=snapshot) <= Store_cycles_max * Store_e_nom_effective
   Store_e_set:
-    description: "`Store-e_set` — energy pinned to the given schedule, wherever one is given"
+    name: Store-e_set
+    description: energy pinned to the given schedule, wherever one is given
     dims: [scenario, snapshot, store]
     where: Store_e_set AND Store_active
     expression: Store_e == Store_e_set
   Store_p_set:
-    description: "`Store-p_set` — power delivered pinned to the given schedule, wherever one is given"
+    name: Store-p_set
+    description: power delivered pinned to the given schedule, wherever one is given
     dims: [scenario, snapshot, store]
     where: Store_p_set AND Store_active
     expression: Store_p == Store_p_set

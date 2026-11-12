@@ -12,10 +12,11 @@ parameters:
 
 variables:
   ${C}_spill:
+    name: ${C}-spill
     description: >-
-      `${C}-spill` — inflow passed on unused. It is zero where there is no
-      inflow, so the balance keeps its row there. The bounds are PyPSA's, on the
-      variable rather than as rows
+      inflow passed on unused. It is zero where there is no inflow, so the
+      balance keeps its row there. The bounds are PyPSA's, on the variable
+      rather than as rows
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_inflow > 0 AND ${C}_active
     missing: 0

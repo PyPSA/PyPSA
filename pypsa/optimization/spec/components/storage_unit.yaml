@@ -165,22 +165,25 @@ relations:
 
 variables:
   StorageUnit_p_dispatch:
-    description: "`StorageUnit-p_dispatch` — power delivered to the bus"
+    name: StorageUnit-p_dispatch
+    description: power delivered to the bus
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_active
   StorageUnit_p_store:
-    description: "`StorageUnit-p_store` — power drawn from the bus into charge"
+    name: StorageUnit-p_store
+    description: power drawn from the bus into charge
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_active
   StorageUnit_state_of_charge:
-    description: "`StorageUnit-state_of_charge` — energy held at the end of a snapshot"
+    name: StorageUnit-state_of_charge
+    description: energy held at the end of a snapshot
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_active
   StorageUnit_p_nom_ext:
+    name: StorageUnit-p_nom
     description: >-
-      `StorageUnit-p_nom` — nominal power where it is a decision, for a
-      storage unit that is active. A fixed build is the parameter of the same
-      PyPSA name
+      nominal power where it is a decision, for a storage unit that is active. A
+      fixed build is the parameter of the same PyPSA name
     dims: [storage_unit]
     where: StorageUnit_p_nom_extendable AND StorageUnit_active_asset
 
@@ -325,10 +328,11 @@ conditions:
 
 piecewise:
   StorageUnit_marginal_cost_lp:
+    name: StorageUnit-marginal_cost_piecewise
     description: >-
-      `StorageUnit-marginal_cost_piecewise` — the running cost of a storage
-      unit with a curve is at least the curve at its dispatch, stated as the
-      line of each segment, where linopy chooses the segment lines
+      the running cost of a storage unit with a curve is at least the curve at
+      its dispatch, stated as the line of each segment, where linopy chooses the
+      segment lines
     along: breakpoint
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_marginal_cost_as_lp AND StorageUnit_marginal_cost_curve AND StorageUnit_active AND StorageUnit_marginal_cost_curve_p
@@ -337,10 +341,11 @@ piecewise:
       p: [StorageUnit_p_dispatch, StorageUnit_marginal_cost_curve_p]
       cost: [StorageUnit_marginal_cost_piecewise, StorageUnit_marginal_cost_curve_cost, ">="]
   StorageUnit_marginal_cost_incremental:
+    name: StorageUnit-marginal_cost_piecewise
     description: >-
-      `StorageUnit-marginal_cost_piecewise` — the running cost of a storage
-      unit with a curve is at least the curve at its dispatch, stated by
-      segments filled in order, where linopy chooses the incremental rows
+      the running cost of a storage unit with a curve is at least the curve at
+      its dispatch, stated by segments filled in order, where linopy chooses the
+      incremental rows
     along: breakpoint
     dims: [scenario, snapshot, storage_unit]
     where: NOT StorageUnit_marginal_cost_as_lp AND StorageUnit_marginal_cost_curve AND StorageUnit_active AND StorageUnit_marginal_cost_curve_p
@@ -349,11 +354,11 @@ piecewise:
       p: [StorageUnit_p_dispatch, StorageUnit_marginal_cost_curve_p]
       cost: [StorageUnit_marginal_cost_piecewise, StorageUnit_marginal_cost_curve_cost, ">="]
   StorageUnit_capital_cost_lp:
+    name: StorageUnit-capital_cost_piecewise
     description: >-
-      `StorageUnit-capital_cost_piecewise` — the cost of the build of a
-      storage unit with a curve is at least the curve at its nominal power,
-      stated as the line of each segment, where linopy chooses the segment
-      lines
+      the cost of the build of a storage unit with a curve is at least the curve
+      at its nominal power, stated as the line of each segment, where linopy
+      chooses the segment lines
     along: breakpoint
     dims: [storage_unit]
     where: StorageUnit_capital_cost_as_lp AND StorageUnit_capital_cost_curve AND StorageUnit_capital_cost_curve_nom
@@ -362,11 +367,11 @@ piecewise:
       p_nom: [StorageUnit_p_nom_ext, StorageUnit_capital_cost_curve_nom]
       cost: [StorageUnit_capital_cost_piecewise, StorageUnit_capital_cost_curve_cost, ">="]
   StorageUnit_capital_cost_incremental:
+    name: StorageUnit-capital_cost_piecewise
     description: >-
-      `StorageUnit-capital_cost_piecewise` — the cost of the build of a
-      storage unit with a curve is at least the curve at its nominal power,
-      stated by segments filled in order, where linopy chooses the incremental
-      rows
+      the cost of the build of a storage unit with a curve is at least the curve
+      at its nominal power, stated by segments filled in order, where linopy
+      chooses the incremental rows
     along: breakpoint
     dims: [storage_unit]
     where: NOT StorageUnit_capital_cost_as_lp AND StorageUnit_capital_cost_curve AND StorageUnit_capital_cost_curve_nom
@@ -377,74 +382,86 @@ piecewise:
 
 constraints:
   StorageUnit_fix_p_dispatch_lower:
-    description: "`StorageUnit-fix-p_dispatch-lower` — dispatch is non-negative"
+    name: StorageUnit-fix-p_dispatch-lower
+    description: dispatch is non-negative
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_fix
     expression: StorageUnit_p_dispatch >= 0
   StorageUnit_fix_p_dispatch_upper:
-    description: "`StorageUnit-fix-p_dispatch-upper` — a fixed unit dispatches at most its nominal power"
+    name: StorageUnit-fix-p_dispatch-upper
+    description: a fixed unit dispatches at most its nominal power
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_p_max_pu == 0)
     expression: StorageUnit_p_dispatch <= StorageUnit_p_max_pu * StorageUnit_p_nom_rated
   StorageUnit_fix_p_store_lower:
-    description: "`StorageUnit-fix-p_store-lower` — storing is non-negative"
+    name: StorageUnit-fix-p_store-lower
+    description: storing is non-negative
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_fix
     expression: StorageUnit_p_store >= 0
   StorageUnit_fix_p_store_upper:
+    name: StorageUnit-fix-p_store-upper
     description: >-
-      `StorageUnit-fix-p_store-upper` — a fixed unit stores at most its
-      nominal power, the minimum-per-unit column carrying that cap negated
+      a fixed unit stores at most its nominal power, the minimum-per-unit column
+      carrying that cap negated
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_p_min_pu == 0)
     expression: StorageUnit_p_store <= -StorageUnit_p_min_pu * StorageUnit_p_nom_rated
   StorageUnit_fix_state_of_charge_lower:
-    description: "`StorageUnit-fix-state_of_charge-lower` — charge is non-negative"
+    name: StorageUnit-fix-state_of_charge-lower
+    description: charge is non-negative
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_fix
     expression: StorageUnit_state_of_charge >= 0
   StorageUnit_fix_state_of_charge_upper:
-    description: "`StorageUnit-fix-state_of_charge-upper` — a fixed unit holds at most its hours at nominal power"
+    name: StorageUnit-fix-state_of_charge-upper
+    description: a fixed unit holds at most its hours at nominal power
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_max_hours == 0)
     expression: StorageUnit_state_of_charge <= StorageUnit_max_hours * StorageUnit_p_nom_rated
   StorageUnit_ext_p_dispatch_lower:
-    description: "`StorageUnit-ext-p_dispatch-lower` — dispatch is non-negative"
+    name: StorageUnit-ext-p_dispatch-lower
+    description: dispatch is non-negative
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_ext
     expression: StorageUnit_p_dispatch >= 0
   StorageUnit_ext_p_dispatch_upper:
-    description: "`StorageUnit-ext-p_dispatch-upper` — an extendable unit dispatches at most the chosen build"
+    name: StorageUnit-ext-p_dispatch-upper
+    description: an extendable unit dispatches at most the chosen build
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_ext
     expression: StorageUnit_p_dispatch <= StorageUnit_p_max_pu * StorageUnit_p_nom_ext
   StorageUnit_ext_p_store_lower:
-    description: "`StorageUnit-ext-p_store-lower` — storing is non-negative"
+    name: StorageUnit-ext-p_store-lower
+    description: storing is non-negative
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_ext
     expression: StorageUnit_p_store >= 0
   StorageUnit_ext_p_store_upper:
+    name: StorageUnit-ext-p_store-upper
     description: >-
-      `StorageUnit-ext-p_store-upper` — an extendable unit stores at most the
-      chosen build, the minimum-per-unit column carrying that cap negated
+      an extendable unit stores at most the chosen build, the minimum-per-unit
+      column carrying that cap negated
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_ext
     expression: StorageUnit_p_store <= -StorageUnit_p_min_pu * StorageUnit_p_nom_ext
   StorageUnit_ext_state_of_charge_lower:
-    description: "`StorageUnit-ext-state_of_charge-lower` — charge is non-negative"
+    name: StorageUnit-ext-state_of_charge-lower
+    description: charge is non-negative
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_ext
     expression: StorageUnit_state_of_charge >= 0
   StorageUnit_ext_state_of_charge_upper:
-    description: "`StorageUnit-ext-state_of_charge-upper` — an extendable unit holds at most its hours at the chosen build"
+    name: StorageUnit-ext-state_of_charge-upper
+    description: an extendable unit holds at most its hours at the chosen build
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_ext
     expression: StorageUnit_state_of_charge <= StorageUnit_max_hours * StorageUnit_p_nom_ext
   StorageUnit_energy_balance:
+    name: StorageUnit-energy_balance
     description: >-
-      `StorageUnit-energy_balance` — the charge carried in, plus what is
-      stored after its efficiency, less what dispatch draws down before its
-      own, plus inflow not spilled
+      the charge carried in, plus what is stored after its efficiency, less what
+      dispatch draws down before its own, plus inflow not spilled
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_active
     expression: >-
@@ -454,22 +471,26 @@ constraints:
       + (StorageUnit_inflow - StorageUnit_spill) * snapshot_weightings_stores
       == StorageUnit_state_of_charge
   StorageUnit_p_set:
-    description: "`StorageUnit-p_set` — net dispatch pinned to the given schedule, wherever one is given"
+    name: StorageUnit-p_set
+    description: net dispatch pinned to the given schedule, wherever one is given
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_p_set AND StorageUnit_active
     expression: StorageUnit_p_dispatch - StorageUnit_p_store == StorageUnit_p_set
   StorageUnit_p_dispatch_set:
-    description: "`StorageUnit-p_dispatch_set` — dispatch pinned to the given schedule, wherever one is given"
+    name: StorageUnit-p_dispatch_set
+    description: dispatch pinned to the given schedule, wherever one is given
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_p_dispatch_set AND StorageUnit_active
     expression: StorageUnit_p_dispatch == StorageUnit_p_dispatch_set
   StorageUnit_p_store_set:
-    description: "`StorageUnit-p_store_set` — charging pinned to the given schedule, wherever one is given"
+    name: StorageUnit-p_store_set
+    description: charging pinned to the given schedule, wherever one is given
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_p_store_set AND StorageUnit_active
     expression: StorageUnit_p_store == StorageUnit_p_store_set
   StorageUnit_state_of_charge_set:
-    description: "`StorageUnit-state_of_charge_set` — charge pinned to the given schedule, wherever one is given"
+    name: StorageUnit-state_of_charge_set
+    description: charge pinned to the given schedule, wherever one is given
     dims: [scenario, snapshot, storage_unit]
     where: StorageUnit_state_of_charge_set AND StorageUnit_active
     expression: StorageUnit_state_of_charge == StorageUnit_state_of_charge_set
