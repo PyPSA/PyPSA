@@ -96,4 +96,4 @@ assumptions:
   ${C}_marginal_cost_quadratic_without_risk_preference:
     holds: ${C}_marginal_cost_quadratic == 0
     where: CVaR_omega
-    description: a quadratic cost is not allowed with a risk preference
+    description: "`marginal_cost_quadratic` is zero where a risk preference is set"

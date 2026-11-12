@@ -220,24 +220,11 @@ def _has_costs(n: Network, sns: pd.Index) -> bool:
 
 
 def _check_objective(n: Network, sns: pd.Index) -> None:
-    """Raise if no asset carries a cost, or a risk preference meets a quadratic cost."""
+    """Raise if no asset carries a cost."""
     if not _has_costs(n, sns):
         msg = (
             "Objective function could not be created. "
             "Please make sure the components have assigned costs."
-        )
-        raise ValueError(msg)
-    quadratic = (
-        _any_nonzero(c.da.marginal_cost_quadratic, c.active_assets, sns)
-        for c in n.components[list(nominal_attrs)]
-        if "marginal_cost_quadratic" in c.static
-    )
-    if n.has_risk_preference and any(quadratic):
-        msg = (
-            "CVaR with quadratic operational costs yields quadratic constraints. "
-            "So a(s) >= OPEX(s) - theta becomes a quadratic inequality. "
-            "Remove/approximate quadratic costs (e.g. set 'marginal_cost_quadratic=0' "
-            "or use a piecewise-linear approximation)."
         )
         raise ValueError(msg)
 
