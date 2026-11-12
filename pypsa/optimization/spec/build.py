@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import Model
-from linopy.constants import BREAKPOINT_DIM, TERM_DIM
+from linopy.constants import BREAKPOINT_DIM
 from linopy.constraints import Constraint
 from linopy.expressions import LinearExpression
 from linopy.variables import Variable
@@ -223,6 +223,77 @@ SECURITY = "-for-{c}-outage-in-sub-network-{n}"
 PORTS = {"link_output": "link", "process_output": "process"}
 
 
+Part = tuple[LinearExpression, xr.Dataset]
+
+
+def _cells(con: Constraint) -> xr.Dataset:
+    """Return the fields of `con` on its grid, without the terms, which `con.data` densifies."""
+    fields = {"sign": con.sign, "rhs": con.rhs, "labels": con.labels}
+    return xr.Dataset(fields | {"scaling": con.scaling}, attrs=dict(con.attrs))
+
+
+def _constraint(
+    m: Model, lhs: LinearExpression, cells: xr.Dataset, name: str
+) -> Constraint:
+    """Return the constraint of `lhs` and the fields in `cells`, on the store of `lhs`."""
+    fields = {str(k): v for k, v in cells.data_vars.items()}
+    return Constraint(lhs, model=m, name=name, attrs=cells.attrs, **fields)
+
+
+def _part(con: Constraint, indexers: dict[str, Any], drop: bool = False) -> Part:
+    """Return the lhs and the fields of `con` at the positions `indexers`."""
+    return con.lhs.isel(indexers, drop=drop), _cells(con).isel(indexers, drop=drop)
+
+
+def _terms(con: Constraint) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return the flat cell position, column and coefficient of each term of `con`, masked cells included.
+
+    `Constraint.to_polars` reads a sparse lhs without densifying it, but by
+    label and for the live cells only; so each cell is labelled by its
+    position first.
+    """
+    positions = _positions(con.labels)
+    df = Constraint(con.lhs, con.sign, con.rhs, con.model, labels=positions).to_polars()
+    return df["labels"].to_numpy(), df["vars"].to_numpy(), df["coeffs"].to_numpy()
+
+
+def _on_units[T: (xr.Dataset, LinearExpression)](
+    obj: T, dim: str, ports: np.ndarray, unit: str, units: np.ndarray
+) -> T:
+    """Return `obj` at the `ports` of `dim`, laid over the `units` they belong to."""
+    return obj.sel({dim: ports}).rename({dim: unit}).assign_coords({unit: units})
+
+
+def _positions(da: xr.DataArray) -> xr.DataArray:
+    """Return the flat position of each cell of `da`."""
+    return da.copy(data=np.arange(da.size).reshape(da.shape))
+
+
+def _relaid(
+    con: Constraint, cells: xr.Dataset, variable_map: np.ndarray
+) -> LinearExpression:
+    """Return the lhs of `con` on the grid of `cells`, its columns renumbered by `variable_map`.
+
+    `cells.cell` holds the old flat position of each new cell. linopy
+    lays a sparse lhs out on its grid only by its terms' cells, so the
+    terms move cell by cell.
+    """
+    rows, columns, coeffs = _terms(con)
+    moved = np.full(con.labels.size, -1)
+    moved[cells.cell.values.ravel()] = np.arange(cells.cell.size)
+    keep = moved[rows] != -1
+    dims = cells.labels.dims
+    lhs = LinearExpression.from_coo(
+        con.model,
+        {d: cells.indexes[d] for d in dims},
+        moved[rows[keep]],
+        variable_map[columns[keep]],
+        coeffs[keep],
+    )
+    aux = {k: v for k, v in cells.coords.items() if k not in dims}
+    return lhs.assign_coords(aux) if aux else lhs
+
+
 def _split_ports(m: Model, names: dict, sources: NetworkSources) -> None:
     """Split each entry PyPSA names per port number into one entry per number, over the units.
 
@@ -234,42 +305,49 @@ def _split_ports(m: Model, names: dict, sources: NetworkSources) -> None:
         ("constraints", m.constraints),
     ):
         for key in [k for k in container if "{port}" in names[section].get(k, "")]:
-            ds = container.data.pop(key).data
-            dim = next(d for d in PORTS if d in ds.dims)
+            entry = container.data.pop(key)
+            dim = next(d for d in PORTS if d in entry.labels.dims)
+            unit = PORTS[dim]
             ports = (
                 sources.link_ports if dim == "link_output" else sources.process_ports
             )
-            start = ds.attrs["label_range"][0]
+            start = entry.attrs["label_range"][0]
             for number, group in ports.groupby("k"):
-                part = ds.sel({dim: group["port"].to_numpy(dtype=object)})
-                units = group[PORTS[dim]].to_numpy(dtype=object)
-                part = part.rename({dim: PORTS[dim]}).assign_coords({PORTS[dim]: units})
-                part.attrs["label_range"] = (start, start + part.labels.size)
-                start += part.labels.size
+                selected = group["port"].to_numpy(dtype=object)
+                units = group[unit].to_numpy(dtype=object)
                 new = f"{key}{number}"
                 names[section][new] = names[section][key].replace("{port}", str(number))
-                container.data[new] = (
-                    Variable(part, m, new)
-                    if section == "variables"
-                    else Constraint.from_dataset(part, m, new)
-                )
+                if isinstance(entry, Variable):
+                    part = _on_units(entry.data, dim, selected, unit, units)
+                    size = part.labels.size
+                    part.attrs["label_range"] = (start, start + size)
+                    container.data[new] = Variable(part, m, new)
+                else:
+                    cells = _on_units(_cells(entry), dim, selected, unit, units)
+                    size = cells.labels.size
+                    cells = cells.assign_attrs(label_range=(start, start + size))
+                    lhs = _on_units(entry.lhs, dim, selected, unit, units)
+                    container.data[new] = _constraint(m, lhs, cells, new)
+                start += size
 
 
-def _fresh(m: Model, part: xr.Dataset, name: str) -> Constraint:
-    """`part` as a constraint with a fresh, contiguous label block at the end of the model's."""
-    live = part.labels.values != -1
+def _fresh(m: Model, lhs: LinearExpression, cells: xr.Dataset, name: str) -> Constraint:
+    """Return the constraint of `lhs` and `cells` with a fresh label block at the end of the model's."""
+    live = cells.labels.values != -1
     start = m._cCounter
-    fresh = start + np.arange(part.labels.size).reshape(part.labels.shape)
-    part["labels"] = part.labels.copy(data=np.where(live, fresh, -1))
-    part.attrs["label_range"] = (start, start + part.labels.size)
-    m._cCounter += part.labels.size
-    return Constraint.from_dataset(part, m, name)
+    size = cells.labels.size
+    fresh = start + np.arange(size).reshape(cells.labels.shape)
+    cells = cells.assign(labels=cells.labels.copy(data=np.where(live, fresh, -1)))
+    m._cCounter += size
+    return _constraint(
+        m, lhs, cells.assign_attrs(label_range=(start, start + size)), name
+    )
 
 
 def _security_parts(
-    n: Network, name: str, ds: xr.Dataset, groups: list[SecurityGroup]
-) -> dict[str, xr.Dataset]:
-    """Return the security rows of `ds` split by sub-network, period and outaged component.
+    n: Network, name: str, con: Constraint, groups: list[SecurityGroup]
+) -> dict[str, Part]:
+    """Return the security rows of `con` split by sub-network, period and outaged component.
 
     Each part holds the outages of one component in one sub-network as
     `<component>-outage`, and the fixed or the extendable branches of that
@@ -278,6 +356,7 @@ def _security_parts(
     component = name.split("-", 1)[0]
     extendable = n.components[component].extendables
     kind = name.split("-")[1] == "ext"
+    names, outages = con.indexes["name"], con.indexes["outage"]
     parts = {}
     for group in groups:
         affected = group.branches[group.branches.get_level_values(0) == component]
@@ -285,15 +364,17 @@ def _security_parts(
         affected = affected[affected.isin(extendable) == kind]
         for outaged in group.outages.unique(0):
             labels = group.outages[group.outages.get_level_values(0) == outaged]
-            part = ds.isel(snapshot=group.snapshots)
-            part = part.sel(outage=list(labels.get_level_values(1)))
-            part = part.sel(
-                name=part.indexes["name"].intersection(affected, sort=False)
-            )
-            if not (part.labels != -1).any():
+            indexers = {
+                "snapshot": group.snapshots,
+                "outage": outages.get_indexer(labels.get_level_values(1)),
+                "name": names.get_indexer(names.intersection(affected, sort=False)),
+            }
+            lhs, cells = _part(con, indexers)
+            if not (cells.labels != -1).any():
                 continue
             new = name.replace("{c}", outaged).replace("{n}", group.suffix)
-            parts[new] = part.rename(outage=f"{outaged}-outage")
+            renamed = {"outage": f"{outaged}-outage"}
+            parts[new] = (lhs.rename(renamed), cells.rename(renamed))
     return parts
 
 
@@ -329,28 +410,28 @@ def _split(
     out = {}
     for name, con in constraints.items():
         if SECURITY in name:
-            for new, part in _security_parts(n, name, con.data, groups).items():
-                out[new] = _fresh(m, part, new)
+            for new, part in _security_parts(n, name, con, groups).items():
+                out[new] = _fresh(m, *part, new)
             continue
-        names = con.data.indexes.get("name")
+        names = con.indexes.get("name")
         if name == "Bus-nodal_balance" and not names.equals(meshed[name]):
             for new, buses in meshed.items():
-                part = con.data.sel(name=names.intersection(buses, sort=False))
-                if (part.labels.values != -1).any():
-                    out[new] = _fresh(m, part, new)
+                kept = names.get_indexer(names.intersection(buses, sort=False))
+                lhs, cells = _part(con, {"name": kept})
+                if (cells.labels.values != -1).any():
+                    out[new] = _fresh(m, lhs, cells, new)
             continue
         placeholder = next((p for p in SPLITS if p in name), None)
         if placeholder is None or SPLITS[placeholder] not in con.labels.dims:
             out[name] = con
             continue
         dim = SPLITS[placeholder]
-        ds = con.data
-        for label in ds.indexes[dim]:
-            part = ds.sel({dim: label}, drop=True)
-            if not (part.labels.values != -1).any():
+        for position, label in enumerate(con.indexes[dim]):
+            lhs, cells = _part(con, {dim: position}, drop=True)
+            if not (cells.labels.values != -1).any():
                 continue
             new = name.replace(placeholder, str(label))
-            out[new] = _fresh(m, part, new)
+            out[new] = _fresh(m, lhs, cells, new)
     return out
 
 
@@ -411,6 +492,12 @@ def _relabel(
         if not (con.labels != -1).any():
             continue
         new = RENAMED.get(name, names["constraints"].get(name, name))
+        if con.lhs.is_sparse:
+            cells = _cells(con).assign(cell=_positions(con.labels))
+            cells = frame(cells, True, constraint_map).rename(DIMS.get(new, {}))
+            lhs = _relaid(con, cells, variable_map)
+            constraints[new] = _constraint(m, lhs, cells.drop_vars("cell"), new)
+            continue
         ds = remap(frame(con.data, True, constraint_map)).rename(DIMS.get(new, {}))
         constraints[new] = Constraint.from_dataset(ds, m, new)
 
@@ -424,18 +511,22 @@ def _relabel(
     m.expressions.data.clear()
     objective = m.objective
     expression = objective.expression
-    m.add_objective(
-        type(expression)(remap(expression.data.copy()), m),
-        overwrite=True,
-        sense=objective.sense,
-    )
+    if expression.is_sparse:
+        columns, coeffs = expression.linear_terms()
+        rows = np.zeros(columns.size, dtype=int)
+        terms = LinearExpression.from_coo(m, {}, rows, variable_map[columns], coeffs)
+        remapped = terms + expression.const.item()
+    else:
+        remapped = type(expression)(remap(expression.data.copy()), m)
+    m.add_objective(remapped, overwrite=True, sense=objective.sense)
 
 
 GC_SENSES = re.compile(r"GlobalConstraint_(?!flow_based).+_(ub|lb|eq)")
+GC = "global_constraint"
 
 
-def _merged(parts: list[xr.Dataset]) -> xr.Dataset:
-    """One dataset of the cells the parts hold, each cell live in exactly one part."""
+def _merged_terms(parts: list[xr.Dataset]) -> xr.Dataset:
+    """Return the terms of the cells the parts hold, each cell live in exactly one part."""
     terms = max(p.sizes["_term"] for p in parts)
     padded = []
     for p in parts:
@@ -446,12 +537,24 @@ def _merged(parts: list[xr.Dataset]) -> xr.Dataset:
         padded.append(p)
     merged = padded[0].copy()
     for p in padded[1:]:
-        live = p.labels != -1
-        for field in ("sign", "rhs", "labels"):
-            merged[field] = xr.where(live, p[field], merged[field])
         merged["coeffs"] = merged.coeffs + p.coeffs
         merged["vars"] = xr.where(p.vars != -1, p.vars, merged.vars)
     return merged
+
+
+def _merged(m: Model, parts: list[Part]) -> Part:
+    """Return one lhs and one set of fields of the cells the parts hold, each live in one part."""
+    cells = parts[0][1].copy()
+    for _, p in parts[1:]:
+        live = p.labels != -1
+        for field in ("sign", "rhs", "labels"):
+            cells[field] = xr.where(live, p[field], cells[field])
+    if parts[0][0].is_sparse:
+        masked = [e.where(c.labels != -1, 0) for e, c in parts]
+        return sum(masked[1:], masked[0]), cells
+    terms = [e.data[["coeffs", "vars"]].assign(labels=c.labels) for e, c in parts]
+    merged = _merged_terms(terms)
+    return LinearExpression(merged[["coeffs", "vars"]], m), cells
 
 
 def _merge_global_constraints(m: Model, squeeze: bool) -> None:
@@ -461,29 +564,25 @@ def _merge_global_constraints(m: Model, squeeze: bool) -> None:
     constraint per label, whose sense may differ by scenario.
     """
     names = [k for k in m.constraints if GC_SENSES.fullmatch(k)]
-    parts = [m.constraints[k].data for k in names]
+    cons = [m.constraints[k] for k in names]
     labels: list = []
-    for part in parts:
-        built = (part.labels != -1).any(
-            [d for d in part.labels.dims if d != "global_constraint"]
-        )
-        labels += [
-            g
-            for g in built.indexes["global_constraint"][built.values]
-            if g not in labels
-        ]
+    for con in cons:
+        built = (con.labels != -1).any([d for d in con.labels.dims if d != GC])
+        labels += [g for g in built.indexes[GC][built.values] if g not in labels]
     for g in labels:
         live = [
-            p.sel(global_constraint=g, drop=True)
-            for p in parts
-            if (p.labels.sel(global_constraint=g) != -1).any()
+            _part(con, {"global_constraint": con.indexes[GC].get_loc(g)}, drop=True)
+            for con in cons
+            if (con.labels.sel({GC: g}) != -1).any()
         ]
-        ds = _merged(live)
-        if squeeze and "scenario" in ds.dims:
-            ds = ds.squeeze("scenario", drop=True)
-        lhs = LinearExpression(ds[["coeffs", "vars"]], m)
+        lhs, cells = _merged(m, live)
+        if squeeze and "scenario" in cells.dims:
+            lhs = lhs.isel(scenario=0, drop=True)
+            cells = cells.squeeze("scenario", drop=True)
         m.add_constraints(
-            lhs, ds.sign, ds.rhs, name=f"GlobalConstraint-{g}", mask=ds.labels != -1
+            Constraint(lhs, cells.sign, cells.rhs, m),
+            name=f"GlobalConstraint-{g}",
+            mask=cells.labels != -1,
         )
     for k in names:
         m.remove_constraints(k)
@@ -537,6 +636,15 @@ def _scale_columns(
     return bus, cost
 
 
+def _reduced(
+    ufunc: np.ufunc, groups: np.ndarray, values: np.ndarray, size: int
+) -> np.ndarray:
+    """Return `values` reduced by `ufunc` per group, skipping NaN; NaN for a group with none."""
+    out = np.full(size, np.nan)
+    ufunc.at(out, groups, values)
+    return out
+
+
 def _scale_rows(
     m: Model, n: Network, bus: np.ndarray, cost: np.ndarray, objective: float
 ) -> None:
@@ -557,20 +665,28 @@ def _scale_rows(
         if component == "GlobalConstraint" and rest in stated:
             con.scaling = global_constraint_factor(n, rest)
             continue
-        labels = con.vars.values
-        live = (labels != -1) & (con.coeffs.values != 0)
-        factors = con.vars.copy(data=np.where(live, bus[labels], np.nan))
+        rows, columns, coeffs = _terms(con)
+        live = coeffs != 0
+        rows, columns = rows[live], columns[live]
+        factors = bus[columns]
         if name == KVL:
-            con.scaling = factors.max(TERM_DIM).fillna(1.0)
+            largest = _reduced(np.fmax, rows, factors, con.labels.size)
+            shaped = largest.reshape(con.labels.shape)
+            con.scaling = con.labels.copy(data=shaped).fillna(1.0)
         elif name == GROWTH_LIMIT:
-            dims = [d for d in factors.dims if d != "Carrier"]
-            con.scaling = np.sqrt(factors.min(dims) * factors.max(dims)).fillna(1.0)
-        elif (live & cost[labels]).any():
+            carriers = con.indexes["Carrier"]
+            axis = con.labels.dims.index("Carrier")
+            carrier = np.unravel_index(rows, con.labels.shape)[axis]
+            low = _reduced(np.fmin, carrier, factors, len(carriers))
+            high = _reduced(np.fmax, carrier, factors, len(carriers))
+            mean = xr.DataArray(np.sqrt(low * high), coords={"Carrier": carriers})
+            con.scaling = mean.fillna(1.0)
+        elif cost[columns].any():
             con.scaling = objective
         elif (
             component in attached
             and "name" in con.labels.dims
-            and factors.notnull().any()
+            and np.isfinite(factors).any()
         ):
             con.scaling = n.c[component]._scaling(con.labels.indexes["name"])
 
