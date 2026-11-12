@@ -52,6 +52,11 @@ def test_dispatch_equivalence(storage_hvdc_network):
             index=n.snapshots,
             columns=static.index,
         )
+    n.c.storage_units.dynamic["marginal_cost_storage"] = pd.DataFrame(
+        rng.uniform(0, 0.1, (len(n.snapshots), len(names))),
+        index=n.snapshots,
+        columns=names,
+    )
     n_store = n.copy()
     n_store.c.storage_units.convert_to_stores()
 
