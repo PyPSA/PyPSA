@@ -53,6 +53,12 @@ conditions:
       count(Generator_efficiency_curve_p, over=breakpoint) > 0 AND Generator_active_asset
       AND count(GlobalConstraint_type == 'primary_energy', over=global_constraint) > 0
 
+assumptions:
+  Generator_efficiency_curve_on_a_fixed_build:
+    holds: "NOT Generator_p_nom_extendable AND Generator_p_nom != 0 AND Generator_p_nom < inf"
+    where: "count(Generator_efficiency_curve_p, over=breakpoint) > 0"
+    description: an `efficiency` curve needs a fixed, non-zero, finite `p_nom`
+
 piecewise:
   Generator_efficiency_incremental:
     name: Generator-p_primary_piecewise

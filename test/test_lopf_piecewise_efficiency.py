@@ -47,6 +47,19 @@ class TestPiecewiseGeneratorEfficiency:
         assert "Generator-p_primary_piecewise_order_binary" in model.binaries
         assert "Generator-p_primary_piecewise_chord" not in model.constraints
 
+    @pytest.mark.parametrize(
+        ("attr", "value"), [("p_nom_extendable", True), ("p_nom", 0.0)]
+    )
+    def test_piecewise_efficiency_needs_fixed_nominal(
+        self, piecewise_efficiency_network: pypsa.Network, attr: str, value: object
+    ) -> None:
+        n = piecewise_efficiency_network
+        n.c.generators.static.loc["gen", attr] = value
+        with pytest.raises(
+            ValueError, match="Generator_efficiency_curve_on_a_fixed_build"
+        ):
+            n.optimize.create_model(include_objective_constant=False)
+
     def test_piecewise_efficiency_rejects_lp_equality(
         self,
         piecewise_efficiency_network: pypsa.Network,
@@ -237,6 +250,24 @@ class TestPiecewiseMultiPort2Bus:
             **base_multiport_attrs,
         )
         return base_network, "Process"
+
+    @pytest.mark.parametrize(
+        ("fixture_name", "assumption"),
+        [
+            ("piecewise_two_port_link_network", "Link_efficiency"),
+            ("piecewise_two_port_process_network_r1", "Process_rate"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("attr", "value"), [("p_nom_extendable", True), ("p_nom", 0.0)]
+    )
+    def test_piecewise_port_curve_needs_fixed_nominal(
+        self, request, fixture_name: str, assumption: str, attr: str, value: object
+    ) -> None:
+        n, comp = request.getfixturevalue(fixture_name)
+        n.c[comp].static.loc["multiport1", attr] = value
+        with pytest.raises(ValueError, match=f"{assumption}_curve_on_a_fixed_build"):
+            n.optimize.create_model()
 
     @pytest.mark.parametrize(
         "fixture_name",

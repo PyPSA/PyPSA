@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -17,30 +18,10 @@ if TYPE_CHECKING:
     from pypsa.components import Components
 
 
-def _fixed_nominal(
-    s: NetworkSources, c: Components, attr: str, names: pd.Index
-) -> pd.Series:
-    """Read the fixed nominal value that scales a per-unit curve, refused where it cannot."""
-    nom = c._operational_attrs["nom"]
-    static = s.static(c).reindex(names)
-    extendable = names[static[f"{nom}_extendable"].to_numpy(dtype=bool)]
-    if len(extendable):
-        msg = (
-            f"Piecewise '{attr}' breakpoints on a per-unit x-axis are not supported "
-            f"for extendable components (fixed {nom} required). "
-            f"Extendable components: {extendable.tolist()}."
-        )
-        raise ValueError(msg)
-    nominal = static[nom]
-    bad = (nominal == 0) | nominal.isna() | (nominal == float("inf"))
-    if bad.any():
-        msg = (
-            f"Piecewise '{attr}' breakpoints on a per-unit x-axis cannot be scaled to "
-            f"absolute values for components with non-positive, non-finite or missing {nom}. "
-            f"Problematic components: {names[bad.to_numpy()].tolist()}."
-        )
-        raise ValueError(msg)
-    return nominal
+def _nominal(s: NetworkSources, c: Components, names: pd.Index) -> pd.Series:
+    """Read the nominal value that scales a per-unit curve; where it is not finite the curve stays per unit, for an assumption to refuse."""
+    nominal = s.static(c).reindex(names)[c._operational_attrs["nom"]]
+    return nominal.where(np.isfinite(nominal), 1.0)
 
 
 def _table(
@@ -57,7 +38,7 @@ def _table(
     x = curves.xs(schema.x, level="attribute", axis=1)[names]
     y = curves.xs(attr, level="attribute", axis=1)[names]
     if not schema.allow_extendable:
-        x = x * _fixed_nominal(s, c, attr, names)
+        x = x * _nominal(s, c, names)
     valid = x.notna() & y.notna()
     return x.where(valid), y.where(valid)
 

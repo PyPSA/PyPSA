@@ -74,3 +74,9 @@ conditions:
   ${C}_${coef}_curve:
     description: a port with a piecewise `${coef}` curve
     condition: count(${C}_${coef}_curve_p, over=breakpoint) > 0
+
+assumptions:
+  ${C}_${coef}_curve_on_a_fixed_build:
+    holds: "at(NOT ${C}_${nom}_extendable AND ${C}_${nom} != 0 AND ${C}_${nom} < inf, by=${C}_output_${c}[${c}])"
+    where: "${C}_${coef}_curve"
+    description: a port's `${coef}` curve needs a fixed, non-zero, finite `${nom}`
