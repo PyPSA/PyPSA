@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Data prep of `pypsa.yaml`: unit features."""
+"""Data prep of the spec: unit features."""
 
 from __future__ import annotations
 

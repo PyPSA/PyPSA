@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Data prep of `pypsa.yaml`: passive network.
+"""Data prep of the spec: passive network.
 
 The cycle basis of the KVL rows, the cuts of the loss curves, the outage
 factors of a security-constrained run and the flow-based domain.

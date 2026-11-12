@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Data prep of `pypsa.yaml`: global constraints and carrier growth limits."""
+"""Data prep of the spec: global constraints and carrier growth limits."""
 
 from __future__ import annotations
 

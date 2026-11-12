@@ -2,12 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Data prep: a `pypsa.Network` read as the sources `pypsa.yaml` declares.
+"""Data prep: a `pypsa.Network` read as the sources the spec declares.
 
 Every dimension, relation and parameter of the spec is one key of
 `NetworkSources`. linopy reads each key once, when the build needs it. A
 parameter named `<Component>_<attr>` after a PyPSA attribute is read off
-`c.da`; every other one is derived here, as its description in `pypsa.yaml`
+`c.da`; every other one is derived here, as its description in the spec
 states.
 """
 
@@ -92,7 +92,7 @@ def single(*names: str) -> Callable:
 
 
 class NetworkSources(Mapping[str, Any]):
-    """The sources `pypsa.yaml` reads, derived from a network on access.
+    """The sources the spec reads, derived from a network on access.
 
     Parameters
     ----------

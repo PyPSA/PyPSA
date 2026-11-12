@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Data prep of `pypsa.yaml`: piecewise curves."""
+"""Data prep of the spec: piecewise curves."""
 
 from __future__ import annotations
 
