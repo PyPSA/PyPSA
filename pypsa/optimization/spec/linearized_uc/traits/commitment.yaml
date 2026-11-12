@@ -2,33 +2,91 @@
 #
 # SPDX-License-Identifier: MIT
 
-constraints:
-  ${C}_com_p_current:
-    name: ${C}-com-p-current
+variables:
+  ${C}_status:
+    description: the share of a committable unit that is on
+    domain: null
+    bounds:
+      upper: 1
+  ${C}_start_up:
+    description: the share that starts in this snapshot
+    domain: null
+    bounds:
+      upper: 1
+  ${C}_shut_down:
+    description: the share that stops in this snapshot
+    domain: null
+    bounds:
+      upper: 1
+
+conditions:
+  ${C}_tightened:
     description: >-
-      output fits the share on, and the share starting up only up to the
-      start-up ramp (`constraints.py:744-757`)
-    dims: [scenario, snapshot, "${c}"]
-    where: >-
+      an active committable unit with a fixed build whose start and stop cost
+      the same in every snapshot and scenario
+    condition: >-
       ${C}_committable AND NOT ${C}_${nom}_extendable AND
       count(count(${C}_start_up_cost != ${C}_shut_down_cost, over=snapshot) > 0,
       over=scenario) == 0 AND ${C}_active
+  ${C}_tightened_from_previous:
+    description: a tightened unit at a snapshot that has a previous power
+    condition: >-
+      ${C}_tightened AND (position(snapshot) > 0 OR ${C}_status_initial == 0 OR
+      ${C}_p_init)
+
+piecewise:
+  ${C}_marginal_cost_incremental:
+    description: no status gates the curve, as no unit with a curve is committable
+    activity: null
+
+constraints:
+  ${C}_com_p_current:
+    name: ${C}-com-p-current
+    description: the power fits the share on, the share starting only up to its start-up ramp
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_tightened
     expression: >-
       ${C}_p - ${C}_p_max_pu * ${C}_${nom} * ${C}_status + (${C}_p_max_pu *
       ${C}_${nom} - ${C}_start_up_rate * ${C}_${nom}) * ${C}_start_up <= 0
+  ${C}_com_p_before:
+    name: ${C}-com-p-before
+    description: the previous power fits the share still on, the share stopping only up to its shut-down ramp
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_tightened_from_previous
+    expression: >-
+      ${C}_previous_p
+      - ${C}_shut_down_rate * ${C}_${nom} * ${C}_previous_status
+      - (${C}_p_max_pu * ${C}_${nom} - ${C}_shut_down_rate * ${C}_${nom})
+      * (${C}_status - ${C}_start_up) <= 0
+  ${C}_com_partly_start_up:
+    name: ${C}-com-partly-start-up
+    description: the rise in power is at most the ramp of the share on plus the start-up ramp of the share starting
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_tightened_from_previous
+    expression: >-
+      ${C}_p - ${C}_previous_p
+      - (${C}_p_min_pu * ${C}_${nom} + ${C}_ramp_up_rate * ${C}_${nom}) * ${C}_status
+      + ${C}_p_min_pu * ${C}_${nom} * ${C}_previous_status
+      + (${C}_p_min_pu * ${C}_${nom} + ${C}_ramp_up_rate * ${C}_${nom} - ${C}_start_up_rate * ${C}_${nom})
+      * ${C}_start_up <= 0
+  ${C}_com_partly_shut_down:
+    name: ${C}-com-partly-shut-down
+    description: the fall in power is bounded likewise, by the shut-down ramp
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_tightened_from_previous
+    expression: >-
+      ${C}_previous_p - ${C}_p
+      - ${C}_shut_down_rate * ${C}_${nom} * ${C}_previous_status
+      + (${C}_shut_down_rate * ${C}_${nom} - ${C}_ramp_down_rate * ${C}_${nom}) * ${C}_status
+      - (${C}_p_min_pu * ${C}_${nom} + ${C}_ramp_down_rate * ${C}_${nom} - ${C}_shut_down_rate * ${C}_${nom})
+      * ${C}_start_up <= 0
 
 assumptions:
   ${C}_marginal_cost_curve_is_not_committable:
     holds: NOT ${C}_committable
     where: ${C}_marginal_cost_curve
-    description: >-
-      a ${c} with a piecewise `marginal_cost` curve is not committable. PyPSA
-      gates such a curve by the status share (`optimize.py:314-318`,
-      `piecewise.py:200-210`), and a curve gate is binary or integer
+    description: a unit with a `marginal_cost` curve is not committable, as a status gate needs integers
   ${C}_committable_is_not_modular:
     holds: NOT (${C}_${nom}_mod > 0)
     where: ${C}_committable AND count(${C}_active, over=snapshot) > 0
-    description: >-
-      a modular committable unit counts its status in modules, which the
-      relaxation cannot share out. PyPSA refuses it under the keyword
-      (`optimize.py:841-842`, `consistency.py:1588-1629`)
+    description: a committable unit is not modular, as the relaxation cannot share out modules

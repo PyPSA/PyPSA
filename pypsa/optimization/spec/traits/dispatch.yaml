@@ -2,14 +2,47 @@
 #
 # SPDX-License-Identifier: MIT
 
+parameters:
+  ${C}_e_sum_min:
+    description: least energy over the horizon; minus infinity means no row
+    dims: [scenario, "${c}"]
+  ${C}_e_sum_max:
+    description: most energy over the horizon; infinity means no row
+    dims: [scenario, "${c}"]
+
+variables:
+  ${C}_p:
+    name: ${C}-p
+    description: power in a snapshot; the injection states its sign at each bus
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_active
+
 expressions:
   ${C}_${nom}_effective:
-    description: >-
-      the build a ${c}'s limits are taken against: the chosen one where it is
-      extendable, the given one otherwise
+    description: the chosen build where it is extendable, the given one otherwise
     dims: [scenario, "${c}"]
     cases:
       extendable:
         when: ${C}_${nom}_extendable
         expression: ${C}_${nom}_ext
     otherwise: ${C}_${nom}
+
+constraints:
+  ${C}_p_set:
+    name: ${C}-p_set
+    description: the power follows the given schedule
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_p_set AND ${C}_active
+    expression: ${C}_p == ${C}_p_set
+  ${C}_e_sum_min:
+    name: ${C}-e_sum_min
+    description: the energy over the horizon, each period weighted by its years, is at least the floor
+    dims: [scenario, "${c}"]
+    where: ${C}_e_sum_min AND count(${C}_active, over=snapshot) > 0
+    expression: sum(${C}_p * energy_limit_weight, over=snapshot) >= ${C}_e_sum_min
+  ${C}_e_sum_max:
+    name: ${C}-e_sum_max
+    description: the energy over the horizon, each period weighted by its years, is at most the cap
+    dims: [scenario, "${c}"]
+    where: ${C}_e_sum_max AND count(${C}_active, over=snapshot) > 0
+    expression: sum(${C}_p * energy_limit_weight, over=snapshot) <= ${C}_e_sum_max

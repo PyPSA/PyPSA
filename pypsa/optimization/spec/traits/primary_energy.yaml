@@ -4,6 +4,6 @@
 
 parameters:
   ${C}_operational_limit_weight:
-    description: one where the ${unit} is in the row's set, data prep. One outside it has no row
+    description: one where the unit is in the row's set. No row outside it
     dims: [scenario, global_constraint, "${c}"]
     missing: absent

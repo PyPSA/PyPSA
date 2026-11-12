@@ -47,6 +47,7 @@ class Processes(_Multiport):
         "dispatch",
         "commitment",
         "maintenance",
+        "multiport",
     )
     _unsuffixed_attrs: set[str] = set()
 

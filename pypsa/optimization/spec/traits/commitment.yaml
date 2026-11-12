@@ -3,6 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 parameters:
+  ${C}_committable:
+    description: whether an on/off status decision gates the power
+    dims: ["${c}"]
+    dtype: bool
   ${C}_start_up_cost:
     description: cost of one start in this snapshot
     dims: [scenario, snapshot, "${c}"]
@@ -12,28 +16,98 @@ parameters:
   ${C}_stand_by_cost:
     description: cost of one snapshot spent on
     dims: [scenario, snapshot, "${c}"]
+  ${C}_min_up_time:
+    description: least snapshots a unit stays on once started
+    dims: [scenario, "${c}"]
+    dtype: int
+  ${C}_min_down_time:
+    description: least snapshots a unit stays off once stopped
+    dims: [scenario, "${c}"]
+    dtype: int
+  ${C}_status_initial:
+    description: >-
+      one where the unit was on before the first snapshot, zero where off. A
+      unit that is not committable counts as on
+    dims: [scenario, "${c}"]
+  ${C}_p_init:
+    description: >-
+      the power the unit brought into the horizon where it came in on. No value
+      means unknown: then there is no ramp row at the first snapshot
+    dims: [scenario, "${c}"]
+    missing: 0
+  ${C}_up_time_brought_in:
+    description: one while the up time the unit brought into the horizon still runs
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_down_time_brought_in:
+    description: one while the down time the unit brought into the horizon still runs
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_ramp_limit_up:
+    description: >-
+      most increase of power between two snapshots, per unit of nominal power.
+      The later snapshot's value applies. No value means no limit
+    dims: [scenario, snapshot, "${c}"]
+    missing: absent
+  ${C}_ramp_limit_down:
+    description: >-
+      most decrease of power between two snapshots, per unit of nominal power.
+      The later snapshot's value applies. No value means no limit
+    dims: [scenario, snapshot, "${c}"]
+    missing: absent
+  ${C}_ramp_limit_start_up:
+    description: most power in the snapshot a unit starts, per unit of nominal power. No value means no limit
+    dims: [scenario, "${c}"]
+    missing: absent
+  ${C}_ramp_limit_shut_down:
+    description: most power in the snapshot before a unit stops, per unit of nominal power. No value means no limit
+    dims: [scenario, "${c}"]
+    missing: absent
   ${C}_modules_installed:
     description: >-
-      how many whole modules a committable build has in place, data prep. It is
-      `${C}_${nom} / ${C}_${nom}_mod` where a fixed build is modular, and one
-      where it is not. PyPSA refuses a fixed modular build whose nominal power
-      is not a whole number of modules
+      whole modules of a fixed modular build: `${nom} / ${nom}_mod`, and one
+      where the build is not modular
     dims: [scenario, "${c}"]
-  ${C}_p_min_pu_nonneg:
+  ${C}_big_m:
     description: >-
-      true where none of the ${c}'s own minimums-per-unit is negative. It is
-      PyPSA's per-unit `(p_min_pu >= 0).all()` over every snapshot and scenario,
-      data prep
+      the bound the big-M rows of a committable extendable unit release: the
+      largest power the unit could reach
+    dims: [scenario, "${c}"]
+    missing: absent
+  ${C}_p_min_pu_nonneg:
+    description: true where no `p_min_pu` of the unit is negative, in any snapshot and scenario
     dims: ["${c}"]
     dtype: bool
+
+variables:
+  ${C}_status:
+    name: ${C}-status
+    description: how many modules of a committable unit are on; one module where it is not modular
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed
+    domain: integer
+    bounds:
+      lower: 0
+  ${C}_start_up:
+    name: ${C}-start_up
+    description: how many modules start in this snapshot
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed
+    domain: integer
+    bounds:
+      lower: 0
+  ${C}_shut_down:
+    name: ${C}-shut_down
+    description: how many modules stop in this snapshot
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed
+    domain: integer
+    bounds:
+      lower: 0
 
 expressions:
   ${C}_previous_status:
     description: >-
-      the commitment state a ${c} carries into a snapshot. It is off at the
-      first snapshot it is active in past the first of the horizon. PyPSA reads
-      a status it did not build as off there (`constraints.py:391`). It is the
-      state carried over otherwise
+      the status a unit carries into a snapshot. It is off at the first
+      snapshot of a unit that becomes active later
     dims: [scenario, snapshot, "${c}"]
     cases:
       opening_late:
@@ -41,9 +115,7 @@ expressions:
         expression: 0
     otherwise: ${C}_status_carried_over
   ${C}_status_carried_over:
-    description: >-
-      the state a ${c} carries over into a snapshot: the state it brought into
-      the horizon at the first, the previous snapshot's after that
+    description: the initial status at the first snapshot, the previous status after it
     dims: [scenario, snapshot, "${c}"]
     cases:
       opening:
@@ -52,10 +124,8 @@ expressions:
     otherwise: shift(${C}_status, along=snapshot, offset=1)
   ${C}_previous_p:
     description: >-
-      the output a ${c} carries into a snapshot. It is nothing at the first
-      snapshot it is active in past the first of the horizon: PyPSA fills an
-      output it did not build with zero (`constraints.py:716`). It is the output
-      carried over otherwise
+      the power a unit carries into a snapshot. It is zero at the first
+      snapshot of a unit that becomes active later
     dims: [scenario, snapshot, "${c}"]
     cases:
       opening_late:
@@ -63,84 +133,365 @@ expressions:
         expression: 0
     otherwise: ${C}_p_carried_over
   ${C}_p_carried_over:
-    description: >-
-      the output a ${c} carries over into a snapshot. At the first, it is the
-      `p_init` it brought in where it came in running, and nothing where it came
-      in off. After that, it is the previous snapshot's
+    description: "`p_init` at the first snapshot, the previous power after it"
     dims: [scenario, snapshot, "${c}"]
     cases:
       opening:
         when: position(snapshot) == 0
         expression: ${C}_p_init
     otherwise: shift(${C}_p, along=snapshot, offset=1)
+  ${C}_modules:
+    description: >-
+      how many modules the status counts: the chosen number for an extendable
+      modular build, the installed number otherwise
+    dims: [scenario, "${c}"]
+    cases:
+      chosen:
+        when: ${C}_${nom}_extendable AND ${C}_${nom}_mod > 0
+        expression: ${C}_n_mod
+    otherwise: ${C}_modules_installed
+  ${C}_${nom}_committed:
+    description: the capacity one status counts for in the ramp rows; one module, or the whole build
+    dims: [scenario, "${c}"]
+    cases:
+      modular_build:
+        when: "${C}_${nom}_mod > 0"
+        expression: ${C}_${nom}_mod
+    otherwise: ${C}_${nom}
+  ${C}_ramp_up_rate:
+    description: "`ramp_limit_up`, or one (the full build) where it has none"
+    dims: [scenario, snapshot, "${c}"]
+    cases:
+      given:
+        when: ${C}_ramp_limit_up
+        expression: ${C}_ramp_limit_up
+    otherwise: 1
+  ${C}_ramp_down_rate:
+    description: "`ramp_limit_down`, or one (the full build) where it has none"
+    dims: [scenario, snapshot, "${c}"]
+    cases:
+      given:
+        when: ${C}_ramp_limit_down
+        expression: ${C}_ramp_limit_down
+    otherwise: 1
+  ${C}_start_up_rate:
+    description: "`ramp_limit_start_up`, or one (the full build) where it has none"
+    dims: [scenario, "${c}"]
+    cases:
+      given:
+        when: ${C}_ramp_limit_start_up
+        expression: ${C}_ramp_limit_start_up
+    otherwise: 1
+  ${C}_shut_down_rate:
+    description: "`ramp_limit_shut_down`, or one (the full build) where it has none"
+    dims: [scenario, "${c}"]
+    cases:
+      given:
+        when: ${C}_ramp_limit_shut_down
+        expression: ${C}_ramp_limit_shut_down
+    otherwise: 1
+  ${C}_ramp_previous_status:
+    description: >-
+      the status the ramp rows carry into a snapshot. A fixed modular unit that
+      came in on has all its modules on at the first snapshot
+    dims: [scenario, snapshot, "${c}"]
+    cases:
+      opening_modules:
+        when: "position(snapshot) == 0 AND NOT ${C}_${nom}_extendable AND ${C}_${nom}_mod > 0"
+        expression: ${C}_status_initial * ${C}_modules_installed
+    otherwise: ${C}_previous_status
+  ${C}_ramp_up_allowance:
+    description: >-
+      how far the power may rise between two snapshots: the ramp limit of the
+      modules that stay on, plus the start-up ramp of those that start
+    dims: [scenario, snapshot, "${c}"]
+    cases:
+      committed:
+        when: ${C}_committable
+        expression: >-
+          ${C}_ramp_up_rate * ${C}_${nom}_committed * ${C}_ramp_previous_status
+          + ${C}_start_up_rate * ${C}_${nom}_committed
+          * (${C}_status - ${C}_ramp_previous_status)
+    otherwise: ${C}_ramp_up_rate * ${C}_${nom}_effective
+  ${C}_ramp_down_allowance:
+    description: >-
+      how far the power may fall between two snapshots: the ramp limit of the
+      modules that stay on, plus the shut-down ramp of those that stop
+    dims: [scenario, snapshot, "${c}"]
+    cases:
+      committed:
+        when: ${C}_committable
+        expression: >-
+          ${C}_ramp_down_rate * ${C}_${nom}_committed * ${C}_status
+          + ${C}_shut_down_rate * ${C}_${nom}_committed
+          * (${C}_ramp_previous_status - ${C}_status)
+    otherwise: ${C}_ramp_down_rate * ${C}_${nom}_effective
   ${C}_commitment_opex:
     expression: >-
-      sum(sum(((${C}_status * ${C}_stand_by_cost) *
-      snapshot_weightings_objective) * at(period_weight_objective,
-      by=snapshot_period[period]), over=${c}), over=snapshot) +
-      sum(sum((${C}_start_up * ${C}_start_up_cost) * at(period_weight_objective,
-      by=snapshot_period[period]), over=${c}), over=snapshot) +
-      sum(sum((${C}_shut_down * ${C}_shut_down_cost) *
-      at(period_weight_objective, by=snapshot_period[period]), over=${c}),
-      over=snapshot)
+      ${C}_operating_cost(${C}_status * ${C}_stand_by_cost)
+      + sum(sum((${C}_start_up * ${C}_start_up_cost) * at(period_weight_objective,
+      by=snapshot_period[period]), over=${c}), over=snapshot)
+      + sum(sum((${C}_shut_down * ${C}_shut_down_cost) * at(period_weight_objective,
+      by=snapshot_period[period]), over=${c}), over=snapshot)
 
 conditions:
+  ${C}_committed:
+    description: a committable unit, in a snapshot it is active in
+    condition: ${C}_committable AND ${C}_active
   ${C}_com_ext:
     description: >-
-      a committable ${c} with an extendable, non-modular build that is active in
-      the snapshot's period. These are PyPSA's `com-ext` rows, whose status is
-      relaxed against the chosen build
+      a committed unit with an extendable build that is not modular. Its status
+      is held against the chosen build by big-M rows
     condition: >-
       ${C}_committable AND ${C}_${nom}_extendable AND NOT (${C}_${nom}_mod > 0)
       AND ${C}_active
-  ${C}_committed:
-    description: >-
-      a committable ${c} that is active in the snapshot's period: every
-      unit-commitment row's set
-    condition: ${C}_committable AND ${C}_active
   ${C}_ramps_from_previous:
     description: >-
-      a snapshot whose ramp uses a previous output. It is any snapshot but its
-      period's first, and the horizon's first where the ${c} comes in off or
-      carries an initial output
+      a snapshot whose ramp row has a previous power: any but the first of its
+      period, and the first of the horizon where the unit came in off or with
+      a `p_init`
     condition: >-
       position(snapshot, within=snapshot_period[period]) > 0 OR
       (position(snapshot) == 0 AND (${C}_status_initial == 0 OR ${C}_p_init))
+  ${C}_marginal_cost_as_lp:
+    description: >-
+      true where every `marginal_cost` curve of the component is convex and no
+      unit with a curve is committable: then the curves are stated as segment
+      lines, else by incremental segments
+    condition: >-
+      count(${C}_marginal_cost_curve AND count(${C}_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=${c}) == 0
+      AND count(${C}_marginal_cost_curve AND ${C}_committable, over=${c}) == 0
+
+piecewise:
+  ${C}_marginal_cost_incremental:
+    name: ${C}-marginal_cost_piecewise
+    description: >-
+      the running cost is at least the `marginal_cost` curve at the power, by
+      segments filled in order; the status gates the curve of a committable unit
+    along: breakpoint
+    dims: [scenario, snapshot, "${c}"]
+    where: NOT ${C}_marginal_cost_as_lp AND ${C}_marginal_cost_curve AND ${C}_active AND ${C}_marginal_cost_curve_p
+    method: incremental
+    activity: ${C}_status
+    links:
+      p: ["${C}_p", "${C}_marginal_cost_curve_p"]
+      cost: ["${C}_marginal_cost_piecewise", "${C}_marginal_cost_curve_cost", ">="]
 
 constraints:
+  ${C}_fix_p_lower:
+    name: ${C}-fix-p-lower
+    description: a fixed unit that is not committable runs at least at its minimum
+    dims: [scenario, snapshot, "${c}"]
+    where: not ${C}_${nom}_extendable AND not ${C}_committable AND ${C}_active AND (${C}_${nom} < inf OR ${C}_p_min_pu == 0)
+    expression: ${C}_p >= ${C}_p_min_pu * ${C}_${nom}_rated * (1 - ${C}_maintenance_pu * ${C}_maintenance)
+  ${C}_fix_p_upper:
+    name: ${C}-fix-p-upper
+    description: a fixed unit that is not committable runs at most at its maximum
+    dims: [scenario, snapshot, "${c}"]
+    where: not ${C}_${nom}_extendable AND not ${C}_committable AND ${C}_active AND (${C}_${nom} < inf OR ${C}_p_max_pu == 0)
+    expression: ${C}_p <= ${C}_p_max_pu * ${C}_${nom}_rated * (1 - ${C}_maintenance_pu * ${C}_maintenance)
+  ${C}_ext_p_lower:
+    name: ${C}-ext-p-lower
+    description: an extendable unit that is not committable runs at least at its minimum of the chosen build
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_${nom}_extendable AND not ${C}_committable AND ${C}_active
+    expression: ${C}_p >= ${C}_p_min_pu * (${C}_${nom}_ext - ${C}_maintenance_pu * ${C}_maintenance_capacity)
+  ${C}_ext_p_upper:
+    name: ${C}-ext-p-upper
+    description: an extendable unit that is not committable runs at most at its maximum of the chosen build
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_${nom}_extendable AND not ${C}_committable AND ${C}_active
+    expression: ${C}_p <= ${C}_p_max_pu * (${C}_${nom}_ext - ${C}_maintenance_pu * ${C}_maintenance_capacity)
+  ${C}_com_p_lower:
+    name: ${C}-com-p-lower
+    description: a committed unit runs at least at its minimum while on
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND NOT ${C}_${nom}_extendable AND NOT (${C}_${nom}_mod > 0)
+    expression: ${C}_p >= ${C}_p_min_pu * ${C}_${nom} * (${C}_status - ${C}_maintenance_pu * ${C}_maintenance_status)
+  ${C}_com_p_upper:
+    name: ${C}-com-p-upper
+    description: a committed unit runs at most at its maximum while on, and not at all while off
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND NOT ${C}_${nom}_extendable AND NOT (${C}_${nom}_mod > 0)
+    expression: ${C}_p <= ${C}_p_max_pu * ${C}_${nom} * (${C}_status - ${C}_maintenance_pu * ${C}_maintenance_status)
+  ${C}_com_mod_p_lower:
+    name: ${C}-com-mod-p-lower
+    description: a committed modular unit runs at least at the minimum of its modules on
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND ${C}_${nom}_mod > 0
+    expression: ${C}_p >= ${C}_p_min_pu * ${C}_${nom}_mod * (${C}_status - ${C}_maintenance_pu * ${C}_maintenance_status)
+  ${C}_com_mod_p_upper:
+    name: ${C}-com-mod-p-upper
+    description: a committed modular unit runs at most at the maximum of its modules on
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND ${C}_${nom}_mod > 0
+    expression: ${C}_p <= ${C}_p_max_pu * ${C}_${nom}_mod * (${C}_status - ${C}_maintenance_pu * ${C}_maintenance_status)
+  ${C}_com_ext_p_upper_cap:
+    name: ${C}-com-ext-p-upper-cap
+    description: a committed extendable unit runs at most at its maximum of the chosen build
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_com_ext
+    expression: ${C}_p <= ${C}_p_max_pu * (${C}_${nom}_ext - ${C}_maintenance_pu * ${C}_maintenance_capacity)
+  ${C}_com_ext_p_upper_big_m:
+    name: ${C}-com-ext-p-upper-bigM
+    description: a committed extendable unit does not run while off
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_com_ext
+    expression: ${C}_p <= ${C}_big_m * ${C}_status
+  ${C}_com_ext_p_lower:
+    name: ${C}-com-ext-p-lower
+    description: a committed extendable unit runs at least at its minimum of the chosen build while on
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_com_ext
+    expression: >-
+      ${C}_p >=
+      ${C}_p_min_pu * (${C}_${nom}_ext - ${C}_maintenance_pu * ${C}_maintenance_capacity)
+      + ${C}_big_m * ${C}_status - ${C}_big_m
+  ${C}_com_ext_p_lower_nonneg:
+    name: ${C}-com-ext-p-lower-nonneg
+    description: the power of a committed extendable unit is not negative where its `p_min_pu` never is
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_com_ext AND ${C}_p_min_pu_nonneg
+    expression: ${C}_p >= 0
   ${C}_status_p_fixed_upper:
     name: ${C}-status-p-fixed-upper
-    description: >-
-      a status is at most the modules in place, an explicit row as PyPSA writes
-      it. The bound is one where the build is not modular, and the fixed build's
-      whole count of modules where it is
+    description: the status is at most the modules installed
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_committed AND NOT (${C}_${nom}_extendable AND ${C}_${nom}_mod > 0)
     expression: ${C}_status <= ${C}_modules_installed
   ${C}_start_up_p_fixed_upper:
     name: ${C}-start_up-p-fixed-upper
-    description: >-
-      a start is at most the modules in place, an explicit row as PyPSA writes
-      it. The bound is one where the build is not modular, and the fixed build's
-      whole count of modules where it is
+    description: the starts are at most the modules installed
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_committed AND NOT (${C}_${nom}_extendable AND ${C}_${nom}_mod > 0)
     expression: ${C}_start_up <= ${C}_modules_installed
   ${C}_shut_down_p_fixed_upper:
     name: ${C}-shut_down-p-fixed-upper
-    description: >-
-      a stop is at most the modules in place, an explicit row as PyPSA writes
-      it. The bound is one where the build is not modular, and the fixed build's
-      whole count of modules where it is
+    description: the stops are at most the modules installed
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_committed AND NOT (${C}_${nom}_extendable AND ${C}_${nom}_mod > 0)
     expression: ${C}_shut_down <= ${C}_modules_installed
+  ${C}_status_${nom}_variable_upper:
+    name: ${C}-status-${nom}-variable-upper
+    description: the status is at most the modules built
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND ${C}_${nom}_extendable AND ${C}_${nom}_mod > 0
+    expression: ${C}_status <= ${C}_n_mod
+  ${C}_start_up_${nom}_variable_upper:
+    name: ${C}-start_up-${nom}-variable-upper
+    description: the starts are at most the modules built
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND ${C}_${nom}_extendable AND ${C}_${nom}_mod > 0
+    expression: ${C}_start_up <= ${C}_n_mod
+  ${C}_shut_down_${nom}_variable_upper:
+    name: ${C}-shut_down-${nom}-variable-upper
+    description: the stops are at most the modules built
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND ${C}_${nom}_extendable AND ${C}_${nom}_mod > 0
+    expression: ${C}_shut_down <= ${C}_n_mod
+  ${C}_com_transition_start_up:
+    name: ${C}-com-transition-start-up
+    description: a module that turns on starts
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed
+    expression: ${C}_start_up >= ${C}_status - ${C}_previous_status
+  ${C}_com_transition_shut_down:
+    name: ${C}-com-transition-shut-down
+    description: a module that turns off stops
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed
+    expression: ${C}_shut_down >= ${C}_previous_status - ${C}_status
+  ${C}_com_up_time:
+    name: ${C}-com-up-time
+    description: a module started within the minimum up time is still on
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND ${C}_min_up_time > 0
+    expression: >-
+      sum_back(${C}_start_up, along=snapshot, window=${C}_min_up_time)
+      + ${C}_up_time_brought_in <= ${C}_status
+  ${C}_com_down_time:
+    name: ${C}-com-down-time
+    description: a module stopped within the minimum down time is still off
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_committed AND ${C}_min_down_time > 0
+    expression: >-
+      sum_back(${C}_shut_down, along=snapshot, window=${C}_min_down_time)
+      + ${C}_down_time_brought_in <= ${C}_modules - ${C}_status
+  ${C}_p_ramp_limit_up:
+    name: ${C}-p-ramp_limit_up
+    description: >-
+      the power rises at most by the ramp allowance. A committed extendable unit
+      that is not modular has the big-M rows instead
+    dims: [scenario, snapshot, "${c}"]
+    where: >-
+      (${C}_ramp_limit_up OR ${C}_ramp_limit_start_up)
+      AND NOT (${C}_committable AND ${C}_${nom}_extendable AND NOT (${C}_${nom}_mod > 0))
+      AND ${C}_ramps_from_previous
+      AND ${C}_active
+    expression: ${C}_p - ${C}_previous_p <= ${C}_ramp_up_allowance
+  ${C}_p_ramp_limit_down:
+    name: ${C}-p-ramp_limit_down
+    description: >-
+      the power falls at most by the ramp allowance. A committed extendable unit
+      that is not modular has the big-M rows instead
+    dims: [scenario, snapshot, "${c}"]
+    where: >-
+      (${C}_ramp_limit_down OR ${C}_ramp_limit_shut_down)
+      AND NOT (${C}_committable AND ${C}_${nom}_extendable AND NOT (${C}_${nom}_mod > 0))
+      AND ${C}_ramps_from_previous
+      AND ${C}_active
+    expression: ${C}_previous_p - ${C}_p <= ${C}_ramp_down_allowance
+  ${C}_p_ramp_limit_up_run_big_m:
+    name: ${C}-p-ramp_limit_up-run-bigM
+    description: a running committed extendable unit rises at most by its ramp limit of the chosen build
+    dims: [scenario, snapshot, "${c}"]
+    where: >-
+      ${C}_com_ext
+      AND (${C}_ramp_limit_up OR ${C}_ramp_limit_start_up)
+      AND ${C}_ramps_from_previous
+    expression: >-
+      ${C}_p - ${C}_previous_p <=
+      ${C}_ramp_up_rate * ${C}_${nom}_ext
+      + ${C}_big_m - ${C}_big_m * ${C}_previous_status
+  ${C}_p_ramp_limit_up_start_big_m:
+    name: ${C}-p-ramp_limit_up-start-bigM
+    description: a starting committed extendable unit rises at most by its start-up ramp of the chosen build
+    dims: [scenario, snapshot, "${c}"]
+    where: >-
+      ${C}_com_ext
+      AND (${C}_ramp_limit_up OR ${C}_ramp_limit_start_up)
+      AND ${C}_ramps_from_previous
+    expression: >-
+      ${C}_p - ${C}_previous_p <=
+      ${C}_start_up_rate * ${C}_${nom}_ext
+      + ${C}_big_m - ${C}_big_m * ${C}_start_up
+  ${C}_p_ramp_limit_down_run_big_m:
+    name: ${C}-p-ramp_limit_down-run-bigM
+    description: a running committed extendable unit falls at most by its ramp limit of the chosen build
+    dims: [scenario, snapshot, "${c}"]
+    where: >-
+      ${C}_com_ext
+      AND (${C}_ramp_limit_down OR ${C}_ramp_limit_shut_down)
+      AND ${C}_ramps_from_previous
+    expression: >-
+      ${C}_p - ${C}_previous_p >=
+      -${C}_ramp_down_rate * ${C}_${nom}_ext
+      - ${C}_big_m + ${C}_big_m * ${C}_status
+  ${C}_p_ramp_limit_down_shut_big_m:
+    name: ${C}-p-ramp_limit_down-shut-bigM
+    description: a stopping committed extendable unit falls at most by its shut-down ramp of the chosen build
+    dims: [scenario, snapshot, "${c}"]
+    where: >-
+      ${C}_com_ext
+      AND (${C}_ramp_limit_down OR ${C}_ramp_limit_shut_down)
+      AND ${C}_ramps_from_previous
+    expression: >-
+      ${C}_previous_p - ${C}_p <=
+      ${C}_shut_down_rate * ${C}_${nom}_ext
+      + ${C}_big_m - ${C}_big_m * ${C}_shut_down
 
 assumptions:
   ${C}_big_m_where_committed_and_extendable:
     holds: ${C}_big_m
     where: ${C}_com_ext
-    description: >-
-      a committable ${c} with an extendable, non-modular build has the big-M its
-      rows release it by — PyPSA computes one for each
-      (`get_committable_big_m_values`)
+    description: a committed extendable unit that is not modular has a big M

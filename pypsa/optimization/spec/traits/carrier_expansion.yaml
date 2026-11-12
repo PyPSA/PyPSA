@@ -4,18 +4,20 @@
 
 parameters:
   ${C}_first_active:
-    description: >-
-      one in the first period a ${unit} is active in, zero elsewhere, data prep.
-      PyPSA takes `active & (active.cumsum() == 1)`
-      (`global_constraints.py:278`)
+    description: one in the first period the asset is active in, zero elsewhere
     dims: [period, "${c}"]
   ${C}_tech_capacity_weight:
     description: >-
-      one where the ${unit} is in the row's carrier-and-bus set, data prep. One
-      outside it, or one that is not active in the row's `investment_period`,
-      has no row
+      one where the asset is in the row's carrier-and-bus set. No row outside it,
+      or where the asset is not active in the row's period
     dims: [global_constraint, "${c}"]
     missing: absent
+
+relations:
+  ${C}_carrier:
+    description: the asset's carrier
+    key: ${c}
+    values: carrier
 
 expressions:
   ${C}_tech_capacity_expansion:

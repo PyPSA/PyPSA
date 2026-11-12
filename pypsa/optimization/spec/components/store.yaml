@@ -3,163 +3,22 @@
 # SPDX-License-Identifier: MIT
 
 parameters:
-  Store_active:
-    description: whether a store is active in a snapshot's period. It is PyPSA's `active`, data prep
-    dims: [snapshot, store]
-    dtype: bool
-  Store_e_nom_min:
-    description: least nominal capacity an extendable store may be built at
-    dims: [scenario, store]
-  Store_e_nom_max:
-    description: most nominal capacity an extendable store may be built at
-    dims: [scenario, store]
-  Store_capital_cost:
-    description: >-
-      cost of one unit of nominal capacity for the modelled horizon (PyPSA's
-      `periodized_cost`), data prep. It is `overnight_cost` as an annuity over
-      `lifetime` at `discount_rate`, times `nyears`, where `overnight_cost` is
-      given, and `capital_cost` where it is not. Both add `fom_cost`
-      (`components.py:1157-1178`, `costs.py:102-203`)
-    dims: [scenario, store]
-  Store_capital_cost_curve_nom:
-    description: >-
-      the nominal capacity at each breakpoint of a store's piecewise
-      `capital_cost` curve: PyPSA's `e_nom` breakpoints, data prep. A store
-      with no curve has no rows
-    dims: [store, breakpoint]
-    missing: absent
-  Store_capital_cost_curve_cost:
-    description: >-
-      the cost of the build at each breakpoint of a store's piecewise
-      `capital_cost` curve: zero at the first, then each segment's width in
-      nominal capacity times the `capital_cost` at its upper breakpoint,
-      summed, data prep. It is linopy's `Slopes(...).to_breakpoints`
-      (`piecewise.py:310-312`). The curve is already periodized, so data prep
-      refuses `overnight_cost` beside it, as PyPSA does
-      (`optimize.py:427-434`)
-    dims: [store, breakpoint]
-    missing: absent
-  Store_e_nom_set:
-    description: a given nominal capacity for an extendable store. One without a value has no row here
-    dims: [scenario, store]
-    missing: absent
-  Store_e_nom:
-    description: nominal energy capacity
-    dims: [scenario, store]
-  Store_e_nom_extendable:
-    description: whether the nominal energy capacity is a decision
-    dims: [store]
-    dtype: bool
   Store_e_min_pu:
-    description: "least energy held, per unit of nominal capacity: negative for a store that may go short"
+    description: least energy stored, per unit of nominal capacity; negative for a store that may go short
     dims: [scenario, snapshot, store]
   Store_e_max_pu:
-    description: most energy held, per unit of nominal capacity
-    dims: [scenario, snapshot, store]
-  Store_sign:
-    description: >-
-      the sign the power a store delivers enters its bus's balance with. It is
-      PyPSA's `sign`, `1` unless given. PyPSA refuses one that differs by
-      scenario (`constants.py:46`)
-    dims: [store]
-  Store_retention:
-    description: share of energy kept over a snapshot. It is PyPSA's `(1 - standing_loss) ** elapsed hours`, data prep
-    dims: [scenario, snapshot, store]
-  Store_e_initial:
-    description: energy held before the first snapshot
-    dims: [scenario, store]
-  Store_e_cyclic:
-    description: whether the horizon closes on itself instead of opening on the initial energy
-    dims: [scenario, store]
-    dtype: bool
-  Store_e_cyclic_per_period:
-    description: >-
-      whether each investment period closes on itself instead of carrying its
-      energy on to the next. It overrides `e_cyclic` and
-      `e_initial_per_period`. PyPSA reads it only under
-      `multi_investment_periods`. Otherwise you feed false in data prep
-    dims: [scenario, store]
-    dtype: bool
-  Store_e_initial_per_period:
-    description: >-
-      whether each investment period opens on the initial energy instead of
-      carrying the previous period's. PyPSA reads it only under
-      `multi_investment_periods`. Otherwise you feed false in data prep
-    dims: [scenario, store]
-    dtype: bool
-  Store_opens_late:
-    description: >-
-      whether a snapshot is the first a store is active in, where that is not the
-      first of the horizon, data prep. It is PyPSA's `active.cumsum() == 1`
-      over the snapshots it is active in, past the first snapshot. It is false in
-      a run where every store is active throughout
-    dims: [snapshot, store]
-    dtype: bool
-  Store_inactive_snapshots:
-    description: >-
-      how many snapshots a store is not active in. It is PyPSA's
-      `(~active).sum()`, data prep. A cyclic store reaches back this many
-      snapshots further, so it closes on the last snapshot it is active in
-    dims: [store]
-    dtype: int
-  Store_marginal_cost:
-    description: cost of one unit of power delivered
-    dims: [scenario, snapshot, store]
-  Store_marginal_cost_quadratic:
-    description: cost of the square of the net power delivered, so charging costs as much as delivering
-    dims: [scenario, snapshot, store]
-  Store_marginal_cost_curve_p:
-    description: >-
-      the power at each breakpoint of a store's piecewise `marginal_cost`
-      curve: PyPSA's `p_pu` breakpoints times `e_nom`, not the power rating
-      `e_nom / max_hours` that bounds `p`, data prep. A store with no curve
-      has no rows
-    dims: [store, breakpoint]
-    missing: absent
-  Store_marginal_cost_curve_cost:
-    description: >-
-      the running cost at each breakpoint of a store's piecewise
-      `marginal_cost` curve: zero at the first, then each segment's width in
-      power times the `marginal_cost` at its upper breakpoint, summed, data
-      prep. It is linopy's `Slopes(...).to_breakpoints`
-      (`piecewise.py:310-312`). A curve that starts below zero, in charging,
-      costs more than nothing at zero power
-    dims: [store, breakpoint]
-    missing: absent
-  Store_marginal_cost_storage:
-    description: cost of one unit of energy held over one snapshot
+    description: most energy stored, per unit of nominal capacity
     dims: [scenario, snapshot, store]
   Store_e_set:
-    description: a given energy schedule. A store without one has no row here
-    dims: [scenario, snapshot, store]
-    missing: absent
-  Store_p_set:
-    description: a given schedule of power delivered. A store without one has no row here
+    description: a given energy schedule. No value means no row
     dims: [scenario, snapshot, store]
     missing: absent
   Store_max_hours:
     description: >-
-      energy capacity, as hours of discharge at the power rating. The rating is
-      `e_nom / max_hours`. No value means PyPSA's default of infinity, and the
-      store's power is then unbounded
+      energy capacity in hours of discharge at the power rating `e_nom /
+      max_hours`. No value means unbounded power
     dims: [scenario, store]
     missing: absent
-  Store_p_min_pu:
-    description: >-
-      most charging, per unit of the power rating, negated. It is PyPSA's
-      `p_min_pu`, `-1` unless given, read only where `max_hours` has a value
-    dims: [scenario, snapshot, store]
-  Store_p_max_pu:
-    description: >-
-      most discharge, per unit of the power rating. It is PyPSA's `p_max_pu`,
-      `1` unless given, read only where `max_hours` has a value
-    dims: [scenario, snapshot, store]
-  Store_efficiency_store:
-    description: share of the power drawn from the bus that becomes energy held
-    dims: [scenario, snapshot, store]
-  Store_efficiency_dispatch:
-    description: share of the energy drawn down that reaches the bus
-    dims: [scenario, snapshot, store]
   Store_marginal_cost_dispatch:
     description: cost of one unit of discharge, `p + p_store`
     dims: [scenario, snapshot, store]
@@ -168,276 +27,45 @@ parameters:
     dims: [scenario, snapshot, store]
   Store_split_dispatch:
     description: >-
-      whether a store charges through `p_store` apart from its net dispatch
-      `p`. It is PyPSA's `split_dispatch()`: true where an efficiency differs
-      from one, a cost applies to one direction only, or `cycles_max` is
-      finite, in any snapshot (`stores.py:88-116`), data prep. Where it is
-      false, `p_store` is held at zero and the charging bound applies to `p`
+      whether the store charges through `p_store`, apart from its net power
+      `p`: true where an efficiency is not one, a cost applies to one direction
+      only, or `cycles_max` is finite. Otherwise `p_store` is zero
     dims: [scenario, store]
     dtype: bool
-  Store_e_sum_min:
-    description: least energy of its net dispatch over the horizon. It is minus infinity where no floor is meant
-    dims: [scenario, store]
-  Store_e_sum_max:
-    description: most energy of its net dispatch over the horizon. It is infinity where no cap is meant
-    dims: [scenario, store]
   Store_cycles_max:
-    description: >-
-      most equivalent full cycles over the horizon: discharge divided by
-      `e_nom`. No value means PyPSA's default of infinity, and no limit
+    description: most full cycles over the horizon, discharge over `e_nom`. No value means no row
     dims: [scenario, store]
     missing: absent
-  Store_primary_energy_weight:
-    description: the constrained attribute per unit of energy depleted, data prep. An unweighted store has no row
-    dims: [scenario, global_constraint, store]
-    missing: absent
-
-relations:
-  Store_carrier:
-    description: the carrier a store holds
-    key: store
-    values: carrier
 
 variables:
   Store_e:
     name: Store-e
-    description: energy held at the end of a snapshot
+    description: energy stored at the end of a snapshot
     dims: [scenario, snapshot, store]
     where: Store_active
-  Store_p:
-    name: Store-p
-    description: net power delivered to the bus. Charging is negative
-    dims: [scenario, snapshot, store]
-    where: Store_active
-  Store_p_store:
-    name: Store-p_store
-    description: >-
-      power drawn from the bus to charge, so that `p + p_store` is the
-      discharge. It is held at zero by its rows where the store does not split
-      its dispatch
-    dims: [scenario, snapshot, store]
-    where: Store_active
-  Store_e_nom_ext:
-    name: Store-e_nom
-    description: >-
-      nominal capacity where it is a decision, for a store that is active. A
-      fixed build is the parameter of the same PyPSA name
-    dims: [store]
-    where: Store_e_nom_extendable AND Store_active_asset
 
 expressions:
-  Store_energy_carried_in:
-    description: >-
-      the energy a store opens a snapshot with. At the first snapshot it
-      is active in, it is its last such snapshot's less standing loss where it is
-      cyclic. Where it is not, it is the given initial energy, which no
-      standing loss has touched yet. Otherwise it is the previous snapshot's
-      less standing loss. A store built in a later period opens in that
-      period, and a cyclic one that retires closes on its own last snapshot.
-      Per period, the same holds with each investment period as the horizon
-    dims: [scenario, snapshot, store]
-    cases:
-      cyclic:
-        when: >-
-          Store_e_cyclic AND NOT Store_e_cyclic_per_period AND NOT Store_e_initial_per_period
-          AND (position(snapshot) == 0 OR Store_opens_late)
-        expression: >-
-          Store_retention
-          * shift(shift(Store_e, along=snapshot, offset=1, edge='wrap'), along=snapshot, offset=Store_inactive_snapshots, edge='wrap')
-      opening:
-        when: >-
-          NOT Store_e_cyclic AND NOT Store_e_cyclic_per_period AND NOT Store_e_initial_per_period
-          AND (position(snapshot) == 0 OR Store_opens_late)
-        expression: Store_e_initial
-      period_cyclic:
-        when: Store_e_cyclic_per_period
-        expression: Store_retention * shift(Store_e, along=snapshot, offset=1, edge='wrap', within=snapshot_period[period])
-      period_opening:
-        when: Store_e_initial_per_period AND NOT Store_e_cyclic_per_period AND position(snapshot, within=snapshot_period[period]) == 0
-        expression: Store_e_initial
-    otherwise: Store_retention * shift(Store_e, along=snapshot, offset=1)
   Store_discharge_floor_pu:
     description: >-
-      the least discharge, per unit of `e_nom`. It is zero for a store that
-      splits its dispatch, so `p_store` carries the charge. Otherwise it is the
-      most charging as a negative discharge, `p_min_pu / max_hours`
-      (`stores.py:79-86`)
+      least discharge per unit of `e_nom`: zero for a store that splits its
+      dispatch, the most charging as negative discharge otherwise
     dims: [scenario, snapshot, store]
     cases:
       split: { when: Store_split_dispatch, expression: 0 }
     otherwise: Store_p_min_pu / Store_max_hours
   Store_charge_cap_pu:
-    description: >-
-      the most charging through `p_store`, per unit of `e_nom`. It is
-      `-p_min_pu / max_hours` for a store that splits its dispatch, and zero
-      otherwise (`stores.py:79-86`)
+    description: most charging through `p_store` per unit of `e_nom`; zero for a store that does not split its dispatch
     dims: [scenario, snapshot, store]
     cases:
       split: { when: Store_split_dispatch, expression: -Store_p_min_pu / Store_max_hours }
     otherwise: 0
-  Store_last_counted_active:
-    description: >-
-      one at the last snapshot a row counts where a store is active, and zero
-      elsewhere. A store that retires before the last counted snapshot closes
-      on its last active level. PyPSA forward-fills the level over the counted
-      snapshots (`global_constraints.py:530-533`)
-    dims: [scenario, global_constraint, snapshot, store]
-    cases:
-      last:
-        when: >-
-          GlobalConstraint_counts_snapshot AND Store_active
-          AND NOT shift(GlobalConstraint_counts_snapshot AND Store_active, along=snapshot, offset=-1)
-        expression: 1
-    otherwise: 0
-  Store_closing_weight:
-    description: >-
-      what the energy a store holds at a snapshot counts for in a row as its
-      closing level. Where the store reopens per period, it is the years of
-      the period at the last snapshot of each counted period. Where it does
-      not, it is one at the last counted snapshot it is active in. It is nothing
-      elsewhere
-    dims: [scenario, global_constraint, snapshot, store]
-    cases:
-      per_period:
-        when: Store_e_initial_per_period AND GlobalConstraint_counts_snapshot AND position(snapshot, within=snapshot_period[period]) == -1
-        expression: at(period_weight_years, by=snapshot_period[period])
-      carried_over:
-        when: NOT Store_e_initial_per_period
-        expression: Store_last_counted_active
-    otherwise: 0
-  Store_primary_energy:
+  Store_charge_opex:
     expression: >-
-      -sum(sum((Store_e * Store_closing_weight) * Store_primary_energy_weight, over=snapshot), over=store)
-  Store_operational_limit:
-    expression: >-
-      -sum(sum((Store_e * Store_closing_weight) * Store_operational_limit_weight, over=snapshot), over=store)
-  Store_running_cost:
-    description: >-
-      what a store's power costs in a snapshot: the value read off its
-      piecewise curve where it has one, and its linear `marginal_cost`
-      otherwise. A curve replaces the linear cost, as PyPSA drops the unit
-      from that term (`optimize.py:333-348`)
-    dims: [scenario, snapshot, store]
-    cases:
-      curve: { when: Store_marginal_cost_curve, expression: Store_marginal_cost_piecewise }
-    otherwise: Store_p * Store_marginal_cost
-  Store_opex:
-    expression: >-
-      sum(sum((Store_running_cost * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=store), over=snapshot)
-      + sum(sum((((Store_p * Store_p) * Store_marginal_cost_quadratic) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=store), over=snapshot)
-      + sum(sum(((Store_e * Store_marginal_cost_storage) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=store), over=snapshot)
-      + sum(sum((((Store_p + Store_p_store) * Store_marginal_cost_dispatch) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=store), over=snapshot)
-      + sum(sum(((Store_p_store * Store_marginal_cost_store) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=store), over=snapshot)
-      + sum(sum(((Store_spill * Store_spill_cost) * snapshot_weightings_objective) * at(period_weight_objective, by=snapshot_period[period]), over=store), over=snapshot)
+      Store_operating_cost((Store_p + Store_p_store) * Store_marginal_cost_dispatch)
+      + Store_operating_cost(Store_p_store * Store_marginal_cost_store)
   Store_injection: sum(Store_sign * Store_p, over=store, by=Store_bus[bus])
 
-conditions:
-  Store_marginal_cost_curve_bends_down:
-    description: >-
-      a breakpoint where a store's cost curve gets less steep: the segment
-      after it rises less per unit of power than the one before
-    condition: >-
-      Store_marginal_cost_curve_p
-      AND shift(Store_marginal_cost_curve_p, along=breakpoint, offset=1)
-      AND shift(Store_marginal_cost_curve_p, along=breakpoint, offset=-1)
-      AND (Store_marginal_cost_curve_cost - shift(Store_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
-      * (shift(Store_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - Store_marginal_cost_curve_p)
-      > (shift(Store_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Store_marginal_cost_curve_cost)
-      * (Store_marginal_cost_curve_p - shift(Store_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
-  Store_marginal_cost_as_lp:
-    description: >-
-      linopy's choice of method for all store cost curves at once
-      (`method="auto"`): the segment lines where every curve is convex, the
-      incremental rows otherwise. PyPSA calls linopy once per component, so
-      this choice is apart from every other component's. A store has no
-      status, so no gate (`optimize.py:314-318`, `piecewise.py:200-224`)
-    condition: >-
-      count(Store_marginal_cost_curve AND count(Store_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=store) == 0
-  Store_capital_cost_curve_bends_down:
-    description: >-
-      a breakpoint where a store's build cost curve gets less steep: the
-      segment after it rises less per unit of nominal capacity than the one
-      before
-    condition: >-
-      Store_capital_cost_curve_nom
-      AND shift(Store_capital_cost_curve_nom, along=breakpoint, offset=1)
-      AND shift(Store_capital_cost_curve_nom, along=breakpoint, offset=-1)
-      AND (Store_capital_cost_curve_cost - shift(Store_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
-      * (shift(Store_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Store_capital_cost_curve_nom)
-      > (shift(Store_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Store_capital_cost_curve_cost)
-      * (Store_capital_cost_curve_nom - shift(Store_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
-
-piecewise:
-  Store_marginal_cost_lp:
-    name: Store-marginal_cost_piecewise
-    description: >-
-      the running cost of a store with a curve is at least the curve at its
-      power, stated as the line of each segment, where linopy chooses the
-      segment lines
-    along: breakpoint
-    dims: [scenario, snapshot, store]
-    where: Store_marginal_cost_as_lp AND Store_marginal_cost_curve AND Store_active AND Store_marginal_cost_curve_p
-    method: lp
-    links:
-      p: [Store_p, Store_marginal_cost_curve_p]
-      cost: [Store_marginal_cost_piecewise, Store_marginal_cost_curve_cost, ">="]
-  Store_marginal_cost_incremental:
-    name: Store-marginal_cost_piecewise
-    description: >-
-      the running cost of a store with a curve is at least the curve at its
-      power, stated by segments filled in order, where linopy chooses the
-      incremental rows
-    along: breakpoint
-    dims: [scenario, snapshot, store]
-    where: NOT Store_marginal_cost_as_lp AND Store_marginal_cost_curve AND Store_active AND Store_marginal_cost_curve_p
-    method: incremental
-    links:
-      p: [Store_p, Store_marginal_cost_curve_p]
-      cost: [Store_marginal_cost_piecewise, Store_marginal_cost_curve_cost, ">="]
-  Store_capital_cost_lp:
-    name: Store-capital_cost_piecewise
-    description: >-
-      the cost of the build of a store with a curve is at least the curve at its
-      nominal capacity, stated as the line of each segment, where linopy chooses
-      the segment lines
-    along: breakpoint
-    dims: [store]
-    where: Store_capital_cost_as_lp AND Store_capital_cost_curve AND Store_capital_cost_curve_nom
-    method: lp
-    links:
-      e_nom: [Store_e_nom_ext, Store_capital_cost_curve_nom]
-      cost: [Store_capital_cost_piecewise, Store_capital_cost_curve_cost, ">="]
-  Store_capital_cost_incremental:
-    name: Store-capital_cost_piecewise
-    description: >-
-      the cost of the build of a store with a curve is at least the curve at its
-      nominal capacity, stated by segments filled in order, where linopy chooses
-      the incremental rows
-    along: breakpoint
-    dims: [store]
-    where: NOT Store_capital_cost_as_lp AND Store_capital_cost_curve AND Store_capital_cost_curve_nom
-    method: incremental
-    links:
-      e_nom: [Store_e_nom_ext, Store_capital_cost_curve_nom]
-      cost: [Store_capital_cost_piecewise, Store_capital_cost_curve_cost, ">="]
-
 constraints:
-  Store_e_sum_min:
-    name: Store-e_sum_min
-    description: >-
-      net energy delivered over the horizon, each period weighted by its years,
-      is at least its floor. A floor of minus infinity is no row
-    dims: [scenario, store]
-    where: Store_e_sum_min AND count(Store_active, over=snapshot) > 0
-    expression: sum(Store_p * energy_limit_weight, over=snapshot) >= Store_e_sum_min
-  Store_e_sum_max:
-    name: Store-e_sum_max
-    description: >-
-      net energy delivered over the horizon, each period weighted by its years,
-      is at most its budget. A budget of infinity is no row
-    dims: [scenario, store]
-    where: Store_e_sum_max AND count(Store_active, over=snapshot) > 0
-    expression: sum(Store_p * energy_limit_weight, over=snapshot) <= Store_e_sum_max
   Store_fix_e_lower:
     name: Store-fix-e-lower
     description: a fixed store holds at least its floor
@@ -465,9 +93,8 @@ constraints:
   Store_fix_p_lower:
     name: Store-fix-p-lower
     description: >-
-      a fixed store discharges at least its floor, which is zero where it splits
-      its dispatch and its most charging otherwise. A store that does not split
-      and has no `max_hours` has no row
+      a fixed store discharges at least its floor. No row for a store that does
+      not split its dispatch and has no `max_hours`
     dims: [scenario, snapshot, store]
     where: >-
       NOT Store_e_nom_extendable AND Store_active AND (Store_split_dispatch OR Store_max_hours)
@@ -475,24 +102,15 @@ constraints:
     expression: Store_p + Store_p_store >= Store_discharge_floor_pu * Store_e_nom_rated
   Store_fix_p_upper:
     name: Store-fix-p-upper
-    description: >-
-      a fixed store discharges at most its power rating. A store without
-      `max_hours` has no row
+    description: a fixed store discharges at most its power rating. No row without `max_hours`
     dims: [scenario, snapshot, store]
     where: NOT Store_e_nom_extendable AND Store_active AND Store_max_hours AND (Store_e_nom < inf OR Store_p_max_pu == 0)
     expression: Store_p + Store_p_store <= Store_p_max_pu / Store_max_hours * Store_e_nom_rated
-  Store_fix_p_store_lower:
-    name: Store-fix-p_store-lower
-    description: charging is non-negative
-    dims: [scenario, snapshot, store]
-    where: NOT Store_e_nom_extendable AND Store_active
-    expression: Store_p_store >= 0
   Store_fix_p_store_upper:
     name: Store-fix-p_store-upper
     description: >-
-      a fixed store charges at most its power rating where it splits its
-      dispatch, and not at all where it does not. A store that splits and has no
-      `max_hours` has no row
+      a fixed store charges through `p_store` at most its power rating where it
+      splits its dispatch, not at all otherwise
     dims: [scenario, snapshot, store]
     where: >-
       NOT Store_e_nom_extendable AND Store_active AND (NOT Store_split_dispatch OR Store_max_hours)
@@ -501,92 +119,48 @@ constraints:
   Store_ext_p_lower:
     name: Store-ext-p-lower
     description: >-
-      an extendable store discharges at least its floor, which is zero where it
-      splits its dispatch and its most charging otherwise. A store that does not
-      split and has no `max_hours` has no row
+      an extendable store discharges at least its floor of the chosen build. No
+      row for a store that does not split its dispatch and has no `max_hours`
     dims: [scenario, snapshot, store]
     where: Store_e_nom_extendable AND Store_active AND (Store_split_dispatch OR Store_max_hours)
     expression: Store_p + Store_p_store >= Store_discharge_floor_pu * Store_e_nom_ext
   Store_ext_p_upper:
     name: Store-ext-p-upper
-    description: >-
-      an extendable store discharges at most the power rating of the chosen
-      build. A store without `max_hours` has no row
+    description: an extendable store discharges at most its power rating of the chosen build. No row without `max_hours`
     dims: [scenario, snapshot, store]
     where: Store_e_nom_extendable AND Store_active AND Store_max_hours
     expression: Store_p + Store_p_store <= Store_p_max_pu / Store_max_hours * Store_e_nom_ext
-  Store_ext_p_store_lower:
-    name: Store-ext-p_store-lower
-    description: charging is non-negative
-    dims: [scenario, snapshot, store]
-    where: Store_e_nom_extendable AND Store_active
-    expression: Store_p_store >= 0
   Store_ext_p_store_upper:
     name: Store-ext-p_store-upper
     description: >-
-      an extendable store charges at most the power rating of the chosen build
-      where it splits its dispatch, and not at all where it does not. A store
-      that splits and has no `max_hours` has no row
+      an extendable store charges through `p_store` at most its power rating of
+      the chosen build where it splits its dispatch, not at all otherwise
     dims: [scenario, snapshot, store]
     where: Store_e_nom_extendable AND Store_active AND (NOT Store_split_dispatch OR Store_max_hours)
     expression: Store_p_store <= Store_charge_cap_pu * Store_e_nom_ext
   Store_energy_balance:
     name: Store-energy_balance
     description: >-
-      the energy carried in, less the discharge drawn down before its
-      efficiency, plus the charge after its own, plus inflow not spilled. The
-      net dispatch `p` is the discharge less `p_store`, so `p_store` enters with
-      both efficiencies (`constraints.py:2472-2476`)
+      the energy stored is the energy carried in, less the discharge before its
+      efficiency, plus the charge after its own, plus inflow less spill. `p` is
+      the discharge less `p_store`
     dims: [scenario, snapshot, store]
     where: Store_active
     expression: >-
-      Store_energy_carried_in
+      Store_level_carried_in
       - Store_p * snapshot_weightings_stores / Store_efficiency_dispatch
       + (Store_efficiency_store - 1 / Store_efficiency_dispatch) * Store_p_store * snapshot_weightings_stores
       + (Store_inflow - Store_spill) * snapshot_weightings_stores
       == Store_e
   Store_cycles_max:
     name: Store-cycles_max
-    description: >-
-      the discharge over the horizon, `p + p_store` weighted by the stores
-      weighting, is at most `cycles_max` times the build. A store without
-      `cycles_max` has no row (`constraints.py:2607-2633`)
+    description: the discharge over the horizon is at most `cycles_max` times the build
     dims: [scenario, store]
     where: Store_cycles_max AND Store_active_asset
     expression: sum((Store_p + Store_p_store) * snapshot_weightings_stores, over=snapshot) <= Store_cycles_max * Store_e_nom_effective
   Store_e_set:
     name: Store-e_set
-    description: energy pinned to the given schedule, wherever one is given
+    description: the energy stored follows the given schedule
     dims: [scenario, snapshot, store]
     where: Store_e_set AND Store_active
     expression: Store_e == Store_e_set
-  Store_p_set:
-    name: Store-p_set
-    description: power delivered pinned to the given schedule, wherever one is given
-    dims: [scenario, snapshot, store]
-    where: Store_p_set AND Store_active
-    expression: Store_p == Store_p_set
-
-assumptions:
-  Store_marginal_cost_curve_on_a_fixed_build:
-    holds: "NOT Store_e_nom_extendable AND Store_e_nom > 0 AND Store_e_nom < inf"
-    where: "Store_marginal_cost_curve"
-    description: >-
-      a store's cost curve is given per unit of a fixed, positive, finite
-      `e_nom`, which scales it to power. PyPSA refuses an extendable unit and
-      a zero, missing or infinite `e_nom` (`piecewise.py:284-304`), and takes
-      a negative one, which the file does not state
-  Store_primary_energy_carried_over_has_unit_years:
-    holds: "period_weight_years == 1"
-    where: "Store_primary_energy_weight AND NOT Store_e_initial_per_period"
-    description: >-
-      a store that carries its energy from one period to the next closes once,
-      at the last counted snapshot. No period's years weighs that level. PyPSA
-      refuses it where any period's years is not one
-      (`global_constraints.py:518`)
-  Store_operational_limit_carried_over_has_unit_years:
-    holds: "at(period_weight_years == 1, by=snapshot_period[period])"
-    where: "Store_operational_limit_weight AND NOT Store_e_initial_per_period AND GlobalConstraint_counts_snapshot"
-    description: >-
-      the same for an `operational_limit` row, over the periods it counts.
-      PyPSA refuses it (`global_constraints.py:724`)

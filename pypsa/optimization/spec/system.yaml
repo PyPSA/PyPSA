@@ -354,7 +354,10 @@ expressions:
       + Process_opex
       + Process_commitment_opex
       + StorageUnit_opex
+      + StorageUnit_storage_opex
       + Store_opex
+      + Store_storage_opex
+      + Store_charge_opex
     description: >-
       what a future costs to run: every operating term, weighted by the
       snapshot's hours and its period, before the scenario's own weight. A

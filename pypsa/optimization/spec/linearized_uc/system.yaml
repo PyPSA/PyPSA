@@ -3,15 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 description: >-
-  A committable generator, link or process has a status, starts and stops that
-  are shares in [0, 1]. The patch states
-  `n.optimize(linearized_unit_commitment=True)` over `examples/pypsa.yaml`,
-  and the shares relax that file's integers (`variables.py:91-92`). Four rows
-  PyPSA adds only under the keyword tighten the relaxation
-  (`constraints.py:684-792`). PyPSA builds them only for a unit with a fixed
-  build whose start and stop cost the same in every snapshot and every
-  scenario. The patch states an assumption of no modular committable unit,
-  which PyPSA refuses under the keyword and a tool refuses when data is
-  attached. Every other row is the integer run's.
-  A `file.py:line` cite points at PyPSA `3625c816`, under
-  `pypsa/optimization/`, the last commit that built the model in code.
+  The patch for `n.optimize(linearized_unit_commitment=True)`. Status, starts
+  and stops of a committable unit become shares in [0, 1]. Four extra rows
+  tighten the relaxation for a fixed unit whose start and stop cost the same
+  in every snapshot and scenario. Every other row is the base spec's.

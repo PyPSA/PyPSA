@@ -2,8 +2,13 @@
 #
 # SPDX-License-Identifier: MIT
 
+parameters:
+  ${C}_sign:
+    description: the sign the power enters its bus's balance with
+    dims: ["${c}"]
+
 relations:
   ${C}_bus:
-    description: the bus a ${unit} sits on
+    description: the bus the unit connects to
     key: ${c}
     values: bus

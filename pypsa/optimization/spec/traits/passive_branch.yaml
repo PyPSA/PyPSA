@@ -7,18 +7,46 @@ parameters:
     description: most flow either way, per unit of nominal apparent power
     dims: [scenario, snapshot, "${c}"]
   ${C}_s_set:
-    description: a given flow schedule. A ${c} without one has no row here
+    description: a given flow schedule. No value means no row
     dims: [scenario, snapshot, "${c}"]
     missing: absent
-  ${C}_loss_offset:
+  ${C}_x_pu_eff:
+    description: effective series reactance, per unit
+    dims: [scenario, "${c}"]
+  ${C}_v_ang_max:
+    description: most voltage angle difference across the branch either way, in degrees. No value means no row
+    dims: [scenario, "${c}"]
+    missing: absent
+  ${C}_cycle_weight:
     description: >-
-      where that cut meets the loss axis: a tangent's `loss_k - slope_k * p_k`,
-      a secant's `-r_pu_eff * p_k * p_k+1`, negative, data prep
+      the branch's series impedance, signed by its direction in the cycle, in
+      the period's cycle basis. No row for a branch in no cycle
+    dims: [period, "${c}", cycle]
+    missing: absent
+  ${C}_BODF:
+    description: >-
+      the share of an outaged branch's flow the branch takes on (branch outage
+      distribution factor). No row where the two are not active in the period
+      or not in one sub-network
+    dims: [period, "${c}", outage]
+    missing: absent
+  ${C}_loss_max:
+    description: "the loss at full rating: `r_pu_eff * (s_max_pu * s_nom_max)**2`"
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_loss_slope:
+    description: the slope of each cut below the quadratic loss curve, a tangent or a secant
+    dims: [scenario, snapshot, "${c}", segment]
+  ${C}_loss_offset:
+    description: where each cut meets the loss axis
     dims: [scenario, snapshot, "${c}", segment]
 
 relations:
+  ${C}_bus0:
+    description: the bus the flow is measured at
+    key: ${c}
+    values: bus
   ${C}_bus1:
-    description: the bus at a ${c}'s other end
+    description: the bus at the other end
     key: ${c}
     values: bus
 
@@ -26,77 +54,98 @@ variables:
   ${C}_s:
     name: ${C}-s
     description: >-
-      PyPSA's `p0`, the flow measured at the `${C}_bus0` end: a positive value
-      withdraws there and injects at `${C}_bus1`, lossless
+      the flow at `bus0`: positive from `bus0` to `bus1`, before losses
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_active
+  ${C}_loss:
+    name: ${C}-loss
+    description: the power the branch dissipates. Absent, and zero in the balance, in a lossless run
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_lossy
+    missing: 0
+    bounds:
+      lower: 0
+
+expressions:
+  ${C}_s_monitored:
+    description: the flow where the branch is active, zero otherwise
+    dims: [scenario, snapshot, "${c}"]
+    cases:
+      standing:
+        when: ${C}_active
+        expression: ${C}_s
+    otherwise: 0
+  ${C}_injection:
+    description: the flow leaves `bus0` and enters `bus1`; each end loses half the loss
+    expression: >-
+      -sum(${C}_s, over=${c}, by=${C}_bus0[bus])
+      + sum(${C}_s, over=${c}, by=${C}_bus1[bus])
+      - (0.5 * sum(${C}_loss, over=${c}, by=${C}_bus0[bus]))
+      - (0.5 * sum(${C}_loss, over=${c}, by=${C}_bus1[bus]))
 
 conditions:
   ${C}_lossy:
-    description: >-
-      a ${c} that is active in the snapshot's period, where the run models
-      transmission losses
+    description: an active branch in a run with transmission losses
     condition: transmission_losses AND ${C}_active
 
 constraints:
   ${C}_fix_s_lower:
     name: ${C}-fix-s-lower
-    description: >-
-      a fixed ${c} carries at least the negative of its rating, the loss counted
-      against it
+    description: a fixed branch carries at least the negative of its rating, loss included
     dims: [scenario, snapshot, "${c}"]
     where: not ${C}_${nom}_extendable AND ${C}_active AND (${C}_${nom} < inf OR ${C}_s_max_pu == 0)
     expression: ${C}_s - ${C}_loss >= -${C}_s_max_pu * ${C}_${nom}_rated
   ${C}_fix_s_upper:
     name: ${C}-fix-s-upper
-    description: a fixed ${c} carries at most its rating, the loss included
+    description: a fixed branch carries at most its rating, loss included
     dims: [scenario, snapshot, "${c}"]
     where: not ${C}_${nom}_extendable AND ${C}_active AND (${C}_${nom} < inf OR ${C}_s_max_pu == 0)
     expression: ${C}_s + ${C}_loss <= ${C}_s_max_pu * ${C}_${nom}_rated
   ${C}_ext_s_lower:
     name: ${C}-ext-s-lower
-    description: >-
-      an extendable ${c} carries at least the negative of its rating of the
-      chosen build, the loss counted against it
+    description: an extendable branch carries at least the negative of its rating of the chosen build, loss included
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_${nom}_extendable AND ${C}_active
     expression: ${C}_s - ${C}_loss >= -${C}_s_max_pu * ${C}_${nom}_ext
   ${C}_ext_s_upper:
     name: ${C}-ext-s-upper
-    description: >-
-      an extendable ${c} carries at most its rating of the chosen build, the
-      loss included
+    description: an extendable branch carries at most its rating of the chosen build, loss included
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_${nom}_extendable AND ${C}_active
     expression: ${C}_s + ${C}_loss <= ${C}_s_max_pu * ${C}_${nom}_ext
   ${C}_s_set:
     name: ${C}-s_set
-    description: flow pinned to the given schedule, wherever one is given
+    description: the flow follows the given schedule
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_s_set AND ${C}_active
     expression: ${C}_s == ${C}_s_set
   ${C}_loss_upper:
     name: ${C}-loss_upper
-    description: a ${c} dissipates at most the loss at its rating
+    description: the loss is at most the loss at full rating
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_lossy
     expression: ${C}_loss <= ${C}_loss_max
+  ${C}_loss_tangents_forward:
+    name:
+      tangents: ${C}-loss_tangents-{k}-1
+      secants: ${C}-loss_secants-pos
+    description: the loss lies above each cut of the loss curve, for positive flow
+    dims: [scenario, snapshot, "${c}", segment]
+    where: ${C}_lossy
+    expression: ${C}_loss + ${C}_loss_slope * ${C}_s >= ${C}_loss_offset
   ${C}_loss_tangents_reverse:
     name:
       tangents: ${C}-loss_tangents-{k}--1
       secants: ${C}-loss_secants-neg
-    description: the same fan mirrored, the loss depending on the flow's magnitude
+    description: the same cuts mirrored, for negative flow
     dims: [scenario, snapshot, "${c}", segment]
     where: ${C}_lossy
     expression: ${C}_loss - ${C}_loss_slope * ${C}_s >= ${C}_loss_offset
   ${C}_fix_s_lower_security:
     name: ${C}-fix-s-lower-security-for-{c}-outage-in-sub-network-{n}
     description: >-
-      after any one outage, a fixed ${c} carries at least the negative of its
-      rating. Its flow takes on its share of the outaged branch's flow. PyPSA
-      names one row per outaged component `c` and sub-network `n`. Under
-      `multi_investment_periods` it appends `-period-{p}` for each period `p`.
-      This entry states them all over the outage dimension
+      after any one outage, a fixed branch carries at least the negative of its
+      rating; its flow includes its share of the outaged flow
     dims: [scenario, snapshot, "${c}", outage]
     where: not ${C}_${nom}_extendable AND at(${C}_BODF, by=snapshot_period[period]) AND ${C}_active
     expression: >-
@@ -105,11 +154,8 @@ constraints:
   ${C}_fix_s_upper_security:
     name: ${C}-fix-s-upper-security-for-{c}-outage-in-sub-network-{n}
     description: >-
-      after any one outage, a fixed ${c} carries at most its rating. Its flow
-      takes on its share of the outaged branch's flow. PyPSA names one row per
-      outaged component `c` and sub-network `n`. Under
-      `multi_investment_periods` it appends `-period-{p}` for each period `p`.
-      This entry states them all over the outage dimension
+      after any one outage, a fixed branch carries at most its rating; its flow
+      includes its share of the outaged flow
     dims: [scenario, snapshot, "${c}", outage]
     where: not ${C}_${nom}_extendable AND at(${C}_BODF, by=snapshot_period[period]) AND ${C}_active
     expression: >-
@@ -118,11 +164,8 @@ constraints:
   ${C}_ext_s_lower_security:
     name: ${C}-ext-s-lower-security-for-{c}-outage-in-sub-network-{n}
     description: >-
-      after any one outage, an extendable ${c} carries at least the negative of
-      its rating of the chosen build. Its flow takes on its share of the outaged
-      branch's flow. PyPSA names one row per outaged component `c` and
-      sub-network `n`. Under `multi_investment_periods` it appends `-period-{p}`
-      for each period `p`. This entry states them all over the outage dimension
+      after any one outage, an extendable branch carries at least the negative
+      of its rating of the chosen build
     dims: [scenario, snapshot, "${c}", outage]
     where: ${C}_${nom}_extendable AND at(${C}_BODF, by=snapshot_period[period]) AND ${C}_active
     expression: >-
@@ -131,11 +174,8 @@ constraints:
   ${C}_ext_s_upper_security:
     name: ${C}-ext-s-upper-security-for-{c}-outage-in-sub-network-{n}
     description: >-
-      after any one outage, an extendable ${c} carries at most its rating of the
-      chosen build. Its flow takes on its share of the outaged branch's flow.
-      PyPSA names one row per outaged component `c` and sub-network `n`. Under
-      `multi_investment_periods` it appends `-period-{p}` for each period `p`.
-      This entry states them all over the outage dimension
+      after any one outage, an extendable branch carries at most its rating of
+      the chosen build
     dims: [scenario, snapshot, "${c}", outage]
     where: ${C}_${nom}_extendable AND at(${C}_BODF, by=snapshot_period[period]) AND ${C}_active
     expression: >-

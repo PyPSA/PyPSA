@@ -2,27 +2,98 @@
 #
 # SPDX-License-Identifier: MIT
 
+macros:
+  ${C}_operating_cost:
+    description: a cost per snapshot, weighted by the snapshot's hours and its period, summed
+    args: [cost]
+    template: >-
+      sum(sum((cost * snapshot_weightings_objective) * at(period_weight_objective,
+      by=snapshot_period[period]), over=${c}), over=snapshot)
+
+parameters:
+  ${C}_p_min_pu:
+    description: least power, per unit of nominal power
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_p_max_pu:
+    description: most power, per unit of nominal power
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_p_set:
+    description: a given power schedule. No value means no row
+    dims: [scenario, snapshot, "${c}"]
+    missing: absent
+  ${C}_marginal_cost:
+    description: cost of one unit of energy dispatched
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_marginal_cost_quadratic:
+    description: cost of the square of one unit of energy dispatched
+    dims: [scenario, snapshot, "${c}"]
+  ${C}_marginal_cost_curve_p:
+    description: >-
+      the power at each breakpoint of the piecewise `marginal_cost` curve: the
+      per-unit breakpoints times `${nom}`. No curve means no rows
+    dims: ["${c}", breakpoint]
+    missing: absent
+  ${C}_marginal_cost_curve_cost:
+    description: >-
+      the running cost at each breakpoint: zero at the first, then summed over
+      the segments, each its width times the `marginal_cost` at its upper end
+    dims: ["${c}", breakpoint]
+    missing: absent
+
 variables:
   ${C}_marginal_cost_piecewise:
     name: ${C}-marginal_cost_piecewise
-    description: the running cost of a ${unit} that pays along a curve, held above the curve
+    description: the running cost of a unit with a `marginal_cost` curve
     dims: [scenario, snapshot, "${c}"]
     where: ${C}_marginal_cost_curve AND ${C}_active
 
+expressions:
+  ${C}_running_cost:
+    description: the cost read off the `marginal_cost` curve where there is one, power times `marginal_cost` otherwise
+    dims: [scenario, snapshot, "${c}"]
+    cases:
+      curve:
+        when: ${C}_marginal_cost_curve
+        expression: ${C}_marginal_cost_piecewise
+    otherwise: ${C}_${p} * ${C}_marginal_cost
+  ${C}_opex:
+    expression: >-
+      ${C}_operating_cost(${C}_running_cost)
+      + ${C}_operating_cost((${C}_${p} * ${C}_${p}) * ${C}_marginal_cost_quadratic)
+
 conditions:
   ${C}_marginal_cost_curve:
-    description: >-
-      a ${unit} that pays along a piecewise `marginal_cost` curve: one of
-      PyPSA's `active_assets` with curve data (`optimize.py:307`,
-      `piecewise.py:230-257`)
+    description: an active asset with a piecewise `marginal_cost` curve
     condition: count(${C}_marginal_cost_curve_p, over=breakpoint) > 0 AND ${C}_active_asset
+  ${C}_marginal_cost_curve_bends_down:
+    description: a breakpoint where the `marginal_cost` curve gets less steep
+    condition: >-
+      ${C}_marginal_cost_curve_p
+      AND shift(${C}_marginal_cost_curve_p, along=breakpoint, offset=1)
+      AND shift(${C}_marginal_cost_curve_p, along=breakpoint, offset=-1)
+      AND (${C}_marginal_cost_curve_cost - shift(${C}_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(${C}_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - ${C}_marginal_cost_curve_p)
+      > (shift(${C}_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - ${C}_marginal_cost_curve_cost)
+      * (${C}_marginal_cost_curve_p - shift(${C}_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+
+piecewise:
+  ${C}_marginal_cost_lp:
+    name: ${C}-marginal_cost_piecewise
+    description: the running cost is at least the `marginal_cost` curve at the power, by segment lines
+    along: breakpoint
+    dims: [scenario, snapshot, "${c}"]
+    where: ${C}_marginal_cost_as_lp AND ${C}_marginal_cost_curve AND ${C}_active AND ${C}_marginal_cost_curve_p
+    method: lp
+    links:
+      p: ["${C}_${p}", "${C}_marginal_cost_curve_p"]
+      cost: ["${C}_marginal_cost_piecewise", "${C}_marginal_cost_curve_cost", ">="]
 
 assumptions:
+  ${C}_marginal_cost_curve_on_a_fixed_build:
+    holds: "NOT ${C}_${nom}_extendable AND ${C}_${nom} > 0 AND ${C}_${nom} < inf"
+    where: "${C}_marginal_cost_curve"
+    description: a `marginal_cost` curve needs a fixed, positive, finite `${nom}`
   ${C}_marginal_cost_quadratic_without_risk_preference:
     holds: ${C}_marginal_cost_quadratic == 0
     where: CVaR_omega
-    description: >-
-      a quadratic cost puts a square into every `CVaR-excess` row. PyPSA refuses
-      quadratic costs under any risk preference, `omega = 0` included
-      (`optimize.py:506-513`). In data prep you write a `CVaR_omega` row only
-      where a risk preference is set
+    description: a quadratic cost is not allowed with a risk preference

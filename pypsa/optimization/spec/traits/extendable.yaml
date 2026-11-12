@@ -3,30 +3,65 @@
 # SPDX-License-Identifier: MIT
 
 parameters:
-  ${C}_${nom}_mod:
-    description: >-
-      the module size a build comes in whole numbers of. No value means the
-      build is continuous
-    dims: ["${c}"]
-    missing: absent
+  ${C}_active:
+    description: whether the asset is active in the snapshot's period, by build year and lifetime
+    dims: [snapshot, "${c}"]
+    dtype: bool
   ${C}_active_asset:
     description: >-
-      whether a ${unit} is one of PyPSA's `active_assets`, by its `active` flag
-      alone, without build year and lifetime. A unit that is active in no
-      snapshot of the horizon still counts. PyPSA refuses one that differs by
-      scenario (`constants.py:54`)
+      whether the asset is active by its `active` flag alone, whatever its build
+      year and lifetime
     dims: ["${c}"]
     dtype: bool
-  ${C}_capital_weight:
-    description: >-
-      the sum of period weights a ${unit} is active in. It is PyPSA's `active *
-      period_weighting`, summed, data prep
+  ${C}_${nom}:
+    description: nominal capacity
+    dims: [scenario, "${c}"]
+  ${C}_${nom}_extendable:
+    description: whether the nominal capacity is a decision
     dims: ["${c}"]
+    dtype: bool
+  ${C}_${nom}_min:
+    description: least nominal capacity of an extendable asset
+    dims: [scenario, "${c}"]
+  ${C}_${nom}_max:
+    description: most nominal capacity of an extendable asset
+    dims: [scenario, "${c}"]
+  ${C}_${nom}_set:
+    description: a given nominal capacity of an extendable asset. No value means no row
+    dims: [scenario, "${c}"]
+    missing: absent
+  ${C}_${nom}_mod:
+    description: the module size the build comes in whole numbers of. No value means a continuous build
+    dims: ["${c}"]
+    missing: absent
+  ${C}_capital_cost:
+    description: >-
+      cost of one unit of nominal capacity over the modelled horizon: the
+      annuity of `overnight_cost`, or `capital_cost`, plus `fom_cost`
+    dims: [scenario, "${c}"]
+  ${C}_capital_weight:
+    description: the summed weights of the periods the asset is active in
+    dims: ["${c}"]
+  ${C}_capital_cost_curve_nom:
+    description: the nominal capacity at each breakpoint of the piecewise `capital_cost` curve. No curve means no rows
+    dims: ["${c}", breakpoint]
+    missing: absent
+  ${C}_capital_cost_curve_cost:
+    description: >-
+      the build cost at each breakpoint: zero at the first, then summed over
+      the segments, each its width times the `capital_cost` at its upper end
+    dims: ["${c}", breakpoint]
+    missing: absent
 
 variables:
+  ${C}_${nom}_ext:
+    name: ${C}-${nom}
+    description: the nominal capacity of an extendable asset
+    dims: ["${c}"]
+    where: ${C}_${nom}_extendable AND ${C}_active_asset
   ${C}_n_mod:
     name: ${C}-n_mod
-    description: how many modules of an extendable modular build. A unit that is not active has none
+    description: the number of modules of an extendable modular asset
     dims: ["${c}"]
     where: ${C}_${nom}_extendable AND ${C}_${nom}_mod > 0 AND ${C}_active_asset
     domain: integer
@@ -34,19 +69,15 @@ variables:
       lower: 0
   ${C}_capital_cost_piecewise:
     name: ${C}-capital_cost_piecewise
-    description: >-
-      the cost of the build of an extendable ${unit} that pays along a curve,
-      held above the curve
+    description: the build cost of an asset with a `capital_cost` curve
     dims: ["${c}"]
     where: ${C}_capital_cost_curve
 
 expressions:
   ${C}_${nom}_rated:
     description: >-
-      the given build a fixed ${unit}'s limits are taken against. It is zero for
-      an unrated ${unit}, one whose `${nom}` is infinite: its limit is a row
-      only where the per-unit value is zero, and the row bounds at zero
-      (`constraints.py:129-140`)
+      the given nominal capacity, and zero where it is infinite. Then a limit is
+      a row only where the per-unit value is zero
     dims: [scenario, "${c}"]
     cases:
       unrated:
@@ -54,11 +85,7 @@ expressions:
         expression: 0
     otherwise: ${C}_${nom}
   ${C}_build_cost:
-    description: >-
-      what the build of an extendable ${unit} costs: the value read off its
-      piecewise curve where it has one, and its linear `capital_cost` otherwise.
-      A curve replaces the linear cost, as PyPSA drops the unit from that term
-      (`optimize.py:404-446`)
+    description: the cost read off the `capital_cost` curve where there is one, build times `capital_cost` otherwise
     dims: [scenario, "${c}"]
     cases:
       curve:
@@ -70,41 +97,67 @@ expressions:
 
 conditions:
   ${C}_capital_cost_curve:
-    description: >-
-      a ${unit} whose build pays along a piecewise `capital_cost` curve: an
-      extendable one of PyPSA's `active_assets` with curve data
-      (`optimize.py:404-421`, `piecewise.py:230-257`)
+    description: an extendable active asset with a piecewise `capital_cost` curve
     condition: >-
       count(${C}_capital_cost_curve_nom, over=breakpoint) > 0 AND
       ${C}_${nom}_extendable AND ${C}_active_asset
+  ${C}_capital_cost_curve_bends_down:
+    description: a breakpoint where the `capital_cost` curve gets less steep
+    condition: >-
+      ${C}_capital_cost_curve_nom
+      AND shift(${C}_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(${C}_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (${C}_capital_cost_curve_cost - shift(${C}_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(${C}_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - ${C}_capital_cost_curve_nom)
+      > (shift(${C}_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - ${C}_capital_cost_curve_cost)
+      * (${C}_capital_cost_curve_nom - shift(${C}_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
   ${C}_capital_cost_as_lp:
     description: >-
-      linopy's choice of method for all ${unit} build cost curves at once
-      (`method="auto"`): the segment lines where every curve is convex, the
-      incremental rows otherwise. PyPSA calls linopy once per component, so this
-      choice is apart from every other component's. A build has no status, so no
-      gate (`optimize.py:412-421`)
+      true where every `capital_cost` curve of the component is convex: then
+      the curves are stated as segment lines, else by incremental segments
     condition: >-
       count(${C}_capital_cost_curve AND
       count(${C}_capital_cost_curve_bends_down, over=breakpoint) > 0, over=${c})
       == 0
 
+piecewise:
+  ${C}_capital_cost_lp:
+    name: ${C}-capital_cost_piecewise
+    description: the build cost is at least the `capital_cost` curve at the build, by segment lines
+    along: breakpoint
+    dims: ["${c}"]
+    where: ${C}_capital_cost_as_lp AND ${C}_capital_cost_curve AND ${C}_capital_cost_curve_nom
+    method: lp
+    links:
+      ${nom}: ["${C}_${nom}_ext", "${C}_capital_cost_curve_nom"]
+      cost: ["${C}_capital_cost_piecewise", "${C}_capital_cost_curve_cost", ">="]
+  ${C}_capital_cost_incremental:
+    name: ${C}-capital_cost_piecewise
+    description: the build cost is at least the `capital_cost` curve at the build, by segments filled in order
+    along: breakpoint
+    dims: ["${c}"]
+    where: NOT ${C}_capital_cost_as_lp AND ${C}_capital_cost_curve AND ${C}_capital_cost_curve_nom
+    method: incremental
+    links:
+      ${nom}: ["${C}_${nom}_ext", "${C}_capital_cost_curve_nom"]
+      cost: ["${C}_capital_cost_piecewise", "${C}_capital_cost_curve_cost", ">="]
+
 constraints:
   ${C}_ext_${nom}_lower:
     name: ${C}-ext-${nom}-lower
-    description: the chosen build is at least its floor in every scenario
+    description: the chosen build is at least the floor
     dims: [scenario, "${c}"]
     where: ${C}_${nom}_extendable AND ${C}_active_asset
     expression: ${C}_${nom}_ext >= ${C}_${nom}_min
   ${C}_ext_${nom}_upper:
     name: ${C}-ext-${nom}-upper
-    description: the chosen build is at most its cap in every scenario. A cap of infinity is no row
+    description: the chosen build is at most the cap; an infinite cap means no row
     dims: [scenario, "${c}"]
     where: ${C}_${nom}_extendable AND ${C}_active_asset AND ${C}_${nom}_max
     expression: ${C}_${nom}_ext <= ${C}_${nom}_max
   ${C}_${nom}_set:
     name: ${C}-${nom}_set
-    description: the chosen build pinned in every scenario, wherever a value is given
+    description: the chosen build equals the given one
     dims: [scenario, "${c}"]
     where: ${C}_${nom}_extendable AND ${C}_active_asset AND ${C}_${nom}_set
     expression: ${C}_${nom}_ext == ${C}_${nom}_set

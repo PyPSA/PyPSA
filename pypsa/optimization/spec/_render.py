@@ -11,7 +11,6 @@ placeholders, which `string.Template` fills per component:
 - `${C}`: the component's name, as `StorageUnit`.
 - `${c}`: its unit dimension, as `storage_unit`.
 - `${nom}`: its nominal attribute, as `p_nom`.
-- `${unit}`: its unit dimension in prose, as `storage unit`.
 - `${p}`: its power variable, `p` or `p_dispatch`, where it has one.
 - `${level}`: its storage level variable, `e` or `state_of_charge`, and
   `${cyclic}` its cyclic flag, where it stores energy.
@@ -50,9 +49,7 @@ def formulated(n: Network, trait: str = "") -> list[Components]:
 
 def symbols(c: Components) -> dict[str, str]:
     """Return what the placeholders of a trait stand for in component *c*."""
-    dim = c._unit_dim
-    nom = c._operational_attrs["nom"]
-    found = {"C": c.name, "c": dim, "nom": nom, "unit": dim.replace("_", " ")}
+    found = {"C": c.name, "c": c._unit_dim, "nom": c._operational_attrs["nom"]}
     power = [v for v in c._operational_variables if v.startswith("p")]
     if power:
         found["p"] = power[0]

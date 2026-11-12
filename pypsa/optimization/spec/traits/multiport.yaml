@@ -1,0 +1,76 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  ${C}_${coef}:
+    description: >-
+      energy a port delivers per unit of `p`, negative where it draws; the
+      value at the snapshot the energy arrives applies
+    dims: [scenario, snapshot, "${c}_output"]
+  ${C}_${coef}_curve_p:
+    description: >-
+      `p` at each breakpoint of a port's piecewise `${coef}` curve: the `p_pu`
+      breakpoints times `p_nom`. No curve means no rows
+    dims: ["${c}_output", breakpoint]
+    missing: absent
+  ${C}_output_delay:
+    description: how long a port's energy takes to arrive, in hours of `snapshot_weightings.generators`
+    dims: ["${c}_output"]
+    dtype: int
+
+relations:
+  ${C}_output_${c}:
+    description: the unit a port belongs to
+    key: ${c}_output
+    values: ${c}
+  ${C}_output_bus:
+    description: the bus a port connects to
+    key: ${c}_output
+    values: bus
+  ${C}_output_delay_source:
+    description: >-
+      the snapshot whose `p` a delayed port delivers at a snapshot, wrapping
+      within the period where the port is cyclic. No row where the energy has
+      not arrived yet, or where the port has no delay
+    key: ["${c}_output", snapshot]
+    values: { source: snapshot }
+    missing: absent
+
+variables:
+  ${C}_p_piecewise:
+    name: ${C}-p{port}_piecewise
+    description: what a port with a `${coef}` curve delivers, before its delay
+    dims: [scenario, snapshot, "${c}_output"]
+    where: ${C}_${coef}_curve AND at(${C}_active, by=${C}_output_${c}[${c}])
+
+expressions:
+  ${C}_output_linear_arrival:
+    description: "`p` at the port's delay source times `${coef}`"
+    dims: [scenario, snapshot, "${c}_output"]
+    cases:
+      delayed:
+        when: ${C}_output_delay > 0
+        expression: at(at(${C}_p, by=${C}_output_${c}[${c}]), by=${C}_output_delay_source[source]) * ${C}_${coef}
+    otherwise: at(${C}_p, by=${C}_output_${c}[${c}]) * ${C}_${coef}
+  ${C}_output_curve_arrival:
+    description: the value read off the port's `${coef}` curve, at the port's delay source
+    dims: [scenario, snapshot, "${c}_output"]
+    cases:
+      delayed:
+        when: ${C}_output_delay > 0
+        expression: at(${C}_p_piecewise, by=${C}_output_delay_source[source])
+    otherwise: ${C}_p_piecewise
+  ${C}_output_arrival:
+    description: what a port delivers at a snapshot, by its `${coef}` curve where it has one
+    dims: [scenario, snapshot, "${c}_output"]
+    cases:
+      curve:
+        when: ${C}_${coef}_curve
+        expression: ${C}_output_curve_arrival
+    otherwise: ${C}_output_linear_arrival
+
+conditions:
+  ${C}_${coef}_curve:
+    description: a port with a piecewise `${coef}` curve
+    condition: count(${C}_${coef}_curve_p, over=breakpoint) > 0

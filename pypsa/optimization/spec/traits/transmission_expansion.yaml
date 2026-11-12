@@ -5,20 +5,16 @@
 parameters:
   ${C}_volume_weight:
     description: >-
-      the ${c}'s length in each scenario where its carrier is in the row's set
-      (`global_constraints.py:882-883`), data prep. A ${c} outside it, or one
-      that is not active in the row's `investment_period`, has no row
+      the branch's length where its carrier is in the row's set. No row outside
+      it, or where the branch is not active in the row's period
     dims: [scenario, global_constraint, "${c}"]
     missing: absent
   ${C}_expansion_cost_weight:
     description: >-
-      the ${c}'s capital cost where its carrier is in the row's set, data prep.
-      Where the row states no `investment_period` under
-      `multi_investment_periods`, it is times the objective weights of the
-      periods the ${c} is active in. A ${c} outside the set, or one that is not
-      active in the row's period, has no row. The capital cost is PyPSA's
-      `capital_cost` property, which is `${C}_capital_cost` without `fom_cost`
-      (`components.py:1182-1200`, `global_constraints.py:905-914`)
+      the branch's `capital_cost` without `fom_cost` where its carrier is in the
+      row's set; in a multi-period run, times the objective weights of its
+      active periods where the row names no period. No row outside the set, or
+      where the branch is not active in the row's period
     dims: [scenario, global_constraint, "${c}"]
     missing: absent
 

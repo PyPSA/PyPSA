@@ -3,279 +3,71 @@
 # SPDX-License-Identifier: MIT
 
 parameters:
-  Transformer_active:
-    description: whether a transformer is active in a snapshot's period. It is PyPSA's `active`, data prep
-    dims: [snapshot, transformer]
-    dtype: bool
-  Transformer_s_nom:
-    description: nominal apparent power
-    dims: [scenario, transformer]
-  Transformer_s_nom_extendable:
-    description: whether the nominal apparent power is a decision
-    dims: [transformer]
-    dtype: bool
-  Transformer_s_nom_min:
-    description: least nominal apparent power an extendable transformer may be built at
-    dims: [scenario, transformer]
-  Transformer_s_nom_max:
-    description: most nominal apparent power an extendable transformer may be built at
-    dims: [scenario, transformer]
-  Transformer_capital_cost:
-    description: >-
-      cost of one unit of nominal apparent power for the modelled horizon
-      (PyPSA's `periodized_cost`), data prep. It is `overnight_cost` as an
-      annuity over `lifetime` at `discount_rate`, times `nyears`, where
-      `overnight_cost` is given, and `capital_cost` where it is not. Both add
-      `fom_cost` (`components.py:1157-1178`, `costs.py:102-203`)
-    dims: [scenario, transformer]
-  Transformer_capital_cost_curve_nom:
-    description: >-
-      the nominal apparent power at each breakpoint of a transformer's
-      piecewise `capital_cost` curve: PyPSA's `s_nom` breakpoints, data prep.
-      A transformer with no curve has no rows
-    dims: [transformer, breakpoint]
-    missing: absent
-  Transformer_capital_cost_curve_cost:
-    description: >-
-      the cost of the build at each breakpoint of a transformer's piecewise
-      `capital_cost` curve: zero at the first, then each segment's width in
-      nominal apparent power times the `capital_cost` at its upper breakpoint,
-      summed, data prep. It is linopy's `Slopes(...).to_breakpoints`
-      (`piecewise.py:310-312`). The curve is already periodized, so data prep
-      refuses `overnight_cost` beside it, as PyPSA does
-      (`optimize.py:427-434`)
-    dims: [transformer, breakpoint]
-    missing: absent
-  Transformer_s_nom_set:
-    description: a given nominal apparent power for an extendable transformer. One without a value has no row here
-    dims: [scenario, transformer]
-    missing: absent
-  Transformer_v_ang_max:
-    description: >-
-      the most the voltage angle difference across a transformer, its phase
-      shift included, may be either way, in degrees. It is PyPSA's
-      `v_ang_max`. Infinite, and so no row, by default. The deprecated
-      `v_ang_min` is ignored, as a line's
-    dims: [scenario, transformer]
-    missing: absent
-  Transformer_x_pu_eff:
-    description: >-
-      the transformer's effective series reactance. It is PyPSA's `x_pu_eff`,
-      `x` over its `s_nom` times its tap ratio, data prep
-    dims: [scenario, transformer]
-  Transformer_cycle_weight:
-    description: >-
-      the transformer's effective series reactance, `x` times its tap ratio,
-      signed by its orientation in the cycle. It is PyPSA's `x_pu_eff`, the
-      cycle basis, data prep. A transformer in no cycle has no row. It is the
-      same in every scenario, as a line's
-    dims: [period, transformer, cycle]
-    missing: absent
-  Transformer_BODF:
-    description: >-
-      the share of an outaged branch's flow a transformer takes on when that
-      branch goes out, as a line's. A row only where the transformer and the
-      outage are active in the period and share a sub-network. It is the same
-      in every scenario, as a line's
-    dims: [period, transformer, outage]
-    missing: absent
-  Transformer_phase_shift_weight:
-    description: >-
-      a fixed transformer's phase shift in radians at each snapshot, signed by
-      its orientation in the cycle, data prep. It is a constant added to the
-      cycle sum. It is zero for a varying transformer, whose shift is a
-      decision instead. The constant and the variable term thus never both
-      count a shift. A transformer with no shift or in no cycle of its
-      snapshot's period has no row
-    dims: [scenario, snapshot, transformer, cycle]
-    missing: absent
   Transformer_phase_shift_varying:
-    description: >-
-      whether a transformer's phase shift is a decision (PyPSA's
-      `phase_shift_min < phase_shift_max`, read as a flag in data prep). False
-      is a fixed shift, set by `phase_shift`. It may differ by scenario, as
-      PyPSA reads it per scenario (`variables.py:446-456`)
+    description: whether the phase shift is a decision, `phase_shift_min < phase_shift_max`
     dims: [scenario, transformer]
     dtype: bool
   Transformer_phase_shift_min:
-    description: >-
-      the least a varying transformer's phase shift may take, in degrees. It
-      is PyPSA's `phase_shift_min`. Where it is below `phase_shift_max` the
-      shift is a decision, otherwise the transformer keeps its fixed
-      `phase_shift`
+    description: least phase shift of a varying transformer, in degrees
     dims: [scenario, transformer]
   Transformer_phase_shift_max:
-    description: >-
-      the most a varying transformer's phase shift may take, in degrees. It is
-      PyPSA's `phase_shift_max`. Equal to `phase_shift_min` for a fixed
-      transformer
+    description: most phase shift of a varying transformer, in degrees
     dims: [scenario, transformer]
   Transformer_phase_shift_fixed:
-    description: >-
-      a fixed transformer's phase shift at each snapshot, in degrees. It is
-      PyPSA's `phase_shift`, zero by default. A varying transformer's shift is
-      a decision instead
+    description: the phase shift of a fixed transformer, in degrees; zero for a varying one
     dims: [scenario, snapshot, transformer]
+  Transformer_phase_shift_weight:
+    description: >-
+      a fixed transformer's phase shift in radians, signed by its direction in
+      the cycle. No row without a shift or a cycle
+    dims: [scenario, snapshot, transformer, cycle]
+    missing: absent
   Transformer_phase_shift_cycle_weight:
     description: >-
-      the cycle sign for a varying transformer's phase shift, times π/180 so a
-      shift in degrees enters the cycle sum in radians, data prep. It is zero
-      for a fixed transformer or one in no cycle
+      a varying transformer's sign in the cycle times π/180; zero for a fixed
+      transformer or one in no cycle
     dims: [scenario, period, transformer, cycle]
-  Transformer_loss_max:
-    description: >-
-      the loss at a transformer's rating (PyPSA's `r_pu_eff * (s_max_pu *
-      s_nom_max)**2`), data prep. Its `r_pu_eff` is the resistance over the
-      given `s_nom` times the tap ratio
-    dims: [scenario, snapshot, transformer]
-  Transformer_loss_slope:
-    description: >-
-      the slope of a cut to a transformer's loss curve, data prep. It is a
-      tangent's `2 * r_pu_eff * p_k` or a secant's `r_pu_eff * (p_k + p_k+1)`,
-      as a line's. It uses the transformer's own `r_pu_eff` and rating
-    dims: [scenario, snapshot, transformer, segment]
-
-relations:
-  Transformer_bus0:
-    description: the bus a transformer's flow is measured at
-    key: transformer
-    values: bus
 
 variables:
-  Transformer_loss:
-    name: Transformer-loss
-    description: >-
-      what a transformer dissipates carrying its flow, as a line does. Absent,
-      and zero in the balance, where the network is lossless
-    dims: [scenario, snapshot, transformer]
-    where: Transformer_lossy
-    missing: 0
-    bounds:
-      lower: 0
   Transformer_phase_shift:
     name: Transformer-phase_shift
-    description: >-
-      a phase-shifting transformer's voltage angle shift in degrees, chosen per
-      snapshot to redistribute the flows around its cycles without moving active
-      power. Absent, and zero in the cycle sum, where the shift is fixed
+    description: the phase shift of a varying transformer, in degrees
     dims: [scenario, snapshot, transformer]
     where: Transformer_phase_shift_varying AND Transformer_active
     missing: 0
     bounds:
       lower: Transformer_phase_shift_min
       upper: Transformer_phase_shift_max
-  Transformer_s_nom_ext:
-    name: Transformer-s_nom
-    description: >-
-      nominal apparent power where it is a decision, for a transformer that is
-      active. A fixed build is the parameter of the same PyPSA name
-    dims: [transformer]
-    where: Transformer_s_nom_extendable AND Transformer_active_asset
 
 expressions:
-  Transformer_s_monitored:
-    description: the flow a transformer's post-contingency rows read, as a line's
-    dims: [scenario, snapshot, transformer]
-    cases:
-      standing: { when: Transformer_active, expression: Transformer_s }
-    otherwise: 0
-  Transformer_injection:
-    expression: >-
-      -sum(Transformer_s, over=transformer, by=Transformer_bus0[bus])
-      + sum(Transformer_s, over=transformer, by=Transformer_bus1[bus])
-      - (0.5 * sum(Transformer_loss, over=transformer, by=Transformer_bus0[bus]))
-      - (0.5 * sum(Transformer_loss, over=transformer, by=Transformer_bus1[bus]))
   Transformer_angle_sum:
     expression: >-
       sum(Transformer_s * at(Transformer_cycle_weight, by=snapshot_period[period]), over=transformer)
       + sum(Transformer_phase_shift_weight, over=transformer)
       + sum(Transformer_phase_shift * at(Transformer_phase_shift_cycle_weight, by=snapshot_period[period]), over=transformer)
 
-conditions:
-  Transformer_capital_cost_curve_bends_down:
-    description: >-
-      a breakpoint where a transformer's build cost curve gets less steep: the
-      segment after it rises less per unit of nominal apparent power than the
-      one before
-    condition: >-
-      Transformer_capital_cost_curve_nom
-      AND shift(Transformer_capital_cost_curve_nom, along=breakpoint, offset=1)
-      AND shift(Transformer_capital_cost_curve_nom, along=breakpoint, offset=-1)
-      AND (Transformer_capital_cost_curve_cost - shift(Transformer_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
-      * (shift(Transformer_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Transformer_capital_cost_curve_nom)
-      > (shift(Transformer_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Transformer_capital_cost_curve_cost)
-      * (Transformer_capital_cost_curve_nom - shift(Transformer_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
-
-piecewise:
-  Transformer_capital_cost_lp:
-    name: Transformer-capital_cost_piecewise
-    description: >-
-      the cost of the build of a transformer with a curve is at least the curve
-      at its nominal apparent power, stated as the line of each segment, where
-      linopy chooses the segment lines
-    along: breakpoint
-    dims: [transformer]
-    where: Transformer_capital_cost_as_lp AND Transformer_capital_cost_curve AND Transformer_capital_cost_curve_nom
-    method: lp
-    links:
-      s_nom: [Transformer_s_nom_ext, Transformer_capital_cost_curve_nom]
-      cost: [Transformer_capital_cost_piecewise, Transformer_capital_cost_curve_cost, ">="]
-  Transformer_capital_cost_incremental:
-    name: Transformer-capital_cost_piecewise
-    description: >-
-      the cost of the build of a transformer with a curve is at least the curve
-      at its nominal apparent power, stated by segments filled in order, where
-      linopy chooses the incremental rows
-    along: breakpoint
-    dims: [transformer]
-    where: NOT Transformer_capital_cost_as_lp AND Transformer_capital_cost_curve AND Transformer_capital_cost_curve_nom
-    method: incremental
-    links:
-      s_nom: [Transformer_s_nom_ext, Transformer_capital_cost_curve_nom]
-      cost: [Transformer_capital_cost_piecewise, Transformer_capital_cost_curve_cost, ">="]
-
 constraints:
   Transformer_v_ang_lower:
     name: Transformer-v_ang-lower
-    description: >-
-      a transformer with a fixed shift carries at least the flow at which the
-      voltage angle difference across it is minus its limit. That difference is
-      `x_pu_eff` times the flow plus the shift
+    description: a fixed transformer carries at least the flow of the most negative angle difference, net of its shift
     dims: [scenario, snapshot, transformer]
     where: Transformer_v_ang_max AND NOT Transformer_phase_shift_varying AND Transformer_active
     expression: Transformer_s >= -(Transformer_v_ang_max + Transformer_phase_shift_fixed) * (3.141592653589793 / 180) / Transformer_x_pu_eff
   Transformer_v_ang_upper:
     name: Transformer-v_ang-upper
-    description: >-
-      a transformer with a fixed shift carries at most the flow at which the
-      voltage angle difference across it reaches its limit. That difference
-      includes the shift
+    description: a fixed transformer carries at most the flow of the largest angle difference, net of its shift
     dims: [scenario, snapshot, transformer]
     where: Transformer_v_ang_max AND NOT Transformer_phase_shift_varying AND Transformer_active
     expression: Transformer_s <= (Transformer_v_ang_max - Transformer_phase_shift_fixed) * (3.141592653589793 / 180) / Transformer_x_pu_eff
   Transformer_v_ang_var_lower:
     name: Transformer-v_ang-var-lower
-    description: >-
-      for a transformer whose shift is a decision, the flow plus the shift over
-      `x_pu_eff` is at least minus the limit over `x_pu_eff`
+    description: the same lower bound for a varying transformer, its shift a decision
     dims: [scenario, snapshot, transformer]
     where: Transformer_v_ang_max AND Transformer_phase_shift_varying AND Transformer_active
     expression: Transformer_s + Transformer_phase_shift * (3.141592653589793 / 180) / Transformer_x_pu_eff >= -Transformer_v_ang_max * (3.141592653589793 / 180) / Transformer_x_pu_eff
   Transformer_v_ang_var_upper:
     name: Transformer-v_ang-var-upper
-    description: >-
-      for a transformer whose shift is a decision, the flow plus the shift over
-      `x_pu_eff` is at most the limit over `x_pu_eff`
+    description: the same upper bound for a varying transformer, its shift a decision
     dims: [scenario, snapshot, transformer]
     where: Transformer_v_ang_max AND Transformer_phase_shift_varying AND Transformer_active
     expression: Transformer_s + Transformer_phase_shift * (3.141592653589793 / 180) / Transformer_x_pu_eff <= Transformer_v_ang_max * (3.141592653589793 / 180) / Transformer_x_pu_eff
-  Transformer_loss_tangents_forward:
-    name:
-      tangents: Transformer-loss_tangents-{k}-1
-      secants: Transformer-loss_secants-pos
-    description: >-
-      the loss sits above every cut to its curve for flow one way, as a line's
-      does, over the segment dimension
-    dims: [scenario, snapshot, transformer, segment]
-    where: Transformer_lossy
-    expression: Transformer_loss + Transformer_loss_slope * Transformer_s >= Transformer_loss_offset
