@@ -3,20 +3,13 @@
 # SPDX-License-Identifier: MIT
 
 description: >-
-  The file states a plain `n.optimize()`, its multi-period class under the
-  `multi_investment_periods` keyword, and its stochastic class, which
-  `n.set_scenarios(...)` sets. Every quantity chosen once the future is known
-  (second-stage) spans the futures dispatch is chosen in (`scenario`).
-  Capacity is chosen once, before the future is known, and paid at its
-  expected cost in each investment `period` its build year and lifetime span.
-  Operation is the expectation over the scenarios' weights, with a share
-  priced at the worst-outcome mean cost (CVaR) only where a risk preference is
-  set. A plain run's data has one scenario, one period, unit weights, no
-  outage and every `active` flag true, so the problem is the standard one. On
-  a security-constrained run, PyPSA copies each branch flow limit once per
-  `outage`, and the outage factors, `active` flags and scenario weights come
-  from data prep. A `file.py:line` cite points at PyPSA `3625c816`, under
-  `pypsa/optimization/`, the last commit that built the model in code.
+  The optimisation problem of `n.optimize()`, with its multi-period and its
+  stochastic variants. Capacity is chosen once, before the future is known,
+  and paid in each investment `period` the asset is active in. Dispatch is
+  chosen per `scenario`. The objective is the expected cost over the
+  scenarios; with a risk preference, a share of the operating cost is priced
+  at its conditional value at risk (CVaR). A plain run has one scenario, one
+  period, unit weights and no outage.
 
 dimensions:
   scenario:
@@ -28,201 +21,134 @@ dimensions:
   bus:
     description: network nodes
   generator:
-    description: generating units, each on one bus
+    description: generators, each on one bus
   link:
-    description: controllable connections, each from one bus to the buses it delivers to
+    description: controllable branches, each from `bus0` to the buses its ports deliver to
   link_output:
-    description: >-
-      a link's output ports, one label per port a link declares. The labels
-      are PyPSA's `bus1`, `bus2`, … columns read long, data prep. A link of
-      any number of output ports is then one term in the balance
+    description: the output ports of the links, one label per port (`bus1`, `bus2`, …)
   process:
-    description: generalised multi-port converters, each with an internal power that every port draws or delivers at its own rate
+    description: converters whose ports each draw or deliver at their own rate of `p`
   process_output:
-    description: >-
-      a process's ports, one label per port a process declares. The labels are
-      PyPSA's `bus0`, `bus1`, …, each with a signed `rate`, data prep. A
-      process of any number of ports is then one term in the balance
+    description: the ports of the processes, one label per port (`bus0`, `bus1`, …)
   load:
     description: demands, each on one bus
   storage_unit:
-    description: storage units, dispatch and store behind one bus connection
+    description: storage units with a power capacity and `max_hours` of energy, each on one bus
   store:
-    description: pure energy stores, each on one bus
+    description: energy stores, each on one bus
   line:
-    description: passive branches, each between two buses, their flow set by impedance
+    description: passive branches, their flow set by impedance
   transformer:
-    description: passive branches between two buses, their flow set by impedance and tap ratio, with a phase shift fixed or optimised
+    description: passive branches with a tap ratio and a fixed or optimised phase shift
   cycle:
     description: >-
-      independent cycles of the passive network graph, the cycle basis, data
-      prep. Each period has its own basis, of the branches that are active in it. A
-      label is a position in that period's basis, so one label is a different
-      cycle in another period
+      the independent cycles of the passive network, per period. A label is a
+      position in the period's cycle basis, so it may be another cycle in
+      another period
   outage:
-    description: >-
-      the passive branches a security-constrained run takes out one at a time
-      (PyPSA's `branch_outages`), each a line or a transformer. A plain run
-      has none
+    description: the lines and transformers a security-constrained run takes out one at a time
   segment:
-    description: >-
-      the cuts a passive branch's loss curve is held above. They are PyPSA's
-      tangents, as many as its `segments` count, or its secants, as many as
-      its tolerance loop places. A lossless run has none
+    description: the cuts a passive branch's loss curve lies above, tangents or secants
     dtype: int
   global_constraint:
-    description: PyPSA's `GlobalConstraint` rows, one label per declared limit
+    description: the `GlobalConstraint` rows
   period:
-    description: investment periods. It is PyPSA's `investment_periods`
+    description: investment periods
     dtype: int
     ordered: true
   flow_based_domain:
-    description: >-
-      the flow-based domains, each with its own zero-sum balance of net
-      positions (PyPSA's `domain` of a `flow_based` row), data prep. A run whose
-      flow-based rows name no domain has one. A run without them has none
+    description: the flow-based domains, each with a zero-sum balance of net positions
   carrier:
-    description: energy carriers, what a growth limit is set per
+    description: energy carriers
   breakpoint:
-    description: >-
-      the corners of a piecewise-linear curve, in order. A curve runs over the
-      breakpoints its data has rows for, so curves may differ in length
+    description: the corners of a piecewise-linear curve, in order; curves may differ in length
     dtype: int
     ordered: true
 
 parameters:
   Bus_attached:
-    description: >-
-      whether a load, a unit, a port or a branch that is active in the
-      snapshot's period is attached to the bus, data prep. A bus nothing is
-      attached to has no balance row
+    description: whether an active component is attached to the bus. No balance row where nothing is
     dims: [bus, snapshot]
     dtype: bool
   snapshot_weightings_objective:
-    description: PyPSA's `snapshot_weightings.objective` — hours a snapshot weighs in the cost
+    description: hours a snapshot weighs in the objective
+    dims: [snapshot]
+  snapshot_weightings_stores:
+    description: hours a snapshot weighs in a storage balance
+    dims: [snapshot]
+  snapshot_weightings_generators:
+    description: hours a snapshot weighs in an energy total
     dims: [snapshot]
   scenario_weight:
-    description: PyPSA's `scenario_weightings.weight` — the probability of a future
+    description: the probability of a scenario
     dims: [scenario]
+  period_weight_objective:
+    description: what a period's cost weighs in the objective
+    dims: [period]
+  period_weight_years:
+    description: the years a period's energy counts for in an energy total
+    dims: [period]
   CVaR_omega:
-    description: PyPSA's `risk_preference['omega']` — the share of operating cost priced at the tail rather than in expectation. `CVaR_omega` has a value only where a risk preference is set. Without a risk preference, the file has no CVaR variables or rows. With `omega = 0`, PyPSA builds them, and the optimum is the risk-neutral one
+    description: >-
+      the share of the operating cost priced at the CVaR. No value means no risk
+      preference, and then there are no CVaR variables or rows
     dims: []
     missing: 0
   CVaR_alpha:
-    description: PyPSA's `risk_preference['alpha']` — the confidence level. The tail is the other `1 - alpha` of the probability. `CVaR_alpha` has a value exactly where `CVaR_omega` has one
+    description: the CVaR confidence level; the tail is the other `1 - alpha` of the probability
     dims: []
     missing: absent
-  period_weight_objective:
-    description: >-
-      PyPSA's `investment_period_weightings.objective` — what a period's cost
-      weighs. PyPSA reads it only under `multi_investment_periods`. Otherwise
-      you feed one in data prep, whatever the column contains
-      (`optimize.py:231-233`, `:293-297`)
-    dims: [period]
-  period_weight_years:
-    description: >-
-      PyPSA's `investment_period_weightings.years` — what a period's energy
-      weighs in a `primary_energy`, `operational_limit` or `e_sum` row. PyPSA reads it
-      only under `multi_investment_periods`. Otherwise you feed one in data
-      prep
-    dims: [period]
   Carrier_max_growth:
-    description: >-
-      most capacity of a carrier that may be added in a period. No value means
-      no limit. It is the least over the scenarios, as PyPSA takes it
-      (`global_constraints.py:239-243`), data prep. PyPSA reads it only under
-      `multi_investment_periods` (`global_constraints.py:232-233`). Otherwise
-      you feed no value in data prep
+    description: most capacity of a carrier added in a period. No value means no limit
     dims: [carrier]
     missing: absent
   Carrier_max_relative_growth:
-    description: >-
-      share of the previous period's additions that may be added on top: the
-      least over the scenarios, as PyPSA takes it, data prep
+    description: the share of the previous period's additions that may be added on top
     dims: [carrier]
-  snapshot_weightings_stores:
-    description: PyPSA's `snapshot_weightings.stores` — hours a snapshot weighs in a storage balance
-    dims: [snapshot]
-  snapshot_weightings_generators:
-    description: PyPSA's `snapshot_weightings.generators` — hours a snapshot weighs in an energy total
-    dims: [snapshot]
   Cycle_in_basis:
-    description: >-
-      whether a period's cycle basis reaches the cycle label, data prep. A
-      label beyond the basis of the period has no Kirchhoff voltage law row
+    description: whether a cycle label is in the period's cycle basis. No KVL row where it is not
     dims: [period, cycle]
     dtype: bool
   transmission_losses:
-    description: >-
-      whether the network dissipates transmission losses (PyPSA's
-      `transmission_losses` read as a flag). Its mode, tangents or secants,
-      only decides how you fill the `segment` axis in data prep. The rows are
-      the same. False with no segments is a lossless run. A
-      security-constrained run over a network with passive branches builds no
-      loss. PyPSA hands the keyword not to `create_model`
-      (`abstract.py:645-650`) but to the solver (`:549`), so you feed false
-      there in data prep
+    description: whether the run models transmission losses
     dims: []
     dtype: bool
   GlobalConstraint_type:
     description: >-
-      which formula the row takes: `primary_energy`, `operational_limit`,
+      the row's formula: `primary_energy`, `operational_limit`,
       `transmission_volume_expansion_limit`,
       `transmission_expansion_cost_limit`, `tech_capacity_expansion_limit` or
       `flow_based`
     dims: [global_constraint]
     dtype: str
   GlobalConstraint_sense:
-    description: >-
-      the row's sense in each scenario: `<=`, `>=` or `==`. PyPSA reads a
-      row's sense per scenario (`global_constraints.py:576`, `:779`, `:859-864`)
+    description: "the row's sense per scenario: `<=`, `>=` or `==`"
     dims: [scenario, global_constraint]
     dtype: str
   GlobalConstraint_constant:
     description: >-
-      the constant the total is held against. What a variable cannot represent
-      is folded in here in data prep. That is an initial charge, times its
-      period's years for each counted period where the storage reopens per
-      period, or a non-extendable build. PyPSA reads it per scenario
-      (`global_constraints.py:577`, `:780`, `:859-864`)
+      the constant the total is held against, including what no variable
+      represents: initial storage levels and fixed builds
     dims: [scenario, global_constraint]
   GlobalConstraint_counts_snapshot:
-    description: >-
-      whether a row counts a snapshot in a scenario (PyPSA's
-      `investment_period`), data prep. It is every snapshot where the row
-      states no period, and only that period's where it states one. A row that
-      states a period the run does not model has no label here, as PyPSA skips
-      it (`global_constraints.py:388`). PyPSA reads the column only under
-      `multi_investment_periods`. It fails on a row that states a period
-      without it (`global_constraints.py:380-385`)
+    description: whether the row counts the snapshot; all do unless the row names an `investment_period`
     dims: [scenario, global_constraint, snapshot]
     dtype: bool
     missing: false
   GlobalConstraint_ram:
-    description: >-
-      the remaining available margin of a `flow_based` row, one critical
-      network element (CNEC). It may differ by snapshot. No value drops the
-      row in that snapshot (`flow_based.py:201`)
+    description: the remaining available margin of a `flow_based` row. No value means no row in that snapshot
     dims: [scenario, snapshot, global_constraint]
     missing: absent
   GlobalConstraint_zonal_ptdf:
-    description: >-
-      the zonal power transfer distribution factor of a `flow_based` row for a
-      zone bus: PyPSA's `ptdf_<bus>` column read long, data prep. It may differ
-      by snapshot. No value is zero, as PyPSA fills it
+    description: the zonal power transfer distribution factor of a `flow_based` row for a zone bus
     dims: [scenario, snapshot, global_constraint, bus]
     missing: 0
   GlobalConstraint_link_ptdf:
-    description: >-
-      the factor of a `flow_based` row for a corridor link, whose flow enters
-      the row: PyPSA's `ptdf_<link>` column read long, data prep. No value is
-      zero
+    description: the factor of a `flow_based` row for a corridor link
     dims: [scenario, snapshot, global_constraint, link]
     missing: 0
   Bus_flow_based_zone:
-    description: >-
-      whether a bus is a zone of a flow-based domain: some `flow_based` row
-      has its `ptdf_<bus>` column, data prep
+    description: whether the bus is a zone of a flow-based domain
     dims: [bus]
     dtype: bool
 
@@ -232,20 +158,17 @@ relations:
     key: snapshot
     values: period
   Bus_flow_based_domain:
-    description: >-
-      the flow-based domain a zone bus belongs to: the domain whose rows set
-      the bus's `ptdf_<bus>` column, data prep. A bus that is no zone has no
-      row
+    description: the flow-based domain a zone bus belongs to
     key: bus
     values: flow_based_domain
     missing: absent
   Outage_line:
-    description: the line an outage takes out. An outage of a transformer has no row
+    description: the line an outage takes out
     key: outage
     values: line
     missing: absent
   Outage_transformer:
-    description: the transformer an outage takes out. An outage of a line has no row
+    description: the transformer an outage takes out
     key: outage
     values: transformer
     missing: absent
@@ -253,18 +176,13 @@ relations:
 variables:
   FlowBased_net_position:
     name: FlowBased-net_position
-    description: >-
-      what a zone bus exports to the flow-based domain, unbounded. It leaves the
-      zone's nodal balance (`flow_based.py:207-234`). A bus that is no zone has
-      none
+    description: what a zone bus exports to its flow-based domain, unbounded
     dims: [scenario, snapshot, bus]
     where: Bus_flow_based_zone
     missing: 0
   CVaR_a:
     name: CVaR-a
-    description: >-
-      how far a scenario's operating cost exceeds the tail's start. It is
-      nothing where it does not
+    description: how far a scenario's operating cost exceeds the value at risk
     dims: [scenario]
     where: CVaR_omega
     missing: 0
@@ -272,29 +190,23 @@ variables:
       lower: 0
   CVaR_theta:
     name: CVaR-theta
-    description: where the tail starts, the value at risk
+    description: the value at risk, where the tail starts
     dims: []
     where: CVaR_omega
     missing: 0
   CVaR:
-    description: "`CVaR` — the tail's average cost, what the objective prices at `omega`"
+    description: the CVaR, the mean operating cost in the tail
     dims: []
     where: CVaR_omega
     missing: 0
 
 expressions:
   energy_limit_weight:
-    description: >-
-      what one unit of power at a snapshot counts for in an `e_sum` row: the
-      generator weighting times the years of the snapshot's period, as in an
-      `operational_limit` row (`constraints.py:2935-2937`)
+    description: what one unit of power counts for in an `e_sum` row, hours times the period's years
     dims: [snapshot]
     expression: snapshot_weightings_generators * at(period_weight_years, by=snapshot_period[period])
   GlobalConstraint_energy_weight:
-    description: >-
-      what one unit of power at a snapshot counts for in a row. Where the row
-      counts the snapshot, it is the generator weighting times the years of
-      the snapshot's period. Where it does not, it is nothing
+    description: what one unit of power counts for in a row, hours times the period's years where it counts the snapshot
     dims: [scenario, global_constraint, snapshot]
     cases:
       counted:
@@ -302,37 +214,26 @@ expressions:
         expression: snapshot_weightings_generators * at(period_weight_years, by=snapshot_period[period])
     otherwise: 0
   primary_energy:
+    description: the primary energy of generation, less the energy left in storage at the end
     dims: [scenario, global_constraint]
     expression: Generator_primary_energy + StorageUnit_primary_energy + Store_primary_energy
-    description: >-
-      what a `primary_energy` row totals: weighted generator energy over the
-      snapshots it counts, less the charge left in weighted storage at the
-      close. The initial charge it is compared against is folded into the
-      row's constant
   operational_limit:
+    description: the energy generated, plus what storage draws down
     dims: [scenario, global_constraint]
     expression: >-
       Generator_operational_limit
       + StorageUnit_operational_limit
       + Store_operational_limit
-    description: >-
-      what an `operational_limit` row totals: the weighted energy its
-      generators deliver over the snapshots it counts, plus what its
-      non-cyclic storage draws down. The initial charge it draws from is
-      folded into the row's constant
   transmission_volume_expansion:
+    description: length times chosen build of the row's branches
     dims: [scenario, global_constraint]
     expression: Line_transmission_volume_expansion + Link_transmission_volume_expansion
-    description: >-
-      what a `transmission_volume_expansion_limit` row totals: length times
-      the chosen build of the row's branches
   transmission_expansion_cost:
+    description: capital cost times chosen build of the row's branches
     dims: [scenario, global_constraint]
     expression: Line_transmission_expansion_cost + Link_transmission_expansion_cost
-    description: >-
-      what a `transmission_expansion_cost_limit` row totals: capital cost
-      times the chosen build of the row's branches
   tech_capacity_expansion:
+    description: the chosen build of the row's carrier-and-bus set
     dims: [global_constraint]
     expression: >-
       Generator_tech_capacity_expansion
@@ -341,10 +242,8 @@ expressions:
       + Process_tech_capacity_expansion
       + StorageUnit_tech_capacity_expansion
       + Store_tech_capacity_expansion
-    description: >-
-      what a `tech_capacity_expansion_limit` row totals: the chosen build of
-      the row's carrier-and-bus set
   scenario_opex:
+    description: the operating cost of a scenario, weighted by hours and period
     dims: [scenario]
     expression: >-
       Generator_opex
@@ -358,14 +257,10 @@ expressions:
       + Store_opex
       + Store_storage_opex
       + Store_charge_opex
-    description: >-
-      what a future costs to run: every operating term, weighted by the
-      snapshot's hours and its period, before the scenario's own weight. A
-      start and a stop cost what they cost, unweighted, as PyPSA adds them
-      (`optimize.py:448-468`)
   risk_weighted_opex:
     expression: (1 - CVaR_omega) * sum(scenario_weight * scenario_opex, over=scenario) + CVaR_omega * CVaR
   total_cost:
+    description: capital cost of every component, plus the risk-weighted operating cost
     dims: []
     expression: >-
       Generator_capex
@@ -376,11 +271,8 @@ expressions:
       + Process_capex
       + Transformer_capex
       + risk_weighted_opex
-    description: >-
-      what the system costs. Capacity counts once per active period at its
-      expected cost over the scenarios. Operation counts in expectation over
-      the scenarios, and a share of it at the tail
   Carrier_additions:
+    description: the capacity a carrier adds in a period; a transformer has no carrier
     dims: [period, carrier]
     expression: >-
       Generator_additions
@@ -389,33 +281,24 @@ expressions:
       + Process_additions
       + StorageUnit_additions
       + Store_additions
-    description: >-
-      what a carrier adds in a period: every extendable component of that
-      carrier, counting each build in the first period it is active in. Like
-      PyPSA, it sums only the components that carry a carrier attribute, so a
-      transformer, which has none, counts in no carrier
   Carrier_relative_growth:
-    description: >-
-      the share of the previous period's additions in a carrier's growth
-      limit, PyPSA's `max_relative_growth` clipped at zero. A negative share
-      thus adds nothing and never tightens the limit
+    description: "`max_relative_growth`, clipped at zero"
     dims: [carrier]
     cases:
       positive: { when: Carrier_max_relative_growth > 0, expression: Carrier_max_relative_growth }
     otherwise: 0
   Outage_s:
-    description: >-
-      the flow an outage takes off its branch: the outaged line's or
-      transformer's flow before it goes out
+    description: the flow of the branch an outage takes out, before the outage
     dims: [scenario, snapshot, outage]
     cases:
       line: { when: Outage_line, expression: "at(Line_s_monitored, by=Outage_line[line])" }
     otherwise: at(Transformer_s_monitored, by=Outage_transformer[transformer])
   FlowBased_injection:
-    description: what a zone bus exports to its flow-based domain leaves the bus (`constraints.py:1578`)
+    description: a zone bus's net position leaves the bus
     dims: [scenario, snapshot, bus]
     expression: -FlowBased_net_position
   Bus_injection:
+    description: what every component puts into a bus, less what it takes out
     dims: [scenario, snapshot, bus]
     expression: >-
       FlowBased_injection
@@ -427,130 +310,104 @@ expressions:
       + StorageUnit_injection
       + Store_injection
       + Transformer_injection
-    description: >-
-      what every component puts into a bus, less what it takes out of it.
-      PyPSA writes each term into the balance, and a load on its right-hand
-      side
   Cycle_angle_sum:
+    description: the voltage angle differences around a cycle, phase shifts included
     dims: [scenario, snapshot, cycle]
     expression: Line_angle_sum + Transformer_angle_sum
-    description: >-
-      the voltage angle differences around a cycle: every branch flow times
-      its cycle weight, and every transformer phase shift
 
 constraints:
   Kirchhoff_Voltage_Law:
     name: Kirchhoff-Voltage-Law
-    description: >-
-      around every independent cycle the impedance-weighted flows sum to
-      nothing. This makes the linear power flow physical rather than transport.
-      A transformer's flow weighs its effective reactance, and its phase shift
-      enters the cycle sum too. The shift is a constant where it is fixed. Where
-      a phase-shifting transformer chooses its shift, it is the shift decision
-      times its cycle weight. A snapshot uses the cycles of its own period, of
-      the branches that are active in it (`constraints.py:1710-1729`). A cycle
-      label that period's basis does not reach has no row
+    description: the angle differences around each cycle of the period's basis sum to zero
     dims: [scenario, snapshot, cycle]
     where: at(Cycle_in_basis, by=snapshot_period[period])
     expression: Cycle_angle_sum == 0
+  Bus_nodal_balance:
+    name: Bus-nodal_balance
+    description: what enters a bus equals what leaves it
+    dims: [scenario, snapshot, bus]
+    where: Bus_attached
+    expression: Bus_injection == 0
   GlobalConstraint_primary_energy_ub:
-    description: "`primary_energy` — its total, at most its constant"
+    description: the total is at most the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'primary_energy' AND GlobalConstraint_sense == '<='
     expression: primary_energy <= GlobalConstraint_constant
   GlobalConstraint_primary_energy_lb:
-    description: "`primary_energy` — its total, at least its constant"
+    description: the total is at least the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'primary_energy' AND GlobalConstraint_sense == '>='
     expression: primary_energy >= GlobalConstraint_constant
   GlobalConstraint_primary_energy_eq:
-    description: "`primary_energy` — its total, at its constant"
+    description: the total equals the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'primary_energy' AND GlobalConstraint_sense == '=='
     expression: primary_energy == GlobalConstraint_constant
   GlobalConstraint_operational_limit_ub:
-    description: "`operational_limit` — its total, at most its constant"
+    description: the total is at most the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'operational_limit' AND GlobalConstraint_sense == '<='
     expression: operational_limit <= GlobalConstraint_constant
   GlobalConstraint_operational_limit_lb:
-    description: "`operational_limit` — its total, at least its constant"
+    description: the total is at least the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'operational_limit' AND GlobalConstraint_sense == '>='
     expression: operational_limit >= GlobalConstraint_constant
   GlobalConstraint_operational_limit_eq:
-    description: "`operational_limit` — its total, at its constant"
+    description: the total equals the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'operational_limit' AND GlobalConstraint_sense == '=='
     expression: operational_limit == GlobalConstraint_constant
   GlobalConstraint_transmission_volume_expansion_limit_ub:
-    description: "`transmission_volume_expansion_limit` — its total, at most its constant"
+    description: the total is at most the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'transmission_volume_expansion_limit' AND GlobalConstraint_sense == '<='
     expression: transmission_volume_expansion <= GlobalConstraint_constant
   GlobalConstraint_transmission_volume_expansion_limit_lb:
-    description: "`transmission_volume_expansion_limit` — its total, at least its constant"
+    description: the total is at least the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'transmission_volume_expansion_limit' AND GlobalConstraint_sense == '>='
     expression: transmission_volume_expansion >= GlobalConstraint_constant
   GlobalConstraint_transmission_volume_expansion_limit_eq:
-    description: "`transmission_volume_expansion_limit` — its total, at its constant"
+    description: the total equals the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'transmission_volume_expansion_limit' AND GlobalConstraint_sense == '=='
     expression: transmission_volume_expansion == GlobalConstraint_constant
   GlobalConstraint_transmission_expansion_cost_limit_ub:
-    description: "`transmission_expansion_cost_limit` — its total, at most its constant"
+    description: the total is at most the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'transmission_expansion_cost_limit' AND GlobalConstraint_sense == '<='
     expression: transmission_expansion_cost <= GlobalConstraint_constant
   GlobalConstraint_transmission_expansion_cost_limit_lb:
-    description: "`transmission_expansion_cost_limit` — its total, at least its constant"
+    description: the total is at least the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'transmission_expansion_cost_limit' AND GlobalConstraint_sense == '>='
     expression: transmission_expansion_cost >= GlobalConstraint_constant
   GlobalConstraint_transmission_expansion_cost_limit_eq:
-    description: "`transmission_expansion_cost_limit` — its total, at its constant"
+    description: the total equals the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'transmission_expansion_cost_limit' AND GlobalConstraint_sense == '=='
     expression: transmission_expansion_cost == GlobalConstraint_constant
   GlobalConstraint_tech_capacity_expansion_limit_ub:
-    description: "`tech_capacity_expansion_limit` — its total, at most its constant"
+    description: the total is at most the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'tech_capacity_expansion_limit' AND GlobalConstraint_sense == '<='
     expression: tech_capacity_expansion <= GlobalConstraint_constant
   GlobalConstraint_tech_capacity_expansion_limit_lb:
-    description: "`tech_capacity_expansion_limit` — its total, at least its constant"
+    description: the total is at least the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'tech_capacity_expansion_limit' AND GlobalConstraint_sense == '>='
     expression: tech_capacity_expansion >= GlobalConstraint_constant
   GlobalConstraint_tech_capacity_expansion_limit_eq:
-    description: "`tech_capacity_expansion_limit` — its total, at its constant"
+    description: the total equals the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_type == 'tech_capacity_expansion_limit' AND GlobalConstraint_sense == '=='
     expression: tech_capacity_expansion == GlobalConstraint_constant
-  Bus_nodal_balance:
-    name: Bus-nodal_balance
-    description: >-
-      what is generated at a bus meets the load there, less half of every
-      incident line's and transformer's loss. What is generated includes storage
-      dispatch and stores. It is net of what the links take away, plus what
-      arrives over them after losses and any delay at every port they deliver
-      to. Each process port draws or delivers at its own rate, and each passive
-      branch carries its flow. PyPSA dissipates a branch's loss half at either
-      end. Each generator, storage unit, store and load term enters with its
-      component's `sign` (`constraints.py:1480-1481`, `:1592`), and an inactive
-      load not at all. A bus nothing is attached to has no row. PyPSA refuses
-      one that carries load. The file states no assumption for it.
-    dims: [scenario, snapshot, bus]
-    where: Bus_attached
-    expression: Bus_injection == 0
   GlobalConstraint_flow_based_ub:
     name: GlobalConstraint-ram
     description: >-
       a CNEC's flow, the zones' net positions and the corridor links' flows each
-      times its factor, is at most its remaining available margin. PyPSA names
-      the rows `GlobalConstraint-ram`, one per CNEC and snapshot, and reads no
-      `constant` (`flow_based.py:262-293`)
+      times its factor, is at most its remaining available margin
     dims: [scenario, snapshot, global_constraint]
     where: >-
       GlobalConstraint_type == 'flow_based' AND GlobalConstraint_sense == '<='
@@ -568,9 +425,7 @@ constraints:
     name: Carrier-growth_limit
     description: >-
       what a carrier adds in a period is at most its allowance plus a share of
-      what it added the period before. It counts what its extendable components
-      add, each build in the first period it is active in. The first period has
-      no predecessor, so `edge=0` leaves it the bare allowance
+      what it added in the period before
     dims: [carrier, period]
     where: Carrier_max_growth
     expression: >-
@@ -579,17 +434,13 @@ constraints:
       <= Carrier_max_growth
   CVaR_excess:
     name: CVaR-excess-{s}
-    description: >-
-      a scenario's operating cost beyond the tail's start is its excess. PyPSA
-      names one row per scenario
+    description: a scenario's operating cost beyond the value at risk is its excess
     dims: [scenario]
     where: CVaR_omega
     expression: CVaR_a - scenario_opex + CVaR_theta >= 0
   CVaR_def:
     name: CVaR-def
-    description: >-
-      the tail's average is at least where it starts plus the expected excess
-      over the tail's probability
+    description: the CVaR is at least the value at risk plus the expected excess over the tail probability
     dims: []
     where: CVaR_omega
     expression: CVaR_theta + 1 / (1 - CVaR_alpha) * sum(scenario_weight * CVaR_a, over=scenario) <= CVaR
@@ -598,17 +449,11 @@ assumptions:
   GlobalConstraint_tech_capacity_expansion_limit_without_scenarios:
     holds: "GlobalConstraint_type != 'tech_capacity_expansion_limit'"
     where: "count(scenario_weight, over=scenario) > 1"
-    description: >-
-      PyPSA does not build a `tech_capacity_expansion_limit` row on a network
-      with scenarios and refuses it (`global_constraints.py:68-70`). The spec
-      cannot tell a network with one scenario from one with none. A tool thus
-      refuses the row only where there is more than one scenario
+    description: a `tech_capacity_expansion_limit` row is not allowed with scenarios
   GlobalConstraint_flow_based_sense_is_le:
     holds: "GlobalConstraint_sense == '<='"
     where: "GlobalConstraint_type == 'flow_based'"
-    description: >-
-      PyPSA refuses a `flow_based` row whose sense is not `<=`
-      (`flow_based.py:109-114`)
+    description: a `flow_based` row has the sense `<=`
 
 objective:
   sense: minimize
