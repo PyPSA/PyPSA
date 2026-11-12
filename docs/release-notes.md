@@ -27,6 +27,9 @@ SPDX-License-Identifier: CC-BY-4.0
 - Speed up writing optimization results back to the network, the calculation of voltage angles after the optimization and the consistency check of `p_max_pu` and `p_min_pu`, which dominated the runtime of [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] on large networks. The rolling horizon now also uses `io_api="direct"` for solvers that support it, unless `io_api` or `problem_fn` is passed, and runs the consistency check once for the whole network instead of for every window.
     - **Behavior change**: With `keep_files=True`, the rolling horizon no longer keeps a problem file unless `io_api` or `problem_fn` is passed, and the solver log follows the direct API.
     - **Behavior change**: The voltage angles `v_ang` after the optimization are now zero at the slack bus of each sub-network, as in [`n.lpf()`][pypsa.Network.lpf]. Before, they were shifted to zero mean per sub-network. Angle differences across lines are unchanged.
+- [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] now builds its model from a declarative YAML specification of the PyPSA formulation in `pypsa/optimization/spec/`, read by linopy. The call and the results are unchanged. Requires Python 3.12 and `linopy>=1.0`. (<!-- md:pr 2128 -->)
+    - **Behavior change**: The modules `pypsa.optimization.constraints` and `pypsa.optimization.variables` and the `define_*` functions are removed.
+    - **Behavior change**: A component without any active row gets no constraint, where it got a fully masked one before.
 - Add the argument `consistency_check` to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] to skip the consistency check before building the model.
 
 ### Enhancements
