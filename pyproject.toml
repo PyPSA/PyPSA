@@ -33,6 +33,7 @@ dependencies = [
     "scipy",
     "pandas>=3.0",
     "pyarrow",
+    "pyyaml",
     "xarray",
     "netcdf4",
     "linopy @ git+https://github.com/PyPSA/linopy.git@810d296096bace12e4cfdbef7221b4dd744d26bc",
