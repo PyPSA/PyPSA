@@ -13,6 +13,8 @@ description: >-
   scenario. The patch states an assumption of no modular committable unit,
   which PyPSA refuses under the keyword and a tool refuses when data is
   attached. Every other row is the integer run's.
+  A `file.py:line` cite points at PyPSA `3625c816`, under
+  `pypsa/optimization/`, the last commit that built the model in code.
 
 variables:
   Generator_status:

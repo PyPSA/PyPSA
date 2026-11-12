@@ -15,7 +15,8 @@ description: >-
   outage and every `active` flag true, so the problem is the standard one. On
   a security-constrained run, PyPSA copies each branch flow limit once per
   `outage`, and the outage factors, `active` flags and scenario weights come
-  from data prep.
+  from data prep. A `file.py:line` cite points at PyPSA `3625c816`, under
+  `pypsa/optimization/`, the last commit that built the model in code.
 
 dimensions:
   scenario:
