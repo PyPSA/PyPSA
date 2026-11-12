@@ -39,8 +39,8 @@ try:
 except ImportError:  # linopy>=1.0: a sparse constraint is a mutable `Constraint`
     CSRConstraint = None
 
-# linopy>=1.0 has v1 as its only semantics. Reading the deprecated
-# `semantics` option there emits a FutureWarning, so probe without it.
+# linopy>=1.0 has v1 as its only semantics. Setting the deprecated
+# `semantics` option there emits a FutureWarning, so skip it.
 V1_ONLY = not hasattr(linopy_semantics, "is_v1")
 
 # Ragged piecewise curves are stored densely. Only linopy with v1 semantics lets
@@ -52,7 +52,10 @@ SUPPORTS_BREAKPOINT_MASK = (
 
 def linopy_uses_v1() -> bool:
     """Whether linopy's v1 arithmetic semantics are active."""
-    return V1_ONLY or linopy_semantics.is_v1()
+    try:
+        return linopy_options["semantics"] == "v1"
+    except KeyError:
+        return False
 
 
 @contextmanager
