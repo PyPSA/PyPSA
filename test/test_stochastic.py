@@ -328,7 +328,7 @@ def test_global_constraint_mu_with_scenarios():
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
-    mu = n.global_constraints.mu
+    mu = n.c.global_constraints.static["mu"]
     assert mu.loc[("s1", "limit")] == pytest.approx(-45)
     assert mu.loc[("s2", "limit")] == pytest.approx(-45)
 
