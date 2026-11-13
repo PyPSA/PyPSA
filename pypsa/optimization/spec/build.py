@@ -263,18 +263,6 @@ def _part(con: Constraint, indexers: dict[str, Any], drop: bool = False) -> Part
     return con.lhs.isel(indexers, drop=drop), _cells(con).isel(indexers, drop=drop)
 
 
-def _terms(con: Constraint) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return the flat cell position, column and coefficient of each term of `con`, masked cells included.
-
-    `Constraint.to_polars` reads a sparse lhs without densifying it, but by
-    label and for the live cells only; so each cell is labelled by its
-    position first.
-    """
-    positions = _positions(con.labels)
-    df = Constraint(con.lhs, con.sign, con.rhs, con.model, labels=positions).to_polars()
-    return df["labels"].to_numpy(), df["vars"].to_numpy(), df["coeffs"].to_numpy()
-
-
 def _on_units[T: (xr.Dataset, LinearExpression)](
     obj: T, dim: str, ports: np.ndarray, unit: str, units: np.ndarray
 ) -> T:
@@ -296,7 +284,7 @@ def _relaid(
     lays a sparse lhs out on its grid only by its terms' cells, so the
     terms move cell by cell.
     """
-    rows, columns, coeffs = _terms(con)
+    rows, columns, coeffs = con.lhs.to_coo()
     moved = np.full(con.labels.size, -1)
     moved[cells.cell.values.ravel()] = np.arange(cells.cell.size)
     keep = moved[rows] != -1
@@ -678,7 +666,7 @@ def _scale_rows(
         if component == "GlobalConstraint" and rest in stated:
             con.scaling = global_constraint_factor(n, rest)
             continue
-        rows, columns, coeffs = _terms(con)
+        rows, columns, coeffs = con.lhs.to_coo()
         live = coeffs != 0
         rows, columns = rows[live], columns[live]
         factors = bus[columns]
