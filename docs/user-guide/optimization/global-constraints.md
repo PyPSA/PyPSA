@@ -19,7 +19,7 @@ By default, global constraints span across all investment periods. For models wi
 
 The primary energy constraints (`type="primary_energy"`) are used to limit byproducts of primary energy consumption of a carrier (e.g. CO~2~ emissions) in generators, storage units and stores. They depend on the generator efficiency and carrier-specific attributes (e.g. `co2_emissions`).
 
-Suppose there is a global constraint defined for CO~2~ emissions (`carrier_attribute`) with sense "<=" (`sense`) and a limit $\Gamma$ (`constant`). Emissions can come from generators whose energy carriers have CO~2~ emissions, and from stores and storage units whose storage medium releases or absorbs CO~2~ when it is converted. A store or storage unit contributes the energy withdrawn from it: its energy level at the start ($t=-1$) minus its level at the end ($t=|T|-1$) of the counted snapshots, plus its net inflow $\textrm{inflow} - \textrm{spill}$. This follows from the sum of the [storage energy balance](storage.md) over the counted snapshots and includes standing losses. The level term is zero for cyclic storage. For a constraint with an `investment_period`, the start level is the level that the storage carries into that period.
+Suppose there is a global constraint defined for CO~2~ emissions (`carrier_attribute`) with sense "<=" (`sense`) and a limit $\Gamma$ (`constant`). Emissions can come from generators whose energy carriers have CO~2~ emissions, and from stores and storage units whose storage medium releases or absorbs CO~2~ when it is converted. A store or storage unit contributes the net energy withdrawn from it (discharging minus charging): its energy level at the start ($t=-1$) minus its level at the end ($t=|T|-1$) of the counted snapshots, plus its net inflow $\textrm{inflow} - \textrm{spill}$. This follows from the sum of the [storage energy balance](storage.md) over the counted snapshots and includes standing losses. For a constraint with an `investment_period`, the start level is the level that the storage carries into that period. With investment periods, the level change and the net inflow of each period are weighted by the years of the period. The level term is zero for storage that is cyclic within the counted snapshots.
 
 If the specific emissions of carrier $s$ is $\rho_s$ (`n.carriers.co2_emissions`) and the generator with carrier $s$ at node $n$ and snapshot $t$ has efficiency $\eta_{n,s,t}$ then the CO~2~ constraint is
 
@@ -42,7 +42,7 @@ This global constraint is added in the function `define_primary_energy_limit()`.
     | $\mu$ | `n.global_constraints.mu` | Dual Variable |
     | $w_t^g$ | `n.snapshot_weightings.generators` | Parameter |
     | $w_t^s$ | `n.snapshot_weightings.stores` | Parameter |
-    | $\textrm{inflow}_{n,s,t}$ | `n.{stores,storage_units}.inflow` | Parameter |
+    | $\textrm{inflow}_{n,s,t}$ | `n.{stores,storage_units}_t.inflow` | Parameter |
     | $\eta_{n,s,t}$ | `n.generators.efficiency` | Parameter |
     | $\rho_s$ | `n.carriers.co2_emissions` | Parameter |
     | $\Gamma$ | `n.global_constraints.constant` | Parameter |
@@ -79,7 +79,7 @@ This global constraint is added in the function `define_operational_limit()`.
     | $\mu$ | `n.global_constraints.mu` | Dual Variable |
     | $w_t^g$ | `n.snapshot_weightings.generators` | Parameter |
     | $w_t^s$ | `n.snapshot_weightings.stores` | Parameter |
-    | $\textrm{inflow}_{n,s,t}$ | `n.{stores,storage_units}.inflow` | Parameter |
+    | $\textrm{inflow}_{n,s,t}$ | `n.{stores,storage_units}_t.inflow` | Parameter |
     | $\Gamma$ | `n.global_constraints.constant` | Parameter |
 
 ## Volume Limit on Transmission Expansion

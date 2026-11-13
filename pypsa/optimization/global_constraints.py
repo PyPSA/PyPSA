@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-from linopy import merge
+from linopy import LinearExpression, merge
 from xarray import DataArray
 
 from pypsa.components.common import invariant
@@ -24,8 +24,6 @@ from pypsa.optimization.window import apply_period_weighting
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
-
-    from linopy import LinearExpression
 
     from pypsa import Components, Network
     from pypsa.optimization.piecewise import PiecewiseOptions
@@ -59,7 +57,7 @@ def _component_withdrawal(
     *,
     scenario: Any,
 ) -> tuple[list[LinearExpression], float]:
-    """Energy withdrawn from the storages of one component in the counted snapshots.
+    """Net energy withdrawn from the storages of one component.
 
     Each storage is weighted by its `factor`. See `_storage_withdrawal`.
 
@@ -91,18 +89,7 @@ def _component_withdrawal(
         period_of = window.period_of.to_numpy()
         years = n.investment_period_weightings.years.loc[period_of].to_numpy()
         cyclic_pp = static[cyclic_pp_attr].to_numpy(bool)
-        initial_pp = static[initial_pp_attr].to_numpy(bool) & ~cyclic_pp
-
-    carried = ~(cyclic | cyclic_pp | initial_pp)
-    if carried.any() and (years[counted] != 1).any():
-        msg = (
-            f"Found non-cyclic {c.list_name} of a limited carrier which carry their "
-            "energy level over investment periods with year weightings != 1. The "
-            "global constraint would be inconsistent. Set "
-            f"`{initial_pp_attr}` to True, use equal period weightings or "
-            "cyclic storage instead."
-        )
-        raise NotImplementedError(msg)
+        initial_pp = static[initial_pp_attr].to_numpy(bool)
 
     positions = np.flatnonzero(counted)
     breaks = np.flatnonzero(np.diff(period_of[positions])) + 1
@@ -118,6 +105,17 @@ def _component_withdrawal(
     start = np.where(initial_pp, -1, start)
     from_initial = start < 0
     counts = (end >= firsts[:, None]) & ~cyclic_pp
+    carried = ~(cyclic | cyclic_pp | initial_pp)
+    if (carried & counts.any(axis=0)).any() and (years[counted] != 1).any():
+        msg = (
+            f"Found non-cyclic {c.list_name} of a limited carrier which carry their "
+            "energy level over investment periods with year weightings != 1. The "
+            "global constraint would be inconsistent. Set "
+            f"`{initial_pp_attr}` to True, use equal period weightings or "
+            "cyclic storage instead."
+        )
+        raise NotImplementedError(msg)
+
     level_weight = np.where(counts, years[lasts, None] * weight, 0)
 
     column = np.broadcast_to(np.arange(len(static)), end.shape)
@@ -154,12 +152,13 @@ def _storage_withdrawal(
     sns: pd.Index,
     counted: np.ndarray,
     carrier_factor: pd.Series,
+    *,
     scenario: Any,
 ) -> tuple[list[LinearExpression], float]:
-    """Energy withdrawn from storage units and stores in the counted snapshots.
+    """Net energy withdrawn from storage units and stores in the counted snapshots.
 
     Summing the storage energy balance over the snapshots of an investment period
-    shows that the energy withdrawn from a storage, including standing losses, is
+    shows that the net energy withdrawn from a storage, including standing losses, is
     its level before the period minus its level at the end of the period plus its
     weighted net inflow `inflow - spill`. Each period is weighted by its years and
     each storage by the `carrier_factor` of its carrier.
@@ -506,6 +505,7 @@ def define_primary_energy_limit(
             scenarios = [slice(None)]
 
         expressions = []
+        has_variables = False
         for scenario in scenarios:
             glc = glc_group.loc[scenario]
 
@@ -581,17 +581,15 @@ def define_primary_energy_limit(
                 lhs.append(expr)
 
             storage_lhs, constant = _storage_withdrawal(
-                n, sns, counted, emissions, scenario
+                n, sns, counted, emissions, scenario=scenario
             )
             lhs += storage_lhs
 
-            if not lhs:
-                continue
+            has_variables |= bool(lhs)
+            expression = merge(lhs) if lhs else LinearExpression(None, m)
+            expressions.append(expression + constant)
 
-            lhs = merge(lhs) + constant
-            expressions.append(lhs)
-
-        if not expressions:
+        if not has_variables:
             continue
 
         if n.has_scenarios:
@@ -645,6 +643,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             scenarios = [slice(None)]
 
         expressions = []
+        has_variables = False
         for scenario in scenarios:
             glc = glc_group.loc[scenario]
 
@@ -689,17 +688,15 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
             carrier_factor = pd.Series({glc.carrier_attribute: 1.0})
             storage_lhs, constant = _storage_withdrawal(
-                n, sns, counted, carrier_factor, scenario
+                n, sns, counted, carrier_factor, scenario=scenario
             )
             lhs += storage_lhs
 
-            if not lhs:
-                continue
+            has_variables |= bool(lhs)
+            expression = merge(lhs) if lhs else LinearExpression(None, m)
+            expressions.append(expression + constant)
 
-            lhs = merge(lhs) + constant
-            expressions.append(lhs)
-
-        if not expressions:
+        if not has_variables:
             continue
 
         if n.has_scenarios:

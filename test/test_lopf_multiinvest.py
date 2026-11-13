@@ -1538,13 +1538,21 @@ STORAGE_FLAGS = {
         "initial_per_period": "e_initial_per_period",
     },
 }
-STORAGE_MODES = ["carried", "cyclic", "cyclic_per_period", "initial_per_period"]
+STORAGE_MODES = [
+    "carried",
+    "cyclic",
+    "cyclic_per_period",
+    "initial_per_period",
+    "cyclic+initial_per_period",
+]
 STORAGE_LIMIT_CASES = [
     *[(mode, period, False) for mode in STORAGE_MODES for period in (None, 2030, 2040)],
     ("built_later", None, False),
     ("built_later", 2040, False),
+    ("retired", 2040, False),
     ("carried", 2040, True),
     ("cyclic", 2040, True),
+    ("cyclic_per_period", None, True),
 ]
 
 
@@ -1566,14 +1574,14 @@ def test_storage_limit_counts_withdrawal(
     https://github.com/PyPSA/PyPSA/issues/2131.
     """
     flags = STORAGE_FLAGS[component]
-    years = 1 if mode in ("carried", "built_later") else 2
+    years = {"carried": 1, "built_later": 1, "retired": [1, 10]}.get(mode, [2, 3])
     limit = 3
 
     n = pypsa.Network()
     n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [0, 1, 2]])
     n.investment_periods = [2030, 2040]
     n.investment_period_weightings["years"] = years
-    n.snapshot_weightings = n.snapshot_weightings * 2
+    n.snapshot_weightings = n.snapshot_weightings.assign(stores=2, generators=3)
 
     n.add("Carrier", "gas", co2_emissions=0.2)
     n.add("Bus", "bus")
@@ -1581,10 +1589,11 @@ def test_storage_limit_counts_withdrawal(
     n.add("Generator", "gen", bus="bus", p_nom=10, marginal_cost=100)
     kwargs = {"e_nom": 100} if component == "Store" else {"p_nom": 100, "max_hours": 1}
     kwargs[flags["initial"]] = 10
-    if mode in flags:
-        kwargs[flags[mode]] = True
+    kwargs.update({flags[flag]: True for flag in mode.split("+") if flag in flags})
     if mode == "built_later":
         kwargs["build_year"] = 2040
+    if mode == "retired":
+        kwargs.update(build_year=2030, lifetime=10)
     n.add(
         component,
         "storage",
@@ -1606,14 +1615,19 @@ def test_storage_limit_counts_withdrawal(
     )
     if stochastic:
         n.set_scenarios({"low": 0.5, "high": 0.5})
-        n.c[component].static.loc[("high", "storage"), "inflow"] = 3
+        n.c[component].static.loc[("low", "storage"), "inflow"] = 0
 
     status, _ = n.optimize(multi_investment_periods=True)
     assert status == "ok"
 
     dynamic = n.c[component].dynamic
     withdrawal = dynamic.p_dispatch / 0.5 - dynamic.p_store
-    withdrawal = withdrawal.mul(n.snapshot_weightings.stores, axis=0) * years
+    withdrawal = withdrawal.mul(n.snapshot_weightings.stores, axis=0)
+    withdrawal = withdrawal.mul(n.investment_period_weightings.years, axis=0, level=0)
     if period is not None:
         withdrawal = withdrawal.loc[[period]]
-    almost_equal(withdrawal.sum().to_numpy(), limit)
+    withdrawal = withdrawal.sum()
+    if stochastic:
+        assert (withdrawal["low"] <= limit + 1e-6).all()
+        withdrawal = withdrawal["high"]
+    almost_equal(withdrawal.to_numpy(), 0 if mode == "retired" else limit)
