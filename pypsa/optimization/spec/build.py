@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import functools
+import os
 import re
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
     from pypsa.optimization.piecewise import PiecewiseOptions
 
 SPEC = files("pypsa.optimization.spec")
+PROTO = frozenset(os.environ.get("PYPSA_SPEC_PROTO", "").split(","))
 
 
 @functools.cache
@@ -264,6 +266,11 @@ def _terms(con: Constraint) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     label and for the live cells only; so each cell is labelled by its
     position first.
     """
+    if "coo" in PROTO and con.lhs.is_sparse:
+        csr = con.lhs._store.csr
+        rows = np.repeat(np.arange(csr.shape[0]), np.diff(csr.indptr))
+        keep = (csr.data != 0) & (csr.indices != -1)
+        return rows[keep], csr.indices[keep], csr.data[keep]
     positions = _positions(con.labels)
     df = Constraint(con.lhs, con.sign, con.rhs, con.model, labels=positions).to_polars()
     return df["labels"].to_numpy(), df["vars"].to_numpy(), df["coeffs"].to_numpy()
