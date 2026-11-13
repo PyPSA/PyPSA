@@ -2109,8 +2109,8 @@ wheels = [
 
 [[package]]
 name = "linopy"
-version = "0.10.0.post1.dev93+g85c7504d8"
-source = { git = "https://github.com/PyPSA/linopy.git?rev=85c7504d8f1c0189e116e11589ecae5ce5db9356#85c7504d8f1c0189e116e11589ecae5ce5db9356" }
+version = "0.10.0.post1.dev96+g6ebb0721c"
+source = { git = "https://github.com/PyPSA/linopy.git?rev=6ebb0721c5f2f55b3253ef1e8acfe6a0d8c36e59#6ebb0721c5f2f55b3253ef1e8acfe6a0d8c36e59" }
 dependencies = [
     { name = "bottleneck" },
     { name = "numpy" },
@@ -4061,7 +4061,7 @@ requires-dist = [
     { name = "gurobipy", marker = "extra == 'gurobipy'" },
     { name = "highspy" },
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.1.1" },
-    { name = "linopy", git = "https://github.com/PyPSA/linopy.git?rev=85c7504d8f1c0189e116e11589ecae5ce5db9356" },
+    { name = "linopy", git = "https://github.com/PyPSA/linopy.git?rev=6ebb0721c5f2f55b3253ef1e8acfe6a0d8c36e59" },
     { name = "mathspec", git = "https://github.com/energy-models/mathspec.git?rev=cc531151128e63af592628b697dd44ab93a1795a" },
     { name = "matplotlib" },
     { name = "mkdocs-autolinks-plugin", marker = "extra == 'docs'" },
