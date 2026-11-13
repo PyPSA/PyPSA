@@ -25,6 +25,8 @@ from pypsa.optimization.window import apply_period_weighting
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
+    from linopy import LinearExpression, Variable
+
     from pypsa import Components, Network
     from pypsa.optimization.piecewise import PiecewiseOptions
 logger = logging.getLogger(__name__)
@@ -47,6 +49,21 @@ def _period_last_storage_weightings(
         period_weighting.loc[periods[last]].to_numpy(), index=period_last_sns
     )
     return period_last_sns, storage_weightings
+
+
+def _carried_drawdown(
+    level: Variable, first: int, last: int, initial: pd.Series
+) -> LinearExpression:
+    """Drawdown of a storage level carried over from snapshot `first` to `last`.
+
+    The level before `first` is the level at the previous snapshot, or `initial`
+    if `first` is the first snapshot.
+    """
+    filled = level.ffill("snapshot")
+    end = filled.isel(snapshot=last)
+    if first == 0:
+        return (-end).sum() + initial.sum()
+    return (filled.isel(snapshot=first - 1) - end).sum()
 
 
 def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
@@ -631,6 +648,8 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             else:
                 continue
             period_sns = sns if in_period is None else sns[in_period]
+            bounds = np.flatnonzero(in_period) if in_period is not None else [0, -1]
+            first, last = bounds[0], bounds[-1]
 
             # Filter weightings and calculate period-specific values
             w = weight.sel(snapshot=period_sns)
@@ -659,16 +678,17 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 expr = (p * w).sum()
                 lhs.append(expr)
 
-            # storage units (non-cyclic): subtract end SoC and add initial SoC as constant
+            # storage units (non-cyclic): drawdown of the state of charge
             cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge and active"
             sus = n.c.storage_units.static.query(cond)
 
             if not sus.empty:
                 sus = sus.loc[scenario]
-                soc = m["StorageUnit-state_of_charge"].sel(
-                    name=sus.index, snapshot=period_sns
-                )
+                soc = m["StorageUnit-state_of_charge"].sel(name=sus.index, snapshot=sns)
+                if n.has_scenarios:
+                    soc = soc.sel(scenario=scenario, drop=True)
 
+                sus_continuous = sus
                 if n._multi_invest:
                     sus_continuous = sus.query("not state_of_charge_initial_per_period")
                     if not sus_continuous.empty and period_weighting.ne(1).any():
@@ -682,43 +702,30 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                         )
                         raise NotImplementedError(msg)
 
-                    if not sus_continuous.empty and period_weighting.eq(1).all():
-                        soc_final = (
-                            soc.sel(name=sus_continuous.index)
-                            .ffill("snapshot")
-                            .isel(snapshot=-1)
-                        )
-                        if n.has_scenarios:
-                            soc_final = soc_final.sel(scenario=scenario, drop=True)
-                        lhs.append(
-                            (-soc_final).sum()
-                            + sus_continuous.state_of_charge_initial.sum()
-                        )
-
                     sus_per_period = sus.query("state_of_charge_initial_per_period")
                     if not sus_per_period.empty:
                         soc_final = soc.sel(
                             snapshot=period_last_sns, name=sus_per_period.index
                         )
-                        if n.has_scenarios:
-                            soc_final = soc_final.sel(scenario=scenario, drop=True)
                         soc_delta = -soc_final + sus_per_period.state_of_charge_initial
                         lhs.append((soc_delta * storage_weightings).sum())
 
-                else:
-                    soc_final = soc.ffill("snapshot").isel(snapshot=-1)
-                    if n.has_scenarios:
-                        soc_final = soc_final.sel(scenario=scenario, drop=True)
-                    lhs.append((-soc_final).sum() + sus.state_of_charge_initial.sum())
+                if not sus_continuous.empty:
+                    soc_continuous = soc.sel(name=sus_continuous.index)
+                    initial = sus_continuous.state_of_charge_initial
+                    lhs.append(_carried_drawdown(soc_continuous, first, last, initial))
 
-            # stores (non-cyclic): subtract end e and add initial e as constant
+            # stores (non-cyclic): drawdown of the energy level
             stores = n.c.stores.static.query(
                 "carrier == @glc.carrier_attribute and not e_cyclic and active"
             )
             if not stores.empty:
                 stores = stores.loc[scenario]
-                e = m["Store-e"].sel(name=stores.index, snapshot=period_sns)
+                e = m["Store-e"].sel(name=stores.index, snapshot=sns)
+                if n.has_scenarios:
+                    e = e.sel(scenario=scenario, drop=True)
 
+                stores_continuous = stores
                 if n._multi_invest:
                     stores_continuous = stores.query("not e_initial_per_period")
                     if not stores_continuous.empty and period_weighting.ne(1).any():
@@ -732,31 +739,18 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                         )
                         raise NotImplementedError(msg)
 
-                    if not stores_continuous.empty and period_weighting.eq(1).all():
-                        e_final = (
-                            e.sel(name=stores_continuous.index)
-                            .ffill("snapshot")
-                            .isel(snapshot=-1)
-                        )
-                        if n.has_scenarios:
-                            e_final = e_final.sel(scenario=scenario, drop=True)
-                        lhs.append((-e_final).sum() + stores_continuous.e_initial.sum())
-
                     stores_per_period = stores.query("e_initial_per_period")
                     if not stores_per_period.empty:
                         e_final = e.sel(
                             snapshot=period_last_sns, name=stores_per_period.index
                         )
-                        if n.has_scenarios:
-                            e_final = e_final.sel(scenario=scenario, drop=True)
                         e_delta = -e_final + stores_per_period.e_initial
                         lhs.append((e_delta * storage_weightings).sum())
 
-                else:
-                    e_final = e.ffill("snapshot").isel(snapshot=-1)
-                    if n.has_scenarios:
-                        e_final = e_final.sel(scenario=scenario, drop=True)
-                    lhs.append((-e_final).sum() + stores.e_initial.sum())
+                if not stores_continuous.empty:
+                    e_continuous = e.sel(name=stores_continuous.index)
+                    initial = stores_continuous.e_initial
+                    lhs.append(_carried_drawdown(e_continuous, first, last, initial))
 
             if not lhs:
                 continue
