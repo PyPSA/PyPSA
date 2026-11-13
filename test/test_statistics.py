@@ -124,6 +124,145 @@ def test_zero_profit_rule_branches(ac_dc_network_r):
     assert np.allclose(revenue[comps], capex[comps])
 
 
+def test_profit_equals_co2_rent(ac_dc_network_r):
+    """Gas profit is the CO2 payment the system cost omits, wind breaks even."""
+    n = ac_dc_network_r
+    profit = n.statistics.revenue().sub(n.statistics.system_cost(), fill_value=0)
+    co2_limit = n.c.global_constraints.static.loc["co2_limit"]
+    assert profit["Generator", "gas"] == pytest.approx(
+        abs(co2_limit.mu) * co2_limit.constant
+    )
+    assert profit["Generator", "wind"] == pytest.approx(0, abs=1e-2)
+
+
+def test_profit_equals_capacity_rents_with_investment_periods():
+    """Over their lifetime, assets earn the rent on binding capacity bounds.
+
+    Meshed lines share their rents through Kirchhoff's voltage law, so the identity
+    holds per carrier rather than per line.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.remove("GlobalConstraint", "co2_limit")
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots])
+    n.investment_periods = [2020, 2030]
+    n.investment_period_weightings["objective"] = [10, 6]
+    n.optimize(multi_investment_periods=True)
+
+    weights = n.investment_period_weightings.objective
+    revenue = n.statistics.revenue().mul(weights, level="period")
+    cost = n.statistics.system_cost()
+    profit = revenue.sub(cost, fill_value=0).sum(axis=1)
+    dual = n.model.constraints["Generator-ext-p_nom-lower"].dual.to_pandas()
+    rent = (
+        -dual.mul(n.c.generators.static.p_nom_min)
+        .groupby(n.c.generators.static.carrier)
+        .sum()
+    )
+    assert rent.abs().sum() > 0
+    assert np.allclose(profit["Generator"], rent[profit["Generator"].index], atol=1)
+    assert np.allclose(profit[["Line", "Link"]], 0, atol=1)
+
+
+def test_profit_with_quadratic_cost_is_inframarginal_rent():
+    """A rising marginal cost earns sum(w * c_q * p^2) on top of all costs."""
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "quadratic",
+        bus="bus",
+        p_nom_extendable=True,
+        capital_cost=50,
+        marginal_cost=10,
+        marginal_cost_quadratic=0.05,
+    )
+    n.add("Generator", "peaker", bus="bus", p_nom=500, marginal_cost=60)
+    n.add("Load", "load", bus="bus", p_set=[100, 300, 200])
+    n.optimize()
+
+    kwargs = {"groupby": False, "round": None}
+    profit = n.statistics.revenue(**kwargs) - n.statistics.system_cost(**kwargs)
+    p = n.c.generators.dynamic.p["quadratic"]
+    rent = 0.05 * (n.snapshot_weightings.objective * p**2).sum()
+    assert rent > 0
+    assert profit["Generator", "quadratic"] == pytest.approx(rent, rel=1e-4)
+
+
+def test_input_cost_is_fuel_valued_at_bus_price():
+    """The OCGT burns 5 MW and the CHP 10 MW of gas priced at 100 EUR/MWh."""
+    n = pypsa.Network()
+    n.add("Bus", ["electricity", "heat", "gas"])
+    n.add("Load", ["power", "warmth"], bus=["electricity", "heat"], p_set=[5, 3])
+    n.add("Generator", "gas", bus="gas", p_nom=100, marginal_cost=100)
+    kwargs = {"bus0": "gas", "bus1": "electricity", "p_nom_extendable": True}
+    n.add("Link", "OCGT", efficiency=0.4, capital_cost=600, marginal_cost=5, **kwargs)
+    n.add(
+        "Link",
+        "CHP",
+        bus2="heat",
+        efficiency=0.3,
+        efficiency2=0.3,
+        capital_cost=1400,
+        **kwargs,
+    )
+    n.optimize()
+
+    input_cost = -n.statistics.revenue(
+        components="Link", direction="input", groupby=False
+    )
+    assert input_cost.to_dict() == pytest.approx({"OCGT": 500, "CHP": 1000})
+    assert n.statistics.opex(components="Link", groupby=False)["OCGT"] == 25
+
+
+@pytest.mark.parametrize("network", ["ac_dc_network", "storage_hvdc_network"])
+def test_revenues_cancel_in_every_snapshot(request, network):
+    """Payments at every bus balance, which makes surpluses add up to welfare."""
+    n = request.getfixturevalue(network)
+    n.optimize()
+    revenue = n.statistics.revenue(groupby_time=False, round=None)
+    assert np.allclose(revenue.sum(), 0, atol=1e-3)
+
+
+@pytest.mark.parametrize(
+    ("marginal_cost", "marginal_cost_quadratic", "p_nom", "consumer_surplus"),
+    [
+        (-100, 0, 80, (100 - 10) * 80),
+        (-500, 0.125, 1e4, (500 - 10) * 1960 / 2),
+    ],
+    ids=["constant", "linear-decreasing"],
+)
+def test_consumer_surplus_of_elastic_demand(
+    marginal_cost, marginal_cost_quadratic, p_nom, consumer_surplus
+):
+    """Revenue minus opex is the area between willingness to pay and price.
+
+    Supply at 10 EUR/MWh sets the price. The decreasing willingness to pay
+    500 - 0.25 q meets it at q = 1960 MW.
+    """
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Generator", "supply", bus="bus", p_nom=1e4, marginal_cost=10)
+    n.add(
+        "Generator",
+        "consumer",
+        bus="bus",
+        p_nom=p_nom,
+        sign=-1,
+        marginal_cost=marginal_cost,
+        marginal_cost_quadratic=marginal_cost_quadratic,
+    )
+    n.optimize()
+
+    revenue = n.statistics.revenue(groupby=False, round=None, drop_zero=False)
+    opex = n.statistics.opex(groupby=False, round=None, drop_zero=False)
+    surplus = revenue - opex
+    assert np.allclose(n.c.buses.dynamic.marginal_price, 10, rtol=1e-4)
+    assert surplus["Generator", "consumer"] == pytest.approx(
+        2 * consumer_surplus, rel=1e-4
+    )
+    assert surplus["Generator", "supply"] == pytest.approx(0, abs=1)
+
+
 def test_net_and_gross_revenue(ac_dc_network_r):
     n = ac_dc_network_r
     target = n.statistics.revenue(groupby_time="sum")
