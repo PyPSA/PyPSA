@@ -1525,8 +1525,12 @@ def test_storage_limit_initial_per_period_stochastic(
 
 
 @pytest.mark.parametrize("component", ["StorageUnit", "Store"])
-@pytest.mark.parametrize("period", [2030, 2040, None])
-def test_operational_limit_investment_period_storage_carried_over(component, period):
+@pytest.mark.parametrize(
+    ("period", "build_year"), [(2030, 2030), (2040, 2030), (None, 2030), (2040, 2040)]
+)
+def test_operational_limit_investment_period_storage_carried_over(
+    component, period, build_year
+):
     """
     A limit on one period counts only the drawdown of a carried-over storage in that period.
 
@@ -1550,6 +1554,7 @@ def test_operational_limit_investment_period_storage_carried_over(component, per
             max_hours=1,
             marginal_cost=1,
             state_of_charge_initial=10,
+            build_year=build_year,
         )
     else:
         n.add(
@@ -1560,6 +1565,7 @@ def test_operational_limit_investment_period_storage_carried_over(component, per
             e_nom=10,
             e_initial=10,
             marginal_cost=1,
+            build_year=build_year,
         )
     n.add(
         "GlobalConstraint",
@@ -1577,6 +1583,6 @@ def test_operational_limit_investment_period_storage_carried_over(component, per
     levels = n.c[component].dynamic[
         "state_of_charge" if component == "StorageUnit" else "e"
     ]["storage"]
-    ends = levels.groupby(level=0).last()
+    ends = levels.loc[build_year:].groupby(level=0).last()
     drawdown = ends.shift(fill_value=10.0) - ends
     almost_equal(drawdown.sum() if period is None else drawdown[period], 0.5)

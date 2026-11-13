@@ -56,14 +56,18 @@ def _carried_drawdown(
 ) -> LinearExpression:
     """Drawdown of a storage level carried over from snapshot `first` to `last`.
 
-    The level before `first` is the level at the previous snapshot, or `initial`
-    if `first` is the first snapshot.
+    The level before `first` is the last level before `first`, or `initial` for
+    assets that have no level before `first`.
     """
     filled = level.ffill("snapshot")
     end = filled.isel(snapshot=last)
-    if first == 0:
-        return (-end).sum() + initial.sum()
-    return (filled.isel(snapshot=first - 1) - end).sum()
+    opening = end.labels.to_series() != -1
+    drawdown = -end.sum()
+    if first > 0:
+        start = filled.isel(snapshot=first - 1)
+        opening &= start.labels.to_series() == -1
+        drawdown += start.sum()
+    return drawdown + initial[opening].sum()
 
 
 def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
