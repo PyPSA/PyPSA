@@ -747,7 +747,8 @@ def build_model(
     n.calculate_dependent_values()
     s = spec(linearized_unit_commitment, tuple(piecewise_options))
     sources = NetworkSources(n, s, network_index, model_index, **options)
-    m = Model.from_spec(s, sources, **model_kwargs)
+    lean = {"expressions": False, "check_unread": False} if "lean" in PROTO else {}
+    m = Model.from_spec(s, sources, **lean, **model_kwargs)
     mode = (options.get("transmission_losses") or {}).get("mode")
     named = spec_names(linearized_unit_commitment)
     names = {
