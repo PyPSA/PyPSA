@@ -169,7 +169,9 @@ def _add_security_constraints(
         bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
         added_flow = flow_outage * bodf
 
-        for bound, kind in product(("lower", "upper"), ("fix", "ext")):
+        for (bound, sign), kind in product(
+            (("lower", ">="), ("upper", "<=")), ("fix", "ext")
+        ):
             constraint = c_affected + "-" + kind + "-s-" + bound
             if constraint not in m.constraints:
                 continue
@@ -183,6 +185,7 @@ def _add_security_constraints(
                 {c_affected: "name"}
             )
             lhs = con.lhs.sel(con_selection) + added_flow_aligned
+            active = con.labels.sel(con_selection) != -1
 
             name = (
                 constraint
@@ -191,9 +194,10 @@ def _add_security_constraints(
             )
             m.add_constraints(
                 lhs,
-                con.sign.sel(con_selection),
-                con.rhs.sel(con_selection),
+                sign,
+                con.rhs.sel(con_selection).where(active, 0),
                 name=name,
+                mask=active,
                 scaling=con.scaling.sel(con_selection),
             )
 
