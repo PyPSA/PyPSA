@@ -32,7 +32,7 @@ from pypsa.optimization.spec.checks import check
 from pypsa.optimization.spec.sources import NetworkSources
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
     from importlib.resources.abc import Traversable
 
     from mathspec.spec import Spec
@@ -163,6 +163,28 @@ def pypsa_name(name: str, named: dict, mode: str | None = None) -> str:
 
 #: PyPSA's row factor of Kirchhoff's voltage law, whose `x_pu_eff` weights are tiny.
 KVL_SCALING = 1e5
+
+
+def _renamer(s: Spec, named: Names, mode: str | None) -> Callable[[str], str]:
+    """Return the PyPSA name of each entry linopy builds from `s`.
+
+    An entry a piecewise curve expands into takes the curve's PyPSA name
+    and linopy's suffix of its kind.
+    """
+    curves = {f"{k}_": pypsa_name(k, named["piecewise"]) for k in s.piecewise}
+
+    def rename(key: str) -> str:
+        for prefix, curve in curves.items():
+            if key.startswith(prefix):
+                suffix = key.removeprefix(prefix)
+                return f"{curve}_{PIECEWISE_SUFFIX.get(suffix, suffix)}"
+        if key in s.constraints:
+            return pypsa_name(key, named["constraints"], mode)
+        return pypsa_name(key, named["variables"])
+
+    return rename
+
+
 #: Dims PyPSA names otherwise on one entry.
 DIMS = {"Carrier-growth_limit": {"carrier": "Carrier", "period": "periods"}}
 
@@ -300,17 +322,14 @@ def _relaid(
     return lhs.assign_coords(aux) if aux else lhs
 
 
-def _split_ports(m: Model, names: dict, sources: NetworkSources) -> None:
+def _split_ports(m: Model, sources: NetworkSources) -> None:
     """Split each entry PyPSA names per port number into one entry per number, over the units.
 
     The parts tile the label block of the entry, so `_relabel` renumbers
     each within its own share.
     """
-    for section, container in (
-        ("variables", m.variables),
-        ("constraints", m.constraints),
-    ):
-        for key in [k for k in container if "{port}" in names[section].get(k, "")]:
+    for container in (m.variables, m.constraints):
+        for key in [k for k in container if "{port}" in k]:
             entry = container.data.pop(key)
             dim = next(d for d in PORTS if d in entry.labels.dims)
             unit = PORTS[dim]
@@ -319,8 +338,7 @@ def _split_ports(m: Model, names: dict, sources: NetworkSources) -> None:
             for number, group in ports.groupby("k"):
                 selected = group["port"].to_numpy(dtype=object)
                 units = group[unit].to_numpy(dtype=object)
-                new = f"{key}{number}"
-                names[section][new] = names[section][key].replace("{port}", str(number))
+                new = key.replace("{port}", str(number))
                 if isinstance(entry, Variable):
                     part = _on_units(entry.data, dim, selected, unit, units)
                     size = part.labels.size
@@ -442,13 +460,13 @@ def _split(
 def _relabel(
     m: Model,
     n: Network,
-    names: dict,
+    *,
     snapshots: pd.Index,
     network_index: pd.Index,
     sources: NetworkSources,
     meshed: dict[str, pd.Index],
 ) -> None:
-    """Rename every variable, constraint and dim of `m` as PyPSA names and lays them out.
+    """Rename every dim of `m` as PyPSA names it and lay out its variables and constraints.
 
     Entries without a single row are dropped, as PyPSA does not build them,
     and the placeholder scenario of a network without scenarios is squeezed.
@@ -478,11 +496,10 @@ def _relabel(
     for name, var in m.variables.items():
         if not (var.labels != -1).any():
             continue
-        new = names["variables"].get(name, name)
         ds = var.data
-        if new == "FlowBased-net_position":
+        if name == "FlowBased-net_position":
             ds = ds.sel(bus=flow_based_zones(sources))
-        variables[new] = Variable(frame(ds, False, variable_map), m, new)
+        variables[name] = Variable(frame(ds, False, variable_map), m, name)
 
     def remap(ds: xr.Dataset) -> xr.Dataset:
         vars_ = ds.vars.values
@@ -493,15 +510,14 @@ def _relabel(
     for name, con in m.constraints.items():
         if not (con.labels != -1).any():
             continue
-        new = names["constraints"].get(name, name)
         if con.lhs.is_sparse:
             cells = _cells(con).assign(cell=_positions(con.labels))
-            cells = frame(cells, True, constraint_map).rename(DIMS.get(new, {}))
+            cells = frame(cells, True, constraint_map).rename(DIMS.get(name, {}))
             lhs = _relaid(con, cells, variable_map)
-            constraints[new] = _constraint(m, lhs, cells.drop_vars("cell"), new)
+            constraints[name] = _constraint(m, lhs, cells.drop_vars("cell"), name)
             continue
-        ds = remap(frame(con.data, True, constraint_map)).rename(DIMS.get(new, {}))
-        constraints[new] = Constraint.from_dataset(ds, m, new)
+        ds = remap(frame(con.data, True, constraint_map)).rename(DIMS.get(name, {}))
+        constraints[name] = Constraint.from_dataset(ds, m, name)
 
     constraints = _split(m, n, constraints, security_groups(sources), meshed)
     m.variables.data.clear()
@@ -731,26 +747,18 @@ def build_model(
     n.calculate_dependent_values()
     s = spec(linearized_unit_commitment, tuple(piecewise_options))
     sources = NetworkSources(n, s, network_index, model_index, **options)
-    m = Model.from_spec(s, sources, expressions=False, **model_kwargs)
     mode = (options.get("transmission_losses") or {}).get("mode")
-    named = spec_names(linearized_unit_commitment)
-    names = {
-        "variables": {k: pypsa_name(k, named["variables"]) for k in s.variables},
-        "constraints": {
-            k: pypsa_name(k, named["constraints"], mode) for k in s.constraints
-        },
-    }
-    for entry in s.piecewise:
-        aux = pypsa_name(entry, named["piecewise"])
-        for section in names.values():
-            for k in [*m.variables, *m.constraints]:
-                if k.startswith(f"{entry}_"):
-                    suffix = k.removeprefix(f"{entry}_")
-                    section[k] = f"{aux}_{PIECEWISE_SUFFIX.get(suffix, suffix)}"
+    rename = _renamer(s, spec_names(linearized_unit_commitment), mode)
+    m = Model.from_spec(s, sources, expressions=False, rename=rename, **model_kwargs)
     _merge_global_constraints(m, squeeze=not n.has_scenarios)
-    _split_ports(m, names, sources)
+    _split_ports(m, sources)
     _relabel(
-        m, n, names, model_index, network_index, sources, _meshed(n, meshed_thresholds)
+        m,
+        n,
+        snapshots=model_index,
+        network_index=network_index,
+        sources=sources,
+        meshed=_meshed(n, meshed_thresholds),
     )
     m.constraints.sanitize_zeros()
     _scale(m, n, objective_scaling)
