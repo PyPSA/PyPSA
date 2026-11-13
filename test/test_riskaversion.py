@@ -309,7 +309,9 @@ def test_cvar_with_quadratic_opex_raises():
     n.set_scenarios({"s1": 0.5, "s2": 0.5})
     n.set_risk_preference(alpha=0.5, omega=0.3)
 
-    with pytest.raises(ValueError, match=r"CVaR with quadratic operational costs"):
+    with pytest.raises(
+        ValueError, match=r"marginal_cost_quadratic_without_risk_preference"
+    ):
         n.optimize(log_to_console=False)
 
 

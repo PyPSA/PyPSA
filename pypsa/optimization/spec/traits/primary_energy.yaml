@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+dimensions:
+  scenario: {}
+  UNIT: {}
+  global_constraint: {}
+
+parameters:
+  Unit_operational_limit_weight:
+    description: one where the unit is in the row's set. No row outside it
+    dims: [scenario, global_constraint, UNIT]
+    missing: absent

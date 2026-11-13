@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+given:
+  parameters:
+    Unit_NOM: {dims: [scenario, UNIT]}
+    Unit_NOM_extendable: {dims: [UNIT], dtype: bool}
+    Unit_active: {dims: [snapshot, UNIT], dtype: bool}
+    Unit_p_set: {dims: [scenario, snapshot, UNIT]}
+  variables:
+    Unit_NOM_ext: {dims: [UNIT]}
+  expressions:
+    energy_limit_weight: {dims: [snapshot]}
+
+dimensions:
+  scenario: {}
+  snapshot: {dtype: str, ordered: true}
+  UNIT: {}
+
+parameters:
+  Unit_e_sum_min:
+    description: least energy over the horizon; minus infinity means no row
+    dims: [scenario, UNIT]
+  Unit_e_sum_max:
+    description: most energy over the horizon; infinity means no row
+    dims: [scenario, UNIT]
+
+variables:
+  Unit_p:
+    name: Unit-p
+    description: power in a snapshot; the injection states its sign at each bus
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_active
+
+expressions:
+  Unit_NOM_effective:
+    description: the chosen build where it is extendable, the given one otherwise
+    dims: [scenario, UNIT]
+    cases:
+      extendable:
+        when: Unit_NOM_extendable
+        expression: Unit_NOM_ext
+    otherwise: Unit_NOM
+
+constraints:
+  Unit_p_set:
+    name: Unit-p_set
+    description: the power follows the given schedule
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_p_set AND Unit_active
+    expression: Unit_p == Unit_p_set
+  Unit_e_sum_min:
+    name: Unit-e_sum_min
+    description: the energy over the horizon, each period weighted by its years, is at least the floor
+    dims: [scenario, UNIT]
+    where: Unit_e_sum_min AND count(Unit_active, over=snapshot) > 0
+    expression: sum(Unit_p * energy_limit_weight, over=snapshot) >= Unit_e_sum_min
+  Unit_e_sum_max:
+    name: Unit-e_sum_max
+    description: the energy over the horizon, each period weighted by its years, is at most the cap
+    dims: [scenario, UNIT]
+    where: Unit_e_sum_max AND count(Unit_active, over=snapshot) > 0
+    expression: sum(Unit_p * energy_limit_weight, over=snapshot) <= Unit_e_sum_max

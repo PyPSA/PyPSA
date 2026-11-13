@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  Load_p_set:
+    description: demand
+    dims: [scenario, snapshot, load]
+  Load_active:
+    description: whether a load is active; it has no build year or lifetime
+    dims: [load]
+    dtype: bool
+
+expressions:
+  Load_demand:
+    description: demand times sign where the load is active, zero otherwise
+    dims: [scenario, snapshot, load]
+    cases:
+      active: { when: Load_active, expression: Load_sign * Load_p_set }
+    otherwise: 0
+  Load_injection: sum(Load_demand, over=load, by=Load_bus[bus])

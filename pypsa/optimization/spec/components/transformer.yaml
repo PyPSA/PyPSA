@@ -1,0 +1,73 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  Transformer_phase_shift_varying:
+    description: whether the phase shift is a decision, `phase_shift_min < phase_shift_max`
+    dims: [scenario, transformer]
+    dtype: bool
+  Transformer_phase_shift_min:
+    description: least phase shift of a varying transformer, in degrees
+    dims: [scenario, transformer]
+  Transformer_phase_shift_max:
+    description: most phase shift of a varying transformer, in degrees
+    dims: [scenario, transformer]
+  Transformer_phase_shift_fixed:
+    description: the phase shift of a fixed transformer, in degrees; zero for a varying one
+    dims: [scenario, snapshot, transformer]
+  Transformer_phase_shift_weight:
+    description: >-
+      a fixed transformer's phase shift in radians, signed by its direction in
+      the cycle. No row without a shift or a cycle
+    dims: [scenario, snapshot, transformer, cycle]
+    missing: absent
+  Transformer_phase_shift_cycle_weight:
+    description: >-
+      a varying transformer's sign in the cycle times π/180; zero for a fixed
+      transformer or one in no cycle
+    dims: [scenario, period, transformer, cycle]
+
+variables:
+  Transformer_phase_shift:
+    name: Transformer-phase_shift
+    description: the phase shift of a varying transformer, in degrees
+    dims: [scenario, snapshot, transformer]
+    where: Transformer_phase_shift_varying AND Transformer_active
+    missing: 0
+    bounds:
+      lower: Transformer_phase_shift_min
+      upper: Transformer_phase_shift_max
+
+expressions:
+  Transformer_angle_sum:
+    expression: >-
+      sum(Transformer_s * at(Transformer_cycle_weight, by=snapshot_period[period]), over=transformer)
+      + sum(Transformer_phase_shift_weight, over=transformer)
+      + sum(Transformer_phase_shift * at(Transformer_phase_shift_cycle_weight, by=snapshot_period[period]), over=transformer)
+
+constraints:
+  Transformer_v_ang_lower:
+    name: Transformer-v_ang-lower
+    description: a fixed transformer carries at least the flow of the most negative angle difference, net of its shift
+    dims: [scenario, snapshot, transformer]
+    where: Transformer_v_ang_max AND NOT Transformer_phase_shift_varying AND Transformer_active
+    expression: Transformer_s >= -(Transformer_v_ang_max + Transformer_phase_shift_fixed) * (3.141592653589793 / 180) / Transformer_x_pu_eff
+  Transformer_v_ang_upper:
+    name: Transformer-v_ang-upper
+    description: a fixed transformer carries at most the flow of the largest angle difference, net of its shift
+    dims: [scenario, snapshot, transformer]
+    where: Transformer_v_ang_max AND NOT Transformer_phase_shift_varying AND Transformer_active
+    expression: Transformer_s <= (Transformer_v_ang_max - Transformer_phase_shift_fixed) * (3.141592653589793 / 180) / Transformer_x_pu_eff
+  Transformer_v_ang_var_lower:
+    name: Transformer-v_ang-var-lower
+    description: the same lower bound for a varying transformer, its shift a decision
+    dims: [scenario, snapshot, transformer]
+    where: Transformer_v_ang_max AND Transformer_phase_shift_varying AND Transformer_active
+    expression: Transformer_s + Transformer_phase_shift * (3.141592653589793 / 180) / Transformer_x_pu_eff >= -Transformer_v_ang_max * (3.141592653589793 / 180) / Transformer_x_pu_eff
+  Transformer_v_ang_var_upper:
+    name: Transformer-v_ang-var-upper
+    description: the same upper bound for a varying transformer, its shift a decision
+    dims: [scenario, snapshot, transformer]
+    where: Transformer_v_ang_max AND Transformer_phase_shift_varying AND Transformer_active
+    expression: Transformer_s + Transformer_phase_shift * (3.141592653589793 / 180) / Transformer_x_pu_eff <= Transformer_v_ang_max * (3.141592653589793 / 180) / Transformer_x_pu_eff

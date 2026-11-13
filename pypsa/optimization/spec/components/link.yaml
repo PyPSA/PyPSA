@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  Link_efficiency_curve_delivery:
+    description: >-
+      what a port delivers at each breakpoint of its `efficiency` curve: `p`
+      times `efficiency`, and zero where that is undefined
+    dims: [link_output, breakpoint]
+    missing: absent
+
+relations:
+  Link_bus0:
+    description: the bus `p` is drawn from
+    key: link
+    values: bus
+
+expressions:
+  Link_injection:
+    expression: >-
+      -sum(Link_p, over=link, by=Link_bus0[bus])
+      + sum(Link_output_arrival, over=link_output, by=Link_output_bus[bus])
+
+piecewise:
+  Link_efficiency_incremental:
+    name: Link-p{port}_piecewise
+    description: >-
+      what a port delivers equals its `efficiency` curve at `p`, by segments
+      filled in order; the status gates the curve of a committable link
+    along: breakpoint
+    dims: [scenario, snapshot, link_output]
+    where: Link_efficiency_curve AND at(Link_active, by=Link_output_link[link]) AND Link_efficiency_curve_p
+    method: incremental
+    activity: at(Link_status, by=Link_output_link[link])
+    links:
+      p: ["at(Link_p, by=Link_output_link[link])", Link_efficiency_curve_p]
+      delivery: [Link_p_piecewise, Link_efficiency_curve_delivery]

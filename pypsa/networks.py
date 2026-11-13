@@ -709,12 +709,12 @@ class Network(
         <BLANKLINE>
         Variables:
         ----------
-         * Generator-p_nom (name)
-         * Line-s_nom (name)
-         * Link-p_nom (name)
          * Generator-p (snapshot, name)
+         * Generator-p_nom (name)
          * Line-s (snapshot, name)
+         * Line-s_nom (name)
          * Link-p (snapshot, name)
+         * Link-p_nom (name)
          * objective_constant
         <BLANKLINE>
         Expressions:
@@ -723,17 +723,17 @@ class Network(
         <BLANKLINE>
         Constraints:
         ------------
-         * Generator-ext-p_nom-lower (name)
-         * Line-ext-s_nom-lower (name)
-         * Link-ext-p_nom-lower (name)
+         * Bus-nodal_balance (snapshot, name)
          * Generator-ext-p-lower (snapshot, name)
+         * Generator-ext-p_nom-lower (name)
          * Generator-ext-p-upper (snapshot, name)
+         * Kirchhoff-Voltage-Law (snapshot, cycle)
          * Line-ext-s-lower (snapshot, name)
+         * Line-ext-s_nom-lower (name)
          * Line-ext-s-upper (snapshot, name)
          * Link-ext-p-lower (snapshot, name)
+         * Link-ext-p_nom-lower (name)
          * Link-ext-p-upper (snapshot, name)
-         * Bus-nodal_balance (snapshot, name)
-         * Kirchhoff-Voltage-Law (snapshot, cycle)
          * GlobalConstraint-co2_limit
         <BLANKLINE>
         Status:

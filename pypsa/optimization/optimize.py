@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import xarray as xr
-from linopy import Model, merge
 from linopy.constants import BREAKPOINT_DIM, LP_PIECE_DIM, PWL_LINK_DIM, SEGMENT_DIM
 from linopy.solvers import available_solvers
 from scipy.sparse.csgraph import connected_components
@@ -21,10 +20,7 @@ from scipy.sparse.linalg import splu
 
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
-from pypsa.common import (
-    UnexpectedError,
-    as_index,
-)
+from pypsa.common import as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.consistency import (
@@ -36,66 +32,23 @@ from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
-from pypsa.optimization.common import _set_dynamic_data, get_bus_counts
-from pypsa.optimization.constraints import (
-    define_committability_variables_constraints_with_fixed_upper_limit,
-    define_committability_variables_constraints_with_variable_upper_limit,
-    define_fixed_nominal_constraints,
-    define_fixed_operation_constraints,
-    define_kirchhoff_voltage_constraints,
-    define_maintenance_constraints,
-    define_modular_constraints,
-    define_nodal_balance_constraints,
-    define_nominal_constraints_for_extendables,
-    define_operational_constraints_for_committables,
-    define_operational_constraints_for_extendables,
-    define_operational_constraints_for_non_extendables,
-    define_ramp_limit_constraints,
-    define_secant_loss_constraints,
-    define_storage_unit_constraints,
-    define_store_constraints,
-    define_store_cycle_constraints,
-    define_tangent_loss_constraints,
-    define_total_supply_constraints,
-    define_voltage_angle_constraints,
-)
+from pypsa.optimization.common import _set_dynamic_data
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
 from pypsa.optimization.flow_based import (
     NET_POSITION,
-    define_flow_based_constraints,
-    define_flow_based_variables,
     flow_based_net_position,
 )
 from pypsa.optimization.global_constraints import (
-    define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
-    define_operational_limit,
-    define_primary_energy_limit,
-    define_tech_capacity_expansion_limit,
-    define_transmission_expansion_cost_limit,
-    define_transmission_volume_expansion_limit,
 )
-from pypsa.optimization.piecewise import PiecewiseOptions, define_piecewise
-from pypsa.optimization.variables import (
-    define_cvar_variables,
-    define_loss_variables,
-    define_maintenance_capacity_variables,
-    define_maintenance_start_variables,
-    define_maintenance_status_variables,
-    define_maintenance_variables,
-    define_modular_variables,
-    define_nominal_variables,
-    define_operational_variables,
-    define_phase_shift_variables,
-    define_shut_down_variables,
-    define_spillage_variables,
-    define_start_up_variables,
-    define_status_variables,
-)
-from pypsa.optimization.window import SnapshotWindow, apply_period_weighting
+from pypsa.optimization.piecewise import PiecewiseOptions
+from pypsa.optimization.spec import build_model
+from pypsa.optimization.window import SnapshotWindow
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+
+    from linopy import Model
 
     from pypsa import Network, SubNetwork
     from pypsa.components import Links, Processes
@@ -176,58 +129,49 @@ def _resolve_include_objective_constant(
     return value
 
 
-def define_objective(
-    n: Network,
-    sns: pd.Index,
-    include_objective_constant: bool,
-    piecewise_options: list[PiecewiseOptions],
-) -> None:
-    """Define and write the optimization objective function.
+def normalize_transmission_losses(
+    transmission_losses: bool | int | dict,
+) -> dict | None:
+    """Return the loss configuration as a dict with its `mode`, or None for a lossless run."""
+    if not transmission_losses:
+        return None
+    if isinstance(transmission_losses, bool):
+        return {"mode": "secants"}
+    if isinstance(transmission_losses, int):
+        equivalent = {"mode": "tangents", "segments": transmission_losses}
+        warnings.warn(
+            "Passing an int for `transmission_losses` is deprecated "
+            "and will be removed in PyPSA 2.0. Explicitly pass "
+            f"{equivalent} (current behavior) or use the new "
+            "secant-based losses via `transmission_losses=True`.",
+            FutureWarning,
+            stacklevel=3,
+        )
+        return equivalent
+    config = dict(transmission_losses)
+    mode = config.setdefault("mode", "secants")
+    if mode == "tangents" and "segments" not in config:
+        msg = (
+            "The 'tangents' mode requires a 'segments' key, e.g. "
+            "transmission_losses={'mode': 'tangents', 'segments': 3}"
+        )
+        raise ValueError(msg)
+    if mode not in ("secants", "tangents"):
+        msg = f"Unknown transmission_losses mode: {mode!r}"
+        raise ValueError(msg)
+    return config
 
-    Builds the (linear or quadratic) objective by assembling the following terms:
 
-    1. **Constant term** for already-built capacity
-       Calculates capex of existing assets and stores it in `n.objective_constant`.
-    2. **Operating costs**
-       Marginal generation costs, storage operation costs, and spill costs weighted by snapshot durations.
-    3. **Quadratic costs**
-       If present, adds second-order marginal cost terms to convex quadratic objective.
-    4. **Stand-by costs**
-       Fixed costs for committed assets (e.g. generators and links) when online.
-    5. **Investment costs**
-       Capex for new capacity, weighted by investment periods if `n._multi_invest` is True.
-    6. **Unit-commitment costs**
-       Start-up and shut-down costs for committable components.
-    7. **Conditional CVaR terms**
-        Define auxiliary CVaR constraints for stochastic risk-averse optimization.
+def set_objective_constant(n: Network, include_objective_constant: bool) -> None:
+    """Store the capex of built capacity and, on request, take it off the objective.
 
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network instance containing the Linopy model and component data.
-    sns : pandas.Index
-        Snapshots (and, for multi-investment, periods) over which to build the objective.
-    include_objective_constant : bool
-        Whether to include the objective constant as a variable in the objective function.
-    piecewise_options : list[PiecewiseOptions]
-        Options to override defaults in piecewise constraint formulation.
-        List is of the form ``[PiecewiseOptions(...), ...]``.
-
-    Notes
-    -----
-    - The final objective expression is assigned to `n.model.objective`.
-    - Applies snapshot and investment-period weightings to operational and capex terms.
-    - For a stochastic problem, scenario probabilities are applied as weightings to all cost (includes *both* investment terms).
-
+    The constant is the capex of the nominal capacity extendable components
+    already have. With `include_objective_constant`, a fixed variable
+    `objective_constant` carries it and the objective subtracts it.
     """
-    weighted_cost: xr.DataArray
     m = n.model
-    # Separate lists to distinguish CAPEX and OPEX terms
-    capex_terms = []
-    opex_terms = []
-    is_quadratic = False
-
-    window = n.optimize._window.subset(sns)
+    capex_terms: list = []
+    window = n.optimize._window
     if n._multi_invest:
         period_weighting = n.investment_period_weightings.objective[window.periods]
         period_weight = xr.DataArray(period_weighting)
@@ -285,270 +229,24 @@ def define_objective(
                 name="objective_constant",
                 scaling=m.objective.scaling,
             )
-            capex_terms.append(-1 * object_const)
+            if "scenario" in object_const.dims:
+                weight = xr.DataArray(
+                    n.scenario_weightings["weight"].to_numpy(),
+                    coords={"scenario": n.scenarios},
+                    dims="scenario",
+                )
+                capex_terms.append(-1 * (object_const * weight).sum("scenario"))
+            else:
+                capex_terms.append(-1 * object_const)
     else:
         n._objective_constant = 0.0
 
-    # Weightings
-    weight = window.snapshot_weightings("objective")
-    if n._multi_invest:
-        # start-up and shut-down costs are paid per event, not per elapsed hour
-        event_weight = apply_period_weighting(xr.ones_like(weight), period_weighting)
-        weight = apply_period_weighting(weight, period_weighting)
-
-    # marginal costs, marginal storage cost, and spill cost
-
-    for cost_type in linear_cost_types:
-        for c_name, attr in lookup.query(cost_type).index:
-            c = as_components(n, c_name)
-
-            if c.static.empty:
-                continue
-            active_names = c.active_assets
-            if c.has_piecewise(cost_type):
-                x_var = m[c._piecewise_x_var(cost_type)].sel(snapshot=sns)
-                extra_options = filter(
-                    lambda p: p.component == c.name and p.attribute == cost_type,
-                    piecewise_options,
-                )
-                status = (
-                    None
-                    if c.committables.intersection(active_names).empty
-                    else m[f"{c.name}-status"]
-                )
-                pw_cost_var = define_piecewise(
-                    m,
-                    c,
-                    x_var=x_var,
-                    y_var=None,
-                    pw_attr=cost_type,
-                    aux_var_name=c._piecewise_aux_var(cost_type),
-                    active_names=active_names,
-                    sign=">=",
-                    cumulative_attr=True,
-                    extra_options=extra_options,
-                    scaling=m.objective.scaling,
-                    status=status,
-                )
-                if pw_cost_var is not None:
-                    opex_terms.append(
-                        (pw_cost_var * weight).sum(dim=["name", "snapshot"])
-                    )
-                    active_names = active_names.difference(pw_cost_var.indexes["name"])
-
-            var_name = f"{c.name}-{attr}"
-            if var_name not in m.variables and cost_type == "spill_cost":
-                continue
-
-            cost = c.da[cost_type].sel(snapshot=sns, name=active_names)
-            if cost.size > 0 and not (cost == 0).all():
-                operation = m[var_name].sel(snapshot=sns, name=active_names)
-                opex_terms.append(
-                    (operation * cost * weight).sum(dim=["name", "snapshot"])
-                )
-
-    # marginal cost quadratic
-    for c_name, attr in lookup.query("marginal_cost_quadratic").index:
-        c = as_components(n, c_name)
-
-        if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
-            continue
-
-        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns, name=c.active_assets)
-        if cost.size == 0 or (cost == 0).all():
-            continue
-
-        cost = cost * weight
-
-        operation = m[f"{c.name}-{attr}"].sel(
-            snapshot=sns, name=cost.coords["name"].values
-        )
-        opex_terms.append((operation * operation * cost).sum(dim=["name", "snapshot"]))
-        is_quadratic = True
-
-    # stand-by cost
-    for c_name in ["Generator", "Link", "Process"]:
-        c = as_components(n, c_name)
-        com_i = c.committables.intersection(c.active_assets)
-
-        if com_i.empty:
-            continue
-
-        stand_by_cost = c.da.stand_by_cost.sel(name=com_i, snapshot=sns)
-        if stand_by_cost.size == 0 or (stand_by_cost == 0).all():
-            continue
-
-        stand_by_cost = stand_by_cost * weight
-
-        status = m[f"{c.name}-status"].sel(
-            snapshot=sns, name=stand_by_cost.coords["name"].values
-        )
-        opex_terms.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
-
-    # investment
-    for c_name, attr in nominal_attrs.items():
-        c = as_components(n, c_name)
-        ext_i = c.extendables.intersection(c.active_assets)
-
-        if ext_i.empty:
-            continue
-
-        active_ext = c.da.active.sel(name=ext_i)
-        if n._multi_invest:
-            sum_dim = ["name", "period"]
-            cost_weight = active_ext.groupby("period").any("snapshot") * period_weight
-        else:
-            sum_dim = ["name"]
-            cost_weight = active_ext.any(dim="snapshot")
-
-        y_attr = "capital_cost"
-        pw_attr = c._piecewise_schema(y_attr)
-        if not pw_attr.empty:
-            x_var = m[f"{c.name}-{pw_attr.x}"]
-            extra_options = filter(
-                lambda p: p.component == c.name and p.attribute == y_attr,
-                piecewise_options,
-            )
-            piecewise_var = define_piecewise(
-                m,
-                c,
-                x_var=x_var,
-                pw_attr=y_attr,
-                aux_var_name=f"{c.name}-{pw_attr.aux_variable}",
-                active_names=ext_i,
-                sign=">=",
-                cumulative_attr=True,
-                extra_options=extra_options,
-                scaling=m.objective.scaling,
-            )
-            if piecewise_var is not None:
-                pw_names = piecewise_var.indexes["name"]
-                overnight = c.static["overnight_cost"].loc[pw_names]
-                if overnight.notna().any():
-                    bad = overnight[overnight.notna()].index.tolist()
-                    msg = (
-                        f"Components {bad} of type {c.name} define both a piecewise "
-                        "'capital_cost' curve and 'overnight_cost'. The piecewise "
-                        "curve must already be periodized; remove 'overnight_cost'."
-                    )
-                    raise ValueError(msg)
-                ext_i = ext_i.difference(pw_names)
-                pw_weight = cost_weight.sel(name=pw_names)
-                capex_terms.append((piecewise_var * pw_weight).sum(dim=sum_dim))
-
-        periodic_cost = c.periodized_cost.sel(name=ext_i)
-        # Linear capital cost for non-piecewise components
-        if not ext_i.empty and (
-            periodic_cost.size > 0 and not (periodic_cost == 0).all()
-        ):
-            caps_lin = m[f"{c.name}-{attr}"].sel(name=ext_i)
-            lin_weight = cost_weight.sel(name=ext_i)
-            capex_terms.append((caps_lin * lin_weight * periodic_cost).sum(dim=sum_dim))
-
-    # unit commitment
-    keys = ["start_up", "shut_down"]  # noqa: F841
-    for c_name, attr in lookup.query("variable in @keys").index:
-        c = as_components(n, c_name)
-        com_i = c.committables.intersection(c.active_assets)
-
-        if com_i.empty:
-            continue
-
-        cost = c.da[attr + "_cost"].sel(name=com_i)
-        if "snapshot" in cost.dims:
-            cost = cost.sel(snapshot=sns)
-
-        if cost.size == 0 or cost.sum().item() == 0:
-            continue
-
-        if n._multi_invest:
-            cost = cost * event_weight
-
-        var = m[f"{c.name}-{attr}"].sel(name=com_i)
-        opex_terms.append((var * cost).sum(dim=["name", "snapshot"]))
-
-    if not (capex_terms or opex_terms):
-        msg = (
-            "Objective function could not be created. "
-            "Please make sure the components have assigned costs."
-        )
-        raise ValueError(msg)
-
-    # Build expected CAPEX and expected OPEX (scenario-weighted if stochastic)
-    def _combine(exprs: list) -> Any:
-        if not exprs:
-            return 0
-        # If quadratic terms exist, avoid merge (which is linear-only) and sum instead
-        return sum(exprs) if is_quadratic else merge(exprs)
-
-    def _combine_scenario(exprs: list, s: Any) -> Any:
-        return _combine([e.sel(scenario=s, drop=True) for e in exprs])
-
-    def _expected(exprs: list) -> Any:
-        if not exprs or not n.has_scenarios:
-            return _combine(exprs)
-        weights = n.scenario_weightings["weight"]
-        return _combine([_combine_scenario(exprs, s) * p for s, p in weights.items()])
-
-    expected_capex = _expected(capex_terms)
-    expected_opex = _expected(opex_terms)
-
-    # CVaR augmentation if enabled
-    if n.has_risk_preference:
-        rp = n.risk_preference
-        if rp is None:  # mypy type guard
-            msg = "risk_preference is None when has_risk_preference is True"
-            raise UnexpectedError(msg)
-        alpha = rp["alpha"]
-        omega = rp["omega"]
-
-        # Guard: quadratic OPEX would make CVaR constraints quadratic
-        if is_quadratic:
-            msg_q = (
-                "CVaR with quadratic operational costs yields quadratic constraints. "
-                "So a(s) >= OPEX(s) - theta becomes a quadratic inequality. "
-                "Remove/approximate quadratic costs (e.g. set 'marginal_cost_quadratic=0' "
-                "or use a piecewise-linear approximation)."
-            )
-            raise ValueError(msg_q)
-
-        # Create per-scenario OPEX expressions to use in constraints
-        scen_opex_exprs = {s: _combine_scenario(opex_terms, s) for s in n.scenarios}
-
-        # Retrieve CVaR auxiliary variables
-        a = m["CVaR-a"]
-        theta = m["CVaR-theta"]
-        cvar = m["CVaR"]
-
-        for s in n.scenarios:
-            lhs = a.sel(scenario=s, drop=True) - scen_opex_exprs[s] + theta
-            m.add_constraints(
-                lhs, ">=", 0, name=f"CVaR-excess-{s}", scaling=m.objective.scaling
-            )
-
-        inv_tail = 1.0 / (1.0 - alpha)
-        weighted_a = None
-        for s, p in n.scenario_weightings["weight"].items():
-            term = a.sel(scenario=s, drop=True) * float(p)
-            weighted_a = term if weighted_a is None else weighted_a + term
-        if weighted_a is None:  # mypy type guard
-            msg = "No scenarios found in scenario_weightings"
-            raise UnexpectedError(msg)
-        m.add_constraints(
-            theta + inv_tail * weighted_a,
-            "<=",
-            cvar,
-            name="CVaR-def",
+    if capex_terms:
+        m.add_objective(
+            m.objective.expression + capex_terms[0],
+            overwrite=True,
             scaling=m.objective.scaling,
         )
-
-        # Final objective: CAPEX + (1-omega) * E[OPEX] + omega * CVaR
-        obj_expr = expected_capex + (1 - omega) * expected_opex + omega * cvar
-    else:
-        # Deterministic or no risk: CAPEX + OPEX
-        obj_expr = expected_capex + expected_opex
-
-    m.add_objective(obj_expr, overwrite=True, scaling=m.objective.scaling)
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
@@ -666,7 +364,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             bus connectivity count. Defaults to ``[30, 100, 400]``.
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
-            Each operator is interpreted as ``y operator f(x)``.
+            Each operator is interpreted as ``y operator f(x)``. One option
+            per component and attribute applies to all its units; the
+            ``name`` filter and ``method='sos2'`` are not supported.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
@@ -765,6 +465,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
         objective_scaling: float = 1.0,
+        branch_outages: pd.MultiIndex | None = None,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -809,7 +510,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             bus connectivity count. Defaults to ``[30, 100, 400]``.
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
-            Each operator is interpreted as ``y operator f(x)``.
+            Each operator is interpreted as ``y operator f(x)``. One option
+            per component and attribute applies to all its units; the
+            ``name`` filter and ``method='sos2'`` are not supported.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
@@ -819,6 +522,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             objective value and duals are reported in original units. Column
             and row factors are set via `Bus.scaling` and
             `GlobalConstraint.scaling`.
+        branch_outages : pandas.MultiIndex, optional
+            Passive branches, as (component, name), whose outage the flows must
+            survive. Set by `optimize_security_constrained`.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -863,146 +569,24 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         window = SnapshotWindow.build(n, sns, options.optimization.model_snapshot_index)
         n._optimize_window = window
         sns = window.model_index
-        n._model = Model(**kwargs)
-        n.model.objective.scaling = objective_scaling
-
-        n.model.parameters = n.model.parameters.assign(snapshots=sns)
-
-        # Define variables
-        for c, attr in lookup.query("nominal").index:
-            define_nominal_variables(n, c, attr)
-            define_modular_variables(n, c, attr)
-
-        for c, attr in lookup.query("not nominal and not handle_separately").index:
-            define_operational_variables(n, sns, c, attr)
-            define_status_variables(n, sns, c, linearized_unit_commitment)
-            define_start_up_variables(n, sns, c, linearized_unit_commitment)
-            define_shut_down_variables(n, sns, c, linearized_unit_commitment)
-            define_maintenance_variables(n, sns, c)
-            define_maintenance_start_variables(n, sns, c)
-            define_maintenance_capacity_variables(n, sns, c)
-            define_maintenance_status_variables(n, sns, c)
-            define_committability_variables_constraints_with_fixed_upper_limit(
-                n, sns, c, attr
-            )
-
-        for c in ("StorageUnit", "Store"):
-            define_spillage_variables(n, sns, c)
-        define_phase_shift_variables(n, sns)
-        flow_based_domain = define_flow_based_variables(n, sns)
-
-        # CVaR auxiliary variables (only when stochastic + risk preference is set)
-        define_cvar_variables(n)
-
-        if transmission_losses:
-            for c in n.passive_branch_components:
-                define_loss_variables(n, sns, c)
-
-        # Define constraints
-        for c, attr in lookup.query("nominal").index:
-            define_nominal_constraints_for_extendables(n, c, attr)
-            define_fixed_nominal_constraints(n, c, attr)
-            define_modular_constraints(n, c, attr)
-            define_committability_variables_constraints_with_variable_upper_limit(
-                n, sns, c, attr
-            )
-
-        for c, attr in lookup.query("not nominal and not handle_separately").index:
-            define_maintenance_constraints(n, sns, c)
-            define_operational_constraints_for_non_extendables(
-                n, sns, c, attr, transmission_losses
-            )
-            define_operational_constraints_for_extendables(
-                n, sns, c, attr, transmission_losses
-            )
-            define_operational_constraints_for_committables(n, sns, c)
-            define_ramp_limit_constraints(n, sns, c, attr)
-            define_fixed_operation_constraints(n, sns, c, attr)
-
-        # Handle StorageUnit p_set separately (fixes p_dispatch - p_store = p_set)
-        define_fixed_operation_constraints(n, sns, "StorageUnit", "p")
-
-        thresholds = (
-            sorted(set(meshed_thresholds))
-            if meshed_thresholds is not None
-            else [30, 100, 400]
+        n._model = build_model(
+            n,
+            window.network_index,
+            sns,
+            linearized_unit_commitment=bool(linearized_unit_commitment),
+            model_kwargs=kwargs,
+            multi_invest=bool(multi_investment_periods),
+            transmission_losses=normalize_transmission_losses(transmission_losses),
+            committable_big_m=committable_big_m,
+            cycle_basis_method=cycle_basis_method,
+            branch_outages=branch_outages,
+            meshed_thresholds=meshed_thresholds,
+            piecewise_options=piecewise_opts,
+            objective_scaling=objective_scaling,
         )
-        bus_counts = get_bus_counts(n).reindex(n.c.buses.names, fill_value=0)
-        prev: float = 0
-        for t in thresholds + [float("inf")]:
-            if t == float("inf"):
-                mask = bus_counts > prev
-            else:
-                mask = (bus_counts > prev) & (bus_counts <= t)
-            buses = bus_counts.index[mask]
-            suffix = f"-meshed-{prev}" if prev > 0 else ""
-            if not buses.empty:
-                define_nodal_balance_constraints(
-                    n,
-                    sns,
-                    transmission_losses=transmission_losses,
-                    buses=buses,
-                    suffix=suffix,
-                    piecewise_options=piecewise_opts,
-                )
-            prev = t
-
-        define_kirchhoff_voltage_constraints(n, sns, cycle_basis_method)
-        define_voltage_angle_constraints(n, sns)
-        define_storage_unit_constraints(n, sns)
-        define_store_constraints(n, sns)
-        define_store_cycle_constraints(n, sns)
-        for c in n.components:
-            if "e_sum_min" in c.static:
-                define_total_supply_constraints(n, sns, c.name)
-
-        if transmission_losses:
-            if isinstance(transmission_losses, bool):
-                transmission_losses = {"mode": "secants"}
-            elif isinstance(transmission_losses, int):
-                equivalent = {"mode": "tangents", "segments": transmission_losses}
-                warnings.warn(
-                    "Passing an int for `transmission_losses` is deprecated "
-                    "and will be removed in PyPSA 2.0. Explicitly pass "
-                    f"{equivalent} (current behavior) or use the new "
-                    "secant-based losses via `transmission_losses=True`.",
-                    FutureWarning,
-                    stacklevel=2,
-                )
-                transmission_losses = {
-                    "mode": "tangents",
-                    "segments": transmission_losses,
-                }
-            # Don't mutate passed dict
-            transmission_losses = dict(transmission_losses)
-            mode = transmission_losses.pop("mode", "secants")
-            if mode == "tangents" and "segments" not in transmission_losses:
-                msg = (
-                    "The 'tangents' mode requires a 'segments' key, e.g. "
-                    "transmission_losses={'mode': 'tangents', 'segments': 3}"
-                )
-                raise ValueError(msg)
-
-            for c in n.passive_branch_components:
-                if mode == "secants":
-                    define_secant_loss_constraints(n, sns, c, **transmission_losses)
-                elif mode == "tangents":
-                    define_tangent_loss_constraints(n, sns, c, **transmission_losses)
-                else:
-                    msg = f"Unknown transmission_losses mode: {mode!r}"
-                    raise ValueError(msg)
-
-        # Define global constraints
-        define_primary_energy_limit(n, sns, piecewise_opts)
-        define_transmission_expansion_cost_limit(n, sns)
-        define_transmission_volume_expansion_limit(n, sns)
-        define_tech_capacity_expansion_limit(n, sns)
-        define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
-        define_growth_limit(n, sns)
-        define_flow_based_constraints(n, flow_based_domain)
-
-        define_objective(n, sns, include_objective_constant, piecewise_opts)
+        n.model.parameters = n.model.parameters.assign(snapshots=sns)
+        set_objective_constant(n, include_objective_constant)
 
         return n.model
 
@@ -1218,6 +802,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         # Recalculate storageunit net dispatch
         storage_units = n.c.storage_units
         if not storage_units.empty:
+            for attr in ("p_dispatch", "p_store"):
+                if storage_units.dynamic[attr].empty:
+                    _set_dynamic_data(n, "StorageUnit", attr, pd.DataFrame(index=sns))
             storage_units.dynamic["p"] = (
                 storage_units.dynamic["p_dispatch"] - storage_units.dynamic["p_store"]
             )

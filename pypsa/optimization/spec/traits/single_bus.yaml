@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+dimensions:
+  bus: {}
+  UNIT: {}
+
+parameters:
+  Unit_sign:
+    description: the sign the power enters its bus's balance with
+    dims: [UNIT]
+
+relations:
+  Unit_bus:
+    description: the bus the unit connects to
+    key: UNIT
+    values: bus

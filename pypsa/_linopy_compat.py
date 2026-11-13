@@ -13,34 +13,30 @@ is linopy's default and PyPSA requires that release.
 
 from __future__ import annotations
 
-import inspect
 import warnings
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
+import linopy.config
 import pandas as pd
-from linopy import Model, Variable
 from linopy import options as linopy_options
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    import xarray as xr
 
 try:
     from linopy.config import LinopySemanticsWarning
 except ImportError:  # linopy without the v1 semantics option
     LinopySemanticsWarning = None
 
-# Ragged piecewise curves are stored densely. Only linopy with v1 semantics lets
-# the absent slots be declared. Older releases infer them from NaN padding.
-SUPPORTS_BREAKPOINT_MASK = (
-    "mask" in inspect.signature(Model.add_piecewise_formulation).parameters
-)
+V1_ONLY = hasattr(linopy.config, "SEMANTICS_DEPRECATION")
 
 
 def linopy_uses_v1() -> bool:
     """Whether linopy's v1 arithmetic semantics are active."""
+    if V1_ONLY:
+        return True
     try:
         return linopy_options["semantics"] == "v1"
     except KeyError:
@@ -87,29 +83,3 @@ def suppress_semantics_warnings() -> Iterator[None]:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=LinopySemanticsWarning)
         yield
-
-
-def flatten_snapshot(var: Variable) -> Variable:
-    """Relabel a `snapshot` MultiIndex with its flat `(period, timestep)` tuples.
-
-    Legacy linopy strips the level coords from piecewise breakpoints, so they
-    cannot carry a `snapshot` MultiIndex to match the variables. A no-op on a
-    flat `snapshot`.
-    """
-    index = var.indexes.get("snapshot")
-    if not isinstance(index, pd.MultiIndex):
-        return var
-    data = var.data.reset_index("snapshot", drop=True)
-    return Variable(
-        data.assign_coords(snapshot=index.to_flat_index()), var.model, var.name
-    )
-
-
-def expand_breakpoints(bp: xr.DataArray, var: Variable) -> xr.DataArray:
-    """Expand piecewise breakpoints over the dims of `var` they lack.
-
-    linopy before 1.0 cannot expand breakpoints over a dim labelled by tuples,
-    such as the flat `snapshot` of multi-period models (PyPSA/linopy#1140).
-    """
-    missing = [d for d in var.dims if d not in bp.dims]
-    return bp.expand_dims({d: var.indexes[d] for d in missing})

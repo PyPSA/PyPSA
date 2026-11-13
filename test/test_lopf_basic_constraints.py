@@ -529,6 +529,149 @@ def test_define_fixed_operational_constraints_infinite_p_nom():
     assert n.c.generators.dynamic.p["gen_inf"].eq(10).all()
 
 
+INF = float("inf")
+
+
+@pytest.mark.parametrize(
+    ("component", "attrs", "rows"),
+    [
+        pytest.param(
+            "Generator",
+            {
+                "bus": "b0",
+                "p_nom": INF,
+                "p_min_pu": [0, 0.2],
+                "p_max_pu": [1, 0],
+            },
+            {
+                "Generator-fix-p-lower": [True, False],
+                "Generator-fix-p-upper": [False, True],
+            },
+            id="generator",
+        ),
+        pytest.param(
+            "Link",
+            {
+                "bus0": "b0",
+                "bus1": "b1",
+                "p_nom": INF,
+                "p_min_pu": [-1, 0],
+                "p_max_pu": [0, 1],
+            },
+            {"Link-fix-p-lower": [False, True], "Link-fix-p-upper": [True, False]},
+            id="link",
+        ),
+        pytest.param(
+            "Process",
+            {
+                "bus0": "b0",
+                "bus1": "b1",
+                "rate0": -1,
+                "rate1": 1,
+                "p_nom": INF,
+                "p_min_pu": [0, 0.5],
+                "p_max_pu": [1, 0],
+            },
+            {
+                "Process-fix-p-lower": [True, False],
+                "Process-fix-p-upper": [False, True],
+            },
+            id="process",
+        ),
+        pytest.param(
+            "StorageUnit",
+            {"bus": "b0", "p_nom": INF, "p_min_pu": [-1, 0], "p_max_pu": [0, 1]},
+            {
+                "StorageUnit-fix-p_dispatch-upper": [True, False],
+                "StorageUnit-fix-p_store-upper": [False, True],
+            },
+            id="storage_unit",
+        ),
+        pytest.param(
+            "Store",
+            {
+                "bus": "b0",
+                "e_nom": INF,
+                "e_min_pu": [0, 0.1],
+                "e_max_pu": [1, 0],
+            },
+            {
+                "Store-fix-e-lower": [True, False],
+                "Store-fix-e-upper": [False, True],
+                "Store-fix-p_store-upper": [True, True],
+            },
+            id="store",
+        ),
+        pytest.param(
+            "Store",
+            {
+                "bus": "b0",
+                "e_nom": INF,
+                "max_hours": 2,
+                "p_min_pu": [-1, 0],
+                "p_max_pu": [0, 1],
+                "marginal_cost_store": 0.1,
+            },
+            {
+                "Store-fix-p-lower": [True, True],
+                "Store-fix-p-upper": [True, False],
+                "Store-fix-p_store-upper": [False, True],
+            },
+            id="store-split",
+        ),
+        pytest.param(
+            "Line",
+            {
+                "bus0": "b0",
+                "bus1": "b1",
+                "s_nom": INF,
+                "x": 0.1,
+                "s_max_pu": [1, 0],
+            },
+            {"Line-fix-s-lower": [False, True], "Line-fix-s-upper": [False, True]},
+            id="line",
+        ),
+        pytest.param(
+            "Transformer",
+            {
+                "bus0": "b0",
+                "bus1": "b1",
+                "s_nom": INF,
+                "x": 0.1,
+                "s_max_pu": [0, 1],
+            },
+            {
+                "Transformer-fix-s-lower": [True, False],
+                "Transformer-fix-s-upper": [True, False],
+            },
+            id="transformer",
+        ),
+    ],
+)
+def test_fixed_operational_constraints_of_an_unrated_component(component, attrs, rows):
+    """An infinite nominal bounds a fixed component only where its per-unit limit is zero, and there at zero.
+
+    The spec multiplied the limit by the nominal everywhere, so a per-unit zero met an
+    infinite nominal and linopy refused the NaN it made.
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", ["b0", "b1"])
+    n.add("Generator", "costly", bus="b0", p_nom=1, marginal_cost=1)
+    n.add(component, "unit", **attrs)
+
+    n.optimize.create_model()
+
+    for name, expected in rows.items():
+        constraint = n.model.constraints[name]
+        built = constraint.labels.sel(name="unit") != -1
+        assert built.values.tolist() == expected, (
+            f"{name} has a row only where the per-unit limit is zero"
+        )
+        rhs = constraint.rhs.sel(name="unit").where(built, 0)
+        assert (rhs == 0).all(), f"{name} bounds an unrated component at zero"
+
+
 def test_515():
     """
     Time-varying marginal costs removed.

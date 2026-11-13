@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  Generator_efficiency_curve_p:
+    description: >-
+      the output at each breakpoint of the piecewise `efficiency` curve: the
+      `p_pu` breakpoints times `p_nom`. No curve means no rows
+    dims: [generator, breakpoint]
+    missing: absent
+  Generator_efficiency_curve_primary:
+    description: >-
+      the primary energy drawn at each breakpoint: output over `efficiency`,
+      and zero where that is undefined
+    dims: [generator, breakpoint]
+    missing: absent
+  Generator_primary_energy_weight:
+    description: >-
+      the constrained carrier attribute per unit of output: the attribute over
+      the efficiency, or the bare attribute where an `efficiency` curve gives
+      the primary energy. No row where the carrier has no weight
+    dims: [scenario, global_constraint, snapshot, generator]
+    missing: absent
+
+variables:
+  Generator_p_primary_piecewise:
+    name: Generator-p_primary_piecewise
+    description: the primary energy drawn by a generator with an `efficiency` curve
+    dims: [scenario, snapshot, generator]
+    where: Generator_efficiency_curve AND Generator_active
+
+expressions:
+  Generator_primary_input:
+    description: the primary energy read off the `efficiency` curve where there is one, the output otherwise
+    dims: [scenario, snapshot, generator]
+    cases:
+      curve: { when: Generator_efficiency_curve, expression: Generator_p_primary_piecewise }
+    otherwise: Generator_p
+  Generator_primary_energy:
+    expression: >-
+      sum(sum((Generator_primary_input * GlobalConstraint_energy_weight) * Generator_primary_energy_weight, over=snapshot), over=generator)
+  Generator_operational_limit:
+    expression: >-
+      sum(sum((Generator_p * GlobalConstraint_energy_weight) * Generator_operational_limit_weight, over=snapshot), over=generator)
+  Generator_injection:
+    expression: sum(Generator_sign * Generator_p, over=generator, by=Generator_bus[bus])
+
+conditions:
+  Generator_efficiency_curve:
+    description: an active asset with a piecewise `efficiency` curve, in a run with a `primary_energy` row
+    condition: >-
+      count(Generator_efficiency_curve_p, over=breakpoint) > 0 AND Generator_active_asset
+      AND count(GlobalConstraint_type == 'primary_energy', over=global_constraint) > 0
+
+assumptions:
+  Generator_efficiency_curve_on_a_fixed_build:
+    holds: "NOT Generator_p_nom_extendable AND Generator_p_nom != 0 AND Generator_p_nom < inf"
+    where: "count(Generator_efficiency_curve_p, over=breakpoint) > 0"
+    description: an `efficiency` curve needs a fixed, non-zero, finite `p_nom`
+
+piecewise:
+  Generator_efficiency_incremental:
+    name: Generator-p_primary_piecewise
+    description: >-
+      the primary energy equals the `efficiency` curve at the output, by
+      segments filled in order; the status gates the curve of a committable unit
+    along: breakpoint
+    dims: [scenario, snapshot, generator]
+    where: Generator_efficiency_curve AND Generator_active AND Generator_efficiency_curve_p
+    method: incremental
+    activity: Generator_status
+    links:
+      p: [Generator_p, Generator_efficiency_curve_p]
+      primary: [Generator_p_primary_piecewise, Generator_efficiency_curve_primary]

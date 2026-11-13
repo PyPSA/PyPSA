@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+parameters:
+  Process_rate_curve_transfer:
+    description: >-
+      what a port delivers at each breakpoint of its `rate` curve: `p` times
+      `rate`, and zero where that is undefined
+    dims: [process_output, breakpoint]
+    missing: absent
+
+expressions:
+  Process_injection:
+    expression: >-
+      sum(Process_output_arrival, over=process_output, by=Process_output_bus[bus])
+
+piecewise:
+  Process_rate_incremental:
+    name: Process-p{port}_piecewise
+    description: >-
+      what a port delivers equals its `rate` curve at `p`, by segments filled in
+      order; the status gates the curve of a committable process
+    along: breakpoint
+    dims: [scenario, snapshot, process_output]
+    where: Process_rate_curve AND at(Process_active, by=Process_output_process[process]) AND Process_rate_curve_p
+    method: incremental
+    activity: at(Process_status, by=Process_output_process[process])
+    links:
+      p: ["at(Process_p, by=Process_output_process[process])", Process_rate_curve_p]
+      transfer: [Process_p_piecewise, Process_rate_curve_transfer]

@@ -8,12 +8,10 @@ from __future__ import annotations
 
 import re
 from functools import wraps
-from typing import Any, TypeVar
+from typing import Any
 
 from pypsa.components.components import Components
 from pypsa.components.types import get as get_component_type
-
-_T = TypeVar("_T", bound=Components)
 
 
 def create_docstring_parameters(component_name: str) -> str:
@@ -86,12 +84,12 @@ def create_docstring_parameters(component_name: str) -> str:
     return docstring
 
 
-def patch_add_docstring(cls: type[_T]) -> type[_T]:
+def patch_add_docstring[T: Components](cls: type[T]) -> type[T]:
     original_add = cls.add
     original_doc = Components.add.__doc__ or ""
 
     @wraps(original_add)
-    def add(self: _T, *args: Any, **kwargs: Any) -> Any:
+    def add(self: T, *args: Any, **kwargs: Any) -> Any:
         return original_add(self, *args, **kwargs)
 
     to_be_replaced = (

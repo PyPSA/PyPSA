@@ -1,0 +1,99 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+given:
+  parameters:
+    CVaR_omega: {dims: []}
+    Unit_NOM: {dims: [scenario, UNIT]}
+    Unit_NOM_extendable: {dims: [UNIT], dtype: bool}
+    Unit_active: {dims: [snapshot, UNIT], dtype: bool}
+    Unit_active_asset: {dims: [UNIT], dtype: bool}
+    Unit_marginal_cost_curve_cost: {dims: [UNIT, breakpoint]}
+    Unit_marginal_cost_curve_p: {dims: [UNIT, breakpoint]}
+    period_weight_objective: {dims: [period]}
+    snapshot_weightings_objective: {dims: [snapshot]}
+  variables:
+    Unit_P: {dims: [scenario, snapshot, UNIT]}
+
+dimensions:
+  scenario: {}
+  snapshot: {dtype: str, ordered: true}
+  UNIT: {}
+  period: {dtype: int, ordered: true}
+  breakpoint: {dtype: int, ordered: true}
+
+relations:
+  snapshot_period: {key: snapshot, values: period}
+
+macros:
+  Unit_operating_cost:
+    description: a cost per snapshot, weighted by the snapshot's hours and its period, summed
+    args: [cost]
+    template: >-
+      sum(sum((cost * snapshot_weightings_objective) * at(period_weight_objective,
+      by=snapshot_period[period]), over=UNIT), over=snapshot)
+
+parameters:
+  Unit_p_min_pu:
+    description: least power, per unit of nominal power
+    dims: [scenario, snapshot, UNIT]
+  Unit_p_max_pu:
+    description: most power, per unit of nominal power
+    dims: [scenario, snapshot, UNIT]
+  Unit_p_set:
+    description: a given power schedule. No value means no row
+    dims: [scenario, snapshot, UNIT]
+    missing: absent
+  Unit_marginal_cost:
+    description: cost of one unit of energy dispatched
+    dims: [scenario, snapshot, UNIT]
+  Unit_marginal_cost_quadratic:
+    description: cost of the square of one unit of energy dispatched
+    dims: [scenario, snapshot, UNIT]
+
+variables:
+  Unit_marginal_cost_piecewise:
+    name: Unit-marginal_cost_piecewise
+    description: the running cost of a unit with a `marginal_cost` curve
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_marginal_cost_curve AND Unit_active
+
+expressions:
+  Unit_running_cost:
+    description: the cost read off the `marginal_cost` curve where there is one, power times `marginal_cost` otherwise
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      curve:
+        when: Unit_marginal_cost_curve
+        expression: Unit_marginal_cost_piecewise
+    otherwise: Unit_P * Unit_marginal_cost
+  Unit_opex:
+    expression: >-
+      Unit_operating_cost(Unit_running_cost)
+      + Unit_operating_cost((Unit_P * Unit_P) * Unit_marginal_cost_quadratic)
+
+conditions:
+  Unit_marginal_cost_curve:
+    description: an active asset with a piecewise `marginal_cost` curve
+    condition: count(Unit_marginal_cost_curve_p, over=breakpoint) > 0 AND Unit_active_asset
+  Unit_marginal_cost_curve_bends_down:
+    description: a breakpoint where the `marginal_cost` curve gets less steep
+    condition: >-
+      Unit_marginal_cost_curve_p
+      AND shift(Unit_marginal_cost_curve_p, along=breakpoint, offset=1)
+      AND shift(Unit_marginal_cost_curve_p, along=breakpoint, offset=-1)
+      AND (Unit_marginal_cost_curve_cost - shift(Unit_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(Unit_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - Unit_marginal_cost_curve_p)
+      > (shift(Unit_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Unit_marginal_cost_curve_cost)
+      * (Unit_marginal_cost_curve_p - shift(Unit_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+
+assumptions:
+  Unit_marginal_cost_curve_on_a_fixed_build:
+    holds: "NOT Unit_NOM_extendable AND Unit_NOM > 0 AND Unit_NOM < inf"
+    where: "Unit_marginal_cost_curve"
+    description: a `marginal_cost` curve needs a fixed, positive, finite nominal capacity
+  Unit_marginal_cost_quadratic_without_risk_preference:
+    holds: Unit_marginal_cost_quadratic == 0
+    where: CVaR_omega
+    description: "`marginal_cost_quadratic` is zero where a risk preference is set"

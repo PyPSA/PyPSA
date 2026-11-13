@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+given:
+  variables:
+    Unit_NOM_ext: {dims: [UNIT]}
+
+dimensions:
+  UNIT: {}
+  global_constraint: {}
+  period: {dtype: int, ordered: true}
+  carrier: {}
+
+parameters:
+  Unit_first_active:
+    description: one in the first period the asset is active in, zero elsewhere
+    dims: [period, UNIT]
+  Unit_tech_capacity_weight:
+    description: >-
+      one where the asset is in the row's carrier-and-bus set. No row outside it,
+      or where the asset is not active in the row's period
+    dims: [global_constraint, UNIT]
+    missing: absent
+
+relations:
+  Unit_carrier:
+    description: the asset's carrier
+    key: UNIT
+    values: carrier
+
+expressions:
+  Unit_tech_capacity_expansion:
+    expression: sum(Unit_NOM_ext * Unit_tech_capacity_weight, over=UNIT)
+  Unit_additions:
+    expression: sum(Unit_NOM_ext * Unit_first_active, over=UNIT, by=Unit_carrier[carrier])

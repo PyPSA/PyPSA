@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+expressions:
+  Line_angle_sum: sum(Line_s * at(Line_cycle_weight, by=snapshot_period[period]), over=line)
+
+constraints:
+  Line_v_ang_lower:
+    name: Line-v_ang-lower
+    description: an AC line carries at least the flow of the most negative angle difference
+    dims: [scenario, snapshot, line]
+    where: Line_v_ang_max AND Line_carrier == 'AC' AND Line_active
+    expression: Line_s >= -Line_v_ang_max * (3.141592653589793 / 180) / Line_x_pu_eff
+  Line_v_ang_upper:
+    name: Line-v_ang-upper
+    description: an AC line carries at most the flow of the largest angle difference
+    dims: [scenario, snapshot, line]
+    where: Line_v_ang_max AND Line_carrier == 'AC' AND Line_active
+    expression: Line_s <= Line_v_ang_max * (3.141592653589793 / 180) / Line_x_pu_eff

@@ -28,8 +28,6 @@ If the nominal capacity of a components is also the subject of optimisation (e.g
 | $E_{n,s} \leq \bar{E}_{n,s}$ | `n.stores.mu_upper` | `Store-ext-e_nom-upper` |
 | $H_{n,s} \geq \underline{H}_{n,s}$ | `n.storage_units.mu_lower` | `StorageUnit-ext-p_nom-lower` |
 
-These constraints are set in the function `define_nominal_constraints_for_extendables`.
-
 ## Committable and Extendable Components
 
 When components are both **committable** (`committable=True`) and **extendable** (e.g. `p_nom_extendable=True`), the optimizer co-optimizes both capacity expansion and operational unit commitment. The challenge is that the upper bound on dispatch becomes nonlinear: $g_{n,s,t} \leq u_{n,s,t} \cdot G_{n,s}$ (the product of binary status $u$ and continuous capacity $G$). To maintain a Mixed-Integer Linear Programme (MILP), PyPSA uses a **big-M formulation** that replaces this nonlinear constraint with two linear constraints:
@@ -114,8 +112,6 @@ For components that are both committable and extendable with ramp limits, a big-
 
 When the unit was running in the previous timestep ($u_{t-1} = 1$), the big-M term vanishes and the normal ramp-up limit $ru$ applies. When $u_{t-1} = 0$, the big-M relaxes the constraint, allowing unrestricted ramp-up. The start-up ramp limit $rs$ is enforced only during start-up events ($su_t = 1$). The same logic applies symmetrically to ramp-down and shut-down constraints.
 
-These constraints are defined in the function `define_ramp_limit_constraints()`.
-
 ??? note "Mapping of symbols to component attributes"
 
     === "Generator"
@@ -163,8 +159,6 @@ If `{p,s,e}_nom_mod>0`, the nominal capacity is given by:
 | $P_{l} = P^{\textrm{mod}}_{l} \cdot \tilde{P}_{l}$ | N/A | `{Line,Transformer}-s_nom_modularity` |
 | $E_{n,s} = E^{\textrm{mod}}_{n,s} \cdot \tilde{E}_{n,s}$ | N/A | `Store-e_nom_modularity` |
 | $H_{n,s} = H^{\textrm{mod}}_{n,s} \cdot \tilde{H}_{n,s}$ | N/A | `StorageUnit-p_nom_modularity` |
-
-These constraints are set in the function `define_modular_constraints()`.
 
 ### Modular and Committable Components
 
@@ -235,8 +229,6 @@ The start-up and shut-down cost terms in the objective function are multiplied b
 
     The `status` attribute defaults to 1, which is used as $u_{t-1}$ for the first snapshot. For modular committable components, this means **one module is assumed to be already committed** at the start of the optimization. For example, if the optimizer invests in 5 modules and commits all 5 in the first timestep, only 4 start-up events are counted ($su_0 \geq 5 - 1 = 4$), and start-up costs are only charged for those 4 transitions. To charge start-up costs for all modules, set the initial status to 0 via `n.generators.loc[name, "status"] = 0`. This also applies to the non-modular (big-M) committable formulation.
 
-These constraints are defined in the function `define_operational_constraints_for_committables()`.
-
 ??? note "Mapping of symbols to component attributes"
 
     === "Generator"
@@ -303,8 +295,6 @@ Additionally, the nominal capacity can be fixed to a certain value $\tilde{G}_{n
 | $P_{l} = \tilde{P}_{l}$ | only in `n.model` | `{Line,Transformer}-s_nom_set` |
 | $E_{n,s} = \tilde{E}_{n,s}$ | only in `n.model` | `Store-e_nom_set` |
 | $H_{n,s} = \tilde{H}_{n,s}$ | only in `n.model` | `StorageUnit-p_nom_set` |
-
-These constraints are set in the function `define_fixed_nominal_constraints()`.
 
 !!! note "Why not just set `p_nom_extendable=False`?"
 

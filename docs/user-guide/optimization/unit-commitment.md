@@ -108,8 +108,6 @@ Furthermore, two **state transition variables** for start-up ($su_{*,t} \in \{0,
 
 
 
-These constraints are defined in the function `define_operational_constraints_for_committables()`.
-
 ??? note "Mapping of symbols to component attributes"
 
     === "Generator"
@@ -205,8 +203,6 @@ The ramp constraints require knowledge of the previous snapshot's dispatch. At t
 
 - **Rolling horizon optimization**: When `n.optimize(snapshots=...)` starts after the first snapshot in `n.snapshots` and previous runs have set the dispatch, the dispatch and the commitment status from the previous snapshot are used automatically. With the [linearized unit commitment](#linearization) the previous status may be fractional.
 - **First snapshot of `n.snapshots` or no previous run**: The `p_init` attribute specifies the initial dispatch level. For committable components, the initial status is determined by `up_time_before > 0` (or `down_time_before > 0`, which takes precedence) and the initial dispatch is zero if the component was off. If `p_init` is not set (NaN), no ramp constraint is applied at the first snapshot. Non-committable components are always on; `up_time_before` and `down_time_before` are ignored for them.
-
-These constraints are defined in the function `define_ramp_limit_constraints()`.
 
 ??? note "Mapping of symbols to component attributes"
 
@@ -334,8 +330,6 @@ To tighten the relaxation, additional constraints are introduced that improve ca
     - (\underline{f}_{l,t} \hat{f}_{l} + rd_{l,t} \hat{f}_{l} - rdsd_{l} \hat{f}_{l}) \cdot su_{l,t}
     \end{gather*}$$
 
-
-These constraints are defined in the function `define_operational_constraints_for_committables()`.
 
 ## Examples
 

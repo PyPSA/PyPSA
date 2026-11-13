@@ -2,10 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-from contextlib import nullcontext
-from typing import Any
 
-import linopy
 import numpy as np
 import pandas as pd
 import pytest
@@ -809,11 +806,11 @@ def test_generator_ramp_constraints_mask_nan(direction):
         f"ramp_{direction} constraint should be active for 'gen_limited'."
     )
 
-    labels_gen_unlimited = (
-        constraints.data["labels"].sel(name="gen_unlimited").to_pandas()
+    labels_gen_unlimited = constraints.labels.reindex(
+        name=["gen_unlimited"], fill_value=-1
     )
     assert (labels_gen_unlimited == -1).all(), (
-        f"ramp_{direction} constraint should be masked for 'gen_unlimited'."
+        f"ramp_{direction} constraint should have no row for 'gen_unlimited'."
     )
 
 
@@ -885,11 +882,11 @@ def test_link_ramp_constraints_mask_nan(direction):
         f"ramp_{direction} constraint should be active for 'link_limited'."
     )
 
-    labels_link_unlimited = (
-        constraints.data["labels"].sel(name="link_unlimited").to_pandas()
+    labels_link_unlimited = constraints.labels.reindex(
+        name=["link_unlimited"], fill_value=-1
     )
     assert (labels_link_unlimited == -1).all(), (
-        f"ramp_{direction} constraint should be masked for 'link_unlimited'."
+        f"ramp_{direction} constraint should have no row for 'link_unlimited'."
     )
 
 
@@ -1571,11 +1568,8 @@ def test_linearized_uc_tightening_with_time_varying_costs(caplog):
     assert "cannot be tightened" in caplog.text
 
 
-@pytest.mark.parametrize("semantics", ["legacy", "v1"])
 @pytest.mark.parametrize("short_time", [None, 0, 1])
-def test_minimum_time_rows_at_window_boundary(
-    semantics: str, short_time: int | None
-) -> None:
+def test_minimum_time_rows_at_window_boundary(short_time: int | None) -> None:
     n = pypsa.Network()
     n.set_snapshots(pd.date_range("2026-01-01", periods=6, freq="h"))
     n.add("Bus", "bus")
@@ -1603,53 +1597,41 @@ def test_minimum_time_rows_at_window_boundary(
             up_time_before=0,
         )
     n.add("Load", "load", bus="bus", p_set=1)
-    try:
-        linopy.options["semantics"]
-        supports_semantics = True
-    except KeyError:
-        supports_semantics = False
-    if semantics == "v1" and not supports_semantics:
-        pytest.skip("Installed linopy predates v1 arithmetic semantics")
-    with linopy.options if supports_semantics else nullcontext():
-        if supports_semantics:
-            linopy.options.set_value(semantics=semantics)
-        kwargs: dict[str, Any] = (
-            {"sparse": semantics == "v1"} if supports_semantics else {}
+    model = n.optimize.create_model(sparse=True)
+    status = model.variables["Generator-status"].labels.values
+    for kind, sign, transition in [
+        ("up", -1, "start_up"),
+        ("down", 1, "shut_down"),
+    ]:
+        values = model.variables[f"Generator-{transition}"].labels.values
+        constraint = model.constraints[f"Generator-com-{kind}-time"]
+        generators = n.c.generators.static.index
+        labels = constraint.labels.reindex(name=generators, fill_value=-1).values
+        terms: dict[int, dict[int, float]] = {}
+        for label, variable, coefficient in (
+            constraint.to_polars().select("labels", "vars", "coeffs").iter_rows()
+        ):
+            terms.setdefault(label, {})[variable] = coefficient
+        np.testing.assert_array_equal(
+            labels >= 0,
+            np.tile(
+                [True, short_time != 0] if short_time is not None else [True],
+                (6, 1),
+            ),
         )
-        model = n.optimize.create_model(**kwargs)
-        status = model.variables["Generator-status"].labels.values
-        for kind, sign, transition in [
-            ("up", -1, "start_up"),
-            ("down", 1, "shut_down"),
-        ]:
-            values = model.variables[f"Generator-{transition}"].labels.values
-            data = model.constraints[f"Generator-com-{kind}-time"].data
-            np.testing.assert_array_equal(
-                data.labels.values >= 0,
-                np.tile(
-                    [True, short_time != 0] if short_time is not None else [True],
-                    (6, 1),
-                ),
-            )
-            for generator, duration in enumerate(
-                [3, short_time] if short_time is not None else [3]
-            ):
-                assert duration is not None
-                if duration == 0:
-                    continue
-                for snapshot in range(6):
-                    variables = data.vars.values[snapshot, generator]
-                    coefficients = data.coeffs.values[snapshot, generator]
-                    actual = {
-                        int(label): float(coefficient)
-                        for label, coefficient in zip(variables, coefficients)
-                        if label >= 0 and coefficient != 0
-                    }
-                    expected = {int(status[snapshot, generator]): float(sign)} | {
-                        int(values[t, generator]): 1.0
-                        for t in range(max(0, snapshot - duration + 1), snapshot + 1)
-                    }
-                    assert actual == expected
+        for generator, duration in enumerate(
+            [3, short_time] if short_time is not None else [3]
+        ):
+            assert duration is not None
+            if duration == 0:
+                continue
+            for snapshot in range(6):
+                actual = terms[int(labels[snapshot, generator])]
+                expected = {int(status[snapshot, generator]): float(sign)} | {
+                    int(values[t, generator]): 1.0
+                    for t in range(max(0, snapshot - duration + 1), snapshot + 1)
+                }
+                assert actual == expected
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,206 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+given:
+  parameters:
+    Unit_NOM: {dims: [scenario, UNIT]}
+    Unit_NOM_extendable: {dims: [UNIT], dtype: bool}
+    Unit_active: {dims: [snapshot, UNIT], dtype: bool}
+    transmission_losses: {dims: [], dtype: bool}
+  variables:
+    Unit_NOM_ext: {dims: [UNIT]}
+  expressions:
+    Outage_s: {dims: [scenario, snapshot, outage]}
+    Unit_NOM_rated: {dims: [scenario, UNIT]}
+
+dimensions:
+  scenario: {}
+  snapshot: {dtype: str, ordered: true}
+  bus: {}
+  UNIT: {}
+  cycle: {}
+  outage: {}
+  segment: {dtype: int}
+  period: {dtype: int, ordered: true}
+
+parameters:
+  Unit_s_max_pu:
+    description: most flow either way, per unit of nominal apparent power
+    dims: [scenario, snapshot, UNIT]
+  Unit_s_set:
+    description: a given flow schedule. No value means no row
+    dims: [scenario, snapshot, UNIT]
+    missing: absent
+  Unit_x_pu_eff:
+    description: effective series reactance, per unit
+    dims: [scenario, UNIT]
+  Unit_v_ang_max:
+    description: most voltage angle difference across the branch either way, in degrees. No value means no row
+    dims: [scenario, UNIT]
+    missing: absent
+  Unit_cycle_weight:
+    description: >-
+      the branch's series impedance, signed by its direction in the cycle, in
+      the period's cycle basis. No row for a branch in no cycle
+    dims: [period, UNIT, cycle]
+    missing: absent
+  Unit_BODF:
+    description: >-
+      the share of an outaged branch's flow the branch takes on (branch outage
+      distribution factor). No row where the two are not active in the period
+      or not in one sub-network
+    dims: [period, UNIT, outage]
+    missing: absent
+  Unit_loss_max:
+    description: "the loss at full rating: `r_pu_eff * (s_max_pu * s_nom_max)**2`"
+    dims: [scenario, snapshot, UNIT]
+  Unit_loss_slope:
+    description: the slope of each cut below the quadratic loss curve, a tangent or a secant
+    dims: [scenario, snapshot, UNIT, segment]
+  Unit_loss_offset:
+    description: where each cut meets the loss axis
+    dims: [scenario, snapshot, UNIT, segment]
+
+relations:
+  snapshot_period: {key: snapshot, values: period}
+  Unit_bus0:
+    description: the bus the flow is measured at
+    key: UNIT
+    values: bus
+  Unit_bus1:
+    description: the bus at the other end
+    key: UNIT
+    values: bus
+
+variables:
+  Unit_s:
+    name: Unit-s
+    description: >-
+      the flow at `bus0`: positive from `bus0` to `bus1`, before losses
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_active
+  Unit_loss:
+    name: Unit-loss
+    description: the power the branch dissipates. Absent, and zero in the balance, in a lossless run
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_lossy
+    missing: 0
+    bounds:
+      lower: 0
+
+expressions:
+  Unit_s_monitored:
+    description: the flow where the branch is active, zero otherwise
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      standing:
+        when: Unit_active
+        expression: Unit_s
+    otherwise: 0
+  Unit_injection:
+    description: the flow leaves `bus0` and enters `bus1`; each end loses half the loss
+    expression: >-
+      -sum(Unit_s, over=UNIT, by=Unit_bus0[bus])
+      + sum(Unit_s, over=UNIT, by=Unit_bus1[bus])
+      - (0.5 * sum(Unit_loss, over=UNIT, by=Unit_bus0[bus]))
+      - (0.5 * sum(Unit_loss, over=UNIT, by=Unit_bus1[bus]))
+
+conditions:
+  Unit_lossy:
+    description: an active branch in a run with transmission losses
+    condition: transmission_losses AND Unit_active
+
+constraints:
+  Unit_fix_s_lower:
+    name: Unit-fix-s-lower
+    description: a fixed branch carries at least the negative of its rating, loss included
+    dims: [scenario, snapshot, UNIT]
+    where: not Unit_NOM_extendable AND Unit_active AND (Unit_NOM < inf OR Unit_s_max_pu == 0)
+    expression: Unit_s - Unit_loss >= -Unit_s_max_pu * Unit_NOM_rated
+  Unit_fix_s_upper:
+    name: Unit-fix-s-upper
+    description: a fixed branch carries at most its rating, loss included
+    dims: [scenario, snapshot, UNIT]
+    where: not Unit_NOM_extendable AND Unit_active AND (Unit_NOM < inf OR Unit_s_max_pu == 0)
+    expression: Unit_s + Unit_loss <= Unit_s_max_pu * Unit_NOM_rated
+  Unit_ext_s_lower:
+    name: Unit-ext-s-lower
+    description: an extendable branch carries at least the negative of its rating of the chosen build, loss included
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_NOM_extendable AND Unit_active
+    expression: Unit_s - Unit_loss >= -Unit_s_max_pu * Unit_NOM_ext
+  Unit_ext_s_upper:
+    name: Unit-ext-s-upper
+    description: an extendable branch carries at most its rating of the chosen build, loss included
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_NOM_extendable AND Unit_active
+    expression: Unit_s + Unit_loss <= Unit_s_max_pu * Unit_NOM_ext
+  Unit_s_set:
+    name: Unit-s_set
+    description: the flow follows the given schedule
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_s_set AND Unit_active
+    expression: Unit_s == Unit_s_set
+  Unit_loss_upper:
+    name: Unit-loss_upper
+    description: the loss is at most the loss at full rating
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_lossy
+    expression: Unit_loss <= Unit_loss_max
+  Unit_loss_tangents_forward:
+    name:
+      tangents: Unit-loss_tangents-{k}-1
+      secants: Unit-loss_secants-pos
+    description: the loss lies above each cut of the loss curve, for positive flow
+    dims: [scenario, snapshot, UNIT, segment]
+    where: Unit_lossy
+    expression: Unit_loss + Unit_loss_slope * Unit_s >= Unit_loss_offset
+  Unit_loss_tangents_reverse:
+    name:
+      tangents: Unit-loss_tangents-{k}--1
+      secants: Unit-loss_secants-neg
+    description: the same cuts mirrored, for negative flow
+    dims: [scenario, snapshot, UNIT, segment]
+    where: Unit_lossy
+    expression: Unit_loss - Unit_loss_slope * Unit_s >= Unit_loss_offset
+  Unit_fix_s_lower_security:
+    name: Unit-fix-s-lower-security-for-{c}-outage-in-sub-network-{n}
+    description: >-
+      after any one outage, a fixed branch carries at least the negative of its
+      rating; its flow includes its share of the outaged flow
+    dims: [scenario, snapshot, UNIT, outage]
+    where: not Unit_NOM_extendable AND at(Unit_BODF, by=snapshot_period[period]) AND Unit_active
+    expression: >-
+      Unit_s_monitored + at(Unit_BODF, by=snapshot_period[period]) * Outage_s >=
+      -Unit_s_max_pu * Unit_NOM
+  Unit_fix_s_upper_security:
+    name: Unit-fix-s-upper-security-for-{c}-outage-in-sub-network-{n}
+    description: >-
+      after any one outage, a fixed branch carries at most its rating; its flow
+      includes its share of the outaged flow
+    dims: [scenario, snapshot, UNIT, outage]
+    where: not Unit_NOM_extendable AND at(Unit_BODF, by=snapshot_period[period]) AND Unit_active
+    expression: >-
+      Unit_s_monitored + at(Unit_BODF, by=snapshot_period[period]) * Outage_s <=
+      Unit_s_max_pu * Unit_NOM
+  Unit_ext_s_lower_security:
+    name: Unit-ext-s-lower-security-for-{c}-outage-in-sub-network-{n}
+    description: >-
+      after any one outage, an extendable branch carries at least the negative
+      of its rating of the chosen build
+    dims: [scenario, snapshot, UNIT, outage]
+    where: Unit_NOM_extendable AND at(Unit_BODF, by=snapshot_period[period]) AND Unit_active
+    expression: >-
+      Unit_s_monitored + at(Unit_BODF, by=snapshot_period[period]) * Outage_s >=
+      -Unit_s_max_pu * Unit_NOM_ext
+  Unit_ext_s_upper_security:
+    name: Unit-ext-s-upper-security-for-{c}-outage-in-sub-network-{n}
+    description: >-
+      after any one outage, an extendable branch carries at most its rating of
+      the chosen build
+    dims: [scenario, snapshot, UNIT, outage]
+    where: Unit_NOM_extendable AND at(Unit_BODF, by=snapshot_period[period]) AND Unit_active
+    expression: >-
+      Unit_s_monitored + at(Unit_BODF, by=snapshot_period[period]) * Outage_s <=
+      Unit_s_max_pu * Unit_NOM_ext

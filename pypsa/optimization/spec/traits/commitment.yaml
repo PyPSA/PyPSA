@@ -1,0 +1,556 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+given:
+  parameters:
+    Unit_NOM: {dims: [scenario, UNIT]}
+    Unit_NOM_extendable: {dims: [UNIT], dtype: bool}
+    Unit_NOM_mod: {dims: [UNIT]}
+    Unit_active: {dims: [snapshot, UNIT], dtype: bool}
+    Unit_maintenance_pu: {dims: [scenario, UNIT]}
+    Unit_p_max_pu: {dims: [scenario, snapshot, UNIT]}
+    Unit_p_min_pu: {dims: [scenario, snapshot, UNIT]}
+    period_weight_objective: {dims: [period]}
+    snapshot_weightings_objective: {dims: [snapshot]}
+  variables:
+    Unit_NOM_ext: {dims: [UNIT]}
+    Unit_maintenance: {dims: [scenario, snapshot, UNIT]}
+    Unit_maintenance_capacity: {dims: [scenario, snapshot, UNIT]}
+    Unit_maintenance_status: {dims: [scenario, snapshot, UNIT]}
+    Unit_marginal_cost_piecewise: {dims: [scenario, snapshot, UNIT]}
+    Unit_n_mod: {dims: [UNIT]}
+    Unit_p: {dims: [scenario, snapshot, UNIT]}
+  expressions:
+    Unit_NOM_effective: {dims: [scenario, UNIT]}
+    Unit_NOM_rated: {dims: [scenario, UNIT]}
+  conditions:
+    Unit_marginal_cost_curve: {dims: [UNIT]}
+    Unit_marginal_cost_curve_bends_down: {dims: [UNIT, breakpoint]}
+
+dimensions:
+  scenario: {}
+  snapshot: {dtype: str, ordered: true}
+  UNIT: {}
+  period: {dtype: int, ordered: true}
+  breakpoint: {dtype: int, ordered: true}
+
+relations:
+  snapshot_period: {key: snapshot, values: period}
+
+parameters:
+  Unit_committable:
+    description: whether an on/off status decision gates the power
+    dims: [UNIT]
+    dtype: bool
+  Unit_start_up_cost:
+    description: cost of one start in this snapshot
+    dims: [scenario, snapshot, UNIT]
+  Unit_shut_down_cost:
+    description: cost of one stop in this snapshot
+    dims: [scenario, snapshot, UNIT]
+  Unit_stand_by_cost:
+    description: cost of one snapshot spent on
+    dims: [scenario, snapshot, UNIT]
+  Unit_min_up_time:
+    description: least snapshots a unit stays on once started
+    dims: [scenario, UNIT]
+    dtype: int
+  Unit_min_down_time:
+    description: least snapshots a unit stays off once stopped
+    dims: [scenario, UNIT]
+    dtype: int
+  Unit_status_initial:
+    description: >-
+      one where the unit was on before the first snapshot, zero where off. A
+      unit that is not committable counts as on
+    dims: [scenario, UNIT]
+  Unit_p_init:
+    description: >-
+      the power the unit brought into the horizon where it came in on. No value
+      means unknown: then there is no ramp row at the first snapshot
+    dims: [scenario, UNIT]
+    missing: 0
+  Unit_up_time_brought_in:
+    description: one while the up time the unit brought into the horizon still runs
+    dims: [scenario, snapshot, UNIT]
+  Unit_down_time_brought_in:
+    description: one while the down time the unit brought into the horizon still runs
+    dims: [scenario, snapshot, UNIT]
+  Unit_ramp_limit_up:
+    description: >-
+      most increase of power between two snapshots, per unit of nominal power.
+      The later snapshot's value applies. No value means no limit
+    dims: [scenario, snapshot, UNIT]
+    missing: absent
+  Unit_ramp_limit_down:
+    description: >-
+      most decrease of power between two snapshots, per unit of nominal power.
+      The later snapshot's value applies. No value means no limit
+    dims: [scenario, snapshot, UNIT]
+    missing: absent
+  Unit_ramp_limit_start_up:
+    description: most power in the snapshot a unit starts, per unit of nominal power. No value means no limit
+    dims: [scenario, UNIT]
+    missing: absent
+  Unit_ramp_limit_shut_down:
+    description: most power in the snapshot before a unit stops, per unit of nominal power. No value means no limit
+    dims: [scenario, UNIT]
+    missing: absent
+  Unit_modules_installed:
+    description: >-
+      whole modules of a fixed modular build, its nominal capacity over the module size, and one
+      where the build is not modular
+    dims: [scenario, UNIT]
+  Unit_big_m:
+    description: >-
+      the bound the big-M rows of a committable extendable unit release: the
+      largest power the unit could reach
+    dims: [scenario, UNIT]
+    missing: absent
+  Unit_p_min_pu_nonneg:
+    description: true where no `p_min_pu` of the unit is negative, in any snapshot and scenario
+    dims: [UNIT]
+    dtype: bool
+  Unit_marginal_cost_curve_p:
+    description: >-
+      the power at each breakpoint of the piecewise `marginal_cost` curve: the
+      per-unit breakpoints times nominal capacity. No curve means no rows
+    dims: [UNIT, breakpoint]
+    missing: absent
+  Unit_marginal_cost_curve_cost:
+    description: >-
+      the running cost at each breakpoint: zero at the first, then summed over
+      the segments, each its width times the `marginal_cost` at its upper end
+    dims: [UNIT, breakpoint]
+    missing: absent
+
+variables:
+  Unit_status:
+    name: Unit-status
+    description: how many modules of a committable unit are on; one module where it is not modular
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed
+    domain: integer
+    bounds:
+      lower: 0
+  Unit_start_up:
+    name: Unit-start_up
+    description: how many modules start in this snapshot
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed
+    domain: integer
+    bounds:
+      lower: 0
+  Unit_shut_down:
+    name: Unit-shut_down
+    description: how many modules stop in this snapshot
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed
+    domain: integer
+    bounds:
+      lower: 0
+
+expressions:
+  Unit_previous_status:
+    description: >-
+      the status a unit carries into a snapshot. It is off at the first
+      snapshot of a unit that becomes active later
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      opening_late:
+        when: position(snapshot) > 0 AND NOT shift(Unit_active, along=snapshot, offset=1)
+        expression: 0
+    otherwise: Unit_status_carried_over
+  Unit_status_carried_over:
+    description: the initial status at the first snapshot, the previous status after it
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      opening:
+        when: position(snapshot) == 0
+        expression: Unit_status_initial
+    otherwise: shift(Unit_status, along=snapshot, offset=1)
+  Unit_previous_p:
+    description: >-
+      the power a unit carries into a snapshot. It is zero at the first
+      snapshot of a unit that becomes active later
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      opening_late:
+        when: position(snapshot) > 0 AND NOT shift(Unit_active, along=snapshot, offset=1)
+        expression: 0
+    otherwise: Unit_p_carried_over
+  Unit_p_carried_over:
+    description: "`p_init` at the first snapshot, the previous power after it"
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      opening:
+        when: position(snapshot) == 0
+        expression: Unit_p_init
+    otherwise: shift(Unit_p, along=snapshot, offset=1)
+  Unit_modules:
+    description: >-
+      how many modules the status counts: the chosen number for an extendable
+      modular build, the installed number otherwise
+    dims: [scenario, UNIT]
+    cases:
+      chosen:
+        when: Unit_NOM_extendable AND Unit_NOM_mod > 0
+        expression: Unit_n_mod
+    otherwise: Unit_modules_installed
+  Unit_NOM_committed:
+    description: the capacity one status counts for in the ramp rows; one module, or the whole build
+    dims: [scenario, UNIT]
+    cases:
+      modular_build:
+        when: "Unit_NOM_mod > 0"
+        expression: Unit_NOM_mod
+    otherwise: Unit_NOM
+  Unit_ramp_up_rate:
+    description: "`ramp_limit_up`, or one (the full build) where it has none"
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      given:
+        when: Unit_ramp_limit_up
+        expression: Unit_ramp_limit_up
+    otherwise: 1
+  Unit_ramp_down_rate:
+    description: "`ramp_limit_down`, or one (the full build) where it has none"
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      given:
+        when: Unit_ramp_limit_down
+        expression: Unit_ramp_limit_down
+    otherwise: 1
+  Unit_start_up_rate:
+    description: "`ramp_limit_start_up`, or one (the full build) where it has none"
+    dims: [scenario, UNIT]
+    cases:
+      given:
+        when: Unit_ramp_limit_start_up
+        expression: Unit_ramp_limit_start_up
+    otherwise: 1
+  Unit_shut_down_rate:
+    description: "`ramp_limit_shut_down`, or one (the full build) where it has none"
+    dims: [scenario, UNIT]
+    cases:
+      given:
+        when: Unit_ramp_limit_shut_down
+        expression: Unit_ramp_limit_shut_down
+    otherwise: 1
+  Unit_ramp_previous_status:
+    description: >-
+      the status the ramp rows carry into a snapshot. A fixed modular unit that
+      came in on has all its modules on at the first snapshot
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      opening_modules:
+        when: "position(snapshot) == 0 AND NOT Unit_NOM_extendable AND Unit_NOM_mod > 0"
+        expression: Unit_status_initial * Unit_modules_installed
+    otherwise: Unit_previous_status
+  Unit_ramp_up_allowance:
+    description: >-
+      how far the power may rise between two snapshots: the ramp limit of the
+      modules that stay on, plus the start-up ramp of those that start
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      committed:
+        when: Unit_committable
+        expression: >-
+          Unit_ramp_up_rate * Unit_NOM_committed * Unit_ramp_previous_status
+          + Unit_start_up_rate * Unit_NOM_committed
+          * (Unit_status - Unit_ramp_previous_status)
+    otherwise: Unit_ramp_up_rate * Unit_NOM_effective
+  Unit_ramp_down_allowance:
+    description: >-
+      how far the power may fall between two snapshots: the ramp limit of the
+      modules that stay on, plus the shut-down ramp of those that stop
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      committed:
+        when: Unit_committable
+        expression: >-
+          Unit_ramp_down_rate * Unit_NOM_committed * Unit_status
+          + Unit_shut_down_rate * Unit_NOM_committed
+          * (Unit_ramp_previous_status - Unit_status)
+    otherwise: Unit_ramp_down_rate * Unit_NOM_effective
+  Unit_commitment_opex:
+    expression: >-
+      sum(sum((Unit_status * Unit_stand_by_cost * snapshot_weightings_objective)
+      * at(period_weight_objective, by=snapshot_period[period]), over=UNIT), over=snapshot)
+      + sum(sum((Unit_start_up * Unit_start_up_cost) * at(period_weight_objective,
+      by=snapshot_period[period]), over=UNIT), over=snapshot)
+      + sum(sum((Unit_shut_down * Unit_shut_down_cost) * at(period_weight_objective,
+      by=snapshot_period[period]), over=UNIT), over=snapshot)
+
+conditions:
+  Unit_committed:
+    description: a committable unit, in a snapshot it is active in
+    condition: Unit_committable AND Unit_active
+  Unit_com_ext:
+    description: >-
+      a committed unit with an extendable build that is not modular. Its status
+      is held against the chosen build by big-M rows
+    condition: >-
+      Unit_committable AND Unit_NOM_extendable AND NOT (Unit_NOM_mod > 0)
+      AND Unit_active
+  Unit_ramps_from_previous:
+    description: >-
+      a snapshot whose ramp row has a previous power: any but the first of its
+      period, and the first of the horizon where the unit came in off or with
+      a `p_init`
+    condition: >-
+      position(snapshot, within=snapshot_period[period]) > 0 OR
+      (position(snapshot) == 0 AND (Unit_status_initial == 0 OR Unit_p_init))
+  Unit_marginal_cost_as_lp:
+    description: >-
+      true where every `marginal_cost` curve of the component is convex and no
+      unit with a curve is committable: then the curves are stated as segment
+      lines, else by incremental segments
+    condition: >-
+      count(Unit_marginal_cost_curve AND count(Unit_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=UNIT) == 0
+      AND count(Unit_marginal_cost_curve AND Unit_committable, over=UNIT) == 0
+
+piecewise:
+  Unit_marginal_cost_lp:
+    name: Unit-marginal_cost_piecewise
+    description: the running cost is at least the `marginal_cost` curve at the power, by segment lines
+    along: breakpoint
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_marginal_cost_as_lp AND Unit_marginal_cost_curve AND Unit_active AND Unit_marginal_cost_curve_p
+    method: lp
+    links:
+      p: ["Unit_p", "Unit_marginal_cost_curve_p"]
+      cost: ["Unit_marginal_cost_piecewise", "Unit_marginal_cost_curve_cost", ">="]
+  Unit_marginal_cost_incremental:
+    name: Unit-marginal_cost_piecewise
+    description: >-
+      the running cost is at least the `marginal_cost` curve at the power, by
+      segments filled in order; the status gates the curve of a committable unit
+    along: breakpoint
+    dims: [scenario, snapshot, UNIT]
+    where: NOT Unit_marginal_cost_as_lp AND Unit_marginal_cost_curve AND Unit_active AND Unit_marginal_cost_curve_p
+    method: incremental
+    activity: Unit_status
+    links:
+      p: ["Unit_p", "Unit_marginal_cost_curve_p"]
+      cost: ["Unit_marginal_cost_piecewise", "Unit_marginal_cost_curve_cost", ">="]
+
+constraints:
+  Unit_fix_p_lower:
+    name: Unit-fix-p-lower
+    description: a fixed unit that is not committable runs at least at its minimum
+    dims: [scenario, snapshot, UNIT]
+    where: not Unit_NOM_extendable AND not Unit_committable AND Unit_active AND (Unit_NOM < inf OR Unit_p_min_pu == 0)
+    expression: Unit_p >= Unit_p_min_pu * Unit_NOM_rated * (1 - Unit_maintenance_pu * Unit_maintenance)
+  Unit_fix_p_upper:
+    name: Unit-fix-p-upper
+    description: a fixed unit that is not committable runs at most at its maximum
+    dims: [scenario, snapshot, UNIT]
+    where: not Unit_NOM_extendable AND not Unit_committable AND Unit_active AND (Unit_NOM < inf OR Unit_p_max_pu == 0)
+    expression: Unit_p <= Unit_p_max_pu * Unit_NOM_rated * (1 - Unit_maintenance_pu * Unit_maintenance)
+  Unit_ext_p_lower:
+    name: Unit-ext-p-lower
+    description: an extendable unit that is not committable runs at least at its minimum of the chosen build
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_NOM_extendable AND not Unit_committable AND Unit_active
+    expression: Unit_p >= Unit_p_min_pu * (Unit_NOM_ext - Unit_maintenance_pu * Unit_maintenance_capacity)
+  Unit_ext_p_upper:
+    name: Unit-ext-p-upper
+    description: an extendable unit that is not committable runs at most at its maximum of the chosen build
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_NOM_extendable AND not Unit_committable AND Unit_active
+    expression: Unit_p <= Unit_p_max_pu * (Unit_NOM_ext - Unit_maintenance_pu * Unit_maintenance_capacity)
+  Unit_com_p_lower:
+    name: Unit-com-p-lower
+    description: a committed unit runs at least at its minimum while on
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND NOT Unit_NOM_extendable AND NOT (Unit_NOM_mod > 0)
+    expression: Unit_p >= Unit_p_min_pu * Unit_NOM * (Unit_status - Unit_maintenance_pu * Unit_maintenance_status)
+  Unit_com_p_upper:
+    name: Unit-com-p-upper
+    description: a committed unit runs at most at its maximum while on, and not at all while off
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND NOT Unit_NOM_extendable AND NOT (Unit_NOM_mod > 0)
+    expression: Unit_p <= Unit_p_max_pu * Unit_NOM * (Unit_status - Unit_maintenance_pu * Unit_maintenance_status)
+  Unit_com_mod_p_lower:
+    name: Unit-com-mod-p-lower
+    description: a committed modular unit runs at least at the minimum of its modules on
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND Unit_NOM_mod > 0
+    expression: Unit_p >= Unit_p_min_pu * Unit_NOM_mod * (Unit_status - Unit_maintenance_pu * Unit_maintenance_status)
+  Unit_com_mod_p_upper:
+    name: Unit-com-mod-p-upper
+    description: a committed modular unit runs at most at the maximum of its modules on
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND Unit_NOM_mod > 0
+    expression: Unit_p <= Unit_p_max_pu * Unit_NOM_mod * (Unit_status - Unit_maintenance_pu * Unit_maintenance_status)
+  Unit_com_ext_p_upper_cap:
+    name: Unit-com-ext-p-upper-cap
+    description: a committed extendable unit runs at most at its maximum of the chosen build
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_com_ext
+    expression: Unit_p <= Unit_p_max_pu * (Unit_NOM_ext - Unit_maintenance_pu * Unit_maintenance_capacity)
+  Unit_com_ext_p_upper_big_m:
+    name: Unit-com-ext-p-upper-bigM
+    description: a committed extendable unit does not run while off
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_com_ext
+    expression: Unit_p <= Unit_big_m * Unit_status
+  Unit_com_ext_p_lower:
+    name: Unit-com-ext-p-lower
+    description: a committed extendable unit runs at least at its minimum of the chosen build while on
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_com_ext
+    expression: >-
+      Unit_p >=
+      Unit_p_min_pu * (Unit_NOM_ext - Unit_maintenance_pu * Unit_maintenance_capacity)
+      + Unit_big_m * Unit_status - Unit_big_m
+  Unit_com_ext_p_lower_nonneg:
+    name: Unit-com-ext-p-lower-nonneg
+    description: the power of a committed extendable unit is not negative where its `p_min_pu` never is
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_com_ext AND Unit_p_min_pu_nonneg
+    expression: Unit_p >= 0
+  Unit_status_p_fixed_upper:
+    name: Unit-status-p-fixed-upper
+    description: the status is at most the modules installed
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND NOT (Unit_NOM_extendable AND Unit_NOM_mod > 0)
+    expression: Unit_status <= Unit_modules_installed
+  Unit_start_up_p_fixed_upper:
+    name: Unit-start_up-p-fixed-upper
+    description: the starts are at most the modules installed
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND NOT (Unit_NOM_extendable AND Unit_NOM_mod > 0)
+    expression: Unit_start_up <= Unit_modules_installed
+  Unit_shut_down_p_fixed_upper:
+    name: Unit-shut_down-p-fixed-upper
+    description: the stops are at most the modules installed
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND NOT (Unit_NOM_extendable AND Unit_NOM_mod > 0)
+    expression: Unit_shut_down <= Unit_modules_installed
+  Unit_status_NOM_variable_upper:
+    name: Unit-status-NOM-variable-upper
+    description: the status is at most the modules built
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND Unit_NOM_extendable AND Unit_NOM_mod > 0
+    expression: Unit_status <= Unit_n_mod
+  Unit_start_up_NOM_variable_upper:
+    name: Unit-start_up-NOM-variable-upper
+    description: the starts are at most the modules built
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND Unit_NOM_extendable AND Unit_NOM_mod > 0
+    expression: Unit_start_up <= Unit_n_mod
+  Unit_shut_down_NOM_variable_upper:
+    name: Unit-shut_down-NOM-variable-upper
+    description: the stops are at most the modules built
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND Unit_NOM_extendable AND Unit_NOM_mod > 0
+    expression: Unit_shut_down <= Unit_n_mod
+  Unit_com_transition_start_up:
+    name: Unit-com-transition-start-up
+    description: a module that turns on starts
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed
+    expression: Unit_start_up >= Unit_status - Unit_previous_status
+  Unit_com_transition_shut_down:
+    name: Unit-com-transition-shut-down
+    description: a module that turns off stops
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed
+    expression: Unit_shut_down >= Unit_previous_status - Unit_status
+  Unit_com_up_time:
+    name: Unit-com-up-time
+    description: a module started within the minimum up time is still on
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND Unit_min_up_time > 0
+    expression: >-
+      sum_back(Unit_start_up, along=snapshot, window=Unit_min_up_time)
+      + Unit_up_time_brought_in <= Unit_status
+  Unit_com_down_time:
+    name: Unit-com-down-time
+    description: a module stopped within the minimum down time is still off
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_committed AND Unit_min_down_time > 0
+    expression: >-
+      sum_back(Unit_shut_down, along=snapshot, window=Unit_min_down_time)
+      + Unit_down_time_brought_in <= Unit_modules - Unit_status
+  Unit_p_ramp_limit_up:
+    name: Unit-p-ramp_limit_up
+    description: >-
+      the power rises at most by the ramp allowance. A committed extendable unit
+      that is not modular has the big-M rows instead
+    dims: [scenario, snapshot, UNIT]
+    where: >-
+      (Unit_ramp_limit_up OR Unit_ramp_limit_start_up)
+      AND NOT (Unit_committable AND Unit_NOM_extendable AND NOT (Unit_NOM_mod > 0))
+      AND Unit_ramps_from_previous
+      AND Unit_active
+    expression: Unit_p - Unit_previous_p <= Unit_ramp_up_allowance
+  Unit_p_ramp_limit_down:
+    name: Unit-p-ramp_limit_down
+    description: >-
+      the power falls at most by the ramp allowance. A committed extendable unit
+      that is not modular has the big-M rows instead
+    dims: [scenario, snapshot, UNIT]
+    where: >-
+      (Unit_ramp_limit_down OR Unit_ramp_limit_shut_down)
+      AND NOT (Unit_committable AND Unit_NOM_extendable AND NOT (Unit_NOM_mod > 0))
+      AND Unit_ramps_from_previous
+      AND Unit_active
+    expression: Unit_previous_p - Unit_p <= Unit_ramp_down_allowance
+  Unit_p_ramp_limit_up_run_big_m:
+    name: Unit-p-ramp_limit_up-run-bigM
+    description: a running committed extendable unit rises at most by its ramp limit of the chosen build
+    dims: [scenario, snapshot, UNIT]
+    where: >-
+      Unit_com_ext
+      AND (Unit_ramp_limit_up OR Unit_ramp_limit_start_up)
+      AND Unit_ramps_from_previous
+    expression: >-
+      Unit_p - Unit_previous_p <=
+      Unit_ramp_up_rate * Unit_NOM_ext
+      + Unit_big_m - Unit_big_m * Unit_previous_status
+  Unit_p_ramp_limit_up_start_big_m:
+    name: Unit-p-ramp_limit_up-start-bigM
+    description: a starting committed extendable unit rises at most by its start-up ramp of the chosen build
+    dims: [scenario, snapshot, UNIT]
+    where: >-
+      Unit_com_ext
+      AND (Unit_ramp_limit_up OR Unit_ramp_limit_start_up)
+      AND Unit_ramps_from_previous
+    expression: >-
+      Unit_p - Unit_previous_p <=
+      Unit_start_up_rate * Unit_NOM_ext
+      + Unit_big_m - Unit_big_m * Unit_start_up
+  Unit_p_ramp_limit_down_run_big_m:
+    name: Unit-p-ramp_limit_down-run-bigM
+    description: a running committed extendable unit falls at most by its ramp limit of the chosen build
+    dims: [scenario, snapshot, UNIT]
+    where: >-
+      Unit_com_ext
+      AND (Unit_ramp_limit_down OR Unit_ramp_limit_shut_down)
+      AND Unit_ramps_from_previous
+    expression: >-
+      Unit_p - Unit_previous_p >=
+      -Unit_ramp_down_rate * Unit_NOM_ext
+      - Unit_big_m + Unit_big_m * Unit_status
+  Unit_p_ramp_limit_down_shut_big_m:
+    name: Unit-p-ramp_limit_down-shut-bigM
+    description: a stopping committed extendable unit falls at most by its shut-down ramp of the chosen build
+    dims: [scenario, snapshot, UNIT]
+    where: >-
+      Unit_com_ext
+      AND (Unit_ramp_limit_down OR Unit_ramp_limit_shut_down)
+      AND Unit_ramps_from_previous
+    expression: >-
+      Unit_previous_p - Unit_p <=
+      Unit_shut_down_rate * Unit_NOM_ext
+      + Unit_big_m - Unit_big_m * Unit_shut_down
+
+assumptions:
+  Unit_big_m_where_committed_and_extendable:
+    holds: Unit_big_m
+    where: Unit_com_ext
+    description: a committed extendable unit that is not modular has a big M

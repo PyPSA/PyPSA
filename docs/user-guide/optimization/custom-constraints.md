@@ -50,12 +50,12 @@ Linopy LP model
 <BLANKLINE>
 Variables:
 ----------
- * Generator-p_nom (name)
+ * Generator-p (snapshot, name)
  * ...
 <BLANKLINE>
 Constraints:
 ------------
- * Generator-ext-p_nom-lower (name)
+ * Bus-nodal_balance (snapshot, name)
  * ...
 <BLANKLINE>
 Status:

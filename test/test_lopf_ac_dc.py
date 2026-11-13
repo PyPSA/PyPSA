@@ -78,3 +78,42 @@ def test_optimize_link_only_network_skips_topology():
     assert n.c.sub_networks.static.empty
     assert (n.c.buses.dynamic.v_ang == 0).all().all()
     assert list(n.c.buses.dynamic.v_ang.columns) == ["a", "b"]
+
+
+@pytest.mark.parametrize(
+    ("network", "entry", "dims"),
+    [
+        pytest.param("ac_dc_network", "Generator-p", ("snapshot", "name"), id="var"),
+        pytest.param(
+            "ac_dc_network",
+            "Kirchhoff-Voltage-Law",
+            ("snapshot", "cycle"),
+            id="kvl",
+        ),
+        pytest.param(
+            "ac_dc_stochastic",
+            "Generator-p",
+            ("scenario", "name", "snapshot"),
+            id="stochastic-var",
+        ),
+        pytest.param(
+            "ac_dc_stochastic",
+            "Generator-ext-p_nom-lower",
+            ("name", "scenario"),
+            id="stochastic-static",
+        ),
+        pytest.param(
+            "ac_dc_stochastic",
+            "Kirchhoff-Voltage-Law",
+            ("scenario", "snapshot", "cycle"),
+            id="stochastic-kvl",
+        ),
+    ],
+)
+def test_model_dims_keep_pypsa_order(request, network, entry, dims):
+    """The spec build once listed coords in its own order, e.g. `(name, snapshot)`."""
+    m = request.getfixturevalue(network).optimize.create_model()
+    item = m.variables[entry] if entry in m.variables else m.constraints[entry]
+    assert item.labels.dims == dims
+    assert tuple(item.coords) == dims, "coords list in the order of the dims"
+    assert not m.expressions, "the spec's expressions are not kept"

@@ -28,8 +28,6 @@ For **non-extendable** stores (`e_nom_extendable=False`):
 
 where $\hat{e}_{n,s}$ is the nominal energy capacity, $\underline{e}_{n,s,t}$ and $\bar{e}_{n,s,t}$ are time-dependent restrictions on the energy level given per unit of nominal capacity, $r_{n,s}$ is the number of hours at full power that fill the store (`max_hours`), and $\bar{h}_{n,s,t}$ and $\underline{h}_{n,s,t}$ restrict discharging and charging per unit of the power capacity $\hat{e}_{n,s} / r_{n,s}$ (usually $\underline{h}_{n,s,t}$ is negative, -1 by default). The power constraints are only built where $r_{n,s}$ is finite; by default ($r_{n,s} = \infty$) charging and discharging power are unconstrained. For stores with unit efficiencies, no direction-specific marginal costs and an infinite `cycles_max`, $h_{n,s,t}^+$ is fixed to zero and the charging bound applies to $h_{n,s,t}$ directly, which avoids a degenerate pair of variables; the outputs `p_dispatch` and `p_store` are then split by sign.
 
-These constraints are set in the function `define_operational_constraints_for_non_extendables()`.
-
 For **extendable** stores (`e_nom_extendable=True`):
 
 | Constraint | Dual Variable | Name |
@@ -43,8 +41,6 @@ For **extendable** stores (`e_nom_extendable=True`):
 
 where $E_{n,s}$ is the energy capacity to be optimised.
 
-These constraints are set in the function `define_operational_constraints_for_extendables()`.
-
 !!! note "Capacity limits of [`Store`][pypsa.components.Stores] components"
 
     For handling of capacity limits, see the <!-- md:guide optimization/capacity-limits.md --> section.
@@ -56,8 +52,6 @@ The variables can also be fixed to certain values:
 | $e_{n,s,t} = \tilde{e}_{n,s,t}$ | only in `n.model` | `Store-e_set` |
 | $h_{n,s,t} = \tilde{h}_{n,s,t}$ | only in `n.model` | `Store-p_set` |
 
-These constraints are set in the function `define_fixed_operation_constraints()`.
-
 The power and energy variables are related by the **storage consistency** equation (`Store-energy_balance`):
 
 $$\begin{gather*}e_{n,s,t} = \eta_{\textrm{stand},n,s}^{w_t^s} e_{n,s,t-1} - \eta^{-1}_{\textrm{dispatch};n,s} w_t^s h_{n,s,t} + \left(\eta_{\textrm{store};n,s} - \eta^{-1}_{\textrm{dispatch};n,s}\right) w_t^s h_{n,s,t}^+ \\ + w_t^s\textrm{inflow}_{n,s,t} - w_t^s\textrm{spillage}_{n,s,t} \quad \leftrightarrow \quad \lambda_{n,s,t}^\textrm{MSV} \end{gather*}$$
@@ -65,8 +59,6 @@ $$\begin{gather*}e_{n,s,t} = \eta_{\textrm{stand},n,s}^{w_t^s} e_{n,s,t-1} - \et
 which is equivalent to $\eta_{\textrm{store}} h^+ - \eta^{-1}_{\textrm{dispatch}} h^-$ in terms of charge and discharge.
 
 where $\eta_{\textrm{stand},n,s}$ represents the storage efficiency after accounting for standing losses (e.g. thermal losses in thermal storage) per hour, $\eta_{\textrm{store};n,s}$ and $\eta_{\textrm{dispatch};n,s}$ are the efficiencies for power going into and out of the store, and $w_t^s$ is the snapshot weighting (defaulting to 1 hour). The spillage variable $0 \leq \textrm{spillage}_{n,s,t} \leq \textrm{inflow}_{n,s,t}$ is only created for stores with positive inflow. The dual variable $\lambda_{n,s,t}^\textrm{MSV}$ represents the marginal storage value (also known as water value in the hydro-electricity literature).
-
-These constraints are set in the function `define_store_constraints()`.
 
 The marginal costs enter the objective as $o_{n,s,t} h_{n,s,t} + o^-_{n,s,t} h_{n,s,t}^- + o^+_{n,s,t} h_{n,s,t}^+$, i.e. `marginal_cost` applies to the net dispatch while `marginal_cost_dispatch` and `marginal_cost_store` apply to one direction each. See the [Store component](../components/stores.md#marginal-costs) description.
 
@@ -97,8 +89,6 @@ Stores with a finite `cycles_max` always get the separate charging variable $h_{
 In a rolling horizon optimisation, the cycles of previous windows count against `cycles_max`.
 
 A cycle life $N^\textrm{life}$ over a technical lifetime $L$ translates into $N = N^\textrm{life} \cdot Y / L$ for an optimisation over $Y$ years.
-
-This constraint is set in the function `define_store_cycle_constraints()`.
 
 ??? note "Mapping of symbols to component attributes"
 
@@ -149,8 +139,6 @@ For **non-extendable** storage units (`p_nom_extendable=False`), the charge ($h_
 
 where $\hat{h}_{n,s}$ is the nominal power capacity, $\bar{h}_{n,s,t}$ is a time-dependent restriction on the discharge per unit of nominal capacity, $\underline{h}_{n,s,t}$ is a time-dependent restriction on the maximum charge per unit of nominal capacity (usually negative, -1 by default), and $r_{n,s}$ is the number of hours at nominal power that fill the state of charge.
 
-These constraints are set in the function `define_operational_constraints_for_non_extendables()`.
-
 For **extendable** storage units (`p_nom_extendable=True`), the charge and discharge variables are constrained by:
 
 | Constraint | Dual Variable | Name |
@@ -161,8 +149,6 @@ For **extendable** storage units (`p_nom_extendable=True`), the charge and disch
 | $h_{n,s,t}^+ \leq - \underline{h}_{n,s,t} H_{n,s}$ | only in `n.model` | `StorageUnit-ext-p_store-upper` |
 
 where $H_{n,s}$ is the power capacity to be optimised.
-
-These constraints are set in the function `define_operational_constraints_for_extendables()`.
 
 !!! note "Capacity limits of [`StorageUnit`][pypsa.components.StorageUnits] components"
 
@@ -178,8 +164,6 @@ All three variables can also be fixed to certain values $\tilde{h}_{n,s,t}^-$, $
 
 An example use case would be if a storage unit must be empty and/or full every day.
 
-These constraints are set in the function `define_fixed_operation_constraints()`.
-
 The charging, discharging and state of charge variables are related by (`StorageUnit-energy_balance`):
 
 $$\begin{gather*}soc_{n,s,t} = \eta_{\textrm{stand};n,s}^{w_t^s} soc_{n,s,t-1}\\
@@ -187,8 +171,6 @@ $$\begin{gather*}soc_{n,s,t} = \eta_{\textrm{stand};n,s}^{w_t^s} soc_{n,s,t-1}\\
 
 $\eta_{\textrm{stand};n,s}$ is the standing efficiency (e.g. due to thermal losses for thermal storage). $\eta_{\textrm{store};n,s}$ and $\eta_{\textrm{dispatch};n,s}$ are the efficiencies for power going into and out of the storage unit, and $w_t^s$ is the snapshot weighting for stores (e.g. 1 hour).
 The dual variable $\lambda_{n,s,t}^\textrm{MSV}$ represents the marginal storage value (also known as water value in the hydro-electricity literature).
-
-These constraints are set in the function `define_storage_unit_constraints()`.
 
 Furthermore, there are two options for specifying the initial state of charge $soc_{n,s,t=-1}$:
 

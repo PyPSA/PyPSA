@@ -1,0 +1,460 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+description: >-
+  The optimisation problem of `n.optimize()`, with its multi-period and its
+  stochastic variants. Capacity is chosen once, before the future is known,
+  and paid in each investment `period` the asset is active in. Dispatch is
+  chosen per `scenario`. The objective is the expected cost over the
+  scenarios; with a risk preference, a share of the operating cost is priced
+  at its conditional value at risk (CVaR). A plain run has one scenario, one
+  period, unit weights and no outage.
+
+dimensions:
+  scenario:
+    description: the futures dispatch is chosen in, each with a weight
+  snapshot:
+    description: dispatch periods
+    dtype: str
+    ordered: true
+  bus:
+    description: network nodes
+  generator:
+    description: generators, each on one bus
+  link:
+    description: controllable branches, each from `bus0` to the buses its ports deliver to
+  link_output:
+    description: the output ports of the links, one label per port (`bus1`, `bus2`, …)
+  process:
+    description: converters whose ports each draw or deliver at their own rate of `p`
+  process_output:
+    description: the ports of the processes, one label per port (`bus0`, `bus1`, …)
+  load:
+    description: demands, each on one bus
+  storage_unit:
+    description: storage units with a power capacity and `max_hours` of energy, each on one bus
+  store:
+    description: energy stores, each on one bus
+  line:
+    description: passive branches, their flow set by impedance
+  transformer:
+    description: passive branches with a tap ratio and a fixed or optimised phase shift
+  cycle:
+    description: >-
+      the independent cycles of the passive network, per period. A label is a
+      position in the period's cycle basis, so it may be another cycle in
+      another period
+  outage:
+    description: the lines and transformers a security-constrained run takes out one at a time
+  segment:
+    description: the cuts a passive branch's loss curve lies above, tangents or secants
+    dtype: int
+  global_constraint:
+    description: the `GlobalConstraint` rows
+  period:
+    description: investment periods
+    dtype: int
+    ordered: true
+  flow_based_domain:
+    description: the flow-based domains, each with a zero-sum balance of net positions
+  carrier:
+    description: energy carriers
+  breakpoint:
+    description: the corners of a piecewise-linear curve, in order; curves may differ in length
+    dtype: int
+    ordered: true
+
+parameters:
+  Bus_attached:
+    description: whether an active component is attached to the bus. No balance row where nothing is
+    dims: [bus, snapshot]
+    dtype: bool
+  snapshot_weightings_objective:
+    description: hours a snapshot weighs in the objective
+    dims: [snapshot]
+  snapshot_weightings_stores:
+    description: hours a snapshot weighs in a storage balance
+    dims: [snapshot]
+  snapshot_weightings_generators:
+    description: hours a snapshot weighs in an energy total
+    dims: [snapshot]
+  scenario_weight:
+    description: the probability of a scenario
+    dims: [scenario]
+  period_weight_objective:
+    description: what a period's cost weighs in the objective
+    dims: [period]
+  period_weight_years:
+    description: the years a period's energy counts for in an energy total
+    dims: [period]
+  CVaR_omega:
+    description: >-
+      the share of the operating cost priced at the CVaR. No value means no risk
+      preference, and then there are no CVaR variables or rows
+    dims: []
+    missing: 0
+  CVaR_alpha:
+    description: the CVaR confidence level; the tail is the other `1 - alpha` of the probability
+    dims: []
+    missing: absent
+  Carrier_max_growth:
+    description: most capacity of a carrier added in a period. No value means no limit
+    dims: [carrier]
+    missing: absent
+  Carrier_max_relative_growth:
+    description: the share of the previous period's additions that may be added on top
+    dims: [carrier]
+  Cycle_in_basis:
+    description: whether a cycle label is in the period's cycle basis. No KVL row where it is not
+    dims: [period, cycle]
+    dtype: bool
+  transmission_losses:
+    description: whether the run models transmission losses
+    dims: []
+    dtype: bool
+  GlobalConstraint_type:
+    description: >-
+      the row's formula: `primary_energy`, `operational_limit`,
+      `transmission_volume_expansion_limit`,
+      `transmission_expansion_cost_limit`, `tech_capacity_expansion_limit` or
+      `flow_based`
+    dims: [global_constraint]
+    dtype: str
+  GlobalConstraint_sense:
+    description: "the row's sense per scenario: `<=`, `>=` or `==`"
+    dims: [scenario, global_constraint]
+    dtype: str
+  GlobalConstraint_constant:
+    description: >-
+      the constant the total is held against, including what no variable
+      represents: initial storage levels and fixed builds
+    dims: [scenario, global_constraint]
+  GlobalConstraint_counts_snapshot:
+    description: whether the row counts the snapshot; all do unless the row names an `investment_period`
+    dims: [scenario, global_constraint, snapshot]
+    dtype: bool
+    missing: false
+  GlobalConstraint_ram:
+    description: the remaining available margin of a `flow_based` row. No value means no row in that snapshot
+    dims: [scenario, snapshot, global_constraint]
+    missing: absent
+  GlobalConstraint_zonal_ptdf:
+    description: the zonal power transfer distribution factor of a `flow_based` row for a zone bus
+    dims: [scenario, snapshot, global_constraint, bus]
+    missing: 0
+  GlobalConstraint_link_ptdf:
+    description: the factor of a `flow_based` row for a corridor link
+    dims: [scenario, snapshot, global_constraint, link]
+    missing: 0
+  Bus_flow_based_zone:
+    description: whether the bus is a zone of a flow-based domain
+    dims: [bus]
+    dtype: bool
+
+relations:
+  snapshot_period:
+    description: the investment period a snapshot falls in
+    key: snapshot
+    values: period
+  Bus_flow_based_domain:
+    description: the flow-based domain a zone bus belongs to
+    key: bus
+    values: flow_based_domain
+    missing: absent
+  Outage_line:
+    description: the line an outage takes out
+    key: outage
+    values: line
+    missing: absent
+  Outage_transformer:
+    description: the transformer an outage takes out
+    key: outage
+    values: transformer
+    missing: absent
+
+variables:
+  FlowBased_net_position:
+    name: FlowBased-net_position
+    description: what a zone bus exports to its flow-based domain, unbounded
+    dims: [scenario, snapshot, bus]
+    where: Bus_flow_based_zone
+    missing: 0
+  CVaR_a:
+    name: CVaR-a
+    description: how far a scenario's operating cost exceeds the value at risk
+    dims: [scenario]
+    where: CVaR_omega
+    missing: 0
+    bounds:
+      lower: 0
+  CVaR_theta:
+    name: CVaR-theta
+    description: the value at risk, where the tail starts
+    dims: []
+    where: CVaR_omega
+    missing: 0
+  CVaR:
+    description: the CVaR, the mean operating cost in the tail
+    dims: []
+    where: CVaR_omega
+    missing: 0
+
+expressions:
+  energy_limit_weight:
+    description: what one unit of power counts for in an `e_sum` row, hours times the period's years
+    dims: [snapshot]
+    expression: snapshot_weightings_generators * at(period_weight_years, by=snapshot_period[period])
+  GlobalConstraint_energy_weight:
+    description: what one unit of power counts for in a row, hours times the period's years where it counts the snapshot
+    dims: [scenario, global_constraint, snapshot]
+    cases:
+      counted:
+        when: GlobalConstraint_counts_snapshot
+        expression: snapshot_weightings_generators * at(period_weight_years, by=snapshot_period[period])
+    otherwise: 0
+  primary_energy:
+    description: the primary energy of generation, less the energy left in storage at the end
+    dims: [scenario, global_constraint]
+    expression: Generator_primary_energy + StorageUnit_primary_energy + Store_primary_energy
+  operational_limit:
+    description: the energy generated, plus what storage draws down
+    dims: [scenario, global_constraint]
+    expression: >-
+      Generator_operational_limit
+      + StorageUnit_operational_limit
+      + Store_operational_limit
+  transmission_volume_expansion:
+    description: length times chosen build of the row's branches
+    dims: [scenario, global_constraint]
+    expression: Line_transmission_volume_expansion + Link_transmission_volume_expansion
+  transmission_expansion_cost:
+    description: capital cost times chosen build of the row's branches
+    dims: [scenario, global_constraint]
+    expression: Line_transmission_expansion_cost + Link_transmission_expansion_cost
+  tech_capacity_expansion:
+    description: the chosen build of the row's carrier-and-bus set
+    dims: [global_constraint]
+    expression: >-
+      Generator_tech_capacity_expansion
+      + Line_tech_capacity_expansion
+      + Link_tech_capacity_expansion
+      + Process_tech_capacity_expansion
+      + StorageUnit_tech_capacity_expansion
+      + Store_tech_capacity_expansion
+  scenario_opex:
+    description: the operating cost of a scenario, weighted by hours and period
+    dims: [scenario]
+    expression: >-
+      Generator_opex
+      + Generator_commitment_opex
+      + Link_opex
+      + Link_commitment_opex
+      + Process_opex
+      + Process_commitment_opex
+      + StorageUnit_opex
+      + StorageUnit_storage_opex
+      + Store_opex
+      + Store_storage_opex
+      + Store_charge_opex
+  risk_weighted_opex:
+    expression: (1 - CVaR_omega) * sum(scenario_weight * scenario_opex, over=scenario) + CVaR_omega * CVaR
+  total_cost:
+    description: capital cost of every component, plus the risk-weighted operating cost
+    dims: []
+    expression: >-
+      Generator_capex
+      + Link_capex
+      + StorageUnit_capex
+      + Store_capex
+      + Line_capex
+      + Process_capex
+      + Transformer_capex
+      + risk_weighted_opex
+  Carrier_additions:
+    description: the capacity a carrier adds in a period; a transformer has no carrier
+    dims: [period, carrier]
+    expression: >-
+      Generator_additions
+      + Line_additions
+      + Link_additions
+      + Process_additions
+      + StorageUnit_additions
+      + Store_additions
+  Carrier_relative_growth:
+    description: "`max_relative_growth`, clipped at zero"
+    dims: [carrier]
+    cases:
+      positive: { when: Carrier_max_relative_growth > 0, expression: Carrier_max_relative_growth }
+    otherwise: 0
+  Outage_s:
+    description: the flow of the branch an outage takes out, before the outage
+    dims: [scenario, snapshot, outage]
+    cases:
+      line: { when: Outage_line, expression: "at(Line_s_monitored, by=Outage_line[line])" }
+    otherwise: at(Transformer_s_monitored, by=Outage_transformer[transformer])
+  FlowBased_injection:
+    description: a zone bus's net position leaves the bus
+    dims: [scenario, snapshot, bus]
+    expression: -FlowBased_net_position
+  Bus_injection:
+    description: what every component puts into a bus, less what it takes out
+    dims: [scenario, snapshot, bus]
+    expression: >-
+      FlowBased_injection
+      + Generator_injection
+      + Line_injection
+      + Link_injection
+      + Load_injection
+      + Process_injection
+      + StorageUnit_injection
+      + Store_injection
+      + Transformer_injection
+  Cycle_angle_sum:
+    description: the voltage angle differences around a cycle, phase shifts included
+    dims: [scenario, snapshot, cycle]
+    expression: Line_angle_sum + Transformer_angle_sum
+
+constraints:
+  Kirchhoff_Voltage_Law:
+    name: Kirchhoff-Voltage-Law
+    description: the angle differences around each cycle of the period's basis sum to zero
+    dims: [scenario, snapshot, cycle]
+    where: at(Cycle_in_basis, by=snapshot_period[period])
+    expression: Cycle_angle_sum == 0
+  Bus_nodal_balance:
+    name: Bus-nodal_balance
+    description: what enters a bus equals what leaves it
+    dims: [scenario, snapshot, bus]
+    where: Bus_attached
+    expression: Bus_injection == 0
+  GlobalConstraint_primary_energy_ub:
+    description: the total is at most the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'primary_energy' AND GlobalConstraint_sense == '<='
+    expression: primary_energy <= GlobalConstraint_constant
+  GlobalConstraint_primary_energy_lb:
+    description: the total is at least the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'primary_energy' AND GlobalConstraint_sense == '>='
+    expression: primary_energy >= GlobalConstraint_constant
+  GlobalConstraint_primary_energy_eq:
+    description: the total equals the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'primary_energy' AND GlobalConstraint_sense == '=='
+    expression: primary_energy == GlobalConstraint_constant
+  GlobalConstraint_operational_limit_ub:
+    description: the total is at most the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'operational_limit' AND GlobalConstraint_sense == '<='
+    expression: operational_limit <= GlobalConstraint_constant
+  GlobalConstraint_operational_limit_lb:
+    description: the total is at least the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'operational_limit' AND GlobalConstraint_sense == '>='
+    expression: operational_limit >= GlobalConstraint_constant
+  GlobalConstraint_operational_limit_eq:
+    description: the total equals the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'operational_limit' AND GlobalConstraint_sense == '=='
+    expression: operational_limit == GlobalConstraint_constant
+  GlobalConstraint_transmission_volume_expansion_limit_ub:
+    description: the total is at most the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'transmission_volume_expansion_limit' AND GlobalConstraint_sense == '<='
+    expression: transmission_volume_expansion <= GlobalConstraint_constant
+  GlobalConstraint_transmission_volume_expansion_limit_lb:
+    description: the total is at least the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'transmission_volume_expansion_limit' AND GlobalConstraint_sense == '>='
+    expression: transmission_volume_expansion >= GlobalConstraint_constant
+  GlobalConstraint_transmission_volume_expansion_limit_eq:
+    description: the total equals the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'transmission_volume_expansion_limit' AND GlobalConstraint_sense == '=='
+    expression: transmission_volume_expansion == GlobalConstraint_constant
+  GlobalConstraint_transmission_expansion_cost_limit_ub:
+    description: the total is at most the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'transmission_expansion_cost_limit' AND GlobalConstraint_sense == '<='
+    expression: transmission_expansion_cost <= GlobalConstraint_constant
+  GlobalConstraint_transmission_expansion_cost_limit_lb:
+    description: the total is at least the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'transmission_expansion_cost_limit' AND GlobalConstraint_sense == '>='
+    expression: transmission_expansion_cost >= GlobalConstraint_constant
+  GlobalConstraint_transmission_expansion_cost_limit_eq:
+    description: the total equals the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'transmission_expansion_cost_limit' AND GlobalConstraint_sense == '=='
+    expression: transmission_expansion_cost == GlobalConstraint_constant
+  GlobalConstraint_tech_capacity_expansion_limit_ub:
+    description: the total is at most the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'tech_capacity_expansion_limit' AND GlobalConstraint_sense == '<='
+    expression: tech_capacity_expansion <= GlobalConstraint_constant
+  GlobalConstraint_tech_capacity_expansion_limit_lb:
+    description: the total is at least the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'tech_capacity_expansion_limit' AND GlobalConstraint_sense == '>='
+    expression: tech_capacity_expansion >= GlobalConstraint_constant
+  GlobalConstraint_tech_capacity_expansion_limit_eq:
+    description: the total equals the constant
+    dims: [scenario, global_constraint]
+    where: GlobalConstraint_type == 'tech_capacity_expansion_limit' AND GlobalConstraint_sense == '=='
+    expression: tech_capacity_expansion == GlobalConstraint_constant
+  GlobalConstraint_flow_based_ub:
+    name: GlobalConstraint-ram
+    description: >-
+      a CNEC's flow, the zones' net positions and the corridor links' flows each
+      times its factor, is at most its remaining available margin
+    dims: [scenario, snapshot, global_constraint]
+    where: >-
+      GlobalConstraint_type == 'flow_based' AND GlobalConstraint_sense == '<='
+      AND GlobalConstraint_ram AND GlobalConstraint_counts_snapshot
+    expression: >-
+      sum(GlobalConstraint_zonal_ptdf * FlowBased_net_position, over=bus)
+      + sum(GlobalConstraint_link_ptdf * Link_p, over=link)
+      <= GlobalConstraint_ram
+  FlowBased_balance:
+    name: FlowBased-balance
+    description: the net positions of each domain's zones sum to zero
+    dims: [scenario, snapshot, flow_based_domain]
+    expression: sum(FlowBased_net_position, over=bus, by=Bus_flow_based_domain[flow_based_domain]) == 0
+  Carrier_growth_limit:
+    name: Carrier-growth_limit
+    description: >-
+      what a carrier adds in a period is at most its allowance plus a share of
+      what it added in the period before
+    dims: [carrier, period]
+    where: Carrier_max_growth
+    expression: >-
+      Carrier_additions
+      - shift(Carrier_additions, along=period, offset=1, edge=0) * Carrier_relative_growth
+      <= Carrier_max_growth
+  CVaR_excess:
+    name: CVaR-excess-{s}
+    description: a scenario's operating cost beyond the value at risk is its excess
+    dims: [scenario]
+    where: CVaR_omega
+    expression: CVaR_a - scenario_opex + CVaR_theta >= 0
+  CVaR_def:
+    name: CVaR-def
+    description: the CVaR is at least the value at risk plus the expected excess over the tail probability
+    dims: []
+    where: CVaR_omega
+    expression: CVaR_theta + 1 / (1 - CVaR_alpha) * sum(scenario_weight * CVaR_a, over=scenario) <= CVaR
+
+assumptions:
+  GlobalConstraint_tech_capacity_expansion_limit_without_scenarios:
+    holds: "GlobalConstraint_type != 'tech_capacity_expansion_limit'"
+    where: "count(scenario_weight, over=scenario) > 1"
+    description: a `tech_capacity_expansion_limit` row is not allowed with scenarios
+  GlobalConstraint_flow_based_sense_is_le:
+    holds: "GlobalConstraint_sense == '<='"
+    where: "GlobalConstraint_type == 'flow_based'"
+    description: a `flow_based` row has the sense `<=`
+
+objective:
+  sense: minimize
+  expression: total_cost

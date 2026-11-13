@@ -1,0 +1,259 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+given:
+  parameters:
+    GlobalConstraint_counts_snapshot: {dims: [scenario, snapshot, global_constraint], dtype: bool}
+    Unit_NOM_extendable: {dims: [UNIT], dtype: bool}
+    Unit_active: {dims: [snapshot, UNIT], dtype: bool}
+    Unit_operational_limit_weight: {dims: [scenario, UNIT, global_constraint]}
+    period_weight_objective: {dims: [period]}
+    period_weight_years: {dims: [period]}
+    snapshot_weightings_objective: {dims: [snapshot]}
+  variables:
+    Unit_LEVEL: {dims: [scenario, snapshot, UNIT]}
+    Unit_P: {dims: [scenario, snapshot, UNIT]}
+    Unit_marginal_cost_piecewise: {dims: [scenario, snapshot, UNIT]}
+  conditions:
+    Unit_marginal_cost_curve: {dims: [UNIT]}
+    Unit_marginal_cost_curve_bends_down: {dims: [UNIT, breakpoint]}
+
+dimensions:
+  scenario: {}
+  snapshot: {dtype: str, ordered: true}
+  UNIT: {}
+  global_constraint: {}
+  period: {dtype: int, ordered: true}
+  breakpoint: {dtype: int, ordered: true}
+
+relations:
+  snapshot_period: {key: snapshot, values: period}
+
+parameters:
+  Unit_efficiency_store:
+    description: share of the power taken from the bus that is stored
+    dims: [scenario, snapshot, UNIT]
+  Unit_efficiency_dispatch:
+    description: share of the stored energy taken out that reaches the bus
+    dims: [scenario, snapshot, UNIT]
+  Unit_retention:
+    description: share of the stored energy kept over a snapshot, from `standing_loss` and the snapshot's hours
+    dims: [scenario, snapshot, UNIT]
+  Unit_inflow:
+    description: energy flowing in per hour, such as a river into a reservoir
+    dims: [scenario, snapshot, UNIT]
+  Unit_spill_cost:
+    description: cost of one unit of inflow spilled
+    dims: [scenario, snapshot, UNIT]
+  Unit_marginal_cost_storage:
+    description: cost of one unit of energy stored over one hour
+    dims: [scenario, snapshot, UNIT]
+  Unit_LEVEL_initial:
+    description: energy stored before the first snapshot
+    dims: [scenario, UNIT]
+  Unit_LEVEL_initial_per_period:
+    description: whether each investment period starts again from the initial energy
+    dims: [scenario, UNIT]
+    dtype: bool
+  Unit_CYCLIC:
+    description: whether the horizon ends on the energy it starts with, instead of the initial one
+    dims: [scenario, UNIT]
+    dtype: bool
+  Unit_CYCLIC_per_period:
+    description: whether each investment period ends on the energy it starts with; it overrides the two other flags
+    dims: [scenario, UNIT]
+    dtype: bool
+  Unit_opens_late:
+    description: true at the first snapshot of an asset that becomes active after the first snapshot of the horizon
+    dims: [snapshot, UNIT]
+    dtype: bool
+  Unit_inactive_snapshots:
+    description: how many snapshots of the horizon the asset is not active in
+    dims: [UNIT]
+    dtype: int
+  Unit_primary_energy_weight:
+    description: >-
+      the constrained carrier attribute per unit of energy stored. No row where
+      the carrier has no weight
+    dims: [scenario, global_constraint, UNIT]
+    missing: absent
+  Unit_marginal_cost_curve_p:
+    description: >-
+      the power at each breakpoint of the piecewise `marginal_cost` curve: the
+      per-unit breakpoints times nominal capacity. No curve means no rows
+    dims: [UNIT, breakpoint]
+    missing: absent
+  Unit_marginal_cost_curve_cost:
+    description: >-
+      the running cost at each breakpoint: zero at the first, then summed over
+      the segments, each its width times the `marginal_cost` at its upper end
+    dims: [UNIT, breakpoint]
+    missing: absent
+
+variables:
+  Unit_p_store:
+    name: Unit-p_store
+    description: power taken from the bus to store
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_active
+  Unit_spill:
+    name: Unit-spill
+    description: inflow spilled; zero where there is no inflow
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_inflow > 0 AND Unit_active
+    missing: 0
+    bounds:
+      lower: 0
+      upper: Unit_inflow
+
+expressions:
+  Unit_level_carried_in:
+    description: >-
+      the energy stored at the start of a snapshot: the previous level less the
+      standing loss, the last level where the horizon or period is cyclic, the
+      initial level where it opens
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      cyclic:
+        when: >-
+          Unit_CYCLIC AND NOT Unit_CYCLIC_per_period
+          AND NOT Unit_LEVEL_initial_per_period
+          AND (position(snapshot) == 0 OR Unit_opens_late)
+        expression: >-
+          Unit_retention
+          * shift(shift(Unit_LEVEL, along=snapshot, offset=1, edge='wrap'), along=snapshot, offset=Unit_inactive_snapshots, edge='wrap')
+      opening:
+        when: >-
+          NOT Unit_CYCLIC AND NOT Unit_CYCLIC_per_period
+          AND NOT Unit_LEVEL_initial_per_period
+          AND (position(snapshot) == 0 OR Unit_opens_late)
+        expression: Unit_LEVEL_initial
+      period_cyclic:
+        when: Unit_CYCLIC_per_period
+        expression: >-
+          Unit_retention
+          * shift(Unit_LEVEL, along=snapshot, offset=1, edge='wrap', within=snapshot_period[period])
+      period_opening:
+        when: >-
+          Unit_LEVEL_initial_per_period AND NOT Unit_CYCLIC_per_period
+          AND position(snapshot, within=snapshot_period[period]) == 0
+        expression: Unit_LEVEL_initial
+    otherwise: Unit_retention * shift(Unit_LEVEL, along=snapshot, offset=1)
+  Unit_last_counted_active:
+    description: one at the last snapshot a global constraint counts while the asset is active
+    dims: [scenario, global_constraint, snapshot, UNIT]
+    cases:
+      last:
+        when: >-
+          GlobalConstraint_counts_snapshot AND Unit_active
+          AND NOT shift(GlobalConstraint_counts_snapshot AND Unit_active, along=snapshot, offset=-1)
+        expression: 1
+    otherwise: 0
+  Unit_closing_weight:
+    description: >-
+      what the closing level counts for in a global constraint: the period's
+      years at each period's end where the level restarts per period, one at
+      the last counted snapshot otherwise
+    dims: [scenario, global_constraint, snapshot, UNIT]
+    cases:
+      per_period:
+        when: Unit_LEVEL_initial_per_period AND GlobalConstraint_counts_snapshot AND position(snapshot, within=snapshot_period[period]) == -1
+        expression: at(period_weight_years, by=snapshot_period[period])
+      carried_over:
+        when: NOT Unit_LEVEL_initial_per_period
+        expression: Unit_last_counted_active
+    otherwise: 0
+  Unit_primary_energy:
+    expression: >-
+      -sum(sum((Unit_LEVEL * Unit_closing_weight) * Unit_primary_energy_weight, over=snapshot), over=UNIT)
+  Unit_operational_limit:
+    expression: >-
+      -sum(sum((Unit_LEVEL * Unit_closing_weight) * Unit_operational_limit_weight, over=snapshot), over=UNIT)
+  Unit_storage_opex:
+    expression: >-
+      sum(sum((Unit_LEVEL * Unit_marginal_cost_storage * snapshot_weightings_objective)
+      * at(period_weight_objective, by=snapshot_period[period]), over=UNIT), over=snapshot)
+      + sum(sum((Unit_spill * Unit_spill_cost * snapshot_weightings_objective)
+      * at(period_weight_objective, by=snapshot_period[period]), over=UNIT), over=snapshot)
+
+conditions:
+  Unit_marginal_cost_as_lp:
+    description: >-
+      true where every `marginal_cost` curve of the component is convex: then
+      the curves are stated as segment lines, else by incremental segments
+    condition: >-
+      count(Unit_marginal_cost_curve AND count(Unit_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=UNIT) == 0
+
+piecewise:
+  Unit_marginal_cost_lp:
+    name: Unit-marginal_cost_piecewise
+    description: the running cost is at least the `marginal_cost` curve at the power, by segment lines
+    along: breakpoint
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_marginal_cost_as_lp AND Unit_marginal_cost_curve AND Unit_active AND Unit_marginal_cost_curve_p
+    method: lp
+    links:
+      p: ["Unit_P", "Unit_marginal_cost_curve_p"]
+      cost: ["Unit_marginal_cost_piecewise", "Unit_marginal_cost_curve_cost", ">="]
+  Unit_marginal_cost_incremental:
+    name: Unit-marginal_cost_piecewise
+    description: >-
+      the running cost is at least the `marginal_cost` curve at the power, by
+      segments filled in order; no status gates it
+    along: breakpoint
+    dims: [scenario, snapshot, UNIT]
+    where: NOT Unit_marginal_cost_as_lp AND Unit_marginal_cost_curve AND Unit_active AND Unit_marginal_cost_curve_p
+    method: incremental
+    links:
+      p: ["Unit_P", "Unit_marginal_cost_curve_p"]
+      cost: ["Unit_marginal_cost_piecewise", "Unit_marginal_cost_curve_cost", ">="]
+
+constraints:
+  Unit_fix_p_store_lower:
+    name: Unit-fix-p_store-lower
+    description: a fixed asset stores no negative power
+    dims: [scenario, snapshot, UNIT]
+    where: NOT Unit_NOM_extendable AND Unit_active
+    expression: Unit_p_store >= 0
+  Unit_ext_p_store_lower:
+    name: Unit-ext-p_store-lower
+    description: an extendable asset stores no negative power
+    dims: [scenario, snapshot, UNIT]
+    where: Unit_NOM_extendable AND Unit_active
+    expression: Unit_p_store >= 0
+
+assumptions:
+  Unit_stands_in_one_run:
+    holds: >-
+      count(Unit_active AND NOT shift(Unit_active, along=snapshot, offset=1),
+      over=snapshot) <= 1
+    description: the snapshots an asset is active in are one unbroken run
+  Unit_opens_late_only_where_it_opens:
+    holds: >-
+      Unit_active AND NOT shift(Unit_active, along=snapshot, offset=1) AND
+      position(snapshot) > 0
+    where: Unit_opens_late
+    description: "`opens_late` marks only the first active snapshot after the first of the horizon"
+  Unit_opens_late_where_it_opens:
+    holds: Unit_opens_late
+    where: >-
+      Unit_active AND NOT shift(Unit_active, along=snapshot, offset=1) AND
+      position(snapshot) > 0
+    description: "`opens_late` marks every first active snapshot after the first of the horizon"
+  Unit_primary_energy_carried_over_has_unit_years:
+    holds: "period_weight_years == 1"
+    where: "Unit_primary_energy_weight AND NOT Unit_LEVEL_initial_per_period"
+    description: a `primary_energy` row counts a non-cyclic level carried over between periods only where every period weighs one year
+  Unit_operational_limit_carried_over_has_unit_years:
+    holds: "at(period_weight_years == 1, by=snapshot_period[period])"
+    where: "Unit_operational_limit_weight AND NOT Unit_LEVEL_initial_per_period AND GlobalConstraint_counts_snapshot"
+    description: an `operational_limit` row counts a non-cyclic level carried over between periods only in periods that weigh one year
+  Unit_operational_limit_carried_over_counts_from_the_opening:
+    holds: >-
+      position(snapshot) == 0 OR Unit_opens_late
+      OR shift(GlobalConstraint_counts_snapshot AND Unit_active, along=snapshot, offset=1)
+    where: >-
+      Unit_operational_limit_weight AND NOT Unit_LEVEL_initial_per_period
+      AND GlobalConstraint_counts_snapshot AND Unit_active
+    description: an `operational_limit` row counts a non-cyclic level carried over between periods only from the snapshot the level opens at

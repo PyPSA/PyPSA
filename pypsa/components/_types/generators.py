@@ -45,6 +45,16 @@ class Generators(Components):
     """
 
     _operational_variables = ["p"]
+    _formulation = (
+        "extendable",
+        "carrier_expansion",
+        "marginal_cost",
+        "dispatch",
+        "single_bus",
+        "commitment",
+        "maintenance",
+        "primary_energy",
+    )
 
     def get_bounds_pu(
         self,
