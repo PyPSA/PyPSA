@@ -2142,3 +2142,32 @@ def test_fix_optimal_capacities_stochastic():
     pd.testing.assert_series_equal(static.p_nom, static.p_nom_opt, check_names=False)
     assert not static.p_nom_extendable.any()
     assert n.objective == pytest.approx(0)
+
+
+def test_marginal_prices_exclude_scenario_probabilities():
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=10)
+    n.add("Load", "load", bus="bus", p_set=50)
+    n.set_scenarios({"low": 0.3, "high": 0.7})
+    n.optimize()
+
+    equal(n.c.buses.dynamic.marginal_price, 10)
+
+
+def test_branches_break_even_in_expectation(ac_dc_stochastic):
+    n = ac_dc_stochastic
+    n.optimize()
+
+    probabilities = n.scenario_weightings.weight
+    revenue = n.statistics.revenue(components=["Line", "Link"], round=None)
+    expected_revenue = (
+        revenue.mul(probabilities, level="scenario")
+        .groupby(level=["component", "carrier"])
+        .sum()
+    )
+    capex = n.statistics.capex(components=["Line", "Link"], round=None)
+    capex = capex.xs(n.scenarios[0], level="scenario")
+    assert expected_revenue.to_numpy() == pytest.approx(
+        capex[expected_revenue.index].to_numpy(), rel=1e-4
+    )
