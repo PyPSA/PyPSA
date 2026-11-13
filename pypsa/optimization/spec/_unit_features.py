@@ -53,7 +53,10 @@ def _maintenance_windows(
 @source("Unit_maintenance_cover")
 def _maintenance_cover(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     dim = c._unit_dim
+    columns = ["start", "covered", dim, "scenario"]
     maintainable = s[f"{c.name}_maintainable"]
+    if not maintainable.any():
+        return pd.DataFrame(columns=columns, dtype=object)
     end, _ = _maintenance_windows(s, c)
     end = end.sel({dim: maintainable[dim][maintainable.to_numpy()]})
     snapshots = s.snapshots.to_numpy()
@@ -66,9 +69,7 @@ def _maintenance_cover(s: NetworkSources, name: str, c: Components) -> pd.DataFr
         for start, stop in enumerate(by_start)
         for covered in range(start, int(stop) + 1)
     ]
-    return pd.DataFrame(
-        rows, columns=["start", "covered", dim, "scenario"], dtype=object
-    )
+    return pd.DataFrame(rows, columns=columns, dtype=object)
 
 
 @source("Unit_maintenance_start_blocked")

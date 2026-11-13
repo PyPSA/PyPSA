@@ -57,15 +57,9 @@ def _cycle_matrices(s: NetworkSources) -> dict[int, tuple[pd.DataFrame, pd.DataF
     """Each period's cycle matrix, plain and weighted, NaN off its cycles."""
     matrices = {}
     for period in s.periods:
-        pair = []
-        for weighted in (False, True):
-            C = s.n.cycle_matrix(
-                investment_period=_investment_period(s, period),
-                apply_weights=weighted,
-                cycle_basis_method=s.cycle_basis_method,
-            ).rename(columns=str)
-            pair.append(C.where(C != 0))
-        matrices[period] = tuple(pair)
+        pair = s.n._cycle_matrices(_investment_period(s, period), s.cycle_basis_method)
+        renamed = (C.rename(columns=str) for C in pair)
+        matrices[period] = tuple(C.where(C != 0) for C in renamed)
     return matrices
 
 

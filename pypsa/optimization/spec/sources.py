@@ -267,7 +267,9 @@ class NetworkSources(Mapping[str, Any]):
         """Return a `c.da` array relabelled into the spec's dims."""
         dim = c._unit_dim
         if "name" in da.dims:
-            da = da.sel(name=da.indexes["name"].isin(self.names(c)))
+            names = self.names(c)
+            if not da.indexes["name"].equals(names):
+                da = da.sel(name=da.indexes["name"].isin(names))
             labels = da.indexes["name"].to_numpy(dtype=object)
             da = da.rename(name=dim).assign_coords({dim: labels})
         if "snapshot" in da.dims:

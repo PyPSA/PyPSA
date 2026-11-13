@@ -1390,6 +1390,13 @@ class Network(
             in the network.
 
         """
+        plain, weighted = self._cycle_matrices(investment_period, cycle_basis_method)
+        return weighted if apply_weights else plain
+
+    def _cycle_matrices(
+        self, investment_period: str | int | None, cycle_basis_method: str
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Return the cycle matrix plain and weighted, from one pass over the topology."""
         self.determine_network_topology(
             investment_period=investment_period,
             skip_isolated_buses=True,
@@ -1416,7 +1423,7 @@ class Network(
             cycles.append(C)
 
         if not cycles:
-            return pd.DataFrame()
+            return pd.DataFrame(), pd.DataFrame()
 
         # Combine all cycles and fill missing values with 0
         cycles_df = pd.concat(cycles, axis=1, ignore_index=True).fillna(0)
@@ -1431,16 +1438,17 @@ class Network(
         branches.index.names = ["type", "name"]
         branches_i = branches.loc[existing_branch_components].index
 
-        if apply_weights:
-            is_ac = branches.sub_network.map(self.c.sub_networks.static.carrier) == "AC"
-            weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
-            weights = weights[cycles_df.index]
-            cycles_df = cycles_df.where(
-                cycles_df == 0, cycles_df.multiply(weights, axis=0)
-            )
+        is_ac = branches.sub_network.map(self.c.sub_networks.static.carrier) == "AC"
+        weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
+        weights = weights[cycles_df.index]
+        weighted = cycles_df.where(cycles_df == 0, cycles_df.multiply(weights, axis=0))
 
         # Reindex to include all branches (even those not in cycles)
-        return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
+        plain, weighted = (
+            df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
+            for df in (cycles_df, weighted)
+        )
+        return plain, weighted
 
     @deprecated(
         deprecated_in="1.0.0",
