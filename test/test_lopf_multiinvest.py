@@ -1522,3 +1522,98 @@ def test_storage_limit_initial_per_period_stochastic(
     ]
     result = (10 - levels.groupby(level=0).last()).sum().droplevel("name")
     equal(result[drawdown.index].to_numpy(), drawdown.to_numpy())
+
+
+STORAGE_FLAGS = {
+    "StorageUnit": {
+        "initial": "state_of_charge_initial",
+        "cyclic": "cyclic_state_of_charge",
+        "cyclic_per_period": "cyclic_state_of_charge_per_period",
+        "initial_per_period": "state_of_charge_initial_per_period",
+    },
+    "Store": {
+        "initial": "e_initial",
+        "cyclic": "e_cyclic",
+        "cyclic_per_period": "e_cyclic_per_period",
+        "initial_per_period": "e_initial_per_period",
+    },
+}
+STORAGE_MODES = ["carried", "cyclic", "cyclic_per_period", "initial_per_period"]
+STORAGE_LIMIT_CASES = [
+    *[(mode, period, False) for mode in STORAGE_MODES for period in (None, 2030, 2040)],
+    ("built_later", None, False),
+    ("built_later", 2040, False),
+    ("carried", 2040, True),
+    ("cyclic", 2040, True),
+]
+
+
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize(
+    ("kind", "attribute", "factor"),
+    [("primary_energy", "co2_emissions", 0.2), ("operational_limit", "gas", 1)],
+)
+@pytest.mark.parametrize(("mode", "period", "stochastic"), STORAGE_LIMIT_CASES)
+def test_storage_limit_counts_withdrawal(
+    component, kind, attribute, factor, mode, period, stochastic
+):
+    """
+    A binding limit equals the energy withdrawn from storage in the counted periods.
+
+    The withdrawal is taken from the dispatch, so it also holds for storage with
+    inflow and for storage that carries its level into the counted period.
+    See https://github.com/PyPSA/PyPSA/issues/2000 and
+    https://github.com/PyPSA/PyPSA/issues/2131.
+    """
+    flags = STORAGE_FLAGS[component]
+    years = 1 if mode in ("carried", "built_later") else 2
+    limit = 3
+
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [0, 1, 2]])
+    n.investment_periods = [2030, 2040]
+    n.investment_period_weightings["years"] = years
+    n.snapshot_weightings = n.snapshot_weightings * 2
+
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=4)
+    n.add("Generator", "gen", bus="bus", p_nom=10, marginal_cost=100)
+    kwargs = {"e_nom": 100} if component == "Store" else {"p_nom": 100, "max_hours": 1}
+    kwargs[flags["initial"]] = 10
+    if mode in flags:
+        kwargs[flags[mode]] = True
+    if mode == "built_later":
+        kwargs["build_year"] = 2040
+    n.add(
+        component,
+        "storage",
+        bus="bus",
+        carrier="gas",
+        marginal_cost=1,
+        inflow=2,
+        efficiency_dispatch=0.5,
+        **kwargs,
+    )
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=kind,
+        carrier_attribute=attribute,
+        sense="<=",
+        constant=limit * factor,
+        investment_period=period,
+    )
+    if stochastic:
+        n.set_scenarios({"low": 0.5, "high": 0.5})
+        n.c[component].static.loc[("high", "storage"), "inflow"] = 3
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+    dynamic = n.c[component].dynamic
+    withdrawal = dynamic.p_dispatch / 0.5 - dynamic.p_store
+    withdrawal = withdrawal.mul(n.snapshot_weightings.stores, axis=0) * years
+    if period is not None:
+        withdrawal = withdrawal.loc[[period]]
+    almost_equal(withdrawal.sum().to_numpy(), limit)
