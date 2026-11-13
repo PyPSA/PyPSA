@@ -249,3 +249,11 @@ assumptions:
     holds: "at(period_weight_years == 1, by=snapshot_period[period])"
     where: "Unit_operational_limit_weight AND NOT Unit_LEVEL_initial_per_period AND GlobalConstraint_counts_snapshot"
     description: an `operational_limit` row counts a non-cyclic level carried over between periods only in periods that weigh one year
+  Unit_operational_limit_carried_over_counts_from_the_opening:
+    holds: >-
+      position(snapshot) == 0 OR Unit_opens_late
+      OR shift(GlobalConstraint_counts_snapshot AND Unit_active, along=snapshot, offset=1)
+    where: >-
+      Unit_operational_limit_weight AND NOT Unit_LEVEL_initial_per_period
+      AND GlobalConstraint_counts_snapshot AND Unit_active
+    description: an `operational_limit` row counts a non-cyclic level carried over between periods only from the snapshot the level opens at

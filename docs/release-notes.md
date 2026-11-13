@@ -31,6 +31,7 @@ SPDX-License-Identifier: CC-BY-4.0
     - **Behavior change**: The modules `pypsa.optimization.constraints` and `pypsa.optimization.variables` and the `define_*` functions are removed.
     - **Behavior change**: A component without any active row gets no constraint, where it got a fully masked one before.
     - **Behavior change**: Unsupported input is now refused with a `ValueError` that quotes the broken assumption, where some cases raised `NotImplementedError` before. A `primary_energy` limit no longer refuses non-cyclic storage carried over periods that is not active in the limit's investment period.
+    - **Behavior change**: An `operational_limit` bound to an investment period after the first refuses non-cyclic storage whose level is carried over periods, as it would also count the drawdown of earlier periods. See [#2131](https://github.com/PyPSA/PyPSA/issues/2131).
 - Add the argument `consistency_check` to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] to skip the consistency check before building the model.
 
 ### Enhancements

@@ -1565,3 +1565,66 @@ def test_storage_limit_initial_per_period_stochastic(
     ]
     result = (10 - levels.groupby(level=0).last()).sum().droplevel("name")
     equal(result[drawdown.index].to_numpy(), drawdown.to_numpy())
+
+
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize("period", [2030, 2040, None])
+def test_operational_limit_investment_period_storage_carried_over(component, period):
+    """
+    A limit on a later period refuses a carried-over storage level.
+
+    See https://github.com/PyPSA/PyPSA/issues/2131.
+    """
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [0, 1]])
+    n.investment_periods = [2030, 2040]
+
+    n.add("Carrier", "gas")
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add("Generator", "gen", bus="bus", p_nom=2, marginal_cost=10)
+    if component == "StorageUnit":
+        n.add(
+            "StorageUnit",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            p_nom=10,
+            max_hours=1,
+            marginal_cost=1,
+            state_of_charge_initial=10,
+        )
+    else:
+        n.add(
+            "Store",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            e_nom=10,
+            e_initial=10,
+            marginal_cost=1,
+        )
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type="operational_limit",
+        carrier_attribute="gas",
+        sense="<=",
+        constant=0.5,
+        investment_period=period,
+    )
+
+    if period == 2040:
+        with pytest.raises(ValueError, match="carried_over_counts_from_the_opening"):
+            n.optimize(multi_investment_periods=True)
+        return
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+    levels = n.c[component].dynamic[
+        "state_of_charge" if component == "StorageUnit" else "e"
+    ]["storage"]
+    ends = levels.groupby(level=0).last()
+    drawdown = ends.shift(fill_value=10.0) - ends
+    almost_equal(drawdown.sum() if period is None else drawdown[period], 0.5)
