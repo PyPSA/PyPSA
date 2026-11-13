@@ -973,7 +973,8 @@ class Components(
             Single-level index of committable elements.
 
         """
-        if "committable" not in self.static:
+        # Undeclared `committable` columns are left to the consistency check
+        if "committable" not in self.defaults.index or "committable" not in self.static:
             return self.static.iloc[:0].index
 
         idx = self.static.loc[self.static["committable"]].index
