@@ -49,6 +49,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix `KeyError` in `primary_energy` global constraints with `investment_period` and per-period initial storage levels on networks without scenarios. Only the stated period's storage change is counted. (<!-- md:pr 2099 -->)
 - Fix `KeyError` in `primary_energy` and `operational_limit` global constraints with per-period initial storage levels on stochastic networks with investment periods. (<!-- md:pr 2115 -->)
 - Fix piecewise `marginal_cost` and `efficiency` curves failing with `multi_investment_periods=True`. (<!-- md:pr 2117 -->)
+- Fix `operational_limit` global constraints bound to a later investment period also counting what non-cyclic storage carried over periods drew in earlier periods. (<!-- md:pr 2132 -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] carrying storage levels to the wrong component on stochastic networks when components were added after `n.set_scenarios()`. (<!-- md:pr 2077 -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] skipping one step of `standing_loss` when carrying storage levels into the next window. (<!-- md:pr 2080 -->)
 - Fix the `"bfs-refined"` cycle basis depending on `PYTHONHASHSEED`. Start, direction and refinement order of each cycle now follow the bus order, so two runs write the same KVL constraints and LP files. The basis can differ from v1.4.0, the optimum does not. (<!-- md:pr 2023 -->)
