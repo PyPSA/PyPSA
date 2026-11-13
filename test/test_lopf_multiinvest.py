@@ -884,6 +884,67 @@ def test_storage_unit_primary_energy_and_operational_limit_constraint_with_per_p
     almost_equal(n.objective, 10 * 2 + 1 * 6)
 
 
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize(("build_year", "period"), [(2030, 2040), (2040, 2030)])
+def test_primary_energy_skips_carried_over_storage_inactive_in_period(
+    component, build_year, period
+):
+    """A primary energy row of a period the non-cyclic storage is not active in builds and counts no storage."""
+
+    def emissions(with_storage: bool) -> float:
+        n = pypsa.Network()
+        n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [1, 2]])
+        n.investment_periods = [2030, 2040]
+        n.investment_period_weightings.loc[:, :] = 2
+
+        n.add("Bus", "bus")
+        n.add("Carrier", "gas", co2_emissions=0.2)
+        n.add("Generator", "gas", bus="bus", carrier="gas", marginal_cost=2, p_nom=2)
+        n.add("Generator", "gen", bus="bus", marginal_cost=10, p_nom=2)
+        n.add("Load", "load", bus="bus", p_set=pd.Series(1, index=n.snapshots))
+        if with_storage and component == "StorageUnit":
+            n.add(
+                "StorageUnit",
+                "storage",
+                bus="bus",
+                carrier="gas",
+                marginal_cost=1,
+                p_nom=10,
+                max_hours=1,
+                state_of_charge_initial=10,
+                build_year=build_year,
+                lifetime=10,
+            )
+        elif with_storage:
+            n.add(
+                "Store",
+                "storage",
+                bus="bus",
+                carrier="gas",
+                marginal_cost=1,
+                e_nom=10,
+                e_initial=10,
+                build_year=build_year,
+                lifetime=10,
+            )
+        n.add(
+            "GlobalConstraint",
+            "co2",
+            type="primary_energy",
+            carrier_attribute="co2_emissions",
+            sense="<=",
+            constant=0.6,
+            investment_period=period,
+        )
+
+        status, _ = n.optimize(multi_investment_periods=True)
+        assert status == "ok"
+        return 0.2 * 2 * n.c.generators.dynamic.p["gas"].loc[period].sum()
+
+    almost_equal(emissions(True), 0.6)
+    almost_equal(emissions(True), emissions(False))
+
+
 def test_bug_1360_stores():
     """
     Storage state of charge should behave correctly with various snapshot configurations.
