@@ -37,6 +37,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Add a new example on [forecast errors and the value of foresight](./examples/forecast-errors.ipynb), which operates a price-taker battery against price forecasts that are reissued every day and settles the committed schedule at realised prices. (<!-- md:pr 1928 -->)
 - Added an [example notebook](./examples/data-centre-investment.ipynb) on data centre investment with a willingness to pay, modelled as an extendable generator with negative sign and quadratic marginal costs.
+- Extend the [unit commitment example](./examples/unit-commitment.ipynb) with committable demand: load shedding in blocks and flexible demand with start-up cost.
 
 ### Bug Fixes
 
