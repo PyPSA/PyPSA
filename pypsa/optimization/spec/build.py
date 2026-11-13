@@ -22,12 +22,13 @@ from linopy.variables import Variable
 
 from pypsa.optimization.common import get_bus_counts
 from pypsa.optimization.scaling import KVL, check_sub_networks, global_constraint_factor
+from pypsa.optimization.spec._cache import render
 from pypsa.optimization.spec._passive_network import (
     SecurityGroup,
     flow_based_zones,
     security_groups,
 )
-from pypsa.optimization.spec._render import Names, formulated, render
+from pypsa.optimization.spec._render import Names, formulated
 from pypsa.optimization.spec.checks import check
 from pypsa.optimization.spec.sources import NetworkSources
 
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 
     from pypsa import Network
     from pypsa.optimization.piecewise import PiecewiseOptions
+    from pypsa.optimization.spec._cache import Rendered
 
 SPEC = files("pypsa.optimization.spec")
 
@@ -52,8 +54,8 @@ def _unit_dims() -> set[str]:
 
 
 @functools.cache
-def _rendered(linearized_unit_commitment: bool) -> tuple[Spec, Names]:
-    """Return the spec and its PyPSA names, rendered once per process."""
+def _rendered(linearized_unit_commitment: bool) -> Rendered:
+    """Return the spec, its PyPSA names and the spec lowered, once per process."""
     return render(SPEC, _patch(linearized_unit_commitment))
 
 
@@ -731,7 +733,8 @@ def build_model(
     n.calculate_dependent_values()
     s = spec(linearized_unit_commitment, tuple(piecewise_options))
     sources = NetworkSources(n, s, network_index, model_index, **options)
-    m = Model.from_spec(s, sources, expressions=False, **model_kwargs)
+    lowered = s if piecewise_options else _rendered(linearized_unit_commitment)[2]
+    m = Model.from_spec(lowered, sources, expressions=False, **model_kwargs)
     mode = (options.get("transmission_losses") or {}).get("mode")
     named = spec_names(linearized_unit_commitment)
     names = {

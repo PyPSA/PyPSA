@@ -495,6 +495,13 @@ options._add_option(
     "semantics ('flat' under v1, else 'multiindex'). Applies to newly built "
     "models only.",
 )
+options._add_option(
+    "optimization.spec_cache",
+    True,
+    "If True, the optimisation spec is rendered once and kept in the user cache "
+    "folder, so later processes load it instead of rendering it. A change to the "
+    "spec, to a component's formulation or to an installed version renders anew.",
+)
 # Warnings category
 options._add_option(
     "warnings.components_store_iter",

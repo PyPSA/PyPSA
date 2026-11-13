@@ -6,6 +6,7 @@ import mathspec
 import pytest
 
 import pypsa
+from pypsa.optimization.spec import _cache
 from pypsa.optimization.spec._render import _load, _merge, formulated, renamer
 from pypsa.optimization.spec.build import SPEC
 from pypsa.optimization.spec.sources import _SOURCES, _providers, source
@@ -79,3 +80,50 @@ def test_a_source_name_takes_one_derivation(monkeypatch):
     monkeypatch.setitem(_SOURCES, "Generator_active", lambda s, name: None)
     with pytest.raises(ValueError, match="Generator_active has two derivations"):
         _providers(formulated(pypsa.Network()))
+
+
+@pytest.fixture
+def renderings(tmp_path, monkeypatch):
+    """Count the renderings into a cache folder of its own."""
+    calls = []
+    monkeypatch.setattr(_cache, "_cache_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        _cache, "_rendered", lambda root, patch: calls.append(patch) or ("spec", {}, 1)
+    )
+    return calls
+
+
+def test_a_rendered_spec_is_kept_for_the_next_process(renderings, tmp_path):
+    assert _cache.render(SPEC) == _cache.render(SPEC) == ("spec", {}, 1)
+    assert len(renderings) == 1
+    assert len(list(tmp_path.iterdir())) == 1
+
+
+def test_a_spec_is_rendered_anew_where_the_cache_is_off(renderings, tmp_path):
+    pypsa.options.optimization.spec_cache = False
+    try:
+        _cache.render(SPEC)
+        _cache.render(SPEC)
+    finally:
+        pypsa.options.optimization.spec_cache = True
+    assert len(renderings) == 2
+    assert not list(tmp_path.iterdir())
+
+
+def test_a_kept_spec_cut_short_is_rendered_anew(renderings, tmp_path):
+    _cache.render(SPEC)
+    (kept,) = tmp_path.iterdir()
+    kept.write_bytes(kept.read_bytes()[:5])
+    assert _cache.render(SPEC) == ("spec", {}, 1)
+    assert len(renderings) == 2
+
+
+@pytest.mark.parametrize("change", ["patch", "formulation"])
+def test_what_the_rendering_reads_names_its_file(change, monkeypatch):
+    before = _cache._key(SPEC, None)
+    assert before == _cache._key(SPEC, None)
+    if change == "formulation":
+        loads = type(pypsa.Network().components["Load"])
+        monkeypatch.setattr(loads, "_formulation", ("single_bus", "dispatch"))
+    patch = SPEC / "linearized_uc" if change == "patch" else None
+    assert _cache._key(SPEC, patch) != before
