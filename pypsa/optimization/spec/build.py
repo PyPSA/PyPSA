@@ -52,6 +52,12 @@ def _unit_dims() -> set[str]:
 
 
 @functools.cache
+def _rendered(linearized_unit_commitment: bool) -> tuple[Spec, Names]:
+    """Return the spec and its PyPSA names, rendered once per process."""
+    return render(SPEC, _patch(linearized_unit_commitment))
+
+
+@functools.cache
 def spec(
     linearized_unit_commitment: bool = False,
     piecewise_options: tuple[PiecewiseOptions, ...] = (),
@@ -59,7 +65,7 @@ def spec(
     """Return the spec of `n.optimize()`, patched for linearised unit commitment and piecewise options on request."""
     import mathspec  # noqa: PLC0415
 
-    base = render(SPEC, _patch(linearized_unit_commitment))[0]
+    base = _rendered(linearized_unit_commitment)[0]
     if not piecewise_options:
         return base
     return mathspec.override(base, [_piecewise_patch(base, piecewise_options)])
@@ -143,7 +149,7 @@ def _piecewise_patch(base: Spec, options: Sequence[PiecewiseOptions]) -> dict:
 @functools.cache
 def spec_names(linearized_unit_commitment: bool = False) -> Names:
     """Return the PyPSA names the spec states, patched for linearised unit commitment on request."""
-    return render(SPEC, _patch(linearized_unit_commitment))[1]
+    return _rendered(linearized_unit_commitment)[1]
 
 
 def pypsa_name(name: str, named: dict, mode: str | None = None) -> str:
@@ -458,8 +464,6 @@ def _relabel(
 
     Entries without a single row are dropped, as PyPSA does not build them,
     and the placeholder scenario of a network without scenarios is squeezed.
-    The spec's named expressions are dropped too: they keep the spec's dims
-    and the labels before renumbering.
     """
     squeeze = not n.has_scenarios
     levels = (
@@ -518,7 +522,6 @@ def _relabel(
     m.constraints.data.update(constraints)
     m.variables._label_position_index = None
     m.constraints._label_position_index = None
-    m.expressions.data.clear()
     objective = m.objective
     expression = objective.expression
     if expression.is_sparse:
@@ -740,7 +743,9 @@ def build_model(
     n.calculate_dependent_values()
     s = spec(linearized_unit_commitment, tuple(piecewise_options))
     sources = NetworkSources(n, s, network_index, model_index, **options)
-    m = Model.from_spec(s, sources, **model_kwargs)
+    m = Model.from_spec(
+        s, sources, expressions=False, check_unread=False, **model_kwargs
+    )
     mode = (options.get("transmission_losses") or {}).get("mode")
     named = spec_names(linearized_unit_commitment)
     names = {

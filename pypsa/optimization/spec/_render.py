@@ -93,7 +93,8 @@ def _load(path: Traversable, rename: Callable[[str], str]) -> tuple[dict, Names]
     """
     import yaml  # noqa: PLC0415
 
-    data = yaml.safe_load(path.read_text())
+    loader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+    data = yaml.load(path.read_text(), Loader=loader)
     names: Names = {}
     for section in NAMED:
         entries = data.get(section, {})
