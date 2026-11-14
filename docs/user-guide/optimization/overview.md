@@ -38,3 +38,22 @@ A call to this function will formulate the optimisation problem with the [Linopy
 
     While most types of optimisation problems are dynamically formulated by [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] depending on data inputs, some features require different optimization functions to be called. For instance, to optimise dispatch in a sequential rolling horizon with myopic operational foresight,
     the function [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] can be used.
+
+!!! note "Rolling horizon with `method="restrict"`"
+
+    By default (`method="rebuild"`), the rolling horizon builds and solves a new model for every window. With `method="restrict"`, the model is built once for all snapshots and every window is cut from its matrices with linopy's `Model.restrict`, which saves the repeated model building on large networks. All variables of earlier windows are fixed at their optimized values, which carries over storage levels and the dispatch for ramp limits. Capacities of extendable components have no snapshot dimension and are re-optimized in every window, as with `method="rebuild"`, so `p_nom_opt` and the like are those of the last window. Each window is solved from scratch without a warm start, and the solution of all windows is written to the network once at the end.
+
+    ``` py
+    n.optimize.optimize_with_rolling_horizon(horizon=48, overlap=8, method="restrict")
+    ```
+
+    The method requires linopy >= 1.0.0 and solvers with linopy's direct API. Until linopy 1.0.0 is released, install linopy from its master branch. It supports problems without multi-period investment, also with scenarios, extendable components and committable components, both linearized and with integer variables. Since all unit commitment constraints look backward in time, the commitment status, start-ups and ramps of earlier windows are carried over through the fixed variables. Volume limits (`e_sum_min`, `e_sum_max`) are tracked as with `method="rebuild"`: the power of later snapshots is fixed at what later windows can at most (`e_sum_min`) or must at least (`e_sum_max`) produce, so each window gets the part of the limit that is still open. A custom constraint that couples a window to the later power of these assets is therefore folded with these values instead of raising. It raises a `NotImplementedError` for `multi_investment_periods=True`, global constraints, assets with both `e_sum_min` and `e_sum_max`, cycle limits of stores (`cycles_max`), cyclic stores or storage units, risk preferences and custom constraints that couple a window to later snapshots, and a `RuntimeError` as soon as a window is not solved to optimality.
+
+    Mixed-integer windows also accept an incumbent of a solve stopped by a limit, e.g. a time limit, with a warning, and `n.model.termination_condition` then reports the condition of the last such window. Their integer values are rounded before they are fixed for later windows, and the duals are taken from a re-solve of the window as an LP with its integer variables fixed.
+
+    `log_fn` writes the solver log of all windows to one file. `window_callback(n, w, sns, i)` is called with the linopy window `w` of the `i`-th window over snapshots `sns`, once before its solve (`w.status == "initialized"`) and once after, before its status is checked. Use it e.g. to log the status, write the window with `w.to_file()`, compute an IIS with `w.compute_infeasibilities()` or, in the call before the solve, leave rows out of this window with `w.advance(drop=...)`.
+
+    Compared to `method="rebuild"`:
+
+    - `n.objective` is the objective of the whole horizon, including the capital costs of the last window's capacities, instead of the objective of the last window.
+    - The standing loss of stores and storage units is applied to the storage level carried over into a window, as in a full-horizon optimization. `method="rebuild"` carries the level over without loss.
