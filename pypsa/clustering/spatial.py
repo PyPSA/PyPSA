@@ -84,12 +84,18 @@ DEFAULT_LINE_STRATEGIES = {
     "s_nom_max": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
     "s_nom_extendable": "any",
     "num_parallel": "sum",
+    "length": "capacity_weighted_average",
     "capital_cost": "length_capacity_weighted_average",
     "v_ang_min": "max",
     "v_ang_max": "min",
     "lifetime": "capacity_weighted_average",
     "build_year": "capacity_weighted_average",
 }
+
+
+def _length_factor(length: pd.Series, distance: pd.Series) -> pd.Series:
+    """Ratio of new to original branch length where both are known, else 1."""
+    return (distance / length).where((length > 0) & (distance > 0), 1.0)
 
 
 def normed_or_uniform(x: pd.Series) -> pd.Series:
@@ -407,6 +413,13 @@ def aggregatelines(
     dynamic : dict
         Dictionary of DataFrames of the aggregated dynamic data (if with_time is True).
 
+    Notes
+    -----
+    Before aggregation, each line is rescaled from its length to the distance
+    between the cluster centres times `line_length_factor`, which scales its
+    impedance, admittance and capital cost. A line without length takes the
+    distance between its buses. Without bus coordinates, lines are not rescaled.
+
     """
     if custom_strategies is None:
         custom_strategies = {}
@@ -417,7 +430,11 @@ def aggregatelines(
     idx = static.index[static.bus0.map(busmap) != static.bus1.map(busmap)]
     static = static.loc[idx]
 
-    orig_length = static.length
+    orig_coords = n.c.buses.static[["x", "y"]]
+    bus_distance = line_length_factor * haversine_pts(
+        orig_coords.loc[static.bus0], orig_coords.loc[static.bus1]
+    )
+    orig_length = static.length.where(static.length > 0, bus_distance)
     orig_v_nom = static.bus0.map(n.c.buses.static.v_nom).astype(float)
 
     bus_strategies = {**DEFAULT_BUS_STRATEGIES, **bus_strategies}
@@ -442,13 +459,11 @@ def aggregatelines(
     )
 
     coords = buses[["x", "y"]]
-    length = (
-        haversine_pts(coords.loc[static.bus0], coords.loc[static.bus1])
-        * line_length_factor
+    centre_distance = line_length_factor * haversine_pts(
+        coords.loc[static.bus0], coords.loc[static.bus1]
     )
-    static = static.assign(length=length)
-
-    length_factor = (static.length / orig_length).where(orig_length > 0, static.length)
+    length_factor = _length_factor(orig_length, centre_distance)
+    static = static.assign(length=orig_length * length_factor)
     v_nom = (
         pd.concat([static.bus0.map(buses.v_nom), static.bus1.map(buses.v_nom)], axis=1)
         .max(axis=1)
@@ -1053,19 +1068,14 @@ class SpatialClusteringMixin:
             .loc[lambda df: df.bus0 != df.bus1]
         )
 
-        new_links["length"] = np.where(
-            new_links.length.notnull() & (new_links.length > 0),
-            line_length_factor
-            * haversine_pts(
-                buses.loc[new_links["bus0"], ["x", "y"]],
-                buses.loc[new_links["bus1"], ["x", "y"]],
-            ),
-            0,
+        centre_distance = line_length_factor * haversine_pts(
+            buses.loc[new_links.bus0, ["x", "y"]],
+            buses.loc[new_links.bus1, ["x", "y"]],
         )
+        length_factor = _length_factor(new_links.length, centre_distance)
+        new_links["length"] *= length_factor
         if scale_link_capital_costs:
-            new_links["capital_cost"] *= (
-                new_links.length / n.c.links.static.length
-            ).fillna(1)
+            new_links["capital_cost"] *= length_factor
 
         clustered.add("Link", new_links.index, **new_links)
 

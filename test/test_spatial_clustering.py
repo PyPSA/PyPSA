@@ -15,6 +15,7 @@ from pypsa.clustering.spatial import (
     get_clustering_from_busmap,
     normed_or_uniform,
 )
+from pypsa.geo import haversine_pts
 
 pytest.importorskip("sklearn")
 
@@ -312,3 +313,98 @@ def test_890():
 
     almost_equal(n.investment_periods, nc.investment_periods)
     almost_equal(n.investment_period_weightings, nc.investment_period_weightings)
+
+
+# Cluster centre distance and distance between the original buses, in km
+CENTRE_DISTANCE = haversine_pts([[0, 0]], [[1, 0]])[0]
+BUS_DISTANCE = haversine_pts([[0, 0.1]], [[1, 0]])[0]
+
+
+@pytest.mark.parametrize(
+    ("lengths", "coords", "factors", "expected_length"),
+    [
+        pytest.param(
+            [0, 0],
+            True,
+            [CENTRE_DISTANCE / BUS_DISTANCE] * 2,
+            CENTRE_DISTANCE,
+            id="no-length",
+        ),
+        pytest.param(
+            [200, 200], True, [CENTRE_DISTANCE / 200] * 2, CENTRE_DISTANCE, id="length"
+        ),
+        pytest.param(
+            [0, 200],
+            True,
+            [CENTRE_DISTANCE / BUS_DISTANCE, CENTRE_DISTANCE / 200],
+            CENTRE_DISTANCE,
+            id="mixed",
+        ),
+        pytest.param([0, 0], False, [1, 1], 0, id="no-length-no-coords"),
+        pytest.param([100, 300], False, [1, 1], 250, id="length-no-coords"),
+    ],
+)
+def test_aggregate_lines_rescales_to_centre_distance(
+    lengths, coords, factors, expected_length
+):
+    """Parallel lines are rescaled to the distance between cluster centres.
+
+    A line without length takes the distance between its buses; without
+    coordinates, lines keep their parameters and length.
+    """
+    n = pypsa.Network()
+    xy = {"x": [0, 0, 1], "y": [0.1, -0.1, 0]} if coords else {}
+    n.add("Bus", ["a1", "a2", "b"], **xy)
+    n.add(
+        "Line",
+        ["a1b", "a2b"],
+        bus0=["a1", "a2"],
+        bus1="b",
+        x=10.0,
+        s_nom=[100, 300],
+        capital_cost=1000.0,
+        length=lengths,
+    )
+    busmap = pd.Series({"a1": "A", "a2": "A", "b": "B"})
+
+    line = n.cluster.spatial.cluster_by_busmap(busmap).c.lines.static.iloc[0]
+
+    factors = np.array(factors)
+    assert line.x == pytest.approx(1 / (1 / (10.0 * factors)).sum())
+    assert line.capital_cost == pytest.approx(1000.0 * (factors * [0.25, 0.75]).sum())
+    assert line.length == pytest.approx(expected_length)
+
+
+@pytest.mark.parametrize(
+    ("bus1", "length", "coords", "expected_length"),
+    [
+        pytest.param("b", 200, True, CENTRE_DISTANCE, id="transport"),
+        pytest.param("b", 200, False, 200, id="transport-no-coords"),
+        pytest.param("a1 H2", 0, True, 0, id="conversion"),
+    ],
+)
+def test_cluster_link_length_and_cost(bus1, length, coords, expected_length):
+    """Transport links are rescaled to the distance between cluster centres.
+
+    Conversion links without length and links without coordinates keep
+    their length and capital cost.
+    """
+    n = pypsa.Network()
+    xy = {"x": [0, 0, 1, 0], "y": [0.1, -0.1, 0, 0.1]} if coords else {}
+    n.add("Bus", ["a1", "a2", "b", "a1 H2"], **xy)
+    n.add(
+        "Link",
+        "link",
+        bus0="a1",
+        bus1=bus1,
+        p_nom=100,
+        capital_cost=1000.0,
+        length=length,
+    )
+    busmap = pd.Series({"a1": "A", "a2": "A", "b": "B", "a1 H2": "A H2"})
+
+    link = n.cluster.spatial.cluster_by_busmap(busmap).c.links.static.iloc[0]
+
+    assert link.length == pytest.approx(expected_length)
+    factor = expected_length / length if length else 1
+    assert link.capital_cost == pytest.approx(1000.0 * factor)
