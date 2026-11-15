@@ -318,10 +318,13 @@ expressions:
 constraints:
   Kirchhoff_Voltage_Law:
     name: Kirchhoff-Voltage-Law
-    description: the angle differences around each cycle of the period's basis sum to zero
+    scaling: cycle
+    description: >-
+      the angle differences around each cycle of the period's basis sum to zero,
+      times 1e5 as the impedance weights are tiny
     dims: [scenario, snapshot, cycle]
     where: at(Cycle_in_basis, by=snapshot_period[period])
-    expression: Cycle_angle_sum == 0
+    expression: 1e5 * Cycle_angle_sum == 0
   Bus_nodal_balance:
     name: Bus-nodal_balance
     description: what enters a bus equals what leaves it
@@ -423,6 +426,7 @@ constraints:
     expression: sum(FlowBased_net_position, over=bus, by=Bus_flow_based_domain[flow_based_domain]) == 0
   Carrier_growth_limit:
     name: Carrier-growth_limit
+    scaling: carrier
     description: >-
       what a carrier adds in a period is at most its allowance plus a share of
       what it added in the period before
@@ -434,12 +438,14 @@ constraints:
       <= Carrier_max_growth
   CVaR_excess:
     name: CVaR-excess-{s}
+    scaling: objective
     description: a scenario's operating cost beyond the value at risk is its excess
     dims: [scenario]
     where: CVaR_omega
     expression: CVaR_a - scenario_opex + CVaR_theta >= 0
   CVaR_def:
     name: CVaR-def
+    scaling: objective
     description: the CVaR is at least the value at risk plus the expected excess over the tail probability
     dims: []
     where: CVaR_omega

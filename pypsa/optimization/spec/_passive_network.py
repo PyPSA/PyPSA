@@ -87,6 +87,28 @@ def _cycle_in_basis(s: NetworkSources, name: str) -> xr.DataArray:
     return xr.DataArray(grid, coords=coords, dims=("period", "cycle"))
 
 
+def cycle_scaling(s: NetworkSources) -> xr.DataArray:
+    """Return the largest factor of the branches in each cycle of each period's basis, NaN off it.
+
+    A branch takes `Bus.scaling` of its `bus0`.
+    """
+    labels = s.coords("cycle")
+    grid = np.full((len(s.periods), len(labels)), np.nan)
+    matrices = s.memo("cycles", lambda: _cycle_matrices(s)).values()
+    for i, (plain, _) in enumerate(matrices):
+        branches = plain.index
+        factors = np.empty(len(branches))
+        for component in branches.unique(0):
+            at = branches.get_level_values(0) == component
+            names = branches[at].get_level_values(1)
+            scaling = s.n.c[component]._scaling(names)
+            factors[at] = np.broadcast_to(np.asarray(scaling), len(names))
+        weighted = plain.notna().mul(factors, axis=0).where(plain.notna())
+        grid[i] = weighted.max().reindex(labels).to_numpy(dtype=float)
+    coords = {"period": s.periods, "cycle": labels.to_numpy(dtype=object)}
+    return xr.DataArray(grid, coords=coords, dims=("period", "cycle"))
+
+
 @source("Unit_cycle_weight")
 def _cycle_weight(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return _cycles(s, True, c)

@@ -35,6 +35,10 @@ Name = str | dict[str, str]
 Names = dict[str, dict[str, Name]]
 #: The sections whose entries may carry a `name:`.
 NAMED = ("variables", "constraints", "piecewise")
+#: The rules a constraint may name in `scaling:` for the factor of its rows.
+SCALINGS = frozenset({"bus", "objective", "none", "cycle", "carrier"})
+#: The scaling rule of each entry that names one, by its key.
+Scalings = dict[str, str]
 #: A word of a name, between `_` or `-`.
 WORD = re.compile(r"[^\W_]+")
 #: The words that stand for a value of the component.
@@ -85,11 +89,17 @@ def renamer(c: Components) -> Callable[[str], str]:
     return lambda name: WORD.sub(word, name)
 
 
-def _load(path: Traversable, rename: Callable[[str], str]) -> tuple[dict, Names]:
-    """Return the spec in *path* without its `name:` fields, and those names renamed by *rename*.
+def _load(
+    path: Traversable, rename: Callable[[str], str]
+) -> tuple[dict, Names, Scalings]:
+    """Return the spec in *path* without its `name:` and `scaling:` fields, and those fields keyed by renamed key.
 
-    The closed mathspec schema refuses `name:`, and `mathspec.rename` keeps
-    the label of a piecewise link, so both are renamed here.
+    The closed mathspec schema refuses both fields, and `mathspec.rename`
+    keeps the label of a piecewise link, so all are renamed here.
+
+    Raises:
+        ValueError: A `scaling:` names no rule in `SCALINGS`.
+
     """
     import yaml  # noqa: PLC0415
 
@@ -105,10 +115,21 @@ def _load(path: Traversable, rename: Callable[[str], str]) -> tuple[dict, Names]
             else {m: rename(n) for m, n in v.items()}
             for k, v in named.items()
         }
+    scalings = {
+        rename(k): v.pop("scaling")
+        for k, v in data.get("constraints", {}).items()
+        if "scaling" in v
+    }
+    unknown = sorted(set(scalings.values()) - SCALINGS)
+    if unknown:
+        msg = (
+            f"{path} names the scaling rules {unknown}; use one of {sorted(SCALINGS)}."
+        )
+        raise ValueError(msg)
     for entry in data.get("piecewise", {}).values():
         if "links" in entry:
             entry["links"] = {rename(k): v for k, v in entry["links"].items()}
-    return data, names
+    return data, names, scalings
 
 
 def _claim(entry: dict[str, Any]) -> dict[str, Any]:
@@ -151,15 +172,19 @@ def _renamed(patch: Any, rename: Callable[[str], str]) -> Any:
     return rename(patch) if isinstance(patch, str) else patch
 
 
-def render(root: Traversable, patch: Traversable | None = None) -> tuple[Spec, Names]:
-    """Return the spec *root* states and its PyPSA names, with the patch in *patch* laid over.
+def render(
+    root: Traversable, patch: Traversable | None = None
+) -> tuple[Spec, Names, Scalings]:
+    """Return the spec *root* states, its PyPSA names and scaling rules, with the patch in *patch* laid over.
 
     It is `system.yaml`, then for each component every trait file under
     `traits/` it declares, renamed, and its own file under `components/`,
     wherever *root* has one. A file under *patch* at one of these paths is
     part of the patch. An entry of a variable, constraint or piecewise
     curve may state its PyPSA name in `name:`, one per loss mode where
-    PyPSA names it by mode; one without keeps its key as name.
+    PyPSA names it by mode; one without keeps its key as name. A
+    constraint may name the rule of its row factors in `scaling:`, one of
+    `SCALINGS`.
 
     The files are joined as a dict, not by `mathspec.merge`, which needs
     each file to load on its own: `system.yaml` and the component files
@@ -182,16 +207,20 @@ def render(root: Traversable, patch: Traversable | None = None) -> tuple[Spec, N
     spec: dict[str, Any] = {}
     patched: dict[str, Any] = {}
     names: Names = {section: {} for section in NAMED}
+    scalings: Scalings = {}
     for path, rename in paths:
         if (root / path).is_file():
-            fragment, found = _load(root / path, rename)
+            fragment, found, scaled = _load(root / path, rename)
             if path.startswith("traits/"):
                 fragment = mathspec.rename(fragment, rename).to_dict()
             _merge(spec, fragment, str(root / path))
             names = {s: names[s] | found[s] for s in NAMED}
+            scalings |= scaled
         if patch is not None and (patch / path).is_file():
-            fragment, found = _load(patch / path, rename)
+            fragment, found, scaled = _load(patch / path, rename)
             _merge(patched, _renamed(fragment, rename), str(patch / path))
             names = {s: names[s] | found[s] for s in NAMED}
+            scalings |= scaled
     rendered = mathspec.to_spec(spec)
-    return mathspec.override(rendered, [patched]) if patched else rendered, names
+    overridden = mathspec.override(rendered, [patched]) if patched else rendered
+    return overridden, names, scalings

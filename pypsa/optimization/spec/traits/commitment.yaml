@@ -414,54 +414,63 @@ constraints:
     expression: Unit_p >= 0
   Unit_status_p_fixed_upper:
     name: Unit-status-p-fixed-upper
+    scaling: none
     description: the status is at most the modules installed
     dims: [scenario, snapshot, UNIT]
     where: Unit_committed AND NOT (Unit_NOM_extendable AND Unit_NOM_mod > 0)
     expression: Unit_status <= Unit_modules_installed
   Unit_start_up_p_fixed_upper:
     name: Unit-start_up-p-fixed-upper
+    scaling: none
     description: the starts are at most the modules installed
     dims: [scenario, snapshot, UNIT]
     where: Unit_committed AND NOT (Unit_NOM_extendable AND Unit_NOM_mod > 0)
     expression: Unit_start_up <= Unit_modules_installed
   Unit_shut_down_p_fixed_upper:
     name: Unit-shut_down-p-fixed-upper
+    scaling: none
     description: the stops are at most the modules installed
     dims: [scenario, snapshot, UNIT]
     where: Unit_committed AND NOT (Unit_NOM_extendable AND Unit_NOM_mod > 0)
     expression: Unit_shut_down <= Unit_modules_installed
   Unit_status_NOM_variable_upper:
     name: Unit-status-NOM-variable-upper
+    scaling: none
     description: the status is at most the modules built
     dims: [scenario, snapshot, UNIT]
     where: Unit_committed AND Unit_NOM_extendable AND Unit_NOM_mod > 0
     expression: Unit_status <= Unit_n_mod
   Unit_start_up_NOM_variable_upper:
     name: Unit-start_up-NOM-variable-upper
+    scaling: none
     description: the starts are at most the modules built
     dims: [scenario, snapshot, UNIT]
     where: Unit_committed AND Unit_NOM_extendable AND Unit_NOM_mod > 0
     expression: Unit_start_up <= Unit_n_mod
   Unit_shut_down_NOM_variable_upper:
     name: Unit-shut_down-NOM-variable-upper
+    scaling: none
     description: the stops are at most the modules built
     dims: [scenario, snapshot, UNIT]
     where: Unit_committed AND Unit_NOM_extendable AND Unit_NOM_mod > 0
     expression: Unit_shut_down <= Unit_n_mod
   Unit_com_transition_start_up:
     name: Unit-com-transition-start-up
+    scaling: none
     description: a module that turns on starts
     dims: [scenario, snapshot, UNIT]
     where: Unit_committed
     expression: Unit_start_up >= Unit_status - Unit_previous_status
   Unit_com_transition_shut_down:
     name: Unit-com-transition-shut-down
+    scaling: none
     description: a module that turns off stops
     dims: [scenario, snapshot, UNIT]
     where: Unit_committed
     expression: Unit_shut_down >= Unit_previous_status - Unit_status
   Unit_com_up_time:
     name: Unit-com-up-time
+    scaling: none
     description: a module started within the minimum up time is still on
     dims: [scenario, snapshot, UNIT]
     where: Unit_committed AND Unit_min_up_time > 0
@@ -470,6 +479,7 @@ constraints:
       + Unit_up_time_brought_in <= Unit_status
   Unit_com_down_time:
     name: Unit-com-down-time
+    scaling: none
     description: a module stopped within the minimum down time is still off
     dims: [scenario, snapshot, UNIT]
     where: Unit_committed AND Unit_min_down_time > 0

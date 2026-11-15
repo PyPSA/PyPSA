@@ -48,6 +48,24 @@ def test_a_trait_is_a_spec_of_its_own(trait, component):
     assert c._unit_dim in spec.dimensions
 
 
+@pytest.mark.parametrize(
+    ("rule", "error"), [("none", None), ("largest", "rules \\['largest'\\]")]
+)
+def test_a_constraint_states_its_scaling_rule_apart_from_the_spec(
+    tmp_path, rule, error
+):
+    path = tmp_path / "fragment.yaml"
+    path.write_text(f"constraints:\n  Unit_x:\n    scaling: {rule}\n    dims: []\n")
+    rename = renamer(pypsa.Network().components["Generator"])
+    if error:
+        with pytest.raises(ValueError, match=error):
+            _load(path, rename)
+        return
+    data, _, scalings = _load(path, rename)
+    assert scalings == {"Generator_x": rule}
+    assert data["constraints"]["Unit_x"] == {"dims": []}
+
+
 SHARED = {"dimensions": {"bus": {"description": "nodes"}}, "parameters": {"p": {}}}
 
 

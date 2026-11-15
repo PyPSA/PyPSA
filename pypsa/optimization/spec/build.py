@@ -15,7 +15,15 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import Model
-from linopy.constants import BREAKPOINT_DIM
+from linopy.constants import (
+    BREAKPOINT_DIM,
+    PWL_ACTIVE_BOUND_SUFFIX,
+    PWL_BINARY_ORDER_SUFFIX,
+    PWL_CHORD_SUFFIX,
+    PWL_DELTA_BOUND_SUFFIX,
+    PWL_FILL_ORDER_SUFFIX,
+    PWL_OUTPUT_LINK_SUFFIX,
+)
 from linopy.constraints import Constraint
 from linopy.expressions import LinearExpression
 from linopy.variables import Variable
@@ -24,10 +32,17 @@ from pypsa.optimization.common import get_bus_counts
 from pypsa.optimization.scaling import KVL, check_sub_networks, global_constraint_factor
 from pypsa.optimization.spec._passive_network import (
     SecurityGroup,
+    cycle_scaling,
     flow_based_zones,
     security_groups,
 )
-from pypsa.optimization.spec._render import Names, formulated, render
+from pypsa.optimization.spec._render import (
+    Names,
+    Scalings,
+    formulated,
+    renamer,
+    render,
+)
 from pypsa.optimization.spec.checks import check
 from pypsa.optimization.spec.sources import NetworkSources
 
@@ -52,8 +67,8 @@ def _unit_dims() -> set[str]:
 
 
 @functools.cache
-def _rendered(linearized_unit_commitment: bool) -> tuple[Spec, Names]:
-    """Return the spec and its PyPSA names, rendered once per process."""
+def _rendered(linearized_unit_commitment: bool) -> tuple[Spec, Names, Scalings]:
+    """Return the spec, its PyPSA names and its scaling rules, rendered once per process."""
     return render(SPEC, _patch(linearized_unit_commitment))
 
 
@@ -152,6 +167,12 @@ def spec_names(linearized_unit_commitment: bool = False) -> Names:
     return _rendered(linearized_unit_commitment)[1]
 
 
+@functools.cache
+def spec_scalings(linearized_unit_commitment: bool = False) -> Scalings:
+    """Return the scaling rules the spec states, patched for linearised unit commitment on request."""
+    return _rendered(linearized_unit_commitment)[2]
+
+
 def pypsa_name(name: str, named: dict, mode: str | None = None) -> str:
     """Return the PyPSA name of a spec entry: its `name:`, or its key where it states none.
 
@@ -159,10 +180,6 @@ def pypsa_name(name: str, named: dict, mode: str | None = None) -> str:
     """
     found = named.get(name, name)
     return found if isinstance(found, str) else found.get(mode, name)
-
-
-#: PyPSA's row factor of Kirchhoff's voltage law, whose `x_pu_eff` weights are tiny.
-KVL_SCALING = 1e5
 
 
 def _renamer(s: Spec, named: Names, mode: str | None) -> Callable[[str], str]:
@@ -616,30 +633,34 @@ UNSCALED = {
     "maintenance_status",
     "phase_shift",
 }
-#: The rows that take the geometric mean of the smallest and largest factor of the assets they sum.
-GROWTH_LIMIT = "Carrier-growth_limit"
+#: linopy's rows of a piecewise curve that hold only its weights and binaries.
+WEIGHT_ROWS = {
+    suffix.removeprefix("_")
+    for suffix in (
+        PWL_ACTIVE_BOUND_SUFFIX,
+        PWL_BINARY_ORDER_SUFFIX,
+        PWL_DELTA_BOUND_SUFFIX,
+        PWL_FILL_ORDER_SUFFIX,
+    )
+}
+#: linopy's rows of a cost curve that hold the cost besides those of its `cost` link.
+COST_ROWS = {s.removeprefix("_") for s in (PWL_CHORD_SUFFIX, PWL_OUTPUT_LINK_SUFFIX)}
+#: The placeholder of a PyPSA name, which a split replaces by a label.
+PLACEHOLDER = re.compile(r"\\\{\w+\\\}")
 
 
-def _scale_columns(
-    m: Model, n: Network, objective: float
-) -> tuple[np.ndarray, np.ndarray]:
-    """Give every column PyPSA's factor; return per label its bus factor and whether it is a cost.
+def _scale_columns(m: Model, n: Network, objective: float) -> None:
+    """Give every column PyPSA's factor.
 
     A cost column takes the objective factor. A continuous column of a
     component on a bus takes `Bus.scaling` of its bus; the weights and
     binaries of a piecewise curve, and the columns in `UNSCALED`, keep `1`.
-    A column without a bus factor reads NaN.
     """
-    bus = np.full(m._xCounter, np.nan)
-    cost = np.zeros(m._xCounter, dtype=bool)
     attached = n.one_port_components | n.branch_components
     for name, var in m.variables.items():
         component, _, attr = name.partition("-")
-        labels = var.labels.values
-        live = labels != -1
         if component == "CVaR" or attr.endswith("cost_piecewise"):
             var.scaling = objective
-            cost[labels[live]] = True
         elif (
             component in attached
             and "name" in var.labels.dims
@@ -648,79 +669,123 @@ def _scale_columns(
             and not (var.attrs.get("binary") or var.attrs.get("integer"))
         ):
             var.scaling = n.c[component]._scaling(var.labels.indexes["name"])
-            factor = var.scaling.broadcast_like(var.labels)
-            bus[labels[live]] = factor.transpose(*var.labels.dims).values[live]
-    return bus, cost
 
 
-def _reduced(
-    ufunc: np.ufunc, groups: np.ndarray, values: np.ndarray, size: int
-) -> np.ndarray:
-    """Return `values` reduced by `ufunc` per group, skipping NaN; NaN for a group with none."""
-    out = np.full(size, np.nan)
-    ufunc.at(out, groups, values)
-    return out
+def _rules(
+    scalings: Scalings, rename: Callable[[str], str]
+) -> list[tuple[re.Pattern, str]]:
+    """Return the scaling rule of each entry, matched by its PyPSA name or the names it splits into."""
+    rules = []
+    for key, rule in scalings.items():
+        name = re.escape(rename(key))
+        rules.append((re.compile(PLACEHOLDER.sub(".+", name)), rule))
+    return rules
+
+
+def _rule(
+    name: str, con: Constraint, n: Network, rules: list[tuple[re.Pattern, str]]
+) -> str:
+    """Return the scaling rule of the constraint `name`: its `scaling:`, else one by its kind.
+
+    A row of a piecewise curve that holds only its weights and binaries
+    takes `none`, one of a cost curve that holds the cost `objective`. A
+    row of a GlobalConstraint label takes `global`, one over the units of
+    a component on a bus `bus`, any other `none`.
+    """
+    for pattern, rule in rules:
+        if pattern.fullmatch(name):
+            return rule
+    curve, piecewise, kind = name.rpartition("_piecewise_")
+    if piecewise and kind in WEIGHT_ROWS:
+        return "none"
+    cost = kind in COST_ROWS or kind.startswith("cost")
+    if piecewise and curve.endswith("cost") and cost:
+        return "objective"
+    component, _, rest = name.partition("-")
+    if component == "GlobalConstraint" and rest in n.c.global_constraints.names:
+        return "global"
+    attached = n.one_port_components | n.branch_components | {"Bus"}
+    return "bus" if component in attached and "name" in con.labels.dims else "none"
+
+
+def _carrier_factors(
+    n: Network, sources: NetworkSources, carriers: pd.Index
+) -> xr.DataArray:
+    """Return per carrier the geometric mean of the smallest and largest factor of its expandable assets."""
+    low = np.full(len(carriers), np.nan)
+    high = np.full(len(carriers), np.nan)
+    for c in formulated(n, "carrier_expansion"):
+        name = renamer(c)
+        built = (
+            sources[name("Unit_NOM_extendable")]
+            & sources[name("Unit_active_asset")]
+            & (sources[name("Unit_first_active")] != 0).any("period")
+        )
+        others = [d for d in built.dims if d != c._unit_dim]
+        assets = built.indexes[c._unit_dim][built.any(others).values]
+        carrier = sources[name("Unit_carrier")].set_index(c._unit_dim)["carrier"]
+        factors = np.broadcast_to(np.asarray(c._scaling(assets)), len(assets))
+        at = carriers.get_indexer(carrier.reindex(assets).to_numpy())
+        found = at != -1
+        np.fmin.at(low, at[found], factors[found])
+        np.fmax.at(high, at[found], factors[found])
+    return xr.DataArray(np.sqrt(low * high), coords={"Carrier": carriers}).fillna(1.0)
+
+
+def _cycle_factors(sources: NetworkSources, con: Constraint) -> xr.DataArray:
+    """Return per row of Kirchhoff's voltage law the largest factor of the branches in its cycle."""
+    grid = cycle_scaling(sources).reindex(cycle=con.labels.indexes["cycle"])
+    period = sources.periods.get_indexer(sources.period_of)
+    rows = xr.DataArray(grid.values[period], dims=("snapshot", "cycle"))
+    rows = rows.broadcast_like(con.labels).transpose(*con.labels.dims)
+    return con.labels.copy(data=rows.values).fillna(1.0)
 
 
 def _scale_rows(
-    m: Model, n: Network, bus: np.ndarray, cost: np.ndarray, objective: float
+    m: Model,
+    n: Network,
+    sources: NetworkSources,
+    rules: list[tuple[re.Pattern, str]],
+    objective: float,
 ) -> None:
-    """Give every constraint PyPSA's factor, read from the columns it holds.
+    """Give every constraint the factor its scaling rule takes from the network data.
 
-    A global constraint takes `GlobalConstraint.scaling`. The Kirchhoff
-    voltage law takes per row the largest factor of its branches, a growth
-    limit per carrier the geometric mean of the smallest and largest factor
-    of its assets. Otherwise a constraint holding a cost column takes the
-    objective factor, one holding a column with a bus factor the factor of
-    its own component, and every other keeps `1`. PyPSA decides per
-    constraint, so a row masked out of a constraint takes its factor too.
+    `bus` takes `Bus.scaling` of each unit's bus, `objective` the objective
+    factor, `global` `GlobalConstraint.scaling`, `cycle` per row the largest
+    factor of its cycle's branches, `carrier` per carrier the geometric mean
+    of the smallest and largest factor of its expandable assets, and
+    `none` keeps `1`.
     """
-    attached = n.one_port_components | n.branch_components | {"Bus"}
-    stated = n.c.global_constraints.names
     for name, con in m.constraints.items():
-        component, _, rest = name.partition("-")
-        if component == "GlobalConstraint" and rest in stated:
-            con.scaling = global_constraint_factor(n, rest)
-            continue
-        rows, columns, coeffs = con.lhs.to_coo()
-        live = coeffs != 0
-        rows, columns = rows[live], columns[live]
-        factors = bus[columns]
-        if name == KVL:
-            largest = _reduced(np.fmax, rows, factors, con.labels.size)
-            shaped = largest.reshape(con.labels.shape)
-            con.scaling = con.labels.copy(data=shaped).fillna(1.0)
-        elif name == GROWTH_LIMIT:
-            carriers = con.indexes["Carrier"]
-            axis = con.labels.dims.index("Carrier")
-            carrier = np.unravel_index(rows, con.labels.shape)[axis]
-            low = _reduced(np.fmin, carrier, factors, len(carriers))
-            high = _reduced(np.fmax, carrier, factors, len(carriers))
-            mean = xr.DataArray(np.sqrt(low * high), coords={"Carrier": carriers})
-            con.scaling = mean.fillna(1.0)
-        elif cost[columns].any():
-            con.scaling = objective
-        elif (
-            component in attached
-            and "name" in con.labels.dims
-            and np.isfinite(factors).any()
-        ):
-            con.scaling = n.c[component]._scaling(con.labels.indexes["name"])
+        match _rule(name, con, n, rules):
+            case "bus":
+                component = name.partition("-")[0]
+                con.scaling = n.c[component]._scaling(con.labels.indexes["name"])
+            case "objective":
+                con.scaling = objective
+            case "global":
+                con.scaling = global_constraint_factor(n, name.partition("-")[2])
+            case "cycle":
+                con.scaling = _cycle_factors(sources, con)
+            case "carrier":
+                con.scaling = _carrier_factors(
+                    n, sources, con.labels.indexes["Carrier"]
+                )
 
 
-def _scale(m: Model, n: Network, objective: float) -> None:
-    """Apply PyPSA's numerical scaling to the built model.
-
-    The Kirchhoff voltage law rows carry PyPSA's 1e5 on their coefficients,
-    so their duals keep PyPSA's units.
-    """
+def _scale(
+    m: Model,
+    n: Network,
+    sources: NetworkSources,
+    rules: list[tuple[re.Pattern, str]],
+    objective: float,
+) -> None:
+    """Apply PyPSA's numerical scaling to the built model."""
     m.objective.scaling = objective
     if KVL in m.constraints:
         check_sub_networks(n)
-        con = m.constraints[KVL]
-        con.update(lhs=con.lhs * KVL_SCALING, rhs=con.rhs * KVL_SCALING)
-    bus, cost = _scale_columns(m, n, objective)
-    _scale_rows(m, n, bus, cost, objective)
+    _scale_columns(m, n, objective)
+    _scale_rows(m, n, sources, rules, objective)
 
 
 def build_model(
@@ -761,5 +826,6 @@ def build_model(
         meshed=_meshed(n, meshed_thresholds),
     )
     m.constraints.sanitize_zeros()
-    _scale(m, n, objective_scaling)
+    rules = _rules(spec_scalings(linearized_unit_commitment), rename)
+    _scale(m, n, sources, rules, objective_scaling)
     return m

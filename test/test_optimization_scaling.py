@@ -165,6 +165,32 @@ def test_kvl_independent_of_bus_scaling():
     )
 
 
+@pytest.mark.parametrize(
+    ("name", "factor"),
+    [
+        ("Generator-com-p-upper", 1e-3),
+        ("Generator-com-transition-start-up", 1.0),
+        ("Generator-com-up-time", 1.0),
+    ],
+)
+def test_rows_take_the_factor_of_their_scaling_rule(name, factor):
+    n = pypsa.Network()
+    n.set_snapshots(range(3))
+    n.add("Bus", "bus", scaling=1e-3)
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        committable=True,
+        p_nom=100,
+        marginal_cost=10,
+        min_up_time=2,
+    )
+    n.add("Load", "demand", bus="bus", p_set=[50, 80, 60])
+    m = n.optimize.create_model()
+    assert (m.constraints[name].scaling == factor).all()
+
+
 @pytest.fixture
 def ac_dc_multi_invest(ac_dc_network):
     n = ac_dc_network
