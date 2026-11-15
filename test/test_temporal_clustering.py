@@ -307,6 +307,29 @@ class TestMultiperiod:
             n.snapshot_weightings["objective"].sum(),
         )
 
+    def test_resample_multiperiod_time_series(self):
+        """Time series are aggregated within each period, never across periods."""
+        n = pypsa.Network()
+        timesteps = pd.date_range("2030-01-01", periods=6, freq="h")
+        n.set_snapshots(pd.MultiIndex.from_product([[2030, 2040], timesteps]))
+        n.set_investment_periods([2030, 2040])
+        n.add("Bus", "bus")
+        values = [0, 1, 2, 3, 4, 5, 100, 101, 102, 103, 104, 105]
+        n.add("Load", "load", bus="bus", p_set=pd.Series(values, n.snapshots))
+        n.add("Generator", "gen", bus="bus", p_max_pu=pd.Series(values, n.snapshots))
+
+        result = resample(n, "3h", aggregation_rules={"p_max_pu": "max"})
+
+        m = result.n
+        new_snapshots = pd.MultiIndex.from_product([[2030, 2040], timesteps[::3]])
+        assert m.snapshots.equals(new_snapshots)
+        assert (m.snapshot_weightings == 3.0).all().all()
+        np.testing.assert_allclose(m.c.loads.dynamic.p_set["load"], [1, 4, 101, 104])
+        np.testing.assert_allclose(
+            m.c.generators.dynamic.p_max_pu["gen"], [2, 5, 102, 105]
+        )
+        assert result.snapshot_map[(2040, timesteps[4])] == (2040, timesteps[3])
+
 
 class TestSegment:
     def test_segment_accessor_exists(self, simple_network):
