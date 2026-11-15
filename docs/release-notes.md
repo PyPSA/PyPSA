@@ -40,7 +40,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- Spatial clustering no longer multiplies the impedance and capital cost of lines without `length` by the new line length in km, and no longer sets them, or the capital cost of links, to zero for buses without coordinates. A line without length now takes the distance between its buses.
+- Spatial clustering no longer multiplies the impedance and capital cost of lines without `length` by the new line length in km, and no longer sets them, or the capital cost of links, to zero for buses without coordinates. A line without length now takes the distance between its buses. (<!-- md:pr 2154 -->)
 - Fix compatibility with linopy 1.0, keeping linopy 0.10 supported. Both the dense and the sparse linopy backend (`model_kwargs={"sparse": True}`) are now tested. (<!-- md:pr 2129 -->)
 - [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] now applies `pypsa.options.params.optimize.model_kwargs`, like [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. (<!-- md:pr 2129 -->)
 - Setting `committable` on a component without unit commitment support, such as a StorageUnit or Store, now raises a clear error in the consistency check before the model is built, instead of failing with 'Variable StorageUnit-status already assigned'. (<!-- md:pr 2127 -->)
