@@ -19,14 +19,15 @@ By default, global constraints span across all investment periods. For models wi
 
 The primary energy constraints (`type="primary_energy"`) are used to limit byproducts of primary energy consumption of a carrier (e.g. CO~2~ emissions) in generators, storage units and stores. They depend on the generator efficiency and carrier-specific attributes (e.g. `co2_emissions`).
 
-Suppose there is a global constraint defined for CO~2~ emissions (`carrier_attribute`) with sense "<=" (`sense`) and a limit $\Gamma$ (`constant`). Emissions can come from generators whose energy carriers have CO~2~ emissions, and from stores and storage units whose storage medium releases or absorbs CO~2~ when it is converted. Only stores and storage units with non-cyclic state of charge that is different at the start ($t=-1$) and end ($t=|T|-1$) of the optimisation period contribute.
+Suppose there is a global constraint defined for CO~2~ emissions (`carrier_attribute`) with sense "<=" (`sense`) and a limit $\Gamma$ (`constant`). Emissions can come from generators whose energy carriers have CO~2~ emissions, and from stores and storage units whose storage medium releases or absorbs CO~2~ when it is converted. A store or storage unit contributes the net energy withdrawn from it (discharging minus charging): its energy level at the start ($t=-1$) minus its level at the end ($t=|T|-1$) of the counted snapshots, plus its net inflow $\textrm{inflow} - \textrm{spill}$. This follows from the sum of the [storage energy balance](storage.md) over the counted snapshots and includes standing losses. For a constraint with an `investment_period`, the start level is the level that the storage carries into that period. With investment periods, the level change and the net inflow of each period are weighted by the years of the period. The level term is zero for storage that is cyclic within the counted snapshots.
 
 If the specific emissions of carrier $s$ is $\rho_s$ (`n.carriers.co2_emissions`) and the generator with carrier $s$ at node $n$ and snapshot $t$ has efficiency $\eta_{n,s,t}$ then the CO~2~ constraint is
 
 $$\begin{gather*}\sum_{n,s,t}  w_t^g \cdot \eta_{n,s,t}^{-1} \cdot g_{n,s,t}\cdot \rho_s + \sum_{n,s}\left(e_{n,s,t=-1} - e_{n,s,t=|T|-1}\right) \cdot \rho_s\\
-+ \sum_{n,s}\left(soc_{n,s,t=-1} - soc_{n,s,t=|T|-1}\right) \cdot \rho_s \leq  \Gamma  \quad \leftrightarrow  \quad \mu\end{gather*}$$
++ \sum_{n,s}\left(soc_{n,s,t=-1} - soc_{n,s,t=|T|-1}\right) \cdot \rho_s\\
++ \sum_{n,s,t} w_t^s \left(\textrm{inflow}_{n,s,t} - \textrm{spill}_{n,s,t}\right) \cdot \rho_s \leq  \Gamma  \quad \leftrightarrow  \quad \mu\end{gather*}$$
 
-The first sum is over generators; the second sum is over stores; the third over storage units. The shadow price $\mu$ would represent the CO~2~ price in this case.
+The first sum is over generators; the second sum is over stores; the third over storage units; the fourth over stores and storage units. The shadow price $\mu$ would represent the CO~2~ price in this case.
 
 This global constraint is added in the function `define_primary_energy_limit()`.
 
@@ -37,8 +38,11 @@ This global constraint is added in the function `define_primary_energy_limit()`.
     | $g_{n,s,t}$ | `n.generators_t.p` | Decision Variable |
     | $e_{n,s,t}$ | `n.stores_t.e` | Decision Variable |
     | $soc_{n,s,t}$ | `n.storage_units_t.soc` | Decision Variable |
+    | $\textrm{spill}_{n,s,t}$ | `n.{stores,storage_units}_t.spill` | Decision Variable |
     | $\mu$ | `n.global_constraints.mu` | Dual Variable |
     | $w_t^g$ | `n.snapshot_weightings.generators` | Parameter |
+    | $w_t^s$ | `n.snapshot_weightings.stores` | Parameter |
+    | $\textrm{inflow}_{n,s,t}$ | `n.{stores,storage_units}_t.inflow` | Parameter |
     | $\eta_{n,s,t}$ | `n.generators.efficiency` | Parameter |
     | $\rho_s$ | `n.carriers.co2_emissions` | Parameter |
     | $\Gamma$ | `n.global_constraints.constant` | Parameter |
@@ -53,10 +57,11 @@ certain amount $\Gamma$ (`constant` in MWh). With sense "<=" (`sense`), the
 constraint would be given by
 
 $$\begin{gather*}\sum_{n,s,t}  w_t^g \cdot g_{n,s,t}+ \sum_{n,s}\left(e_{n,s,t=-1} - e_{n,s,t=|T|-1}\right) \\
-+ \sum_{n,s}\left(soc_{n,s,t=-1} - soc_{n,s,t=|T|-1}\right) \leq  \Gamma  \quad \leftrightarrow  \quad \mu\end{gather*}$$
++ \sum_{n,s}\left(soc_{n,s,t=-1} - soc_{n,s,t=|T|-1}\right) \\
++ \sum_{n,s,t} w_t^s \left(\textrm{inflow}_{n,s,t} - \textrm{spill}_{n,s,t}\right) \leq  \Gamma  \quad \leftrightarrow  \quad \mu\end{gather*}$$
 
 The first sum is over generators; the second sum is over stores; the third over
-storage units. Structurally, it is similar to the primary energy limit, but
+storage units; the fourth over stores and storage units. Structurally, it is similar to the primary energy limit, but
 without the consideration of specific emissions and efficiencies. The shadow
 price $\mu$ (in currency/MWh) would represent the reduction in system costs if
 the operational limit were relaxed by one unit.
@@ -70,8 +75,11 @@ This global constraint is added in the function `define_operational_limit()`.
     | $g_{n,s,t}$ | `n.generators_t.p` | Decision Variable |
     | $e_{n,s,t}$ | `n.stores_t.e` | Decision Variable |
     | $soc_{n,s,t}$ | `n.storage_units_t.soc` | Decision Variable |
+    | $\textrm{spill}_{n,s,t}$ | `n.{stores,storage_units}_t.spill` | Decision Variable |
     | $\mu$ | `n.global_constraints.mu` | Dual Variable |
     | $w_t^g$ | `n.snapshot_weightings.generators` | Parameter |
+    | $w_t^s$ | `n.snapshot_weightings.stores` | Parameter |
+    | $\textrm{inflow}_{n,s,t}$ | `n.{stores,storage_units}_t.inflow` | Parameter |
     | $\Gamma$ | `n.global_constraints.constant` | Parameter |
 
 ## Volume Limit on Transmission Expansion

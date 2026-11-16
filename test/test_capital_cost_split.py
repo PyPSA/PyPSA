@@ -80,6 +80,35 @@ class TestCostsModule:
         result = annuity(-0.05, float("inf"))
         assert result == 0.0
 
+    @pytest.mark.parametrize(
+        ("rate", "lifetime"), [(0.07, 25), (0.0, 20), (-0.02, 20), (0.5, 1)]
+    )
+    def test_annuity_repays_investment(self, rate, lifetime):
+        """Discounted annuity payments sum to the overnight investment."""
+        payments = annuity(rate, lifetime) / (1 + rate) ** np.arange(1, lifetime + 1)
+        assert payments.sum() == pytest.approx(1.0)
+
+    @pytest.mark.parametrize(
+        ("rates", "lifetimes"),
+        [
+            ([0.0, 0.07, -0.02, 0.0], [20, np.inf, np.inf, np.inf]),
+            ([0.0, 0.07, -0.02], np.inf),
+            (0.07, [20, np.inf]),
+            (-0.02, [20, np.inf]),
+            (0.0, [20, np.inf]),
+        ],
+    )
+    def test_annuity_series_matches_scalars(self, rates, lifetimes):
+        """Vectorised special cases agree with the scalar results."""
+        expected = [annuity(r, n) for r, n in np.broadcast(rates, lifetimes)]
+
+        def as_series(x):
+            return pd.Series(x) if isinstance(x, list) else x
+
+        np.testing.assert_allclose(
+            annuity(as_series(rates), as_series(lifetimes)), expected
+        )
+
     def test_annuity_non_positive_lifetime_raises(self):
         """Test that non-positive lifetime raises ValueError."""
         with pytest.raises(ValueError, match="lifetime must be positive"):

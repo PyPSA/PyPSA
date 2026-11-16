@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from numpy.testing import assert_array_almost_equal as equal
 from pypower.case30 import case30 as case
+from pypower.ext2int import ext2int
+from pypower.makeYbus import makeYbus
 from pypower.ppoption import ppoption
 from pypower.runpf import runpf
 
@@ -131,3 +133,27 @@ def test_pypower_case():
     v_ang_pypower = (results_df["bus"]["v_ang"] - pypower_slack_angle) * np.pi / 180.0
 
     equal(v_ang_pypsa, v_ang_pypower)
+
+
+def test_calculate_Y_matches_pypower() -> None:
+    """Bus admittance matrix agrees with PYPOWER's makeYbus, including taps and phase shifts."""
+    ppc = case()
+    ppc["branch"][0, 8] = 0.97  # off-nominal tap ratio
+    ppc["branch"][10, 9] = 5.0  # phase shift in degrees
+    n = pypsa.Network()
+    n.import_from_pypower_ppc(ppc)
+    n.c.transformers.static["model"] = "pi"  # PYPOWER uses the pi model
+    n.determine_network_topology()
+    sub_network = n.c.sub_networks.static.obj.iloc[0]
+
+    sub_network.calculate_Y()
+
+    ppc_int = ext2int(ppc)
+    Y_ref, _, _ = makeYbus(ppc_int["baseMVA"], ppc_int["bus"], ppc_int["branch"])
+    order = sub_network.buses_o.astype(int) - 1
+    # PyPSA per-unit values refer to 1 MVA, PYPOWER to baseMVA
+    np.testing.assert_allclose(
+        sub_network.Y.toarray() / ppc_int["baseMVA"],
+        Y_ref.toarray()[np.ix_(order, order)],
+        atol=1e-10,
+    )

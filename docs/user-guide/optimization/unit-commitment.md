@@ -12,6 +12,11 @@ well as ramping constraints. The implementation is based on Taylor (2015)[^1],
 and is supplemented with work by Hua et al. (2017)[^2] for a tightened linear
 relaxation.
 
+Unit commitment is not limited to supply. A committable generator with a high
+marginal cost models load shedding in blocks, and one with `sign=-1` models a
+demand that switches on and off. The [unit commitment example](../../examples/unit-commitment.ipynb)
+shows both.
+
 !!! note "Process formulation"
 
     Unless stated otherwise, all formulations shown for [`Link`][pypsa.components.Links] apply analogously to [`Process`][pypsa.components.Processes] by replacing $(f,\hat f,F,l)$ with $(r,\hat r,R,m)$ and `Link-*` with `Process-*` in the constraint names.
@@ -346,7 +351,7 @@ These constraints are defined in the function `define_operational_constraints_fo
 
     ---
 
-    Models generator unit commitment with start-up and shut-down costs, ramping limits, minimum part loads, up and down times using binary variables.
+    Models generator unit commitment with start-up and shut-down costs, ramping limits, minimum part loads, up and down times using binary variables. Also applies it to demand: load shedding in blocks and flexible demand with start-up cost.
 
     [:octicons-arrow-right-24: Go to example](../../examples/unit-commitment.ipynb)
 

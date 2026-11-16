@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-from linopy import merge
+from linopy import LinearExpression, merge
 from xarray import DataArray
 
 from pypsa.components.common import invariant
@@ -30,23 +30,156 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _period_last_storage_weightings(
-    snapshots: pd.Index, period_of: pd.Index, period_weighting: pd.Series
-) -> tuple[pd.Index, pd.Series]:
-    """Last snapshot of each investment period and its storage weighting.
+STORAGE_ATTRS = {
+    "StorageUnit": (
+        "state_of_charge",
+        "state_of_charge_initial",
+        "cyclic_state_of_charge",
+        "cyclic_state_of_charge_per_period",
+        "state_of_charge_initial_per_period",
+    ),
+    "Store": (
+        "e",
+        "e_initial",
+        "e_cyclic",
+        "e_cyclic_per_period",
+        "e_initial_per_period",
+    ),
+}
 
-    `period_of` gives the period of every entry in `snapshots`; take the last
-    snapshot per period and weight it by `period_weighting`.
+
+def _component_withdrawal(
+    n: Network,
+    c: Components,
+    factor: pd.Series,
+    sns: pd.Index,
+    counted: np.ndarray,
+    *,
+    scenario: Any,
+) -> tuple[list[LinearExpression], float]:
+    """Net energy withdrawn from the storages of one component.
+
+    Each storage is weighted by its `factor`. See `_storage_withdrawal`.
+
+    In each counted investment period, a storage ends at its last active level and
+    starts from the level that the energy balance hands over to the period. A start
+    position of -1 stands for the initial level.
     """
-    periods = period_of.to_numpy()
-    last = np.flatnonzero(np.append(periods[1:] != periods[:-1], True))
-    period_last_sns = pd.Index(
-        list(snapshots[last]), tupleize_cols=False, name="snapshot"
+    m = n.model
+    level_attr, initial_attr, cyclic_attr, cyclic_pp_attr, initial_pp_attr = (
+        STORAGE_ATTRS[c.name]
     )
-    storage_weightings = pd.Series(
-        period_weighting.loc[periods[last]].to_numpy(), index=period_last_sns
+    static = c.static.loc[scenario].loc[factor.index]
+    window = n.optimize._window.subset(sns)
+    n_sns = len(sns)
+
+    def select(obj: Any, names: pd.Index = factor.index) -> Any:
+        obj = obj.sel(name=names, snapshot=sns)
+        return obj.sel(scenario=scenario, drop=True) if n.has_scenarios else obj
+
+    active = select(c.da.active).transpose("snapshot", "name")
+    is_active = active.to_numpy()
+    weight = factor.to_numpy()
+
+    period_of = np.zeros(n_sns)
+    years = np.ones(n_sns)
+    cyclic = static[cyclic_attr].to_numpy(bool)
+    cyclic_pp = initial_pp = np.zeros(len(static), bool)
+    if n._multi_invest:
+        period_of = window.period_of.to_numpy()
+        years = n.investment_period_weightings.years.loc[period_of].to_numpy()
+        cyclic_pp = static[cyclic_pp_attr].to_numpy(bool)
+        initial_pp = static[initial_pp_attr].to_numpy(bool)
+
+    positions = np.flatnonzero(counted)
+    breaks = np.flatnonzero(np.diff(period_of[positions])) + 1
+    firsts = positions[np.r_[0, breaks]]
+    lasts = positions[np.r_[breaks - 1, -1]]
+
+    last_active = np.maximum.accumulate(
+        np.where(is_active, np.arange(n_sns)[:, None], -1), axis=0
     )
-    return period_last_sns, storage_weightings
+    end = last_active[lasts]
+    start = np.where(firsts[:, None] > 0, last_active[firsts - 1], -1)
+    start = np.where((start < 0) & cyclic, last_active[-1], start)
+    start = np.where(initial_pp, -1, start)
+    from_initial = start < 0
+    counts = (end >= firsts[:, None]) & ~cyclic_pp
+    carried = ~(cyclic | cyclic_pp | initial_pp)
+    if (carried & counts.any(axis=0)).any() and (years[counted] != 1).any():
+        msg = (
+            f"Found non-cyclic {c.list_name} of a limited carrier which carry their "
+            "energy level over investment periods with year weightings != 1. The "
+            "global constraint would be inconsistent. Set "
+            f"`{initial_pp_attr}` to True, use equal period weightings or "
+            "cyclic storage instead."
+        )
+        raise NotImplementedError(msg)
+
+    level_weight = np.where(counts, years[lasts, None] * weight, 0)
+
+    column = np.broadcast_to(np.arange(len(static)), end.shape)
+    coeff = np.zeros(is_active.shape)
+    np.add.at(coeff, (end, column), -level_weight)
+    np.add.at(coeff, (start, column), np.where(from_initial, 0, level_weight))
+    constant = (level_weight * from_initial * static[initial_attr].to_numpy()).sum()
+
+    lhs = []
+    rows = np.flatnonzero(coeff.any(axis=1))
+    if rows.size:
+        coeff_da = active.isel(snapshot=rows).copy(data=coeff[rows])
+        level = select(m[f"{c.name}-{level_attr}"]).isel(snapshot=rows)
+        lhs.append((level.where(coeff_da != 0) * coeff_da).sum())
+
+    hours = window.snapshot_weightings("stores").to_numpy() * years
+    flow_weight = active.copy(data=is_active * hours[:, None] * weight)
+    flow_weight = flow_weight.isel(snapshot=positions)
+    inflow = select(c.da.inflow).isel(snapshot=positions)
+    constant += (inflow * flow_weight).sum().item()
+
+    spill_name = f"{c.name}-spill"
+    if spill_name in m.variables:
+        spilling = factor.index.intersection(m[spill_name].indexes["name"])
+        spill = select(m[spill_name], spilling).isel(snapshot=positions)
+        if (spill.labels != -1).any():
+            lhs.append((spill * -flow_weight.sel(name=spilling)).sum())
+
+    return lhs, constant
+
+
+def _storage_withdrawal(
+    n: Network,
+    sns: pd.Index,
+    counted: np.ndarray,
+    carrier_factor: pd.Series,
+    *,
+    scenario: Any,
+) -> tuple[list[LinearExpression], float]:
+    """Net energy withdrawn from storage units and stores in the counted snapshots.
+
+    Summing the storage energy balance over the snapshots of an investment period
+    shows that the net energy withdrawn from a storage, including standing losses, is
+    its level before the period minus its level at the end of the period plus its
+    weighted net inflow `inflow - spill`. Each period is weighted by its years and
+    each storage by the `carrier_factor` of its carrier.
+
+    Returns the variable terms and the constant of the summed withdrawal.
+    """
+    lhs: list[LinearExpression] = []
+    constant = 0.0
+    for c in (n.c.storage_units, n.c.stores):
+        if c.active_assets.empty:
+            continue
+        carrier = c.static.loc[scenario].carrier.loc[c.active_assets]
+        factor = carrier.map(carrier_factor).dropna()
+        if factor.empty:
+            continue
+        terms, component_constant = _component_withdrawal(
+            n, c, factor, sns, counted, scenario=scenario
+        )
+        lhs += terms
+        constant += component_constant
+    return lhs, constant
 
 
 def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
@@ -372,6 +505,7 @@ def define_primary_energy_limit(
             scenarios = [slice(None)]
 
         expressions = []
+        has_variables = False
         for scenario in scenarios:
             glc = glc_group.loc[scenario]
 
@@ -388,10 +522,8 @@ def define_primary_energy_limit(
             else:
                 continue
             period_sns = sns[in_period]
-            if n._multi_invest:
-                period_last_sns, storage_weightings = _period_last_storage_weightings(
-                    period_sns, period_of[in_period], period_weighting
-                )
+            counted = np.zeros(len(sns), dtype=bool)
+            counted[in_period] = True
 
             lhs = []
             emissions = n.c.carriers.static[glc.carrier_attribute][
@@ -448,120 +580,16 @@ def define_primary_energy_limit(
                 ).sum()
                 lhs.append(expr)
 
-            # storage units
-            cond = "carrier in @emissions.index and not cyclic_state_of_charge"
-            sus = n.c.storage_units.static.query(cond)
-            sus = n.c.storage_units.filter_by_active_assets(sus, period)
-            if not sus.empty:
-                sus = sus.loc[scenario]
-                em_pu = sus.carrier.map(emissions)
-                soc = m["StorageUnit-state_of_charge"].sel(
-                    name=sus.index, snapshot=period_sns
-                )
-
-                if n._multi_invest:
-                    sus_continuous = sus.query("not state_of_charge_initial_per_period")
-                    if not sus_continuous.empty and period_weighting.ne(1).any():
-                        msg = (
-                            "Found non-cyclic storage units with associated carrier emissions "
-                            "and continuous depletion over multiple investment periods "
-                            "combined with investment period year weightings != 1. "
-                            "The primary energy constraint will be inconsistent. "
-                            "Please consider setting `state_of_charge_initial_per_period` to True, "
-                            "using equal period weightings or a cyclic storage unit instead."
-                        )
-                        raise NotImplementedError(msg)
-
-                    if not sus_continuous.empty and period_weighting.eq(1).all():
-                        soc_final = (
-                            soc.sel(name=sus_continuous.index)
-                            .ffill("snapshot")
-                            .isel(snapshot=-1)
-                        )
-                        if n.has_scenarios:
-                            soc_final = soc_final.sel(scenario=scenario, drop=True)
-                        lhs.append(
-                            (soc_final * -em_pu).sum()
-                            + em_pu @ sus_continuous.state_of_charge_initial
-                        )
-
-                    sus_per_period = sus.query("state_of_charge_initial_per_period")
-                    if not sus_per_period.empty:
-                        soc_final = soc.sel(
-                            snapshot=period_last_sns, name=sus_per_period.index
-                        )
-                        if n.has_scenarios:
-                            soc_final = soc_final.sel(scenario=scenario, drop=True)
-                        soc_delta = -soc_final + sus_per_period.state_of_charge_initial
-                        lhs.append((soc_delta * storage_weightings * em_pu).sum())
-
-                else:
-                    soc_final = soc.ffill("snapshot").isel(snapshot=-1)
-                    if n.has_scenarios:
-                        soc_final = soc_final.sel(scenario=scenario, drop=True)
-                    lhs.append(
-                        (soc_final * -em_pu).sum() + em_pu @ sus.state_of_charge_initial
-                    )
-
-            # stores
-            stores = n.c.stores.static.query(
-                "carrier in @emissions.index and not e_cyclic"
+            storage_lhs, constant = _storage_withdrawal(
+                n, sns, counted, emissions, scenario=scenario
             )
-            stores = n.c.stores.filter_by_active_assets(stores, period)
-            if not stores.empty:
-                stores = stores.loc[scenario]
-                em_pu = stores.carrier.map(emissions)
-                e = m["Store-e"].sel(name=stores.index, snapshot=period_sns)
+            lhs += storage_lhs
 
-                if n._multi_invest:
-                    stores_continuous = stores.query("not e_initial_per_period")
-                    if not stores_continuous.empty and period_weighting.ne(1).any():
-                        msg = (
-                            "Found non-cyclic stores with associated carrier emissions "
-                            "and continuous depletion over multiple investment periods "
-                            "combined with investment period year weightings != 1. "
-                            "The primary energy constraint will be inconsistent. "
-                            "Please consider setting `e_initial_per_period` to True, "
-                            "using equal period weightings or a cyclic store instead."
-                        )
-                        raise NotImplementedError(msg)
+            has_variables |= bool(lhs)
+            expression = merge(lhs) if lhs else LinearExpression(None, m)
+            expressions.append(expression + constant)
 
-                    if not stores_continuous.empty and period_weighting.eq(1).all():
-                        e_final = (
-                            e.sel(name=stores_continuous.index)
-                            .ffill("snapshot")
-                            .isel(snapshot=-1)
-                        )
-                        if n.has_scenarios:
-                            e_final = e_final.sel(scenario=scenario, drop=True)
-                        lhs.append(
-                            (e_final * -em_pu).sum()
-                            + em_pu @ stores_continuous.e_initial
-                        )
-
-                    stores_per_period = stores.query("e_initial_per_period")
-                    if not stores_per_period.empty:
-                        e_final = e.sel(
-                            snapshot=period_last_sns, name=stores_per_period.index
-                        )
-                        if n.has_scenarios:
-                            e_final = e_final.sel(scenario=scenario, drop=True)
-                        e_delta = -e_final + stores_per_period.e_initial
-                        lhs.append((e_delta * storage_weightings * em_pu).sum())
-
-                else:
-                    e_final = e.ffill("snapshot").isel(snapshot=-1)
-                    if n.has_scenarios:
-                        e_final = e_final.sel(scenario=scenario, drop=True)
-                    lhs.append((e_final * -em_pu).sum() + em_pu @ stores.e_initial)
-
-            if not lhs:
-                continue
-
-            lhs = merge(lhs)
-            expressions.append(lhs)
-
-        if not expressions:
+        if not has_variables:
             continue
 
         if n.has_scenarios:
@@ -615,11 +643,12 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             scenarios = [slice(None)]
 
         expressions = []
+        has_variables = False
         for scenario in scenarios:
             glc = glc_group.loc[scenario]
 
             if np.isnan(glc.investment_period):
-                in_period = None
+                in_period = slice(None)
             elif not n._multi_invest:
                 msg = (
                     f"GlobalConstraint '{name}' sets `investment_period`, but the "
@@ -630,19 +659,17 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 in_period = period_of == glc.investment_period
             else:
                 continue
-            period_sns = sns if in_period is None else sns[in_period]
+            period_sns = sns[in_period]
+            counted = np.zeros(len(sns), dtype=bool)
+            counted[in_period] = True
 
             # Filter weightings and calculate period-specific values
             w = weight.sel(snapshot=period_sns)
             if n._multi_invest:
-                sel_period_of = period_of if in_period is None else period_of[in_period]
                 period_weighting = n.investment_period_weightings.years[
-                    sel_period_of.unique()
+                    period_of[in_period].unique()
                 ]
                 w = apply_period_weighting(w, period_weighting)
-                period_last_sns, storage_weightings = _period_last_storage_weightings(
-                    period_sns, sel_period_of, period_weighting
-                )
 
             lhs = []
 
@@ -659,112 +686,17 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 expr = (p * w).sum()
                 lhs.append(expr)
 
-            # storage units (non-cyclic): subtract end SoC and add initial SoC as constant
-            cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge and active"
-            sus = n.c.storage_units.static.query(cond)
-
-            if not sus.empty:
-                sus = sus.loc[scenario]
-                soc = m["StorageUnit-state_of_charge"].sel(
-                    name=sus.index, snapshot=period_sns
-                )
-
-                if n._multi_invest:
-                    sus_continuous = sus.query("not state_of_charge_initial_per_period")
-                    if not sus_continuous.empty and period_weighting.ne(1).any():
-                        msg = (
-                            "Found non-cyclic storage units with "
-                            "continuous depletion over multiple investment periods "
-                            "combined with investment period year weightings != 1. "
-                            "The operational constraint will be inconsistent. "
-                            "Please consider setting `state_of_charge_initial_per_period` to True, "
-                            "using equal period weightings or a cyclic storage unit instead."
-                        )
-                        raise NotImplementedError(msg)
-
-                    if not sus_continuous.empty and period_weighting.eq(1).all():
-                        soc_final = (
-                            soc.sel(name=sus_continuous.index)
-                            .ffill("snapshot")
-                            .isel(snapshot=-1)
-                        )
-                        if n.has_scenarios:
-                            soc_final = soc_final.sel(scenario=scenario, drop=True)
-                        lhs.append(
-                            (-soc_final).sum()
-                            + sus_continuous.state_of_charge_initial.sum()
-                        )
-
-                    sus_per_period = sus.query("state_of_charge_initial_per_period")
-                    if not sus_per_period.empty:
-                        soc_final = soc.sel(
-                            snapshot=period_last_sns, name=sus_per_period.index
-                        )
-                        if n.has_scenarios:
-                            soc_final = soc_final.sel(scenario=scenario, drop=True)
-                        soc_delta = -soc_final + sus_per_period.state_of_charge_initial
-                        lhs.append((soc_delta * storage_weightings).sum())
-
-                else:
-                    soc_final = soc.ffill("snapshot").isel(snapshot=-1)
-                    if n.has_scenarios:
-                        soc_final = soc_final.sel(scenario=scenario, drop=True)
-                    lhs.append((-soc_final).sum() + sus.state_of_charge_initial.sum())
-
-            # stores (non-cyclic): subtract end e and add initial e as constant
-            stores = n.c.stores.static.query(
-                "carrier == @glc.carrier_attribute and not e_cyclic and active"
+            carrier_factor = pd.Series({glc.carrier_attribute: 1.0})
+            storage_lhs, constant = _storage_withdrawal(
+                n, sns, counted, carrier_factor, scenario=scenario
             )
-            if not stores.empty:
-                stores = stores.loc[scenario]
-                e = m["Store-e"].sel(name=stores.index, snapshot=period_sns)
+            lhs += storage_lhs
 
-                if n._multi_invest:
-                    stores_continuous = stores.query("not e_initial_per_period")
-                    if not stores_continuous.empty and period_weighting.ne(1).any():
-                        msg = (
-                            "Found non-cyclic stores with "
-                            "continuous depletion over multiple investment periods "
-                            "combined with investment period year weightings != 1. "
-                            "The primary energy constraint will be inconsistent. "
-                            "Please consider setting `e_initial_per_period` to True, "
-                            "using equal period weightings or a cyclic store instead."
-                        )
-                        raise NotImplementedError(msg)
+            has_variables |= bool(lhs)
+            expression = merge(lhs) if lhs else LinearExpression(None, m)
+            expressions.append(expression + constant)
 
-                    if not stores_continuous.empty and period_weighting.eq(1).all():
-                        e_final = (
-                            e.sel(name=stores_continuous.index)
-                            .ffill("snapshot")
-                            .isel(snapshot=-1)
-                        )
-                        if n.has_scenarios:
-                            e_final = e_final.sel(scenario=scenario, drop=True)
-                        lhs.append((-e_final).sum() + stores_continuous.e_initial.sum())
-
-                    stores_per_period = stores.query("e_initial_per_period")
-                    if not stores_per_period.empty:
-                        e_final = e.sel(
-                            snapshot=period_last_sns, name=stores_per_period.index
-                        )
-                        if n.has_scenarios:
-                            e_final = e_final.sel(scenario=scenario, drop=True)
-                        e_delta = -e_final + stores_per_period.e_initial
-                        lhs.append((e_delta * storage_weightings).sum())
-
-                else:
-                    e_final = e.ffill("snapshot").isel(snapshot=-1)
-                    if n.has_scenarios:
-                        e_final = e_final.sel(scenario=scenario, drop=True)
-                    lhs.append((-e_final).sum() + stores.e_initial.sum())
-
-            if not lhs:
-                continue
-
-            lhs = merge(lhs)
-            expressions.append(lhs)
-
-        if not expressions:
+        if not has_variables:
             continue
 
         if n.has_scenarios:
