@@ -527,6 +527,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             survive. Set by `optimize_security_constrained`.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
+            They extend and override `options.params.optimize.model_kwargs`.
 
         Returns
         -------
@@ -565,7 +566,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if meshed_thresholds is None:
                 meshed_thresholds = [meshed_threshold]
 
-        kwargs.setdefault("force_dim_names", True)
+        kwargs = {
+            "force_dim_names": True,
+            **options.params.optimize.model_kwargs,
+            **kwargs,
+        }
         window = SnapshotWindow.build(n, sns, options.optimization.model_snapshot_index)
         n._optimize_window = window
         sns = window.model_index

@@ -90,3 +90,30 @@ def test_incidence_matrix_inactive(ac_dc_subnetwork_inactive: SubNetwork) -> Non
     buses = ac_dc_subnetwork_inactive.components.buses.static
     A = ac_dc_subnetwork_inactive.incidence_matrix()
     assert A.shape == (len(buses), len(lines[lines["active"]]))
+
+
+@pytest.mark.parametrize(
+    ("controls", "slack_generator", "slack_bus", "controls_after"),
+    [
+        ({}, None, "a", {}),
+        ({"gb": "PQ", "gc": "PV"}, "gb", "b", {"gb": "Slack", "gc": "PV"}),
+        ({"gb": "PV", "gc": "Slack"}, "gc", "c", {"gb": "PV", "gc": "Slack"}),
+        ({"gb": "Slack", "gc": "Slack"}, "gb", "b", {"gb": "Slack", "gc": "PV"}),
+    ],
+)
+def test_find_slack_bus(controls, slack_generator, slack_bus, controls_after) -> None:
+    """Exactly one generator ends up as slack; the slack bus is its bus."""
+    n = pypsa.Network()
+    n.add("Bus", ["a", "b", "c"])
+    n.add("Line", ["ab", "bc"], bus0=["a", "b"], bus1=["b", "c"], x=0.1)
+    buses = {"gb": "b", "gc": "c"}
+    for name, control in controls.items():
+        n.add("Generator", name, bus=buses[name], control=control)
+    n.determine_network_topology()
+    sub_network = n.c.sub_networks.static.obj.iloc[0]
+
+    sub_network.find_slack_bus()
+
+    assert sub_network.slack_generator == slack_generator
+    assert sub_network.slack_bus == slack_bus
+    assert n.c.generators.static.control.to_dict() == controls_after

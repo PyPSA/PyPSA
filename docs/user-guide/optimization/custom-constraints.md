@@ -81,9 +81,10 @@ addition, subtraction, multiplication, division) that represent the relationship
 between variables involved in the constraint.
 
 Operands with different labels along a shared dimension (here `name`: generators
-and links) need explicit alignment. Under linopy's current default semantics a
-plain `expr1 + expr2` still works and silently combines the two label sets with
-an outer join. Under the v1 semantics the same `+` raises a `ValueError`, so the intended
+and links) need explicit alignment. Under linopy's legacy semantics, the default
+before linopy 1.0, a plain `expr1 + expr2` still works and silently combines the
+two label sets with an outer join. Under the v1 semantics, the only ones from
+linopy 1.0, the same `+` raises a `ValueError`, so the intended
 alignment is stated with the `join` argument on `.add()`/`.sub()` or
 `linopy.merge`:
 

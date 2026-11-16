@@ -434,6 +434,7 @@ def test_solved_network_multiperiod():
             columns=pd.MultiIndex.from_product(
                 [n.scenarios, ["load1"]], names=["scenario", "name"]
             ),
+            dtype=float,
         )
 
         load_high = [120, 144, 132] * len(n.investment_periods)
@@ -946,6 +947,7 @@ def n_multiperiod_stochastic(n_multiperiod):
         columns=pd.MultiIndex.from_product(
             [n.scenarios, ["load1", "load2"]], names=["scenario", "name"]
         ),
+        dtype=float,
     )
 
     # High scenario: 20% higher load
@@ -996,6 +998,7 @@ def n_multiperiod_sus_stochastic(n_multiperiod_sus):
         columns=pd.MultiIndex.from_product(
             [n.scenarios, ["load1", "load2"]], names=["scenario", "name"]
         ),
+        dtype=float,
     )
 
     # Different load patterns for scenarios
@@ -1038,6 +1041,7 @@ def test_multiperiod_stochastic_tiny_default():
             columns=pd.MultiIndex.from_product(
                 [n.scenarios, ["1"]], names=["scenario", "name"]
             ),
+            dtype=float,
         )
         n.c.loads.dynamic.p_set.loc[:, ("high", "1")] = [
             120,
@@ -1091,6 +1095,7 @@ def test_multiperiod_stochastic_tiny_build_year():
             columns=pd.MultiIndex.from_product(
                 [n.scenarios, ["1"]], names=["scenario", "name"]
             ),
+            dtype=float,
         )
         n.c.loads.dynamic.p_set.loc[:, ("scenario", "1")] = [100, 100, 100, 100]
 
@@ -1126,6 +1131,7 @@ def test_multiperiod_stochastic_tiny_infeasible():
             columns=pd.MultiIndex.from_product(
                 [n.scenarios, ["1"]], names=["scenario", "name"]
             ),
+            dtype=float,
         )
         n.c.loads.dynamic.p_set.loc[:, ("scenario", "1")] = [100, 100, 100, 100]
 
@@ -1429,12 +1435,12 @@ def test_storage_unit_energy_balance_scenario_sorting_bug():
     ]
 
     # Get RHS values for both storage units
-    zz_rhs_no_scenarios = constraint_no_scenarios.loc[
+    zz_rhs_no_scenarios = constraint_no_scenarios.rhs.loc[
         {"name": "ZZ_storage", "snapshot": n.snapshots[0]}
-    ].rhs.item()
-    aa_rhs_no_scenarios = constraint_no_scenarios.loc[
+    ].item()
+    aa_rhs_no_scenarios = constraint_no_scenarios.rhs.loc[
         {"name": "AA_storage", "snapshot": n.snapshots[0]}
-    ].rhs.item()
+    ].item()
 
     # AA_storage has inflow=50, so its RHS should be -50 (negative inflow)
     # ZZ_storage has inflow=0, so its RHS should be 0
@@ -1453,12 +1459,12 @@ def test_storage_unit_energy_balance_scenario_sorting_bug():
     constraint_scenarios = n_scenarios.model.constraints["StorageUnit-energy_balance"]
 
     # Get RHS values for both storage units with scenarios
-    zz_rhs_scenarios = constraint_scenarios.loc[
+    zz_rhs_scenarios = constraint_scenarios.rhs.loc[
         {"name": "ZZ_storage", "snapshot": n.snapshots[0]}
-    ].rhs.item()
-    aa_rhs_scenarios = constraint_scenarios.loc[
+    ].item()
+    aa_rhs_scenarios = constraint_scenarios.rhs.loc[
         {"name": "AA_storage", "snapshot": n.snapshots[0]}
-    ].rhs.item()
+    ].item()
 
     # The key test: RHS values should be the same with and without scenarios
     # This would fail before the bug fix because sorting caused value misalignment

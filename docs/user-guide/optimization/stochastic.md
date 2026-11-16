@@ -75,12 +75,13 @@ For a comprehensive treatment of two-stage stochastic programming theory and met
 
 ### Implementation
 
-Let us consider a single-node capacity expansion model in the style of [model.energy](https://model.energy). This stylized model calculates the cost of meeting an hourly electricity demand time series from a combination of wind power, solar power, battery and hydrogen storage as well as load shedding. See this [example](../../examples/capacity-expansion-planning-single-node.ipynb). We add a backup power plant as additional technology option and solve the model with given load and renewable availability profiles as a deterministic problem. Afterwards, we inspect the optimal objective value and expanded capacities.
+Let us consider a single-node capacity expansion model in the style of [model.energy](https://model.energy). This stylized model calculates the cost of meeting an hourly electricity demand time series from a combination of wind power, solar power, battery and hydrogen storage as well as load shedding. See this [example](../../examples/capacity-expansion-planning-single-node.ipynb). We give wind a small marginal cost so that the split between wind and solar curtailment is unique. We add a backup power plant as additional technology option and solve the model with given load and renewable availability profiles as a deterministic problem. Afterwards, we inspect the optimal objective value and expanded capacities.
 
 ``` py
 >>> import pypsa
 >>>
 >>> n = pypsa.examples.model_energy()
+>>> n.generators.loc["wind", "marginal_cost"] = 0.01
 >>> n.add(
 ...     "Generator",
 ...     "backup_generator",
@@ -144,11 +145,11 @@ The key change after calling `n.set_scenarios()` is that all component data is b
 >>> n.generators[["bus", "marginal_cost", "efficiency"]]  # doctest: +ELLIPSIS
                                      bus  marginal_cost  efficiency
 scenario   name
-volcano    load shedding     electricity         2000.0         1.0
-           wind              electricity            0.0         1.0
-           solar             electricity            0.0         1.0
-           backup_generator  electricity          150.0         0.5
-no_volcano load shedding     electricity         2000.0         1.0
+volcano    load shedding     electricity        2000.00         1.0
+           wind              electricity           0.01         1.0
+           solar             electricity           0.00         1.0
+           backup_generator  electricity         150.00         0.5
+no_volcano load shedding     electricity        2000.00         1.0
            wi...
 ```
 
@@ -319,8 +320,8 @@ scenario                      no_volcano  volcano
 component   carrier
 Generator   fossil backup          12.15    22.91
             load shedding           0.01     0.04
-            solar                  16.88     1.66
-            wind                   37.49    41.76
+            solar                  19.21     1.93
+            wind                   35.16    41.48
 Load        -                     -66.27   -66.27
 StorageUnit battery storage        -0.26    -0.10
 ```

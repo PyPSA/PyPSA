@@ -156,14 +156,14 @@ def test_optimize_security_constrained_multi_period_bodf(scenarios, snapshot_ind
     coeffs = {}
     for period in n.investment_periods:
         name = f"Line-fix-s-upper-security-for-Line-outage-in-sub-network-0-period-{period}"
-        con = n.model.constraints[name]
+        con = n.model.constraints[name].lhs
         if scenarios:
             con = con.sel(scenario="s1")
         position = n.snapshots.get_loc((period, 0))
         for out, aff in product(con.indexes["Line-outage"], con.indexes["name"]):
             if out == aff:
                 continue
-            lhs = con.lhs.isel(snapshot=0).sel(name=aff, **{"Line-outage": out})
+            lhs = con.isel(snapshot=0).sel(name=aff, **{"Line-outage": out})
             var = s.isel(snapshot=position).sel(name=out)
             coeff = lhs.coeffs.where(lhs.vars == var).sum()
             coeffs[period, out, aff] = round(float(coeff), 6)
