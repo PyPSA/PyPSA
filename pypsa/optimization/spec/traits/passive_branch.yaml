@@ -4,21 +4,21 @@
 
 given:
   parameters:
-    COMPONENT_NOM: {dims: [scenario, DIM]}
-    COMPONENT_NOM_extendable: {dims: [DIM], dtype: bool}
-    COMPONENT_active: {dims: [snapshot, DIM], dtype: bool}
+    COMPONENT_NOM: {dims: [scenario, UNIT]}
+    COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
+    COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
     transmission_losses: {dims: [], dtype: bool}
   variables:
-    COMPONENT_NOM_ext: {dims: [DIM]}
+    COMPONENT_NOM_ext: {dims: [UNIT]}
   expressions:
     Outage_s: {dims: [scenario, snapshot, outage]}
-    COMPONENT_NOM_rated: {dims: [scenario, DIM]}
+    COMPONENT_NOM_rated: {dims: [scenario, UNIT]}
 
 dimensions:
   scenario: {}
   snapshot: {dtype: str, ordered: true}
   bus: {}
-  DIM: {}
+  UNIT: {}
   cycle: {}
   outage: {}
   segment: {dtype: int}
@@ -27,50 +27,50 @@ dimensions:
 parameters:
   COMPONENT_s_max_pu:
     description: most flow either way, per unit of nominal apparent power
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
   COMPONENT_s_set:
     description: a given flow schedule. No value means no row
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     missing: absent
   COMPONENT_x_pu_eff:
     description: effective series reactance, per unit
-    dims: [scenario, DIM]
+    dims: [scenario, UNIT]
   COMPONENT_v_ang_max:
     description: most voltage angle difference across the branch either way, in degrees. No value means no row
-    dims: [scenario, DIM]
+    dims: [scenario, UNIT]
     missing: absent
   COMPONENT_cycle_weight:
     description: >-
       the branch's series impedance, signed by its direction in the cycle, in
       the period's cycle basis. No row for a branch in no cycle
-    dims: [period, DIM, cycle]
+    dims: [period, UNIT, cycle]
     missing: absent
   COMPONENT_BODF:
     description: >-
       the share of an outaged branch's flow the branch takes on (branch outage
       distribution factor). No row where the two are not active in the period
       or not in one sub-network
-    dims: [period, DIM, outage]
+    dims: [period, UNIT, outage]
     missing: absent
   COMPONENT_loss_max:
     description: "the loss at full rating: `r_pu_eff * (s_max_pu * s_nom_max)**2`"
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
   COMPONENT_loss_slope:
     description: the slope of each cut below the quadratic loss curve, a tangent or a secant
-    dims: [scenario, snapshot, DIM, segment]
+    dims: [scenario, snapshot, UNIT, segment]
   COMPONENT_loss_offset:
     description: where each cut meets the loss axis
-    dims: [scenario, snapshot, DIM, segment]
+    dims: [scenario, snapshot, UNIT, segment]
 
 relations:
   snapshot_period: {key: snapshot, values: period}
   COMPONENT_bus0:
     description: the bus the flow is measured at
-    key: DIM
+    key: UNIT
     values: bus
   COMPONENT_bus1:
     description: the bus at the other end
-    key: DIM
+    key: UNIT
     values: bus
 
 variables:
@@ -78,12 +78,12 @@ variables:
     name: COMPONENT-s
     description: >-
       the flow at `bus0`: positive from `bus0` to `bus1`, before losses
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_active
   COMPONENT_loss:
     name: COMPONENT-loss
     description: the power the branch dissipates. Absent, and zero in the balance, in a lossless run
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_lossy
     missing: 0
     bounds:
@@ -92,7 +92,7 @@ variables:
 expressions:
   COMPONENT_s_monitored:
     description: the flow where the branch is active, zero otherwise
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     cases:
       standing:
         when: COMPONENT_active
@@ -101,10 +101,10 @@ expressions:
   COMPONENT_injection:
     description: the flow leaves `bus0` and enters `bus1`; each end loses half the loss
     expression: >-
-      -sum(COMPONENT_s, over=DIM, by=COMPONENT_bus0[bus])
-      + sum(COMPONENT_s, over=DIM, by=COMPONENT_bus1[bus])
-      - (0.5 * sum(COMPONENT_loss, over=DIM, by=COMPONENT_bus0[bus]))
-      - (0.5 * sum(COMPONENT_loss, over=DIM, by=COMPONENT_bus1[bus]))
+      -sum(COMPONENT_s, over=UNIT, by=COMPONENT_bus0[bus])
+      + sum(COMPONENT_s, over=UNIT, by=COMPONENT_bus1[bus])
+      - (0.5 * sum(COMPONENT_loss, over=UNIT, by=COMPONENT_bus0[bus]))
+      - (0.5 * sum(COMPONENT_loss, over=UNIT, by=COMPONENT_bus1[bus]))
 
 conditions:
   COMPONENT_lossy:
@@ -115,37 +115,37 @@ constraints:
   COMPONENT_fix_s_lower:
     name: COMPONENT-fix-s-lower
     description: a fixed branch carries at least the negative of its rating, loss included
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: not COMPONENT_NOM_extendable AND COMPONENT_active AND (COMPONENT_NOM < inf OR COMPONENT_s_max_pu == 0)
     expression: COMPONENT_s - COMPONENT_loss >= -COMPONENT_s_max_pu * COMPONENT_NOM_rated
   COMPONENT_fix_s_upper:
     name: COMPONENT-fix-s-upper
     description: a fixed branch carries at most its rating, loss included
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: not COMPONENT_NOM_extendable AND COMPONENT_active AND (COMPONENT_NOM < inf OR COMPONENT_s_max_pu == 0)
     expression: COMPONENT_s + COMPONENT_loss <= COMPONENT_s_max_pu * COMPONENT_NOM_rated
   COMPONENT_ext_s_lower:
     name: COMPONENT-ext-s-lower
     description: an extendable branch carries at least the negative of its rating of the chosen build, loss included
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_NOM_extendable AND COMPONENT_active
     expression: COMPONENT_s - COMPONENT_loss >= -COMPONENT_s_max_pu * COMPONENT_NOM_ext
   COMPONENT_ext_s_upper:
     name: COMPONENT-ext-s-upper
     description: an extendable branch carries at most its rating of the chosen build, loss included
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_NOM_extendable AND COMPONENT_active
     expression: COMPONENT_s + COMPONENT_loss <= COMPONENT_s_max_pu * COMPONENT_NOM_ext
   COMPONENT_s_set:
     name: COMPONENT-s_set
     description: the flow follows the given schedule
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_s_set AND COMPONENT_active
     expression: COMPONENT_s == COMPONENT_s_set
   COMPONENT_loss_upper:
     name: COMPONENT-loss_upper
     description: the loss is at most the loss at full rating
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_lossy
     expression: COMPONENT_loss <= COMPONENT_loss_max
   COMPONENT_loss_tangents_forward:
@@ -153,7 +153,7 @@ constraints:
       tangents: COMPONENT-loss_tangents-{k}-1
       secants: COMPONENT-loss_secants-pos
     description: the loss lies above each cut of the loss curve, for positive flow
-    dims: [scenario, snapshot, DIM, segment]
+    dims: [scenario, snapshot, UNIT, segment]
     where: COMPONENT_lossy
     expression: COMPONENT_loss + COMPONENT_loss_slope * COMPONENT_s >= COMPONENT_loss_offset
   COMPONENT_loss_tangents_reverse:
@@ -161,7 +161,7 @@ constraints:
       tangents: COMPONENT-loss_tangents-{k}--1
       secants: COMPONENT-loss_secants-neg
     description: the same cuts mirrored, for negative flow
-    dims: [scenario, snapshot, DIM, segment]
+    dims: [scenario, snapshot, UNIT, segment]
     where: COMPONENT_lossy
     expression: COMPONENT_loss - COMPONENT_loss_slope * COMPONENT_s >= COMPONENT_loss_offset
   COMPONENT_fix_s_lower_security:
@@ -169,7 +169,7 @@ constraints:
     description: >-
       after any one outage, a fixed branch carries at least the negative of its
       rating; its flow includes its share of the outaged flow
-    dims: [scenario, snapshot, DIM, outage]
+    dims: [scenario, snapshot, UNIT, outage]
     where: not COMPONENT_NOM_extendable AND at(COMPONENT_BODF, by=snapshot_period[period]) AND COMPONENT_active
     expression: >-
       COMPONENT_s_monitored + at(COMPONENT_BODF, by=snapshot_period[period]) * Outage_s >=
@@ -179,7 +179,7 @@ constraints:
     description: >-
       after any one outage, a fixed branch carries at most its rating; its flow
       includes its share of the outaged flow
-    dims: [scenario, snapshot, DIM, outage]
+    dims: [scenario, snapshot, UNIT, outage]
     where: not COMPONENT_NOM_extendable AND at(COMPONENT_BODF, by=snapshot_period[period]) AND COMPONENT_active
     expression: >-
       COMPONENT_s_monitored + at(COMPONENT_BODF, by=snapshot_period[period]) * Outage_s <=
@@ -189,7 +189,7 @@ constraints:
     description: >-
       after any one outage, an extendable branch carries at least the negative
       of its rating of the chosen build
-    dims: [scenario, snapshot, DIM, outage]
+    dims: [scenario, snapshot, UNIT, outage]
     where: COMPONENT_NOM_extendable AND at(COMPONENT_BODF, by=snapshot_period[period]) AND COMPONENT_active
     expression: >-
       COMPONENT_s_monitored + at(COMPONENT_BODF, by=snapshot_period[period]) * Outage_s >=
@@ -199,7 +199,7 @@ constraints:
     description: >-
       after any one outage, an extendable branch carries at most its rating of
       the chosen build
-    dims: [scenario, snapshot, DIM, outage]
+    dims: [scenario, snapshot, UNIT, outage]
     where: COMPONENT_NOM_extendable AND at(COMPONENT_BODF, by=snapshot_period[period]) AND COMPONENT_active
     expression: >-
       COMPONENT_s_monitored + at(COMPONENT_BODF, by=snapshot_period[period]) * Outage_s <=

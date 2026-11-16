@@ -4,48 +4,48 @@
 
 given:
   parameters:
-    COMPONENT_NOM: {dims: [scenario, DIM]}
-    COMPONENT_NOM_extendable: {dims: [DIM], dtype: bool}
-    COMPONENT_active: {dims: [snapshot, DIM], dtype: bool}
+    COMPONENT_NOM: {dims: [scenario, UNIT]}
+    COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
+    COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
   variables:
-    COMPONENT_NOM_ext: {dims: [DIM]}
+    COMPONENT_NOM_ext: {dims: [UNIT]}
   expressions:
     energy_limit_weight: {dims: [snapshot]}
 
 dimensions:
   scenario: {}
   snapshot: {dtype: str, ordered: true}
-  DIM: {}
+  UNIT: {}
 
 parameters:
   COMPONENT_p_min_pu:
     description: least power, per unit of nominal power
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
   COMPONENT_p_max_pu:
     description: most power, per unit of nominal power
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
   COMPONENT_p_set:
     description: a given power schedule. No value means no row
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     missing: absent
   COMPONENT_e_sum_min:
     description: least energy over the horizon; minus infinity means no row
-    dims: [scenario, DIM]
+    dims: [scenario, UNIT]
   COMPONENT_e_sum_max:
     description: most energy over the horizon; infinity means no row
-    dims: [scenario, DIM]
+    dims: [scenario, UNIT]
 
 variables:
   COMPONENT_p:
     name: COMPONENT-p
     description: power in a snapshot; the injection states its sign at each bus
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_active
 
 expressions:
   COMPONENT_NOM_effective:
     description: the chosen build where it is extendable, the given one otherwise
-    dims: [scenario, DIM]
+    dims: [scenario, UNIT]
     cases:
       extendable:
         when: COMPONENT_NOM_extendable
@@ -56,18 +56,18 @@ constraints:
   COMPONENT_p_set:
     name: COMPONENT-p_set
     description: the power follows the given schedule
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_p_set AND COMPONENT_active
     expression: COMPONENT_p == COMPONENT_p_set
   COMPONENT_e_sum_min:
     name: COMPONENT-e_sum_min
     description: the energy over the horizon, each period weighted by its years, is at least the floor
-    dims: [scenario, DIM]
+    dims: [scenario, UNIT]
     where: COMPONENT_e_sum_min AND count(COMPONENT_active, over=snapshot) > 0
     expression: sum(COMPONENT_p * energy_limit_weight, over=snapshot) >= COMPONENT_e_sum_min
   COMPONENT_e_sum_max:
     name: COMPONENT-e_sum_max
     description: the energy over the horizon, each period weighted by its years, is at most the cap
-    dims: [scenario, DIM]
+    dims: [scenario, UNIT]
     where: COMPONENT_e_sum_max AND count(COMPONENT_active, over=snapshot) > 0
     expression: sum(COMPONENT_p * energy_limit_weight, over=snapshot) <= COMPONENT_e_sum_max

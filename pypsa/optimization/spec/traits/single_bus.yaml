@@ -4,15 +4,15 @@
 
 dimensions:
   bus: {}
-  DIM: {}
+  UNIT: {}
 
 parameters:
   COMPONENT_sign:
     description: the sign the power enters its bus's balance with
-    dims: [DIM]
+    dims: [UNIT]
 
 relations:
   COMPONENT_bus:
     description: the bus the unit connects to
-    key: DIM
+    key: UNIT
     values: bus

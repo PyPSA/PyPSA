@@ -29,7 +29,7 @@ def test_every_declared_trait_has_one_file():
     [
         ("StorageUnit", "COMPONENT_NOM_ext", "StorageUnit_p_nom_ext"),
         ("Store", "COMPONENT_LEVEL_initial", "Store_e_initial"),
-        ("Link", "COMPONENT_port_DIM", "Link_port_link"),
+        ("Link", "COMPONENT_port_UNIT", "Link_port_link"),
         ("Line", "COMPONENT-ext-NOM-lower", "Line-ext-s_nom-lower"),
         ("Store", "COMPONENT_has_unit_years", "Store_has_unit_years"),
         ("Generator", "snapshot_period", "snapshot_period"),
@@ -51,8 +51,8 @@ def test_no_placeholder_is_a_mathspec_keyword():
 def test_a_trait_description_takes_the_names_of_the_component(tmp_path):
     (tmp_path / "traits").mkdir()
     (tmp_path / "traits" / "multiport.yaml").write_text(
-        "dimensions:\n  DIM_port: {}\nparameters:\n  COMPONENT_COEF_x:\n"
-        "    dims: [DIM_port]\n    description: the `COEF` of a `DIM` port\n"
+        "dimensions:\n  UNIT_port: {}\nparameters:\n  COMPONENT_COEF_x:\n"
+        "    dims: [UNIT_port]\n    description: the `COEF` of a `UNIT` port\n"
     )
     spec = render(tmp_path)[0]
     assert spec.parameters["Link_efficiency_x"].description == (

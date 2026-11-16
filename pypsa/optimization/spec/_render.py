@@ -12,7 +12,7 @@ descriptions too. A word of a name or description, between `_` or `-`,
 is a placeholder if it is one of these:
 
 - `COMPONENT`: the component's name, as `StorageUnit`.
-- `DIM`: its unit dimension, as `storage_unit`.
+- `UNIT`: its unit dimension, as `storage_unit`.
 - `NOM`: its nominal capacity, `p_nom`, `s_nom` or `e_nom`.
 - `POWER`: its power variable, `p` or `p_dispatch`, where it has one.
 - `LEVEL`: its storage level variable, `e` or `state_of_charge`, and
@@ -48,7 +48,7 @@ Scalings = dict[str, str]
 WORD = re.compile(r"[^\W_]+")
 #: The words that stand for a value of the component.
 PLACEHOLDERS = frozenset(
-    {"COMPONENT", "DIM", "NOM", "POWER", "LEVEL", "CYCLIC", "COEF"}
+    {"COMPONENT", "UNIT", "NOM", "POWER", "LEVEL", "CYCLIC", "COEF"}
 )
 
 if TYPE_CHECKING:
@@ -71,7 +71,7 @@ def symbols(c: Components) -> dict[str, str]:
     """Return what the placeholders of a trait stand for in component *c*."""
     found = {
         "COMPONENT": c.name,
-        "DIM": c._unit_dim,
+        "UNIT": c._unit_dim,
         "NOM": c._operational_attrs["nom"],
     }
     if c._power_variable:

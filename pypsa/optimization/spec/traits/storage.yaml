@@ -5,25 +5,25 @@
 given:
   parameters:
     GlobalConstraint_counts_snapshot: {dims: [scenario, snapshot, global_constraint], dtype: bool}
-    COMPONENT_NOM_extendable: {dims: [DIM], dtype: bool}
-    COMPONENT_active: {dims: [snapshot, DIM], dtype: bool}
-    COMPONENT_operational_limit_weight: {dims: [scenario, DIM, global_constraint]}
+    COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
+    COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
+    COMPONENT_operational_limit_weight: {dims: [scenario, UNIT, global_constraint]}
     period_weight_objective: {dims: [period]}
     period_weight_years: {dims: [period]}
     snapshot_weightings_objective: {dims: [snapshot]}
     snapshot_weightings_stores: {dims: [snapshot]}
   variables:
-    COMPONENT_LEVEL: {dims: [scenario, snapshot, DIM]}
-    COMPONENT_POWER: {dims: [scenario, snapshot, DIM]}
-    COMPONENT_marginal_cost_piecewise: {dims: [scenario, snapshot, DIM]}
+    COMPONENT_LEVEL: {dims: [scenario, snapshot, UNIT]}
+    COMPONENT_POWER: {dims: [scenario, snapshot, UNIT]}
+    COMPONENT_marginal_cost_piecewise: {dims: [scenario, snapshot, UNIT]}
   conditions:
-    COMPONENT_marginal_cost_curve: {dims: [DIM]}
-    COMPONENT_marginal_cost_curve_bends_down: {dims: [DIM, breakpoint]}
+    COMPONENT_marginal_cost_curve: {dims: [UNIT]}
+    COMPONENT_marginal_cost_curve_bends_down: {dims: [UNIT, breakpoint]}
 
 dimensions:
   scenario: {}
   snapshot: {dtype: str, ordered: true}
-  DIM: {}
+  UNIT: {}
   global_constraint: {}
   period: {dtype: int, ordered: true}
   breakpoint: {dtype: int, ordered: true}
@@ -34,74 +34,74 @@ relations:
 parameters:
   COMPONENT_efficiency_store:
     description: share of the power taken from the bus that is stored
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
   COMPONENT_efficiency_dispatch:
     description: share of the stored energy taken out that reaches the bus
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
   COMPONENT_retention:
     description: share of the stored energy kept over a snapshot, from `standing_loss` and the snapshot's hours
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
   COMPONENT_inflow:
     description: energy flowing in per hour, such as a river into a reservoir
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
   COMPONENT_spill_cost:
     description: cost of one unit of inflow spilled
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
   COMPONENT_marginal_cost_storage:
     description: cost of one unit of energy stored over one hour
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
   COMPONENT_LEVEL_initial:
     description: energy stored before the first snapshot
-    dims: [scenario, DIM]
+    dims: [scenario, UNIT]
   COMPONENT_LEVEL_initial_per_period:
     description: whether each investment period starts again from the initial energy
-    dims: [scenario, DIM]
+    dims: [scenario, UNIT]
     dtype: bool
   COMPONENT_CYCLIC:
     description: whether the horizon ends on the energy it starts with, instead of the initial one
-    dims: [scenario, DIM]
+    dims: [scenario, UNIT]
     dtype: bool
   COMPONENT_CYCLIC_per_period:
     description: whether each investment period ends on the energy it starts with; it overrides the two other flags
-    dims: [scenario, DIM]
+    dims: [scenario, UNIT]
     dtype: bool
   COMPONENT_opens_late:
     description: true at the first snapshot of an asset that becomes active after the first snapshot of the horizon
-    dims: [snapshot, DIM]
+    dims: [snapshot, UNIT]
     dtype: bool
   COMPONENT_inactive_snapshots:
     description: how many snapshots of the horizon the asset is not active in
-    dims: [DIM]
+    dims: [UNIT]
     dtype: int
   COMPONENT_primary_energy_weight:
     description: >-
       the constrained carrier attribute per unit of energy stored. No row where
       the carrier has no weight
-    dims: [scenario, global_constraint, DIM]
+    dims: [scenario, global_constraint, UNIT]
     missing: absent
   COMPONENT_marginal_cost_curve_p:
     description: >-
       the power at each breakpoint of the piecewise `marginal_cost` curve: the
       per-unit breakpoints times nominal capacity. No curve means no rows
-    dims: [DIM, breakpoint]
+    dims: [UNIT, breakpoint]
     missing: absent
   COMPONENT_marginal_cost_curve_cost:
     description: >-
       the running cost at each breakpoint: zero at the first, then summed over
       the segments, each its width times the `marginal_cost` at its upper end
-    dims: [DIM, breakpoint]
+    dims: [UNIT, breakpoint]
     missing: absent
 
 variables:
   COMPONENT_p_store:
     name: COMPONENT-p_store
     description: power taken from the bus to store
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_active
   COMPONENT_spill:
     name: COMPONENT-spill
     description: inflow spilled; zero where there is no inflow
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_inflow > 0 AND COMPONENT_active
     missing: 0
     bounds:
@@ -114,7 +114,7 @@ expressions:
       the energy stored before a snapshot, ahead of its standing loss: the
       previous level, the last level where the horizon or period is cyclic,
       the initial level where it opens
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     cases:
       cyclic:
         when: >-
@@ -134,7 +134,7 @@ expressions:
     description: >-
       the energy stored at the start of a snapshot: the level before it less
       the standing loss, the initial level where it opens
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     cases:
       opening:
         when: COMPONENT_level_opens
@@ -144,7 +144,7 @@ expressions:
     description: >-
       the years a global constraint weighs a snapshot with while the asset is
       active; zero where it does not count the snapshot
-    dims: [scenario, global_constraint, snapshot, DIM]
+    dims: [scenario, global_constraint, snapshot, UNIT]
     cases:
       counted:
         when: GlobalConstraint_counts_snapshot AND COMPONENT_active
@@ -154,7 +154,7 @@ expressions:
     description: >-
       what the level before a period counts for in a global constraint: the
       period's years at its first snapshot, nothing where each period is cyclic
-    dims: [scenario, global_constraint, snapshot, DIM]
+    dims: [scenario, global_constraint, snapshot, UNIT]
     cases:
       first:
         when: NOT COMPONENT_CYCLIC_per_period AND position(snapshot, within=snapshot_period[period]) == 0
@@ -164,7 +164,7 @@ expressions:
     description: >-
       what the level at the end of a period counts for in a global constraint:
       the period's years at its last snapshot, nothing where each period is cyclic
-    dims: [scenario, global_constraint, snapshot, DIM]
+    dims: [scenario, global_constraint, snapshot, UNIT]
     cases:
       last:
         when: NOT COMPONENT_CYCLIC_per_period AND position(snapshot, within=snapshot_period[period]) == -1
@@ -175,21 +175,21 @@ expressions:
       the energy a global constraint counts as taken out of storage, standing
       losses included: per counted period the level before it less the level
       at its end, plus inflow less spill, each weighed by the period's years
-    dims: [scenario, global_constraint, DIM]
+    dims: [scenario, global_constraint, UNIT]
     expression: >-
       sum(COMPONENT_level_before * COMPONENT_opening_weight, over=snapshot)
       - sum(COMPONENT_LEVEL * COMPONENT_closing_weight, over=snapshot)
       + sum((COMPONENT_inflow - COMPONENT_spill) * snapshot_weightings_stores * COMPONENT_counted_years, over=snapshot)
   COMPONENT_primary_energy:
-    expression: sum(COMPONENT_withdrawal * COMPONENT_primary_energy_weight, over=DIM)
+    expression: sum(COMPONENT_withdrawal * COMPONENT_primary_energy_weight, over=UNIT)
   COMPONENT_operational_limit:
-    expression: sum(COMPONENT_withdrawal * COMPONENT_operational_limit_weight, over=DIM)
+    expression: sum(COMPONENT_withdrawal * COMPONENT_operational_limit_weight, over=UNIT)
   COMPONENT_storage_opex:
     expression: >-
       sum(sum((COMPONENT_LEVEL * COMPONENT_marginal_cost_storage * snapshot_weightings_objective)
-      * at(period_weight_objective, by=snapshot_period[period]), over=DIM), over=snapshot)
+      * at(period_weight_objective, by=snapshot_period[period]), over=UNIT), over=snapshot)
       + sum(sum((COMPONENT_spill * COMPONENT_spill_cost * snapshot_weightings_objective)
-      * at(period_weight_objective, by=snapshot_period[period]), over=DIM), over=snapshot)
+      * at(period_weight_objective, by=snapshot_period[period]), over=UNIT), over=snapshot)
 
 conditions:
   COMPONENT_level_opens:
@@ -206,14 +206,14 @@ conditions:
       true where every `marginal_cost` curve of the component is convex: then
       the curves are stated as segment lines, else by incremental segments
     condition: >-
-      count(COMPONENT_marginal_cost_curve AND count(COMPONENT_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=DIM) == 0
+      count(COMPONENT_marginal_cost_curve AND count(COMPONENT_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=UNIT) == 0
 
 piecewise:
   COMPONENT_marginal_cost_lp:
     name: COMPONENT-marginal_cost_piecewise
     description: the running cost is at least the `marginal_cost` curve at the power, by segment lines
     along: breakpoint
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active AND COMPONENT_marginal_cost_curve_p
     method: lp
     links:
@@ -225,7 +225,7 @@ piecewise:
       the running cost is at least the `marginal_cost` curve at the power, by
       segments filled in order; no status gates it
     along: breakpoint
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: NOT COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active AND COMPONENT_marginal_cost_curve_p
     method: incremental
     links:
@@ -236,13 +236,13 @@ constraints:
   COMPONENT_fix_p_store_lower:
     name: COMPONENT-fix-p_store-lower
     description: a fixed asset stores no negative power
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: NOT COMPONENT_NOM_extendable AND COMPONENT_active
     expression: COMPONENT_p_store >= 0
   COMPONENT_ext_p_store_lower:
     name: COMPONENT-ext-p_store-lower
     description: an extendable asset stores no negative power
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_NOM_extendable AND COMPONENT_active
     expression: COMPONENT_p_store >= 0
 

@@ -406,7 +406,7 @@ def _carriers(s: NetworkSources, name: str) -> pd.Index:
     return pd.Index(labels.unique(), dtype=object)
 
 
-@source("DIM")
+@source("UNIT")
 def _units(s: NetworkSources, name: str, c: Components) -> pd.Index:
     """Return a component's active assets, as PyPSA builds them.
 
@@ -420,7 +420,7 @@ def _units(s: NetworkSources, name: str, c: Components) -> pd.Index:
     return names[bus.isin(s.n.c.buses.names).to_numpy()]
 
 
-@source("DIM_port")
+@source("UNIT_port")
 def _ports(s: NetworkSources, name: str, c: Components) -> pd.Index:
     return pd.Index(s.ports(c)["port"], dtype=object)
 
@@ -490,7 +490,7 @@ def _relation(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     )
 
 
-@source("COMPONENT_port_bus", "COMPONENT_port_DIM")
+@source("COMPONENT_port_bus", "COMPONENT_port_UNIT")
 def _port_field(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     ports = s.ports(c)
     column = name.removeprefix(f"{c.name}_port_")

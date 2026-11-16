@@ -4,11 +4,11 @@
 
 dimensions:
   scenario: {}
-  DIM: {}
+  UNIT: {}
   global_constraint: {}
 
 parameters:
   COMPONENT_operational_limit_weight:
     description: one where the unit is in the row's set. No row outside it
-    dims: [scenario, global_constraint, DIM]
+    dims: [scenario, global_constraint, UNIT]
     missing: absent

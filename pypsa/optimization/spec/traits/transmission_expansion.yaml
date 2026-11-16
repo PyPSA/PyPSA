@@ -4,11 +4,11 @@
 
 given:
   variables:
-    COMPONENT_NOM_ext: {dims: [DIM]}
+    COMPONENT_NOM_ext: {dims: [UNIT]}
 
 dimensions:
   scenario: {}
-  DIM: {}
+  UNIT: {}
   global_constraint: {}
 
 parameters:
@@ -16,7 +16,7 @@ parameters:
     description: >-
       the branch's length where its carrier is in the row's set. No row outside
       it, or where the branch is not active in the row's period
-    dims: [scenario, global_constraint, DIM]
+    dims: [scenario, global_constraint, UNIT]
     missing: absent
   COMPONENT_expansion_cost_weight:
     description: >-
@@ -24,11 +24,11 @@ parameters:
       row's set; in a multi-period run, times the objective weights of its
       active periods where the row names no period. No row outside the set, or
       where the branch is not active in the row's period
-    dims: [scenario, global_constraint, DIM]
+    dims: [scenario, global_constraint, UNIT]
     missing: absent
 
 expressions:
   COMPONENT_transmission_volume_expansion:
-    expression: sum(COMPONENT_NOM_ext * COMPONENT_volume_weight, over=DIM)
+    expression: sum(COMPONENT_NOM_ext * COMPONENT_volume_weight, over=UNIT)
   COMPONENT_transmission_expansion_cost:
-    expression: sum(COMPONENT_NOM_ext * COMPONENT_expansion_cost_weight, over=DIM)
+    expression: sum(COMPONENT_NOM_ext * COMPONENT_expansion_cost_weight, over=UNIT)

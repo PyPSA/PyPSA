@@ -9,6 +9,6 @@ piecewise:
 
 assumptions:
   COMPONENT_COEF_curve_is_not_committable:
-    holds: "NOT at(COMPONENT_committable, by=COMPONENT_port_DIM[DIM])"
+    holds: "NOT at(COMPONENT_committable, by=COMPONENT_port_UNIT[UNIT])"
     where: "COMPONENT_COEF_curve"
     description: a unit with a curve on a port is not committable, as a status gate needs integers

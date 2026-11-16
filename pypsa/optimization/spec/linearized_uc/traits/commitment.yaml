@@ -43,7 +43,7 @@ constraints:
   COMPONENT_com_p_current:
     name: COMPONENT-com-p-current
     description: the power fits the share on, the share starting only up to its start-up ramp
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_tightened
     expression: >-
       COMPONENT_p - COMPONENT_p_max_pu * COMPONENT_NOM * COMPONENT_status + (COMPONENT_p_max_pu *
@@ -51,7 +51,7 @@ constraints:
   COMPONENT_com_p_before:
     name: COMPONENT-com-p-before
     description: the previous power fits the share still on, the share stopping only up to its shut-down ramp
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_tightened_from_previous
     expression: >-
       COMPONENT_previous_p
@@ -61,7 +61,7 @@ constraints:
   COMPONENT_com_partly_start_up:
     name: COMPONENT-com-partly-start-up
     description: the rise in power is at most the ramp of the share on plus the start-up ramp of the share starting
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_tightened_from_previous
     expression: >-
       COMPONENT_p - COMPONENT_previous_p
@@ -72,7 +72,7 @@ constraints:
   COMPONENT_com_partly_shut_down:
     name: COMPONENT-com-partly-shut-down
     description: the fall in power is bounded likewise, by the shut-down ramp
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_tightened_from_previous
     expression: >-
       COMPONENT_previous_p - COMPONENT_p

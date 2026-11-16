@@ -5,21 +5,21 @@
 given:
   parameters:
     CVaR_omega: {dims: []}
-    COMPONENT_NOM: {dims: [scenario, DIM]}
-    COMPONENT_NOM_extendable: {dims: [DIM], dtype: bool}
-    COMPONENT_active: {dims: [snapshot, DIM], dtype: bool}
-    COMPONENT_active_asset: {dims: [DIM], dtype: bool}
-    COMPONENT_marginal_cost_curve_cost: {dims: [DIM, breakpoint]}
-    COMPONENT_marginal_cost_curve_p: {dims: [DIM, breakpoint]}
+    COMPONENT_NOM: {dims: [scenario, UNIT]}
+    COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
+    COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
+    COMPONENT_active_asset: {dims: [UNIT], dtype: bool}
+    COMPONENT_marginal_cost_curve_cost: {dims: [UNIT, breakpoint]}
+    COMPONENT_marginal_cost_curve_p: {dims: [UNIT, breakpoint]}
     period_weight_objective: {dims: [period]}
     snapshot_weightings_objective: {dims: [snapshot]}
   variables:
-    COMPONENT_POWER: {dims: [scenario, snapshot, DIM]}
+    COMPONENT_POWER: {dims: [scenario, snapshot, UNIT]}
 
 dimensions:
   scenario: {}
   snapshot: {dtype: str, ordered: true}
-  DIM: {}
+  UNIT: {}
   period: {dtype: int, ordered: true}
   breakpoint: {dtype: int, ordered: true}
 
@@ -32,27 +32,27 @@ macros:
     args: [cost]
     template: >-
       sum(sum((cost * snapshot_weightings_objective) * at(period_weight_objective,
-      by=snapshot_period[period]), over=DIM), over=snapshot)
+      by=snapshot_period[period]), over=UNIT), over=snapshot)
 
 parameters:
   COMPONENT_marginal_cost:
     description: cost of one unit of energy dispatched
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
   COMPONENT_marginal_cost_quadratic:
     description: cost of the square of one unit of energy dispatched
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
 
 variables:
   COMPONENT_marginal_cost_piecewise:
     name: COMPONENT-marginal_cost_piecewise
     description: the running cost of a unit with a `marginal_cost` curve
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     where: COMPONENT_marginal_cost_curve AND COMPONENT_active
 
 expressions:
   COMPONENT_running_cost:
     description: the cost read off the `marginal_cost` curve where there is one, power times `marginal_cost` otherwise
-    dims: [scenario, snapshot, DIM]
+    dims: [scenario, snapshot, UNIT]
     cases:
       curve:
         when: COMPONENT_marginal_cost_curve

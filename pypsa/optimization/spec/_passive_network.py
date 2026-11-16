@@ -279,7 +279,7 @@ def _outage_labels(s: NetworkSources, name: str) -> pd.Index:
     return pd.Index(_outages(s).get_level_values(1), dtype=object)
 
 
-@source("Outage_DIM")
+@source("Outage_UNIT")
 def _outage_branch(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     outages = _outages(s)
     names = outages.get_level_values(1)[outages.get_level_values(0) == c.name]
