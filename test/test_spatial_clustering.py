@@ -174,7 +174,7 @@ def test_clustering_greedy_modularity(scipy_network):
     for c in (n.c.buses, n.c.lines):
         c.static = c.static.filter(c.defaults.index)
     busmap = n.cluster.spatial.busmap_by_greedy_modularity(n_clusters=50)
-    assert busmap.index.equals(n.buses.index.astype(str))
+    assert busmap.index.equals(n.c.buses.static.index.astype(str))
     assert busmap.nunique() == 50
     nc = n.cluster.spatial.cluster_by_greedy_modularity(n_clusters=50)
     assert len(nc.buses) == 50

@@ -765,7 +765,7 @@ def test_reexport_drops_removed_components(ac_dc_network, tmp_path, fmt):
             n.export_to_csv_folder(fn)
 
     export()
-    n.remove("Generator", n.generators.index)
+    n.remove("Generator", n.c.generators.static.index)
     export()
 
     assert pypsa.Network(fn).generators.empty
@@ -814,7 +814,7 @@ def test_excel_from_url(ac_dc_network, tmp_path, monkeypatch):
     with pypsa.option_context("general.allow_network_requests", True):
         n = pypsa.Network("https://example.com/network.xlsx")
 
-    assert n.generators.index.equals(ac_dc_network.generators.index)
+    assert n.c.generators.static.index.equals(ac_dc_network.c.generators.static.index)
 
 
 def test_failed_url_retrieval_raises(monkeypatch):
