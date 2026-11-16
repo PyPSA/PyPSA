@@ -1,0 +1,27 @@
+{
+  "commit": "a399eb4",
+  "objectives": {
+    "ac_dc_meshed": 18441021.47772922,
+    "ac_dc_meshed_operational_limit": 1739868.677448988,
+    "ac_dc_meshed_stochastic": 22563101.77622393,
+    "storage_hvdc": 15881838.605836188,
+    "storage_hvdc_operational_limit": 2390603.9272495275,
+    "scigrid_de": 1038959.807342303,
+    "scigrid_de_security_constrained": 339758.4578239928,
+    "scigrid_de_transmission_losses": 470053.58507061197,
+    "model_energy": 6088729141.034211,
+    "stochastic_network": 141599.50972738944,
+    "multi_period": 106764.61538461539,
+    "multi_period_expansion_limits": 142233.1074481071,
+    "multi_period_growth_limit": 1183057.0279720281,
+    "multi_period_storage_primary_energy": 496853.9163170156,
+    "multi_period_storage_stochastic": 628626.7099242421,
+    "unit_commitment": 762500.0,
+    "unit_commitment_link": 267333.0,
+    "unit_commitment_extendable": 14700.0,
+    "unit_commitment_extendable_linearized": 14700.0,
+    "unit_commitment_linearized": 1241250.0,
+    "piecewise_costs": 7970.0,
+    "multiport_process": 2571.4285714285716
+  }
+}
