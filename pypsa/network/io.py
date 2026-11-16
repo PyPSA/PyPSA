@@ -2377,11 +2377,13 @@ class NetworkIOMixin(_NetworkABC):
             )
             raise ValueError(msg)
 
+        # Keep one curve per component: the new one only if overwrite is set
+        new_names = df.columns.unique("name")
+        old_names = existing.columns.unique("name")
         if overwrite:
-            # Drop existing entries for the new components
-            new_names = df.columns.unique("name")
-            keep = ~existing.columns.get_level_values("name").isin(new_names)
-            existing = existing.loc[:, keep]
+            existing = existing.drop(columns=new_names, level="name", errors="ignore")
+        else:
+            df = df.drop(columns=old_names, level="name", errors="ignore")
 
         # Align piecewise indices: union of existing and new
         all_piecewise = existing.index.union(df.index)
