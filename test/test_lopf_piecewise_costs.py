@@ -526,7 +526,7 @@ class TestPiecewiseCostsErrors:
             n.optimize.create_model(include_objective_constant=False)
 
 
-SUPPLIERS = {
+SUPPLIERS: dict[str, dict[str, Any]] = {
     "Generator": {"bus": "bus0"},
     "Link": {"bus0": "bus1", "bus1": "bus0"},
     "Process": {"bus0": "bus1", "bus1": "bus0", "rate0": -1, "rate1": 1},
@@ -549,7 +549,7 @@ def _supplied_load(component: str, attribute: str, cost: Any) -> pypsa.Network:
     n.add("Generator", "backup", bus="bus0", p_nom=1000, marginal_cost=100)
     n.add("Load", "load", bus="bus0", p_set=50)
     nom = n.components[component]._operational_attrs["nom"]
-    build = {nom: 100}
+    build: dict[str, Any] = {nom: 100}
     if attribute == "capital_cost":
         build = {f"{nom}_extendable": True, f"{nom}_max": 100}
     n.add(component, "unit", **SUPPLIERS[component], **build, **{attribute: cost})
