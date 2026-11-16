@@ -3,6 +3,16 @@
 # SPDX-License-Identifier: MIT
 
 parameters:
+  StorageUnit_p_min_pu:
+    description: least power, per unit of nominal power
+    dims: [scenario, snapshot, storage_unit]
+  StorageUnit_p_max_pu:
+    description: most power, per unit of nominal power
+    dims: [scenario, snapshot, storage_unit]
+  StorageUnit_p_set:
+    description: a given net power schedule, dispatch minus storing. No value means no row
+    dims: [scenario, snapshot, storage_unit]
+    missing: absent
   StorageUnit_max_hours:
     description: energy capacity, in hours of dispatch at nominal power
     dims: [scenario, storage_unit]

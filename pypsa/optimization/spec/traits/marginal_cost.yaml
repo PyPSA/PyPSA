@@ -35,16 +35,6 @@ macros:
       by=snapshot_period[period]), over=DIM), over=snapshot)
 
 parameters:
-  COMPONENT_p_min_pu:
-    description: least power, per unit of nominal power
-    dims: [scenario, snapshot, DIM]
-  COMPONENT_p_max_pu:
-    description: most power, per unit of nominal power
-    dims: [scenario, snapshot, DIM]
-  COMPONENT_p_set:
-    description: a given power schedule. No value means no row
-    dims: [scenario, snapshot, DIM]
-    missing: absent
   COMPONENT_marginal_cost:
     description: cost of one unit of energy dispatched
     dims: [scenario, snapshot, DIM]

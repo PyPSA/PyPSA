@@ -7,7 +7,6 @@ given:
     COMPONENT_NOM: {dims: [scenario, DIM]}
     COMPONENT_NOM_extendable: {dims: [DIM], dtype: bool}
     COMPONENT_active: {dims: [snapshot, DIM], dtype: bool}
-    COMPONENT_p_set: {dims: [scenario, snapshot, DIM]}
   variables:
     COMPONENT_NOM_ext: {dims: [DIM]}
   expressions:
@@ -19,6 +18,16 @@ dimensions:
   DIM: {}
 
 parameters:
+  COMPONENT_p_min_pu:
+    description: least power, per unit of nominal power
+    dims: [scenario, snapshot, DIM]
+  COMPONENT_p_max_pu:
+    description: most power, per unit of nominal power
+    dims: [scenario, snapshot, DIM]
+  COMPONENT_p_set:
+    description: a given power schedule. No value means no row
+    dims: [scenario, snapshot, DIM]
+    missing: absent
   COMPONENT_e_sum_min:
     description: least energy over the horizon; minus infinity means no row
     dims: [scenario, DIM]
