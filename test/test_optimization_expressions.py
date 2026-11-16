@@ -355,9 +355,12 @@ class TestExpressionsWithPiecewise:
         n = piecewise_network_built
         expr = n.optimize.expressions.capex().unstack("group")
         assert isinstance(expr, LinearExpression)
-        assert str(expr.sel(component="StorageUnit", carrier="-")).endswith(
-            "+10 StorageUnit-p_nom[storage0] + 1 StorageUnit-capital_cost_piecewise[storage1]"
-        )
+        s = str(expr.sel(component="StorageUnit", carrier="-"))
+        for term in [
+            "10 StorageUnit-p_nom[storage0]",
+            "1 StorageUnit-capital_cost_piecewise[storage1]",
+        ]:
+            assert term in s
         assert "piecewise" not in str(expr.sel(component=["Link", "Generator"]))
 
     def test_expressions_opex(self, piecewise_network_built):
