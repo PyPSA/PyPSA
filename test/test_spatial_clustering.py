@@ -169,6 +169,17 @@ def test_default_clustering_hac(scipy_network):
     assert len(nc.buses) == 50
 
 
+def test_clustering_greedy_modularity(scipy_network):
+    n = scipy_network
+    for c in (n.c.buses, n.c.lines):
+        c.static = c.static.filter(c.defaults.index)
+    busmap = n.cluster.spatial.busmap_by_greedy_modularity(n_clusters=50)
+    assert busmap.index.equals(n.buses.index.astype(str))
+    assert busmap.nunique() == 50
+    nc = n.cluster.spatial.cluster_by_greedy_modularity(n_clusters=50)
+    assert len(nc.buses) == 50
+
+
 def test_cluster_accessor(scipy_network):
     n = scipy_network
     prepare_network_for_aggregation(n)
