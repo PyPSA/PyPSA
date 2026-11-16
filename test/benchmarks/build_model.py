@@ -10,7 +10,9 @@
 `measure` times the installed PyPSA: each network runs in a fresh process, so
 `cold` is the first build of a process and `warm` the fastest of the next ones.
 `compare` prints a table and fails when a warm build exceeds its budget, the
-largest allowed ratio to the reference.
+largest allowed ratio to the reference. The budgets are a ratchet: lower one
+to about 1.15 times its measured ratio when a change speeds the build up, until
+it reaches 1.1.
 """
 
 from __future__ import annotations
@@ -33,10 +35,10 @@ SPARSE = {
     "carbon_management": True,
 }
 BUDGET = {
-    "ac_dc_meshed": 2.2,
-    "scigrid_de": 2.0,
-    "model_energy": 2.5,
-    "carbon_management": 2.2,
+    "ac_dc_meshed": 2.05,
+    "scigrid_de": 1.6,
+    "model_energy": 2.15,
+    "carbon_management": 1.6,
 }
 
 
